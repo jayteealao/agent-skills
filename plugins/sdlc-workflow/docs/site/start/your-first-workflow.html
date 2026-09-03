@@ -11,6 +11,7 @@
 <main>
 <h1>Your first workflow</h1>
 <p class="lede">This tutorial takes one small, real feature through the standard lifecycle, from intake to handoff. You see what each stage asks, what each stage writes, and how each stage passes work to the next.</p>
+<div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
 
 <h2>The running example</h2>
 <p>We add a <code>--json</code> flag to the <code>export</code> command of a CLI tool. The flag makes the command emit machine-readable output alongside its existing table format. The example is deliberately small. It is big enough to exercise every stage, and small enough that you can follow the whole arc in one sitting. Everything below uses the slug <code>export-json-flag</code>. The slug is the stable, kebab-case name that the workflow gets at intake and keeps forever. Every artifact the lifecycle writes lands under <code>.ai/workflows/export-json-flag/</code> in your repository, numbered by stage.</p>

@@ -1,5 +1,5 @@
 ---
-description: Autonomous end-to-end lifecycle driver. The Claude-only, no-human-gates sibling of `/wf auto` — drives an already-started workflow forward by running each stage as a background-workflow subagent and RESOLVING each stage gate itself by a written Autonomous Decision Policy (instead of pausing for the user), recording every decision into the artifact. Two modes — `/wf yolo <slug>` drives every slice then the final review and stops BEFORE handoff; `/wf yolo <slug> <slice>` drives one slice to its end and routes to the next. Built on Claude Code's Workflow tool; writes no artifact of its own; never opens a PR, runs handoff/ship/retro, or fixes CI.
+description: Autonomous end-to-end lifecycle driver (Claude Code only). The no-human-gates sibling of `/wf auto` — drives an already-started workflow forward by running each stage as a background-workflow subagent and RESOLVING each stage gate itself by a written Autonomous Decision Policy (instead of pausing for the user), recording every decision into the artifact. Two modes — `/wf yolo <slug>` drives every slice then the final review and stops BEFORE handoff; `/wf yolo <slug> <slice>` drives one slice to its end and routes to the next. Built on Claude Code's Workflow tool; writes no artifact of its own; never opens a PR, runs handoff/ship/retro, or fixes CI.
 argument-hint: <slug> [<slice>]
 ---
 
@@ -13,7 +13,7 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `/wf yolo`, the **autonomous lifecycle driver**. It does what `/wf auto` does — sequence the existing `/wf` stages on an already-started workflow — but where `auto` **pauses** at every stage gate for the user, `yolo` **resolves that gate itself**, in the user's best interest, by the Autonomous Decision Policy, and drives the slug to the review endpoint **without stopping**. It runs the stages as background-workflow subagents via Claude Code's **Workflow** tool. The user typing `/wf yolo <slug>` **is** the explicit opt-in to run that tool.
 
-> **Claude-only.** `yolo` is built on the Workflow tool, which the Codex runtime does not have. It exists only in the Claude build of this plugin and is never mirrored to `sdlc-workflow-codex`. There is no Codex `/wf yolo`.
+> **Claude Code only.** `yolo` is built on the Workflow tool, which Codex does not have. Under Codex this key is unavailable: treat it as an unknown key and point the user to `/wf auto` (see [_host-invocation.md](_host-invocation.md)). This file is one of the named host-contract files and may describe Claude Code's tools directly.
 
 > **Relationship to `/wf auto`.** `auto` is unchanged — the human-in-the-loop driver. `yolo` does not replace, modify, or weaken it. They are two drivers over the same stage references and the same artifact state-machine; the only difference is **who answers the gates**. Prefer `auto` when you want to review each gate; reach for `yolo` when you want the slug built and reviewed autonomously and will inspect the recorded decisions afterward.
 

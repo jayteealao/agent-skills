@@ -4,13 +4,13 @@ argument-hint: "[focus-area] [count]"
 ---
 
 # Output boundary & shared context
-Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake ideate`, a **pre-pipeline ideation utility** for the SDLC lifecycle.
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-ideate-<descriptor>.md` (`type: slice`, `slice-type: ideate`, `compressed: true`, `origin: intake/ideate`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `ideate → compressed slice <slice-slug> on <slug>`.
+If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-ideate-<descriptor>.md` (`type: slice`, `slice-type: ideate`, `compressed: true`, `origin: intake/ideate`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `ideate → compressed slice <slice-slug> on <slug>`.
 
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
@@ -70,7 +70,7 @@ You are an **opportunity discoverer and adversarial filter**, not a problem solv
 
 Launch exploration sub-agents in parallel. Each sub-agent gets a specific lens and must return **structured findings** — not generic advice, but specific evidence from this codebase. Launch only the lenses relevant to the focus area (or all six if no focus).
 
-**Model for every dispatched lens agent:** `haiku`. REQUIRED on every `Task` call. Each lens reads code + emits structured findings against a rubric (complexity, performance, security, DX, gaps, architecture). The adversarial filtering step that comes later does the judgment work; the per-lens fan-out is bounded extraction. Haiku is the right tier.
+**Effort tier for every dispatched lens agent:** **low** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch. Each lens reads code + emits structured findings against a rubric (complexity, performance, security, DX, gaps, architecture). The adversarial filtering step that comes later does the judgment work; the per-lens fan-out is bounded extraction. Low is the right tier. Dispatch in waves of at most 6.
 
 Prompt each lens agent with its goal below plus this shared evidence rule: every finding cites
 `file:line` (or a file range) from this codebase, states the problem, states why it matters, and
@@ -164,7 +164,7 @@ Check the active workflows discovered in Step 0. If this idea is already being w
 Would fixing this produce a meaningful improvement proportional to the effort? An xl effort to fix a low-impact formatting inconsistency is not worth surfacing. Cull if impact/effort ratio is unjustifiable.
 
 **Challenge 4 — Is it specific enough to act on?**
-Can someone run `wf-intake` on this right now with enough clarity to shape it? Vague ideas like "improve the architecture" or "write more tests" fail this — they need to be decomposed into something actionable. Cull if not specific enough to intake as-is.
+Can someone run `/wf intake` on this right now with enough clarity to shape it? Vague ideas like "improve the architecture" or "write more tests" fail this — they need to be decomposed into something actionable. Cull if not specific enough to intake as-is.
 
 **Challenge 5 — Is this the right level?**
 Some findings reveal symptoms rather than root causes. If two candidates are both symptoms of the same underlying problem, cull the symptom and keep the root cause (or merge them into one candidate that addresses the root).
@@ -207,9 +207,9 @@ Raw candidates: <N>  |  Culled by filter: <N>  |  Survivors: <N>  |  Showing: <N
 ### #2 — ...
 ```
 
-Then ask which ideas to pursue. `AskUserQuestion` supports at most 4 options — so:
+Then ask which ideas to pursue. A gate question carries at most 4 options ([_gate-question.md](../_gate-question.md)) — so:
 
-- **≤3 ranked ideas:** `AskUserQuestion`, `multiSelect: true`, one option per idea (label `#N — <Title>`, description = the entry command) plus "None — save list and decide later".
+- **≤3 ranked ideas:** a multi-select gate question, one option per idea (label `#N — <Title>`, description = the entry command) plus "None — save list and decide later".
 - **4+ ranked ideas:** ask in chat instead — "Reply with the numbers of the ideas to act on (e.g. `1 3`), or `none` to save the list and decide later." A 10-option question widget is unbuildable; the numbered chat reply is the same decision.
 
 **Persist the selection** — the answer is a decision, not chat exhaust: record the selected idea ids in `01-ideate.md` frontmatter as `selected: [IDEA-NNN, …]` (empty list for "none") and append a one-line `## Selection` note to the body (who picks later when "none"). For each selected idea, offer the exact entry command to run (new-workflow ideas as `/wf intake <slug-suggestion> from <slug>`; extension-shaped ideas — those that grow an existing workflow — as `/wf intake <existing-slug> <scope>`, never forced into a new-workflow form):
@@ -226,7 +226,7 @@ A single selected idea is the pick: apply `# Pick — decision closure` for it. 
 
 The terminal analysis modes root in a `type: workflow-index` slug workflow (the lead is the only artifact). Write **two** files under `.ai/workflows/<slug>/` (the slug derived in Step 0 sub-step 2b), then register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](default.md) Step 10.
 
-Generate a timestamp: `date -u +"%Y%m%dT%H%M%SZ"` via Bash.
+Generate a timestamp (UTC compact `<yyyymmdd>T<hhmmss>Z`) per [_timestamp.md](../_timestamp.md).
 
 **`00-index.md` — `type: workflow-index`** (lightweight; analysis modes do not get the heavy 22-field `type: index`). The workflow stays **open until the pick** — `status: ready`, `next-command: user-picks`, never `complete`-and-parked:
 ```yaml
@@ -313,7 +313,7 @@ culled:
 
 ## How to use these results
 
-Each idea above maps directly to a `wf-intake` command. Copy the entry command for any idea you want to pursue. The slug suggestion is a starting point — you can adjust it.
+Each idea above maps directly to a `/wf intake` invocation. Copy the entry command for any idea you want to pursue. The slug suggestion is a starting point — you can adjust it.
 
 If you want to re-run ideation with a different focus or count:
 ```
@@ -336,8 +336,8 @@ the decision and closes the workflow. It never starts the successor — it print
 and stops.
 
 1. **Stamp the artifact.** In `01-ideate.md` frontmatter set `selected: [<idea-id>]`, add
-   `chosen-idea: <id> — <title>`, `chosen-at:` set to the real UTC timestamp (run
-   `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash), and `decision-note: <the trailing prose>` if the
+   `chosen-idea: <id> — <title>`, `chosen-at:` set to the real UTC timestamp (per
+   [_timestamp.md](../_timestamp.md)), and `decision-note: <the trailing prose>` if the
    user supplied any (omit the key otherwise).
 2. **Append a `## Decision` section** to the artifact body: which idea was picked; why (the
    user's reason verbatim, else "user picked without a stated reason"); the sibling ideas it

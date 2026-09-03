@@ -31,8 +31,8 @@ If the first token matches an existing slug whose `workflow-type` IS `task`, tha
 | Escalate | Deliverable turns out to be a code behavior change → `/wf intake fix`; more than one slice of work → `/wf intake` (tripwires below). |
 
 # CRITICAL — task discipline
-- **Re-observe; never assert.** An acceptance criterion closes only on independent observation of the outcome — re-read the system of record after acting (`ls` the directory, `curl` the DNS record, query the API, read the file back). An AC whose only evidence is the agent's own claim of success carries `evidence-rung: asserted` and **cannot close** — the `post-write-verify` hook blocks `result: pass` on the same path that blocks a mock-evidenced code AC. The rung ladder for tasks is a **contract revision (§7)** of [EVIDENCE-SCHEMA-CONTRACT](../../../docs/internal/EVIDENCE-SCHEMA-CONTRACT.md); `verify.md` places the two new rungs on the existing ladder.
-- **The gate is not optional above `local-env`.** A `shared-env`, `external-party`, or `irreversible` task stops for explicit human authorization even when every other signal says proceed. No written policy resolves these unattended (the autonomous drivers refuse `task` slugs entirely).
+- **Re-observe; never assert.** An acceptance criterion closes only on independent observation of the outcome — re-read the system of record after acting (`ls` the directory, `curl` the DNS record, query the API, read the file back). An AC whose only evidence is the agent's own claim of success carries `evidence-rung: asserted` and **cannot close** — managed-artifact enforcement ([_host-invocation.md](_host-invocation.md)) blocks `result: pass` on the same path that blocks a mock-evidenced code AC. The rung ladder for tasks is a **contract revision (§7)** of [EVIDENCE-SCHEMA-CONTRACT](../../../docs/internal/EVIDENCE-SCHEMA-CONTRACT.md); `verify.md` places the two new rungs on the existing ladder.
+- **The gate is not optional above `local-env`.** A `shared-env`, `external-party`, or `irreversible` task stops for explicit human authorization even when every other signal says proceed. No written policy resolves these unattended — the non-interactive default is STOP with the missing authorization recorded, never proceed (the drivers refuse `task` slugs entirely).
 - **`task` is not a todo list.** One task = one outcome. More than one independent outcome → enumerate them and have the user pick one, or escalate to a feature.
 - `current-stage` stays inside the standard enum — `implement` while working, `verify` while checking. Never a bespoke label.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
@@ -49,7 +49,7 @@ If the first token matches an existing slug whose `workflow-type` IS `task`, tha
 
 Author the brief. Ask at most **2 questions** in chat; answers go inline into the artifact (no `po-answers.md`).
 
-`01-task.md` (`type: intake`; satisfies the intake required set: `status: complete`, `stage-number: 1`, `created-at`/`updated-at` from `date -u +"%Y-%m-%dT%H:%M:%SZ"`, `tags`, `refs`, `next-command`, `next-invocation`) carries:
+`01-task.md` (`type: intake`; satisfies the intake required set: `status: complete`, `stage-number: 1`, `created-at`/`updated-at` per [_timestamp.md](_timestamp.md), `tags`, `refs`, `next-command`, `next-invocation`) carries:
 
 - **Restated request** — what outcome this task exists to produce, in one paragraph.
 - **`blast-radius`** (frontmatter, MANDATORY) — one of:
@@ -70,7 +70,7 @@ Author the brief. Ask at most **2 questions** in chat; answers go inline into th
 
 `00-index.md` is a fully-conformant `type: index` (the heavy 22-field set from `intake/default.md`) plus `workflow-type: task`. `progress:` marks `shape`, `slice`, `plan` as `skipped`; `review`, `handoff`, `ship` as `skipped` (revisited at Step 4); `intake: complete`. Register the row in `.ai/workflows/INDEX.md` per `intake/_intake-context.md`.
 
-**[Gate]** — apply the blast-radius table via `AskUserQuestion` (Proceed / Adjust / Escalate). `repo-local` may auto-proceed low-risk at your discretion — record `auto-proceeded-low-risk` in the brief. The bottom three rows always stop; for `irreversible`, the confirmation must echo exactly what will happen, verbatim.
+**[Gate]** — apply the blast-radius table as a gate question per [_gate-question.md](_gate-question.md) (Proceed / Adjust / Escalate). `repo-local` may auto-proceed low-risk at your discretion — record `auto-proceeded-low-risk` in the brief. The bottom three rows always stop; their **non-interactive default is STOP** (record the missing authorization; do not proceed). For `irreversible`, the confirmation must echo exactly what will happen, verbatim.
 
 > **Auto second opinion (objective triggers).** At the gate, **auto-invoke** `/consult codex <critique this task brief: steps, rollback, blast radius>` (pinning `codex`/`claude` keeps it free) when ANY of:
 > - `blast-radius` is `shared-env`, `external-party`, or `irreversible`;
@@ -88,13 +88,13 @@ Write `06-verify.md` (`type: verify`) with per-AC evidence rows carrying `eviden
 
 - **`live`** — you re-read the real system of record after acting. For a task, non-runtime systems of record count as live observation: `ls` the directory, `curl` the DNS record, query the API, read the file back (the §7 gloss).
 - **`attested`** — a named external party or human confirmed the outcome; record the citation (vendor email, signoff comment, ticket URL). The only rung available for the coordination class. Weaker than `live`, but honest.
-- **`asserted`** — you claim success with **no independent read-back**. Presumptively fictional. **Cannot close an AC**: count every user-observable AC at `asserted` (alongside `cited-mock`/`uncited-mock`/`static`) into `metric-acceptance-mock-rung`, and the `post-write-verify` hook blocks `result: pass` while that count is > 0. "I moved the files" without an `ls` afterward fails the gate.
+- **`asserted`** — you claim success with **no independent read-back**. Presumptively fictional. **Cannot close an AC**: count every user-observable AC at `asserted` (alongside `cited-mock`/`uncited-mock`/`static`) into `metric-acceptance-mock-rung`, and managed-artifact enforcement ([_host-invocation.md](_host-invocation.md)) blocks `result: pass` while that count is > 0. "I moved the files" without an `ls` afterward fails the gate.
 
 Set `result: pass` only when every AC closes at `live` or `attested`; otherwise `result: partial` with the un-observed ACs named. The full ladder and gate rules are the contract's — cite [EVIDENCE-SCHEMA-CONTRACT §7](../../../docs/internal/EVIDENCE-SCHEMA-CONTRACT.md) and `verify.md`; do not restate them.
 
 # Step 4 — Hand off
 
-1. Update `00-index.md`: `current-stage: verify`, `status: active` → close the loop honestly — a task whose ACs all closed sets `status: closed`, `close-reason: completed`, `closed-at` (a completed task has nothing left to drive; `/wf close <slug>` is not required). A task with open ACs stays `active` with `next-invocation` naming the missing observation.
+1. Update `00-index.md`: `current-stage: verify` → close the loop honestly — a task whose ACs all closed sets `status: closed`, `close-reason: completed`, `closed-at` (a completed task has nothing left to drive; `/wf close <slug>` is not required). A task with open ACs stays `active` with `next-invocation` naming the missing observation.
 2. **If the task produced a repo diff worth reviewing or merging**, flip `review`/`handoff` from `skipped` to `not-started` and recommend ad-hoc `/wf review <dimension>` or `/wf handoff <slug>`. Otherwise they stay `skipped` — marked honestly, not silently absent.
 3. `10-retro.md` on request only.
 4. Return per [_chat-return.md](_chat-return.md) — narrative lead, then:

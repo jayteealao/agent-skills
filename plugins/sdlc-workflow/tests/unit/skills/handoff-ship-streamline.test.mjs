@@ -17,12 +17,10 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const codexRoot = path.resolve(pluginRoot, '..', 'sdlc-workflow-codex');
 
 const trees = [
   { name: 'main', root: pluginRoot },
-  { name: 'codex', root: codexRoot },
-].filter((t) => existsSync(path.join(t.root, 'skills', 'wf', 'reference')));
+];
 
 const ref = (root, rel) => readFileSync(path.join(root, 'skills', 'wf', 'reference', rel), 'utf8');
 
@@ -58,12 +56,10 @@ test('W1.3 — the gate runs BEFORE the push and reuses the existing fix path', 
     assert.ok(push > gate, `${name}: the pre-push gate no longer precedes the push — it gates nothing`);
     // Ordering alone is not enough in the main tree, where the sequence is a real
     // task graph: T4 must be BLOCKED by T3.8, or the push can jump the gate. The
-    // codex tree has no Task tool — its sequence is a plain ordered list, so
-    // position is the only ordering it has.
-    if (name === 'main') {
-      assert.match(src, /T4: `subject: "Push branch to remote"`[^\n]*addBlockedBy: \["T3\.8"\]/,
-        `${name}: T4 no longer waits on the pre-push gate`);
-    }
+    // Host-neutral prose states the gate as an ordering contract, not as a
+    // task-tracker dependency (the progress surface is a host concern).
+    assert.match(src, /T4 \(push\) never runs before T3\.8 \(the local pre-push gate\) passes/,
+      `${name}: T4 no longer waits on the pre-push gate`);
     assert.match(src, /Local fix rounds do \*{0,2}NOT\*{0,2} consume/i,
       `${name}: local rounds started consuming the CI fix-round budget again`);
   }

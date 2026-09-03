@@ -15,7 +15,7 @@ rules in exactly one place: here.
 
 The `/wf design` dispatcher loads the whole file (preflight, image gate, mutation lock included); lifecycle stages never touch those command-only sections.
 
-> Load with: `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/design/_design-context.md`
+> Load with: `design/_design-context.md`
 
 ---
 
@@ -33,8 +33,8 @@ Priority (first match wins):
 
 If PRODUCT.md lacks the field, infer from its Users and Product Purpose sections. Load the
 matching register reference:
-`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/design/brand.md` or
-`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/design/product.md`.
+`brand.md` or
+`product.md`.
 
 ## Context gathering
 
@@ -114,9 +114,10 @@ it in its own focused-contract step.
   reason. An empty or generic reason is **INVALID** — name *why* no probe was needed (e.g.
   "text-only fallback: no image backend available", "token-only transform, no new surface").
 
-The `imagery` skill (`${CLAUDE_PLUGIN_ROOT}/skills/imagery/SKILL.md`) is invoked internally
-and fans out to the best available image backends at runtime (built-in `image_gen` always; the
-gpt-image-2 / nano-banana API backends when `externalDispatch.enabled`); the caller records the
+The `imagery` skill (`../../../imagery/SKILL.md`) is invoked internally
+and fans out to the best available image backends at runtime (the host's built-in image tool
+where one exists — see the imagery provider table — plus the gpt-image-2 / nano-banana API
+backends when `externalDispatch.enabled`); the caller records the
 `IMAGEGEN_RESULT` and sets the gate. (Supersedes the former `imagegen` skill, D14.)
 
 ## Preflight gates (run before any design work that edits files)

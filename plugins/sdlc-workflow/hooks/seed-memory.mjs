@@ -4,16 +4,18 @@
  * kernel into the agent memory files (MEMORY-SEED-PLAN).
  *
  * Bundled to dist/seed-memory.mjs and invoked on BOTH hosts (the parity rule —
- * same bytes run everywhere): Claude runs it directly from hooks.json; the native
- * Codex SessionStart hook runs it from runtime/dist/. All the real work is the
- * fail-open seedMemoryKernel; this entrypoint is just stdin → config → seed →
- * one-time notice.
+ * same bytes run everywhere): Claude Code runs it directly from hooks/hooks.json;
+ * the Codex SessionStart adapter (hooks/session-start.mjs) spawns it through
+ * runBundled with SDLC_HOST=codex. All the real work is the fail-open
+ * seedMemoryKernel; this entrypoint is just stdin → config → seed → one-time
+ * notice.
  *
- * The notice is a user-facing `systemMessage`, emitted only on Claude: Codex's
- * native notice channel is model-facing additionalContext, and a committed-file
- * write is self-documenting via the fence comment, so on Codex the seed runs
- * silently. Host is detected by the runtime path (the Codex copy lives under
- * sdlc-workflow-codex/runtime/dist/).
+ * The notice is a user-facing `systemMessage`, emitted only on Claude Code:
+ * Codex's native notice channel is model-facing additionalContext, and a
+ * committed-file write is self-documenting via the fence comment, so on Codex
+ * the seed runs silently. Host identity comes from the SDLC_HOST env signal
+ * (SINGLE-SOURCE-PLAN §3.4) — never from this file's own path, which is the
+ * same on both hosts now.
  */
 
 import { loadConfig } from '../lib/config.mjs';
@@ -22,7 +24,7 @@ import { outputSystemMessage, projectRootFromInput } from '../lib/hook-utils.mjs
 import { seedMemoryKernel } from '../lib/memory-seed.mjs';
 import { readStdinJson } from '../lib/stdin.mjs';
 
-const ON_CODEX = import.meta.url.includes('sdlc-workflow-codex');
+const ON_CODEX = process.env.SDLC_HOST === 'codex';
 
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === '1') return;

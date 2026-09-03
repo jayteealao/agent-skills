@@ -60,7 +60,7 @@ Column semantics (all pulled from each workflow's `00-index.md` YAML frontmatter
 | `updated-at` | `updated-at` | ISO 8601 UTC. |
 
 **Procedure:**
-1. **Glob** `.ai/workflows/*/00-index.md` to discover every workflow directory.
+1. **Enumerate** `.ai/workflows/*/00-index.md` to discover every workflow directory.
 2. For each, parse YAML frontmatter and extract the five columns.
 3. If `.ai/workflows/INDEX.md` does **not** exist → **bootstrap**: write it fresh (header + one sorted
    row per discovered workflow). Note in the chat return: *"Bootstrapped `.ai/workflows/INDEX.md` with
@@ -82,7 +82,7 @@ below runs *after* it, against the freshly reconciled set.
    - **PR reference** `pr#N` / `#N` / bare integer → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then **roster mode** below.
    - **Branch name** (matches a `branch:` column in `.ai/workflows/INDEX.md`) → **roster mode** below.
    - **No token** → **dashboard mode** across all workflows.
-3. If enumeration found **no** workflows (registry empty AND glob empty) → tell the user: "No
+3. If enumeration found **no** workflows (registry empty AND disk listing empty) → tell the user: "No
    workflows found. Start one with `/wf intake <description>`." STOP.
 
 # Roster Mode (`pr#N` / branch) — read-only branch view
@@ -145,7 +145,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 2. **Blocked** — `status` is `awaiting-input`, OR `open-questions` non-empty, OR a prerequisite stage awaiting-input.
 3. **Completed** — `status` is `complete`, `shipped`, `closed`, or `abandoned`.
 
-**Staleness:** if `updated-at` is >7 days ago, append `(stale)` to the status (`date -u +%s` vs parsed `updated-at`).
+**Staleness:** if `updated-at` is >7 days ago, append `(stale)` to the status (epoch seconds per [_timestamp.md](_timestamp.md) vs parsed `updated-at`).
 
 **Render the dashboard.** The Runtime column shows `runtime-evidence-status`: `clean` → `—`;
 `deferrals: <N>`; `probe-findings: <N>`; both separated by `+` when both apply.
@@ -245,15 +245,15 @@ If any workflow has `branch-strategy: dedicated`, add a branch summary:
 - If on the wrong branch: ⚠ You are on `<current>` — switch to `<branch>` before the next command.
 ```
 
-6. For the **slice progress matrix**, glob `03-slice-*.md`, `04-plan-*.md`, `05-implement-*.md`,
+6. For the **slice progress matrix**, list `03-slice-*.md`, `04-plan-*.md`, `05-implement-*.md`,
    `06-verify-*.md`, `07-review-*.md` (the `07-review-<slice>.md` master per slice; exclude
    `07-review-<slice>-<command>.md` sub-reviews), `08-handoff.md`. Mark: `✓` complete · `→`
    in-progress/awaiting-input · `✗` failed · `·` pending.
 7. For **branch info**, `git branch --show-current` vs the workflow's `branch` field; warn if mismatched.
 
 8. **Driver liveness** — read the tail of `.ai/workflows/<slug>/.driver-journal.jsonl` if it exists
-   (append-only JSONL heartbeats written by every `/wf yolo` subagent) and apply the staleness rule
-   single-sourced in [_control-file-ownership.md](_control-file-ownership.md), rendering the
+   (append-only JSONL heartbeats written by every autonomous-driver subagent) and apply the staleness
+   rule single-sourced in [_control-file-ownership.md](_control-file-ownership.md), rendering the
    `## Driver` row from its three states. **Never report a driver as running because the journal
    exists**; a session once told a user a dead driver was "currently re-verifying older slices" on
    exactly that reasoning. No journal → omit the section entirely (silence is honest; a fabricated
@@ -270,7 +270,7 @@ If any workflow has `branch-strategy: dedicated`, add a branch summary:
 
 # Deep Mode (`/wf status <slug> deep`) — reality-drift check
 
-`deep` runs the reality reconciliation the former `/wf status <slug>` performed: it checks whether
+`deep` runs the reality reconciliation the former `/wf-meta sync <slug>` performed: it checks whether
 referenced code, tests, PRs, branches, and dependencies actually exist or have drifted, and writes a
 `00-sync.md` report. Run it when a workflow has been idle mid-flight (stages 4–7) and you suspect the
 world moved underneath it. Plain `/wf status <slug>` (no `deep`) does **not** run this — it stays a
@@ -278,8 +278,8 @@ read-only detail view.
 
 1. **Inventory references** from every stage file in `workflow-files`: code file paths, test paths,
    git refs (branch, base, PR, SHAs), dependency/package names, external tickets/APIs. Record source + type.
-2. **Check code reality** — file existence (Glob); freshness (`git log -1 --format="%ai" -- <file>`);
-   flag files modified after the referencing stage as `⚠ drifted`. Test files: existence + pattern validity (Grep).
+2. **Check code reality** — file existence (file listing); freshness (`git log -1 --format="%ai" -- <file>`);
+   flag files modified after the referencing stage as `⚠ drifted`. Test files: existence + pattern validity (content search).
 3. **Check git reality** — branch existence (`git branch --list` / `-r`), current-branch match,
    ahead/behind (`git rev-list --left-right --count <base>...<branch>`), PR status
    (`gh pr view <n> --json state,mergeable,reviewDecision,statusCheckRollup` if `gh` present), SHA existence.
@@ -361,9 +361,9 @@ mutually entangled; split or sequence deliberately" decision).
 When A2 **suspects** an edge but the artifacts don't settle it — two footprints overlapping on the same
 module, or a "needs X" with no obvious producer — **go to the codebase** and confirm or refute,
 reusing Deep Mode's code-reality technique **scoped to the one question** (never a full-tree audit):
-- **File existence + ownership** — Glob the paths both plans name; does the shared module already
+- **File existence + ownership** — list the paths both plans name; does the shared module already
   exist, and which branch last touched it (`git log -1 --format="%ai %an" -- <path>`)?
-- **Symbol reality** — Grep for the symbol/export one slug "needs" and another "provides": already
+- **Symbol reality** — search for the symbol/export one slug "needs" and another "provides": already
   present → *no* edge (the dependency is already satisfied); absent → a *real* producer→consumer edge.
 - **Branch divergence** — for two slugs sharing a branch, `git diff --name-only <base>...<branch>`
   to check whether their footprints actually collide in tracked changes (or only in plan intent).
@@ -399,7 +399,7 @@ the stated priority; if steering implies that, say so and keep the dependency or
 Lead with the single highest-leverage move, then the ranked plan, the blocked set, the decisions, and
 the carried risk. **Every row carries a one-line rationale** so the ranking is auditable, and each
 names a concrete next command that chains into the drivers (`/wf auto <slug>`, or `/wf yolo <slug>`
-for autonomous).
+for autonomous where the host offers it — [_host-invocation.md](_host-invocation.md)).
 
 ```
 ## Portfolio Advice — <N> open · <A> active · <B> blocked · <S> stale     (<date> · scope: <all | branch <b>>)

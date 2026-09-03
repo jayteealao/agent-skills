@@ -18,17 +18,24 @@ chat-summary narratives MUST also follow the structure contract in
 sub-agent this skill spawns. A reference that adds its own writing spec adds to this contract;
 it never replaces it.
 
+# Hosts (MANDATORY)
+This skill runs under both hosts from one source. Prose writes every invocation as `/wf …`;
+the other host's spelling of the same invocation, the `<skill-dir>` rule, key availability,
+gate questions, sub-agents, and timestamps live only in
+[reference/_host-invocation.md](reference/_host-invocation.md) and the three contract files it
+names. Read that file first, then apply its contract to every reference this skill loads.
+
 You are the **single SDLC dispatcher** for the plugin. `/wf` runs **one SDLC operation per key** — not every key writes a numbered stage artifact, and that is by design (Step 2 already tolerates read-only members via `none`). The dispatch table below is the authoritative roster: ten canonical **stages**, five **standalone/drivers**, one **minimal lifecycle** (`task`), two **navigation** members, one **lifecycle-control** member, and three **routers**. `intake` is itself a **mode dispatcher** (plain description → stage 1; mode keyword → compressed entry flow; existing slug + free scope → extension). Your only job is to identify which key the user wants, load its reference body, and follow it verbatim.
 
 > **The dissolve.** The former `/wf-meta` and `/wf-docs` skills are retired — their members are keys here. There is **no `amend`** (corrections are a new slice or a fix) and **no separate augmentation keys** (`shape` decides augmentations; `plan`/`implement`/`verify` apply them). The full retired-surface → new-key mappings live in Resolution rule 3 below.
 
-> **Narrative fragments — any artifact.** Any artifact you write may also ship free narrative fragments (`<stem>.<label>.html.fragment` siblings) whenever a bespoke visual tells the story better than prose — see [reference/_fragment-authoring.md](reference/_fragment-authoring.md) Step F2 and `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
+> **Narrative fragments — any artifact.** Any artifact you write may also ship free narrative fragments (`<stem>.<label>.html.fragment` siblings) whenever a bespoke visual tells the story better than prose — see [reference/_fragment-authoring.md](reference/_fragment-authoring.md) Step F2 and `../../reference/narrative-fragments.md`.
 
 # Step 0 — Resolve the sub-command
 
 Parse `$ARGUMENTS`. The first token must be one of the 22 known keys below; the remaining tokens are passed verbatim to the loaded reference as `$ARGUMENTS` for the underlying operation.
 
-**Known sub-command keys** — each resolves to `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/<key>.md`:
+**Known sub-command keys** — each resolves to `reference/<key>.md`:
 
 ### Stages
 
@@ -53,7 +60,9 @@ Parse `$ARGUMENTS`. The first token must be one of the 22 known keys below; the 
 | `probe`      | `<slug> [target\|sweep]` · or `sweep [path]` | **Runtime-truth verification** of already-built work — drives the running artifact, captures observable output, writes findings as a compressed slice. Two modes: TARGET compares to AC text; **`sweep`** enumerates the whole user surface and compares it to AC + charter constraints + the shared defect taxonomy (`reference/_surface-defects.md`). `sweep` as the FIRST token runs slug-less against any repo, writing `.ai/surface-sweep-<date>.md`. Never writes code. See `reference/probe.md`. |
 | `simplify`   | `[branch [<base>] \| commit <sha-or-range> \| plan <slug> <slice> \| codebase [<path>]]` | **Review-and-route triage.** Three parallel sub-agents review one of four scopes, classify findings, route them downstream. Never writes code. Owns its own first-token resolution. See `reference/simplify.md`. |
 | `auto`       | `<slug> [<slice>]`        | **End-to-end lifecycle driver.** Drives each stage in-process, pausing only when a stage's own gate fires; stops before handoff. Writes no artifact of its own. See `reference/auto.md`. |
-| `yolo`       | `<slug> [<slice>]`        | **Autonomous lifecycle driver (Claude-only).** The no-human-gates sibling of `auto` — resolves each gate by a written policy via the Workflow tool. Stops before handoff. Not in the Codex build. See `reference/yolo.md`. |
+| `yolo`       | `<slug> [<slice>]`        | **Autonomous lifecycle driver (Claude Code only).** The no-human-gates sibling of `auto` — resolves each gate by a written policy. Stops before handoff. Unavailable under Codex. See `reference/yolo.md`. |
+
+**Host availability.** Every key runs under both hosts except `yolo`, which is Claude Code only — see [reference/_host-invocation.md](reference/_host-invocation.md).
 
 ### Minimal lifecycle
 
@@ -82,8 +91,8 @@ Parse `$ARGUMENTS`. The first token must be one of the 22 known keys below; the 
    - If the token is `quick` or a former `/wf-quick` sub-command: *"`/wf-quick` was retired — `fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, and `ideate` are now `/wf intake <mode>`; `probe` and `simplify` are `/wf probe` and `/wf simplify`."*
    - If the token is a former `/wf-meta` member (`next`, `sync`, `resume`, `amend`, `extend`, `skip`, `how`, `announce`, `init-ship-plan`, `build-pipeline`): *"`/wf-meta` was dissolved into `/wf`. `status`→`/wf status` (it also absorbs `next` and `sync`); `resume`→`/wf recap`; `skip`→`/wf close <slug> <slice>`; `how`→`/wf recap <slug> <focus>` (explain) or the `deep-research` skill (research); `announce`→`/wf ship <slug> announce`; `init-ship-plan`/`build-pipeline`→`/wf ship-plan init`/`/wf ship-plan build`; `amend`→`/wf intake <slug> amend <what to change>` — an intake maintenance mode that edits a workflow's *recorded config* (branch strategy, branch, base, review scope, title, tags) against a strict whitelist; correcting built *work* is still a new slice via `/wf intake <slug> <scope>` or `/wf intake <slug> fix`, and the ship plan is `/wf ship-plan edit`; `extend`→`/wf intake <slug> <new scope>`."*
    - If the token is a former `/wf-docs` invocation: *"`/wf-docs` is now `/wf docs` — same behavior (orchestrator or a Diátaxis primitive)."*
-   - If the token is a former augmentation key (`instrument`, `experiment`, `benchmark`, `profile`): *"Augmentations are no longer separate commands — `shape` decides them (`augmentations-needed`) and `plan`/`implement`/`verify` apply them. Ad-hoc profiling is available via `/wf probe`."*
-   - If the token is `setup-wide-logging` (the retired standalone command): *"`setup-wide-logging` is now `/wf observability build` — run `/wf observability init` first to inventory the codebase and author `.ai/observability.md` (language-agnostic, consultative), then `/wf observability build` to realize it, and `/wf observability audit` to review it."*
+   - If the token is a former augmentation key (`instrument`, `experiment`, `benchmark`, `profile`): *"Augmentations are no longer separate keys — `shape` decides them (`augmentations-needed`) and `plan`/`implement`/`verify` apply them. Ad-hoc profiling is available via `/wf probe`."*
+   - If the token is `setup-wide-logging` (the retired standalone skill): *"`setup-wide-logging` is now `/wf observability build` — run `/wf observability init` first to inventory the codebase and author `.ai/observability.md` (language-agnostic, consultative), then `/wf observability build` to realize it, and `/wf observability audit` to review it."*
 
 # Step 0.5 — Fuzzy-suggest unknown slugs (v9.11.0)
 
@@ -108,7 +117,7 @@ After sub-command resolution, before dispatch: if the user passed a positional s
 
 1. Identify the slug candidate — for the applies-to keys it is `$1` of the sub-command's `$ARGUMENTS`. If `$1` is empty (no slug passed), skip Step 0.5 — slug resolution falls through to the reference's single-active inference.
 2. If `.ai/workflows/INDEX.md` does not exist → skip Step 0.5 (no registry → no candidate set). The reference handles the missing-slug case downstream.
-3. Grep `INDEX.md` for an exact match: `grep -P "^<candidate>\t" .ai/workflows/INDEX.md`. If hit → slug is real, dispatch normally.
+3. Search `INDEX.md` for an exact match: `grep -P "^<candidate>\t" .ai/workflows/INDEX.md`. If hit → slug is real, dispatch normally.
 4. **On miss**, fuzzy-match against every row's slug column (including closed rows):
    - Levenshtein edit distance ≤ 2, then substring inclusion (either direction).
    - If no slug satisfies any condition → STOP: *"Unknown slug `<candidate>`. Run `/wf status` to list all workflows, or `/wf intake <description>` to start a new one."*
@@ -119,7 +128,7 @@ After sub-command resolution, before dispatch: if the user passed a positional s
 
 Before dispatch, confirm the project is a git repository: run `git rev-parse --show-toplevel` from the project root. If it succeeds, continue to Step 1. Skip this check when Step 0 ended at the menu (empty `$ARGUMENTS`) or at an unknown-key error.
 
-If it **fails** (not a git repo), do NOT proceed silently. The hub's registry identity is git-derived — in a non-git directory every registration attempt returns `skipped-not-git` with no visible error, queued renders never drain, no dashboard/view is ever rendered, and the slug branches recorded in `INDEX.md` cannot exist. Ask the user first (AskUserQuestion where available; otherwise ask in chat and WAIT for the reply):
+If it **fails** (not a git repo), do NOT proceed silently. The hub's registry identity is git-derived — in a non-git directory every registration attempt returns `skipped-not-git` with no visible error, queued renders never drain, no dashboard/view is ever rendered, and the slug branches recorded in `INDEX.md` cannot exist. Ask the user first (per [_gate-question.md](reference/_gate-question.md)):
 
 > This directory is not a git repository. `/wf` needs git — the hub registers repos by git identity, and slug branches live in git. Run `git init` now?
 > - **Yes — run `git init` (Recommended):** initialize the repo, then continue with the requested operation.
@@ -133,7 +142,7 @@ Across **every** stage, when the work turns on *how a dependency, framework, or 
 
 # Step 1 — Execute
 
-1. Read the reference file in full from `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/<key>.md`.
+1. Read the reference file in full from `reference/<key>.md`.
 2. Treat its content as your instructions for this invocation. Do not summarize, paraphrase, or skip — follow it verbatim.
 3. The reference body contains the operation's full definition (preamble, prerequisites, conditional inputs, output contract, adaptive routing). Honor every conditional input and every artifact write it describes. Router keys (`design`, `ship-plan`, `docs`, `observability`) resolve a sub-key and load a further reference; follow that chain.
 4. The remaining `$ARGUMENTS` after the matched key are the sub-command's own arguments — pass them through verbatim.

@@ -133,7 +133,7 @@ Provisioning ceiling: <ceiling>   Backend: <platform>   Units: <N>
 | D     | dashboards: 3 analyses                    | MISSING       | Write 3 Grafana dashboard JSON files            |
 ```
 
-Then confirm (AskUserQuestion, or ask in chat): **Implement all** · **Select items** (choose which gaps to close
+Then confirm (as a gate question per [_gate-question.md](../_gate-question.md)): **Implement all** · **Select items** (choose which gaps to close
 now) · **Cancel**.
 
 ---
@@ -197,7 +197,7 @@ Files by default. Publishing to a live backend (Grafana API, Datadog dashboard A
 print-only fallback, and never carries a credential.
 
 ## The gate (classes 3–4, whenever a remote/billable step is reached)
-Show the current-vs-desired diff / plan and the exact command, then:
+Show the current-vs-desired diff / plan and the exact command, then ask this gate question ([_gate-question.md](../_gate-question.md)) and WAIT:
 
 ```yaml
 question: "Apply this remote/billable step now? <describe: terraform apply / helm upgrade / publish dashboard>. This provisions a real (possibly billable) resource."

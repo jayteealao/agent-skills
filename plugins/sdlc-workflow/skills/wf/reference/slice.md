@@ -11,7 +11,7 @@ this operation produces: translate workflow context to product language and leak
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
 > above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `wf-slice`, **stage 3 of 10** in the SDLC lifecycle.
+You are running `/wf slice`, **stage 3 of 10** in the SDLC lifecycle.
 
 # Pipeline
 1·intake → 2·shape → `3·slice` → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
@@ -49,14 +49,14 @@ You are a **workflow orchestrator**, not a problem solver.
    - If `02-shape.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve the open shape questions first.
    - **Stack gate (do NOT silently re-detect):** Inspect the `stack:` block in `00-index.md`.
      - If the block is **missing entirely** → STOP. Tell the user: "Step 0.5 stack fingerprint is missing from `00-index.md`. Re-run `/wf intake <slug>` to capture it; that step is the source of truth for downstream tooling decisions." Do NOT attempt to re-detect the stack here — slice is not the place for that, and silent re-detection would diverge from intake's user-confirmed truth.
-     - If `stack.user-confirmed: false` → WARN: "`stack:` was auto-detected but the PO has not confirmed it. Slicing decisions that depend on tooling/platform (e.g., which surfaces ship together) may be wrong. Re-run intake's Batch B confirmation, or proceed and accept the risk?" Use AskUserQuestion if available. If the user proceeds, treat the unconfirmed stack as advisory only — do not let it drive slice boundaries.
+     - If `stack.user-confirmed: false` → WARN: "`stack:` was auto-detected but the PO has not confirmed it. Slicing decisions that depend on tooling/platform (e.g., which surfaces ship together) may be wrong. Re-run intake's Batch B confirmation, or proceed and accept the risk?" Ask it as a gate question per [_gate-question.md](_gate-question.md). If the user proceeds, treat the unconfirmed stack as advisory only — do not let it drive slice boundaries.
      - If `stack.user-confirmed: true` → proceed. The slice strategy MAY reference confirmed platforms/tooling to justify groupings, but MUST NOT introduce new tooling assumptions beyond what's in `stack:`.
    - If `current-stage` in the index is already past slice → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revisions and appends the `revisions:` ledger; no permission question is needed.
 4. **Read** `01-intake.md`, `02-shape.md`, and `po-answers.md`.
 5. **Read design artifacts — mandatory when present** (file existence is optional; consumption is required):
    - `02b-design.md` — **mandatory when present.** If the file exists, you MUST read it and slice boundaries MUST reflect its content. Extract the content inventory, state list (empty/error/loading/first-run), and visual direction. State transitions (e.g., empty state vs populated state) and visual surface boundaries (e.g., main view vs settings drawer) MUST inform slice boundaries — either each distinct state/surface gets its own slice, or the master `03-slice.md` `## Slice Strategy` MUST justify the grouping with one sentence per state/surface.
    - `02c-craft.md` — **mandatory when present.** If the file exists, you MUST read it and the resulting slice boundaries MUST honor it. Extract the `## Mock fidelity inventory` and any per-surface notes. Distinct visual surfaces (e.g., card vs detail vs drawer) and signature interactions MUST be reflected as slice boundaries — either each surface gets its own slice, or the master `03-slice.md` `## Slice Strategy` MUST explicitly justify (with one sentence per surface) why surfaces were grouped into a shared slice. Do NOT re-decompose around token choices, motion specs, or implementation details — those belong to plan/implement. If 02c-craft introduces surfaces or states not present in the shape or 02b-design, surface that as an open question on the master index rather than silently expanding scope.
-   - **State-completeness knowledge (design consumer — when `stack.ui ≠ ∅`).** `slice` *structures around* the design: the brief's state inventory (empty / error / loading / first-run) and the contract's mock-fidelity inventory are candidate slice boundaries — a state or visual surface that carries its own acceptance criteria usually earns its own thin slice. To recognize which states are substantive enough to slice (rather than fold in), load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/design/onboard.md` (empty / first-run states) and `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/design/polish.md` (the 7-state completeness checklist); also load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/design/_design-context.md` for the register and absolute bans — the design floor that holds even when no `02b`/`02c` design artifact exists (a UI feature sliced without `/wf design`). This is structuring, not redesigning — never re-do design work here. Gate: if the `00-index.md` `stack:` block shows no UI layer (`stack.ui` empty), skip the design-knowledge load entirely; non-UI work is unaffected.
+   - **State-completeness knowledge (design consumer — when `stack.ui ≠ ∅`).** `slice` *structures around* the design: the brief's state inventory (empty / error / loading / first-run) and the contract's mock-fidelity inventory are candidate slice boundaries — a state or visual surface that carries its own acceptance criteria usually earns its own thin slice. To recognize which states are substantive enough to slice (rather than fold in), load `design/onboard.md` (empty / first-run states) and `design/polish.md` (the 7-state completeness checklist); also load `design/_design-context.md` for the register and absolute bans — the design floor that holds even when no `02b`/`02c` design artifact exists (a UI feature sliced without `/wf design`). This is structuring, not redesigning — never re-do design work here. Gate: if the `00-index.md` `stack:` block shows no UI layer (`stack.ui` empty), skip the design-knowledge load entirely; non-UI work is unaffected.
    - If neither file exists, skip this step and proceed normally.
 6. **Carry forward** `selected-slice-or-focus` and `open-questions` from the index.
 
@@ -66,13 +66,13 @@ Break a shaped work item into thin, independently verifiable vertical slices. Wr
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
-- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at` and `updated-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Construct every question per [_question-craft.md](_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
+- **Ask multiple-choice PO questions as gate questions** per [_gate-question.md](_gate-question.md) (structured decisions, confirmations). Use freeform chat for open-ended questions. Construct every question per [_question-craft.md](_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Use parallel Explore/subagents for multi-domain research. Do not spin up subagents for trivial work.
+- Use parallel subagents for multi-domain research per [_subagents.md](_subagents.md). Do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 - **Conditional inputs are mandatory when present.** If a file in this command's *Conditional inputs* row exists on disk, read it and honor it in the output — existence is optional, consumption is required; silent omission is a contract violation.
 
@@ -90,7 +90,7 @@ The master `03-slice.md` is an **index** that links to each per-slice file and c
 
 Do this in order:
 1. **Discovery phase — ask about slicing strategy before cutting.**
-   Interview the user with AskUserQuestion before you finalize slice boundaries. Ask only the questions this decomposition needs, batched into as few rounds as the dependency structure allows.
+   Interview the user with gate questions per [_gate-question.md](_gate-question.md) before you finalize slice boundaries. Ask only the questions this decomposition needs, batched into as few rounds as the dependency structure allows.
 
    **Rules:**
    - Every question must be about *how to decompose this specific feature* — reference concrete parts of the shaped spec, not abstract slicing theory.
@@ -115,8 +115,8 @@ Do this in order:
 6c. **Confirm review scope (the roster is now known — intake deliberately did not ask this).**
    `00-index.md` carries the provisional default `review-scope: per-slice` with
    `review-scope-confirmed: false` (v9.136.0 — the PO cannot judge review layout before slicing
-   exists, so intake stopped asking). Now that the slice count is known, ask ONE `AskUserQuestion`
-   with the recommendation informed by the roster:
+   exists, so intake stopped asking). Now that the slice count is known, ask ONE gate question
+   per [_gate-question.md](_gate-question.md) with the recommendation informed by the roster:
    - **Roster has 1 slice** → recommend `Slug-wide`: "One 07-review.md against the cumulative
      branch diff — the natural fit for a single slice."
    - **Roster has >1 slice** → recommend `Per slice (Recommended)`: "Each slice gets its own
@@ -322,4 +322,3 @@ The renderer aggregates per-slice history into the slug overview's
 prior-revisions block. The slice-grid figure-canvas reflects the current
 slice status across the whole slug, including dropped slices (rendered in
 `--blocker` with a strikethrough).
-

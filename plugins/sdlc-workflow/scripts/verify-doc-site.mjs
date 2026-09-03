@@ -89,6 +89,40 @@ for (const rel of pages) {
   }
 }
 
+// --- (e) host-dialect: a page that shows an invocation names its host equivalence
+// (SINGLE-SOURCE-PLAN W5). Every content page that mentions `/wf` must carry
+// the uniform host note (class="host-note") or a host-scoped heading, so a
+// Codex reader is never handed a command spelled for the other host.
+const HOST_NOTE = /class="note host-note"/;
+const HOST_HEADING = /<h[1-3][^>]*>[^<]*(Claude Code|Codex)[^<]*<\/h[1-3]>/;
+for (const rel of pages) {
+  const html = readFileSync(path.join(SITE, rel), 'utf8');
+  if (!/\/wf\b/.test(html)) continue;
+  if (!HOST_NOTE.test(html) && !HOST_HEADING.test(html)) {
+    errors.push(`${rel}: shows a /wf invocation without the host note (class="note host-note") or a host-scoped heading`);
+  }
+}
+
+// --- (f) no live doc names the deleted codex tree ----------------------------
+// docs/site/**/*.html and docs/internal/*.md (top level, not archived/) — the
+// single-source plan itself is the one record allowed to name what it replaced.
+const INTERNAL = path.join(ROOT, 'docs', 'internal');
+const docSources = [
+  ...pages.map((rel) => path.join(SITE, rel)),
+  // SINGLE-SOURCE-PLAN.md is the record of what was replaced; SINGLE-SOURCE-CUTOVER.md
+  // is the per-machine runbook that must name the retired identity to remove it.
+  ...(existsSync(INTERNAL) ? readdirSync(INTERNAL).filter((n) => n.endsWith('.md') && !/^SINGLE-SOURCE-/.test(n)).map((n) => path.join(INTERNAL, n)) : []),
+];
+// start/installation.html carries the machine cutover runbook, which must name the
+// retired identity in the `codex plugin remove` command — the one sanctioned mention.
+const CUTOVER_PAGE = path.join(SITE, 'start', 'installation.html');
+for (const f of docSources) {
+  if (f === CUTOVER_PAGE) continue;
+  if (/sdlc-workflow-codex/.test(readFileSync(f, 'utf8'))) {
+    errors.push(`${path.relative(ROOT, f).replace(/\\/g, '/')}: names the deleted plugins/sdlc-workflow-codex tree — rewrite, or move a historical plan to docs/internal/archived/`);
+  }
+}
+
 // --- report ----------------------------------------------------------------
 if (errors.length) {
   console.error(`✗ doc-site verification failed (${errors.length} issue(s)):`);

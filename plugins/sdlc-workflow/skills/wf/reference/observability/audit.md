@@ -88,17 +88,18 @@ failure-scenario, route }`.
 
 # Step 2 — Dispatch the fan-out (default) or one lens
 
-**Default (no lens token) — full parallel fan-out.** Prepare ONE `Task` per lens (all seven):
-- `subagent_type: general-purpose`.
-- `model` (pass explicitly — reviewers must not inherit the parent model): `sonnet` for `dark-path-coverage`,
-  `schema-consistency`, `pii-and-redaction`, and `sampling-soundness` (the reasoning-heavy lenses); `haiku` for
-  `one-event-discipline`, `pipeline-and-backend`, and `dashboard-coverage`.
+**Default (no lens token) — full parallel fan-out.** Prepare ONE read-only dispatch per lens (all seven), per
+[_subagents.md](../_subagents.md):
+- Effort tier (set explicitly — reviewers must not inherit the parent configuration): **high** for
+  `dark-path-coverage`, `schema-consistency`, `pii-and-redaction`, and `sampling-soundness` (the reasoning-heavy
+  lenses); **medium** for `one-event-discipline`, `pipeline-and-backend`, and `dashboard-coverage`.
 - `description: "obs-audit-<lens>"`.
-- `prompt` = the lens's row question expanded into its concrete checklist + the parsed contract + the built-surface
+- prompt = the lens's row question expanded into its concrete checklist + the parsed contract + the built-surface
   index from Step 0 + the languages present + the standard findings schema + the grounding instruction above +
   the refute-before-report rule + "return findings inline as a JSON list; write no files."
 
-**Dispatch in parallel** — one assistant message carrying all seven `Task` calls. Sequential dispatch is forbidden.
+**Dispatch in parallel, in waves of ≤6** per [_subagents.md](../_subagents.md): one wave carrying six lenses,
+collect it, then the seventh. Sequential single-lens dispatch is forbidden.
 
 **Single-lens mode** (`$ARGUMENTS` first token is a lens key) — run just that lens inline over the same evidence,
 merging its findings into the ledger exactly as the fan-out does.
@@ -192,10 +193,11 @@ only if a bespoke visual genuinely tells the story better than prose.
 
 # Step 5 — Triage the blockers and highs (interactive)
 
-Before finalizing, triage each **BLOCKER and HIGH** open finding with the user (AskUserQuestion, one decision per
-finding or batched; or ask in chat): **accept** (leave `open`), **acknowledge** (known/intentional — record a
-freeform reason, set `status: acknowledged`), or **reject** (false positive — drop it; if it keeps re-surfacing,
-tighten the lens id). MED/LOW/NIT land as `open` without a prompt.
+Before finalizing, triage each **BLOCKER and HIGH** open finding with the user as a gate question per
+[_gate-question.md](../_gate-question.md) — present each (finding text + failure scenario + suggested route), one
+decision per finding or batched — and let the user choose **accept** (leave `open`), **acknowledge**
+(known/intentional — record a freeform reason, set `status: acknowledged`), or **reject** (false positive — drop
+it; if it keeps re-surfacing, tighten the lens id). MED/LOW/NIT land as `open` without a prompt.
 
 **`triage` mode** (`$ARGUMENTS` == `triage`) skips the fan-out: re-read the ledger, re-present every
 `acknowledged` finding, let the user re-decide, re-write the ledger, emit the summary.

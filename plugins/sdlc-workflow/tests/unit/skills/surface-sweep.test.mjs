@@ -19,12 +19,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const codexRoot = path.resolve(pluginRoot, '..', 'sdlc-workflow-codex');
 
 const trees = [
   { name: 'main', root: pluginRoot },
-  { name: 'codex', root: codexRoot },
-].filter((t) => existsSync(path.join(t.root, 'skills', 'wf', 'reference')));
+];
 
 const refPath = (root, rel) => path.join(root, 'skills', 'wf', 'reference', rel);
 const ref = (root, rel) => readFileSync(refPath(root, rel), 'utf8');
@@ -357,14 +355,11 @@ test('main tree spells the commands it names (no shell path mangling)', () => {
   }
 });
 
-test('codex mirror carries no `/wf` spelling in the new surfaces', () => {
-  const codex = trees.find((t) => t.name === 'codex');
-  if (!codex) return; // codex tree not present in this checkout
+test('single-source: the new surfaces carry no `$wf` spelling (the Codex sigil maps only in _host-invocation.md)', () => {
   for (const rel of ['_surface-defects.md', 'probe.md', 'runtime-adapters.md']) {
-    const src = ref(codex.root, rel);
-    // Command spelling only — relative paths like `../../wf/reference/x.md` are legitimate.
-    const hits = src.split('\n').filter((l) => /(?<![\w./-])\/wf\b/.test(l));
+    const src = ref(pluginRoot, rel);
+    const hits = src.split('\n').filter((l) => /\$wf\b/.test(l));
     assert.equal(hits.length, 0,
-      `codex: ${rel} carries Claude \`/wf\` spelling:\n  ${hits.slice(0, 3).join('\n  ')}`);
+      `${rel} carries the Codex \`$wf\` sigil:\n  ${hits.slice(0, 3).join('\n  ')}`);
   }
 });

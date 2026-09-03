@@ -18,7 +18,7 @@ Each adapter section follows the same shape:
 
 ## Stack fingerprint integration
 
-Callers should re-use the `stack:` block written by `wf intake` Step 0.5 (and confirmed by the PO in intake Batch B) to short-circuit adapter selection. The contract:
+Callers should re-use the `stack:` block written by `/wf intake` Step 0.5 (and confirmed by the PO in intake Batch B) to short-circuit adapter selection. The contract:
 
 1. If `stack.platforms` is present and `user-confirmed: true`, intersect it with available adapters to narrow the match set before running detection signals. Detection signals stay authoritative for *how* to drive; the fingerprint is just a fast filter for *which* adapters are in scope.
 2. If `stack:` is missing or `user-confirmed: false`, fall back to running every adapter's detection signal against the repo as described below.
@@ -308,14 +308,15 @@ SCRIPT
 - Screenshots are saved to `~/.dev-browser/tmp/` — copy them to the evidence directory.
 - Use `--connect` flag instead of `--headless` if the user has a running Chrome with remote debugging enabled.
 
-### 2. Chrome MCP tools (fallback)
-If `mcp__claude-in-chrome__*` tools are available in the session:
-- `mcp__claude-in-chrome__navigate` to load pages
-- `mcp__claude-in-chrome__read_page` to inspect content
-- `mcp__claude-in-chrome__computer` for interactions (click, type)
-- `mcp__claude-in-chrome__get_page_text` to read page content
-- `mcp__claude-in-chrome__read_console_messages` to check for errors
-- `mcp__claude-in-chrome__read_network_requests` to verify API calls
+### 2. Session-native browser tools (fallback)
+If the session exposes browser-control tools (a browser MCP server or a host browser plugin — a host surface, see [_host-invocation.md](_host-invocation.md)), use them:
+- navigate to load pages
+- page/DOM and page-text reads to inspect content
+- pointer/keyboard interactions (click, type)
+- console message reads to check for errors
+- network request reads to verify API calls
+
+If no browser tool is available, fall through to Playwright (below).
 
 ### 3. Playwright directly
 If configured in the project, run existing Playwright test suites or write inline scripts.
@@ -370,8 +371,8 @@ Surface these only if they appear in `stack.available-skills` / `stack.available
 
 - **`frontend-design`** — when the work introduces a new UI surface and the PO wants design-quality output rather than a wired-up component.
 - **`playground`** — when the deliverable is an interactive single-file explorer rather than a production-wired feature.
-- **`claude-api` / `claude-code-guide`** — when the work involves the Anthropic SDK or Claude Code itself.
-- **MCP browsers** (`mcp__Claude_in_Chrome__*`, `mcp__Claude_Preview__*`) — if available, these are session-native alternatives to dev-browser; surface alongside dev-browser as drive candidates.
+- **`claude-api` / `claude-code-guide`** — when the work involves the Anthropic SDK or the host itself; for another provider's SDK, consult that provider's official SDK docs.
+- **Session-native browsers** (browser-control MCP servers or host browser/preview plugins) — if available, these are session-native alternatives to dev-browser; surface alongside dev-browser as drive candidates.
 
 ---
 

@@ -207,7 +207,7 @@ annex it**.
 | Statistical / generative correctness (ranking, recommenders, ML, LLM apps) | Output is observable; *rightness* is not decidable by looking | `review` dimensions; the project's eval harness |
 | Long-horizon behavior (cron, batch, retention, billing, eventual consistency, backup/restore) | A sweep is session-length; these fail over hours to months | `/wf observability` — instrument for these, do not drive them |
 | Concurrency and load (lost updates, deadlocks, stampedes) | One actor, one path | `review/backend-concurrency.md`, `review/scalability.md` |
-| Absence properties ("there is no injection here") | Not observable from a happy path plus one perturbation | `/security-review`, `review/security.md` |
+| Absence properties ("there is no injection here") | Not observable from a happy path plus one perturbation | `review/security.md`, or a dedicated security-review skill when the host provides one |
 | Library / SDK / compiler / runtime correctness | No user surface — the surface is an API and its consumers are code | `review/api-contracts.md`, the project's own suite |
 | Embedded / real-time / continuous surfaces (firmware, robotics, games, frame timing, input latency) | Screenshot-and-compare is the wrong instrument for a continuous surface | out of scope — say so plainly |
 | Perceptual accessibility and design judgment | Genuinely perceptual | the constraint-resolution ladder's residual rung |

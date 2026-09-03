@@ -11,7 +11,7 @@ this operation produces: translate workflow context to product language and leak
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
 > above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `wf-retro`, **stage 10 of 10** in the SDLC lifecycle.
+You are running `/wf retro`, **stage 10 of 10** in the SDLC lifecycle.
 
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → `10·retro`
@@ -46,7 +46,7 @@ You are a **workflow orchestrator**, not a problem solver.
    - **PR reference** `pr#N` / `#N` / bare integer → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then the branch path below.
    - **Branch name**: matches a `branch:` recorded in some `00-index.md` / `.ai/workflows/INDEX.md` (or an existing git branch) → **batch retro** (`retro-scope: branch`) — see `## Batch retro` below, then return here per-slug.
    - **Absent**: infer the most recent active workflow from `.ai/workflows/*/00-index.md` → single-slug. If ambiguous, ask the user.
-   - **`deep` token** (anywhere in the arguments, alongside the slug) → set `deep-retro: true` and run the deep-retro pass in *Deep retro* below. **Claude-only, opt-in, never default** — omit the token and retro runs from artifacts alone.
+   - **`deep` token** (anywhere in the arguments, alongside the slug) → set `deep-retro: true` and run the deep-retro pass in *Deep retro* below. **Opt-in, never default** — omit the token and retro runs from artifacts alone. The deep pass's richest source (session transcripts) exists only under a host that keeps them; elsewhere `deep` falls back to an artifact-only deep pass (see *Deep retro*).
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
    - At minimum, `05-implement.md` should exist (there must be something to retro on). If nothing exists beyond intake → STOP. Tell the user: "Not enough completed work to retrospect. Run more stages first."
@@ -64,23 +64,27 @@ Runs when Step 0 resolved a branch — the retrospective counterpart of batch `/
 3. **Synthesize cross-slug lessons — the value batch retro adds.** After the per-slug retros, look across the whole branch for patterns no single-slug retro can see: friction that recurred across slugs, a root cause shared by multiple slugs, a plan assumption that broke the same way twice, sequencing pain between slugs. Distill these into `.ai/solutions/` under the **same durability filter and dedupe-on-merge discipline** as the single-slug distillation step (see *Parallel analysis*), setting `source-workflow` to the list of contributing roster slugs. Cross-slug learnings are exactly what gets lost when a batch is retrospected one slug at a time. Zero cross-slug learnings is a legitimate outcome; do not pad.
 4. **Return in chat** per the *Chat return contract* — a combined branch-level retro narrative (what went well / what hurt across the whole branch, the cross-slug root causes, the top improvements) first, then a per-slug roster of outcomes (slug · retrospected / skipped · learnings written).
 
-# Deep retro (`deep` token — opt-in, Claude-only)
+# Deep retro (`deep` token — opt-in)
 
 Runs only when Step 0 set `deep-retro: true`. The artifact trail records *decisions*; it does not
-record the *moments* — the "I'll mirror it exactly" beat that no stage file captured. Deep retro
-mines the repo's session transcripts to recover them, feeding grounding evidence into the analysis
-sub-agents below.
+record the *moments* — the "I'll mirror it exactly" beat that no stage file captured. The deep pass's
+richest source is the repo's session transcripts, mined to recover those moments and feed grounding
+evidence into the analysis sub-agents below.
 
-- **Claude-only.** The transcripts live at `~/.claude/projects/<repo-path-slug>/*.jsonl` (the
-  path-slug is this repo's absolute path with separators replaced). Codex has no equivalent transcript
-  dir — under Codex this pass is unavailable; note it and fall back to the artifact-only retro.
-- **Opt-in, never default.** It is heavy (large transcript scans) and runtime-specific. Only the
+- **Transcript mining is host-gated.** Session transcripts exist only under a host that keeps a
+  per-repo transcript directory (see [_host-invocation.md](_host-invocation.md)); when this host has
+  one, scan the slug's transcripts. Otherwise a `deep` run is still honored but **falls back to an
+  artifact-only deep pass** — a deeper, more adversarial re-read of the existing stage trail,
+  `po-answers.md`, and the git history for the same decision moments — and the retro notes that
+  transcript mining was skipped (host-gated), never instructing a read of a transcript path this host lacks.
+- **Opt-in, never default.** It is heavy (large transcript scans) and host-specific. Only the
   explicit `deep` token turns it on.
-- **What it mines.** Scan the slug's transcripts for **decision moments** — points where an approach
-  was chosen, an assumption locked in, or a user instruction interpreted (especially "mirror/match
-  exactly", "just like X", silent narrowings). Extract the moment, what was decided, and whether the
-  artifacts recorded it. Un-recorded decisions are prime `## Root Causes` and durable-learning input.
-- Fold the findings into the parallel analysis (intent-drift especially) — deep retro supplies
+- **What the deep pass looks for.** **Decision moments** — points where an approach was chosen, an
+  assumption locked in, or a user instruction interpreted (especially "mirror/match exactly", "just like
+  X", silent narrowings). Extract the moment, what was decided, and whether the artifacts recorded it.
+  Un-recorded decisions are prime `## Root Causes` and durable-learning input. Without transcripts the
+  evidence comes from the artifact trail + git history.
+- Fold the findings into the parallel analysis (intent-drift especially) — the deep pass supplies
   evidence, the analysis sub-agents and distillation still own the write.
 
 # Parallel analysis
@@ -106,7 +110,7 @@ Charter: read every `07-review-*.md` (master per slice plus per-command sub-revi
 
 ### Explore sub-agent 3 — Repo Infrastructure Improvement Opportunities
 
-Charter: from this workflow's experience, report the repo improvements that would make the next workflow cheaper — undocumented conventions and discovered patterns that belong in `CLAUDE.md`/`AGENTS.md`; checks worth automating as hooks given the review findings and verification failures; and missing test categories, CI checks, or test helpers the verification results expose. Each recommendation names the finding or failure that motivates it.
+Charter: from this workflow's experience, report the repo improvements that would make the next workflow cheaper — undocumented conventions and discovered patterns that belong in `AGENTS.md`/`CLAUDE.md`; checks worth automating as hooks given the review findings and verification failures; and missing test categories, CI checks, or test helpers the verification results expose. Each recommendation names the finding or failure that motivates it.
 
 Merge all sub-agent findings and deduplicate. Write into `## What Went Well`, `## Friction / Failure Points`, `## Root Causes`, `## Recommended Improvements`, and `## Deferred Debt`.
 
@@ -114,7 +118,7 @@ Merge all sub-agent findings and deduplicate. Write into `## What Went Well`, `#
 pattern-level learnings from the merged findings. Each must pass ALL THREE durability criteria:
 
 1. **Recurs** — would plausibly bite a *future* workflow, not just this one.
-2. **Non-obvious** — not derivable from the repo, CLAUDE.md, or the stage references.
+2. **Non-obvious** — not derivable from the repo, its durable guidance (`AGENTS.md`/`CLAUDE.md`), or the stage references.
 3. **Actionable** — a future plan/implement run could change a decision because of it.
 
 Zero learnings is a legitimate outcome; do not pad. A **repeated runtime-evidence deferral** is a
@@ -160,7 +164,7 @@ misfired, a gate was wrong, a reference misled). The two go different places:
 - **Promote a project lesson to the global corpus (W12.1) — user-confirmed, never automatic.** Only
   when `.ai/sdlc-config.json` sets `solutions.globalDir` (default `null` = disabled). A repo lesson
   can carry project specifics (paths, names, secrets-shaped detail), so promotion is a **privacy
-  decision the user makes** — offer it via `AskUserQuestion` and copy to the global dir ONLY on an
+  decision the user makes** — offer it as a gate question per [_gate-question.md](_gate-question.md) and copy to the global dir ONLY on an
   explicit yes. NEVER promote silently or by policy (a stop condition on an autonomous run).
 - **Channel a workflow lesson to plugin-backlog (W12.2).** When `solutions.globalDir` is set, append
   each `about-the-workflow` lesson to a user-reviewable `plugin-feedback.md` in that dir — the channel
@@ -173,11 +177,11 @@ Extract reusable lessons and turn them into concrete improvements to prompts, ho
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
-- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at` and `updated-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
+- **Ask multiple-choice PO questions as gate questions** per [_gate-question.md](_gate-question.md) (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 - **Conditional inputs are mandatory when present.** If a file in this command's *Conditional inputs* row exists on disk, read it and honor it in the output — existence is optional, consumption is required; silent omission is a contract violation.
@@ -193,7 +197,7 @@ Apply [_grounded-progress.md](_grounded-progress.md): every count this stage rep
 
 Do this in order:
 1. Identify what worked, what caused friction, and what should be codified.
-2. Suggest concrete updates for AGENTS.md, CLAUDE.md, hooks, test coverage, CI checks, and command prompts.
+2. Suggest concrete updates for `AGENTS.md`, `CLAUDE.md`, hooks, test coverage, CI checks, and skill prompts.
 3. Prioritize by impact and effort.
 4. Distill 0–3 durable learnings into `.ai/solutions/` + its INDEX.md (see the distillation step in *Parallel analysis*) and stamp `learnings-written:`.
 5. **Evaluate adaptive routing** (see below) and write options into `## Recommended Next Stage`.
@@ -225,7 +229,7 @@ schema: sdlc/v1
 type: retro
 slug: <slug>
 retro-scope: <slug | branch>          # branch = part of a batch retro over every slug on the branch
-deep-retro: false                     # true only when the `deep` token ran the transcript-mining pass (Claude-only)
+deep-retro: false                     # true only when the `deep` token ran the deep pass (transcript mining where the host keeps transcripts; artifact-only fallback otherwise)
 branch: "<branch name or empty>"      # set in batch mode
 branch-slugs: []                      # the roster (batch mode only; empty otherwise)
 status: complete
@@ -311,9 +315,9 @@ Author **free narrative fragments** for any beat the structured page can't tell 
 
 `10-retro.md` is usually one-shot (a retro runs once at workflow close), but
 it IS revisable — extended retrospectives sometimes add a follow-up "30-day
-check" or "quarterly look-back". When `/wf retro` is re-invoked on a slug that
-already has one, follow the shared additive-write contract in
-[_additive-write.md](_additive-write.md):
+check" or "quarterly look-back" section. When `/wf retro` is re-invoked on a
+slug that already has one, follow the shared additive-write contract in
+[_additive-write.md](_additive-write.md) with:
 
 - Snapshot: `.ai/workflows/<slug>/history/10-retro-<rev>.md`.
 - **Rewrite the body** so the retro reads as current truth — fold the revisit's

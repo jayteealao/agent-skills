@@ -93,7 +93,7 @@ branch: <branch or "none">
 had-open-pr: <true|false>
 pr-url: <url or "none">
 unmerged-commits: <N or 0>
-closed-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"`>
+closed-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
@@ -109,7 +109,7 @@ are intact at `.ai/workflows/<slug>/`"*; otherwise "Not applicable — closed pe
 Beyond the structured page, this artifact may ship free **narrative fragments**:
 `<stem>.<NN-label>.html.fragment` siblings of raw HTML (a timeline, a before/after, a decision map) —
 no contract, no sibling `.yaml`, ordered by an `NN-` prefix, injected raw-inline below the page. See
-[_fragment-authoring.md](_fragment-authoring.md) Step F2 and `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
+[_fragment-authoring.md](_fragment-authoring.md) Step F2 and `../../../reference/narrative-fragments.md`.
 
 ## Step W4 — Update `00-index.md`
 Update `status: closed`, `close-reason`, `superseded-by`, `closed-at`, `next-command: none`,
@@ -153,7 +153,7 @@ slug: <slug>
 skipped-stage: "slice:<slice>"
 skipped-stage-artifact: 03-slice-<slice>.md
 reason: <reason from Step S1>
-skipped-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"`>
+skipped-at: <real UTC timestamp per _timestamp.md>
 high-risk: <true if the slice was in-progress with real work, else false>
 ---
 ```

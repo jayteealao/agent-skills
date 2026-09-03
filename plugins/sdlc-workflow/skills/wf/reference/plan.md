@@ -11,7 +11,7 @@ this operation produces: translate workflow context to product language and leak
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
 > above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `wf-plan`, **stage 4 of 10** in the SDLC lifecycle.
+You are running `/wf plan`, **stage 4 of 10** in the SDLC lifecycle.
 
 # Pipeline
 1·intake → 2·shape → 3·slice → `4·plan` → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
@@ -75,33 +75,34 @@ You are a **workflow orchestrator**, not a problem solver.
    - If any prerequisite shows `Status: Awaiting input` → STOP.
    - **Stack gate (do NOT silently re-detect):** Inspect the `stack:` block in `00-index.md`.
      - If the block is **missing entirely** → STOP. Tell the user: "Step 0.5 stack fingerprint is missing from `00-index.md`. Re-run `/wf intake <slug>` to capture it; planning's verification tooling decisions depend on it." Do NOT attempt to re-detect the stack inside plan — sub-agent 3 below MUST read from `stack:`, not from a fresh repo scan.
-     - If `stack.user-confirmed: false` → WARN: "`stack:` was auto-detected but not PO-confirmed. The plan's interactive verification may pick tooling the PO does not want. Re-run intake's Batch B confirmation, or proceed and accept the risk?" Use AskUserQuestion if available. If the user proceeds, mark `stack-source: unconfirmed-auto-detect` in the plan's frontmatter so downstream stages know.
+     - If `stack.user-confirmed: false` → WARN: "`stack:` was auto-detected but not PO-confirmed. The plan's interactive verification may pick tooling the PO does not want. Re-run intake's Batch B confirmation, or proceed and accept the risk?" Ask it as a gate question per [_gate-question.md](_gate-question.md). If the user proceeds, mark `stack-source: unconfirmed-auto-detect` in the plan's frontmatter so downstream stages know.
      - If `stack.user-confirmed: true` → proceed. Sub-agent 3 and the plan's interactive verification template both consume this confirmed block as their source of truth.
    - If `current-stage` in the index is already past plan → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
    - **Review-scope fallback (skip-to-plan path only, v9.136.0):** if `00-index.md` shows
      `review-scope-confirmed: false` (or the key is present and false — absent means a
      pre-v9.136.0 workflow that was asked at intake), the workflow bypassed `slice` (where the
-     question normally lands). Ask it here with ONE `AskUserQuestion` — this is a single-scope
-     workflow, so recommend `Slug-wide` ("one 07-review.md against the cumulative diff") over
-     `Per slice`. Record the answer in `po-answers.md` (`stage: plan`), set `review-scope:` and
-     `review-scope-confirmed: true` in `00-index.md`. `review`/`handoff` trust the flag; the
-     question is asked exactly once per workflow.
+     question normally lands). Ask it here with ONE gate question per
+     [_gate-question.md](_gate-question.md) — this is a single-scope workflow, so recommend
+     `Slug-wide` ("one 07-review.md against the cumulative diff") over `Per slice`. Record the
+     answer in `po-answers.md` (`stage: plan`), set `review-scope:` and `review-scope-confirmed: true`
+     in `00-index.md`. `review`/`handoff` trust the flag; the question is asked exactly once per workflow.
 4. **Read** `02-shape.md`, `03-slice.md` (if exists), the relevant `03-slice-<slice-slug>.md` file(s), and `po-answers.md`.
-4b. **Read design context — mandatory when present** (file existence is optional; consumption is required for any UI/visual-design work). `plan` is the design consumer that *cites it*: the union-loader turns each recommended reference into a concrete plan-step pointer, and the plan carries the register and anti-goals forward. **Baseline design canon (even with no design artifact):** when `stack.ui ≠ ∅`, also load `skills/wf/reference/design/_design-context.md` for the register, shared design laws, absolute bans, and the motion/interface-detail summary — the design floor for any UI work, applied even when neither `02b`/`02c` exists. `_design-context.md` carries the floor and a craft *summary*: when the feature touches motion, interface detail, or typography, also load the specific home (`animate.md` / `polish.md` / `typeset.md`) for the actual rules. Use only those sections; its preflight/image/mutation sections govern `/wf design`, not plan. Gate: if `stack.ui` is empty and no design artifacts exist, skip this step.
+4b. **Read design context — mandatory when present** (file existence is optional; consumption is required for any UI/visual-design work). `plan` is the design consumer that *cites it*: the union-loader turns each recommended reference into a concrete plan-step pointer, and the plan carries the register and anti-goals forward. **Baseline design canon (even with no design artifact):** when `stack.ui ≠ ∅`, also load `design/_design-context.md` for the register, shared design laws, absolute bans, and the motion/interface-detail summary — the design floor for any UI work, applied even when neither `02b`/`02c` exists. `_design-context.md` carries the floor and a craft *summary*: when the feature touches motion, interface detail, or typography, also load the specific home (`animate.md` / `polish.md` / `typeset.md`) for the actual rules. Use only those sections; its preflight/image/mutation sections govern `/wf design`, not plan. Gate: if `stack.ui` is empty and no design artifacts exist, skip this step.
    - `02b-design.md` — register, recommended references, anti-goals.
    - `02c-craft.md` — **visual contract. If the file exists you MUST read it.** The `## Mock fidelity inventory` items must be reflected as concrete plan steps. The `## Implementation contract` lists token choices, component decisions, and motion specs the plan must follow. The plan should NOT contradict the visual contract; if it must, surface the conflict for resolution before implementation.
-   - **Design references — union of both files.** Build the reference set from BOTH `recommended-references:` in `02b-design.md`'s frontmatter AND `references-loaded:` in `02c-craft.md`'s frontmatter. Normalize each by stripping a trailing `.md` before de-duplicating. Plan steps for UI work MUST cite each as a pointer (e.g., "follow `skills/wf/reference/design/typeset.md` for type scale"); each resolves to `skills/wf/reference/design/<name>.md`. References the contract step introduced live only in `02c` — reading `02b` alone silently drops them, so always union the two.
+   - **Design references — union of both files.** Build the reference set from BOTH `recommended-references:` in `02b-design.md`'s frontmatter AND `references-loaded:` in `02c-craft.md`'s frontmatter. Normalize each by stripping a trailing `.md` before de-duplicating. Plan steps for UI work MUST cite each as a pointer (e.g., "follow `design/typeset.md` for type scale"); each resolves to `design/<name>.md`. References the contract step introduced live only in `02c` — reading `02b` alone silently drops them, so always union the two.
 4c. **Author the visual contract — mandatory when a design brief exists without one.** If `02b-design.md` exists AND `02c-craft.md` does **not** yet exist, `plan` is the design **producer**: it resolves the two gates `shape` deferred (image gate + visual-direction confirm gate) and writes `02c-craft.md` following [design/contract.md](design/contract.md) — land the visual direction via the `imagery` skill, build the mock fidelity inventory, write `02c-craft.md` (type `design-contract`) **and** its sibling `.yaml` + `.html.fragment`. **Timing:** this is *not* done here in Step 0 — it runs inside the planning sequence below, **after** the parallel Explore sub-agents have gathered codebase context (which `design/contract.md` Step 2 consumes) and **before** you produce the plan steps, so the contract's mock-fidelity inventory and implementation-contract decisions become concrete plan steps (Step 4b consumption). If `02c-craft.md` already exists, do not re-author it — just consume it per Step 4b. If `stack.ui` is empty or no `02b-design.md` exists, skip this step.
 4d. **Apply the augmentation plan — author the augmentation artifacts shape decided.** Read
    `augmentations-needed` from `02-shape.md` frontmatter (absent/`[]` → skip this step entirely). This is
    where the former standalone `/wf instrument | experiment | benchmark` commands live now: augmentation
-   is *shape-decided and plan-authored*, not user-invoked. For each entry, load its sub-procedure and run
-   it as an internal step, then record it in `00-index.md` so `implement`/`verify` consume it:
-   - `instrument` → load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/augment/instrument.md`; author `04b-instrument.md` (dark-path detection + signal design). Fold the signals into the plan steps.
-   - `experiment` → load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/augment/experiment.md`; author `04c-experiment.md` (hypothesis, A/B/flag/canary, metrics, rollback). Fold the flag/cohort wiring into the plan steps.
-   - `benchmark` → load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/augment/benchmark.md` (baseline mode); capture the pre-implementation baseline into `05c-benchmark.md`. Add an explicit "compare after implement" step so `verify` re-runs it against the tripwires (>10% CPU / >25% memory).
+   is *shape-decided and plan-authored*, not user-invoked. For each entry, load its sub-procedure and run only its
+   artifact-authoring mode as an internal step (never the full standalone mode), then record it in `00-index.md` so `implement`/`verify` consume it:
+   - `instrument` → load `augment/instrument.md`; author `04b-instrument.md` (dark-path detection + signal design). Fold the signals into the plan steps.
+   - `experiment` → load `augment/experiment.md`; author `04c-experiment.md` (hypothesis, A/B/flag/canary, metrics, rollback). Fold the flag/cohort wiring into the plan steps.
+   - `benchmark` → load `augment/benchmark.md` (baseline mode); capture the pre-implementation baseline into `05c-benchmark.md`. Add an explicit "compare after implement" step so `verify` re-runs it against the tripwires (>10% CPU / >25% memory).
    - `profile` → usually ad-hoc; if shape flagged a specific hotspot, note it as a plan step (it can be run later via `/wf probe` or `augment/profile.md`), not a required pre-implementation artifact.
-   - **Record into `00-index.md`:** add each authored augmentation to the `augmentations:` list (consumed by `implement` Step 0.7 and `verify` Step 0.6). Without this, the shape decision authors artifacts no stage reads.
+   - **Record into `00-index.md`:** add each authored augmentation to the `augmentations:` list with `status: ready` (consumed by `implement` Step 0.7 and `verify` Step 0.6). Without this, the shape decision authors artifacts no stage reads.
+   - **Order (when multiple):** `instrument` → `experiment` → `benchmark` (baseline) → `profile`. Instrument before experiment (experiment references instrument signals); benchmark baseline before implement (compare needs it after).
    - **Timing:** like the design contract (4c), run this inside the planning sequence (after the Explore sub-agents gather context) so augmentation requirements become concrete plan steps.
 
 5. **Determine planning mode** (order matters — check top to bottom):
@@ -143,7 +144,7 @@ Charter (a goal, not a script): read every file in the slice definition's `## Li
 
 **Build-avoidance ladder (climb before proposing any new code):**
 For each capability the slice needs, climb these rungs and record the highest that holds. Scope existence is settled upstream in shape's Round 5; do not re-litigate here. This is the implementation-strategy ladder:
-1. **Stdlib / language built-in** — does the language or standard library already do this? (e.g., `structuredClone`, `Intl`, `URL`, `crypto.randomUUID`, `Array.prototype` methods over a utility lib.)
+1. **Stdlib / language built-in** — does the language or its standard library already do this? (e.g., `structuredClone`, `Intl`, `URL`, `crypto.randomUUID`, `Array.prototype` methods over a utility lib.)
 2. **Native platform feature** — does the runtime, browser, framework, or OS already provide it? (e.g., `<input type="date">` over a date-picker library, CSS `scroll-snap` over a carousel dependency, a DB unique constraint over a hand-rolled existence check.) The web-research sub-agent checks official docs for these.
 3. **Already-installed dependency or in-repo utility** — the reuse scan below.
 4. **Minimum new code** — only when rungs 1–3 do not cover the capability; record *why* the lower rungs did not hold.
@@ -152,7 +153,7 @@ Pick the highest rung that meets the acceptance criteria; never trade an edge-ca
 
 **Rung 3 — reuse opportunities:**
 - Read the slice definition's `## Goal` and `## Scope (In)`. For each new function, class, utility, or capability the slice needs, search the wider codebase for existing code that partially or fully covers the need:
-  - Grep for keywords, type names, and domain terms across the full codebase (not just the affected directory)
+  - Search for keywords, type names, and domain terms from the slice definition across the full codebase (not just the affected directory)
   - Search for similar logic: data transformations, validation routines, formatting utilities, API call wrappers, error handling patterns, and business rule checks that overlap with what the slice builds
   - Look for base classes, mixins, abstract types, or higher-order functions that could be extended or composed
   - Check existing services, helpers, and utility modules for methods that expose the needed capability under a different name or at a different abstraction level
@@ -236,11 +237,11 @@ After ALL slice sub-agents complete:
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter; the markdown body is human-readable narrative only.
-- **Timestamps must be real:** run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash for `created-at` / `updated-at`. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at` / `updated-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Construct every question per [_question-craft.md](_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
+- **Ask multiple-choice PO questions as gate questions** per [_gate-question.md](_gate-question.md) (structured decisions, confirmations). Use freeform chat for open-ended questions. Construct every question per [_question-craft.md](_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 - **Conditional inputs are mandatory when present.** If a file in this command's *Conditional inputs* row exists on disk, read and honor it — silent omission is a contract violation.
@@ -255,7 +256,7 @@ After writing files, return per [_chat-return.md](_chat-return.md) — narrative
 Do this in order:
 1. Determine planning mode from Step 0.
 2. **Discovery phase (new plans only — skip for review-and-fix modes):**
-   Before writing a plan, interview the user about implementation decisions the shape and slice left open. Ask 8–12 questions across 2–3 rounds using AskUserQuestion (up to 4 per round).
+   Before writing a plan, interview the user about implementation decisions the shape and slice left open. Ask 8–12 questions across 2–3 rounds as gate questions per [_gate-question.md](_gate-question.md) (up to 4 per round).
 
    **Rules:**
    - Every question must be about *how to build this specific feature/slice* — reference files, modules, patterns, and tradeoffs discovered by sub-agents.
@@ -273,7 +274,7 @@ Do this in order:
 
    Append every answer to `po-answers.md` with timestamp and `stage: plan`.
 
-3. **Single plan mode (new):** Inspect the repository using parallel Explore sub-agents. Run freshness research. Run the discovery phase. **Then, if a design brief exists without a contract (Step 4c), author the visual contract now** — codebase context is in hand, and the plan steps must reflect it. Produce a minimal execution-ready plan. Write `04-plan-<slice-slug>.md`. Update master `04-plan.md`.
+3. **Single plan mode (new):** Inspect the repository using parallel Explore sub-agents. Run freshness research. Run the discovery phase. **Then, if a design brief exists without a contract (Step 4c), author the visual contract now** — codebase context is in hand, and the plan steps must reflect it. **Then, if `augmentations-needed` is set in `02-shape.md` (Step 4d), author the augmentation artifacts now.** Produce a minimal execution-ready plan. Write `04-plan-<slice-slug>.md`. Update master `04-plan.md`.
 4. **Parallel plan mode (new, all):** Launch one sub-agent per slice. Wait for all to complete. Read their output files. Run the cohesion check. Run the discovery phase (once, covering cross-cutting decisions). Write/update master `04-plan.md`. Update cross-links.
 5. **Review-and-fix mode (any sub-mode):** See "Review-and-Fix Mode" section below.
 6. **Evaluate adaptive routing** and write ALL viable options into `## Recommended Next Stage`.
@@ -343,14 +344,14 @@ After completing this stage, evaluate the plan(s) and present ALL viable options
 
 **Option A (default): Implement** → `/wf implement <slug> <slice-slug>`
 Use when: The plan is complete and ready for execution.
-**Compact recommended** — planning research (alternatives, web searches, codebase exploration) is noise for implementation. Tell the user: "Consider `/compact` before `/wf implement` — workflow state lives in the artifact files and the SessionStart hook re-reads it after compaction."
+**Compact recommended** — planning research (alternatives, web searches, codebase exploration) is noise for implementation. Tell the user: "Consider compacting the session before `/wf implement` — workflow state lives in the artifact files and the SessionStart hook re-reads it after compaction."
 
 **Option B: Implement all (sequential)** → start with `/wf implement <slug> <first-slice-slug>`
 Use when: All slices are planned and the user wants to work through them in order.
 **Compact recommended** — same reason as Option A.
 
 **Option C: Revisit Slice** → `/wf slice <slug>`
-Use when: Planning revealed slice boundaries are wrong.
+Use when: Planning revealed that slice boundaries are wrong.
 
 **Option D: Revisit Shape** → `/wf shape <slug>`
 Use when: Planning revealed the spec is incomplete or contradictory.
@@ -520,7 +521,7 @@ a clearing event that only a code change you are already able to write could tri
 
 "Known limitation — document at handoff" is ILLEGAL wording when an AC depends on the limitation.
 **Hard gate:** if any user-observable AC's named dependency has none of the three, the plan is NOT
-complete — raise it via `AskUserQuestion` (options: scope the harness / author the proxy+deferral /
+complete — raise it as a gate question per [_gate-question.md](_gate-question.md) (options: scope the harness / author the proxy+deferral /
 PO-accept the risk) before writing the artifact. Verify's Step 0 refuses to inherit an unresolved
 wall (`blocked-runtime-evidence-missing` routing, deferral hatch unavailable), so skipping this
 gate only moves the stop later and makes it more expensive.
@@ -683,7 +684,7 @@ block, using the shared snippets:
 
 Available snippets: `metric-row`, `callout`, `verdict`, `severity-chip`,
 `fragment-ready`, `files-touched-row`, `diff-block`. The expander
-(`plugins/sdlc-workflow/components/_components.mjs`) runs after fragment
+(`../../../components/_components.mjs`) runs after fragment
 validation and before shell wrap; missing snippets, invalid JSON payloads, or
 recursion past `maxDepth=4` throw at render time. Hand-inlined markup matching a
 published snippet triggers a warn from verifier Check 9 — suppress legitimate

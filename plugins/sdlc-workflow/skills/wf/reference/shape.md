@@ -11,7 +11,7 @@ this operation produces: translate workflow context to product language and leak
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
 > above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `wf-shape`, **stage 2 of 10** in the SDLC lifecycle.
+You are running `/wf shape`, **stage 2 of 10** in the SDLC lifecycle.
 
 # Pipeline
 1·intake → `2·shape` → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
@@ -38,17 +38,17 @@ You are a **workflow orchestrator**, not a problem solver.
 # Workflow rules (standing — these are not sequenced steps)
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter; the markdown body is human-readable narrative only.
-- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at` and `updated-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- **Use AskUserQuestion** for multiple-choice PO questions (risk tolerance, appetite, structured decisions). Use freeform chat for open-ended questions (behavior, acceptance criteria, non-goals). Construct every question per [_question-craft.md](_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
+- **Ask multiple-choice PO questions as gate questions** per [_gate-question.md](_gate-question.md) (risk tolerance, appetite, structured decisions). Use freeform chat for open-ended questions (behavior, acceptance criteria, non-goals). Construct every question per [_question-craft.md](_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Use parallel Explore/subagents for multi-domain research. Do not spin up subagents for trivial work.
+- Use parallel subagents for multi-domain research per [_subagents.md](_subagents.md); do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS`. If none, infer from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). If none, infer from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, `appetite`.
 3. **Check prerequisites:**
    - `01-intake.md` must exist. If missing → STOP: "Run `/wf intake` first."
@@ -127,7 +127,7 @@ rounds or late-arriving research surface new ambiguities.
 
 ## Step 2.2 — Interview rules
 
-- Ask 20 baseline questions using AskUserQuestion, batched into as few rounds as the dependency structure allows (a question that builds on an earlier answer waits for that answer; independent questions share a round). The five themes below organize coverage, not round boundaries. 20 is a floor, not a ceiling — after the themes are covered, apply the extension rule below.
+- Ask 20 baseline questions as gate questions per [_gate-question.md](_gate-question.md), batched into as few rounds as the dependency structure allows (a question that builds on an earlier answer waits for that answer; independent questions share a round). The five themes below organize coverage, not round boundaries. 20 is a floor, not a ceiling — after the themes are covered, apply the extension rule below.
 - **Question accountability:** every question names (in the artifact's `## Questions Asked This Stage` record) the `AMB-n` item(s) it closes or confirms. **Assumption-confirmation questions are first-class closers** — pre-fill your understanding and ask the PO to confirm or revise; a confirmed assumption closes its inventory item.
 - When genuine open ambiguities are fewer than the remaining budget, spend the remaining questions confirming assumptions and probing the consequences of earlier answers ("you chose X in Round 2 — that implies Y in the empty state; confirm?") — **never invented decoys**. Padding = a question that closes or confirms no inventory item; the floor is satisfied by closing and confirming, not inventing.
 - Every question must be about *this specific feature* — reference it by name, use concrete details from the intake brief. No generic process questions.
@@ -153,7 +153,7 @@ Round 5 — **Where are the boundaries?** Define edges, leading with scope restr
 **How to construct each question:**
 - Follow the legibility contract in [_question-craft.md](_question-craft.md) — outcome-first framing, glossed jargon, consequence-stating options, reversibility, a marked recommendation, an "if unsure" default. The PO must be able to answer without reading the code.
 - `question`: Specific to the feature — reference it by name. E.g., "What should the export modal show when the user has no reports yet?" not "What happens in the empty state?"
-- `header`: Short label (max 12 chars) for the chip display.
+- `header`: Short label (max 12 chars).
 - `options`: 2–4 options describing concrete directions specific to the feature. The user can always pick "Other" for freeform input.
 - `multiSelect`: true when multiple options can coexist, false when mutually exclusive.
 
@@ -179,7 +179,7 @@ After completing the interview (all five themes covered + Round 3b when triggere
 1. **Collect the sub-agent results.** If they have not returned, WAIT — the findings are a hard
    input to `## Verification Strategy` and the tooling question below regardless.
 2. **Relay the tooling question (the orchestrator owns it — never a sub-agent).** From sub-agent
-   1's interactive-tooling report, ask the PO one `AskUserQuestion` built from the **actual
+   1's interactive-tooling report, ask the PO ONE gate question per [_gate-question.md](_gate-question.md) built from the **actual
    findings**: *"For verification, the available drivers are A, B, C. Companion skills: X, Y. Any
    preference, or any off-limits?"* Construct it per [_question-craft.md](_question-craft.md);
    capture the answer in `po-answers.md`. Acceptance criteria must reference *whatever the PO
@@ -289,7 +289,7 @@ them into `00-index.md` `intent-risks` (`status: open`), then adjudicate each pe
 
 # Step 9b — Author the `## Intake Fidelity` table (MANDATORY section)
 
-One row per intake **Known Constraint / directive** and each numbered item of the Restated Request: `directive | disposition (honored / narrowed / dropped) | how | authority`. A `narrowed` row REQUIRES `authority` = a quoted PO answer whose **scope covers the requirement** (per [_question-craft.md](_question-craft.md)'s scope-of-authority rule) or a this-stage PO ratification. A **`dropped` row REQUIRES a this-stage `AskUserQuestion` ratification** — a scope-covering quote from an earlier answer suffices for a narrowing, but dropping a directive is always a fresh decision the PO confirms in the moment; cite the new `po-answers.md` entry. "Consequence of another answer" is NOT authority — an over-read narrowing (a vendor answer silently becoming a requirement cut) is exactly what this table exposes; owe the PO one more question rather than write an unauthorised narrowing.
+One row per intake **Known Constraint / directive** and each numbered item of the Restated Request: `directive | disposition (honored / narrowed / dropped) | how | authority`. A `narrowed` row REQUIRES `authority` = a quoted PO answer whose **scope covers the requirement** (per [_question-craft.md](_question-craft.md)'s scope-of-authority rule) or a this-stage PO ratification. A **`dropped` row REQUIRES a this-stage gate-question ratification** ([_gate-question.md](_gate-question.md)) — a scope-covering quote from an earlier answer suffices for a narrowing, but dropping a directive is always a fresh decision the PO confirms in the moment; cite the new `po-answers.md` entry. "Consequence of another answer" is NOT authority — an over-read narrowing (a vendor answer silently becoming a requirement cut) is exactly what this table exposes; owe the PO one more question rather than write an unauthorised narrowing.
 
 # Step 10 — Write the artifacts
 
@@ -419,7 +419,7 @@ unranked NFR cited against a commitment is the tell of an intent-bearing decisio
 - ...
 
 ## Intake Fidelity
-<!-- REQUIRED (Step 9b). One row per intake Known Constraint / directive AND each numbered Restated-Request item. A `narrowed` row's `authority` must be a quoted PO answer whose SCOPE covers the requirement (not the consequence of a differently-scoped answer) or a this-stage ratification; a `dropped` row's `authority` must be a THIS-STAGE AskUserQuestion ratification. This table is where an over-read narrowing — a vendor answer silently becoming a requirement cut — becomes visibly illegal. It is a named input to the intent-fidelity review dimension downstream, and its dispositions surface in the chat return's `fidelity:` line. -->
+<!-- REQUIRED (Step 9b). One row per intake Known Constraint / directive AND each numbered Restated-Request item. A `narrowed` row's `authority` must be a quoted PO answer whose SCOPE covers the requirement (not the consequence of a differently-scoped answer) or a this-stage ratification; a `dropped` row's `authority` must be a THIS-STAGE gate-question ratification. This table is where an over-read narrowing — a vendor answer silently becoming a requirement cut — becomes visibly illegal. It is a named input to the intent-fidelity review dimension downstream, and its dispositions surface in the chat return's `fidelity:` line. -->
 | Intake directive | Disposition | How | Authority |
 |---|---|---|---|
 | ... | honored / narrowed / dropped | ... | quoted PO answer (scope-covering) / this-stage ratification / — |

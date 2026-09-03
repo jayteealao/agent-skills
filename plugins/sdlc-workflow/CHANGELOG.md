@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.153.0] - 2026-09-03
+
+The single-source merge (SINGLE-SOURCE-PLAN.md, W0–W8): `plugins/sdlc-workflow-codex` is gone, and this one tree now serves Claude Code and Codex directly. Each host reads its own manifest and its own hook wiring from the same directory; the skill prose is written once, host-neutral, with every host mechanism confined to four cited contract files. The reconciliation was a merge of two drifted copies of the same document, not a translation: 181 shared skill files, 70 of them already identical, the median differing file 7% of itself. The class of drift this release ends is the one sentence maintained twice in two dialects.
+
+### Added
+
+- `.codex-plugin/plugin.json` beside `.claude-plugin/plugin.json`: the Codex plugin identity is now `sdlc-workflow` (was `sdlc-workflow-codex`). It declares `"skills": "./skills/"` and `"hooks": "./hooks/codex.hooks.json"`; a declared hooks file replaces conventional `hooks/hooks.json` discovery, so Codex never loads the Claude Code wiring (verified against Codex CLI 0.146.0 source and a live sandboxed spike).
+- `hooks/codex.hooks.json` plus the seven Codex adapter scripts (`_adapter.mjs`, `session-start.mjs`, `pre-tool-use.mjs`, `post-tool-use.mjs`, `stop-verify.mjs`, `subagent-start.mjs`, `permission-request.mjs`), moved in from the codex tree and repointed from `runtime/dist/` to the plugin root's `dist/`. `hooks/hooks.json` (Claude Code) is untouched.
+- Four host-contract files under `skills/wf/reference/`: `_host-invocation.md` (new — invocation spelling, `<skill-dir>`, key availability, the host-surfaces table), `_gate-question.md`, `_subagents.md`, `_timestamp.md` (the last three imported from the codex tree and given their Claude Code rows). `yolo.md` is the named fifth exception: the one Claude Code-only key's own reference.
+- `agents/openai.yaml` for all six skills (Codex interface metadata; a missing file does not hide a skill — Codex defaults implicit invocation to allow).
+- `reference/shared-hub.md` and `reference/artifact-interop.md`, moved in from the codex tree and neutralized.
+- `scripts/verify-host-neutrality.mjs` (`npm run verify:neutrality`): nine scan families over `skills/` and `reference/`; host mechanics fail outside the permanent exception list, which IS the §3.3 budget. Its burndown allowlist (`scripts/host-neutrality-allowlist.json`) is empty at cutover and may only shrink — the gate compares it against the `origin/master` merge base.
+- `scripts/verify-release-versions.mjs` (`npm run verify:versions`): both in-tree manifests, `package.json`, `runtime-manifest.json`, `_shell.mjs`, and both repo-root catalogs on one version and one path.
+- `scripts/verify-deployment.mjs` (`npm run verify:deployment`), rewritten from the codex tree for the merged identity: trust keys now embed `hooks/codex.hooks.json`; a still-installed `sdlc-workflow-codex` is a FAIL with the exact `remove` command.
+- Tests: `tests/unit/hooks/codex-hooks.test.mjs` (migrated), `tests/unit/hooks/host-signal.test.mjs`, `tests/unit/single-source.test.mjs` (structure, catalogs, manifests, the plugin-owned host-filtered roster: 22 keys, `yolo` Claude Code only, 21 under Codex), `tests/unit/gates.test.mjs`, and a rewritten `tests/unit/runtime-parity.test.mjs` (no baseline pin — there is no sync any more).
+- Doc site: `reference/hosts.html` (what the hosts share, what each spells differently); `start/installation.html` now carries both install routes and the per-machine cutover; every page that shows a `/wf` invocation carries the uniform host note (`$wf` under Codex); `reference/hooks.html` documents the Codex adapters. `verify-doc-site.mjs` gained two invariants: the host note is mandatory on invocation pages, and no live doc names the deleted tree.
+- `docs/internal/HOST-NEUTRALITY.md` (the live prose contract) and `docs/internal/SINGLE-SOURCE-CUTOVER.md` (preflight, per-machine window, rollback — written before the release commit).
+
+### Changed
+
+- **Host identity is an environment signal, never a path.** `hooks/seed-memory.mjs` read `import.meta.url.includes('sdlc-workflow-codex')`, which same-path hosting makes permanently false; it now reads `SDLC_HOST`. The Codex SessionStart adapter spawns `seed-memory` through `runBundled` so the signal is present, and the Codex wiring never invokes `dist/` directly. `SDLC_HUB_STARTED_BY` is DERIVED from `SDLC_HOST` at the single hub-spawn site in `lib/hub-lifecycle.mjs`; the adapter no longer sets it independently, and a guard test rejects any other setter. `hub-serve.mjs` falls back to `SDLC_HOST` when run directly.
+- Skill prose (115 files reconciled, 65 more mechanically normalized): invocations are spelled `/wf …` once (the `$` sigil maps only in `_host-invocation.md`); executables use `node "<skill-dir>/scripts/…"`; references are relative; gate questions cite the ladder and keep their YAML question spec as host-neutral data; sub-agent dispatch names an effort tier (low / medium / high) per `_subagents.md` instead of a model, a tool, or an isolation flag; timestamps cite `_timestamp.md`. Task-tracker choreography in handoff, verify, implement, and review became ordering contracts. The `wf` roster gained a host-availability line.
+- `.gitattributes` now carries the codex tree's superset (LF for css/html/yaml too).
+- `package.json`: `sync:codex` and `verify:codex` removed; `verify:neutrality`, `verify:versions`, `verify:deployment` added.
+- The fourteen two-tree drift-guard tests (`test-discovery`, `steering`, `output-boundary`, `shared-reference-drift`, `surface-sweep`, `wall-ownership`, `intent-fidelity`, `intake-shape-hardening`, `handoff-ship-streamline`, `batch-handoff-ship`, `consult-trigger-coverage`, `ship-plan-drift-clears-on`, `intake-terminus-contracts`, `work-without-a-home`) iterate one tree; their codex-mirror assertions became `$wf`-leak assertions on the shared prose.
+- Both READMEs describe one tree and two hosts; the root README's generator instructions are gone.
+- Archived: `MULTI-HOST-SUPPORT-PLAN.md` (superseded), `SURFACE-SWEEP-PLAN.md`, `WORK-WITHOUT-A-HOME-PLAN.md` (shipped), and the codex tree's `CLAUDISM-AUDIT.md`, `CODEX-REMEDIATION-PLAN.md`, `CUTOVER.md`, `NATIVE-INTEROP-REWRITE-PLAN.md`, `CODEX-PLATFORM-GAPS.md`. `CODEX-HOOK-SMOKE-TEST.md` is live at `docs/internal/` with its paths repointed.
+
+### Removed
+
+- `plugins/sdlc-workflow-codex/` (the handwritten mirror since v9.107.0), `scripts/sync-codex-runtime.mjs`, `runtime-baseline.json`, `scripts/measure-host-divergence.mjs` (its job is done), the codex tree's `verify-claudisms.mjs` and `verify-no-legacy-codex.mjs`, its `references/native-operating-model.md` and `verification.md` (generic guidance the shared stages already carry), and the repo-root `scripts/generate-codex-plugin.mjs` (the rejected generated-mirror path).
+
+### Cutover
+
+Codex machines that had `sdlc-workflow-codex` installed must cut over once: close every session, `codex plugin marketplace upgrade agent-skills-marketplace`, `codex plugin add sdlc-workflow@agent-skills-marketplace`, `codex plugin remove sdlc-workflow-codex@agent-skills-marketplace`, then trust the seven hooks in the next interactive session. Never open a session with both identities enabled. Full runbook: `docs/internal/SINGLE-SOURCE-CUTOVER.md`. The Codex snapshot grows from 6.45 MB to about 21.5 MB per cached version (the committed `bin/tray/` binaries ride along); accepted with eyes open per the plan's §5.
+
 ## [9.152.1] - 2026-08-15
 
 Fresh-eyes review of v9.152.0: four independent reviewers (yolo.js logic, core lifecycle, rubrics/design/trims, codex port) plus targeted self-checks. Seventeen defects confirmed and fixed; no test had caught them because two guard regexes matched only the exact phrasing v9.152.0 deleted.

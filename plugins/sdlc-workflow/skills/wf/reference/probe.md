@@ -17,12 +17,12 @@ You are running `/wf probe`: drive the running artifact, capture evidence, repor
 
 `probe` is **slug-mode only** — it always operates on an existing slug from `.ai/workflows/INDEX.md`; runtime-truth verification only makes sense against already-implemented work.
 
-The `/wf` dispatcher routes `/wf probe`; **probe is slug-only, so a compressed slice is always the output** — follow `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md` for exact slice frontmatter and index bookkeeping.
+The `/wf` dispatcher routes `/wf probe`; **probe is slug-only, so a compressed slice is always the output** — follow `_compressed-slice.md` for exact slice frontmatter and index bookkeeping.
 
 - **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-probe-<descriptor>.md` (collision suffix `-2`, `-3` if needed).
 - **Same content discipline** (research depth, evidence quality, recommendation logic) — only the output destination changes.
 - **No new workflow, no new branch, no `01-probe.md`, no new top-level `00-index.md`.** The slug already owns those.
-- **Index updates** follow the shared compressed-slice contract — see `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md`.
+- **Index updates** follow the shared compressed-slice contract — see `_compressed-slice.md`.
 
 # Position among the /wf runtime commands
 
@@ -69,7 +69,7 @@ No flags — probe takes a slug and an optional target string. It always surface
 1. **Read `.ai/workflows/<slug>/00-index.md`.** Parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), the **`charter:` block** (the PO-ratified constraints — see Step 5's comparison basis; ACs are per-slice and expire, constraints are durable and cross-slice, so a runtime observer that reads only AC is checking the receipts and ignoring the contract), and the **`stack:` block** (written by `/wf intake` Step 0.5, confirmed in Batch B). When `user-confirmed: true`, it narrows adapter selection in Step 3 and tooling choice during drive/observe.
 2. **Read the slice index `03-slice.md`** (or `01-quick.md` for `workflow-type: quick`). Note every slice slug and source-mode (standard / compressed / forwarded / change-mode). Change-modes (`workflow-type: fix` / `hotfix` / `refactor` / `update-deps`) write a STANDARD `03-slice.md` (one slice), so this step is unchanged — but their lead is `01-<mode>.md`, not `01-quick.md`.
 3. **Read every per-slice file** referenced from the slice index. For compressed and forwarded modes, AC lives in the single source artifact (`01-quick.md`, `01-rca.md`). For change-mode, AC lives in the lead `01-<mode>.md` plus `03-slice.md` / `04-plan.md`. **Terminal analysis slugs** (`workflow-type: rca` / `discover` / `investigate` / `ideate`) have **no `03-slice.md`** — do not error on its absence: the probe target is the free-form target string (their escalation ladders route here with the runtime question the analysis hinges on), the comparison basis is that question plus the lead artifact's stated claim, and the finding lands as the standard compressed slice on that slug. (`investigate`/`ideate` have no build to probe in place — only their targeted question runs.)
-4. **Read `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/runtime-adapters.md`** for bootstrap, drive, observe, teardown recipes per platform.
+4. **Read `runtime-adapters.md`** for bootstrap, drive, observe, teardown recipes per platform.
 5. **Stack awareness (advisory).** Probe cannot refuse to run when `stack:` is missing, but MUST be honest about provenance:
    - **If `stack:` is missing entirely** → emit: *"`stack:` is not set on `<slug>`. Probe will run adapter detection cold; consider running `/wf intake <slug>` to capture stack so future runs respect PO intent."* Set `stack-source: probe-detected-from-repo`. Proceed.
    - **If `stack.user-confirmed: false`** → emit the same warning referencing unconfirmed-auto-detect; set `stack-source: unconfirmed-auto-detect`. Proceed.
@@ -78,7 +78,7 @@ No flags — probe takes a slug and an optional target string. It always surface
 6. **Capture the target** from `$ARGUMENTS` per the argument grammar above: `target` = the single positional target string, or `slug-wide` if none was given.
 7. **Run the clearing-event tripwire.** For every open deferral (`cleared-by: null`) carrying a `clearing-probe`, execute that **one** recorded side-effect-free command with a short timeout. A hit means the event this deferral is waiting on has *already happened* — say so up front and prioritise that deferral in this run, because probe is the actor most clearing events name. Never improvise a substitute command, never edit `00-index.md` here (Step 7 owns the clearing mutation), and treat a miss as ordinary state, not a finding. An entry with no recorded probe is simply un-watched — note it in `## Tripwires` so the next verify can add one.
 
-8. **Read `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_surface-defects.md`.** MANDATORY in `sweep` mode, advisory in target mode (its classes are what Step 5.2 records incidentals against). It supplies the defect classes, the severity discipline, and the decidability boundary.
+8. **Read `_surface-defects.md`.** MANDATORY in `sweep` mode, advisory in target mode (its classes are what Step 5.2 records incidentals against). It supplies the defect classes, the severity discipline, and the decidability boundary.
 9. **Declare decidability BEFORE driving (MANDATORY in `sweep` mode).** Using the standing not-observable set in `_surface-defects.md`, state which classes of correctness this artifact makes observable and which it does not, and where each unobservable class routes. Record it as the `decidability:` frontmatter block. When the artifact's **primary** correctness class is not observable (a ranking/generative system, a long-horizon pipeline), say so FIRST — at the top of the artifact and in the chat return, before any finding — so a clean wrapper report never reads as a verdict on the thing the wrapper wraps.
 
 # Step 1 — Branch posture (MANDATORY before bootstrap)
@@ -88,7 +88,7 @@ No flags — probe takes a slug and an optional target string. It always surface
 1. Run `git branch --show-current`. Call the result `current-branch`.
 2. Compare against `00-index.md.branch`. Call that `slug-branch`.
 3. **If `current-branch == slug-branch`** → proceed to Step 2.
-4. **If `current-branch != slug-branch`** → call `AskUserQuestion`:
+4. **If `current-branch != slug-branch`** → ask the gate question per [_gate-question.md](_gate-question.md):
 
 ```yaml
 question: "Working tree is on `<current-branch>`, but workflow `<slug>` is on `<slug-branch>`. How should probe proceed?"
@@ -271,7 +271,7 @@ origin: probe
 stage-number: 3
 status: complete | awaiting-environment
 complexity: xs
-created-at: "<iso-8601 from `date -u +"%Y-%m-%dT%H:%M:%SZ"`>"
+created-at: "<real UTC timestamp per _timestamp.md>"
 updated-at: "<same>"
 
 probe-target: "<verbatim user string or 'slug-wide'>"
@@ -323,7 +323,7 @@ tags: [probe]
 refs:
   index: 00-index.md
   slice-index: 03-slice.md              # OMIT this key if 03-slice.md does not exist
-  adapters: "${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/runtime-adapters.md"
+  adapters: "runtime-adapters.md"
 ---
 ```
 
@@ -418,7 +418,7 @@ This is the one mutation `probe` makes to `00-index.md` beyond standard bookkeep
 
 # Step 8 — Index bookkeeping (per the shared compressed-slice contract)
 
-Per `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md`:
+Per `_compressed-slice.md`:
 
 1. Append `03-slice-probe-<descriptor>.md` to `00-index.md.workflow-files`.
 2. Append `{slug: probe-<descriptor>, slice-type: probe, created-at: "<iso>"}` to `00-index.md.compressed-slices`.

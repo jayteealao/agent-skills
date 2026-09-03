@@ -15,11 +15,11 @@ this operation produces: translate workflow context to product language and leak
 `consult` sends a question to one or more external AI models acting as **read-only
 oracles** and brings back their written opinions — a plan critique, a code or
 implementation review, a design trade-off analysis, a diagnosis, a second
-opinion. It is **advisory only**: the sub-agents can Read/Glob/Grep the repo but
-**cannot Edit, Write, or run Bash**. It writes no code and proposes no patch.
+opinion. It is **advisory only**: the oracles can read and search the repo but
+**cannot edit, write, or run commands**. It writes no code and proposes no patch.
 (Write/delegate mode is deferred — EXTERNAL-MODEL-DISPATCH-PLAN D12.)
 
-It generalizes the single-model `codex:rescue` pattern into a **multi-model
+It generalizes the single-model rescue pattern into a **multi-model
 panel**: by default it fans out to every available provider in parallel and
 returns a panel of opinions plus a one-line consensus/divergence read.
 
@@ -80,11 +80,12 @@ fire on them):
 
 # Step 2 — Dispatch read-only (fan-out)
 
-Run the runner (it spawns the CLI oracles isolated + read-only, and calls the REST
-APIs; it caps parallelism and never writes):
+Run the runner (`<skill-dir>` resolves per [_host-invocation.md](../wf/reference/_host-invocation.md);
+the runner spawns the CLI oracles isolated + read-only, and calls the REST APIs; it
+caps parallelism and never writes):
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/consult/scripts/dispatch.mjs" read-only <repoRoot> <promptFile> [provider ...]
+node "<skill-dir>/scripts/dispatch.mjs" read-only <repoRoot> <promptFile> [provider ...]
 ```
 
 - Omit `[provider ...]` for the bare fan-out; pass the pinned provider(s) otherwise.
@@ -129,9 +130,12 @@ node "${CLAUDE_PLUGIN_ROOT}/skills/consult/scripts/dispatch.mjs" read-only <repo
    workflow artifact `<stem>.md`, write the panel as a free narrative fragment
    next to it: `<stem>.NN-consult.html.fragment` (e.g.
    `04-plan.01-consult.html.fragment`). It is raw-inlined below the rendered page
-   with `@scope` CSS containment (no contract, no sibling `.yaml`). Keep it
-   self-contained — semantic HTML, one small scoped `<style>` if needed. For a
-   standalone consult with no artifact target, skip the fragment.
+   with `@scope` CSS containment (no contract, no sibling `.yaml`) — see
+   [narrative-fragments.md](../../reference/narrative-fragments.md), and read
+   [artifact-interop.md](../../reference/artifact-interop.md) before embedding an
+   opinion into an `.ai/` artifact. Keep it self-contained — semantic HTML, one
+   small scoped `<style>` if needed. For a standalone consult with no artifact
+   target, skip the fragment.
 
 # Step 4 — Emit the result
 
@@ -140,7 +144,7 @@ End with the machine-readable block, then a short narrative summary:
 ```
 CONSULT_RESULT:
   providers: <comma-separated providers that returned an opinion>
-  skipped: <provider (reason), …  | none>
+  skipped: <provider (reason), … | none>
   failed: <provider (kind: reason), … | none>   # ok:false — kind ∈ auth|sandbox|not-found|unknown
   panel-size: <N of M requested>                # N < M ⇒ degraded; say so in the narrative too
   remedies: <provider: command, … | none>       # actionable fixes for auth failures
@@ -156,18 +160,19 @@ which were one model with a panel's framing.
 **Cost note (C2).** A bare fan-out hits **every** available provider. The
 subscription CLIs (`codex`, `claude`) cost nothing per call; the REST oracles
 (`gemini`, `openai`, gateway models) bill **per-token to your API key on every
-invocation**. To stay free, pin a subscription CLI: `consult codex <question>` or
-`consult claude <question>`. To pin one paid model, name it:
-`consult openai <question>` or `consult anthropic/claude-opus-4-8 <question>`.
+invocation**. To stay free, pin a subscription CLI: `/consult codex <question>` or
+`/consult claude <question>`. To pin one paid model, name it:
+`/consult openai <question>` or `/consult anthropic/claude-opus-4-8 <question>`.
 
 # Callers
 
 `consult` is user-invocable, and the model also **auto-invokes** it at the plan,
 shape, design, review, verify, and handoff judgment points (and their equivalents in
-the autonomous `/wf auto` and `/wf yolo` drivers) whenever that stage's **objective**
-trigger fires — a carried intent-risk, a ship-with-caveats verdict, an inferred-not-
-observed AC, a risk-bearing surface, and so on, as each stage specifies. It is a
-default action at those gates, not a rare one. Model-initiated runs pin a free CLI
-(`codex`/`claude`); the "used sparingly" caution scopes to the **paid** REST oracles
-only. It conceptually supersedes `codex:rescue` (one model → a multi-model panel) but
-does not edit that separate plugin.
+the autonomous `/wf auto` and `/wf yolo` drivers — key availability per
+[_host-invocation.md](../wf/reference/_host-invocation.md)) whenever that stage's
+**objective** trigger fires — a carried intent-risk, a ship-with-caveats verdict, an
+inferred-not-observed AC, a risk-bearing surface, and so on, as each stage specifies.
+It is a default action at those gates, not a rare one. Model-initiated runs pin a
+free CLI (`codex`/`claude`); the "used sparingly" caution scopes to the **paid** REST
+oracles only. It conceptually supersedes the single-model rescue pattern (one model →
+a multi-model panel) and edits no other plugin.

@@ -9,7 +9,7 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `wf-instrument`, an **observability augmentation** that adds an instrumentation plan to an existing workflow.
 
-> **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf instrument` command anymore. Run only the mode the calling stage requests.
+> **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf instrument` key anymore. Run only the mode the calling stage requests.
 
 > **Deep reference — wide-event observability.** For the canonical wide-event / structured-logging patterns (tail sampling, canonical log lines, context-rich queryable events) this augmentation designs against, load [wide-event-observability.md](wide-event-observability.md) — the former standalone `wide-event-observability` skill, folded in here as this augmentation's knowledge base.
 
@@ -140,7 +140,7 @@ dark-paths-found: <N>
 signals-designed: <N>
 pii-warnings: <true|false>
 status: ready
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
@@ -260,7 +260,7 @@ If dark paths are zero, note:
 
 > No dark paths found — the files in scope already have adequate observability coverage. The plan documents existing signals for reference.
 
-# What this command is NOT
+# What this sub-procedure is NOT
 
 - **Not an implementer** — `wf-instrument` designs the instrumentation plan. `wf-implement` builds it. Do not write application code.
 - **Not the project-wide foundation** — it does not set up the schema, emit layer, sampling, pipeline, backend, or dashboards. That is `/wf observability` (`init`/`build`/`audit`). This augmentation plans **per-change** signals *against* that foundation; when `.ai/observability.md` exists it designs to that contract's schema and pipeline.
@@ -280,7 +280,7 @@ dark-paths callout list and an optional PII-warning counter.
 
 **Required whenever you write the `instrument` sibling YAML:** also write the
 sibling `.html.fragment` next to it. First load
-`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow
+`../_fragment-authoring.md` and follow
 its wrapper, snippet, and verifier rules. The fragment must stay deterministic
 from the sibling YAML (same YAML → byte-identical HTML) and pass
 `scripts/verify-fragment.mjs` (Check 7) clean.

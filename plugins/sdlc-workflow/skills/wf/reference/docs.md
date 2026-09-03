@@ -47,7 +47,7 @@ Parse `$ARGUMENTS`.
    - Argument is a path (resolves to an existing directory or file) → `mode: path`, `scope-path: <path>`.
    - Argument is none of the above → STOP. *"`<token>` is not a recognized primitive, slug, path, or flag. Run `/wf docs` with no arguments for full-project audit, or pick one of: plan, tutorial, how-to, reference, explanation, readme, review."*
 
-3. **Generate run ID** for orchestrator mode: `docs-<YYYYMMDD-HHMM>` (run `date +"%Y%m%d-%H%M"` via Bash).
+3. **Generate run ID** for orchestrator mode: `docs-<YYYYMMDD-HHMM>` (real current UTC time per [_timestamp.md](_timestamp.md)).
 
 4. **For `mode: workflow`**: read the workflow's index and all stage artifacts to understand what changed. Pay special attention to `02-shape.md` → `## Documentation Plan` (the Diátaxis doc plan written at shape).
 
@@ -63,7 +63,7 @@ You are a **documentation orchestrator**. You are not a writer operating in isol
 # Step 1 — Discover (orchestrator only)
 Find all existing documentation in scope.
 
-Launch one Explore sub-agent with the following:
+Launch one read-only sub-agent (per [_subagents.md](_subagents.md)) with the following:
 
 **Documentation inventory:**
 - Find all markdown files in the project: `README.md`, `docs/`, `CONTRIBUTING.md`, `CHANGELOG.md`, `wiki/`, API docs, embedded docstrings, and any other `.md` files
@@ -88,12 +88,12 @@ doc-files-found: <count>
 has-docs-folder: <true|false>
 doc-generator: <tool or "none">
 status: complete
-created-at: <real timestamp via bash>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
 # Step 2 — Audit (orchestrator only)
-For each documentation file found, audit it against the codebase and Diátaxis principles. Launch parallel Explore sub-agents — one per documentation area or one per large doc file.
+For each documentation file found, audit it against the codebase and Diátaxis principles. Launch parallel read-only sub-agents (per [_subagents.md](_subagents.md)) — one per documentation area or one per large doc file.
 
 **Each audit sub-agent is prompted with:**
 
@@ -175,7 +175,7 @@ For each action:
 - Scope: what specifically to write or change (2–4 sentences)
 - Required reading: which source files or workflow artifacts the writer must read first
 
-If the audit surfaced ambiguous classifications (a doc that mixes quadrants, or a request that could be tutorial-or-how-to), load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/docs/plan.md` to apply the Diátaxis decision table before recording the action.
+If the audit surfaced ambiguous classifications (a doc that mixes quadrants, or a request that could be tutorial-or-how-to), load `docs/plan.md` to apply the Diátaxis decision table before recording the action.
 
 **`plan.md` frontmatter:**
 ```yaml
@@ -197,15 +197,15 @@ created-at: <real timestamp>
 
 If `audit-only: true` → **STOP HERE**. Present the plan in chat. Do not proceed to Step 4.
 
-**After writing:** Present a summary and confirm with user:
-```
-AskUserQuestion:
-  question: "Documentation plan ready: P0 broken=<N>, P1 missing=<N>, P2 wrong-quadrant=<N>. Proceed with generation?"
-  options:
-    - Generate all planned docs
-    - Generate P0 and P1 only (skip P2–P4)
-    - Audit-only — save plan, do not write docs
-    - Adjust plan (describe changes)
+**After writing:** Present a summary and confirm with the user through ONE gate question per [_gate-question.md](_gate-question.md):
+```yaml
+question: "Documentation plan ready: P0 broken=<N>, P1 missing=<N>, P2 wrong-quadrant=<N>. Proceed with generation?"
+header: "Doc plan"
+options:
+  - Generate all planned docs
+  - Generate P0 and P1 only (skip P2–P4)
+  - Audit-only — save plan, do not write docs
+  - Adjust plan (describe changes)
 ```
 
 # Step 4 — Generate (orchestrator only)
@@ -213,9 +213,9 @@ Execute the plan. **Generate independent doc actions in parallel** — each acti
 
 For each action:
 
-1. **TaskCreate** the action: `"<action-type> <file-path>"`.
+1. **Track the action** as an in-progress task entry: `"<action-type> <file-path>"`.
 2. **Read required source files** before writing anything — do not write from memory.
-3. **Load the matching primitive reference** from `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/docs/<primitive>.md` and follow it verbatim. The primitive references are:
+3. **Load the matching primitive reference** from `docs/<primitive>.md` and follow it verbatim. The primitive references are:
    - `docs/tutorial.md` — learning-oriented content that builds something step-by-step
    - `docs/how-to.md` — task-oriented goal-driven steps
    - `docs/reference.md` — neutral, structured, scannable technical reference
@@ -223,7 +223,7 @@ For each action:
    - `docs/readme.md` — front-door README pages that route to deeper docs
 4. **Write or update the file** at the target path.
 5. **For delete actions:** confirm with the user one more time before deleting. Never delete silently.
-6. **TaskUpdate to completed.**
+6. **Mark the task entry completed.**
 
 Record each completed action in `generate.md`.
 
@@ -244,9 +244,9 @@ created-at: <real timestamp>
 ```
 
 # Step 5 — Review (orchestrator only)
-Spot-check the generated documentation for quality and coherence. Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/docs/review.md` for the Diátaxis-discipline rubric.
+Spot-check the generated documentation for quality and coherence. Load `docs/review.md` for the Diátaxis-discipline rubric.
 
-Launch one Explore sub-agent to review the generated files:
+Launch one fresh-context, read-only sub-agent (per [_subagents.md](_subagents.md)) to review the generated files:
 
 **For each file created or updated in this run:**
 - Read the file and confirm it stays in its Diátaxis quadrant — no opinion in reference docs, no steps in explanations, no why in how-to guides
@@ -301,7 +301,7 @@ the docs table in both workflow and project/path mode.
 # Step 6 — Primitive mode execution
 Invoked only when Step 0 resolved to a primitive (first token matched a known key).
 
-1. Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/docs/<primitive>.md` in full.
+1. Load `docs/<primitive>.md` in full.
 2. Treat its content as your instructions. Follow it verbatim — no summarizing, paraphrasing, or skipping.
 3. Pass the remaining `$ARGUMENTS` (everything after the primitive key) to it as the writing target.
 4. The primitive is responsible for its own inputs-to-gather, structure, writing rules, and output contract. It writes one document at a path it decides (or the user supplies). It does not register a workflow artifact and does not run the orchestrator pipeline.
@@ -322,7 +322,7 @@ Invoked only when Step 0 resolved to a primitive (first token matched a known ke
 # Workflow rules (orchestrator mode)
 - Store audit artifacts under `.ai/docs/<run-id>/`. Documentation output goes to project doc paths (not under `.ai/`).
 - **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`.
-- **Timestamps must be real:** run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash.
+- **Timestamps must be real:** take the real UTC timestamp per [_timestamp.md](_timestamp.md).
 - Always read source code before writing docs — do not write from memory or inference alone.
 - Diátaxis quadrant discipline is non-negotiable. When in doubt, consult the [Diátaxis framework](https://diataxis.fr).
 - For `mode: workflow`: check `02-shape.md → ## Documentation Plan` first — that plan was written by the author who knew the intent. Fulfill it before adding new docs.

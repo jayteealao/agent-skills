@@ -116,9 +116,9 @@ Write the findings file to the path and with the structure that the dispatch pro
 # WHEN TO USE
 
 Run `/wf review code-simplification` when:
-- After any implementation (always included in `wf-review` dispatch)
+- After any implementation (always included in `/wf review` dispatch)
 - When code feels "first-draft" and could be tightened
 - After fixing review findings (check if fixes introduced new complexity)
 - When onboarding to unfamiliar code (find what patterns already exist)
 
-This command is always dispatched by `wf-review` alongside `correctness` and `security`.
+This skill is always dispatched by `/wf review` alongside `correctness` and `security`.

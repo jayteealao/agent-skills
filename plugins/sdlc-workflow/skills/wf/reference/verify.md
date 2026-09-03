@@ -11,7 +11,7 @@ this operation produces: translate workflow context to product language and leak
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
 > above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `wf-verify`, **stage 6 of 10** in the SDLC lifecycle.
+You are running `/wf verify`, **stage 6 of 10** in the SDLC lifecycle.
 
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → `6·verify` → 7·review → 8·handoff → 9·ship → 10·retro
@@ -45,7 +45,7 @@ You are running `wf-verify`, **stage 6 of 10** in the SDLC lifecycle.
 # CRITICAL — execution discipline
 You are a **workflow orchestrator that owns its own triage→fix loop**.
 - Run checks and compare results against acceptance criteria. Do NOT improvise fixes while checks are running.
-- After all checks and the user-observable AC gate finish (Step 7.5), you own a **single-round, user-gated fix loop** (Step 7.6): mechanical classes (lint / format / marker-syntax) auto-fix without a question; triage every other failure via `AskUserQuestion` (Fix / Skip / Escalate); `Fix` choices spawn parallel worktree-isolated sub-agents that apply the minimal patch; re-run only affected checks once, then finalize.
+- After all checks and the user-observable AC gate finish (Step 7.5), you own a **single-round, user-gated fix loop** (Step 7.6): mechanical classes (lint / format / marker-syntax) auto-fix without a question; triage every other failure as a gate question per [_gate-question.md](_gate-question.md) (Fix / Skip / Escalate); `Fix` choices spawn parallel write-isolated sub-agents (per [_subagents.md](_subagents.md)) that apply the minimal patch; re-run only affected checks once, then finalize.
 - ONE round only. If anything still fails, write `convergence: escalated` and route to re-invoke `/wf verify` or `/wf implement` — **do not loop again in this invocation**.
 - Do NOT review, handoff, or ship — those are later stages.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely. The fix loop runs only in Step 7.6, never before checks complete.
@@ -72,7 +72,7 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
    - If `06-verify-<slice-slug>.md` (or `06-verify.md` in compressed mode) already exists → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
    - **Stack gate (do NOT silently re-detect):** Inspect the `stack:` block in `00-index.md` and `stack-source` in `04-plan-<slice-slug>.md` (standard/forwarded modes).
      - If `stack:` is **missing entirely** → STOP: "Stack fingerprint missing from `00-index.md`. Sub-agent 3 needs the PO-confirmed stack to pick adapters. Re-run `/wf intake <slug>` first." Verify must NOT re-detect — detection alone is insufficient evidence of intent.
-     - If `stack.user-confirmed: false` → **HARD GATE.** `AskUserQuestion` header `"Stack unconfirmed"`, question `"stack: was auto-detected but the PO never confirmed it. Adapter selection may be wrong. (1) Stop and re-run intake Batch B. (2) Proceed with unconfirmed stack — result stamped weak-provenance and review/ship may refuse it."` Options: `Stop (recommended)` / `Proceed with unconfirmed stack`. Stop → STOP. Proceed → set `stack-source: unconfirmed-auto-detect` in frontmatter AND `## Caveats`. Never auto-proceed.
+     - If `stack.user-confirmed: false` → **HARD GATE.** Ask ONE gate question per [_gate-question.md](_gate-question.md) — header `"Stack unconfirmed"`, question `"stack: was auto-detected but the PO never confirmed it. Adapter selection may be wrong. (1) Stop and re-run intake Batch B. (2) Proceed with unconfirmed stack — result stamped weak-provenance and review/ship may refuse it."`, options `Stop (recommended)` / `Proceed with unconfirmed stack`. Stop → STOP. Proceed → set `stack-source: unconfirmed-auto-detect` in the verify slice frontmatter AND `## Caveats`. Never auto-proceed.
      - If `04-plan-<slice-slug>.md` carries `stack-source: unconfirmed-auto-detect` → propagate the same warning and frontmatter stamp (verification inherits the plan's stack provenance).
      - If `stack.user-confirmed: true` and plan agrees → proceed. Sub-agent 3 MUST intersect matched adapters with `stack.platforms`; companion skills used for evidence MUST come from `stack.available-skills`.
    - **Constraint-resolution gate (refuse inherited unresolved environment walls):** Read `## Verification Strategy` in the plan file. Every **user-observable** AC whose strategy names an environment dependency (credentials, device, external service, inbound callback, deploy target, missing infrastructure) must carry a `constraint-resolution:` line authored at plan time (`prerequisite-slice: <slug>` | `proxy+deferral: <named clearing event>` | `po-accepted: <reason>`). If **none of the three** is present, record the criterion under `constraint-resolution-missing:` in the verify frontmatter and treat as `blocked-runtime-evidence-missing` at Step 7.5 — the deferral hatch is **not available** for it. Routing: Option E (`/wf plan` — author the resolution), not Option F.
@@ -98,12 +98,12 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
    | `design-critique` | Read `07-design-critique.md`. Note any prescriptive feedback that should have been actioned. |
    | `instrument` | Read `04b-instrument.md`. For each designed signal, confirm the implementation actually emits the log/metric/trace. Run the affected code path and observe the signal fires (live or via tests). Report any missing signals. |
    | `experiment` | Read `04c-experiment.md`. Confirm: (a) feature flag is wired correctly; (b) cohort split logic produces the documented distribution; (c) primary/secondary/guardrail metrics fire on the expected events; (d) rollback path works. |
-   | `benchmark` (status: baseline) | Run the benchmark compare by loading `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/augment/benchmark.md` in compare mode. Compare results against the baseline numbers in `05c-benchmark.md`. Flag regressions exceeding the documented tripwires (>10% CPU / >25% memory by default). |
+   | `benchmark` (status: baseline) | Run the benchmark compare by loading `augment/benchmark.md` in compare mode. Compare results against the baseline numbers in `05c-benchmark.md`. Flag regressions exceeding the documented tripwires (>10% CPU / >25% memory by default). |
 8. **Carry forward** `open-questions` from the index.
 9. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy: dedicated`, confirm the correct branch via `git branch --show-current` and switch if needed. Verification must run against the implementation branch, not the base branch.
 
 # Parallel verification
-When verification spans multiple concerns, launch parallel sub-agents. Do not spin up sub-agents when a single test command covers everything.
+When verification spans multiple concerns, launch parallel sub-agents per [_subagents.md](_subagents.md): independent AC groups go to parallel read-only children, each returning evidence; the parent composes the verify artifact and the verdict. Do not spin up sub-agents when a single test command covers everything.
 
 ### Functional sub-agent 1 — Static Analysis & Build
 
@@ -128,7 +128,7 @@ Prompt the agent with ALL of the following:
 - **Build time delta:** Record the wall-clock time of the current build vs. the base branch build (from the worktree comparison above if run, otherwise from CI cache statistics). A build time increase ≥ 30% is a WARN.
 - **Startup time (service/CLI):** If the adapter is `service` or `cli`, measure cold-start time (`time curl -s localhost:<port>/health` after a fresh start). A cold-start increase ≥ 15% vs. the base branch is a HIGH issue.
 - If the worktree comparison is impossible (for example `git worktree` unavailable), record `metric-bundle-size-delta-pct: skipped — <reason>` and still record the absolute artifact size.
-- This gate is **separate from** the `benchmark` augmentation (detailed profiling). This gate adds a lightweight size/startup floor that runs every time.
+- This gate is **separate from** the `benchmark` augmentation. The augmentation adds detailed profiling; this gate adds a lightweight size/startup floor that runs every time.
 
 **Security scanning (MANDATORY — runs on every slice):**
 - **Dependency CVEs:** Run `npm audit --audit-level=high`, `cargo audit`, `pip-audit`, `go list -json -m all | nancy sleuth`, or the project's equivalent. Report: count of critical/high CVEs in files this slice changed vs. pre-existing. New CVEs introduced by this slice are BLOCKER issues.
@@ -182,7 +182,7 @@ Prompt the agent with ALL of the following:
 
 **Platform recipes live in the adapter registry**, not inline:
 
-> Read `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/runtime-adapters.md` and follow the recipe for every adapter whose detection signals match the repo (web / android / ios / cli / desktop / service / notebook / etc.). Adapter selection is documented at the top of that file.
+> Read `runtime-adapters.md` and follow the recipe for every adapter whose detection signals match the repo (web / android / ios / cli / desktop / service / notebook / etc.). Adapter selection is documented at the top of that file.
 
 **Climb the constraint-resolution ladder before deferring anything (MANDATORY).** "No device / no browser / no creds" is not a defer-reason — it is the *start* of a ladder climb. For each user-observable AC whose obvious path is blocked, climb the ladder for its class (runtime-adapters.md → *Constraint-resolution ladder*), **executing any tool bootstrap the plan's `## Verification Strategy` already authorized**, and record the highest rung that produced evidence. Defer ONLY the residual that no rung can reach. Three hard rules:
 
@@ -191,7 +191,7 @@ Prompt the agent with ALL of the following:
 - **Punting to a future slice is a deferral, not a pass.** "Will be verified during `<other slice>`" must register a deferral the later slice (or `/wf probe`) is obligated to clear — never grounds for `result: pass` on this slice.
 
 **Mock provenance + fixture-fidelity (record where the shape came from).** Any mock/fixture that **emulates an external interface** — library stream/event shapes, HTTP payloads, SDK return types — records `mock-provenance: <node_modules path read | captured-real-output ref | docs URL>`. "From recollection" is **illegal**: an unrecorded provenance forces `evidence-rung: uncited-mock`.
-- **Grep check.** When an AC's evidence rests on mocked external-interface events, grep the *installed* package for the mocked identifiers (event names, method names). **Zero hits ⇒ presumptively fictional ⇒ finding + cap that AC at `partial`.**
+- **Search check.** When an AC's evidence rests on mocked external-interface events, search the *installed* package for the mocked identifiers (event names, method names). **Zero hits ⇒ presumptively fictional ⇒ finding + cap that AC at `partial`.**
 - **Fixture-fidelity spot-check.** Spot-check the fixture's shape against the real contract — the dependency's types/`.d.ts`, official docs, or one free schema-level call — and record `fixture-fidelity: checked | unchecked — <why>` per fixture. Spot-check only (shape/enum names), **not** a contract-test mandate; `/wf study-sources` is the natural tool. `fixture-fidelity: checked` is what upgrades a mock from `uncited-mock` to `cited-mock`.
 
 **First-light (an integration whose real behaviour is unproven caps at `partial`).** When a slice introduces an external integration whose real behaviour has **not** been observed live in this workflow, register it in `00-index.md`:
@@ -244,7 +244,7 @@ Prompt the agent with ONE coherent charter that covers the following:
 
 8. **Failure mode probes (MANDATORY).** For each user-observable AC whose surface invites them, probe boundary conditions after the happy path: slow response (network throttling), concurrent session (a second independent session acting simultaneously), and session expiry (when auth is in scope). Record under `## Failure Mode Probes`; unhandled error states are HIGH issues.
 
-The runtime-adapters.md `Evidence protocol` and `Accessibility checks` sections apply across all platforms; do not duplicate them here.
+The `runtime-adapters.md` `Evidence protocol` and `Accessibility checks` sections apply across all platforms; do not duplicate them here.
 
 **Incidental defects observed while driving** are recorded against the shared classes in `_surface-defects.md` (`dead-affordance`, `error-surface-leak`, `ambiguous-copy`, `terminal-wait`, `fabricated-value`, `dependency-collapse`, `branch-gap`, `boundary-overflow`) so verify, probe and review speak one vocabulary. Verify does not run the full sweep — an exhaustive surface pass is `probe … sweep`.
 
@@ -279,7 +279,7 @@ After driving each user-observable criterion, run an a11y scan on the exercised 
 
 Launch ONLY if `02c-craft.md` exists or `augmentations:` list is non-empty. Enforces contracts the standard test suites do not catch.
 
-> **`verify` is the design consumer that *measures it* (when `stack.ui ≠ ∅`).** The a11y / perf / responsive / web-vitals gates above are the **measurable design floor** for any UI slice, and the per-augmentation re-checks below confirm each *applied* transform actually hit its goal. The canonical laws and absolute bans behind that floor are single-sourced in `skills/wf/reference/design/_design-context.md` — load its Accessibility law + Absolute bans when `stack.ui ≠ ∅` (even if no `02b`/`02c` exists) so the measurable checks match the design canon. These numbers are measured **once, here** — `/wf review`'s design-audit dimension (and ad-hoc `/wf design audit`) *interpret* them from `06-verify-*.md` rather than re-running axe-core, so the two stages can never disagree about the same measurement. Record them in the verify report so audit can read them.
+> **`verify` is the design consumer that *measures it* (when `stack.ui ≠ ∅`).** The a11y / perf / responsive / web-vitals gates above are the **measurable design floor** for any UI slice, and the per-augmentation re-checks below confirm each *applied* transform actually hit its goal. The canonical laws and absolute bans behind that floor are single-sourced in `design/_design-context.md` — load its Accessibility law + Absolute bans when `stack.ui ≠ ∅` (even if no `02b`/`02c` exists) so the measurable checks match the design canon. These numbers are measured **once, here** — `/wf review`'s design-audit dimension (and ad-hoc `/wf design audit`) *interpret* them from `06-verify-*.md` rather than re-running axe-core, so the two stages can never disagree about the same measurement. Record them in the verify report so audit can read them.
 
 Prompt with:
 
@@ -305,7 +305,7 @@ Prompt with:
 
 **Reporting:**
 - Pass: all mock fidelity items honored, all augmentation type-checks pass, no critical findings outstanding.
-- Fail: list each failure with severity. These become BLOCKER or HIGH issues for `wf-review`.
+- Fail: list each failure with severity. These become BLOCKER or HIGH issues for `/wf review`.
 
 ### Web research sub-agent 5 — Freshness: Dependencies, AC Staleness, and Standards Drift
 
@@ -320,7 +320,7 @@ Prompt with:
 
 **AC staleness check (MANDATORY when plan age > 14 days or slice touches external integrations):**
 - For each AC criterion naming an external API, schema, protocol, or third-party service: web search for breaking changes or deprecations since the plan's `created-at` date.
-- Flag stale criteria as `ac-stale: true` with a one-line change description. AC staleness surfaces under `## Freshness Research` and routes to `/wf plan` (Option E) if drift is material.
+- Flag stale criteria as `ac-stale: true` with a one-line change description. AC staleness is not a verify failure — it surfaces under `## Freshness Research` and routes to `/wf plan` (Option E) if drift is material.
 - Record `ac-staleness-checked: true | false` and `ac-stale-count: <N>`.
 
 Merge all sub-agent results. For each check, record: command run, pass/fail, relevant output. Do NOT fix issues here — the fix loop runs in Step 7.6 after all results are merged and the AC gate has partitioned issues.
@@ -328,11 +328,11 @@ Merge all sub-agent results. For each check, record: command run, pass/fail, rel
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
-- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at` and `updated-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
+- **Ask multiple-choice PO questions as gate questions** per [_gate-question.md](_gate-question.md) (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 - **Conditional inputs are mandatory when present.** If a file in this command's *Conditional inputs* row exists on disk, read it and honor it in the output — existence is optional, consumption is required; silent omission is a contract violation.
@@ -351,14 +351,14 @@ Apply the early-stop guard in [_autonomy-guards.md](_autonomy-guards.md) before 
 Do this in order:
 1. Confirm the selected slice.
 2. Determine the relevant verification commands from the repo.
-3. **Track the stage's units in the task tracker** — one task per check (lint, typecheck, tests, build, …) and one per acceptance criterion from `03-slice-<slice-slug>.md`, plus the artifact write. Keep statuses truthful as results land.
-4. **Run checks** (parallel sub-agents if multi-concern): lint, typecheck, tests, build, smoke tests, manual checks. Record a failed check as `FAILED: <output summary>` on its task. Do NOT fix yet — the user-gated fix loop runs once in Step 7.6 after all checks finish and the AC gate has partitioned issues.
-5. **Verify acceptance criteria.** Compare results with each criterion from `03-slice-<slice-slug>.md` and `02-shape.md`. Record an unmet criterion as `NOT MET: <reason>` on its task.
+3. **Track the stage's units in a work-tracking checklist** — one item per check (lint, typecheck, tests, build, …) and one per acceptance criterion from `03-slice-<slice-slug>.md`, plus the artifact write. Keep statuses truthful as results land.
+4. **Run checks** (parallel sub-agents if multi-concern): lint, typecheck, tests, build, smoke tests, manual checks. Record a failed check as `FAILED: <output summary>` on its item. Do NOT fix yet — the user-gated fix loop runs once in Step 7.6 after all checks finish and the AC gate has partitioned issues.
+5. **Verify acceptance criteria.** Compare results with each criterion from `03-slice-<slice-slug>.md` and `02-shape.md`. Record an unmet criterion as `NOT MET: <reason>` on its item.
 6. If verification reveals gaps caused by external dependency behavior or standards drift, run a freshness pass and record it.
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
 7.5. **Apply the user-observable AC gate** (see "User-observable AC gate" section below). Partition AC into `code-only` vs `user-observable`. For every `user-observable` AC, require a matching entry in `interactive-verification-results`. If any has no match AND no `interactive-verification: deferred` annotation, write `result: blocked-runtime-evidence-missing` and list the missing AC in `## Issues Found`.
-7.6. **Single-round verify-owned fix loop** (see "Verify-owned fix loop" section below). Snapshot `metric-issues-found-initial`. Auto-fix mechanical classes; triage each remaining failure via `AskUserQuestion`; `Fix` choices spawn parallel worktree-isolated sub-agents; re-run only affected checks once. Record `fix-rounds-run`, `convergence`, `metric-issues-found-final`. ONE round only — if anything still fails, finalize with `convergence: escalated` and route to re-invoke verify or `/wf implement`.
-8. Mark "Write 06-verify" task `in_progress`. **Write `06-verify-<slice-slug>.md`** (per-slice file, see template below). Mark `completed`.
+7.6. **Single-round verify-owned fix loop** (see "Verify-owned fix loop" section below). Snapshot `metric-issues-found-initial`. Auto-fix mechanical classes; triage each remaining failure as a gate question per [_gate-question.md](_gate-question.md); `Fix` choices spawn parallel write-isolated sub-agents; re-run only affected checks once. Record `fix-rounds-run`, `convergence`, `metric-issues-found-final`. ONE round only — if anything still fails, finalize with `convergence: escalated` and route to re-invoke verify or `/wf implement`.
+8. **Write `06-verify-<slice-slug>.md`** (per-slice file, see template below).
 9. **Write/update `06-verify.md`** (master index with links to all per-slice verify files).
 10. Update `00-index.md` accordingly and add files to `workflow-files`. **Then promote the slice's roster status** — in `03-slice.md`'s `slices:` entry for this slice, `result: pass` sets `status: complete`; any other result (`fail`, `partial`, `blocked-runtime-evidence-missing`) leaves it at `status: in-progress`. A deferral-only `partial` is **not** complete — the AC still owes runtime evidence, and `/wf ship` blocks on it. Set only this slice's entry; do not touch siblings, do not renumber, and never move an entry that `close.md` set to `skipped`.
 
@@ -532,7 +532,7 @@ runtime-evidence-deferrals:
 
 **`clearing-probe` — how anyone finds out the event happened (STRONGLY EXPECTED).** A clearing event that names a provisionable act is only half the job; something has to *notice* when the act occurs. So a deferral whose clearing event is provisionable should also carry a **one-line, side-effect-free command that answers "has it happened yet?"** — `adb devices | grep -q emulator`, `curl -sf localhost:8080/health`, `test -f .env.e2e`, `gh run list --workflow release -L1 --json conclusion`. The ownership triage already forced the author to know what would clear the wall, so writing the check costs one line.
 
-`/wf status <slug>`, `/wf yolo` orientation, and `/wf probe` orientation **execute** these at their cheap moments (one command each, short timeout) and flag hits — *"deferral AC6's clearing event appears satisfied — run `/wf probe <slug>` now."* It is a **tripwire, not a gate**: nothing is cleared automatically, and the probe stage still owns evidence. This exists because one AC's clearing event ("device available for the AC6 run") was satisfied **in the same session** — emulator booted, branch app installed, on screen — and nothing noticed; the retro recorded "AC6 shipped uncleared." Omit the field only when no single command can answer the question (a human judgement, a third-party release); an omitted probe is a silent "nobody is watching this one".
+`/wf status <slug>`, the autonomous driver's orientation, and `/wf probe` orientation **execute** these at their cheap moments (one command each, short timeout) and flag hits — *"deferral AC6's clearing event appears satisfied — run `/wf probe <slug>` now."* It is a **tripwire, not a gate**: nothing is cleared automatically, and the probe stage still owns evidence. This exists because one AC's clearing event ("device available for the AC6 run") was satisfied **in the same session** — emulator booted, branch app installed, on screen — and nothing noticed; the retro recorded "AC6 shipped uncleared." Omit the field only when no single command can answer the question (a human judgement, a third-party release); an omitted probe is a silent "nobody is watching this one".
 
 **Repeat-deferral marker.** Before appending, scan existing `runtime-evidence-deferrals` for an entry naming the *same environment dependency* (fuzzy match — same credential gate, device class, or missing service). On a match, append `repeat-of: <slice-slug of the first occurrence>`: the accumulation becomes visible in the artifact, `/wf status`, and dashboard. A wall paid twice is plan's tripwire — the next plan for this slug MUST scope the harness that retires it or record `harness-declined: <reason>` (see plan.md's repeat-deferral tripwire).
 
@@ -549,8 +549,8 @@ Runs in Step 7.6, after all checks (Step 4) and the AC gate (Step 7.5) have prod
 ## Inputs to the loop
 
 Aggregate the issue list:
-- Every check task whose description starts with `FAILED:` from Step 4.
-- Every AC task marked `NOT MET:` from Step 5.
+- Every check recorded `FAILED:` in Step 4.
+- Every AC recorded `NOT MET:` in Step 5.
 - Every user-observable AC the gate refused for missing runtime evidence (Step 7.5).
 - Every augmentation re-check that failed (mock fidelity, signal coverage, experiment wiring, benchmark regression).
 
@@ -558,9 +558,9 @@ Record the count as `metric-issues-found-initial`. If the count is **zero**, set
 
 ## Triage protocol
 
-**Mechanical classes auto-fix — no question.** An issue whose class is `lint`, `format`, or `marker-syntax` is reversible, in-worktree, and mechanical: triage it `Fix` yourself, without `AskUserQuestion`, and report what was auto-fixed — with diffs — in the round summary. Anything unclassified, scope-changing, or behavior-changing still asks.
+**Mechanical classes auto-fix — no question.** An issue whose class is `lint`, `format`, or `marker-syntax` is reversible, in-tree, and mechanical: triage it `Fix` yourself, without asking, and report what was auto-fixed — with diffs — in the round summary. Anything unclassified, scope-changing, or behavior-changing still asks.
 
-For each remaining issue, call `AskUserQuestion`. Batch up to 4 issues per call. Each question:
+For each remaining issue, ask the gate question per [_gate-question.md](_gate-question.md). Batch up to 4 issues per gate round. Each question:
 - **header**: an issue identifier (e.g., `LINT-1`, `AC-3`, `RUNTIME-MISSING-2`, `BENCH-REG`).
 - **question**: `"{issue type}: {one-line summary} at {file:line or check name}"`.
 - Options:
@@ -572,12 +572,8 @@ Triage of non-mechanical issues is **always required**. Outside the mechanical c
 
 ## Fix dispatch (single round)
 
-Dispatch a fix sub-agent for **every** issue triaged `Fix` **in parallel** (single message, multiple Task calls) — each fix runs in its own worktree, so concurrent patches cannot collide; the sanity-check in step 3 is the merge gate. For each issue:
-1. Add a tracker task: `subject: "Fix [{ID}]: {title}"`, `metadata: { slug, stage: "verify-fix", slice: "<slice-slug>", issueId: "{ID}" }`.
-2. Spawn ONE sub-agent **with explicit `model: sonnet` and `isolation: worktree`** on the `Task` call (REQUIRED — both flags must be set; the model pin follows [_fix-loop.md](_fix-loop.md) rule 3, and worktree isolation additionally prevents a bad fix from landing in the working tree until it is verified).
-
-   The worktree is cleaned up if the sub-agent makes no changes. If it does make changes, the worktree path and branch are returned — do NOT merge into the main working tree until Step 3 (sanity-check) passes.
-
+Dispatch a fix sub-agent for **every** issue triaged `Fix` **in parallel** (one parallel wave) — each fix runs under write isolation, so concurrent patches cannot collide; the sanity-check in step 2 is the merge gate. For each issue:
+1. Dispatch ONE sub-agent at **medium** effort with write isolation, per [_subagents.md](_subagents.md) (REQUIRED — both must be set; the effort tier follows [_fix-loop.md](_fix-loop.md) rule 3, and write isolation additionally keeps a bad fix out of the working tree until it is verified). Do NOT merge its changes into the main working tree until step 2 (sanity-check) passes. Prompt:
    ```
    Fix the following verify-stage issue in the codebase:
 
@@ -611,8 +607,8 @@ Dispatch a fix sub-agent for **every** issue triaged `Fix` **in parallel** (sing
      A brief summary of what you changed, including the regression test
      path (or the one-line exemption reason).
    ```
-3. As each sub-agent returns: read the changed file(s) from the worktree path; sanity-check the patch against **both** the issue and the suggested fix's method ([_fix-loop.md](_fix-loop.md) rule 5). A `Method: deviated` return is never merged on the subagent's own say-so — re-read the patch against what was suggested and decide deliberately; when the suggestion carried an explicit prohibition, a deviation touching it is discarded, not merged. If the patch looks correct, merge the worktree changes into the main working tree (e.g., `git checkout <worktree-branch> -- <changed-files>`). **If two patches overlap on the same lines**, merge one, then re-dispatch the other against the merged state — serial for the conflicting pair only. If the patch is wrong, discard the worktree without merging and record `COULD NOT FIX`.
-4. Complete the tracker task. If the sub-agent could not fix, record `COULD NOT FIX: <reason>` on the task and treat this issue as `convergence: escalated` material in the next step.
+2. As each sub-agent returns: read the changed file(s) from its isolated result; sanity-check the patch against **both** the issue and the suggested fix's method ([_fix-loop.md](_fix-loop.md) rule 5). A `Method: deviated` return is never merged on the subagent's own say-so — re-read the patch against what was suggested and decide deliberately; when the suggestion carried an explicit prohibition, a deviation touching it is discarded, not merged. If the patch looks correct, merge the isolated changes into the main working tree. **If two patches overlap on the same lines**, merge one, then re-dispatch the other against the merged state — serial for the conflicting pair only. If the patch is wrong, discard it without merging and record `COULD NOT FIX`.
+3. If the sub-agent could not fix, record `COULD NOT FIX: <reason>` and treat this issue as `convergence: escalated` material in the next step.
 
 ## Re-check (single round)
 
@@ -750,7 +746,7 @@ refs:
   plan: 04-plan-<slice-slug>.md
   implement: 05-implement-<slice-slug>.md
   review: 07-review-<slice-slug>.md
-  adapters: ${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/runtime-adapters.md
+  adapters: runtime-adapters.md
 next-command: wf-review
 next-invocation: "/wf review <slug> <slice-slug>"
 ---

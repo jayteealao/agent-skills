@@ -45,7 +45,7 @@ You are a **scope expander**, not a problem solver.
 1. **Resolve the slug.** The `intake` dispatcher consumed the existing on-disk slug as `<slug>` (an
    exact `.ai/workflows/<slug>/00-index.md` match) before routing here — use it. (If you somehow
    arrive with no slug, infer the most recent active workflow from `.ai/workflows/*/00-index.md`; if
-   ambiguous, use `AskUserQuestion` to list options.)
+   ambiguous, ask ONE gate question per [_gate-question.md](../_gate-question.md) to list options.)
 2. **Resolve the seed** from the remaining `$ARGUMENTS`:
    - `from-review` — extract new scope from `07-review-*.md` findings (every per-slice review file is
      read; missing capability typically spans slices).
@@ -124,7 +124,7 @@ The user's free scope text (if any) is the starting description; the Step 2 disc
 
 # Step 2 — Discovery Interview
 
-Ask 4–8 targeted questions using AskUserQuestion (up to 4 per round) to define the new slices precisely.
+Ask 4–8 targeted questions as gate questions per [_gate-question.md](../_gate-question.md) (up to 4 per round) to define the new slices precisely.
 
 **What to ask about — generate questions specific to this workflow's artifacts and the extracted candidates:**
 
@@ -296,7 +296,7 @@ Do NOT change `selected-slice-or-focus` or any field not listed above.
 ---
 
 # Chat return contract
-Return per [_chat-return.md](../_chat-return.md) — narrative lead (what this run produced, key decisions and counts, top risk), then this receipt:
+Return per [_chat-return.md](../_chat-return.md) — narrative lead (what this extension added, key decisions and counts, top risk), then this receipt:
 - `slug: <slug>`
 - `wrote:` list of new slice files written, plus `03-slice.md` (updated)
 - `new-slices:` list of new slice slugs with one-line goals

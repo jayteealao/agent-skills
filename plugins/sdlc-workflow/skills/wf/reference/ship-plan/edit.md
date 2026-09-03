@@ -7,7 +7,7 @@ argument-hint: ""
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-You are running `/wf ship-plan edit`, the **block-editor for the project-level `.ai/ship-plan.md`**. This command edits the existing plan — it does NOT create a new one (use `/wf ship-plan init` for that) and does NOT amend workflow stage artifacts (use `/wf amend <slug>` for that).
+You are running `/wf ship-plan edit`, the **block-editor for the project-level `.ai/ship-plan.md`**. This command edits the existing plan — it does NOT create a new one (use `/wf ship-plan init` for that) and does NOT amend workflow stage artifacts (use `/wf intake <slug> amend` for that).
 
 ---
 
@@ -30,7 +30,7 @@ A user-typed `/wf ship-plan edit` has no scope restriction and proceeds through 
 
 ## Step S1 — Identify which block to amend
 
-Use AskUserQuestion:
+Ask a gate question per [_gate-question.md](../_gate-question.md):
 
 ```yaml
 question: "Which block of the ship plan needs editing?"
@@ -49,7 +49,7 @@ If the user picks "Inbound (H–K)", run a follow-up freeform prompt: *"Which bl
 
 ## Step S2 — Re-run the relevant block's questions
 
-Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/ship-plan/init.md` and re-run **only the chosen block's hypothesis loop under Step 2** (Block A → Step 2 Block A; Block B → Step 2 Block B; Block C → Step 2 Block C; Block D → Step 2 Block D; Block E → Step 2 Block E; Block F → Step 2 Block F; Block G → Step 2 Block G; Block H → Step 2 Block H; Block I → Step 2 Block I; Block J → Step 2 Block J; Block K → Step 2 Block K). For an additional-contract amendment, run only the sub-loop in Step 3 for the named `id`. Pre-fill each question with the plan's current value so the user only changes what's actually different.
+Load `init.md` and re-run **only the chosen block's hypothesis loop under Step 2** (Block A → Step 2 Block A; Block B → Step 2 Block B; Block C → Step 2 Block C; Block D → Step 2 Block D; Block E → Step 2 Block E; Block F → Step 2 Block F; Block G → Step 2 Block G; Block H → Step 2 Block H; Block I → Step 2 Block I; Block J → Step 2 Block J; Block K → Step 2 Block K). For an additional-contract amendment, run only the sub-loop in Step 3 for the named `id`. Pre-fill each question with the plan's current value so the user only changes what's actually different.
 
 When the amended block is one of the inbound blocks (H–J), remind the user that `/wf ship-plan build` must be re-run to bring the repo's files (and branch protection) back into compliance with the new plan version.
 
@@ -57,7 +57,7 @@ When the amended block is one of the inbound blocks (H–J), remind the user tha
 
 ## Step S3 — Confirmation
 
-Present a diff-style summary using AskUserQuestion:
+Present a diff-style summary as gate questions per [_gate-question.md](../_gate-question.md):
 
 ```yaml
 question: "Apply these changes to `.ai/ship-plan.md`?"

@@ -4,13 +4,13 @@ argument-hint: <problem-statement-or-slug>
 ---
 
 # Output boundary & shared context
-Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake investigate`, a **solution-options sketcher** that proposes multiple engineering approaches to a stated problem and characterizes their tradeoffs — without picking a winner.
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-investigate-<descriptor>.md` (`type: slice`, `slice-type: investigate`, `compressed: true`, `origin: intake/investigate`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `investigate → compressed slice <slice-slug> on <slug>`.
+If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-investigate-<descriptor>.md` (`type: slice`, `slice-type: investigate`, `compressed: true`, `origin: intake/investigate`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `investigate → compressed slice <slice-slug> on <slug>`.
 
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
@@ -56,10 +56,10 @@ The one definition of effort for this command. Every other mention in this file 
 # CRITICAL — sketching discipline
 You are an **options sketcher**, not a chooser, planner, or implementer.
 - The **only** acceptable output is the investigate artifact and index. Do NOT edit application code. Do NOT write a plan. Do NOT pick a winning option (the user picks).
-- Read-only investigation only: `git log`, `git blame`, `Read`, `Grep`, static code inspection.
+- Read-only investigation only: `git log`, `git blame`, your native file-reading and search tools, static code inspection.
 - Each option must be **distinct**: option B is not "option A but with a twist" — it should embody a meaningfully different design choice (different layer, different abstraction, different mechanism). If you cannot find 2 genuinely distinct options, say so (a tripwire) rather than padding with near-duplicates.
 - Each option's "Sketch" section is **direction, not a plan** — 2 to 5 lines naming the technique, the area, and the rough boundary. Do not enumerate implementation steps.
-- Ask at most **3 questions** in chat. No `AskUserQuestion`, no separate `po-answers.md` — answers go inline into the artifact.
+- Ask at most **3 questions** in chat. No structured gate question, no separate `po-answers.md` — answers go inline into the artifact.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient (MANDATORY)
@@ -75,6 +75,7 @@ You are an **options sketcher**, not a chooser, planner, or implementer.
    - Record the current branch in the index.
 4. **Read project context (lightweight):**
    - Read `README.md` (top 100 lines) for project shape and conventions, so option sketches use vocabulary that fits the codebase.
+   - Read `AGENTS.md` if present for project conventions.
 
 # Step 1 — Problem clarification
 Ask at most **3 questions** — stop as soon as the problem is sketchable:
@@ -88,9 +89,9 @@ If `$ARGUMENTS` contains enough to answer all three, skip to Step 2.
 Do NOT write the artifact yet. Hold answers in working memory and proceed.
 
 # Step 2 — Map and sketch (two waves)
-Three sub-agents, dispatched in two waves: the cartographer and the option generator are independent and launch **in parallel**; the tradeoff characterizer launches **after both return**, because it consumes their output — launched blind it can only produce an empty template. Each is a separate `Explore` sub-agent dispatch. Do not proceed to synthesis until all three complete.
+Three sub-agents, dispatched in two waves: the cartographer and the option generator are independent and launch **in parallel**; the tradeoff characterizer launches **after both return**, because it consumes their output — launched blind it can only produce an empty template. Each is a separate read-only sub-agent dispatch (per [_subagents.md](../_subagents.md)). Do not proceed to synthesis until all three complete.
 
-**Model for every dispatched agent:** `sonnet`. REQUIRED on every `Task` call. Investigation is judgment-heavy — the Cartographer must surface non-obvious architectural constraints, the Option generator must trade off across the design space, the Tradeoff characterizer must reason about effort/risk/blast-radius. Haiku underserves the abstraction-critique work; Opus is overkill since each agent still runs against a bounded scope.
+**Effort tier for every dispatched agent:** **medium** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch. Investigation is judgment-heavy — the Cartographer must surface non-obvious architectural constraints, the Option generator must trade off across the design space, the Tradeoff characterizer must reason about effort/risk/blast-radius. Low effort underserves the abstraction-critique work; high is overkill since each agent still runs against a bounded scope.
 
 ## Wave 1 — cartographer ∥ option generator (launch simultaneously)
 
@@ -173,7 +174,7 @@ option-ids: [A, B, C, …]   # all found; the first `presented-count` are full c
 constraints: [<from-question-3>]
 recommended-next: user-picks   # this command never picks
 status: ready-for-routing
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
@@ -340,7 +341,7 @@ The pick is the workflow's terminus: it records the decision and closes the work
 starts the successor — it prints the invocation and stops.
 
 1. **Stamp the artifact.** Add to `01-investigate.md` frontmatter: `chosen-option: <id> — <label>`;
-   `chosen-at:` set to the real UTC timestamp (run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash); and
+   `chosen-at:` set to the real UTC timestamp (per [_timestamp.md](../_timestamp.md)); and
    `decision-note: <the trailing prose>` if the user supplied any (omit the key otherwise).
 2. **Append a `## Decision` section** to the artifact body: which option was picked; why (the
    user's reason verbatim, else "user picked without a stated reason"); which tripwires were live

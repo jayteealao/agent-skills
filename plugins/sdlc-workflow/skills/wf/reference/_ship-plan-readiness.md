@@ -133,7 +133,7 @@ Compute the verdict from R1/R2 (post-R2.5 filter — a run whose every finding w
 - `drift` — at least one **gating** finding survives. Advisory findings (`secret-orphaned`, `compliance-stale`) are never gating and never counted into the ask — they are printed beneath the table and carried forward.
 - `ok` — plan present and no gating finding survives (surviving advisories are fine and are reported). **Record `ship-plan-readiness: ok` and return to the caller — no prompt.**
 
-Both `missing` and `drift` **gate**: present the situation and require an explicit decision. Use AskUserQuestion.
+Both `missing` and `drift` **gate**: present the situation and require an explicit decision. Ask a gate question per [_gate-question.md](_gate-question.md).
 
 ## Missing-plan gate
 

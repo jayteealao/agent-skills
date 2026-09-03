@@ -11,7 +11,7 @@ this operation produces: translate workflow context to product language and leak
 > exists and apply the contract in [_steering.md](../_steering.md): honor the user's standing instructions, never
 > above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `wf intake`, **stage 1 of 10** in the SDLC lifecycle.
+You are running `/wf intake`, **stage 1 of 10** in the SDLC lifecycle.
 
 # Pipeline
 `1·intake` → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
@@ -45,9 +45,9 @@ You are a **workflow orchestrator**, not a problem solver.
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Derive the slug** from `$ARGUMENTS`. Use the task description to create a lowercase kebab-case slug. If `$ARGUMENTS` looks like an existing slug, use it.
 2. **Registry collision check** (v9.11.0; opportunistic-bootstrap added in v9.25.0). Before touching disk, consult `.ai/workflows/INDEX.md` if it exists:
-   - **If `INDEX.md` does NOT exist** → no registry yet, so no collision detection is possible at this step (the disk check in sub-step 3 still gates the fresh-vs-resume decision). Do NOT bail out — Step 10 (below) will bootstrap `.ai/workflows/INDEX.md` with a header line + this workflow's row at the end of intake, so the *next* intake gets full collision detection without requiring an explicit `/wf status`. (Sync remains authoritative for full refresh — removing stale rows, fixing status drift across all workflows. Intake only does additive "append self if absent.")
-   - **If `INDEX.md` exists**, grep for an exact slug match: `grep -P "^<derived-slug>\t" .ai/workflows/INDEX.md`. Three branches based on the result:
-     - **Row exists AND status column ≠ `closed`** → the slug is already in active use. STOP and call `AskUserQuestion`:
+   - **If `INDEX.md` does NOT exist** → no registry yet, so no collision detection is possible at this step (the disk check in sub-step 3 still gates the fresh-vs-resume decision). Do NOT bail out — Step 10 (below) will bootstrap `.ai/workflows/INDEX.md` with a header line + this workflow's row at the end of intake, so the *next* intake gets full collision detection without requiring an explicit `/wf status`. (Status auto-reconciles for full refresh — removing stale rows, fixing status drift across all workflows. Intake only does additive "append self if absent.")
+   - **If `INDEX.md` exists**, search for an exact slug match: `grep -P "^<derived-slug>\t" .ai/workflows/INDEX.md`. Three branches based on the result:
+     - **Row exists AND status column ≠ `closed`** → the slug is already in active use. STOP and ask the gate question per [_gate-question.md](../_gate-question.md):
        ```
        question: "Slug `<slug>` is already an open workflow (status: <status>). What do you want to do?"
        options:
@@ -61,7 +61,7 @@ You are a **workflow orchestrator**, not a problem solver.
            description: "Abort intake."
        ```
        Do NOT proceed past Step 0 regardless of the answer — every option redirects to a different command or aborts. Surface the chosen command verbatim and STOP.
-     - **Row exists AND status column = `closed`** → reusing a closed slug would orphan its committed history and break the slug-is-stable invariant. STOP and call `AskUserQuestion`:
+     - **Row exists AND status column = `closed`** → reusing a closed slug would orphan its committed history and break the slug-is-stable invariant. STOP and ask the gate question per [_gate-question.md](../_gate-question.md):
        ```
        question: "Slug `<slug>` belongs to a closed workflow. Slugs are stable — a new workflow cannot reuse it. What do you want to do?"
        options:
@@ -79,7 +79,7 @@ You are a **workflow orchestrator**, not a problem solver.
    - If it exists and `current-stage` is past intake → note the re-run in chat and proceed. [_additive-write.md](../_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
    - If it does not exist → this is a fresh start. Proceed normally.
 4. **Carry forward** any `open-questions` from the index if resuming.
-5. **Provenance check:** apply `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-provenance.md` — detect an inherited analysis decision (an explicit trailing `from <source-slug>` token for any Consume-table source, or an exact label match for `investigate`/`ideate` sources), consume the matching row (an investigate option card, an rca diagnosis, a discover verdict, or an ideate idea card seeds the restated request, the risk inventory, and the research sub-agent prompts), and link back (record `origin-<type>` here, set `superseded-by` on a decision-shaped source, and apply the implicit pick/route if the source is still open). No match → continue; that is the common case.
+5. **Provenance check:** apply `_intake-provenance.md` — detect an inherited analysis decision (an explicit trailing `from <source-slug>` token for any Consume-table source, or an exact label match for `investigate`/`ideate` sources), consume the matching row (an investigate option card, an rca diagnosis, a discover verdict, or an ideate idea card seeds the restated request, the risk inventory, and the research sub-agent prompts), and link back (record `origin-<type>` here, set `superseded-by` on a decision-shaped source, and apply the implicit pick/route if the source is still open). No match → continue; that is the common case.
 
 # Step 0.5 — Repo stack fingerprint (MANDATORY — observation only, do NOT prescribe)
 
@@ -94,7 +94,7 @@ Goal: cheaply observe what the repo *already uses* and what *tooling is availabl
    - **Observability / logging:** `.lazylogcat*`, Perfetto trace configs, Sentry/OpenTelemetry SDKs, structured-log setup files.
    - **Marker files for known integrations:** Hilt/Dagger (`hilt-` deps), Room (`androidx.room.*`), Engage SDK, Play Billing, R8/ProGuard rules.
 
-2. **Session catalog (what's available to *this* agent run).** Enumerate skills, slash commands, and MCP servers visible in the current session. Record names + a one-line description each — these become the matching surface in shape. Do not invent entries; only record what the session actually exposes.
+2. **Session catalog (what's available to *this* agent run).** Enumerate skills, commands, and MCP servers visible in the current session. Record names + a one-line description each — these become the matching surface in shape. Do not invent entries; only record what the session actually exposes.
 
 3. **Write into `00-index.md` frontmatter** as a `stack:` block (sibling to `tags:`). Every key is optional; omit rather than guess. Example shape (Android case):
    ```yaml
@@ -123,7 +123,7 @@ Goal: cheaply observe what the repo *already uses* and what *tooling is availabl
 
 Intake questions asked blind push ambiguities the codebase would resolve for free onto the PO, or
 leak them into shape. So, **when the request names or implies a specific area of the codebase and
-is not trivially scoped**, launch **one** Explore sub-agent (medium breadth) before Batch B.
+is not trivially scoped**, launch **one** read-only research sub-agent at **medium** effort (per [_subagents.md](../_subagents.md)) before Batch B.
 
 **Skip criteria — skip ONLY if ANY of these hold** (mirrors shape's research skips):
 - The request is a trivial mechanical change (typo, rename, version bump, config flip)
@@ -136,7 +136,7 @@ which ambiguities the code already answers.* No solutioning, no recommendations.
 **Findings land in `01-intake.md` → `## Affected Areas (preliminary)`** (see the template below) — file paths, the existing behavior in
 one line each, and any request-ambiguity the code already resolves. Two consumers depend on this
 exact section: Batch B questions MUST reference the findings where relevant ("the code already has
-X — does this request replace it or extend it?"), and shape's Explore sub-agent 1 opens with it
+X — does this request replace it or extend it?"), and shape's research sub-agent 1 opens with it
 ("verify and deepen, do not re-derive") — that handoff clause is what keeps total research cost
 flat across the two stages.
 
@@ -146,13 +146,13 @@ Convert a rough request into a clear intake brief, create the workflow folder, c
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
-- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at` and `updated-at`, get the current UTC time per [_timestamp.md](../_timestamp.md). Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` frontmatter must always have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `created-at`, `selected-slice`, `branch-strategy`, `branch`, `base-branch`, `review-scope`, `review-scope-confirmed`, `appetite`, `pr-url`, `pr-number`, `open-questions`, `tags`, `stack`, `next-command`, `next-invocation`, `workflow-files`, `progress`, and (if slices exist) `slices`. The `stack` block is written by Step 0.5 (repo + session fingerprint) and confirmed/corrected in Batch B; it is observational, not prescriptive.
-- **Use AskUserQuestion** for multiple-choice PO questions (branch strategy, rollout preference, merge strategy, go/no-go, risk tolerance). Use freeform chat for open-ended questions (requirements, constraints, acceptance criteria). Construct every question per [_question-craft.md](../_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
+- **Ask multiple-choice PO questions as gate questions** per [_gate-question.md](../_gate-question.md) (branch strategy, rollout preference, merge strategy, go/no-go, risk tolerance). Use freeform chat for open-ended questions (requirements, constraints, acceptance criteria). Construct every question per [_question-craft.md](../_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Use parallel Explore/subagents for multi-domain research. Do not spin up subagents for trivial work.
+- Use parallel subagents for multi-domain research per [_subagents.md](../_subagents.md). Do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
 # Chat return contract
@@ -182,8 +182,8 @@ Do this in order:
    - already-decided technical constraints or vendor choices
    - **stack confirmation** (always include this) — summarize the Step 0.5 `stack:` block in one or two human-readable lines and ask: *"I detected this is a `<platforms>` repo using `<ui>` + `<build>`, with `<testing>` for tests and `<observability>` for logging. Available session tooling that looks relevant: `<top 3-5 skills/MCP by name>`. Anything missing, wrong, or off-limits for this task?"* Capture corrections verbatim in `po-answers.md`. After the answer arrives, update the `stack:` block in `00-index.md` (add/remove entries to match reality) and set `stack.user-confirmed: true`. This is the descriptive contract: detection proposes, the PO disposes. Do **not** use the detected stack to recommend an implementation approach at this stage — that conversation belongs in shape.
 
-   **Batch A — Structured process questions (use AskUserQuestion — asked AFTER Batch B):**
-   Call AskUserQuestion with these questions (adjust based on what's already known from `$ARGUMENTS` and Batch B):
+   **Batch A — Structured process questions (gate questions — asked AFTER Batch B):**
+   Ask these as gate questions per [_gate-question.md](../_gate-question.md) (adjust based on what's already known from `$ARGUMENTS` and Batch B):
    ```
    Question 1:
      question: "What branch strategy should this workflow use?"
@@ -218,7 +218,7 @@ Do this in order:
    with `review-scope-confirmed: false`; `slice` asks the PO once the roster is known (`plan` asks
    instead on the skip-to-plan path that bypasses slice).
 
-   If the user chose "Dedicated" for branch strategy, follow up (in chat or a second AskUserQuestion) for:
+   If the user chose "Dedicated" for branch strategy, follow up (in chat or as a second gate question) for:
    - Preferred branch name (default: `feat/<slug>`)
    - Base branch (default: `main` or `master`, whichever exists)
 4. Capture ALL answers (structured + freeform) in `po-answers.md`.
@@ -235,8 +235,8 @@ Do this in order:
    interpretive surface"). Silence is illegal — shape's Step 9a backfills a missing ledger instead
    of waving it through.
 6b. **Ratify the charter with the PO (MANDATORY when a charter is authored).** Present the 3–7
-   distilled commitments in one `AskUserQuestion` — *"These are the promises I heard — confirm or
-   correct"* (multiSelect confirm/edit per [_question-craft.md](../_question-craft.md)). Record the
+   distilled commitments in ONE multi-select gate question — *"These are the promises I heard — confirm or
+   correct"* (confirm/edit per [_question-craft.md](../_question-craft.md)). Record the
    ratification in `po-answers.md`; ratified charter entries carry `po-ratified: true` in the
    `00-index.md` `charter` ledger. A charter the PO ratified at stage 1 carries real authority
    downstream (shape's adjudications and the intent-fidelity review dimension cite it); an
@@ -372,7 +372,7 @@ Charter Scenario (the executable end-to-end spine) from it. An unnumbered loop d
 ## Affected Areas (preliminary)
 <!-- Step 0.7's bounded Explore findings — file paths, one-line existing behavior each, and any
 request-ambiguity the code already resolves. Omit the section only when Step 0.7's skip criteria
-held. Consumed twice downstream: Batch B questions reference it, and shape's Explore sub-agent 1
+held. Consumed twice downstream: Batch B questions reference it, and shape's research sub-agent 1
 opens with it ("verify and deepen, do not re-derive"). -->
 - ...
 

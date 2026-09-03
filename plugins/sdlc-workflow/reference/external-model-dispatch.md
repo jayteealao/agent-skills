@@ -81,8 +81,9 @@ free CLI (`codex`/`claude`) — the paid REST oracles are never fanned out unatt
 ## Build/parity notes
 
 The skills are pure `SKILL.md` + `scripts/*.mjs` invoked directly by `node` — NOT
-esbuild-bundled, so they need no build/`sync:codex`/version bump. The only `dist/`
+esbuild-bundled, so they need no build or version bump. The only `dist/`
 change for this feature is the `externalDispatch` flag + the hook sentinel
-early-exit (landed in v9.93.0). Each skill is hand-mirrored into the Codex tree
-(`plugins/sdlc-workflow-codex/skills/<name>/`, scripts byte-identical, +
-`agents/openai.yaml`).
+early-exit (landed in v9.93.0). One tree serves both hosts: each skill carries
+its `agents/openai.yaml` interface metadata beside the shared `SKILL.md`, and the
+prose spells script invocations as `node "<skill-dir>/scripts/…"` per
+`skills/wf/reference/_host-invocation.md`.

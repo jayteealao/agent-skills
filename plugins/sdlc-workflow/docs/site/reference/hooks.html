@@ -10,7 +10,8 @@
 <aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
 <main>
 <h1>Hooks</h1>
-<p class="lede">This page is the lookup reference for the eight hooks the plugin installs. For each hook, the page lists the event the hook fires on, what the hook does, whether the hook blocks or only warns, and the switch that turns the hook off.</p>
+<p class="lede">This page is the lookup reference for the eight hooks the plugin installs. For each hook, the page lists the event the hook fires on, what the hook does, whether the hook blocks or only warns, and the switch that turns the hook off. The hooks below are wired for Claude Code; the last section shows how the same policy runs under Codex.</p>
+<div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
 
 <p>Hooks are how the plugin enforces its contracts automatically, so neither you nor the model
 has to remember them. Two hooks run at session start. Three hooks run
@@ -35,6 +36,21 @@ or inside a dispatched read-only sub-agent.</p>
 <tr><td><a href="#post-write-render"><code>post-write-render</code></a></td><td>PostToolUse · <code>Write|Edit|MultiEdit|NotebookEdit</code></td><td>Never</td><td><code>view.renderDispatch</code> / a <code>.ai/_view/.render-suppress</code> marker file</td></tr>
 </tbody>
 </table>
+
+<h2 id="codex">Under Codex</h2>
+<p>Codex reads a different wiring file, <code>hooks/codex.hooks.json</code>, which the Codex manifest declares. Codex never loads <code>hooks/hooks.json</code>. Seven small adapter scripts under <code>hooks/</code> receive the Codex events and run the same bundled policy as the hooks above, with the host signal <code>SDLC_HOST=codex</code> set. The verification outcome of a write is the same on both hosts. The timing differs: Codex cannot undo a completed patch, so its enforcement point is the Stop hook.</p>
+<table>
+<thead><tr><th>Codex event</th><th>Adapter</th><th>What it runs</th></tr></thead>
+<tbody>
+<tr><td>SessionStart</td><td><code>session-start.mjs</code></td><td>Confirms the hub, records activation once, and runs <code>seed-memory</code> silently.</td></tr>
+<tr><td>SubagentStart</td><td><code>subagent-start.mjs</code></td><td>Injects the active workflow slug, its stage, and the output-boundary reminder into the child.</td></tr>
+<tr><td>PreToolUse · <code>apply_patch|Edit|Write</code></td><td><code>pre-tool-use.mjs</code></td><td>Runs <code>pre-write-validate</code> on a new managed artifact whose full body is visible; denies on a hard violation.</td></tr>
+<tr><td>PermissionRequest</td><td><code>permission-request.mjs</code></td><td>Auto-allows the plugin's own runtime scripts under <code>dist/</code>; has no opinion on anything else.</td></tr>
+<tr><td>PostToolUse · <code>apply_patch|Edit|Write</code></td><td><code>post-tool-use.mjs</code></td><td>Runs <code>post-write-verify</code>, then <code>post-write-auto-stage</code>, then <code>post-write-render</code>, in that order, and records touched artifacts for the Stop check.</td></tr>
+<tr><td>Stop, SubagentStop</td><td><code>stop-verify.mjs</code></td><td>Re-checks every managed artifact the turn touched. An invalid artifact blocks the turn until it is repaired, at most three times.</td></tr>
+</tbody>
+</table>
+<p>Codex runs no hook until you trust it. Open an interactive session and run <code>/hooks</code> once; an upgrade that changes the wiring file asks again. The doctor script <code>npm run verify:deployment</code> reports the trust state. See <a href="hosts.html">Hosts</a> for the full host comparison.</p>
 
 <h2 id="session-start-orient">session-start-orient</h2>
 

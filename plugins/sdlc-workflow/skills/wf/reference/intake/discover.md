@@ -4,13 +4,13 @@ argument-hint: <hypothesis-or-slug>
 ---
 
 # Output boundary & shared context
-Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake discover`, a **hypothesis-test workflow** that adjudicates a code-level claim against the codebase and returns a verdict with cited evidence.
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-discover-<descriptor>.md` (`type: slice`, `slice-type: discover`, `compressed: true`, `origin: intake/discover`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `discover → compressed slice <slice-slug> on <slug>`.
+If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-discover-<descriptor>.md` (`type: slice`, `slice-type: discover`, `compressed: true`, `origin: intake/discover`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `discover → compressed slice <slice-slug> on <slug>`.
 
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
@@ -28,10 +28,10 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 # CRITICAL — adjudication discipline
 You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
 - The **only** acceptable output is the discover artifact and index. Do NOT edit application code. Do NOT write a plan. Do NOT propose a fix. Do NOT produce a tutorial-style explanation of how the area works (that is the `deep-research` skill).
-- Read-only investigation only: `git log`, `git blame`, `Read`, `Grep`, static code inspection.
+- Read-only investigation only: `git log`, `git blame`, your native file-reading and search tools, static code inspection.
 - The verdict must be **convergent**: exactly one of `holds`, `partial`, `fails`, or `inconclusive`. Do not hedge across all four; pick one and justify it with cited evidence.
 - The artifact must include both supporting AND contradicting evidence. A "holds" verdict with no AGAINST section is suspect — search until you find counter-evidence or explicitly record that none exists.
-- Ask at most **3 questions** in chat. No `AskUserQuestion`, no separate `po-answers.md` — answers go inline into the artifact.
+- Ask at most **3 questions** in chat. No structured gate question, no separate `po-answers.md` — answers go inline into the artifact.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient (MANDATORY)
@@ -44,6 +44,7 @@ You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
    - Record the current branch in the index.
 4. **Read project context (lightweight):**
    - Read `README.md` (top 100 lines) for project shape and vocabulary, so the hypothesis can be grounded in the same terms the codebase uses.
+   - Read `AGENTS.md` if present for project conventions.
 
 # Step 1 — Hypothesis clarification
 Ask at most **3 questions** — stop as soon as the hypothesis is testable:
@@ -57,9 +58,9 @@ If `$ARGUMENTS` contains enough to answer all three, skip to Step 2.
 Do NOT write the artifact yet. Hold answers in working memory and proceed.
 
 # Step 2 — Parallel adjudication
-Launch all three sub-agents simultaneously. Each is a separate `Explore` sub-agent dispatch. Do not proceed to synthesis until all three complete.
+Launch all three sub-agents simultaneously. Each is a separate read-only sub-agent dispatch (per [_subagents.md](../_subagents.md)). Do not proceed to synthesis until all three complete.
 
-**Model for every dispatched agent:** `haiku` — each agent does targeted code reading + structured-output extraction (FOR / AGAINST / counter-hypotheses), the bounded-rubric profile Haiku handles cleanly. **Exception:** when Step 1 question 3 says a large decision rides on the verdict (a major refactor, an architecture choice, a plan's premise), pin `sonnet` instead — "dig harder" is a judgment instruction, and the model tier must match it. State the chosen model on every `Task` call.
+**Effort tier for every dispatched agent:** **low** (per [_subagents.md](../_subagents.md)) — each agent does targeted code reading + structured-output extraction (FOR / AGAINST / counter-hypotheses), the bounded-rubric profile the low tier handles cleanly. **Exception:** when Step 1 question 3 says a large decision rides on the verdict (a major refactor, an architecture choice, a plan's premise), raise the tier to **medium** — "dig harder" is a judgment instruction, and the tier must match it. State the chosen tier on every dispatch.
 
 Each sub-agent receives the same two inputs: the verbatim hypothesis from Step 1 and the starting
 area from Step 1 question 2. Every returned item cites `file:line` with a snippet of 5 lines or
@@ -115,7 +116,7 @@ verdict: holds | partial | fails | inconclusive
 confidence: high | medium | low
 recommended-next: <command-if-any or "none">
 status: ready-for-routing
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 

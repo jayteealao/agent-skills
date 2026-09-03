@@ -5,7 +5,9 @@ slice interviews, the plan discovery rounds, and any ad-hoc structured decision 
 is answered by a product owner who may be non-technical, or technical but new to
 this codebase. A question is well-formed only if someone who cannot read the
 code can still pick an answer confidently. Citing sites contribute their own
-topics and round structure; this file owns how each question is written.
+topics and round structure; this file owns how each question is written. (How a
+question is *delivered* — which rung of the ladder — is
+[_gate-question.md](_gate-question.md)'s concern, not this file's.)
 
 Question and option text MUST follow the word-discipline rules (section 1) in
 [_ste-procedural.md](_ste-procedural.md): one term per concept across the whole
@@ -37,8 +39,8 @@ quantities instead of abstract statements.
    different directions — it does not mean withholding judgment the PO would
    want.
 6. **Give an "if unsure" escape.** Make clear which option is safe for a PO
-   who cannot evaluate the tradeoff (usually the recommended one), and that
-   picking "Other" to ask for a deeper explanation is always a valid answer —
+   who cannot evaluate the tradeoff (usually the recommended one), and that a
+   freeform reply asking for a deeper explanation is always a valid answer —
    answering a question about the question costs one round, guessing wrong
    costs a rebuild.
 7. **Intent-bearing decisions state the runtime consequence, not the design
@@ -68,9 +70,10 @@ an over-read narrowing.
 has never opened this repository: could they choose without asking a follow-up?
 If not, rewrite the framing. The fix is more context, not a simpler decision.
 
-**Where the words go (AskUserQuestion):** the `question` field carries the
-plain-language framing (it can be 2–3 sentences); option `label`s stay short;
-option `description`s carry the consequence text and glosses. When a round
-needs more setup than the fields comfortably hold, put a 1–2 line lead-in in
-chat before the tool call saying what the round decides and why it matters.
+**Where the words go:** the `question` field carries the plain-language
+framing (it can be 2–3 sentences); option `label`s stay short; option
+`description`s carry the consequence text and glosses (as a numbered list, each
+option is one line of label + consequence). When a round needs more setup than
+the fields comfortably hold, put a 1–2 line lead-in in chat before the question
+saying what the round decides and why it matters.
 Freeform chat questions follow the same six requirements in prose.

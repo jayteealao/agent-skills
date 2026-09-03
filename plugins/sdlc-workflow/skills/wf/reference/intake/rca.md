@@ -4,13 +4,13 @@ argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake rca`, a **root-cause analysis workflow** that investigates an issue and recommends the right downstream command, without writing a fix.
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-rca-<descriptor>.md` (`type: slice`, `slice-type: rca`, `compressed: true`, `origin: intake/rca`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `rca → compressed slice <slice-slug> on <slug>`.
+If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-rca-<descriptor>.md` (`type: slice`, `slice-type: rca`, `compressed: true`, `origin: intake/rca`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `rca → compressed slice <slice-slug> on <slug>`.
 
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
@@ -42,9 +42,9 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 # CRITICAL — investigation discipline
 You are a **diagnostician**, not a fixer.
 - The **only** acceptable output is the RCA artifact, the synthesized shape, and the index. Do NOT edit application code. Do NOT propose a patch. Do NOT run code that would mutate state (DB writes, deployments, git commits).
-- Read-only investigation only: `git log`, `git blame`, `Read`, `Grep`, log file inspection, dev-tooling inspection, and tests run in read-only modes.
+- Read-only investigation only: `git log`, `git blame`, your native file-reading and search tools, log file inspection, dev-tooling inspection, and tests run in read-only modes.
 - The "Suggested fix shape" section is **direction, not a plan** — 1 to 3 lines naming the area and approach. Do not enumerate steps.
-- Ask at most **3 questions** in chat. No `AskUserQuestion`, no separate `po-answers.md` — answers go inline into the artifact.
+- Ask at most **3 questions** in chat. No structured gate question, no separate `po-answers.md` — answers go inline into the artifact.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient (MANDATORY)
@@ -54,13 +54,14 @@ You are a **diagnostician**, not a fixer.
      - **`01-rca.md` is complete and no route token is present** → tell the user the diagnosis is ready and how to record the route — `/wf intake rca <slug> <plan|fix|hotfix|human-triage> [one-line reason]` — and stop.
      - **`01-rca.md` is incomplete** → **resume mode**: pick up from the missing section.
    - Otherwise → **new RCA**. Derive a slug: `rca-<short-symptom>` (kebab-case, max 5 words, e.g., `rca-checkout-double-charge`). This is an ordinary `.ai/workflows/<slug>/` directory — there is no synthetic `__rca__` slug. The renderer discovers it via the standard workflow walk and projects `01-rca.md` through the `01-rca` → rca route, so no special-casing is needed in the view layer.
-   - **Inbound provenance:** apply `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-provenance.md` on an explicit `from <source-slug>` token — a `discover` verdict routed here carries ranked counter-hypotheses that are literally candidate root causes; seed Step 2's sub-agent prompts with them and record `origin-discover` on the index.
+   - **Inbound provenance:** apply `_intake-provenance.md` on an explicit `from <source-slug>` token — a `discover` verdict routed here carries ranked counter-hypotheses that are literally candidate root causes; seed Step 2's sub-agent prompts with them and record `origin-discover` on the index.
 2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `rca` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf recap <slug>` to continue the existing workflow." Stop.
 3. **Branch posture (do NOT switch branches):**
    - Investigation is read-only — do not create or switch branches.
    - Record the current branch in the index as `branch` and `base-branch` so the eventual fix workflow knows where the diagnosis was performed.
 4. **Read project context (lightweight):**
    - Read `README.md` (top 100 lines) for project shape.
+   - Read `AGENTS.md` if present for project conventions.
    - Skim `.ai/workflows/*/00-index.md` (filenames only) to spot any related active workflows the symptom might be tied to.
 
 # Step 1 — Symptom intake
@@ -75,9 +76,9 @@ If the user provided a stack trace or error message in `$ARGUMENTS`, treat it as
 Do NOT write the artifact yet. Hold the answers in working memory and proceed to Step 2.
 
 # Step 2 — Parallel root-cause investigation
-Launch parallel sub-agents to identify the root cause. Do not proceed to synthesis until all complete.
+Launch parallel read-only sub-agents to identify the root cause. Do not proceed to synthesis until all complete.
 
-**Model for every dispatched agent:** `sonnet`. REQUIRED on every `Task` call. Root-cause analysis is the defining judgment-heavy task: Code path investigation must reason about incorrect assumptions and race conditions, Recent change correlation must causally link diffs to symptoms, Blast radius must reason about coupling. Haiku underserves causal reasoning under uncertainty. Sonnet 4.6 is the right tier.
+**Effort tier for every dispatched agent:** **medium** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch. Root-cause analysis is the defining judgment-heavy task: Code path investigation must reason about incorrect assumptions and race conditions, Recent change correlation must causally link diffs to symptoms, Blast radius must reason about coupling. Low effort underserves causal reasoning under uncertainty; medium is the right tier.
 
 ### Explore sub-agent 1 — Code path investigation
 
@@ -138,7 +139,7 @@ root-cause-confidence: <high|medium|low>
 blast-radius: <low|medium|high|skipped>
 recommended-next: <plan|fix|hotfix|human-triage>
 status: ready-for-fix-routing
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
@@ -332,8 +333,8 @@ The sunflower view renders the RCA page from a sibling `.yaml` + `.html.fragment
 written next to the RCA `.md`. **Without the `.yaml` the page silently degrades to
 plain prose** — the incident timeline, the causal chain, the severity heatmap, and
 the metric row never appear (`rca.mjs` returns `renderSimple` when the sibling YAML
-is absent). The `post-write-verify` hook reminds you if you forget; author them here,
-now, while the incident is still in context.
+is absent). The managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md))
+reminds you if you forget; author them here, now, while the incident is still in context.
 
 For the RCA `.md` you just wrote (`01-rca.md`, or `augmentations/<rca-id>.md` for an
 RCA augmentation):
@@ -477,7 +478,7 @@ Recording the route is the workflow's decision record. It never starts the succe
 the invocation and stops.
 
 1. **Stamp the artifact.** Add to `01-rca.md` frontmatter: `chosen-route: <route>`; `routed-at:`
-   set to the real UTC timestamp (run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash); and
+   set to the real UTC timestamp (per [_timestamp.md](../_timestamp.md)); and
    `decision-note: <the trailing prose>` if the user supplied any (omit the key otherwise).
 2. **Append a `## Decision` section** to the artifact body: which route was picked; why (the
    user's reason verbatim, else "user routed without a stated reason"); which tripwires were

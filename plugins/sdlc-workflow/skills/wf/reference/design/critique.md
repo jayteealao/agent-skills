@@ -146,7 +146,7 @@ findings:
 
 - **Required — write the sibling `07-design-critique.html.fragment`** next to the
   `.md` and `.yaml`. First load
-  `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow its
+  `../_fragment-authoring.md` and follow its
   wrapper, snippet, and verifier rules. Body-only — `design-critique.mjs` already
   owns the heading + metric-row and suppresses its static findings list when a
   fragment is present, so the fragment supplies the interactive layer (severity-

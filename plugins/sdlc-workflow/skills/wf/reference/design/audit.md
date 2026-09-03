@@ -139,7 +139,7 @@ violations:
 
 - **Required — write the sibling `07-design-audit.html.fragment`** next to the
   `.md` and `.yaml`. First load
-  `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow its
+  `../_fragment-authoring.md` and follow its
   wrapper, snippet, and verifier rules. Body-only — `design-audit.mjs` already owns
   the heading, metric-row, and verdict block, and suppresses its static violations
   list when a fragment is present, so the fragment supplies the interactive layer

@@ -7,7 +7,7 @@ offered by `extract` (when systematizing an existing UI into a component set). T
 is not *"how should this look or move"* — that is the design transforms — but *"how do you ship a
 component people love using."*
 
-> Load with: `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/design/_component-craft.md`
+> Load with: `design/_component-craft.md`
 
 Adapted from Emil Kowalski's "building loved components" principles — drawn from shipping Sonner
 (13M+ weekly downloads) — used under MIT license.

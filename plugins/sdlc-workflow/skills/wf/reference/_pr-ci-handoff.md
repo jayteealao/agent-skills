@@ -28,10 +28,8 @@ Record `ci-watch-rounds: <N polls>` and the terminal outcome in handoff frontmat
 
 # Fix-subagent contract (shared by 7a CI-red and 7b triage)
 
-Every code fix in handoff is delegated to a subagent so the orchestrator context stays clean and the orchestrator-discipline rule ("do NOT make code changes") holds. This contract conforms to the shared fix-loop invariants in [_fix-loop.md](_fix-loop.md). Dispatch with the `Task` tool:
+Every code fix in handoff is delegated to a subagent so the orchestrator context stays clean and the orchestrator-discipline rule ("do NOT make code changes") holds. This contract conforms to the shared fix-loop invariants in [_fix-loop.md](_fix-loop.md). Dispatch ONE sub-agent per fix at **medium** effort per [_subagents.md](_subagents.md) — **REQUIRED on every dispatch** (the effort pin follows [_fix-loop.md](_fix-loop.md) rule 3):
 
-- `subagent_type`: `general-purpose`
-- `model`: `sonnet` — **REQUIRED on every call** (the model pin follows [_fix-loop.md](_fix-loop.md) rule 3).
 - `description`: 3–5 words, e.g. `"fix CI failure"` or `"fix review thread"`.
 - `prompt`: self-contained — include the exact target and these rules:
   ```
@@ -162,14 +160,14 @@ When ambiguous, prefer the more severe class. Bots producing very long walkthrou
 Fixes run in **subagents, never inline** — this is what keeps the orchestrator context clean (the original "littering" complaint). The orchestrator collects approved threads and dispatches the fix work; it does not read source or patch code itself.
 
 - Collect every 🔴 thread the user has not declined into a batch of `{ threadId, file, line, body }`.
-- **Dispatch fix subagents** per the `## Fix-subagent contract` above — one `Task` per thread. Parallelize threads that touch disjoint files (issue the `Task` calls in a single message); serialize threads that touch the same file to avoid clobbering. Each subagent reads the thread context, applies the minimal fix, commits `fix(<slug>): address review thread — <short>`, and returns `{ threadId, fix-sha, status }`. Only that compact result returns to the orchestrator — not the diffs, log dumps, or file reads.
+- **Dispatch fix subagents** per the `## Fix-subagent contract` above — one dispatch per thread. Parallelize threads that touch disjoint files (one parallel wave); serialize threads that touch the same file to avoid clobbering. Each subagent reads the thread context, applies the minimal fix, commits `fix(<slug>): address review thread — <short>`, and returns `{ threadId, fix-sha, status }`. Only that compact result returns to the orchestrator — not the diffs, log dumps, or file reads.
 - Record each `{ threadId, fix-sha }` for the resolve step in 7.
 
-If the user has a strong reason to decline a 🔴 (e.g., the bot is wrong about correctness) and confirms via AskUserQuestion, route to "deferred" and add `threadId` to `triage-deferred-thread-ids`. Set `has-deferred-comments: true`.
+If the user has a strong reason to decline a 🔴 (e.g., the bot is wrong about correctness) and confirms as a gate question per [_gate-question.md](_gate-question.md), route to "deferred" and add `threadId` to `triage-deferred-thread-ids`. Set `has-deferred-comments: true`.
 
 ### 6. Address 🟡 suggestions
 
-Use a single AskUserQuestion call (multi-select) listing all 🟡 items:
+Ask ONE multi-select gate question per [_gate-question.md](_gate-question.md) listing all 🟡 items:
 
 ```yaml
 question: "Which suggestions should we apply now?"

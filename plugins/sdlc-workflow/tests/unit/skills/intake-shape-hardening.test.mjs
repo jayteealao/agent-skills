@@ -5,7 +5,7 @@
 // delta); W3 made the 20-question floor accountable (Ambiguity Inventory + coverage
 // gate) and moved review-scope to slice; W4 added intake consult triggers, the blind
 // pre-mortem, and the fidelity chat line. These tests pin the load-bearing phrases so
-// a future edit can't silently delete a gate. Reference prose is mirrored to the codex
+// a future edit can't silently delete a gate. One host-neutral reference tree serves both hosts
 // tree, so those guards iterate BOTH trees (schema + hook guards are main-tree only).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,12 +17,10 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const codexRoot = path.resolve(pluginRoot, '..', 'sdlc-workflow-codex');
 
 const trees = [
   { name: 'main', root: pluginRoot },
-  { name: 'codex', root: codexRoot },
-].filter((t) => existsSync(path.join(t.root, 'skills', 'wf', 'reference')));
+];
 
 const ref = (root, rel) => readFileSync(path.join(root, 'skills', 'wf', 'reference', rel), 'utf8');
 
@@ -181,10 +179,10 @@ test('W4.3 — the fidelity line reaches chat; dropping a directive needs a this
     const shape = ref(root, 'shape.md');
     assert.match(shape, /`fidelity:`/, `${name}: shape's chat return lost the fidelity line`);
     assert.match(shape, /all directives honored; all RIMs adjudicated/, `${name}: shape lost the fidelity all-clear form`);
-    // Codex has no AskUserQuestion tool — its mirror phrases the same gate as a chat
-    // question — so pin the tree-neutral core: a dropped directive needs a THIS-STAGE
+    // Host-neutral prose names no question tool (the ladder lives in
+    // _gate-question.md) — so pin the core: a dropped directive needs a THIS-STAGE
     // ratification.
-    assert.match(shape, /this-stage `?(AskUserQuestion|PO question|chat question)`? ratification/,
+    assert.match(shape, /this-stage (`?[A-Za-z -]*`? )?ratification/,
       `${name}: shape lost the dropped-row ratification requirement`);
   }
 });

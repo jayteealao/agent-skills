@@ -9,7 +9,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const codexRoot = path.resolve(pluginRoot, '..', 'sdlc-workflow-codex');
 
 // The fingerprint sentence of the full rule body. The compressed sub-agent restatement
 // in workflows/yolo.js deliberately words it differently and is the sanctioned exception.
@@ -27,8 +26,7 @@ function* walk(dir, exts) {
 
 const trees = [
   { name: 'main', root: pluginRoot },
-  { name: 'codex', root: codexRoot },
-].filter((t) => existsSync(path.join(t.root, 'skills')));
+];
 
 test('EOB canonical file exists in every tree', () => {
   for (const { name, root } of trees) {

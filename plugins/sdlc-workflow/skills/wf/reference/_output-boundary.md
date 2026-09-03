@@ -9,10 +9,10 @@ rule body appears anywhere else under `skills/`.
 Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
 
 **Internal — a predicate, not a path list:**
-- Any file under `.ai/**` or `.claude/**`. Workflow artifacts, registries, control files, ship
+- Any file under `.ai/**`, `.claude/**`, or `.codex/**`. Workflow artifacts, registries, control files, ship
   plans, dep-updates, ideation, simplify runs, solutions — every current and *future* subdirectory
   of those roots is covered by construction; do not enumerate paths when citing this rule.
-- Workflow vocabulary: stage names or numbers, slash-command names, task/sub-agent names,
+- Workflow vocabulary: stage names or numbers, command or skill names, task/sub-agent names,
   prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
 
 **External-facing:**
@@ -38,5 +38,4 @@ Workflow artifacts and command internals are private implementation context. Nev
 - The **chat return** at the end of a `/wf` invocation is an internal audience — `.ai/` paths are
   allowed there. The boundary governs what leaves the session: commits, PRs, releases, docs, code.
 - Sub-agents spawned with fresh context do NOT inherit this rule automatically; dispatcher prompts
-  re-assert a compressed form of it (see `workflows/yolo.js`). That compressed restatement is the
-  only sanctioned duplication.
+  re-assert a compressed form of it. That compressed restatement is the only sanctioned duplication.

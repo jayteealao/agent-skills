@@ -42,7 +42,7 @@ scaffolding, error-message wording, and library idioms *within* an already-commi
 ## The rule
 
 - **Human-gated run** (plan/implement/verify with a PO present): an intent-bearing decision is
-  ASKED — an `AskUserQuestion` constructed per `_question-craft.md` (consequence-framed per W10.2).
+  ASKED — a question asked per [_gate-question.md](_gate-question.md), constructed per `_question-craft.md` (consequence-framed per W10.2).
 - **Autonomous run** (`/wf yolo`, or `/wf auto` at a gate): an intent-bearing decision is a
   **STOP** — record the pending decision in the artifact + `po-answers.md` as awaiting-input,
   surface it in the run report, and halt rather than settle it.

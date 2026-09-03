@@ -84,7 +84,7 @@ heading (`pg-title`/`sdlc-h1` + breadcrumb), the lede, and the `metric-row`.
 
 ## Shared snippets
 
-Prefer snippets from `${CLAUDE_PLUGIN_ROOT}/components/` instead of hand-copying
+Prefer snippets from `../../../components/` instead of hand-copying
 shared chrome:
 
 - `metric-row`

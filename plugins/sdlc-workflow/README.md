@@ -1,8 +1,8 @@
 # SDLC Workflow
 
-A workflow plugin for Claude Code with generated Codex packaging. Every feature, fix, or spike moves through the same reproducible sequence of stages — each one writing a permanent, machine-readable artifact to your repo that the next stage reads.
+A workflow plugin that Claude Code and Codex read from ONE source tree. Every feature, fix, or spike moves through the same reproducible sequence of stages — each one writing a permanent, machine-readable artifact to your repo that the next stage reads.
 
-Codex support is generated from the Claude source files. The generated Codex plugin exposes the canonical workflow commands through skill wrappers under `.codex-generated/skills/`, so the workflow logic stays in `commands/` and `skills/` instead of being maintained twice.
+**One tree, two hosts.** Claude Code reads `.claude-plugin/plugin.json` and `hooks/hooks.json`; Codex reads `.codex-plugin/plugin.json` and the hooks file it declares, `hooks/codex.hooks.json`. The skill prose under `skills/` is written once, host-neutral: invocations are spelled `/wf …` (under Codex you type `$wf …`), and everything a host does differently — gate questions, sub-agents, timestamps, `<skill-dir>` resolution, key availability — lives in four contract files under `skills/wf/reference/` (`_host-invocation.md`, `_gate-question.md`, `_subagents.md`, `_timestamp.md`). `npm run verify:neutrality` fails any skill file that names a host mechanism outside them. Both hosts share the same runtime, hub, renderer, and `.ai/` artifacts; a workflow started under one host resumes under the other. The one host-specific key is `/wf yolo` (Claude Code only — it needs the Workflow tool). Install and cutover steps for each host are in [docs/site/start/installation.html](docs/site/start/installation.html); the per-host differences are in [docs/site/reference/hosts.html](docs/site/reference/hosts.html).
 
 ---
 
@@ -883,9 +883,10 @@ The 7 Diátaxis primitives live as references inside the wf skill's docs referen
 
 ## Hooks
 
-The Claude plugin installs Node-based hooks that run automatically — no configuration required. They fire in the background and keep workflow artifacts validated, rendered, and resumable.
+The plugin installs Node-based hooks that run automatically — no configuration required. They fire in the background and keep workflow artifacts validated, rendered, and resumable. Both hosts run the SAME bundled policy (`dist/*.mjs`); only the wiring differs:
 
-The generated Codex plugin currently does **not** enable hooks. The workflow and generated skills are installable in Codex, but the hook layer remains Claude-only until Codex hook path behavior is validated well enough to avoid shipping a broken runtime path.
+- **Claude Code** reads `hooks/hooks.json` (conventional discovery) and runs the `dist/` entrypoints directly. An invalid managed-artifact write is blocked *before* it lands (PreToolUse).
+- **Codex** reads `hooks/codex.hooks.json`, the file `.codex-plugin/plugin.json` declares — a declared hooks file replaces conventional discovery, so Codex never loads `hooks/hooks.json`. Its entry scripts (`hooks/session-start.mjs`, `pre-tool-use.mjs`, `post-tool-use.mjs`, `stop-verify.mjs`, `subagent-start.mjs`, `permission-request.mjs`, all over `hooks/_adapter.mjs`) reshape Codex events into the shared policy's stdin contract and spawn the same `dist/` entrypoints with `SDLC_HOST=codex`. Codex cannot undo a completed `apply_patch`, so its enforcement boundary is the Stop hook: an invalid artifact blocks the turn until repaired, bounded by a repair ceiling. The verification outcome is identical on both hosts; only the timing differs. Codex users must review and trust the hooks once (`/hooks` in an interactive session); `npm run verify:deployment` reports the trust state.
 
 **Requires:** Node.js 20 or newer. `git` is optional but needed for the auto-stage hook. The hooks no longer require Git Bash, `bash`, `yq`, `jq`, or Python.
 

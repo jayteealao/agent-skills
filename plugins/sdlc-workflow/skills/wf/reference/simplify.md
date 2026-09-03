@@ -1,5 +1,5 @@
 ---
-description: Review-and-route triage utility. Dispatches three parallel sub-agents (Code Reuse, Code Quality, Efficiency) across one of four scopes — branch (default), commit, plan, or codebase — classifies findings, and routes each to the appropriate downstream command (/wf intake fix, /wf intake refactor, /wf intake, /wf plan directed-fix, /wf docs, etc.). NEVER writes code directly. Adapted from the Claude Code bundled `simplify` skill but realigned to sdlc-workflow's orchestrator discipline.
+description: Review-and-route triage utility. Dispatches three parallel sub-agents (Code Reuse, Code Quality, Efficiency) across one of four scopes — branch (default), commit, plan, or codebase — classifies findings, and routes each to the appropriate downstream command (/wf intake fix, /wf intake refactor, /wf intake, /wf plan directed-fix, /wf docs, etc.). NEVER writes code directly. Adapted from the upstream bundled `simplify` skill but realigned to sdlc-workflow's orchestrator discipline.
 argument-hint: "[branch [<base>] | commit <sha-or-range> | plan <slug> <slice> | codebase [<path>]]"
 ---
 
@@ -15,7 +15,7 @@ You are running `/wf simplify`, a **review-and-route triage utility**. Three par
 
 # Slug-mode (read before proceeding)
 
-If the `/wf` dispatcher selected **slug-mode** (first argument matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md` for the exact slice frontmatter and index bookkeeping. Substantively:
+If the `/wf` dispatcher selected **slug-mode** (first argument matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `_compressed-slice.md` for the exact slice frontmatter and index bookkeeping. Substantively:
 
 - **One artifact, in the existing workflow** — *not* the standalone `.ai/simplify/<run-id>.md` location. Write `.ai/workflows/<slug>/03-slice-simplify-<descriptor>.md` (collision suffix `-2`, `-3` if needed; descriptor defaults to scope — e.g., `simplify-branch-2026-05-13` or `simplify-codebase-auth`). Frontmatter: `type: slice`, `slice-slug: simplify-<descriptor>`, `slice-type: simplify`, `compressed: true`, `origin: simplify`, `stage-number: 3`, `status: defined`, `complexity: xs`. Do NOT also write `.ai/simplify/<run-id>.md` — the compressed slice is the single output.
 - **Same content, different home.** Body carries the same sections the standalone simplify would write (three-agent findings, per-finding classification, routing summary, routing assignments, proposed deltas), under a `# Compressed Slice: simplify` heading with a one-line provenance preamble. The `simplify-run` frontmatter fields (`findings-total`, `findings-reuse`, etc.) do NOT carry over — they belong to the standalone type. Report the same numbers in the body instead.
@@ -68,7 +68,7 @@ Validation:
 - `plan` — confirm the plan file exists. If missing, STOP: *"No plan found at `<path>`. Run `/wf plan <slug> <slice>` first or check the slug/slice arguments."*
 - `codebase` — confirm path exists.
 
-Record: `run-id` (`date -u +"%Y%m%dT%H%MZ"`, UTC compact ISO-8601), `scope` (`branch | commit | plan | codebase`), and `target` (resolved target string for the artifact frontmatter).
+Record: `run-id` (UTC compact ISO-8601 `<yyyymmdd>T<hhmm>Z`, real time per [_timestamp.md](_timestamp.md)), `scope` (`branch | commit | plan | codebase`), and `target` (resolved target string for the artifact frontmatter).
 
 ---
 
@@ -100,13 +100,13 @@ Walk the path subtree. Exclude `.git/`, `node_modules/`, `dist/`, `build/`, `.ve
 
 # Step 1b — Harvest `sdlc-debt:` markers (the debt sweep)
 
-Independent of the three agents, scan the scope for `sdlc-debt:` markers and fold them into the findings as **pre-classified** debt. These shortcuts were flagged with a ceiling + upgrade path (written by `wf-implement`), needing *routing* not *discovery* — agents find new issues; this step collects the ones already declared.
+Independent of the three agents, scan the scope for `sdlc-debt:` markers and fold them into the findings as **pre-classified** debt. These shortcuts were flagged with a ceiling + upgrade path (written by `/wf implement`), needing *routing* not *discovery* — agents find new issues; this step collects the ones already declared.
 
 - **branch / commit:** grep `INPUT_DIFF` for `sdlc-debt:` — only markers added in the diff.
 - **codebase:** grep the path subtree (`grep -rnE 'sdlc-debt:' <path>`, excluding `.git/`, `node_modules/`, `dist/`, `build/`) — the **repo-wide sweep** of the full debt backlog.
 - **plan:** skip — plans carry no code markers.
 
-For each marker, emit one finding in the **same `findings:` schema** (Step 2 output contract):
+For each marker, emit one finding in the **same `findings:` schema the agents use** (Step 2 output contract):
 - `id: debt-<n>`
 - `severity:` from the ceiling's blast radius — `high` (correctness/security ceiling), `med` (default), `low` (cosmetic or marker that names no ceiling/upgrade-path → also note it is malformed).
 - `location: <file:line>`
@@ -120,9 +120,9 @@ Debt findings join the aggregate in **Step 3** and route through the **Step 4** 
 
 # Step 2 — Dispatch three sub-agents in parallel
 
-**MANDATORY**: issue a single message containing all three `Agent` (Task) tool calls. Sequential dispatch is forbidden.
+**MANDATORY**: dispatch all three sub-agents in ONE parallel wave per [_subagents.md](_subagents.md). Sequential dispatch is forbidden — the three rubrics run as parallel read-only children.
 
-**Model for every dispatched agent:** `haiku`. REQUIRED on every `Task` call — reviewers must not silently inherit the parent's model.
+**Effort tier for every dispatched agent:** **low** (per [_subagents.md](_subagents.md)). REQUIRED on every dispatch — reviewers must not silently inherit the parent's model.
 
 Each agent receives the scope token + target, the Step 1 input (`INPUT_DIFF`, `INPUT_PLAN_TEXT`, or codebase file list), and the rubric below.
 
@@ -185,7 +185,7 @@ For `plan` scope: hunt the same efficiency classes in the plan's steps instead o
 
 Wait for all three agents. Build a combined findings list, grouped by severity then by agent.
 
-Present the table to the user using AskUserQuestion (multi-select):
+Present the table to the user as gate questions per [_gate-question.md](_gate-question.md) (multi-select):
 
 ```
 | ID | Severity | Agent | Location | Issue | Action |
@@ -196,7 +196,7 @@ Present the table to the user using AskUserQuestion (multi-select):
 
 **Default by severity** (user can override): `high / med / low` — accept; `nit` — skip.
 
-AskUserQuestion offers `accept / skip / defer` per finding. `accept` means include in routing assignments, not "fix it now". `defer` records the finding without assigning a downstream command.
+Offer `accept / skip / defer` per finding. `accept` means include in routing assignments, not "fix it now". `defer` records the finding without assigning a downstream command.
 
 False-positive handling: mark `skip` and add a one-line reason in the artifact. **Do not argue — skip and move on.**
 
@@ -379,7 +379,7 @@ refs:
 <full per-finding routing-assignment block, grouped by route>
 
 ### route-fix (`/wf intake fix`)
-- `reuse-1` — &lt;suggested-invocation&gt; — &lt;rationale&gt;
+- `reuse-1` — <suggested-invocation> — <rationale>
 - ...
 
 ### route-refactor (`/wf intake refactor`)
@@ -438,9 +438,9 @@ The user picks which to run.
 
 # Provenance + deliberate divergence from upstream
 
-This sub-command **adapts** the Claude Code bundled `simplify` skill (`.scratch/claude-code/src/skills/bundled/simplify.ts`) but **diverges deliberately** in one critical way:
+This sub-command **adapts** the upstream bundled `simplify` skill (source studied at `.scratch/claude-code/src/skills/bundled/simplify.ts`) but **diverges deliberately** in one critical way:
 
-| | Upstream Claude Code `simplify` | sdlc-workflow `/wf simplify` |
+| | Upstream bundled `simplify` | sdlc-workflow `/wf simplify` |
 |---|---|---|
 | Agent rubrics | Reuse, Quality, Efficiency | Same — kept verbatim |
 | Dispatch shape | Three parallel sub-agents | Same |
@@ -449,7 +449,7 @@ This sub-command **adapts** the Claude Code bundled `simplify` skill (`.scratch/
 
 The divergence is intentional: every command in this plugin operates as an **orchestrator, not a problem-solver**. Plan plans; implement implements; review reviews; simplify routes. The user invokes the appropriate downstream command for code action — each runs its own discipline, keeping the artifact trail clean and preventing simplify from becoming a back-door code-write path that bypasses review, verify, or planning.
 
-If the upstream rubric evolves in Claude Code, update the rubric blocks above to match and bump the CHANGELOG.
+If the upstream rubric evolves, update the rubric blocks above to match and bump the CHANGELOG.
 
 ---
 
@@ -475,7 +475,7 @@ optional code-deltas summary, no verdict block. Without it the page falls back t
 frontmatter card. (Legacy off-pipeline runs wrote the sibling at `.ai/simplify/<run-id>.yaml`.)
 
 **Required whenever you write the `simplify-run` sibling YAML:** also write the
-sibling `.html.fragment`. Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md`
+sibling `.html.fragment`. Load `_fragment-authoring.md`
 and follow its wrapper, snippet, and verifier rules. The fragment must be deterministic
 from the YAML (same YAML → byte-identical HTML) and pass `scripts/verify-fragment.mjs` (Check 7).
 
@@ -490,7 +490,6 @@ run_id:   "20260520T1430Z"
 scope:    branch          # branch | commit | plan | codebase
 target:   "feat/checkout-v2..master"
 rev:      1
-model:    "claude-opus-4-7"
 run_at:   "2026-05-20T14:30:00Z"
 summary:  "Eight findings: 5 reuse, 2 quality, 1 efficiency. Five routed to /wf intake refactor."
 counts:
@@ -502,8 +501,8 @@ counts:
   deferred: 1
 findings:
   - id:       SR-1
-    category: reuse    # reuse | quality | efficiency
-    action:   accept   # accept | skip | defer
+    category: reuse           # reuse | quality | efficiency
+    action:   accept          # accept | skip | defer (matches the routing decision)
     file:     "src/cart/total.ts"
     line:     42
     msg:      "Duplicate validator implementation — see src/lib/validate.ts."

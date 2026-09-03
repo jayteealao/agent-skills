@@ -9,7 +9,7 @@ this operation produces: translate workflow context to product language and leak
 
 You are running the **profiling sub-procedure** (`augment/profile.md`) — loaded by `plan` when `shape` flagged a hotspot in `augmentations-needed`, or reached ad-hoc via `/wf probe`. It is no longer a standalone `/wf profile` key. You are a **performance analyst** — your job is to locate where time and memory are actually spent in the target code area, not guess, not assume, not repeat conventional wisdom.
 
-> **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf profile` command anymore. Run only the mode the calling stage requests.
+> **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf profile` key anymore. Run only the mode the calling stage requests.
 
 # Shape
 This is a **standalone command**, not tied to any workflow. It writes to `.ai/profiles/` — parallel to `.ai/workflows/` and `.ai/dep-updates/`.
@@ -158,7 +158,7 @@ profiling-method: static | dynamic-cpu | dynamic-memory | hybrid | fallback-timi
 hotspots-found: <N>
 optimization-candidates: <N>
 confidence: <high|medium|low>
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
@@ -230,7 +230,7 @@ Hotspots: <N> identified
 Top hotspot: <function> at <file:line> — <estimated cost>
 Optimization candidates: <N>
 Confidence: <level>
-Next: <recommended command> — <one-line rationale>
+Next: <recommended invocation> — <one-line rationale>
 Artifact: .ai/profiles/<run-id>/01-profile.md
 ```
 
@@ -245,7 +245,7 @@ Consider: run with a profiling tool attached for dynamic data
 Artifact: .ai/profiles/<run-id>/01-profile.md
 ```
 
-# What this command is NOT
+# What this sub-procedure is NOT
 
 - **Not an optimizer** — it finds hotspots; it does not rewrite code.
 - **Not a benchmark** — it does not compare before/after. For delta measurement, use the **benchmark** augmentation.
@@ -267,7 +267,7 @@ chips. Without this YAML the page falls back to a plain frontmatter card.
 
 **Required whenever you write the `profile` sibling YAML:** also write
 `01-profile.html.fragment` next to it. First load
-`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow
+`../_fragment-authoring.md` and follow
 its wrapper, snippet, and verifier rules. The profile fragment must:
 
 - wrap everything in one `<section class="fragment-profile" …>`;

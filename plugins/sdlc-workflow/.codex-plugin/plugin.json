@@ -1,0 +1,40 @@
+{
+  "name": "sdlc-workflow",
+  "version": "9.153.0",
+  "description": "SDLC workflow plugin, one source for Claude Code and Codex: one `$wf` workflow skill (22 keys — the ten lifecycle stages intake through retro, the intake modes fix/rca/investigate/discover/audit/hotfix/refactor/update-deps/ideate/adopt, design, probe, simplify, auto, task, status/recap, close, ship-plan, docs, observability; `yolo` is Claude Code only) plus consult, imagery, uiproto, diataxis, and study-sources — over a shared runtime, hub, and .ai/ artifacts. Requires a hooks-GA Codex CLI (verified on 0.146.0) with hooks enabled.",
+  "author": {
+    "name": "jayte",
+    "url": "https://github.com/jayteealao"
+  },
+  "homepage": "https://github.com/jayteealao/agent-skills/tree/main/plugins/sdlc-workflow",
+  "repository": "https://github.com/jayteealao/agent-skills",
+  "license": "MIT",
+  "keywords": [
+    "sdlc",
+    "codex",
+    "delivery",
+    "review",
+    "debugging",
+    "release"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/codex.hooks.json",
+  "interface": {
+    "displayName": "SDLC Workflow",
+    "shortDescription": "One-command SDLC lifecycle ($wf) + shared hub, from the same tree as the Claude Code plugin",
+    "longDescription": "A single-source SDLC plugin that Claude Code and Codex read directly: one $wf workflow skill (22 keys, intake through ship plus review, design, docs, probe, simplify, the task minimal lifecycle, and the observability router; yolo is Claude Code only) and five independent engineering skills (consult, imagery, uiproto, diataxis, study-sources), driving a 10-stage lifecycle with per-slice artifacts, runtime-truth verification, and a shared machine-wide hub/runtime that both hosts adopt. Skill prose is host-neutral; the Codex hooks live in hooks/codex.hooks.json. Review and trust the bundled hooks before activation.",
+    "developerName": "jayte",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/jayteealao/agent-skills/tree/main/plugins/sdlc-workflow",
+    "defaultPrompt": [
+      "$wf status — then run the next SDLC stage for this workflow ($wf is the skill; `wf` is NOT a shell command — on Windows it opens the Firewall console).",
+      "$wf review — review the current branch across the pre-merge dimensions.",
+      "$wf intake fix — investigate and fix this failing test."
+    ],
+    "brandColor": "#0F766E"
+  }
+}

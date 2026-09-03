@@ -10,7 +10,7 @@ Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every e
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
 > above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `wf-implement`, **stage 5 of 10** in the SDLC lifecycle.
+You are running `/wf implement`, **stage 5 of 10** in the SDLC lifecycle.
 
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → `5·implement` → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
@@ -65,7 +65,7 @@ You are a **workflow orchestrator** running the implementation stage.
    - `workflow-type: quick` → **compressed mode**. Source artifact is `01-quick.md` (brief, shape, design, slice, and plan in one document). No `02-shape.md` / `03-slice-*.md` / `04-plan-*.md` files exist; do not require them.
    - `workflow-type: rca` → **forwarded mode**. The rich context lives in `01-rca.md`; a synthesized `02-shape.md` exists (the RCA writes it as a forwarding contract). Planning may have been added via `/wf plan`, or this may be a quick-style continuation.
    - `workflow-type: investigate` → **terminal analysis — not built in place.** `/wf intake investigate` produces option sketches and **no `02-shape.md`** (and no plan); a chosen option is re-intaked via `/wf intake <option>` as a NEW workflow that does its own shape pass. A bare `investigate` slug therefore has no plan, so the plan-prerequisite in Step 0.6 already STOPs; if you reach here, direct the user to `/wf intake <option>`.
-   - `workflow-type: fix` / `hotfix` / `refactor` (legacy `rf`) → **change-mode (compressed standard lifecycle).** Authored as STANDARD, single-slice, **un-suffixed** files: `01-<mode>.md` (`type: intake`), `02-shape.md`, `03-slice.md` (`type: slice-index`, one slice), `04-plan.md`. Exactly **one** slice; `selected-slice` on the index is its slug. Implement as **standard mode** with one substitution: every per-slice file is **un-suffixed** — read `04-plan.md` and write `05-implement.md` (NOT the `-<slice-slug>`-suffixed files of multi-slice standard mode). Wherever a step below names a suffixed file, use the un-suffixed name. (hotfix's `07-review` defaults to `security`; refactor's to `refactor-safety`. **refactor**: one atomic green step per plan step — never combine; commit per step; if verify fails, fix the refactor, not the test.)
+   - `workflow-type: fix` / `hotfix` / `refactor` (legacy `rf`) → **change-mode (compressed standard lifecycle).** Authored as STANDARD, single-slice, **un-suffixed** files: `01-<mode>.md` (`type: intake`; `01-fix.md` / `01-hotfix.md` / `01-refactor.md`), `02-shape.md`, `03-slice.md` (`type: slice-index`, one slice), `04-plan.md`. Exactly **one** slice; `selected-slice` on the index is its slug. Implement as **standard mode** with one substitution: every per-slice file is **un-suffixed** — read `04-plan.md` and write `05-implement.md` (NOT the `-<slice-slug>`-suffixed files of multi-slice standard mode). Wherever a step below names a suffixed file, use the un-suffixed name. (hotfix's `07-review` defaults to `security`; refactor's to `refactor-safety`. **refactor**: one atomic green step per plan step — never combine; commit per step; if verify fails, fix the refactor, not the test.)
    - `workflow-type: update-deps` → **self-managed change-mode.** Self-authors `05-implement.md` / `06-verify.md` inside its own flow, then routes to `/wf review`. Should NOT use `/wf implement`. STOP and direct the user back to `/wf intake update-deps <slug>`.
    - `workflow-type: docs` → **alternate workflow** with its own implement stage. STOP and direct the user to that workflow's implement command.
    - `workflow-type: feature` (default for `/wf intake`) or unset → **standard mode**. Use the canonical pipeline files.
@@ -94,7 +94,7 @@ You are a **workflow orchestrator** running the implementation stage.
 8. **Read augmentation context (optional — workflow may have any combination):**
    Read the `augmentations:` list in `00-index.md` if present. For each entry, read the artifact and apply the type-specific behavior:
 
-   | Type | Artifact | What `wf-implement` must do |
+   | Type | Artifact | What `/wf implement` must do |
    |---|---|---|
    | `design-<sub>` (e.g., `design-harden`, `design-colorize`) | `design-notes/<sub>-<timestamp>.md` | Design code was already applied in a prior pass. Do NOT undo the documented changes. |
    | `design-audit` | `07-design-audit.md` | Resolve any "critical" or "high" findings flagged. |
@@ -105,10 +105,10 @@ You are a **workflow orchestrator** running the implementation stage.
 
    **Read design planning artifacts** (separate from augmentations):
    - `02b-design.md` — design brief if present. Carry forward register (brand/product), color strategy, and anti-goals.
-   - **Baseline design canon (when `stack.ui ≠ ∅` and neither `02b`/`02c` exists).** Read `skills/wf/reference/design/_design-context.md` for the register, shared design laws, absolute bans, and the motion/interface-detail summary — the design floor for any UI code. When code touches motion, interface detail, or typography, also load the specific home (`animate.md` / `polish.md` / `typeset.md`). `_design-context.md`'s preflight/image/mutation sections govern `/wf design`, not implement — skip those.
-   - **Recommended references** (whenever `02b-design.md` OR `02c-craft.md` is present): build the reference set as the **union** of `recommended-references:` in `02b-design.md`'s frontmatter AND `references-loaded:` in `02c-craft.md`'s frontmatter. Normalize each entry by stripping a trailing `.md` before de-duplicating, then read `skills/wf/reference/design/<name>.md` for each unique name. The union is load-bearing: references craft introduced live only in `02c`, so reading `02b` alone silently drops them. Treat loaded references as **read-only judgment context** — they disambiguate the visual contract but do NOT expand scope (do not implement features from the references that are not in the contract). If an entry doesn't resolve to an existing file, log a one-line warning and continue. If neither file declares any reference field, skip silently.
+   - **Baseline design canon (when `stack.ui ≠ ∅` and neither `02b`/`02c` exists).** Read `design/_design-context.md` for the register, shared design laws, absolute bans, and the motion/interface-detail summary — the design floor for any UI code. When code touches motion, interface detail, or typography, also load the specific home (`animate.md` / `polish.md` / `typeset.md`). `_design-context.md`'s preflight/image/mutation sections govern `/wf design`, not implement — skip those.
+   - **Recommended references** (whenever `02b-design.md` OR `02c-craft.md` is present): build the reference set as the **union** of `recommended-references:` in `02b-design.md`'s frontmatter AND `references-loaded:` in `02c-craft.md`'s frontmatter. Normalize each entry by stripping a trailing `.md` before de-duplicating, then read `design/<name>.md` for each unique name. The union is load-bearing: references craft introduced live only in `02c`, so reading `02b` alone silently drops them. Treat loaded references as **read-only judgment context** — they disambiguate the visual contract but do NOT expand scope (do not implement features from the references that are not in the contract). If an entry doesn't resolve to an existing file, log a one-line warning and continue. If neither file declares any reference field, skip silently.
    - `02c-craft.md` — **visual contract. Mandatory when present: if the file exists you MUST read it.** The `## Mock fidelity inventory` items are **additional acceptance criteria** — every item must be honored in code. The `## Implementation contract` names specific token choices, component decisions, and motion specs to follow.
-   - **Applying design transforms (when `stack.ui ≠ ∅`).** When this implement pass is the implement step of a `/wf design` transform (dispatcher drives slice→plan→**implement**→verify), `implement` *applies* the design: read the transform's playbook from `skills/wf/reference/design/<name>.md`, apply it during the build, then **register it as a `design-<sub>` augmentation** in `00-index.md` and write `design-notes/<sub>-<timestamp>.md` (contract in `reference/design.md` Step 5). A transform may create the surface or modify existing implementation. Gate: if `stack.ui` is empty, skip.
+   - **Applying design transforms (when `stack.ui ≠ ∅`).** When this implement pass is the implement step of a `/wf design` transform (dispatcher drives slice→plan→**implement**→verify), `implement` *applies* the design: read the transform's playbook from `design/<name>.md`, apply it during the build, then **register it as a `design-<sub>` augmentation** in `00-index.md` and write `design-notes/<sub>-<timestamp>.md` (contract in `design.md` Step 5). A transform may create the surface or modify existing implementation. Gate: if `stack.ui` is empty, skip.
 9. **Read sibling implementations:** Check for any existing `05-implement-<other-slice>.md` files to avoid duplicating work or creating conflicts.
 10. **Carry forward** `open-questions` from the index.
 11. **Branch check (MANDATORY if `branch-strategy: dedicated`):**
@@ -196,13 +196,13 @@ After building against a visual contract, dispatch one **fresh-context check age
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave canonical results only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) first. All machine-readable state goes in frontmatter; the markdown body is human-readable narrative only.
-- **Timestamps must be real:** Run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash for `created-at` and `updated-at`. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at` and `updated-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations); freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
+- **Ask multiple-choice PO questions as gate questions** per [_gate-question.md](_gate-question.md) (structured decisions, confirmations); freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Reuse earlier workflow files. Do not broaden scope silently. Do not collapse stages unless the user asks.
+- Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 - **Conditional inputs are mandatory when present.** If a file in this command's *Conditional inputs* row exists on disk, read and honor it — silent omission is a contract violation.
 
 # Chat return contract
@@ -213,11 +213,11 @@ After writing files, return per [_chat-return.md](_chat-return.md) — narrative
 - ≤3 short blocker bullets if needed
 
 Do this in order:
-1. **Ensure correct branch** (branch check must have been completed in Step 0.9).
-2. **Track the stage's units in the task tracker.** One task per plan step from `04-plan-<slice-slug>.md` → `## Step-by-Step Plan`, plus the artifact write and the atomic commit. Keep statuses truthful as you work; record a blocked step as blocked with its reason.
+1. **Ensure correct branch** (branch check must have been completed in Step 0.11).
+2. **Track the stage's units in a work-tracking checklist.** One item per plan step from `04-plan-<slice-slug>.md` → `## Step-by-Step Plan`, plus the artifact write and the atomic commit. Keep statuses truthful as you work; record a blocked step as blocked with its reason.
 3. Re-check the current code before editing (Explore sub-agents if needed). Pay attention to files sibling slice implementations may have changed.
 4. If the implementation depends on evolving external APIs, libraries, or patterns, run a freshness pass before editing.
-5. **Implement the selected slice**, step by step, keeping the tracker truthful.
+5. **Implement the selected slice**, step by step, keeping the checklist truthful.
 6. Update tests, docs, types, configs, or migrations only where required for this slice.
 7. Summarize the exact change set.
 8. **Write `05-implement-<slice-slug>.md`** (per-slice file, see template below). Ground the record per [_grounded-progress.md](_grounded-progress.md): every `## Verification Seams Built` and `## Visual Contract Honored` entry cites a file:line you **re-opened after editing**, not memory of your own edits.
@@ -241,7 +241,7 @@ Evaluate and present ALL viable options:
 
 **Option A (default): Verify** → `/wf verify <slug> <slice-slug>`
 Use when: The implementation touches testable behavior.
-**Compact recommended** — tell the user: "Consider `/compact` before `/wf verify` — workflow state lives in artifact files on disk and the SessionStart hook re-reads it after compaction."
+**Compact recommended** — tell the user: "Consider compacting the session before `/wf verify` — workflow state lives in artifact files on disk and the SessionStart hook re-reads it after compaction."
 
 **Option B: Skip to Review** → `/wf review <slug> <slice-slug>`
 Use when: Purely declarative change with no testable behavior.
@@ -255,13 +255,13 @@ Use when: The plan was wrong — missed files, wrong assumptions.
 # Reviews Mode — fix review findings
 Triggered when: second argument is literally `reviews`. Example: `/wf implement my-slug reviews`
 
-Reads findings from `07-review-<slice-slug>.md`, extracts all BLOCKER and HIGH findings (and optionally MED if the user requests), then fixes them **in parallel** using worktree-isolated sub-agents — the findings are independent by construction; only a patch-overlap conflict forces the conflicting pair back to serial.
+Reads findings from `07-review-<slice-slug>.md`, extracts all BLOCKER and HIGH findings (and optionally MED if the user requests), then fixes them **in parallel** using write-isolated sub-agents (per [_subagents.md](_subagents.md)) — the findings are independent by construction; only a patch-overlap conflict forces the conflicting pair back to serial.
 
 Do this in order for reviews mode:
 1. **Resolve the slice-slug.** If a slice-slug was passed as a third argument (e.g., `/wf implement my-slug auth-flow reviews`), use it. Otherwise use `selected-slice-or-focus` from `00-index.md`. If neither is set, ask the user.
 2. **Read `07-review-<slice-slug>.md`** and all `07-review-<slice-slug>-<command>.md` for that slice. Other slices' review files are out of scope.
 3. **Extract the findings list.** Build an ordered list sorted by severity (BLOCKER first, then HIGH, then MED if requested). Each finding has: ID, severity, file:line, issue description, suggested fix.
-4. **Track the findings in the task tracker** — one task per finding plus the ledger update and the atomic commit; keep statuses truthful as fixes land.
+4. **Track the findings in a work-tracking checklist** — one item per finding plus the ledger update and the atomic commit; keep statuses truthful as fixes land.
 5. **Present the findings list** to the user before starting:
    ```
    ## Review Findings to Fix ({N} total)
@@ -270,7 +270,7 @@ Do this in order for reviews mode:
    ...
    Starting parallel fixes...
    ```
-6. **Dispatch ALL finding fixes in parallel, one sub-agent per finding** (single message, multiple Agent calls), each with explicit `model: sonnet` (REQUIRED — do not omit; per [_fix-loop.md](_fix-loop.md) rule 3) and `isolation: worktree` so concurrent patches cannot collide in the shared tree. For each sub-agent, use this prompt:
+6. **Dispatch ALL finding fixes in parallel, one sub-agent per finding** (one parallel wave), each at **medium** effort with write isolation per [_subagents.md](_subagents.md) (REQUIRED — do not omit; the effort tier follows [_fix-loop.md](_fix-loop.md) rule 3) so concurrent patches cannot collide in the shared tree. For each sub-agent, use this prompt:
       ```
       Fix the following review finding in the codebase:
 
@@ -291,10 +291,10 @@ Do this in order for reviews mode:
       ```
    a. **As each sub-agent completes, verify its fix (the merge gate):** read the changed file(s), confirm the fix addresses the finding, and check for regressions before merging its patch into the shared tree.
    b. **On a patch-overlap conflict** (two fixes touch the same lines), fall back to serial for the conflicting pair only: merge one, re-dispatch the other against the merged state.
-   c. If a fix failed or was partial: record `COULD NOT FIX: <reason>` on its task, then complete the task.
+   c. If a fix failed or was partial: record `COULD NOT FIX: <reason>` on its checklist item.
 
 7. **After all findings are processed:**
-   a. Mark "Update 07-review-<slice-slug>.md" task `in_progress`. Write/update `05-implement-<slice-slug>.md` with a `## Review Fixes Applied` section listing all findings and resolution status.
+   a. Write/update `05-implement-<slice-slug>.md` with a `## Review Fixes Applied` section listing all findings and resolution status.
    b. Update `05-implement.md` master index.
    c. **Update `07-review-<slice-slug>.md` (accumulating ledger — edit in place, do not overwrite):** Set each finding's `status` (`fixed` / `could-not-fix`) + `fixed-at` in `## All Findings`, `## Findings (Detailed)`, and the sibling `.yaml`. Update its row in the `## Fix Status` ledger (one row per finding, keyed by ID — update in place, never start a new round table):
       ```
@@ -303,7 +303,7 @@ Do this in order for reviews mode:
       |----|-----|--------|--------|----------|--------|-------|
       | {ID} | {sev} | {command} | fixed / could-not-fix | {fixed-at} | {SHA or —} | {notes} |
       ```
-   d. Update `00-index.md`. Mark task `completed`.
+   d. Update `00-index.md`.
    e. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):** stage by explicit path, classified exactly as mainline Step 13 (slice code by path, workflow artifacts by path, unknown dirty paths fail closed; `git add -A` / pathless `git add` forbidden). Commit: `fix(<slug>): review fixes for <slice-slug>`. Record commit SHA. Do NOT push. If `branch-strategy` is `none`, skip the commit.
 
 8. **Evaluate adaptive routing:**

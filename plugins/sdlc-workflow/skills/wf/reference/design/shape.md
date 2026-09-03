@@ -127,7 +127,7 @@ For the `02b-design.md` you just wrote:
 2. Write the sibling **`02b-design.html.fragment`** — the body-only interactive layer.
 
 Before authoring the fragment, load
-`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and apply
+`../_fragment-authoring.md` and apply
 the shared wrapper, snippet, and verifier rules in addition to the design-
 specific requirements below.
 

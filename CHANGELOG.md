@@ -4,6 +4,19 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.179.0 - 2026-09-03
+
+### Changed
+- **sdlc-workflow → v9.153.0 — the single-source merge.** One plugin directory now serves Claude Code and Codex. The `.agents/plugins/marketplace.json` catalog entry is renamed from `sdlc-workflow-codex` to `sdlc-workflow` and repointed at `./plugins/sdlc-workflow`; the `.claude-plugin/marketplace.json` entry is bumped to 9.153.0. Both catalogs change in the same commit as the tree deletion, so no published SHA points a catalog at a missing path.
+
+### Removed
+- `plugins/sdlc-workflow-codex` (the handwritten Codex mirror) and the root `scripts/generate-codex-plugin.mjs` generator. Codex machines that had `sdlc-workflow-codex` installed cut over once — see `plugins/sdlc-workflow/docs/internal/SINGLE-SOURCE-CUTOVER.md`.
+
+### Marketplace
+- Marketplace bumped to v1.179.0.
+
+---
+
 ## Version 1.140.0 - 2026-07-11
 
 ### Changed

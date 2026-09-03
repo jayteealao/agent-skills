@@ -1,8 +1,0 @@
-<script>
-(function () {
-  var detail = {{{detailJson}}};
-  detail.name = '{{name}}';
-  detail.artifact = '{{artifact}}';
-  window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', { detail: detail }));
-})();
-</script>

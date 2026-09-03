@@ -39,7 +39,7 @@ You are a **storyteller of the work done**, not a problem solver.
    - **Exact slug**: `.ai/workflows/<token>/00-index.md` exists → **single-slug recap** (`recap-scope: slug`). This is the classic path (Steps 1–3).
    - **PR reference** `pr#N` / `#N` / a bare integer → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then follow the branch path below (`recap-scope: branch`).
    - **Branch name**: matches a `branch:` recorded in some `00-index.md` / `.ai/workflows/INDEX.md`, or an existing git branch → **batch recap** (`recap-scope: branch`) — see **Step B** below.
-   - **Absent**: this command is slug-first. Try to infer: if `.ai/workflows/INDEX.md` exists, read it and filter rows whose status is not `closed`; if **exactly one** non-closed row exists, use it (single-slug) and note the inference in the recap header. If **multiple**, list them (`slug — status — updated-at`) and ask which one via `AskUserQuestion` (or in chat). If **none** → STOP: *"No workflows found. Start one with `/wf intake <description>`."*
+   - **Absent**: this command is slug-first. Try to infer: if `.ai/workflows/INDEX.md` exists, read it and filter rows whose status is not `closed`; if **exactly one** non-closed row exists, use it (single-slug) and note the inference in the recap header. If **multiple**, list them (`slug — status — updated-at`) and ask which one as a gate question per [_gate-question.md](_gate-question.md) (or in chat). If **none** → STOP: *"No workflows found. Start one with `/wf intake <description>`."*
 
 2. **Resolve the second token (optional — single-slug only).** In **batch mode** (`pr#N`/branch) a second token does not apply: batch recap is whole-workflow scope for every slug on the branch. If a second token is passed with a `pr#N`/branch first arg → STOP: *"Batch recap (`pr#N`/branch) recaps every slug on the branch whole — it doesn't take a slice or focus. Run `/wf recap <slug> <slice|focus>` for a scoped single-slug recap."* In **single-slug** mode, resolve in this order:
    - **No second token** → **whole-workflow recap** (Steps 1–3).
@@ -72,10 +72,10 @@ Read what actually exists — do not infer from filenames.
 
 **Whole-workflow recap (slug only):**
 1. `00-index.md` — parse `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice-or-focus`, `open-questions`, `recommended-next-invocation`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
-2. Every stage file listed in `workflow-files` (or glob `.ai/workflows/<slug>/*.md`). For each, read frontmatter and scan the body for: the scope and acceptance criteria (intake/shape), how the work was split (slice), the approach taken (plan), what was actually built and any deviations (implement), what was checked and the result (verify), findings still open (review), what shipped (handoff/ship), and lessons (retro).
+2. Every stage file listed in `workflow-files` (or list `.ai/workflows/<slug>/*.md`). For each, read frontmatter and scan the body for: the scope and acceptance criteria (intake/shape), how the work was split (slice), the approach taken (plan), what was actually built and any deviations (implement), what was checked and the result (verify), findings still open (review), what shipped (handoff/ship), and lessons (retro).
 3. `po-answers.md` — the product-owner decisions that constrain the work. Keep the ones that still matter; drop superseded ones.
 3b. `steer.md` if present (the user's standing-steering file; see `_steering.md`) — the active constraints/preferences that govern the work. Surface them; do not act on them (recap advances nothing).
-4. If slices exist, glob `03-slice-*.md` / `04-plan-*.md` / `05-implement-*.md` / `06-verify-*.md` / `07-review-*.md` to build the slice-by-slice progress picture.
+4. If slices exist, list `03-slice-*.md` / `04-plan-*.md` / `05-implement-*.md` / `06-verify-*.md` / `07-review-*.md` to build the slice-by-slice progress picture.
 
 **Slice recap (slug + slice):** read `00-index.md` and `02-shape.md` for context, then focus on that slice's own trail — `03-slice-<slice>.md`, `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md` (whichever exist), plus any slice amendments/compressed-slice notes. Read `po-answers.md` entries tagged to this slice. Ignore the other slices except where this slice depends on them.
 
@@ -187,7 +187,7 @@ no advancing the workflow.
 
 # Step 3 — Save and return
 
-1. **Timestamp:** run `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
+1. **Timestamp:** get the current UTC time per [_timestamp.md](_timestamp.md).
 2. **Write `.ai/workflows/<slug>/90-recap.md`** with this frontmatter, followed by the recap body:
 
 ```yaml

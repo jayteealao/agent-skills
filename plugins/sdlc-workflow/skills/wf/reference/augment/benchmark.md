@@ -9,7 +9,7 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `wf-benchmark`, a **performance benchmarking wrapper** that runs twice in the lifecycle — once before implement to record a baseline, and once after to measure the delta.
 
-> **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf benchmark` command anymore. Run only the mode the calling stage requests.
+> **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf benchmark` key anymore. Run only the mode the calling stage requests.
 
 # Shape
 This is a **wrapper**, not an entry point and not a standalone workflow. It writes `05c-benchmark.md` into an existing workflow directory.
@@ -30,7 +30,7 @@ existing-workflow/
 | **compare** | After `/wf implement`, before or during `/wf verify` | Runs same benchmarks on modified code, calculates delta, flags regressions |
 | **auto-detect** (default) | Either time | If no `05c-benchmark.md` exists → baseline. If baseline exists with no comparison → compare. |
 
-**Mode (set by the calling stage, not a command):**
+**Mode (set by the calling stage, not by the invocation):**
 - auto-detect — if no `05c-benchmark.md` exists → baseline; if a baseline exists with no comparison → compare
 - baseline — `plan` loads this file in baseline mode before implement (re-baseline after a major change)
 - compare — `verify` loads this file in compare mode after implement
@@ -133,7 +133,7 @@ targets-measured: <N>
 targets-failed: <N>
 baseline-branch: <current-branch>
 baseline-commit: <run `git rev-parse --short HEAD`>
-measured-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"`>
+measured-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
@@ -256,7 +256,7 @@ improvements-found: <N>
 
 For each fired tripwire, write one line. Then add:
 
-> One or more wf-benchmark tripwires fired. The comparison is valid, but review the regressions before proceeding to /wf verify.
+> One or more wf-benchmark tripwires fired. The comparison is valid, but review the regressions before proceeding to `/wf verify`.
 
 # Step 5 — Hand off to user
 
@@ -287,7 +287,7 @@ If regressions found, prefix compare summary with:
 
 > ⚠ Performance regression(s) detected. Review before verifying — see §Regression summary in artifact.
 
-# What this command is NOT
+# What this sub-procedure is NOT
 
 - **Not a profiler** — `wf-benchmark` measures aggregate time and allocations at the function/endpoint level. For flamegraphs and call-graph analysis, use the `augment/profile.md` sub-procedure (or `/wf probe` for ad-hoc).
 - **Not a load tester** — it measures single-request or single-operation performance. For concurrency and throughput under load, `wf-load-test` is needed (not yet available).
@@ -307,7 +307,7 @@ regression tone driven by `direction:` + delta sign.
 
 **Required whenever you write the `benchmark` sibling YAML:** also write the
 sibling `.html.fragment` next to it. First load
-`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow
+`../_fragment-authoring.md` and follow
 its wrapper, snippet, and verifier rules. The fragment must stay deterministic
 from the sibling YAML (same YAML → byte-identical HTML) and pass
 `scripts/verify-fragment.mjs` (Check 7) clean.

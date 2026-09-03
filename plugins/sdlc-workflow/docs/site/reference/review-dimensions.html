@@ -11,6 +11,7 @@
 <main>
 <h1>Review dimensions</h1>
 <p class="lede">This page lists all 35 review dimensions, the 7 sweep aggregates that bundle them, and the rules for ad-hoc invocation. Use this page to pick the right rubric for the review you want.</p>
+<div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
 
 <h2 id="invocation">Invocation and scope</h2>
 <p>Review has two modes, and the first token tells them apart. <code>/wf review &lt;slug&gt;</code> is the workflow stage: it dispatches one reviewer per selected dimension and merges findings into the accumulating ledger (<code>07-review[-&lt;slice&gt;].md</code> plus one file per dimension). Without a slug, <code>/wf review &lt;dimension&gt;</code> runs one rubric inline, and <code>/wf review sweep &lt;aggregate&gt;</code> fans out one reviewer per bundled dimension. These slug-less runs are the ad-hoc path. Ad-hoc runs write <strong>no artifact</strong>. Findings return inline in chat, with a verdict and severity counts.</p>

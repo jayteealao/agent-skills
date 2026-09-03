@@ -214,7 +214,7 @@ deploy-context hint from Step 1 still lets you present sensible options).
 # Step 3 — Consult: present the path forward and the options
 
 Now run the hypothesis→confirm loop. For each decision below, **state the inferred/recommended value + why (1–2
-lines, citing Step 1/2)**, then let the user confirm, refine, or replace it (AskUserQuestion where available, with
+lines, citing Step 1/2)**, then let the user confirm, refine, or replace it (as a gate question per [_gate-question.md](../_gate-question.md), with
 `Other (describe)` always present; otherwise ask in chat and WAIT). These are **real forks with tradeoffs**, not a
 quiz. Bias every option by the discovered stack and the ship-plan — never propose a JS default on a non-JS repo.
 
@@ -274,7 +274,7 @@ Optionally offer the `/consult` panel (above) before locking.
 # Step 4 — Confirmation
 
 Present a summary of the confirmed decisions (schema field count, sampling posture, chosen backend, pipeline,
-dashboards to stand up, provisioning ceiling, client/edge scope) and confirm before writing (AskUserQuestion, or
+dashboards to stand up, provisioning ceiling, client/edge scope) and confirm before writing (as a gate question per [_gate-question.md](../_gate-question.md), or
 ask in chat): **Confirm** (write the contract), **Adjust** (re-run one decision), **Cancel** (discard).
 
 ---

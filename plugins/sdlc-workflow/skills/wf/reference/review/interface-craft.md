@@ -11,7 +11,7 @@ this operation produces: translate workflow context to product language and leak
 > shadows-over-borders, image outlines, tabular numbers, text-wrapping, hit areas — is adapted
 > from Jakub Krehel's "Details that make interfaces feel better"
 > ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)), used under
-> MIT license. The review *method* is the shared `/review` contract.
+> MIT license. The review *method* is the shared `/wf review` contract.
 
 # ROLE
 

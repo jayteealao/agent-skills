@@ -11,7 +11,7 @@ this operation produces: translate workflow context to product language and leak
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
 > above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `wf-ship`, **stage 9 of 10**.
+You are running `/wf ship`, **stage 9 of 10** in the SDLC lifecycle.
 
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → `9·ship` → 10·retro
@@ -44,8 +44,8 @@ You are a **workflow orchestrator**, not a problem solver.
    **Build the roster** (`branch-slugs`): single-slug → `[<slug>]`; batch → every slug whose `00-index.md` `branch:` equals the resolved branch. **Elect the lead**: reuse the `handoff-lead:` recorded at handoff time (it MUST already exist — batch ship follows a batch handoff); if absent, elect the first roster slug alphabetically. The lead owns the single `09-ship-run-<run-id>.md`; followers get a `shipped-via` pointer.
 
    > Note: the second-positional shortcuts (`announce`, `rollback`) resolve against the **lead** slug's run in batch mode — there is one run per branch, so its comms and its reversal are branch-wide.
-1.5. **Announce re-run shortcut.** If the second positional is exactly `announce` (not a valid environment, so no collision with sub-step 3): load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/ship/announce.md`, run **only** the announce phase for `<slug>`, then STOP. Do NOT run the 13-step sequence.
-1.6. **Rollback shortcut.** If the second positional is exactly `rollback` (not a valid environment): load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/ship/rollback.md`, run **only** that phase for `<slug>`, then STOP. Do NOT run the 13-step sequence. Optional third positional = `<run-id>`; default = most recent `status: complete` run in `09-ship-runs.md`. A paused (`awaiting-input`) run is refused — resume or fail it instead.
+1.5. **Announce re-run shortcut.** If the second positional is exactly `announce` (not a valid environment, so no collision with sub-step 3): load `ship/announce.md`, run **only** the announce phase for `<slug>`, then STOP. Do NOT run the 13-step sequence.
+1.6. **Rollback shortcut.** If the second positional is exactly `rollback` (not a valid environment): load `ship/rollback.md`, run **only** that phase for `<slug>`, then STOP. Do NOT run the 13-step sequence. Optional third positional = `<run-id>`; default = most recent `status: complete` run in `09-ship-runs.md`. A paused (`awaiting-input`) run is refused — resume or fail it instead.
 2. **Detect `--init-plan` flag.** If present, print and STOP:
    ```
    The plan-author flow is `/wf ship-plan init`, not `/wf ship --init-plan`.
@@ -87,7 +87,7 @@ You are a **workflow orchestrator**, not a problem solver.
    ```
    `carried` RIMs are **legal** (they were consciously deferred to a named stage) and do not block — but list every `carried` entry distinctly in the ship summary so the deferral stays visible. Only `status: open` blocks. Earlier stages (shape adjudicates; handoff surfaces) route back to shape; ship is where the hard block fires.
 7. **Read every `07-review-*.md` and `po-answers.md`** for changelog/release-notes context — across **all roster slugs** in batch mode, so the release notes cover the whole branch.
-8. **Resume detection.** Glob `.ai/workflows/<slug>/09-ship-run-*.md`. For any with `status: awaiting-input`:
+8. **Resume detection.** Search for `.ai/workflows/<slug>/09-ship-run-*.md`. For any with `status: awaiting-input`:
    ```yaml
    question: "A prior ship run is paused. Resume it, or start fresh?"
    header: "Prior run"
@@ -116,7 +116,7 @@ You are a **workflow orchestrator**, not a problem solver.
 
    **What deliberately stays where it is.** A question whose answer genuinely depends on a mid-run outcome cannot be pre-fetched and must not be: the **Go/No-Go** after pre-flight and CI, a **merge-path fallback** after a failed merge, and any **recovery-playbook step** offered on a step-8 failure. Those are decisions about something that has happened; asking them early would be asking the user to guess. This step is only about the ones that were answerable at minute zero.
    If **start fresh**: leave the prior run untouched (or set `failed`); generate a new `run-id`.
-9. **Generate `run-id`** (UTC compact ISO-8601): `date -u +"%Y%m%dT%H%MZ"`. Use as the filename suffix and the `run-id` field. In batch mode there is ONE run-id for the whole branch.
+9. **Generate `run-id`** (UTC compact ISO-8601 `<yyyymmdd>T<hhmm>Z`, real time per [_timestamp.md](_timestamp.md)). Use as the filename suffix and the `run-id` field. In batch mode there is ONE run-id for the whole branch.
 10. **Carry forward** `open-questions` from the index (union across roster slugs in batch mode).
 
 # Batch ship (scope: branch) — one run, one artifact, N pointers
@@ -141,7 +141,7 @@ the tree with N near-identical run artifacts telling one story).
 - Store run artifacts under `.ai/workflows/<slug>/`. `00-index.md` is the control file; `09-ship-runs.md` is the per-workflow run index. Never leave the canonical result only in chat — write the stage file first.
 - **The ship plan lives at `.ai/ship-plan.md` (repo root), NOT under `.ai/workflows/`.** Project-scoped, shared across workflows.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter; the body is human-readable narrative only.
-- **Timestamps must be real:** For `created-at`, `updated-at`, and `observed-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at`, `updated-at`, and `observed-at`, take the real UTC timestamp per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
 - If a step cannot finish, set `status: awaiting-input`, record what's blocking, and STOP. The next invocation resumes from there.
 - Append every PO answer to `po-answers.md` with timestamp and stage.
 - Reuse earlier workflow files. Do not silently broaden scope.
@@ -170,7 +170,7 @@ Mark the corresponding task `in_progress`.
 
 1.1 **Branch + tree state.** Confirm you are on `<branch>`. `git status --porcelain` must be empty. If dirty, do NOT blanket-STOP — **classify every dirty path first** and only STOP on what actually needs a human (one release run once stopped on 404 paths, 396 of them this plugin's own bookkeeping, and resolved it with mid-ship repo surgery):
 
-   1. **Plugin-seeded files** — `CLAUDE.md` whose diff is entirely inside the `<!-- sdlc:wf-rules-import -->` fence, an untracked `AGENTS.md` containing only the `<!-- sdlc:wf-rules -->` fence, `.ai/.wf-rules-seeded`. These are the memory-seed kernel's own writes (verify mechanically: the diff/file must contain nothing outside the fences). Offer one-keystroke resolution via AskUserQuestion: commit as `chore(sdlc): seed wf rules` (recommended) or gitignore the marker file — never a bare "go commit/stash it yourself".
+   1. **Plugin-seeded files** — `CLAUDE.md` whose diff is entirely inside the `<!-- sdlc:wf-rules-import -->` fence, an untracked `AGENTS.md` containing only the `<!-- sdlc:wf-rules -->` fence, `.ai/.wf-rules-seeded`. These are the memory-seed kernel's own writes (verify mechanically: the diff/file must contain nothing outside the fences). Offer one-keystroke resolution as a gate question per [_gate-question.md](_gate-question.md): commit as `chore(sdlc): seed wf rules` (recommended) or gitignore the marker file — never a bare "go commit/stash it yourself".
    2. **`.ai/` workflow bookkeeping** — resolve per the repo's recorded `artifact-tracking` policy (`.ai/sdlc-config.json`; see `/wf ship-plan init`). `tracked` → offer "commit bookkeeping now" (`chore(sdlc): workflow artifacts`); `ignored` → these paths should not be dirty at all — surface the policy violation (likely a missing `.gitignore` block) instead of committing. Policy unset → ask once (this ship run only; recommend recording it via `ship-plan edit`).
    3. **`ship-plan build` output** — files whose diff carries the `# Added by wf ship-plan build` provenance comment. **Never silently commit-and-include**: this is unreviewed release-critical code entering the release at the last gate (exactly how three Major-defect workflow steps once reached a production release with an external bot as their only reviewer). Offer: route to a review slice first (recommended; STOP with the `/wf intake <slug> fix …` seed), or explicitly accept as-is (recorded in `## Pre-flight` as `unreviewed-build-output-accepted` with the file list).
    4. **Everything else** — STOP and ask the user to commit/stash, as before. Unknown always fails closed.
@@ -180,7 +180,7 @@ Mark the corresponding task `in_progress`.
 1.2 **Determine version.** Per `plan.version-bump-rule`:
    - `git-cliff` → run `plan.version-bump-cmd` (default: `git cliff --bumped-version`).
    - `conventional-commits` → use the project's bump tooling (`npx changeset version`, `npm version`, etc. — captured in `plan.version-bump-cmd`).
-   - `manual` → use the version confirmed in Step 0.9's batched round. Only if that round did not run (a resumed run predating it) fall back to AskUserQuestion with three suggested bumps based on the commit log: patch, minor, major.
+   - `manual` → use the version confirmed in Step 0.9's batched round. Only if that round did not run (a resumed run predating it) fall back to a gate question per [_gate-question.md](_gate-question.md) with three suggested bumps based on the commit log: patch, minor, major.
    - `fixed` → use the literal version from the plan.
    **Tag-collision check (before confirming):** verify the computed target version has no existing release identity — `git tag -l "v<version>" "<version>"` must return nothing, and `gh release view` for the matching tag form must 404. A hit means the branch's release identity is stale (one handoff certified a versionName "frozen" four days after that version had already shipped) — STOP with the collision named and route to the bump decision (the next version) rather than proceeding to re-release an existing identity.
    Confirm with the user before applying. Record `version` and `prior-version: <git describe --tags --abbrev=0 || echo "none">`.
@@ -217,7 +217,7 @@ Idempotency: skip if `go-nogo`, `rollout-strategy`, and `merge-strategy` are alr
 
 **3.1–3.3 consume Step 0.9's batched answers.** These three were asked before the sequence started, when the run was not yet holding anything open. Read them from `prefetched-answers:` and proceed. Ask here **only** when Step 0.9 did not run (a run resumed from before it existed) or when a pre-flight outcome materially invalidated an answer — say which outcome, and re-ask just that one.
 
-3.1 **Rollout-strategy.** Default is `plan.rollout-strategy`. Fallback AskUserQuestion (single-select):
+3.1 **Rollout-strategy.** Default is `plan.rollout-strategy`. Fallback: a single-select gate question per [_gate-question.md](_gate-question.md):
    ```
    Question: "Confirm rollout strategy for this release?"
    Header: "Rollout"
@@ -234,7 +234,7 @@ Append all answers to `po-answers.md` with `stage: ship` and the `run-id`.
 
 Idempotency: read-only; re-running is always safe.
 
-4.1 Find the last successful run for this workflow: glob `09-ship-run-*.md`, filter `status: complete`, sort by `created-at`, pick the most recent. Read its `## Freshness Research` section.
+4.1 Find the last successful run for this workflow: search for `09-ship-run-*.md`, filter `status: complete`, sort by `created-at`, pick the most recent. Read its `## Freshness Research` section.
 
 4.2 Diff the *delta* — what platforms, dependencies, or CI changes occurred since that run? Re-run web-research sub-agents only for areas that changed:
    - **Platform health** sub-agent: only if there's been a deployment-target change OR > 30 days since the last run.
@@ -302,7 +302,7 @@ Idempotency: skip if `release-workflow-conclusion: success` already set.
 
 8.3 Record `release-workflow-run-id: <id>`, `release-workflow-conclusion: <success | failure | cancelled>`.
 
-8.4 **On failure:** match the failure log against `plan.recovery-playbooks[].triggers[]` (regex, case-insensitive). For matched playbooks, present each step via AskUserQuestion (`Apply this step?`). Record `recovery-actions-taken: [<playbook-id>, ...]`. Re-running step 8 after recovery is allowed. If no playbook matches: WARN and ask whether to abort or proceed manually.
+8.4 **On failure:** match the failure log against `plan.recovery-playbooks[].triggers[]` (regex, case-insensitive). For matched playbooks, present each step as a gate question per [_gate-question.md](_gate-question.md) (`Apply this step?`). Record `recovery-actions-taken: [<playbook-id>, ...]`. Re-running step 8 after recovery is allowed. If no playbook matches: WARN and ask whether to abort or proceed manually.
 
 ## Step 9 — Post-publish polling loop
 
@@ -367,7 +367,7 @@ See the `## Run artifact schema` section below.
 
 Runs only when `go-nogo: go` or `conditional-go`; skip for `no-go` or `awaiting-input` (nothing shipped yet).
 
-Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/ship/announce.md` and run it for `<slug>` (the **lead** slug in batch mode) — it drafts audience/channel-tailored announcements from this run's artifact, writes `announce.md`, and stamps `announcements-sent` onto the run. In batch mode the announcement covers the whole branch (union of the roster's user-facing changes), not one slug. The phase is interactive; if the user defers comms, note that and move on. To regenerate comms later without re-shipping, run `/wf ship <slug> announce` (the Step 1.5 shortcut).
+Load `ship/announce.md` and run it for `<slug>` (the **lead** slug in batch mode) — it drafts audience/channel-tailored announcements from this run's artifact, writes `announce.md`, and stamps `announcements-sent` onto the run. In batch mode the announcement covers the whole branch (union of the roster's user-facing changes), not one slug. The phase is interactive; if the user declines or defers comms, note that and move on — the run is already complete. To regenerate comms later without re-shipping, run `/wf ship <slug> announce` (the Step 1.5 shortcut).
 
 ---
 
@@ -603,7 +603,7 @@ Files are **flat** in the slug dir — `09-ship-run-<run-id>.{yaml,html.fragment
    |---|---|---|
    | `artifact` | `ship-run` | optional, but write it |
    | `release` | string | the release identity, e.g. `v3.2.0` |
-   | `run_at` | ISO-8601 | real timestamp — `date -u +"%Y-%m-%dT%H:%M:%SZ"` |
+   | `run_at` | ISO-8601 | a real timestamp, per [_timestamp.md](_timestamp.md) — never a guessed or `T00:00:00Z` value |
    | `stages[]` | requires `name`, `status`; optional `started_at`, `ended_at` | the deploy timeline |
    | `checks[]` | **at least one entry**; each requires `name`, `kind`, `results` | the check matrix |
    | `checks[].results` | map of env-name → `{ status, duration_s? }` | `status` ∈ `pass \| fail \| flake \| skip \| running \| pending`; `duration_s` is a number or `null` |

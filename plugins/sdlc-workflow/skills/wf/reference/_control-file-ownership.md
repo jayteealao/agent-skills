@@ -39,7 +39,7 @@ Three states, and only three:
 
 No journal at all → *"no driver journal — I can't tell whether one ran."* That is the honest answer, and it is not the same as "nothing is running".
 
-Why this is written down at all: a background driver died 17 minutes into a run, the harness task registry lost the task entirely (`TaskGet` → "Task not found"), and the artifact trail simply stopped. The next session then told the user the driver was "currently re-verifying older slices" — reasoning purely from the trail *existing* — and the user made a stop-or-continue decision on that fiction. Existence is not liveness. The same discipline applies to any claim about work you did not watch, including another session's (see [_chat-return.md](_chat-return.md)).
+Why this is written down at all: a background driver died 17 minutes into a run, the harness task registry lost the task entirely (its lookup answered "Task not found"), and the artifact trail simply stopped. The next session then told the user the driver was "currently re-verifying older slices" — reasoning purely from the trail *existing* — and the user made a stop-or-continue decision on that fiction. Existence is not liveness. The same discipline applies to any claim about work you did not watch, including another session's (see [_chat-return.md](_chat-return.md)).
 
 ## What this is not
 

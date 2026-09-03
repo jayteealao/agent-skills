@@ -11,6 +11,7 @@
 <main>
 <h1>Commands</h1>
 <p class="lede">This page lists every <code>/wf</code> key: its exact invocation grammar, what it does, and what it writes. Use this page as a lookup table. The guides explain when to use each command.</p>
+<div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
 
 <h2 id="dispatcher">The dispatcher</h2>
 <p>All plugin operations run through one command: <code>/wf &lt;key&gt; [args…]</code>. The first token must be one of the 22 keys on this page. Everything after the first token passes verbatim to that key. The dispatcher itself has this behavior:</p>
@@ -139,7 +140,7 @@
 
 <h3 id="yolo"><code>/wf yolo</code></h3>
 <pre><code>/wf yolo &lt;slug&gt; [&lt;slice&gt;]</code></pre>
-<p>Yolo is the autonomous sibling of <code>auto</code> (Claude-only, not in the Codex build). Where <code>auto</code> pauses at gates, yolo resolves each gate by a written decision policy and records every decision in the artifact trail. Each decision is classified as implementation-detail or intent-bearing. By policy, an intent-bearing auto-resolution is an escape that should have been a stop, and the closing decision digest names each one explicitly for audit. Sub-agents append heartbeats to <code>.driver-journal.jsonl</code>, so a dead driver is distinguishable from a slow driver. Yolo drives plan → implement → verify → review, stops before handoff, and refuses terminal-analysis workflows (including audits) and task workflows — a task's authorization gate is a human gate no written policy may resolve.</p>
+<p>Yolo is the autonomous sibling of <code>auto</code> (Claude Code only; unavailable under Codex — see <a href="hosts.html">Hosts</a>). Where <code>auto</code> pauses at gates, yolo resolves each gate by a written decision policy and records every decision in the artifact trail. Each decision is classified as implementation-detail or intent-bearing. By policy, an intent-bearing auto-resolution is an escape that should have been a stop, and the closing decision digest names each one explicitly for audit. Sub-agents append heartbeats to <code>.driver-journal.jsonl</code>, so a dead driver is distinguishable from a slow driver. Yolo drives plan → implement → verify → review, stops before handoff, and refuses terminal-analysis workflows (including audits) and task workflows — a task's authorization gate is a human gate no written policy may resolve.</p>
 <p><strong>Writes:</strong> nothing of its own. The stages it drives write their artifacts; heartbeats go to <code>.ai/workflows/&lt;slug&gt;/.driver-journal.jsonl</code>.</p>
 
 <div class="related">

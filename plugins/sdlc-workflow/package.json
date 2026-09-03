@@ -1,6 +1,6 @@
 {
   "name": "@sdlc-workflow/sunflower-view",
-  "version": "9.152.1",
+  "version": "9.153.0",
   "private": true,
   "type": "module",
   "description": "Sunflower view layer for the sdlc-workflow plugin — HTML projection of .ai/workflows/ artifacts.",
@@ -11,8 +11,9 @@
     "build": "node scripts/build.mjs",
     "build:icon": "node scripts/build-icon.mjs",
     "verify:runtime": "node scripts/verify-runtime.mjs",
-    "sync:codex": "node scripts/sync-codex-runtime.mjs",
-    "verify:codex": "node scripts/sync-codex-runtime.mjs --check",
+    "verify:neutrality": "node scripts/verify-host-neutrality.mjs",
+    "verify:versions": "node scripts/verify-release-versions.mjs",
+    "verify:deployment": "node scripts/verify-deployment.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
     "render": "node scripts/render-sunflower.mjs",
     "render:clean": "node scripts/render-sunflower.mjs --clean",
@@ -46,5 +47,6 @@
     "react-dom": "^19.2.7",
     "shiki": "^4.2.0",
     "tailwindcss": "^4.3.0"
-  }
+  },
+  "comment:hosts": "ONE tree serves both hosts (SINGLE-SOURCE-PLAN): Claude Code reads .claude-plugin/plugin.json + hooks/hooks.json; Codex reads .codex-plugin/plugin.json + hooks/codex.hooks.json (declared hooks replace hooks/hooks.json discovery). Skill prose is host-neutral — verify:neutrality enforces the §3.3 budget; verify:versions keeps the two manifests, package.json, and both root catalogs on one version; verify:deployment is the machine-side Codex doctor."
 }

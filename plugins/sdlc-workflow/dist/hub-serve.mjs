@@ -3,10 +3,10 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-YWQMWPOZ.mjs";
-import "./chunk-RRVB3W3J.mjs";
+} from "./chunk-KU6P4RNY.mjs";
+import "./chunk-3SBJS5VM.mjs";
 import "./chunk-PDBKNARE.mjs";
-import "./chunk-ZN7MNSO3.mjs";
+import "./chunk-SK7QE7CO.mjs";
 import {
   hostAllowed,
   renderCodeBrowserPage,
@@ -55,7 +55,7 @@ import { basename, extname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 var RUNTIME = runtimeIdentity();
 var PLUGIN_VERSION = RUNTIME.runtimeVersion;
-var STARTED_BY_HOST = process.env.SDLC_HUB_STARTED_BY || "claude";
+var STARTED_BY_HOST = process.env.SDLC_HUB_STARTED_BY || process.env.SDLC_HOST || "claude";
 var PLUGIN_ROOT = (() => {
   try {
     return fileURLToPath(new URL("..", import.meta.url));

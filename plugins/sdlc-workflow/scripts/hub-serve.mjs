@@ -53,9 +53,11 @@ const RUNTIME = runtimeIdentity();
 // version pre-9.75). Kept for the landing page / code-browser footer / health
 // `version` field during migration.
 const PLUGIN_VERSION = RUNTIME.runtimeVersion;
-// Diagnostic only: which host started this hub. Supervisors pass it via env; it
-// never controls adoption or behaviour (NATIVE-INTEROP "startedBy is diagnostic").
-const STARTED_BY_HOST = process.env.SDLC_HUB_STARTED_BY || 'claude';
+// Diagnostic only: which host started this hub. The ONE supervisor spawn site
+// (lib/hub-lifecycle.mjs) derives SDLC_HUB_STARTED_BY from SDLC_HOST and passes
+// it via env; a direct `npm run hub` falls back to the entrypoint signal itself.
+// Never controls adoption or behaviour (NATIVE-INTEROP "startedBy is diagnostic").
+const STARTED_BY_HOST = process.env.SDLC_HUB_STARTED_BY || process.env.SDLC_HOST || 'claude';
 
 // Plugin root, resolved off this module's own URL so it works identically from
 // source (scripts/hub-serve.mjs) and the bundle (dist/hub-serve.mjs) — both sit

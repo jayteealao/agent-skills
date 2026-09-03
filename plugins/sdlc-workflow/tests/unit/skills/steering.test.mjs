@@ -10,7 +10,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const codexRoot = path.resolve(pluginRoot, '..', 'sdlc-workflow-codex');
 
 // The fingerprint sentence of the full contract body. It lives ONLY in the
 // canonical file; the compact citation blocks deliberately paraphrase it.
@@ -28,8 +27,7 @@ function* walk(dir, exts) {
 
 const trees = [
   { name: 'main', root: pluginRoot },
-  { name: 'codex', root: codexRoot },
-].filter((t) => existsSync(path.join(t.root, 'skills')));
+];
 
 test('steering canonical file exists in every tree', () => {
   for (const { name, root } of trees) {
@@ -60,8 +58,8 @@ test('full steering body appears nowhere except the canonical file', () => {
 test('every steering citation link resolves to the canonical file', () => {
   for (const { name, root } of trees) {
     const scanRoots = [path.join(root, 'skills'), path.join(root, 'commands')].filter(existsSync);
-    // main has 20 stage entry points; codex has 19 (no yolo).
-    const minCitations = name === 'codex' ? 18 : 19;
+    // 20 stage entry points cite the contract (single-source tree; yolo included).
+    const minCitations = 19;
     let citations = 0;
     for (const scanRoot of scanRoots) {
       for (const file of walk(scanRoot, ['.md'])) {

@@ -10,12 +10,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const codexRoot = path.resolve(pluginRoot, '..', 'sdlc-workflow-codex');
 
 const trees = [
   { name: 'main', root: pluginRoot, dialect: '/wf' },
-  { name: 'codex', root: codexRoot, dialect: '$wf' },
-].filter((t) => existsSync(path.join(t.root, 'skills', 'wf', 'reference')));
+];
 
 const read = (root, ...rel) => readFileSync(path.join(root, 'skills', 'wf', ...rel), 'utf8');
 

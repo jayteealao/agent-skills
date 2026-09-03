@@ -1,9 +1,9 @@
 // lib/runtime-manifest.mjs
 //
 // Shared runtime identity — the single source of truth for "which runtime is
-// this?" across BOTH host plugins (Claude `sdlc-workflow` and the native Codex
-// `sdlc-workflow-codex`). See NATIVE-INTEROP-REWRITE-PLAN "Shared Runtime
-// Identity" / Workstream B.
+// this?" across BOTH hosts (Claude Code and Codex read the SAME plugin tree
+// since SINGLE-SOURCE-PLAN W4; before that there were two packages). See
+// NATIVE-INTEROP-REWRITE-PLAN "Shared Runtime Identity" / Workstream B.
 //
 // The problem this fixes
 // ----------------------

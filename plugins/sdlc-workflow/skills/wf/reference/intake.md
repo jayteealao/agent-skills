@@ -90,7 +90,7 @@ Resolve in this exact order (the order matters — the slug checks come FIRST):
    `/wf intake <slug> fix` — never an in-place re-specification. That rule is unchanged; `amend`
    (branch 0) covers only recorded **configuration** (branch strategy, base branch, review scope,
    title, tags), which extension never had a home for.
-   - **Schema-era check (W7.2).** While reading `00-index.md` for this branch, note whether the
+   - **Schema-era check.** While reading `00-index.md` for this branch, note whether the
      workflow predates the current schema — no `charter:`, no `intent-risks:`, or open
      `runtime-evidence-deferrals` entries missing `wall-ownership` / `clearing-event`.
      **Nag suppression:** when the index carries a `schema-modernized-at:` stamp, skip the offer
@@ -99,7 +99,7 @@ Resolve in this exact order (the order matters — the slug checks come FIRST):
      still fire. When drift does fire,
      say so in one line **before** running the extension and offer `modernize` as a first-class
      option: *"`<slug>` was authored before `<the missing block>`, so `<the stage that reads it>`
-     silently gets nothing. Extend now, or run `/wf intake `<slug>` modernize` first?"* Do not
+     silently gets nothing. Extend now, or run `/wf intake <slug> modernize` first?"* Do not
      modernize silently, and do not block the extension on it — the point is that the drift becomes
      visible at the one moment someone is already looking at this workflow.
    - If `token0` matches a **closed** workflow → extension is still valid (new scope may extend a
@@ -115,8 +115,8 @@ Resolve in this exact order (the order matters — the slug checks come FIRST):
 
 4. **Default + suggest-and-confirm.** Else the tokens are a **raw task description** → the
    default intake flow (`intake/default.md`). **Before loading it**, run the lightweight
-   auto-route classification (below). On a strong single match, propose that mode via
-   `AskUserQuestion`; on accept, load that mode's reference instead (standalone); on decline, run
+   auto-route classification (below). On a strong single match, propose that mode as a gate
+   question per [_gate-question.md](_gate-question.md); on accept, load that mode's reference instead (standalone); on decline, run
    `intake/default.md`. With no strong match, go straight to `intake/default.md`.
 
 **Empty `$ARGUMENTS`** → load `intake/default.md` (it owns the "ask for a task description" path)
@@ -176,7 +176,7 @@ exactly-one-strong-match, so fall to default):**
 - `audit` vs `investigate` — `investigate` assumes the problem is real and sketches approaches;
   `audit` decides whether problems exist at all.
 
-Propose **at most one** mode, **once**, via `AskUserQuestion` offering the proposed mode
+Propose **at most one** mode, **once**, as a gate question per [_gate-question.md](_gate-question.md) offering the proposed mode
 (recommended) vs "Plain intake (default)". On accept, load that mode reference standalone; on
 decline, `intake/default.md`. The confirm step is what makes proposing a **build-committing** mode
 (`fix`, `hotfix`, `refactor`, `update-deps`) safe — nothing routes into code-writing without the
@@ -187,10 +187,10 @@ and instructions before proceeding.
 
 # Step 1 — Load shared context
 
-Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-context.md` in full and apply it:
+Load `intake/_intake-context.md` in full and apply it:
 the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug
 semantics. Do not restate or fork its rules. If **slug-mode** (branch 1, a mode keyword on an
-existing slug), also load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md` — it
+existing slug), also load `_compressed-slice.md` — it
 governs the slice output and overrides any standalone "create workflow / branch / top-level index"
 step in the mode reference. **Extension mode (branch 2) does NOT load `_compressed-slice.md`** — it
 writes full slice files per `intake/extend.md`.

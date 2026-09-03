@@ -22,16 +22,16 @@ this operation produces: translate workflow context to product language and leak
 > sub-agent you dispatch. Read-only — reads land in gitignored `.scratch/`, never in the review
 > artifact or the diff.
 
-You are running `wf-review`, **stage 7 of 10** in the SDLC lifecycle.
+You are running `/wf review`, **stage 7 of 10** in the SDLC lifecycle.
 
 # Step 00 — Resolve scope: workflow stage vs ad-hoc (MANDATORY, before everything)
 
 `/wf review` is the single review surface — it spans the **workflow stage** (a slug) and **ad-hoc**
 review (a dimension or a sweep, no slug), the way `/wf simplify` unifies its scopes. This absorbed the
-former standalone `sdlc-workflow:review` skill. Resolve the first token BEFORE any stage logic:
+former standalone `review` skill. Resolve the first token BEFORE any stage logic:
 
 1. **Exact slug match** — `.ai/workflows/<token>/00-index.md` exists → **stage mode**. **Read
-   `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/review/_stage.md` in full now and follow it verbatim** —
+   `review/_stage.md` in full now and follow it verbatim** —
    it carries the whole stage body (preamble table, TRIAGE MODE, Step 0 orient, the accumulating-ledger
    dispatch, fix loop, artifact templates). The optional second token is `<slice>` or `triage`, exactly as before.
 2. **`sweep` or a known dimension/aggregate key** (no slug matched) → **ad-hoc mode**. Jump to the
@@ -48,9 +48,9 @@ fuzzy-suggest** (like `simplify`/`design`).
 
 # Ad-hoc review (no slug)
 
-Reached from Step 00 branch 2 — the former standalone `sdlc-workflow:review` skill. Two modes over one of five scopes (`pr` / `worktree` / `diff` / `file` / `repo`); parse the scope + target from the remaining tokens (a PR URL/number, a commit range, a file path, or bare = repo/worktree). Ad-hoc runs write **no** `07-review*` artifact — findings return inline (the numbered stage artifacts belong to slug mode).
+Reached from Step 00 branch 2 — the former standalone `review` skill (now dissolved into `/wf review`). Two modes over one of five scopes (`pr` / `worktree` / `diff` / `file` / `repo`); parse the scope + target from the remaining tokens (a PR URL/number, a commit range, a file path, or bare = repo/worktree). Ad-hoc runs write **no** `07-review*` artifact — findings return inline (the numbered stage artifacts belong to slug mode).
 
-**Dimension keys** — each resolves to `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/review/<key>.md`:
+**Dimension keys** — each resolves to `review/<key>.md`:
 
 `accessibility`, `api-contracts`, `architecture`, `backend-concurrency`, `ci`, `code-simplification`, `correctness`, `cost`, `data-integrity`, `docs`, `dx`, `frontend-accessibility`, `frontend-performance`, `infra`, `infra-security`, `intent-fidelity`, `interface-craft`, `logging`, `maintainability`, `migrations`, `motion`, `observability`, `overengineering`, `performance`, `privacy`, `refactor-safety`, `release`, `reliability`, `scalability`, `security`, `ste-compliance`, `style-consistency`, `supply-chain`, `testing`, `ux-copy`.
 
@@ -69,14 +69,14 @@ Reached from Step 00 branch 2 — the former standalone `sdlc-workflow:review` s
 `architecture`, `infra`, and `security` exist as BOTH a dimension and an aggregate — a bare `/wf review <name>` is the dimension; `/wf review sweep <name>` is the aggregate.
 
 ## Single-dimension execution
-1. Read the rubric in full from `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/review/<key>.md` and follow it verbatim (its `args:` frontmatter describes how it consumes scope/target/paths).
+1. Read the rubric in full from `review/<key>.md` and follow it verbatim (its `args:` frontmatter describes how it consumes scope/target/paths).
 2. Run the rubric inline over the resolved scope. Return findings in the standard schema (severity + confidence + file:line + evidence + suggested fix).
 
 ## Sweep execution (parallel sub-agent dispatch)
 1. Resolve the composition from the aggregate table above.
-2. Prepare ONE `Task` per dimension D: `subagent_type: general-purpose`; `model: haiku` for every dimension EXCEPT `architecture`/`refactor-safety`/`security` which use `sonnet` (pass it explicitly — reviewers must not inherit the parent model); `description: "review-{D}"`; `prompt` = the rubric body from `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/review/{D}.md` + the concrete scope/target/paths + the standard findings-schema + output instruction (return inline; no artifact in ad-hoc mode).
-3. **Dispatch in parallel** — one assistant message with all N Task calls (sequential dispatch is forbidden).
-4. Wait for all to return, then **synthesize**: collect findings; dedupe by `(file:line + root cause)` (keep the most specific severity, merge rationales, tag with both dimensions); normalize severity to BLOCKER/HIGH/MED/LOW/NIT (map any other scale first); triage BLOCKER+HIGH interactively via AskUserQuestion (accept / defer / reject); derive the verdict (Ship = no blocker/high · Ship with caveats = high only · Don't ship = any blocker).
+2. Prepare ONE dispatch per dimension D: read-only children per [_subagents.md](_subagents.md) at **low** effort for every dimension EXCEPT `architecture`/`refactor-safety`/`security`, which run at **high** (set the tier explicitly — reviewers must not inherit the parent configuration); `description: "review-{D}"`; `prompt` = the rubric body from `review/{D}.md` + the concrete scope/target/paths + the standard findings-schema + output instruction (return inline; no artifact in ad-hoc mode).
+3. **Dispatch in parallel** — all N dispatches in one wave, waves of ≤6 per [_subagents.md](_subagents.md) (sequential dispatch is forbidden).
+4. Wait for all to return, then **synthesize**: collect findings; dedupe by `(file:line + root cause)` (keep the most specific severity, merge rationales, tag with both dimensions); normalize severity to BLOCKER/HIGH/MED/LOW/NIT (map any other scale first); triage BLOCKER+HIGH interactively as a gate question per [_gate-question.md](_gate-question.md) — present each finding with its text + impact + suggested fix; the user chooses accept (will fix), defer (acknowledge but ship), or reject (false positive); derive the verdict (Ship = no blocker/high · Ship with caveats = high only · Don't ship = any blocker).
 
 ## Output + final summary
 Render the review report (verdict · reviewed scope/target · files ± · findings by severity · critical block · triage decisions), then emit the standard compact chat summary: verb-first first line (`review <mode> complete: <key> on <scope>/<target>`), a short narrative paragraph, `Artifacts: none` (ad-hoc returns inline), `Verdict:`, `Findings: BLOCKER n | HIGH n | MED n | LOW n | NIT n`, and `Next:` (a concrete command tied to the verdict, or `Done`).

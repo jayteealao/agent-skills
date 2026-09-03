@@ -20,12 +20,12 @@ mode writes may also ship free **narrative fragments**: `<stem>.<NN-label>.html.
 of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required —
 rendered raw-inline below the page. Author one whenever a bespoke diagram, flow, comparison, or
 widget tells the story better than prose. Full guidance:
-`${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
+`../../../../reference/narrative-fragments.md`.
 
 # Workflow registry & slug semantics
 
 `.ai/workflows/INDEX.md` is the global workflow registry (format documented in
-`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/status.md` (the `/wf status` registry-reconcile spec)). Columns:
+`../status.md`, the `/wf status` registry-reconcile spec). Columns:
 `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`, sorted alphabetically by slug,
 closed rows retained.
 
@@ -36,7 +36,7 @@ reused by a new workflow.
 `intake/default.md` Step 0 — it prompts catch-up (recap) / add-scope (extend) / pick-different / cancel and never silently
 proceeds. **This is distinct from slug-mode:** when the dispatcher detects that the *first
 positional token* is an exact existing-slug match, that is an *intentional* attach handled by
-`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md` — no collision prompt fires.
+`../_compressed-slice.md` — no collision prompt fires.
 
 **Additive bootstrap.** A mode that creates a new workflow must ensure `.ai/workflows/INDEX.md`
 contains a row for its slug after `00-index.md` is finalized (create the file with the header line
@@ -83,7 +83,7 @@ pipeline (rather than re-implementing it per mode) and is what makes the workflo
 specialized), then routes to `/wf review`; it never invokes `/wf implement` or `/wf verify`.
 
 **The gate (D4) — stop-and-prompt before `05-implement`.** After `04-plan` is written and before any
-execution, the mode pauses for the human via `AskUserQuestion`:
+execution, the mode pauses for the human per the gate-question ladder ([_gate-question.md](../_gate-question.md)):
 
 ```
 question: "Plan for `<slug>` is ready (<N> steps, <M> files). Proceed to implementation?"

@@ -37,7 +37,7 @@ If the second argument is `triage` (e.g., `/wf review my-feature triage`), skip 
    - `review-scope: per-slice` → use the third argument as slice slug if present, else `selected-slice`; if neither, ask. Target is `07-review-<slice-slug>.md`.
 2. **Read the target review file** — parse `## Triage Decisions`. Collect findings with `status: deferred` or `open`. Findings already `resolved`/`fixed`/`dismissed` are not re-presented unless the user names them.
 3. **If no findings to triage** → print "No deferred or untriaged findings. Run `/wf review <slug> [<slice>]` for a full review." and STOP.
-4. **Present for triage via AskUserQuestion** — same protocol as Step 4b, but show only `deferred` and `open` findings. A `Fix` decision here may also run the Step 4c fix loop.
+4. **Present for triage as a gate question per [_gate-question.md](../_gate-question.md)** — same protocol as Step 4b, but show only `deferred` and `open` findings. A `Fix` decision here may also run the Step 4c fix loop.
 5. **Edit the target review file in place** — update `## Triage Decisions` rows for re-triaged findings only; set each finding's `status` in `## All Findings`, `## Findings (Detailed)`, and the sibling `.yaml`; update `## Recommendations` counts. Preserve every other section verbatim. Do NOT overwrite the file.
 6. **Print summary** — show fix/defer/dismiss counts and list findings newly marked for fixing.
 
@@ -119,7 +119,7 @@ Then STOP — do not continue to the full review workflow.
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. Machine-readable state goes in frontmatter; markdown body is human-readable narrative only.
-- **Timestamps must be real:** run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash for `created-at`/`updated-at`. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** take the real UTC timestamp per [_timestamp.md](../_timestamp.md) for `created-at`/`updated-at`. Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
@@ -137,24 +137,9 @@ After writing files, return per [_chat-return.md](../_chat-return.md) — narrat
 
 ---
 
-# Task Tracking
+# Progress tracking
 
-After completing Step 2 (command selection), create a task list using TaskCreate before dispatching sub-agents:
-- One task per selected review command: `subject: "Review: {command}"`, `activeForm: "Dispatching {command} review"`, `metadata: { slug, stage: "review", slice: "<slice-slug>", command: "{command}" }`.
-- Review command tasks are independent — no `addBlockedBy` between them (they run as parallel sub-agents).
-- Add bookkeeping tasks:
-  - "Merge + dedupe + resolve-sweep findings (against existing ledger)" — `addBlockedBy: [all review command tasks]`
-  - "Triage findings via AskUserQuestion" — `addBlockedBy: [merge task]`
-  - "Fix loop (Step 4c)" — `addBlockedBy: [triage task]` — gets `status: deleted` if Step 4b produced zero `Fix` decisions.
-  - "Write merged 07-review-<slice-slug>.md + verdict + Fix Status" — `addBlockedBy: [fix-loop task]`
-
-Inside the fix loop (Step 4c), `TaskCreate` one additional task per `Fix` decision: `subject: "Fix [{ID}] {SEV}: {title}"`, `activeForm: "Fixing [{ID}]"`, `addBlockedBy: ["Fix loop (Step 4c)"]` (parent — the loop dispatches them in parallel). Mark each `completed` (with `description: "COULD NOT FIX: <reason>"` if applicable) as its outcome is recorded.
-
-As each review sub-agent returns its `07-review-<slice-slug>-<command>.md` file: `TaskUpdate(taskId, status: "completed")`.
-When starting aggregation: `TaskUpdate(aggregateTaskId, status: "in_progress")`. Mark `completed` when done.
-When starting triage: `TaskUpdate(triageTaskId, status: "in_progress")`. Mark `completed` when AskUserQuestion finishes.
-When starting the fix loop: `TaskUpdate(fixLoopTaskId, status: "in_progress")`. Mark `completed` when every per-finding fix task is done.
-When writing final verdict: `TaskUpdate(writeTaskId, status: "in_progress")`. Mark `completed` when done.
+Where the host offers a progress surface ([_host-invocation.md](../_host-invocation.md)), track one item per selected review command (independent — they run as parallel sub-agents) plus the four bookkeeping items in ledger order — merge + dedupe + resolve-sweep, triage, fix loop (Step 4c; dropped when Step 4b yields zero `Fix` decisions), write the merged verdict + Fix Status — and, inside Step 4c, one item per `Fix` decision (`Fix [{ID}] {SEV}: {title}`). Mark each item done as its outcome is recorded; a `could-not-fix` item carries `COULD NOT FIX: <reason>`. Tracking never changes the ordering above.
 
 ---
 
@@ -190,7 +175,7 @@ Extract:
 
 # Step 2: Select Review Commands
 
-Each command maps to `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/review/<name>.md` — **except** the two design dimensions `design-audit` and `design-critique`, which map to `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/design/audit.md` and `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/design/critique.md` respectively (the relocated design library; see the "design work" selection rule below).
+Each command maps to `review/<name>.md` — **except** the two design dimensions `design-audit` and `design-critique`, which map to `design/audit.md` and `design/critique.md` respectively (see the "design work" selection rule below).
 
 **Selection philosophy:** Use shape, slice, and implementation artifacts — not just raw diff patterns — to reason about what the change *is*. A feature that adds async data fetching needs `backend-concurrency` even if the diff contains no "mutex". Lean toward inclusion: a missed review is worse than a redundant one. The max prevents sprawl, not thorough coverage.
 
@@ -311,14 +296,14 @@ Print to chat:
 
 ---
 
-# Step 3: Dispatch Parallel Sub-Agents (sonnet)
+# Step 3: Dispatch Parallel Sub-Agents
 
-For EACH selected command, spawn a sub-agent **with explicit `model: sonnet`** on the `Task` call. All agents run in parallel. The model parameter is REQUIRED — do not omit it (per [_fix-loop.md](../_fix-loop.md) rule 3). Synthesis (Step 4 — aggregation, dedup, triage) keeps the parent model.
+For EACH selected command, dispatch ONE sub-agent at **medium** effort per [_subagents.md](../_subagents.md). Set the tier explicitly — a reviewer must not inherit the parent configuration (per [_fix-loop.md](../_fix-loop.md) rule 3). All agents run in parallel, in waves of ≤6 when more dimensions are selected. Synthesis (Step 4 — aggregation, dedup, triage) stays with the coordinator.
 
 **Each sub-agent receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`):
 
 ```
-Execute the review command at `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/review/{command-name}.md`.
+Execute the review command at `review/{command-name}.md`.
 
 Scope:
   - Per-slice mode: `git diff HEAD` (working-tree diff for the current slice)
@@ -339,10 +324,10 @@ a prior finding's `pre-existing` value if the diff has since grown to touch thos
 ACCUMULATE — do not overwrite. Before writing, READ your target file below if it already
 exists (plus its sibling `.yaml`). It holds prior findings for THIS dimension with stable
 IDs and `surfaced-at` stamps. MERGE your fresh findings into it by the findings-ledger
-merge law: READ `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_findings-ledger.md` and apply
+merge law: READ the shared reference `_findings-ledger.md` (sibling of `review/`) and apply
 its rules 2–5 to this dimension's file (re-surfaced findings keep prior id/surfaced-at;
 net-new get max+1; resolve-sweep what you did not re-surface; triaged statuses persist).
-Get `now` from `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash. Emit the FULL merged set (open AND resolved), not just this run's deltas.
+Get `now` from the real UTC timestamp per [_timestamp.md](../_timestamp.md). Emit the FULL merged set (open AND resolved), not just this run's deltas.
 
 IMPORTANT: Write your complete review findings to the file:
   - Per-slice: `.ai/workflows/{slug}/07-review-{slice-slug}-{command-name}.md`
@@ -413,7 +398,7 @@ Then author the rich siblings next to that `.md` (do NOT leave this for the orch
   2. Write `<stem>.html.fragment` — one
      `<section class="fragment-review-dimension" data-artifact="review-dimension">`
      per the per-dimension shape in this reference's Step 5b tail and
-     `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md`.
+     `../_fragment-authoring.md`.
 The `post-write-verify` hook BLOCKS (exit 2) the `.md` write when the sibling
 `.yaml` is missing — write the `.yaml` first (or in the same turn). If this
 dimension has zero OPEN findings (clean, or everything resolved), set `fragment: none`
@@ -442,17 +427,17 @@ After all sub-agents finish, **MERGE** this run's findings into the existing mas
    - OPEN MED/LOW/NIT only, or no open findings → **Ship**
    Fixed / dismissed / resolved findings never count against the verdict. **Neither do `pre-existing: true` findings — including pre-existing BLOCKERs**: the verdict is about *this change*. Pre-existing findings surface in `## Pre-existing Debt` and route to `/wf intake fix|refactor`.
 
-Get `now` from `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash (one stamp for the whole run).
+Get `now` from the real UTC timestamp per [_timestamp.md](../_timestamp.md) (one stamp for the whole run).
 
 ---
 
-# Step 4b: Triage findings needing a decision via AskUserQuestion
+# Step 4b: Triage findings needing a decision
 
-After the merge, present findings that **need a decision** via AskUserQuestion: net-new findings, re-surfaced findings that were previously `resolved`, and prior `open` (untriaged) findings. **Skip `pre-existing: true` findings** — they land in `## Pre-existing Debt` with `/wf intake` routing (a user may still request an in-run fix, but the default flow never prompts for it). Findings already triaged `deferred` or `dismissed` **keep that decision** — re-triage via `/wf review <slug> triage`. **`Fix` decisions execute in Step 4c.**
+After the merge, present findings that **need a decision** as a gate question per [_gate-question.md](../_gate-question.md): net-new findings, re-surfaced findings that were previously `resolved`, and prior `open` (untriaged) findings. **Skip `pre-existing: true` findings** — they land in `## Pre-existing Debt` with `/wf intake` routing (a user may still request an in-run fix, but the default flow never prompts for it). Findings already triaged `deferred` or `dismissed` **keep that decision** — re-triage via `/wf review <slug> triage`. **`Fix` decisions execute in Step 4c.**
 
 **For BLOCKER and HIGH findings** — present each individually:
 
-Use AskUserQuestion with one question per finding (batch up to 4 per call):
+Ask one gate question per finding ([_gate-question.md](../_gate-question.md)), batching up to 4 findings per round:
 - **header**: the finding ID (e.g., "CR-1", "CS-2", "SEC-3")
 - **question**: `"{Source command}: {one-line issue description} at {file}:{line}"`
 - Options:
@@ -462,7 +447,7 @@ Use AskUserQuestion with one question per finding (batch up to 4 per call):
 
 **For MED findings** — present as a batch:
 
-Use AskUserQuestion with `multiSelect: true`:
+Ask a gate question per [_gate-question.md](../_gate-question.md) with `multiSelect: true`:
 - **header**: "MED findings"
 - **question**: "Select which MED findings to fix now (Step 4c will spawn fix sub-agents for selected ones)"
 - Options: one per MED finding, label `{ID}: {title}`, description `{file}:{line} — {one-line description}`
@@ -483,11 +468,10 @@ Runs only if Step 4b produced at least one `Fix` decision. Dispatch fix sub-agen
 
 Before dispatching, note the count of findings triaged `Fix` at Step 4b (transient — not persisted to frontmatter). If 0, skip to Step 5.
 
-## Fix dispatch (parallel, worktree-isolated)
+## Fix dispatch (parallel, write-isolated)
 
-Dispatch a fix sub-agent for **every** finding triaged `Fix` **in parallel** (single message, multiple Task calls) — each fix runs in its own worktree, so concurrent patches cannot collide; the step-4 sanity check is the merge gate. For each finding:
-1. `TaskCreate` or `TaskUpdate`: `subject: "Fix [{ID}] {SEV}: {title}"`, `activeForm: "Fixing [{ID}]"`, `metadata: { slug, stage: "review-fix", slice: "<slice-slug or empty>", findingId: "{ID}", severity: "{SEV}", sourceCommand: "{command}" }`.
-2. Spawn ONE sub-agent **with explicit `model: sonnet` and `isolation: worktree`** on the `Task` call (REQUIRED — both flags; the model pin follows [_fix-loop.md](../_fix-loop.md) rule 3). This is the same fix prompt shape used by `/wf implement reviews` mode — kept identical so behavior matches when the user routes through either path:
+Dispatch a fix sub-agent for **every** finding triaged `Fix` **in parallel** (one wave) with write isolation, per [_subagents.md](../_subagents.md) — concurrent patches cannot collide (fixes that must touch the same file run serially, in severity order); the step-3 sanity check is the merge gate. For each finding:
+1. Dispatch ONE sub-agent at **medium** effort with write isolation, per [_subagents.md](../_subagents.md) (REQUIRED — both; the tier pin follows [_fix-loop.md](../_fix-loop.md) rule 3). This is the same fix prompt shape used by `/wf implement reviews` mode — kept identical so behavior matches when the user routes through either path:
    ```
    Fix the following review finding in the codebase:
 
@@ -520,12 +504,11 @@ Dispatch a fix sub-agent for **every** finding triaged `Fix` **in parallel** (si
      Self-check: <command> → exit <N>
      A brief summary of what you changed and whether the fix is confirmed.
    ```
-3. As each sub-agent completes, take its patch through step 4 before merging it into the shared tree. **On a patch-overlap conflict** (two fixes touch the same lines), merge one, then re-dispatch the other against the merged state — serial for the conflicting pair only.
-4. Read the changed file(s) and sanity-check the patch against **both** the finding and the suggested fix's method ([_fix-loop.md](../_fix-loop.md) rule 5) — `Method: deviated` is never accepted on the subagent's own word; re-read it against what was suggested, and discard a deviation that crosses an explicit prohibition.
-5. **Record the outcome ON the finding** — set `status` and `fixed-at = now` in `## All Findings`, `## Findings (Detailed)`, `## Fix Status`, and the sibling `.yaml`:
+2. As each sub-agent completes, take its patch through step 3 before merging it into the working tree. **On a patch-overlap conflict** (two fixes touch the same lines), merge one, then re-dispatch the other against the merged state — serial for the conflicting pair only.
+3. Read the changed file(s) and sanity-check the patch against **both** the finding and the suggested fix's method ([_fix-loop.md](../_fix-loop.md) rule 5) — `Method: deviated` is never accepted on the subagent's own word; re-read it against what was suggested, and discard a deviation that crosses an explicit prohibition.
+4. **Record the outcome ON the finding** — set `status` and `fixed-at = now` in `## All Findings`, `## Findings (Detailed)`, `## Fix Status`, and the sibling `.yaml`:
    - fixed → `status: fixed` (drops out of OPEN counts and verdict).
-   - could not fix → `status: could-not-fix` (stays OPEN; still counts against verdict) + `TaskUpdate(... description: "COULD NOT FIX: <reason>")`.
-   Then `TaskUpdate(taskId, status: "completed")`.
+   - could not fix → `status: could-not-fix` (stays OPEN; still counts against verdict) + record the reason (`COULD NOT FIX: <reason>`).
 
 ## After the fix dispatch (no re-review this invocation)
 
@@ -708,7 +691,7 @@ The sunflower view renders the review page from a sibling `.yaml` + `.html.fragm
 For each review `.md` written (`07-review.md` slug-wide, or `07-review-<slice-slug>.md` per-slice):
 
 1. Write **`<stem>.yaml`** — structured data: `dimensions:` (severity × dimension heatmap matrix), `verdict:`, `findings:` (id, severity, dimension, file, line, message, evidence/diff, triage, **status**, **surfaced-at**), and metric counts. Schema: `siblingYamlSchemas.review` in `tests/frontmatter.schema.json`. **`findings:` and `counts:` = OPEN findings only** (open|deferred|could-not-fix) — resolved/fixed/dismissed history lives in the `.md` body. Bump `rev:` by 1 each run (first write = 1).
-2. Write **`<stem>.html.fragment`** — one `<section class="fragment-review" data-artifact="review" data-rev="<n>">` carrying the **interactive layer**: Σ severity-heatmap, dimension chips + severity filter, findings list with per-finding evidence/diff/copy controls. **Body-only** (see `_fragment-authoring.md` → "Scope"): `review.mjs` already renders the heading, verdict block, and metric-row — do **not** repeat them; start at the heatmap.
+2. Write **`<stem>.html.fragment`** — one `<section class="fragment-review" data-artifact="review" data-rev="<n>">` carrying the **interactive layer**: Σ severity-heatmap, dimension chips + severity filter, findings list with per-finding evidence/diff/copy controls. **Body-only** (see `../_fragment-authoring.md` → "Scope"): `review.mjs` already renders the heading, verdict block, and metric-row — do **not** repeat them; start at the heatmap.
 
 Authoring rules (verifier Check 7 enforces these):
 
@@ -739,7 +722,7 @@ Authoring rules (verifier Check 7 enforces these):
 - Inline SVG only; no remote anything.
 - All data deterministic from `.yaml` — same YAML → byte-identical output.
 
-Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` first; full contract in [`reference/fragment-author-contract.md`](../../../../reference/fragment-author-contract.md).
+Load `../_fragment-authoring.md` first; full contract in [`reference/fragment-author-contract.md`](../../../../reference/fragment-author-contract.md).
 
 ---
 
@@ -771,7 +754,7 @@ Use when: `verdict: ship` (or ship-with-caveats where caveats are not blockers) 
 
 **Option B: Re-invoke review (accumulating re-run)** → `/wf review <slug> [<slice>]`
 Use when: OPEN blocker or `could-not-fix` findings remain. Re-invocation re-checks the fixed code, merges fresh findings, and resolve-sweeps what the fixes cleared (no round counter, no `convergence` state). State unresolved findings clearly before recommending.
-**Compact recommended before re-invoking** — tell the user: "Consider `/compact` first — workflow state lives in the artifact files on disk and SessionStart re-reads it automatically after compaction."
+**Compact recommended before re-invoking** — fix sub-agent chatter and triage UI is noise for the next pass; tell the user that workflow state lives in the artifact files on disk, so nothing is lost by compacting.
 
 **Option C: Escalate to manual implement** → `/wf implement <slug> [<slice>] reviews`
 Use when: Remaining findings need design rethink, cross-cutting refactor, or input the review agent cannot supply — i.e., re-invoking review would surface the same unfixable findings again. Also when the user prefers stage 5's per-finding fix UI.

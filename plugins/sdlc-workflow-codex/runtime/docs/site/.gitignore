@@ -1,3 +1,0 @@
-# A hub/render misfire once created a stray .ai/ tree inside the doc site.
-# Never let one enter git history.
-.ai/

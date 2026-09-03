@@ -13,12 +13,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const codexRoot = path.resolve(pluginRoot, '..', 'sdlc-workflow-codex');
 
 const trees = [
   { name: 'main', root: pluginRoot },
-  { name: 'codex', root: codexRoot },
-].filter((t) => existsSync(path.join(t.root, 'skills', 'wf', 'reference')));
+];
 
 const refDir = (root) => path.join(root, 'skills', 'wf', 'reference');
 const ref = (root, rel) => readFileSync(path.join(refDir(root), rel), 'utf8');
@@ -75,14 +73,11 @@ test('posture — the self-graded-discretion vocabulary is extinct across both r
   }
 });
 
-test('dialect — codex trigger blocks use $consult, main uses /consult', () => {
+test('dialect — trigger blocks use the canonical /consult spelling (single-source: $consult lives only in _host-invocation.md)', () => {
   for (const rel of SWEPT) {
     const main = ref(pluginRoot, rel);
     // Wrap-tolerant: the invocation may break as "`/consult\n> codex <…>`".
-    assert.match(main, /`\/consult[\s>]+codex/, `main/${rel}: trigger block lost the /consult invocation`);
-    if (!existsSync(path.join(refDir(codexRoot), rel))) continue;
-    const codex = ref(codexRoot, rel);
-    assert.match(codex, /\$consult[\s>]+codex/, `codex/${rel}: trigger block lost the $consult invocation`);
-    assert.ok(!/`\/consult/.test(codex), `codex/${rel}: a /consult token leaked into the codex dialect`);
+    assert.match(main, /`\/consult[\s>]+codex/, `${rel}: trigger block lost the /consult invocation`);
+    assert.ok(!/\$consult/.test(main), `${rel}: a $consult token leaked into shared prose — the host sigil maps in _host-invocation.md`);
   }
 });

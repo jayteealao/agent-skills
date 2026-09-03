@@ -187,7 +187,7 @@ function buildNotice(targets) {
 }
 
 // hooks/seed-memory.mjs
-var ON_CODEX = import.meta.url.includes("sdlc-workflow-codex");
+var ON_CODEX = process.env.SDLC_HOST === "codex";
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === "1") return;
   if (process.env.SDLC_DISPATCH_ACTIVE === "1") return;

@@ -10,6 +10,7 @@ Generate an image (or a fan-out variant set) from a natural-language prompt, the
 embed it. Supersedes the `imagegen` skill — direct API calls replace the brittle
 `rollout.jsonl` scrape, and it is fan-out-capable. It **keeps the `IMAGEGEN_RESULT`
 output contract** so the `/wf design` image gate keeps working unchanged.
+`<skill-dir>` resolves per [_host-invocation.md](../wf/reference/_host-invocation.md).
 
 ## Step 0 — Resolve (positional, no flags)
 
@@ -25,9 +26,9 @@ output contract** so the `/wf design` image gate keeps working unchanged.
    Create `.ai/design-probes/` if needed.
 4. **Resolution tier (no `--resolution` flag, D15).** Infer from the prompt prose
    **or the invoking context**: a **north-star / hi-res / high-res / 2K** cue → the
-   **2K** tier; else **1K**. Pass the tier as the generator's positional `<1K|2K>`
-   argument (it never enters the image prompt). The contract north-star step says "2K"
-   in its instruction — honor it; do not silently drop to 1K.
+   **2K** tier; else **1K**. Pass the tier as the generator's positional `<tier>`
+   argument (`1K` or `2K`; it never enters the image prompt). The contract north-star
+   step says "2K" in its instruction — honor it; do not silently drop to 1K.
 5. **Consent for egress.** The egress providers (`openai`, `gemini`, `openai-sub`)
    send the prompt to a third party, so they require `externalDispatch.enabled` in
    `~/.sdlc/hub-config.json`. The built-in `image_gen` and the text fallback never
@@ -36,15 +37,13 @@ output contract** so the `/wf design` image gate keeps working unchanged.
 
 ## Step 1 — Provider methods
 
-- **`image_gen`** (built-in, no egress, no key): if the `image_gen` tool is in this
-  session's tool list, call it with the prompt and save the returned bytes to the
-  output base path. Preferred when present.
-- **`openai`** (gpt-image-2, per-token): `node ${CLAUDE_PLUGIN_ROOT}/skills/imagery/scripts/gen-openai.mjs "<prompt>" <outBase> <1K|2K>`
-  (exit 1 = `OPENAI_API_KEY` unset → skip; 2/3 = error → skip).
-- **`gemini`** (nano-banana, per-token): `node ${CLAUDE_PLUGIN_ROOT}/skills/imagery/scripts/gen-gemini.mjs "<prompt>" <outBase> <1K|2K>`
-  (exit 1 = no key or `@google/genai` not installed → skip).
-- **`openai-sub`** (gpt-image-2 via codex subscription): `bash ${CLAUDE_PLUGIN_ROOT}/skills/imagery/scripts/gen-openai-codex.sh "<prompt>" <outPath>`.
-- **Method T — text fallback** (always available): `bash ${CLAUDE_PLUGIN_ROOT}/skills/imagery/scripts/gen-text-fallback.sh "<prompt>" "<scene_sentence>" "<reason>"`.
+| Provider | Model / billing | Hosts | Method |
+|---|---|---|---|
+| `image_gen` | host built-in tool; no egress, no key | Only a session whose tool list includes `image_gen` — a host surface, see [_host-invocation.md](../wf/reference/_host-invocation.md) | Call the tool with the prompt and save the returned bytes to the output base path. Preferred when present. |
+| `openai` | gpt-image-2 REST; per-token | both | `node "<skill-dir>/scripts/gen-openai.mjs" "<prompt>" <outBase> <tier>` — exit 1 = `OPENAI_API_KEY` unset → skip; 2/3 = error → skip |
+| `gemini` | nano-banana; per-token | both | `node "<skill-dir>/scripts/gen-gemini.mjs" "<prompt>" <outBase> <tier>` — exit 1 = no key or `@google/genai` not installed → skip |
+| `openai-sub` | gpt-image-2 via the codex subscription (same model as `openai`, different billing path) | both | `bash "<skill-dir>/scripts/gen-openai-codex.sh" "<prompt>" <outPath>` |
+| Method T — text fallback | no model; no egress | both (always available) | `bash "<skill-dir>/scripts/gen-text-fallback.sh" "<prompt>" "<scene_sentence>" "<reason>"` |
 
 Each generator prints the final image path on success (extension already corrected
 to the sniffed bytes).
@@ -62,9 +61,10 @@ to the sniffed bytes).
 ## Step 3 — Embed
 
 Embed each generated image as a data-URI fragment (MIME sniffed from the bytes):
-`node ${CLAUDE_PLUGIN_ROOT}/skills/imagery/scripts/embed-img.mjs <imagePath> <fragmentPath> <label> "<caption>"`.
-A fan-out set renders as a comparison strip (one figure per provider). The caller
-(`/wf design`) decides where the fragment lives next to its design artifact.
+`node "<skill-dir>/scripts/embed-img.mjs" <imagePath> <fragmentPath> <label> "<caption>"`
+→ `<stem>.<label>.html.fragment`. A fan-out set renders as a comparison strip (one
+figure per provider). The caller (`/wf design`) decides where the fragment lives
+next to its design artifact.
 
 ## Output Format — MUST stay `IMAGEGEN_RESULT` (contract, A2)
 
@@ -93,7 +93,7 @@ IMAGEGEN_RESULT:
   prompt: <exact prompt that would have been used>
   scene_sentence: <one evocative sentence describing the visual>
   to_generate_later: |
-    GEMINI_API_KEY=<key> node .claude/skills/imagery/scripts/gen-gemini.mjs "<prompt>" .ai/design-probes/probe 2K
+    GEMINI_API_KEY=<key> node "<skill-dir>/scripts/gen-gemini.mjs" "<prompt>" .ai/design-probes/probe 2K
 ```
 
 The caller records the result(s) and sets `image_gate=pass` (image success) or

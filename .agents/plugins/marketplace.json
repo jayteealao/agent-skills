@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "sdlc-workflow-codex",
+      "name": "sdlc-workflow",
       "source": {
         "source": "local",
-        "path": "./plugins/sdlc-workflow-codex"
+        "path": "./plugins/sdlc-workflow"
       },
       "policy": {
         "installation": "AVAILABLE",

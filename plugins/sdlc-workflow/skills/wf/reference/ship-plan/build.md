@@ -55,7 +55,7 @@ You are running `wf ship-plan build`. Your job: read the ship plan as the specif
    | `helm upgrade` or `kubectl` in publish-cmd | Kubernetes deploy |
    | Anything else | Unknown — generate shell-only steps with `# TODO:` markers |
 
-4. **Glob `.github/workflows/*.yml`.** Read each file fully. Build an in-memory index: `filename → on-triggers → job-names → step-run-commands → secret-refs`. Secret refs are all `${{ secrets.<NAME> }}` patterns.
+4. **Enumerate `.github/workflows/*.yml`.** Read each file fully. Build an in-memory index: `filename → on-triggers → job-names → step-run-commands → secret-refs`. Secret refs are all `${{ secrets.<NAME> }}` patterns.
 5. **Determine the base branch** from `plan.ship-environments[0].name` or default `main`. (Prefer `plan.governance.branch-protection.base-branch` when present.)
 6. **Index inbound-DX state** (only for blocks the plan actually carries; plans authored before a block simply skip its audits — `code-quality` → K/L, `local-dx` → M/N, `governance` → O/R, `security` → P, env `protection` → Q, `ci-ergonomics` → S). Probe the conventional paths for existing config: commitlint config, hook framework (`.husky/`, `lefthook.{yml,yaml}`, `.pre-commit-config.yaml`, `simple-git-hooks` in `package.json`), `.editorconfig`, runtime-version files, task-runner files, `CODEOWNERS`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/`, `.github/dependabot.yml` / `renovate.json` / `.renovaterc*`, `CONTRIBUTING.md`, CodeQL/SAST + audit/secret/SBOM/license workflows. Build a `path → present?` index. Record `plan.governance.branch-protection.apply-via` (and any env `apply-via`) — it decides whether Steps 12/14/15 may call `gh api`.
 
@@ -225,7 +225,7 @@ Ecosystem: <detected>   Ship meaning: <plan.ship-meaning>
 
 Inbound audit rows (K–S) appear only when the plan carries the matching block. The plan-block → audit map: **H (code-quality) → K, L** · **I (local-dx) → M, N** · **J (governance + merge) → O, R** · **K (security) → P** · **A (env protection) → Q** · **C (ci-ergonomics) → S**.
 
-Then AskUserQuestion:
+Then ask a gate question per [_gate-question.md](../_gate-question.md):
 
 ```yaml
 question: "Implement all missing/non-compliant items as listed above?"
@@ -268,7 +268,7 @@ Select the ecosystem-appropriate setup action and install command:
 | `lint` | Node: `npm run lint` / Python: `ruff check .` / Rust: `cargo clippy` |
 | `type-check` | Node: `npm run type-check` or `npx tsc --noEmit` |
 | `security-scan` | `gh api ... # TODO: configure security scanner` |
-| other | AskUserQuestion: "What command runs `<check-name>`?" |
+| other | Ask the user: "What command runs `<check-name>`?" |
 
 **If no PR workflow exists** — create `.github/workflows/pr-checks.yml`:
 
@@ -910,7 +910,7 @@ For `mechanism: ruleset`, build the equivalent repository ruleset (`POST` to cre
 
 Then branch on `apply-via`:
 - **`apply-via: manual`** → never call the API. Write the ready-to-run `gh api -X PUT ... --input <payload>` command into the compliance artifact and the chat return. Set `branch-protection-applied: printed`.
-- **`apply-via: gh-api`** → show the current-vs-desired diff and the exact command, then AskUserQuestion:
+- **`apply-via: gh-api`** → show the current-vs-desired diff and the exact command, then ask a gate question per [_gate-question.md](../_gate-question.md):
 
 ```yaml
 question: "Apply branch protection to `<base>` on `<owner>/<repo>` now? This mutates the remote repository."
@@ -932,7 +932,7 @@ Never apply silently and never without showing the payload first.
 
 # Step 13 — Implement: security & supply-chain gates (Audit P)
 
-Skip if no `security` block. For each non-`none` gate (align generated steps to the conventions in `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/review/supply-chain.md`):
+Skip if no `security` block. For each non-`none` gate (align generated steps to the conventions in `../review/supply-chain.md`):
 
 - **SAST** — `codeql` → create `.github/workflows/codeql.yml` (`on: pull_request` + `schedule`, `github/codeql-action/{init,analyze}@v3`, languages auto-detected from the ecosystem). Other tools → add a CI step running `security.sast.cmd`.
 - **Dependency audit** — add a step to the PR workflow running `dependency-audit.cmd` with the `fail-on` threshold (e.g. `npm audit --audit-level=high`, `pip-audit`, `cargo audit`, `osv-scanner -r .`).
@@ -1111,7 +1111,7 @@ After setting secrets and pushing, re-run this command to verify full compliance
 
 # Step 18.5 — Route the outputs (close the unreviewed-code hole)
 
-Build's outputs are release-critical code that no lifecycle stage has reviewed. Left silently uncommitted, they sit in the working tree until `/wf ship`'s clean-tree gate forces a commit-or-drop decision at the worst moment — which is exactly how 34 unreviewed workflow lines once entered a production release with an external review bot as their only reviewer (it found 3 Major defects in them, including a check that could pass green while defeating its own purpose). Never end a build that wrote files without an explicit routing decision. Ask (AskUserQuestion; skip when nothing was written or `--dry-run`):
+Build's outputs are release-critical code that no lifecycle stage has reviewed. Left silently uncommitted, they sit in the working tree until `/wf ship`'s clean-tree gate forces a commit-or-drop decision at the worst moment — which is exactly how 34 unreviewed workflow lines once entered a production release with an external review bot as their only reviewer (it found 3 Major defects in them, including a check that could pass green while defeating its own purpose). Never end a build that wrote files without an explicit routing decision. Ask (as a gate question per [_gate-question.md](../_gate-question.md); skip when nothing was written or `--dry-run`):
 
 - **Route to a review slice (Recommended when release/deploy workflows were touched)** — print the seed `/wf intake <slug> fix review ship-plan build outputs (plan v<N>): <file list>` and STOP after Step 19. The slice's verify/review then treat the build diff like any other code before it can ship. Record `routing: sliced`.
 - **Commit now** — `git commit` the written files (explicitly by path, never `-A`) as `chore(ship-plan): build outputs, plan v<N>` with trailer `sdlc-unreviewed: true` (so handoff/review can see the provenance). Recommend `/wf review` over the commit in the chat return. Record `routing: committed`. This is the one commit this command makes — the "does NOT push/open PRs/release" boundary is unchanged.

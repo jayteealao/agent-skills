@@ -71,7 +71,7 @@ Nothing else. In particular:
      `/wf status `<slug>` deep` to reconcile them."*
 4. **If the request maps onto a field but trips its guard**, STOP with the guard's own remedy (above).
    A guard is a genuine cross-surface consequence, not a formality.
-5. **If the request is ambiguous** between two whitelisted fields, ask **once** via `AskUserQuestion`
+5. **If the request is ambiguous** between two whitelisted fields, ask **once** as a gate question per [_gate-question.md](../_gate-question.md)
    with the concrete before → after for each reading. Config edits are cheap to confirm and annoying
    to undo.
 

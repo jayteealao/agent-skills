@@ -19,12 +19,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const codexRoot = path.resolve(pluginRoot, '..', 'sdlc-workflow-codex');
 
 const trees = [
   { name: 'main', root: pluginRoot },
-  { name: 'codex', root: codexRoot },
-].filter((t) => existsSync(path.join(t.root, 'skills', 'wf', 'reference')));
+];
 
 const ref = (root, rel) => readFileSync(path.join(root, 'skills', 'wf', 'reference', rel), 'utf8');
 const mainRef = (rel) => ref(pluginRoot, rel);
@@ -178,9 +176,8 @@ test('R4.3 — probe remediates and re-triages before re-recording a wall', () =
   }
 });
 
-// ── Cross-cutting — the trees agree on the new contract ──────────────────────
-test('R1-R4 — codex mirror carries every new rule with $wf substitution', () => {
-  if (trees.length < 2) return; // codex tree absent in this checkout
+// ── Cross-cutting — the single tree carries every rule in the neutral spelling ──
+test('R1-R4 — every new rule is present, in the canonical /wf spelling', () => {
   const phrases = [
     ['runtime-adapters.md', 'Classify the wall before you climb it'],
     ['runtime-adapters.md', 'Negotiate the environment before declaring it'],
@@ -191,16 +188,10 @@ test('R1-R4 — codex mirror carries every new rule with $wf substitution', () =
     ['probe.md', 'Climb the env-remediation rung'],
   ];
   for (const [file, phrase] of phrases) {
-    assert.ok(ref(codexRoot, file).includes(phrase), `codex ${file} missing: ${phrase}`);
+    assert.ok(ref(pluginRoot, file).includes(phrase), `${file} missing: ${phrase}`);
   }
-  // Codex prose addresses `$wf`, never `/wf` — a leaked slash form is a bad mirror.
+  // Shared prose is written `/wf`; the Codex sigil maps only in _host-invocation.md.
   for (const file of ['verify.md', 'plan.md', 'probe.md', 'runtime-adapters.md']) {
-    const codexSrc = ref(codexRoot, file);
-    for (const block of ['A clearing event names an actor', 'clearing event must be provisionable']) {
-      const at = codexSrc.indexOf(block);
-      if (at < 0) continue;
-      const window = codexSrc.slice(at, at + 1200);
-      assert.ok(!window.includes('/wf probe'), `codex ${file}: leaked "/wf probe" into ${block}`);
-    }
+    assert.ok(!/\$wf/.test(ref(pluginRoot, file)), `${file}: leaked the Codex \`$wf\` sigil into shared prose`);
   }
 });

@@ -73,7 +73,7 @@ version. Valid YAML, compliant with the plan, and wrong. Drift detection is blin
    memory. Note `plan-version` and `updated-at`.
 3. **Read the existing ledger** `.ai/ship-plan-audit.md` if it exists. Parse `runs[]` and `findings[]` — this
    run will merge into it, not overwrite it (Step 4). If absent, this is run 1.
-4. **Index the pipeline.** Glob `.github/workflows/*.y*ml` (plus `.gitlab-ci.yml`, `Jenkinsfile`, etc. if the
+4. **Index the pipeline.** Enumerate `.github/workflows/*.y*ml` (plus `.gitlab-ci.yml`, `Jenkinsfile`, etc. if the
    plan named a non-GitHub CI). Read each fully. Build `filename → on-triggers → jobs (+ needs) → step run-cmds
    → uses-actions → secret-refs → permissions`. This index is shared into every lens sub-agent so they reason
    about the same evidence.
@@ -101,18 +101,18 @@ pipeline, and the release-relevant codebase** — through one point of view. Fin
 
 # Step 2 — Dispatch the fan-out (default) or one lens
 
-**Default (no lens token) — full parallel fan-out.** Prepare ONE `Task` per lens (all seven):
+**Default (no lens token) — full parallel fan-out.** Dispatch ONE read-only sub-agent per lens (all seven), per [_subagents.md](../_subagents.md):
 
-- `subagent_type: general-purpose`.
-- `model` (pass explicitly — reviewers must not inherit the parent model): `sonnet` for `plan-soundness`,
-  `release-safety`, `ci-correctness`, and `secrets-and-permissions` (the reasoning-heavy lenses); `haiku` for
-  `supply-chain`, `rollback-realism`, and `version-integrity`.
+- **Effort-tiered, not model-pinned** — children must not inherit an expensive parent configuration. **high**
+  effort for the causal-reasoning lenses `plan-soundness`, `release-safety`, `ci-correctness`, and
+  `secrets-and-permissions`; **medium** for `supply-chain`, `rollback-realism`, and `version-integrity`.
 - `description: "audit-<lens>"`.
-- `prompt` = the lens's row question expanded into its concrete checklist + the parsed plan + the workflow index
+- prompt = the lens's row question expanded into its concrete checklist + the parsed plan + the workflow index
   from Step 0 + the ecosystem + the standard findings schema + the two grounding instructions below + the
   refute-before-report rule + "return findings inline as a JSON list; write no files."
 
-**Dispatch in parallel** — one assistant message carrying all seven `Task` calls. Sequential dispatch is forbidden.
+**Dispatch in parallel, in waves of at most 6** per [_subagents.md](../_subagents.md): one wave of six, collect it,
+then the seventh. Sequential single-child dispatch is forbidden.
 
 **Single-lens mode** (`$ARGUMENTS` first token is a lens key) — run just that lens, inline, over the same
 evidence, and merge its findings into the ledger exactly as the fan-out does. Used to re-check one area cheaply
@@ -212,8 +212,8 @@ bespoke visual genuinely tells the pipeline's story better than prose.
 
 # Step 5 — Triage the blockers and highs (interactive)
 
-Before finalizing, triage each **BLOCKER and HIGH** open finding with the user via AskUserQuestion (one decision
-per finding, or batched): **accept** (leave `open`; it needs fixing), **acknowledge** (known/intentional — record
+Before finalizing, triage each **BLOCKER and HIGH** open finding with the user as a gate question per [_gate-question.md](../_gate-question.md) (one decision
+per finding, or batched; show each finding's text + failure scenario + suggested route): **accept** (leave `open`; it needs fixing), **acknowledge** (known/intentional — record
 a freeform reason, set `status: acknowledged`; the ledger keeps it until it disappears), or **reject** (false
 positive — drop it, and if it keeps re-surfacing, tighten the lens id so it stays dropped). MED/LOW/NIT land as
 `open` without a prompt.

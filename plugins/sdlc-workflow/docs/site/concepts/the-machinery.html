@@ -13,10 +13,11 @@
 <p class="lede">Read this to understand what the plugin actually runs on your machine. A hub
 daemon serves the dashboard, and a render pipeline turns Markdown artifacts into a browsable
 workflow view. A tray icon watches the machinery, and hooks enforce the rules.</p>
+<div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
 
 <p>Most of the plugin is instructions that the model follows. But four pieces are real software on
 your machine: a local web server, a render pipeline that feeds the server, a small tray app that
-watches the server, and a handful of hooks wired into Claude Code's tool calls. When you know
+watches the server, and a handful of hooks wired into the host's tool calls, under Claude Code or Codex. When you know
 these four pieces, you can explain most of what you will ever observe.</p>
 
 <h2>The hub daemon</h2>
@@ -94,7 +95,7 @@ shows the result in its icon and tooltip. A glance tells you whether the machine
 <h2>The hooks: the enforcement layer</h2>
 
 <p>The rules on these concept pages would be suggestions if nothing enforced them. The enforcement
-layer is a small set of hooks that the plugin registers with Claude Code, and the hooks run
+layer is a small set of hooks that the plugin registers with the host, and the hooks run
 automatically around tool calls. The table below states what each hook does, and whether the hook
 blocks or acts in the background.</p>
 

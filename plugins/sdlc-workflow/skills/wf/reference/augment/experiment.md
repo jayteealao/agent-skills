@@ -9,7 +9,7 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `wf-experiment`, an **experiment design augmentation** that designs a controlled rollout for an existing workflow's change.
 
-> **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf experiment` command anymore. Run only the mode the calling stage requests.
+> **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf experiment` key anymore. Run only the mode the calling stage requests.
 
 # Shape
 This is an **augmentation**, not an entry point. It writes into an existing workflow directory.
@@ -54,7 +54,7 @@ You are an **experiment designer**, not an implementer.
 2. **Check for existing experiment:**
    - If `04c-experiment.md` already exists → WARN: "An experiment design already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
 3. **Check for instrumentation:**
-   - If `04b-instrument.md` does NOT exist → surface this warning in the handoff: "No instrumentation plan found (`04b-instrument.md`). It is strongly recommended to include the **instrument** augmentation (shape decides it; plan writes `04b-instrument.md`) before or alongside this experiment — you need observable signals to measure experimental outcomes."
+   - If `04b-instrument.md` does NOT exist → surface this warning in the handoff: "No instrumentation plan found (`04b-instrument.md`). It is strongly recommended to include the **instrument** augmentation (shape adds it to `augmentations-needed`; `plan` authors `04b-instrument.md`) before or alongside this experiment — you need observable signals to measure experimental outcomes."
    - Do NOT block. Proceed regardless.
 4. **Read the workflow context:**
    - Read `02-shape.md` in full — the hypothesis lives here.
@@ -118,7 +118,7 @@ flag-name: <e.g., "enable_new_checkout_flow">
 flag-framework: <e.g., "LaunchDarkly" | "env-var-fallback" | "none detected">
 requires-instrument: <true|false>
 status: ready
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
@@ -237,9 +237,9 @@ Artifact: .ai/workflows/<slug>/04c-experiment.md
 
 If `04b-instrument.md` was not found, prefix with:
 
-> ⚠ No instrumentation plan found. The experiment metrics may not be observable. Ensure the **instrument** augmentation is authored (shape/plan) before or alongside implement.
+> ⚠ No instrumentation plan found. The experiment metrics may not be observable. Ensure the **instrument** augmentation is authored (shape decides it, plan writes `04b-instrument.md`) before or alongside implement.
 
-# What this command is NOT
+# What this sub-procedure is NOT
 
 - **Not a flag infrastructure builder** — `wf-experiment` designs the experiment. `wf-implement` builds the flag scaffold and rollout code.
 - **Not a stats engine** — sample size and significance calculations are directional guidelines, not rigorous statistical analysis. For high-stakes experiments, run a proper power calculation.
@@ -259,7 +259,7 @@ projects this as an arm-allocation figure (horizontal bar split by
 
 **Required whenever you write the `experiment` sibling YAML:** also write the
 sibling `.html.fragment` next to it. First load
-`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow
+`../_fragment-authoring.md` and follow
 its wrapper, snippet, and verifier rules. The fragment must stay deterministic
 from the sibling YAML (same YAML → byte-identical HTML) and pass
 `scripts/verify-fragment.mjs` (Check 7) clean.

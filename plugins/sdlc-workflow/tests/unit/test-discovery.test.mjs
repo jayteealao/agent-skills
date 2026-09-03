@@ -16,7 +16,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const codexRoot = path.resolve(pluginRoot, '..', 'sdlc-workflow-codex');
 
 const pkg = (root) => JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
 
@@ -31,8 +30,7 @@ const collect = (dir) =>
 test('scripts.test delegates to the discovery runner, never an enumerated list', () => {
   const trees = [
     { name: 'main', root: pluginRoot },
-    { name: 'codex', root: codexRoot },
-  ].filter((t) => existsSync(path.join(t.root, 'package.json')));
+  ];
 
   for (const { name, root } of trees) {
     const script = pkg(root).scripts.test;

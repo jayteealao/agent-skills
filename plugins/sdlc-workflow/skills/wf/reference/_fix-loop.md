@@ -20,10 +20,13 @@ this file instead of restating them.
    `marker-syntax` — dispatches without a human decision; the stage reports
    what was auto-fixed, with diffs, in its round summary. Nothing auto-fixed is
    ever silent.
-3. **Pinned dispatch.** One sub-agent per issue, with an explicit `model: sonnet`
-   on every dispatch call. Rationale: read-finding-then-patch is the bounded
-   profile Sonnet handles well; fix sub-agents must not silently inherit the parent session's (Opus) model. Stage-specific flags (e.g. verify's
-   `isolation: worktree`) are additive requirements defined in the stage file.
+3. **Pinned dispatch.** One sub-agent per issue at **medium** effort, per
+   [_subagents.md](_subagents.md). Where the stage file pins a tier (review
+   pins **medium** on fix dispatch — REQUIRED on that call), that pin stays.
+   Rationale: read-finding-then-patch is a bounded profile; fix sub-agents
+   must not silently inherit the parent session's configuration. Stage-specific
+   dispatch rules (for example verify's parallel dispatch with write isolation)
+   are additive requirements defined in the stage file.
 4. **Minimal patch, self-checked by command.** The sub-agent prompt always
    requires: apply the minimal fix for this one issue; do NOT refactor,
    reformat, or broaden scope; then **run a real check command the
@@ -32,7 +35,7 @@ this file instead of restating them.
    lint/type errors" as prose is unenforceable and was satisfied by a fix
    agent that introduced a lint violation and pushed it; the stage passes the
    narrowest gate the fix's file type implies (or its configured pre-push
-   check) so the claim has a exit code behind it.
+   check) so the claim has an exit code behind it.
 5. **Orchestrator sanity check — issue AND method.** The orchestrator inspects
    each returned patch against **both** the issue (does it address it; does it
    obviously break sibling code) and the **method the proposed fix

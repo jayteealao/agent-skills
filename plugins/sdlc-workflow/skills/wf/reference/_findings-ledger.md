@@ -41,8 +41,8 @@ MERGE this run's findings into it. Never overwrite the file wholesale, and never
    `.yaml` projections carry OPEN findings only (open | deferred | could-not-fix); closed
    history lives in the `.md` body.
 
-Get `now` from one real UTC timestamp per run (`date -u +"%Y-%m-%dT%H:%M:%SZ"` or the host's
-timestamp reference). Never guess a timestamp.
+Get `now` from one real UTC timestamp per run, per [_timestamp.md](_timestamp.md). Never guess
+a timestamp.
 
 ## What the law protects
 

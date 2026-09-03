@@ -33,8 +33,8 @@ captions, annotations, legend entries) MUST follow the word-discipline rules
 same term for the same concept as the artifact body the fragment sits under.
 
 Author **as many as the story needs** (including zero). They are not limited to
-the rich-tier artifacts — *any* markdown artifact produced by *any* subcommand
-(`/wf`, `/wf-docs`, `/wf-meta`, `/review`, …) can
+the rich-tier artifacts — *any* markdown artifact produced by *any* `/wf`
+sub-command (intake, review, docs, status, …) can
 carry them, because they are injected by a central seam that runs for every
 renderer and the generic fallback alike.
 

@@ -98,8 +98,8 @@ Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after c
 > gate open, **auto-invoke** `/consult codex <critique this design direction — does it
 > satisfy the brief, and what visual or interaction risks does it carry?>` (pinning
 > `codex`/`claude` keeps it free). Dispatch the consult **concurrently with the Step 4
-> mock fidelity inventory** — start both in the same message; do not wait for one
-> before you start the other. The consult is a read-only panel that gives the approved
+> mock fidelity inventory** — start both at the same time; do not wait for one before
+> you start the other. The consult is a read-only panel that gives the approved
 > direction an independent design eye. Read the panel result before Step 5 writes the
 > contract. Fire it rather than offering it; skip it only for a trivial, single-option
 > surface. The user may invoke it explicitly with any provider.
@@ -164,7 +164,7 @@ Format:
 ```
 
 ### 4. Implementation contract
-Specific decisions for `wf-implement` to follow:
+Specific decisions for `/wf implement` to follow:
 - **Token choices**: which existing tokens to use, which new tokens to add
 - **Component decisions**: extend existing component X / create new component Y
 - **Layout structure**: grid choice, breakpoint behavior
@@ -178,9 +178,9 @@ Specific decisions for `wf-implement` to follow:
 Pulled from anti-goals in the brief plus the absolute bans list (`_design-context.md`). Be specific to this feature.
 
 ### 6. Implementation references
-Which reference docs `wf-implement` should consult (typeset.md, animate.md, harden.md, etc.).
+Which reference docs `/wf implement` should consult (typeset.md, animate.md, harden.md, etc.).
 
-Record this list authoritatively in the `references-loaded:` frontmatter array above as the **union** of (a) the brief's `recommended-references:` (from `02b-design.md`) and (b) any references you loaded or added while authoring the contract. Names omit the `.md` extension and resolve to `skills/wf/reference/design/<name>.md`. This is the field `wf-implement` re-reads — together with `02b`'s `recommended-references:` — to load design rationale. A reference that appears only in this prose section but **not** in `references-loaded:` will NOT be loaded by implementation, so keep the two in sync.
+Record this list authoritatively in the `references-loaded:` frontmatter array above as the **union** of (a) the brief's `recommended-references:` (from `02b-design.md`) and (b) any references you loaded or added while authoring the contract. Names omit the `.md` extension and resolve to `skills/wf/reference/design/<name>.md`. This is the field `/wf implement` re-reads — together with `02b`'s `recommended-references:` — to load design rationale. A reference that appears only in this prose section but **not** in `references-loaded:` will NOT be loaded by implementation, so keep the two in sync.
 
 ### 7. Carry the contract into the plan
 The contract is a `plan`-stage artifact. Reflect its obligations in the `04-plan-<slice>.md` steps: every `## Mock fidelity inventory` item becomes a concrete plan step, and the `## Implementation contract` token/component/motion decisions become plan-step pointers so `implement` applies them. Update `00-index.md` `current-stage: plan` (the contract is part of the plan stage). There is no hand-back to a separate design command.
@@ -208,7 +208,7 @@ For the `02c-craft.md` you just wrote:
 2. Write the sibling **`02c-craft.html.fragment`** — the body-only interactive layer.
 
 Before authoring the fragment, load
-`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and apply the
+`../_fragment-authoring.md` and apply the
 shared wrapper, snippet, and verifier rules.
 
 The fragment is one `<section class="fragment-design-contract"
@@ -219,7 +219,7 @@ metric-row; do **not** repeat them):
 - **Coverage grid** — a `tokens × states` (or `sizes × themes`) matrix showing
   which combinations the contract commits to, with committed cells marked.
 - **Per-element contract rows** — one expandable row per `contract[]` entry
-  (element → required tokens/states → requirement text), so `wf-implement` can
+  (element → required tokens/states → requirement text), so `/wf implement` can
   scan the obligations.
 - **Anti-pattern callouts** — `anti-patterns[]` as `callout-warn` asides.
 

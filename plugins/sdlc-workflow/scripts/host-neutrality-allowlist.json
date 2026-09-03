@@ -1,0 +1,4 @@
+{
+  "comment": "SINGLE-SOURCE-PLAN W6 burndown allowlist for verify-host-neutrality.mjs. Seeded EMPTY at cutover: the W3 prose merge landed in full, so no skill file carries host-mechanics debt. This list may only shrink — the gate compares it against the merge base and fails on any added path. A genuinely new host mechanic belongs in a contract file, not here.",
+  "files": []
+}

@@ -1,6 +1,37 @@
 # Single-Source Plan — one plugin tree serving Claude Code and Codex
 
-Status: **DRAFTED 2026-07-29 — investigation + coexistence spike complete, all
+Status: **BUILT AND SHIPPED 2026-09-03 as sdlc-workflow v9.153.0 (marketplace
+1.179.0), W0–W8 in one release.** What landed, and where the build departed from
+the text below:
+- W0/W0a/W2: no CRLF file remained by build time (the W0 line is stale); the
+  contract cluster was merged by hand first; `_host-invocation.md` is new.
+- W1: the delta audit was executed as a re-runnable residual-diff pass (dialect
+  normalized) rather than a written matrix; the numbers at build time were 181
+  shared files, 70 identical, 5 dialect-only, 115 real (median 10 lines, 7%).
+- W3: 65 files were normalized mechanically (paths, timestamps, the recurring
+  gate-question phrasings), then fifteen parallel merge agents reconciled the
+  115 real-difference files against the contract cluster under a written rubric.
+  The canonical invocation spelling is `/wf`; `$wf` maps ONLY in
+  `_host-invocation.md`. The Claude YAML question spec is treated as host-neutral
+  data. The fifth (reserve) contract file is `yolo.md`. The imagery provider
+  table names Codex's built-in `image_gen` as availability data.
+- W4: the codex adapter scripts sit flat under `hooks/`; `seed-memory` is
+  spawned by the Codex SessionStart adapter through `runBundled` (so the
+  `SDLC_HOST` signal is present) instead of being a direct `dist/` hook command.
+  `SDLC_HUB_STARTED_BY` is derived at the single spawn site and a guard rejects
+  any other setter. The root `scripts/generate-codex-plugin.mjs` was deleted too.
+- W5: 23 pages carry a uniform host note; `reference/hosts.html` is new;
+  `installation.html` carries both routes and the cutover box; `verify-doc-site`
+  gained invariants (e) and (f). Codex-only `native-operating-model.md` and
+  `verification.md` were dropped as generic guidance the stages already carry.
+- W6: the burndown allowlist is EMPTY at cutover (the merge landed in full); the
+  merge-base check treats a list absent at the merge base as the baseline.
+  `verify-no-legacy-codex.mjs` was retired in favor of `tests/unit/single-source.test.mjs`.
+- W7: step 0 preflight ran in a scratch `CODEX_HOME`; step 2 (per machine) is
+  the operator's, in an interactive session, per `SINGLE-SOURCE-CUTOVER.md`.
+- Live contract: `docs/internal/HOST-NEUTRALITY.md`.
+
+Original status: **DRAFTED 2026-07-29 — investigation + coexistence spike complete, all
 contract questions answered green. Proposals only; nothing built.**
 **REVIEWED 2026-07-29** (in-tree review + external panel). The platform
 contract survived review unchanged; the migration mechanics did not. Corrections

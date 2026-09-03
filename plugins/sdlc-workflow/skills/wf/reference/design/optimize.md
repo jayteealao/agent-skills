@@ -22,7 +22,7 @@ Before optimizing, identify the actual bottleneck. Don't assume:
 
 **Rendering**:
 ```javascript
-// Chrome DevTools: Performance tab → Record → interact with slow element → stop
+// Browser DevTools: Performance tab → Record → interact with slow element → stop
 // Look for: Long Tasks (red bars), Layout, Style Recalc, Paint, Composite layers
 ```
 

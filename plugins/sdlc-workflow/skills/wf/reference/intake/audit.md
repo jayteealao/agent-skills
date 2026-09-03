@@ -4,13 +4,13 @@ argument-hint: <concern> [paths…] | <slug> (re-run) | lenses=<a>,<b> override
 ---
 
 # Output boundary & shared context
-Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake audit`, a **subsystem defect hunt**. It exists for the request every adjacent surface refuses: review existing code for bugs, wrong assumptions, and mistakes when there is no symptom (`rca` needs one), no stated hypothesis (`discover` needs one), no decided problem (`investigate` needs one), and no diff (the review stage needs one). The output is an **accumulating findings ledger** — the same `07-review*` family the review stage owns, governed by the same merge law.
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug whose `workflow-type` is NOT `audit`), follow `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md` — it OVERRIDES the standalone instructions below. Write one `.ai/workflows/<slug>/03-slice-audit-<descriptor>.md` (`type: slice`, `slice-type: audit`, `compressed: true`, `origin: intake/audit`); no new workflow, no branch, no `07-review*` files, additive index updates only. Per the contract's inline-records rule, a slice-mode audit records a **single findings table in the slice body and does not accumulate** — it is a one-shot audit, and the body states that. Chat return: `audit → compressed slice <slice-slug> on <slug>`.
+If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug whose `workflow-type` is NOT `audit`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. Write one `.ai/workflows/<slug>/03-slice-audit-<descriptor>.md` (`type: slice`, `slice-type: audit`, `compressed: true`, `origin: intake/audit`); no new workflow, no branch, no `07-review*` files, additive index updates only. Per the contract's inline-records rule, a slice-mode audit records a **single findings table in the slice body and does not accumulate** — it is a one-shot audit, and the body states that. Chat return: `audit → compressed slice <slice-slug> on <slug>`.
 
 If the first token matched an existing slug whose `workflow-type` IS `audit`, that is a **re-run** of the standalone flow below (Step 0 resume), not slug-mode.
 
@@ -30,7 +30,7 @@ If neither applies, proceed standalone below.
 # CRITICAL — audit discipline
 You are a **read-only defect hunter that owns an accumulating findings ledger**.
 - Do NOT edit application code. Do NOT run a fix loop — there is none in this mode, ever. Every finding **routes**; none is fixed here.
-- Do NOT run the lenses yourself — dispatch sub-agents (Step 3) and refuters (Step 4).
+- Do NOT run the lenses yourself — dispatch sub-agents (Step 3) and refuters (Step 4) per [_subagents.md](../_subagents.md).
 - The ledger **accumulates across invocations**: the merge law — stable IDs, `surfaced-at` preservation, resolve-sweep, `runs:` append — is single-sourced in [_findings-ledger.md](../_findings-ledger.md). Apply it; never restate it; never overwrite a prior finding.
 - Scope and lens selection must be **legible and correctable**: state the resolved surface, the exclusions, and every selected lens with its reason, in the artifact AND in chat, BEFORE the hunt runs. An audit whose scope was silently guessed cannot be trusted when it reports "no findings" — the reader cannot tell clean from unread.
 - **Zero findings is a valid, useful result.** Write the artifact with the resolved surface, lenses run, and not-observable set. Never pad a clean result with nits.
@@ -49,7 +49,7 @@ You are a **read-only defect hunter that owns an accumulating findings ledger**.
 
 A concern names a subsystem; a lens needs files. Do not guess the mapping — enumerate it.
 
-1. **Wave 1 — enumerate.** Dispatch parallel `Explore` sub-agents (model `haiku`, stated on every call), each mapping the concern to concrete files by a **different search modality**, blind to the others:
+1. **Wave 1 — enumerate.** Dispatch parallel read-only sub-agents at **low** effort (bounded extraction, stated on every dispatch; per [_subagents.md](../_subagents.md)), each mapping the concern to concrete files by a **different search modality**, blind to the others:
    - **By entry point** — where does this subsystem start (routes, exported APIs, main loops)?
    - **By call graph** — what does the entry set call into; what calls into it?
    - **By naming convention** — files/dirs/symbols whose names match the concern's vocabulary.
@@ -59,11 +59,11 @@ A concern names a subsystem; a lens needs files. Do not guess the mapping — en
 3. **Any file the user named explicitly is in scope unconditionally.** Inference adds, never subtracts.
 4. **Concern names no surface at all** ("audit the codebase") → wave 1 cannot converge. `audit` is **not a whole-repo sweep**. Enumerate 3–6 candidate subsystems and have the user pick one (tripwire, below).
 
-**[Scope gate]** — present the resolved surface for confirmation BEFORE any lens runs: the file list (grouped, with counts), the exclusions with reasons, and what will NOT be looked at. Use `AskUserQuestion` (Confirm / Adjust / Cancel). Question craft follows [_question-craft.md](../_question-craft.md). On re-runs with an unchanged surface, the gate is satisfied by the prior confirmation — state that and proceed.
+**[Scope gate]** — present the resolved surface for confirmation BEFORE any lens runs: the file list (grouped, with counts), the exclusions with reasons, and what will NOT be looked at. Ask through the gate-question ladder ([_gate-question.md](../_gate-question.md)) with options Confirm / Adjust / Cancel; the non-interactive default is Confirm with the assumption recorded. Question craft follows [_question-craft.md](../_question-craft.md). On re-runs with an unchanged surface, the gate is satisfied by the prior confirmation — state that and proceed.
 
 # Step 2 — Select lenses, and say why
 
-Lenses are the existing review rubrics at `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/review/<lens>.md` (plus `design/audit.md` / `design/critique.md` for design surfaces). `audit` **owns no rubrics and adds no dimension** — it is a consumer.
+Lenses are the existing review rubrics at `../review/<lens>.md` (plus `design/audit.md` / `design/critique.md` for design surfaces). `audit` **owns no rubrics and adds no dimension** — it is a consumer.
 
 1. **Infer the lens set from the concern and the surface.** "Wrong assumptions between two paths" → `correctness`, `architecture`, `testing`. "Is this leaking memory" → `performance`, `reliability`. Concurrency vocabulary in the surface → `backend-concurrency`. Auth/credentials in the surface → `security`, `privacy`. Select 2–6 lenses; more only when the surface genuinely spans domains.
 2. **State the selection** — each lens with a one-line reason — in `01-audit.md` AND in chat, before dispatch. Inference that cannot be inspected is an opaque router.
@@ -72,9 +72,9 @@ Lenses are the existing review rubrics at `${CLAUDE_PLUGIN_ROOT}/skills/wf/refer
 
 # Step 3 — Hunt (parallel lens sub-agents)
 
-For EACH selected lens, spawn a sub-agent. Model tier per lens follows the review stage's rule: **`sonnet`** for `architecture`, `refactor-safety`, `security`; **`haiku`** otherwise — passed explicitly on every call, never inherited. Prompt each with:
+For EACH selected lens, dispatch a sub-agent per [_subagents.md](../_subagents.md), in waves of at most 6 when the lens set is large. Effort tier per lens follows the review stage's rule: **medium** for `architecture`, `refactor-safety`, `security`; **low** otherwise — stated explicitly on every dispatch, never inherited. Prompt each with:
 
-- The lens reference path: `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/review/<lens>.md` — read it and apply its rubric.
+- The lens reference path: `../review/<lens>.md` — read it and apply its rubric.
 - **Scope: the confirmed file surface from Step 1** — read these files; there is no diff. Every finding is by construction about existing code (no `pre-existing` split — record `pre-existing: true` on every row for schema compatibility with the review family).
 - The concern verbatim, so the lens reads with intent.
 - **Candidate findings only** — findings do NOT enter the ledger until they survive Step 4. Return each with severity (BLOCKER/HIGH/MED/LOW/NIT), confidence (High/Med/Low), `file:line`, evidence snippet, and the claimed invariant it violates.
@@ -84,7 +84,7 @@ For EACH selected lens, spawn a sub-agent. Model tier per lens follows the revie
 
 A plausible-but-wrong finding costs more here than in the review stage — nobody's diff context catches it. Refute each candidate before it lands (the `ship-plan audit` posture).
 
-1. Refuter count scales with severity: **BLOCKER/HIGH → three refuters with distinct lenses** (does it reproduce from the code as written · is the claimed invariant real · does a caller/guard upstream prevent it); **MED and below → one refuter**. Model `sonnet` for BLOCKER/HIGH refuters, `haiku` otherwise, stated explicitly.
+1. Refuter count scales with severity: **BLOCKER/HIGH → three refuters with distinct lenses** (does it reproduce from the code as written · is the claimed invariant real · does a caller/guard upstream prevent it); **MED and below → one refuter**. Effort **high** for BLOCKER/HIGH refuters (causal reasoning), **medium** otherwise, stated explicitly per [_subagents.md](../_subagents.md).
 2. Each refuter is prompted to **KILL the finding** — "prove this claim wrong; default to refuted when uncertain" — and returns `refuted: true|false` with its reasoning.
 3. A BLOCKER/HIGH candidate survives when **at least two of three** refuters fail to kill it; a MED-and-below candidate survives when its single refuter fails.
 4. **Survivors** enter the merge (Step 5). **Refuted candidates go in the master ledger's `## Refuted` section with the refutation** — never silently dropped; a refuted candidate is evidence that the lens looked.
@@ -92,9 +92,9 @@ A plausible-but-wrong finding costs more here than in the review stage — nobod
 
 # Step 5 — Merge into the ledger
 
-Write the `07-review*` family under `.ai/workflows/<slug>/`, applying [_findings-ledger.md](../_findings-ledger.md) in full — within-run dedupe, cross-run reconcile against any prior ledger, resolve-sweep for re-run lenses, `runs:` append, full merged set emitted.
+Write the `07-review*` family under `.ai/workflows/<slug>/`, applying [_findings-ledger.md](../_findings-ledger.md) in full — within-run dedupe, cross-run reconcile against any prior ledger, resolve-sweep for re-run lenses, `runs:` append, full merged set emitted. Timestamps per [_timestamp.md](../_timestamp.md).
 
-1. **Per-lens files** — `07-review-<lens>.md`, `type: review-command`, `review-scope: slug-wide`, the same frontmatter/metric shape the review stage's dimension files carry. Author the sibling `.yaml` (schema `siblingYamlSchemas.review-dimension`; OPEN findings only) and `.html.fragment` per [_fragment-authoring.md](../_fragment-authoring.md) — the `post-write-verify` hook BLOCKS a `type: review-command` write without its sibling `.yaml`; a clean lens sets `fragment: none` instead.
+1. **Per-lens files** — `07-review-<lens>.md`, `type: review-command`, `review-scope: slug-wide`, the same frontmatter/metric shape the review stage's dimension files carry. Author the sibling `.yaml` (schema `siblingYamlSchemas.review-dimension`; OPEN findings only) and `.html.fragment` per [_fragment-authoring.md](../_fragment-authoring.md) — the managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) BLOCKS a `type: review-command` write without its sibling `.yaml`; a clean lens sets `fragment: none` instead.
 2. **Master ledger** — `07-review.md`, `type: review`, `review-scope: slug-wide`, with `## All Findings`, `## Findings (Detailed)`, `## Refuted` (this mode's addition — candidate, killing refutation, refuter lens), `## Triage Decisions` (routes recorded in Step 6), and a verdict line stating ledger state, not shippability: `N open / N resolved / N refuted across <lenses>`. Sibling `.yaml` + fragment per the review shape.
 3. **Edits are additive** per [_additive-write.md](../_additive-write.md) — a re-run edits in place and appends; it never rewrites history.
 4. **`01-audit.md`** (`type: intake`, satisfies the intake required set: `status: complete`, `stage-number: 1`, `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`) carries the brief inline: the concern verbatim, the resolved surface with counts, exclusions with reasons, selected lenses with reasons, the not-observable set (what static reading could not decide), and a surface-revision log for re-runs.

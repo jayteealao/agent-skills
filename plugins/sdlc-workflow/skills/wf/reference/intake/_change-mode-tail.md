@@ -158,7 +158,7 @@ Escalate). Family rules, all branches:
 
 - Store artifacts under `.ai/workflows/<slug>/`. Never leave canonical results only in chat.
 - Every artifact MUST have YAML frontmatter with `schema: sdlc/v1`. Timestamps must be
-  real — run `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
+  real — get the current UTC time per [_timestamp.md](../_timestamp.md).
 - Write each artifact atomically (temp path → rename) so a crash never leaves a
   half-written workflow.
 - Review is not skipped — the mode reference names its default rubric.

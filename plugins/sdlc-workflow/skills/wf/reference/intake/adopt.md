@@ -4,7 +4,7 @@ argument-hint: "[description]"
 ---
 
 # Output boundary & shared context
-Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake adopt`, the **reverse-entry** mode. Where `fix`/`hotfix`/`refactor` author a plan and then drive execution *forward*, adopt reconstructs the record *backward* from a diff that already exists, then hands the result to the standard verification chain.
 
@@ -37,15 +37,15 @@ You are a **reconstruction orchestrator**, not a coder and not a shaper inventin
 # Step 0 — Orient (MANDATORY — before anything else)
 
 1. **Derive the slug:** `adopt-<short-description>` (kebab-case, max 5 words) from the optional `[description]` argument; with no argument, derive it from the dominant concern of the diff after Step A0 collects it (defer the final slug until then, but resolve the collision check before any write).
-2. **Collision check:** apply the collision check in `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_change-mode-tail.md`.
+2. **Collision check:** apply the collision check in `_change-mode-tail.md`.
 3. **Same-branch active-workflow scan:** read `.ai/workflows/INDEX.md`; if any **active** workflow records `branch:` equal to the current branch, the diff on this branch probably belongs to that workflow — STOP and recommend the extension path (`/wf intake <that-slug> <scope>`) or that workflow's own next command. Adopting another workflow's in-flight branch work as a new workflow forks the record.
-4. **Provenance check:** apply `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-provenance.md` — the investigated-then-patched path is adopt's most common lineage. On an explicit `from <source-slug>` token (or an exact investigate/ideate label match), consume the Consume-table row: the chosen option card seeds `## Restated Intent` and the AC derivation, and the link-back records `origin-<type>` here and `superseded-by` on the source. No match → continue.
+4. **Provenance check:** apply `_intake-provenance.md` — the investigated-then-patched path is adopt's most common lineage. On an explicit `from <source-slug>` token (or an exact investigate/ideate label match), consume the Consume-table row: the chosen option card seeds `## Restated Intent` and the AC derivation, and the link-back records `origin-<type>` here and `superseded-by` on the source. No match → continue.
 5. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, write the block with `user-confirmed: false` (adopt rides verify's caveat path; its two questions are spent on reconstruction).
 
 # Step A0 — Gather the adoptable surface (MANDATORY)
 
 1. **Resolve the base branch.** Use the same resolution the review stage uses: the tracked upstream of the current branch if set, else the repo default (`main`/`master`). Record it as `<base>`.
-2. **Collect the surface** via Bash (use real output, never guess). The adoptable surface is one defined union:
+2. **Collect the surface** with the shell (use real output, never guess). The adoptable surface is one defined union:
    - committed-ahead: `git diff <base>...HEAD`;
    - staged: `git diff --cached`;
    - unstaged: `git diff`;
@@ -60,7 +60,7 @@ You are a **reconstruction orchestrator**, not a coder and not a shaper inventin
 
 Use parallel Explore sub-agents to understand the diff before inferring intent — do not reconstruct from the diff text alone.
 
-**Model for every dispatched agent:** `haiku`. REQUIRED on every `Task` call — both do bounded, targeted reads with structured-output extraction.
+**Effort tier for every dispatched agent:** **low** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch — both do bounded, targeted reads with structured-output extraction.
 
 #### Explore sub-agent 1 — Diff comprehension
 Prompt with ALL of the following:
@@ -84,7 +84,7 @@ Prompt with:
 
 # Step 2 — Confirmation gate (MANDATORY — before any artifact is written)
 
-Inference from a diff can be wrong, and a wrong adopted shape poisons every downstream stage. **Before writing any file**, present the inferred shape and confirm via `AskUserQuestion`:
+Inference from a diff can be wrong, and a wrong adopted shape poisons every downstream stage. **Before writing any file**, present the inferred shape and confirm as a gate question per [_gate-question.md](../_gate-question.md):
 
 ```
 question: "Adopting <N> changed files on branch `<branch>` as workflow `<slug>`. Inferred goal: “<goal>”. Scope, slice split (<M> slice(s)), and <K> acceptance criteria are drafted from the diff. Adopt this shape?"
@@ -103,7 +103,7 @@ options:
 
 # Step 3 — Write the reconstructed artifacts (each schema-conformant, each `provenance: adopted`)
 
-Use real timestamps — run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash. Write each artifact atomically (temp path → rename). **Every frontmatter block below includes `provenance: adopted`.**
+Use real timestamps — get the current UTC time per [_timestamp.md](../_timestamp.md). Write each artifact atomically (temp path → rename). **Every frontmatter block below includes `provenance: adopted`.**
 
 **`01-adopt.md` — `type: intake` (the adoption record, replaces standalone intake):**
 ```yaml

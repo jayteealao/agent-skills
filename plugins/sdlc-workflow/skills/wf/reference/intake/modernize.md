@@ -70,8 +70,8 @@ Show the user, before touching anything:
    would: a wall with no recorded ownership needs `/wf probe <slug>` or a re-verify, not a guess.
 3. **Untouched** — say plainly that no decision, verdict, or criterion will change.
 
-`/wf intake <slug> modernize dry-run` stops here and writes nothing. Otherwise confirm once via
-`AskUserQuestion` and proceed.
+`/wf intake <slug> modernize dry-run` stops here and writes nothing. Otherwise confirm once as a
+gate question per [_gate-question.md](../_gate-question.md) and proceed.
 
 # Step 2 — Write
 

@@ -17,7 +17,7 @@ The contract has two halves. The **outbound** half (Blocks A–G) is the release
 
 This command therefore runs three loops:
 1. **Discovery** — read what the repo already says (CI workflows, infra-as-code, package manifests, runbooks). Don't ask before reading.
-2. **Hypothesis** — propose an inferred ship-shape and let the user confirm, correct, or replace each piece. AskUserQuestion options are *prompts to refine a hypothesis*, not multiple-choice quizzes — `Other (describe)` is always available.
+2. **Hypothesis** — propose an inferred ship-shape and let the user confirm, correct, or replace each piece. Gate-question options ([_gate-question.md](../_gate-question.md)) are *prompts to refine a hypothesis*, not multiple-choice quizzes — `Other (describe)` is always available.
 3. **Codify** — write a schema with a small **required core** (the fields `/wf ship` reads) plus **open extensions** (`additional-contracts[]`) for project-specific shape.
 
 Templates are **exemplar text** you can show the user when it helps. They are not branches in the control flow.
@@ -120,7 +120,7 @@ Group G — **Repo governance** (collaboration + protection layer):
 - **Branch protection (read-only):** `gh api repos/<owner>/<repo>/branches/<base-branch>/protection 2>/dev/null` and `gh api repos/<owner>/<repo>/rulesets 2>/dev/null` — capture which mechanism is in use plus required checks, approvals, stale-dismissal, admin enforcement, code-owner review, conversation resolution, linear history. If `gh` is unauthenticated or the call 404s, record `none`.
 - **Environments (read-only):** `gh api repos/<owner>/<repo>/environments 2>/dev/null` — capture env names + protection rules (required reviewers, wait timer, branch policy) to seed Block A.
 
-Group H — **Security & supply-chain tooling** (align categories to `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/review/supply-chain.md`):
+Group H — **Security & supply-chain tooling** (align categories to `../review/supply-chain.md`):
 - **SAST:** `.github/workflows/codeql*.yml` / `github/codeql-action`, `.semgrep.yml` / `semgrep` in CI, `sonar-project.properties`.
 - **Dependency audit / CVE scan:** `npm audit` / `pnpm audit`, `pip-audit` / `safety`, `cargo audit` / `cargo-deny`, `govulncheck`, `bundler-audit`, `osv-scanner`; Snyk/Dependabot alerts.
 - **Secret scanning:** `.gitleaks.toml` / gitleaks in CI, `trufflehog`, `.secrets.baseline` (detect-secrets), GitHub push protection.
@@ -225,7 +225,7 @@ inferred:
 
 ## 1.3 Present discovery report
 
-Show the user the discovery report as a compact bullet summary (no AskUserQuestion yet). Make it skimmable:
+Show the user the discovery report as a compact bullet summary (no gate question yet). Make it skimmable:
 
 ```
 Discovered:
@@ -243,7 +243,7 @@ Discovered:
 - Additional contracts suggested: data-migration (liquibase/ found)
 ```
 
-Then ask the user (free-form, not AskUserQuestion):
+Then ask the user (free-form, not a gate question):
 > *"Does this match how the project actually ships? Anything to add, correct, or ignore before we move on?"*
 
 Apply the user's corrections to the in-memory discovery state. If the user says *"the helm dir is dead code, ignore it"*, mark that evidence as `discarded`.
@@ -255,7 +255,7 @@ Apply the user's corrections to the in-memory discovery state. If the user says 
 For each required-core contract below, present a **hypothesis derived from discovery** and let the user confirm, refine, or replace it. The structure is uniform:
 
 1. State the inferred value + the evidence (1–2 lines, quoting Step 1's findings).
-2. AskUserQuestion with **options derived from discovery**, ranked by confidence, plus `Other (describe)` always present.
+2. Ask a gate question per [_gate-question.md](../_gate-question.md) with **options derived from discovery**, ranked by confidence, plus `Other (describe)` always present as the last option.
 3. If `template-hint` was set in Step 0 *and* the template's seed for this field differs from the inferred value, surface both: *"Discovery suggests X; the `<template-hint>` template usually uses Y. Which fits this project?"*
 4. Capture the answer in the in-memory plan state.
 
@@ -367,7 +367,7 @@ If `announcement.channels[]` is empty, skip this follow-up entirely.
 
 ---
 
-The remaining required-core blocks are the **inbound** half — the developer experience a contributor hits on every commit and PR. Run them with the same hypothesis pattern as A–G: state the inferred value + evidence, AskUserQuestion with discovery-ranked options plus `Other`, fold in the `template-hint` seed when it differs, capture the answer.
+The remaining required-core blocks are the **inbound** half — the developer experience a contributor hits on every commit and PR. Run them with the same hypothesis pattern as A–G: state the inferred value + evidence, ask a gate question with discovery-ranked options plus `Other`, fold in the `template-hint` seed when it differs, capture the answer.
 
 ## Block H — Code-quality gates (inbound CI contract)
 
@@ -408,7 +408,7 @@ Hypothesis from `inferred.governance`. The collaboration + protection rules. Con
 
 ## Block K — Security & supply-chain gates
 
-Hypothesis from `inferred.security`. The scanning + policy layer (align to `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/review/supply-chain.md`). Each gate can be `none` — don't impose one the project doesn't want:
+Hypothesis from `inferred.security`. The scanning + policy layer (align to `../review/supply-chain.md`). Each gate can be `none` — don't impose one the project doesn't want:
 - `sast` — `{ tool, cmd, schedule }`. `tool` ∈ {`codeql`, `semgrep`, `sonar`, `none`}. CodeQL runs as its own workflow (PR + scheduled); others as a CI step. `schedule` freeform (default `weekly`).
 - `dependency-audit` — `{ tool, cmd, fail-on }`. e.g. `npm audit --audit-level=high`, `pip-audit`, `cargo audit`, `govulncheck ./...`, `osv-scanner`. `fail-on` ∈ {`critical`, `high`, `moderate`, `low`}.
 - `secret-scanning` — `{ tool, cmd, pre-commit }`. e.g. gitleaks, trufflehog, detect-secrets. `pre-commit: <true|false>` — also wire it as a Block-I `pre-commit` hook when true.
@@ -421,7 +421,7 @@ These become pre-merge and/or scheduled CI gates built by `/wf ship-plan build` 
 
 # Step 3 — Additional contracts (open extensions)
 
-Ask the user (AskUserQuestion, multi-select), seeded by `inferred.additional-contracts-suggested`:
+Ask the user (as a gate question per [_gate-question.md](../_gate-question.md); multi-select), seeded by `inferred.additional-contracts-suggested`:
 
 ```yaml
 question: "Does this project have any of these contracts that the standard plan doesn't cover?"
@@ -461,7 +461,7 @@ Record the answer as `artifactTracking: "tracked" | "ignored"` in `.ai/sdlc-conf
 
 # Step 4 — Exemplar pass (on request)
 
-If, during Steps 2 or 3, the user asks *"what does a typical X plan look like?"* — or if they pick a `template-hint` they're unfamiliar with — open the relevant file under `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/ship-plan/ship-plan-templates/<kind>.md` and show the seed values as **reference reading**, not a fill-in form.
+If, during Steps 2 or 3, the user asks *"what does a typical X plan look like?"* — or if they pick a `template-hint` they're unfamiliar with — open the relevant file under `ship-plan-templates/<kind>.md` and show the seed values as **reference reading**, not a fill-in form.
 
 Templates also exist for stealing single fields. If the user is happy with their Block A but wants the `signing-failure` playbook from `kotlin-maven-central`, pull only that block. Each template carries both a `# Seed values` block (outbound Blocks A–G) and a `# Inbound DX seed values` block (Blocks H–K) — surface whichever half the user is asking about.
 
@@ -469,7 +469,7 @@ Templates also exist for stealing single fields. If the user is happy with their
 
 # Step 5 — Confirmation
 
-Present a summary table to the user using AskUserQuestion. Surface the required-core values inline and list additional-contract `id`s by name:
+Present a summary table to the user as gate questions per [_gate-question.md](../_gate-question.md). Surface the required-core values inline and list additional-contract `id`s by name:
 
 ```yaml
 question: "Plan summary — confirm before writing `.ai/ship-plan.md`?"

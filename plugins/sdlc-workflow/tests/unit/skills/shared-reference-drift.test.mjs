@@ -11,7 +11,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const codexRoot = path.resolve(pluginRoot, '..', 'sdlc-workflow-codex');
 
 // One distinctive full sentence per canonical file. If a copy of the rule body
 // reappears anywhere else, its fingerprint travels with it.
@@ -72,8 +71,7 @@ function* walk(dir, exts) {
 
 const trees = [
   { name: 'main', root: pluginRoot },
-  { name: 'codex', root: codexRoot },
-].filter((t) => existsSync(path.join(t.root, 'skills')));
+];
 
 test('review split holds: entry file loads the stage body, stage body exists', () => {
   for (const { name, root } of trees) {

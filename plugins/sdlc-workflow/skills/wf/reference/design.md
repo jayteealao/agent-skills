@@ -68,13 +68,13 @@ before proceeding.
 # Step 1 — Load shared context + preflight
 
 1. **Load the shared design context** in full:
-   `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/design/_design-context.md`. It is the single
+   `design/_design-context.md`. It is the single
    source of truth for the **register** (brand/product), the **shared design laws**, the
    **absolute bans**, the **preflight gates**, the **4 codebase-inspection sub-agents**, and the
    **image gate** (the mutation lock). Apply it; do not restate or fork its rules here.
    - **Reusable-component targets** — if the command's target is a *reusable design-system
      component* (a shared primitive or widget, not a one-off screen), also load
-     `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/design/_component-craft.md` for the DX-first
+     `design/_component-craft.md` for the DX-first
      API, excellent-defaults, memorable-naming, and touchable-example canon. This mirrors what
      `/wf implement` loads for reusable components, so a standalone `/wf design <transform>` on a
      component is held to the same bar as the lifecycle path. Skip it for one-off screens and for
@@ -126,7 +126,7 @@ Notes:
 # Step 3 — Load the command reference
 
 Load the reference for the resolved command from
-`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/design/<command>.md` and follow it verbatim. Do not
+`design/<command>.md` and follow it verbatim. Do not
 summarize, paraphrase, or skip. The reference is the authoritative instruction for *what* the
 command does; this dispatcher governs *how far the flow runs* around it.
 
@@ -172,7 +172,7 @@ workflow.
      `implement` applies.
    - Write the sibling `.yaml` + `.html.fragment` for the contract (see `design/contract.md`).
 2. **Drive the build, compressed, yourself.** For each stage in the span, load
-   `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/<stage>.md` and run it in compressed mode, writing
+   `<stage>.md` and run it in compressed mode, writing
    its numbered artifact:
    - `slice` → `03-slice*` (a single thin slice unless the brief's state/surface inventory
      clearly demands more),

@@ -11,7 +11,7 @@ this operation produces: translate workflow context to product language and leak
 > budgets, the frequency framework, the interruptibility and origin rules — is adapted from
 > Emil Kowalski's design-engineering philosophy ([animations.dev](https://animations.dev/)),
 > used under MIT license. The review *method* (severity + confidence, escalation triggers, a
-> remedial hierarchy, an explicit verdict) is the shared `/review` contract.
+> remedial hierarchy, an explicit verdict) is the shared `/wf review` contract.
 
 # ROLE
 

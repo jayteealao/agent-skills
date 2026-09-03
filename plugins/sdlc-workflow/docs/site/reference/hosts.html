@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hosts · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Hosts: Claude Code and Codex</h1>
+<p class="lede">The plugin runs under two hosts from one source tree. This page lists what the two hosts share, what each host spells differently, and the one key that runs on one host only.</p>
+<div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
+
+<h2>What both hosts share</h2>
+<p>Both hosts read the same plugin directory. Both hosts load the same skill files, run the same bundled hook policy, adopt the same machine-wide hub, and read and write the same artifacts under <code>.ai/</code>. A workflow that you start under one host resumes under the other host. The artifact format is the contract; the host that wrote an artifact does not matter.</p>
+
+<h2>What each host spells differently</h2>
+<table>
+<thead><tr><th>Concern</th><th>Claude Code</th><th>Codex</th></tr></thead>
+<tbody>
+<tr><td>Invocation</td><td><code>/wf status</code>, <code>/consult plan</code></td><td><code>$wf status</code>, <code>$consult plan</code></td></tr>
+<tr><td>Manifest the host reads</td><td><code>.claude-plugin/plugin.json</code></td><td><code>.codex-plugin/plugin.json</code></td></tr>
+<tr><td>Hook wiring</td><td><code>hooks/hooks.json</code></td><td><code>hooks/codex.hooks.json</code>, declared by the manifest. Codex never loads <code>hooks/hooks.json</code>.</td></tr>
+<tr><td>Invalid artifact write</td><td>A pre-write hook blocks the write before it lands.</td><td>A post-write hook verifies the write. The Stop hook then blocks the turn until the artifact is repaired, at most three times.</td></tr>
+<tr><td>Hook trust</td><td>None required.</td><td>Review and trust each hook once, in an interactive session, with <code>/hooks</code>. Untrusted hooks are skipped.</td></tr>
+<tr><td>Gate questions</td><td>A structured question tool.</td><td>A structured question tool in plan mode; a numbered chat question elsewhere.</td></tr>
+<tr><td>Sub-agents</td><td>Effort tiers map to model pins.</td><td>Effort tiers map to reasoning effort; waves of at most six.</td></tr>
+<tr><td>Session transcripts (deep retro)</td><td>A per-repository transcript directory.</td><td>None. Deep retro reads the artifacts only.</td></tr>
+</tbody>
+</table>
+<p>The verification outcome of a write is identical on both hosts. Only the timing of the block differs.</p>
+
+<h2>The one host-specific key</h2>
+<p><code>/wf yolo</code> runs under Claude Code only. It is built on a background-workflow tool that Codex does not have. Under Codex the key is unknown; use <code>/wf auto</code>, which runs under both hosts. Every other key runs under both hosts.</p>
+
+<h2>Where the host differences live</h2>
+<p>The skill files never name a host tool. Four reference files carry every host difference, and the skill files cite them: <code>skills/wf/reference/_host-invocation.md</code> (invocation spelling, script paths, key availability), <code>_gate-question.md</code> (the question ladder), <code>_subagents.md</code> (dispatch and effort tiers), and <code>_timestamp.md</code> (real timestamps). A test fails the build when a skill file names a host mechanism outside those files.</p>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="../start/installation.html">Installation</a> — the install route for each host.</li>
+    <li><a href="hooks.html">Hooks</a> — what each hook does, and which host wires it.</li>
+    <li><a href="../guides/autonomous-drivers.html">Autonomous drivers</a> — <code>/wf auto</code> on both hosts, <code>/wf yolo</code> on Claude Code.</li>
+    <li><a href="../concepts/the-machinery.html">The machinery</a> — the hub and the render pipeline that both hosts share.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

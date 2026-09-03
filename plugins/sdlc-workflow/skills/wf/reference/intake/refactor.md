@@ -4,13 +4,13 @@ argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake refactor`, a **behavior-preserving refactoring standard lifecycle**.
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-refactor-<descriptor>.md` (`type: slice`, `slice-type: refactor`, `compressed: true`, `origin: intake/refactor`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `refactor → compressed slice <slice-slug> on <slug>`.
+If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-refactor-<descriptor>.md` (`type: slice`, `slice-type: refactor`, `compressed: true`, `origin: intake/refactor`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `refactor → compressed slice <slice-slug> on <slug>`.
 
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
@@ -38,10 +38,10 @@ You are a **refactoring orchestrator**. The singular goal is identical external 
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/<slug>/00-index.md` with `workflow-type: refactor` → **resume mode**. Read the index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `rf-*.md` — re-author as the standard set if continuing.)
    - Otherwise → **new refactor**. Derive a slug: `refactor-<short-description>` (kebab-case, max 5 words, e.g., `refactor-auth-service-layer`).
-2. **Collision check:** apply the collision check in `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_change-mode-tail.md` (legacy alias for refactor: `rf-*` artifacts).
-3. **Provenance check:** apply `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-provenance.md`. The common source is a `/wf simplify` finding routed here — its entry (id, files, rationale, severity) travels in the invocation text and seeds `## Target` / `## Why` directly. An explicit `from <source-slug>` token (an investigate option, an escalated change-mode) consumes its Consume-table row. No match → continue.
+2. **Collision check:** apply the collision check in `_change-mode-tail.md` (legacy alias for refactor: `rf-*` artifacts).
+3. **Provenance check:** apply `_intake-provenance.md`. The common source is a `/wf simplify` finding routed here — its entry (id, files, rationale, severity) travels in the invocation text and seeds `## Target` / `## Why` directly. An explicit `from <source-slug>` token (an investigate option, an escalated change-mode) consumes its Consume-table row. No match → continue.
 4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply; the one-line confirm rides the Step 1 question round and sets `stack.user-confirmed: true`.
-5. **Branch check:** Refactors SHOULD use a dedicated branch — `AskUserQuestion { options: ["Create dedicated branch", "Use current branch"] }`. If dedicated: `git checkout -b refactor/<slug>` from the current branch; record the choice so the index's `branch-strategy`/`branch` reflect it (empty `branch` when the user kept the current branch).
+5. **Branch check:** Refactors SHOULD use a dedicated branch — ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)), options: `Create dedicated branch (recommended)` / `Use current branch`. If dedicated: `git checkout -b refactor/<slug>` from the current branch; record the choice so the index's `branch-strategy`/`branch` reflect it (empty `branch` when the user kept the current branch).
 6. **Single slice.** The refactor is one slice — the workflow slug doubles as the one slice's `slice-slug` (use `<slug>` for `slice-slug`, `selected-slice`, `best-first-slice`). The refactor units are the plan's steps. Downstream stages write **un-suffixed** files.
 
 # Step 1 — Brief → `01-refactor.md` (`type: intake`)
@@ -77,7 +77,7 @@ Body: open with `## The Refactor` — the story section (MUST follow `../_story-
 # Step 2 — Baseline → `02-shape.md` (the most important step)
 The baseline captures ground truth before any code change — it IS the shape. Launch parallel sub-agents.
 
-**Model for every dispatched agent:** `haiku`. REQUIRED on every `Task` call — both do bounded inventorying with structured output.
+**Effort tier for every dispatched agent:** **low** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch — both do bounded inventorying with structured output.
 
 ### Explore sub-agent 1 — Code State Snapshot
 Prompt with ALL of: read every target file (line count, exported names, implicit contracts — events emitted, global state, files written); read every caller (grep imports across the repo); document the current **public API surface** (exported signatures with param/return types, class methods, REST routes, component props); note code intentionally NOT changing.
@@ -108,7 +108,7 @@ next-invocation: "/wf slice <slug>"
 ```
 Body (this is the baseline — preserve it richly): `## Public API Surface` (every exported name with signature, exactly as it currently exists — the verify acceptance contract), `## Test Coverage Map` (behavior → test file), `## Coverage Gaps` (uncovered behaviors = refactor risk), `## Baseline Command` (the exact test command sub-agent 2 ran — verify re-runs this literal command and diffs its counts), `## Baseline Test Result` (pass/fail/skip counts before any change), `## Callers` (count + key sites), `## In Scope` / `## Out of Scope` (the frozen surface), `## Coverage Decision` (written after the question below — which option the user chose and why).
 
-**If coverage gaps are significant:** `AskUserQuestion` — "Coverage gaps found in: <list>. Refactoring without tests covering these areas is risky. Add tests first?" Options: `Add tests first (recommended)` / `Proceed with gaps noted as risk` / `Abort`. Record the answer in `## Coverage Decision` — the choice is a durable gate decision, not chat. **Add tests first** has a concrete mechanism: the plan's Step 1 becomes "author characterization tests for `<the gaps>`" (a real plan step that runs before any restructuring, committed on its own so the baseline grows before the refactor starts). **Proceed with gaps** records each gap as a `## Tripwire breaches` entry per `_change-mode-tail.md`. **Abort** closes the slug per the tail's Abort rule (`close-reason: cancelled`).
+**If coverage gaps are significant:** ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)) — "Coverage gaps found in: <list>. Refactoring without tests covering these areas is risky. Add tests first?" Options: `Add tests first (recommended)` / `Proceed with gaps noted as risk` / `Abort`. Record the answer in `## Coverage Decision` — the choice is a durable gate decision, not chat. **Add tests first** has a concrete mechanism: the plan's Step 1 becomes "author characterization tests for `<the gaps>`" (a real plan step that runs before any restructuring, committed on its own so the baseline grows before the refactor starts). **Proceed with gaps** records each gap as a `## Tripwire breaches` entry per `_change-mode-tail.md`. **Abort** closes the slug per the tail's Abort rule (`close-reason: cancelled`).
 
 # Step 3 — Slice → `03-slice.md` (`type: slice-index`, one slice)
 ```yaml
@@ -138,7 +138,7 @@ next-invocation: "/wf plan <slug>"
 Body (one line): "Single-slice refactor — the units are the plan's atomic green steps."
 
 # Step 4 — Plan → `04-plan.md`
-Plan the refactor as a sequence of **atomic, independently-green steps** — each leaves the codebase passing (tests green, build passing), is a single logical change, and changes only internal structure (never external behavior). First launch one sub-agent to research the target pattern (web search: established patterns + common pitfalls + safe incremental approaches, e.g. strangler-fig, parallel-change/expand-contract, replace-conditional-with-polymorphism). **Model for that agent:** `haiku` — REQUIRED on the `Task` call; it is bounded search-and-extract work.
+Plan the refactor as a sequence of **atomic, independently-green steps** — each leaves the codebase passing (tests green, build passing), is a single logical change, and changes only internal structure (never external behavior). First launch one sub-agent to research the target pattern (web search: established patterns + common pitfalls + safe incremental approaches, e.g. strangler-fig, parallel-change/expand-contract, replace-conditional-with-polymorphism). **Effort tier for that agent:** **low** (per [_subagents.md](../_subagents.md)) — REQUIRED on the dispatch; it is bounded search-and-extract work.
 
 The refactor tripwires are: a step that cannot be made independently green · an API surface delta without API simplification as the explicit stated goal · a coverage gap accepted at Step 2. Record breaches per the tripwire-breach mechanism in [_change-mode-tail.md](_change-mode-tail.md).
 ```yaml

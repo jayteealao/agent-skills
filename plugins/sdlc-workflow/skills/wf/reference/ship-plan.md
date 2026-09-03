@@ -36,7 +36,7 @@ Which would you like to run?
 # Step 1 — Load the sub-reference and follow it verbatim
 
 Once the token is resolved, load the corresponding reference file from
-`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/<reference>` and follow it verbatim.
+`<reference>` and follow it verbatim.
 Do not summarize, paraphrase, or skip steps. Pass any remaining tokens in `$ARGUMENTS`
 (after the sub-command token) as the arguments for the sub-reference.
 

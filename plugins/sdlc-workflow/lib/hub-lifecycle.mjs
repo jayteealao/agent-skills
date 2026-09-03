@@ -31,8 +31,9 @@ import { gcRuntimes, materializeRuntime, readRuntimeIdentityAt, verifyRuntimeSto
 const RUNTIME = runtimeIdentity();
 
 // Which host runs this supervisor — diagnostic provenance carried on the hub's
-// PID record + health. Host-neutral via env so the byte-identical shared lib
-// reports 'codex' when the Codex package spawns it. Defaults to 'claude'.
+// PID record + health. SDLC_HOST is the entrypoint signal (set by the Codex hook
+// adapter; absent under Claude Code); SDLC_HUB_STARTED_BY is DERIVED from it
+// here, at the single hub-spawn site, and nowhere else (SINGLE-SOURCE-PLAN §3.4).
 const STARTED_BY_HOST = process.env.SDLC_HOST || 'claude';
 
 // Re-export so callers have one import for the hub's pid-file location (the plan
