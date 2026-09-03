@@ -1,7 +1,7 @@
 # Dynamic Workflows Integration Plan
 
 Companion to [QUALITY-GATES-PLAN.md](archived/QUALITY-GATES-PLAN.md) and
-[MULTI-HOST-SUPPORT-PLAN.md](MULTI-HOST-SUPPORT-PLAN.md). This plan adopts
+[MULTI-HOST-SUPPORT-PLAN.md](archived/MULTI-HOST-SUPPORT-PLAN.md). This plan adopts
 Claude Code's **Dynamic Workflows** (research preview, shipped with Opus 4.8 /
 Claude Code v2.1.154, 2026-05-28) as an **execution engine for the parallel
 sub-agent fan-out the plugin already performs** — without changing the
@@ -510,7 +510,7 @@ committed stage state.
 ### Multi-host interaction (verify before Phase 4)
 
 Workflows run locally (16-concurrent bounded by local cores). The
-[MULTI-HOST-SUPPORT-PLAN.md](MULTI-HOST-SUPPORT-PLAN.md) execution model and
+[MULTI-HOST-SUPPORT-PLAN.md](archived/MULTI-HOST-SUPPORT-PLAN.md) execution model and
 `skills/wf/reference/runtime-adapters.md` may interact with the local
 concurrency ceiling and with worktree isolation. **Read both before designing
 Phase 4**; the DAG-wave executor in particular must reconcile workflow-local

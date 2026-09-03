@@ -1,0 +1,166 @@
+Single-Source Plan — Latest Audit Findings
+==========================================
+
+Reviewed: 2026-07-30
+Target: plugins/sdlc-workflow/docs/internal/SINGLE-SOURCE-PLAN.md
+
+Summary
+-------
+
+The neutrality-first direction is a strong improvement, but the new five-file
+budget currently contradicts the plan's own required behavior. The audit found
+four major issues and four lesser issues. The architecture remains sound, but
+the merge spike and neutrality gate are not implementable exactly as written
+until the budget scope and growth criteria are corrected.
+
+Major findings
+--------------
+
+[P1] Five-file budget excludes required host-specific surfaces
+
+Location: SINGLE-SOURCE-PLAN.md, lines 163–187
+
+The plan says files outside the five host-contract files may contain no
+host-specific text, but W3 requires the shared wf dispatch table to mark key
+availability and requires yolo.md to open with a Claude-only restriction. Those
+are two additional files. W5 also deliberately contains host-scoped
+documentation.
+
+Scope the budget explicitly to host-mechanics prose in skills/, distinguish
+mechanics from availability annotations, and enumerate every permanent
+exception. As written, W6's gate cannot pass while W3 and W5 are implemented
+correctly.
+
+
+[P1] Merge-spike growth condition guarantees failure
+
+Location: SINGLE-SOURCE-PLAN.md, lines 253–292
+
+W0a targets three Codex-only contract files and requires adding their Claude
+mechanics, but declares failure if any merged file grows. A file moving from
+absent in the Claude tree to a shared two-host contract necessarily grows
+relative to that baseline. _gate-question.md and _subagents.md may also
+legitimately grow relative to their Codex originals.
+
+Apply non-growth only to ordinary caller or stage files. Measure contract files
+against a separate duplication or density budget.
+
+
+[P1] Corrected openai.yaml behavior is contradicted again
+
+Location: SINGLE-SOURCE-PLAN.md, lines 369–372
+
+This section restores the disproven fail-closed claim. C12 correctly establishes
+that a missing openai.yaml defaults to implicit invocation allowed and only
+loses interface metadata.
+
+State that the six files are imported for metadata and explicit policy. Add a
+test that checks their metadata rather than visibility.
+
+
+[P1] Rollout verification enables both hook sets
+
+Location: SINGLE-SOURCE-PLAN.md, lines 631–650
+
+Adding the new plugin and verifying it before removing the old one creates a
+session with both identities enabled. Two wf skills are visible and both
+SessionStart and other hook sets can fire. This makes verification ambiguous
+and may duplicate side effects.
+
+The scratch preflight already proves installation. Forbid opening a session
+during the overlap. Disable or remove the old identity before the first real
+verification session, while retaining its cache and rollback instructions.
+
+
+Lesser findings
+---------------
+
+[P2] Drift guards do not prove the whole contract survived
+
+Location: SINGLE-SOURCE-PLAN.md, lines 264–273
+
+The cited tests pin a few fingerprint sentences, citation integrity, and
+absence of duplicated bodies. They do not prove that all semantic requirements
+survived a prose reconciliation.
+
+Keep the tests, but do not call them an objective harness for the entire
+contract. Add a per-file reconciliation checklist or structured requirement
+inventory for the spike, and require review of every removed hunk.
+
+
+[P2] Measurement is not reproducible
+
+Location: SINGLE-SOURCE-PLAN.md, lines 55–75
+
+The 17/110/22/4,502-line measurements now determine design and effort, but no
+script, normalization specification, or report artifact exists elsewhere in
+the repository.
+
+Commit a read-only measurement script or record the exact command and
+replacement rules, including the three plugin-root spellings and line-difference
+algorithm. Otherwise later audits cannot reproduce the 7% result.
+
+
+[P2] Post-cutover check asks Codex for a nonexistent key catalog
+
+Location: SINGLE-SOURCE-PLAN.md, lines 667–668
+
+C10 and W3 correctly explain that Codex catalogs skills, not wf sub-command
+keys. W8 nevertheless requests a catalog roster of 20 keys and no yolo, and
+repeats the false missing-openai.yaml behavior.
+
+Replace this with two checks:
+
+1. Six skills are visible in the Codex catalog.
+2. The plugin-owned host-filtered roster contains 20 Codex keys without yolo.
+
+
+[P2] Risk section contradicts the adopted dual-signal contract
+
+Location: SINGLE-SOURCE-PLAN.md, lines 686–694
+
+Section 3 adopts two signals with distinct semantics and a single derivation
+site, but the risk mitigation again says there is one sanctioned signal.
+
+State that SDLC_HOST is the entrypoint signal and SDLC_HUB_STARTED_BY is
+derived only at hub spawn. Tests should reject independent caller overrides if
+that is the final design.
+
+
+Additional corrections
+----------------------
+
+1. The effort arithmetic omits the 17 files that become identical only after
+   normalization. 88 + 22 + 11 equals 121, not 138. State:
+
+   - 17 mechanical normalizations
+   - 88 low-divergence reconciliations
+   - 22 judgment merges
+   - 11 moves
+
+2. Only 24 of the 25 HTML files mention /wf. nav.html does not.
+
+3. The target-layout description should call agents/openai.yaml files "Codex
+   interface and policy metadata," not visibility stubs.
+
+4. Decide whether runtime-parity.test.mjs is rewritten or retired. Its first
+   two assertions have already been judged valuable, so the clearer decision
+   is to rewrite them against root dist and delete the obsolete third
+   assertion.
+
+5. W5 still leaves installation-page structure and shared invocation style
+   open. These may remain W5 implementation decisions, but W0a should not be
+   described as falsifying the entire design while those presentation
+   contracts remain undecided.
+
+
+Assessment
+----------
+
+Document type: Implementation and decision plan
+Audience: Plugin maintainers and release operators
+Current readiness: Approximately 80%
+
+The architecture is sound, and the merge spike is the right idea. Correct the
+budget scope, spike growth criteria, rollout overlap, and stale contradictions
+before treating the plan as executable.

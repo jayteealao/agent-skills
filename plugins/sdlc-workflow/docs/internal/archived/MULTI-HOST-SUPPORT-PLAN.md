@@ -1,9 +1,10 @@
 # Multi-Host Support Plan: Codex + Antigravity (Gemini 3)
 
-**Status:** Drafted 2026-05-23, corrected 2026-05-25. Awaiting execution after v9.23.0 Phase 4 settles.
+**Status:** ARCHIVED 2026-07-30 — SUPERSEDED by [SINGLE-SOURCE-PLAN.md](../SINGLE-SOURCE-PLAN.md). Never executed as written. Two parts of this plan are stale: (1) the PO directive of 2026-07-29 requires ONE host-neutral source that both hosts read directly, which reverses the "Authoring source" and "Output model" decisions below and the §3/§9 rejection of a host-neutral spec; (2) the Codex mechanics cite `scripts/generate-codex-plugin.mjs` and `.codex-plugin.overrides.json`, which no longer exist — the v9.107.0 cutover replaced that emitter with a handwritten codex tree, and SINGLE-SOURCE-PLAN.md now retires that tree. Two sections keep value as future follow-ons that build on the merged tree: §2.1 (Antigravity research) and Phase 6 (`AGENTS.md`). See the FUTURE FOLLOW-ON markers on each.
+**Original status:** Drafted 2026-05-23, corrected 2026-05-25. Awaiting execution after v9.23.0 Phase 4 settles.
 **Authoring source:** Claude-native (canonical) — no migration to a host-neutral spec.
 **Output model:** Build-only emitters per target host (`.codex-generated/`, `.antigravity-generated/` not tracked). Exception: `AGENTS.md` at repo root IS tracked in git.
-**Predecessor docs:** [CODEX-PLUGIN-MIGRATION-PLAN.md](./archived/CODEX-PLUGIN-MIGRATION-PLAN.md), [ROUTER-MIGRATION-PLAN.md](./archived/ROUTER-MIGRATION-PLAN.md).
+**Predecessor docs:** [CODEX-PLUGIN-MIGRATION-PLAN.md](./CODEX-PLUGIN-MIGRATION-PLAN.md), [ROUTER-MIGRATION-PLAN.md](./ROUTER-MIGRATION-PLAN.md).
 
 ---
 
@@ -26,6 +27,8 @@ The original "port everything to a generic `.agents/`-as-universal-format" frami
 ## 2. Research findings (verified 2026-05)
 
 ### 2.1 Antigravity (Google, May 2026 — Antigravity 2.0)
+
+> **FUTURE FOLLOW-ON (kept 2026-07-30).** This research survives the archive. It is 2026-05 vintage; re-verify every fact before use. A third host builds on the merged tree in SINGLE-SOURCE-PLAN.md: one more manifest, one more hook wiring file, one more column in the host-contract tables. No emitter.
 
 - Desktop IDE + CLI (`agy`) + SDK + Managed Agents tier in the Gemini API.
 - **Skill discovery**:
@@ -361,6 +364,8 @@ export function translateHookConfig(claudeHooksJson, targetHost) {
 ---
 
 ### Phase 6 — `AGENTS.md` generator (task #6)
+
+> **FUTURE FOLLOW-ON (kept 2026-07-30).** The universal `AGENTS.md` front door is independent of the single-source merge and remains a valid follow-on. Do not build the emitter design in §4.2 that this phase assumed; generate `AGENTS.md` from the merged tree instead.
 
 **Goal:** Single universal instruction file at repo root, auto-built from workflow metadata. Read by every modern coding agent.
 
