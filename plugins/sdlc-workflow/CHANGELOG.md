@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.153.5] - 2026-09-04
+
+### Fixed
+
+- **Three pi cells assumed pi-code's own sub-agent extension.** The reference pi setup is the `pi-unified` meta-package, which excludes that extension and lets `@tintinweb/pi-subagents` own the `Agent` tool. `_subagents.md`'s pi dispatch cell no longer names a `subagent` tool that does not exist there; children run in the background by default and each wave is collected with `get_subagent_result`. The wave-ceiling cell records the host's own cap of 10 with queuing; the depth cell records the one permitted nesting level. `_host-invocation.md` names the reference setup and a fourth pi difference: `SubagentStart` and `SubagentStop` never fire, because pi-code bridges them through the excluded extension's event channel (`pi-code:subagent`), so a child starts with nothing but its prompt — the absolute-path and everything-up-front rules in `_subagents.md` already cover that. The host-surfaces table and `hosts.html` gain a "Sub-agent context injection" row for all three hosts.
+
+### Checked
+
+- pi-code's hook layer resolves tool names through a table keyed by both the Claude and the pi spelling and falls back to the name as given, so pi-subagents' literal `Agent` tool reaches a `PreToolUse` matcher written as `Agent`; its input passes through untranslated, because pi-code translates input shapes only for the six file and shell tools.
+
 ## [9.153.4] - 2026-09-04
 
 ### Added

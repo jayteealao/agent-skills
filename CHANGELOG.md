@@ -4,6 +4,12 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.179.5 - 2026-09-04
+
+### Changed
+
+- **sdlc-workflow → v9.153.5.** The pi contract rows match the `pi-unified` reference setup: `pi-subagents` owns `Agent`, the sub-agent context hooks are not wired, and the wave and depth cells record the host's own limits. Details in the plugin changelog.
+
 ## Version 1.179.4 - 2026-09-04
 
 ### Changed

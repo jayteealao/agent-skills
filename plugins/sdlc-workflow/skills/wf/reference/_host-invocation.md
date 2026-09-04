@@ -66,13 +66,19 @@ pi has no plugin manifest and no external-command hooks of its own. The
 `pi-code` extension loads this plugin from the Claude Code plugin cache
 (`~/.claude/plugins/cache`), runs `hooks/hooks.json` with the Claude Code
 payload and environment, and presents Claude Code's tool vocabulary to the
-hooks and to the model. A pi row below therefore reads "same as Claude Code"
-unless it says otherwise. Three differences hold: the `PermissionRequest`
-hook never fires, because pi has no permission layer; a `PreToolUse` hook
-that times out fails closed at 60 seconds; and the hub records a pi session's
-provenance as `claude`, because the host signal is the hooks' own. These rows
-are verified against pi-code 1.0.64's documentation and source, not yet
-against a live pi session.
+hooks and to the model. The reference pi setup is the `pi-unified`
+meta-package: pi-code without its own web and sub-agent extensions,
+`@tintinweb/pi-subagents` owning the `Agent` tool, and `pi-web-access`
+owning web search. A pi row below therefore reads "same as Claude Code"
+unless it says otherwise. Four differences hold: the `PermissionRequest`
+hook never fires, because pi has no permission layer; the `SubagentStart`
+and `SubagentStop` hooks never fire, because pi-code bridges them through
+its own sub-agent extension, which the reference setup excludes, so a child
+starts with nothing but its prompt; a `PreToolUse` hook that times out fails
+closed at 60 seconds; and the hub records a pi session's provenance as
+`claude`, because the host signal is the hooks' own. These rows are verified
+against pi-code 1.0.64 and pi-subagents 0.19.0 source, not yet against a live
+pi session.
 
 ## Host surfaces the shared prose never names
 
@@ -84,6 +90,7 @@ against a live pi session.
 | Managed-artifact enforcement | A pre-write hook blocks an invalid full-content write before it lands; a post-write hook verifies every write (schema, sibling `.yaml`, fragment) and returns corrective feedback | A pre-write hook denies a full-content write of an invalid artifact; a post-write hook verifies every write; the Stop hook blocks the turn until the artifact is repaired, bounded by a repair ceiling | Same as Claude Code |
 | Leak guards (internal vocabulary in public docs and commit messages) | Pre-write and shell hooks scan when `semantic.enabled` is on | Not wired; nothing scans | Same as Claude Code |
 | Whole-repo render refresh at session start | Queued by the SessionStart hook | Queued by the SessionStart adapter | Same as Claude Code |
+| Sub-agent context injection | The SubagentStart hook injects the workflow context into every child | The SubagentStart adapter injects it | Not wired; the coordinator's prompt carries everything, per [_subagents.md](_subagents.md) |
 | Progress surface | None required | Use the built-in plan tool for nontrivial work when it is available | None required |
 | Durable repo guidance | `CLAUDE.md` and `AGENTS.md` | `AGENTS.md` | `CLAUDE.md` and `AGENTS.md` |
 | Session transcripts (deep retro) | `~/.claude/projects/<repo-path-slug>/*.jsonl` — the repo's absolute path with separators replaced | None. Deep retro falls back to the artifact-only reading | None verified. Deep retro falls back to the artifact-only reading |

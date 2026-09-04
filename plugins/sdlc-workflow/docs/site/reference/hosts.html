@@ -15,7 +15,7 @@
 
 <h2>What every host shares</h2>
 <p>Every host reads the same plugin directory. Every host loads the same skill files, runs the same bundled hook policy, adopts the same machine-wide hub, and reads and writes the same artifacts under <code>.ai/</code>. A workflow that you start under one host resumes under another host. The artifact format is the contract; the host that wrote an artifact does not matter.</p>
-<p>pi has no plugin manifest and no external hooks of its own. The <code>pi-code</code> extension loads the plugin from the Claude Code plugin cache, runs the Claude Code hook wiring with the Claude Code payload, and presents Claude Code's tool names. A pi cell below reads "same as Claude Code" unless it says otherwise. The pi rows are verified against the extension's documentation, not yet against a live session.</p>
+<p>pi has no plugin manifest and no external hooks of its own. The <code>pi-code</code> extension loads the plugin from the Claude Code plugin cache, runs the Claude Code hook wiring with the Claude Code payload, and presents Claude Code's tool names. The reference pi setup is a meta-package that pairs the extension, minus its own sub-agent tool, with <code>pi-subagents</code> for <code>Agent</code>. A pi cell below reads "same as Claude Code" unless it says otherwise. The pi rows are verified against the extensions' source, not yet against a live session.</p>
 
 <h2>What each host spells differently</h2>
 <table>
@@ -27,6 +27,7 @@
 <tr><td>Invalid artifact write</td><td>A pre-write hook blocks an invalid full-content write before it lands; a post-write hook verifies every write and returns corrective feedback.</td><td>A pre-write hook denies an invalid full-content write; a post-write hook verifies every write. The Stop hook then blocks the turn until the artifact is repaired, at most three times.</td><td>Same as Claude Code.</td></tr>
 <tr><td>Leak guards (internal vocabulary in public docs and commit messages)</td><td>Pre-write and shell hooks scan when <code>semantic.enabled</code> is on.</td><td>Not wired; nothing scans.</td><td>Same as Claude Code.</td></tr>
 <tr><td>Whole-repo render refresh at session start</td><td>Queued by the SessionStart hook.</td><td>Queued by the SessionStart adapter.</td><td>Same as Claude Code.</td></tr>
+<tr><td>Sub-agent context injection</td><td>A SubagentStart hook injects the workflow context into every child.</td><td>The SubagentStart adapter injects it.</td><td>Not wired; the coordinator's prompt carries everything.</td></tr>
 <tr><td>Hook trust</td><td>None required.</td><td>Review and trust each hook once, in an interactive session, with <code>/hooks</code>. Untrusted hooks are skipped.</td><td>Approve the project once when the extension asks. A headless run in an unapproved project loads no hooks.</td></tr>
 <tr><td>Gate questions</td><td>A structured question tool.</td><td>A structured question tool in plan mode; a numbered chat question elsewhere.</td><td>A structured question tool; a numbered chat question in print mode.</td></tr>
 <tr><td>Sub-agents</td><td>Effort tiers map to model pins.</td><td>Effort tiers map to reasoning effort; waves bounded by the session's advertised concurrency (default six).</td><td>Effort tiers map to model pins.</td></tr>
