@@ -1,8 +1,8 @@
 # Codex hook smoke test — live last-mile verification
 
 **Purpose.** The repo-side harness (`tests/unit/hooks/codex-hooks.test.mjs`, `tests/unit/runtime-parity.test.mjs`,
-`scripts/verify-*.mjs`) already proves the Codex hook *policy* is byte-identical to the
-Claude plugin and behaves correctly when spawned in isolation. What it **cannot** prove
+`scripts/verify-*.mjs`) already proves the Codex adapters spawn the same bundled `dist/` policy
+Claude Code runs and behave correctly when spawned in isolation. What it **cannot** prove
 is that a real, trusted Codex CLI session actually delivers events to those hooks and
 honors their decisions. This checklist closes that last mile by hand.
 

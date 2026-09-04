@@ -131,11 +131,11 @@ if (!existsSync(configPath)) {
   config = readFileSync(configPath, 'utf-8');
   const nativeEntry = new RegExp(`\\[plugins\\."${PLUGIN_NAME}@${MARKETPLACE}"\\]\\s*\\r?\\n\\s*enabled\\s*=\\s*true`);
   if (nativeEntry.test(config)) ok(`plugin \`${PLUGIN_NAME}@${MARKETPLACE}\` enabled in config.toml`);
-  else fail(`plugin \`${PLUGIN_NAME}@${MARKETPLACE}\` not enabled in config.toml — \`codex plugin marketplace upgrade ${MARKETPLACE}\` then \`codex plugin add ${PLUGIN_NAME}@${MARKETPLACE}\``);
+  else fail(`plugin \`${PLUGIN_NAME}@${MARKETPLACE}\` not enabled in config.toml — \`codex plugin marketplace upgrade ${MARKETPLACE}\`, remove any legacy identity, then \`codex plugin add ${PLUGIN_NAME}@${MARKETPLACE}\` (remove before add: never both enabled)`);
 
   for (const legacy of LEGACY_NAMES) {
     if (config.includes(`"${legacy}`)) {
-      fail(`legacy \`${legacy}\` still referenced in config.toml — \`codex plugin remove ${legacy.includes('@') ? legacy : `${legacy}@${MARKETPLACE}`}\` and delete its stale hooks.state entries (SINGLE-SOURCE-PLAN W7 step 2: never run a session with both identities enabled)`);
+      fail(`legacy \`${legacy}\` still referenced in config.toml — \`codex plugin remove ${legacy.includes('@') ? legacy : `${legacy}@${MARKETPLACE}`}\` BEFORE adding ${PLUGIN_NAME}, then delete its stale hooks.state entries (SINGLE-SOURCE-CUTOVER step 2: never run a session with both identities enabled)`);
     } else {
       ok(`no legacy \`${legacy}\` entries in config.toml`);
     }
@@ -148,13 +148,14 @@ const repoVersion = (() => {
   catch { return null; }
 })();
 const cacheRoot = join(CODEX_HOME, 'plugins', 'cache');
+// Only the merged identity under ITS marketplace counts as installed (a
+// `local-marketplace/sdlc-workflow` snapshot is legacy, flagged below), and the
+// highest semver wins — readdir order is lexical (v9.153.1).
 let installed = null;
 try {
-  for (const marketplace of readdirSync(cacheRoot)) {
-    const pluginDir = join(cacheRoot, marketplace, PLUGIN_NAME);
-    if (!existsSync(pluginDir)) continue;
-    for (const version of readdirSync(pluginDir)) installed = { marketplace, version };
-  }
+  const pluginDir = join(cacheRoot, MARKETPLACE, PLUGIN_NAME);
+  const versions = readdirSync(pluginDir).map(parseVersion).filter(Boolean).sort((a, b) => (versionLt(a, b) ? 1 : versionLt(b, a) ? -1 : 0));
+  if (versions.length) installed = { marketplace: MARKETPLACE, version: versions[0].join('.') };
 } catch { /* no cache at all */ }
 if (!installed) {
   fail(`no installed snapshot of ${PLUGIN_NAME} under ${cacheRoot}`);

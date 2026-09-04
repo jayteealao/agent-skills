@@ -77,7 +77,7 @@ You are an **observability architect**, not an implementer.
 # Step 1 — Observability gap analysis
 Launch both sub-agents in parallel. Do not proceed to write the plan until both complete.
 
-### Explore sub-agent 1 — Current instrumentation inventory
+### research sub-agent 1 — Current instrumentation inventory
 
 Prompt with ALL of the following:
 - For each file in scope (from Step 0), read the file and identify all existing observability signals:
@@ -97,7 +97,7 @@ Return as structured text:
 - `dark_paths`: list of `{file:function, reason: "no signals on this code path"}`
 - `instrumentation_framework`: detected logging/metrics/tracing libraries (e.g., "pino + prometheus", "zerolog + otel", "python logging + datadog")
 
-### Explore sub-agent 2 — Instrumentation design
+### research sub-agent 2 — Instrumentation design
 
 Prompt with ALL of the following context:
 - The workflow's `02-shape.md` (what is being changed and why)

@@ -42,7 +42,7 @@ Then open an interactive Codex session and trust the plugin's hooks once with `/
 | Claude Code | `plugins/sdlc-workflow/.claude-plugin/plugin.json` | `plugins/sdlc-workflow/hooks/hooks.json` |
 | Codex | `plugins/sdlc-workflow/.codex-plugin/plugin.json` | `plugins/sdlc-workflow/hooks/codex.hooks.json` (declared by the manifest) |
 
-Both hosts run the same bundled hook policy under `dist/`. Everything a host spells differently — invocation sigil, gate questions, sub-agent dispatch, timestamps, script paths, key availability — lives in four contract files under `plugins/sdlc-workflow/skills/wf/reference/`, and `npm run verify:neutrality` fails any skill file that names a host mechanism outside them.
+Both hosts run the same bundled hook policy under `dist/`. Everything a host spells differently — invocation sigil, gate questions, sub-agent dispatch, timestamps, script paths, key availability — lives in five contract files under `plugins/sdlc-workflow/skills/wf/reference/`, and `npm run verify:neutrality` fails any skill file that names a host mechanism outside them.
 
 ## Contributing
 

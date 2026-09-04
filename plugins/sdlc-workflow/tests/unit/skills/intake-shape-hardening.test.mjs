@@ -43,7 +43,7 @@ test('W1.1 — shape.md is one contiguous step sequence (no phantom steps, no 8�
 test('W1.2 — the PO tooling question belongs to the orchestrator, not sub-agent 1', () => {
   for (const { name, root } of trees) {
     const src = ref(root, 'shape.md');
-    const sub1 = src.slice(src.indexOf('### Explore sub-agent 1'), src.indexOf('### Explore sub-agent 2'));
+    const sub1 = src.slice(src.indexOf('### research sub-agent 1'), src.indexOf('### research sub-agent 2'));
     assert.ok(sub1.length > 0, `${name}: sub-agent section markers missing`);
     // The OLD defect was the literal instruction "Surface a tooling question for the PO"
     // inside the sub-agent prompt. (Prose *explaining* the sub-agent must NOT ask the PO
@@ -143,7 +143,7 @@ test('W3.3 — Round 3b budgets the visual-direction questions', () => {
 test('W3.4/W3.5 — intake grounds its questions; shape verifies-and-deepens instead of re-deriving', () => {
   for (const { name, root } of trees) {
     const intake = ref(root, 'intake/default.md');
-    assert.match(intake, /Bounded Explore pass/i, `${name}: intake lost the Step 0.7 Explore pass`);
+    assert.match(intake, /Bounded research pass/i, `${name}: intake lost the Step 0.7 research pass`);
     assert.match(intake, /## Affected Areas \(preliminary\)/, `${name}: intake lost the preliminary-areas section`);
     const shape = ref(root, 'shape.md');
     assert.match(shape, /do not re-derive/i, `${name}: shape sub-agent 1 lost the intake-map handoff clause`);

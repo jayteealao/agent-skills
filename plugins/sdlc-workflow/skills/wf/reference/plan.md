@@ -38,7 +38,7 @@ You are running `/wf plan`, **stage 4 of 10** in the SDLC lifecycle.
 > into a dependency, framework, or SDK, invoke the `study-sources` skill to read its
 > **actual installed source** first, so each step cites real signatures, real
 > extension points, and version-correct behavior instead of a guessed API. Especially
-> worth it when the Explore sub-agents surface a library the plan leans on heavily, or
+> worth it when the research sub-agents surface a library the plan leans on heavily, or
 > when `stack:` pins a version that may differ from what you recall. Reads land in
 > gitignored `.scratch/`; the plan stays the only written artifact.
 
@@ -91,7 +91,7 @@ You are a **workflow orchestrator**, not a problem solver.
    - `02b-design.md` — register, recommended references, anti-goals.
    - `02c-craft.md` — **visual contract. If the file exists you MUST read it.** The `## Mock fidelity inventory` items must be reflected as concrete plan steps. The `## Implementation contract` lists token choices, component decisions, and motion specs the plan must follow. The plan should NOT contradict the visual contract; if it must, surface the conflict for resolution before implementation.
    - **Design references — union of both files.** Build the reference set from BOTH `recommended-references:` in `02b-design.md`'s frontmatter AND `references-loaded:` in `02c-craft.md`'s frontmatter. Normalize each by stripping a trailing `.md` before de-duplicating. Plan steps for UI work MUST cite each as a pointer (e.g., "follow `design/typeset.md` for type scale"); each resolves to `design/<name>.md`. References the contract step introduced live only in `02c` — reading `02b` alone silently drops them, so always union the two.
-4c. **Author the visual contract — mandatory when a design brief exists without one.** If `02b-design.md` exists AND `02c-craft.md` does **not** yet exist, `plan` is the design **producer**: it resolves the two gates `shape` deferred (image gate + visual-direction confirm gate) and writes `02c-craft.md` following [design/contract.md](design/contract.md) — land the visual direction via the `imagery` skill, build the mock fidelity inventory, write `02c-craft.md` (type `design-contract`) **and** its sibling `.yaml` + `.html.fragment`. **Timing:** this is *not* done here in Step 0 — it runs inside the planning sequence below, **after** the parallel Explore sub-agents have gathered codebase context (which `design/contract.md` Step 2 consumes) and **before** you produce the plan steps, so the contract's mock-fidelity inventory and implementation-contract decisions become concrete plan steps (Step 4b consumption). If `02c-craft.md` already exists, do not re-author it — just consume it per Step 4b. If `stack.ui` is empty or no `02b-design.md` exists, skip this step.
+4c. **Author the visual contract — mandatory when a design brief exists without one.** If `02b-design.md` exists AND `02c-craft.md` does **not** yet exist, `plan` is the design **producer**: it resolves the two gates `shape` deferred (image gate + visual-direction confirm gate) and writes `02c-craft.md` following [design/contract.md](design/contract.md) — land the visual direction via the `imagery` skill, build the mock fidelity inventory, write `02c-craft.md` (type `design-contract`) **and** its sibling `.yaml` + `.html.fragment`. **Timing:** this is *not* done here in Step 0 — it runs inside the planning sequence below, **after** the parallel research sub-agents have gathered codebase context (which `design/contract.md` Step 2 consumes) and **before** you produce the plan steps, so the contract's mock-fidelity inventory and implementation-contract decisions become concrete plan steps (Step 4b consumption). If `02c-craft.md` already exists, do not re-author it — just consume it per Step 4b. If `stack.ui` is empty or no `02b-design.md` exists, skip this step.
 4d. **Apply the augmentation plan — author the augmentation artifacts shape decided.** Read
    `augmentations-needed` from `02-shape.md` frontmatter (absent/`[]` → skip this step entirely). This is
    where the former standalone `/wf instrument | experiment | benchmark` commands live now: augmentation
@@ -103,7 +103,7 @@ You are a **workflow orchestrator**, not a problem solver.
    - `profile` → usually ad-hoc; if shape flagged a specific hotspot, note it as a plan step (it can be run later via `/wf probe` or `augment/profile.md`), not a required pre-implementation artifact.
    - **Record into `00-index.md`:** add each authored augmentation to the `augmentations:` list with `status: ready` (consumed by `implement` Step 0.7 and `verify` Step 0.6). Without this, the shape decision authors artifacts no stage reads.
    - **Order (when multiple):** `instrument` → `experiment` → `benchmark` (baseline) → `profile`. Instrument before experiment (experiment references instrument signals); benchmark baseline before implement (compare needs it after).
-   - **Timing:** like the design contract (4c), run this inside the planning sequence (after the Explore sub-agents gather context) so augmentation requirements become concrete plan steps.
+   - **Timing:** like the design contract (4c), run this inside the planning sequence (after the research sub-agents gather context) so augmentation requirements become concrete plan steps.
 
 5. **Determine planning mode** (order matters — check top to bottom):
 
@@ -138,7 +138,7 @@ Planning is research-intensive. Launch parallel sub-agents to gather information
 
 **For single-plan mode — launch ALL of these in parallel:**
 
-### Explore sub-agent 1 — Affected Code Deep Dive
+### research sub-agent 1 — Affected Code Deep Dive
 
 Charter (a goal, not a script): read every file in the slice definition's `## Likely Files / Areas to Touch` and report the modification surface — what changes vs. what is new, including generated/auto-derived files; the call graph in and out (inbound callers, outbound dependencies, shared state) and the data flow through the affected path; the conventions and style constraints the affected area already follows; and the integration surfaces around it (events, middleware, configuration, migrations). Every finding cites file:line. The four blocks below are CONTRACT — pass them to the agent verbatim:
 
@@ -176,11 +176,11 @@ Pick the highest rung that meets the acceptance criteria; never trade an edge-ca
 - **Cost the wall before choosing (MANDATORY line once the tripwire fires).** Write, under the AC's row: `wall-cost: retire ≈ <effort> | carry = <N> deferred AC across <M> slice(s) riding "<clearing event>"`. The comparison usually decides itself the moment it exists — a ten-line debug-config change against ten deferred criteria stacked over five slices is not a close call, and stacks like that accumulate only because nobody was ever required to put the two numbers side by side. `harness-declined:` is lawful only *after* this line is written.
 - The plan MUST then either **scope the harness that retires the wall** (the force-scope rule's prerequisite-slice/harness option) or record an explicit PO decision not to (`harness-declined: <reason>` under the AC's row). Silence is non-compliant — repeated walls are amortized into infrastructure or declined on the record, never re-paid by default.
 
-### Explore sub-agent 2 — Second Domain (only if the slice crosses domain boundaries)
+### research sub-agent 2 — Second Domain (only if the slice crosses domain boundaries)
 
 Launch ONLY if the slice touches a second distinct domain (e.g., frontend + backend, CLI + library, API + worker, infra + application). Charter: map the second domain's structure and conventions, the public API surface between the two domains, how they communicate, where the cross-domain contract is defined, and what a contract change propagates to (breaking changes, versioning, backward compatibility). Findings cite file:line.
 
-### Explore sub-agent 3 — Test & Verification Infrastructure
+### research sub-agent 3 — Test & Verification Infrastructure
 
 Charter: report the test infrastructure this slice's verification will stand on — the framework(s) and their configuration; existing coverage of the modules the slice touches (run the affected tests when possible and report pass/fail/skip counts) and the uncovered gaps; the helpers, factories, fixtures, and mock utilities new tests should reuse rather than reinvent; and the assertion, mocking, and async-testing patterns in use. Findings cite file paths. The block below is CONTRACT — pass it to the agent verbatim:
 
@@ -220,7 +220,7 @@ Launch one sub-agent PER SLICE. Each sub-agent:
 2. Also receives: the list of all other slice-slugs so it can note dependencies.
 3. Runs **all four exploration playbooks above** scoped to its slice.
 4. **Writes its plan directly to `.ai/workflows/<slug>/04-plan-<slice-slug>.md`** using the per-slice template below.
-5. **Writes the rich siblings `04-plan-<slice-slug>.yaml` and `04-plan-<slice-slug>.html.fragment`** next to that `.md`, following **Step F** below. This is the **sub-agent's** job — the orchestrator never re-opens each slice to backfill them. The `post-write-verify` hook **BLOCKS** the `.md` write when the sibling `.yaml` is missing, so write the `.yaml` first (or in the same turn). If a slice's plan has no file-change topology to project, set `fragment: none` in the plan frontmatter. **Each per-slice sub-agent prompt MUST include Step F verbatim (or a link to it) — a sub-agent told only to "write the plan .md" will silently skip the siblings and the page renders as plain prose.**
+5. **Writes the rich siblings `04-plan-<slice-slug>.yaml` and `04-plan-<slice-slug>.html.fragment`** next to that `.md`, following **Step F** below. This is the **sub-agent's** job — the orchestrator never re-opens each slice to backfill them. Managed-artifact enforcement ([_host-invocation.md](_host-invocation.md)) **BLOCKS** the `.md` write when the sibling `.yaml` is missing, so write the `.yaml` first (or in the same turn). If a slice's plan has no file-change topology to project, set `fragment: none` in the plan frontmatter. **Each per-slice sub-agent prompt MUST include Step F verbatim (or a link to it) — a sub-agent told only to "write the plan .md" will silently skip the siblings and the page renders as plain prose.**
 
 After ALL slice sub-agents complete:
 1. **Read every `04-plan-<slice-slug>.md` file** they wrote.
@@ -274,7 +274,7 @@ Do this in order:
 
    Append every answer to `po-answers.md` with timestamp and `stage: plan`.
 
-3. **Single plan mode (new):** Inspect the repository using parallel Explore sub-agents. Run freshness research. Run the discovery phase. **Then, if a design brief exists without a contract (Step 4c), author the visual contract now** — codebase context is in hand, and the plan steps must reflect it. **Then, if `augmentations-needed` is set in `02-shape.md` (Step 4d), author the augmentation artifacts now.** Produce a minimal execution-ready plan. Write `04-plan-<slice-slug>.md`. Update master `04-plan.md`.
+3. **Single plan mode (new):** Inspect the repository using parallel research sub-agents. Run freshness research. Run the discovery phase. **Then, if a design brief exists without a contract (Step 4c), author the visual contract now** — codebase context is in hand, and the plan steps must reflect it. **Then, if `augmentations-needed` is set in `02-shape.md` (Step 4d), author the augmentation artifacts now.** Produce a minimal execution-ready plan. Write `04-plan-<slice-slug>.md`. Update master `04-plan.md`.
 4. **Parallel plan mode (new, all):** Launch one sub-agent per slice. Wait for all to complete. Read their output files. Run the cohesion check. Run the discovery phase (once, covering cross-cutting decisions). Write/update master `04-plan.md`. Update cross-links.
 5. **Review-and-fix mode (any sub-mode):** See "Review-and-Fix Mode" section below.
 6. **Evaluate adaptive routing** and write ALL viable options into `## Recommended Next Stage`.
@@ -293,7 +293,7 @@ Triggered when an existing plan is re-invoked. Three sub-modes:
 Steps:
 1. **Read the existing `04-plan-<slice-slug>.md`** in full.
 2. **Parse the feedback** from the supplemental text.
-3. **Re-inspect the codebase** if the feedback changes which files or patterns are relevant (use Explore sub-agents).
+3. **Re-inspect the codebase** if the feedback changes which files or patterns are relevant (use research sub-agents).
 4. **Apply the feedback surgically** — edit only the sections that need changing. Preserve what is still correct. Do NOT start from scratch unless the feedback is a complete rejection. The body stays current truth — do not append a `## Revision N` section.
 5. **Snapshot + ledger entry** per [_additive-write.md](_additive-write.md): byte-copy the pre-edit file to `history/04-plan-<slice-slug>-<rev>.md`, then append one `revisions:` entry — `trigger: review-feedback`, `because:` the exact feedback text (trimmed to a phrase), `changed:` what moved. Bump `revision-count`.
 6. **Re-check cohesion** with sibling plans if the changes affect cross-slice dependencies.
@@ -449,14 +449,14 @@ next-invocation: "/wf implement <slug> <slice-slug>"
 ## Current State
 
 ## Simplicity Ladder
-<!-- From Explore sub-agent 1's build-avoidance ladder. One row per capability the slice needs, recording the highest rung that held:
+<!-- From research sub-agent 1's build-avoidance ladder. One row per capability the slice needs, recording the highest rung that held:
 - <capability> → rung 1 stdlib | rung 2 native-platform | rung 3 reuse | rung 4 new-code — <which API / path / recommendation>
 Rung 3 (reuse) candidates carry the detail: `path/to/file.ts` → `functionName()` — match quality, recommendation (reuse as-is / modify / extract / implement fresh).
 Rung 4 (new code): state why rungs 1–3 did not cover it.
 If the slice writes no new capability code (pure config/wiring/refactor): "No new capabilities — ladder N/A." -->
 
 ## Applied Learnings
-<!-- From Explore sub-agent 1's learnings scan over .ai/solutions/INDEX.md. One entry per matched
+<!-- From research sub-agent 1's learnings scan over .ai/solutions/INDEX.md. One entry per matched
 learning: its path, the Learning in one line, and what this plan does differently because of it.
 A matched learning that changes nothing about the plan is a non-match — do not pad.
 If the corpus is absent or nothing matched: "No applicable learnings found." (explicit — never
@@ -593,7 +593,7 @@ The sunflower view renders the plan page from a sibling `.yaml` + `.html.fragmen
 written next to each per-slice `04-plan-<slice-slug>.md`. **Without the `.yaml` the
 page silently degrades to plain prose** — the file-change topology figure, the
 files-touched table, and risk callouts never appear (`plan.mjs` gates the rich body
-on the sibling YAML). The `post-write-verify` hook **BLOCKS the `.md` write (exit 2)
+on the sibling YAML). Managed-artifact enforcement ([_host-invocation.md](_host-invocation.md)) **BLOCKS the `.md` write
 when the sibling `.yaml` is missing**, so author the `.yaml` first (or in the same
 turn), while the plan is still in context.
 
@@ -626,7 +626,7 @@ subtree):
    - **`history:`** — prior-revision log; a string or an array.
    - `lanes:` — only for multi-service plans (see Phase 2 below).
 
-   This file is validated **at write time**: `post-write-verify` **blocks (exit 2)**
+   This file is validated **at write time**: managed-artifact enforcement ([_host-invocation.md](_host-invocation.md)) **blocks**
    a `plan` sibling `.yaml` that violates the schema — gated by
    `hooks.validateSiblingYaml` (default on; `plan` is in the reconciled allowlist).
    A malformed `modules` entry (object without `id`) or unknown field is rejected at

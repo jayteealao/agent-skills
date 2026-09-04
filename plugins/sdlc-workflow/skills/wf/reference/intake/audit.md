@@ -72,7 +72,7 @@ Lenses are the existing review rubrics at `../review/<lens>.md` (plus `design/au
 
 # Step 3 — Hunt (parallel lens sub-agents)
 
-For EACH selected lens, dispatch a sub-agent per [_subagents.md](../_subagents.md), in waves of at most 6 when the lens set is large. Effort tier per lens follows the review stage's rule: **medium** for `architecture`, `refactor-safety`, `security`; **low** otherwise — stated explicitly on every dispatch, never inherited. Prompt each with:
+For EACH selected lens, dispatch a sub-agent per [_subagents.md](../_subagents.md), in waves of at most 6 when the lens set is large. Effort tier per lens follows the ad-hoc review sweep's rule ([review.md](../review.md)): **medium** for `architecture`, `refactor-safety`, `security`; **low** otherwise — stated explicitly on every dispatch, never inherited. Prompt each with:
 
 - The lens reference path: `../review/<lens>.md` — read it and apply its rubric.
 - **Scope: the confirmed file surface from Step 1** — read these files; there is no diff. Every finding is by construction about existing code (no `pre-existing` split — record `pre-existing: true` on every row for schema compatibility with the review family).
@@ -84,7 +84,7 @@ For EACH selected lens, dispatch a sub-agent per [_subagents.md](../_subagents.m
 
 A plausible-but-wrong finding costs more here than in the review stage — nobody's diff context catches it. Refute each candidate before it lands (the `ship-plan audit` posture).
 
-1. Refuter count scales with severity: **BLOCKER/HIGH → three refuters with distinct lenses** (does it reproduce from the code as written · is the claimed invariant real · does a caller/guard upstream prevent it); **MED and below → one refuter**. Effort **high** for BLOCKER/HIGH refuters (causal reasoning), **medium** otherwise, stated explicitly per [_subagents.md](../_subagents.md).
+1. Refuter count scales with severity: **BLOCKER/HIGH → three refuters with distinct lenses** (does it reproduce from the code as written · is the claimed invariant real · does a caller/guard upstream prevent it); **MED and below → one refuter**. Effort **high** for BLOCKER/HIGH refuters (causal reasoning), **low** otherwise, stated explicitly per [_subagents.md](../_subagents.md).
 2. Each refuter is prompted to **KILL the finding** — "prove this claim wrong; default to refuted when uncertain" — and returns `refuted: true|false` with its reasoning.
 3. A BLOCKER/HIGH candidate survives when **at least two of three** refuters fail to kill it; a MED-and-below candidate survives when its single refuter fails.
 4. **Survivors** enter the merge (Step 5). **Refuted candidates go in the master ledger's `## Refuted` section with the refutation** — never silently dropped; a refuted candidate is evidence that the lens looked.

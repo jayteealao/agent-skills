@@ -16,9 +16,9 @@ IMAGEGEN_RESULT:
   scene_sentence: ${SCENE}
   to_generate_later: |
     # With Gemini (nano-banana, per-token):
-    GEMINI_API_KEY=<your-key> node .claude/skills/imagery/scripts/gen-gemini.mjs "${PROMPT}" .ai/design-probes/probe 2K
+    GEMINI_API_KEY=<your-key> node "$(dirname "$0")/gen-gemini.mjs" "${PROMPT}" .ai/design-probes/probe 2K
     # With gpt-image-2 (per-token):
-    OPENAI_API_KEY=<your-key> node .claude/skills/imagery/scripts/gen-openai.mjs "${PROMPT}" .ai/design-probes/probe 2K
+    OPENAI_API_KEY=<your-key> node "$(dirname "$0")/gen-openai.mjs" "${PROMPT}" .ai/design-probes/probe 2K
     # With codex exec (ChatGPT subscription):
-    bash .claude/skills/imagery/scripts/gen-openai-codex.sh "${PROMPT}" .ai/design-probes/probe.jpg
+    bash "$(dirname "$0")/gen-openai-codex.sh" "${PROMPT}" .ai/design-probes/probe.jpg
 EOF

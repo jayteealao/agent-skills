@@ -17,3 +17,7 @@ node_modules/
 !bin/
 !bin/**
 !assets/app-icon*
+
+# hooks/_adapter.mjs falls back to <pluginRoot>/.plugin-data when Codex does not
+# substitute --plugin-data (manual or test runs in the dev tree). Never commit it.
+.plugin-data/

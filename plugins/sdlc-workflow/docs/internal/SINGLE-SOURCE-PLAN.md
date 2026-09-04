@@ -20,7 +20,7 @@ the text below:
   `SDLC_HOST` signal is present) instead of being a direct `dist/` hook command.
   `SDLC_HUB_STARTED_BY` is derived at the single spawn site and a guard rejects
   any other setter. The root `scripts/generate-codex-plugin.mjs` was deleted too.
-- W5: 23 pages carry a uniform host note; `reference/hosts.html` is new;
+- W5: every content page (25) carries a uniform host note; `reference/hosts.html` is new;
   `installation.html` carries both routes and the cutover box; `verify-doc-site`
   gained invariants (e) and (f). Codex-only `native-operating-model.md` and
   `verification.md` were dropped as generic guidance the stages already carry.
@@ -85,7 +85,7 @@ a host-neutral spec" decision in
 the v9.107.0 handwritten-codex cutover) and the v9.107.0 decision itself
 (handwritten per-host trees). Antigravity remains out of scope here.
 Related: [archived/CODEX-PLUGIN-MIGRATION-PLAN.md](archived/CODEX-PLUGIN-MIGRATION-PLAN.md) ·
-`CODEX-PLATFORM-GAPS.md` · the codex tree's `MIGRATION.md` (its "handwritten
+`archived/CODEX-PLATFORM-GAPS.md` · the codex tree's `MIGRATION.md` (its "handwritten
 for Codex" contract is what this plan retires).
 
 ---

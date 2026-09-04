@@ -223,7 +223,7 @@ For each action:
    - `docs/readme.md` — front-door README pages that route to deeper docs
 4. **Write or update the file** at the target path.
 5. **For delete actions:** confirm with the user one more time before deleting. Never delete silently.
-6. **Mark the task entry completed.**
+6. **Mark the action completed in your work-tracking checklist.**
 
 Record each completed action in `generate.md`.
 

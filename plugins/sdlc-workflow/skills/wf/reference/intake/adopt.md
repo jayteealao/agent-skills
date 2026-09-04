@@ -58,18 +58,18 @@ You are a **reconstruction orchestrator**, not a coder and not a shaper inventin
 
 # Step A1 — Reconstruct the shape (parallel grounding, then infer)
 
-Use parallel Explore sub-agents to understand the diff before inferring intent — do not reconstruct from the diff text alone.
+Use parallel research sub-agents to understand the diff before inferring intent — do not reconstruct from the diff text alone.
 
 **Effort tier for every dispatched agent:** **low** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch — both do bounded, targeted reads with structured-output extraction.
 
-#### Explore sub-agent 1 — Diff comprehension
+#### research sub-agent 1 — Diff comprehension
 Prompt with ALL of the following:
 - Given this changed-file set `<files>`, read each changed file around the changed hunks and summarize **what behavior the change introduces or alters** (observable effect, not line-by-line).
 - Identify the entry points and callers touched; note anything the change *implies* should also have changed but did not (a smell the adoption should flag).
 - Classify the change surface: is it one coherent concern, or clearly-separable concerns (disjoint file sets that are independently revertable)?
 - Return structured text: `observed_behavior` (1–3 bullets), `entry_points`, `separable_concerns` (yes/no + grouping), `implied_gaps`.
 
-#### Explore sub-agent 2 — Convention & risk grounding
+#### research sub-agent 2 — Convention & risk grounding
 Prompt with:
 - For the changed area, report the nearby patterns the change should have matched (naming, error handling, test placement) and whether it did.
 - Search for existing tests that already exercise the changed code paths (so verify knows what baseline exists).

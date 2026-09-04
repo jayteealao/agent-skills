@@ -399,7 +399,7 @@ Then author the rich siblings next to that `.md` (do NOT leave this for the orch
      `<section class="fragment-review-dimension" data-artifact="review-dimension">`
      per the per-dimension shape in this reference's Step 5b tail and
      `../_fragment-authoring.md`.
-The `post-write-verify` hook BLOCKS (exit 2) the `.md` write when the sibling
+Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) BLOCKS the `.md` write when the sibling
 `.yaml` is missing — write the `.yaml` first (or in the same turn). If this
 dimension has zero OPEN findings (clean, or everything resolved), set `fragment: none`
 in the `.md` frontmatter instead of authoring an empty fragment.
@@ -686,7 +686,7 @@ sub-agent's stated reason so the next stage knows what is still open.}
 
 # Step 5b: Write the rich fragment (MANDATORY — do not skip)
 
-The sunflower view renders the review page from a sibling `.yaml` + `.html.fragment`. **Without them the page silently degrades to plain prose** — the Σ severity-heatmap, dimension chips, severity filter, and findings list never appear. The `post-write-verify` hook **BLOCKS the `.md` write (exit 2) when the sibling `.yaml` is missing** — author the `.yaml` first (or in the same turn) while findings are in context.
+The sunflower view renders the review page from a sibling `.yaml` + `.html.fragment`. **Without them the page silently degrades to plain prose** — the Σ severity-heatmap, dimension chips, severity filter, and findings list never appear. Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) **BLOCKS the `.md` write when the sibling `.yaml` is missing** — author the `.yaml` first (or in the same turn) while findings are in context.
 
 For each review `.md` written (`07-review.md` slug-wide, or `07-review-<slice-slug>.md` per-slice):
 
@@ -707,7 +707,7 @@ Full contract in [`reference/fragment-author-contract.md`](../../../../reference
 
 # Step 5c: Write per-dimension rich fragments (MANDATORY — do not skip)
 
-Step 5b covers the sweep-level review page. Each **per-dimension** file — `07-review-<command>.md` (slug-wide) or `07-review-<slice-slug>-<command>.md` (per-slice) — renders through `review-dimension.mjs`. **Without a sibling `.yaml` it falls back to `renderSimple`** (plain prose, no interactive findings); `post-write-verify` BLOCKS (exit 2) a `type: review-command` `.md` written without it.
+Step 5b covers the sweep-level review page. Each **per-dimension** file — `07-review-<command>.md` (slug-wide) or `07-review-<slice-slug>-<command>.md` (per-slice) — renders through `review-dimension.mjs`. **Without a sibling `.yaml` it falls back to `renderSimple`** (plain prose, no interactive findings); managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) BLOCKS a `type: review-command` `.md` written without it.
 
 Per-dimension siblings are authored by the **Step-3 review sub-agent** (which holds the findings in context). This section is the shape spec that sub-agent follows. At Step 5b, confirm every per-dimension `.md` has its `.yaml` (or `fragment: none` for a clean dimension) and author any the sub-agent missed. For each per-dimension review `.md`:
 

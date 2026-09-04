@@ -20,7 +20,7 @@ and host mechanics live in exactly five files:
 | `skills/wf/reference/_gate-question.md` | The three-rung gate-question ladder; the YAML question spec |
 | `skills/wf/reference/_subagents.md` | Dispatch calls, agent types, effort tiers → host settings, write isolation, waves, depth |
 | `skills/wf/reference/_timestamp.md` | Real UTC timestamps per shell |
-| `skills/wf/reference/yolo.md` | The one Claude Code-only key's own reference (the reserve slot) |
+| `skills/wf/reference/yolo.md` | The one Claude Code-only key's own reference (the reserve slot). Its driver, `skills/wf/workflows/yolo.js`, is code and sits outside the prose scan |
 
 Every other file states the INTENT and cites one of those files.
 

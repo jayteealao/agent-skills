@@ -18,7 +18,7 @@
 //
 // `relpath` is taken relative to the `root` argument, NOT a hardcoded plugin
 // root, so the identical payload hashes the same whether it sits at the Claude
-// plugin root, the Codex package's runtime/, or ~/.sdlc/runtime/<buildId>/.
+// plugin root (the one tree both hosts read) or ~/.sdlc/runtime/<buildId>/.
 
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';

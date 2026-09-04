@@ -13,7 +13,9 @@
 //   4. seeds the /wf rules kernel (dist/seed-memory.mjs) THROUGH runBundled, so
 //      the spawn carries SDLC_HOST=codex — the only way the shared entrypoint can
 //      tell it is not on Claude Code (SINGLE-SOURCE-PLAN W4). It is never invoked
-//      directly from codex.hooks.json for that reason.
+//      directly from codex.hooks.json for that reason. The seed runs FIRST in
+//      main(): it is fast, and the hub confirm's wait must not push it into the
+//      host's hook timeout (v9.153.1).
 //
 // Rendering is owned by the hub (Resolution 7): registration + the hub's
 // reconcile/heal loop render this repo's views; this hook never renders inline.
@@ -37,10 +39,27 @@ import {
 } from './_adapter.mjs';
 
 function main() {
+  // A dispatched read-only sub-agent (consult skill) boots a session in this repo
+  // and must not adopt a hub, record activation, or seed. Same isolation sentinel
+  // session-start-orient and seed-memory honor.
+  if (process.env.SDLC_DISPATCH_ACTIVE === '1') return;
+
   const args = parseHookArgs();
   const layout = resolveLayout(args);
   const event = readEvent() ?? {};
   const projectRoot = findProjectRoot(event.cwd);
+
+  // (4, first) Seed the /wf rules kernel BEFORE the hub confirm. The seed is fast
+  //     and independent; the hub confirm can wait up to HUB_CONFIRM_TIMEOUT_MS,
+  //     and a seed started after that wait could be killed by the host's hook
+  //     timeout mid-write of AGENTS.md. Same bundled bytes Claude Code runs; the
+  //     host signal in the env suppresses the Claude-only systemMessage notice.
+  if (process.env.SDLC_DISABLE_MEMORY_SEED !== '1') {
+    runBundled(layout.runtimeRoot, 'seed-memory', { cwd: projectRoot, hook_event_name: 'SessionStart' }, {
+      cwd: projectRoot,
+      timeoutMs: 8000,
+    });
+  }
 
   // (2) Ensure the shared hub adoption-first AND confirm it came up — bounded
   //     within the SessionStart budget. The hub is spawned detached and survives
@@ -59,19 +78,10 @@ function main() {
       }
     } catch { /* activation record is host-local provenance; never block on it */ }
   }
-
-  // (4) Seed the /wf rules kernel. Same bundled bytes Claude Code runs; the
-  //     host signal in the env suppresses the Claude-only systemMessage notice.
-  if (process.env.SDLC_DISABLE_MEMORY_SEED !== '1') {
-    runBundled(layout.runtimeRoot, 'seed-memory', { cwd: projectRoot, hook_event_name: 'SessionStart' }, {
-      cwd: projectRoot,
-      timeoutMs: 8000,
-    });
-  }
 }
 
 // How long SessionStart will wait for the hub to confirm healthy. Bounded well
-// under the 30s SessionStart budget (hooks.json) — the common adopt case resolves
+// under the 30s SessionStart budget (codex.hooks.json) — the common adopt case resolves
 // in well under a second; this ceiling only bites a contended cold start (covers
 // the cross-host startup lock's own 15s wait + the health confirm).
 const HUB_CONFIRM_TIMEOUT_MS = 20000;

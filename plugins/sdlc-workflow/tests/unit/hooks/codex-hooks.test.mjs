@@ -301,7 +301,11 @@ test('session-start seeds the /wf rules kernel silently (SDLC_HOST=codex suppres
     const env = { SDLC_DISABLE_HUB_ENSURE: '1' };
     const res = runHook('session-start.mjs', { cwd: repo, hook_event_name: 'SessionStart', source: 'startup', session_id: 's1' }, { repo, pluginData, env });
     assert.equal(res.status, 0, `stderr=${res.stderr}`);
-    assert.equal(res.stdout.trim(), '', 'the seed runs through runBundled and its Claude-only systemMessage never reaches stdout');
+    // runBundled CAPTURES the child's stdout, so an empty stdout here proves only
+    // that the adapter emits nothing — not that the signal reached the seed. The
+    // env-propagation proof is host-signal.test.mjs ("runBundled spawns with
+    // SDLC_HOST=codex and strips an inherited SDLC_HUB_STARTED_BY").
+    assert.equal(res.stdout.trim(), '', 'the adapter itself emits nothing on SessionStart');
     assert.ok(existsSync(join(repo, 'AGENTS.md')), 'kernel seeded into AGENTS.md');
     assert.ok(existsSync(join(repo, '.ai', '.wf-rules-seeded')), 'seed marker written');
   } finally {

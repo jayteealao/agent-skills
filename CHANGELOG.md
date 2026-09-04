@@ -4,6 +4,12 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.179.1 - 2026-09-04
+
+### Changed
+
+- **sdlc-workflow → v9.153.1 — the fresh-eyes repair of the single-source merge.** The unit suite is green again on clones that carried the old Codex tree; sub-agent effort tiers are uniform (haiku → low, sonnet → medium); the Codex cutover order is remove-then-add and the runbook gains the Claude Code update step; a CI `gates` job now runs the suite and the release gates on every plugin or catalog change. Details in the plugin changelog.
+
 ## Version 1.179.0 - 2026-09-03
 
 ### Changed

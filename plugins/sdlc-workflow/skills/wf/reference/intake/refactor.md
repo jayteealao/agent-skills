@@ -79,10 +79,10 @@ The baseline captures ground truth before any code change — it IS the shape. L
 
 **Effort tier for every dispatched agent:** **low** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch — both do bounded inventorying with structured output.
 
-### Explore sub-agent 1 — Code State Snapshot
+### research sub-agent 1 — Code State Snapshot
 Prompt with ALL of: read every target file (line count, exported names, implicit contracts — events emitted, global state, files written); read every caller (grep imports across the repo); document the current **public API surface** (exported signatures with param/return types, class methods, REST routes, component props); note code intentionally NOT changing.
 
-### Explore sub-agent 2 — Test Coverage Snapshot
+### research sub-agent 2 — Test Coverage Snapshot
 Prompt with ALL of: find all test files covering the target (grep target imports in test dirs); per test file, what behavior + key assertions + inputs/outputs; identify **coverage gaps** (exported functions/paths with NO coverage); run the existing tests for the area and capture pass/fail/skip counts + flakiness.
 
 Wait for both. Write `02-shape.md` carrying the baseline:

@@ -32,7 +32,7 @@ dispatch tool, an agent type, a model name, or an isolation flag.
   judge, verify, and causal-reasoning children. A child must not silently
   inherit an expensive parent configuration for mechanical work.
 - **Waves of at most 6.** Batch a larger fan-out (for example the
-  33-dimension review `all` aggregate) into waves: dispatch up to 6, collect
+  35-dimension review `all` aggregate) into waves: dispatch up to 6, collect
   the wave, then dispatch the next.
 - **Non-interactive runs.** Under a headless run or the auto driver, children
   inherit the approval posture; any child action that needs an approval

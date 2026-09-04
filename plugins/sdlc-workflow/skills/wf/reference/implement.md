@@ -123,7 +123,7 @@ You are a **workflow orchestrator** running the implementation stage.
 # Parallel research
 Before implementing, launch parallel sub-agents to verify the plan is still accurate. Skip for trivial single-file changes.
 
-### Explore sub-agent 1 — Pre-Implementation Codebase Verification
+### research sub-agent 1 — Pre-Implementation Codebase Verification
 
 Prompt with ALL of the following. Agent must report findings for each section:
 
@@ -142,7 +142,7 @@ Prompt with ALL of the following. Agent must report findings for each section:
 - Read 2–3 recently modified files in the same module/directory to confirm coding conventions (naming, error handling, logging) haven't changed
 - Check for new linting rules, config changes, or dependency updates that affect the implementation approach
 
-### Explore sub-agent 2 — Dependency & API Freshness (only if external dependencies are involved)
+### research sub-agent 2 — Dependency & API Freshness (only if external dependencies are involved)
 
 Launch ONLY if the plan involves external APIs, third-party libraries, or cross-service communication. Prompt with:
 
@@ -215,7 +215,7 @@ After writing files, return per [_chat-return.md](_chat-return.md) — narrative
 Do this in order:
 1. **Ensure correct branch** (branch check must have been completed in Step 0.11).
 2. **Track the stage's units in a work-tracking checklist.** One item per plan step from `04-plan-<slice-slug>.md` → `## Step-by-Step Plan`, plus the artifact write and the atomic commit. Keep statuses truthful as you work; record a blocked step as blocked with its reason.
-3. Re-check the current code before editing (Explore sub-agents if needed). Pay attention to files sibling slice implementations may have changed.
+3. Re-check the current code before editing (research sub-agents if needed). Pay attention to files sibling slice implementations may have changed.
 4. If the implementation depends on evolving external APIs, libraries, or patterns, run a freshness pass before editing.
 5. **Implement the selected slice**, step by step, keeping the checklist truthful.
 6. Update tests, docs, types, configs, or migrations only where required for this slice.

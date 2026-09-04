@@ -176,7 +176,7 @@ stage — a `Completed` workflow can still carry `deferrals: <N>`, a `Blocked` o
 ```
 ## Quick Actions
 - Continue most recent: `<next-invocation of the most recently updated active workflow>`
-- Drive it to done: `/wf auto <slug>`  (or `/wf yolo <slug>` for autonomous)
+- Drive it to done: `/wf auto <slug>`  (or `/wf yolo <slug>` for autonomous, where the host offers it)
 - See detail + exact next command for <slug>: `/wf status <slug>`
 - Catch up on what a workflow did: `/wf recap <slug>`
 ```

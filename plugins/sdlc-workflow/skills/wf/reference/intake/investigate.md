@@ -95,7 +95,7 @@ Three sub-agents, dispatched in two waves: the cartographer and the option gener
 
 ## Wave 1 — cartographer ∥ option generator (launch simultaneously)
 
-### Explore sub-agent 1 — Architecture cartographer
+### research sub-agent 1 — Architecture cartographer
 
 Prompt with ALL of the following:
 - The problem: `<verbatim from Step 1>`. The starting area: `<from question 2>`. The constraints: `<from question 3>`.
@@ -113,7 +113,7 @@ Return as structured text:
 - `recent_churn`: list of files changed >3x in last 90 days, with a one-line "why" guess from commit messages.
 - `architectural_constraints`: list of `{constraint, where_it_shows_up, one_line_implication}` — invariants any solution must respect.
 
-### Explore sub-agent 2 — Option generator
+### research sub-agent 2 — Option generator
 
 Prompt with ALL of the following:
 - The problem: `<verbatim>`. The starting area: `<from question 2>`. The constraints: `<from question 3>`.
@@ -129,7 +129,7 @@ Return as structured text:
 
 ## Wave 2 — tradeoff characterizer (launch after both Wave 1 agents return)
 
-### Explore sub-agent 3 — Tradeoff characterizer
+### research sub-agent 3 — Tradeoff characterizer
 
 Prompt with ALL of the following:
 - The problem: `<verbatim>`. The starting area: `<from question 2>`. The constraints: `<from question 3>`.

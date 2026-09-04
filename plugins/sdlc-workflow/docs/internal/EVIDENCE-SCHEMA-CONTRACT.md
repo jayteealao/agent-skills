@@ -16,7 +16,7 @@ one provenance concept and two hook lints for one mock-pass block. A frontmatter
 writers emitting different enums doesn't merge-conflict in git — it corrupts the schema at
 runtime (renderer, ship gate, and post-write-verify each read a value the other's writer never
 emits). This contract is the one place those are pinned. Scope: `skills/wf/reference/verify.md`
-(**both trees**), `00-index.md` / `06-verify.md` frontmatter, `tests/frontmatter.schema.json`,
+(one tree, both hosts), `00-index.md` / `06-verify.md` frontmatter, `tests/frontmatter.schema.json`,
 `hooks/post-write-verify.mjs`, and the renderer chip.
 
 ---
@@ -125,7 +125,7 @@ Do **not** ship two lints. One extension to `hooks/post-write-verify.mjs`, keyed
   `limitationClaimLint` precedent). Default ON.
 
 **Build discipline:** this is a `hooks/`/`lib/` touch ⇒ rebuild `dist/` in the same commit ⇒
-buildId moves ⇒ `npm run sync:codex` mandatory. It rides the **single** dist rebuild that also
+buildId moves ⇒ rebuild `dist/` in the same commit. It rides the **single** dist rebuild that also
 carries INTENT's W3 limitation lexicon + W9.3 suppression-debt lint (that's the whole point of
 Step 3 being one release).
 

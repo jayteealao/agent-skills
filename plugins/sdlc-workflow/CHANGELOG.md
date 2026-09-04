@@ -7,9 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.153.1] - 2026-09-04
+
+The fresh-eyes pass over the single-source merge. Four reviewers read the runtime code, the gates, the merged prose, and every document against the shipped tree; this release repairs what they confirmed. No schema or artifact surface changes. `hooks/` and `lib/` changed, so `dist/` is rebuilt in the same commit.
+
+### Fixed
+
+- **The unit suite was red on every clone that had carried the Codex tree.** `tests/unit/single-source.test.mjs` asserted that `plugins/sdlc-workflow-codex/` does not exist; `git rm` leaves the empty skeleton behind wherever gitignored logs sat under it. The test now asserts on tracked content (manifest, package, skill, hooks, runtime manifest), so the leftover directory is clutter, not a failure. The cutover runbook tells the operator to delete it.
+- **The merge changed sub-agent effort on Claude Code.** Two files had mapped the old `haiku` pin to `medium` and `sonnet` to `high` (`intake/audit.md` refuters, `observability/audit.md` lenses) while every other file mapped them to `low` and `medium`; under `_subagents.md`'s Claude mapping the former haiku children were running on sonnet. One mapping everywhere now: haiku → low, sonnet → medium. `review.md`'s ad-hoc sweep runs its three heavy dimensions at `medium`, the same tier the stage uses.
+- **Three local-time timestamps the gate could not see.** `augment/profile.md`, `intake/ideate.md`, and `intake/update-deps.md` told the reader to run a bare `date +"…"`, which errors under PowerShell and stamps local time elsewhere. They cite `_timestamp.md` now, and the `timestamp-mandate` family matches any shell clock read (`date +`, `date -u +`, `$(date`, `Get-Date`).
+- **Claude Code hook names in stage prose.** Seven sites in `plan.md`, `ship.md`, `verify.md`, `review/_stage.md`, `design/contract.md`, `design/shape.md`, and `reference/fragment-author-contract.md` said "the `post-write-verify` hook BLOCKS (exit 2)". Codex wires different scripts and blocks at Stop. They say "managed-artifact enforcement" and cite `_host-invocation.md`, as `task.md` already did; a new `claude-hook-names` family keeps them out. `_host-invocation.md`'s Codex row now names the pre-write deny as well.
+- **`Explore` is a Claude Code agent type.** 44 lines in 15 non-contract files named it; the neutral name is "research sub-agent" / "research pass", and the `claude-tools` family now catches the old spelling. `_subagents.md` still maps the Claude type in its host table.
+- **Codex SessionStart ran the memory seed AFTER a hub confirm that can wait 20 seconds**, inside a 30-second hook budget; on a contended cold start the host could kill the seed mid-write of `AGENTS.md`. `hooks/session-start.mjs` seeds first. It also honors `SDLC_DISPATCH_ACTIVE` like the Claude Code orient hook, so a dispatched read-only child never adopts a hub or records activation.
+- **Rejected phrasings and dangling steps left by the merge.** `_question-craft.md` told a Claude reader to render structured options as a numbered list (deleted; and the requirement count reads seven). `_steering.md` named only `CLAUDE.md` (now `AGENTS.md`/`CLAUDE.md`). `ship.md` and `docs.md` said "mark the task in_progress/completed" with no task list in scope. `_gate-question.md` listed the auto driver's branch posture as a gate; `auto.md` switches without asking. `status.md`'s quick action offers `yolo` "where the host offers it".
+- **Eight pre-existing broken relative links** in `design/audit.md`, `design/contract.md`, `design/critique.md`, `design/shape.md`, and `intake/rca.md` (`_fragment-authoring.md`, `fragment-author-contract.md`, `fragments-gallery.html`).
+- **Counts.** The review `all` aggregate is 35 dimensions (`_subagents.md` said 33; `commands.html` said 34). The contract-file count reads five everywhere (`yolo.md` is the fifth); the READMEs and `hosts.html` said four.
+- **Stale user-facing README.** `/review sweep …` and a link to a `skills/review` directory that does not exist; now `/wf review sweep …` and `skills/wf/reference/review.md`.
+- **`skills/imagery/scripts/gen-text-fallback.sh`** emitted `node .claude/skills/imagery/scripts/…` into the artifact; it emits the script's own directory.
+
+### Gates
+
+- `verify-release-versions` reads two more carriers: `package-lock.json`'s root version (it had sat at 9.52.0 since v9.52.0 — `npm ci` tolerates the skew, so nothing noticed) and the `docs/site/nav.html` brand line.
+- `verify-deployment` looks for the installed snapshot only under `agent-skills-marketplace/sdlc-workflow` and picks the highest semver; it had walked every marketplace and taken the last directory in lexical order, so a legacy `local-marketplace` snapshot counted as the install and `9.9.0` beat `9.10.0`. Its FAIL texts order the cutover remove-before-add.
+- `tests/unit/gates.test.mjs` compares the gate's exported `CONTRACT_FILES` list; the old regex only saw paths under `skills/wf/reference/`, so a sixth contract file added anywhere else passed.
+- `tests/unit/hooks/host-signal.test.mjs` proves `runBundled` spawns with `SDLC_HOST=codex` and strips an inherited `SDLC_HUB_STARTED_BY`, against a temp `dist/` entry that echoes its env. The earlier session-start assertion on empty stdout could not see the child env (`runBundled` captures stdout), and its message now says so.
+- **CI.** `.github/workflows/sdlc-build-freshness.yml` gains a `gates` job (`npm test`, `verify:versions`, `verify:neutrality`, `verify`, `verify:legibility`) and its path filter covers the whole plugin plus both root catalogs. Before this, no workflow ran the suite or the gates, and a prose-only, manifest-only, or catalog-only PR had no CI at all.
+
+### Docs
+
+- `SINGLE-SOURCE-CUTOVER.md`: remove the old identity BEFORE adding the new one (the previous order opened a both-enabled window the plan forbids); the step that said "keep the old cache" could not be followed because `codex plugin remove` deletes it; `remove` can leave `hooks.state` entries behind, which the doctor reports; a Claude Code step — update the Claude plugin on the same machine to the same version, because a session on either host reaps a shared hub whose runtime version differs, so two hosts on two versions reap each other's hub on every session start; the leftover-directory cleanup; the preflight's scratch-repo registration; the rollback's marketplace re-add. `installation.html`, the 9.153.0 notes, and the doctor's FAIL text carry the same order.
+- `RELEASE-DISCIPLINE.md` ordered the deleted `npm run sync:codex`; step 4 is the three gates. `EVIDENCE-SCHEMA-CONTRACT.md`, `FRESH-REPO-REGISTRATION-FIX-PLAN.md`, `CODEX-HOOK-SMOKE-TEST.md`, and `SINGLE-SOURCE-PLAN.md` lose their two-tree sentences; `DYNAMIC-WORKFLOWS-PLAN.md` (never built, assumes the rejected generated build) is archived. `HOST-NEUTRALITY.md` names `skills/wf/workflows/yolo.js` as code outside the prose scan. Stale two-tree comments in `lib/runtime-store.mjs` and `lib/runtime-buildid.mjs` are rewritten. `.plugin-data/` (the adapter's fallback data dir for manual runs) is gitignored.
+
 ## [9.153.0] - 2026-09-03
 
-The single-source merge (SINGLE-SOURCE-PLAN.md, W0–W8): `plugins/sdlc-workflow-codex` is gone, and this one tree now serves Claude Code and Codex directly. Each host reads its own manifest and its own hook wiring from the same directory; the skill prose is written once, host-neutral, with every host mechanism confined to four cited contract files. The reconciliation was a merge of two drifted copies of the same document, not a translation: 181 shared skill files, 70 of them already identical, the median differing file 7% of itself. The class of drift this release ends is the one sentence maintained twice in two dialects.
+The single-source merge (SINGLE-SOURCE-PLAN.md, W0–W8): `plugins/sdlc-workflow-codex` is gone, and this one tree now serves Claude Code and Codex directly. Each host reads its own manifest and its own hook wiring from the same directory; the skill prose is written once, host-neutral, with every host mechanism confined to five cited contract files. The reconciliation was a merge of two drifted copies of the same document, not a translation: 181 shared skill files, 70 of them already identical, the median differing file 7% of itself. The class of drift this release ends is the one sentence maintained twice in two dialects.
 
 ### Added
 
@@ -41,7 +72,7 @@ The single-source merge (SINGLE-SOURCE-PLAN.md, W0–W8): `plugins/sdlc-workflow
 
 ### Cutover
 
-Codex machines that had `sdlc-workflow-codex` installed must cut over once: close every session, `codex plugin marketplace upgrade agent-skills-marketplace`, `codex plugin add sdlc-workflow@agent-skills-marketplace`, `codex plugin remove sdlc-workflow-codex@agent-skills-marketplace`, then trust the seven hooks in the next interactive session. Never open a session with both identities enabled. Full runbook: `docs/internal/SINGLE-SOURCE-CUTOVER.md`. The Codex snapshot grows from 6.45 MB to about 21.5 MB per cached version (the committed `bin/tray/` binaries ride along); accepted with eyes open per the plan's §5.
+Codex machines that had `sdlc-workflow-codex` installed must cut over once: close every session, `codex plugin marketplace upgrade agent-skills-marketplace`, `codex plugin remove sdlc-workflow-codex@agent-skills-marketplace`, `codex plugin add sdlc-workflow@agent-skills-marketplace`, then trust the seven hooks in the next interactive session. Never open a session with both identities enabled. Full runbook: `docs/internal/SINGLE-SOURCE-CUTOVER.md`. The Codex snapshot grows from 6.45 MB to about 21.5 MB per cached version (the committed `bin/tray/` binaries ride along); accepted with eyes open per the plan's §5.
 
 ## [9.152.1] - 2026-08-15
 

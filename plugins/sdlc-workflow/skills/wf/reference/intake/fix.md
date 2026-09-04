@@ -48,14 +48,14 @@ You are a **compressed-planning orchestrator**, not an incident responder and no
 
 # Step 1 — Author the planning artifacts (single pass, parallel research)
 
-Use parallel Explore sub-agents to gather what is needed before writing — do not write from memory.
+Use parallel research sub-agents to gather what is needed before writing — do not write from memory.
 
 ### Parallel research (use sub-agents)
 Launch in parallel before writing. Skip if the change is a one-line fix in a file the user has explicitly named.
 
 **Effort tier for every dispatched agent:** **low** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch — both agents do bounded targeted reads with structured-output extraction.
 
-#### Explore sub-agent 1 — Codebase grounding
+#### research sub-agent 1 — Codebase grounding
 Prompt with ALL of the following:
 - Identify the files most likely to be touched based on the user's description.
 - For each candidate file note: current shape (~5 lines), nearby patterns the change should match, callers that may need updating.
@@ -64,7 +64,7 @@ Prompt with ALL of the following:
 
 Return structured text: `files_in_scope`, `nearby_patterns` (1-3), `reuse_candidates` (`path:symbol — what it does`), `recent_churn`.
 
-#### Explore sub-agent 2 — Web freshness (skip if pure internal change)
+#### research sub-agent 2 — Web freshness (skip if pure internal change)
 Skip if the change is purely internal (no new external dependency, no API integration, no platform/browser API, no security surface). Otherwise: search the relevant library/API docs for latest-stable syntax + known gotchas/deprecations in the last 12 months; return 2-3 source URLs, a 1-line takeaway each, and a **go/no-go** on whether the approach is current.
 
 ### Then write all four planning artifacts, each schema-conformant. Use real timestamps per [_timestamp.md](../_timestamp.md).

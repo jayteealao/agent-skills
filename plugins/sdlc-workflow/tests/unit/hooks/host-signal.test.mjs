@@ -10,7 +10,9 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+
+import { runBundled } from '../../../hooks/_adapter.mjs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -79,4 +81,28 @@ test('no source file infers the host from its own path or plugin directory name'
 test('hub-serve falls back to the entrypoint signal when run directly', () => {
   const src = readFileSync(join(PKG_ROOT, 'scripts', 'hub-serve.mjs'), 'utf-8');
   assert.match(src, /process\.env\.SDLC_HUB_STARTED_BY \|\| process\.env\.SDLC_HOST \|\| 'claude'/);
+});
+
+test('runBundled spawns with SDLC_HOST=codex and strips an inherited SDLC_HUB_STARTED_BY', () => {
+  // The Codex adapter's ONLY way to tell the shared entrypoints which host they
+  // run under is the env it spawns them with. Prove the spawn, not the caller:
+  // a temp dist/ entry echoes the two variables back (v9.153.1 — the earlier
+  // assertion on session-start's empty stdout could not see this).
+  const root = mkdtempSync(join(tmpdir(), 'sdlc-runbundled-'));
+  const prevHost = process.env.SDLC_HOST;
+  const prevStartedBy = process.env.SDLC_HUB_STARTED_BY;
+  try {
+    mkdirSync(join(root, 'dist'));
+    writeFileSync(join(root, 'dist', 'echo-env.mjs'),
+      "process.stdout.write(JSON.stringify({ host: process.env.SDLC_HOST ?? null, startedBy: process.env.SDLC_HUB_STARTED_BY ?? null }));\n");
+    delete process.env.SDLC_HOST;
+    process.env.SDLC_HUB_STARTED_BY = 'claude'; // an inherited value from a Claude-started parent
+    const res = runBundled(root, 'echo-env', {}, { cwd: root, timeoutMs: 10000 });
+    assert.equal(res.status, 0, res.stderr);
+    assert.deepEqual(JSON.parse(res.stdout), { host: 'codex', startedBy: null });
+  } finally {
+    if (prevHost === undefined) delete process.env.SDLC_HOST; else process.env.SDLC_HOST = prevHost;
+    if (prevStartedBy === undefined) delete process.env.SDLC_HUB_STARTED_BY; else process.env.SDLC_HUB_STARTED_BY = prevStartedBy;
+    rmSync(root, { recursive: true, force: true });
+  }
 });

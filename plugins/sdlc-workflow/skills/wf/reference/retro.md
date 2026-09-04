@@ -108,7 +108,7 @@ Charter: read every `07-review-*.md` (master per slice plus per-command sub-revi
 - Which **RIMs** (the `00-index.md` `intent-risks` ledger) turned out **mis-adjudicated** — the shape-time decision looked right but the shipped behaviour proved it wrong?
 - Which **limitation-claims** (the "known limitation — document at handoff" deferrals) were later **disproven** — the wall cleared on its own, or was never really a wall?
 
-### Explore sub-agent 3 — Repo Infrastructure Improvement Opportunities
+### research sub-agent 3 — Repo Infrastructure Improvement Opportunities
 
 Charter: from this workflow's experience, report the repo improvements that would make the next workflow cheaper — undocumented conventions and discovered patterns that belong in `AGENTS.md`/`CLAUDE.md`; checks worth automating as hooks given the review findings and verification failures; and missing test categories, CI checks, or test helpers the verification results expose. Each recommendation names the finding or failure that motivates it.
 

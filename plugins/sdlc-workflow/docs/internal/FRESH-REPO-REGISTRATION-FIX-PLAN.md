@@ -30,9 +30,9 @@ Combined: B1 rejects the first registration; C keeps the queue empty; B2 reaps a
 - Reconcile unit: freshly upserted entry with empty queue survives a reconcile tick (grace), and a bootstrap job lands in its queue; an entry with missing repoRoot still prunes and the prune line appears in `registry.prune.log`.
 - E2E (the real acceptance): script a cold start — temp git repo, run bundled `hub-ensure --confirm` once → within one reconcile interval the repo is in `registry.json`, `.last-render` exists, `INDEX.html` rendered. This test IS the bug reproduced; it must fail before the fix and pass after.
 
-**Release mechanics:** lib/ + scripts/ changes → rebuild `dist/` in the same commit → buildId bump → `npm run sync:codex` → version bump (5 source spots + doc-site brands + regen `docs/site` BEFORE sync). Fold in the still-uncommitted `$wf` visibility fix (7 files) and F13/F14 below so this is one release train.
+**Release mechanics:** lib/ + scripts/ changes → rebuild `dist/` in the same commit → buildId bump → version bump (`npm run verify:versions` names every carrier). Fold in the still-uncommitted `$wf` visibility fix (7 files) and F13/F14 below so this is one release train.
 
-## Phase 2 — Codex Desktop hook delivery (codex tree)
+## Phase 2 — Codex Desktop hook delivery (the Codex adapters under `hooks/`)
 
 **F4 · capture before fixing.** Add an opt-in payload dump to `hooks/_adapter.mjs` `readEvent()`: when `SDLC_HOOK_DEBUG=1` (or a `hook-debug` flag file under `PLUGIN_DATA`), append `{ts, hookScript, rawStdinLength, parsedKeys, tool_name, hook_event_name}` (+ full raw payload while debugging) to `PLUGIN_DATA/hook-debug.jsonl`. Never on the critical path, never throws. Then: enable, run a Desktop session that writes one artifact, read the log.
 

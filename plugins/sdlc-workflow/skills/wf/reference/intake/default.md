@@ -119,7 +119,7 @@ Goal: cheaply observe what the repo *already uses* and what *tooling is availabl
 
 4. **Do NOT recommend anything yet.** No "you should use X." That happens in shape, after the user has confirmed or corrected the fingerprint. This step's only output is observation written to disk.
 
-# Step 0.7 — Bounded Explore pass (ground the questions in the code — conditional)
+# Step 0.7 — Bounded research pass (ground the questions in the code — conditional)
 
 Intake questions asked blind push ambiguities the codebase would resolve for free onto the PO, or
 leak them into shape. So, **when the request names or implies a specific area of the codebase and
@@ -174,7 +174,7 @@ Do this in order:
    has described the work, so the historical batch labels stay but the ORDER is B → A.
 
    **Batch B — Freeform substance questions (in chat — ASK THESE FIRST):**
-   Ask freeform questions covering the areas below. 2–5 is typical, but the count is need-driven, not fixed: keep asking (in small batches, building on earlier answers) while the desired outcome is vague, a success criterion is not yet falsifiable, or a mentioned constraint is uncaptured — and stop the moment those are pinned down. Never pad to reach a count; park anything the PO can't answer now in `open-questions` (`status: awaiting-input`) instead of pressing. **Ground questions in the Step 0.7 Explore findings where relevant** — "the code already has X — does this request replace it or extend it?" beats asking the PO to describe what the code already answers. Cover:
+   Ask freeform questions covering the areas below. 2–5 is typical, but the count is need-driven, not fixed: keep asking (in small batches, building on earlier answers) while the desired outcome is vague, a success criterion is not yet falsifiable, or a mentioned constraint is uncaptured — and stop the moment those are pinned down. Never pad to reach a count; park anything the PO can't answer now in `open-questions` (`status: awaiting-input`) instead of pressing. **Ground questions in the Step 0.7 research findings where relevant** — "the code already has X — does this request replace it or extend it?" beats asking the PO to describe what the code already answers. Cover:
    - desired outcome and who benefits
    - concrete success criteria
    - explicit non-goals
@@ -370,7 +370,7 @@ Charter Scenario (the executable end-to-end spine) from it. An unnumbered loop d
 ## Primary User / Actor
 
 ## Affected Areas (preliminary)
-<!-- Step 0.7's bounded Explore findings — file paths, one-line existing behavior each, and any
+<!-- Step 0.7's bounded research findings — file paths, one-line existing behavior each, and any
 request-ambiguity the code already resolves. Omit the section only when Step 0.7's skip criteria
 held. Consumed twice downstream: Batch B questions reference it, and shape's research sub-agent 1
 opens with it ("verify and deepen, do not re-derive"). -->

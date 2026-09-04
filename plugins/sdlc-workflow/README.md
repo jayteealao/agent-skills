@@ -2,7 +2,7 @@
 
 A workflow plugin that Claude Code and Codex read from ONE source tree. Every feature, fix, or spike moves through the same reproducible sequence of stages — each one writing a permanent, machine-readable artifact to your repo that the next stage reads.
 
-**One tree, two hosts.** Claude Code reads `.claude-plugin/plugin.json` and `hooks/hooks.json`; Codex reads `.codex-plugin/plugin.json` and the hooks file it declares, `hooks/codex.hooks.json`. The skill prose under `skills/` is written once, host-neutral: invocations are spelled `/wf …` (under Codex you type `$wf …`), and everything a host does differently — gate questions, sub-agents, timestamps, `<skill-dir>` resolution, key availability — lives in four contract files under `skills/wf/reference/` (`_host-invocation.md`, `_gate-question.md`, `_subagents.md`, `_timestamp.md`). `npm run verify:neutrality` fails any skill file that names a host mechanism outside them. Both hosts share the same runtime, hub, renderer, and `.ai/` artifacts; a workflow started under one host resumes under the other. The one host-specific key is `/wf yolo` (Claude Code only — it needs the Workflow tool). Install and cutover steps for each host are in [docs/site/start/installation.html](docs/site/start/installation.html); the per-host differences are in [docs/site/reference/hosts.html](docs/site/reference/hosts.html).
+**One tree, two hosts.** Claude Code reads `.claude-plugin/plugin.json` and `hooks/hooks.json`; Codex reads `.codex-plugin/plugin.json` and the hooks file it declares, `hooks/codex.hooks.json`. The skill prose under `skills/` is written once, host-neutral: invocations are spelled `/wf …` (under Codex you type `$wf …`), and everything a host does differently — gate questions, sub-agents, timestamps, `<skill-dir>` resolution, key availability — lives in five contract files under `skills/wf/reference/` (`_host-invocation.md`, `_gate-question.md`, `_subagents.md`, `_timestamp.md`, and `yolo.md`, the one Claude Code-only key's own reference). `npm run verify:neutrality` fails any skill file that names a host mechanism outside them. Both hosts share the same runtime, hub, renderer, and `.ai/` artifacts; a workflow started under one host resumes under the other. The one host-specific key is `/wf yolo` (Claude Code only — it needs the Workflow tool). Install and cutover steps for each host are in [docs/site/start/installation.html](docs/site/start/installation.html); the per-host differences are in [docs/site/reference/hosts.html](docs/site/reference/hosts.html).
 
 ---
 
@@ -820,16 +820,16 @@ Invoke a single domain as `/wf review <dimension>` (ad-hoc, no slug), or `/wf re
 | `style-consistency` | Mixed naming conventions within a file or module |
 | `dx` | Developer-facing tooling, scripts, README |
 
-**Multi-dimension sweeps:** `/review sweep <aggregate>` dispatches one parallel reviewer sub-agent per dimension in the aggregate's composition, then synthesizes a unified verdict. The `sweep` keyword disambiguates the three names (`architecture`, `infra`, `security`) that exist as both a dimension and an aggregate. Compositions are defined in the review skill ([`skills/review/SKILL.md`](./skills/review/SKILL.md)) and can be edited without code changes.
+**Multi-dimension sweeps:** `/wf review sweep <aggregate>` dispatches one parallel reviewer sub-agent per dimension in the aggregate's composition, then synthesizes a unified verdict. The `sweep` keyword disambiguates the three names (`architecture`, `infra`, `security`) that exist as both a dimension and an aggregate. Compositions are defined in [`skills/wf/reference/review.md`](./skills/wf/reference/review.md) and can be edited without code changes.
 
 | Sweep | Dimensions dispatched in parallel |
 |---|---|
-| `/review sweep all` | All 33 dimensions (broadest, most expensive) |
-| `/review sweep quick` | correctness, style-consistency, dx, ux-copy, overengineering |
-| `/review sweep pre-merge` | correctness, testing, security, refactor-safety, maintainability |
-| `/review sweep security` | security, privacy, infra-security, data-integrity, supply-chain |
-| `/review sweep architecture` | architecture, performance, scalability, api-contracts |
-| `/review sweep infra` | infra, ci, release, migrations, logging, observability |
+| `/wf review sweep all` | All 35 dimensions (broadest, most expensive) |
+| `/wf review sweep quick` | correctness, style-consistency, dx, ux-copy, overengineering |
+| `/wf review sweep pre-merge` | correctness, testing, security, refactor-safety, maintainability |
+| `/wf review sweep security` | security, privacy, infra-security, data-integrity, supply-chain |
+| `/wf review sweep architecture` | architecture, performance, scalability, api-contracts |
+| `/wf review sweep infra` | infra, ci, release, migrations, logging, observability |
 | `/review sweep ux` | accessibility, frontend-accessibility, frontend-performance, interface-craft, motion, ux-copy |
 
 ### Documentation skills

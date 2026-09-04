@@ -1,8 +1,7 @@
 # Shared gate-question ladder (single source)
 
 Every human gate in this workflow (compressed-lifecycle Proceed/Adjust/Escalate,
-refactor branch/coverage gates, update-deps tier gate, ship go/no-go, the auto
-driver's branch posture, the git-init precondition) asks its question through
+refactor branch/coverage gates, update-deps tier gate, ship go/no-go, the git-init precondition) asks its question through
 this three-rung ladder. A citing site contributes ONLY its question text and
 its options; this file owns the mechanics. No other skill file names a
 question tool.

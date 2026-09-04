@@ -39,7 +39,7 @@ authorship.
 ## Scope notes
 
 - Steering is **per-workflow**. Project-level standing conventions ("never edit generated `dist/`")
-  belong in `CLAUDE.md` or `sdlc-config.json`, not here.
+  belong in `AGENTS.md`/`CLAUDE.md` or `sdlc-config.json`, not here.
 - In an autonomous run (`/wf auto`, `/wf yolo`) a **steering veto outranks any policy default** —
   steering is the user's standing voice exactly where the interactive gates it would speak through
   are absent.

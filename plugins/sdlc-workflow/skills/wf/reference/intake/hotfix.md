@@ -79,10 +79,10 @@ Launch parallel sub-agents to identify root cause. Do not proceed until both com
 
 **Effort tier for every dispatched agent:** **medium** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch — both agents do causal reasoning under time pressure (root-cause tracing across recent changes; blast-radius reasoning). Low effort is insufficient for causal tracing; do not over-provision beyond medium — an active incident cannot wait.
 
-### Explore sub-agent 1 — Root Cause Investigation
+### research sub-agent 1 — Root Cause Investigation
 Prompt with ALL of: read the areas most likely to contain the bug; `git log --oneline -20` on affected files cross-referenced with the brief's "recent changes"; `git log --oneline --since="72 hours ago" -- <affected-path>`; grep for the symptom's exception names / error strings / failure patterns; check TODO/FIXME/HACK near the area; look for failing related tests; identify the **exact file(s)+line(s)** of origin. Report `file:line`, root-cause hypothesis (2–4 sentences), confidence (high/medium/low), supporting evidence.
 
-### Explore sub-agent 2 — Impact & Scope
+### research sub-agent 2 — Impact & Scope
 Prompt with ALL of: find every caller/consumer/dependent of the broken path (grep imports/references); check whether related components share the bug via shared code; identify any data that may have been corrupted during the active period; check whether the bug is on the production branch or only unreleased code. Report the complete affected file/path/service list, data risk (none/possible/confirmed), blast-radius summary.
 
 Wait for both. If root-cause confidence is low, launch a focused third agent on the most likely hypothesis. **Confidence floor:** if confidence is still low after the third agent, do NOT write a guessed `## Root Cause` — climb the ladder instead: reproduce the symptom at runtime via `/wf probe <slug> "<the runtime question the diagnosis hinges on>"` (the finding lands as a compressed slice on this slug), or `/consult` a second model on the hypothesis, or hand to human triage. A hotfix built on a guess ships a second incident. Then **append `## Diagnosis`** (root cause + `file:line` evidence + scope) to `01-hotfix.md`, and write `02-shape.md` carrying the diagnosis-as-scope:

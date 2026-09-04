@@ -80,7 +80,7 @@ Launch parallel read-only sub-agents to identify the root cause. Do not proceed 
 
 **Effort tier for every dispatched agent:** **medium** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch. Root-cause analysis is the defining judgment-heavy task: Code path investigation must reason about incorrect assumptions and race conditions, Recent change correlation must causally link diffs to symptoms, Blast radius must reason about coupling. Low effort underserves causal reasoning under uncertainty; medium is the right tier.
 
-### Explore sub-agent 1 — Code path investigation
+### research sub-agent 1 — Code path investigation
 
 Prompt with ALL of the following:
 - Identify the code path most likely to contain the bug from the symptom description and any error/stack trace.
@@ -95,7 +95,7 @@ Return as structured text:
 - `confidence`: high | medium | low (with one-line justification)
 - `test_coverage_gap`: description or "none"
 
-### Explore sub-agent 2 — Recent change correlation
+### research sub-agent 2 — Recent change correlation
 
 Prompt with ALL of the following:
 - Run `git log --since="7 days ago" --oneline` and identify commits in or near the implicated path.
@@ -108,7 +108,7 @@ Return as structured text:
 - `concurrent_work`: list of open PRs touching the same area
 - `external_changes`: any deploys/migrations/flag flips noted (or "none discovered")
 
-### Explore sub-agent 3 — Blast radius
+### research sub-agent 3 — Blast radius
 
 Prompt with ALL of the following:
 - Given the implicated mechanism, identify what else might be silently affected: callers of the broken function, sibling code paths sharing the same flawed assumption, data already corrupted by past invocations, downstream systems consuming the bad output.
@@ -377,8 +377,8 @@ Authoring rules (verifier Check 7 enforces):
 - Inline SVG only. Data deterministic from the sibling `.yaml`.
 
 Full contract:
-[`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
-Gallery reference (bundled): [`reference/fragments-gallery.html`](../../../reference/fragments-gallery.html).
+[`reference/fragment-author-contract.md`](../../../../reference/fragment-author-contract.md).
+Gallery reference (bundled): [`reference/fragments-gallery.html`](../../../../reference/fragments-gallery.html).
 
 ### Use `@include` for shared chrome (v9.20.1+)
 

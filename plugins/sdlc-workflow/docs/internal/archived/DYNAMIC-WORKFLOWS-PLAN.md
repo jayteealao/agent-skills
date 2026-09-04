@@ -1,7 +1,9 @@
 # Dynamic Workflows Integration Plan
 
-Companion to [QUALITY-GATES-PLAN.md](archived/QUALITY-GATES-PLAN.md) and
-[MULTI-HOST-SUPPORT-PLAN.md](archived/MULTI-HOST-SUPPORT-PLAN.md). This plan adopts
+**Status: ARCHIVED 2026-09-04 (v9.153.1), never built.** Its Codex sections assume a generated `.codex-generated/` build, the path SINGLE-SOURCE-PLAN rejected; one tree serves both hosts since v9.153.0. Relative links below were written for `docs/internal/` and are not updated.
+
+Companion to [QUALITY-GATES-PLAN.md](QUALITY-GATES-PLAN.md) and
+[MULTI-HOST-SUPPORT-PLAN.md](MULTI-HOST-SUPPORT-PLAN.md). This plan adopts
 Claude Code's **Dynamic Workflows** (research preview, shipped with Opus 4.8 /
 Claude Code v2.1.154, 2026-05-28) as an **execution engine for the parallel
 sub-agent fan-out the plugin already performs** — without changing the
@@ -89,7 +91,7 @@ Why: artifact writes must traverse the existing hooks —
 [`lib/workflow-index.mjs`](../../lib/workflow-index.mjs). Whether the PostToolUse /
 PreToolUse hooks fire for a *workflow subagent's* Write is **undocumented**
 (Phase 0 probes it). Routing all artifact writes back through the skill makes
-the question moot and keeps [QUALITY-GATES-PLAN.md](archived/QUALITY-GATES-PLAN.md)'s
+the question moot and keeps [QUALITY-GATES-PLAN.md](QUALITY-GATES-PLAN.md)'s
 renderer snapshot suite valid unchanged.
 
 ### Decision B — Acceleration layer, never a hard dependency
@@ -510,7 +512,7 @@ committed stage state.
 ### Multi-host interaction (verify before Phase 4)
 
 Workflows run locally (16-concurrent bounded by local cores). The
-[MULTI-HOST-SUPPORT-PLAN.md](archived/MULTI-HOST-SUPPORT-PLAN.md) execution model and
+[MULTI-HOST-SUPPORT-PLAN.md](MULTI-HOST-SUPPORT-PLAN.md) execution model and
 `skills/wf/reference/runtime-adapters.md` may interact with the local
 concurrency ceiling and with worktree isolation. **Read both before designing
 Phase 4**; the DAG-wave executor in particular must reconcile workflow-local

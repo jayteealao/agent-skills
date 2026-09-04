@@ -192,8 +192,8 @@ The contract is a `plan`-stage artifact. Reflect its obligations in the `04-plan
 The visual contract page (`02c-craft.md`, `type: design-contract`) renders from a
 sibling `.yaml` + `.html.fragment` written next to it. `design-contract.mjs` gates its
 interactive coverage grid on the sibling; **without the `.yaml` the page silently
-degrades to the static frontmatter matrix** and the `post-write-verify` hook hard-blocks
-the write (exit 2). Author both now, while the contract is in context. If this contract
+degrades to the static frontmatter matrix** and managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) hard-blocks
+the write. Author both now, while the contract is in context. If this contract
 genuinely has no structured coverage to project, set `fragment: none` in the
 `02c-craft.md` frontmatter to opt out.
 
@@ -235,8 +235,8 @@ Authoring rules (verifier enforces):
   `node scripts/verify-fragment.mjs <path>` with exit 0.
 
 Full contract:
-[`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
+[`reference/fragment-author-contract.md`](../../../../reference/fragment-author-contract.md).
 
 ## Step — Write free narrative fragments
 
-Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

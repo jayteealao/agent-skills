@@ -7,9 +7,10 @@
  *
  *   1. THREE in-tree carriers must agree on one version:
  *        .claude-plugin/plugin.json · .codex-plugin/plugin.json · package.json
- *      (plus runtime-manifest.json's runtimeVersion, which the build derives
- *      from package.json, and renderers/_shell.mjs PLUGIN_VERSION, which the
- *      render version-gate keys on).
+ *      (plus the derived carriers: runtime-manifest.json's runtimeVersion,
+ *      which the build derives from package.json; renderers/_shell.mjs
+ *      PLUGIN_VERSION, which the render version-gate keys on; the
+ *      docs/site/nav.html brand line; and package-lock.json's root version).
  *   2. The two REPO-ROOT catalogs, which resolve at a pinned commit SHA:
  *        .claude-plugin/marketplace.json pins the plugin version explicitly
  *          → a VERSION check;
@@ -60,6 +61,21 @@ export function checkVersions({ pluginRoot = PLUGIN_ROOT, repoRoot = REPO_ROOT }
     const m = /PLUGIN_VERSION = '([^']+)'/.exec(readFileSync(shell, 'utf8'));
     carriers['_shell.mjs'] = m?.[1];
     if (m?.[1] !== version) problems.push(`renderers/_shell.mjs PLUGIN_VERSION ${m?.[1]} ≠ ${version}`);
+  }
+  const lock = path.join(pluginRoot, 'package-lock.json');
+  if (existsSync(lock)) {
+    const lj = readJson(lock);
+    const lv = lj.version;
+    const pv = lj.packages?.['']?.version;
+    carriers['package-lock'] = lv;
+    if (lv !== version) problems.push(`package-lock.json version ${lv} ≠ ${version}`);
+    if (pv !== undefined && pv !== version) problems.push(`package-lock.json packages[""].version ${pv} ≠ ${version}`);
+  }
+  const nav = path.join(pluginRoot, 'docs', 'site', 'nav.html');
+  if (existsSync(nav)) {
+    const m = /plugin docs · v(\d+\.\d+\.\d+)/.exec(readFileSync(nav, 'utf8'));
+    carriers['nav.html'] = m?.[1];
+    if (m?.[1] !== version) problems.push(`docs/site/nav.html brand ${m?.[1]} ≠ ${version}`);
   }
   const codexName = existsSync(codex) ? readJson(codex).name : null;
   if (codexName !== 'sdlc-workflow') problems.push(`.codex-plugin/plugin.json name is ${codexName}, expected sdlc-workflow`);

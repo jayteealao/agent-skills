@@ -166,8 +166,6 @@ Each step is independently re-runnable. Detect the already-done state before per
 
 ## Step 1 — Pre-flight (idempotent)
 
-Mark the corresponding task `in_progress`.
-
 1.1 **Branch + tree state.** Confirm you are on `<branch>`. `git status --porcelain` must be empty. If dirty, do NOT blanket-STOP — **classify every dirty path first** and only STOP on what actually needs a human (one release run once stopped on 404 paths, 396 of them this plugin's own bookkeeping, and resolved it with mid-ship repo surgery):
 
    1. **Plugin-seeded files** — `CLAUDE.md` whose diff is entirely inside the `<!-- sdlc:wf-rules-import -->` fence, an untracked `AGENTS.md` containing only the `<!-- sdlc:wf-rules -->` fence, `.ai/.wf-rules-seeded`. These are the memory-seed kernel's own writes (verify mechanically: the diff/file must contain nothing outside the fences). Offer one-keystroke resolution as a gate question per [_gate-question.md](_gate-question.md): commit as `chore(sdlc): seed wf rules` (recommended) or gitignore the marker file — never a bare "go commit/stash it yourself".
@@ -194,7 +192,7 @@ Mark the corresponding task `in_progress`.
 
 1.5 **Regenerate changelog** per `plan.version-bump-rule`. If the changelog already includes `<version>`, skip. For `git-cliff`: **check for a `cliff.toml` first** — with no repo config, `git cliff --output CHANGELOG.md` replaces the whole file with default-format commit dump, clobbering a hand-curated changelog (it once rewrote 199 curated lines; the run had to revert and hand-write the entry). No `cliff.toml` + an existing curated CHANGELOG → do NOT regenerate the full file; prepend a hand-written entry in the file's own style (`git cliff --unreleased --strip header` is safe input for drafting it). Then commit: `git commit -am "docs: update changelog for <version>"`.
 
-Mark the task `completed`. Record `pre-flight-status: pass` (or `pre-flight-status: warn` with reasons if any secret was stale).
+Record `pre-flight-status: pass` (or `pre-flight-status: warn` with reasons if any secret was stale).
 
 ## Step 2 — Publish dry-run (mandatory if `plan.publish-dry-run-cmd` is set)
 
@@ -586,12 +584,12 @@ Each template seeds Blocks A–G with sensible defaults and recovery playbooks f
 
 ## Step Z — Write the rich `.yaml` + fragment (MANDATORY — do not skip)
 
-The sunflower view renders the ship-run page from a sibling `.yaml` + `.html.fragment` next to `09-ship-run.md`. **Without the `.yaml` the page degrades to plain prose** — no deploy timeline, no checks matrix, no rollback panel (`ship-run.mjs` returns `renderSimple` when absent). The `post-write-verify` hook **BLOCKS the `.md` write (exit 2) when the sibling `.yaml` is missing**, so author it first (or in the same turn). Set `fragment: none` in frontmatter to opt out for a genuine no-op run.
+The sunflower view renders the ship-run page from a sibling `.yaml` + `.html.fragment` next to `09-ship-run.md`. **Without the `.yaml` the page degrades to plain prose** — no deploy timeline, no checks matrix, no rollback panel (`ship-run.mjs` returns `renderSimple` when absent). Managed-artifact enforcement ([_host-invocation.md](_host-invocation.md)) **BLOCKS the `.md` write when the sibling `.yaml` is missing**, so author it first (or in the same turn). Set `fragment: none` in frontmatter to opt out for a genuine no-op run.
 
 Files are **flat** in the slug dir — `09-ship-run-<run-id>.{yaml,html.fragment}` (not a `ship/<run-id>/` subtree):
 
 1. Write the sibling **`09-ship-run-<run-id>.yaml`** — the structured data. The schema is
-   validated at write time (`post-write-verify` blocks the write on a violation), so the
+   validated at write time (managed-artifact enforcement ([_host-invocation.md](_host-invocation.md)) blocks the write on a violation), so the
    required shape is stated here in full rather than cited: guessing it costs a blocked
    write, and the canonical file (`siblingYamlSchemas['ship-run']` in
    `tests/frontmatter.schema.json`) lives **inside the plugin install**, not in your project

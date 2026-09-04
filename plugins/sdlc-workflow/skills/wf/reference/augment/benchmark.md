@@ -82,7 +82,7 @@ You are a **performance analyst**, not an optimizer.
 
 ## Baseline Step 1 — Identify benchmark targets
 
-### Explore sub-agent — Benchmark target discovery
+### research sub-agent — Benchmark target discovery
 
 Prompt with ALL of the following:
 - Read `02-shape.md` and any `04-plan-*.md` files. Identify the functions, endpoints, operations, or modules that:

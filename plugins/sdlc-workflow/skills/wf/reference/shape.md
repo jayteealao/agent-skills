@@ -69,12 +69,12 @@ following skip criteria hold** — this is the single place the skip criteria ar
 **When in doubt: launch sub-agent 2.** Web search is fast and frequently surfaces breaking changes,
 CVEs, and better patterns before implementation begins. Add more agents for cross-domain work.
 
-### Explore sub-agent 1 — Codebase Architecture & Integration Surface
+### research sub-agent 1 — Codebase Architecture & Integration Surface
 
 Charter (a goal, not a script — the agent decides how to hunt): map the codebase surface this work touches — the module structure and entry points that reach it; the conventions the affected area already follows (naming, error handling, dependency wiring, configuration, logging); the integration surfaces in and out (callers, callees, events, middleware); the primary data flow with its models and serialization boundaries; and the test structure, with the coverage gaps relevant to this work. Every finding cites file:line.
 
 **Start from intake's map — do not re-derive.** If `01-intake.md` carries an `## Affected Areas
-(preliminary)` section (intake's bounded Explore pass), open the sub-agent prompt with it verbatim
+(preliminary)` section (intake's bounded research pass), open the sub-agent prompt with it verbatim
 and the instruction: *"Start from this preliminary map; verify and deepen it — do not re-derive
 what it already establishes."*
 
@@ -91,7 +91,7 @@ Drive this block from the `stack:` fingerprint in `00-index.md` and [runtime-ada
 3. **Cross-reference the session catalog.** From `stack.available-skills` and `stack.available-mcp`, list anything mapping to this task (e.g., Compose UI → `adaptive`, `migrate-xml-views-to-jetpack-compose`, `styles`; Postgres → `postgresql-mcp`; docs → `diataxis`). Report as **candidates** with a one-line "why this fits," not selections.
 4. **What's already wired in.** Note dev servers, emulator AVDs, simulator configs, screenshot/regression tools (Percy, Chromatic, `adb shell screencap`), and manual smoke scripts under `docs/`, `scripts/`, `testing/`, `QA/`.
 
-### Explore sub-agent 2 — External Dependencies & Freshness
+### research sub-agent 2 — External Dependencies & Freshness
 
 Charter: report the external picture this work depends on — the touched dependencies' current vs. latest versions with deprecations and breaking changes; the official-doc recommended patterns vs. what the codebase does; security advisories and CVEs affecting the touched dependencies; known bugs, gotchas, anti-patterns, and performance traps for this feature type; and any RFCs, platform guidelines, or accessibility standards that prescribe behavior for it. Every claim names its source; findings that should shape acceptance criteria or edge cases are flagged explicitly for the synthesizer.
 
@@ -429,7 +429,7 @@ unranked NFR cited against a commitment is the tell of an intent-bearing decisio
 
 ## Verification Strategy
 
-**Target verification environment (record this first — it is the fact most often missed).** State the concrete environment verification will run in: host OS, whether an Android device/emulator or iOS simulator is available, which browser/driver is present or installable (Playwright / Cypress / dev-browser / Chrome MCP), and whether live or staging credentials exist. Surfacing this **here**, before any AC is finalized, lets `slice` author each AC with a verification path that fits — instead of `verify` discovering the wall and rationalizing past it. Source it from Explore sub-agent 1's interactive-tooling findings and the PO's tooling answer (Step 3).
+**Target verification environment (record this first — it is the fact most often missed).** State the concrete environment verification will run in: host OS, whether an Android device/emulator or iOS simulator is available, which browser/driver is present or installable (Playwright / Cypress / dev-browser / Chrome MCP), and whether live or staging credentials exist. Surfacing this **here**, before any AC is finalized, lets `slice` author each AC with a verification path that fits — instead of `verify` discovering the wall and rationalizing past it. Source it from research sub-agent 1's interactive-tooling findings and the PO's tooling answer (Step 3).
 
 **Observation Model (per headline outcome).** For each acceptance criterion, state *how* a human or tool would observe success *and in what environment* — e.g., "carousel is single-column at 375px → observed by driving a 375px-viewport browser and reading the rendered layout," not merely "carousel is single-column." If you cannot name how an outcome would be observed in the target environment, re-scope it to something observable, or flag the constraint now so `slice` and `plan` inherit it.
 

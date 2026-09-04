@@ -44,14 +44,14 @@ const SCAN_DIRS = ['skills', 'reference'];
 const TEXT = /\.md$/i;
 
 // ── The permanent exception list — the §3.3 budget, verbatim ────────────────────
-const CONTRACT_FILES = [
+export const CONTRACT_FILES = [
   'skills/wf/reference/_host-invocation.md',
   'skills/wf/reference/_gate-question.md',
   'skills/wf/reference/_subagents.md',
   'skills/wf/reference/_timestamp.md',
   'skills/wf/reference/yolo.md', // the reserve slot: a Claude Code-only key's own reference
 ];
-const DATA_EXCEPTIONS = {
+export const DATA_EXCEPTIONS = {
   // The dispatch table's availability line + the Hosts paragraph that points at
   // the contract. Availability is data ("where a key runs"), not mechanics.
   'skills/wf/SKILL.md': ['host-names'],
@@ -75,7 +75,8 @@ const DATA_EXCEPTIONS = {
 export const FAMILIES = [
   {
     name: 'claude-tools',
-    pattern: /AskUserQuestion|\bTaskGet\b|\bTaskUpdate\b|\bTaskCreate\b|`Task`|\bTask tool\b|\bAgent tool\b|subagent_type|isolation:\s*worktree|run_in_background|\bWorkflow tool\b|mcp__/,
+    // `Explore` is a Claude Code agent type; the neutral name is "research sub-agent".
+    pattern: /AskUserQuestion|\bTaskGet\b|\bTaskUpdate\b|\bTaskCreate\b|`Task`|\bTask tool\b|\bAgent tool\b|subagent_type|isolation:\s*worktree|run_in_background|\bWorkflow tool\b|mcp__|\bExplore (sub-agents?|pass|findings)\b/,
   },
   {
     name: 'claude-model-pins',
@@ -96,8 +97,18 @@ export const FAMILIES = [
     pattern: /\$\{CLAUDE_PLUGIN_ROOT\}|\$\{PLUGIN_ROOT\}|\$\{PLUGIN_DATA\}|\.claude\/skills\//,
   },
   {
+    // Any shell clock read is a leak: prose cites _timestamp.md. The old pattern
+    // matched only `date -u +` and `$(date +`, so a bare local-time `date +"…"`
+    // passed (v9.153.1).
     name: 'timestamp-mandate',
-    pattern: /via Bash|date -u \+|\$\(date \+/,
+    pattern: /via Bash|\bdate(\s+-u)?\s+\+|\$\(date\s|Get-Date/,
+  },
+  {
+    // Claude Code's hook entrypoints by name. Prose says "managed-artifact
+    // enforcement" and cites _host-invocation.md; the Codex adapters wire
+    // different scripts and block at Stop (v9.153.1).
+    name: 'claude-hook-names',
+    pattern: /`(pre-write-validate|post-write-verify|post-write-auto-stage|post-write-render|session-start-orient|leak-guard-(bash|write))(\.mjs)?`|\bhooks\/hooks\.json\b/,
   },
   {
     // Host names in skill prose. Availability annotations are permitted data:

@@ -66,7 +66,7 @@ Each sub-agent receives the same two inputs: the verbatim hypothesis from Step 1
 area from Step 1 question 2. Every returned item cites `file:line` with a snippet of 5 lines or
 fewer.
 
-### Explore sub-agent 1 — Evidence FOR
+### research sub-agent 1 — Evidence FOR
 
 Charter: build the strongest possible case that the hypothesis holds — read implementations,
 follow call chains, and find tests that pin the claimed behavior. Do not search for contradicting
@@ -74,7 +74,7 @@ evidence; that is sub-agent 2's job. Return structured text with four keys: `dir
 `indirect_support`, `tests_that_pin_the_behavior`, and a one-paragraph `strength_assessment`.
 Label each item direct (the code enacts the claim) or indirect (consistent but not proof).
 
-### Explore sub-agent 2 — Evidence AGAINST
+### research sub-agent 2 — Evidence AGAINST
 
 Charter: falsify the hypothesis — search for contradicting code, bypass paths, runtime flags and
 branches the claim ignores, and recent git history that invalidated it. Return structured text
@@ -82,7 +82,7 @@ with four keys: `direct_contradictions`, `partial_contradictions`, `historical_d
 (cite a commit sha or `file:line`), and a one-paragraph `strength_assessment`. For each item,
 state precisely why it contradicts the claim ("this function does X instead").
 
-### Explore sub-agent 3 — Counter-hypotheses
+### research sub-agent 3 — Counter-hypotheses
 
 Charter: propose 1 to 3 alternative explanations that fit the same observable behavior, ranked by
 plausibility — not "the claim is wrong" (sub-agent 2's job) but "what is happening instead".

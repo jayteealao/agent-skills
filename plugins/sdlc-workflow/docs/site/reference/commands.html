@@ -60,7 +60,7 @@
 <pre><code>/wf review &lt;slug&gt; [slice | triage]     # workflow stage
 /wf review &lt;dimension&gt;                 # ad-hoc, one rubric
 /wf review sweep &lt;aggregate&gt;           # ad-hoc, parallel fan-out</code></pre>
-<p>Review is the single review surface. With a slug, review runs stage 7: one reviewer sub-agent runs per selected dimension, and the findings merge into an accumulating ledger. Re-runs dedupe and merge in place, mark cleared findings <code>resolved</code>, and never overwrite. The stage ends in a verdict of <code>ship</code>, <code>ship-with-caveats</code>, or <code>dont-ship</code>. <code>triage</code> re-triages open and deferred findings. Without a slug, a dimension name or a sweep name runs an ad-hoc review over a chosen scope and returns findings inline. All 34 dimensions, the 7 sweep aggregates, and the disambiguation rules are on <a href="review-dimensions.html">Review dimensions</a>.</p>
+<p>Review is the single review surface. With a slug, review runs stage 7: one reviewer sub-agent runs per selected dimension, and the findings merge into an accumulating ledger. Re-runs dedupe and merge in place, mark cleared findings <code>resolved</code>, and never overwrite. The stage ends in a verdict of <code>ship</code>, <code>ship-with-caveats</code>, or <code>dont-ship</code>. <code>triage</code> re-triages open and deferred findings. Without a slug, a dimension name or a sweep name runs an ad-hoc review over a chosen scope and returns findings inline. All 35 dimensions, the 7 sweep aggregates, and the disambiguation rules are on <a href="review-dimensions.html">Review dimensions</a>.</p>
 <p><strong>Writes:</strong> in stage mode, <code>07-review.md</code> (slug-wide) or <code>07-review-&lt;slice-slug&gt;.md</code> (per-slice) plus one <code>07-review[-&lt;slice&gt;]-&lt;dimension&gt;.md</code> per dimension run. Ad-hoc runs write nothing.</p>
 
 <h3 id="handoff"><code>/wf handoff</code></h3>
@@ -147,7 +147,7 @@
   <h2>Related</h2>
   <ul>
     <li><a href="intake-modes.html">Intake modes</a> — the full catalog of entry flows behind <code>/wf intake</code>.</li>
-    <li><a href="review-dimensions.html">Review dimensions</a> — all 34 dimensions and 7 sweeps behind <code>/wf review</code>.</li>
+    <li><a href="review-dimensions.html">Review dimensions</a> — all 35 dimensions and 7 sweeps behind <code>/wf review</code>.</li>
     <li><a href="artifacts.html">Artifacts</a> — where every file named on this page lives and what it contains.</li>
     <li><a href="../guides/choose-your-entry.html">Choose your entry</a> — which command fits which situation.</li>
   </ul>

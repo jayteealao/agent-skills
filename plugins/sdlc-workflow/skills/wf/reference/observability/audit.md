@@ -90,9 +90,9 @@ failure-scenario, route }`.
 
 **Default (no lens token) — full parallel fan-out.** Prepare ONE read-only dispatch per lens (all seven), per
 [_subagents.md](../_subagents.md):
-- Effort tier (set explicitly — reviewers must not inherit the parent configuration): **high** for
+- Effort tier (set explicitly — reviewers must not inherit the parent configuration): **medium** for
   `dark-path-coverage`, `schema-consistency`, `pii-and-redaction`, and `sampling-soundness` (the reasoning-heavy
-  lenses); **medium** for `one-event-discipline`, `pipeline-and-backend`, and `dashboard-coverage`.
+  lenses); **low** for `one-event-discipline`, `pipeline-and-backend`, and `dashboard-coverage`.
 - `description: "obs-audit-<lens>"`.
 - prompt = the lens's row question expanded into its concrete checklist + the parsed contract + the built-surface
   index from Step 0 + the languages present + the standard findings schema + the grounding instruction above +

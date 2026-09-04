@@ -30,7 +30,13 @@ function* walk(dir, exts) {
 // ── one tree ────────────────────────────────────────────────────────────────────
 
 test('the codex tree, the sync apparatus, and the legacy generator are gone', () => {
-  assert.ok(!existsSync(path.join(repoRoot, 'plugins', 'sdlc-workflow-codex')), 'plugins/sdlc-workflow-codex still exists');
+  // Assert on tracked CONTENT, not on the directory: `git rm` leaves the empty
+  // skeleton (and any gitignored logs under it) behind on every clone that had
+  // the tree, and that residue is not a regression (v9.153.1).
+  const codexDir = path.join(repoRoot, 'plugins', 'sdlc-workflow-codex');
+  for (const rel of [path.join('.codex-plugin', 'plugin.json'), 'package.json', path.join('skills', 'wf', 'SKILL.md'), path.join('hooks', 'hooks.json'), 'runtime-manifest.json']) {
+    assert.ok(!existsSync(path.join(codexDir, rel)), `plugins/sdlc-workflow-codex/${rel} still exists`);
+  }
   assert.ok(!existsSync(path.join(repoRoot, 'scripts', 'generate-codex-plugin.mjs')), 'root generate-codex-plugin.mjs still exists');
   assert.ok(!existsSync(path.join(pluginRoot, '.codex-generated')), '.codex-generated present');
   assert.ok(!existsSync(path.join(pluginRoot, '.codex-plugin.overrides.json')), 'overrides file present');

@@ -115,7 +115,7 @@ When `shape` runs this procedure (`../shape.md` Step 5b):
 The sunflower view renders the design page from a sibling `.yaml` + `.html.fragment`
 written next to `02b-design.md`. **Without the `.yaml` the page silently degrades to
 plain prose** — the swatch matrix, the token table, and the annotated specs never
-appear (`design.mjs` gates the rich body on the sibling YAML). The `post-write-verify`
+appear (`design.mjs` gates the rich body on the sibling YAML). Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md))
 hook reminds you if you forget; author them here, now.
 
 For the `02b-design.md` you just wrote:
@@ -156,5 +156,5 @@ Authoring rules (verifier Check 7 enforces):
 
 The fragment is **body-only**: the `design.mjs` renderer owns the page heading and the
 metric-row — do **not** repeat them. Full contract:
-[`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
-Gallery reference (bundled): [`reference/fragments-gallery.html`](../../../reference/fragments-gallery.html).
+[`reference/fragment-author-contract.md`](../../../../reference/fragment-author-contract.md).
+Gallery reference (bundled): [`reference/fragments-gallery.html`](../../../../reference/fragments-gallery.html).

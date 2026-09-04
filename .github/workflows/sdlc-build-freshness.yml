@@ -1,32 +1,25 @@
-name: sdlc-workflow self-contained build
+name: sdlc-workflow build + gates
 
-# Guards the committed dist/ bundles (SELF-CONTAINED-BUILD-PLAN.md): a fresh
+# Two jobs. `gates` runs the unit suite and the release gates (versions,
+# host-neutrality, doc site) on every change under the plugin or either root
+# catalog — before v9.153.1 no workflow ran them, so a prose-only or
+# catalog-only PR had no CI at all. `build-freshness` guards the committed
+# dist/ bundles (SELF-CONTAINED-BUILD-PLAN.md): a fresh
 # marketplace install runs straight from dist/ with no runtime `npm install`, so
 # the committed bundles MUST equal a fresh build and MUST run with zero deps.
 on:
   pull_request:
     paths:
-      - 'plugins/sdlc-workflow/scripts/**'
-      - 'plugins/sdlc-workflow/hooks/**'
-      - 'plugins/sdlc-workflow/lib/**'
-      - 'plugins/sdlc-workflow/renderers/**'
-      - 'plugins/sdlc-workflow/components/**'
-      - 'plugins/sdlc-workflow/view-src/**'
-      - 'plugins/sdlc-workflow/dist/**'
-      - 'plugins/sdlc-workflow/package.json'
-      - 'plugins/sdlc-workflow/package-lock.json'
+      - 'plugins/sdlc-workflow/**'
+      - '.claude-plugin/**'
+      - '.agents/**'
       - '.github/workflows/sdlc-build-freshness.yml'
   push:
     branches: [master, main]
     paths:
-      - 'plugins/sdlc-workflow/scripts/**'
-      - 'plugins/sdlc-workflow/hooks/**'
-      - 'plugins/sdlc-workflow/lib/**'
-      - 'plugins/sdlc-workflow/renderers/**'
-      - 'plugins/sdlc-workflow/components/**'
-      - 'plugins/sdlc-workflow/view-src/**'
-      - 'plugins/sdlc-workflow/dist/**'
-      - 'plugins/sdlc-workflow/package.json'
+      - 'plugins/sdlc-workflow/**'
+      - '.claude-plugin/**'
+      - '.agents/**'
 
 jobs:
   build-freshness:
@@ -76,3 +69,28 @@ jobs:
           node dist/tray.mjs --selfcheck
           echo "code-browser bundle (browser-target IIFE + css, served verbatim by the daemons):"
           test -s dist/code-browser.js && test -s dist/code-browser.css && echo "  code-browser assets OK"
+
+  gates:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugins/sdlc-workflow
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # verify-host-neutrality compares the burndown allowlist against the
+          # origin/master merge base; a full history makes that comparison real.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install (pinned via lockfile)
+        run: npm ci
+      - name: Unit suite
+        run: npm test
+      - name: Release gates
+        run: |
+          npm run verify:versions
+          npm run verify:neutrality
+          npm run verify
+          npm run verify:legibility

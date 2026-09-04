@@ -72,8 +72,7 @@ If not, rewrite the framing. The fix is more context, not a simpler decision.
 
 **Where the words go:** the `question` field carries the plain-language
 framing (it can be 2–3 sentences); option `label`s stay short; option
-`description`s carry the consequence text and glosses (as a numbered list, each
-option is one line of label + consequence). When a round needs more setup than
+`description`s carry the consequence text and glosses. When a round needs more setup than
 the fields comfortably hold, put a 1–2 line lead-in in chat before the question
 saying what the round decides and why it matters.
-Freeform chat questions follow the same six requirements in prose.
+Freeform chat questions follow the same seven requirements in prose.

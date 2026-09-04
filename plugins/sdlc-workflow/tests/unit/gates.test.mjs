@@ -3,7 +3,8 @@
 //
 //   verify-host-neutrality — host-mechanics wording fails outside the permanent
 //     exception list; the burndown allowlist is EMPTY at cutover and stays so.
-//   verify-release-versions — three in-tree carriers + two root catalogs agree.
+//   verify-release-versions — three in-tree carriers, the derived carriers
+//     (runtime-manifest, _shell.mjs, nav.html brand, package-lock), + two root catalogs agree.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -27,9 +28,10 @@ test('host-neutrality gate: clean, with an empty burndown allowlist', () => {
 });
 
 test('host-neutrality gate: the permanent exception list is exactly the §3.3 budget', async () => {
-  const src = readFileSync(path.join(pluginRoot, 'scripts', 'verify-host-neutrality.mjs'), 'utf8');
-  const contract = [...src.matchAll(/^\s+'(skills\/wf\/reference\/[^']+\.md)',/gm)].map((m) => m[1]);
-  assert.deepEqual(contract, [
+  // The exported list itself, so an entry added anywhere (not only under
+  // skills/wf/reference/) is caught (v9.153.1).
+  const { CONTRACT_FILES } = await import('../../scripts/verify-host-neutrality.mjs');
+  assert.deepEqual(CONTRACT_FILES, [
     'skills/wf/reference/_host-invocation.md',
     'skills/wf/reference/_gate-question.md',
     'skills/wf/reference/_subagents.md',

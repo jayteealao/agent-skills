@@ -65,7 +65,7 @@ user to `/wf auto`.
 | Gate questions | [_gate-question.md](_gate-question.md) | [_gate-question.md](_gate-question.md) |
 | Sub-agents | [_subagents.md](_subagents.md) | [_subagents.md](_subagents.md) |
 | Timestamps | [_timestamp.md](_timestamp.md) | [_timestamp.md](_timestamp.md) |
-| Managed-artifact enforcement | A pre-write hook blocks an invalid artifact before it lands | A post-write hook verifies; the Stop hook blocks the turn until the artifact is repaired, bounded by a repair ceiling |
+| Managed-artifact enforcement | A pre-write hook blocks an invalid artifact before it lands | A pre-write hook denies a full-content write of an invalid artifact; a post-write hook verifies edits; the Stop hook blocks the turn until the artifact is repaired, bounded by a repair ceiling |
 | Progress surface | None required | Use the built-in plan tool for nontrivial work when it is available |
 | Durable repo guidance | `CLAUDE.md` and `AGENTS.md` | `AGENTS.md` |
 | Session transcripts (deep retro) | `~/.claude/projects/<repo-path-slug>/*.jsonl` — the repo's absolute path with separators replaced | None. Deep retro falls back to the artifact-only reading |

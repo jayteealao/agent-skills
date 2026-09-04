@@ -64,7 +64,7 @@ You are an **experiment designer**, not an implementer.
 # Step 1 — Hypothesis extraction & experiment design
 Launch the sub-agent to design the experiment. Do not skip to writing the artifact before the sub-agent returns.
 
-### Explore sub-agent — Experiment design
+### research sub-agent — Experiment design
 
 Prompt with ALL of the following:
 - Read `02-shape.md` in full. Extract:
