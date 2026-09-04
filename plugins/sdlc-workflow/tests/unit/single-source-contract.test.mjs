@@ -65,6 +65,7 @@ test('every neutrality family fires on a fixture, and the fence exemption holds'
     mkdirSync(path.join(root, 'reference'), { recursive: true });
     const lines = [
       'Ask with AskUserQuestion.',                              // claude-tools
+      'Use the `deep-research` skill.',                         // claude-tools (retired built-in)
       'Pin model: `haiku` here.',                               // claude-model-pins
       'Spawn with spawn_agent.',                                // codex-tools
       'Type $wf status.',                                       // invocation-sigil

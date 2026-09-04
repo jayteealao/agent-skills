@@ -147,14 +147,14 @@ The pipeline is linear by design, but real development is cyclic. Three utility 
 
 ### How code questions and research work
 
-For codebase exploration, architecture questions, and web research, use the `deep-research` skill. For explaining a specific workflow artifact — a plan, shape, slice, review, or findings set — use `/wf recap <slug> <focus>`.
+Codebase exploration, architecture questions, and web research are a plain research conversation outside `/wf`: ask the host directly. When the question is how an upstream dependency behaves, use the `study-sources` skill to read its real source first. For explaining a specific workflow artifact — a plan, shape, slice, review, or findings set — use `/wf recap <slug> <focus>`.
 
 | Need | How to get it |
 |------|--------------|
-| "How does X work?" (architecture/flow question) | `deep-research` skill — fans out to multiple Explore agents and synthesizes |
-| Industry practices, ecosystem surveys, comparative analysis | `deep-research` skill — 6–8 parallel web research agents (target: 200+ sources) |
+| "How does X work?" (architecture/flow question) | A plain research conversation outside `/wf` — ask the host to read the code and explain it |
+| Industry practices, ecosystem surveys, comparative analysis | A plain research conversation outside `/wf` — no `/wf` key does web research |
 | "What does my plan say?" / explain a specific artifact | `/wf recap <slug> plan` (or `shape`, `slice`, `review`, `findings`) |
-| Quick code question (single function/type/return value) | `deep-research` skill with a focused prompt |
+| Quick code question (single function/type/return value) | Ask the host directly |
 
 **Artifacts from `/wf recap` are written to:**
 - `.ai/workflows/<slug>/90-recap.md` — the recap/explain artifact (`scope: workflow | slice | explain`; for an explanation, `focus` names the explained artifact — e.g. `plan`, `review`, `findings`)
@@ -459,24 +459,11 @@ Each draft includes a **Docs** section linking to the generated documentation fo
 
 ### … ask how something works in the codebase
 
-Use the `deep-research` skill for any code question, architectural exploration, or web research. It fans out to multiple Explore agents for architectural/flow questions, or to 6–8 parallel web research agents for industry research, then synthesizes findings.
+Ask the host directly, in a plain research conversation outside `/wf`. No `/wf` key writes a tutorial-style explanation of existing code: `/wf intake discover` tests a theory about the code, `/wf intake investigate` sketches options for a problem, and `/wf recap <slug> <focus>` explains a workflow artifact. When the question is how an upstream library, framework, or SDK behaves, use the `study-sources` skill first. It pulls the real source into a gitignored `.scratch/`, so the explanation rests on code, not recall.
 
-For codebase exploration, the synthesis covers:
-- **Overview** — what this is and why it exists
-- **Key Concepts** — the central types, services, and abstractions
-- **How It Works** — the flow with `file:line` references and mermaid diagrams where useful
-- **Where Things Live** — a file map for someone about to work in this area
-- **Gotchas** — non-obvious behavior, historical artifacts, sharp edges
+### … research a topic on the web
 
-### … commission deep research on a topic
-
-Use the `deep-research` skill with your research question. It decomposes the question into 6–8 source-type research angles, spawns all agents in parallel — one each for official specs, academic papers, practitioner blogs, GitHub repos, community forums, recent news, conference talks, and books — then synthesizes findings (target: 200+ unique sources) into:
-
-- **Executive Summary** — 3–5 evidence-backed bullet findings
-- **State of the Art** — what the field currently recommends
-- **Key Debates** — where practitioners genuinely disagree
-- **Practical Takeaways** — what to actually do in this codebase
-- **Full Citation Index** — tiered by relevance (Primary / Supporting / Tangential)
+Ask the host directly, in a plain research conversation outside `/wf`. No `/wf` key does web research, and nothing in the plugin writes or renders a research report. Record the sources that shaped a decision in `po-answers.md`, so a later review can see why the approach was chosen.
 
 ### … understand what a workflow plan or artifact says
 
@@ -616,13 +603,13 @@ After fixing BLOCKER findings in implement, don't re-run the full review — re-
 
 This revisits only deferred and untriaged findings. If the BLOCKER fixes introduced new issues, *then* run a full re-review.
 
-### Use `deep-research` before planning to understand unfamiliar subsystems
+### Learn an unfamiliar subsystem before planning
 
-If a plan requires touching code you've never worked with before, use the `deep-research` skill before `/wf plan` to get the lay of the land. The codebase explanation gives the planning sub-agents pre-built context that they would otherwise have to discover themselves — reducing exploration time and improving plan quality for unfamiliar areas.
+If a plan touches code you have never worked with, ask the host to explain the area in a plain research conversation outside `/wf` before `/wf plan`. When the unknown is an upstream dependency, use the `study-sources` skill. Put what you learned into the intake description or `po-answers.md`; the planning sub-agents then start from that context instead of discovering it themselves.
 
-### Use `deep-research` to anchor technical decisions
+### Research before you commit to an approach
 
-Before committing to an architectural approach, commission research with the `deep-research` skill. The citation index gives you 200+ sources to cite in `po-answers.md` when the review asks "why was this approach chosen?" Helps distinguish informed decisions from guesses.
+Before committing to an architectural approach, research it in a plain research conversation outside `/wf` and record the sources in `po-answers.md`. When the review asks "why was this approach chosen?", the answer cites evidence instead of a guess.
 
 ### … handle a production incident
 
@@ -754,12 +741,11 @@ All require project design context (`PRODUCT.md` + `DESIGN.md`) established by `
 | Command | Purpose |
 |---|---|
 | `/wf intake ideate [focus-area] [count]` | Scan codebase with 6 parallel lenses, generate 30+ candidates, adversarially filter, rank survivors — produces `.ai/ideation/` artifact ready for `/wf intake` |
-| `/wf intake discover <hypothesis>` | Hypothesis-test — adjudicates a code-level theory ("the rate-limiter is a token bucket in `middleware/`") with FOR / AGAINST / counter-hypothesis sub-agents. Verdict: `holds` / `partial` / `fails` / `inconclusive`, with cited evidence. Different from the `deep-research` skill (which explains code) and from `/wf intake rca` (which starts from a symptom, not a theory). |
+| `/wf intake discover <hypothesis>` | Hypothesis-test — adjudicates a code-level theory ("the rate-limiter is a token bucket in `middleware/`") with FOR / AGAINST / counter-hypothesis sub-agents. Verdict: `holds` / `partial` / `fails` / `inconclusive`, with cited evidence. Different from a plain research conversation outside `/wf` (which explains code) and from `/wf intake rca` (which starts from a symptom, not a theory). |
 | `/wf intake investigate <problem>` | Solution-options sketcher — takes a code-level problem ("checkout p99 is 2s", "auth flow brittle under concurrent writes") and produces 2–3 distinct engineering approaches with tradeoffs (effort, blast radius, reversibility, top risks). No winner picked — you pick, then route to `/wf intake fix` (small) or `/wf intake` (medium+). Different from `/wf shape` which commits to one design. |
 | `/wf intake audit <concern> [paths…]` | Subsystem defect hunt — no symptom (`rca` needs one), no hypothesis (`discover` needs one), no diff (the review stage needs one). Resolves the concern to a confirmed file surface, runs review's rubrics as lenses, adversarially refutes each candidate before it lands, and merges survivors into an accumulating `07-review*` findings ledger. Terminal and route-don't-fix; re-runs merge; zero findings is a valid result. |
-| `deep-research` skill | Codebase exploration, architectural explanation, or deep web research (industry practices, ecosystem surveys, comparative analysis) |
+| A plain research conversation outside `/wf` | Codebase exploration, architectural explanation, web research, or a quick code question — no `/wf` key |
 | `/wf recap <slug> plan\|shape\|slice\|review\|findings` | Explain a specific workflow artifact or findings set for the given slug |
-| `deep-research` skill (focused prompt) | Quick code question — single function, type, or return value; no fan-out needed |
 
 ### Utility commands
 
@@ -985,8 +971,6 @@ All artifacts for a workflow live under a single directory:
 │   └── po-answers.md                    # Cumulative product-owner answers log
 ├── ideation/                           # LEGACY — pre-v9.86 wf-ideate runs (new runs root an in-slug type:workflow-index)
 │   └── <focus>-<timestamp>.md           # Ranked improvement candidates (still rendered for back-compat)
-├── research/
-│   └── <topic>-<timestamp>.md           # Written by the deep-research skill — codebase and web research
 ├── dep-updates/<run-id>/                # LEGACY — pre-v9.86 update-deps runs (new runs write in-slug standard artifacts)
 │   ├── scan.md                          # Dependency inventory and audit results
 │   ├── research.md                      # Per-package web research findings + priority groups
@@ -1074,7 +1058,6 @@ The view layer is an npm package rooted at `plugins/sdlc-workflow/`. From that d
 | `03-slice-<slug>-amend-N.md` | `amendment-number`, `amends`, `original-status`, `plan-needs-update` |
 | `00-sync.md` | `health` (in-sync/minor-drift/significant-drift/stale), drift category tables |
 | `90-recap.md` | `scope` (workflow/slice/explain), `focus` (the explained artifact when `scope=explain`), `current-stage`, `stage-number`, `status`, `refs` |
-| `.ai/research/<topic>.md` | Deep-research report (from the `deep-research` skill) — no `schema: sdlc/v1`, not subject to the validate-write hook |
 
 All `metric-*` fields are numeric — designed for aggregation, dashboards, and CI/CD gate evaluation.
 

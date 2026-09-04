@@ -20,7 +20,7 @@ Recap tells you **what has been done so far** on a workflow, in language a human
 
 - **nothing** → recap the whole workflow.
 - **a slice-slug** → recap just that slice's journey.
-- **a focus keyword** (`plan` · `shape` · `slice` · `review` · `findings`) → **explain that artifact** in plain language — what it says, what it commits to, and what it implies. This is the "help me understand my own plan / review findings" mode (folded in from the former `how` command's workflow-explain and findings-explain modes). *General code questions, codebase architecture, and web research are NOT recap's job — those belong to the `deep-research` skill.*
+- **a focus keyword** (`plan` · `shape` · `slice` · `review` · `findings`) → **explain that artifact** in plain language — what it says, what it commits to, and what it implies. This is the "help me understand my own plan / review findings" mode (folded in from the former `how` command's workflow-explain and findings-explain modes). *General code questions, codebase architecture, and web research are NOT recap's job — those are a plain research conversation outside `/wf`.*
 
 This command does NOT advance the workflow, run a stage, or change any code. The thing that *continues* the work is `/wf auto`, `/wf yolo`, or the specific next stage — recap only tells the story of what already happened.
 

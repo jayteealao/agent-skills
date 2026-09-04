@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.153.3] - 2026-09-04
+
+### Fixed
+
+- **Eleven references to a `deep-research` skill that never shipped.** `deep-research` was a Claude Code built-in workflow; the plugin's prose delegated code explanation and web research to it from the v9.98.0 `wf-meta` dissolve onward, and the README described its fan-out, its synthesis sections, and a `.ai/research/` artifact that nothing in the plugin writes or renders. Under Codex the name resolved to nothing; under Claude Code it resolved to a host feature the plugin does not own. The dispatcher's retired-key message (`how`), `recap.md`, `intake/discover.md` (frontmatter, contract table, discipline, question 1, the `fails` route, the NOT list), `intake/rca.md`, `intake/investigate.md`, and the README's routing table, how-to sections, tips, entry-point table, tree, and artifact table now say the same thing: code questions and web research are a plain research conversation outside `/wf`, and an upstream-dependency question goes to the `study-sources` skill first. The `.ai/research/` tree entry and artifact row are gone.
+- The `claude-tools` neutrality family catches `deep-research`, and the `invocation-sigil` family no longer lists it as a skill the `$` sigil could address. The fixture test fires the new spelling.
+
 ## [9.153.2] - 2026-09-04
 
 The second fresh-eyes pass, this time over the whole single-source implementation rather than one diff: six reviewers walked the Codex install path end to end, deep-read the remaining stage prose under both hosts, traced every process spawn for the host signal, audited what the suite proves, and re-checked the v9.153.1 diff and its documents. One runtime behavior changes (hub adoption); everything else is prose, documents, gates, and tests. `hooks/`, `lib/`, and `scripts/` changed, so `dist/` is rebuilt in the same commit.

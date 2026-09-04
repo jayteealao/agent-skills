@@ -76,7 +76,9 @@ export const FAMILIES = [
   {
     name: 'claude-tools',
     // `Explore` is a Claude Code agent type; the neutral name is "research sub-agent".
-    pattern: /AskUserQuestion|\bTaskGet\b|\bTaskUpdate\b|\bTaskCreate\b|`Task`|\bTask tool\b|\bAgent tool\b|subagent_type|isolation:\s*worktree|run_in_background|\bWorkflow tool\b|mcp__|\bExplore (sub-agents?|pass|findings)\b/,
+    // `deep-research` was a Claude Code built-in workflow, never a plugin skill; the
+    // neutral phrasing is "a plain research conversation outside `/wf`" (v9.153.3).
+    pattern: /AskUserQuestion|\bTaskGet\b|\bTaskUpdate\b|\bTaskCreate\b|`Task`|\bTask tool\b|\bAgent tool\b|subagent_type|isolation:\s*worktree|run_in_background|\bWorkflow tool\b|mcp__|\bExplore (sub-agents?|pass|findings)\b|\bdeep-research\b/,
   },
   {
     name: 'claude-model-pins',
@@ -89,7 +91,7 @@ export const FAMILIES = [
   {
     // One canonical spelling: `/wf`. The `$` sigil maps ONLY in _host-invocation.md.
     name: 'invocation-sigil',
-    pattern: /\$(wf|consult|imagery|uiproto|diataxis|study-sources|review|deep-research)\b/,
+    pattern: /\$(wf|consult|imagery|uiproto|diataxis|study-sources|review)\b/,
   },
   {
     // Plugin-root variables live only in the hook wiring. Executables use <skill-dir>.

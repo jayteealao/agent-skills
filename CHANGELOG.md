@@ -4,6 +4,12 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.179.3 - 2026-09-04
+
+### Changed
+
+- **sdlc-workflow → v9.153.3.** Removes every reference to a `deep-research` skill that never shipped; code questions and web research are a plain research conversation outside `/wf`, and the neutrality gate now catches the old name. Details in the plugin changelog.
+
 ## Version 1.179.2 - 2026-09-04
 
 ### Changed
