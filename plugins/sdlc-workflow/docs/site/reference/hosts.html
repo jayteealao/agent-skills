@@ -11,31 +11,32 @@
 <main>
 <h1>Hosts: Claude Code and Codex</h1>
 <p class="lede">The plugin runs under two hosts from one source tree. This page lists what the two hosts share, what each host spells differently, and the one key that runs on one host only.</p>
-<div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
+<div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. Under pi, type <code>/skill:wf …</code>. The key and the arguments are the same.</div>
 
-<h2>What both hosts share</h2>
-<p>Both hosts read the same plugin directory. Both hosts load the same skill files, run the same bundled hook policy, adopt the same machine-wide hub, and read and write the same artifacts under <code>.ai/</code>. A workflow that you start under one host resumes under the other host. The artifact format is the contract; the host that wrote an artifact does not matter.</p>
+<h2>What every host shares</h2>
+<p>Every host reads the same plugin directory. Every host loads the same skill files, runs the same bundled hook policy, adopts the same machine-wide hub, and reads and writes the same artifacts under <code>.ai/</code>. A workflow that you start under one host resumes under another host. The artifact format is the contract; the host that wrote an artifact does not matter.</p>
+<p>pi has no plugin manifest and no external hooks of its own. The <code>pi-code</code> extension loads the plugin from the Claude Code plugin cache, runs the Claude Code hook wiring with the Claude Code payload, and presents Claude Code's tool names. A pi cell below reads "same as Claude Code" unless it says otherwise. The pi rows are verified against the extension's documentation, not yet against a live session.</p>
 
 <h2>What each host spells differently</h2>
 <table>
-<thead><tr><th>Concern</th><th>Claude Code</th><th>Codex</th></tr></thead>
+<thead><tr><th>Concern</th><th>Claude Code</th><th>Codex</th><th>pi</th></tr></thead>
 <tbody>
-<tr><td>Invocation</td><td><code>/wf status</code>, <code>/consult plan</code></td><td><code>$wf status</code>, <code>$consult plan</code></td></tr>
-<tr><td>Manifest the host reads</td><td><code>.claude-plugin/plugin.json</code></td><td><code>.codex-plugin/plugin.json</code></td></tr>
-<tr><td>Hook wiring</td><td><code>hooks/hooks.json</code></td><td><code>hooks/codex.hooks.json</code>, declared by the manifest. Codex never loads <code>hooks/hooks.json</code>.</td></tr>
-<tr><td>Invalid artifact write</td><td>A pre-write hook blocks an invalid full-content write before it lands; a post-write hook verifies every write and returns corrective feedback.</td><td>A pre-write hook denies an invalid full-content write; a post-write hook verifies every write. The Stop hook then blocks the turn until the artifact is repaired, at most three times.</td></tr>
-<tr><td>Leak guards (internal vocabulary in public docs and commit messages)</td><td>Pre-write and shell hooks scan when <code>semantic.enabled</code> is on.</td><td>Not wired; nothing scans.</td></tr>
-<tr><td>Whole-repo render refresh at session start</td><td>Queued by the SessionStart hook.</td><td>Queued by the SessionStart adapter.</td></tr>
-<tr><td>Hook trust</td><td>None required.</td><td>Review and trust each hook once, in an interactive session, with <code>/hooks</code>. Untrusted hooks are skipped.</td></tr>
-<tr><td>Gate questions</td><td>A structured question tool.</td><td>A structured question tool in plan mode; a numbered chat question elsewhere.</td></tr>
-<tr><td>Sub-agents</td><td>Effort tiers map to model pins.</td><td>Effort tiers map to reasoning effort; waves bounded by the session's advertised concurrency (default six).</td></tr>
-<tr><td>Session transcripts (deep retro)</td><td>A per-repository transcript directory.</td><td>None. Deep retro reads the artifacts only.</td></tr>
+<tr><td>Invocation</td><td><code>/wf status</code>, <code>/consult plan</code></td><td><code>$wf status</code>, <code>$consult plan</code></td><td><code>/skill:wf status</code>, <code>/skill:consult plan</code></td></tr>
+<tr><td>Manifest the host reads</td><td><code>.claude-plugin/plugin.json</code></td><td><code>.codex-plugin/plugin.json</code></td><td><code>.claude-plugin/plugin.json</code>, read from the Claude Code plugin cache.</td></tr>
+<tr><td>Hook wiring</td><td><code>hooks/hooks.json</code></td><td><code>hooks/codex.hooks.json</code>, declared by the manifest. Codex never loads <code>hooks/hooks.json</code>.</td><td><code>hooks/hooks.json</code>, run by the extension with the Claude Code payload.</td></tr>
+<tr><td>Invalid artifact write</td><td>A pre-write hook blocks an invalid full-content write before it lands; a post-write hook verifies every write and returns corrective feedback.</td><td>A pre-write hook denies an invalid full-content write; a post-write hook verifies every write. The Stop hook then blocks the turn until the artifact is repaired, at most three times.</td><td>Same as Claude Code.</td></tr>
+<tr><td>Leak guards (internal vocabulary in public docs and commit messages)</td><td>Pre-write and shell hooks scan when <code>semantic.enabled</code> is on.</td><td>Not wired; nothing scans.</td><td>Same as Claude Code.</td></tr>
+<tr><td>Whole-repo render refresh at session start</td><td>Queued by the SessionStart hook.</td><td>Queued by the SessionStart adapter.</td><td>Same as Claude Code.</td></tr>
+<tr><td>Hook trust</td><td>None required.</td><td>Review and trust each hook once, in an interactive session, with <code>/hooks</code>. Untrusted hooks are skipped.</td><td>Approve the project once when the extension asks. A headless run in an unapproved project loads no hooks.</td></tr>
+<tr><td>Gate questions</td><td>A structured question tool.</td><td>A structured question tool in plan mode; a numbered chat question elsewhere.</td><td>A structured question tool; a numbered chat question in print mode.</td></tr>
+<tr><td>Sub-agents</td><td>Effort tiers map to model pins.</td><td>Effort tiers map to reasoning effort; waves bounded by the session's advertised concurrency (default six).</td><td>Effort tiers map to model pins.</td></tr>
+<tr><td>Session transcripts (deep retro)</td><td>A per-repository transcript directory.</td><td>None. Deep retro reads the artifacts only.</td><td>None verified. Deep retro reads the artifacts only.</td></tr>
 </tbody>
 </table>
-<p>The verification outcome of a write is identical on both hosts. Only the timing of the block differs.</p>
+<p>The verification outcome of a write is identical on every host. Only the timing of the block differs.</p>
 
 <h2>The one host-specific key</h2>
-<p><code>/wf yolo</code> runs under Claude Code only. It is built on a background-workflow tool that Codex does not have. Under Codex the key is unknown; use <code>/wf auto</code>, which runs under both hosts. Every other key runs under both hosts.</p>
+<p><code>/wf yolo</code> runs under Claude Code only. It is built on a background-workflow tool that Codex and pi do not have. Under Codex or pi the key is unknown; use <code>/wf auto</code>, which runs under every host. Every other key runs under every host.</p>
 
 <h2>Where the host differences live</h2>
 <p>The skill files never name a host tool. Five reference files carry every host difference, and the skill files cite them: <code>skills/wf/reference/_host-invocation.md</code> (invocation spelling, script paths, key availability), <code>_gate-question.md</code> (the question ladder), <code>_subagents.md</code> (dispatch and effort tiers), <code>_timestamp.md</code> (real timestamps), and <code>yolo.md</code> (the reference for the one Claude Code-only key). A test fails the build when a skill file names a host mechanism outside those files.</p>

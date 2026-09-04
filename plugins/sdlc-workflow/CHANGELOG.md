@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.153.4] - 2026-09-04
+
+### Added
+
+- **pi as a third host, in the contract files only.** pi (pi.dev) runs the plugin through the `pi-code` extension, which loads it from the Claude Code plugin cache, runs `hooks/hooks.json` with the Claude Code payload and environment, and presents Claude Code's tool vocabulary. The five host-contract files gain a pi row each: `_host-invocation.md` (invocation `/skill:<skill> …`, `<skill-dir>` = `${CLAUDE_PLUGIN_ROOT}/skills/<skill>` as substituted by pi-code, a "pi runs through pi-code" section naming the three differences — no `PermissionRequest`, a 60-second fail-closed `PreToolUse` timeout, hub provenance recorded as `claude` — and a pi column in the host-surfaces table), `_gate-question.md` (`AskUserQuestion`, every interactive session; the tool disables itself in print mode), `_subagents.md` (`Agent` with `Explore`, the Claude Code tier aliases, `isolation: worktree`, `pi -p` posture), `_timestamp.md` (the built-in `bash` tool takes the POSIX form), and `yolo.md` (unavailable under pi; a third-party `SubagentWorkflow` tool is not a supported route until a live run proves it). `SKILL.md`'s Hosts paragraph and availability line name three hosts; `hosts.html` gains the pi column. No runtime code changes: under pi-code the hooks are Claude Code hooks.
+- The `host-names` neutrality family catches `pi` and `pi-code` outside the contract files, and its line exclusions accept "every host" and "Codex and/or pi" availability phrasings.
+
+### Not verified
+
+- Every pi row is derived from pi-code 1.0.64's documentation and source. No live pi session has run the plugin yet. The first live run needs the same smoke test as the Codex cutover: one session with `SDLC_HOOK_DEBUG=1`, a managed-artifact write, and a check that the hub adopted the session and queued the render.
+
 ## [9.153.3] - 2026-09-04
 
 ### Fixed

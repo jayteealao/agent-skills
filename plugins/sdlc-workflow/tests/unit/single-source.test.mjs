@@ -154,7 +154,7 @@ test('dispatch table ↔ host-invocation ↔ reference files agree on host avail
   assert.ok(!codexKeys.includes('yolo'));
   // The dispatch table's own availability line names the same exception.
   const skill = read(pluginRoot, 'skills', 'wf', 'SKILL.md');
-  assert.match(skill, /\*\*Host availability\.\*\* Every key runs under both hosts except `yolo`, which is Claude Code only/);
+  assert.match(skill, /\*\*Host availability\.\*\* Every key runs under every host except `yolo`, which is Claude Code only/);
 });
 
 // ── residual references: the deleted tree is history, not a live path ─────────────

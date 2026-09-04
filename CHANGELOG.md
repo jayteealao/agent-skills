@@ -4,6 +4,12 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.179.4 - 2026-09-04
+
+### Changed
+
+- **sdlc-workflow → v9.153.4.** The five host-contract files gain a pi row each (pi through the `pi-code` extension); no runtime code changes. Details in the plugin changelog.
+
 ## Version 1.179.3 - 2026-09-04
 
 ### Changed

@@ -19,12 +19,12 @@ sub-agent this skill spawns. A reference that adds its own writing spec adds to 
 it never replaces it.
 
 # Hosts (MANDATORY)
-This skill runs under both hosts from one source. Prose writes every invocation as `/wf …`;
-the other host's spelling of the same invocation, the `<skill-dir>` rule, key availability,
+This skill runs under three hosts from one source: Claude Code, Codex, and pi. Prose writes every invocation as `/wf …`;
+each host's spelling of the same invocation, the `<skill-dir>` rule, key availability,
 gate questions, sub-agents, and timestamps live only in
 [reference/_host-invocation.md](reference/_host-invocation.md) and the three contract files it
 names. Read that file first, then apply its contract to every reference this skill loads.
-Under Codex, `yolo` stops at Step 0: answer with the redirect to `/wf auto <slug>` that
+Under Codex or pi, `yolo` stops at Step 0: answer with the redirect to `/wf auto <slug>` that
 [reference/_host-invocation.md](reference/_host-invocation.md) prescribes, and do not load `reference/yolo.md`.
 
 You are the **single SDLC dispatcher** for the plugin. `/wf` runs **one SDLC operation per key** — not every key writes a numbered stage artifact, and that is by design (Step 2 already tolerates read-only members via `none`). The dispatch table below is the authoritative roster: ten canonical **stages**, five **standalone/drivers**, one **minimal lifecycle** (`task`), two **navigation** members, one **lifecycle-control** member, and three **routers**. `intake` is itself a **mode dispatcher** (plain description → stage 1; mode keyword → compressed entry flow; existing slug + free scope → extension). Your only job is to identify which key the user wants, load its reference body, and follow it verbatim.
@@ -62,9 +62,9 @@ Parse `$ARGUMENTS`. The first token must be one of the 22 known keys below; the 
 | `probe`      | `<slug> [target\|sweep]` · or `sweep [path]` | **Runtime-truth verification** of already-built work — drives the running artifact, captures observable output, writes findings as a compressed slice. Two modes: TARGET compares to AC text; **`sweep`** enumerates the whole user surface and compares it to AC + charter constraints + the shared defect taxonomy (`reference/_surface-defects.md`). `sweep` as the FIRST token runs slug-less against any repo, writing `.ai/surface-sweep-<date>.md`. Never writes code. See `reference/probe.md`. |
 | `simplify`   | `[branch [<base>] \| commit <sha-or-range> \| plan <slug> <slice> \| codebase [<path>]]` | **Review-and-route triage.** Three parallel sub-agents review one of four scopes, classify findings, route them downstream. Never writes code. Owns its own first-token resolution. See `reference/simplify.md`. |
 | `auto`       | `<slug> [<slice>]`        | **End-to-end lifecycle driver.** Drives each stage in-process, pausing only when a stage's own gate fires; stops before handoff. Writes no artifact of its own. See `reference/auto.md`. |
-| `yolo`       | `<slug> [<slice>]`        | **Autonomous lifecycle driver (Claude Code only).** The no-human-gates sibling of `auto` — resolves each gate by a written policy. Stops before handoff. Unavailable under Codex. See `reference/yolo.md`. |
+| `yolo`       | `<slug> [<slice>]`        | **Autonomous lifecycle driver (Claude Code only).** The no-human-gates sibling of `auto` — resolves each gate by a written policy. Stops before handoff. Unavailable under Codex and pi. See `reference/yolo.md`. |
 
-**Host availability.** Every key runs under both hosts except `yolo`, which is Claude Code only — see [reference/_host-invocation.md](reference/_host-invocation.md).
+**Host availability.** Every key runs under every host except `yolo`, which is Claude Code only — see [reference/_host-invocation.md](reference/_host-invocation.md).
 
 ### Minimal lifecycle
 

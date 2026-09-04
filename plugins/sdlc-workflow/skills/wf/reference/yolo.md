@@ -13,7 +13,7 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `/wf yolo`, the **autonomous lifecycle driver**. It does what `/wf auto` does — sequence the existing `/wf` stages on an already-started workflow — but where `auto` **pauses** at every stage gate for the user, `yolo` **resolves that gate itself**, in the user's best interest, by the Autonomous Decision Policy, and drives the slug to the review endpoint **without stopping**. It runs the stages as background-workflow subagents via Claude Code's **Workflow** tool. The user typing `/wf yolo <slug>` **is** the explicit opt-in to run that tool.
 
-> **Claude Code only.** `yolo` is built on the Workflow tool, which Codex does not have. Under Codex this key is unavailable: treat it as an unknown key and point the user to `/wf auto` (see [_host-invocation.md](_host-invocation.md)). This file is one of the named host-contract files and may describe Claude Code's tools directly.
+> **Claude Code only.** `yolo` is built on the Workflow tool, which Codex and pi do not have. Under Codex or pi this key is unavailable: treat it as an unknown key and point the user to `/wf auto` (see [_host-invocation.md](_host-invocation.md)). A pi extension that offers a Workflow-compatible `SubagentWorkflow` tool is not a supported route until a live run proves it. This file is one of the named host-contract files and may describe Claude Code's tools directly.
 
 > **Relationship to `/wf auto`.** `auto` is unchanged — the human-in-the-loop driver. `yolo` does not replace, modify, or weaken it. They are two drivers over the same stage references and the same artifact state-machine; the only difference is **who answers the gates**. Prefer `auto` when you want to review each gate; reach for `yolo` when you want the slug built and reviewed autonomously and will inspect the recorded decisions afterward.
 
@@ -230,4 +230,4 @@ Rules:
 - **Not a CI auto-fixer** — CI is never in its scope.
 - **Not a gate remover** — every stage's quality gate still runs; `yolo` supplies the answer by policy and records it, rather than pausing for the user.
 - **Consults at the designated gates (free only, by objective trigger)** — `consult` is model-invocable and pins a free subscription CLI (`codex`/`claude`), so `yolo` **auto-invokes** it whenever a plan/review/diagnosis gate's objective trigger fires — a carried intent-risk, a ship-with-caveats verdict, an inferred-not-observed AC (see each stage) — de-risking the autonomous decision at no cost. It never spends on the paid REST oracles, so it fits the Autonomous Decision Policy (no unattended cost) rather than breaching it — the "sparing" limit is about paid providers, not about withholding the free second opinion.
-- **Not in the Codex build** — Claude-only, by design.
+- **Not under Codex or pi** — Claude Code only, by design.

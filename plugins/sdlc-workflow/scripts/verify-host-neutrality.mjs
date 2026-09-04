@@ -116,8 +116,8 @@ export const FAMILIES = [
     // Host names in skill prose. Availability annotations are permitted data:
     // "<host> only" and "both hosts" phrasings are excluded per line.
     name: 'host-names',
-    pattern: /\bClaude Code\b|\bCodex\b/,
-    lineExclude: /(Claude Code|Codex)[- ]only|both hosts|either host/,
+    pattern: /\bClaude Code\b|\bCodex\b|\bpi-code\b|\bpi\b/,
+    lineExclude: /(Claude Code|Codex|pi)[- ]only|both hosts|either host|every host|Codex (and|or) pi/,
   },
   {
     // Prose that describes the deleted two-tree layout.

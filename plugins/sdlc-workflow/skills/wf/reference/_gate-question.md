@@ -15,6 +15,7 @@ question tool.
    |---|---|---|
    | Claude Code | `AskUserQuestion` | Every interactive session |
    | Codex | `request_user_input` | Plan mode only. Outside plan mode the call errors — do not make it. |
+   | pi | `AskUserQuestion` | Every interactive session. In print mode the tool disables itself; use rung 2 or rung 3. |
 
 2. **Chat question (interactive, tool unavailable).** Ask ONE message that
    states the gate's question with the options as a numbered list, the
@@ -31,7 +32,7 @@ question tool.
 - **A question spec is host-neutral data.** A citing site may describe its
   question as a YAML block with `question`, `header`, `options` (each with a
   `label` and a `description`; the recommended option first, marked), and
-  `multiSelect`. Under Claude Code, pass the spec to the tool as written. Under
+  `multiSelect`. Under Claude Code or pi, pass the spec to the tool as written. Under
   Codex, render the spec as rung 1's plain-language description or as rung 2's
   numbered list. The spec never names a tool.
 - **Never require structured input to proceed.** A gate must always be

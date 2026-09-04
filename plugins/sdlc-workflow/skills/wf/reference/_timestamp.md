@@ -10,6 +10,8 @@ Get it from whichever shell is native to the host:
 - POSIX: `date -u +"%Y-%m-%dT%H:%M:%SZ"`
 - PowerShell: `(Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")`
 
+Under pi, the built-in `bash` tool runs the POSIX form.
+
 Variant formats derive the same way from one real clock read:
 
 | Need | POSIX | PowerShell |

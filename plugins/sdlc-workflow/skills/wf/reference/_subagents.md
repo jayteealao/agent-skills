@@ -9,7 +9,7 @@ cites this file instead of restating the rules. No other skill file names a
 dispatch tool, an agent type, a model name, or an isolation flag.
 
 A **research sub-agent** is a read-only child that returns findings as text
-and writes nothing (Claude Code `Explore`; Codex `explorer`). A **research
+and writes nothing (Claude Code `Explore`; Codex `explorer`; pi `Explore`). A **research
 pass** is one wave of them.
 
 ## Rules that hold under every host
@@ -55,12 +55,12 @@ pass** is one wave of them.
 
 ## Host mapping
 
-| Concern | Claude Code | Codex |
-|---|---|---|
-| Dispatch call | The `Agent` tool, one call per child; independent children in one message run concurrently | `spawn_agent` per child, then `wait_agent` on the wave |
-| Agent types | Built-in `general-purpose`; `Explore` for read-only research | Built-in `explorer` (read-heavy), `worker` (bounded execution), `default`. Never a custom `.codex/agents/*.toml` agent by name |
-| Effort tier → host setting | Pass `model:` on the call: low = `haiku`; medium and high = `sonnet`. Never `opus`, and never omit the pin — a child must not inherit the parent's model | Pass the reasoning effort on the spawn: low, medium, high |
-| Write isolation for a child that edits files | Pass `isolation: worktree` on the call; the coordinator merges the child's branch result | Partition the work by disjoint files; there is no worktree flag |
-| Wave ceiling | Cost only; keep waves at 6 | The advertised concurrency of the session (`max_threads`, default 6) |
-| Depth | Do not give a child the `Agent` tool | `max_depth` 1 |
-| Non-interactive posture | A headless session; any prompt is an error | `codex exec`; `--ask-for-approval never` must be intended |
+| Concern | Claude Code | Codex | pi |
+|---|---|---|---|
+| Dispatch call | The `Agent` tool, one call per child; independent children in one message run concurrently | `spawn_agent` per child, then `wait_agent` on the wave | The `Agent` tool, one call per child (pi-code registers it as `subagent` and accepts `Agent`) |
+| Agent types | Built-in `general-purpose`; `Explore` for read-only research | Built-in `explorer` (read-heavy), `worker` (bounded execution), `default`. Never a custom `.codex/agents/*.toml` agent by name | Built-in `general-purpose`; `Explore` for read-only research |
+| Effort tier → host setting | Pass `model:` on the call: low = `haiku`; medium and high = `sonnet`. Never `opus`, and never omit the pin — a child must not inherit the parent's model | Pass the reasoning effort on the spawn: low, medium, high | Pass `model:` on the call with the same tier aliases as Claude Code: low = `haiku`; medium and high = `sonnet`. Never omit the pin |
+| Write isolation for a child that edits files | Pass `isolation: worktree` on the call; the coordinator merges the child's branch result | Partition the work by disjoint files; there is no worktree flag | Pass `isolation: worktree` on the call; the coordinator merges the child's branch result |
+| Wave ceiling | Cost only; keep waves at 6 | The advertised concurrency of the session (`max_threads`, default 6) | Cost only; keep waves at 6 |
+| Depth | Do not give a child the `Agent` tool | `max_depth` 1 | Do not give a child the `Agent` tool |
+| Non-interactive posture | A headless session; any prompt is an error | `codex exec`; `--ask-for-approval never` must be intended | `pi -p`; any prompt is an error |
