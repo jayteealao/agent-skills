@@ -168,7 +168,7 @@ test('the six skills: openai.yaml parses with the expected shape; SKILL.md name 
   for (const dir of skills) {
     const doc = yaml.load(read('skills', dir, 'agents', 'openai.yaml'));
     assert.ok(doc?.interface?.display_name && doc.interface.short_description && doc.interface.default_prompt, `${dir}: openai.yaml interface incomplete`);
-    assert.equal(doc.policy?.allow_implicit_invocation, true, `${dir}: allow_implicit_invocation must stay true (false hides the skill from Codex)`);
+    assert.equal(doc.policy?.allow_implicit_invocation, false, `${dir}: allow_implicit_invocation must be false so only explicit user invocation selects the skill`);
     const name = /^name:\s*(\S+)/m.exec(read('skills', dir, 'SKILL.md'))?.[1];
     assert.equal(name, dir, `${dir}: SKILL.md name is ${name}`);
     const desc = /^description:\s*(.*)$/m.exec(read('skills', dir, 'SKILL.md'))?.[1] ?? '';

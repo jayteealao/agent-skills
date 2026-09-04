@@ -28,6 +28,23 @@ Three rules follow:
 - `wf` is never a shell command. On Windows a bare `wf` opens the Firewall
   console. Do not run it.
 
+## Codex invocation policy
+
+All six plugin skills (`wf`, `consult`, `diataxis`, `study-sources`, `imagery`,
+and `uiproto`) are explicit-only in Codex. Each `agents/openai.yaml` sets
+`policy.allow_implicit_invocation: false`. Users can still select a skill with
+`$<skill>`; a matching task description does not authorize automatic selection.
+Do not start this plugin's skills merely because they could help with a task.
+Shared prose that allows autonomous skill selection applies only on hosts that
+permit it. Steps required by a workflow the user explicitly requested remain
+part of that requested run; this does not authorize unrelated skill runs.
+
+The [official skill documentation](https://learn.chatgpt.com/docs/build-skills#optional-metadata)
+defines `false` as blocking implicit invocation while preserving explicit
+invocation. The earlier claim that it hides skills entirely is obsolete.
+This policy controls skill selection; the separately configured hooks still run
+on their registered events.
+
 ## Path spelling
 
 | Spelling | Meaning | Rule |

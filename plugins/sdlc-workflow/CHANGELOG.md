@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- All six Codex skills now set `policy.allow_implicit_invocation: false`: users must explicitly select `wf`, `consult`, `diataxis`, `study-sources`, `imagery`, or `uiproto`. Updated both skill-policy tests and the host contract. Current official documentation confirms explicit invocation remains available, superseding the earlier visibility workaround. Workflow steps and event-hook wiring are unchanged.
+
+## [Unreleased]
+
 ## [9.153.5] - 2026-09-04
 
 ### Fixed
