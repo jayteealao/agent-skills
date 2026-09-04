@@ -73,14 +73,14 @@ Generate the north-star comp at **2K** fidelity via the `imagery` skill (it infe
 the 2K tier from this north-star context and the output path, and reports the file
 back — no flags):
 ```
-imagery "<resolved brief prompt>"
+/imagery "<resolved brief prompt>"
 ```
-(Bare `imagery` fans out to every available backend; pin one — e.g.
-`imagery gemini "<resolved brief prompt>"` — for a single 2K comp.)
+(Bare `/imagery` fans out to every available backend; pin one — e.g.
+`/imagery gemini "<resolved brief prompt>"` — for a single 2K comp.)
 
 Present the mock and ask: "Does this match your visual direction? (yes to proceed / adjustments needed)"
 
-If image generation unavailable: state in one line that the step is skipped because the harness lacks native image generation. Then proceed.
+If every provider in `/imagery`'s table is unavailable (no built-in tool on this host, no key for a scripted provider, egress consent off): state in one line that the step is skipped and why. Then proceed.
 
 Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after confirmation, or `skipped:<reason>`. (`02c` is authoritative; the `02b` brief left the gate unset — you may mirror the resolved value onto `02b` too, but it is not required.)
 
@@ -88,7 +88,7 @@ Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after c
 
 > **Optional live prototype (beside the static mock).** For an interactive HTML
 > prototype of the approved direction — not just a static comp — you may run
-> `/uiproto <component description>` (or `uiproto stitch|llm …`). It writes a
+> `/uiproto <component description>` (or `/uiproto stitch|llm …`). It writes a
 > sandboxed `<iframe srcdoc>` fragment next to the contract artifact. Opt-in, sends the
 > prompt to external engines (Stitch / an LLM), gated by `externalDispatch.enabled`
 > — offer it, never run it automatically.

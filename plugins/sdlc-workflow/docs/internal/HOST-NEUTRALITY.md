@@ -41,7 +41,7 @@ Every other file states the INTENT and cites one of those files.
 ## The gate
 
 `node scripts/verify-host-neutrality.mjs` (also `npm run verify:neutrality`,
-and `tests/unit/gates.test.mjs` runs it under `npm test`). Nine scan families
+and `tests/unit/gates.test.mjs` runs it under `npm test`). Ten scan families
 over `skills/**/*.md` and `reference/*.md`; fenced code blocks are exempt for
 the tool and timestamp families (a literal shell command is data), never for
 the sigil, plugin-root, or stale-tree families.

@@ -25,6 +25,17 @@ test('host-neutrality gate: clean, with an empty burndown allowlist', () => {
   assert.deepEqual(out.problems, []);
   const allow = JSON.parse(readFileSync(path.join(pluginRoot, 'scripts', 'host-neutrality-allowlist.json'), 'utf8'));
   assert.deepEqual(allow.files, [], 'the burndown allowlist must be empty at and after cutover');
+  // In CI the checkout is full-history (fetch-depth 0), so the merge-base
+  // comparison must actually run; a note means it silently degraded.
+  if (process.env.CI) assert.equal(out.note, null, `merge-base comparison degraded in CI: ${out.note}`);
+});
+
+test('host-neutrality gate: the family roster is the documented ten', async () => {
+  const { FAMILIES } = await import('../../scripts/verify-host-neutrality.mjs');
+  assert.deepEqual(FAMILIES.map((f) => f.name), [
+    'claude-tools', 'claude-model-pins', 'codex-tools', 'invocation-sigil', 'plugin-root',
+    'timestamp-mandate', 'claude-hook-names', 'host-names', 'stale-tree', 'retired-router',
+  ]);
 });
 
 test('host-neutrality gate: the permanent exception list is exactly the §3.3 budget', async () => {

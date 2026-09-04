@@ -105,7 +105,7 @@ pipeline, and the release-relevant codebase** — through one point of view. Fin
 
 - **Effort-tiered, not model-pinned** — children must not inherit an expensive parent configuration. **high**
   effort for the causal-reasoning lenses `plan-soundness`, `release-safety`, `ci-correctness`, and
-  `secrets-and-permissions`; **medium** for `supply-chain`, `rollback-realism`, and `version-integrity`.
+  `secrets-and-permissions`; **low** for `supply-chain`, `rollback-realism`, and `version-integrity`.
 - `description: "audit-<lens>"`.
 - prompt = the lens's row question expanded into its concrete checklist + the parsed plan + the workflow index
   from Step 0 + the ecosystem + the standard findings schema + the two grounding instructions below + the

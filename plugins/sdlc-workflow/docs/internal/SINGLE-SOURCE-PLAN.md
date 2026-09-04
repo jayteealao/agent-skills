@@ -746,8 +746,9 @@ costs every machine's trust state.
    may exist in which a catalog points at the deleted tree.
 2. Per machine, in one maintenance window with **no Codex session opened inside
    it**: `codex plugin marketplace upgrade` (so the new catalog entry exists),
-   then `codex plugin add sdlc-workflow@agent-skills-marketplace`, then `codex
-   plugin remove sdlc-workflow-codex@agent-skills-marketplace`, then **re-trust
+   then `codex plugin remove sdlc-workflow-codex@agent-skills-marketplace`, then
+   `codex plugin add sdlc-workflow@agent-skills-marketplace` (remove BEFORE add,
+   so no moment has both identities enabled — corrected in v9.153.1), then **re-trust
    the hooks** (C8 — new file path + hashes; the 7-hooks manual-trust gotcha
    applies once). Verify in the first session AFTER the window.
 

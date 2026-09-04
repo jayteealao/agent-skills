@@ -54,7 +54,7 @@ This is a **standalone command**, not tied to any workflow. It writes to `.ai/pr
    - An endpoint: `POST /api/checkout`
    - A module/directory: `src/checkout/`
    - A description: "the checkout flow" (requires sub-agent to locate the entry point)
-2. **Generate run-id**: `profile-<YYYYMMDD-HHMMSS>-<short-slug>` (e.g., `profile-20260503-143022-checkout`). Take the timestamp from one real UTC clock read per [_timestamp.md](../_timestamp.md) (compact form, no separators).
+2. **Generate run-id**: `profile-<YYYYMMDD-HHMMSS>-<short-slug>` (e.g., `profile-20260503-143022-checkout`). Derive `YYYYMMDD-HHMMSS` from one real UTC clock read per [_timestamp.md](../_timestamp.md): take the full ISO-8601 value, drop its dashes, colons, `T`, and `Z`, and keep one dash between the date and the time.
 3. **Create the profile directory**: `.ai/profiles/<run-id>/`
 4. **Read project context (lightweight):** Read `README.md` (top 50 lines) to understand language and architecture context.
 

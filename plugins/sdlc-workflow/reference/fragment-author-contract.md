@@ -26,7 +26,7 @@ rich artifact:
 1. **Write the sibling `<stem>.yaml`** — the structured data, conforming to
    `siblingYamlSchemas.<type>` in `tests/frontmatter.schema.json` (one of
    `review`, `rca`, `plan`, `design`, `ship-run`). This step is **MANDATORY** even
-   if you skip the fragment; managed-artifact enforcement **BLOCKS** a rich
+   if you skip the fragment; managed-artifact enforcement ([_host-invocation.md](../skills/wf/reference/_host-invocation.md)) **BLOCKS** a rich
    `.md` written without its sibling `.yaml`. Write the `.yaml` first (or in the same
    turn). An artifact that legitimately has no structured data to project may opt out
    with `fragment: none` in its frontmatter.

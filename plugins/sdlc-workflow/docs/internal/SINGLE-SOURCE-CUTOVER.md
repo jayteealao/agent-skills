@@ -13,7 +13,8 @@ Codex machine that had the old plugin installed must cut over once. Every
 Claude Code machine must update its installed plugin to the same version at the
 same time (step 2.6): the shared hub is reaped and respawned by any session
 whose runtime version differs from the hub's, so two hosts on two versions reap
-each other's hub on every session start.
+each other's hub on every session start (until v9.153.2, which adopts a newer
+hub and reaps only an older one).
 
 ## 0. Preflight (release session, scratch `CODEX_HOME`)
 
@@ -27,7 +28,10 @@ Prove the merged tree installs and runs before anything is published.
    codex plugin add sdlc-workflow@agent-skills-marketplace
    ```
    A model call from the scratch home needs `auth.json` copied in from the real
-   home. Delete the copy when the preflight ends.
+   home. Delete the copy when the preflight ends. A local-path marketplace
+   snapshots the working tree as it is, `node_modules/` included (about 120 MB);
+   a Git-URL install snapshots the tracked tree only (about 24 MB). The size
+   difference is not a packaging defect.
 2. Run a headless session in a scratch git repository with an active workflow slug:
    ```bash
    codex exec --dangerously-bypass-hook-trust --skip-git-repo-check "Reply with the list of installed plugin skills."
@@ -74,10 +78,15 @@ next session.
    codex plugin remove sdlc-workflow-codex@agent-skills-marketplace
    codex plugin add sdlc-workflow@agent-skills-marketplace
    ```
-   `remove` deletes the old identity's config entry and its cached snapshot
+   Per `codex plugin remove --help`, `remove` deletes the old identity's config
+   entry and its cached snapshot
    (`~/.codex/plugins/cache/agent-skills-marketplace/sdlc-workflow-codex/`).
-   Its `hooks.state` trust entries in `config.toml` can survive the remove;
-   step 4 reports them, and they are safe to delete by hand.
+   Its `hooks.state` trust entries in `config.toml` may survive the remove
+   (not yet observed either way on 0.146.0); step 4 reports them, and they are
+   safe to delete by hand. The old plugin-data directory
+   (`~/.codex/plugins/data/sdlc-workflow-codex-agent-skills-marketplace/`) is
+   orphaned by the rename; the new identity re-creates its own. Delete the old
+   one when step 4 passes.
 3. Open an interactive Codex session and run `/hooks`. Trust all seven events
    (SessionStart, SubagentStart, PreToolUse, PermissionRequest, PostToolUse,
    Stop, SubagentStop). Trust keys embed the hooks-file relpath and a content
@@ -98,7 +107,15 @@ next session.
    ```
 6. Update the Claude Code plugin on the same machine to the same version. In
    Claude Code, run `/plugin marketplace update agent-skills-marketplace`, then
-   update `sdlc-workflow@agent-skills-marketplace` from the plugin manager.
+   update `sdlc-workflow@agent-skills-marketplace` from the plugin manager; or
+   from a shell:
+   ```bash
+   claude plugin marketplace update agent-skills-marketplace
+   ```
+   ```bash
+   claude plugin update sdlc-workflow@agent-skills-marketplace
+   ```
+   Restart Claude Code afterwards; the update applies on restart.
    Confirm with `/__sdlc/health`: after one session on each host, the hub
    reports one `runtimeVersion`, and it does not change between the two hosts'
    session starts.
@@ -114,8 +131,10 @@ codex plugin marketplace add jayteealao/agent-skills --ref <last-good-sha>
 codex plugin add sdlc-workflow-codex@agent-skills-marketplace
 ```
 
-Remove the marketplace before you re-add it at a ref: `marketplace add`
-refuses a name that is already configured. Then open an interactive session,
+Remove the marketplace before you re-add it at a ref: `marketplace add` has no
+replace flag, so a name that is already configured is expected to be refused
+(not yet observed on 0.146.0). `--ref` takes a Git ref; use a tag or a full
+40-character commit SHA. Then open an interactive session,
 run `/hooks`, and trust the old plugin's seven events again. Re-adding does NOT
 restore trust: the hashes are keyed to file path and content, so rollback pays
 the manual-trust cost a second time. That asymmetry is why step 0 exists.
@@ -130,6 +149,10 @@ the manual-trust cost a second time. That asymmetry is why step 0 exists.
   in a Codex session (the `SDLC_HOST` signal).
 - A managed-artifact write from Codex lands a render-queue row whose
   `enqueuedBy.host` reads `codex`.
+- Since v9.153.2 a session adopts a hub on a NEWER runtime version and reaps
+  only an OLDER one, so the two hosts converge on the newest installed version
+  instead of reaping each other; the step-2.6 update still matters, because
+  the older host's write hooks then render through the newer hub's templates.
 - `$wf` under Codex accepts 21 keys; `/wf` under Claude Code accepts 22. The
   extra key is `yolo`. Both hosts show the same 22-row table in `SKILL.md`,
   with `yolo` marked Claude Code only.

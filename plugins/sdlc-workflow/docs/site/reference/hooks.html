@@ -38,11 +38,11 @@ or inside a dispatched read-only sub-agent.</p>
 </table>
 
 <h2 id="codex">Under Codex</h2>
-<p>Codex reads a different wiring file, <code>hooks/codex.hooks.json</code>, which the Codex manifest declares. Codex never loads <code>hooks/hooks.json</code>. Seven small adapter scripts under <code>hooks/</code> receive the Codex events and run the same bundled policy as the hooks above, with the host signal <code>SDLC_HOST=codex</code> set. The verification outcome of a write is the same on both hosts. The timing differs: Codex cannot undo a completed patch, so its enforcement point is the Stop hook.</p>
+<p>Codex reads a different wiring file, <code>hooks/codex.hooks.json</code>, which the Codex manifest declares. Codex never loads <code>hooks/hooks.json</code>. Seven small adapter scripts under <code>hooks/</code> receive the Codex events and run the same bundled policy as the hooks above, with the host signal <code>SDLC_HOST=codex</code> set. Two Claude Code hooks have no Codex counterpart: the <code>leak-guard-write</code> and <code>leak-guard-bash</code> scans do not run under Codex. The verification outcome of a write is the same on both hosts. The timing differs: Codex cannot undo a completed patch, so its enforcement point is the Stop hook.</p>
 <table>
 <thead><tr><th>Codex event</th><th>Adapter</th><th>What it runs</th></tr></thead>
 <tbody>
-<tr><td>SessionStart</td><td><code>session-start.mjs</code></td><td>Confirms the hub, records activation once, and runs <code>seed-memory</code> silently.</td></tr>
+<tr><td>SessionStart</td><td><code>session-start.mjs</code></td><td>Runs <code>seed-memory</code> silently, queues the whole-repo render refresh, confirms the hub, and records activation once.</td></tr>
 <tr><td>SubagentStart</td><td><code>subagent-start.mjs</code></td><td>Injects the active workflow slug, its stage, and the output-boundary reminder into the child.</td></tr>
 <tr><td>PreToolUse · <code>apply_patch|Edit|Write</code></td><td><code>pre-tool-use.mjs</code></td><td>Runs <code>pre-write-validate</code> on a new managed artifact whose full body is visible; denies on a hard violation.</td></tr>
 <tr><td>PermissionRequest</td><td><code>permission-request.mjs</code></td><td>Auto-allows the plugin's own runtime scripts under <code>dist/</code>; has no opinion on anything else.</td></tr>

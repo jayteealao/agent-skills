@@ -65,7 +65,9 @@ user to `/wf auto`.
 | Gate questions | [_gate-question.md](_gate-question.md) | [_gate-question.md](_gate-question.md) |
 | Sub-agents | [_subagents.md](_subagents.md) | [_subagents.md](_subagents.md) |
 | Timestamps | [_timestamp.md](_timestamp.md) | [_timestamp.md](_timestamp.md) |
-| Managed-artifact enforcement | A pre-write hook blocks an invalid artifact before it lands | A pre-write hook denies a full-content write of an invalid artifact; a post-write hook verifies edits; the Stop hook blocks the turn until the artifact is repaired, bounded by a repair ceiling |
+| Managed-artifact enforcement | A pre-write hook blocks an invalid full-content write before it lands; a post-write hook verifies every write (schema, sibling `.yaml`, fragment) and returns corrective feedback | A pre-write hook denies a full-content write of an invalid artifact; a post-write hook verifies every write; the Stop hook blocks the turn until the artifact is repaired, bounded by a repair ceiling |
+| Leak guards (internal vocabulary in public docs and commit messages) | Pre-write and shell hooks scan when `semantic.enabled` is on | Not wired; nothing scans |
+| Whole-repo render refresh at session start | Queued by the SessionStart hook | Queued by the SessionStart adapter |
 | Progress surface | None required | Use the built-in plan tool for nontrivial work when it is available |
 | Durable repo guidance | `CLAUDE.md` and `AGENTS.md` | `AGENTS.md` |
 | Session transcripts (deep retro) | `~/.claude/projects/<repo-path-slug>/*.jsonl` — the repo's absolute path with separators replaced | None. Deep retro falls back to the artifact-only reading |

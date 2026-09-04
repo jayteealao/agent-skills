@@ -213,7 +213,7 @@ Execute the plan. **Generate independent doc actions in parallel** — each acti
 
 For each action:
 
-1. **Track the action** as an in-progress task entry: `"<action-type> <file-path>"`.
+1. **Track the action** on the host's progress surface, if it has one ([_host-invocation.md](_host-invocation.md)): `"<action-type> <file-path>"`.
 2. **Read required source files** before writing anything — do not write from memory.
 3. **Load the matching primitive reference** from `docs/<primitive>.md` and follow it verbatim. The primitive references are:
    - `docs/tutorial.md` — learning-oriented content that builds something step-by-step
@@ -223,7 +223,7 @@ For each action:
    - `docs/readme.md` — front-door README pages that route to deeper docs
 4. **Write or update the file** at the target path.
 5. **For delete actions:** confirm with the user one more time before deleting. Never delete silently.
-6. **Mark the action completed in your work-tracking checklist.**
+6. **Mark the action completed on that surface.**
 
 Record each completed action in `generate.md`.
 

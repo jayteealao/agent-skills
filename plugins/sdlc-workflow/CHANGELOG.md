@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.153.2] - 2026-09-04
+
+The second fresh-eyes pass, this time over the whole single-source implementation rather than one diff: six reviewers walked the Codex install path end to end, deep-read the remaining stage prose under both hosts, traced every process spawn for the host signal, audited what the suite proves, and re-checked the v9.153.1 diff and its documents. One runtime behavior changes (hub adoption); everything else is prose, documents, gates, and tests. `hooks/`, `lib/`, and `scripts/` changed, so `dist/` is rebuilt in the same commit.
+
+### Changed
+
+- **A session adopts a hub on a NEWER runtime version and reaps only an OLDER one.** `lib/hub-lifecycle.mjs` reaped on any `runtimeVersion` mismatch, in either direction. With two hosts installed at two versions (this machine: Claude Code 9.144.0, Codex 9.152.1), every session start reaped the other host's hub and respawned its own: the buildId flipped, all registered repos went stale and re-rendered through alternating template generations, live-reload clients dropped, in-flight render children kept writing into the new hub's view directories, and nothing garbage-collected the runtime store (28 builds, 124 MB). `decideHubAction` now returns `adopt` for a tracked, protocol-compatible hub whose runtime is newer, with the reason in the adoption log line; an untracked newer hub is still reaped to recover the write token. Two new tests pin both branches. The explicit `hub:upgrade` path is unchanged.
+- **Codex SessionStart queues the whole-repo render refresh.** The Claude Code SessionStart hook enqueues a `bootstrap` freshness pass on every session; the Codex adapter only confirmed the hub, so artifacts changed outside the write hooks (pull, checkout, hand edits) were not re-rendered until the next managed write. `scripts/hub-ensure.mjs` gains `--bootstrap`, which enqueues the pass before the hub comes up; the adapter passes it. The adapter still imports no `lib/`.
+- **Codex SessionStart seeds memory first and honors the dispatch sentinel** (carried from v9.153.1's change; the order is now also described in `hooks.html`).
+- `scripts/hub-serve.mjs` stamps its own bootstrap rows `enqueuedBy.host: hub` instead of the starter host, so the render queue's provenance field means what the field check in the cutover runbook says it means.
+- `hooks/permission-request.mjs` honors `SDLC_HOME` for the machine runtime store, like `lib/registry.mjs`.
+
+### Fixed
+
+- **Child prompts carried citing-file-relative paths a child cannot resolve.** The merge replaced `${CLAUDE_PLUGIN_ROOT}/…` with paths relative to the citing file everywhere. That is right for the coordinator and wrong inside a prompt handed to a fresh-context child. The review-dimension prompt in `review/_stage.md` (`review/{command-name}.md`, `_findings-ledger.md` "sibling of review/", `_timestamp.md`, `_fragment-authoring.md`), the audit lens prompt in `intake/audit.md`, the adapter-registry line in `verify.md`, and the Step F clause in `plan.md` now spell `<skill-dir>/reference/…`, and `_subagents.md` states the rule: paths in a child prompt are absolute, resolved per `_host-invocation.md` before dispatch.
+- **Write-isolation merge steps were not executable under Codex** (`verify.md`, `review/_stage.md`): "read the changed files from its isolated result … merge the isolated changes" assumes a worktree; under a partition host the edit is already in the tree. Both hosts are now spelled out, and the Claude Code reader gets back the `git checkout <branch> -- <files>` command the merge had dropped.
+- `verify.md` called verify's children "read-only"; they build, boot, and drive. They are "non-editing".
+- **The intent-fidelity always-on gate keyed on `workflow-type: default`**, a value the schema does not define and intake never writes (`review/_stage.md` ×2, `review/intent-fidelity.md`). It reads `workflow-type: feature`, or unset.
+- One more effort-tier drift from the merge: `ship-plan/audit.md`'s three cheap lenses were `medium` (sonnet) where the pre-merge pin was haiku; now `low`. `_subagents.md`'s tier rule now matches the repaired sites: rubric-driven review dimensions are `low`; the judgment-heavy three are `medium`.
+- `design/shape.md`: the v9.153.1 rewrite left "Managed-artifact enforcement (…) hook reminds you"; it reads "blocks the `.md` write if you forget", which is what the hook does for a design contract.
+- `_host-invocation.md`'s enforcement row described the sibling-`.yaml` gate as a Claude Code pre-write hook; it is the post-write verifier. The row is accurate for both hosts now, and two rows are added: the leak guards (Claude Code only; nothing scans under Codex) and the session-start render refresh.
+- `augment/profile.md`'s v9.153.1 timestamp sentence asked for a "compact form, no separators" that matches neither the run-id format beside it nor any `_timestamp.md` row; it now says how to derive `YYYYMMDD-HHMMSS` from the ISO-8601 read.
+- `imagery/SKILL.md` said the built-in `image_gen` is "always available"; it exists only where the host offers it. `design/contract.md`, `imagery/SKILL.md`, and `uiproto/SKILL.md` wrote `imagery …` / `uiproto …` without the invocation sigil that lets a Codex reader substitute `$`; the contract's skip condition ("the harness lacks native image generation") skipped scripted providers that may be present.
+- `skills/wf/SKILL.md`'s description was 1069 characters; both hosts truncate at 1024, so Codex's model never saw its last sentence. The "Hosts" paragraph now also short-circuits `yolo` under Codex without loading the Claude-only reference.
+- `imagery` and `uiproto` descriptions said "not user-invocable", which is false under Codex (a Claude Code frontmatter field Codex ignores); they say "invoke it through `/wf design`".
+- `.codex-plugin/plugin.json` `homepage` and `websiteURL` pointed at a `main` branch; the repository's default branch is `master`.
+- Leftovers from v9.153.1: the seventh `/review sweep` row in the README, `README.md`'s "via `AskUserQuestion`" and "31 review domains", `SINGLE-SOURCE-PLAN.md`'s W7 step still in add-then-remove order, `CE-COMPARISON-AND-ADOPTION.md` "four contract files", `HOST-NEUTRALITY.md` "nine families", `hooks.html`'s SessionStart order, `verify.md`'s tautological heading, `docs.md`'s mixed tracker vocabulary, `narrative-fragments.md`'s "exit 2", the archived dynamic-workflows note, `intake/default.md`'s `/wf-<other>`, `verify.md`'s `/wf study-sources`, two 55-to-75-word sentences split per the STE rule, and the last two-tree comments in six test headers.
+- `reference/shared-hub.md` said a version mismatch "triggers a controlled handoff" (it was kill-and-respawn) and that the hub "requires explicit opt-in" (it starts on the first session unless `view.ensureHub` is false).
+
+### Gates and tests
+
+- New `tests/unit/single-source-contract.test.mjs` (10 tests): the Codex adapters import only `./_adapter.mjs` and node builtins (they run from source on an install with no `node_modules`; a stray `../lib` import would pass every existing test and crash in the field); every bundle an adapter spawns is a build entrypoint that exists in `dist/`; every neutrality family fires on a fixture (a regex that matches nothing passed the clean-tree gate silently); `checkVersions` flags a drifted carrier; `SDLC_HUB_STARTED_BY` derives from `SDLC_HOST` as observed behavior, not source text; `hub-ensure --bootstrap` enqueues with the host signal; `codex.hooks.json` wires all seven events and its Windows commands resolve; the six `openai.yaml` files parse and every SKILL.md name is its directory and its description fits 1024 characters; `_subagents.md` pins the tier mapping; the doc-site gate passes under `npm test`.
+- `host-signal.test.mjs` walks every source file under `hooks/`, `lib/`, `scripts/` for path-based host inference instead of a fixed list. `gates.test.mjs` pins the ten-family roster and, under CI, requires the merge-base comparison to have run.
+- `verify-deployment` distinguishes an installed legacy plugin (run `remove`) from leftover `hooks.state` trust tables (delete by hand) and warns about the orphaned legacy plugin-data directory.
+- CI: the `push` path filter includes the workflow file itself.
+
+### Docs
+
+- `SINGLE-SOURCE-CUTOVER.md`: the Claude Code update step gains the CLI commands and the restart note; the `remove` and `marketplace add` claims are labeled as help-text-derived until observed; the rollback names a tag or full SHA; the preflight notes the local-path snapshot size and the scratch-repo registration; the orphaned plugin-data directory is named; the field checks record the new adoption rule.
+- `hosts.html` and `hooks.html` name the two Claude Code leak guards that have no Codex counterpart and the session-start refresh both hosts now queue.
+
 ## [9.153.1] - 2026-09-04
 
 The fresh-eyes pass over the single-source merge. Four reviewers read the runtime code, the gates, the merged prose, and every document against the shipped tree; this release repairs what they confirmed. No schema or artifact surface changes. `hooks/` and `lib/` changed, so `dist/` is rebuilt in the same commit.

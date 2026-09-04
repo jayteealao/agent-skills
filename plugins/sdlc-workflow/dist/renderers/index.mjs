@@ -4,7 +4,7 @@ import {
   md2html,
   renderHistoryBlock,
   renderRevisionLedger
-} from "../chunk-6UA62V5D.mjs";
+} from "../chunk-554SLPZT.mjs";
 import {
   evenX,
   figureCanvas
@@ -14,7 +14,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-S43YD6UF.mjs";
+} from "../chunk-I6ACAWA5.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";

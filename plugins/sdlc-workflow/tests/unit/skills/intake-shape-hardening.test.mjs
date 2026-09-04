@@ -6,7 +6,7 @@
 // gate) and moved review-scope to slice; W4 added intake consult triggers, the blind
 // pre-mortem, and the fidelity chat line. These tests pin the load-bearing phrases so
 // a future edit can't silently delete a gate. One host-neutral reference tree serves both hosts
-// tree, so those guards iterate BOTH trees (schema + hook guards are main-tree only).
+// tree until v9.153.0; `trees` now has one entry (schema + hook guards are unchanged).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

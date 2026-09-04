@@ -56,6 +56,6 @@ one-paragraph verdict: **does the shipped slice advance the intake's product?** 
 intake directive and the quoted code that departs from it.
 
 # WHEN TO USE
-Always-on for lifecycle slugs (`workflow-type: default`) at both per-slice and slug-wide scope — it joins
+Always-on for lifecycle slugs (`workflow-type: feature`, or unset) at both per-slice and slug-wide scope — it joins
 `correctness` in the always-kept set and is never suppressed by the user-focus override. Ad-hoc reviews
 reach it by name (`/wf review intent-fidelity`).

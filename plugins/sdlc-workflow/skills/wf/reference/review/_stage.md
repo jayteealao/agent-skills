@@ -139,7 +139,13 @@ After writing files, return per [_chat-return.md](../_chat-return.md) — narrat
 
 # Progress tracking
 
-Where the host offers a progress surface ([_host-invocation.md](../_host-invocation.md)), track one item per selected review command (independent — they run as parallel sub-agents) plus the four bookkeeping items in ledger order — merge + dedupe + resolve-sweep, triage, fix loop (Step 4c; dropped when Step 4b yields zero `Fix` decisions), write the merged verdict + Fix Status — and, inside Step 4c, one item per `Fix` decision (`Fix [{ID}] {SEV}: {title}`). Mark each item done as its outcome is recorded; a `could-not-fix` item carries `COULD NOT FIX: <reason>`. Tracking never changes the ordering above.
+Where the host offers a progress surface ([_host-invocation.md](../_host-invocation.md)), track these items:
+
+- one item per selected review command (independent — they run as parallel sub-agents);
+- the four bookkeeping items, in ledger order: merge + dedupe + resolve-sweep; triage; fix loop (Step 4c; dropped when Step 4b yields zero `Fix` decisions); write the merged verdict + Fix Status;
+- inside Step 4c, one item per `Fix` decision (`Fix [{ID}] {SEV}: {title}`).
+
+Mark each item done as its outcome is recorded. A `could-not-fix` item carries `COULD NOT FIX: <reason>`. Tracking never changes the ordering above.
 
 ---
 
@@ -183,7 +189,7 @@ Each command maps to `review/<name>.md` — **except** the two design dimensions
 - `correctness` — logic, invariants, edge cases
 - `security` — vulnerabilities, insecure defaults
 - `code-simplification` — missed reuse, unnecessary complexity, inefficiencies
-- `intent-fidelity` — **always-on for lifecycle slugs** (`workflow-type: default`), at BOTH per-slice and slug-wide scope: does the diff advance the intake's product, or a simplified imitation of it? Joins `correctness` in the always-kept set and is **never suppressed by the user-focus override**. Ad-hoc reviews reach it by name (`/wf review intent-fidelity`). (Compressed/change-mode slugs may skip it; it is a lifecycle-slug gate.)
+- `intent-fidelity` — **always-on for lifecycle slugs** (`workflow-type: feature`, or unset), at BOTH per-slice and slug-wide scope: does the diff advance the intake's product, or a simplified imitation of it? Joins `correctness` in the always-kept set and is **never suppressed by the user-focus override**. Ad-hoc reviews reach it by name (`/wf review intent-fidelity`). (Compressed/change-mode slugs may skip it; it is a lifecycle-slug gate.)
 
 ### Always include for any backend source change
 (`.ts`, `.js`, `.mjs`, `.py`, `.go`, `.java`, `.cs`, `.rb`, `.php`, `.rs`, `.kt`, `.swift`, `.scala`, `.ex`, `.exs`)
@@ -270,7 +276,7 @@ These run as ordinary dimensions inside the parallel fan-out — reachable ad-ho
 - `dx`
 
 ### Selection Constraints
-- **Minimum**: 3 (`correctness` + `security` + `code-simplification`); for lifecycle slugs (`workflow-type: default`) `intent-fidelity` is also always-on (per-slice AND slug-wide), so the floor is 4.
+- **Minimum**: 3 (`correctness` + `security` + `code-simplification`); for lifecycle slugs (`workflow-type: feature`, or unset) `intent-fidelity` is also always-on (per-slice AND slug-wide), so the floor is 4.
 - **Maximum**: 15 — raise only if the change genuinely spans many domains; do not artificially cap thorough coverage
 - **User focus override**: include named dimensions + `correctness` (+ `intent-fidelity` for lifecycle slugs — never suppressed by the focus filter); suppress unrelated commands
 - **Config/docs-only**: drop `correctness`/`backend-concurrency`/`testing`/`code-simplification`; keep `security`, `docs`, relevant infra/release
@@ -300,10 +306,10 @@ Print to chat:
 
 For EACH selected command, dispatch ONE sub-agent at **medium** effort per [_subagents.md](../_subagents.md). Set the tier explicitly — a reviewer must not inherit the parent configuration (per [_fix-loop.md](../_fix-loop.md) rule 3). All agents run in parallel, in waves of ≤6 when more dimensions are selected. Synthesis (Step 4 — aggregation, dedup, triage) stays with the coordinator.
 
-**Each sub-agent receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`):
+**Each sub-agent receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`; resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against):
 
 ```
-Execute the review command at `review/{command-name}.md`.
+Execute the review command at `<skill-dir>/reference/review/{command-name}.md`.
 
 Scope:
   - Per-slice mode: `git diff HEAD` (working-tree diff for the current slice)
@@ -324,10 +330,10 @@ a prior finding's `pre-existing` value if the diff has since grown to touch thos
 ACCUMULATE — do not overwrite. Before writing, READ your target file below if it already
 exists (plus its sibling `.yaml`). It holds prior findings for THIS dimension with stable
 IDs and `surfaced-at` stamps. MERGE your fresh findings into it by the findings-ledger
-merge law: READ the shared reference `_findings-ledger.md` (sibling of `review/`) and apply
+merge law: READ the shared reference `<skill-dir>/reference/_findings-ledger.md` and apply
 its rules 2–5 to this dimension's file (re-surfaced findings keep prior id/surfaced-at;
 net-new get max+1; resolve-sweep what you did not re-surface; triaged statuses persist).
-Get `now` from the real UTC timestamp per [_timestamp.md](../_timestamp.md). Emit the FULL merged set (open AND resolved), not just this run's deltas.
+Get `now` from the real UTC timestamp per `<skill-dir>/reference/_timestamp.md`. Emit the FULL merged set (open AND resolved), not just this run's deltas.
 
 IMPORTANT: Write your complete review findings to the file:
   - Per-slice: `.ai/workflows/{slug}/07-review-{slice-slug}-{command-name}.md`
@@ -398,8 +404,8 @@ Then author the rich siblings next to that `.md` (do NOT leave this for the orch
   2. Write `<stem>.html.fragment` — one
      `<section class="fragment-review-dimension" data-artifact="review-dimension">`
      per the per-dimension shape in this reference's Step 5b tail and
-     `../_fragment-authoring.md`.
-Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) BLOCKS the `.md` write when the sibling
+     `<skill-dir>/reference/_fragment-authoring.md`.
+Managed-artifact enforcement (the host's write hook, `<skill-dir>/reference/_host-invocation.md`) BLOCKS the `.md` write when the sibling
 `.yaml` is missing — write the `.yaml` first (or in the same turn). If this
 dimension has zero OPEN findings (clean, or everything resolved), set `fragment: none`
 in the `.md` frontmatter instead of authoring an empty fragment.
@@ -504,7 +510,7 @@ Dispatch a fix sub-agent for **every** finding triaged `Fix` **in parallel** (on
      Self-check: <command> → exit <N>
      A brief summary of what you changed and whether the fix is confirmed.
    ```
-2. As each sub-agent completes, take its patch through step 3 before merging it into the working tree. **On a patch-overlap conflict** (two fixes touch the same lines), merge one, then re-dispatch the other against the merged state — serial for the conflicting pair only.
+2. As each sub-agent completes, take its patch through step 3 before accepting it. Under a worktree host, accept by merging the child's branch result; under a partition host (no worktree flag, per [_subagents.md](../_subagents.md)) the edit is already in the working tree, so step 3 reviews the diff first and `git checkout -- <files>` discards a rejected one. **On a patch-overlap conflict** (two fixes touch the same lines), merge one, then re-dispatch the other against the merged state — serial for the conflicting pair only.
 3. Read the changed file(s) and sanity-check the patch against **both** the finding and the suggested fix's method ([_fix-loop.md](../_fix-loop.md) rule 5) — `Method: deviated` is never accepted on the subagent's own word; re-read it against what was suggested, and discard a deviation that crosses an explicit prohibition.
 4. **Record the outcome ON the finding** — set `status` and `fixed-at = now` in `## All Findings`, `## Findings (Detailed)`, `## Fix Status`, and the sibling `.yaml`:
    - fixed → `status: fixed` (drops out of OPEN counts and verdict).

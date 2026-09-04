@@ -1,8 +1,8 @@
 // Drift guards for the INTENT-FIDELITY hardening plan (R1 spine: W1/W2/W7/W9.4/W10.1).
 // Each wave converts an ambient reframing into a written, gated decision; these tests
 // pin the load-bearing prompt phrases so a future edit can't silently delete the gate.
-// Reference content is mirrored to the codex tree, so the reference-prose guards iterate
-// BOTH trees (the schema + renderer guards are main-tree only — codex has neither).
+// One tree serves both hosts since v9.153.0; `trees` has one entry (the schema + renderer
+// guards read the same tree).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';

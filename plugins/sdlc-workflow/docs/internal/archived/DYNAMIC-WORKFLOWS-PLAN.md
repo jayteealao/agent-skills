@@ -1,6 +1,6 @@
 # Dynamic Workflows Integration Plan
 
-**Status: ARCHIVED 2026-09-04 (v9.153.1), never built.** Its Codex sections assume a generated `.codex-generated/` build, the path SINGLE-SOURCE-PLAN rejected; one tree serves both hosts since v9.153.0. Relative links below were written for `docs/internal/` and are not updated.
+**Status: ARCHIVED 2026-09-04 (v9.153.1), never built.** Its Codex sections assume a generated `.codex-generated/` build, the path SINGLE-SOURCE-PLAN rejected; one tree serves both hosts since v9.153.0. The two companion-plan links were repointed for `archived/`; the `../../lib`, `../../hooks`, and `../../skills` source links were written for `docs/internal/` and are not updated.
 
 Companion to [QUALITY-GATES-PLAN.md](QUALITY-GATES-PLAN.md) and
 [MULTI-HOST-SUPPORT-PLAN.md](MULTI-HOST-SUPPORT-PLAN.md). This plan adopts

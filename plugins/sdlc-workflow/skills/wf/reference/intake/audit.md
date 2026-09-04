@@ -74,7 +74,7 @@ Lenses are the existing review rubrics at `../review/<lens>.md` (plus `design/au
 
 For EACH selected lens, dispatch a sub-agent per [_subagents.md](../_subagents.md), in waves of at most 6 when the lens set is large. Effort tier per lens follows the ad-hoc review sweep's rule ([review.md](../review.md)): **medium** for `architecture`, `refactor-safety`, `security`; **low** otherwise — stated explicitly on every dispatch, never inherited. Prompt each with:
 
-- The lens reference path: `../review/<lens>.md` — read it and apply its rubric.
+- The lens reference path: `<skill-dir>/reference/review/<lens>.md` (resolved to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch) — read it and apply its rubric.
 - **Scope: the confirmed file surface from Step 1** — read these files; there is no diff. Every finding is by construction about existing code (no `pre-existing` split — record `pre-existing: true` on every row for schema compatibility with the review family).
 - The concern verbatim, so the lens reads with intent.
 - **Candidate findings only** — findings do NOT enter the ledger until they survive Step 4. Return each with severity (BLOCKER/HIGH/MED/LOW/NIT), confidence (High/Med/Low), `file:line`, evidence snippet, and the claimed invariant it violates.

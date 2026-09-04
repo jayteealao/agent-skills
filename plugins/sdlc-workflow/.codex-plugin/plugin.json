@@ -1,12 +1,12 @@
 {
   "name": "sdlc-workflow",
-  "version": "9.153.1",
+  "version": "9.153.2",
   "description": "SDLC workflow plugin, one source for Claude Code and Codex: one `$wf` workflow skill (22 keys — the ten lifecycle stages intake through retro, the intake modes fix/rca/investigate/discover/audit/hotfix/refactor/update-deps/ideate/adopt, design, probe, simplify, auto, task, status/recap, close, ship-plan, docs, observability; `yolo` is Claude Code only) plus consult, imagery, uiproto, diataxis, and study-sources — over a shared runtime, hub, and .ai/ artifacts. Requires a hooks-GA Codex CLI (verified on 0.146.0) with hooks enabled.",
   "author": {
     "name": "jayte",
     "url": "https://github.com/jayteealao"
   },
-  "homepage": "https://github.com/jayteealao/agent-skills/tree/main/plugins/sdlc-workflow",
+  "homepage": "https://github.com/jayteealao/agent-skills/tree/master/plugins/sdlc-workflow",
   "repository": "https://github.com/jayteealao/agent-skills",
   "license": "MIT",
   "keywords": [
@@ -29,7 +29,7 @@
       "Read",
       "Write"
     ],
-    "websiteURL": "https://github.com/jayteealao/agent-skills/tree/main/plugins/sdlc-workflow",
+    "websiteURL": "https://github.com/jayteealao/agent-skills/tree/master/plugins/sdlc-workflow",
     "defaultPrompt": [
       "$wf status — then run the next SDLC stage for this workflow ($wf is the skill; `wf` is NOT a shell command — on Windows it opens the Firewall console).",
       "$wf review — review the current branch across the pre-merge dimensions.",

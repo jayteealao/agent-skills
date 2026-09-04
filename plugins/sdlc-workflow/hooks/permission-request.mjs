@@ -64,7 +64,7 @@ function main() {
 
   const allowedRoots = [
     join(layout.runtimeRoot, 'dist'), // bundled runtime entrypoints (plugin root/dist)
-    join(homedir(), '.sdlc', 'runtime'), // machine runtime store (hub-adopted)
+    join(process.env.SDLC_HOME || join(homedir(), '.sdlc'), 'runtime'), // machine runtime store (hub-adopted); honors SDLC_HOME like lib/registry.mjs
   ];
   if (!isAllowedRuntimeInvocation(argv, allowedRoots)) return; // no opinion
 

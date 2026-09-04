@@ -10,8 +10,8 @@
 // from becoming a HIGH finding.
 //
 // These tests pin the load-bearing phrases so a future edit cannot silently
-// drop a gate. Reference prose is mirrored to the codex tree (with `$wf` in
-// place of `/wf`), so every guard iterates BOTH trees.
+// drop a gate. One tree serves both hosts since v9.153.0 (`/wf` is the one
+// spelling); every guard iterates `trees` (one entry).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';

@@ -116,7 +116,7 @@ The sunflower view renders the design page from a sibling `.yaml` + `.html.fragm
 written next to `02b-design.md`. **Without the `.yaml` the page silently degrades to
 plain prose** — the swatch matrix, the token table, and the annotated specs never
 appear (`design.mjs` gates the rich body on the sibling YAML). Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md))
-hook reminds you if you forget; author them here, now.
+blocks the `.md` write if you forget; author them here, now.
 
 For the `02b-design.md` you just wrote:
 

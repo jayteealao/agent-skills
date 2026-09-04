@@ -17,7 +17,7 @@
 // invalidation is scoped so branch-scoped entries survive a plan amendment.
 // Deleting any phrase below silently restores the loop.
 //
-// Reference prose is mirrored to the codex tree, so every guard iterates BOTH.
+// One tree serves both hosts since v9.153.0; every guard iterates `trees` (one entry).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';

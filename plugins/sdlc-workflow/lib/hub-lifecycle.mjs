@@ -25,16 +25,18 @@ import { gcRuntimes, materializeRuntime, readRuntimeIdentityAt, verifyRuntimeSto
 // { runtimeVersion, buildId, hubName, hubProtocolVersion } both plugins carry
 // identically. Adoption keys on runtimeVersion + protocol, NOT the plugin package
 // version — so two native packages of the same release adopt each other's hub
-// instead of reaping it (Settled Decision 24). A genuine runtimeVersion mismatch
-// still reaps + respawns, which preserves single-host upgrade pickup (today
-// runtimeVersion === the package version).
+// instead of reaping it (Settled Decision 24). A runtimeVersion mismatch reaps +
+// respawns ONLY when the running hub is OLDER, which preserves upgrade pickup
+// (today runtimeVersion === the package version); a NEWER hub is adopted, so two
+// hosts on two versions converge on the newest instead of reaping each other on
+// every session start (v9.153.2).
 const RUNTIME = runtimeIdentity();
 
 // Which host runs this supervisor — diagnostic provenance carried on the hub's
 // PID record + health. SDLC_HOST is the entrypoint signal (set by the Codex hook
 // adapter; absent under Claude Code); SDLC_HUB_STARTED_BY is DERIVED from it
 // here, at the single hub-spawn site, and nowhere else (SINGLE-SOURCE-PLAN §3.4).
-const STARTED_BY_HOST = process.env.SDLC_HOST || 'claude';
+export const STARTED_BY_HOST = process.env.SDLC_HOST || 'claude';
 
 // Re-export so callers have one import for the hub's pid-file location (the plan
 // lists hubPidPath as part of this module's API; the path itself is defined in
@@ -80,11 +82,17 @@ export function decideHubAction(id, runtime, status) {
   // visible in health; replacing it is an explicit upgrade) since the reap keys
   // on runtimeVersion, not buildId.
   if (protocolOk && sameRuntime && tracked) return { action: 'adopt' };
+  // A tracked hub on a NEWER runtime is adopted, never reaped: reaping it would
+  // downgrade the machine, and the next session of the newer host would reap
+  // right back (the two-hosts-two-versions ping-pong, v9.153.2).
+  if (protocolOk && tracked && typeof id.runtimeVersion === 'string' && compareVersions(id.runtimeVersion, runtime.runtimeVersion) > 0) {
+    return { action: 'adopt', reason: `newer hub (runtime v${id.runtimeVersion} > v${runtime.runtimeVersion})` };
+  }
   // A healthy hub on an INCOMPATIBLE protocol is never silently replaced at
   // SessionStart — surface a diagnostic and leave it (explicit upgrade only).
   if (!protocolOk) return { action: 'protocol-incompatible' };
-  // Reap: a genuine runtime upgrade/downgrade (cross-host packages of one release
-  // share a runtimeVersion and never hit this), or a same-runtime hub whose PID
+  // Reap: the running hub is on an OLDER runtime (an upgrade pickup), or a
+  // same-runtime hub whose PID
   // record was lost/mismatched (recovery to restore the write token).
   return {
     action: 'reap',
@@ -120,7 +128,7 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
     const id = await probeHubIdentity({ host, port, timeoutMs: status.alive ? 700 : 350 });
     const decision = decideHubAction(id, RUNTIME, status);
     if (decision.action === 'adopt') {
-      log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ''}hub at http://${displayHost(host)}:${port} (runtime ${RUNTIME.runtimeVersion})`);
+      log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ''}hub at http://${displayHost(host)}:${port} (runtime ${RUNTIME.runtimeVersion}${decision.reason ? `; ${decision.reason}` : ''})`);
       maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
       return { action: 'already-running', pid: id.pid, adopted: true };
     }
@@ -142,7 +150,7 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
       const decision = decideHubAction(id, RUNTIME, status);
 
       if (decision.action === 'adopt') {
-        log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ''}hub after lock wait (runtime ${RUNTIME.runtimeVersion})`);
+        log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ''}hub after lock wait (runtime ${RUNTIME.runtimeVersion}${decision.reason ? `; ${decision.reason}` : ''})`);
         maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
         return { action: 'already-running', pid: id.pid, adopted: true };
       }

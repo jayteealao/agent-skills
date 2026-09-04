@@ -7,7 +7,7 @@ artifact may ship either, both, or neither.
 |---|---|---|
 | Filename | `<stem>.html.fragment` (exactly one) | `<stem>.<label>.html.fragment` (any number) |
 | Contract | Full — see [`fragment-author-contract.md`](fragment-author-contract.md) | **None.** Raw, unrestricted HTML |
-| Sibling `.yaml` | Required (gated, exit 2) | Not required, not read |
+| Sibling `.yaml` | Required (managed-artifact enforcement blocks the write) | Not required, not read |
 | Scoping / wrapper | One `<section class="fragment-<name>">`, scoped CSS | Whatever you write — but your `<style>` is auto-contained (see below) |
 | Determinism | Must project deterministically from the `.yaml` | No constraint |
 | Verifier | `verify-fragment.mjs` enforces the envelope | **Exempt** |

@@ -4,6 +4,12 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.179.2 - 2026-09-04
+
+### Changed
+
+- **sdlc-workflow → v9.153.2 — the whole-implementation fresh-eyes pass.** A session now adopts a hub on a newer runtime version and reaps only an older one, ending the two-hosts-two-versions hub ping-pong; the Codex SessionStart queues the whole-repo render refresh; child prompts carry absolute `<skill-dir>` paths; ten new contract tests. Details in the plugin changelog.
+
 ## Version 1.179.1 - 2026-09-04
 
 ### Changed

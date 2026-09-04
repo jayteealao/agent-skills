@@ -5,9 +5,10 @@
 // trusted SessionStart (startup|resume|clear|compact) it:
 //   1. resolves the project root and the once-only activation record;
 //   2. ensures the machine-wide shared hub adoption-first — detached, OFF the
-//      hook's critical path — by spawning the bundled hub-ensure (which adopts a
-//      healthy compatible hub under the cross-host lock, or starts one from the
-//      machine runtime store, and registers this repo so the hub renders it);
+//      hook's critical path — by spawning the bundled hub-ensure (which queues
+//      the whole-repo freshness pass, adopts a healthy compatible hub under the
+//      cross-host lock or starts one from the machine runtime store, and
+//      registers this repo so the hub renders it);
 //   3. records activation atomically the FIRST time a given plugin/runtime/hook
 //      baseline is seen (so repeated SessionStarts don't repeat activation work);
 //   4. seeds the /wf rules kernel (dist/seed-memory.mjs) THROUGH runBundled, so
@@ -108,6 +109,7 @@ function ensureHubConfirmed(runtimeRoot, projectRoot) {
       [
         bundledEntry(runtimeRoot, 'hub-ensure'),
         '--confirm',
+        '--bootstrap', // whole-repo freshness pass, as the Claude Code SessionStart hook enqueues inline
         '--plugin-root', runtimeRoot,
         '--project-root', projectRoot,
         '--view', join(projectRoot, '.ai', '_view'),

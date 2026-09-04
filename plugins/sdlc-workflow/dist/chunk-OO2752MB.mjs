@@ -222,6 +222,9 @@ function decideHubAction(id, runtime, status) {
   const protocolOk = id.hubProtocolVersion === runtime.hubProtocolVersion;
   const sameRuntime = id.runtimeVersion === runtime.runtimeVersion;
   if (protocolOk && sameRuntime && tracked) return { action: "adopt" };
+  if (protocolOk && tracked && typeof id.runtimeVersion === "string" && compareVersions(id.runtimeVersion, runtime.runtimeVersion) > 0) {
+    return { action: "adopt", reason: `newer hub (runtime v${id.runtimeVersion} > v${runtime.runtimeVersion})` };
+  }
   if (!protocolOk) return { action: "protocol-incompatible" };
   return {
     action: "reap",
@@ -243,7 +246,7 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
     const id = await probeHubIdentity({ host, port, timeoutMs: status.alive ? 700 : 350 });
     const decision = decideHubAction(id, RUNTIME, status);
     if (decision.action === "adopt") {
-      log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ""}hub at http://${displayHost(host)}:${port} (runtime ${RUNTIME.runtimeVersion})`);
+      log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ""}hub at http://${displayHost(host)}:${port} (runtime ${RUNTIME.runtimeVersion}${decision.reason ? `; ${decision.reason}` : ""})`);
       maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
       return { action: "already-running", pid: id.pid, adopted: true };
     }
@@ -258,7 +261,7 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
       const id = await probeHubIdentity({ host, port, timeoutMs: status.alive ? 700 : 350 });
       const decision = decideHubAction(id, RUNTIME, status);
       if (decision.action === "adopt") {
-        log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ""}hub after lock wait (runtime ${RUNTIME.runtimeVersion})`);
+        log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ""}hub after lock wait (runtime ${RUNTIME.runtimeVersion}${decision.reason ? `; ${decision.reason}` : ""})`);
         maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
         return { action: "already-running", pid: id.pid, adopted: true };
       }

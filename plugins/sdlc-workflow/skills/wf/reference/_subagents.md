@@ -8,6 +8,10 @@ child, then collect the results. Every reference that dispatches sub-agents
 cites this file instead of restating the rules. No other skill file names a
 dispatch tool, an agent type, a model name, or an isolation flag.
 
+A **research sub-agent** is a read-only child that returns findings as text
+and writes nothing (Claude Code `Explore`; Codex `explorer`). A **research
+pass** is one wave of them.
+
 ## Rules that hold under every host
 
 - **Children read, the coordinator writes.** Mutation leases, sibling-fragment
@@ -19,6 +23,10 @@ dispatch tool, an agent type, a model name, or an isolation flag.
   that must edit source files gets write isolation (table below) so parallel
   children never collide; children whose fixes must touch the same file run
   serially, in severity order.
+- **Paths in a child prompt are absolute.** A child has no citing file, so a
+  citing-file-relative path (`../review/x.md`, `_timestamp.md`) means nothing
+  to it. Write `<skill-dir>/reference/…` in prompt templates and resolve every
+  `<skill-dir>` per [_host-invocation.md](_host-invocation.md) before dispatch.
 - **Children never ask.** A child must never reach for any rung of the
   gate-question ladder ([_gate-question.md](_gate-question.md)) — it will fail
   or stall. Gates belong to the coordinator; give children everything they
@@ -27,13 +35,15 @@ dispatch tool, an agent type, a model name, or an isolation flag.
   the session-level agent.
 - **Effort tiering, not model pinning.** Prose names a tier; this file maps
   the tier to the host. **low** for mechanical, bounded extraction
-  (inventories, structured reads, per-package research); **medium** for
-  standard research, review dimensions, and fix dispatch; **high** only for
-  judge, verify, and causal-reasoning children. A child must not silently
+  (inventories, structured reads, per-package research) and for rubric-driven
+  review dimensions; **medium** for standard research, the judgment-heavy
+  review dimensions (`architecture`, `refactor-safety`, `security`), and fix
+  dispatch; **high** only for judge, verify, and causal-reasoning children. A child must not silently
   inherit an expensive parent configuration for mechanical work.
-- **Waves of at most 6.** Batch a larger fan-out (for example the
-  35-dimension review `all` aggregate) into waves: dispatch up to 6, collect
-  the wave, then dispatch the next.
+- **Waves bounded by the host's concurrency.** Batch a larger fan-out (for
+  example the 35-dimension review `all` aggregate) into waves of at most the
+  host's advertised concurrency (default 6): dispatch a wave, collect it, then
+  dispatch the next.
 - **Non-interactive runs.** Under a headless run or the auto driver, children
   inherit the approval posture; any child action that needs an approval
   becomes an error. Keep children read-only there.
@@ -51,6 +61,6 @@ dispatch tool, an agent type, a model name, or an isolation flag.
 | Agent types | Built-in `general-purpose`; `Explore` for read-only research | Built-in `explorer` (read-heavy), `worker` (bounded execution), `default`. Never a custom `.codex/agents/*.toml` agent by name |
 | Effort tier → host setting | Pass `model:` on the call: low = `haiku`; medium and high = `sonnet`. Never `opus`, and never omit the pin — a child must not inherit the parent's model | Pass the reasoning effort on the spawn: low, medium, high |
 | Write isolation for a child that edits files | Pass `isolation: worktree` on the call; the coordinator merges the child's branch result | Partition the work by disjoint files; there is no worktree flag |
-| Wave ceiling | Cost only; keep waves at 6 | `max_threads` defaults to 6 |
+| Wave ceiling | Cost only; keep waves at 6 | The advertised concurrency of the session (`max_threads`, default 6) |
 | Depth | Do not give a child the `Agent` tool | `max_depth` 1 |
 | Non-interactive posture | A headless session; any prompt is an error | `codex exec`; `--ask-for-approval never` must be intended |

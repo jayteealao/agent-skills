@@ -10,7 +10,7 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 
 import { runBundled } from '../../../hooks/_adapter.mjs';
 import { tmpdir } from 'node:os';
@@ -70,11 +70,18 @@ test('no source file infers the host from its own path or plugin directory name'
     if (/import\.meta\.url\.includes\(['"]sdlc-workflow/.test(src)) offenders.push(rel);
     if (/sdlc-workflow-codex/.test(src)) offenders.push(`${rel} (names the deleted tree)`);
   };
-  for (const rel of [
-    'hooks/seed-memory.mjs', 'hooks/session-start-orient.mjs', 'hooks/render-on-artifact-write.mjs',
-    'hooks/_adapter.mjs', 'hooks/session-start.mjs', 'lib/hub-lifecycle.mjs', 'lib/runtime-manifest.mjs',
-    'scripts/hub-serve.mjs',
-  ]) scan(rel);
+  // Every source file under hooks/, lib/, scripts/ — not a fixed list, so a new
+  // file cannot slip in with a path-based host inference (v9.153.2). The doctors
+  // and the single-source gates name the deleted tree on purpose (legacy
+  // detection) and are excluded by name.
+  const exempt = new Set(['scripts/verify-deployment.mjs', 'scripts/verify-host-neutrality.mjs', 'scripts/verify-release-versions.mjs', 'scripts/verify-doc-site.mjs']);
+  for (const dir of ['hooks', 'lib', 'scripts']) {
+    for (const name of readdirSync(join(PKG_ROOT, dir))) {
+      if (!name.endsWith('.mjs')) continue;
+      const rel = `${dir}/${name}`;
+      if (!exempt.has(rel)) scan(rel);
+    }
+  }
   assert.deepEqual(offenders, []);
 });
 

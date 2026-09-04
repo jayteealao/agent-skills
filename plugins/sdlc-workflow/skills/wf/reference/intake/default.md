@@ -434,7 +434,7 @@ Compressed intake modes: skip (no charter). -->
 
 ## Recommended Next Stage
 - **Option A (default):** `/wf shape <slug>` — [reason]
-- **Option B:** `/wf-<other> <slug>` — [reason, if applicable]
+- **Option B:** `/wf <other> <slug>` — [reason, if applicable]
 - **Option C:** Blocked — [what's missing]
 
 If required answers are still missing, set frontmatter `status: awaiting-input` and set `next-invocation` to rerun `/wf intake <same-slug>` after answers arrive.

@@ -52,7 +52,7 @@ sdlc-workflow solves this by making the AI's reasoning **visible and persistent*
 
 The pipeline has ten stages. Each stage:
 - **Reads** what the previous stages wrote
-- **Thinks and asks** — interviews you via `AskUserQuestion` to fill in what the artifacts don't cover
+- **Thinks and asks** — interviews you through the gate-question ladder (a structured question tool where the host has one) to fill in what the artifacts don't cover
 - **Writes** its own artifact with all machine-readable state in YAML frontmatter
 - **Recommends** what to run next (but you choose)
 
@@ -104,7 +104,7 @@ A well-understood single-file fix can legitimately run `intake → plan → impl
 
 ### How the review system works
 
-`wf-review` is not a single reviewer. It is a **dispatch orchestrator** that selects from 31 individual review domains and launches one parallel sub-agent per domain. The sub-agents run concurrently, each writing its findings to a separate file. The orchestrator then aggregates, deduplicates (same `file:line` or same root cause), and triages findings with you through `AskUserQuestion`.
+`/wf review` is not a single reviewer. It is a **dispatch orchestrator** that selects from 35 individual review domains and launches one parallel sub-agent per domain. The sub-agents run concurrently, each writing its findings to a separate file. The orchestrator then aggregates, deduplicates (same `file:line` or same root cause), and triages findings with you through `AskUserQuestion`.
 
 Selection is artifact-driven, not keyword-driven. The orchestrator reads your shape and slice artifacts to understand *what the feature does*, then reasons about which review domains matter. A feature described as "adds async bulk import" triggers `backend-concurrency` and `data-integrity` even if the diff text contains neither word.
 
@@ -830,7 +830,7 @@ Invoke a single domain as `/wf review <dimension>` (ad-hoc, no slug), or `/wf re
 | `/wf review sweep security` | security, privacy, infra-security, data-integrity, supply-chain |
 | `/wf review sweep architecture` | architecture, performance, scalability, api-contracts |
 | `/wf review sweep infra` | infra, ci, release, migrations, logging, observability |
-| `/review sweep ux` | accessibility, frontend-accessibility, frontend-performance, interface-craft, motion, ux-copy |
+| `/wf review sweep ux` | accessibility, frontend-accessibility, frontend-performance, interface-craft, motion, ux-copy |
 
 ### Documentation skills
 

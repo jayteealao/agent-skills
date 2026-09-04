@@ -103,7 +103,7 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
 9. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy: dedicated`, confirm the correct branch via `git branch --show-current` and switch if needed. Verification must run against the implementation branch, not the base branch.
 
 # Parallel verification
-When verification spans multiple concerns, launch parallel sub-agents per [_subagents.md](_subagents.md): independent AC groups go to parallel read-only children, each returning evidence; the parent composes the verify artifact and the verdict. Do not spin up sub-agents when a single test command covers everything.
+When verification spans multiple concerns, launch parallel sub-agents per [_subagents.md](_subagents.md): independent AC groups go to parallel non-editing children (they may build, boot, and drive; they never edit source), each returning evidence; the parent composes the verify artifact and the verdict. Do not spin up sub-agents when a single test command covers everything.
 
 ### Functional sub-agent 1 — Static Analysis & Build
 
@@ -182,7 +182,7 @@ Prompt the agent with ALL of the following:
 
 **Platform recipes live in the adapter registry**, not inline:
 
-> Read `runtime-adapters.md` and follow the recipe for every adapter whose detection signals match the repo (web / android / ios / cli / desktop / service / notebook / etc.). Adapter selection is documented at the top of that file.
+> Read `<skill-dir>/reference/runtime-adapters.md` (the coordinator resolves `<skill-dir>` per [_host-invocation.md](_host-invocation.md) before this line reaches a child) and follow the recipe for every adapter whose detection signals match the repo (web / android / ios / cli / desktop / service / notebook / etc.). Adapter selection is documented at the top of that file.
 
 **Climb the constraint-resolution ladder before deferring anything (MANDATORY).** "No device / no browser / no creds" is not a defer-reason — it is the *start* of a ladder climb. For each user-observable AC whose obvious path is blocked, climb the ladder for its class (runtime-adapters.md → *Constraint-resolution ladder*), **executing any tool bootstrap the plan's `## Verification Strategy` already authorized**, and record the highest rung that produced evidence. Defer ONLY the residual that no rung can reach. Three hard rules:
 
@@ -192,7 +192,7 @@ Prompt the agent with ALL of the following:
 
 **Mock provenance + fixture-fidelity (record where the shape came from).** Any mock/fixture that **emulates an external interface** — library stream/event shapes, HTTP payloads, SDK return types — records `mock-provenance: <node_modules path read | captured-real-output ref | docs URL>`. "From recollection" is **illegal**: an unrecorded provenance forces `evidence-rung: uncited-mock`.
 - **Search check.** When an AC's evidence rests on mocked external-interface events, search the *installed* package for the mocked identifiers (event names, method names). **Zero hits ⇒ presumptively fictional ⇒ finding + cap that AC at `partial`.**
-- **Fixture-fidelity spot-check.** Spot-check the fixture's shape against the real contract — the dependency's types/`.d.ts`, official docs, or one free schema-level call — and record `fixture-fidelity: checked | unchecked — <why>` per fixture. Spot-check only (shape/enum names), **not** a contract-test mandate; `/wf study-sources` is the natural tool. `fixture-fidelity: checked` is what upgrades a mock from `uncited-mock` to `cited-mock`.
+- **Fixture-fidelity spot-check.** Spot-check the fixture's shape against the real contract — the dependency's types/`.d.ts`, official docs, or one free schema-level call — and record `fixture-fidelity: checked | unchecked — <why>` per fixture. Spot-check only (shape/enum names), **not** a contract-test mandate; `/study-sources` is the natural tool. `fixture-fidelity: checked` is what upgrades a mock from `uncited-mock` to `cited-mock`.
 
 **First-light (an integration whose real behaviour is unproven caps at `partial`).** When a slice introduces an external integration whose real behaviour has **not** been observed live in this workflow, register it in `00-index.md`:
 
@@ -452,7 +452,7 @@ After matching:
 
 `blocked-runtime-evidence-missing` is procedural (evidence not produced), not substantive (code wrong). Routing differs: `fail` → `/wf implement`; `blocked-runtime-evidence-missing` → re-run in a capable environment or apply a deferral annotation.
 
-**Write-time enforcement (the write-time gate — the R7 backstop).** Managed-artifact enforcement ([_host-invocation.md](_host-invocation.md)) **HARD-BLOCKS** a `verify` artifact whose `result: pass` contradicts its evidence: `metric-acceptance-met < metric-acceptance-total`, or `interactive-verification: deferred`. The `mockEvidenceGate` extension additionally **hard-blocks `result: pass` while `metric-acceptance-mock-rung > 0`** — a user-observable AC row carrying `evidence-rung: cited-mock | uncited-mock | static` cannot pass (opt out `hooks.mockEvidenceGate: false`, default ON). It **forbids** the invented `metric-acceptance-unverified-interactive` field and **warns** when shadow-deferral prose ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified during `<slice>`", "decidable by static reasoning") co-occurs with `result: pass`. Reconcile `result` with the evidence or take the honest `partial` + deferral path. (Opt out per-repo with `hooks.verifyResultGate: false` / `hooks.verifyDeferralLint: false`.)
+**Write-time enforcement (the R7 backstop).** Managed-artifact enforcement ([_host-invocation.md](_host-invocation.md)) **HARD-BLOCKS** a `verify` artifact whose `result: pass` contradicts its evidence: `metric-acceptance-met < metric-acceptance-total`, or `interactive-verification: deferred`. The `mockEvidenceGate` extension additionally **hard-blocks `result: pass` while `metric-acceptance-mock-rung > 0`** — a user-observable AC row carrying `evidence-rung: cited-mock | uncited-mock | static` cannot pass (opt out `hooks.mockEvidenceGate: false`, default ON). It **forbids** the invented `metric-acceptance-unverified-interactive` field and **warns** when shadow-deferral prose ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified during `<slice>`", "decidable by static reasoning") co-occurs with `result: pass`. Reconcile `result` with the evidence or take the honest `partial` + deferral path. (Opt out per-repo with `hooks.verifyResultGate: false` / `hooks.verifyDeferralLint: false`.)
 
 ## Escape hatch — `interactive-verification: deferred`
 
@@ -573,7 +573,7 @@ Triage of non-mechanical issues is **always required**. Outside the mechanical c
 ## Fix dispatch (single round)
 
 Dispatch a fix sub-agent for **every** issue triaged `Fix` **in parallel** (one parallel wave) — each fix runs under write isolation, so concurrent patches cannot collide; the sanity-check in step 2 is the merge gate. For each issue:
-1. Dispatch ONE sub-agent at **medium** effort with write isolation, per [_subagents.md](_subagents.md) (REQUIRED — both must be set; the effort tier follows [_fix-loop.md](_fix-loop.md) rule 3, and write isolation additionally keeps a bad fix out of the working tree until it is verified). Do NOT merge its changes into the main working tree until step 2 (sanity-check) passes. Prompt:
+1. Dispatch ONE sub-agent at **medium** effort with write isolation, per [_subagents.md](_subagents.md) (REQUIRED — both must be set; the effort tier follows [_fix-loop.md](_fix-loop.md) rule 3, and write isolation additionally keeps a bad fix out of the working tree until it is verified). Under a worktree host, do NOT merge its branch into the main working tree until step 2 (sanity-check) passes; under a partition host (no worktree flag, per [_subagents.md](_subagents.md)) the edit is already in the tree, so step 2 reviews the diff before it is accepted. Prompt:
    ```
    Fix the following verify-stage issue in the codebase:
 
@@ -607,7 +607,7 @@ Dispatch a fix sub-agent for **every** issue triaged `Fix` **in parallel** (one 
      A brief summary of what you changed, including the regression test
      path (or the one-line exemption reason).
    ```
-2. As each sub-agent returns: read the changed file(s) from its isolated result; sanity-check the patch against **both** the issue and the suggested fix's method ([_fix-loop.md](_fix-loop.md) rule 5). A `Method: deviated` return is never merged on the subagent's own say-so — re-read the patch against what was suggested and decide deliberately; when the suggestion carried an explicit prohibition, a deviation touching it is discarded, not merged. If the patch looks correct, merge the isolated changes into the main working tree. **If two patches overlap on the same lines**, merge one, then re-dispatch the other against the merged state — serial for the conflicting pair only. If the patch is wrong, discard it without merging and record `COULD NOT FIX`.
+2. As each sub-agent returns: read the changed file(s) (under a worktree host, from the child's branch, brought over with `git checkout <branch> -- <files>`; under a partition host, from the working tree); sanity-check the patch against **both** the issue and the suggested fix's method ([_fix-loop.md](_fix-loop.md) rule 5). A `Method: deviated` return is never merged on the subagent's own say-so — re-read the patch against what was suggested and decide deliberately; when the suggestion carried an explicit prohibition, a deviation touching it is discarded, not merged. If the patch looks correct, accept it (merge the branch result under a worktree host; leave the working-tree edit in place under a partition host). **If two patches overlap on the same lines**, merge one, then re-dispatch the other against the merged state — serial for the conflicting pair only. If the patch is wrong, discard it (`git checkout -- <files>` under a partition host) and record `COULD NOT FIX`.
 3. If the sub-agent could not fix, record `COULD NOT FIX: <reason>` and treat this issue as `convergence: escalated` material in the next step.
 
 ## Re-check (single round)

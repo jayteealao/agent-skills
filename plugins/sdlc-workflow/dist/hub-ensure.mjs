@@ -3,13 +3,14 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   ensureHubLifecycle
-} from "./chunk-ISU3EULN.mjs";
+} from "./chunk-OO2752MB.mjs";
 import "./chunk-J2RO6O56.mjs";
 import "./chunk-5K66NEIW.mjs";
 import "./chunk-K6PBZI5W.mjs";
 import {
   appendError,
   countPending,
+  enqueue,
   upsertRegistryEntry,
   writeStatus
 } from "./chunk-U4OUM73W.mjs";
@@ -21,6 +22,7 @@ import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/hub-ensure.mjs
+import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 function argValue(name, fallback) {
@@ -37,6 +39,18 @@ async function main() {
   const projectRoot = argValue("--project-root", process.cwd());
   const viewDir = argValue("--view", resolve(projectRoot, ".ai", "_view"));
   const skipEnsure = hasFlag("--no-ensure");
+  if (hasFlag("--bootstrap")) {
+    try {
+      mkdirSync(viewDir, { recursive: true });
+      enqueue(viewDir, {
+        repoRoot: projectRoot,
+        kind: "bootstrap",
+        bucket: "__bootstrap__",
+        enqueuedBy: { host: process.env.SDLC_HOST || "claude", pid: process.pid }
+      });
+    } catch {
+    }
+  }
   let hubUp = false;
   let confirmed = false;
   if (!skipEnsure) {

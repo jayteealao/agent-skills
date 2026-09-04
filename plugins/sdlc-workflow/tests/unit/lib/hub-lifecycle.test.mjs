@@ -36,10 +36,23 @@ test('decideHubAction: protocol mismatch → protocol-incompatible (never silent
   );
 });
 
-test('decideHubAction: runtimeVersion mismatch → reap (a runtime upgrade)', () => {
+test('decideHubAction: OLDER hub → reap (a runtime upgrade)', () => {
   const d = decideHubAction(hubId({ runtimeVersion: '9.74.0' }), RUNTIME, tracked());
   equal(d.action, 'reap');
   equal(d.reason, 'runtime v9.74.0 → v9.75.0');
+});
+
+test('decideHubAction: NEWER hub → adopt, never reap (no two-host ping-pong)', () => {
+  // A Claude Code session on 9.75.0 meets a hub a Codex session started on 9.76.0.
+  // Reaping it would downgrade the machine and invite the newer host to reap back.
+  const d = decideHubAction(hubId({ runtimeVersion: '9.76.0' }), RUNTIME, tracked());
+  equal(d.action, 'adopt');
+  equal(d.reason, 'newer hub (runtime v9.76.0 > v9.75.0)');
+});
+
+test('decideHubAction: NEWER but UNTRACKED hub → reap (recover the write token)', () => {
+  const d = decideHubAction(hubId({ runtimeVersion: '9.76.0', pid: 100 }), RUNTIME, untracked);
+  equal(d.action, 'reap');
 });
 
 test('decideHubAction: same-runtime hub but untracked pid → reap (recover the write token)', () => {

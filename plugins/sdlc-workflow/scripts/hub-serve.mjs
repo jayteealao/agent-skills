@@ -249,7 +249,7 @@ export function createHubServer({
         repoRoot: entry.repoRoot,
         kind: 'bootstrap',
         bucket: '__bootstrap__',
-        enqueuedBy: { host: STARTED_BY_HOST, pid: process.pid },
+        enqueuedBy: { host: 'hub', pid: process.pid }, // the hub's own row, not the starter host's
       });
       if (r.ok) logHub(`bootstrap render queued for never-rendered ${entry.id}`);
     } catch { /* best-effort — the registration grace still covers the entry */ }

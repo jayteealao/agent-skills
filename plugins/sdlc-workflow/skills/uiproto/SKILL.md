@@ -1,6 +1,6 @@
 ---
 name: uiproto
-description: Prototype a UI component/screen from a prompt. Fans out to Stitch + an LLM by default (side-by-side); a provider keyword yields one. Writes a self-contained, sandboxed HTML fragment. Internal to `/wf design`; not user-invocable.
+description: Prototype a UI component/screen from a prompt. Fans out to Stitch + an LLM by default (side-by-side); a provider keyword yields one. Writes a self-contained, sandboxed HTML fragment. Internal to `/wf design`; invoke it through that key.
 version: 1.0.0
 user-invocable: false
 argument-hint: "[stitch|llm] <prompt>"
@@ -66,5 +66,5 @@ UIPROTO_RESULT:
 
 Invoked at the visual-contract step (`plan`, following `design/contract.md`) or a design transform, beside the `imagery` mock. Bare fan-out
 calls **both** engines (per-token to your keys; Stitch needs its own provisioned
-project). Pin `uiproto llm <prompt>` or `uiproto stitch <prompt>` for one engine.
+project). Pin `/uiproto llm <prompt>` or `/uiproto stitch <prompt>` for one engine.
 Always opt-in; never hook- or serve-triggered.

@@ -14,15 +14,19 @@
  *
  * Always exits 0 — a stale view must never block a slash command. Honours
  * --no-ensure to register + status WITHOUT starting a hub (the
- * ensureHubOnWrite:false story is handled upstream by simply not spawning this).
+ * ensureHubOnWrite:false story is handled upstream by simply not spawning this),
+ * and --bootstrap to enqueue the whole-repo freshness pass first — what the
+ * Claude Code SessionStart hook does inline, so the Codex SessionStart adapter
+ * (which imports no lib/) can ask for the same refresh (v9.153.2).
  */
 
+import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ensureHubLifecycle } from '../lib/hub-lifecycle.mjs';
 import { upsertRegistryEntry } from '../lib/registry.mjs';
-import { writeStatus, countPending, appendError } from '../lib/render-queue.mjs';
+import { writeStatus, countPending, appendError, enqueue } from '../lib/render-queue.mjs';
 
 function argValue(name, fallback) {
   const i = process.argv.indexOf(name);
@@ -43,6 +47,22 @@ async function main() {
   const projectRoot = argValue('--project-root', process.cwd());
   const viewDir = argValue('--view', resolve(projectRoot, '.ai', '_view'));
   const skipEnsure = hasFlag('--no-ensure');
+
+  // --bootstrap: queue the whole-repo freshness pass BEFORE the hub comes up, so
+  // a hub started below drains it in its startup catch-up. Artifacts changed
+  // outside the write hooks (pull, checkout, hand edits) are re-rendered on the
+  // next session instead of on the next managed write.
+  if (hasFlag('--bootstrap')) {
+    try {
+      mkdirSync(viewDir, { recursive: true });
+      enqueue(viewDir, {
+        repoRoot: projectRoot,
+        kind: 'bootstrap',
+        bucket: '__bootstrap__',
+        enqueuedBy: { host: process.env.SDLC_HOST || 'claude', pid: process.pid },
+      });
+    } catch { /* best-effort */ }
+  }
 
   let hubUp = false;
   let confirmed = false;   // strictly adopted or started-healthy (excludes started-unconfirmed)

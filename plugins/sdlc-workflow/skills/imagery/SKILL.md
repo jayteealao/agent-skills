@@ -1,6 +1,6 @@
 ---
 name: imagery
-description: Generate images from a text prompt. Fans out to all available providers by default (built-in image_gen, gpt-image-2, nano-banana) → a variant set; a provider keyword yields one. Supersedes the imagegen skill. Internal to `/wf design`; not user-invocable.
+description: Generate images from a text prompt. Fans out to all available providers by default (built-in image_gen, gpt-image-2, nano-banana) → a variant set; a provider keyword yields one. Supersedes the imagegen skill. Internal to `/wf design`; invoke it through that key.
 version: 1.0.0
 user-invocable: false
 argument-hint: "[image_gen|openai|gemini|openai-sub] <prompt> [skip <reason>]"
@@ -31,9 +31,10 @@ output contract** so the `/wf design` image gate keeps working unchanged.
    step says "2K" in its instruction — honor it; do not silently drop to 1K.
 5. **Consent for egress.** The egress providers (`openai`, `gemini`, `openai-sub`)
    send the prompt to a third party, so they require `externalDispatch.enabled` in
-   `~/.sdlc/hub-config.json`. The built-in `image_gen` and the text fallback never
-   egress and are **always** available. If consent is off, run only `image_gen` /
-   text fallback and note that the API backends need opt-in.
+   `~/.sdlc/hub-config.json`. The text fallback never egresses and is **always** available; the built-in
+   `image_gen` never egresses and is available only where the host offers it
+   (provider table below). If consent is off, run only `image_gen` (where present)
+   and the text fallback, and note that the API backends need opt-in.
 
 ## Step 1 — Provider methods
 
@@ -104,4 +105,4 @@ The caller records the result(s) and sets `image_gate=pass` (image success) or
 A bare fan-out generates **one image per available distinct model** — N images,
 N charges, on every call. The built-in `image_gen` is free; `openai`/`gemini`/
 `openai-sub` bill per-token to your key. To get a single image, pin a provider:
-`imagery gemini <prompt>`. (Tell me to flip the default to single-best if preferred.)
+`/imagery gemini <prompt>`. (Tell me to flip the default to single-best if preferred.)

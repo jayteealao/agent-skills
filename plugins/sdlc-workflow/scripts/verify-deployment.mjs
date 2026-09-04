@@ -134,8 +134,14 @@ if (!existsSync(configPath)) {
   else fail(`plugin \`${PLUGIN_NAME}@${MARKETPLACE}\` not enabled in config.toml — \`codex plugin marketplace upgrade ${MARKETPLACE}\`, remove any legacy identity, then \`codex plugin add ${PLUGIN_NAME}@${MARKETPLACE}\` (remove before add: never both enabled)`);
 
   for (const legacy of LEGACY_NAMES) {
-    if (config.includes(`"${legacy}`)) {
-      fail(`legacy \`${legacy}\` still referenced in config.toml — \`codex plugin remove ${legacy.includes('@') ? legacy : `${legacy}@${MARKETPLACE}`}\` BEFORE adding ${PLUGIN_NAME}, then delete its stale hooks.state entries (SINGLE-SOURCE-CUTOVER step 2: never run a session with both identities enabled)`);
+    // Two residues, two remedies: an installed plugin entry needs `codex plugin
+    // remove`; leftover hooks.state trust tables need deleting by hand.
+    const pluginEntry = config.includes(`[plugins."${legacy}`);
+    const trustResidue = config.includes(`[hooks.state."${legacy}`);
+    if (pluginEntry) {
+      fail(`legacy \`${legacy}\` still installed in config.toml — \`codex plugin remove ${legacy.includes('@') ? legacy : `${legacy}@${MARKETPLACE}`}\` BEFORE adding ${PLUGIN_NAME} (SINGLE-SOURCE-CUTOVER step 2: never run a session with both identities enabled)`);
+    } else if (trustResidue) {
+      fail(`legacy \`${legacy}\` hooks.state trust tables remain in config.toml — the plugin is gone; delete the [hooks.state."${legacy}@…"] tables by hand`);
     } else {
       ok(`no legacy \`${legacy}\` entries in config.toml`);
     }
@@ -164,9 +170,9 @@ if (!installed) {
 } else {
   ok(`installed snapshot ${installed.version} from \`${installed.marketplace}\` matches repo manifest`);
 }
-// Legacy cache leftovers (kept until the cutover verification passes, then pruned).
-for (const legacyDir of [join(cacheRoot, MARKETPLACE, 'sdlc-workflow-codex'), join(cacheRoot, 'local-marketplace', 'sdlc-workflow')]) {
-  if (existsSync(legacyDir)) warn(`legacy plugin cache still present at ${legacyDir} — safe to delete once this doctor is otherwise clean`);
+// Legacy cache + plugin-data leftovers (kept until the cutover verification passes, then pruned).
+for (const legacyDir of [join(cacheRoot, MARKETPLACE, 'sdlc-workflow-codex'), join(cacheRoot, 'local-marketplace', 'sdlc-workflow'), join(CODEX_HOME, 'plugins', 'data', `sdlc-workflow-codex-${MARKETPLACE}`)]) {
+  if (existsSync(legacyDir)) warn(`legacy plugin leftover still present at ${legacyDir} — safe to delete once this doctor is otherwise clean`);
 }
 
 // 5. hook trust: codex.hooks.json registers events; each needs a trusted hash keyed on ITS relpath

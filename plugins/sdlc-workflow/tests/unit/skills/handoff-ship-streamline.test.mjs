@@ -8,7 +8,7 @@
 // phrases below are the load-bearing ones: a future edit that deletes them
 // silently restores the round trip.
 //
-// Reference prose is mirrored to the codex tree, so the prose guards iterate BOTH
+// One tree serves both hosts since v9.153.0; the prose guards iterate `trees` (one entry)
 // trees. The release-guard script and the consult dispatcher are main-tree only.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

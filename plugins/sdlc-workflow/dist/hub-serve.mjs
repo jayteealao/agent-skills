@@ -3,10 +3,10 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-5B36OV6H.mjs";
-import "./chunk-EUM5EJMI.mjs";
+} from "./chunk-ZQKE74PA.mjs";
+import "./chunk-IBSCVPPX.mjs";
 import "./chunk-PDBKNARE.mjs";
-import "./chunk-S43YD6UF.mjs";
+import "./chunk-I6ACAWA5.mjs";
 import {
   hostAllowed,
   renderCodeBrowserPage,
@@ -180,7 +180,8 @@ function createHubServer({
         repoRoot: entry.repoRoot,
         kind: "bootstrap",
         bucket: "__bootstrap__",
-        enqueuedBy: { host: STARTED_BY_HOST, pid: process.pid }
+        enqueuedBy: { host: "hub", pid: process.pid }
+        // the hub's own row, not the starter host's
       });
       if (r.ok) logHub(`bootstrap render queued for never-rendered ${entry.id}`);
     } catch {

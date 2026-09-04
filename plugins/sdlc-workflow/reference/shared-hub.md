@@ -11,7 +11,7 @@ The SessionStart hook of either host follows adoption-first ordering:
 1. **Probe for a healthy hub.** Query the health endpoint at the well-known hub port.
 2. **If a compatible hub is already running** (same `runtimeVersion`, healthy response) — adopt it. Do not start a second hub. Do not reap it.
 3. **If no hub is found** — start one from the machine runtime store at `~/.sdlc/runtime/<buildId>/`. Never start the hub from a plugin-relative path; the machine runtime store is the single authoritative location.
-4. **Same-runtime-version hubs are never reaped** — a running hub whose `runtimeVersion` matches the current runtime is kept alive across plugin upgrades. Only a version mismatch triggers a controlled handoff.
+4. **Same-runtime-version hubs are never reaped** — a running hub whose `runtimeVersion` matches the current runtime is kept alive across plugin upgrades. A hub on an OLDER runtime version is reaped and respawned by the newer session; a hub on a NEWER runtime version is adopted (v9.153.2). Only `npm run hub:upgrade` performs a controlled, rollback-guarded handoff.
 
 The startup sequence runs under a cross-host advisory lock (`.locks/hub-start.lock` in the machine runtime store) to prevent two hosts from racing to start the hub simultaneously.
 
@@ -40,7 +40,7 @@ Rendered output lands in `.ai/_view/` under each registered repository root. Do 
 
 The bundled hooks of both hosts run scripts on the user's machine. **Users must review and trust the bundled hook scripts before the hub activates.** The hooks are committed to the plugin repository and can be audited at any time under `plugins/sdlc-workflow/hooks/` — `hooks.json` wires Claude Code, `codex.hooks.json` wires Codex.
 
-Hub activation requires explicit opt-in via plugin configuration. The hub does not auto-start on a fresh install without user confirmation.
+The hub starts on the first session unless `view.ensureHub` is `false` in `sdlc-config.json` (or `SDLC_DISABLE_HUB_ENSURE=1` is set); there is no separate opt-in.
 
 ## What no host does
 

@@ -1,5 +1,5 @@
 // Drift guards for the branch-scoped batch handoff/ship + revision-ledger work
-// (v9.105.0). Two invariants, checked in BOTH trees so a codex mirror that
+// (v9.105.0). Two invariants, checked in the one tree (`trees` has one entry since v9.153.0) so a drift that
 // silently drops the feature fails CI:
 //   1. handoff.md / ship.md / status.md — and recap.md / retro.md — carry the
 //      polymorphic first-token resolution (slug | pr#N | branch) — the entry

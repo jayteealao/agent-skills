@@ -5,7 +5,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-6UA62V5D.mjs";
+} from "./chunk-554SLPZT.mjs";
 import {
   PLUGIN_VERSION,
   breadcrumbFromView,
@@ -13,7 +13,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-S43YD6UF.mjs";
+} from "./chunk-I6ACAWA5.mjs";
 import {
   renderWarnBanner,
   validateFrontmatter
@@ -23,7 +23,7 @@ import {
   maybeConfigureTailscale,
   readHubConfig,
   tailscaleDnsName
-} from "./chunk-ISU3EULN.mjs";
+} from "./chunk-OO2752MB.mjs";
 import "./chunk-J2RO6O56.mjs";
 import {
   readRenderedIdentity,

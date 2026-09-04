@@ -74,9 +74,9 @@ evidence into the analysis sub-agents below.
 - **Transcript mining is host-gated.** Session transcripts exist only under a host that keeps a
   per-repo transcript directory (see [_host-invocation.md](_host-invocation.md)); when this host has
   one, scan the slug's transcripts. Otherwise a `deep` run is still honored but **falls back to an
-  artifact-only deep pass** — a deeper, more adversarial re-read of the existing stage trail,
-  `po-answers.md`, and the git history for the same decision moments — and the retro notes that
-  transcript mining was skipped (host-gated), never instructing a read of a transcript path this host lacks.
+  artifact-only deep pass**: a deeper, more adversarial re-read of the existing stage trail,
+  `po-answers.md`, and the git history for the same decision moments. The retro then notes that
+  transcript mining was skipped (host-gated). It never instructs a read of a transcript path this host lacks.
 - **Opt-in, never default.** It is heavy (large transcript scans) and host-specific. Only the
   explicit `deep` token turns it on.
 - **What the deep pass looks for.** **Decision moments** — points where an approach was chosen, an
