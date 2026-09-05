@@ -1,4 +1,6 @@
---- description: "Extension mode of intake — add net-new slices to an existing workflow (in-progress, complete, or closed) without modifying completed work. Auto-routed when `/wf intake <existing-slug> <new scope>` names a real on-disk slug followed by free scope text (no mode keyword). Two seeds: general (describe new scope) or from-review/from-retro (seed from findings). Writes full per-slice files and updates the master index non-destructively, then routes to `/wf plan` for the new slices." argument-hint: <existing-slug> [from-review | from-retro | from-probe | from-simplify | <new scope description>]
+---
+description: "Extension mode of intake — add net-new slices to an existing workflow (in-progress, complete, or closed) without modifying completed work. Auto-routed when `/wf intake <existing-slug> <new scope>` names a real on-disk slug followed by free scope text (no mode keyword). Two seeds: general (describe new scope) or from-review/from-retro (seed from findings). Writes full per-slice files and updates the master index non-destructively, then routes to `/wf plan` for the new slices."
+argument-hint: <existing-slug> [from-review | from-retro | from-probe | from-simplify | <new scope description>]
 ---
 
 You are running **intake in extension mode** — the auto-routed path when `/wf intake <existing-slug>` is followed by free scope text (or nothing, or `from-review`/`from-retro`) rather than a mode keyword.

@@ -103,6 +103,17 @@ export function checkBudget(budget, root = PLUGIN_ROOT) {
     if (lines > (budget.hardCapLines ?? Infinity)) {
       failures.push(`${rel}: ${lines} lines exceeds the hard cap of ${budget.hardCapLines}`);
     }
+    // Frontmatter integrity: an unwrap pass must never join the `---` delimiter to the keys.
+    if (text.startsWith('---')) {
+      const first = text.split(/\r?\n/, 1)[0];
+      if (first !== '---') {
+        failures.push(
+          `${rel}: line 1 is \`${first.slice(0, 48)}…\` — the frontmatter delimiter must stand alone on its own line`,
+        );
+      } else if (!/^---\r?\n[\s\S]*?\r?\n---\r?\n/.test(text)) {
+        failures.push(`${rel}: opens a frontmatter block that never closes on its own \`---\` line`);
+      }
+    }
     const excepted = budget.exceptions?.[rel];
     if (cap !== undefined && lines > cap) {
       if (excepted === undefined) {
