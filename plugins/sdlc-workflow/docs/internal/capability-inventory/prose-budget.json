@@ -230,7 +230,8 @@
         "skills/wf/reference/ship/announce.md": 4,
         "skills/wf/reference/ship/rollback.md": 2,
         "skills/wf/reference/simplify.md": 5,
-        "skills/wf/reference/status.md": 2
+        "skills/wf/reference/status.md": 1,
+        "skills/wf/reference/status/_deep.md": 1
       }
     },
     "STOP": {
@@ -391,8 +392,7 @@
     "skills/wf/reference/review/ux-copy.md": 782,
     "skills/wf/reference/runtime-adapters.md": 745,
     "skills/wf/reference/ship-plan/build.md": 1146,
-    "skills/wf/reference/ship-plan/init.md": 702,
-    "skills/wf/reference/status.md": 446
+    "skills/wf/reference/ship-plan/init.md": 702
   },
   "rubricFenceExceptions": {
     "skills/wf/reference/review/accessibility.md": 47,
@@ -470,8 +470,7 @@
       "core": 4388
     },
     "status": {
-      "core": 6050,
-      "instructed": 8916
+      "core": 4383
     },
     "verify": {
       "core": 6009
