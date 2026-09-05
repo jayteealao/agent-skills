@@ -84,9 +84,10 @@ test('W2.2 — Charter Scenario is keyed to the work, not the formatting', () =>
 test('W2.3/W3.2 — appetite + provisional review-scope land in the index template', () => {
   for (const { name, root } of trees) {
     const intake = ref(root, 'intake/default.md');
-    assert.match(intake, /appetite: <small\|medium\|large>/, `${name}: index template lost the appetite key`);
-    assert.match(intake, /review-scope-confirmed: false/, `${name}: index template lost review-scope-confirmed`);
-    assert.ok(!/How should the review stage be scoped\?/.test(intake),
+    const indexTemplate = ref(root, 'intake/default/_artifact.md');
+    assert.match(indexTemplate, /appetite: <small\|medium\|large>/, `${name}: index template lost the appetite key`);
+    assert.match(indexTemplate, /review-scope-confirmed: false/, `${name}: index template lost review-scope-confirmed`);
+    assert.ok(!/How should the review stage be scoped\?/.test(intake) && !/How should the review stage be scoped\?/.test(ref(root, 'intake/default/_questions.md')),
       `${name}: the review-scope question crept back into intake Batch A (it moved to slice)`);
     assert.match(intake, /substance first/i, `${name}: intake lost the Batch B-before-A ordering`);
   }

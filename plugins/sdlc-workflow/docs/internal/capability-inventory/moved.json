@@ -298,5 +298,17 @@
     "to": "skills/wf/reference/intake/rca/_research.md",
     "category": "dispatches",
     "entry": "heading: research sub-agent 3 blast radius"
+  },
+  {
+    "from": "skills/wf/reference/intake/default.md",
+    "to": "skills/wf/reference/intake/default/_questions.md",
+    "category": "gates",
+    "entry": "batch a structured process questions (gate questions asked"
+  },
+  {
+    "from": "skills/wf/reference/intake/default.md",
+    "to": "skills/wf/reference/_workflow-rules.md",
+    "category": "gates",
+    "entry": "workflow rules - store artifacts under .ai/workflows/<slug /"
   }
 ]
