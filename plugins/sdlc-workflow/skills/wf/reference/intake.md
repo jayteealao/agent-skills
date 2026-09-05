@@ -1,152 +1,57 @@
----
-description: Entry-point dispatcher for the SDLC lifecycle. Plain `/wf intake <description>` runs the default product-owner intake (stage 1 of 10). A mode keyword routes a compressed/standalone entry flow — `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `adopt` — most a former `/wf-quick` sub-command, now an intake mode (`adopt` is the reverse-entry mode: it adopts work already done into the lifecycle; `audit` is the defect hunt: it scrutinizes a named subsystem with no symptom, hypothesis, or diff). Passing an existing slug before a mode attaches the run as a compressed slice. Two slug-required maintenance modes edit an existing workflow without touching built work: `amend` (whitelisted config — branch strategy, base, review scope, title, tags) and `modernize` (additive schema backfill to the current plugin era). With no keyword, intake may propose a mode (suggest-and-confirm) before falling back to the default flow.
-argument-hint: "[slug] [fix|rca|investigate|discover|audit|hotfix|refactor|update-deps|ideate|adopt|amend|modernize] <description> | <description>"
----
+--- description: Entry-point dispatcher for the SDLC lifecycle. Plain `/wf intake <description>` runs the default product-owner intake (stage 1 of 10). A mode keyword routes a compressed/standalone entry flow — `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `adopt` — most a former `/wf-quick` sub-command, now an intake mode (`adopt` is the reverse-entry mode: it adopts work already done into the lifecycle; `audit` is the defect hunt: it scrutinizes a named subsystem with no symptom, hypothesis, or diff). Passing an existing slug before a mode attaches the run as a compressed slice. Two slug-required maintenance modes edit an existing workflow without touching built work: `amend` (whitelisted config — branch strategy, base, review scope, title, tags) and `modernize` (additive schema backfill to the current plugin era). With no keyword, intake may propose a mode (suggest-and-confirm) before falling back to the default flow. argument-hint: "[slug] [fix|rca|investigate|discover|audit|hotfix|refactor|update-deps|ideate|adopt|amend|modernize] <description> | <description>" ---
 
-You are the **entry dispatcher** for the SDLC plugin, invoked as `/wf intake`. Intake is the
-*front door* of the lifecycle, and it has **modes** — alternative ways a piece of work enters.
-The **default** mode is the full product-owner intake (the canonical stage 1). The twelve mode
-keywords (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`,
-`ideate`, `adopt`, `amend`, `modernize`) are *arguments* to this one key — most were standalone
-`/wf-quick` sub-commands and are now compressed/standalone entry flows. `audit` is the
-**defect-hunt** mode: a read-only terminal that scrutinizes a named subsystem for unknown defects
-(no symptom, no hypothesis, no diff) and owns an accumulating findings ledger (see
-`intake/audit.md`). `adopt` is the **reverse-entry** mode:
-instead of entering with work ahead of you, it adopts a change *already made in the working tree* into the lifecycle and
-lands it at verify (see `intake/adopt.md`). Intake also owns one **keyword-less** mode, **extension**: naming
-an existing on-disk slug followed by free scope text (`/wf intake <existing-slug> <new scope>`)
-auto-routes to `intake/extend.md`, which adds net-new slices to that workflow. This is where scope
-corrections and follow-on work land — already-built work is never re-specified in place.
+You are the **entry dispatcher** for the SDLC plugin, invoked as `/wf intake`. Intake is the *front door* of the lifecycle, and it has **modes** — alternative ways a piece of work enters. The **default** mode is the full product-owner intake (the canonical stage 1). The twelve mode keywords (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `adopt`, `amend`, `modernize`) are *arguments* to this one key — most were standalone `/wf-quick` sub-commands and are now compressed/standalone entry flows. `audit` is the **defect-hunt** mode: a read-only terminal that scrutinizes a named subsystem for unknown defects (no symptom, no hypothesis, no diff) and owns an accumulating findings ledger (see `intake/audit.md`). `adopt` is the **reverse-entry** mode: instead of entering with work ahead of you, it adopts a change *already made in the working tree* into the lifecycle and lands it at verify (see `intake/adopt.md`). Intake also owns one **keyword-less** mode, **extension**: naming an existing on-disk slug followed by free scope text (`/wf intake <existing-slug> <new scope>`) auto-routes to `intake/extend.md`, which adds net-new slices to that workflow. This is where scope corrections and follow-on work land — already-built work is never re-specified in place.
 
-Two further modes are **maintenance**, and both require an existing slug: `amend` edits a workflow's
-recorded *configuration* against a strict whitelist, and `modernize` backfills an older workflow's
-artifacts to the current schema. Neither writes a numbered stage artifact and neither touches built
-work — they exist because config edits and schema drift previously had no lawful home, so the model
-had to defy its own routing (or improvise a backfill) to do either.
+Two further modes are **maintenance**, and both require an existing slug: `amend` edits a workflow's recorded *configuration* against a strict whitelist, and `modernize` backfills an older workflow's artifacts to the current schema. Neither writes a numbered stage artifact and neither touches built work — they exist because config edits and schema drift previously had no lawful home, so the model had to defy its own routing (or improvise a backfill) to do either.
 
-Your job: parse the invocation, resolve the **mode** and the **shape** (maintenance vs standalone vs
-slug-mode vs extension), load the shared context, then load the mode's reference and run only the
-flow span the mode dictates.
+Your job: parse the invocation, resolve the **mode** and the **shape** (maintenance vs standalone vs slug-mode vs extension), load the shared context, then load the mode's reference and run only the flow span the mode dictates.
 
-> Runtime-truth verification (`/wf probe`) and read-only triage (`/wf simplify`) are NOT intake
-> modes — they are their own top-level `/wf` keys, because they act on already-built or existing
-> code rather than entering the lifecycle. Do not route to them from here.
+> Runtime-truth verification (`/wf probe`) and read-only triage (`/wf simplify`) are NOT intake modes — they are their own top-level `/wf` keys, because they act on already-built or existing code rather than entering the lifecycle. Do not route to them from here.
 
 # Step 0 — Parse the invocation (mode + shape resolution)
 
-`$ARGUMENTS` reaches you with the leading `intake` key already stripped by `wf/SKILL.md`.
-Tokenize respecting shell quoting (`"two words"` is one token). The **mode keyword set** is:
-`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`,
-`adopt`, `amend`, `modernize`.
+`$ARGUMENTS` reaches you with the leading `intake` key already stripped by `wf/SKILL.md`. Tokenize respecting shell quoting (`"two words"` is one token). The **mode keyword set** is: `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `adopt`, `amend`, `modernize`.
 
 Two modes carry **shape carve-outs** at opposite ends:
 
-- **`adopt` is standalone-only** — it always roots a *new* workflow from the working tree and is
-  **never** slug-attachable (it cannot be a compressed slice of an existing workflow); it is also
-  never auto-proposed.
-- **`amend` and `modernize` are slug-REQUIRED** — they act on a workflow that already exists, so
-  they are meaningless without one, are never compressed slices, and are never auto-proposed.
-  Both are **maintenance** modes: `amend` edits a workflow's recorded *configuration* (a strictly
-  whitelisted field set); `modernize` backfills an older workflow's artifacts to the current schema.
-  Neither writes a numbered stage artifact, and neither ever re-specifies built work.
+- **`adopt` is standalone-only** — it always roots a *new* workflow from the working tree and is **never** slug-attachable (it cannot be a compressed slice of an existing workflow); it is also never auto-proposed.
+- **`amend` and `modernize` are slug-REQUIRED** — they act on a workflow that already exists, so they are meaningless without one, are never compressed slices, and are never auto-proposed. Both are **maintenance** modes: `amend` edits a workflow's recorded *configuration* (a strictly whitelisted field set); `modernize` backfills an older workflow's artifacts to the current schema. Neither writes a numbered stage artifact, and neither ever re-specifies built work.
 
 The carve-outs below enforce all three.
 
 Resolve in this exact order (the order matters — the slug checks come FIRST):
 
-0. **Slug + `amend` / `modernize` → maintenance mode.** If `token0` exactly matches an existing
-   `.ai/workflows/<token0>/00-index.md` on disk **AND** `token1` is `amend` or `modernize` →
-   **maintenance mode**. Consume `token0` as `<slug>` and `token1` as `<mode>`; the rest are the
-   mode's instructions. Load `intake/amend.md` or `intake/modernize.md` and follow it — these are
-   **not** compressed slices (no `_compressed-slice.md` override) and write no numbered artifact.
-   This branch runs **first** because both keywords would otherwise be swallowed: `amend` reads as
-   free scope (branch 2, extension) and `modernize` as a mode keyword with no slug (branch 3).
-   - If `token0` does **not** match a slug, these are not maintenance invocations — STOP:
-     *"`<mode>` acts on an existing workflow. Run `/wf intake <slug> <mode>`; `/wf status` lists
-     your workflows."* Never fall through to a standalone mode or to default intake.
+0. **Slug + `amend` / `modernize` → maintenance mode.** If `token0` exactly matches an existing `.ai/workflows/<token0>/00-index.md` on disk **AND** `token1` is `amend` or `modernize` → **maintenance mode**. Consume `token0` as `<slug>` and `token1` as `<mode>`; the rest are the mode's instructions. Load `intake/amend.md` or `intake/modernize.md` and follow it — these are **not** compressed slices (no `_compressed-slice.md` override) and write no numbered artifact. This branch runs **first** because both keywords would otherwise be swallowed: `amend` reads as free scope (branch 2, extension) and `modernize` as a mode keyword with no slug (branch 3).
+   - If `token0` does **not** match a slug, these are not maintenance invocations — STOP: *"`<mode>` acts on an existing workflow. Run `/wf intake <slug> <mode>`; `/wf status` lists your workflows."* Never fall through to a standalone mode or to default intake.
 
-1. **Slug + mode keyword → compressed slice.** If `token0` exactly matches an existing
-   `.ai/workflows/<token0>/00-index.md` on disk **AND** `token1` is in the mode keyword set
-   *(except `adopt`, `amend`, `modernize`)* → **slug-mode**. Consume `token0` as `<slug>` and
-   `token1` as `<mode>`; the rest are the mode's instructions. The run will attach as **one
-   compressed slice** on that workflow (Step 4). **If `token1` is `adopt`**, this is not slug-mode —
+1. **Slug + mode keyword → compressed slice.** If `token0` exactly matches an existing `.ai/workflows/<token0>/00-index.md` on disk **AND** `token1` is in the mode keyword set *(except `adopt`, `amend`, `modernize`)* → **slug-mode**. Consume `token0` as `<slug>` and `token1` as `<mode>`; the rest are the mode's instructions. The run will attach as **one compressed slice** on that workflow (Step 4). **If `token1` is `adopt`**, this is not slug-mode —
    STOP and tell the user:
-   *"`adopt` roots a new workflow from the current diff; it can't attach to an existing slug. Run
-   `/wf intake adopt` (no slug), or `/wf intake <slug> <scope>` to extend `<slug>` with new work."*
-   *(An exact on-disk slug match is an intentional attach — it does NOT trigger the collision
-   prompt, which guards only against an accidentally re-derived slug. See `_intake-context.md`.)*
+   *"`adopt` roots a new workflow from the current diff; it can't attach to an existing slug. Run `/wf intake adopt` (no slug), or `/wf intake <slug> <scope>` to extend `<slug>` with new work."* *(An exact on-disk slug match is an intentional attach — it does NOT trigger the collision prompt, which guards only against an accidentally re-derived slug. See `_intake-context.md`.)*
    - If `token0` matches a **closed** workflow → ASK: *"Workflow `<token0>` is closed. Append a
      compressed slice anyway?"* On yes → slug-mode; on no → STOP.
 
-2. **Slug + free scope (or nothing) → extension.** Else if `token0` exactly matches an existing
-   `.ai/workflows/<token0>/00-index.md` on disk **AND** `token1` is *not* a mode keyword (it is
-   free scope text, `from-review`, `from-retro`, or absent) → **extension mode**. Consume `token0`
-   as `<slug>`; the rest is the new scope (seed) passed through verbatim. Load `intake/extend.md`
-   and follow it — it adds net-new slice(s) to that workflow and never touches completed work. This
-   is the auto-route that replaces the former `/wf-meta extend` command: *an existing slug plus new
-   scope is the signal*, no keyword required (convention over flags). **Extension writes full slice
-   files, so the `_compressed-slice.md` override does NOT apply** (unlike branch 1's compressed
-   slice). Correcting already-built **work** is still a *new* slice (this branch) or
-   `/wf intake <slug> fix` — never an in-place re-specification. That rule is unchanged; `amend`
-   (branch 0) covers only recorded **configuration** (branch strategy, base branch, review scope,
-   title, tags), which extension never had a home for.
-   - **Schema-era check.** While reading `00-index.md` for this branch, note whether the
-     workflow predates the current schema — no `charter:`, no `intent-risks:`, or open
-     `runtime-evidence-deferrals` entries missing `wall-ownership` / `clearing-event`.
-     **Nag suppression:** when the index carries a `schema-modernized-at:` stamp, skip the offer
-     for any field listed in its `schema-absent-fields:` — a modernize run already adjudicated
-     those as honestly unanswerable; only markers outside that list (a later era's additions)
-     still fire. When drift does fire,
-     say so in one line **before** running the extension and offer `modernize` as a first-class
-     option: *"`<slug>` was authored before `<the missing block>`, so `<the stage that reads it>`
-     silently gets nothing. Extend now, or run `/wf intake <slug> modernize` first?"* Do not
-     modernize silently, and do not block the extension on it — the point is that the drift becomes
-     visible at the one moment someone is already looking at this workflow.
-   - If `token0` matches a **closed** workflow → extension is still valid (new scope may extend a
-     closed workflow). Proceed; `extend.md` handles closed/complete workflows by construction.
+2. **Slug + free scope (or nothing) → extension.** Else if `token0` exactly matches an existing `.ai/workflows/<token0>/00-index.md` on disk **AND** `token1` is *not* a mode keyword (it is free scope text, `from-review`, `from-retro`, or absent) → **extension mode**. Consume `token0` as `<slug>`; the rest is the new scope (seed) passed through verbatim. Load `intake/extend.md` and follow it — it adds net-new slice(s) to that workflow and never touches completed work. This is the auto-route that replaces the former `/wf-meta extend` command: *an existing slug plus new scope is the signal*, no keyword required (convention over flags). **Extension writes full slice files, so the `_compressed-slice.md` override does NOT apply** (unlike branch 1's compressed slice). Correcting already-built **work** is still a *new* slice (this branch) or `/wf intake <slug> fix` — never an in-place re-specification. That rule is unchanged; `amend` (branch 0) covers only recorded **configuration** (branch strategy, base branch, review scope, title, tags), which extension never had a home for.
+   - **Schema-era check.** While reading `00-index.md` for this branch, note whether the workflow predates the current schema — no `charter:`, no `intent-risks:`, or open `runtime-evidence-deferrals` entries missing `wall-ownership` / `clearing-event`. **Nag suppression:** when the index carries a `schema-modernized-at:` stamp, skip the offer for any field listed in its `schema-absent-fields:` — a modernize run already adjudicated those as honestly unanswerable; only markers outside that list (a later era's additions) still fire. When drift does fire, say so in one line **before** running the extension and offer `modernize` as a first-class option: *"`<slug>` was authored before `<the missing block>`, so `<the stage that reads it>` silently gets nothing. Extend now, or run `/wf intake <slug> modernize` first?"* Do not modernize silently, and do not block the extension on it — the point is that the drift becomes visible at the one moment someone is already looking at this workflow.
+   - If `token0` matches a **closed** workflow → extension is still valid (new scope may extend a closed workflow). Proceed; `extend.md` handles closed/complete workflows by construction.
 
-3. **Explicit mode (no slug).** Else if `token0` is in the mode keyword set → **explicit mode,
-   standalone**. Load `intake/<token0>.md`; the rest are its instructions. *(`amend` and `modernize`
-   never reach here — branch 0 claims them with a slug and STOPs them without one, since neither
-   means anything standalone.)* *(This matches the
-   old `/wf-quick <sub> …` behavior: a description that legitimately begins with a mode word —
-   e.g. "fix the typo" — routes to that mode, which is almost always what the user wants. For
-   the rare genuine collision, the user quotes the whole description as one token; see below.)*
+3. **Explicit mode (no slug).** Else if `token0` is in the mode keyword set → **explicit mode, standalone**. Load `intake/<token0>.md`; the rest are its instructions. *(`amend` and `modernize` never reach here — branch 0 claims them with a slug and STOPs them without one, since neither means anything standalone.)* *(This matches the old `/wf-quick <sub> …` behavior: a description that legitimately begins with a mode word — e.g. "fix the typo" — routes to that mode, which is almost always what the user wants. For the rare genuine collision, the user quotes the whole description as one token; see below.)*
 
-4. **Default + suggest-and-confirm.** Else the tokens are a **raw task description** → the
-   default intake flow (`intake/default.md`). **Before loading it**, run the lightweight
-   auto-route classification (below). On a strong single match, propose that mode as a gate
-   question per [_gate-question.md](_gate-question.md); on accept, load that mode's reference instead (standalone); on decline, run
-   `intake/default.md`. With no strong match, go straight to `intake/default.md`.
+4. **Default + suggest-and-confirm.** Else the tokens are a **raw task description** → the default intake flow (`intake/default.md`). **Before loading it**, run the lightweight auto-route classification (below). On a strong single match, propose that mode as a gate question per [_gate-question.md](_gate-question.md); on accept, load that mode's reference instead (standalone); on decline, run `intake/default.md`. With no strong match, go straight to `intake/default.md`.
 
-**Empty `$ARGUMENTS`** → load `intake/default.md` (it owns the "ask for a task description" path)
-or render the mode menu and ask which entry the user wants.
+**Empty `$ARGUMENTS`** → load `intake/default.md` (it owns the "ask for a task description" path) or render the mode menu and ask which entry the user wants.
 
-**Quote-escape.** A quoted multi-word first token (`/wf intake "rca dashboard refresh"`) never
-matches a slug or a bare keyword, so it routes to branch 4 (default) — the escape hatch for a
-description that legitimately begins with a slug or mode word.
+**Quote-escape.** A quoted multi-word first token (`/wf intake "rca dashboard refresh"`) never matches a slug or a bare keyword, so it routes to branch 4 (default) — the escape hatch for a description that legitimately begins with a slug or mode word.
 
-**Trailing tokens (mode-owned, consumed from the END of `$ARGUMENTS`):** `from <slug>` is the
-provenance token every provenance-aware mode strips per `intake/_intake-provenance.md`; a trailing
-`design` token on `fix` opts the fix into design notes; a trailing `dry-run` on `amend`/`modernize`
-previews without writing. These are positional conventions, not flags — the dispatcher passes them
-through with the mode's instructions and the mode reference consumes them.
+**Trailing tokens (mode-owned, consumed from the END of `$ARGUMENTS`):** `from <slug>` is the provenance token every provenance-aware mode strips per `intake/_intake-provenance.md`; a trailing `design` token on `fix` opts the fix into design notes; a trailing `dry-run` on `amend`/`modernize` previews without writing. These are positional conventions, not flags — the dispatcher passes them through with the mode's instructions and the mode reference consumes them.
 
 ## Auto-route classification (branch 4 only)
 
 Propose a mode **only when ALL** of these hold — otherwise run `intake/default.md` silently:
 - (a) no explicit mode keyword and no slug match (you are in branch 4); and
-- (b) the description contains **no lifecycle vocabulary** (`shape`, `slice`, `plan`, `implement`,
-  `verify`, `review`, `handoff`, `ship`, `retro` — those signal the user knows the stage they want);
-  and
+- (b) the description contains **no lifecycle vocabulary** (`shape`, `slice`, `plan`, `implement`, `verify`, `review`, `handoff`, `ship`, `retro` — those signal the user knows the stage they want); and
 - (c) it strongly matches exactly **one** of the patterns below.
 
-**Any of the eight `/wf-quick`-lineage modes may be proposed, and so may `audit`** (nine
-proposable modes). `adopt` is **never** auto-proposed —
-adopting an existing diff is an explicit decision the user states with `/wf intake adopt`, never
-something inferred from a task description — and neither are `amend` / `modernize`, which cannot
-reach branch 4 at all (they require a slug, and a slug means branch 0). Match on the description's
-*shape of intent*:
+**Any of the eight `/wf-quick`-lineage modes may be proposed, and so may `audit`** (nine proposable modes). `adopt` is **never** auto-proposed — adopting an existing diff is an explicit decision the user states with `/wf intake adopt`, never something inferred from a task description — and neither are `amend` / `modernize`, which cannot reach branch 4 at all (they require a slug, and a slug means branch 0). Match on the description's *shape of intent*:
 
 | Signal in the description | Propose |
 |---|---|
@@ -160,45 +65,25 @@ reach branch 4 at all (they require a slug, and a slug means branch 0). Match on
 | **Open-ended improvement brainstorm with no specific defect** ("ideas for X", "brainstorm ways to …", "what could we improve in …") | `ideate` |
 | **Defect hunt across a named subsystem with no specific symptom** ("review/scrutinize/audit X for bugs, wrong assumptions, mistakes", "check the paint-ordering code for errors") | `audit` |
 
-**Discriminators (the near-collisions — when a description spans two patterns it is *not*
-exactly-one-strong-match, so fall to default):**
-- `fix` vs `rca` — both describe something wrong. Propose `fix` only when the correction is
-  self-evident and localized; propose `rca` when the cause is unknown and needs diagnosis.
-- `refactor` vs `investigate`/`ideate` — `refactor` is a decision to restructure known code;
-  `investigate`/`ideate` are still open questions. "Messy *and* I'm not sure how" spans two → default.
-- `ideate` vs `investigate` — `ideate` ranks improvement candidates with no target decision;
-  `investigate` sketches approaches to a *stated* problem.
-- `audit` vs `rca` — both hunt defects. Propose `rca` when a **specific symptom** is described
-  ("X broke", "Y returns 500"); propose `audit` when the description names a **subsystem** to
-  scrutinize and the defects are unknown — the symptom is what the audit is looking for.
-- `audit` vs `discover` — `discover` adjudicates a **stated hypothesis** (yes/no); `audit` has
-  none and enumerates whatever defects the lenses surface.
-- `audit` vs `investigate` — `investigate` assumes the problem is real and sketches approaches;
-  `audit` decides whether problems exist at all.
+**Discriminators (the near-collisions — when a description spans two patterns it is *not* exactly-one-strong-match, so fall to default):**
+- `fix` vs `rca` — both describe something wrong. Propose `fix` only when the correction is self-evident and localized; propose `rca` when the cause is unknown and needs diagnosis.
+- `refactor` vs `investigate`/`ideate` — `refactor` is a decision to restructure known code; `investigate`/`ideate` are still open questions. "Messy *and* I'm not sure how" spans two → default.
+- `ideate` vs `investigate` — `ideate` ranks improvement candidates with no target decision; `investigate` sketches approaches to a *stated* problem.
+- `audit` vs `rca` — both hunt defects. Propose `rca` when a **specific symptom** is described ("X broke", "Y returns 500"); propose `audit` when the description names a **subsystem** to scrutinize and the defects are unknown — the symptom is what the audit is looking for.
+- `audit` vs `discover` — `discover` adjudicates a **stated hypothesis** (yes/no); `audit` has none and enumerates whatever defects the lenses surface.
+- `audit` vs `investigate` — `investigate` assumes the problem is real and sketches approaches; `audit` decides whether problems exist at all.
 
-Propose **at most one** mode, **once**, as a gate question per [_gate-question.md](_gate-question.md) offering the proposed mode
-(recommended) vs "Plain intake (default)". On accept, load that mode reference standalone; on
-decline, `intake/default.md`. The confirm step is what makes proposing a **build-committing** mode
-(`fix`, `hotfix`, `refactor`, `update-deps`) safe — nothing routes into code-writing without the
-user's yes, and the user can always state the mode explicitly (`/wf intake fix …`) to skip the prompt.
+Propose **at most one** mode, **once**, as a gate question per [_gate-question.md](_gate-question.md) offering the proposed mode (recommended) vs "Plain intake (default)". On accept, load that mode reference standalone; on decline, `intake/default.md`. The confirm step is what makes proposing a **build-committing** mode (`fix`, `hotfix`, `refactor`, `update-deps`) safe — nothing routes into code-writing without the user's yes, and the user can always state the mode explicitly (`/wf intake fix …`) to skip the prompt.
 
-**Record** the resolved shape (slug-mode | extension | explicit | default), slug (if any), mode,
-and instructions before proceeding.
+**Record** the resolved shape (slug-mode | extension | explicit | default), slug (if any), mode, and instructions before proceeding.
 
 # Step 1 — Load shared context
 
-Load `intake/_intake-context.md` in full and apply it:
-the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug
-semantics. Do not restate or fork its rules. If **slug-mode** (branch 1, a mode keyword on an
-existing slug), also load `_compressed-slice.md` — it
-governs the slice output and overrides any standalone "create workflow / branch / top-level index"
-step in the mode reference. **Extension mode (branch 2) does NOT load `_compressed-slice.md`** — it
-writes full slice files per `intake/extend.md`.
+Load `intake/_intake-context.md` in full and apply it: the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug semantics. Do not restate or fork its rules. If **slug-mode** (branch 1, a mode keyword on an existing slug), also load `_compressed-slice.md` — it governs the slice output and overrides any standalone "create workflow / branch / top-level index" step in the mode reference. **Extension mode (branch 2) does NOT load `_compressed-slice.md`** — it writes full slice files per `intake/extend.md`.
 
 # Step 2 — Resolve mode → flow span
 
-The mode decides how far the flow travels. Run only the stages the mode needs. This is the single
-mode→span map (a future mode is one new row):
+The mode decides how far the flow travels. Run only the stages the mode needs. This is the single mode→span map (a future mode is one new row):
 
 | Mode | Standalone (no slug) | Slug-mode (`<slug> <mode>`) | Terminus / Next |
 |---|---|---|---|
@@ -218,14 +103,9 @@ mode→span map (a future mode is one new row):
 | `modernize` | n/a — slug-required | **maintenance**: additive schema backfill across the workflow's existing artifacts (charter, intent-risks, deferral wall-ownership/clearing-event, revision ledgers). Never rewrites a decision, verdict, or criterion | → the command that resolves the largest remaining gap |
 
 Notes:
-- **The dispatcher is a pure router.** It does not itself create the workflow folder — each mode
-  reference owns its artifact writes. Build modes (`fix`/`hotfix`/`refactor`/`update-deps`) emit a
-  full `type:index` overview; the terminal analysis modes (`ideate`, standalone `discover`) root a
-  lightweight `type:workflow-index` lead.
-- **The mode reference is authoritative** for the exact artifacts and the terminus — this table is a
-  summary; the per-mode reference loaded in Step 3 governs what gets written and where the flow routes.
-- **Slug-mode is uniform:** the compressed slice is the sole output, branch creation is suppressed,
-  and off-pipeline companion dirs are not written — per `_compressed-slice.md`.
+- **The dispatcher is a pure router.** It does not itself create the workflow folder — each mode reference owns its artifact writes. Build modes (`fix`/`hotfix`/`refactor`/`update-deps`) emit a full `type:index` overview; the terminal analysis modes (`ideate`, standalone `discover`) root a lightweight `type:workflow-index` lead.
+- **The mode reference is authoritative** for the exact artifacts and the terminus — this table is a summary; the per-mode reference loaded in Step 3 governs what gets written and where the flow routes.
+- **Slug-mode is uniform:** the compressed slice is the sole output, branch creation is suppressed, and off-pipeline companion dirs are not written — per `_compressed-slice.md`.
 
 # Step 3 — Load the mode reference
 
@@ -248,24 +128,12 @@ Load the resolved reference in full and follow it verbatim. Do not summarize, pa
 | `amend` *(maintenance — branch 0)* | `intake/amend.md` |
 | `modernize` *(maintenance — branch 0)* | `intake/modernize.md` |
 
-The reference is the authoritative instruction for *what* the mode does; this dispatcher governs
-*how far the flow runs* around it and the standalone-vs-slug-mode / extension shape. `extend` has no
-keyword — it is reached only via branch 2 (an existing slug followed by free scope).
+The reference is the authoritative instruction for *what* the mode does; this dispatcher governs *how far the flow runs* around it and the standalone-vs-slug-mode / extension shape. `extend` has no keyword — it is reached only via branch 2 (an existing slug followed by free scope).
 
 # Step 4 — Execute
 
-1. Run the loaded mode reference. In **standalone** shape, honor every artifact write, branch step,
-   and routing rule it describes. In **slug-mode** (branch 1), the `_compressed-slice.md` contract
-   overrides any instruction that would create a new workflow, branch, top-level `00-index.md`,
-   standalone `01-<mode>.md` / `hf-*` / `rf-*` artifact, or off-pipeline companion — write only the
-   one compressed slice plus the additive index updates. In **extension** (branch 2), follow
-   `intake/extend.md` as written — it adds full net-new slice files to the existing workflow and
-   never touches completed work; the compressed-slice override does not apply. In **maintenance**
-   (branch 0), follow `intake/amend.md` / `intake/modernize.md` as written — no compressed slice, no
-   numbered artifact, no new workflow; both confirm before writing and both are bounded by their own
-   whitelist (amend) or additive-only rule (modernize).
-2. The remaining `$ARGUMENTS` after the matched mode (and after the slug, if consumed) are the
-   mode's own arguments — pass them through verbatim.
+1. Run the loaded mode reference. In **standalone** shape, honor every artifact write, branch step, and routing rule it describes. In **slug-mode** (branch 1), the `_compressed-slice.md` contract overrides any instruction that would create a new workflow, branch, top-level `00-index.md`, standalone `01-<mode>.md` / `hf-*` / `rf-*` artifact, or off-pipeline companion — write only the one compressed slice plus the additive index updates. In **extension** (branch 2), follow `intake/extend.md` as written — it adds full net-new slice files to the existing workflow and never touches completed work; the compressed-slice override does not apply. In **maintenance** (branch 0), follow `intake/amend.md` / `intake/modernize.md` as written — no compressed slice, no numbered artifact, no new workflow; both confirm before writing and both are bounded by their own whitelist (amend) or additive-only rule (modernize).
+2. The remaining `$ARGUMENTS` after the matched mode (and after the slug, if consumed) are the mode's own arguments — pass them through verbatim.
 
 # Step 5 — Emit Final Summary (MANDATORY)
 
@@ -285,11 +153,8 @@ Next: <recommended command, or "Done">
 ```
 
 **Rules:**
-- **First line.** Name the mode and the slug (standalone: the workflow created — `ideate`/`investigate`/
-  `discover` may have none; slug-mode: the workflow the slice attached to).
+- **First line.** Name the mode and the slug (standalone: the workflow created — `ideate`/`investigate`/ `discover` may have none; slug-mode: the workflow the slice attached to).
 - **Artifacts** are the paths created or modified this run. `"none"` for read-only runs.
-- **Next** is a concrete invocation, or `Done`. In slug-mode, scope `Next` with `<slug>` as the
-  first positional (`/wf implement <slug>`).
-- If the mode reference defines its own "Chat return contract", treat it as the *content* spec —
-  pick the load-bearing fields and keep it compact.
+- **Next** is a concrete invocation, or `Done`. In slug-mode, scope `Next` with `<slug>` as the first positional (`/wf implement <slug>`).
+- If the mode reference defines its own "Chat return contract", treat it as the *content* spec — pick the load-bearing fields and keep it compact.
 - Framing rules — narrative definition, "return only" caveat, internal audience, always-emit — are single-sourced in [_chat-return.md](_chat-return.md); apply them here.

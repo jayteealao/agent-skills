@@ -348,7 +348,6 @@
     "skills/wf/reference/augment/wide-event-observability.md": 918,
     "skills/wf/reference/design.md": 301,
     "skills/wf/reference/docs.md": 365,
-    "skills/wf/reference/intake.md": 295,
     "skills/wf/reference/observability/build.md": 303,
     "skills/wf/reference/observability/init.md": 430,
     "skills/wf/reference/probe.md": 478,
@@ -439,7 +438,7 @@
       "core": 5115
     },
     "intake": {
-      "core": 5249
+      "core": 5247
     },
     "plan": {
       "core": 7096
