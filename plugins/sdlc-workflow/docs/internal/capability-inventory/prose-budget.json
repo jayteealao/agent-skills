@@ -174,7 +174,8 @@
         "skills/wf/reference/intake/update-deps.md": 2,
         "skills/wf/reference/observability/audit.md": 1,
         "skills/wf/reference/observability/init.md": 1,
-        "skills/wf/reference/probe.md": 5,
+        "skills/wf/reference/probe.md": 2,
+        "skills/wf/reference/probe/_artifact.md": 3,
         "skills/wf/reference/recap.md": 1,
         "skills/wf/reference/retro.md": 4,
         "skills/wf/reference/review/_artifact.md": 2,
@@ -316,7 +317,9 @@
         "skills/wf/reference/intake/modernize.md": 1,
         "skills/wf/reference/observability.md": 2,
         "skills/wf/reference/plan.md": 3,
-        "skills/wf/reference/probe.md": 4,
+        "skills/wf/reference/probe.md": 1,
+        "skills/wf/reference/probe/_artifact.md": 3,
+        "skills/wf/reference/probe/_target-resolution.md": 1,
         "skills/wf/reference/retro.md": 3,
         "skills/wf/reference/review.md": 2,
         "skills/wf/reference/review/_stage.md": 5,
@@ -353,7 +356,6 @@
     "skills/wf/reference/docs.md": 365,
     "skills/wf/reference/observability/build.md": 303,
     "skills/wf/reference/observability/init.md": 430,
-    "skills/wf/reference/probe.md": 478,
     "skills/wf/reference/retro.md": 335,
     "skills/wf/reference/review/accessibility.md": 818,
     "skills/wf/reference/review/api-contracts.md": 528,
@@ -445,8 +447,8 @@
       "core": 7096
     },
     "probe": {
-      "core": 6633,
-      "instructed": 21606
+      "core": 5482,
+      "instructed": 19147
     },
     "recap": {
       "core": 4257

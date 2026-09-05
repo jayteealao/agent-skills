@@ -148,7 +148,8 @@ test('W2.1a — a recipe-less adapter is never called unsupported', () => {
 
 test('W2.2 — the coverage block and enumeration-method reach the artifact', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, 'probe.md');
+    // W1 split: the probe slice frontmatter contract moved to probe/_artifact.md.
+    const src = ref(root, 'probe/_artifact.md');
     assert.match(src, /surface-coverage:/, `${name}: probe lost the surface-coverage frontmatter`);
     assert.match(src, /enumeration-method: recipe \| static \| traversal \| named/,
       `${name}: enumeration-method is not in the frontmatter contract`);
@@ -162,8 +163,8 @@ test('W2.2 — the coverage block and enumeration-method reach the artifact', ()
 test('W2.2 — the traversal floor is stated wherever the count is rendered', () => {
   for (const { name, root } of trees) {
     const src = ref(root, 'probe.md');
-    // Once in the frontmatter contract...
-    assert.match(src, /a FLOOR when enumeration-method is `traversal`/,
+    // Once in the frontmatter contract (probe/_artifact.md since the W1 split)...
+    assert.match(ref(root, 'probe/_artifact.md'), /a FLOOR when enumeration-method is `traversal`/,
       `${name}: the frontmatter no longer marks a traversal count as a floor`);
     // ...and once for the chat return, so the caveat is not file-only.
     assert.match(src, /chat return[\s\S]{0,400}?denominator is a floor/,
@@ -173,7 +174,8 @@ test('W2.2 — the traversal floor is stated wherever the count is rendered', ()
 
 test('W2.3 — a zero-finding sweep must still render coverage', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, 'probe.md');
+    // W1 split: the body-section template moved to probe/_artifact.md.
+    const src = ref(root, 'probe/_artifact.md');
     assert.match(src, /In `sweep` mode that alone is insufficient/,
       `${name}: a zero-finding sweep can again report "No findings" alone`);
     assert.match(src, /"I found no bugs" is not a result/,
@@ -325,7 +327,7 @@ test('W6.1 — findings above low get a clean-state re-observation', () => {
 
 test('W6.3 — retractions are structural, not prose', () => {
   for (const { name, root } of trees) {
-    assert.match(ref(root, 'probe.md'), /retracted-findings:/,
+    assert.match(ref(root, 'probe/_artifact.md'), /retracted-findings:/,
       `${name}: retracted-findings is no longer in the frontmatter contract`);
   }
 });
