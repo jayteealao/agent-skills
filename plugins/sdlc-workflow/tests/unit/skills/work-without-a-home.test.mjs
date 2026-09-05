@@ -35,9 +35,10 @@ test('SKILL.md dispatch surface names task everywhere the roster is enumerated',
     // The not-a-known-key error roster — the last-resort discovery surface.
     assert.match(skill, /auto, yolo, task, status|auto, task, status/,
       `${name}: SKILL.md not-a-known-key roster does not name task`);
-    // Step 0.5 exclusion — task resolves its own first token.
-    assert.match(skill, /`task` — resolves its first token/,
-      `${name}: SKILL.md Step 0.5 does-not-apply list lost the task entry`);
+    // Step 0.5 exclusion — task resolves its own first token, so the applies-to list omits it.
+    const applies = /Step 0\.5 applies to ([^.]+)\./.exec(skill)?.[1] ?? '';
+    assert.ok(applies.length > 0, `${name}: SKILL.md lost the Step 0.5 applies-to sentence`);
+    assert.ok(!/`task`/.test(applies), `${name}: SKILL.md Step 0.5 applies to task`);
   }
 });
 

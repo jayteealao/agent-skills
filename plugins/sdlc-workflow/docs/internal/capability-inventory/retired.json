@@ -1,1 +1,30 @@
-[]
+[
+  {
+    "file": "skills/wf/SKILL.md",
+    "category": "stops",
+    "entry": "retired surfaces (the hint appended to the step",
+    "reason": "W2: the retired-surface redirect hints moved out of the hot path to docs/site/reference/commands.html (Renamed commands); the unknown-key STOP itself stays (`if the key candidate is not one of`)",
+    "release": "9.154.0"
+  },
+  {
+    "file": "skills/wf/SKILL.md",
+    "category": "stops",
+    "entry": "- design , probe , auto , yolo",
+    "reason": "W1: the Step 0.5 per-key exclusion list collapsed to one sentence; this bullet described a STOP inside probe/auto/yolo's own references, not a dispatcher condition",
+    "release": "9.154.0"
+  },
+  {
+    "file": "skills/wf/SKILL.md",
+    "category": "stops",
+    "entry": "after the stop, do nothing else.",
+    "reason": "W1: merged into Step 0 step 3's three `Do not` sentences, which name what must not happen after the unknown-key STOP",
+    "release": "9.154.0"
+  },
+  {
+    "file": "skills/wf/SKILL.md",
+    "category": "stops",
+    "entry": "your first visible output for every /wf invocation",
+    "reason": "W1: restated as `Its result is your first visible output`; the STOP token in the old sentence pointed at other steps and was not a condition",
+    "release": "9.154.0"
+  }
+]

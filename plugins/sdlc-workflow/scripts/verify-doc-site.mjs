@@ -123,6 +123,25 @@ for (const f of docSources) {
   }
 }
 
+// --- (g) the retired-surface map lives in commands.html, not in SKILL.md -----
+// W2 (WIDE-VIEW-REPAIR-PLAN §5.2): the dispatcher no longer carries redirect
+// text for retired command names. This table is where that mapping lives, so
+// the page must keep an id="renamed" section that names every retired surface.
+{
+  const commandsPage = path.join(SITE, 'reference', 'commands.html');
+  const html = existsSync(commandsPage) ? readFileSync(commandsPage, 'utf8') : '';
+  const section = html.split(/<h2 id="renamed">/)[1]?.split(/<h2[\s>]/)[0] ?? '';
+  if (!section) {
+    errors.push('reference/commands.html: missing the <h2 id="renamed">Renamed commands</h2> section (W2 moved the retired-surface map here)');
+  } else {
+    for (const surface of ['/wf-quick', '/wf-meta', '/wf-docs', 'instrument', 'experiment', 'benchmark', 'profile', 'setup-wide-logging', '/review']) {
+      if (!section.includes(`<code>${surface}`) && !section.includes(`${surface}</code>`) && !section.includes(`<code>${surface} `)) {
+        errors.push(`reference/commands.html: Renamed commands does not name the retired surface ${surface}`);
+      }
+    }
+  }
+}
+
 // --- report ----------------------------------------------------------------
 if (errors.length) {
   console.error(`✗ doc-site verification failed (${errors.length} issue(s)):`);

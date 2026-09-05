@@ -17,7 +17,7 @@
 <p>All plugin operations run through one command: <code>/wf &lt;key&gt; [args…]</code>. The first token must be one of the 22 keys on this page. Everything after the first token passes verbatim to that key. The dispatcher itself has this behavior:</p>
 <ul>
   <li><strong>Empty invocation.</strong> <code>/wf</code> with no arguments renders the key menu and asks which operation you want.</li>
-  <li><strong>Unknown key.</strong> A first token that is not a known key is an error. The dispatcher never silently treats the token as a slug. The dispatcher lists the 22 valid keys. For a retired command name, the dispatcher names the replacement invocation.</li>
+  <li><strong>Unknown key.</strong> A first token that is not a known key is an error. The dispatcher never treats the token as a slug or as an intake mode. The dispatcher lists the 22 valid keys and stops. The table under <a href="#renamed">Renamed commands</a> maps every retired command name to its current spelling.</li>
   <li><strong>Fuzzy slug suggestion.</strong> Exactly six keys have this behavior: <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, and <code>close</code>. For these keys, a slug that matches no row in <code>.ai/workflows/INDEX.md</code> triggers an advisory typo suggestion ("Did you mean <code>&lt;best-match&gt;</code>?"). The suggestion never auto-corrects; you re-invoke with the suggested slug. Every other key resolves its own first token, which can be a PR number, a branch name, a dimension, a mode, or a sub-key. For those keys the suggestion does not fire.</li>
   <li><strong>Git precondition.</strong> Before dispatch, <code>/wf</code> confirms that the project is a git repository. If the project is not a git repository, the dispatcher asks whether to run <code>git init</code>. Artifacts still write without git, but the workflow view does not render until the repo is initialized.</li>
   <li><strong>Chat summary.</strong> Every run ends with a compact summary: a verb-first status line, a short narrative paragraph, an <code>Artifacts:</code> line that lists the paths written (or <code>none</code>), and a concrete <code>Next:</code> command.</li>
@@ -144,6 +144,28 @@
 <p><strong>Writes:</strong> nothing of its own. The stages it drives write their artifacts; heartbeats go to <code>.ai/workflows/&lt;slug&gt;/.driver-journal.jsonl</code>.</p>
 
 <div class="related">
+<h2 id="renamed">Renamed commands</h2>
+<p>These command names are retired. The dispatcher rejects them as unknown keys. Type the current spelling instead.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Retired</th><th>Current</th></tr></thead>
+<tbody>
+<tr><td><code>/wf-quick fix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code></td><td><code>/wf intake &lt;mode&gt; …</code></td></tr>
+<tr><td><code>/wf-quick probe</code>, <code>/wf-quick simplify</code></td><td><code>/wf probe</code>, <code>/wf simplify</code></td></tr>
+<tr><td><code>/wf-meta next</code>, <code>/wf-meta sync</code></td><td><code>/wf status [&lt;slug&gt;]</code></td></tr>
+<tr><td><code>/wf-meta resume</code></td><td><code>/wf recap &lt;slug&gt;</code></td></tr>
+<tr><td><code>/wf-meta how</code></td><td><code>/wf recap &lt;slug&gt; &lt;focus&gt;</code>. Code questions and web research are a plain research conversation outside <code>/wf</code>.</td></tr>
+<tr><td><code>/wf-meta skip</code></td><td><code>/wf close &lt;slug&gt; &lt;slice&gt;</code></td></tr>
+<tr><td><code>/wf-meta announce</code></td><td><code>/wf ship &lt;slug&gt; announce</code></td></tr>
+<tr><td><code>/wf-meta init-ship-plan</code>, <code>/wf-meta build-pipeline</code></td><td><code>/wf ship-plan init</code>, <code>/wf ship-plan build</code></td></tr>
+<tr><td><code>/wf-meta amend</code></td><td><code>/wf intake &lt;slug&gt; amend &lt;what to change&gt;</code> edits a workflow's recorded config against a whitelist. Built work is corrected by a new slice (<code>/wf intake &lt;slug&gt; &lt;scope&gt;</code> or <code>/wf intake &lt;slug&gt; fix</code>). The ship plan is edited by <code>/wf ship-plan edit</code>.</td></tr>
+<tr><td><code>/wf-meta extend</code></td><td><code>/wf intake &lt;slug&gt; &lt;new scope&gt;</code></td></tr>
+<tr><td><code>/wf-docs …</code></td><td><code>/wf docs …</code>, same arguments</td></tr>
+<tr><td>the augmentation keys <code>instrument</code>, <code>experiment</code>, <code>benchmark</code>, <code>profile</code></td><td><code>shape</code> decides augmentations (<code>augmentations-needed</code>); <code>plan</code>, <code>implement</code>, and <code>verify</code> apply them. Ad-hoc profiling is <code>/wf probe</code>.</td></tr>
+<tr><td><code>setup-wide-logging</code></td><td><code>/wf observability init</code>, then <code>/wf observability build</code>, then <code>/wf observability audit</code></td></tr>
+<tr><td>the standalone <code>/review</code> skill</td><td><code>/wf review &lt;dimension&gt;</code> or <code>/wf review sweep &lt;aggregate&gt;</code></td></tr>
+</tbody>
+</table></div>
+
   <h2>Related</h2>
   <ul>
     <li><a href="intake-modes.html">Intake modes</a> — the full catalog of entry flows behind <code>/wf intake</code>.</li>

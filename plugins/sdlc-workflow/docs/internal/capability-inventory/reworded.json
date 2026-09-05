@@ -1,0 +1,20 @@
+[
+  {
+    "file": "skills/wf/SKILL.md",
+    "category": "gates",
+    "from": "if it fails (not a git repo), do",
+    "to": "if it fails, the hub cannot register the"
+  },
+  {
+    "file": "skills/wf/SKILL.md",
+    "category": "stops",
+    "from": "- if no slug satisfies any condition stop:",
+    "to": "if no row matches, stop: \"unknown slug <candidate"
+  },
+  {
+    "file": "skills/wf/SKILL.md",
+    "category": "stops",
+    "from": "if a best match exists, stop with: \"unknown",
+    "to": "if a row matches, stop: \"unknown slug <candidate"
+  }
+]

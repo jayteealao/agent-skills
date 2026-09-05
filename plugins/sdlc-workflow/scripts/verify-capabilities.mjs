@@ -5,7 +5,9 @@
 // Re-extracts the inventory from the working tree and compares it with the
 // committed baseline. Every baseline entry must still exist:
 //   per-file categories  — in the same file, or in the file named for it in
-//                          moved.json ({from, to, entry, category?}), or in
+//                          moved.json ({from, to, entry, category?}), or under
+//                          new words named in reworded.json
+//                          ({file, category, from, to} — `to` must exist), or in
 //                          retired.json ({entry, reason, release, file?, category?})
 //   tree-wide categories — somewhere in the tree, or in retired.json
 // Rubric checks compare per rubric GROUP: groups.json maps a rubric file to a
@@ -41,7 +43,7 @@ function readJson(path, fallback) {
  * Compare a baseline inventory with a current one.
  * @returns {{ missing: Array<{file, category, entry}>, added: Array<{file, category, entry}>, retired: number, moved: number, errors: string[] }}
  */
-export function compareInventories(baseline, current, { moved = [], retired = [], groups = {} } = {}) {
+export function compareInventories(baseline, current, { moved = [], retired = [], groups = {}, reworded = [] } = {}) {
   const errors = [];
   const missing = [];
   const added = [];
@@ -54,6 +56,11 @@ export function compareInventories(baseline, current, { moved = [], retired = []
   for (const [i, m] of moved.entries()) {
     if (!m || typeof m.entry !== 'string' || !m.from || !m.to) {
       errors.push(`moved.json[${i}] needs {from, to, entry}`);
+    }
+  }
+  for (const [i, r] of reworded.entries()) {
+    if (!r || typeof r.file !== 'string' || typeof r.category !== 'string' || typeof r.from !== 'string' || typeof r.to !== 'string') {
+      errors.push(`reworded.json[${i}] needs {file, category, from, to}`);
     }
   }
 
@@ -76,12 +83,17 @@ export function compareInventories(baseline, current, { moved = [], retired = []
     return Boolean(f && f[category] && f[category].includes(entry));
   };
 
+  // A reworded sentence survives when its new first words exist in the same file.
+  const rewordedTo = (file, category, entry) =>
+    reworded.filter((r) => r.file === file && r.category === category && r.from === entry).map((r) => r.to);
+
   for (const [file, cats] of Object.entries(baseline.files)) {
     for (const category of PER_FILE_CATEGORIES) {
       for (const entry of cats[category] ?? []) {
         if (has(file, category, entry)) continue;
         if (category === 'rubric-checks' && filesInGroup(file).some((f) => has(f, category, entry))) continue;
         if (movedTargets(file, category, entry).some((to) => has(to, category, entry))) continue;
+        if (rewordedTo(file, category, entry).some((to) => has(file, category, to))) continue;
         if (isRetired(file, category, entry)) continue;
         missing.push({ file, category, entry });
       }
@@ -107,7 +119,7 @@ export function compareInventories(baseline, current, { moved = [], retired = []
     for (const entry of cur) if (!base.has(entry)) added.push({ file: '*', category, entry });
   }
 
-  return { missing, added, retired: retired.length, moved: moved.length, errors };
+  return { missing, added, retired: retired.length, moved: moved.length, reworded: reworded.length, errors };
 }
 
 export function runGate({ root = PLUGIN_ROOT, baselinePath = BASELINE_PATH, inventoryDir = INVENTORY_DIR } = {}) {
@@ -119,7 +131,8 @@ export function runGate({ root = PLUGIN_ROOT, baselinePath = BASELINE_PATH, inve
   const moved = readJson(join(inventoryDir, 'moved.json'), []);
   const retired = readJson(join(inventoryDir, 'retired.json'), []);
   const groups = readJson(join(inventoryDir, 'groups.json'), {});
-  const report = compareInventories(baseline, current, { moved, retired, groups });
+  const reworded = readJson(join(inventoryDir, 'reworded.json'), []);
+  const report = compareInventories(baseline, current, { moved, retired, groups, reworded });
   return { ok: report.errors.length === 0 && report.missing.length === 0, counts: current.counts, ...report };
 }
 
@@ -142,7 +155,7 @@ if (isMain) {
     for (const m of report.missing) console.error(`[capabilities] MISSING ${m.file} :: ${m.category} :: ${m.entry}`);
     if (report.added.length) console.log(`[capabilities] ${report.added.length} new entr${report.added.length === 1 ? 'y' : 'ies'} (informational)`);
     if (report.ok) {
-      console.log(`[capabilities] OK — every baseline capability present (${report.retired} retired, ${report.moved} moved)`);
+      console.log(`[capabilities] OK — every baseline capability present (${report.retired} retired, ${report.moved} moved, ${report.reworded} reworded)`);
     } else {
       console.error(`[capabilities] FAIL — ${report.missing.length} missing, ${report.errors.length} errors. Explain each in docs/internal/capability-inventory/retired.json or moved.json.`);
     }

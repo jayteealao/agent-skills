@@ -1,187 +1,120 @@
 ---
 name: wf
-description: The single entry point for the SDLC lifecycle. Runs one SDLC operation per key — a canonical stage (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro), a standalone/driver (design, probe, simplify, auto, yolo), a minimal lifecycle (task — work whose deliverable is not a code change), a navigation query (status, recap), lifecycle control (close), or a router (ship-plan, docs, observability) — and writes its artifact (when it has one) to `.ai/workflows/<slug>/`. `intake` also dispatches compressed entry modes (fix, rca, investigate, discover, audit, hotfix, refactor, update-deps, ideate, adopt), two slug-required maintenance modes (amend, modernize), and auto-routes extension (`/wf intake <existing-slug> <new scope>`). `review` is the single review surface (workflow stage AND ad-hoc dimension/sweep). Navigation (`status`/`recap`), lifecycle control (`close`), the ship-plan pipeline (`ship-plan`), and documentation (`docs`) are all keys now.
+description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro), the drivers (design, probe, simplify, auto, yolo), the minimal lifecycle (task), navigation (status, recap), lifecycle control (close), and the routers (ship-plan, docs, observability) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also dispatches the compressed entry modes and extension; `review` is the whole review surface.
 disable-model-invocation: true
 argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|probe|simplify|auto|yolo|task|status|recap|close|ship-plan|docs|observability> [args...]"
 ---
 
-# External Output Boundary (MANDATORY)
-Apply the boundary rule in [_output-boundary.md](reference/_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
+# Role
 
-# Controlled Language (MANDATORY)
-Every piece of text this skill writes — artifact sections, chat summaries, PO questions, fragment
-copy, commit and PR text, product copy — MUST follow the controlled-language contract in
-[reference/_ste-procedural.md](reference/_ste-procedural.md). Artifact story sections and
-chat-summary narratives MUST also follow the structure contract in
-[reference/_story-arc.md](reference/_story-arc.md). This rule binds every sub-command and every
-sub-agent this skill spawns. A reference that adds its own writing spec adds to this contract;
-it never replaces it.
+You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per key. Identify the key, load `reference/<key>.md`, and follow it. Three contracts bind every key and every sub-agent you spawn:
 
-# Hosts (MANDATORY)
-This skill runs under three hosts from one source: Claude Code, Codex, and pi. Prose writes every invocation as `/wf …`;
-each host's spelling of the same invocation, the `<skill-dir>` rule, key availability,
-gate questions, sub-agents, and timestamps live only in
-[reference/_host-invocation.md](reference/_host-invocation.md) and the three contract files it
-names. Read that file first, then apply its contract to every reference this skill loads.
-Under Codex or pi, `yolo` stops at Step 0: answer with the redirect to `/wf auto <slug>` that
-[reference/_host-invocation.md](reference/_host-invocation.md) prescribes, and do not load `reference/yolo.md`.
+- Apply [_output-boundary.md](reference/_output-boundary.md) to every external-facing output.
+- Write every text per [_ste-procedural.md](reference/_ste-procedural.md). Write story sections and chat narratives per [_story-arc.md](reference/_story-arc.md). A reference's own writing spec adds to this contract and never replaces it.
+- Read [_host-invocation.md](reference/_host-invocation.md) first and apply its host contract to every reference you load. Under Codex or pi, `yolo` ends at Step 0 with the redirect to `/wf auto <slug>` that file prescribes; do not load `reference/yolo.md`.
+- Any artifact may ship narrative fragments (`<stem>.<label>.html.fragment` siblings) per [_fragment-authoring.md](reference/_fragment-authoring.md) Step F2.
 
-You are the **single SDLC dispatcher** for the plugin. `/wf` runs **one SDLC operation per key** — not every key writes a numbered stage artifact, and that is by design (Step 2 already tolerates read-only members via `none`). The dispatch table below is the authoritative roster: ten canonical **stages**, five **standalone/drivers**, one **minimal lifecycle** (`task`), two **navigation** members, one **lifecycle-control** member, and three **routers**. `intake` is itself a **mode dispatcher** (plain description → stage 1; mode keyword → compressed entry flow; existing slug + free scope → extension). Your only job is to identify which key the user wants, load its reference body, and follow it verbatim.
+# Step 0 — Dispatch check
 
-> **The dissolve.** The former `/wf-meta` and `/wf-docs` skills are retired — their members are keys here. There is **no `amend`** (corrections are a new slice or a fix) and **no separate augmentation keys** (`shape` decides augmentations; `plan`/`implement`/`verify` apply them). The full retired-surface → new-key mappings live in the **Retired surfaces** list under Step 0.
+Run this check before any read or write. Its result is your first visible output.
 
-> **Narrative fragments — any artifact.** Any artifact you write may also ship free narrative fragments (`<stem>.<label>.html.fragment` siblings) whenever a bespoke visual tells the story better than prose — see [reference/_fragment-authoring.md](reference/_fragment-authoring.md) Step F2 and `../../reference/narrative-fragments.md`.
-
-# Step 0 — Dispatch check (MANDATORY — before any read or write)
-
-Run this check before you read a reference, read a workflow file, or write anything. Your first visible output for every `/wf` invocation is the result of this check: the dispatch line in step 5, or the STOP message in step 2, step 3, or step 4. Nothing else comes first.
-
-1. Split `$ARGUMENTS` on whitespace. The first token is the key candidate. The remaining tokens are the sub-command's `$ARGUMENTS`, passed verbatim.
-2. If `$ARGUMENTS` is empty, render the key table below and ask the user which key they want. STOP.
-3. If the key candidate is not one of the 22 keys in the table below, STOP. Tell the user: *"`<token>` is not a known wf key. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, probe, simplify, auto, yolo, task, status, recap, close, ship-plan, docs, observability."* Then append the retired-surface hint that matches the token (the **Retired surfaces** list below). After the STOP, do nothing else. In particular:
-   - Do not treat the token as a slug.
-   - Do not treat an intake mode word (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `adopt`, `amend`, `modernize`) as `intake <mode>`. The user must type `/wf intake <mode> …` themselves.
-   - Do not pick a slug on the user's behalf.
-   - Do not load any reference.
-4. If the key candidate is `yolo` and the host is Codex or pi, the redirect that the Hosts section prescribes is your first visible output. Do not emit the dispatch line. Do not load `reference/yolo.md`. STOP.
-5. If the key candidate is a known key, state the dispatch on one line as your first visible output, then continue to Step 0.5:
-
-   `wf dispatch: key=<key> · args=<remaining tokens, or (none)> · reference=reference/<key>.md`
-
-   The line is the proof that the check ran. A reply that opens with anything else skipped the check.
-
-**Known sub-command keys** — each resolves to `reference/<key>.md`:
+1. Split `$ARGUMENTS` on whitespace. The first token is the key candidate. The remaining tokens are the key's `$ARGUMENTS`, unchanged.
+2. If `$ARGUMENTS` is empty, render the key tables and ask which key the user wants. STOP.
+3. If the key candidate is not one of the 22 keys, STOP. Tell the user: *"`<token>` is not a known wf key. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, probe, simplify, auto, yolo, task, status, recap, close, ship-plan, docs, observability."* Do not treat the token as a slug or as an intake mode. Do not pick a slug for the user. Do not load a reference.
+4. If the key candidate is `yolo` under Codex or pi, answer with the host redirect. STOP.
+5. State the dispatch on one line, then continue: `wf dispatch: key=<key> · args=<remaining tokens, or (none)> · reference=reference/<key>.md`
 
 ### Stages
 
-| Key | Argument hint | What it does (one line) |
-|---|---|---|
-| `intake`     | `[slug] [mode] <description>` | **Entry dispatcher.** Plain `/wf intake <description>` runs stage 1 of 10. A mode keyword (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`) routes a compressed entry flow; `adopt` is the reverse-entry mode (adopts a working-tree diff already made into the lifecycle, landing at verify); an existing slug + a mode attaches a compressed slice; an existing slug + free scope **auto-routes to extension** (adds net-new slices). Two slug-required **maintenance** modes edit an existing workflow without touching built work: `amend` (whitelisted config) and `modernize` (additive schema backfill). See `reference/intake.md`. |
-| `shape`      | `[slug] [hint]`           | Feature discovery via product-owner questions; writes 02-shape.md. **Authors the Documentation Plan AND the Augmentation Plan** (`augmentations-needed`) that downstream stages honor. |
-| `slice`      | `<slug>`                  | Decompose the shape into 1–N shippable slices; writes 03-slice.md and per-slice 03-slice-<slug>.md files. |
-| `plan`       | `<slug> [slice]`          | Per-slice implementation plan with parallel reuse scan; writes 04-plan-<slice>.md. **Applies the augmentation plan** — authors 04b-instrument/04c-experiment/05c-benchmark from `shape`'s decision (loading `reference/augment/<type>.md`). |
-| `implement`  | `<slug> [slice\|reviews]` | Code the slice; writes 05-implement-<slice>.md. Wires any shape-decided augmentations. Second arg `reviews` triggers fix-blockers mode. |
-| `verify`     | `<slug> [slice]`          | Run tests, lints, typecheck; apply the user-observable AC gate; own a single-round, user-gated fix loop; re-check augmentations (benchmark compare). Writes 06-verify-<slice>.md. |
-| `review`     | `<slug> [slice\|triage]` · or ad-hoc `<dimension>` / `sweep <aggregate>` | **The single review surface.** `/wf review <slug>` runs the workflow STAGE (accumulating-ledger dispatch, per `review-scope`). `/wf review <dimension>` / `/wf review sweep <aggregate>` (no slug) runs **ad-hoc** review — one rubric inline or a parallel fan-out (absorbs the former standalone review skill). Owns its own first-token resolution (slug vs dimension). See `reference/review.md`. |
-| `handoff`    | `<slug\|pr#N\|branch>`    | Aggregate completed slices into a PR description; writes 08-handoff.md. A `pr#N`/branch first arg runs **batch mode** — aggregates every slug on the branch, reports which are handoff-ready, packages the ready ones, opens the single shared PR, and writes the branch-level readiness on the lead slug. Refuses (per slug) if any required review has unresolved blockers. |
-| `ship`       | `<slug\|pr#N\|branch> [env\|announce\|rollback]` | Release via `.ai/ship-plan.md`; writes 09-ship-run-<run-id>.md + updates 09-ship-runs.md. A `pr#N`/branch first arg runs **batch mode** — all-or-nothing across the branch (merge is atomic per PR), one run on the lead slug, followers get a `shipped-via` pointer. Its post-publish **announce phase** drafts stakeholder comms; `/wf ship <slug> announce` re-runs comms only. `/wf ship <slug> rollback [<run-id>]` runs the **rollback phase** — a runbook-driven, Go/No-Go-gated reversal (writes 09-rollback-<run-id>.md). |
-| `retro`      | `<slug\|pr#N\|branch>`     | Post-mortem across the workflow; writes 10-retro.md. A `pr#N`/branch first arg runs **batch mode** — retrospects every slug on the branch (one 10-retro.md each), skips slugs with nothing to retro, and synthesizes the cross-slug lessons that span the whole branch. |
+| Key | Arguments | Does | Writes |
+|---|---|---|---|
+| `intake` | `[slug] [mode] <description>` | Entry dispatcher. A description starts stage 1. A mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `adopt`) runs a compressed entry flow. An existing slug plus a mode attaches a compressed slice; a slug plus free scope extends the workflow. `amend` and `modernize` edit an existing workflow's recorded config. | per mode |
+| `shape` | `[slug] [hint]` | Product-owner discovery. Authors the documentation plan and `augmentations-needed`. | `02-shape.md` |
+| `slice` | `<slug>` | Decompose the shape into shippable slices. | `03-slice.md`, `03-slice-<slug>.md` |
+| `plan` | `<slug> [slice]` | Per-slice plan with a reuse scan. Applies the augmentation plan via `reference/augment/<type>.md`. | `04-plan-<slice>.md` |
+| `implement` | `<slug> [slice\|reviews]` | Code the slice. `reviews` runs fix-blockers mode. | `05-implement-<slice>.md` |
+| `verify` | `<slug> [slice]` | Tests, lints, typecheck, the user-observable AC gate, one user-gated fix loop, augmentation re-checks. | `06-verify-<slice>.md` |
+| `review` | `<slug> [slice\|triage]` · `<dimension>` · `sweep <aggregate>` | With a slug: the workflow stage over the accumulating ledger. Without: ad-hoc review, one rubric or a fan-out. Resolves slug versus dimension itself. | review artifacts |
+| `handoff` | `<slug\|pr#N\|branch>` | Aggregate completed slices into a PR. `pr#N` or a branch runs batch mode across the branch onto the lead slug. Refuses while a required review has unresolved blockers. | `08-handoff.md` |
+| `ship` | `<slug\|pr#N\|branch> [env\|announce\|rollback]` | Release via `.ai/ship-plan.md`. Batch mode is all-or-nothing per PR. `announce` re-runs comms. `rollback [<run-id>]` runs the Go/No-Go reversal. | `09-ship-run-<run-id>.md`, `09-ship-runs.md`, `09-rollback-<run-id>.md` |
+| `retro` | `<slug\|pr#N\|branch>` | Post-mortem. Batch mode retrospects every slug on the branch and the cross-slug lessons. | `10-retro.md` |
 
 ### Standalone / drivers
 
-| Key | Argument hint | What it does (one line) |
-|---|---|---|
-| `design`     | `[slug] <command> [instr]` | **Compressed design workflow / ad-hoc design operators.** The 20 design commands (15 transforms, `audit`, `critique`, `extract`, `setup`, `teach`) are *arguments*, never their own keys. First token is an optional slug (existence-checked). See `reference/design.md`. |
-| `probe`      | `<slug> [target\|sweep]` · or `sweep [path]` | **Runtime-truth verification** of already-built work — drives the running artifact, captures observable output, writes findings as a compressed slice. Two modes: TARGET compares to AC text; **`sweep`** enumerates the whole user surface and compares it to AC + charter constraints + the shared defect taxonomy (`reference/_surface-defects.md`). `sweep` as the FIRST token runs slug-less against any repo, writing `.ai/surface-sweep-<date>.md`. Never writes code. See `reference/probe.md`. |
-| `simplify`   | `[branch [<base>] \| commit <sha-or-range> \| plan <slug> <slice> \| codebase [<path>]]` | **Review-and-route triage.** Three parallel sub-agents review one of four scopes, classify findings, route them downstream. Never writes code. Owns its own first-token resolution. See `reference/simplify.md`. |
-| `auto`       | `<slug> [<slice>]`        | **End-to-end lifecycle driver.** Drives each stage in-process, pausing only when a stage's own gate fires; stops before handoff. Writes no artifact of its own. See `reference/auto.md`. |
-| `yolo`       | `<slug> [<slice>]`        | **Autonomous lifecycle driver (Claude Code only).** The no-human-gates sibling of `auto` — resolves each gate by a written policy. Stops before handoff. Unavailable under Codex and pi. See `reference/yolo.md`. |
-
-**Host availability.** Every key runs under every host except `yolo`, which is Claude Code only — see [reference/_host-invocation.md](reference/_host-invocation.md).
+| Key | Arguments | Does | Writes |
+|---|---|---|---|
+| `design` | `[slug] <command> [instr]` | Compressed design workflow. The 20 design commands are arguments, never keys. | per command |
+| `probe` | `<slug> [target\|sweep]` · `sweep [path]` | Runtime-truth verification of built work. Target mode compares to AC text. `sweep` enumerates the user surface against AC, charter, and `reference/_surface-defects.md`; as the first token it runs slug-less. Writes no code. | a compressed slice, or `.ai/surface-sweep-<date>.md` |
+| `simplify` | `branch [<base>] \| commit <range> \| plan <slug> <slice> \| codebase [<path>]` | Three parallel sub-agents review one scope, classify findings, and route them. Writes no code. | none |
+| `auto` | `<slug> [<slice>]` | Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff. | none |
+| `yolo` | `<slug> [<slice>]` | Autonomous driver. Resolves each gate by written policy. Stops before handoff. Claude Code only. | none |
 
 ### Minimal lifecycle
 
-| Key | Argument hint | What it does (one line) |
-|---|---|---|
-| `task`       | `<description \| task-slug \| existing-slug + description>` | **Minimal lifecycle for work whose deliverable is not a code change** — repo chores, environment/infra operations, non-code deliverables (RFCs, audits), coordination, one-shot execution. Briefs the work (`01-task.md`) with observable ACs and a mandatory `blast-radius` classification, gates before acting (`shared-env`/`external-party`/`irreversible` always stop for a human), executes, then re-observes — an AC evidenced only by `asserted` cannot close. An existing non-closed slug as the first token attaches the task as a compressed slice. See `reference/task.md`. |
+| Key | Arguments | Does | Writes |
+|---|---|---|---|
+| `task` | `<description \| task-slug \| existing-slug + description>` | Work whose deliverable is not a code change. Briefs observable ACs and `blast-radius`; `shared-env`, `external-party`, and `irreversible` always stop for a human; an AC evidenced only by `asserted` cannot close. An existing slug attaches a compressed slice. | `01-task.md` |
 
 ### Navigation · lifecycle control · routers
 
-| Key | Argument hint | What it does (one line) |
-|---|---|---|
-| `status`     | `[slug] [deep] \| advise`  | **Dashboard + detail + router + registry keeper.** Cross-workflow dashboard; `/wf status <slug>` shows detail AND the exact next command (absorbs the old `next`); reconciles `.ai/workflows/INDEX.md` on drift (absorbs `sync`); `/wf status <slug> deep` runs a reality-drift check + writes a sync report; `/wf status advise` reasons across ALL open workflows and renders a ranked cross-slug sequencing plan (what to do next, in what order, what to stop) — read-only. See `reference/status.md`. |
-| `recap`      | `<slug\|pr#N\|branch> [slice \| plan\|shape\|slice\|review\|findings]` | **Plain-language catch-up / explain** (renamed from `resume`). Recaps what a workflow has done so far (whole or one slice), or explains a plan/shape/review/findings artifact (the former `how` explain modes). A `pr#N`/branch first arg runs **batch mode** — recaps every slug on the branch and tells the combined story (whole-workflow scope only; a focus/slice token doesn't apply). Writes 90-recap.md; does not advance. See `reference/recap.md`. |
-| `close`      | `<slug> [<slice> \| reason]` | **Lifecycle termination.** `/wf close <slug> [reason]` archives the whole workflow (99-close.md); `/wf close <slug> <slice>` closes/skips one slice (absorbs the old `skip`, slice-scoped). See `reference/close.md`. |
-| `ship-plan`  | `<init\|build\|edit\|audit> [args]` | **Project release-pipeline router.** `init` authors `.ai/ship-plan.md`; `build` brings the repo/CI into compliance; `edit` block-edits the plan (the former `amend ship-plan`); `audit` runs a read-only soundness review of the plan + built pipeline + release-relevant codebase (writes `.ai/ship-plan-audit.md`, fixes nothing). See `reference/ship-plan.md`. |
-| `docs`       | `[<primitive> \| <slug> \| --audit-only \| <path>]` | **Documentation router** (the former `/wf-docs`). Orchestrator pipeline (discover→audit→plan→generate→review), or a single Diátaxis primitive (`plan`/`tutorial`/`how-to`/`reference`/`explanation`/`readme`/`review`). See `reference/docs.md`. |
-| `observability` | `<init\|build\|audit> [args]` | **Project observability router.** `init` inventories the codebase's current logging/telemetry/analytics, reads the ship-plan, and consultatively authors `.ai/observability.md` (schema + sampling + redaction + pipeline + backend + dashboards, language-agnostic); `build` realizes it (emit-layer adapters, collector/pipeline config, backend IaC, dashboards-as-code — every remote/billable step gated); `audit` runs a read-only soundness sweep into `.ai/observability-audit.md`. See `reference/observability.md`. |
+| Key | Arguments | Does | Writes |
+|---|---|---|---|
+| `status` | `[slug] [deep] \| advise` | Dashboard; per-slug detail with the next command; `INDEX.md` reconciliation; `deep` drift check; `advise` cross-slug sequencing. Read-only apart from `INDEX.md`. | none |
+| `recap` | `<slug\|pr#N\|branch> [slice \| plan\|shape\|slice\|review\|findings]` | Plain-language catch-up, or an explanation of one artifact. Batch mode tells the branch story. Does not advance. | `90-recap.md` |
+| `close` | `<slug> [<slice> \| reason]` | Archive a workflow, or close one slice. | `99-close.md` |
+| `ship-plan` | `<init\|build\|edit\|audit> [args]` | Release-pipeline router: author, build, block-edit, or audit `.ai/ship-plan.md`. | `.ai/ship-plan.md`, `.ai/ship-plan-audit.md` |
+| `docs` | `[<primitive> \| <slug> \| --audit-only \| <path>]` | Documentation router: the orchestrator pipeline, or one Diátaxis primitive. | per primitive |
+| `observability` | `<init\|build\|audit> [args]` | Observability router: author, realize, or audit `.ai/observability.md`. | `.ai/observability.md`, `.ai/observability-audit.md` |
 
-**`/wf review` is the whole review surface.** `/wf review <slug>` is the workflow stage; `/wf review <dimension>` / `/wf review sweep <aggregate>` is ad-hoc review (no slug). The former standalone `/review` skill is dissolved into this key — there is no separate review skill anymore.
+Every key runs under every host except `yolo`, which is Claude Code only. For `design`, `intake`, `probe`, `auto`, `yolo`, `task`, `status`, `recap`, `retro`, `close`, `review`, `ship-plan`, `docs`, and `observability`, the reference resolves the first remaining token itself, in its own Step 0.
 
-**Dispatch semantics.** When the key candidate is a known key, mode is **dispatch**. For `design`, `intake`, `probe`, `auto`, `yolo`, `task`, `status`, `recap`, `retro`, `close`, `review`, `ship-plan`, `docs`, and `observability`, the remaining tokens carry a slug (or a router sub-key / dimension / description) as their own first token, resolved **inside the loaded reference** (its Step 0) by exact existence check — not here.
+# Step 0.5 — Unknown-slug suggestion
 
-**Retired surfaces** (the hint appended to the Step 0 step 3 STOP message; the STOP still stands — a hint never becomes a dispatch):
-   - If the token is `quick` or a former `/wf-quick` sub-command: *"`/wf-quick` was retired — `fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, and `ideate` are now `/wf intake <mode>`; `probe` and `simplify` are `/wf probe` and `/wf simplify`."*
-   - If the token is a former `/wf-meta` member (`next`, `sync`, `resume`, `amend`, `extend`, `skip`, `how`, `announce`, `init-ship-plan`, `build-pipeline`): *"`/wf-meta` was dissolved into `/wf`. `status`→`/wf status` (it also absorbs `next` and `sync`); `resume`→`/wf recap`; `skip`→`/wf close <slug> <slice>`; `how`→`/wf recap <slug> <focus>` (explain an artifact; code questions and web research are a plain research conversation outside `/wf`); `announce`→`/wf ship <slug> announce`; `init-ship-plan`/`build-pipeline`→`/wf ship-plan init`/`/wf ship-plan build`; `amend`→`/wf intake <slug> amend <what to change>` — an intake maintenance mode that edits a workflow's *recorded config* (branch strategy, branch, base, review scope, title, tags) against a strict whitelist; correcting built *work* is still a new slice via `/wf intake <slug> <scope>` or `/wf intake <slug> fix`, and the ship plan is `/wf ship-plan edit`; `extend`→`/wf intake <slug> <new scope>`."*
-   - If the token is a former `/wf-docs` invocation: *"`/wf-docs` is now `/wf docs` — same behavior (orchestrator or a Diátaxis primitive)."*
-   - If the token is a former augmentation key (`instrument`, `experiment`, `benchmark`, `profile`): *"Augmentations are no longer separate keys — `shape` decides them (`augmentations-needed`) and `plan`/`implement`/`verify` apply them. Ad-hoc profiling is available via `/wf probe`."*
-   - If the token is `setup-wide-logging` (the retired standalone skill): *"`setup-wide-logging` is now `/wf observability build` — run `/wf observability init` first to inventory the codebase and author `.ai/observability.md` (language-agnostic, consultative), then `/wf observability build` to realize it, and `/wf observability audit` to review it."*
+Step 0.5 applies to `shape`, `slice`, `plan`, `implement`, `verify`, and `close`. Every other key resolves its first token inside its reference; a non-matching token there is a PR, a branch, a dimension, a mode, or a sub-key, not a typo.
 
-# Step 0.5 — Fuzzy-suggest unknown slugs (v9.11.0)
+1. The slug candidate is `$1` of the key's `$ARGUMENTS`. If `$1` is empty, or `.ai/workflows/INDEX.md` does not exist, skip Step 0.5.
+2. Run `grep -P "^<candidate>\t" .ai/workflows/INDEX.md`. On a hit, dispatch.
+3. On a miss, match every row's slug, closed rows included: Levenshtein distance ≤ 2, then substring inclusion in either direction.
+4. If no row matches, STOP: *"Unknown slug `<candidate>`. Run `/wf status` to list all workflows, or `/wf intake <description>` to start a new one."*
+5. If a row matches, STOP: *"Unknown slug `<candidate>`. Did you mean `<best-match>`<closed-suffix>? (Run `/wf status` to list all workflows.) Retry: `/wf <key> <best-match> <remaining args>`"* — `<closed-suffix>` is ` (closed)` when that row is closed. Do not auto-correct.
 
-After sub-command resolution, before dispatch: if the user passed a positional slug arg and it doesn't match any row in `.ai/workflows/INDEX.md`, surface a typo suggestion instead of letting the reference fail later with an opaque "workflow not found" error.
+# Step 0.7 — Git precondition
 
-**Applies to** these **slug-consuming** sub-commands:
+Skip this step when Step 0 ended at the menu or at an unknown key. Run `git rev-parse --show-toplevel` from the project root. On success, continue to Step 0.8.
 
-`shape`, `slice`, `plan`, `implement`, `verify`, `close`
-
-**Does NOT apply** to keys that own their own first-token resolution or take a non-slug first arg:
-- `handoff`, `ship`, `status`, `recap`, `retro` — take a **polymorphic** first token (`slug` | `pr#N`/`#N`/bare int | branch name), resolved by exact existence check inside their reference (Step 0). A non-matching first token is a PR/branch reference, not a typo'd slug — so Step 0.5 must NOT fire for them.
-- `intake` — resolves its first token by exact existence check inside `reference/intake.md` (slug-mode / extension / mode keyword / description), never a typo'd slug.
-- `review` — owns its slug-vs-dimension resolution (`reference/review.md` Step 00): an exact slug is the stage, a known dimension/`sweep` is ad-hoc. A non-matching first token is a dimension or the ad-hoc menu, not a typo.
-- `design`, `probe`, `auto`, `yolo` — each resolves an *optional* slug by exact existence check / single-active inference inside its reference; a non-matching first token is a design command / slug-required STOP / a route-to-intake, handled there.
-- `task` — resolves its first token by exact existence check inside `reference/task.md` (task-slug resume / existing-slug slice-attach / description), never a typo'd slug.
-- `simplify` — its first positional is a scope keyword (`branch`/`commit`/`plan`/`codebase`), not a slug.
-- `ship-plan`, `docs`, `observability` — **routers**: their first token is a sub-key / primitive / path / flag resolved inside the router reference, not a slug.
-
-*Keep this list in sync with the 22-key table — exclude any future key that creates a new slug, takes a non-slug first arg, or resolves its slug by its own existence check. `close` takes an **optional** slug and falls through to single-active inference when none is passed, so Step 0.5 only fires for it when a non-matching slug arg is actually present. `handoff`/`ship`/`status`/`recap`/`retro` are excluded entirely — their first token is polymorphic (slug/PR/branch) and resolved inside the reference (`recap`/`retro` fall through to single-active inference when no first token is passed).*
-
-**Procedure:**
-
-1. Identify the slug candidate — for the applies-to keys it is `$1` of the sub-command's `$ARGUMENTS`. If `$1` is empty (no slug passed), skip Step 0.5 — slug resolution falls through to the reference's single-active inference.
-2. If `.ai/workflows/INDEX.md` does not exist → skip Step 0.5 (no registry → no candidate set). The reference handles the missing-slug case downstream.
-3. Search `INDEX.md` for an exact match: `grep -P "^<candidate>\t" .ai/workflows/INDEX.md`. If hit → slug is real, dispatch normally.
-4. **On miss**, fuzzy-match against every row's slug column (including closed rows):
-   - Levenshtein edit distance ≤ 2, then substring inclusion (either direction).
-   - If no slug satisfies any condition → STOP: *"Unknown slug `<candidate>`. Run `/wf status` to list all workflows, or `/wf intake <description>` to start a new one."*
-5. If a best match exists, STOP with: *"Unknown slug `<candidate>`. Did you mean `<best-match>`<closed-suffix>? (Run `/wf status` to list all workflows.)"* — `<closed-suffix>` is ` (closed)` iff the best-match row's status is `closed`. Show the corrected command verbatim: *"Retry: `/wf <sub-command> <best-match> <remaining args>`"*.
-6. Step 0.5 is purely advisory — it never auto-corrects. The user must re-invoke with the suggested slug.
-
-# Step 0.7 — Git repository precondition (v9.110.0)
-
-Before dispatch, confirm the project is a git repository: run `git rev-parse --show-toplevel` from the project root. If it succeeds, continue to Step 1. Skip this check when Step 0 ended at the menu (empty `$ARGUMENTS`) or at an unknown-key error.
-
-If it **fails** (not a git repo), do NOT proceed silently. The hub's registry identity is git-derived — in a non-git directory every registration attempt returns `skipped-not-git` with no visible error, queued renders never drain, no dashboard/view is ever rendered, and the slug branches recorded in `INDEX.md` cannot exist. Ask the user first (per [_gate-question.md](reference/_gate-question.md)):
+If it fails, the hub cannot register the repo: every registration returns `skipped-not-git`, queued renders never drain, and slug branches cannot exist. Ask first, per [_gate-question.md](reference/_gate-question.md):
 
 > This directory is not a git repository. `/wf` needs git — the hub registers repos by git identity, and slug branches live in git. Run `git init` now?
-> - **Yes — run `git init` (Recommended):** initialize the repo, then continue with the requested operation.
-> - **No — continue without git:** artifacts still write to `.ai/workflows/`, but the hub will not register or render this repo until `git init` is run and any `/wf` command re-registers it.
+> - **Yes — run `git init` (Recommended):** initialize the repo, then continue.
+> - **No — continue without git:** artifacts still write to `.ai/workflows/`, but the hub does not register or render this repo until `git init` runs and a `/wf` command re-registers it.
 
-On consent, run `git init` only — never stage or commit the user's files — then continue to Step 1. On decline, continue, but restate the unrendered-repo caveat in the Step 2 summary's `Next:` line. Never run `git init` without asking.
+On consent, run `git init` only; do not stage or commit the user's files. On decline, continue and restate the caveat in the Step 2 `Next:` line. Do not run `git init` without asking.
 
-# Step 0.8 — Source-study is available lifecycle-wide (v9.117.0)
+# Step 0.8 — Source study
 
-Across **every** stage, when the work turns on *how a dependency, framework, or SDK actually behaves* — an exact signature, an edge case, an error string, a version-specific change — reach for the `study-sources` skill instead of working from recalled API shapes. It reads real source: first from whatever is already installed (`node_modules`, `~/.m2`, the Gradle/Android/Go/Rust/.NET/Ruby/PHP/Swift/Dart caches), and only if absent, by fetching into a gitignored `.scratch/`. It is **read-only** — never builds, runs, or adopts a dependency, and nothing it fetches enters the repo or git history. `intake rca`, `intake investigate`, `plan`, `implement`, `verify`, `review`, and `intake update-deps` call it out explicitly; any other key (`probe`, `intake fix`/`hotfix`, `shape`, `design`) may invoke it opportunistically whenever a source read would remove guesswork.
+When the work turns on how a dependency actually behaves (a signature, an edge case, an error string, a version change), use the `study-sources` skill instead of recalled API shapes. It reads installed sources first and fetches into a gitignored `.scratch/` only when none are present. It is read-only. `intake rca`, `intake investigate`, `plan`, `implement`, `verify`, `review`, and `intake update-deps` name it; any other key may use it.
 
 # Step 1 — Execute
 
-1. Read the reference file in full from `reference/<key>.md`.
-2. Treat its content as your instructions for this invocation. Do not summarize, paraphrase, or skip — follow it verbatim.
-3. The reference body contains the operation's full definition (preamble, prerequisites, conditional inputs, output contract, adaptive routing). Honor every conditional input and every artifact write it describes. Router keys (`design`, `ship-plan`, `docs`, `observability`) resolve a sub-key and load a further reference; follow that chain.
-4. The remaining `$ARGUMENTS` after the matched key are the sub-command's own arguments — pass them through verbatim.
+1. Read `reference/<key>.md` in full and follow it verbatim. Do not summarize, paraphrase, or skip. Honor every conditional input and every artifact write it describes.
+2. Router keys (`design`, `ship-plan`, `docs`, `observability`) resolve a sub-key and load a further reference. Follow that chain.
+3. Pass the remaining `$ARGUMENTS` through unchanged.
 
-# Step 2 — Emit Final Summary (MANDATORY)
+# Step 2 — Final summary
 
-After the reference's logic completes, emit a chat summary as the LAST output before returning control to the user. This contract is uniform across every key this router dispatches; the reference may carry its own chat-return content, but this section governs the shape.
-
-**Format (compact — a short narrative, then the anchors):**
+After the reference's logic completes, end with this block. If the reference stopped with an error message, the error replaces the summary.
 
 ```
-wf <sub-command> complete: <slug-or-scope>
+wf <key> complete: <slug-or-scope>
 
-<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this run produced or decided, how, and the top risk or caveat. See the Narrative rule below.>
+<Narrative: 2–5 sentences of prose, no bullets, no field labels — the state inherited, the decisions and counts with reasons, what comes next and the top risk.>
 
-Artifacts: <comma-separated paths, or "none">
-Next: <recommended command, or "Done">
+Artifacts: <paths created or modified, or "none">
+Next: <one concrete invocation, or "Done">
 ```
 
-**Rules:**
-
-- **Always emit** unless the reference STOPped with an error message — in that case the error replaces the summary.
-- **Verb-first first line.** Name the sub-command and the workflow slug (or other scope: `area` for a profile run, a dimension for ad-hoc `review`, etc.).
-- **Artifacts** are the paths created or modified in this invocation. Use `"none"` for read-only sub-commands (`status` dashboard, ad-hoc `review`, `recap`, `simplify` standalone) — note that some read-only members still write one bookkeeping file (`status` may reconcile `INDEX.md`; `recap` writes `90-recap.md`); surface those honestly.
-- **Narrative — the heart of the summary, REQUIRED for any sub-command that writes a substantive artifact.** A short **prose paragraph** (2–5 sentences, no bullets, no field labels) that *tells the user what happened*. Write it per [reference/_story-arc.md](reference/_story-arc.md) rule A6 — the same three beats as the artifact's story section: the state inherited, the load-bearing decisions and counts with reasons, then what comes next plus the top risk — never a "This <stage> implements…" opening. Omit only for genuinely read-only sub-commands with nothing to narrate.
-- **Next** is a concrete invocation, or `Done` for terminal sub-commands (`ship`, `retro`, `close`). Never vague like "consider your next step".
-- **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.
-- If the reference defines its own "Chat return contract" or "Hand off to user" step, treat that as the *content* spec — pick the load-bearing fields and keep it compact. **A reference that says to "return ONLY" a receipt (slug / wrote / options) means only those *receipt fields* — it does NOT waive the substance summary above. Always surface what the artifact says — its key decisions, counts, verdict, top risk — not merely the paths it wrote.** Keep the *full* detail in the artifact; the chat summary carries the gist.
+- Name the key and the scope on the first line.
+- `Artifacts` lists every path this run wrote. Read-only keys write `none`; `status` may still reconcile `INDEX.md` and `recap` writes `90-recap.md`, so name those.
+- Write the narrative per [_story-arc.md](reference/_story-arc.md) rule A6. Omit it only for a read-only run with nothing to narrate. A reference that says to return only a receipt names the receipt's fields; it does not waive this narrative.
+- `Next` is one invocation, or `Done` after `ship`, `retro`, or `close`.
+- Paths under `.ai/` are allowed in this block. Outside it the output boundary applies.
