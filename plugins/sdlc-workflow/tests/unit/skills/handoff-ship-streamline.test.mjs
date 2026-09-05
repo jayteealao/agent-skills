@@ -147,7 +147,7 @@ test('W3.3 — exceeding the bound names the remaining classes and the structura
 
 test('W4.1 — the drift gate can amend inline, scoped to the drifted blocks', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, '_ship-plan-readiness.md');
+    const src = ref(root, 'ship-plan/_readiness-gate.md');
     assert.match(src, /Amend now and continue/, `${name}: the inline-amend option is gone`);
     // v9.143.0 narrowed this from "the findings" to "the *amendable* findings" —
     // a merge-class finding riding along must not drag its block into the edit.
@@ -160,17 +160,17 @@ test('W4.1 — the drift gate can amend inline, scoped to the drifted blocks', (
 
 test('W4.2 — STOP remains the fallback; an unverified amendment never continues', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, '_ship-plan-readiness.md');
+    const src = ref(root, 'ship-plan/_readiness-gate.md');
     assert.match(src, /Still dirty → fall back to STOP/,
       `${name}: a still-dirty re-check can continue the run`);
-    assert.match(src, /never continues on an amendment it has not re-verified/,
+    assert.match(ref(root, '_ship-plan-readiness.md'), /never continues on an amendment it has not re-verified/,
       `${name}: the boundary statement lost its re-verification guarantee`);
   }
 });
 
 test('W4.3 — a STOP preserves the orientation work it already did', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, '_ship-plan-readiness.md');
+    const src = ref(root, 'ship-plan/_readiness-gate.md');
     assert.match(src, /resume-orientation:/, `${name}: resume-orientation state is gone`);
     // Trusting stale re-entry state is worse than none — the head-SHA check is
     // what makes keeping it safe.
@@ -285,7 +285,7 @@ test('W7.3 — ship asks its answerable questions before the atomic run opens', 
 
 test('W7.5 — the gate documents its own shell portability', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, '_ship-plan-readiness.md');
+    const src = ref(root, 'ship-plan/_readiness-signals.md');
     assert.match(src, /Shell portability/, `${name}: the portability sweep is gone`);
     assert.match(src, /Never let a pipeline mask an exit code/,
       `${name}: the exit-code-masking rule is gone`);

@@ -104,7 +104,7 @@ test('D2.3 — advisories are reported but never counted into the ask', () => {
 
 test('D3.1 — branch-scoped entries survive a plan-version bump', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, '_ship-plan-readiness.md');
+    const src = ref(root, 'ship-plan/_readiness-gate.md');
     assert.match(src, /Invalidation is scoped, not wholesale/,
       `${name}: the ledger is wholesale-invalidated again — a bump wipes branch-scoped acks`);
     assert.match(src, /`fingerprint-scope: branch`\*\* entries \*\*survive\*\* a `plan-version` bump/,
@@ -116,7 +116,7 @@ test('D3.1 — branch-scoped entries survive a plan-version bump', () => {
 
 test('D3.2 — the ledger entry records how it was earned', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, '_ship-plan-readiness.md');
+    const src = ref(root, 'ship-plan/_readiness-gate.md');
     assert.match(src, /fingerprint-scope, branch, plan-version, stage, at, via, reason/,
       `${name}: the ledger entry shape lost fingerprint-scope/branch/via`);
     assert.match(src, /`via: amendment`/,
@@ -135,7 +135,7 @@ test('D3.3 — the ship-plan editor may not clear the ledger itself', () => {
 
 test('D4.1 — a landed amendment does not re-ask what it could never clear', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, '_ship-plan-readiness.md');
+    const src = ref(root, 'ship-plan/_readiness-gate.md');
     assert.match(src, /Guard 2 — the amendment landed/,
       `${name}: the amendment-landed guard is gone — an executed amend re-gates`);
     assert.match(src, /has since \*\*risen\*\*/,
@@ -147,7 +147,7 @@ test('D4.1 — a landed amendment does not re-ask what it could never clear', ()
 
 test('D4.2 — Guard 1 still covers the answered-but-unexecuted case', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, '_ship-plan-readiness.md');
+    const src = ref(root, 'ship-plan/_readiness-gate.md');
     assert.match(src, /Guard 1 — answered but unexecuted/,
       `${name}: the original re-fire guard was lost while adding the second one`);
     assert.match(src, /pending-amend: \{ signals, plan-version, at \}/,
@@ -157,7 +157,7 @@ test('D4.2 — Guard 1 still covers the answered-but-unexecuted case', () => {
 
 test('D4.3 — an amendment banks the acks for the findings it cannot clear', () => {
   for (const { name, root } of trees) {
-    assert.match(ref(root, '_ship-plan-readiness.md'), /Bank what the amendment bought/,
+    assert.match(ref(root, 'ship-plan/_readiness-gate.md'), /Bank what the amendment bought/,
       `${name}: an inline amendment no longer records the merge-class findings, so its own ` +
       're-check re-raises them inside the same run');
   }
@@ -165,7 +165,7 @@ test('D4.3 — an amendment banks the acks for the findings it cannot clear', ()
 
 test('D4.4 — a STOP tells the user what the amendment will NOT clear', () => {
   for (const { name, root } of trees) {
-    assert.match(ref(root, '_ship-plan-readiness.md'),
+    assert.match(ref(root, 'ship-plan/_readiness-gate.md'),
       /Say explicitly which findings the amendment will \*not\* clear/,
       `${name}: the STOP message can again send a user off to amend and return to the same gate`);
   }

@@ -142,5 +142,113 @@
     "to": "skills/wf/reference/implement/_research.md",
     "category": "dispatches",
     "entry": "heading: research sub-agent 2 dependency & api freshness (only if external dependencies are involved)"
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "- \"cancel\" stop."
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "- \"create it now\" stop; print /wf ship-plan"
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "- amend separately stop here stop."
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "- cancel stop."
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "- { label: \"amend separately stop here\", description:"
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "- { label: \"create it (recommended)\", description: \"stop"
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "- { label: \"create it now (recommended)\", description:"
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "- { label: \"fix in the repo stop"
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "before returning a stop verdict, write into the"
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "before stopping, preserve the orientation work so the"
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "either way stop do not run the release."
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "every stop path above throws away work the"
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "fall through to the stop path below, carrying"
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "guard 1 answered but unexecuted. if the ledger"
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "present a reminder instead: \"you chose amend the"
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "say explicitly which findings the amendment will not"
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "step r3.5 preserving orientation across a stop"
+  },
+  {
+    "from": "skills/wf/reference/_ship-plan-readiness.md",
+    "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "entry": "still dirty fall back to stop. if the"
   }
 ]

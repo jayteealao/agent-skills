@@ -193,7 +193,6 @@
       },
       "files": {
         "skills/wf/reference/_decision-classes.md": 1,
-        "skills/wf/reference/_ship-plan-readiness.md": 1,
         "skills/wf/reference/augment/experiment.md": 1,
         "skills/wf/reference/intake/adopt.md": 1,
         "skills/wf/reference/intake/default.md": 3,
@@ -254,7 +253,7 @@
         "skills/wf/reference/_fix-loop.md": 1,
         "skills/wf/reference/_handoff-config.md": 1,
         "skills/wf/reference/_pr-ci-handoff.md": 2,
-        "skills/wf/reference/_ship-plan-readiness.md": 22,
+        "skills/wf/reference/_ship-plan-readiness.md": 6,
         "skills/wf/reference/augment/benchmark.md": 2,
         "skills/wf/reference/augment/experiment.md": 2,
         "skills/wf/reference/augment/instrument.md": 2,
@@ -284,6 +283,7 @@
         "skills/wf/reference/review/_stage.md": 8,
         "skills/wf/reference/shape.md": 4,
         "skills/wf/reference/ship-plan.md": 1,
+        "skills/wf/reference/ship-plan/_readiness-gate.md": 19,
         "skills/wf/reference/ship-plan/audit.md": 1,
         "skills/wf/reference/ship-plan/build.md": 2,
         "skills/wf/reference/ship-plan/edit.md": 1,
@@ -311,7 +311,6 @@
         "skills/consult/SKILL.md": 1,
         "skills/wf/reference/_additive-write.md": 1,
         "skills/wf/reference/_pr-ci-handoff.md": 3,
-        "skills/wf/reference/_ship-plan-readiness.md": 2,
         "skills/wf/reference/_steering.md": 1,
         "skills/wf/reference/auto.md": 2,
         "skills/wf/reference/design.md": 1,
@@ -367,7 +366,6 @@
     "skills/wf/reference/_fragment-authoring.md": 112,
     "skills/wf/reference/_host-invocation.md": 119,
     "skills/wf/reference/_pr-ci-handoff.md": 227,
-    "skills/wf/reference/_ship-plan-readiness.md": 260,
     "skills/wf/reference/_surface-defects.md": 225,
     "skills/wf/reference/augment/benchmark.md": 363,
     "skills/wf/reference/augment/experiment.md": 311,
@@ -469,7 +467,7 @@
     },
     "handoff": {
       "core": 7484,
-      "instructed": 26456
+      "instructed": 16734
     },
     "implement": {
       "core": 5115
@@ -499,7 +497,7 @@
     },
     "ship": {
       "core": 6109,
-      "instructed": 22382
+      "instructed": 12660
     },
     "simplify": {
       "core": 5825,
