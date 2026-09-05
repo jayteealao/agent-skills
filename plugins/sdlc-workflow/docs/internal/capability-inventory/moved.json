@@ -388,5 +388,11 @@
     "to": "skills/wf/reference/ship-plan/build/governance.md",
     "category": "gates",
     "entry": "then branch on apply-via : - apply-via: manual"
+  },
+  {
+    "from": "skills/consult/SKILL.md",
+    "to": "skills/consult/panel.md",
+    "category": "artifacts",
+    "entry": "01-consult.html.fragment"
   }
 ]

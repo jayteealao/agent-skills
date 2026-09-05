@@ -353,7 +353,6 @@
     }
   },
   "exceptions": {
-    "skills/consult/SKILL.md": 178,
     "skills/wf/reference/augment/wide-event-observability.md": 918,
     "skills/wf/reference/review/accessibility.md": 818,
     "skills/wf/reference/review/api-contracts.md": 528,

@@ -17,11 +17,6 @@ oracles** and brings back their written opinions — a plan critique, a code or
 implementation review, a design trade-off analysis, a diagnosis, a second
 opinion. It is **advisory only**: the oracles can read and search the repo but
 **cannot edit, write, or run commands**. It writes no code and proposes no patch.
-(Write/delegate mode is deferred — EXTERNAL-MODEL-DISPATCH-PLAN D12.)
-
-It generalizes the single-model rescue pattern into a **multi-model
-panel**: by default it fans out to every available provider in parallel and
-returns a panel of opinions plus a one-line consensus/divergence read.
 
 The model **auto-invokes** this skill at the judgment points the `/wf` stages call
 out (plan, shape, design, review, verify/diagnosis, handoff) — not rarely, but
@@ -95,47 +90,7 @@ node "<skill-dir>/scripts/dispatch.mjs" read-only <repoRoot> <promptFile> [provi
 
 # Step 3 — Synthesize and embed
 
-1. **Panel.** For each `ok` result, present the provider, its **evidence scope**
-   badge (`repo-aware` vs `prompt-only`), its one-line verdict, and 2–4 key
-   points. Name every `skipped` provider with its reason. Name any provider whose
-   `ok` is false with its error (don't hide failures).
-
-1a. **A degraded panel must announce itself.** When fewer providers returned than
-   were requested, **lead the panel with the degradation**, do not bury it in a
-   trailing note:
-
-   > **Panel of 1** — `codex` unavailable (auth): not logged in. Treat this as one
-   > opinion, not a consensus.
-
-   This matters because the whole value of a panel is independent judgment: a
-   silently single-generator "panel" reads with the confidence of agreement it
-   never earned. Every plan critique and pre-mortem on one host ran
-   single-generator for weeks because the degradation surfaced, at best, as a
-   residual note.
-
-   Each failed result carries `errorKind` (`auth` | `sandbox` | `not-found` |
-   `unknown`) and, for `auth`, a `remedy` — **print the remedy**. An `auth`
-   failure is fixed by one command and will otherwise recur on every future
-   consult on that host. Do not describe an `auth` failure as an environmental
-   wall to plan around: it is a login, and the dispatcher now says which one.
-
-2. **Consensus / divergence — weighted by evidence (the asymmetry caveat).** Add
-   one line summarizing where the oracles agree and where they diverge. **A
-   `prompt-only` oracle's "disagreement" may just be missing context, not real
-   dissent** — weight `repo-aware` opinions more heavily on repo-specific claims,
-   and say so when a divergence looks like an evidence artifact rather than a true
-   difference of judgment.
-
-3. **Embed (only when consulting ON an artifact).** If the question targets a
-   workflow artifact `<stem>.md`, write the panel as a free narrative fragment
-   next to it: `<stem>.NN-consult.html.fragment` (e.g.
-   `04-plan.01-consult.html.fragment`). It is raw-inlined below the rendered page
-   with `@scope` CSS containment (no contract, no sibling `.yaml`) — see
-   [narrative-fragments.md](../../reference/narrative-fragments.md), and read
-   [artifact-interop.md](../../reference/artifact-interop.md) before embedding an
-   opinion into an `.ai/` artifact. Keep it self-contained — semantic HTML, one
-   small scoped `<style>` if needed. For a standalone consult with no artifact
-   target, skip the fragment.
+Build the panel per [panel.md](panel.md): one entry per `ok` provider with its evidence-scope badge, one-line verdict, and key points; every `skipped` or failed provider named with its reason and, for `auth`, its `remedy`. When fewer providers returned than were requested, lead with the degradation (**Panel of 1** — treat it as one opinion, not a consensus); an `auth` failure is not an environmental wall, it is a login, and the dispatcher says which one. Add the consensus/divergence line, weighted by evidence scope. When the question targets a workflow artifact, write the panel as a `<stem>.NN-consult.html.fragment` next to it per panel.md.
 
 # Step 4 — Emit the result
 
@@ -153,26 +108,4 @@ CONSULT_RESULT:
   cost: <per-token note, see below>
 ```
 
-`panel-size` is what makes a degraded run auditable after the fact: a reader
-scanning recorded consults can see which critiques were actually panels and
-which were one model with a panel's framing.
-
-**Cost note (C2).** A bare fan-out hits **every** available provider. The
-subscription CLIs (`codex`, `claude`) cost nothing per call; the REST oracles
-(`gemini`, `openai`, gateway models) bill **per-token to your API key on every
-invocation**. To stay free, pin a subscription CLI: `/consult codex <question>` or
-`/consult claude <question>`. To pin one paid model, name it:
-`/consult openai <question>` or `/consult anthropic/claude-opus-4-8 <question>`.
-
-# Callers
-
-`consult` is user-invocable, and the model also **auto-invokes** it at the plan,
-shape, design, review, verify, and handoff judgment points (and their equivalents in
-the autonomous `/wf auto` and `/wf yolo` drivers — key availability per
-[_host-invocation.md](../wf/reference/_host-invocation.md)) whenever that stage's
-**objective** trigger fires — a carried intent-risk, a ship-with-caveats verdict, an
-inferred-not-observed AC, a risk-bearing surface, and so on, as each stage specifies.
-It is a default action at those gates, not a rare one. Model-initiated runs pin a
-free CLI (`codex`/`claude`); the "used sparingly" caution scopes to the **paid** REST
-oracles only. It conceptually supersedes the single-model rescue pattern (one model →
-a multi-model panel) and edits no other plugin.
+**Cost note.** A bare fan-out bills the REST oracles (`gemini`, `openai`, gateway models) per token on every invocation; the subscription CLIs cost nothing per call. To stay free, pin one: `/consult codex <question>` or `/consult claude <question>`. To pin one paid model, name it: `/consult openai <question>` or `/consult <provider>/<model> <question>`.
