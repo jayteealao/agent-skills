@@ -31,9 +31,9 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 
 # CRITICAL — execution discipline
 You are a **dependency update orchestrator**.
-- Do NOT make application code changes beyond what a dependency update forces (e.g., API changes from a major bump).
-- Do NOT edit lock files manually — always use the package manager's own commands (`npm update`, `pip install --upgrade`, `go get`, `cargo update`, …).
-- Do NOT batch major version updates across packages in one commit. Major updates go one at a time.
+- Do not make application code changes beyond what a dependency update forces (e.g., API changes from a major bump).
+- Do not edit lock files manually — always use the package manager's own commands (`npm update`, `pip install --upgrade`, `go get`, `cargo update`, …).
+- Do not batch major version updates across packages in one commit. Major updates go one at a time.
 - If an update causes non-trivial test failures → mark that package `blocked` and continue. Surface the blocker; do not fix application code to force tests green.
 - The lifecycle skips no *stage* — each is single-pass. Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
@@ -81,13 +81,7 @@ Each batch agent returns per package: current/latest version, update-type, break
 
 **When the changelog can't settle it, read the source.** For a P0/P1 package whose changelog is `unverified`, ambiguous, or silent on a symbol the repo actually calls, invoke the `study-sources` skill to fetch the **target version's real source** (source JAR, `npm pack`, sdist, `go mod download`, the Cargo/NuGet cache, or a clone of the release tag into `.scratch/`) and diff its changed API against the current usage. Reading the real diff turns an `unverified` guess into a cited migration fact — record the version you read alongside `changelog-source:`. This is a read-only study step; it never installs or runs the candidate version.
 
-**A limitation claim carries its evidence.** Any claim that a capability was REMOVED, broke,
-or is no longer exposed by the target version must cite it in the artifact: the changelog/release
-line that announces the removal (`changelog-source:` URL), a `study-sources` read of the target
-version's **installed** source (name the path opened), or an upstream issue. Do not infer removal
-from a remembered API or from an in-repo comment — a comment claiming a limitation is a hypothesis
-to re-verify, never authority to plan a migration around. An uncited "the new version dropped X"
-drops the package to `Hold: changelog unverified`.
+**A limitation claim carries its evidence.** Any claim that a capability was REMOVED, broke, or is no longer exposed by the target version must cite it in the artifact: the changelog/release line that announces the removal (`changelog-source:` URL), a `study-sources` read of the target version's **installed** source (name the path opened), or an upstream issue. Do not infer removal from a remembered API or from an in-repo comment — a comment claiming a limitation is a hypothesis to re-verify, never authority to plan a migration around. An uncited "the new version dropped X" drops the package to `Hold: changelog unverified`.
 
 Then **prioritize** into tiers: **P0 Security** (active CVE with a fix → update immediately, one at a time), **P1 Major+migration** (breaking changes → one at a time), **P2 Minor/patch safe** (batch up to 10), **Hold** (incompatible / peer-blocked / recommended hold). Write `02-shape.md`:
 ```yaml
@@ -184,7 +178,7 @@ options:
 **Record the gate decision in `01-update-deps.md` on every branch** (full plan / P0-only / audit-only / adjusted), per the tail. **If `mode: audit-only`** (or the user picks Audit-only) → the run ends lawfully, not in a deadlock:
 1. Push every Hold-tier entry onto the index's `open-questions` as `"revisit <package>: <condition>"` — the research survives as machine-readable revisit triggers.
 2. Self-report to `00-index.md`: `updated-at`, `mode: audit-only`, `next-command: wf-close`, `next-invocation: "/wf close <slug> deferred"`. Touch the registry row's `updated-at`.
-3. STOP, printing: *"Audit saved. Close the run with `/wf close <slug> deferred` — the plan stays revivable; a future run seeds from its Hold list via provenance."* Do NOT point at `/wf review` (it refuses without `05-implement.md`) and do NOT leave `next-command` pointing at implementation that will never run.
+3. STOP, printing: *"Audit saved. Close the run with `/wf close <slug> deferred` — the plan stays revivable; a future run seeds from its Hold list via provenance."* Do not point at `/wf review` (it refuses without `05-implement.md`) and do NOT leave `next-command` pointing at implementation that will never run.
 
 # Step 7 — Self-author `05-implement.md` (tier-ordered execution)
 Execute the plan in tier order. **Never mix tiers in a single commit.**
@@ -192,66 +186,13 @@ Execute the plan in tier order. **Never mix tiers in a single commit.**
 - **P1 (sequential):** per package — migrate, apply only the API-forced app-code changes, test; pass → commit `fix(deps): update <pkg> to <version> (major, migration applied)`; fail → `blocked`.
 - **P2 (single batch):** batch-update, run full suite; pass → commit `fix(deps): batch update <N> safe dependencies`; fail → bisect/rollback the culprit, mark it `blocked`.
 
-Write `05-implement.md` (un-suffixed) — satisfies the **implement** required set:
-```yaml
----
-schema: sdlc/v1
-type: implement
-slug: <slug>
-slice-slug: <slug>
-status: complete
-stage-number: 5
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-metric-files-changed: <int>          # manifests + lockfiles touched
-metric-lines-added: <int>
-metric-lines-removed: <int>
-metric-deviations-from-plan: <int>   # e.g. packages that became blocked
-metric-review-fixes-applied: 0
-commit-sha: "<last tier commit sha, or 'multiple'>"
-tags: [deps]
-refs:
-  index: 00-index.md
-  plan: 04-plan.md
-  next: 06-verify.md
-next-command: wf-review               # 06-verify.md is self-authored next; /wf verify would redirect back here
-next-invocation: "/wf review <slug>"
----
-```
+Write `05-implement.md` (un-suffixed) per [intake/update-deps/_exec-artifacts.md](update-deps/_exec-artifacts.md); it satisfies the **implement** required set (`next: 06-verify.md`, `next-command: wf-review`).
 Body: `## Updated` (package@version per tier with commit SHA), `## Blocked` (package — reason **+ revisit condition**), `## Held`.
 
 **Then self-report to `00-index.md`** — the stage completed, so the index must say so: set `current-stage: implement`, `stage-number: 5`, `progress.implement: complete`, append `05-implement.md` to `workflow-files`, refresh `updated-at`, and touch the registry row's `updated-at`. A self-authored stage that skips this leaves the dashboard reading "unimplemented" forever.
 
 # Step 8 — Self-author `06-verify.md`
-Run the full suite against the updated state: complete test suite (not just targeted), the build (`npm run build` / `go build ./...` / `cargo build`), integration/E2E if present; confirm no blocked package left an inconsistent lockfile. Write `06-verify.md` (un-suffixed) — satisfies the **verify** required set:
-```yaml
----
-schema: sdlc/v1
-type: verify
-slug: <slug>
-slice-slug: <slug>
-status: complete
-stage-number: 6
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-result: <pass|partial|fail>          # partial is valid: some updated, some blocked
-metric-checks-run: <int>
-metric-checks-passed: <int>
-metric-acceptance-met: <int>
-metric-acceptance-total: <int>
-metric-interactive-checks-run: 0
-metric-interactive-checks-passed: 0
-metric-issues-found: <int>           # blocked packages
-evidence-dir: ""
-tags: [deps]
-refs:
-  index: 00-index.md
-  implement: 05-implement.md
-  next: 07-review.md
-next-command: wf-review
-next-invocation: "/wf review <slug>"
----
-```
+Run the full suite against the updated state: complete test suite (not just targeted), the build (`npm run build` / `go build ./...` / `cargo build`), integration/E2E if present; confirm no blocked package left an inconsistent lockfile. Write `06-verify.md` (un-suffixed) per [intake/update-deps/_exec-artifacts.md](update-deps/_exec-artifacts.md); it satisfies the **verify** required set (`next: 07-review.md`).
 Body: `## Test Result` (pass/fail/skip), `## Build`, `## Blocked packages` (remaining at old version + why **+ revisit condition**). `result: partial` is valid when some packages updated and some are blocked.
 
 **Then self-report to `00-index.md`** again: `current-stage: verify`, `stage-number: 6`, `progress.verify: complete`, append `06-verify.md` to `workflow-files`, refresh `updated-at`, `next-command: wf-review`, `next-invocation: "/wf review <slug>"`, and touch the registry row. Blocked packages also land on the index's `open-questions` as `"revisit <package>: <condition>"` so the next run's provenance seed finds them without re-reading stage bodies.
