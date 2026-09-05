@@ -4,8 +4,7 @@ argument-hint: "[<primitive> | <slug> | --audit-only | <path>]"
 ---
 
 # External Output Boundary (MANDATORY)
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
+Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
 
 You are the **documentation dispatcher** for the SDLC plugin, invoked as `/wf docs`.
 
@@ -73,87 +72,14 @@ Launch one read-only sub-agent (per [_subagents.md](_subagents.md)) with the fol
 - For `mode: path`: scope all searches to `<scope-path>`
 - List any documentation generation tooling: `typedoc`, `sphinx`, `godoc`, `rustdoc`, `jsdoc`
 
-Write `discover.md` with the full inventory.
-
-**`discover.md` frontmatter:**
-```yaml
----
-schema: sdlc/v1
-type: docs-discover
-run-id: <run-id>
-mode: <project|workflow|path>
-target-slug: <slug or "n/a">
-scope: <description>
-doc-files-found: <count>
-has-docs-folder: <true|false>
-doc-generator: <tool or "none">
-status: complete
-created-at: <real UTC timestamp per _timestamp.md>
----
-```
+Write `discover.md` with the full inventory, using the `docs-discover` frontmatter in [docs/_artifacts.md](docs/_artifacts.md).
 
 # Step 2 — Audit (orchestrator only)
 For each documentation file found, audit it against the codebase and Diátaxis principles. Launch parallel read-only sub-agents (per [_subagents.md](_subagents.md)) — one per documentation area or one per large doc file.
 
-**Each audit sub-agent is prompted with:**
+Prompt each audit sub-agent from [docs/_audit.md](docs/_audit.md): accuracy vs. codebase, Diátaxis quadrant check, completeness check, freshness, and the controlled-language check against [_ste-procedural.md](_ste-procedural.md) (rule IDs W1–W8, I1–I9, S1–S5). Each sub-agent returns: file path, accuracy issues (list), quadrant violations (list), gaps (list), ste violations (list, with rule IDs), last-updated, freshness-risk (low/medium/high).
 
-For the assigned documentation file(s):
-
-**Accuracy vs. codebase:**
-- Read the doc. For every code example, API name, function signature, config key, CLI command, and endpoint mentioned — verify it still exists and has the same signature in the current codebase
-- Check if the doc references files, modules, or paths that have moved or been deleted (`git log --all --follow -- <old-path>`)
-- Note outdated version numbers, deprecated options, or removed features still documented
-
-**Diátaxis quadrant check:**
-- Classify the document: tutorial (learning-oriented, builds something), how-to (task-oriented, goal-driven steps), reference (information-oriented, neutral and scannable), explanation (understanding-oriented, discusses why)
-- Does the document match its stated type? Common violations: a reference page that gives opinions, a tutorial that doesn't actually build something, an explanation that contains numbered steps, a how-to that explains why instead of showing how
-- Is the document doing the job of TWO quadrants? If so, it should be split
-
-**Completeness check:**
-- Are there public APIs, config options, CLI flags, or user-facing behaviors that exist in the code but are NOT documented anywhere?
-- For `mode: workflow`: compare the workflow's implementation artifacts against the existing docs — what did the feature add that's missing?
-
-**Freshness:**
-- When was this doc last meaningfully updated (`git log -5 --format="%ai %s" -- <file>`)? When was the related code last changed?
-- Is the gap between doc age and code age more than 30 days?
-
-**Controlled-language check:**
-- Grade the doc against [_ste-procedural.md](_ste-procedural.md): section 1 (word discipline) throughout; sections 2–3 for step sequences and warnings; S4 for descriptive prose
-- Report each violation with its rule ID (W1–W8, I1–I9, S1–S5). Prioritize the ones that can change what a reader does: two-referent pronouns in steps (W7), conditions after commands (I4), instructions hidden in notes (I8), terminology drift for one concept (W1)
-- Batch register-level mechanics (contractions, Latin abbreviations, sentence-cap overruns) into one entry per file
-
-Each sub-agent returns: file path, accuracy issues (list), quadrant violations (list), gaps (list), ste violations (list, with rule IDs), last-updated, freshness-risk (low/medium/high).
-
-Write `audit.md` aggregating all sub-agent findings.
-
-**`audit.md` frontmatter:**
-```yaml
----
-schema: sdlc/v1
-type: docs-audit
-run-id: <run-id>
-files-audited: <count>
-accuracy-issues: <count>
-quadrant-violations: <count>
-gaps-found: <count>
-ste-violations: <count>
-high-freshness-risk: <count>
-status: complete
-created-at: <real timestamp>
----
-```
-
-**`audit.md` body — one section per file:**
-```
-## <file-path>
-- Type: <tutorial|how-to|reference|explanation|readme|unknown>
-- Accuracy issues: <list or "none">
-- Quadrant violations: <list or "none">
-- Gaps: <list or "none">
-- STE violations: <list with rule IDs, or "none">
-- Freshness risk: <low|medium|high>
-- Action needed: <update|rewrite|split|create|delete|none>
-```
+Write `audit.md` aggregating all sub-agent findings — the `docs-audit` frontmatter and the one-section-per-file body (type, accuracy issues, quadrant violations, gaps, STE violations, freshness risk, action needed) are in [docs/_artifacts.md](docs/_artifacts.md).
 
 # Step 3 — Plan (orchestrator only)
 Synthesize the audit into a prioritized action plan. Write `plan.md`.
@@ -177,23 +103,7 @@ For each action:
 
 If the audit surfaced ambiguous classifications (a doc that mixes quadrants, or a request that could be tutorial-or-how-to), load `docs/plan.md` to apply the Diátaxis decision table before recording the action.
 
-**`plan.md` frontmatter:**
-```yaml
----
-schema: sdlc/v1
-type: docs-plan
-run-id: <run-id>
-p0-count: <count>
-p1-count: <count>
-p2-count: <count>
-p3-count: <count>
-p4-count: <count>
-total-actions: <count>
-audit-only: <true|false>
-status: complete
-created-at: <real timestamp>
----
-```
+Write `plan.md` with the `docs-plan` frontmatter (per-tier counts, `total-actions`, `audit-only`) from [docs/_artifacts.md](docs/_artifacts.md).
 
 If `audit-only: true` → **STOP HERE**. Present the plan in chat. Do not proceed to Step 4.
 
@@ -225,23 +135,7 @@ For each action:
 5. **For delete actions:** confirm with the user one more time before deleting. Never delete silently.
 6. **Mark the action completed on that surface.**
 
-Record each completed action in `generate.md`.
-
-**`generate.md` frontmatter:**
-```yaml
----
-schema: sdlc/v1
-type: docs-generate
-run-id: <run-id>
-files-created: [<paths>]
-files-updated: [<paths>]
-files-deleted: [<paths>]
-actions-completed: <count>
-actions-skipped: <count>
-status: complete
-created-at: <real timestamp>
----
-```
+Record each completed action in `generate.md` (`docs-generate` frontmatter — files created / updated / deleted, actions completed / skipped — in [docs/_artifacts.md](docs/_artifacts.md)).
 
 # Step 5 — Review (orchestrator only)
 Spot-check the generated documentation for quality and coherence. Load `docs/review.md` for the Diátaxis-discipline rubric.
@@ -256,44 +150,7 @@ Launch one fresh-context, read-only sub-agent (per [_subagents.md](_subagents.md
 
 Write a `## Review Notes` section to `generate.md` with any issues found. For any accuracy issue found at review: fix it immediately before completing this step.
 
-**Write the docs-index artifact:** Before committing, write a compact index of
-this documentation run. In `mode: workflow`, write
-`.ai/workflows/<target-slug>/08b-docs-index.md`; in project/path mode, write
-`.ai/docs/<run-id>/08b-docs-index.md` unless the run is explicitly attached to
-an existing workflow slug.
-
-**`08b-docs-index.md` frontmatter:**
-```yaml
----
-schema: sdlc/v1
-type: docs-index
-slug: <target-slug or docs-run slug>
-title: Documentation index
-status: complete
-run-id: <run-id>
-gaps-found: <count>
-actions-completed: <count>
-created-at: <real timestamp>
-updated-at: <real timestamp>
----
-```
-
-Body structure:
-```
-## Generated or Updated Docs
-| File | Diataxis type | Action | Status |
-|------|---------------|--------|--------|
-
-## Remaining Gaps
-- ...
-
-## Review Notes
-- ...
-```
-
-Also write sibling `08b-docs-index.yaml` beside the docs-index artifact with a
-`docs:` array of `{path, type, action, status}` so the view layer can render
-the docs table in both workflow and project/path mode.
+**Write the docs-index artifact:** Before committing, write a compact index of this documentation run — `08b-docs-index.md` (`type: docs-index`; in `mode: workflow` under `.ai/workflows/<target-slug>/`, otherwise under `.ai/docs/<run-id>/`) with its Generated or Updated Docs table, Remaining Gaps, and Review Notes, plus the sibling `08b-docs-index.yaml` (`docs:` array of `{path, type, action, status}`) so the view layer can render the docs table. Templates in [docs/_artifacts.md](docs/_artifacts.md).
 
 **Commit all documentation changes:**
 `docs: update documentation via wf docs run <run-id>`

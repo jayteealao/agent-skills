@@ -354,7 +354,6 @@
     "skills/wf/reference/augment/profile.md": 339,
     "skills/wf/reference/augment/wide-event-observability.md": 918,
     "skills/wf/reference/design.md": 301,
-    "skills/wf/reference/docs.md": 365,
     "skills/wf/reference/observability/build.md": 303,
     "skills/wf/reference/observability/init.md": 430,
     "skills/wf/reference/retro.md": 335,
@@ -431,7 +430,7 @@
       "core": 4277
     },
     "docs": {
-      "core": 4569
+      "core": 4093
     },
     "handoff": {
       "core": 7479,
