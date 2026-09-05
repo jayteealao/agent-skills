@@ -208,7 +208,6 @@
       "files": {
         "skills/wf/reference/_compressed-slice.md": 4,
         "skills/wf/reference/_fragment-authoring.md": 1,
-        "skills/wf/reference/_pr-ci-handoff.md": 2,
         "skills/wf/reference/augment/benchmark.md": 6,
         "skills/wf/reference/augment/experiment.md": 5,
         "skills/wf/reference/augment/instrument.md": 2,
@@ -252,7 +251,6 @@
         "skills/wf/reference/_decision-classes.md": 1,
         "skills/wf/reference/_fix-loop.md": 1,
         "skills/wf/reference/_handoff-config.md": 1,
-        "skills/wf/reference/_pr-ci-handoff.md": 2,
         "skills/wf/reference/_ship-plan-readiness.md": 6,
         "skills/wf/reference/augment/benchmark.md": 2,
         "skills/wf/reference/augment/experiment.md": 2,
@@ -263,6 +261,7 @@
         "skills/wf/reference/design/_design-context.md": 1,
         "skills/wf/reference/docs.md": 2,
         "skills/wf/reference/handoff.md": 11,
+        "skills/wf/reference/handoff/_pr-triage.md": 2,
         "skills/wf/reference/implement.md": 6,
         "skills/wf/reference/intake.md": 3,
         "skills/wf/reference/intake/_change-mode-tail.md": 1,
@@ -310,7 +309,6 @@
       "files": {
         "skills/consult/SKILL.md": 1,
         "skills/wf/reference/_additive-write.md": 1,
-        "skills/wf/reference/_pr-ci-handoff.md": 3,
         "skills/wf/reference/_steering.md": 1,
         "skills/wf/reference/auto.md": 2,
         "skills/wf/reference/design.md": 1,
@@ -365,7 +363,6 @@
     "skills/wf/reference/_compressed-slice.md": 134,
     "skills/wf/reference/_fragment-authoring.md": 112,
     "skills/wf/reference/_host-invocation.md": 119,
-    "skills/wf/reference/_pr-ci-handoff.md": 227,
     "skills/wf/reference/_surface-defects.md": 225,
     "skills/wf/reference/augment/benchmark.md": 363,
     "skills/wf/reference/augment/experiment.md": 311,
@@ -466,8 +463,8 @@
       "core": 4569
     },
     "handoff": {
-      "core": 7484,
-      "instructed": 16734
+      "core": 7479,
+      "instructed": 15752
     },
     "implement": {
       "core": 5115

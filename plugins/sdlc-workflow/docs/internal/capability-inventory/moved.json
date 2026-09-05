@@ -250,5 +250,35 @@
     "to": "skills/wf/reference/ship-plan/_readiness-gate.md",
     "category": "stops",
     "entry": "still dirty fall back to stop. if the"
+  },
+  {
+    "from": "skills/wf/reference/_pr-ci-handoff.md",
+    "to": "skills/wf/reference/handoff/_pr-triage.md",
+    "category": "artifacts",
+    "entry": "00-index.md"
+  },
+  {
+    "from": "skills/wf/reference/_pr-ci-handoff.md",
+    "to": "skills/wf/reference/handoff/_pr-triage.md",
+    "category": "gates",
+    "entry": "ask one multi-select gate question per _gate-question.md listing"
+  },
+  {
+    "from": "skills/wf/reference/_pr-ci-handoff.md",
+    "to": "skills/wf/reference/handoff/_pr-triage.md",
+    "category": "gates",
+    "entry": "if the user has a strong reason to"
+  },
+  {
+    "from": "skills/wf/reference/_pr-ci-handoff.md",
+    "to": "skills/wf/reference/handoff/_pr-triage.md",
+    "category": "stops",
+    "entry": "after the bound, set readiness-verdict: awaiting-input and stop."
+  },
+  {
+    "from": "skills/wf/reference/_pr-ci-handoff.md",
+    "to": "skills/wf/reference/handoff/_pr-triage.md",
+    "category": "stops",
+    "entry": "stop."
   }
 ]
