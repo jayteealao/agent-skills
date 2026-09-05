@@ -382,5 +382,11 @@
     "to": "skills/wf/reference/runtime-adapters/web.md",
     "category": "artifacts",
     "entry": "02-shape.md"
+  },
+  {
+    "from": "skills/wf/reference/ship-plan/build.md",
+    "to": "skills/wf/reference/ship-plan/build/governance.md",
+    "category": "gates",
+    "entry": "then branch on apply-via : - apply-via: manual"
   }
 ]

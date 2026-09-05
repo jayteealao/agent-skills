@@ -330,7 +330,7 @@
         "skills/wf/reference/review/_stage.md": 5,
         "skills/wf/reference/review/intent-fidelity.md": 1,
         "skills/wf/reference/ship-plan.md": 2,
-        "skills/wf/reference/ship-plan/build.md": 1,
+        "skills/wf/reference/ship-plan/build/_audits.md": 1,
         "skills/wf/reference/simplify/_research.md": 2,
         "skills/wf/reference/task.md": 1,
         "skills/wf/reference/yolo.md": 2
@@ -391,7 +391,6 @@
     "skills/wf/reference/review/supply-chain.md": 213,
     "skills/wf/reference/review/testing.md": 150,
     "skills/wf/reference/review/ux-copy.md": 782,
-    "skills/wf/reference/ship-plan/build.md": 1146,
     "skills/wf/reference/ship-plan/init.md": 702
   },
   "rubricFenceExceptions": {

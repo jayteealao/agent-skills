@@ -256,7 +256,8 @@ test('W6.3 — every notes cap agrees with the schema (160, not 80)', () => {
 
 test('W7.1 — a workflow_dispatch recovery hatch is unusable until it lands on the default branch', () => {
   for (const { name, root } of trees) {
-    assert.match(ref(root, 'ship-plan/build.md'), /cannot be dispatched from the branch that creates it/i,
+    // W1 split: the rollback workflow step (Step 6) moved from ship-plan/build.md into ship-plan/build/post-publish.md.
+    assert.match(ref(root, 'ship-plan/build/post-publish.md'), /cannot be dispatched from the branch that creates it/i,
       `${name}: ship-plan build no longer discloses the default-branch requirement`);
     assert.match(ref(root, '_ci-red-routing.md'), /git show origin\/<base-branch>:\.github\/workflows/,
       `${name}: handoff can dispatch into a 404 again`);
