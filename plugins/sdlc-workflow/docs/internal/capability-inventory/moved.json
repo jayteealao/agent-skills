@@ -346,5 +346,11 @@
     "to": "skills/wf/reference/intake/discover/_research.md",
     "category": "dispatches",
     "entry": "heading: research sub-agent 3 counter-hypotheses"
+  },
+  {
+    "from": "skills/wf/reference/simplify.md",
+    "to": "skills/wf/reference/simplify/_research.md",
+    "category": "dispatches",
+    "entry": "dispatch shape three parallel sub-agents same"
   }
 ]

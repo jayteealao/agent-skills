@@ -4,8 +4,7 @@ argument-hint: "[branch [<base>] | commit <sha-or-range> | plan <slug> <slice> |
 ---
 
 # External Output Boundary (MANDATORY)
-Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
+Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
@@ -17,11 +16,11 @@ You are running `/wf simplify`, a **review-and-route triage utility**. Three par
 
 If the `/wf` dispatcher selected **slug-mode** (first argument matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `_compressed-slice.md` for the exact slice frontmatter and index bookkeeping. Substantively:
 
-- **One artifact, in the existing workflow** — *not* the standalone `.ai/simplify/<run-id>.md` location. Write `.ai/workflows/<slug>/03-slice-simplify-<descriptor>.md` (collision suffix `-2`, `-3` if needed; descriptor defaults to scope — e.g., `simplify-branch-2026-05-13` or `simplify-codebase-auth`). Frontmatter: `type: slice`, `slice-slug: simplify-<descriptor>`, `slice-type: simplify`, `compressed: true`, `origin: simplify`, `stage-number: 3`, `status: defined`, `complexity: xs`. Do NOT also write `.ai/simplify/<run-id>.md` — the compressed slice is the single output.
-- **Same content, different home.** Body carries the same sections the standalone simplify would write (three-agent findings, per-finding classification, routing summary, routing assignments, proposed deltas), under a `# Compressed Slice: simplify` heading with a one-line provenance preamble. The `simplify-run` frontmatter fields (`findings-total`, `findings-reuse`, etc.) do NOT carry over — they belong to the standalone type. Report the same numbers in the body instead.
+- **One artifact, in the existing workflow** — *not* the standalone `.ai/simplify/<run-id>.md` location. Write `.ai/workflows/<slug>/03-slice-simplify-<descriptor>.md` (collision suffix `-2`, `-3` if needed; descriptor defaults to scope — e.g., `simplify-branch-2026-05-13` or `simplify-codebase-auth`). Frontmatter: `type: slice`, `slice-slug: simplify-<descriptor>`, `slice-type: simplify`, `compressed: true`, `origin: simplify`, `stage-number: 3`, `status: defined`, `complexity: xs`. Do not also write `.ai/simplify/<run-id>.md` — the compressed slice is the single output.
+- **Same content, different home.** Body carries the same sections the standalone simplify would write (three-agent findings, per-finding classification, routing summary, routing assignments, proposed deltas), under a `# Compressed Slice: simplify` heading with a one-line provenance preamble. The `simplify-run` frontmatter fields (`findings-total`, `findings-reuse`, etc.) do not carry over — they belong to the standalone type. Report the same numbers in the body instead.
 - **No new workflow, no new branch, no `01-simplify.md`, no `.ai/simplify/<run-id>.md`, no new top-level `00-index.md`.** The slug already owns the workflow context.
 - **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: simplify-<descriptor>, slice-type: simplify, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: simplify, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`. Also rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` (see SKILL.md Step 1 step 6).
-- **Chat return:** one line — `wf simplify → compressed slice simplify-<descriptor> on <slug>` — plus the routing summary (counts per downstream command) and the top routing assignments, each scoped with `<slug>` as the first positional argument (e.g., `/wf intake refactor <slug> <target>`, `/wf plan <slug> <slice>`). Positional-slug form only — no `--slug` flag in v9.10.0+.
+- **Chat return:** one line — `wf simplify → compressed slice simplify-<descriptor> on <slug>` — plus the routing summary (counts per downstream command) and the top routing assignments, each scoped with `<slug>` as the first positional argument (e.g., `/wf intake refactor <slug> <target>`, `/wf plan <slug> <slice>`). Positional-slug form only — no `--slug` flag.
 
 If slug-mode was not selected, ignore this section and proceed standalone.
 
@@ -76,25 +75,10 @@ Record: `run-id` (UTC compact ISO-8601 `<yyyymmdd>T<hhmm>Z`, real time per [_tim
 
 Per scope:
 
-### branch
-```bash
-BASE="${1:-$(git merge-base HEAD origin/$(git symbolic-ref --short refs/remotes/origin/HEAD | sed 's|origin/||'))}"
-git diff "$BASE...HEAD"
-```
-Capture as `INPUT_DIFF`. Three-dot (`A...B`) = only what's new on HEAD relative to base.
-
-### commit
-```bash
-git show <sha>        # single sha
-git diff <range>      # range
-```
-Capture as `INPUT_DIFF`.
-
-### plan
-Read the plan file in full. Agents review the plan's prose + structure, not a git diff. Capture as `INPUT_PLAN_TEXT`.
-
-### codebase
-Walk the path subtree. Exclude `.git/`, `node_modules/`, `dist/`, `build/`, `.venv/`, and other generator output. Cap at ~500 files; if larger, ask the user to narrow. Agents read by-need rather than from a single blob.
+- **branch** — capture `git diff "$BASE...HEAD"` as `INPUT_DIFF`, where `BASE` is the given base or `git merge-base HEAD origin/<default-branch>`. Three-dot (`A...B`) = only what is new on HEAD relative to base.
+- **commit** — capture `git show <sha>` (single sha) or `git diff <range>` (range) as `INPUT_DIFF`.
+- **plan** — read the plan file in full. Agents review the plan's prose + structure, not a git diff. Capture as `INPUT_PLAN_TEXT`.
+- **codebase** — walk the path subtree. Exclude `.git/`, `node_modules/`, `dist/`, `build/`, `.venv/`, and other generator output. Cap at ~500 files; if larger, ask the user to narrow. Agents read by-need rather than from a single blob.
 
 ---
 
@@ -106,7 +90,7 @@ Independent of the three agents, scan the scope for `sdlc-debt:` markers and fol
 - **codebase:** grep the path subtree (`grep -rnE 'sdlc-debt:' <path>`, excluding `.git/`, `node_modules/`, `dist/`, `build/`) — the **repo-wide sweep** of the full debt backlog.
 - **plan:** skip — plans carry no code markers.
 
-For each marker, emit one finding in the **same `findings:` schema the agents use** (Step 2 output contract):
+For each marker, emit one finding in the **same `findings:` schema the agents use** (output contract in [simplify/_research.md](simplify/_research.md)):
 - `id: debt-<n>`
 - `severity:` from the ceiling's blast radius — `high` (correctness/security ceiling), `med` (default), `low` (cosmetic or marker that names no ceiling/upgrade-path → also note it is malformed).
 - `location: <file:line>`
@@ -122,62 +106,7 @@ Debt findings join the aggregate in **Step 3** and route through the **Step 4** 
 
 **MANDATORY**: dispatch all three sub-agents in ONE parallel wave per [_subagents.md](_subagents.md). Sequential dispatch is forbidden — the three rubrics run as parallel read-only children.
 
-**Effort tier for every dispatched agent:** **low** (per [_subagents.md](_subagents.md)). REQUIRED on every dispatch — reviewers must not silently inherit the parent's model.
-
-Each agent receives the scope token + target, the Step 1 input (`INPUT_DIFF`, `INPUT_PLAN_TEXT`, or codebase file list), and the rubric below.
-
-Output contract: each agent returns a structured findings list:
-
-```yaml
-findings:
-  - id: <agent>-<n>          # e.g., reuse-1, quality-3
-    severity: high | med | low | nit
-    location: <file:line | plan-section | path>
-    issue: <one-sentence problem statement>
-    suggestion: <one-sentence fix>
-    rationale: <one-or-two sentences why this matters>
-```
-
-## Agent 1 — Code Reuse Review
-
-For each change in scope:
-
-1. **Search for existing utilities and helpers** that could replace newly written code — `lib/`, `utils/`, `helpers/`, shared modules, files adjacent to the changed ones.
-2. **Flag any new function that duplicates existing functionality.** Suggest the existing function to use instead.
-3. **Flag any inline logic that could use an existing utility** — hand-rolled string manipulation, manual path handling, custom environment checks, ad-hoc type guards, custom retry loops, hand-written debounce/throttle.
-
-### Plan-scope adaptation
-For `plan` scope: flag plan steps that propose new code where a reuse-scan should have surfaced an existing helper. Quote the plan section verbatim in `location` and the existing helper path in `suggestion`.
-
-## Agent 2 — Code Quality Review
-
-Review for hacky patterns:
-
-1. **Redundant state**: duplicates existing state, cached values that could be derived, observers/effects that could be direct calls.
-2. **Parameter sprawl**: new parameters added instead of generalizing or restructuring existing ones.
-3. **Copy-paste with slight variation**: near-duplicate code blocks that should be unified with a shared abstraction.
-4. **Leaky abstractions**: internal details exposed that should be encapsulated, or existing abstraction boundaries broken.
-5. **Stringly-typed code**: raw strings used where constants, enums (string unions), or branded types already exist.
-6. **Unnecessary JSX/template nesting**: wrapper Boxes/Views/divs/elements with no layout value — check if inner component props already provide the needed behavior.
-7. **Unnecessary comments**: comments explaining WHAT (well-named identifiers do that), narrating the change, or referencing the task/caller — delete; keep only non-obvious WHY (hidden constraints, subtle invariants, workarounds).
-
-### Plan-scope adaptation
-For `plan` scope: hunt the same defect classes in the plan's prose and structure instead of code.
-
-## Agent 3 — Efficiency Review
-
-Review for efficiency:
-
-1. **Unnecessary work**: redundant computations, repeated file reads, duplicate network/API calls, N+1 patterns.
-2. **Missed concurrency**: independent operations run sequentially when they could be parallel.
-3. **Hot-path bloat**: new blocking work in startup or per-request/per-render hot paths.
-4. **Recurring no-op updates**: unconditional state/store updates in polling loops, intervals, or event handlers — add a change-detection guard. Also: verify that wrapper functions taking an updater/reducer callback honor same-reference returns — otherwise callers' early-return no-ops are silently defeated.
-5. **Unnecessary existence checks**: pre-checking file/resource existence before operating (TOCTOU anti-pattern) — operate directly and handle the error.
-6. **Memory**: unbounded data structures, missing cleanup, event listener leaks.
-7. **Overly broad operations**: reading entire files when only a portion is needed, loading all items when filtering for one.
-
-### Plan-scope adaptation
-For `plan` scope: hunt the same efficiency classes in the plan's steps instead of code.
+Load [simplify/_research.md](simplify/_research.md). It holds the effort tier (**low**, REQUIRED on every dispatch), the inputs each agent receives, the `findings:` output contract, and the three charters: Agent 1 Code Reuse Review, Agent 2 Code Quality Review, Agent 3 Efficiency Review, each with its plan-scope adaptation. Give each agent exactly one charter.
 
 ---
 
@@ -191,7 +120,6 @@ Present the table to the user as gate questions per [_gate-question.md](_gate-qu
 | ID | Severity | Agent | Location | Issue | Action |
 | reuse-1 | high | Reuse | src/auth.ts:42 | New helper duplicates utils/hash.ts | accept | skip |
 | quality-3 | med | Quality | src/ui/Box.tsx:18 | Wrapper Box with no layout effect | accept | skip |
-| ... |
 ```
 
 **Default by severity** (user can override): `high / med / low` — accept; `nit` — skip.
@@ -234,45 +162,7 @@ Tie-breakers:
 
 ## What to record per accepted finding
 
-```yaml
-routing-assignments:
-  - finding-id: reuse-1
-    route: route-fix
-    suggested-invocation: '/wf intake fix "use utils/hash.ts.sha256 in src/auth.ts:42 instead of inline SHA-256"'
-    rationale: |
-      One-file, mechanical replacement. No behaviour change.
-  - finding-id: quality-3
-    route: route-fix
-    suggested-invocation: '/wf intake fix "remove unnecessary wrapper Box in src/ui/Box.tsx:18"'
-    rationale: |
-      Pure removal; no children's layout depends on the wrapper.
-  - finding-id: efficiency-2
-    route: route-refactor
-    suggested-invocation: '/wf intake refactor "src/queries — consolidate N+1 user lookups"'
-    rationale: |
-      Touches three files and changes the query pattern. Behaviour preserved by the join shape; warrants the refactor's test-baseline discipline.
-  - finding-id: quality-7
-    route: route-intake
-    suggested-invocation: '/wf intake "redesign the auth middleware permission check"'
-    rationale: |
-      The pattern flagged is a public-API issue. Needs shape + plan + review.
-```
-
-## Plan scope — the proposed-deltas block stays
-
-For `plan` scope: every accepted finding gets `route: route-amend-plan` AND records a `proposed-delta` block (the textual change the user applies via amend).
-
-```yaml
-proposed-deltas:
-  - finding-id: reuse-1
-    plan-section: "## Implementation steps · Step 3"
-    current: |
-      Write a new function `hashUserId(id: string)` that does SHA-256 of the user ID.
-    proposed: |
-      Use the existing `utils/hash.ts.sha256(value)` — it already handles user IDs.
-    rationale: |
-      reuse-scan should have surfaced this; including the new function is duplication.
-```
+Record one `routing-assignments` entry per accepted finding: `finding-id`, `route`, `suggested-invocation`, `rationale`. For `plan` scope, every accepted finding gets `route: route-amend-plan` AND a `proposed-delta` block (plan-section, current, proposed, rationale) that the user applies via amend. Both block shapes are in [simplify/_artifact.md](simplify/_artifact.md).
 
 ## What you do NOT do
 
@@ -287,125 +177,13 @@ proposed-deltas:
 
 Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Derive `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), write **two** files under `.ai/workflows/<slug>/`, and register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](intake/default.md) Step 10. (Legacy off-pipeline `.ai/simplify/<run-id>.md` runs still render.)
 
-First write **`00-index.md` — `type: workflow-index`** (lightweight; not the heavy 22-field `type: index`):
-```yaml
----
-schema: sdlc/v1
-type: workflow-index
-slug: <slug>
-workflow-type: simplify
-current-stage: simplify
-status: complete
-selected-slice: ""
-branch-strategy: none
-open-questions: []
-next-command: wf-intake
-next-invocation: "/wf <routed-command> <slug>"
-progress:
-  - simplify: complete
-created-at: "<ISO 8601>"
----
-```
+1. Write `00-index.md` (`type: workflow-index`, lightweight) from the template in [simplify/_artifact.md](simplify/_artifact.md).
+2. Write `01-simplify.md` (`type: simplify-run`) from the template in the same file: frontmatter counts, `routing-summary`, `routing-assignments`, `proposed-deltas`, then the body sections from **The Triage** to **Recommended next commands**.
+3. Follow the additive-write contract in the same file: never overwrite an existing slug, no `revision-count`, `regenerable: false`, cross-run links by `refs:`.
+4. Write the sibling `01-simplify.yaml` with `artifact: simplify-run` (shape and authoring rules in the same file). The renderer projects it as a finding-table page; without it the page falls back to a plain frontmatter card.
+5. Write the sibling `.html.fragment` for that YAML. Load `_fragment-authoring.md` and follow its wrapper, snippet, and verifier rules. The fragment must be deterministic from the YAML (same YAML → byte-identical HTML) and pass `scripts/verify-fragment.mjs` (Check 7).
 
-Then write **`01-simplify.md` — `type: simplify-run`** (`slug` for the in-slug path; `run-id` stays for continuity):
-
-```yaml
----
-schema: sdlc/v1
-type: simplify-run
-slug: <slug>
-run-id: "<YYYYMMDDTHHMMZ>"
-scope: branch | commit | plan | codebase
-target: "<resolved target>"
-status: complete | awaiting-input
-created-at: "<ISO 8601>"
-updated-at: "<ISO 8601>"
-
-# Aggregate counts
-findings-total: <N>
-findings-reuse: <N>
-findings-quality: <N>
-findings-efficiency: <N>
-
-# Triage outcome
-findings-accepted: <N>
-findings-skipped: <N>
-findings-deferred: <N>
-
-# Routing summary — findings per downstream command
-routing-summary:
-  route-fix: <N>
-  route-refactor: <N>
-  route-intake: <N>
-  route-amend-plan: <N>
-  route-amend-shape: <N>
-  route-verify: <N>
-  route-add-test: <N>
-  route-docs: <N>
-  route-handoff-config: <N>
-  route-noop: <N>
-
-# Per-finding routing assignments
-routing-assignments: []   # populated per Step 4
-
-# plan scope only — proposed deltas accompany route-amend-plan entries
-proposed-deltas: []
-
-# plan scope only — link back to the workflow
-refs:
-  workflow: <slug>                       # only present for plan scope
-  plan-file: 04-plan-<slice>.md          # only present for plan scope
----
-
-# Simplify — <scope> <target> @ <run-id>
-
-## The Triage
-<!-- STORY SECTION — first, and self-sufficient. MUST follow `_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language MUST follow `_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
-
-## Input
-<what was reviewed and how it was assembled>
-
-## Findings — Reuse
-| ID | Severity | Location | Issue | Suggestion | Triage |
-...
-
-## Findings — Quality
-...
-
-## Findings — Efficiency
-...
-
-## Routing assignments
-<full per-finding routing-assignment block, grouped by route>
-
-### route-fix (`/wf intake fix`)
-- `reuse-1` — <suggested-invocation> — <rationale>
-- ...
-
-### route-refactor (`/wf intake refactor`)
-...
-
-### route-intake (`/wf intake`)
-...
-
-### route-amend-plan (`/wf plan ...` directed fix)
-...
-
-### Other routes
-...
-
-## Proposed deltas (plan scope only)
-<full per-delta block>
-
-## Skipped
-<list of (finding-id, reason)>
-
-## Deferred
-<list of (finding-id, reason)>
-
-## Recommended next commands
-<copy-pasteable invocations sorted by priority: route-intake → route-refactor → route-amend-* → route-verify / route-add-test → route-fix → route-handoff-config → route-docs>
-```
+**Standalone-mode only.** In slug-mode the findings live in a compressed slice (`type: slice`), which renders via the slice template and does not consume a `simplify-run` sibling YAML.
 
 After writing, print the **Recommended next commands** list to chat.
 
@@ -413,11 +191,7 @@ After writing, print the **Recommended next commands** list to chat.
 
 # Resume semantics
 
-Re-running with the same arguments offers to resume the most recent matching run if its `status` is `awaiting-input`. Resume picks up from the first un-triaged finding.
-
-There is no "fixes-pending" state — simplify never applies fixes. The `recommended-next` list is the persistent queue; the user works through it across sessions. Simplify's work is done as soon as Step 5 writes.
-
-If a `route-amend-plan` delta has not yet been applied, the artifact reflects the *moment of triage*, not the current plan state. Re-run on the plan scope to refresh deltas — the new run gets a new `run-id`.
+Re-running with the same arguments offers to resume the most recent matching run if its `status` is `awaiting-input`. Resume picks up from the first un-triaged finding. There is no "fixes-pending" state — simplify never applies fixes. The `recommended-next` list is the persistent queue; the user works through it across sessions. Simplify's work is done as soon as Step 5 writes. If a `route-amend-plan` delta has not yet been applied, the artifact reflects the *moment of triage*, not the current plan state. Re-run on the plan scope to refresh deltas — the new run gets a new `run-id`.
 
 ---
 
@@ -436,92 +210,9 @@ The user picks which to run.
 
 ---
 
-# Provenance + deliberate divergence from upstream
+# Provenance
 
-This sub-command **adapts** the upstream bundled `simplify` skill (source studied at `.scratch/claude-code/src/skills/bundled/simplify.ts`) but **diverges deliberately** in one critical way:
-
-| | Upstream bundled `simplify` | sdlc-workflow `/wf simplify` |
-|---|---|---|
-| Agent rubrics | Reuse, Quality, Efficiency | Same — kept verbatim |
-| Dispatch shape | Three parallel sub-agents | Same |
-| Action after findings | **Applies fixes directly** | **Routes findings to downstream commands; never writes code** |
-| Output | Ephemeral chat summary | `.ai/workflows/<slug>/01-simplify.md` artifact (`type: simplify-run`) in a `type: workflow-index` slug workflow |
-
-The divergence is intentional: every command in this plugin operates as an **orchestrator, not a problem-solver**. Plan plans; implement implements; review reviews; simplify routes. The user invokes the appropriate downstream command for code action — each runs its own discipline, keeping the artifact trail clean and preventing simplify from becoming a back-door code-write path that bypasses review, verify, or planning.
-
-If the upstream rubric evolves, update the rubric blocks above to match and bump the CHANGELOG.
-
----
-
-## Additive-write contract — no rewrites; one slug workflow per run
-
-Since v9.86.0 a standalone `simplify-run` **roots its own `type: workflow-index` slug workflow** — each invocation creates a fresh `.ai/workflows/<slug>/` (`slug` = `simplify-<scope>-<YYYYMMDD>`) holding `01-simplify.md` + `00-index.md`. No in-place rewrite scenario exists:
-
-1. **Never overwrite an existing slug.** On collision, append `-2`/`-3`. Keep `run-id` in the lead frontmatter.
-2. **Do not carry `revision-count`** in the simplify-run frontmatter. The lead is immutable; subsequent runs author *new* slug workflows.
-3. **Set `regenerable: false`** explicitly — the renderer treats simplify-run artifacts as historical evidence.
-4. **Cross-run linking is by `refs:`**, not by appending to prior files. Set `refs.prior-run` to the earlier lead when this run was triggered by one. The renderer surfaces lineage as a backlink, not a `## Revision <n>` chain.
-
-The renderer emits each in-slug simplify-run at `.ai/_view/<slug>/simplify/INDEX.html`. **Legacy** off-pipeline runs at `.ai/simplify/<run-id>.md` still render at `.ai/_view/simplify/<run-id>/INDEX.html` — old URLs stay stable.
-
----
-
-## Step — Sibling YAML `simplify-run` (v9.22.0+, Phase 3)
-
-When standalone-mode writes `.ai/workflows/<slug>/01-simplify.md`, also write
-`.ai/workflows/<slug>/01-simplify.yaml` with `artifact: simplify-run`. The renderer
-projects this YAML as a finding-table page — categorical chips (reuse/quality/efficiency),
-optional code-deltas summary, no verdict block. Without it the page falls back to a plain
-frontmatter card. (Legacy off-pipeline runs wrote the sibling at `.ai/simplify/<run-id>.yaml`.)
-
-**Required whenever you write the `simplify-run` sibling YAML:** also write the
-sibling `.html.fragment`. Load `_fragment-authoring.md`
-and follow its wrapper, snippet, and verifier rules. The fragment must be deterministic
-from the YAML (same YAML → byte-identical HTML) and pass `scripts/verify-fragment.mjs` (Check 7).
-
-**Standalone-mode only.** In slug-mode the findings live in a compressed slice (`type: slice`), which renders via the slice template and does NOT consume a `simplify-run` sibling YAML.
-
-Shape:
-
-```yaml
-# .ai/simplify/20260520T1430Z.yaml
-artifact: simplify-run
-run_id:   "20260520T1430Z"
-scope:    branch          # branch | commit | plan | codebase
-target:   "feat/checkout-v2..master"
-rev:      1
-run_at:   "2026-05-20T14:30:00Z"
-summary:  "Eight findings: 5 reuse, 2 quality, 1 efficiency. Five routed to /wf intake refactor."
-counts:
-  reuse: 5
-  quality: 2
-  efficiency: 1
-  accepted: 7
-  skipped: 0
-  deferred: 1
-findings:
-  - id:       SR-1
-    category: reuse           # reuse | quality | efficiency
-    action:   accept          # accept | skip | defer (matches the routing decision)
-    file:     "src/cart/total.ts"
-    line:     42
-    msg:      "Duplicate validator implementation — see src/lib/validate.ts."
-    fix:      "Replace inline impl with the shared validator."
-  - id:       SR-2
-    category: quality
-    action:   defer
-    msg:      "Naming inconsistency between cart and checkout modules."
-deltas:
-  - file:    "src/cart/total.ts"
-    add:     0
-    rem:     24
-    summary: "Removed inline validator; imports from src/lib/validate.ts."
-```
-
-Authoring rules:
-- One YAML per `.ai/simplify/<run-id>.md`. Per-finding `id` / `category` / `action` mirrors the MD body.
-- `deltas[]` is optional. Include when the run identified concrete file-level changes downstream commands will make.
-- `counts` is authoritative — renderer reads it directly, not recomputed from `findings[]`. Keep them in sync.
+`/wf simplify` adapts the upstream bundled `simplify` skill and diverges in one way: it routes findings and never writes code. The comparison table and the rubric-sync rule are in [simplify/_research.md](simplify/_research.md).
 
 ## Step — Write free narrative fragments
 
