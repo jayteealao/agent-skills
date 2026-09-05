@@ -130,28 +130,7 @@ Load the reference for the resolved command from
 summarize, paraphrase, or skip. The reference is the authoritative instruction for *what* the
 command does; this dispatcher governs *how far the flow runs* around it.
 
-| Command | Reference file | Purpose |
-|---|---|---|
-| `audit` | `design/audit.md` | Technical quality scan (a11y, perf, theming, responsive, anti-patterns) + 0–4 scoring |
-| `critique` | `design/critique.md` | Prescriptive, register-forked design feedback |
-| `extract` | `design/extract.md` | Reverse-engineer design tokens from existing code |
-| `setup` | `design/setup.md` | Create PRODUCT.md and DESIGN.md |
-| `teach` | `design/teach.md` | Update or improve existing context files |
-| `animate` | `design/animate.md` | Purposeful motion and micro-interactions |
-| `bolder` | `design/bolder.md` | Increase visual presence and hierarchy |
-| `clarify` | `design/clarify.md` | Reduce cognitive load and improve scannability |
-| `colorize` | `design/colorize.md` | Strategic color (border-stripe ABSOLUTE BAN) |
-| `delight` | `design/delight.md` | Moments of joy and personality (performance-delight) |
-| `distill` | `design/distill.md` | Remove complexity to the essential core (classify-then-cut) |
-| `harden` | `design/harden.md` | Accessibility and robustness (structured report) |
-| `layout` | `design/layout.md` | Spatial structure, grid, alignment |
-| `onboard` | `design/onboard.md` | Empty states and first-run experience |
-| `optimize` | `design/optimize.md` | Performance (profile-before-optimizing) |
-| `overdrive` | `design/overdrive.md` | Technically extraordinary visual effects |
-| `polish` | `design/polish.md` | Finishing details and 7-state completeness |
-| `quieter` | `design/quieter.md` | Reduce noise and visual complexity |
-| `typeset` | `design/typeset.md` | Typography quality and hierarchy (18-font reject) |
-| `adapt` | `design/adapt.md` | Context adaptation (responsive, platform, theme + dark-mode tokens + print) |
+The command-to-reference table with each command's purpose is in [design/_commands.md](design/_commands.md).
 
 # Step 4 — Run the flow span
 
@@ -227,36 +206,7 @@ behavior with or without a slug.
 | `critique` | `07-design-critique.md` | append `design-critique` to `augmentations:` |
 | `extract` | `design-notes/extract-<timestamp>.md` + `tokens-extracted.css` | none |
 
-**Augmentation registration** (transformations, audit, critique) — create `augmentations:` in
-`00-index.md` if absent:
-
-```yaml
-augmentations:
-  - type: design-<sub-command>
-    artifact: design-notes/<sub-command>-<timestamp>.md   # or 07-design-audit.md / 07-design-critique.md
-    created-at: <timestamp>
-    files-modified: [list of code files changed]   # transformations only
-```
-
-**Transformation artifact contract** (`design-notes/<sub-command>-<timestamp>.md`):
-
-```yaml
----
-schema: sdlc/v1
-type: design-augmentation
-sub-command: <name>
-slug: <slug>
-created-at: <timestamp>
-register: <brand|product>
-files-modified: [list]
----
-```
-
-Body sections: (1) **What changed** — bullets per file; (2) **Why** — design rationale; (3)
-**Reference followed** — which `design/<name>.md` guided this; (4) **Verification needed** — what
-`verify` re-checks (visual regression? a11y? perf?); (5) **Anti-patterns avoided** — confirm
-none of the absolute bans were introduced (and, for transforms, the `register:` field). This
-artifact lets `/wf review` and `/wf handoff` see exactly what design augmentations were applied.
+**Augmentation registration** and the **transformation artifact contract** (`design-notes/<sub-command>-<timestamp>.md`) are in [design/_output.md](design/_output.md). Follow them for every command that writes an artifact.
 
 # Step 6 — Emit Final Summary (MANDATORY)
 
@@ -270,7 +220,7 @@ wf design <command> complete: <slug-or-"freestanding">
 
 <Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this
 run produced or decided, how far the flow traveled, the load-bearing counts/decisions, and the
-top risk or caveat. See the Narrative rule below.>
+top risk or caveat. See the Narrative rule in design/_output.md.>
 
 Register: <brand|product>
 Image gate: <pass | skipped:<reason> | n/a>
@@ -278,24 +228,4 @@ Artifacts: <comma-separated paths, or "none">
 Next: <recommended command, or "Done">
 ```
 
-**Rules:**
-- **First line.** Name the command and the slug; no-slug runs that created a slug name the new
-  slug; truly standalone runs use `"freestanding"`.
-- **Narrative — the heart of the summary, REQUIRED for any command that produces an artifact.**
-  Write a short **prose paragraph** (2–5 sentences, no bullets, no field labels) that *tells the
-  user what happened*: for a build command, what was designed AND built and how far the
-  compressed flow ran; for `audit`/`critique`, the verdict and top findings; for `extract`, what
-  was reverse-engineered; for `setup`/`teach`, what context was established. Weave in the
-  load-bearing counts, decisions, and the top risk. Write it like you're telling a colleague, not
-  filling a form. Omit only for genuinely read-only runs with nothing to narrate.
-- **Register** is `brand` or `product` — always emit; it is the load-bearing design-mode signal.
-- **Image gate** records whether the imagery check passed for commands that use it; `n/a` for
-  commands that don't run it.
-- **Artifacts.** Comma-separate the `.ai/workflows/<slug>/` paths written (build runs list the
-  whole span). No-slug standalone reports may write `"none"` if nothing persisted.
-- **Next** is a concrete invocation, or `Done`. A completed in-workflow build typically routes to
-  `/wf review <slug>`; `audit`/`critique` route to `/wf review <slug>`; standalone runs usually
-  `Done`.
-- If the command reference defines its own "Chat return contract", treat that as the *content*
-  spec — pick the load-bearing fields and keep it compact.
-- Framing rules — narrative definition, "return only" caveat, internal audience, always-emit — are single-sourced in [_chat-return.md](_chat-return.md); apply them here.
+Apply the field-by-field rules in [design/_output.md](design/_output.md) (first line, narrative, register, image gate, artifacts, next).

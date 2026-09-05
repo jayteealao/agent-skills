@@ -355,7 +355,6 @@
     "skills/wf/reference/augment/instrument.md": 334,
     "skills/wf/reference/augment/profile.md": 339,
     "skills/wf/reference/augment/wide-event-observability.md": 918,
-    "skills/wf/reference/design.md": 301,
     "skills/wf/reference/observability/build.md": 303,
     "skills/wf/reference/observability/init.md": 430,
     "skills/wf/reference/review/accessibility.md": 818,
@@ -426,9 +425,6 @@
   "load": {
     "auto": {
       "core": 4855
-    },
-    "design": {
-      "core": 4277
     },
     "docs": {
       "core": 4093
