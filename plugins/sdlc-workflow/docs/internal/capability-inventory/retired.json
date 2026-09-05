@@ -39,5 +39,19 @@
     "entry": "workflow rules (standing these are not sequenced steps)",
     "reason": "W1: the standing workflow-rules block is consolidated into the shared `_workflow-rules.md`, which shape.md cites; that file's gate paragraph is inventoried under its own path",
     "release": "9.154.0"
+  },
+  {
+    "file": "skills/wf/reference/handoff.md",
+    "category": "dispatches",
+    "entry": "heading: reviewer comments triaged",
+    "reason": "W1: a false-positive dispatch key \u2014 a body-template section heading that names reviewers, not a sub-agent dispatch; the section survives as a list item under `# Artifacts`",
+    "release": "9.154.0"
+  },
+  {
+    "file": "skills/wf/reference/handoff.md",
+    "category": "dispatches",
+    "entry": "heading: reviewer focus areas",
+    "reason": "W1: a false-positive dispatch key \u2014 a body-template section heading that names reviewers, not a sub-agent dispatch; the section survives as a list item under `# Artifacts`",
+    "release": "9.154.0"
   }
 ]

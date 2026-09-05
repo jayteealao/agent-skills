@@ -30,7 +30,6 @@
         "skills/wf/reference/design/contract.md": 1,
         "skills/wf/reference/design/shape.md": 1,
         "skills/wf/reference/docs.md": 4,
-        "skills/wf/reference/handoff.md": 3,
         "skills/wf/reference/implement.md": 4,
         "skills/wf/reference/intake.md": 1,
         "skills/wf/reference/intake/_intake-context.md": 2,
@@ -118,7 +117,6 @@
         "skills/wf/reference/close.md": 1,
         "skills/wf/reference/design/colorize.md": 1,
         "skills/wf/reference/docs.md": 1,
-        "skills/wf/reference/handoff.md": 1,
         "skills/wf/reference/implement.md": 1,
         "skills/wf/reference/intake/adopt.md": 1,
         "skills/wf/reference/intake/audit.md": 1,
@@ -174,7 +172,6 @@
         "skills/wf/reference/design/critique.md": 2,
         "skills/wf/reference/docs.md": 1,
         "skills/wf/reference/docs/how-to.md": 1,
-        "skills/wf/reference/handoff.md": 6,
         "skills/wf/reference/implement.md": 11,
         "skills/wf/reference/intake/_change-mode-tail.md": 1,
         "skills/wf/reference/intake/adopt.md": 1,
@@ -236,7 +233,6 @@
         "skills/wf/reference/design/_design-context.md": 1,
         "skills/wf/reference/design/shape.md": 1,
         "skills/wf/reference/docs.md": 4,
-        "skills/wf/reference/handoff.md": 7,
         "skills/wf/reference/implement.md": 5,
         "skills/wf/reference/intake/audit.md": 5,
         "skills/wf/reference/intake/default.md": 7,
@@ -271,8 +267,10 @@
       "files": {
         "skills/uiproto/SKILL.md": 1,
         "skills/wf/SKILL.md": 5,
+        "skills/wf/reference/_ci-red-routing.md": 1,
         "skills/wf/reference/_decision-classes.md": 1,
         "skills/wf/reference/_fix-loop.md": 1,
+        "skills/wf/reference/_handoff-config.md": 1,
         "skills/wf/reference/_pr-ci-handoff.md": 2,
         "skills/wf/reference/_ship-plan-readiness.md": 22,
         "skills/wf/reference/augment/benchmark.md": 2,
@@ -283,7 +281,7 @@
         "skills/wf/reference/design.md": 3,
         "skills/wf/reference/design/_design-context.md": 1,
         "skills/wf/reference/docs.md": 2,
-        "skills/wf/reference/handoff.md": 13,
+        "skills/wf/reference/handoff.md": 11,
         "skills/wf/reference/implement.md": 6,
         "skills/wf/reference/intake.md": 3,
         "skills/wf/reference/intake/_change-mode-tail.md": 1,
@@ -334,7 +332,6 @@
         "skills/wf/reference/auto.md": 2,
         "skills/wf/reference/design.md": 1,
         "skills/wf/reference/docs.md": 2,
-        "skills/wf/reference/handoff.md": 6,
         "skills/wf/reference/intake.md": 3,
         "skills/wf/reference/intake/_intake-provenance.md": 2,
         "skills/wf/reference/intake/adopt.md": 1,
@@ -371,7 +368,6 @@
         "skills/wf/reference/augment/experiment.md": 1,
         "skills/wf/reference/augment/instrument.md": 1,
         "skills/wf/reference/augment/profile.md": 1,
-        "skills/wf/reference/handoff.md": 1,
         "skills/wf/reference/implement.md": 2,
         "skills/wf/reference/intake/default.md": 5,
         "skills/wf/reference/intake/extend.md": 1,
@@ -401,7 +397,6 @@
     "skills/wf/reference/augment/wide-event-observability.md": 918,
     "skills/wf/reference/design.md": 301,
     "skills/wf/reference/docs.md": 365,
-    "skills/wf/reference/handoff.md": 669,
     "skills/wf/reference/implement.md": 440,
     "skills/wf/reference/intake.md": 295,
     "skills/wf/reference/intake/adopt.md": 343,
@@ -498,8 +493,8 @@
       "core": 4569
     },
     "handoff": {
-      "core": 11302,
-      "instructed": 31168
+      "core": 7484,
+      "instructed": 26456
     },
     "implement": {
       "core": 7164

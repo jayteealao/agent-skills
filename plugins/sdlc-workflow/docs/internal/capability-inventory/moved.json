@@ -4,5 +4,29 @@
     "to": "skills/wf/reference/_workflow-rules.md",
     "category": "gates",
     "entry": "workflow rules - store artifacts under .ai/workflows/<slug /"
+  },
+  {
+    "from": "skills/wf/reference/handoff.md",
+    "to": "skills/wf/reference/_workflow-rules.md",
+    "category": "gates",
+    "entry": "workflow rules - store artifacts under .ai/workflows/<slug /"
+  },
+  {
+    "from": "skills/wf/reference/handoff.md",
+    "to": "skills/wf/reference/_ci-red-routing.md",
+    "category": "gates",
+    "entry": "3. surface the diagnosis to the user as"
+  },
+  {
+    "from": "skills/wf/reference/handoff.md",
+    "to": "skills/wf/reference/_ci-red-routing.md",
+    "category": "stops",
+    "entry": "- { label: \"stop block handoff\", description: \"record"
+  },
+  {
+    "from": "skills/wf/reference/handoff.md",
+    "to": "skills/wf/reference/_handoff-config.md",
+    "category": "stops",
+    "entry": "on-fail: diagnose diagnose (route into the fix path)"
   }
 ]
