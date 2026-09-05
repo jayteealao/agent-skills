@@ -376,5 +376,11 @@
     "to": "skills/wf/reference/retro/_artifact.md",
     "category": "artifacts",
     "entry": "10-retro-<X>.md"
+  },
+  {
+    "from": "skills/wf/reference/runtime-adapters.md",
+    "to": "skills/wf/reference/runtime-adapters/web.md",
+    "category": "artifacts",
+    "entry": "02-shape.md"
   }
 ]

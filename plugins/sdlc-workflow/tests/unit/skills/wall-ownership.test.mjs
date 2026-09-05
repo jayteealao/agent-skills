@@ -30,7 +30,7 @@ const mainRef = (rel) => ref(pluginRoot, rel);
 // ── R1 — wall-ownership triage ───────────────────────────────────────────────
 test('R1.1 — the ladder classifies wall ownership BEFORE climbing', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, 'runtime-adapters.md');
+    const src = ref(root, 'runtime-adapters/_ladder.md');
     assert.match(src, /Classify the wall before you climb it/,
       `${name}: runtime-adapters lost the wall-ownership triage block`);
     assert.match(src, /would a change to code in\s+THIS repo dissolve this wall\?/i,
@@ -47,7 +47,7 @@ test('R1.1 — the ladder classifies wall ownership BEFORE climbing', () => {
 
 test('R1.2 — a code-owned wall cannot be deferred without a surfaced decision', () => {
   for (const { name, root } of trees) {
-    const ladder = ref(root, 'runtime-adapters.md');
+    const ladder = ref(root, 'runtime-adapters/_ladder.md');
     assert.match(ladder, /`code-owned` wall may NOT be deferred/,
       `${name}: ladder lost the code-owned deferral prohibition`);
 
@@ -125,7 +125,7 @@ test('R3.1 — the repeat-deferral tripwire demands a retire-vs-carry cost line'
 // ── R4 — env-remediation rung ────────────────────────────────────────────────
 test('R4.1 — the ladder names the env-remediation rung, bounded by authority', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, 'runtime-adapters.md');
+    const src = ref(root, 'runtime-adapters/_ladder.md');
     assert.match(src, /Negotiate the environment before declaring it \(the env-remediation rung\)/,
       `${name}: ladder lost the env-remediation rung`);
     assert.match(src, /\*\*authority, not effort\*\*/,
@@ -142,8 +142,12 @@ test('R4.1 — the ladder names the env-remediation rung, bounded by authority',
       `${name}: the host-config prohibition is gone`);
     assert.match(src, /Editing product code to make evidence collectible/,
       `${name}: the product-code prohibition is gone`);
-    assert.ok(src.indexOf('Negotiate the environment before declaring it') < src.indexOf('### Web UI'),
-      `${name}: the remediation rung must precede the per-adapter ladders`);
+    // W1 split: the per-wall rung lists live in runtime-adapters/_ladder-walls.md; _ladder.md hands
+    // off to that file only after the rung, so the rung still precedes the per-adapter ladders.
+    const walls = ref(root, 'runtime-adapters/_ladder-walls.md');
+    assert.match(walls, /### Web UI/, `${name}: the per-wall rung lists are gone`);
+    assert.ok(src.indexOf('Negotiate the environment before declaring it') < src.lastIndexOf('[_ladder-walls.md](_ladder-walls.md)'),
+      `${name}: the remediation rung must precede the hand-off to the per-adapter ladders`);
   }
 });
 
@@ -179,8 +183,8 @@ test('R4.3 — probe remediates and re-triages before re-recording a wall', () =
 // ── Cross-cutting — the single tree carries every rule in the neutral spelling ──
 test('R1-R4 — every new rule is present, in the canonical /wf spelling', () => {
   const phrases = [
-    ['runtime-adapters.md', 'Classify the wall before you climb it'],
-    ['runtime-adapters.md', 'Negotiate the environment before declaring it'],
+    ['runtime-adapters/_ladder.md', 'Classify the wall before you climb it'],
+    ['runtime-adapters/_ladder.md', 'Negotiate the environment before declaring it'],
     ['verify/_deferrals.md', 'Classify the wall before deferring it'],
     ['verify/_deferrals.md', 'A clearing event names an actor'],
     ['plan.md', 'Cost the wall before choosing'],
@@ -191,7 +195,7 @@ test('R1-R4 — every new rule is present, in the canonical /wf spelling', () =>
     assert.ok(ref(pluginRoot, file).includes(phrase), `${file} missing: ${phrase}`);
   }
   // Shared prose is written `/wf`; the Codex sigil maps only in _host-invocation.md.
-  for (const file of ['verify.md', 'verify/_deferrals.md', 'verify/_sub-agents.md', 'verify/_artifact.md', 'plan.md', 'probe.md', 'runtime-adapters.md']) {
+  for (const file of ['verify.md', 'verify/_deferrals.md', 'verify/_sub-agents.md', 'verify/_artifact.md', 'plan.md', 'probe.md', 'runtime-adapters.md', 'runtime-adapters/_ladder.md', 'runtime-adapters/_protocols.md']) {
     assert.ok(!/\$wf/.test(ref(pluginRoot, file)), `${file}: leaked the Codex \`$wf\` sigil into shared prose`);
   }
 });

@@ -89,7 +89,9 @@
         "skills/wf/reference/review/supply-chain.md": 1,
         "skills/wf/reference/review/testing.md": 1,
         "skills/wf/reference/review/ux-copy.md": 1,
-        "skills/wf/reference/runtime-adapters.md": 6,
+        "skills/wf/reference/runtime-adapters.md": 1,
+        "skills/wf/reference/runtime-adapters/_ladder.md": 2,
+        "skills/wf/reference/runtime-adapters/web.md": 4,
         "skills/wf/reference/ship-plan.md": 1,
         "skills/wf/reference/ship-plan/audit.md": 2,
         "skills/wf/reference/ship-plan/build.md": 1,
@@ -225,7 +227,7 @@
         "skills/wf/reference/retro.md": 2,
         "skills/wf/reference/review/_dispatch.md": 3,
         "skills/wf/reference/review/_stage.md": 4,
-        "skills/wf/reference/runtime-adapters.md": 1,
+        "skills/wf/reference/runtime-adapters/desktop.md": 1,
         "skills/wf/reference/ship-plan/edit.md": 1,
         "skills/wf/reference/ship-plan/init.md": 3,
         "skills/wf/reference/ship/announce.md": 4,
@@ -389,7 +391,6 @@
     "skills/wf/reference/review/supply-chain.md": 213,
     "skills/wf/reference/review/testing.md": 150,
     "skills/wf/reference/review/ux-copy.md": 782,
-    "skills/wf/reference/runtime-adapters.md": 745,
     "skills/wf/reference/ship-plan/build.md": 1146,
     "skills/wf/reference/ship-plan/init.md": 702
   },
@@ -440,11 +441,10 @@
       "core": 5247
     },
     "plan": {
-      "core": 7096
+      "core": 7098
     },
     "probe": {
-      "core": 5482,
-      "instructed": 19147
+      "core": 5494
     },
     "recap": {
       "core": 4257
@@ -463,7 +463,7 @@
       "core": 4368
     },
     "slice": {
-      "core": 4388
+      "core": 4385
     },
     "status": {
       "core": 4383

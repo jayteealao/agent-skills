@@ -105,11 +105,12 @@ test('W1.2 — the taxonomy is wired into review dimensions and verify', () => {
 // ── W2 — enumeration ladder + coverage accounting ────────────────────────────
 test('W2.1 — every adapter ships an Enumerate section', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, 'runtime-adapters.md');
+    // W1 split: the registry lists each adapter; the recipe lives in runtime-adapters/<key>.md.
+    const registry = ref(root, 'runtime-adapters.md');
     for (const key of ADAPTERS) {
-      const block = src.split(`# Adapter: \`${key}\``)[1];
-      assert.ok(block, `${name}: adapter \`${key}\` is missing from the registry`);
-      const body = block.split('\n# Adapter:')[0];
+      assert.ok(registry.includes(`runtime-adapters/${key}.md`), `${name}: adapter \`${key}\` is missing from the registry`);
+      const body = ref(root, `runtime-adapters/${key}.md`);
+      assert.ok(body.startsWith(`# Adapter: \`${key}\``), `${name}: runtime-adapters/${key}.md does not open with its adapter heading`);
       assert.match(body, /^## Enumerate$/m, `${name}: adapter \`${key}\` has no Enumerate section`);
       // Enumerate must precede Drive — you inventory before you drive.
       assert.ok(body.indexOf('## Enumerate') < body.indexOf('## Drive'),
@@ -120,7 +121,7 @@ test('W2.1 — every adapter ships an Enumerate section', () => {
 
 test('W2.1a — the enumeration ladder names all four rungs and the floor caveat', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, 'runtime-adapters.md');
+    const src = ref(root, 'runtime-adapters/_protocols.md');
     assert.match(src, /Surface enumeration ladder/,
       `${name}: the enumeration ladder is gone`);
     for (const rung of ['recipe', 'static', 'traversal', 'named']) {
@@ -135,7 +136,7 @@ test('W2.1a — the enumeration ladder names all four rungs and the floor caveat
 
 test('W2.1a — a recipe-less adapter is never called unsupported', () => {
   for (const { name, root } of trees) {
-    for (const rel of ['runtime-adapters.md', 'probe.md']) {
+    for (const rel of ['runtime-adapters.md', 'runtime-adapters/_protocols.md', 'probe.md']) {
       const src = ref(root, rel);
       for (const line of src.split('\n')) {
         if (!/unsupported/i.test(line)) continue;
@@ -267,7 +268,7 @@ test('W4.3 — a primary unobservable class is announced before any finding', ()
 
 test('W4 — the two axes stay separate (tooling gap vs method gap)', () => {
   for (const { name, root } of trees) {
-    for (const rel of ['_surface-defects.md', 'runtime-adapters.md']) {
+    for (const rel of ['_surface-defects.md', 'runtime-adapters/_protocols.md']) {
       // Emphasis markers vary between the two files; the distinction is what matters.
       assert.match(ref(root, rel), /\*?tooling\*? gap[\s\S]{0,240}?\*?method\*? gap/,
         `${name}: ${rel} no longer distinguishes a tooling gap from a method gap`);
@@ -278,9 +279,10 @@ test('W4 — the two axes stay separate (tooling gap vs method gap)', () => {
 // ── W5 — perturbation ────────────────────────────────────────────────────────
 test('W5.1 — every adapter ships a Perturb section', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, 'runtime-adapters.md');
+    const registry = ref(root, 'runtime-adapters.md');
     for (const key of ADAPTERS) {
-      const body = src.split(`# Adapter: \`${key}\``)[1].split('\n# Adapter:')[0];
+      assert.ok(registry.includes(`runtime-adapters/${key}.md`), `${name}: adapter \`${key}\` is missing from the registry`);
+      const body = ref(root, `runtime-adapters/${key}.md`);
       assert.match(body, /^## Perturb$/m, `${name}: adapter \`${key}\` has no Perturb section`);
       assert.ok(body.indexOf('## Perturb') < body.indexOf('## Tear down'),
         `${name}: \`${key}\` Perturb drifted after Tear down`);
@@ -290,14 +292,14 @@ test('W5.1 — every adapter ships a Perturb section', () => {
 
 test('W5.2 — perturbation is bounded by authority and cites the env-remediation rung', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, 'runtime-adapters.md');
+    const src = ref(root, 'runtime-adapters/_protocols.md');
     assert.match(src, /Perturbation protocol/, `${name}: the shared perturbation protocol is gone`);
     assert.match(src, /One dependency at a time/, `${name}: the one-fault rule is gone`);
     assert.match(src, /Always reversible, always restored/, `${name}: the restore rule is gone`);
     assert.match(src, /Never state the run does not own/,
       `${name}: perturbation lost its authority boundary`);
     // It must CITE the existing rung rather than restate a parallel rule.
-    assert.match(src, /same boundary as the env-remediation\s+rung above, which this cites rather than restates/,
+    assert.match(src, /same boundary as the env-remediation\s+rung in \[_ladder\.md\]\(_ladder\.md\), which this cites rather than restates/,
       `${name}: perturbation no longer cites the env-remediation rung`);
     assert.match(src, /without explicit\s+authorization/,
       `${name}: perturbing a shared/production backend no longer needs authorization`);
@@ -306,7 +308,7 @@ test('W5.2 — perturbation is bounded by authority and cites the env-remediatio
 
 test('W5.3 — perturbation is tied to the classes it exists to find', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, 'runtime-adapters.md');
+    const src = ref(root, 'runtime-adapters/_protocols.md');
     assert.match(src, /`dependency-collapse` and `branch-gap`/,
       `${name}: the perturbation protocol no longer names its target classes`);
   }
@@ -345,7 +347,7 @@ test('main tree spells the commands it names (no shell path mangling)', () => {
   // Git Bash rewrites a bare `/wf` argument into `C:/Program Files/Git/wf`.
   // This landed in probe.md once; the guard makes the class non-recurring.
   const main = trees.find((t) => t.name === 'main');
-  for (const rel of ['_surface-defects.md', 'probe.md', 'runtime-adapters.md']) {
+  for (const rel of ['_surface-defects.md', 'probe.md', 'runtime-adapters.md', 'runtime-adapters/_ladder.md', 'runtime-adapters/_protocols.md']) {
     const src = ref(main.root, rel);
     assert.ok(!/Program Files/.test(src),
       `main: ${rel} carries a shell-mangled path where a command spelling belongs`);
@@ -359,7 +361,7 @@ test('main tree spells the commands it names (no shell path mangling)', () => {
 });
 
 test('single-source: the new surfaces carry no `$wf` spelling (the Codex sigil maps only in _host-invocation.md)', () => {
-  for (const rel of ['_surface-defects.md', 'probe.md', 'runtime-adapters.md']) {
+  for (const rel of ['_surface-defects.md', 'probe.md', 'runtime-adapters.md', 'runtime-adapters/_ladder.md', 'runtime-adapters/_protocols.md']) {
     const src = ref(pluginRoot, rel);
     const hits = src.split('\n').filter((l) => /\$wf\b/.test(l));
     assert.equal(hits.length, 0,

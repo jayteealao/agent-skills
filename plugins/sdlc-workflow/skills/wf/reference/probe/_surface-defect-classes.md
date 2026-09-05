@@ -68,7 +68,7 @@ The tell is a rendered number that survives when the underlying field is empty. 
 **Question:** does one unavailable source take down surface that does not depend on it?
 **Anchor:** `high`: blast radius beyond the failing dependency is the defect, independent of why it failed.
 
-Usually found by perturbation (`runtime-adapters.md` → `Perturb`), not by watching a healthy system. The severity case is unrelated local state dying with a remote read.
+Usually found by perturbation (the adapter's `runtime-adapters/<key>.md` → `Perturb`), not by watching a healthy system. The severity case is unrelated local state dying with a remote read.
 
 | Platform | Manifestation |
 |---|---|
