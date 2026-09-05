@@ -1,0 +1,1355 @@
+{
+  "wordsPerLine": 11,
+  "classBudgetLines": {
+    "dispatcher": 120,
+    "stage-body": 250,
+    "shared-contract": 80,
+    "rule-set": 120,
+    "rubric": 100,
+    "sub-procedure": 300,
+    "template": 150,
+    "adapter": 120
+  },
+  "keys": {
+    "auto": {
+      "core": {
+        "files": 2,
+        "words": 6813,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/auto.md"
+        ]
+      },
+      "instructed": {
+        "files": 10,
+        "words": 11270,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_autonomy-guards.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_grounded-progress.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/auto.md"
+        ],
+        "branches": [],
+        "allFiles": 10
+      },
+      "referenced": {
+        "files": 16,
+        "words": 15824,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_autonomy-guards.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_grounded-progress.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/auto.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 12000
+      }
+    },
+    "close": {
+      "core": {
+        "files": 2,
+        "words": 5342,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/close.md"
+        ]
+      },
+      "instructed": {
+        "files": 8,
+        "words": 9425,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/close.md"
+        ],
+        "branches": [],
+        "allFiles": 8
+      },
+      "referenced": {
+        "files": 14,
+        "words": 13979,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/close.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 10250
+      }
+    },
+    "design": {
+      "core": {
+        "files": 2,
+        "words": 6235,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/design.md"
+        ]
+      },
+      "instructed": {
+        "files": 12,
+        "words": 14875,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_autonomy-guards.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/design.md",
+          "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/contract.md"
+        ],
+        "branches": [
+          {
+            "dir": "skills/wf/reference/design",
+            "chosen": "skills/wf/reference/design/contract.md",
+            "alternatives": 3
+          }
+        ],
+        "allFiles": 14
+      },
+      "referenced": {
+        "files": 21,
+        "words": 21456,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_autonomy-guards.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/design.md",
+          "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/contract.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 21000
+      }
+    },
+    "docs": {
+      "core": {
+        "files": 2,
+        "words": 6527,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/docs.md"
+        ]
+      },
+      "instructed": {
+        "files": 9,
+        "words": 11586,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/docs.md",
+          "skills/wf/reference/docs/plan.md"
+        ],
+        "branches": [
+          {
+            "dir": "skills/wf/reference/docs",
+            "chosen": "skills/wf/reference/docs/plan.md",
+            "alternatives": 2
+          }
+        ],
+        "allFiles": 10
+      },
+      "referenced": {
+        "files": 18,
+        "words": 18116,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/docs.md",
+          "skills/wf/reference/docs/plan.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 13550
+      }
+    },
+    "handoff": {
+      "core": {
+        "files": 2,
+        "words": 13260,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/handoff.md"
+        ]
+      },
+      "instructed": {
+        "files": 16,
+        "words": 33568,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_autonomy-guards.md",
+          "skills/wf/reference/_fix-loop.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_pr-ci-handoff.md",
+          "skills/wf/reference/_ship-plan-readiness.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/handoff.md",
+          "skills/wf/reference/ship-plan/init.md"
+        ],
+        "branches": [
+          {
+            "dir": "skills/wf/reference/ship-plan",
+            "chosen": "skills/wf/reference/ship-plan/init.md",
+            "alternatives": 2
+          }
+        ],
+        "allFiles": 17
+      },
+      "referenced": {
+        "files": 22,
+        "words": 38104,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_autonomy-guards.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fix-loop.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_pr-ci-handoff.md",
+          "skills/wf/reference/_ship-plan-readiness.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/handoff.md",
+          "skills/wf/reference/ship-plan/init.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 19700
+      }
+    },
+    "implement": {
+      "core": {
+        "files": 2,
+        "words": 9122,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/implement.md"
+        ]
+      },
+      "instructed": {
+        "files": 15,
+        "words": 20437,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_fix-loop.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/augment/benchmark.md",
+          "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/brand.md",
+          "skills/wf/reference/implement.md"
+        ],
+        "branches": [],
+        "allFiles": 15
+      },
+      "referenced": {
+        "files": 23,
+        "words": 25891,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fix-loop.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_grounded-progress.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/augment/benchmark.md",
+          "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/brand.md",
+          "skills/wf/reference/implement.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 26050
+      }
+    },
+    "intake": {
+      "core": {
+        "files": 2,
+        "words": 7207,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/intake.md"
+        ]
+      },
+      "instructed": {
+        "files": 15,
+        "words": 21281,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_compressed-slice.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/intake.md",
+          "skills/wf/reference/intake/_intake-context.md",
+          "skills/wf/reference/intake/_intake-provenance.md",
+          "skills/wf/reference/intake/default.md"
+        ],
+        "branches": [
+          {
+            "dir": "skills/wf/reference/intake",
+            "chosen": "skills/wf/reference/intake/default.md",
+            "alternatives": 3
+          }
+        ],
+        "allFiles": 17
+      },
+      "referenced": {
+        "files": 28,
+        "words": 42396,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_compressed-slice.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_findings-ledger.md",
+          "skills/wf/reference/_fix-loop.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_question-craft.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/intake.md",
+          "skills/wf/reference/intake/_change-mode-tail.md",
+          "skills/wf/reference/intake/_intake-context.md",
+          "skills/wf/reference/intake/_intake-provenance.md",
+          "skills/wf/reference/intake/default.md",
+          "skills/wf/reference/review.md",
+          "skills/wf/reference/review/_stage.md",
+          "skills/wf/reference/status.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 23100
+      }
+    },
+    "observability": {
+      "core": {
+        "files": 2,
+        "words": 4169,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/observability.md"
+        ]
+      },
+      "instructed": {
+        "files": 7,
+        "words": 7742,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/observability.md"
+        ],
+        "branches": [],
+        "allFiles": 7
+      },
+      "referenced": {
+        "files": 19,
+        "words": 21605,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/augment/wide-event-observability.md",
+          "skills/wf/reference/observability.md",
+          "skills/wf/reference/observability/init.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 9350
+      }
+    },
+    "plan": {
+      "core": {
+        "files": 2,
+        "words": 12537,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/plan.md"
+        ]
+      },
+      "instructed": {
+        "files": 12,
+        "words": 23100,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/augment/wide-event-observability.md",
+          "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/typeset.md",
+          "skills/wf/reference/plan.md"
+        ],
+        "branches": [
+          {
+            "dir": "skills/wf/reference/augment",
+            "chosen": "skills/wf/reference/augment/wide-event-observability.md",
+            "alternatives": 4
+          },
+          {
+            "dir": "skills/wf/reference/design",
+            "chosen": "skills/wf/reference/design/typeset.md",
+            "alternatives": 2
+          }
+        ],
+        "allFiles": 16
+      },
+      "referenced": {
+        "files": 23,
+        "words": 38726,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_autonomy-guards.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_question-craft.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/augment/wide-event-observability.md",
+          "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/typeset.md",
+          "skills/wf/reference/plan.md",
+          "skills/wf/reference/runtime-adapters.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 21000
+      }
+    },
+    "probe": {
+      "core": {
+        "files": 2,
+        "words": 8591,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/probe.md"
+        ]
+      },
+      "instructed": {
+        "files": 12,
+        "words": 24816,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_compressed-slice.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_surface-defects.md",
+          "skills/wf/reference/probe.md",
+          "skills/wf/reference/runtime-adapters.md"
+        ],
+        "branches": [],
+        "allFiles": 12
+      },
+      "referenced": {
+        "files": 17,
+        "words": 28610,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_compressed-slice.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_surface-defects.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/probe.md",
+          "skills/wf/reference/runtime-adapters.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 14200
+      }
+    },
+    "recap": {
+      "core": {
+        "files": 2,
+        "words": 6215,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/recap.md"
+        ]
+      },
+      "instructed": {
+        "files": 8,
+        "words": 10298,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/recap.md"
+        ],
+        "branches": [],
+        "allFiles": 8
+      },
+      "referenced": {
+        "files": 14,
+        "words": 14852,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/recap.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 10250
+      }
+    },
+    "retro": {
+      "core": {
+        "files": 2,
+        "words": 7498,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/retro.md"
+        ]
+      },
+      "instructed": {
+        "files": 11,
+        "words": 13259,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_grounded-progress.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/retro.md"
+        ],
+        "branches": [],
+        "allFiles": 11
+      },
+      "referenced": {
+        "files": 18,
+        "words": 18606,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_grounded-progress.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/retro.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 12850
+      }
+    },
+    "review": {
+      "core": {
+        "files": 2,
+        "words": 4809,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/review.md"
+        ]
+      },
+      "instructed": {
+        "files": 13,
+        "words": 19826,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_findings-ledger.md",
+          "skills/wf/reference/_fix-loop.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/review.md",
+          "skills/wf/reference/review/_stage.md"
+        ],
+        "branches": [],
+        "allFiles": 13
+      },
+      "referenced": {
+        "files": 20,
+        "words": 25086,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_findings-ledger.md",
+          "skills/wf/reference/_fix-loop.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/review.md",
+          "skills/wf/reference/review/_stage.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 16500
+      }
+    },
+    "shape": {
+      "core": {
+        "files": 2,
+        "words": 10268,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/shape.md"
+        ]
+      },
+      "instructed": {
+        "files": 11,
+        "words": 16614,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_question-craft.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/shape.md"
+        ],
+        "branches": [],
+        "allFiles": 11
+      },
+      "referenced": {
+        "files": 22,
+        "words": 34419,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_autonomy-guards.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_question-craft.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/contract.md",
+          "skills/wf/reference/runtime-adapters.md",
+          "skills/wf/reference/shape.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 12850
+      }
+    },
+    "ship": {
+      "core": {
+        "files": 2,
+        "words": 10665,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/ship.md"
+        ]
+      },
+      "instructed": {
+        "files": 12,
+        "words": 28748,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ship-plan-readiness.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/ship-plan/init.md",
+          "skills/wf/reference/ship.md",
+          "skills/wf/reference/ship/announce.md"
+        ],
+        "branches": [
+          {
+            "dir": "skills/wf/reference/ship-plan",
+            "chosen": "skills/wf/reference/ship-plan/init.md",
+            "alternatives": 2
+          },
+          {
+            "dir": "skills/wf/reference/ship",
+            "chosen": "skills/wf/reference/ship/announce.md",
+            "alternatives": 2
+          }
+        ],
+        "allFiles": 14
+      },
+      "referenced": {
+        "files": 20,
+        "words": 34819,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ship-plan-readiness.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/ship-plan/init.md",
+          "skills/wf/reference/ship.md",
+          "skills/wf/reference/ship/announce.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 18600
+      }
+    },
+    "ship-plan": {
+      "core": {
+        "files": 2,
+        "words": 4045,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/ship-plan.md"
+        ]
+      },
+      "instructed": {
+        "files": 7,
+        "words": 7618,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/ship-plan.md"
+        ],
+        "branches": [],
+        "allFiles": 7
+      },
+      "referenced": {
+        "files": 23,
+        "words": 38427,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_findings-ledger.md",
+          "skills/wf/reference/_fix-loop.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ship-plan-readiness.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/review/_stage.md",
+          "skills/wf/reference/review/supply-chain.md",
+          "skills/wf/reference/ship-plan.md",
+          "skills/wf/reference/ship-plan/build.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 9350
+      }
+    },
+    "simplify": {
+      "core": {
+        "files": 2,
+        "words": 7783,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/simplify.md"
+        ]
+      },
+      "instructed": {
+        "files": 10,
+        "words": 13552,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_compressed-slice.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/simplify.md"
+        ],
+        "branches": [],
+        "allFiles": 10
+      },
+      "referenced": {
+        "files": 22,
+        "words": 30517,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_compressed-slice.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_question-craft.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/intake/_intake-provenance.md",
+          "skills/wf/reference/intake/default.md",
+          "skills/wf/reference/simplify.md",
+          "skills/wf/reference/status.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 12000
+      }
+    },
+    "slice": {
+      "core": {
+        "files": 2,
+        "words": 7251,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/slice.md"
+        ]
+      },
+      "instructed": {
+        "files": 12,
+        "words": 15116,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/onboard.md",
+          "skills/wf/reference/slice.md"
+        ],
+        "branches": [
+          {
+            "dir": "skills/wf/reference/design",
+            "chosen": "skills/wf/reference/design/onboard.md",
+            "alternatives": 2
+          }
+        ],
+        "allFiles": 13
+      },
+      "referenced": {
+        "files": 21,
+        "words": 29838,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_question-craft.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/onboard.md",
+          "skills/wf/reference/runtime-adapters.md",
+          "skills/wf/reference/slice.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 18600
+      }
+    },
+    "status": {
+      "core": {
+        "files": 2,
+        "words": 8008,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/status.md"
+        ]
+      },
+      "instructed": {
+        "files": 9,
+        "words": 12971,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/status.md"
+        ],
+        "branches": [],
+        "allFiles": 9
+      },
+      "referenced": {
+        "files": 17,
+        "words": 18922,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/status.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 11100
+      }
+    },
+    "task": {
+      "core": {
+        "files": 2,
+        "words": 5748,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/task.md"
+        ]
+      },
+      "instructed": {
+        "files": 9,
+        "words": 10757,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_compressed-slice.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/task.md"
+        ],
+        "branches": [],
+        "allFiles": 9
+      },
+      "referenced": {
+        "files": 18,
+        "words": 17588,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_compressed-slice.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/task.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 11100
+      }
+    },
+    "verify": {
+      "core": {
+        "files": 2,
+        "words": 16445,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/verify.md"
+        ]
+      },
+      "instructed": {
+        "files": 12,
+        "words": 22879,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_autonomy-guards.md",
+          "skills/wf/reference/_fix-loop.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/verify.md"
+        ],
+        "branches": [],
+        "allFiles": 12
+      },
+      "referenced": {
+        "files": 19,
+        "words": 28139,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_autonomy-guards.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fix-loop.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/verify.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 13750
+      }
+    },
+    "yolo": {
+      "core": {
+        "files": 2,
+        "words": 10111,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/yolo.md"
+        ]
+      },
+      "instructed": {
+        "files": 9,
+        "words": 14374,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_autonomy-guards.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/yolo.md"
+        ],
+        "branches": [],
+        "allFiles": 9
+      },
+      "referenced": {
+        "files": 18,
+        "words": 21205,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_autonomy-guards.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/yolo.md"
+        ]
+      },
+      "target": {
+        "core": 4050,
+        "instructed": 11100
+      }
+    }
+  }
+}

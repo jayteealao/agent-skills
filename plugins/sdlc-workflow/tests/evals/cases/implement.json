@@ -1,0 +1,30 @@
+{
+  "name": "implement",
+  "order": 50,
+  "fixture": "node-cli",
+  "requires": [
+    "plan"
+  ],
+  "prompt": "/wf implement <slug>",
+  "maxTurns": 120,
+  "assertions": [
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/05-implement-*.md",
+      "min": 1
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/*/05-implement-*.md"
+    },
+    {
+      "type": "shell",
+      "cmd": "npm test"
+    },
+    {
+      "type": "git-branch-matching",
+      "pattern": "^(?!main$).+",
+      "min": 1
+    }
+  ]
+}

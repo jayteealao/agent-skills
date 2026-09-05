@@ -1,0 +1,41 @@
+{
+  "name": "shape-headless",
+  "order": 20,
+  "fixture": "node-cli",
+  "requires": [
+    "intake-default"
+  ],
+  "prompt": "/wf shape <slug>",
+  "maxTurns": 60,
+  "assertions": [
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/02-shape.md",
+      "min": 1,
+      "max": 1
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/*/02-shape.md"
+    },
+    {
+      "type": "frontmatter-has",
+      "glob": ".ai/workflows/*/02-shape.md",
+      "field": "augmentations-needed"
+    },
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/po-answers.md",
+      "min": 1
+    },
+    {
+      "type": "file-contains",
+      "path": ".ai/workflows/<slug>/po-answers.md",
+      "pattern": "(?i)rung 3|non-interactive|assum"
+    },
+    {
+      "type": "changes-only-under",
+      "prefix": ".ai/"
+    }
+  ]
+}

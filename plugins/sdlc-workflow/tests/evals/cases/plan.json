@@ -1,0 +1,30 @@
+{
+  "name": "plan",
+  "order": 40,
+  "fixture": "node-cli",
+  "requires": [
+    "slice"
+  ],
+  "prompt": "/wf plan <slug>",
+  "maxTurns": 80,
+  "assertions": [
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/04-plan-*.md",
+      "min": 1
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/*/04-plan-*.md"
+    },
+    {
+      "type": "frontmatter-has",
+      "glob": ".ai/workflows/*/04-plan-*.md",
+      "field": "stack-source"
+    },
+    {
+      "type": "changes-only-under",
+      "prefix": ".ai/"
+    }
+  ]
+}

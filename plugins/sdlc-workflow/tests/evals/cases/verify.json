@@ -1,0 +1,31 @@
+{
+  "name": "verify",
+  "order": 60,
+  "fixture": "node-cli",
+  "requires": [
+    "implement"
+  ],
+  "prompt": "/wf verify <slug>",
+  "maxTurns": 80,
+  "assertions": [
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/06-verify-*.md",
+      "min": 1
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/*/06-verify-*.md"
+    },
+    {
+      "type": "frontmatter-has",
+      "glob": ".ai/workflows/*/06-verify-*.md",
+      "field": "ac-results"
+    },
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/evidence/**",
+      "min": 1
+    }
+  ]
+}

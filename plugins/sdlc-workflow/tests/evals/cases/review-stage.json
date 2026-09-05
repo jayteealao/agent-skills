@@ -1,0 +1,41 @@
+{
+  "name": "review-stage",
+  "order": 70,
+  "fixture": "node-cli",
+  "requires": [
+    "verify"
+  ],
+  "prompt": "/wf review <slug>",
+  "maxTurns": 80,
+  "assertions": [
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/07-review*.md",
+      "min": 1
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/*/07-review*.md"
+    },
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/07-review*.yaml",
+      "min": 1
+    },
+    {
+      "type": "sibling-yaml-valid",
+      "glob": ".ai/workflows/*/07-review*.yaml"
+    },
+    {
+      "type": "yaml-list-length",
+      "glob": ".ai/workflows/*/07-review*.md",
+      "field": "runs",
+      "equals": 1
+    },
+    {
+      "type": "frontmatter-has",
+      "glob": ".ai/workflows/*/07-review*.md",
+      "field": "verdict"
+    }
+  ]
+}

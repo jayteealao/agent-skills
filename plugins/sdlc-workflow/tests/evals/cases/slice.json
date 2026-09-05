@@ -1,0 +1,36 @@
+{
+  "name": "slice",
+  "order": 30,
+  "fixture": "node-cli",
+  "requires": [
+    "shape-headless"
+  ],
+  "prompt": "/wf slice <slug>",
+  "maxTurns": 60,
+  "assertions": [
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/03-slice.md",
+      "min": 1,
+      "max": 1
+    },
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/03-slice-*.md",
+      "min": 1
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/*/03-slice*.md"
+    },
+    {
+      "type": "frontmatter-has",
+      "glob": ".ai/workflows/*/03-slice.md",
+      "field": "review-scope-confirmed"
+    },
+    {
+      "type": "changes-only-under",
+      "prefix": ".ai/"
+    }
+  ]
+}

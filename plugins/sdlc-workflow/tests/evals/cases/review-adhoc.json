@@ -1,0 +1,12 @@
+{
+  "name": "review-adhoc",
+  "order": 90,
+  "fixture": "web-app",
+  "prompt": "/wf review security\n\nThen run: /wf review logging\n\nReport the findings of both inline in the chat. Do not modify any source file.",
+  "maxTurns": 60,
+  "assertions": [
+    {
+      "type": "no-changes"
+    }
+  ]
+}

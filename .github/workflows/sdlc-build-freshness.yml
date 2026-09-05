@@ -93,5 +93,6 @@ jobs:
         run: |
           npm run verify:versions
           npm run verify:neutrality
+          npm run verify:capabilities
           npm run verify
           npm run verify:legibility

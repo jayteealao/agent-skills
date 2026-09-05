@@ -35,7 +35,7 @@ a hard failure, so a fresh clone or an offline box is not blocked.
    `renderers/`, `components/`, or `package.json` rebuilds `dist/` **in the same
    commit**. Tests run against source, so green does not mean `dist/` is fresh.
 3. `npm test`.
-4. `npm run verify:versions && npm run verify:neutrality && npm run verify` —
+4. `npm run verify:versions && npm run verify:neutrality && npm run verify:capabilities && npm run verify` —
    every version carrier agrees, the skill prose stays host-neutral, and the
    doc site is consistent. One tree serves both hosts since v9.153.0; there is
    no second tree to sync.

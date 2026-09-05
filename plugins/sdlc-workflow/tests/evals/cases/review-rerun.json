@@ -1,0 +1,22 @@
+{
+  "name": "review-rerun",
+  "order": 80,
+  "fixture": "node-cli",
+  "requires": [
+    "review-stage"
+  ],
+  "prompt": "/wf review <slug>",
+  "maxTurns": 80,
+  "assertions": [
+    {
+      "type": "yaml-list-length",
+      "glob": ".ai/workflows/*/07-review*.md",
+      "field": "runs",
+      "equals": 2
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/*/07-review*.md"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "name": "fix-mode",
+  "order": 100,
+  "fixture": "node-cli",
+  "requires": [
+    "review-rerun"
+  ],
+  "prompt": "/wf intake fix the list command crashes on an empty directory",
+  "maxTurns": 150,
+  "assertions": [
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/01-fix.md",
+      "min": 1
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/*/01-fix.md"
+    },
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/03-slice.md",
+      "min": 2
+    },
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/04-plan*.md",
+      "min": 2
+    },
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/05-implement*.md",
+      "min": 2
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/*/0[345]-*.md"
+    }
+  ]
+}

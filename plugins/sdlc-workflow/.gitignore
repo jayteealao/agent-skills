@@ -21,3 +21,6 @@ node_modules/
 # hooks/_adapter.mjs falls back to <pluginRoot>/.plugin-data when Codex does not
 # substitute --plugin-data (manual or test runs in the dev tree). Never commit it.
 .plugin-data/
+
+# Behavior-eval run output (tests/evals/run.mjs); the committed baseline lives in tests/evals/baseline/.
+tests/evals/results/

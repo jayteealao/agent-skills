@@ -1,0 +1,3072 @@
+{
+  "files": {
+    "skills/consult/SKILL.md": {
+      "artifacts": [
+        "01-consult.html.fragment",
+        "04-plan.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/diataxis/SKILL.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/diataxis/references/doc-planner.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/diataxis/references/docs-reviewer.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [
+        "heading: documentation reviewer"
+      ],
+      "rubric-checks": []
+    },
+    "skills/diataxis/references/explanation.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/diataxis/references/how-to.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/diataxis/references/readme.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/diataxis/references/reference.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/diataxis/references/tutorial.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/imagery/SKILL.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/study-sources/SKILL.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/study-sources/references/android.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/study-sources/references/dotnet.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/study-sources/references/git-sources.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/study-sources/references/go.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/study-sources/references/javascript.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/study-sources/references/jvm.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/study-sources/references/native-c-cpp.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/study-sources/references/python.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/study-sources/references/ruby-php-swift-dart.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/study-sources/references/rust.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/uiproto/SKILL.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [
+        "off, stop with the one-line opt-in notice (there"
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/SKILL.md": {
+      "artifacts": [
+        "01-task.md",
+        "02-shape.md",
+        "03-slice-<X>.md",
+        "03-slice.md",
+        "04-plan-<X>.md",
+        "05-implement-<X>.md",
+        "06-verify-<X>.md",
+        "08-handoff.md",
+        "09-rollback-<X>.md",
+        "09-ship-run-<X>.md",
+        "09-ship-runs.md",
+        "10-retro.md",
+        "90-recap.md",
+        "99-close.md"
+      ],
+      "gates": [
+        "if it fails (not a git repo), do"
+      ],
+      "stops": [
+        "- design , probe , auto , yolo",
+        "- if no slug satisfies any condition stop:",
+        "if a best match exists, stop with: \"unknown"
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_additive-write.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-intake.md",
+        "02-shape.md",
+        "08-handoff.md",
+        "10-retro.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_autonomy-guards.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_chat-return.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_compressed-slice.md": {
+      "artifacts": [
+        "00-index.md",
+        "03-slice-<X>.md",
+        "03-slice.md",
+        "06-verify.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_control-file-ownership.md": {
+      "artifacts": [
+        "00-index.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_decision-classes.md": {
+      "artifacts": [],
+      "gates": [
+        "- human-gated run (plan/implement/verify with a po present):"
+      ],
+      "stops": [
+        "stop record the pending decision in the artifact"
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_findings-ledger.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_fix-loop.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [
+        "yourself editing code outside the stage's fix-dispatch step,"
+      ],
+      "dispatches": [
+        "every fix is delegated to a dispatched sub-agent;",
+        "pinned dispatch. one sub-agent per issue at medium",
+        "three surfaces dispatch fix sub-agents: verify.md (step 7.6,"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_fragment-authoring.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_gate-question.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_grounded-progress.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_host-invocation.md": {
+      "artifacts": [],
+      "gates": [
+        "concern claude code codex pi --- --- ---",
+        "this plugin runs under three hosts from one"
+      ],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_output-boundary.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [
+        "- sub-agents spawned with fresh context do not"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_pr-ci-handoff.md": {
+      "artifacts": [
+        "00-index.md"
+      ],
+      "gates": [
+        "ask one multi-select gate question per _gate-question.md listing",
+        "if the user has a strong reason to"
+      ],
+      "stops": [
+        "after the bound, set readiness-verdict: awaiting-input and stop.",
+        "stop."
+      ],
+      "dispatches": [
+        "dispatch one sub-agent per fix at medium effort"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_question-craft.md": {
+      "artifacts": [],
+      "gates": [
+        "every po-facing question in this workflow the intake"
+      ],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_ship-plan-readiness.md": {
+      "artifacts": [
+        "00-index.md",
+        "08-handoff.md",
+        "09-ship-run-<X>.md"
+      ],
+      "gates": [
+        "both missing and drift gate : present the"
+      ],
+      "stops": [
+        "- \"cancel\" stop.",
+        "- \"create it now\" stop; print /wf ship-plan",
+        "- amend separately stop here stop.",
+        "- cancel stop.",
+        "- route + stop print the exact /wf",
+        "- { label: \"amend separately stop here\", description:",
+        "- { label: \"create it (recommended)\", description: \"stop",
+        "- { label: \"create it now (recommended)\", description:",
+        "- { label: \"fix in the repo stop",
+        "a re-check that is not clean falls back",
+        "before returning a stop verdict, write into the",
+        "before stopping, preserve the orientation work so the",
+        "either way stop do not run the release.",
+        "every stop path above throws away work the",
+        "fall through to the stop path below, carrying",
+        "guard 1 answered but unexecuted. if the ledger",
+        "missing / drift / cancel all stop before",
+        "missing / drift stop and route via 00-index.md",
+        "present a reminder instead: \"you chose amend the",
+        "say explicitly which findings the amendment will not",
+        "step r3.5 preserving orientation across a stop",
+        "still dirty fall back to stop. if the"
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_ste-procedural.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_steering.md": {
+      "artifacts": [],
+      "gates": [
+        "1. read. at step 0, before any stage"
+      ],
+      "stops": [],
+      "dispatches": [
+        "any stage that dispatches sub-agents plan research, implement"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_story-arc.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_subagents.md": {
+      "artifacts": [
+        "00-index.md"
+      ],
+      "gates": [
+        "- children read, the coordinator writes. mutation leases,"
+      ],
+      "stops": [],
+      "dispatches": [
+        "dispatch call: prose that says \"launch sub-agents\" means",
+        "every reference that dispatches sub-agents"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_surface-defects.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/_timestamp.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/augment/benchmark.md": {
+      "artifacts": [
+        "00-index.md",
+        "02-shape.md",
+        "05c-benchmark.md",
+        "05c-benchmark.yaml"
+      ],
+      "gates": [],
+      "stops": [
+        "- if .ai/workflows/<slug / does not exist stop:",
+        "- if 02-shape.md does not exist stop: \"no"
+      ],
+      "dispatches": [
+        "heading: research sub-agent benchmark target discovery"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/augment/experiment.md": {
+      "artifacts": [
+        "00-index.md",
+        "02-shape.md",
+        "04b-instrument.md",
+        "04c-experiment.md",
+        "04c-experiment.yaml"
+      ],
+      "gates": [],
+      "stops": [
+        "- if .ai/workflows/<slug / does not exist stop:",
+        "- if 02-shape.md does not exist stop: \"workflow"
+      ],
+      "dispatches": [
+        "heading: research sub-agent experiment design",
+        "launch the sub-agent to design the experiment."
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/augment/instrument.md": {
+      "artifacts": [
+        "00-index.md",
+        "02-shape.md",
+        "04b-instrument.md",
+        "04b-instrument.yaml"
+      ],
+      "gates": [],
+      "stops": [
+        "- if .ai/workflows/<slug / does not exist stop:",
+        "- if 02-shape.md does not exist stop: \"workflow"
+      ],
+      "dispatches": [
+        "heading: research sub-agent 1 current instrumentation inventory",
+        "heading: research sub-agent 2 instrumentation design",
+        "launch both sub-agents in parallel."
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/augment/profile.md": {
+      "artifacts": [
+        "01-profile.html.fragment",
+        "01-profile.md",
+        "01-profile.yaml",
+        "02-shape.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/augment/wide-event-observability.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/auto.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-intake.md",
+        "02-shape.md",
+        "03-slice-<X>.md",
+        "03-slice.md",
+        "04-plan-<X>.md",
+        "04-plan.md",
+        "05-implement-<X>.md",
+        "05-implement.md",
+        "06-verify-<X>.md",
+        "06-verify.md",
+        "07-review-<X>.md",
+        "07-review.md"
+      ],
+      "gates": [
+        "- a driver, not a stage. /wf auto"
+      ],
+      "stops": [
+        "(empty) infer the slug from .ai/workflows/index.md : if",
+        "if slug is empty and not exactly one",
+        "if the user gave a description instead of",
+        "in slice mode , confirm <slice is in",
+        "on a git refusal (uncommitted changes would be"
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/close.md": {
+      "artifacts": [
+        "00-index.md",
+        "03-slice-<X>.md",
+        "03-slice.md",
+        "99-close.md"
+      ],
+      "gates": [],
+      "stops": [
+        "validate the slug: if .ai/workflows/<slug /00-index.md does not"
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design.md": {
+      "artifacts": [
+        "00-index.md",
+        "02b-design.md",
+        "02c-craft.md",
+        "04-plan-<X>.md",
+        "05-implement-<X>.md",
+        "06-verify-<X>.md",
+        "07-design-audit.md",
+        "07-design-critique.md"
+      ],
+      "gates": [],
+      "stops": [
+        "known design commands (the <design-command must be one",
+        "status: closed stop ( \"workflow <slug is closed.",
+        "zero design-command (no command resolvable) stop."
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/_component-craft.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/_design-context.md": {
+      "artifacts": [
+        "00-index.md",
+        "02-shape.md",
+        "02b-design.md",
+        "02c-craft.md"
+      ],
+      "gates": [],
+      "stops": [
+        "otherwise stop: \"design context is missing."
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/adapt.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/animate.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/audit.md": {
+      "artifacts": [
+        "00-index.md",
+        "02b-design.md",
+        "02c-craft.md",
+        "05-implement.md",
+        "07-design-audit.html.fragment",
+        "07-design-audit.md",
+        "07-design-audit.yaml"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/bolder.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/brand.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/clarify.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/colorize.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/contract.md": {
+      "artifacts": [
+        "00-index.md",
+        "02b-design.md",
+        "02c-craft.html.fragment",
+        "02c-craft.md",
+        "02c-craft.yaml",
+        "04-plan-<X>.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/critique.md": {
+      "artifacts": [
+        "05-implement.md",
+        "07-design-critique.html.fragment",
+        "07-design-critique.md",
+        "07-design-critique.yaml"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/delight.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/distill.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/extract.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/harden.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/layout.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/onboard.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/optimize.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/overdrive.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/polish.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/product.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/quieter.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/setup.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/shape.md": {
+      "artifacts": [
+        "00-index.md",
+        "02b-design.html.fragment",
+        "02b-design.md",
+        "02b-design.yaml",
+        "02c-craft.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/teach.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/design/typeset.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/docs.md": {
+      "artifacts": [
+        "00-index.md",
+        "02-shape.md",
+        "03-slice.md",
+        "08-handoff.md",
+        "08b-docs-index.md",
+        "08b-docs-index.yaml"
+      ],
+      "gates": [
+        "after writing: present a summary and confirm with"
+      ],
+      "stops": [
+        "- argument is none of the above stop.",
+        "if audit-only: true stop here ."
+      ],
+      "dispatches": [
+        "launch one fresh-context, read-only sub-agent (per _subagents.md) to",
+        "launch one read-only sub-agent (per _subagents.md) with the",
+        "launch parallel read-only sub-agents (per _subagents.md) one per"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/docs/explanation.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [
+        "in a standalone primitive invocation, dispatch one fresh-context",
+        "in orchestrator mode, docs.md step 5 dispatches a"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/docs/how-to.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [
+        "in a standalone primitive invocation, dispatch one fresh-context",
+        "in orchestrator mode, docs.md step 5 dispatches a"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/docs/plan.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/docs/readme.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [
+        "in a standalone primitive invocation, dispatch one fresh-context",
+        "in orchestrator mode, docs.md step 5 dispatches a"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/docs/reference.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [
+        "in a standalone primitive invocation, dispatch one fresh-context",
+        "in orchestrator mode, docs.md step 5 dispatches a"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/docs/review.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [
+        "heading: documentation reviewer",
+        "in orchestrator mode this rubric runs inside docs.md"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/docs/tutorial.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [
+        "in a standalone primitive invocation, dispatch one fresh-context",
+        "in orchestrator mode, docs.md step 5 dispatches a"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/handoff.md": {
+      "artifacts": [
+        "00-index.md",
+        "02-shape.md",
+        "02b-design.md",
+        "02c-craft.md",
+        "03-slice-<X>.md",
+        "03-slice.md",
+        "04-plan-<X>.md",
+        "04b-instrument.md",
+        "04c-experiment.md",
+        "05-implement-<X>.md",
+        "05c-benchmark.md",
+        "06-verify-<X>.md",
+        "07-review-<X>.md",
+        "07-review.md",
+        "08-handoff-<X>.md",
+        "08-handoff.md"
+      ],
+      "gates": [
+        "3. surface the diagnosis to the user as",
+        "a. resolve the check list. - pre-push-checks: present",
+        "re-validate branch-strategy: none against what is actually being",
+        "workflow rules - store artifacts under .ai/workflows/<slug /"
+      ],
+      "stops": [
+        "- bound-exceeded (checks still pending when the wait",
+        "- if you catch yourself about to start",
+        "- pr exists, state=closed merged stop.",
+        "- timed-out set readiness-verdict: awaiting-input , record the",
+        "- { label: \"stop block handoff\", description: \"record",
+        "if a slug genuinely has none after reconciliation",
+        "if none stop: \"no workflows are on branch",
+        "if the second attempt also fails, set rebase-status:",
+        "on-fail: diagnose diagnose (route into the fix path)",
+        "ship-plan-readiness: <ok acknowledged amended-inline not-applicable ship-plan pre-check (step",
+        "stop."
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant",
+        "heading: reviewer comments triaged",
+        "heading: reviewer focus areas"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/implement.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-fix.md",
+        "01-hotfix.md",
+        "01-quick.md",
+        "01-rca.md",
+        "01-refactor.md",
+        "02-shape.md",
+        "02b-design.md",
+        "02c-craft.md",
+        "03-slice-<X>.md",
+        "03-slice.md",
+        "04-plan-<X>.md",
+        "04-plan.md",
+        "04b-instrument.md",
+        "04c-experiment.md",
+        "05-implement-<X>.md",
+        "05-implement.md",
+        "05c-benchmark.md",
+        "06-verify-<X>.md",
+        "06-verify.md",
+        "07-design-audit.md",
+        "07-design-critique.md",
+        "07-review-<X>.md"
+      ],
+      "gates": [
+        "workflow rules - store artifacts under .ai/workflows/<slug /"
+      ],
+      "stops": [
+        "- if the source plan/quick artifact shows status:",
+        "- if you catch yourself about to skip",
+        "if missing stop. \"run /wf intake fix <slug",
+        "if missing stop. \"run /wf plan <slug <slice-slug",
+        "stop and direct the user back to /wf",
+        "stop and direct the user to that workflow's"
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant",
+        "before implementing, launch parallel sub-agents to verify the",
+        "dispatch all finding fixes in parallel, one sub-agent",
+        "heading: research sub-agent 1 pre-implementation codebase verification",
+        "heading: research sub-agent 2 dependency & api freshness (only if external dependencies are involved)"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-audit.md",
+        "01-discover.md",
+        "01-intake.md",
+        "01-investigate.md",
+        "01-rca.md",
+        "02-shape.md",
+        "03-slice-<X>.md"
+      ],
+      "gates": [
+        "4. default + suggest-and-confirm. else the tokens are",
+        "propose at most one mode, once , as"
+      ],
+      "stops": [
+        "- if token0 does not match a slug,",
+        "compressed slice anyway?\" on yes slug-mode; on no",
+        "stop and tell the user:"
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/_change-mode-tail.md": {
+      "artifacts": [
+        "00-index.md",
+        "02-shape.md",
+        "03-slice.md",
+        "04-plan.md",
+        "07-review.md",
+        "99-close.md"
+      ],
+      "gates": [],
+      "stops": [
+        "the verify stop fires only when"
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/_intake-context.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-fix.md",
+        "01-hotfix.md",
+        "01-refactor.md",
+        "01-update-deps.md",
+        "02-shape.md",
+        "03-slice.md",
+        "04-plan.md"
+      ],
+      "gates": [
+        "the gate (d4) stop-and-prompt before 05-implement . after"
+      ],
+      "stops": [],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/_intake-provenance.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-discover.md",
+        "01-ideate.md",
+        "01-investigate.md",
+        "01-rca.md",
+        "02-shape.md",
+        "05-implement.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/adopt.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-adopt.md",
+        "02-shape.md",
+        "03-slice.md",
+        "04-plan.md",
+        "05-implement.md",
+        "06-verify.md",
+        "07-review.md"
+      ],
+      "gates": [
+        "inference from a diff can be wrong, and"
+      ],
+      "stops": [
+        "- on cancel , stop write nothing.",
+        "if the dispatcher somehow hands you a slug,",
+        "refuse fully-published work decidably. git fetch <remote first",
+        "refuse when there is nothing to adopt. if",
+        "same-branch active-workflow scan: read .ai/workflows/index.md ; if any"
+      ],
+      "dispatches": [
+        "heading: research sub-agent 1 diff comprehension",
+        "heading: research sub-agent 2 convention & risk grounding"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/amend.md": {
+      "artifacts": [
+        "00-index.md",
+        "07-review-<X>.md",
+        "07-review.md"
+      ],
+      "gates": [
+        "1. the dispatcher consumed <slug and the amend"
+      ],
+      "stops": [
+        "if the request maps onto a field but",
+        "if the request maps onto nothing in the",
+        "stop without writing."
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/audit.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-audit.md",
+        "02-shape.md",
+        "03-slice-audit-<X>.md",
+        "04-plan.md",
+        "07-review-<X>.md",
+        "07-review.md"
+      ],
+      "gates": [
+        "[scope gate] present the resolved surface for confirmation"
+      ],
+      "stops": [],
+      "dispatches": [
+        "- do not run the lenses yourself dispatch",
+        "for each selected lens, dispatch a sub-agent per",
+        "wave 1 enumerate. dispatch parallel read-only sub-agents at"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/default.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-intake-<X>.md",
+        "01-intake.md",
+        "02-shape.md",
+        "02b-design.md",
+        "02c-craft.md"
+      ],
+      "gates": [
+        "batch a structured process questions (gate questions asked",
+        "step 0 orient (mandatory do this before all",
+        "workflow rules - store artifacts under .ai/workflows/<slug /"
+      ],
+      "stops": [
+        "- if you catch yourself about to start",
+        "stop and ask the gate question per _gate-question.md:",
+        "stop.",
+        "surface the chosen command verbatim and stop."
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant",
+        "is not trivially scoped , launch one read-only"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/discover.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-discover.md",
+        "03-slice-discover-<X>.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [
+        "each is a separate read-only sub-agent dispatch (per",
+        "heading: research sub-agent 1 evidence for",
+        "heading: research sub-agent 2 evidence against",
+        "heading: research sub-agent 3 counter-hypotheses",
+        "launch all three sub-agents simultaneously."
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/extend.md": {
+      "artifacts": [
+        "00-index.md",
+        "02-shape.md",
+        "03-slice-<X>.md",
+        "03-slice.md",
+        "04-plan-<X>.md",
+        "05-implement-<X>.md",
+        "07-review-<X>.md",
+        "10-retro.md"
+      ],
+      "gates": [
+        "1. resolve the slug. the intake dispatcher consumed",
+        "ask 4 8 targeted questions as gate questions"
+      ],
+      "stops": [
+        "if no qualifying findings exist, do not stop",
+        "stop: \" <slug has no slice roster yet",
+        "stop: \" <slug is a <type analysis workflow",
+        "when the user declines, stop."
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/fix.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-fix.md",
+        "01-quick.md",
+        "02-shape.md",
+        "02b-design.md",
+        "03-slice-fix-<X>.md",
+        "03-slice.md",
+        "04-plan.md",
+        "05-implement.md",
+        "06-verify.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [
+        "heading: research sub-agent 1 codebase grounding",
+        "heading: research sub-agent 2 web freshness (skip if pure internal change)"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/hotfix.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-hotfix.md",
+        "02-shape.md",
+        "03-slice-hotfix-<X>.md",
+        "03-slice.md",
+        "04-plan.md",
+        "05-implement.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [
+        "heading: research sub-agent 1 root cause investigation",
+        "heading: research sub-agent 2 impact & scope",
+        "launch parallel sub-agents to identify root cause."
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/ideate.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-ideate.md",
+        "02-shape.md",
+        "03-slice-ideate-<X>.md",
+        "03-slice.md",
+        "04-plan.md",
+        "05-implement.md",
+        "10-retro.md"
+      ],
+      "gates": [
+        "then ask which ideas to pursue. a gate"
+      ],
+      "stops": [
+        "- if you catch yourself starting to implement"
+      ],
+      "dispatches": [
+        "launch exploration sub-agents in parallel."
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/investigate.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-investigate.md",
+        "02-shape.md",
+        "03-slice-investigate-<X>.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [
+        "each is a separate read-only sub-agent dispatch (per",
+        "heading: research sub-agent 1 architecture cartographer",
+        "heading: research sub-agent 2 option generator",
+        "heading: research sub-agent 3 tradeoff characterizer",
+        "three sub-agents, dispatched in two waves: the cartographer"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/modernize.md": {
+      "artifacts": [
+        "00-index.md"
+      ],
+      "gates": [
+        "/wf intake <slug modernize dry-run stops here and"
+      ],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/rca.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-rca.md",
+        "02-shape.md",
+        "03-slice-rca-<X>.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [
+        "heading: research sub-agent 1 code path investigation",
+        "heading: research sub-agent 2 recent change correlation",
+        "heading: research sub-agent 3 blast radius",
+        "launch parallel read-only sub-agents to identify the root"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/refactor.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-refactor.md",
+        "02-shape.md",
+        "03-slice-refactor-<X>.md",
+        "03-slice.md",
+        "04-plan.md",
+        "05-implement.md"
+      ],
+      "gates": [
+        "if coverage gaps are significant: ask per the",
+        "step 0 orient (mandatory) 1. resolve slug and"
+      ],
+      "stops": [
+        "on proceed, route to /wf implement <slug (one"
+      ],
+      "dispatches": [
+        "first launch one sub-agent to research the target",
+        "heading: research sub-agent 1 code state snapshot",
+        "heading: research sub-agent 2 test coverage snapshot",
+        "launch parallel sub-agents."
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/intake/update-deps.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-update-deps.md",
+        "02-shape.md",
+        "03-slice-update-deps-<X>.md",
+        "03-slice.md",
+        "04-plan.md",
+        "05-implement.md",
+        "06-verify.md",
+        "07-review.md"
+      ],
+      "gates": [
+        "step 6 gate before implement (mandatory) apply the"
+      ],
+      "stops": [
+        "--audit-only run scan + research + plan only",
+        "stop, printing: \"audit saved."
+      ],
+      "dispatches": [
+        "for each package that needs updating, launch parallel"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/observability.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [
+        "no token or unknown token stop."
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/observability/audit.md": {
+      "artifacts": [],
+      "gates": [
+        "before finalizing, triage each blocker and high open"
+      ],
+      "stops": [
+        "read .ai/observability.md . stop if missing: \"no observability"
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/observability/build.md": {
+      "artifacts": [],
+      "gates": [
+        "the gate (classes 3 4, whenever a remote/billable",
+        "then confirm (as a gate question per _gate-question.md):"
+      ],
+      "stops": [
+        "read .ai/observability.md . stop if missing: \"no observability"
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/observability/init.md": {
+      "artifacts": [],
+      "gates": [
+        "now run the hypothesis confirm loop. for each",
+        "present a summary of the confirmed decisions (schema"
+      ],
+      "stops": [
+        "if one exists, stop and tell the user",
+        "if one exists, stop: \"observability contract exists at",
+        "stop if .ai/observability.md already exists."
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/plan.md": {
+      "artifacts": [
+        "00-index.md",
+        "02-shape.md",
+        "02b-design.md",
+        "02c-craft.md",
+        "03-slice-<X>.md",
+        "03-slice.md",
+        "04-plan-<X>.html.fragment",
+        "04-plan-<X>.md",
+        "04-plan-<X>.yaml",
+        "04-plan.md",
+        "04-plan.yaml",
+        "04b-instrument.md",
+        "04c-experiment.md",
+        "05-implement-<X>.md",
+        "05c-benchmark.md",
+        "07-review.md"
+      ],
+      "gates": [
+        "\"known limitation document at handoff\" is illegal wording",
+        "do this in order: 1. determine planning mode",
+        "step 0 orient (mandatory do this before all",
+        "workflow rules - store artifacts under .ai/workflows/<slug /"
+      ],
+      "stops": [
+        "- if any prerequisite shows status: awaiting input",
+        "- if the block is missing entirely stop.",
+        "- if you catch yourself implementing, stop and",
+        "if missing stop."
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant",
+        "dispatch one fresh-context review sub-agent (the same sub-agent",
+        "heading: research sub-agent 1 affected code deep dive",
+        "heading: research sub-agent 2 second domain (only if the slice crosses domain boundaries)",
+        "heading: research sub-agent 3 test & verification infrastructure",
+        "heading: web research sub-agent dependencies & external knowledge",
+        "launch one review sub-agent per slice in parallel.",
+        "launch one sub-agent per slice.",
+        "launch parallel sub-agents to gather information before writing",
+        "launch this sub-agent for every slice. skip only",
+        "parallel plan mode (new, all): launch one sub-agent"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/probe.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-probe.md",
+        "01-quick.md",
+        "01-rca.md",
+        "03-slice-probe-<X>.md",
+        "03-slice.md",
+        "04-plan.md"
+      ],
+      "gates": [
+        "1. run git branch --show-current . call the"
+      ],
+      "stops": [],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/recap.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-intake.md",
+        "02-shape.md",
+        "03-slice-<X>.md",
+        "03-slice.md",
+        "04-plan-<X>.md",
+        "04-plan.md",
+        "05-implement-<X>.md",
+        "06-verify-<X>.md",
+        "07-review-<X>.md",
+        "90-recap.md"
+      ],
+      "gates": [
+        "1. resolve the first token (polymorphic, first match"
+      ],
+      "stops": [
+        "- neither stop: \" <token is not a",
+        "if a second token is passed with a",
+        "if none stop: \"no workflows found.",
+        "if the roster is empty stop: \"no workflows"
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/retro.md": {
+      "artifacts": [
+        "00-index.md",
+        "02-shape.md",
+        "02b-design.md",
+        "02c-craft.md",
+        "05-implement-<X>.md",
+        "05-implement-auth.md",
+        "05-implement.md",
+        "07-design-audit.md",
+        "07-design-critique.md",
+        "08-handoff.md",
+        "09-ship.md",
+        "10-retro-<X>.md",
+        "10-retro.md"
+      ],
+      "gates": [
+        "classify each learning about-the-project vs about-the-workflow . a",
+        "workflow rules - store artifacts under .ai/workflows/<slug /"
+      ],
+      "stops": [
+        "- if you catch yourself about to start",
+        "if none stop: \"no workflows are on branch",
+        "if nothing exists beyond intake stop."
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant",
+        "heading: analysis sub-agent 1 implementation & verification friction",
+        "heading: analysis sub-agent 2 review & handoff quality",
+        "heading: research sub-agent 3 repo infrastructure improvement opportunities",
+        "when the workflow trail is large or spans"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/review.md": {
+      "artifacts": [
+        "00-index.md"
+      ],
+      "gates": [
+        "sweep execution (parallel sub-agent dispatch) 1. resolve the"
+      ],
+      "stops": [],
+      "dispatches": [
+        "/wf review <slug runs the lifecycle review stage",
+        "above a mandatory gate, and inject the relevant",
+        "aggregate keys (reached via /wf review sweep <aggregate",
+        "sub-agent you dispatch.",
+        "sweep execution (parallel sub-agent dispatch)"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/review/_stage.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-fix.md",
+        "01-hotfix.md",
+        "01-intake.md",
+        "01-quick.md",
+        "01-rca.md",
+        "01-refactor.md",
+        "01-update-deps.md",
+        "02-shape.md",
+        "02b-design.md",
+        "02c-craft.md",
+        "03-slice-<X>.md",
+        "03-slice.md",
+        "04-plan-<X>.md",
+        "04-plan.md",
+        "04b-instrument.md",
+        "04c-experiment.md",
+        "05-implement-<X>.md",
+        "05-implement.md",
+        "05c-benchmark.md",
+        "06-verify-<X>.md",
+        "06-verify.md",
+        "07-design-audit.md",
+        "07-design-critique.md",
+        "07-review-<X>.md",
+        "07-review-correctness.md",
+        "07-review-security.md",
+        "07-review.md"
+      ],
+      "gates": [
+        "1. resolve slug from the first argument. read",
+        "after the merge, present findings that need a",
+        "ask a gate question per _gate-question.md with multiselect:",
+        "ask one gate question per finding (_gate-question.md), batching"
+      ],
+      "stops": [
+        "- if verify shows status: awaiting input stop.",
+        "- if you catch yourself reviewing code directly,",
+        "if missing stop: \"run /wf implement <slug first.\"",
+        "if you catch yourself fixing code outside step",
+        "run /wf review <slug [<slice ] for a",
+        "stop cleanly: \"this is a task workflow resume",
+        "stop cleanly: \"this is an audit workflow its",
+        "then stop do not continue to the full"
+      ],
+      "dispatches": [
+        "- do not auto-loop within this invocation :",
+        "- do not run reviews yourself select review",
+        "- your job: orient read existing ledger gather",
+        "dispatch a fix sub-agent for every finding triaged",
+        "dispatch fix sub-agents once this invocation, record each",
+        "dispatch one sub-agent at medium effort with write",
+        "each sub-agent receives this prompt (substitute the per-slice",
+        "for each selected command, dispatch one sub-agent at",
+        "step 3: dispatch parallel sub-agents"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/review/accessibility.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "are there media elements? (videos, audio,",
+        "color-only information conveyance is med :",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line",
+        "incorrect aria usage is high :",
+        "keyboard traps are blocker : focus",
+        "missing alt text on informative images",
+        "missing focus indicators is med :",
+        "missing form labels is high :",
+        "non-keyboard-accessible interactive elements are high :",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "what assistive technologies must be supported?",
+        "what browsers/platforms are supported? (affects screen",
+        "what is the form complexity? (multi-step",
+        "what is the target wcag compliance",
+        "what types of interactive components are"
+      ]
+    },
+    "skills/wf/reference/review/api-contracts.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "are there api docs? (openapi/swagger spec?",
+        "breaking changes without version bump are",
+        "changed response schemas are high :",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line",
+        "incompatible error responses are med :",
+        "is there a compatibility test suite?",
+        "missing api documentation is high :",
+        "public api without versioning is blocker",
+        "removed fields without deprecation period is",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "what is the breaking change process?",
+        "what is the deprecation timeline? (how",
+        "what is the versioning policy? (semver,",
+        "who are the api consumers? (internal"
+      ]
+    },
+    "skills/wf/reference/review/architecture.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "boundary violations are blocker : direct",
+        "circular dependencies are blocker : module",
+        "confidence: high / med / low",
+        "coupling assessment : quantify coupling (how",
+        "evidence-first : every finding includes file:line",
+        "god objects are high : classes/modules",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "what are the architectural boundaries? (layers,",
+        "what are the dependency rules? (can",
+        "what are the extension points? (how",
+        "what are the invariants? (rules that",
+        "what coupling is acceptable? (shared types,"
+      ]
+    },
+    "skills/wf/reference/review/backend-concurrency.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "can two transactions deadlock on these",
+        "concurrency pattern : identify specific pattern",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line-range",
+        "fix with code : provide thread-safe",
+        "is the transaction isolation level sufficient?",
+        "is this operation atomic? or can",
+        "race scenario : show concrete interleaving",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "what happens if two requests execute",
+        "what if this request is retried"
+      ]
+    },
+    "skills/wf/reference/review/ci.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "code injection is blocker : unsanitized",
+        "confidence: high / med / low",
+        "deployment without tests is high :",
+        "evidence-first : every finding includes file:line",
+        "how is the pipeline triggered? (pr,",
+        "missing security scans is high :",
+        "secret exposure is blocker : hardcoded",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "what are the security boundaries? (public",
+        "what can go wrong in deployment?",
+        "what secrets are needed? (are they",
+        "what's the blast radius of a"
+      ]
+    },
+    "skills/wf/reference/review/code-simplification.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "before-after sketch : show what the",
+        "codebase-aware : search the existing codebase",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line-range",
+        "no auto-fixing : report only the",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med"
+      ]
+    },
+    "skills/wf/reference/review/correctness.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line-range",
+        "failure scenario : show concrete input/state",
+        "invariants explicit : list what must",
+        "patch suggestions : include fix for",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "what error conditions are unhandled or",
+        "what happens on retry, concurrent access,",
+        "what inputs will break this code?",
+        "what invariants can be violated?"
+      ]
+    },
+    "skills/wf/reference/review/cost.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "are there cost budgets? (monthly budget,",
+        "are there reserved instances/commitments? (reserved capacity",
+        "confidence: high / med / low",
+        "data transfer across regions is med",
+        "evidence-first : every finding includes file:line",
+        "expensive operations in hot paths are",
+        "missing cost tags/labels is low :",
+        "missing resource cleanup is high :",
+        "oversized resource allocations are med :",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "unbounded resource creation is blocker :",
+        "what are the major cost centers?",
+        "what is the cloud provider? (aws,",
+        "what is the cost monitoring setup?",
+        "what is the expected traffic/scale? (requests/sec,"
+      ]
+    },
+    "skills/wf/reference/review/data-integrity.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "confidence: high / med / low",
+        "eventual consistency without conflict resolution is",
+        "evidence-first : every finding includes file:line",
+        "how are conflicts resolved? (last-write-wins, merge",
+        "invariant violations are high : business",
+        "lost update patterns are high :",
+        "missing idempotency for retries is high",
+        "missing transactions for multi-step writes is",
+        "race conditions on shared data are",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "what are the concurrent access patterns?",
+        "what are the critical invariants? (balances",
+        "what are the transactional guarantees? (acid",
+        "what happens on retry? (are operations",
+        "what is the consistency model? (strong"
+      ]
+    },
+    "skills/wf/reference/review/docs.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "are examples realistic and copy-pasteable?",
+        "are setup/config instructions still accurate?",
+        "boundary discipline : flag pages that",
+        "can a reader who didn't write",
+        "confidence: high / med / low",
+        "diátaxis fit : is each doc",
+        "diátaxis type classification : every existing",
+        "does terminology match between code and",
+        "evidence-first : every finding shows what",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "show the gap : quote code",
+        "suggest documentation : provide example text",
+        "system coverage : is there a",
+        "verify accuracy : check existing docs",
+        "what user-visible behavior changed? is it"
+      ]
+    },
+    "skills/wf/reference/review/dx.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "broken local development is high :",
+        "confidence: high / med / low",
+        "cryptic error messages are high :",
+        "evidence-first : every finding includes specific",
+        "missing setup documentation is blocker :",
+        "missing troubleshooting docs are med :",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "slow build/test cycles are med :",
+        "unclear contribution process is low :",
+        "what are build/test times? (seconds, minutes,",
+        "what are common pain points? (known",
+        "what debugging tools are available? (debugger",
+        "what is the ci/cd feedback loop?",
+        "what is the local development setup?",
+        "what is the onboarding process? (what"
+      ]
+    },
+    "skills/wf/reference/review/frontend-accessibility.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "are custom components keyboard accessible?",
+        "are form errors announced to screen",
+        "can keyboard-only users complete all tasks?",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line-range",
+        "fix with code : provide accessible",
+        "is focus managed correctly on route",
+        "screen reader impact : describe what",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "wcag mapping : every finding references",
+        "will screen readers announce dynamic changes?"
+      ]
+    },
+    "skills/wf/reference/review/frontend-performance.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "blocking main thread 50ms is high",
+        "bundle size increase 50kb is blocker",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line",
+        "excessive re-renders are high : components",
+        "is there performance monitoring? (real user",
+        "missing code-splitting for routes is high",
+        "missing memoization in loops is med",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "unoptimized images are med : large",
+        "what are current metrics? (baseline lcp,",
+        "what are target devices? (mobile-first, desktop,",
+        "what are the performance budgets? (bundle",
+        "what build tool? (webpack, vite, rollup,",
+        "what framework is used? (react, vue,"
+      ]
+    },
+    "skills/wf/reference/review/infra-security.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "attack scenario : show concrete exploitation",
+        "blast radius : describe what attacker",
+        "can an attacker access production data",
+        "can an attacker pivot from this",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line-range",
+        "fix with code : provide secure",
+        "is this configuration defensible in a",
+        "is this secret exposed in logs,",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "what's the blast radius if this"
+      ]
+    },
+    "skills/wf/reference/review/infra.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line",
+        "missing backups/disaster recovery is high :",
+        "overly broad iam is blocker :",
+        "public exposure is blocker : resources",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "unencrypted data at rest is high",
+        "what permissions are granted? (iam roles,",
+        "what's exposed to the internet? (public",
+        "what's the blast radius? (what happens",
+        "what's the data sensitivity? (pii, credentials,",
+        "what's the disaster recovery plan? (backups,"
+      ]
+    },
+    "skills/wf/reference/review/intent-fidelity.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-intake.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "evidence-first : every finding cites file:line",
+        "name the directive, not a vibe",
+        "severity + confidence on every finding."
+      ]
+    },
+    "skills/wf/reference/review/interface-craft.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "confidence: high / med / low",
+        "does the project use a motion",
+        "dynamic number without tabular-nums is med",
+        "evidence-first : every finding includes a",
+        "interactive target below ~40×40px with no",
+        "is there a design-token system? (spacing",
+        "light, dark, or both? (image outlines",
+        "mismatched nested radius is med :",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "tinted image outline / near-black border",
+        "transition: all is med : it",
+        "what is the styling system? (tailwind,"
+      ]
+    },
+    "skills/wf/reference/review/logging.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "category : every finding names one",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes a",
+        "remediation : every blocker or high",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med"
+      ]
+    },
+    "skills/wf/reference/review/maintainability.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "are conventions consistent enough that patterns",
+        "change scenario : show what kind",
+        "confidence: high / med / low",
+        "cost/benefit : only suggest refactors that",
+        "evidence-first : every finding includes file:line-range",
+        "how easy is it to add",
+        "how easy is it to change",
+        "how easy is it to understand",
+        "refactor suggestions : smallest improvement first,",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med"
+      ]
+    },
+    "skills/wf/reference/review/migrations.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "breaking schema changes are high :",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line",
+        "is zero-downtime required? (production requirements for",
+        "locking migrations on large tables are",
+        "missing indexes on foreign keys are",
+        "missing migration dependencies are med :",
+        "non-reversible migrations are blocker : migrations",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "unsafe default values are med :",
+        "what are table sizes? (migrations on",
+        "what is the application deployment order?",
+        "what is the database? (postgresql, mysql,",
+        "what is the deployment model? (blue-green,",
+        "what is the rollback strategy? (can"
+      ]
+    },
+    "skills/wf/reference/review/motion.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "animating layout properties ( width /",
+        "animation on a keyboard-initiated or 100×/day",
+        "are any of these gesture-driven? (drawers,",
+        "confidence: high / med / low",
+        "ease-in on a ui interaction is",
+        "evidence-first : every finding includes a",
+        "how often will a user see",
+        "is there a prefers-reduced-motion strategy?",
+        "keyframes on a rapidly-triggered or gesture-driven",
+        "missing prefers-reduced-motion handling on movement/position animation",
+        "scale(0) or pure- opacity entrance with",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "ui duration 300ms with no stated",
+        "what is the register brand or",
+        "what motion library is in play?"
+      ]
+    },
+    "skills/wf/reference/review/observability.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "category : every finding names one",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes a",
+        "impact : every finding states the",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med"
+      ]
+    },
+    "skills/wf/reference/review/overengineering.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "call out assumptions : where you",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line-range",
+        "patch suggestions : include unified diff",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "smallest fix first : provide the",
+        "what is the simplest design that",
+        "what parts are speculative (yagni) or",
+        "where did we add new concepts"
+      ]
+    },
+    "skills/wf/reference/review/performance.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "blocking i/o in request handlers is",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line",
+        "memory leaks are high : unbounded",
+        "n+1 queries are high : multiple",
+        "o(n²) or worse in hot path",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "what's already slow? (existing performance issues,",
+        "what's the concurrency? (single user, 1000",
+        "what's the data size? (100 records,",
+        "what's the hot path? (user-facing operations,",
+        "what's the latency budget? (p50, p95,"
+      ]
+    },
+    "skills/wf/reference/review/privacy.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "compliance impact : map to gdpr/ccpa/hipaa",
+        "confidence: high / med / low",
+        "data flow : show what data",
+        "evidence-first : every finding includes file:line",
+        "remediation : provide privacy-preserving alternative",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med"
+      ]
+    },
+    "skills/wf/reference/review/refactor-safety.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "are performance characteristics equivalent?",
+        "are side effects exactly the same",
+        "behavior drift proof : show concrete",
+        "confidence: high / med / low",
+        "do error paths behave identically?",
+        "does this behave identically to the",
+        "equivalence analysis : explicitly state what",
+        "evidence-first : every finding includes file:line-range",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "side-by-side comparison : before/after code for",
+        "what edge cases might expose semantic"
+      ]
+    },
+    "skills/wf/reference/review/release.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "breaking changes without migration plan is",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line",
+        "missing version bump is high :",
+        "no rollback plan is high :",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "undocumented breaking changes is high :",
+        "what breaks compatibility? (api changes, schema",
+        "what's the migration path? (for users",
+        "what's the rollback plan? (how to",
+        "what's the rollout strategy? (all-at-once, canary,",
+        "what's the testing coverage? (smoke tests,"
+      ]
+    },
+    "skills/wf/reference/review/reliability.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line",
+        "ignored promise rejections are med :",
+        "missing circuit breakers are med :",
+        "missing error handling in critical paths",
+        "missing timeouts on external calls are",
+        "retry without exponential backoff is blocker",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "single point of failure without fallback",
+        "what are critical paths? (payment processing,",
+        "what are the retry policies? (max",
+        "what are the slos? (99.9% uptime,",
+        "what dependencies exist? (databases, apis, queues",
+        "what is the failure tolerance? (graceful",
+        "what monitoring exists? (error rates, latency,"
+      ]
+    },
+    "skills/wf/reference/review/scalability.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line",
+        "missing caching for expensive operations is",
+        "missing indexes on high-traffic queries are",
+        "o(n²) or worse in user-facing paths",
+        "resource exhaustion patterns are med :",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "shared state preventing horizontal scaling is",
+        "unbounded loops/queries are blocker : select",
+        "what are the current bottlenecks? (database,",
+        "what database technology is used? (postgresql,",
+        "what is the caching strategy? (redis,",
+        "what is the expected scale? (current",
+        "what is the multi-tenancy model? (shared",
+        "what is the scaling strategy? (horizontal"
+      ]
+    },
+    "skills/wf/reference/review/security.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line",
+        "exploit scenario : show concrete attack",
+        "remediation : provide secure code alternative",
+        "risk assessment : impact if exploited",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med"
+      ]
+    },
+    "skills/wf/reference/review/ste-compliance.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "ambiguity that can change what a",
+        "evidence-first : every finding includes file:line",
+        "non-imperative instructions in procedures are med",
+        "propose the rewrite : every finding",
+        "register mechanics are low/nit (w3 w6,",
+        "severity + confidence on every finding",
+        "terminology drift is med (w1, s5):"
+      ]
+    },
+    "skills/wf/reference/review/style-consistency.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "autofix when possible : provide exact",
+        "can this be automated with linter/formatter?",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line-range",
+        "if inconsistent, which pattern should we",
+        "is the new code consistent with",
+        "no bikeshedding : only flag deviations",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "show the pattern : include examples",
+        "what patterns exist in the codebase"
+      ]
+    },
+    "skills/wf/reference/review/supply-chain.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "confidence: high / med / low",
+        "cve/advisory mapping : link to known",
+        "evidence-first : every finding includes file:line",
+        "remediation : provide secure alternative",
+        "risk scenario : show attack vector",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med"
+      ]
+    },
+    "skills/wf/reference/review/testing.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "are tests asserting behavior (outputs) or",
+        "are tests at the right level",
+        "are tests readable and maintainable?",
+        "can tests fail spuriously (flakiness)?",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line-range",
+        "flakiness evidence : show specific race",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "show the gap : identify untested",
+        "suggest test cases : provide example",
+        "what behavior changed? is it tested?"
+      ]
+    },
+    "skills/wf/reference/review/ux-copy.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": [
+        "blame/negative language is high : \"you",
+        "confidence: high / med / low",
+        "evidence-first : every finding includes file:line",
+        "inconsistent terminology is med : same",
+        "is localization planned? (english-only vs i18n,",
+        "jargon without explanation is med :",
+        "missing microcopy is low : no",
+        "non-actionable error messages are high :",
+        "severity + confidence : every finding",
+        "severity: blocker / high / med",
+        "unclear calls-to-action is med : buttons/links",
+        "what are error recovery patterns? (inline",
+        "what is the brand voice? (any",
+        "what is the error philosophy? (detailed",
+        "what is the product tone? (professional/formal,",
+        "who is the target audience? (developers,"
+      ]
+    },
+    "skills/wf/reference/runtime-adapters.md": {
+      "artifacts": [
+        "02-shape.md"
+      ],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/shape.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-intake.md",
+        "02-shape-<X>.md",
+        "02-shape.md",
+        "02-shape.yaml",
+        "02b-design.md",
+        "02c-craft.md",
+        "03-slice.md",
+        "04b-instrument.md",
+        "04c-experiment.md",
+        "05c-benchmark.md"
+      ],
+      "gates": [
+        "- ask 20 baseline questions as gate questions",
+        "1. collect the sub-agent results. if they have",
+        "one row per intake known constraint / directive",
+        "workflow rules (standing these are not sequenced steps)"
+      ],
+      "stops": [
+        "- if 01-intake.md shows status: awaiting input stop.",
+        "- if you catch yourself solving the problem,",
+        "if missing stop: \"run /wf intake first.\"",
+        "stop, backfill : re-derive candidate rims"
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant",
+        "heading: research sub-agent 1 codebase architecture & integration surface",
+        "heading: research sub-agent 2 external dependencies & freshness",
+        "sub-agent 1 (codebase) launches always. sub-agent 2 (web",
+        "when in doubt: launch sub-agent 2. web search"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/ship-plan.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [
+        "no token or unknown token stop."
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/ship-plan/audit.md": {
+      "artifacts": [],
+      "gates": [
+        "before finalizing, triage each blocker and high open"
+      ],
+      "stops": [
+        "read .ai/ship-plan.md . stop if missing: \"no ship"
+      ],
+      "dispatches": [
+        "default (no lens token) full parallel fan-out. dispatch",
+        "mandatory gate, and inject the relevant entries into"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/ship-plan/build.md": {
+      "artifacts": [],
+      "gates": [
+        "build's outputs are release-critical code that no lifecycle",
+        "then ask a gate question per _gate-question.md:",
+        "then branch on apply-via : - apply-via: manual"
+      ],
+      "stops": [
+        "- route to a review slice (recommended when",
+        "read .ai/ship-plan.md . stop if missing: \"no ship"
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/ship-plan/edit.md": {
+      "artifacts": [],
+      "gates": [
+        "ask a gate question per _gate-question.md:",
+        "present a diff-style summary as gate questions per"
+      ],
+      "stops": [
+        "if not, stop: \"no ship plan exists."
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/ship-plan/init.md": {
+      "artifacts": [
+        "08-handoff.md"
+      ],
+      "gates": [
+        "1. state the inferred value + the evidence",
+        "ask the user (as a gate question per",
+        "present a summary table to the user as",
+        "this command therefore runs three loops: 1. discovery"
+      ],
+      "stops": [
+        "if an unknown kind, stop and list the",
+        "if one exists, stop and tell the user:",
+        "stop if .ai/ship-plan.md already exists."
+      ],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/ship-plan/ship-plan-templates/container-image.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/ship-plan/ship-plan-templates/kotlin-maven-central.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/ship-plan/ship-plan-templates/library-internal.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/ship-plan/ship-plan-templates/npm-public.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/ship-plan/ship-plan-templates/pypi.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/ship-plan/ship-plan-templates/server-deploy.md": {
+      "artifacts": [],
+      "gates": [],
+      "stops": [],
+      "dispatches": [],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/ship.md": {
+      "artifacts": [
+        "00-index.md",
+        "07-review-<X>.md",
+        "08-handoff.md",
+        "09-rollback-<X>.md",
+        "09-ship-run-<X>.html.fragment",
+        "09-ship-run-<X>.md",
+        "09-ship-run-<X>.yaml",
+        "09-ship-run.md",
+        "09-ship-run.yaml",
+        "09-ship-runs.md",
+        "09-ship.md"
+      ],
+      "gates": [
+        "1. plugin-seeded files claude.md whose diff is entirely",
+        "1.2 determine version. per plan.version-bump-rule : - git-cliff",
+        "3.1 rollout-strategy. default is plan.rollout-strategy . fallback: a",
+        "8.4 on failure: match the failure log against"
+      ],
+      "stops": [
+        "- if a step cannot finish, set status:",
+        "2.3 record publish-dry-run-passed: true (or false with the",
+        "a hit means the branch's release identity is",
+        "a run paused before the go/no-go gate is",
+        "announce re-run shortcut. if the second positional is",
+        "blocked (usually unresolved review threads under required_conversation_resolution )",
+        "detect --init-plan flag. if present, print and stop:",
+        "everything else stop and ask the user to",
+        "if any entry is still open, stop with:",
+        "if dirty, do not blanket-stop classify every dirty",
+        "if missing or ≠ ready , stop: \"handoff",
+        "if ≠ ready , stop and print the",
+        "in batch mode the pr/branch fields must agree",
+        "it resolves the missing-plan gate and the plan-drift",
+        "offer: route to a review slice first (recommended;",
+        "rollback shortcut. if the second positional is exactly",
+        "ship-plan-readiness: <ok acknowledged amended-inline ship-plan pre-check verdict (step"
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/ship/announce.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-intake.md",
+        "02-shape.md",
+        "08-handoff.md",
+        "09-ship-run-<X>.md",
+        "09-ship.md"
+      ],
+      "gates": [
+        "1. resolve the slug from $arguments (first argument).",
+        "ask about audience and delivery channel in one"
+      ],
+      "stops": [
+        "- if you catch yourself about to fix",
+        "if nothing exists stop: \"no handoff or ship"
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/ship/rollback.md": {
+      "artifacts": [
+        "00-index.md",
+        "09-rollback-<X>.md",
+        "09-ship-run-<X>.md",
+        "09-ship-runs.md"
+      ],
+      "gates": [],
+      "stops": [
+        "- no completed run at all stop: \"no",
+        "- status: awaiting-input stop: \"run <run-id is paused",
+        "- status: rolled-back stop: \"run <run-id was already",
+        "blocking, stop (re-invoking resumes at the first row",
+        "stop after writing."
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/simplify.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-simplify.md",
+        "01-simplify.yaml",
+        "03-slice-simplify-<X>.md",
+        "03-slice.md",
+        "04-plan-<X>.md",
+        "04-plan.md"
+      ],
+      "gates": [
+        "present the table to the user as gate"
+      ],
+      "stops": [
+        "- if you catch yourself about to make",
+        "if missing, stop: \"no plan found at <path"
+      ],
+      "dispatches": [
+        "1·resolve-scope 2·dispatch (3 sub-agents in parallel) 3·aggregate +",
+        "above a mandatory gate, and inject the relevant",
+        "dispatch shape three parallel sub-agents same",
+        "dispatches three parallel sub-agents (code reuse, code quality,",
+        "mandatory : dispatch all three sub-agents in one",
+        "step 2 dispatch three sub-agents in parallel"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/slice.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-intake.md",
+        "02-shape.md",
+        "02b-design.md",
+        "02c-craft.md",
+        "03-slice-<X>.md",
+        "03-slice-index-<X>.md",
+        "03-slice-index.md",
+        "03-slice.md",
+        "04-plan-<X>.md",
+        "05-implement-<X>.md",
+        "07-review-<X>.md",
+        "07-review.md"
+      ],
+      "gates": [
+        "2. run freshness research only where external constraints",
+        "do this in order: 1. discovery phase ask",
+        "step 0 orient (mandatory do this before all",
+        "workflow rules - store artifacts under .ai/workflows/<slug /"
+      ],
+      "stops": [
+        "- if 02-shape.md shows status: awaiting input stop.",
+        "- if the block is missing entirely stop.",
+        "- if you catch yourself about to start",
+        "if missing stop."
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/status.md": {
+      "artifacts": [
+        "00-index.md",
+        "00-sync.md",
+        "00-sync.yaml",
+        "01-intake.md",
+        "02-shape.md",
+        "07-review-<X>.md",
+        "08-handoff.md"
+      ],
+      "gates": [],
+      "stops": [
+        "- if you catch yourself about to modify",
+        "render the roster and stop:",
+        "start one with /wf intake <description .\" stop.",
+        "to list all workflows.\" stop.",
+        "workflows are on branch <branch .\" stop."
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/task.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-task.md",
+        "03-slice-task-<X>.md",
+        "05-implement.md",
+        "06-verify.md",
+        "10-retro.md"
+      ],
+      "gates": [
+        "[gate] apply the blast-radius table as a gate"
+      ],
+      "stops": [
+        "no written policy resolves these unattended the non-interactive",
+        "the bottom three rows always stop; their non-interactive"
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/verify.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-fix.md",
+        "01-hotfix.md",
+        "01-quick.md",
+        "01-rca.md",
+        "01-refactor.md",
+        "02-shape.md",
+        "02b-design.md",
+        "02c-craft.md",
+        "03-slice-<X>.md",
+        "03-slice.md",
+        "04-plan-<X>.md",
+        "04-plan.md",
+        "04b-instrument.md",
+        "04c-experiment.md",
+        "05-implement-<X>.md",
+        "05-implement.md",
+        "05c-benchmark.md",
+        "06-verify-<X>.md",
+        "06-verify.md",
+        "07-design-audit.md",
+        "07-design-critique.md",
+        "07-review-<X>.md"
+      ],
+      "gates": [
+        "critical execution discipline you are a workflow orchestrator",
+        "do this in order: 1. confirm the selected",
+        "for each remaining issue, ask the gate question",
+        "step 0 orient (mandatory do this before all",
+        "workflow rules - store artifacts under .ai/workflows/<slug /"
+      ],
+      "stops": [
+        "- all modes: if implement record shows status:",
+        "- if stack: is missing entirely stop: \"stack",
+        "- if you catch yourself about to start",
+        "absorbing a deferral into a third slice is",
+        "re-run the ownership triage at the stop, do",
+        "stop and direct the user back to /wf",
+        "stop stop."
+      ],
+      "dispatches": [
+        "- your only output is the workflow artifacts,",
+        "above a mandatory gate, and inject the relevant",
+        "compact recommended if verify was lengthy test output,",
+        "dispatch a fix sub-agent for every issue triaged",
+        "dispatch one sub-agent at medium effort with write",
+        "heading: functional sub-agent 1 static analysis & build",
+        "heading: functional sub-agent 2 test execution",
+        "heading: functional sub-agent 3 interactive & runtime-truth verification",
+        "heading: functional sub-agent 4 augmentation re-verification (only if 02c-craft.md or 00-index.md augmentations: list is non-empty)",
+        "heading: web research sub-agent 5 freshness: dependencies, ac staleness, and standards drift",
+        "when verification spans multiple concerns, launch parallel sub-agents"
+      ],
+      "rubric-checks": []
+    },
+    "skills/wf/reference/yolo.md": {
+      "artifacts": [
+        "00-index.md",
+        "01-discover.md",
+        "01-fix.md",
+        "01-hotfix.md",
+        "01-intake.md",
+        "01-investigate.md",
+        "01-rca.md",
+        "01-refactor.md",
+        "01-update-deps.md",
+        "02-shape.md",
+        "03-slice.md",
+        "04-plan.md",
+        "05-implement.md",
+        "06-verify.md",
+        "07-review.md"
+      ],
+      "gates": [],
+      "stops": [
+        "- always emit , even on a hard-stop",
+        "- hard-stop: the gate that fired and the",
+        "a deferral that arrives with no probe receipt",
+        "a steering entry yolo cannot honor without crossing",
+        "a wall classified code-owned with no scoped resolution",
+        "an unfixable finding is recorded could-not-fix , and",
+        "charter: <omit when no checkpoint ran from outcome.chartercheckpoints:",
+        "gate auto-resolve hard-stop",
+        "hard-stop with outcome.stoppedat = 'charter-checkpoint' ; even an",
+        "honored drives on silently; at-risk drives on but",
+        "if not, stop: \"no workflow <slug .",
+        "if the slug is empty, infer it from",
+        "if the user gave a description instead of",
+        "intent-bearing decision (per _decision-classes.md) never autonomous. stop: record",
+        "it never stashes or force-switches: a switch or",
+        "run /wf status to list workflows, or /wf",
+        "two tiers: auto-resolve (proceed, recording the decision into",
+        "wf yolo complete: <slug [<slice ] (mode: <slug"
+      ],
+      "dispatches": [
+        "above a mandatory gate, and inject the relevant"
+      ],
+      "rubric-checks": []
+    }
+  },
+  "treeWide": {
+    "fields": [
+      "absorbed-by:",
+      "adapters-used:",
+      "announcement-template:",
+      "anti-patterns:",
+      "appetite:",
+      "args:",
+      "assumptions:",
+      "audiences:",
+      "augmentations-needed:",
+      "augmentations:",
+      "based-on:",
+      "because:",
+      "bot-review-status:",
+      "branch-slugs:",
+      "branch:",
+      "cache:",
+      "chain:",
+      "changed:",
+      "changelog-read-through:",
+      "changelog-source:",
+      "channels:",
+      "charter:",
+      "checks:",
+      "chore:",
+      "chosen-at:",
+      "ci-fix-rounds-by-class:",
+      "ci-watch:",
+      "clearing-event:",
+      "clearing-probe:",
+      "cmd:",
+      "comparison:",
+      "comparisons:",
+      "component:",
+      "compressed-slices:",
+      "concurrency:",
+      "constraint-resolution-missing:",
+      "constraint-resolution:",
+      "contract:",
+      "convergence:",
+      "counts:",
+      "decidability:",
+      "decision:",
+      "deprecated:",
+      "dimensions:",
+      "direction:",
+      "docs-generated:",
+      "docs-mirror:",
+      "docs:",
+      "dropped-reason:",
+      "edges:",
+      "enforced-by:",
+      "entry:",
+      "env:",
+      "evidence-quality:",
+      "evidence-rung:",
+      "evidence:",
+      "expect:",
+      "extension-source:",
+      "feat:",
+      "fidelity:",
+      "fields:",
+      "files:",
+      "findings:",
+      "fix:",
+      "flag:",
+      "gates-to-activate:",
+      "handoff-lead:",
+      "harness-declined:",
+      "heatmap:",
+      "history:",
+      "hotspot:",
+      "if:",
+      "inbound-coverage:",
+      "incident:",
+      "intent-risks:",
+      "issue:",
+      "jobs:",
+      "kind:",
+      "lanes:",
+      "learnings-written:",
+      "metric-findings-blocker:",
+      "model:",
+      "module:",
+      "modules:",
+      "needed-by:",
+      "needs:",
+      "new-slices:",
+      "next-steps:",
+      "node-version-file:",
+      "node-version:",
+      "observable:",
+      "on:",
+      "options:",
+      "paths-ignore:",
+      "paths:",
+      "permissions:",
+      "pre-push-checks:",
+      "prefetched-answers:",
+      "progress:",
+      "public-surface:",
+      "rationale:",
+      "recommended-next:",
+      "recommended-references:",
+      "refactor:",
+      "references-loaded:",
+      "refs:",
+      "register:",
+      "repro:",
+      "result:",
+      "rev:",
+      "review-bots:",
+      "review-scope-confirmed:",
+      "review-scope:",
+      "review-settle:",
+      "revisions:",
+      "risk:",
+      "risks:",
+      "role:",
+      "rollback:",
+      "routed-at:",
+      "routes:",
+      "run:",
+      "runs:",
+      "schema-absent-fields:",
+      "schema-modernized-at:",
+      "scope:",
+      "sdlc-debt:",
+      "severity:",
+      "sizes:",
+      "slices:",
+      "source:",
+      "specs:",
+      "stack:",
+      "states:",
+      "status:",
+      "steering-honored:",
+      "suggestion:",
+      "summary:",
+      "tags:",
+      "test:",
+      "themes:",
+      "timeline:",
+      "title:",
+      "tokens:",
+      "uses:",
+      "verdict:",
+      "verify:",
+      "version:",
+      "wall-ownership:",
+      "wrote:"
+    ],
+    "invocations": [
+      "/imagery",
+      "/wf announce",
+      "/wf auto",
+      "/wf auto <X>",
+      "/wf auto myfeat",
+      "/wf benchmark",
+      "/wf close",
+      "/wf close <X>",
+      "/wf design",
+      "/wf design <X>",
+      "/wf design audit",
+      "/wf design colorize",
+      "/wf design harden",
+      "/wf design optimize",
+      "/wf design setup",
+      "/wf design teach",
+      "/wf discover",
+      "/wf discover <X>",
+      "/wf docs",
+      "/wf docs <X>",
+      "/wf docs explanation",
+      "/wf docs how-to",
+      "/wf docs readme",
+      "/wf docs reference",
+      "/wf docs tutorial",
+      "/wf experiment",
+      "/wf handoff",
+      "/wf handoff <X>",
+      "/wf handoff myfeat",
+      "/wf implement",
+      "/wf implement <X>",
+      "/wf implement my-slug",
+      "/wf implement reviews",
+      "/wf instrument",
+      "/wf intake",
+      "/wf intake <X>",
+      "/wf intake adopt",
+      "/wf intake audit",
+      "/wf intake discover",
+      "/wf intake fix",
+      "/wf intake hotfix",
+      "/wf intake ideate",
+      "/wf intake investigate",
+      "/wf intake rca",
+      "/wf intake refactor",
+      "/wf intake update-deps",
+      "/wf lifecycle",
+      "/wf observability",
+      "/wf observability audit",
+      "/wf observability build",
+      "/wf observability init",
+      "/wf plan",
+      "/wf plan <X>",
+      "/wf plan my-slug",
+      "/wf probe",
+      "/wf probe <X>",
+      "/wf probe sweep",
+      "/wf profile",
+      "/wf recap",
+      "/wf recap <X>",
+      "/wf retro",
+      "/wf retro <X>",
+      "/wf review",
+      "/wf review <X>",
+      "/wf review backend-concurrency",
+      "/wf review code-simplification",
+      "/wf review correctness",
+      "/wf review docs",
+      "/wf review frontend-accessibility",
+      "/wf review infra-security",
+      "/wf review intent-fidelity",
+      "/wf review maintainability",
+      "/wf review my-feature",
+      "/wf review overengineering",
+      "/wf review privacy",
+      "/wf review refactor-safety",
+      "/wf review security",
+      "/wf review style-consistency",
+      "/wf review supply-chain",
+      "/wf review sweep",
+      "/wf review testing",
+      "/wf runtime",
+      "/wf shape",
+      "/wf shape <X>",
+      "/wf ship",
+      "/wf ship <X>",
+      "/wf ship-plan",
+      "/wf ship-plan audit",
+      "/wf ship-plan build",
+      "/wf ship-plan edit",
+      "/wf ship-plan init",
+      "/wf simplify",
+      "/wf simplify codebase",
+      "/wf slice",
+      "/wf slice <X>",
+      "/wf status",
+      "/wf status <X>",
+      "/wf status advise",
+      "/wf task",
+      "/wf task <X>",
+      "/wf verify",
+      "/wf verify <X>",
+      "/wf yolo",
+      "/wf yolo <X>"
+    ],
+    "config": [
+      "SDLC_GATE_",
+      "SDLC_GATE_NAME",
+      "hooks.framework",
+      "hooks.hooks",
+      "hooks.mockEvidenceGate",
+      "hooks.validateSiblingYaml",
+      "hooks.verifyDeferralLint",
+      "hooks.verifyResultGate",
+      "semantic.enabled",
+      "solutions.globalDir"
+    ],
+    "citations": [
+      "docs/internal/EVIDENCE-SCHEMA-CONTRACT.md",
+      "reference/artifact-interop.md",
+      "reference/fragment-author-contract.md",
+      "reference/narrative-fragments.md",
+      "skills/diataxis/references/doc-planner.md",
+      "skills/diataxis/references/docs-reviewer.md",
+      "skills/diataxis/references/explanation.md",
+      "skills/diataxis/references/how-to.md",
+      "skills/diataxis/references/readme.md",
+      "skills/diataxis/references/reference.md",
+      "skills/diataxis/references/tutorial.md",
+      "skills/study-sources/references/android.md",
+      "skills/study-sources/references/dotnet.md",
+      "skills/study-sources/references/git-sources.md",
+      "skills/study-sources/references/go.md",
+      "skills/study-sources/references/javascript.md",
+      "skills/study-sources/references/jvm.md",
+      "skills/study-sources/references/native-c-cpp.md",
+      "skills/study-sources/references/python.md",
+      "skills/study-sources/references/ruby-php-swift-dart.md",
+      "skills/study-sources/references/rust.md",
+      "skills/wf/reference/_additive-write.md",
+      "skills/wf/reference/_autonomy-guards.md",
+      "skills/wf/reference/_chat-return.md",
+      "skills/wf/reference/_compressed-slice.md",
+      "skills/wf/reference/_control-file-ownership.md",
+      "skills/wf/reference/_decision-classes.md",
+      "skills/wf/reference/_findings-ledger.md",
+      "skills/wf/reference/_fix-loop.md",
+      "skills/wf/reference/_fragment-authoring.md",
+      "skills/wf/reference/_gate-question.md",
+      "skills/wf/reference/_grounded-progress.md",
+      "skills/wf/reference/_host-invocation.md",
+      "skills/wf/reference/_output-boundary.md",
+      "skills/wf/reference/_pr-ci-handoff.md",
+      "skills/wf/reference/_question-craft.md",
+      "skills/wf/reference/_ship-plan-readiness.md",
+      "skills/wf/reference/_ste-procedural.md",
+      "skills/wf/reference/_steering.md",
+      "skills/wf/reference/_story-arc.md",
+      "skills/wf/reference/_subagents.md",
+      "skills/wf/reference/_surface-defects.md",
+      "skills/wf/reference/_timestamp.md",
+      "skills/wf/reference/augment/wide-event-observability.md",
+      "skills/wf/reference/design/_component-craft.md",
+      "skills/wf/reference/design/_design-context.md",
+      "skills/wf/reference/design/contract.md",
+      "skills/wf/reference/design/shape.md",
+      "skills/wf/reference/intake/_change-mode-tail.md",
+      "skills/wf/reference/intake/default.md",
+      "skills/wf/reference/review.md",
+      "skills/wf/reference/review/_stage.md",
+      "skills/wf/reference/review/supply-chain.md",
+      "skills/wf/reference/runtime-adapters.md",
+      "skills/wf/reference/status.md",
+      "unresolved:skills/wf/reference/<category>/<file>.md",
+      "unresolved:skills/wf/reference/review/CONTRIBUTING.md",
+      "unresolved:skills/wf/reference/review/docs/architecture.md"
+    ]
+  },
+  "counts": {
+    "files": 174,
+    "artifacts": 441,
+    "gates": 82,
+    "stops": 188,
+    "dispatches": 136,
+    "rubric-checks": 424,
+    "fields": 150,
+    "invocations": 104,
+    "config": 10,
+    "citations": 58
+  }
+}
