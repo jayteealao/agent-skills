@@ -155,7 +155,7 @@
         "skills/wf/reference/_question-craft.md": 3,
         "skills/wf/reference/_steering.md": 1,
         "skills/wf/reference/augment/benchmark.md": 3,
-        "skills/wf/reference/augment/experiment.md": 2,
+        "skills/wf/reference/augment/experiment/_artifact.md": 2,
         "skills/wf/reference/augment/instrument.md": 2,
         "skills/wf/reference/augment/instrument/_artifact.md": 2,
         "skills/wf/reference/augment/profile.md": 2,
@@ -342,7 +342,7 @@
       "allowedFiles": {},
       "files": {
         "skills/wf/reference/augment/benchmark.md": 1,
-        "skills/wf/reference/augment/experiment.md": 1,
+        "skills/wf/reference/augment/experiment/_artifact.md": 1,
         "skills/wf/reference/augment/instrument/_artifact.md": 1,
         "skills/wf/reference/augment/profile.md": 1,
         "skills/wf/reference/intake/fix.md": 1,
@@ -354,7 +354,6 @@
   "exceptions": {
     "skills/consult/SKILL.md": 178,
     "skills/wf/reference/augment/benchmark.md": 363,
-    "skills/wf/reference/augment/experiment.md": 311,
     "skills/wf/reference/augment/profile.md": 339,
     "skills/wf/reference/augment/wide-event-observability.md": 918,
     "skills/wf/reference/observability/build.md": 303,
