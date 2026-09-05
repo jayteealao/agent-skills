@@ -27,21 +27,13 @@ This command does NOT start or advance any workflow. It discovers improvement op
 | Produces | A `type: workflow-index` slug workflow: `.ai/workflows/<slug>/01-ideate.md` (`type: ideation` — ranked ideas + adversarial filter log) + a lightweight `00-index.md` (`type: workflow-index`). (Legacy off-pipeline `.ai/ideation/<focus>-<timestamp>.md` runs still render via the retained ideation discovery.) |
 | Next | `/wf intake <idea-title>` — kick off a workflow for any chosen idea |
 
-> **Auto second opinion (objective triggers).** At the terminus, once the ideas are ranked
-> (before Step 6 writes the artifact), **auto-invoke** `/consult codex <widen this idea set and
-> flag blind spots — what did this analysis miss?>` (pinning `codex`/`claude` keeps it free) when
-> ANY of: (a) the ranked list will feed a build decision the user signalled they intend to act on
-> now; (b) any surviving idea is `impact: critical` or category `security`; (c) the adversarial
-> filter culled more than half the raw candidates (a high cull rate means the lens set may be
-> systematically narrow — divergent breadth is exactly the cure). Fold distinct additions in
-> through the same adversarial filter before ranking. Skip only when none of the triggers hold;
-> the user may invoke it explicitly with any provider.
+> **Auto second opinion (objective triggers).** At the terminus, once the ideas are ranked (before Step 6 writes the artifact), **auto-invoke** `/consult codex <widen this idea set and flag blind spots — what did this analysis miss?>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) the ranked list will feed a build decision the user signalled they intend to act on now; (b) any surviving idea is `impact: critical` or category `security`; (c) the adversarial filter culled more than half the raw candidates (a high cull rate means the lens set may be systematically narrow — divergent breadth is exactly the cure). Fold distinct additions in through the same adversarial filter before ranking. Skip only when none of the triggers hold; the user may invoke it explicitly with any provider.
 
 # CRITICAL — execution discipline
 You are an **opportunity discoverer and adversarial filter**, not a problem solver.
-- Do NOT start implementing, planning, or designing anything.
-- This is a **terminal analysis mode**, not a build lifecycle: it roots a lightweight `type: workflow-index` slug workflow whose **only** artifact is the `01-ideate.md` lead. Do NOT author build stage files (`02-shape.md`, `03-slice.md`, `04-plan.md`, `05-implement.md`, …) — ideation is not a build lifecycle.
-- Do NOT make code changes.
+- Do not start implementing, planning, or designing anything.
+- This is a **terminal analysis mode**, not a build lifecycle: it roots a lightweight `type: workflow-index` slug workflow whose **only** artifact is the `01-ideate.md` lead. Do not author build stage files (`02-shape.md`, `03-slice.md`, `04-plan.md`, `05-implement.md`, …) — ideation is not a build lifecycle.
+- Do not make code changes.
 - Your job is: **scan → generate candidates → challenge them → rank survivors → present → write artifact**.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - If you catch yourself starting to implement an idea, STOP. This command discovers work; it does not do it.
@@ -70,59 +62,7 @@ You are an **opportunity discoverer and adversarial filter**, not a problem solv
 
 Launch exploration sub-agents in parallel. Each sub-agent gets a specific lens and must return **structured findings** — not generic advice, but specific evidence from this codebase. Launch only the lenses relevant to the focus area (or all six if no focus).
 
-**Effort tier for every dispatched lens agent:** **low** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch. Each lens reads code + emits structured findings against a rubric (complexity, performance, security, DX, gaps, architecture). The adversarial filtering step that comes later does the judgment work; the per-lens fan-out is bounded extraction. Low is the right tier. Dispatch in waves of at most 6.
-
-Prompt each lens agent with its goal below plus this shared evidence rule: every finding cites
-`file:line` (or a file range) from this codebase, states the problem, states why it matters, and
-carries an effort estimate (xs/s/m/l/xl). Generic advice with no citation is not a finding.
-
-## Lens 1 — Code Quality & Technical Debt
-
-Goal: find the code most likely to break or resist change. Hunt:
-- complexity hotspots — long functions, deep nesting, files with both high churn and high complexity
-- test-coverage gaps — source files with no test, or a test far thinner than the code it covers
-- code rot — TODO/FIXME/HACK/DEPRECATED markers, dead code, duplicated logic across modules
-- outdated patterns — dependencies far behind stable, deprecated API usage
-
-## Lens 2 — Performance & Scalability
-
-Goal: find work that fails at scale. State why each finding matters at 10× current load. Hunt:
-- query patterns — N+1 lookups in loops, unpaginated collection endpoints, missing indexes
-- caching gaps — repeated deterministic computation, uncached external calls, per-request refetching
-- algorithmic hotspots — sorting/filtering/nested iteration over unconstrained collections
-- blocking work — synchronous operations inside async-first runtimes, limits that break at scale
-
-## Lens 3 — Security & Privacy
-
-Goal: find exposure. Grade each finding critical / high / medium. Hunt:
-- input handling — user input reaching SQL, shell, paths, or HTML unsanitized; unvalidated uploads and deserialization
-- auth — unauthenticated routes, authentication-only checks where authorization is required, hardcoded credentials in tracked files
-- data handling — PII or secrets in logs, insecure client-side storage, unredacted sensitive fields in responses
-- dependencies — pinned versions with known high-severity CVEs
-
-## Lens 4 — Developer Experience
-
-Goal: find friction. Name who each friction affects. Hunt:
-- setup friction — getting-started steps that fail silently, undocumented environment variables
-- error quality — generic messages, swallowed errors, API errors with no code or reference ID
-- API ergonomics — parameter sprawl, inconsistent naming for one operation, unguarded breaking changes
-- documentation drift — undocumented exports, README features the code does not match
-
-## Lens 5 — Feature Completeness & User-Facing Gaps
-
-Goal: find what users hit that the happy path hides. Name the user impact of each gap. Hunt:
-- state coverage — missing loading/error/empty states, forms with no validation feedback, silent failures
-- accessibility — unlabeled interactive elements, missing alt text, inputs with no label, color-only signals
-- edge cases — acceptance criteria in `.ai/workflows/*/02-shape.md` with no covering test, features that break on empty or large collections
-- stubs — "TODO: implement" placeholders, documented configuration with no implementation
-
-## Lens 6 — Architecture & Design Patterns
-
-Goal: find structural risk. Architectural fixes usually carry effort l/xl — say so. Hunt:
-- structural issues — oversized modules, circular dependencies, business logic in the presentation layer
-- missing abstractions — one pattern repeated 3+ times, external services wired in with no adapter layer
-- over-engineering — single-implementation indirection, configuration heavier than what it configures
-- coupling hotspots — files imported everywhere, large modules that export too much
+The six lens charters, the shared evidence rule, and the effort tier are in [intake/ideate/_lenses.md](ideate/_lenses.md).
 
 ---
 
@@ -249,78 +189,7 @@ updated-at: "<ISO 8601>"
 ---
 ```
 
-**`01-ideate.md` — `type: ideation`** (the lead carries a `slug` for the in-slug path; `focus` stays the schema key). The roster keeps the per-idea `file:line` evidence the lenses were required to gather — dropping it strips the successor's seed:
-```yaml
----
-schema: sdlc/v1
-type: ideation
-slug: <slug>
-focus: <focus-area or "all">
-created-at: "<ISO 8601>"
-raw-candidates: <N>
-culled-count: <N>
-survivor-count: <N>
-shown-count: <N>
-selected: []          # idea ids the user selected in Step 5; stamped again at pick time
-ideas:
-  - id: IDEA-001
-    title: "<title>"
-    category: <quality|performance|security|dx|feature|architecture>
-    impact: <critical|high|medium|low>
-    effort: <xs|s|m|l|xl>
-    score: <float>
-    evidence: ["<file:line>", "..."]   # the lens findings this idea is grounded in
-    entry: "<the entry invocation — new-workflow or extension form>"
-  - ...
-culled:
-  - id: IDEA-NNN
-    title: "<title>"
-    reason: "<adversarial filter reason, or needs-verification: <the named cheap check>>"
-  - ...
----
-```
-
-# Ideation: <focus-area or "Codebase-Wide">
-
-## The Ideation
-<!-- STORY SECTION — first, and self-sufficient. MUST follow `../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language MUST follow `../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
-
-*Generated: <date> | Lenses: <list> | Raw: <N> → Filtered: <N> → Showing: <N>*
-
-## Ranked Ideas
-
-### #1 — <Title>
-**Category:** <category> | **Impact:** <level> | **Effort:** <level> | **Score:** <N>
-
-**Evidence:** `<file:line>`
-
-<Description>
-
-**To act on this:** `/wf intake <slug-suggestion>`
-
----
-
-### #2 — ...
-
----
-
-## Adversarial Filter Log
-
-<For each culled idea:>
-- **IDEA-NNN** — *<title>*: <reason>
-
----
-
-## How to use these results
-
-Each idea above maps directly to a `/wf intake` invocation. Copy the entry command for any idea you want to pursue. The slug suggestion is a starting point — you can adjust it.
-
-If you want to re-run ideation with a different focus or count:
-```
-/wf intake ideate security          # security lens only
-/wf intake ideate performance 5     # performance lens, top 5
-/wf intake ideate dx 20             # DX lens, top 20
-```
+Write **`01-ideate.md`** (`type: ideation`) per the template in [intake/ideate/_artifact.md](ideate/_artifact.md): frontmatter with the `ideas:` roster (per-idea `file:line` evidence and `entry:` invocation) and the `culled:` log, then the story section, the ranked ideas, the adversarial filter log, and the how-to-use footer.
 
 ---
 
@@ -335,21 +204,10 @@ or from Step 5 when exactly one idea is selected. The pick is the workflow's ter
 the decision and closes the workflow. It never starts the successor — it prints the invocation
 and stops.
 
-1. **Stamp the artifact.** In `01-ideate.md` frontmatter set `selected: [<idea-id>]`, add
-   `chosen-idea: <id> — <title>`, `chosen-at:` set to the real UTC timestamp (per
-   [_timestamp.md](../_timestamp.md)), and `decision-note: <the trailing prose>` if the
-   user supplied any (omit the key otherwise).
-2. **Append a `## Decision` section** to the artifact body: which idea was picked; why (the
-   user's reason verbatim, else "user picked without a stated reason"); the sibling ideas it
-   beat and the one-line reason each lost (the culled-sibling rationale a successor's
-   out-of-scope list is seeded from).
-3. **Close the workflow.** Update `00-index.md`: `status: closed`, `close-reason: idea-picked`,
-   `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`,
-   `next-invocation: "none — decision recorded"`. Update the slug's row in
-   `.ai/workflows/INDEX.md` to `closed`. The successor's link-back (`_intake-provenance.md`)
-   corrects `superseded-by: pending`.
-4. **Print the next invocation** with provenance — the idea's `entry:` value, with
-   `from <slug>` appended when it is a new-workflow form — and stop. Do not run it.
+1. **Stamp the artifact.** In `01-ideate.md` frontmatter set `selected: [<idea-id>]`, add `chosen-idea: <id> — <title>`, `chosen-at:` set to the real UTC timestamp (per [_timestamp.md](../_timestamp.md)), and `decision-note: <the trailing prose>` if the user supplied any (omit the key otherwise).
+2. **Append a `## Decision` section** to the artifact body: which idea was picked; why (the user's reason verbatim, else "user picked without a stated reason"); the sibling ideas it beat and the one-line reason each lost (the culled-sibling rationale a successor's out-of-scope list is seeded from).
+3. **Close the workflow.** Update `00-index.md`: `status: closed`, `close-reason: idea-picked`, `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`, `next-invocation: "none — decision recorded"`. Update the slug's row in `.ai/workflows/INDEX.md` to `closed`. The successor's link-back (`_intake-provenance.md`) corrects `superseded-by: pending`.
+4. **Print the next invocation** with provenance — the idea's `entry:` value, with `from <slug>` appended when it is a new-workflow form — and stop. Do not run it.
 
 # Chat return contract
 After writing files, return per [_chat-return.md](../_chat-return.md) — narrative lead in the artifact's `## The Ideation` story voice, then this receipt:
