@@ -151,7 +151,6 @@
         "skills/diataxis/references/how-to.md": 1,
         "skills/imagery/SKILL.md": 1,
         "skills/wf/reference/_chat-return.md": 4,
-        "skills/wf/reference/_fragment-authoring.md": 2,
         "skills/wf/reference/_question-craft.md": 3,
         "skills/wf/reference/_steering.md": 1,
         "skills/wf/reference/augment/benchmark.md": 3,
@@ -205,7 +204,6 @@
       "pattern": "Do NOT\\b",
       "allowedFiles": {},
       "files": {
-        "skills/wf/reference/_fragment-authoring.md": 1,
         "skills/wf/reference/augment/benchmark.md": 6,
         "skills/wf/reference/augment/experiment.md": 5,
         "skills/wf/reference/augment/instrument.md": 2,
@@ -339,7 +337,6 @@
       "pattern": "\\bv9\\.\\d+",
       "allowedFiles": {},
       "files": {
-        "skills/wf/reference/_fragment-authoring.md": 1,
         "skills/wf/reference/augment/benchmark.md": 1,
         "skills/wf/reference/augment/experiment.md": 1,
         "skills/wf/reference/augment/instrument.md": 1,
@@ -356,7 +353,6 @@
   },
   "exceptions": {
     "skills/consult/SKILL.md": 178,
-    "skills/wf/reference/_fragment-authoring.md": 112,
     "skills/wf/reference/_host-invocation.md": 119,
     "skills/wf/reference/augment/benchmark.md": 363,
     "skills/wf/reference/augment/experiment.md": 311,
@@ -471,7 +467,7 @@
     },
     "probe": {
       "core": 6633,
-      "instructed": 21639
+      "instructed": 21606
     },
     "recap": {
       "core": 4257
@@ -480,19 +476,17 @@
       "core": 5540
     },
     "review": {
-      "instructed": 17426
+      "instructed": 17393
     },
     "shape": {
       "core": 6955,
       "instructed": 9937
     },
     "ship": {
-      "core": 6109,
-      "instructed": 12660
+      "core": 6109
     },
     "simplify": {
-      "core": 5825,
-      "instructed": 11121
+      "core": 5825
     },
     "slice": {
       "core": 4388
