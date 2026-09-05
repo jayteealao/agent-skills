@@ -177,7 +177,8 @@
         "skills/wf/reference/probe.md": 2,
         "skills/wf/reference/probe/_artifact.md": 3,
         "skills/wf/reference/recap.md": 1,
-        "skills/wf/reference/retro.md": 4,
+        "skills/wf/reference/retro.md": 2,
+        "skills/wf/reference/retro/_artifact.md": 2,
         "skills/wf/reference/review/_artifact.md": 2,
         "skills/wf/reference/review/_stage.md": 6,
         "skills/wf/reference/review/correctness.md": 2,
@@ -321,7 +322,8 @@
         "skills/wf/reference/probe.md": 1,
         "skills/wf/reference/probe/_artifact.md": 3,
         "skills/wf/reference/probe/_target-resolution.md": 1,
-        "skills/wf/reference/retro.md": 3,
+        "skills/wf/reference/retro.md": 2,
+        "skills/wf/reference/retro/_artifact.md": 1,
         "skills/wf/reference/review.md": 2,
         "skills/wf/reference/review/_stage.md": 5,
         "skills/wf/reference/review/intent-fidelity.md": 1,
@@ -342,7 +344,7 @@
         "skills/wf/reference/augment/profile.md": 1,
         "skills/wf/reference/intake/fix.md": 1,
         "skills/wf/reference/intake/modernize.md": 1,
-        "skills/wf/reference/retro.md": 1
+        "skills/wf/reference/retro/_artifact.md": 1
       }
     }
   },
@@ -356,7 +358,6 @@
     "skills/wf/reference/design.md": 301,
     "skills/wf/reference/observability/build.md": 303,
     "skills/wf/reference/observability/init.md": 430,
-    "skills/wf/reference/retro.md": 335,
     "skills/wf/reference/review/accessibility.md": 818,
     "skills/wf/reference/review/api-contracts.md": 528,
     "skills/wf/reference/review/architecture.md": 504,
@@ -453,7 +454,7 @@
       "core": 4257
     },
     "retro": {
-      "core": 5540
+      "core": 4960
     },
     "shape": {
       "core": 6955,

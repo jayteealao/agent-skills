@@ -364,5 +364,17 @@
     "to": "skills/wf/reference/review/_artifact.md",
     "category": "artifacts",
     "entry": "07-review-security.md"
+  },
+  {
+    "from": "skills/wf/reference/retro.md",
+    "to": "skills/wf/reference/retro/_artifact.md",
+    "category": "artifacts",
+    "entry": "05-implement-auth.md"
+  },
+  {
+    "from": "skills/wf/reference/retro.md",
+    "to": "skills/wf/reference/retro/_artifact.md",
+    "category": "artifacts",
+    "entry": "10-retro-<X>.md"
   }
 ]
