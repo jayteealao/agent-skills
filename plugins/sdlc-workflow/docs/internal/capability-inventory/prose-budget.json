@@ -158,7 +158,7 @@
         "skills/wf/reference/augment/experiment/_artifact.md": 2,
         "skills/wf/reference/augment/instrument.md": 2,
         "skills/wf/reference/augment/instrument/_artifact.md": 2,
-        "skills/wf/reference/augment/profile.md": 2,
+        "skills/wf/reference/augment/profile/_artifact.md": 2,
         "skills/wf/reference/design/_design-context.md": 1,
         "skills/wf/reference/design/audit.md": 2,
         "skills/wf/reference/design/critique.md": 2,
@@ -345,7 +345,7 @@
         "skills/wf/reference/augment/benchmark.md": 1,
         "skills/wf/reference/augment/experiment/_artifact.md": 1,
         "skills/wf/reference/augment/instrument/_artifact.md": 1,
-        "skills/wf/reference/augment/profile.md": 1,
+        "skills/wf/reference/augment/profile/_artifact.md": 1,
         "skills/wf/reference/intake/fix.md": 1,
         "skills/wf/reference/intake/modernize.md": 1,
         "skills/wf/reference/retro/_artifact.md": 1
@@ -354,7 +354,6 @@
   },
   "exceptions": {
     "skills/consult/SKILL.md": 178,
-    "skills/wf/reference/augment/profile.md": 339,
     "skills/wf/reference/augment/wide-event-observability.md": 918,
     "skills/wf/reference/observability/build.md": 303,
     "skills/wf/reference/review/accessibility.md": 818,
