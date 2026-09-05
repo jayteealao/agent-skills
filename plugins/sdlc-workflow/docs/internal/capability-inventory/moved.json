@@ -328,5 +328,23 @@
     "to": "skills/wf/reference/intake/investigate/_research.md",
     "category": "dispatches",
     "entry": "heading: research sub-agent 3 tradeoff characterizer"
+  },
+  {
+    "from": "skills/wf/reference/intake/discover.md",
+    "to": "skills/wf/reference/intake/discover/_research.md",
+    "category": "dispatches",
+    "entry": "heading: research sub-agent 1 evidence for"
+  },
+  {
+    "from": "skills/wf/reference/intake/discover.md",
+    "to": "skills/wf/reference/intake/discover/_research.md",
+    "category": "dispatches",
+    "entry": "heading: research sub-agent 2 evidence against"
+  },
+  {
+    "from": "skills/wf/reference/intake/discover.md",
+    "to": "skills/wf/reference/intake/discover/_research.md",
+    "category": "dispatches",
+    "entry": "heading: research sub-agent 3 counter-hypotheses"
   }
 ]

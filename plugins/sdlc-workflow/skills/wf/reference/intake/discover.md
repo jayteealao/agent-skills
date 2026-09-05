@@ -27,7 +27,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 
 # CRITICAL — adjudication discipline
 You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
-- The **only** acceptable output is the discover artifact and index. Do NOT edit application code. Do NOT write a plan. Do NOT propose a fix. Do NOT produce a tutorial-style explanation of how the area works (that is a plain research conversation outside `/wf`).
+- The **only** acceptable output is the discover artifact and index. Do not edit application code. Do not write a plan. Do not propose a fix. Do not produce a tutorial-style explanation of how the area works (that is a plain research conversation outside `/wf`).
 - Read-only investigation only: `git log`, `git blame`, your native file-reading and search tools, static code inspection.
 - The verdict must be **convergent**: exactly one of `holds`, `partial`, `fails`, or `inconclusive`. Do not hedge across all four; pick one and justify it with cited evidence.
 - The artifact must include both supporting AND contradicting evidence. A "holds" verdict with no AGAINST section is suspect — search until you find counter-evidence or explicitly record that none exists.
@@ -55,41 +55,12 @@ Ask at most **3 questions** — stop as soon as the hypothesis is testable:
 
 If `$ARGUMENTS` contains enough to answer all three, skip to Step 2.
 
-Do NOT write the artifact yet. Hold answers in working memory and proceed.
+Do not write the artifact yet. Hold answers in working memory and proceed.
 
 # Step 2 — Parallel adjudication
 Launch all three sub-agents simultaneously. Each is a separate read-only sub-agent dispatch (per [_subagents.md](../_subagents.md)). Do not proceed to synthesis until all three complete.
 
-**Effort tier for every dispatched agent:** **low** (per [_subagents.md](../_subagents.md)) — each agent does targeted code reading + structured-output extraction (FOR / AGAINST / counter-hypotheses), the bounded-rubric profile the low tier handles cleanly. **Exception:** when Step 1 question 3 says a large decision rides on the verdict (a major refactor, an architecture choice, a plan's premise), raise the tier to **medium** — "dig harder" is a judgment instruction, and the tier must match it. State the chosen tier on every dispatch.
-
-Each sub-agent receives the same two inputs: the verbatim hypothesis from Step 1 and the starting
-area from Step 1 question 2. Every returned item cites `file:line` with a snippet of 5 lines or
-fewer.
-
-### research sub-agent 1 — Evidence FOR
-
-Charter: build the strongest possible case that the hypothesis holds — read implementations,
-follow call chains, and find tests that pin the claimed behavior. Do not search for contradicting
-evidence; that is sub-agent 2's job. Return structured text with four keys: `direct_support`,
-`indirect_support`, `tests_that_pin_the_behavior`, and a one-paragraph `strength_assessment`.
-Label each item direct (the code enacts the claim) or indirect (consistent but not proof).
-
-### research sub-agent 2 — Evidence AGAINST
-
-Charter: falsify the hypothesis — search for contradicting code, bypass paths, runtime flags and
-branches the claim ignores, and recent git history that invalidated it. Return structured text
-with four keys: `direct_contradictions`, `partial_contradictions`, `historical_drift_signals`
-(cite a commit sha or `file:line`), and a one-paragraph `strength_assessment`. For each item,
-state precisely why it contradicts the claim ("this function does X instead").
-
-### research sub-agent 3 — Counter-hypotheses
-
-Charter: propose 1 to 3 alternative explanations that fit the same observable behavior, ranked by
-plausibility — not "the claim is wrong" (sub-agent 2's job) but "what is happening instead".
-Return structured text with two keys: `alternative_hypotheses` (each entry: statement, supporting
-`file:line` evidence, how it differs observably from the original, plausibility high|medium|low)
-and boolean `no_alternatives_found`. When no plausible alternative exists, set
-`no_alternatives_found: true` — that absence is itself a signal the hypothesis is likely correct.
+The effort tier (low, raised to medium when a large decision rides on the verdict), the shared inputs, and the three charters (Evidence FOR, Evidence AGAINST, Counter-hypotheses) are in [intake/discover/_research.md](discover/_research.md).
 
 # Step 3 — Synthesize and write `01-discover.md`
 
@@ -127,10 +98,7 @@ created-at: <real UTC timestamp per _timestamp.md>
 
 ## 0. What this decides
 
-The Step 1 question 3 answer, verbatim: the decision that rides on this verdict. On `fails`,
-name explicitly which plan, assumption, or in-flight work lost its premise — a falsified
-hypothesis with no record of what it falsified helps nobody. On `holds`, one line: what now
-proceeds on confirmed ground.
+The Step 1 question 3 answer, verbatim: the decision that rides on this verdict. On `fails`, name explicitly which plan, assumption, or in-flight work lost its premise — a falsified hypothesis with no record of what it falsified helps nobody. On `holds`, one line: what now proceeds on confirmed ground.
 
 ## 1. Hypothesis
 
@@ -195,8 +163,7 @@ Author free narrative fragments for this artifact as described in the narrative-
 
 # Step 4 — Write `00-index.md` (closed at write time)
 
-A verdict is terminal by construction — nothing is left to choose, so the workflow closes
-the moment its index is written. No re-invocation, no parked Active row:
+A verdict is terminal by construction — nothing is left to choose, so the workflow closes the moment its index is written. No re-invocation, no parked Active row:
 
 ```yaml
 ---
@@ -228,11 +195,7 @@ updated-at: <timestamp>
 ---
 ```
 
-Register the slug's row in `.ai/workflows/INDEX.md` as `closed`. Body: one-line description
-of the hypothesis + pointer to `01-discover.md` and the verdict. (`progress` is the object
-form — the renderer silently drops a YAML list. No `selected-slice` — a discover has no
-slice roster. A successor invoked with `from <slug>` reads the closed artifact via
-`_intake-provenance.md`; closure hides nothing.)
+Register the slug's row in `.ai/workflows/INDEX.md` as `closed`. Body: one-line description of the hypothesis + pointer to `01-discover.md` and the verdict. (`progress` is the object form — the renderer silently drops a YAML list. No `selected-slice` — a discover has no slice roster. A successor invoked with `from <slug>` reads the closed artifact via `_intake-provenance.md`; closure hides nothing.)
 
 # Step 5 — Hand off to user
 
