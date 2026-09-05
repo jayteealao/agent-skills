@@ -51,7 +51,6 @@
         "skills/wf/reference/observability/audit.md": 1,
         "skills/wf/reference/observability/build.md": 1,
         "skills/wf/reference/observability/init.md": 1,
-        "skills/wf/reference/plan.md": 6,
         "skills/wf/reference/probe.md": 10,
         "skills/wf/reference/recap.md": 2,
         "skills/wf/reference/retro.md": 3,
@@ -135,7 +134,6 @@
         "skills/wf/reference/intake/refactor.md": 1,
         "skills/wf/reference/intake/update-deps.md": 1,
         "skills/wf/reference/observability/init.md": 1,
-        "skills/wf/reference/plan.md": 1,
         "skills/wf/reference/probe.md": 1,
         "skills/wf/reference/recap.md": 1,
         "skills/wf/reference/retro.md": 1,
@@ -193,7 +191,6 @@
         "skills/wf/reference/intake/update-deps.md": 2,
         "skills/wf/reference/observability/audit.md": 1,
         "skills/wf/reference/observability/init.md": 1,
-        "skills/wf/reference/plan.md": 12,
         "skills/wf/reference/probe.md": 5,
         "skills/wf/reference/recap.md": 1,
         "skills/wf/reference/retro.md": 4,
@@ -221,7 +218,6 @@
         "skills/wf/reference/intake/default.md": 3,
         "skills/wf/reference/intake/modernize.md": 1,
         "skills/wf/reference/intake/refactor.md": 5,
-        "skills/wf/reference/plan.md": 2,
         "skills/wf/reference/retro.md": 1,
         "skills/wf/reference/simplify.md": 1,
         "skills/wf/reference/verify.md": 2
@@ -256,7 +252,6 @@
         "skills/wf/reference/intake/rca.md": 5,
         "skills/wf/reference/intake/update-deps.md": 4,
         "skills/wf/reference/observability/init.md": 3,
-        "skills/wf/reference/plan.md": 5,
         "skills/wf/reference/probe.md": 2,
         "skills/wf/reference/recap.md": 1,
         "skills/wf/reference/retro.md": 2,
@@ -356,7 +351,7 @@
         "skills/wf/reference/intake/modernize.md": 1,
         "skills/wf/reference/intake/rca.md": 2,
         "skills/wf/reference/observability.md": 2,
-        "skills/wf/reference/plan.md": 5,
+        "skills/wf/reference/plan.md": 3,
         "skills/wf/reference/probe.md": 4,
         "skills/wf/reference/retro.md": 3,
         "skills/wf/reference/review.md": 2,
@@ -388,7 +383,6 @@
         "skills/wf/reference/intake/fix.md": 1,
         "skills/wf/reference/intake/modernize.md": 1,
         "skills/wf/reference/intake/rca.md": 2,
-        "skills/wf/reference/plan.md": 4,
         "skills/wf/reference/retro.md": 1,
         "skills/wf/reference/shape.md": 1,
         "skills/wf/reference/ship.md": 1,
@@ -426,7 +420,6 @@
     "skills/wf/reference/intake/update-deps.md": 272,
     "skills/wf/reference/observability/build.md": 303,
     "skills/wf/reference/observability/init.md": 430,
-    "skills/wf/reference/plan.md": 744,
     "skills/wf/reference/probe.md": 478,
     "skills/wf/reference/retro.md": 335,
     "skills/wf/reference/review/_stage.md": 784,
@@ -522,8 +515,7 @@
       "core": 5249
     },
     "plan": {
-      "core": 10579,
-      "instructed": 20700
+      "core": 7096
     },
     "probe": {
       "core": 6633,

@@ -26,5 +26,11 @@
     "entry": "your first visible output for every /wf invocation",
     "reason": "W1: restated as `Its result is your first visible output`; the STOP token in the old sentence pointed at other steps and was not a condition",
     "release": "9.154.0"
+  },
+  {
+    "category": "invocations",
+    "entry": "/wf plan my-slug",
+    "reason": "W1: an example argument (`my-slug auth-flow \u2026`) in the review-and-fix triggers, not an invocation form; the forms `/wf plan <X>` and `/wf plan <slug> all` remain",
+    "release": "9.154.0"
   }
 ]

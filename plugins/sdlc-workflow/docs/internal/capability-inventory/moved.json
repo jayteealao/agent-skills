@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "from": "skills/wf/reference/plan.md",
+    "to": "skills/wf/reference/_workflow-rules.md",
+    "category": "gates",
+    "entry": "workflow rules - store artifacts under .ai/workflows/<slug /"
+  }
+]

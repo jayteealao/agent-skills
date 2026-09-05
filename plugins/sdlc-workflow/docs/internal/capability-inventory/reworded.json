@@ -16,5 +16,23 @@
     "category": "stops",
     "from": "if a best match exists, stop with: \"unknown",
     "to": "if a row matches, stop: \"unknown slug <candidate"
+  },
+  {
+    "file": "skills/wf/reference/plan.md",
+    "category": "gates",
+    "from": "step 0 orient (mandatory do this before all",
+    "to": "step 0 orient (do this before all other"
+  },
+  {
+    "file": "skills/wf/reference/plan.md",
+    "category": "dispatches",
+    "from": "launch one review sub-agent per slice in parallel.",
+    "to": "launch one review sub-agent per slice in parallel;"
+  },
+  {
+    "file": "skills/wf/reference/plan.md",
+    "category": "dispatches",
+    "from": "launch one sub-agent per slice.",
+    "to": "parallel plan mode ( all ). launch one"
   }
 ]
