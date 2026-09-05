@@ -353,7 +353,6 @@
   },
   "exceptions": {
     "skills/consult/SKILL.md": 178,
-    "skills/wf/reference/_host-invocation.md": 119,
     "skills/wf/reference/augment/benchmark.md": 363,
     "skills/wf/reference/augment/experiment.md": 311,
     "skills/wf/reference/augment/instrument.md": 334,
