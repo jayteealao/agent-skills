@@ -66,8 +66,9 @@ test('W1.1 — Step 5 compares against charter constraints at their own weight',
 
 test('W1.2 — the taxonomy file exists and defines every class', () => {
   for (const { name, root } of trees) {
-    const p = refPath(root, '_surface-defects.md');
-    assert.ok(existsSync(p), `${name}: _surface-defects.md is missing`);
+    assert.ok(existsSync(refPath(root, '_surface-defects.md')), `${name}: _surface-defects.md is missing`);
+    const p = refPath(root, 'probe/_surface-defect-classes.md');
+    assert.ok(existsSync(p), `${name}: probe/_surface-defect-classes.md is missing`);
     const src = readFileSync(p, 'utf8');
     for (const c of CLASSES) {
       assert.ok(src.includes(`\`${c}\``), `${name}: taxonomy lost the \`${c}\` class`);
@@ -331,7 +332,7 @@ test('W6.3 — retractions are structural, not prose', () => {
 
 test('W6.2 — env-interference explains a withdrawal rather than padding findings', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, '_surface-defects.md');
+    const src = ref(root, 'probe/_surface-defect-classes.md');
     assert.match(src, /### `env-interference`[\s\S]{0,600}?not a product finding by default/,
       `${name}: env-interference is no longer anchored as a non-finding by default`);
   }

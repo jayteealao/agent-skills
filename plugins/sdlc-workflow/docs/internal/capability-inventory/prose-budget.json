@@ -19,7 +19,6 @@
         "skills/consult/SKILL.md": 1,
         "skills/wf/reference/_output-boundary.md": 1,
         "skills/wf/reference/_steering.md": 1,
-        "skills/wf/reference/_surface-defects.md": 1,
         "skills/wf/reference/augment/benchmark.md": 2,
         "skills/wf/reference/augment/experiment.md": 2,
         "skills/wf/reference/augment/instrument.md": 2,
@@ -363,7 +362,6 @@
     "skills/wf/reference/_compressed-slice.md": 134,
     "skills/wf/reference/_fragment-authoring.md": 112,
     "skills/wf/reference/_host-invocation.md": 119,
-    "skills/wf/reference/_surface-defects.md": 225,
     "skills/wf/reference/augment/benchmark.md": 363,
     "skills/wf/reference/augment/experiment.md": 311,
     "skills/wf/reference/augment/instrument.md": 334,
@@ -477,7 +475,7 @@
     },
     "probe": {
       "core": 6633,
-      "instructed": 22416
+      "instructed": 21670
     },
     "recap": {
       "core": 4257
