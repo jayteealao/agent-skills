@@ -310,5 +310,23 @@
     "to": "skills/wf/reference/_workflow-rules.md",
     "category": "gates",
     "entry": "workflow rules - store artifacts under .ai/workflows/<slug /"
+  },
+  {
+    "from": "skills/wf/reference/intake/investigate.md",
+    "to": "skills/wf/reference/intake/investigate/_research.md",
+    "category": "dispatches",
+    "entry": "heading: research sub-agent 1 architecture cartographer"
+  },
+  {
+    "from": "skills/wf/reference/intake/investigate.md",
+    "to": "skills/wf/reference/intake/investigate/_research.md",
+    "category": "dispatches",
+    "entry": "heading: research sub-agent 2 option generator"
+  },
+  {
+    "from": "skills/wf/reference/intake/investigate.md",
+    "to": "skills/wf/reference/intake/investigate/_research.md",
+    "category": "dispatches",
+    "entry": "heading: research sub-agent 3 tradeoff characterizer"
   }
 ]

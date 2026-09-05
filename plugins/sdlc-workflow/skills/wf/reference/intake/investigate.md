@@ -55,7 +55,7 @@ The one definition of effort for this command. Every other mention in this file 
 
 # CRITICAL — sketching discipline
 You are an **options sketcher**, not a chooser, planner, or implementer.
-- The **only** acceptable output is the investigate artifact and index. Do NOT edit application code. Do NOT write a plan. Do NOT pick a winning option (the user picks).
+- The **only** acceptable output is the investigate artifact and index. Do not edit application code. Do not write a plan. Do not pick a winning option (the user picks).
 - Read-only investigation only: `git log`, `git blame`, your native file-reading and search tools, static code inspection.
 - Each option must be **distinct**: option B is not "option A but with a twist" — it should embody a meaningfully different design choice (different layer, different abstraction, different mechanism). If you cannot find 2 genuinely distinct options, say so (a tripwire) rather than padding with near-duplicates.
 - Each option's "Sketch" section is **direction, not a plan** — 2 to 5 lines naming the technique, the area, and the rough boundary. Do not enumerate implementation steps.
@@ -86,71 +86,12 @@ Ask at most **3 questions** — stop as soon as the problem is sketchable:
 
 If `$ARGUMENTS` contains enough to answer all three, skip to Step 2.
 
-Do NOT write the artifact yet. Hold answers in working memory and proceed.
+Do not write the artifact yet. Hold answers in working memory and proceed.
 
 # Step 2 — Map and sketch (two waves)
 Three sub-agents, dispatched in two waves: the cartographer and the option generator are independent and launch **in parallel**; the tradeoff characterizer launches **after both return**, because it consumes their output — launched blind it can only produce an empty template. Each is a separate read-only sub-agent dispatch (per [_subagents.md](../_subagents.md)). Do not proceed to synthesis until all three complete.
 
-**Effort tier for every dispatched agent:** **medium** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch. Investigation is judgment-heavy — the Cartographer must surface non-obvious architectural constraints, the Option generator must trade off across the design space, the Tradeoff characterizer must reason about effort/risk/blast-radius. Low effort underserves the abstraction-critique work; high is overkill since each agent still runs against a bounded scope.
-
-## Wave 1 — cartographer ∥ option generator (launch simultaneously)
-
-### research sub-agent 1 — Architecture cartographer
-
-Prompt with ALL of the following:
-- The problem: `<verbatim from Step 1>`. The starting area: `<from question 2>`. The constraints: `<from question 3>`.
-- Your job is to **map the relevant code area** so options can be grounded. Do not propose solutions — that is sub-agent 2. Produce a faithful map.
-- Identify: entry points into the area, the call graph from those entry points 2–3 levels deep, the data model touched by the area, integration boundaries (DB, external services, message queues), existing tests that cover this area, configuration/feature flags that change behavior in this area, recent churn (`git log --oneline --since="90 days ago" -- <area>`).
-- Identify **constraints encoded in the architecture itself** — patterns that any option would need to respect (existing abstractions, dependency-injection wiring, error-handling style, transaction boundaries, async boundaries). These constraints are usually invisible until you try to violate them.
-
-Return as structured text:
-- `entry_points`: list of `{file:line, signature, one_line_description}`.
-- `call_graph_summary`: prose, 1 paragraph — the main flow from entry points through the affected area.
-- `data_touched`: list of `{type_or_table, where_defined: file:line, used_at: [file:line]}`.
-- `integration_boundaries`: list of `{boundary_type, file:line, description}` (DB calls, external APIs, message bus, cache, file system, etc.).
-- `existing_tests`: list of `{file:line, what_it_covers}`.
-- `runtime_config_flags`: list of `{flag_or_env, file:line, what_it_changes}` (or "none found").
-- `recent_churn`: list of files changed >3x in last 90 days, with a one-line "why" guess from commit messages.
-- `architectural_constraints`: list of `{constraint, where_it_shows_up, one_line_implication}` — invariants any solution must respect.
-
-### research sub-agent 2 — Option generator
-
-Prompt with ALL of the following:
-- The problem: `<verbatim>`. The starting area: `<from question 2>`. The constraints: `<from question 3>`.
-- Your job is to enumerate **every genuinely distinct engineering approach** that could solve the problem within the current architecture (or, if you must violate it, name the violation explicitly as part of the option). The distinctness requirement below is the only ceiling — typically 2–5 mechanisms exist. Report exactly as many as you find: do not stop at 3 because it feels complete, and do not pad with a near-duplicate to reach a count. Selection for presentation happens at synthesis, not here.
-- Distinctness requirement: options must differ in *mechanism*, not just in surface choices. "Cache at layer X" vs. "cache at layer Y" is one option, not two, unless the layers materially change correctness or operational profile. "Add a cache" vs. "denormalize the data model" vs. "compute lazily on demand" are three distinct options.
-- For each option, do a light read of the affected area to confirm it is at least plausible (no obvious blocker like "this code path is generated and cannot be edited").
-- Name each option with a short, descriptive label (≤6 words) — not "Option A" but "In-process LRU cache on the resolver".
-- Do NOT estimate effort, risk, or rank options — that is sub-agent 3.
-
-Return as structured text:
-- `options`: list of `{id: sequential letter (A, B, C, D, …), label, mechanism: one_paragraph, primary_files_touched: [path], requires_new_dependency: bool, requires_schema_change: bool, requires_architecture_violation: <none or one_line>, plausibility_check: one_line}`.
-- `options_considered_and_rejected`: list of `{label, why_rejected: one_line}` — approaches you thought of but didn't include (transparency for the reader; helps avoid "why didn't you consider X?"). Merit rejections only (implausible, blocked, dominated) — NOT an overflow bin for viable distinct options; every viable distinct mechanism belongs in `options`.
-
-## Wave 2 — tradeoff characterizer (launch after both Wave 1 agents return)
-
-### research sub-agent 3 — Tradeoff characterizer
-
-Prompt with ALL of the following:
-- The problem: `<verbatim>`. The starting area: `<from question 2>`. The constraints: `<from question 3>`.
-- Sub-agent 2's full `options` list, verbatim.
-- Sub-agent 1's `architectural_constraints` and `integration_boundaries`, verbatim — judge each option against the mapped architecture, and flag any option that collides with a constraint or boundary.
-- The effort rubric (from `# Effort rubric`), verbatim.
-- For each option — however many sub-agent 2 returned, including any beyond three — characterize:
-  - **Effort:** small | medium | large, per the effort rubric.
-  - **Blast radius:** narrow (one module, one code path), moderate (one subsystem, several code paths), wide (cross-cutting, multiple subsystems).
-  - **Reversibility:** easy (one-PR revert restores prior behavior), moderate (some data or config persists post-revert), hard (data migration or external state changes mean revert is not a no-op).
-  - **Risk:** what specifically can go wrong; cite the failure mode, not just "it might break". Examples: "Cache invalidation: stale reads if upstream write skips the invalidation step", "Async boundary: ordering violations on concurrent writes", "Schema change: requires backfill which blocks deploys for the table size".
-  - **Operational fit:** does this option need new observability, alerting, runbook entries, or on-call awareness? Does it interact poorly with existing infrastructure (rate limits, autoscaling, deploy gates)?
-  - **Constraint compliance:** does the option honor every user-stated constraint (from Step 1 question 3)? Name the violated constraint if not.
-  - **Decisive unknown:** the ONE assumption that, if false, kills this option, plus the cheapest way to check it (a measurement, a source read, a yes/no truth question). "None" is valid only when every load-bearing assumption was verified during characterization — never as a default.
-
-For each option produce a comparable tradeoff card. Do NOT pick a winner — characterize each on its own terms.
-
-Return as structured text:
-- `tradeoff_cards`: list of `{option_id, effort, blast_radius, reversibility, top_risks: [one_line_each], operational_fit, honors_stated_constraints: yes | violates <constraint>, decisive_unknown: {assumption, cheapest_check} | none}`.
-- `constraint_collisions`: list of `{option_id, constraint, one_line_implication}` — options that violate an architectural constraint or integration boundary from sub-agent 1's map (or "none").
-- `cross_option_observations`: 1–2 lines on patterns across options (e.g., "All three require touching `auth/middleware.ts`; that file is the chokepoint regardless of option").
+Charters, effort tier, and return shapes for the three sub-agents are in [intake/investigate/_research.md](investigate/_research.md).
 
 # Step 3 — Synthesize and write `01-investigate.md`
 
@@ -178,93 +119,7 @@ created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
-**Body sections (in order):**
-
-## The Investigation
-<!-- STORY SECTION — first, and self-sufficient. MUST follow `../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language MUST follow `../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
-
-## 1. Problem & constraints
-
-Problem verbatim. Then 1–2 sentences of restatement that name the observable being solved for (latency? error rate? code clarity? capability gap?). Then the constraint list from Step 1 question 3, each as a bullet.
-
-## 2. Architecture map
-
-A condensed view of sub-agent 1's findings. Don't dump the whole report — extract the parts that matter for evaluating options:
-
-- **Entry points:** ≤5 most-relevant ones with `file:line`.
-- **Critical flow:** one paragraph describing the main path through the affected area.
-- **Integration boundaries:** the DB / external / queue / cache touchpoints that any option must respect.
-- **Architectural constraints:** the 2–4 most load-bearing invariants any solution must respect, each with `file:line` evidence.
-- **Recent churn:** any file changed >3x in 90 days that an option would also touch — flagged because it suggests instability.
-
-## 3. Options
-
-One subsection per **presented** option (the ≤3 full cards selected in Step 3). Use the labels from sub-agent 2, not "Option A/B/C" alone:
-
-### Option A — `<label>`
-
-- **Mechanism:** one paragraph. What does this option *do*? Reference specific files and abstractions.
-- **Sketch:** 2 to 5 lines — the technique and the rough boundary of the change. NOT implementation steps. Cite at least one `file:line` to anchor it.
-- **Files touched (estimated):** list of paths or a count + range.
-- **Requires new dependency:** yes/no — name it if yes.
-- **Requires schema change:** yes/no — describe the shape if yes.
-- **Effort:** small | medium | large — one-line justification.
-- **Blast radius:** narrow | moderate | wide — one-line justification.
-- **Reversibility:** easy | moderate | hard — one-line justification.
-- **Top risks:** 2 to 4 bullets, each naming a specific failure mode (not "could break things").
-- **Operational fit:** observability/alerting/runbook implications, or "no operational change required".
-- **Honors stated constraints:** yes, or `violates <constraint>` with one line on the collision.
-- **Decisive unknown:** `<the assumption that, if false, kills this option>` — cheapest check: `<measurement / source read / truth question>`. Write "none — load-bearing assumptions verified during characterization" only when that is literally true.
-
-Repeat for Option B and Option C (if present).
-
-### Options considered and rejected
-
-If the presentation cap demoted viable options (Step 3), open with a **Demoted by presentation cap** sub-list — `<label> — <mechanism, one phrase> — effort:<X> — <why demoted>`. These are viable options, not rejections; a reader may still pick one. Then the merit rejections from sub-agent 2's `options_considered_and_rejected` — transparency for the reader. Each line: `<label> — <one-line reason rejected>`.
-
-## 4. Side-by-side comparison
-
-A compact table. The leading **Status quo** column is the do-nothing baseline: mechanism "leave it as is", effort/blast radius/reversibility `—`, and its top-risk cell states the cost of the problem persisting (tie it to the observable from section 1). Every option's tradeoffs read relative to this column.
-
-| | 0: Status quo | A: <label> | B: <label> | C: <label> |
-|---|---|---|---|---|
-| Mechanism (one phrase) | leave it as is | … | … | … |
-| Effort | — | small/medium/large | … | … |
-| Blast radius | — | narrow/moderate/wide | … | … |
-| Reversibility | — | easy/moderate/hard | … | … |
-| New dep? | — | yes (name) / no | … | … |
-| Schema change? | — | yes / no | … | … |
-| Top risk (the worst one) | <cost of the problem persisting> | … | … | … |
-
-Then 2 to 4 lines on cross-option observations (from sub-agent 3) — patterns or shared bottlenecks visible across all options.
-
-## 5. Routing (user picks)
-
-This command does not pick a winner. Pick the option you want, record the pick, and route:
-
-| If you … | Do |
-|---|---|
-| Pick an option with `effort: small` (per the effort rubric) and a clear mechanism | Record it — `/wf intake investigate <slug> <option> [reason]` — then `/wf intake fix "<option-label> — <one-line option description>" from <slug>` |
-| Pick an option with `effort: medium` or `large`, OR `requires_schema_change: yes`, OR `requires_new_dependency: yes` with non-trivial integration | Record it — `/wf intake investigate <slug> <option> [reason]` — then `/wf intake "<option-label> — <one-line option description>" from <slug>` |
-| Are not sure which option to pick | Resolve the cheapest **Decisive unknown** among the candidate cards first: a truth question about the system → `/wf intake <slug> discover <the unknown>` (the answer lands as a compressed slice on this workflow); an API fact about a dependency → the `study-sources` skill, with the finding noted in this artifact; a product or policy call → the human who owns it (see the `problem-not-engineering` tripwire). Then pick. If the stall is comprehension rather than evidence, `/wf recap <slug> <focus>` still applies. |
-
-Routing directly (`… from <slug>`) without recording a pick also works — the downstream mode
-records the pick implicitly and closes this workflow (see `_intake-provenance.md`).
-
-## 6. Tripwire warnings (only if any fired)
-
-Tripwires are **warn-and-continue** — record them, do NOT refuse to write the option set.
-
-- **single-viable-option:** Sub-agent 2 found only one genuinely distinct option. State it plainly — the user should know there isn't a real choice here, the next step is just to execute. Routing collapses to one entry.
-- **option-space-truncated:** More than 3 genuinely distinct viable options were found; the surplus was demoted to compressed entries by the presentation cap, not on merit. The full cards are a curated sample — check "Demoted by presentation cap" before concluding none of the demoted options fits better.
-- **all-options-large:** Every option came back as `effort: large`. The problem may need decomposition before any option becomes tractable — recommend re-running `/wf intake investigate` with a narrower problem statement.
-- **architecture-blocking:** Every viable option requires an architecture violation (sub-agent 2's `requires_architecture_violation` is non-empty on all options). The real next step is a design pass — recommend `/wf intake <problem>` framed as an architecture question, not picking from these options.
-- **problem-not-engineering:** The constraint that makes this hard is product/policy/business, not technical. The sub-agents could not find a meaningfully different engineering approach because the choice is upstream. Record whatever option set exists, but flag prominently that picking among these options will not resolve the problem — the decision belongs to its upstream owner, and routing should go there before choosing.
-- **stale-area:** The recent-churn signal shows the affected area changed >5x in the last 30 days. Any option will land on shifting ground; recommend either pausing until churn settles or coordinating with whoever is actively working in the area.
-
-For each fired tripwire: `[tripwire-name]: <what specifically tripped it>`. Closing line:
-
-> One or more wf-investigate tripwires fired. The option set is still recorded, but review the warnings before picking.
+Write the body per [intake/investigate/_artifact.md](investigate/_artifact.md): the story section, then sections 1–6 (problem, architecture map, option cards, side-by-side comparison with the status-quo column, routing table, tripwires).
 
 ## Step — Write free narrative fragments
 
