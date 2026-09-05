@@ -165,11 +165,18 @@ function matchGlob(ws, glob) {
   return walk(ws).filter((f) => re.test(f)).sort();
 }
 
+// Paths the plugin's own hooks create in any repository a session opens: the
+// registry seeds `.ai/.gitignore` beside the view directory and SessionStart
+// renders `.ai/_view/`. Neither is the model's doing, so `no-changes` and
+// `changes-only-under` ignore them.
+const HOST_LITTER = [/^\.ai\/\.gitignore$/, /^\.ai\/_view\//];
+
 function changedPaths(ws) {
   return git(ws, 'status', '--porcelain', '--untracked-files=all')
     .split(/\r?\n/)
     .filter(Boolean)
-    .map((l) => l.slice(3).replace(/^"|"$/g, ''));
+    .map((l) => l.slice(3).replace(/^"|"$/g, '').replace(/\\/g, '/'))
+    .filter((p) => !HOST_LITTER.some((re) => re.test(p)));
 }
 
 async function runAssertion(a, ws, run) {

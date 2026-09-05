@@ -184,7 +184,12 @@
       "stops": [
         "- design , probe , auto , yolo",
         "- if no slug satisfies any condition stop:",
-        "if a best match exists, stop with: \"unknown"
+        "after the stop, do nothing else.",
+        "if a best match exists, stop with: \"unknown",
+        "if the key candidate is not one of",
+        "retired surfaces (the hint appended to the step",
+        "stop.",
+        "your first visible output for every /wf invocation"
       ],
       "dispatches": [],
       "rubric-checks": []
@@ -3061,7 +3066,7 @@
     "files": 174,
     "artifacts": 441,
     "gates": 82,
-    "stops": 188,
+    "stops": 193,
     "dispatches": 136,
     "rubric-checks": 424,
     "fields": 150,

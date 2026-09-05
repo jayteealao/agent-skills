@@ -99,6 +99,16 @@ export function isProjectContextMarkdownPath(filePath) {
   );
 }
 
+// The ship-plan audit ledger (.ai/ship-plan-audit.md) is kind-keyed (kind:
+// ship-plan-audit, no sdlc/v1 type), so it is NOT a schema-gated managed
+// artifact. It has its own write-time gate in post-write-verify
+// (enforceShipPlanAuditTriage): a ledger may not be finalized while an open
+// BLOCKER/HIGH finding has no triage decision (ship-plan/audit.md Step 5).
+export function isShipPlanAuditPath(filePath) {
+  const normalized = normalizePathForMatch(filePath);
+  return /(?:^|\/)\.ai\/ship-plan-audit\.md$/.test(normalized);
+}
+
 export function isDocsIndexMarkdownPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
   return /(?:^|\/)\.ai\/docs\/[^/]+\/08b-docs-index\.md$/.test(normalized);

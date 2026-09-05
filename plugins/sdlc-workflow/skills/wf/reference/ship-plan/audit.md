@@ -153,6 +153,8 @@ against the parsed prior `findings[]`:
   ledger tells the story of what got fixed.
 - **Acknowledged** findings (Step 5) stay `acknowledged` until they either disappear (→ resolved) or the user
   re-triages them (`/wf ship-plan audit triage`).
+- **Accepted** findings (`triage: accept`) keep that field while the id is still present. Step 5 re-asks only
+  for ids that have no decision yet.
 
 Write the ledger with this shape (frontmatter carries the machine-readable state; the body tells the story):
 
@@ -163,6 +165,8 @@ audited-plan-version: <plan.plan-version>
 plan-updated-at: <plan.updated-at>
 last-run: <N>
 verdict: <sound | ship-with-caveats | unsound>
+triage-status: <complete | awaiting-user>
+awaiting-since: <run N | ->        # awaiting-user only — the run that asked the gate; must equal last-run
 runs:
   - run: <N>
     lens-scope: <all | the single lens>
@@ -179,6 +183,7 @@ findings:
     surfaced-at: <run N>
     last-seen: <run N>
     resolved-at: <run N | ->
+    triage: <accept | ->            # BLOCKER/HIGH only — set by Step 5; carried across runs while the id is unchanged
     route: <the exact fixer command>
 ---
 
@@ -217,6 +222,20 @@ per finding, or batched; show each finding's text + failure scenario + suggested
 a freeform reason, set `status: acknowledged`; the ledger keeps it until it disappears), or **reject** (false
 positive — drop it, and if it keeps re-surfacing, tighten the lens id so it stays dropped). MED/LOW/NIT land as
 `open` without a prompt.
+
+**Record every decision in the ledger, in the same turn.** `accept` sets `triage: accept` on the finding.
+`acknowledge` sets `status: acknowledged` and records the reason. `reject` drops the finding. When every open
+BLOCKER/HIGH carries a decision, set the top-level `triage-status: complete`. If the turn must end while the
+user answers the gate (a host whose question tool ends the turn), set `triage-status: awaiting-user` with
+`awaiting-since: <last-run>`, and record the decisions on the next write. The escape lasts one run: a later run
+that still carries `awaiting-user` with a stale `awaiting-since` must ask the gate again or record the decisions.
+
+**This step is enforced at write time.** The post-write verifier blocks a write of `.ai/ship-plan-audit.md`
+whose `triage-status` is neither `complete` nor `awaiting-user` while an open BLOCKER/HIGH finding exists,
+blocks `complete` while such a finding has no `triage: accept`, and blocks `awaiting-user` whose
+`awaiting-since` does not equal `last-run`. Where the host wires an end-of-turn re-check
+(see [_host-invocation.md](../_host-invocation.md), managed-artifact enforcement), it re-runs the same check, so
+the turn cannot end on an untriaged ledger. A `pending` value is not a state this step recognizes.
 
 **`triage` mode** (`$ARGUMENTS` == `triage`) skips the fan-out entirely: re-read the ledger, re-present every
 `acknowledged` finding, and let the user re-decide (a plan may have changed since they waved it through). Then

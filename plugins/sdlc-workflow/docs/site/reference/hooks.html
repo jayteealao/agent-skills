@@ -184,6 +184,12 @@ reconciled types (plan, review, design, simplify-run, ship-run).</li>
 <li><strong>The verify result gate</strong> (<code>hooks.verifyResultGate</code>): a verify
 artifact that claims <code>result: pass</code> while acceptance criteria are unmet, or while
 interactive verification is deferred, is a contradiction and blocks.</li>
+<li><strong>The ship-plan audit triage gate</strong> (<code>hooks.shipPlanAuditTriageGate</code>):
+a write of <code>.ai/ship-plan-audit.md</code> that leaves an open BLOCKER or HIGH finding
+without a triage decision blocks. <code>triage-status: complete</code> needs
+<code>triage: accept</code> on every such finding. <code>triage-status: awaiting-user</code>
+passes only while <code>awaiting-since</code> equals <code>last-run</code>, so the escape lasts
+one run. Under Codex the Stop hook re-runs the same check.</li>
 <li><strong>The mock-evidence gate</strong> (<code>hooks.mockEvidenceGate</code>):
 <code>result: pass</code> while a user-observable acceptance criterion's best evidence is a
 mock or static analysis blocks. Such a criterion is not met. Produce runtime evidence or

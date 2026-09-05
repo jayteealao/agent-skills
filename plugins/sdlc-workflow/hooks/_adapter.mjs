@@ -428,6 +428,9 @@ export function isManagedArtifactPath(path) {
     // requirement keeps the frontmatter-less .ai/solutions/INDEX.md exempt.
     /(?:^|\/)\.ai\/solutions\/[^/]+\/.+\.md$/.test(n) ||
     /(?:^|\/)(PRODUCT|DESIGN)\.md$/.test(n) ||
-    /(?:^|\/)\.ai\/ship-plan\.md$/.test(n)
+    /(?:^|\/)\.ai\/ship-plan\.md$/.test(n) ||
+    // The ship-plan audit ledger is kind-keyed (never schema-gated) but carries
+    // its own triage gate in post-write-verify, so the Stop re-check must see it.
+    /(?:^|\/)\.ai\/ship-plan-audit\.md$/.test(n)
   );
 }

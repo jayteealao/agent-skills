@@ -14,7 +14,7 @@ question tool.
    | Host | Tool | When it is available |
    |---|---|---|
    | Claude Code | `AskUserQuestion` | Every interactive session |
-   | Codex | `request_user_input` | Plan mode only. Outside plan mode the call errors — do not make it. |
+   | Codex | `request_user_input_async` in default mode; `request_user_input` in plan mode | Every interactive session exposes one of the two. Use the one the session lists. When neither is listed, the call errors — use rung 2. |
    | pi | `AskUserQuestion` | Every interactive session. In print mode the tool disables itself; use rung 2 or rung 3. |
 
 2. **Chat question (interactive, tool unavailable).** Ask ONE message that

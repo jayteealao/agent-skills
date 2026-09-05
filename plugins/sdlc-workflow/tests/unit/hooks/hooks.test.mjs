@@ -447,6 +447,92 @@ test('post-write-verify mock-evidence gate blocks result: pass with a user-obser
   }
 });
 
+function auditLedger({ triageStatus, triage, severity = 'HIGH', status = 'open', lastRun = 1, awaitingSince } = {}) {
+  const head = ['kind: ship-plan-audit', 'audited-plan-version: 1', `last-run: ${lastRun}`, 'verdict: unsound'];
+  if (triageStatus) head.push(`triage-status: ${triageStatus}`);
+  if (awaitingSince !== undefined) head.push(`awaiting-since: ${awaitingSince}`);
+  const finding = [
+    '  - id: release-safety:release-yml:bump-after-tag',
+    '    lens: release-safety',
+    '    target: .github/workflows/release.yml:42',
+    `    severity: ${severity}`,
+    `    status: ${status}`,
+    '    surfaced-at: 1',
+    '    last-seen: 1',
+    '    route: /wf ship-plan edit C',
+  ];
+  if (triage) finding.push(`    triage: ${triage}`);
+  return `---\n${head.join('\n')}\nfindings:\n${finding.join('\n')}\n---\n## The Audit\nbody\n`;
+}
+
+test('post-write-verify ship-plan audit triage gate blocks an untriaged ledger and passes a triaged one', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/ship-plan-audit.md';
+    const p = join(tmp, '.ai', 'ship-plan-audit.md');
+    const run = () => runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+
+    // The transcript failure: open HIGH, triage-status: pending, turn ends.
+    writeFile(p, auditLedger({ triageStatus: 'pending' }));
+    let r = run();
+    equal(r.status, 2, r.stderr);
+    match(r.stderr, /ship-plan audit triage gate BLOCKED/);
+    match(r.stderr, /triage-status is `pending`/);
+
+    // Missing triage-status is the same violation.
+    writeFile(p, auditLedger());
+    r = run();
+    equal(r.status, 2, r.stderr);
+    match(r.stderr, /\(missing\)/);
+
+    // complete without a per-finding decision is still untriaged.
+    writeFile(p, auditLedger({ triageStatus: 'complete' }));
+    r = run();
+    equal(r.status, 2, r.stderr);
+    match(r.stderr, /carry no `triage: accept`/);
+
+    // complete + accept passes.
+    writeFile(p, auditLedger({ triageStatus: 'complete', triage: 'accept' }));
+    r = run();
+    equal(r.status, 0, r.stderr);
+    equal(r.stderr, '');
+
+    // awaiting-user is the explicit ask-and-wait escape, valid for the run that asked.
+    writeFile(p, auditLedger({ triageStatus: 'awaiting-user', awaitingSince: 1 }));
+    r = run();
+    equal(r.status, 0, r.stderr);
+
+    // The escape lasts one run: a stale or missing awaiting-since blocks.
+    writeFile(p, auditLedger({ triageStatus: 'awaiting-user', lastRun: 2, awaitingSince: 1 }));
+    r = run();
+    equal(r.status, 2, r.stderr);
+    match(r.stderr, /the escape lasts one run/);
+    match(r.stderr, /`awaiting-since` is 1 while `last-run` is 2/);
+    writeFile(p, auditLedger({ triageStatus: 'awaiting-user' }));
+    r = run();
+    equal(r.status, 2, r.stderr);
+    match(r.stderr, /`awaiting-since` is \(missing\)/);
+
+    // An acknowledged finding needs no accept; a MED finding never prompts.
+    writeFile(p, auditLedger({ triageStatus: 'complete', status: 'acknowledged' }));
+    equal(run().status, 0);
+    writeFile(p, auditLedger({ severity: 'MED' }));
+    equal(run().status, 0);
+
+    // Never schema-gated: the ledger has no sdlc/v1 type and must not reach Ajv.
+    writeFile(p, auditLedger({ triageStatus: 'complete', triage: 'accept' }));
+    r = run();
+    ok(!/frontmatter validation FAILED/.test(r.stderr), r.stderr);
+
+    // Opt-out.
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify({ hooks: { shipPlanAuditTriageGate: false } }));
+    writeFile(p, auditLedger({ triageStatus: 'pending' }));
+    equal(run().status, 0);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('post-write-verify skips po-answers.md prose log instead of schema-validating it', () => {
   const tmp = tempDir();
   try {

@@ -14,7 +14,7 @@
     "auto": {
       "core": {
         "files": 2,
-        "words": 6813,
+        "words": 7042,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/auto.md"
@@ -22,7 +22,7 @@
       },
       "instructed": {
         "files": 10,
-        "words": 11270,
+        "words": 11517,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_autonomy-guards.md",
@@ -40,7 +40,7 @@
       },
       "referenced": {
         "files": 16,
-        "words": 15824,
+        "words": 16071,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -68,7 +68,7 @@
     "close": {
       "core": {
         "files": 2,
-        "words": 5342,
+        "words": 5571,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/close.md"
@@ -76,7 +76,7 @@
       },
       "instructed": {
         "files": 8,
-        "words": 9425,
+        "words": 9672,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -92,7 +92,7 @@
       },
       "referenced": {
         "files": 14,
-        "words": 13979,
+        "words": 14226,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -118,7 +118,7 @@
     "design": {
       "core": {
         "files": 2,
-        "words": 6235,
+        "words": 6464,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/design.md"
@@ -126,7 +126,7 @@
       },
       "instructed": {
         "files": 12,
-        "words": 14875,
+        "words": 15122,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_autonomy-guards.md",
@@ -152,7 +152,7 @@
       },
       "referenced": {
         "files": 21,
-        "words": 21456,
+        "words": 21703,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -185,7 +185,7 @@
     "docs": {
       "core": {
         "files": 2,
-        "words": 6527,
+        "words": 6756,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/docs.md"
@@ -193,7 +193,7 @@
       },
       "instructed": {
         "files": 9,
-        "words": 11586,
+        "words": 11833,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -216,7 +216,7 @@
       },
       "referenced": {
         "files": 18,
-        "words": 18116,
+        "words": 18363,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -246,7 +246,7 @@
     "handoff": {
       "core": {
         "files": 2,
-        "words": 13260,
+        "words": 13489,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/handoff.md"
@@ -254,7 +254,7 @@
       },
       "instructed": {
         "files": 16,
-        "words": 33568,
+        "words": 33815,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -284,7 +284,7 @@
       },
       "referenced": {
         "files": 22,
-        "words": 38104,
+        "words": 38351,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -318,7 +318,7 @@
     "implement": {
       "core": {
         "files": 2,
-        "words": 9122,
+        "words": 9351,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/implement.md"
@@ -326,7 +326,7 @@
       },
       "instructed": {
         "files": 15,
-        "words": 20437,
+        "words": 20684,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_fix-loop.md",
@@ -349,7 +349,7 @@
       },
       "referenced": {
         "files": 23,
-        "words": 25891,
+        "words": 26138,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -384,7 +384,7 @@
     "intake": {
       "core": {
         "files": 2,
-        "words": 7207,
+        "words": 7436,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/intake.md"
@@ -392,7 +392,7 @@
       },
       "instructed": {
         "files": 15,
-        "words": 21281,
+        "words": 21528,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -421,7 +421,7 @@
       },
       "referenced": {
         "files": 28,
-        "words": 42396,
+        "words": 42643,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -461,7 +461,7 @@
     "observability": {
       "core": {
         "files": 2,
-        "words": 4169,
+        "words": 4398,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/observability.md"
@@ -469,7 +469,7 @@
       },
       "instructed": {
         "files": 7,
-        "words": 7742,
+        "words": 7989,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -484,7 +484,7 @@
       },
       "referenced": {
         "files": 19,
-        "words": 21605,
+        "words": 21852,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -515,7 +515,7 @@
     "plan": {
       "core": {
         "files": 2,
-        "words": 12537,
+        "words": 12766,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/plan.md"
@@ -523,7 +523,7 @@
       },
       "instructed": {
         "files": 12,
-        "words": 23100,
+        "words": 23347,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_fragment-authoring.md",
@@ -554,7 +554,7 @@
       },
       "referenced": {
         "files": 23,
-        "words": 38726,
+        "words": 38973,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -589,7 +589,7 @@
     "probe": {
       "core": {
         "files": 2,
-        "words": 8591,
+        "words": 8820,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/probe.md"
@@ -597,7 +597,7 @@
       },
       "instructed": {
         "files": 12,
-        "words": 24816,
+        "words": 25063,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_compressed-slice.md",
@@ -617,7 +617,7 @@
       },
       "referenced": {
         "files": 17,
-        "words": 28610,
+        "words": 28857,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -646,7 +646,7 @@
     "recap": {
       "core": {
         "files": 2,
-        "words": 6215,
+        "words": 6444,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/recap.md"
@@ -654,7 +654,7 @@
       },
       "instructed": {
         "files": 8,
-        "words": 10298,
+        "words": 10545,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -670,7 +670,7 @@
       },
       "referenced": {
         "files": 14,
-        "words": 14852,
+        "words": 15099,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -696,7 +696,7 @@
     "retro": {
       "core": {
         "files": 2,
-        "words": 7498,
+        "words": 7727,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/retro.md"
@@ -704,7 +704,7 @@
       },
       "instructed": {
         "files": 11,
-        "words": 13259,
+        "words": 13506,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -723,7 +723,7 @@
       },
       "referenced": {
         "files": 18,
-        "words": 18606,
+        "words": 18853,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -753,7 +753,7 @@
     "review": {
       "core": {
         "files": 2,
-        "words": 4809,
+        "words": 5038,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/review.md"
@@ -761,7 +761,7 @@
       },
       "instructed": {
         "files": 13,
-        "words": 19826,
+        "words": 20073,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_findings-ledger.md",
@@ -782,7 +782,7 @@
       },
       "referenced": {
         "files": 20,
-        "words": 25086,
+        "words": 25333,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -814,7 +814,7 @@
     "shape": {
       "core": {
         "files": 2,
-        "words": 10268,
+        "words": 10497,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/shape.md"
@@ -822,7 +822,7 @@
       },
       "instructed": {
         "files": 11,
-        "words": 16614,
+        "words": 16861,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -841,7 +841,7 @@
       },
       "referenced": {
         "files": 22,
-        "words": 34419,
+        "words": 34666,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -875,7 +875,7 @@
     "ship": {
       "core": {
         "files": 2,
-        "words": 10665,
+        "words": 10894,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/ship.md"
@@ -883,7 +883,7 @@
       },
       "instructed": {
         "files": 12,
-        "words": 28748,
+        "words": 28995,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_fragment-authoring.md",
@@ -914,7 +914,7 @@
       },
       "referenced": {
         "files": 20,
-        "words": 34819,
+        "words": 35066,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -946,7 +946,7 @@
     "ship-plan": {
       "core": {
         "files": 2,
-        "words": 4045,
+        "words": 4274,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/ship-plan.md"
@@ -954,7 +954,7 @@
       },
       "instructed": {
         "files": 7,
-        "words": 7618,
+        "words": 7865,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -969,7 +969,7 @@
       },
       "referenced": {
         "files": 23,
-        "words": 38427,
+        "words": 38674,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -1004,7 +1004,7 @@
     "simplify": {
       "core": {
         "files": 2,
-        "words": 7783,
+        "words": 8012,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/simplify.md"
@@ -1012,7 +1012,7 @@
       },
       "instructed": {
         "files": 10,
-        "words": 13552,
+        "words": 13799,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_compressed-slice.md",
@@ -1030,7 +1030,7 @@
       },
       "referenced": {
         "files": 22,
-        "words": 30517,
+        "words": 30764,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -1064,7 +1064,7 @@
     "slice": {
       "core": {
         "files": 2,
-        "words": 7251,
+        "words": 7480,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/slice.md"
@@ -1072,7 +1072,7 @@
       },
       "instructed": {
         "files": 12,
-        "words": 15116,
+        "words": 15363,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1098,7 +1098,7 @@
       },
       "referenced": {
         "files": 21,
-        "words": 29838,
+        "words": 30085,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -1131,7 +1131,7 @@
     "status": {
       "core": {
         "files": 2,
-        "words": 8008,
+        "words": 8237,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/status.md"
@@ -1139,7 +1139,7 @@
       },
       "instructed": {
         "files": 9,
-        "words": 12971,
+        "words": 13218,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_control-file-ownership.md",
@@ -1156,7 +1156,7 @@
       },
       "referenced": {
         "files": 17,
-        "words": 18922,
+        "words": 19169,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -1185,7 +1185,7 @@
     "task": {
       "core": {
         "files": 2,
-        "words": 5748,
+        "words": 5977,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/task.md"
@@ -1193,7 +1193,7 @@
       },
       "instructed": {
         "files": 9,
-        "words": 10757,
+        "words": 11004,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_compressed-slice.md",
@@ -1210,7 +1210,7 @@
       },
       "referenced": {
         "files": 18,
-        "words": 17588,
+        "words": 17835,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -1240,7 +1240,7 @@
     "verify": {
       "core": {
         "files": 2,
-        "words": 16445,
+        "words": 16674,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/verify.md"
@@ -1248,7 +1248,7 @@
       },
       "instructed": {
         "files": 12,
-        "words": 22879,
+        "words": 23126,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_autonomy-guards.md",
@@ -1268,7 +1268,7 @@
       },
       "referenced": {
         "files": 19,
-        "words": 28139,
+        "words": 28386,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",
@@ -1299,7 +1299,7 @@
     "yolo": {
       "core": {
         "files": 2,
-        "words": 10111,
+        "words": 10340,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/yolo.md"
@@ -1307,7 +1307,7 @@
       },
       "instructed": {
         "files": 9,
-        "words": 14374,
+        "words": 14621,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_autonomy-guards.md",
@@ -1324,7 +1324,7 @@
       },
       "referenced": {
         "files": 18,
-        "words": 21205,
+        "words": 21452,
         "fileList": [
           "reference/fragment-author-contract.md",
           "reference/narrative-fragments.md",

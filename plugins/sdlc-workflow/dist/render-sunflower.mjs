@@ -23,7 +23,7 @@ import {
   maybeConfigureTailscale,
   readHubConfig,
   tailscaleDnsName
-} from "./chunk-OO2752MB.mjs";
+} from "./chunk-G44CGR7V.mjs";
 import "./chunk-J2RO6O56.mjs";
 import {
   readRenderedIdentity,
@@ -59,7 +59,7 @@ import {
 import {
   configHash,
   loadConfigWithMeta
-} from "./chunk-D55RRO3F.mjs";
+} from "./chunk-45QLEW5Y.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 

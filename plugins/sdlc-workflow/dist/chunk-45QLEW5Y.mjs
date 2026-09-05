@@ -90,6 +90,13 @@ var DEFAULT_SDLC_CONFIG = Object.freeze({
     // cross-field checks (a true pass meets every AC and defers none). Set false
     // to disable the result gate (AC-VERIFIABILITY recommendations R7).
     verifyResultGate: true,
+    // When true, post-write-verify HARD-BLOCKS a `.ai/ship-plan-audit.md` write
+    // that finalizes the ledger without triage: an open BLOCKER/HIGH finding with
+    // no `triage: accept` while `triage-status` is not `complete` or
+    // `awaiting-user` with `awaiting-since` equal to `last-run` (ship-plan/audit.md
+    // Step 5; the awaiting escape lasts one run). Under Codex the Stop hook
+    // re-checks the same gate, so a turn cannot end on an untriaged ledger.
+    shipPlanAuditTriageGate: true,
     // When true, post-write-verify WARNS (non-blocking) on shadow-deferral
     // vocabulary in a `verify` body that co-occurs with `result: pass`
     // ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified

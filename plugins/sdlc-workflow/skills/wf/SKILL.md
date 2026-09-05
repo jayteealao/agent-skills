@@ -29,13 +29,27 @@ Under Codex or pi, `yolo` stops at Step 0: answer with the redirect to `/wf auto
 
 You are the **single SDLC dispatcher** for the plugin. `/wf` runs **one SDLC operation per key** — not every key writes a numbered stage artifact, and that is by design (Step 2 already tolerates read-only members via `none`). The dispatch table below is the authoritative roster: ten canonical **stages**, five **standalone/drivers**, one **minimal lifecycle** (`task`), two **navigation** members, one **lifecycle-control** member, and three **routers**. `intake` is itself a **mode dispatcher** (plain description → stage 1; mode keyword → compressed entry flow; existing slug + free scope → extension). Your only job is to identify which key the user wants, load its reference body, and follow it verbatim.
 
-> **The dissolve.** The former `/wf-meta` and `/wf-docs` skills are retired — their members are keys here. There is **no `amend`** (corrections are a new slice or a fix) and **no separate augmentation keys** (`shape` decides augmentations; `plan`/`implement`/`verify` apply them). The full retired-surface → new-key mappings live in Resolution rule 3 below.
+> **The dissolve.** The former `/wf-meta` and `/wf-docs` skills are retired — their members are keys here. There is **no `amend`** (corrections are a new slice or a fix) and **no separate augmentation keys** (`shape` decides augmentations; `plan`/`implement`/`verify` apply them). The full retired-surface → new-key mappings live in the **Retired surfaces** list under Step 0.
 
 > **Narrative fragments — any artifact.** Any artifact you write may also ship free narrative fragments (`<stem>.<label>.html.fragment` siblings) whenever a bespoke visual tells the story better than prose — see [reference/_fragment-authoring.md](reference/_fragment-authoring.md) Step F2 and `../../reference/narrative-fragments.md`.
 
-# Step 0 — Resolve the sub-command
+# Step 0 — Dispatch check (MANDATORY — before any read or write)
 
-Parse `$ARGUMENTS`. The first token must be one of the 22 known keys below; the remaining tokens are passed verbatim to the loaded reference as `$ARGUMENTS` for the underlying operation.
+Run this check before you read a reference, read a workflow file, or write anything. Your first visible output for every `/wf` invocation is the result of this check: the dispatch line in step 5, or the STOP message in step 2, step 3, or step 4. Nothing else comes first.
+
+1. Split `$ARGUMENTS` on whitespace. The first token is the key candidate. The remaining tokens are the sub-command's `$ARGUMENTS`, passed verbatim.
+2. If `$ARGUMENTS` is empty, render the key table below and ask the user which key they want. STOP.
+3. If the key candidate is not one of the 22 keys in the table below, STOP. Tell the user: *"`<token>` is not a known wf key. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, probe, simplify, auto, yolo, task, status, recap, close, ship-plan, docs, observability."* Then append the retired-surface hint that matches the token (the **Retired surfaces** list below). After the STOP, do nothing else. In particular:
+   - Do not treat the token as a slug.
+   - Do not treat an intake mode word (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `adopt`, `amend`, `modernize`) as `intake <mode>`. The user must type `/wf intake <mode> …` themselves.
+   - Do not pick a slug on the user's behalf.
+   - Do not load any reference.
+4. If the key candidate is `yolo` and the host is Codex or pi, the redirect that the Hosts section prescribes is your first visible output. Do not emit the dispatch line. Do not load `reference/yolo.md`. STOP.
+5. If the key candidate is a known key, state the dispatch on one line as your first visible output, then continue to Step 0.5:
+
+   `wf dispatch: key=<key> · args=<remaining tokens, or (none)> · reference=reference/<key>.md`
+
+   The line is the proof that the check ran. A reply that opens with anything else skipped the check.
 
 **Known sub-command keys** — each resolves to `reference/<key>.md`:
 
@@ -85,11 +99,9 @@ Parse `$ARGUMENTS`. The first token must be one of the 22 known keys below; the 
 
 **`/wf review` is the whole review surface.** `/wf review <slug>` is the workflow stage; `/wf review <dimension>` / `/wf review sweep <aggregate>` is ad-hoc review (no slug). The former standalone `/review` skill is dissolved into this key — there is no separate review skill anymore.
 
-**Resolution rules:**
+**Dispatch semantics.** When the key candidate is a known key, mode is **dispatch**. For `design`, `intake`, `probe`, `auto`, `yolo`, `task`, `status`, `recap`, `retro`, `close`, `review`, `ship-plan`, `docs`, and `observability`, the remaining tokens carry a slug (or a router sub-key / dimension / description) as their own first token, resolved **inside the loaded reference** (its Step 0) by exact existence check — not here.
 
-1. If the first positional token matches one of the 22 keys, mode is **dispatch** and the remaining tokens become the sub-command's `$ARGUMENTS`. For `design`, `intake`, `probe`, `auto`, `yolo`, `task`, `status`, `recap`, `retro`, `close`, `review`, `ship-plan`, `docs`, and `observability`, the remaining tokens carry a slug (or a router sub-key / dimension / description) as their own first token, resolved **inside the loaded reference** (its Step 0) by exact existence check — not here.
-2. If `$ARGUMENTS` is empty, render the menu above and ask the user which key they want.
-3. If the first token is *not* a known key, **do not** silently treat it as a slug. Tell the user: *"`<token>` is not a known wf key. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, probe, simplify, auto, yolo, task, status, recap, close, ship-plan, docs, observability."* Then handle the retired surfaces:
+**Retired surfaces** (the hint appended to the Step 0 step 3 STOP message; the STOP still stands — a hint never becomes a dispatch):
    - If the token is `quick` or a former `/wf-quick` sub-command: *"`/wf-quick` was retired — `fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, and `ideate` are now `/wf intake <mode>`; `probe` and `simplify` are `/wf probe` and `/wf simplify`."*
    - If the token is a former `/wf-meta` member (`next`, `sync`, `resume`, `amend`, `extend`, `skip`, `how`, `announce`, `init-ship-plan`, `build-pipeline`): *"`/wf-meta` was dissolved into `/wf`. `status`→`/wf status` (it also absorbs `next` and `sync`); `resume`→`/wf recap`; `skip`→`/wf close <slug> <slice>`; `how`→`/wf recap <slug> <focus>` (explain an artifact; code questions and web research are a plain research conversation outside `/wf`); `announce`→`/wf ship <slug> announce`; `init-ship-plan`/`build-pipeline`→`/wf ship-plan init`/`/wf ship-plan build`; `amend`→`/wf intake <slug> amend <what to change>` — an intake maintenance mode that edits a workflow's *recorded config* (branch strategy, branch, base, review scope, title, tags) against a strict whitelist; correcting built *work* is still a new slice via `/wf intake <slug> <scope>` or `/wf intake <slug> fix`, and the ship plan is `/wf ship-plan edit`; `extend`→`/wf intake <slug> <new scope>`."*
    - If the token is a former `/wf-docs` invocation: *"`/wf-docs` is now `/wf docs` — same behavior (orchestrator or a Diátaxis primitive)."*

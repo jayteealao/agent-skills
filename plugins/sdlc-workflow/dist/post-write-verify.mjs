@@ -8,12 +8,13 @@ import {
   isProbeEvidencePath,
   isProjectContextMarkdownPath,
   isProseLogPath,
+  isShipPlanAuditPath,
   outputSystemMessage,
   projectRootFromInput,
   readStdinJson,
   readTextIfExists,
   resolveProjectPath
-} from "./chunk-CYQVCGV6.mjs";
+} from "./chunk-BPXIXN3J.mjs";
 import {
   logError
 } from "./chunk-SCQPZLF2.mjs";
@@ -27,7 +28,7 @@ import {
 import "./chunk-UTP6CBAZ.mjs";
 import {
   loadConfig
-} from "./chunk-D55RRO3F.mjs";
+} from "./chunk-45QLEW5Y.mjs";
 import {
   require__,
   require_dist
@@ -554,6 +555,63 @@ A test may not name a machine the design does not own. State the mechanism in th
     );
   }
 }
+var TRIAGE_SEVERITIES = /* @__PURE__ */ new Set(["BLOCKER", "HIGH"]);
+function auditTriageViolation(data) {
+  const findings = Array.isArray(data?.findings) ? data.findings : [];
+  const severe = findings.filter(
+    (f) => f && String(f.status ?? "open").toLowerCase() === "open" && TRIAGE_SEVERITIES.has(String(f.severity ?? "").toUpperCase())
+  );
+  if (!severe.length) return null;
+  const status = String(data?.["triage-status"] ?? "").toLowerCase();
+  if (status === "awaiting-user") {
+    const since = Number(data?.["awaiting-since"]);
+    const lastRun = Number(data?.["last-run"]);
+    if (Number.isInteger(since) && Number.isInteger(lastRun) && since === lastRun) return null;
+    const shownSince = data?.["awaiting-since"] === void 0 ? "(missing)" : String(data["awaiting-since"]);
+    const shownRun = Number.isInteger(lastRun) ? String(lastRun) : "(missing)";
+    return {
+      reason: `triage-status is \`awaiting-user\` but \`awaiting-since\` is ${shownSince} while \`last-run\` is ${shownRun}: the escape lasts one run. Ask the gate again in this run and set \`awaiting-since: ${Number.isInteger(lastRun) ? lastRun : "<last-run>"}\`, or record the decisions. Open: ` + severe.map((f) => f.id ?? "<no id>").join(", "),
+      count: severe.length
+    };
+  }
+  if (status === "complete") {
+    const untriaged = severe.filter((f) => String(f.triage ?? "").toLowerCase() !== "accept");
+    if (!untriaged.length) return null;
+    return {
+      reason: `triage-status is \`complete\` but ${untriaged.length} open BLOCKER/HIGH finding(s) carry no \`triage: accept\`: ` + untriaged.map((f) => f.id ?? "<no id>").join(", "),
+      count: untriaged.length
+    };
+  }
+  return {
+    reason: `${severe.length} open BLOCKER/HIGH finding(s) and triage-status is \`${status || "(missing)"}\`: ` + severe.map((f) => f.id ?? "<no id>").join(", "),
+    count: severe.length
+  };
+}
+async function enforceShipPlanAuditTriage(paths, config) {
+  if (config.hooks?.shipPlanAuditTriageGate === false) return;
+  for (const path of paths) {
+    const text = await readTextIfExists(path.absolute);
+    if (!hasFrontmatterFence(text)) continue;
+    const { data } = safeParseFrontmatter(text, { filePath: path.absolute });
+    if (!data || String(data.kind ?? "") !== "ship-plan-audit") continue;
+    const violation = auditTriageViolation(data);
+    if (!violation) continue;
+    process.stderr.write(
+      `wf-postwrite-verify: ship-plan audit triage gate BLOCKED ${path.original}
+
+${violation.reason}
+
+Step 5 of reference/ship-plan/audit.md requires a gate question for every open BLOCKER/HIGH finding
+before the ledger is finalized. Ask the gate now (per reference/_gate-question.md), then record each
+decision in the ledger: accept -> \`triage: accept\` on the finding; acknowledge -> \`status: acknowledged\`
++ the reason; reject -> drop the finding. Then set \`triage-status: complete\`. If the turn must end while
+the user answers, set \`triage-status: awaiting-user\` and \`awaiting-since: <last-run>\` instead; that escape
+lasts one run. Opt out with hooks.shipPlanAuditTriageGate: false.
+`
+    );
+    process.exit(2);
+  }
+}
 var PLUGIN_ROOT = fileURLToPath2(new URL("..", import.meta.url));
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === "1") return;
@@ -565,6 +623,8 @@ async function main() {
   const schemaPath = join(PLUGIN_ROOT, "tests", "frontmatter.schema.json");
   const paths = collectToolInputPaths(input).filter((path) => isManagedArtifactMarkdownPath(path)).filter((path) => !isProbeEvidencePath(path)).map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) })).filter(({ absolute }) => absolute && existsSync(absolute));
   enforceCodeFileLints(input, config, paths);
+  const auditPaths = collectToolInputPaths(input).filter((path) => isShipPlanAuditPath(path)).map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) })).filter(({ absolute }) => absolute && existsSync(absolute));
+  if (auditPaths.length) await enforceShipPlanAuditTriage(auditPaths, config);
   if (!paths.length) return;
   const failures = [];
   for (const path of paths) {
@@ -604,3 +664,6 @@ main().catch(async (err) => {
   }
   process.exit(0);
 });
+export {
+  auditTriageViolation
+};

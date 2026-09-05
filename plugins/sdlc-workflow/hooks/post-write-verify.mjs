@@ -28,6 +28,7 @@ import {
   isProjectContextMarkdownPath,
   isProbeEvidencePath,
   isProseLogPath,
+  isShipPlanAuditPath,
   outputSystemMessage,
   projectRootFromInput,
   readTextIfExists,
@@ -470,6 +471,81 @@ async function enforceNamedMechanismLint(paths, config) {
   }
 }
 
+// Ship-plan audit triage gate (ship-plan/audit.md Step 5). The ledger is
+// kind-keyed, so it never reaches the schema validator; this is its only gate.
+// Transcript evidence (Aperture, 2026-09-05): two audit runs wrote
+// `triage-status: pending` and ended the turn without asking the Step 5 gate
+// question, leaving 13 open findings untriaged. The rule is cross-field and
+// false-positive-free:
+//   - no open BLOCKER/HIGH finding -> nothing to triage, the write passes;
+//   - `triage-status: complete` -> every open BLOCKER/HIGH must carry
+//     `triage: accept` (acknowledged findings changed status; rejected ones are
+//     dropped), else BLOCK;
+//   - `triage-status: awaiting-user` -> the turn asked the gate and is waiting;
+//     the write passes only while `awaiting-since` equals `last-run`. The escape
+//     lasts one run: a later run that still carries the stale marker BLOCKS, so a
+//     ledger cannot sit in `awaiting-user` forever without re-asking the gate;
+//   - anything else (missing, `pending`, ...) with an open BLOCKER/HIGH -> BLOCK.
+const TRIAGE_SEVERITIES = new Set(['BLOCKER', 'HIGH']);
+
+export function auditTriageViolation(data) {
+  const findings = Array.isArray(data?.findings) ? data.findings : [];
+  const severe = findings.filter(
+    (f) => f && String(f.status ?? 'open').toLowerCase() === 'open' && TRIAGE_SEVERITIES.has(String(f.severity ?? '').toUpperCase()),
+  );
+  if (!severe.length) return null;
+  const status = String(data?.['triage-status'] ?? '').toLowerCase();
+  if (status === 'awaiting-user') {
+    const since = Number(data?.['awaiting-since']);
+    const lastRun = Number(data?.['last-run']);
+    if (Number.isInteger(since) && Number.isInteger(lastRun) && since === lastRun) return null;
+    const shownSince = data?.['awaiting-since'] === undefined ? '(missing)' : String(data['awaiting-since']);
+    const shownRun = Number.isInteger(lastRun) ? String(lastRun) : '(missing)';
+    return {
+      reason: `triage-status is \`awaiting-user\` but \`awaiting-since\` is ${shownSince} while \`last-run\` is ${shownRun}: ` +
+        `the escape lasts one run. Ask the gate again in this run and set \`awaiting-since: ${Number.isInteger(lastRun) ? lastRun : '<last-run>'}\`, ` +
+        'or record the decisions. Open: ' + severe.map((f) => f.id ?? '<no id>').join(', '),
+      count: severe.length,
+    };
+  }
+  if (status === 'complete') {
+    const untriaged = severe.filter((f) => String(f.triage ?? '').toLowerCase() !== 'accept');
+    if (!untriaged.length) return null;
+    return {
+      reason: `triage-status is \`complete\` but ${untriaged.length} open BLOCKER/HIGH finding(s) carry no \`triage: accept\`: ` +
+        untriaged.map((f) => f.id ?? '<no id>').join(', '),
+      count: untriaged.length,
+    };
+  }
+  return {
+    reason: `${severe.length} open BLOCKER/HIGH finding(s) and triage-status is \`${status || '(missing)'}\`: ` +
+      severe.map((f) => f.id ?? '<no id>').join(', '),
+    count: severe.length,
+  };
+}
+
+async function enforceShipPlanAuditTriage(paths, config) {
+  if (config.hooks?.shipPlanAuditTriageGate === false) return;
+  for (const path of paths) {
+    const text = await readTextIfExists(path.absolute);
+    if (!hasFrontmatterFence(text)) continue;
+    const { data } = safeParseFrontmatter(text, { filePath: path.absolute });
+    if (!data || String(data.kind ?? '') !== 'ship-plan-audit') continue;
+    const violation = auditTriageViolation(data);
+    if (!violation) continue;
+    process.stderr.write(
+      `wf-postwrite-verify: ship-plan audit triage gate BLOCKED ${path.original}\n\n${violation.reason}\n\n` +
+      'Step 5 of reference/ship-plan/audit.md requires a gate question for every open BLOCKER/HIGH finding\n' +
+      'before the ledger is finalized. Ask the gate now (per reference/_gate-question.md), then record each\n' +
+      'decision in the ledger: accept -> `triage: accept` on the finding; acknowledge -> `status: acknowledged`\n' +
+      '+ the reason; reject -> drop the finding. Then set `triage-status: complete`. If the turn must end while\n' +
+      'the user answers, set `triage-status: awaiting-user` and `awaiting-since: <last-run>` instead; that escape\n' +
+      'lasts one run. Opt out with hooks.shipPlanAuditTriageGate: false.\n',
+    );
+    process.exit(2);
+  }
+}
+
 const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 async function main() {
@@ -495,6 +571,14 @@ async function main() {
   // Code-file advisory lints run even when this write touched no managed artifact
   // (they target source files, not artifacts) — so they precede the early return.
   enforceCodeFileLints(input, config, paths);
+
+  // The ship-plan audit ledger is kind-keyed (never schema-gated) but has its own
+  // triage gate; it is collected separately so it never enters the Ajv pass.
+  const auditPaths = collectToolInputPaths(input)
+    .filter((path) => isShipPlanAuditPath(path))
+    .map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) }))
+    .filter(({ absolute }) => absolute && existsSync(absolute));
+  if (auditPaths.length) await enforceShipPlanAuditTriage(auditPaths, config);
 
   if (!paths.length) return;
 

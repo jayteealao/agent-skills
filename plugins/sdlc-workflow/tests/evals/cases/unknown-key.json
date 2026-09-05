@@ -1,0 +1,24 @@
+{
+  "name": "unknown-key",
+  "order": 5,
+  "fixture": "node-cli",
+  "prompt": "/wf fix the list command crashes on an empty directory",
+  "maxTurns": 10,
+  "assertions": [
+    {
+      "type": "result-contains",
+      "pattern": "`fix` is not a known wf key"
+    },
+    {
+      "type": "result-contains",
+      "pattern": "/wf intake"
+    },
+    {
+      "type": "absent",
+      "glob": ".ai/workflows/**"
+    },
+    {
+      "type": "no-changes"
+    }
+  ]
+}

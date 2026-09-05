@@ -137,6 +137,8 @@ test('isManagedArtifactPath matches sdlc artifacts only', () => {
   assert.ok(isManagedArtifactPath('repo/PRODUCT.md'));
   assert.ok(isManagedArtifactPath('.ai/ship-plan.md'));
   assert.ok(isManagedArtifactPath('repo/.ai/ship-plan.md'));
+  assert.ok(isManagedArtifactPath('.ai/ship-plan-audit.md'));
+  assert.ok(!isManagedArtifactPath('.ai/observability-audit.md'));
   assert.ok(!isManagedArtifactPath('src/app.ts'));
   assert.ok(!isManagedArtifactPath('.ai/workflows/demo/01-intake.yaml'));
 });

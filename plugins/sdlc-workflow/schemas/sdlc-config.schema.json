@@ -132,6 +132,11 @@
           "default": true,
           "description": "When true (default), the post-write-verify hook HARD-BLOCKS (exit 2) a `verify` artifact whose frontmatter contradicts a passing result: `result: pass` with metric-acceptance-met < metric-acceptance-total, or `result: pass` with interactive-verification: deferred. False-positive-free cross-field checks (a true pass meets every AC and defers none). Set false to disable the result gate. See the AC-VERIFIABILITY recommendations R7."
         },
+        "shipPlanAuditTriageGate": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook HARD-BLOCKS (exit 2) a write of `.ai/ship-plan-audit.md` that finalizes the ledger without triage: an open BLOCKER/HIGH finding while `triage-status` is neither `complete` nor `awaiting-user`, or `complete` while such a finding has no `triage: accept` (reference/ship-plan/audit.md Step 5). The end-of-turn re-check, where the host wires one, re-runs the same gate. Set false to disable."
+        },
         "verifyDeferralLint": {
           "type": "boolean",
           "default": true,

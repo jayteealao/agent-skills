@@ -70,6 +70,10 @@ function isProjectContextMarkdownPath(filePath) {
   // Added in v9.132.0 (OBSERVABILITY-ROUTER-PLAN).
   /(?:^|\/)\.ai\/observability(?:-build)?\.md$/.test(normalized);
 }
+function isShipPlanAuditPath(filePath) {
+  const normalized = normalizePathForMatch(filePath);
+  return /(?:^|\/)\.ai\/ship-plan-audit\.md$/.test(normalized);
+}
 function projectContextPathInfo(filePath) {
   const normalized = normalizePathForMatch(filePath);
   if (/(?:^|\/)PRODUCT\.md$/.test(normalized)) {
@@ -170,6 +174,7 @@ export {
   isProseLogPath,
   isProbeEvidencePath,
   isProjectContextMarkdownPath,
+  isShipPlanAuditPath,
   projectContextPathInfo,
   isManagedArtifactMarkdownPath,
   isInsideWorkflowArtifacts,

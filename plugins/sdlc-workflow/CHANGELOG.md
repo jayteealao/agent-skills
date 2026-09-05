@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Ship-plan audit triage gate.** `post-write-verify` blocks a write of `.ai/ship-plan-audit.md` that leaves an open BLOCKER/HIGH finding without a triage decision (`hooks.shipPlanAuditTriageGate`, default on). `triage-status: complete` needs `triage: accept` on every such finding; `triage-status: awaiting-user` passes only while `awaiting-since` equals `last-run`, so the ask-and-wait escape lasts one run. The ledger is kind-keyed and never reaches the schema validator; `isManagedArtifactPath` includes it so the Codex Stop re-check runs the same gate. Documented in `configuration.html` and `hooks.html`.
+- **`/wf` Step 0 is an explicit dispatch check.** The first visible output of every invocation is a one-line `wf dispatch:` proof, the unknown-key STOP, or (for `yolo` under Codex or pi) the host redirect. An unknown first token is never a slug and never an intake mode; the retired-surface hints remain hints.
+- **Eval case `unknown-key`** asserts the STOP text and a clean workspace. The harness ignores `.ai/.gitignore` and `.ai/_view/`, which the plugin's own hooks create in any opened repository, in `no-changes` and `changes-only-under`.
+
 ### Fixed
 
 - All six Codex skills now set `policy.allow_implicit_invocation: false`: users must explicitly select `wf`, `consult`, `diataxis`, `study-sources`, `imagery`, or `uiproto`. Updated both skill-policy tests and the host contract. Current official documentation confirms explicit invocation remains available, superseding the earlier visibility workaround. Workflow steps and event-hook wiring are unchanged.
-
-## [Unreleased]
+- `_gate-question.md`: Codex exposes `request_user_input_async` in default mode and `request_user_input` in plan mode; use the one the session lists.
 
 ## [9.153.5] - 2026-09-04
 
