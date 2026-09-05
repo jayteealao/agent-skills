@@ -112,5 +112,35 @@
     "to": "skills/wf/reference/ship/_run-artifact.md",
     "category": "artifacts",
     "entry": "07-review-<X>.md"
+  },
+  {
+    "from": "skills/wf/reference/implement.md",
+    "to": "skills/wf/reference/_workflow-rules.md",
+    "category": "gates",
+    "entry": "workflow rules - store artifacts under .ai/workflows/<slug /"
+  },
+  {
+    "from": "skills/wf/reference/implement.md",
+    "to": "skills/wf/reference/implement/_artifact.md",
+    "category": "artifacts",
+    "entry": "06-verify-<X>.md"
+  },
+  {
+    "from": "skills/wf/reference/implement.md",
+    "to": "skills/wf/reference/implement/_reviews-mode.md",
+    "category": "dispatches",
+    "entry": "dispatch all finding fixes in parallel, one sub-agent"
+  },
+  {
+    "from": "skills/wf/reference/implement.md",
+    "to": "skills/wf/reference/implement/_research.md",
+    "category": "dispatches",
+    "entry": "heading: research sub-agent 1 pre-implementation codebase verification"
+  },
+  {
+    "from": "skills/wf/reference/implement.md",
+    "to": "skills/wf/reference/implement/_research.md",
+    "category": "dispatches",
+    "entry": "heading: research sub-agent 2 dependency & api freshness (only if external dependencies are involved)"
   }
 ]
