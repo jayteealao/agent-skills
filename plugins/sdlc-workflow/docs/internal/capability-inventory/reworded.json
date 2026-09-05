@@ -46,5 +46,11 @@
     "category": "gates",
     "from": "step 0 orient (mandatory do this before all",
     "to": "step 0 orient (do this before all other"
+  },
+  {
+    "file": "skills/wf/reference/slice.md",
+    "category": "gates",
+    "from": "step 0 orient (mandatory do this before all",
+    "to": "step 0 orient (do this before all other"
   }
 ]

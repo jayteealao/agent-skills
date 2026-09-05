@@ -82,5 +82,11 @@
     "to": "skills/wf/reference/verify/_sub-agents.md",
     "category": "dispatches",
     "entry": "heading: web research sub-agent 5 freshness: dependencies, ac staleness, and standards drift"
+  },
+  {
+    "from": "skills/wf/reference/slice.md",
+    "to": "skills/wf/reference/_workflow-rules.md",
+    "category": "gates",
+    "entry": "workflow rules - store artifacts under .ai/workflows/<slug /"
   }
 ]
