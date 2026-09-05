@@ -4,13 +4,13 @@ argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Load `_intake-context.md` in full and apply it: the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake rca`, a **root-cause analysis workflow** that investigates an issue and recommends the right downstream command, without writing a fix.
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-rca-<descriptor>.md` (`type: slice`, `slice-type: rca`, `compressed: true`, `origin: intake/rca`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `rca → compressed slice <slice-slug> on <slug>`.
+If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `../_compressed-slice.md`; it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-rca-<descriptor>.md` (`type: slice`, `slice-type: rca`, `compressed: true`, `origin: intake/rca`); no new workflow, no new branch, no standalone artifact, no new top-level `00-index.md`; additive index updates only; chat return `rca → compressed slice <slice-slug> on <slug>`.
 
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
@@ -19,112 +19,51 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 
 | | Detail |
 |---|---|
-| Requires | Nothing — starts fresh. Pass an error description, stack trace, or an existing slug to resume; pass `<slug> <route>` to record the route and close. |
-| Produces | `01-rca.md` (full RCA), `02-shape.md` (synthesized minimal shape so /wf plan works), `00-index.md` |
+| Requires | Nothing; starts fresh. Pass an error description, stack trace, or an existing slug to resume; pass `<slug> <route>` to record the route and close. |
+| Produces | `01-rca.md` (full RCA), `02-shape.md` (synthesized minimal shape so /wf plan works), `00-index.md`. Body templates: [intake/rca/_artifact.md](rca/_artifact.md). |
 | Skips | No fix, no plan, no shape interview. The RCA *is* the shape. |
-| Next | `/wf plan <slug>` (default — non-trivial fixes, same slug continues), `/wf intake fix "<suggested fix, one line>" from <slug>` (small fixes), `/wf intake hotfix "<symptom, one line>" from <slug>` (active production incidents). The artifact recommends one based on the diagnosis; recording the route (`# Route — decision closure`) is the terminus. |
-| Escalate | If root cause is genuinely uncertain (confidence: low), climb the ladder before surrendering to triage: `/wf probe <slug> "<the runtime question the diagnosis hinges on>"` for a runtime fact, the `study-sources` skill for a dependency fact, `/consult` for a second model on the hypothesis — human triage is the LAST rung, reached when low confidence survives those, not the only one. |
+| Next | `/wf plan <slug>` (default: non-trivial fixes, same slug continues), `/wf intake fix "<suggested fix, one line>" from <slug>` (small fixes), `/wf intake hotfix "<symptom, one line>" from <slug>` (active production incidents). The artifact recommends one based on the diagnosis; recording the route (`# Route — decision closure`) is the terminus. |
+| Escalate | If root cause is genuinely uncertain (confidence: low), climb the ladder before surrendering to triage: `/wf probe <slug> "<the runtime question the diagnosis hinges on>"` for a runtime fact, the `study-sources` skill for a dependency fact, `/consult` for a second model on the hypothesis. Human triage is the LAST rung, reached when low confidence survives those. |
 
-> **Auto second opinion (diagnosis).** Once the root-cause hypothesis is written
-> (before the terminus recommendation), **auto-invoke** `/consult codex <is this
-> root-cause sound? what else could explain the symptom?>` (pin `codex`/`claude`)
-> unless the cause is already proven — a read-only panel whose repo-aware oracles
-> check the hypothesis against the real code before you commit to a fix.
+> **Auto second opinion (diagnosis).** Once the root-cause hypothesis is written (before the terminus recommendation), **auto-invoke** `/consult codex <is this root-cause sound? what else could explain the symptom?>` (pin `codex`/`claude`) unless the cause is already proven: a read-only panel whose repo-aware oracles check the hypothesis against the real code before you commit to a fix.
 
-> **Read the real source (diagnosis).** When the symptom trail leads *out of the
-> repo* — a stack frame inside `node_modules`/`site-packages`/a cached JAR, an error
-> string absent from the tree, version-specific behavior — invoke the `study-sources`
-> skill to read that dependency/framework/SDK's **actual installed source** before
-> settling on a hypothesis. A root cause grounded in the real implementation beats one
-> grounded in recalled API behavior, which is exactly where plausible-but-wrong RCAs
-> come from. Reads land in gitignored `.scratch/` — no repo mutation, no fix.
+> **Read the real source (diagnosis).** When the symptom trail leads *out of the repo* (a stack frame inside `node_modules`/`site-packages`/a cached JAR, an error string absent from the tree, version-specific behavior), invoke the `study-sources` skill to read that dependency's **actual installed source** before settling on a hypothesis. A root cause grounded in the real implementation beats one grounded in recalled API behavior, which is exactly where plausible-but-wrong RCAs come from. Reads land in gitignored `.scratch/`; no repo mutation, no fix.
 
-# CRITICAL — investigation discipline
+# Investigation discipline
 You are a **diagnostician**, not a fixer.
-- The **only** acceptable output is the RCA artifact, the synthesized shape, and the index. Do NOT edit application code. Do NOT propose a patch. Do NOT run code that would mutate state (DB writes, deployments, git commits).
+- The **only** acceptable output is the RCA artifact, the synthesized shape, and the index. Do not edit application code. Do not propose a patch. Do not run code that would mutate state (DB writes, deployments, git commits).
 - Read-only investigation only: `git log`, `git blame`, your native file-reading and search tools, log file inspection, dev-tooling inspection, and tests run in read-only modes.
-- The "Suggested fix shape" section is **direction, not a plan** — 1 to 3 lines naming the area and approach. Do not enumerate steps.
-- Ask at most **3 questions** in chat. No structured gate question, no separate `po-answers.md` — answers go inline into the artifact.
+- The "Suggested fix shape" section is **direction, not a plan**: 1 to 3 lines naming the area and approach. Do not enumerate steps.
+- Ask at most **3 questions** in chat. No structured gate question, no separate `po-answers.md`; answers go inline into the artifact.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
-# Step 0 — Orient (MANDATORY)
+# Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
-   - If the first token matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: rca` → the workflow exists. Split on three sub-cases:
+   - If the first token matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: rca`, the workflow exists. Split on three sub-cases:
      - **A token after the slug matches a route** (`plan`, `fix`, `hotfix`, `human-triage`) → **route mode**. Jump to `# Route — decision closure` below; any trailing prose is the decision note. If the index is already `status: closed`, WARN: "Workflow `<slug>` is closed (chosen-route: `<value>`)." and stop.
-     - **`01-rca.md` is complete and no route token is present** → tell the user the diagnosis is ready and how to record the route — `/wf intake rca <slug> <plan|fix|hotfix|human-triage> [one-line reason]` — and stop.
+     - **`01-rca.md` is complete and no route token is present** → tell the user the diagnosis is ready and how to record the route (`/wf intake rca <slug> <plan|fix|hotfix|human-triage> [one-line reason]`) and stop.
      - **`01-rca.md` is incomplete** → **resume mode**: pick up from the missing section.
-   - Otherwise → **new RCA**. Derive a slug: `rca-<short-symptom>` (kebab-case, max 5 words, e.g., `rca-checkout-double-charge`). This is an ordinary `.ai/workflows/<slug>/` directory — there is no synthetic `__rca__` slug. The renderer discovers it via the standard workflow walk and projects `01-rca.md` through the `01-rca` → rca route, so no special-casing is needed in the view layer.
-   - **Inbound provenance:** apply `_intake-provenance.md` on an explicit `from <source-slug>` token — a `discover` verdict routed here carries ranked counter-hypotheses that are literally candidate root causes; seed Step 2's sub-agent prompts with them and record `origin-discover` on the index.
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `rca` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf recap <slug>` to continue the existing workflow." Stop.
-3. **Branch posture (do NOT switch branches):**
-   - Investigation is read-only — do not create or switch branches.
-   - Record the current branch in the index as `branch` and `base-branch` so the eventual fix workflow knows where the diagnosis was performed.
-4. **Read project context (lightweight):**
-   - Read `README.md` (top 100 lines) for project shape.
-   - Read `AGENTS.md` if present for project conventions.
-   - Skim `.ai/workflows/*/00-index.md` (filenames only) to spot any related active workflows the symptom might be tied to.
+   - Otherwise → **new RCA**. Derive a slug: `rca-<short-symptom>` (kebab-case, max 5 words, for example `rca-checkout-double-charge`). This is an ordinary `.ai/workflows/<slug>/` directory; there is no synthetic `__rca__` slug. The renderer discovers it via the standard workflow walk and projects `01-rca.md` through the `01-rca` → rca route.
+   - **Inbound provenance:** apply `_intake-provenance.md` on an explicit `from <source-slug>` token. A `discover` verdict routed here carries ranked counter-hypotheses that are literally candidate root causes; seed Step 2's sub-agent prompts with them and record `origin-discover` on the index.
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `rca`, WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf recap <slug>` to continue the existing workflow." Stop.
+3. **Branch posture (do not switch branches):** investigation is read-only; create no branch and switch no branch. Record the current branch in the index as `branch` and `base-branch` so the eventual fix workflow knows where the diagnosis was performed.
+4. **Read project context (lightweight):** `README.md` (top 100 lines) for project shape; `AGENTS.md` if present for conventions; `.ai/workflows/*/00-index.md` filenames to spot related active workflows the symptom might be tied to.
 
 # Step 1 — Symptom intake
-Ask at most **3 questions** — stop as soon as you have enough to investigate:
+Ask at most **3 questions**; stop as soon as you have enough to investigate:
 
-1. **What is broken?** — Symptom: what is failing, where (URL, endpoint, page, component, service, log line), and for whom (all users, specific cohort, environment, account).
-2. **What is the impact?** — Critical (outage, data risk), high (degraded), medium (annoyance), or low (cosmetic). How many users? Is data at risk?
-3. **What changed recently?** — Deployments, migrations, config changes, dependency bumps in the last 24-72 hours that might be the cause.
+1. **What is broken?** Symptom: what is failing, where (URL, endpoint, page, component, service, log line), and for whom (all users, specific cohort, environment, account).
+2. **What is the impact?** Critical (outage, data risk), high (degraded), medium (annoyance), or low (cosmetic). How many users? Is data at risk?
+3. **What changed recently?** Deployments, migrations, config changes, dependency bumps in the last 24-72 hours that might be the cause.
 
-If the user provided a stack trace or error message in `$ARGUMENTS`, treat it as partial answers — only ask remaining questions.
-
-Do NOT write the artifact yet. Hold the answers in working memory and proceed to Step 2.
+If the user provided a stack trace or error message in `$ARGUMENTS`, treat it as partial answers; only ask remaining questions. Do not write the artifact yet. Hold the answers in working memory and proceed to Step 2.
 
 # Step 2 — Parallel root-cause investigation
-Launch parallel read-only sub-agents to identify the root cause. Do not proceed to synthesis until all complete.
-
-**Effort tier for every dispatched agent:** **medium** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch. Root-cause analysis is the defining judgment-heavy task: Code path investigation must reason about incorrect assumptions and race conditions, Recent change correlation must causally link diffs to symptoms, Blast radius must reason about coupling. Low effort underserves causal reasoning under uncertainty; medium is the right tier.
-
-### research sub-agent 1 — Code path investigation
-
-Prompt with ALL of the following:
-- Identify the code path most likely to contain the bug from the symptom description and any error/stack trace.
-- Read the implicated files in full. Look for: incorrect assumptions, missing null/undefined handling, race conditions, off-by-one errors, incorrect state transitions, mismatched contract between caller and callee.
-- Check tests covering the implicated path. If tests exist, identify why they did not catch this. If tests do not exist, note the gap.
-- Run `git log --oneline -20` on the implicated files; cross-reference with "recent changes" from the symptom intake.
-
-Return as structured text:
-- `implicated_files`: list of paths
-- `most_likely_mechanism`: one paragraph naming the root cause mechanism
-- `evidence`: 2-5 bullets citing file:line locations
-- `confidence`: high | medium | low (with one-line justification)
-- `test_coverage_gap`: description or "none"
-
-### research sub-agent 2 — Recent change correlation
-
-Prompt with ALL of the following:
-- Run `git log --since="7 days ago" --oneline` and identify commits in or near the implicated path.
-- For each candidate commit, read the diff and check whether it could plausibly cause the symptom.
-- Check open PRs touching the implicated path: `gh pr list --search "path:<implicated-dir>"`.
-- Check recent deployments, migrations, or feature flags if discoverable from the repo.
-
-Return as structured text:
-- `suspect_commits`: list of `<sha> <short-message>` with one-line "could it cause this?" assessment
-- `concurrent_work`: list of open PRs touching the same area
-- `external_changes`: any deploys/migrations/flag flips noted (or "none discovered")
-
-### research sub-agent 3 — Blast radius
-
-Prompt with ALL of the following:
-- Given the implicated mechanism, identify what else might be silently affected: callers of the broken function, sibling code paths sharing the same flawed assumption, data already corrupted by past invocations, downstream systems consuming the bad output.
-- Search the codebase for the same pattern that caused the bug, in case it exists in multiple places.
-
-Return as structured text:
-- `affected_callers`: list of `path:symbol` that may be affected
-- `same_pattern_elsewhere`: list of paths where the buggy pattern repeats (or "none found")
-- `data_at_risk`: description of any persisted state that may be corrupt (or "none")
-- `radius`: low | medium | high (with one-line justification)
-
-If the symptom is clearly local (a single component, a single endpoint, no shared utilities), Sub-agent 3 may be skipped — but state in the RCA artifact that it was skipped and why.
+Launch parallel read-only sub-agents to identify the root cause. Do not proceed to synthesis until all complete. The three charters (code path investigation, recent change correlation, blast radius), the effort tier, the return shapes, and the local-symptom skip rule are in [intake/rca/_research.md](rca/_research.md).
 
 # Step 3 — Synthesize and write `01-rca.md`
 
-Merge findings from the sub-agents. **Do not invent root causes the agents did not surface.** If the agents disagree or returned low confidence, the RCA records that — uncertainty is data.
+Write the body per the section templates in [intake/rca/_artifact.md](rca/_artifact.md): the RCA story, Sections 1–11 (symptom through tripwires), including the Section 10 routing table that names the exact invocation for each route.
 
 **`01-rca.md` frontmatter:**
 ```yaml
@@ -143,95 +82,9 @@ created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
-**Body sections (in order):**
-
-## The RCA
-<!-- STORY SECTION — first, and self-sufficient. MUST follow `../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language MUST follow `../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
-
-## 1. Symptom
-
-The user-reported issue, verbatim where possible. ≤3 sentences. Cite the original error message or stack trace if provided.
-
-## 2. Scope
-
-- **Who is affected:** all users / cohort / specific account / specific environment.
-- **When it started:** first known occurrence (commit, deploy, time window) or "unknown".
-- **Reproduction:** specific steps if reliably reproducible, or "intermittent — see Step 4 evidence".
-
-## 3. Investigation summary
-
-A short bulleted list of what was checked. ≤6 bullets. Mention what each sub-agent inspected and what was ruled out as well as what was confirmed. Ruling things *out* is data — record it.
-
-## 4. Root cause
-
-The actual cause, written as a mechanism: "X happens because Y, which causes Z." Cite specific `file:line` locations. ≤5 sentences. If multiple plausible causes survive investigation, list them in priority order with the evidence supporting each.
-
-## 5. Contributing factors
-
-Secondary issues that made the bug worse, harder to detect, or harder to recover from. Examples: missing test coverage, no observability on the affected code path, retry logic that masked early failure, error handling that swallowed the original exception. ≤4 bullets.
-
-## 6. Blast radius
-
-- **Currently visible:** what is broken right now.
-- **Possibly affected (silent):** other code paths or persisted data that may be corrupt or behaving unexpectedly because of this same root cause.
-- **Same pattern elsewhere:** other locations in the codebase where the same flawed pattern exists and should be checked or fixed alongside this work.
-
-If sub-agent 3 was skipped, write: "Blast radius investigation skipped — symptom is local to <component>. If the fix turns out to require changes outside <component>, run `/wf intake rca` again or escalate to `/wf intake`."
-
-## 7. Suggested fix shape
-
-**Direction, not a plan.** 1 to 3 lines naming the area and the approach. Do NOT enumerate implementation steps — that belongs in `/wf plan` or `/wf intake fix`. Examples of the right shape:
-
-> "Fix the off-by-one in `cart/total.ts:checkout()` — apply discount before tax, not after. One-line change. Add a regression test in `cart.test.ts`."
-
-> "Add idempotency keys to the checkout webhook handler. New middleware in `webhooks/checkout/`. Deduplicate by `(provider_event_id, order_id)`. Migration to add an index. Estimate 3-5 files."
-
-## 8. Verification
-
-How will we know the fix worked? List:
-- **Test:** specific assertion or test command that should pass post-fix.
-- **Manual:** specific URL, flow, or visual check.
-- **Log signal:** specific log line, metric, or absence-of-error that confirms the bug is gone.
-
-This section becomes the acceptance criteria for the downstream fix workflow.
-
-## 9. Confidence
-
-- **Root cause confidence:** high | medium | low. One sentence justifying.
-- **Fix shape confidence:** high | medium | low. One sentence justifying.
-
-If either is `low`, this section MUST also name the next rung of the escalation ladder, cheapest first — never jump straight to a human: a runtime fact the diagnosis hinges on → `/wf probe <slug> "<the question>"` (the finding lands as a compressed slice on this workflow); a dependency/framework behavior question → the `study-sources` skill against the installed source; a second model on the hypothesis → `/consult`; a product/policy call or low confidence that survives those rungs → human triage. State which rung applies and why.
-
-## 10. Recommended next command
-
-Pick **one** primary recommendation based on the diagnosis. Routing logic (the printed invocations are the exact dispatcher-valid forms — record the route first, then run the printed command):
-
-| Conditions | Route | Invocation printed |
-|---|---|---|
-| `impact: critical` AND production-affecting AND root-cause-confidence ≥ medium AND blast-radius ≤ medium AND suggested-fix-shape is small | `hotfix` | record — `/wf intake rca <slug> hotfix` — then `/wf intake hotfix "<symptom, one line>" from <slug>` |
-| Suggested fix shape touches ≤3 files, ≤5 steps, no new dependency, no architecture change | `fix` | record — `/wf intake rca <slug> fix` — then `/wf intake fix "<suggested fix, one line>" from <slug>` |
-| Anything else — including any architectural change, new dependency, cross-cutting work, or blast radius is `high` | `plan` | `/wf intake rca <slug> plan`, then `/wf plan <slug>` (same slug continues — the synthesized `02-shape.md` is its input) |
-| `root-cause-confidence: low` AND `blast-radius: high` | `human-triage` | climb the escalation ladder first (see §9); when low confidence survives it, record `/wf intake rca <slug> human-triage` and hand to the human |
-
-State the recommendation clearly with one sentence of justification. Then list the alternatives in priority order. The user makes the final call. Routing directly (`… from <slug>`) without recording works too — the downstream mode records the route implicitly per `_intake-provenance.md`.
-
-## 11. Tripwire warnings (only if any fired)
-
-Tripwires are **warn-and-continue** — record them, do NOT refuse to write the RCA. Tripwires:
-
-- **Confidence breach:** root-cause-confidence is `low`.
-- **Blast radius breach:** blast-radius is `high` (regardless of confidence).
-- **Multiple plausible root causes:** Section 4 listed >1 cause and the sub-agents could not narrow further.
-- **Concurrent work conflict:** Sub-agent 2 found an open PR touching the implicated path — fixing this may collide with that work.
-- **Same-pattern elsewhere:** the buggy pattern repeats in other locations and the fix scope expands beyond the originally implicated code.
-
-For each fired tripwire, write one line: `[tripwire-name]: <what specifically tripped it>`. Then add a single closing line:
-
-> One or more wf-rca tripwires fired. The RCA is still valid, but the downstream fix workflow should account for the recorded warnings before proceeding.
-
 # Step 4 — Synthesize `02-shape.md`
 
-Write a minimal `02-shape.md` so `/wf plan <slug>` can consume the workflow directory without modification. This file is intentionally short — it is a *forwarding contract*, not a duplicate of the RCA.
+Write a minimal `02-shape.md` so `/wf plan <slug>` can consume the workflow directory without modification. The body template is in [intake/rca/_artifact.md](rca/_artifact.md).
 
 **`02-shape.md` frontmatter:**
 ```yaml
@@ -256,37 +109,7 @@ next-invocation: "/wf plan <slug>"
 ---
 ```
 
-**Body:**
-
-```markdown
-# Shape (synthesized from RCA)
-
-This shape was generated by `/wf intake rca` from the diagnosis in `01-rca.md`. The full investigation context, evidence, and fix-shape rationale lives there — read it before planning.
-
-## Problem
-
-<copy Section 1 (Symptom) and Section 4 (Root cause) summary from 01-rca.md>
-
-## Scope (in)
-
-<copy Section 7 (Suggested fix shape) from 01-rca.md, plus the implicated files from Section 4>
-
-## Scope (out)
-
-- Anything not directly required to remediate the root cause identified in `01-rca.md`.
-- Refactoring, cleanup, or unrelated improvements in the implicated files. If those are needed, file separately.
-- Same-pattern-elsewhere fixes (Section 6 of `01-rca.md`) — these are noted but require their own scoping decision before being added here.
-
-## Acceptance criteria
-
-<copy Section 8 (Verification) from 01-rca.md as bulleted criteria>
-
-## Open questions
-
-<list any items from Section 9 (Confidence) that the user still needs to decide; or "none">
-```
-
-If the recommended next command is `/wf intake fix` or `/wf intake hotfix`, still write `02-shape.md` — those commands ignore it, but it preserves the option for the user to switch routing to `/wf plan` later without losing the synthesis.
+If the recommended next command is `/wf intake fix` or `/wf intake hotfix`, still write `02-shape.md`. Those commands ignore it, but it preserves the option to switch routing to `/wf plan` later without losing the synthesis.
 
 # Step 5 — Write `00-index.md`
 
@@ -325,134 +148,15 @@ updated-at: <timestamp>
 ---
 ```
 
-Body: one-line description + a short pointer to `01-rca.md` and the routing recommendation. (No `selected-slice` — an rca has no slice roster; a key naming a slice that never exists misleads every reader. `progress` is the stage→status **object** form — the renderer silently drops a YAML list.)
+Body: one-line description + a short pointer to `01-rca.md` and the routing recommendation. No `selected-slice`: an rca has no slice roster, and a key naming a slice that never exists misleads every reader. `progress` is the stage→status **object** form; the renderer silently drops a YAML list.
 
-## Step 5b — Write the rich `.yaml` + fragment (MANDATORY — do not skip)
+## Step 5b — Write the rich `.yaml` + fragment (do not skip)
 
-The sunflower view renders the RCA page from a sibling `.yaml` + `.html.fragment`
-written next to the RCA `.md`. **Without the `.yaml` the page silently degrades to
-plain prose** — the incident timeline, the causal chain, the severity heatmap, and
-the metric row never appear (`rca.mjs` returns `renderSimple` when the sibling YAML
-is absent). The managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md))
-reminds you if you forget; author them here, now, while the incident is still in context.
-
-For the RCA `.md` you just wrote (`01-rca.md`, or `augmentations/<rca-id>.md` for an
-RCA augmentation):
-
-1. Write the sibling **`<stem>.yaml`** — the structured data. The required core is the
-   **diagnosis set**: `incident:`, `title:`, `started_at:`, `chain:` (causal steps, root
-   last), `timeline:` (the contributing events — at, kind, title, who). The **resolution
-   set** — `resolved_at:`, `metrics.time_to_mitigate`, resolution/mitigation timeline
-   events, `heatmap:` — is required only for a **post-incident** RCA (the artifact's
-   `status` is past fix-routing); a pre-fix diagnosis (`status: ready-for-fix-routing`)
-   omits what has not happened yet — never fabricate a resolution timeline to satisfy a
-   schema. Schema: `siblingYamlSchemas.rca` in `tests/frontmatter.schema.json` (the
-   pre-fix variant is keyed on the artifact's `status`, not author discretion).
-2. Write the sibling **`<stem>.html.fragment`** — the body-only interactive layer.
-
-The fragment is one `<section class="fragment-rca" data-artifact="rca"
-data-incident="<INC-id>">` that reproduces the gallery's RCA fragment 1:1:
-
-- **5-metric row** — duration / time-to-detect / time-to-mitigate /
-  user-failures / revenue impact.
-- **Horizontal SVG timeline** — circles per event (alert / escalation /
-  deploy / mitigation / resolution), each wrapped in `<a href="#evt-N">`
-  so the right-side `<aside class="rca-detail-panel">` swaps on `:target`.
-- **Causal-chain SVG** — 4 boxes + arrows; the root-cause box uses the
-  `--blocker` colour.
-- **Severity heatmap grid** — rows = systems, columns = 30-min buckets,
-  cells tinted `s0`–`s3` from the YAML's `heatmap.systems[name][bucket]`.
-- Contributing-causes and mitigations-applied as `.callout-warn` /
-  `.callout-info` blocks.
-
-Authoring rules (verifier Check 7 enforces):
-
-- Inline `<style>` scoped under `.fragment-rca` / `.rca-*`.
-- Inline `<script>` scoped via `document.currentScript.closest('.fragment-rca')`.
-  CSS-only `:target` navigation drives the detail panel; JS only enhances
-  hover/focus and Esc-to-reset.
-- Dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready',
-  { detail: { name: 'rca', artifact: 'rca', incident: '<INC-id>',
-    counts: { events: <n>, causes: <n>, mitigations: <n> } } }))`.
-- Inline SVG only. Data deterministic from the sibling `.yaml`.
-
-Full contract:
-[`reference/fragment-author-contract.md`](../../../../reference/fragment-author-contract.md).
-Gallery reference (bundled): [`reference/fragments-gallery.html`](../../../../reference/fragments-gallery.html).
-
-### Use `@include` for shared chrome (v9.20.1+)
-
-The fragment is **body-only** (see `_fragment-authoring.md` → "Scope"): `rca.mjs`
-already emits the heading and the metric-row, and draws the timeline + causal-chain
-figures (suppressing its static copies when the fragment is present). Do **not**
-repeat the metric-row in the fragment — start at the interactive timeline:
-
-```html
-<section class="fragment-rca" data-artifact="rca" data-incident="INC-2026-0512">
-  <!-- page owns the heading + metric-row (body-only) — fragment starts at the timeline -->
-
-  <svg class="rca-timeline"> …incident timeline (anchors → :target panels)… </svg>
-  <aside class="rca-detail-panel"> …per-event detail blocks… </aside>
-  <svg class="rca-chain"> …4-box causal chain… </svg>
-  <table class="rca-heatmap"> …systems × buckets, s0–s3 tinted cells… </table>
-
-  <!-- @include callout { "kind": "warn", "title": "Load-test gate not enforced", "body": "…" } -->
-  <!-- @include callout { "kind": "info", "title": "Mitigation: memoise Stripe", "body": "…" } -->
-
-  <!-- @include fragment-ready { "name": "rca", "artifact": "rca",
-       "detailJson": "{\"incident\":\"INC-2026-0512\",\"counts\":{\"events\":5,\"causes\":3,\"mitigations\":2}}" } -->
-</section>
-```
-
-Snippet catalogue: `metric-row`, `callout`, `verdict`, `severity-chip`,
-`fragment-ready`, `files-touched-row`, `diff-block`.
-
-### Sibling YAML — `five_whys[]` block (v9.21.0+, Phase 2)
-
-When the RCA artifact reaches a definite root cause through a sequential
-ladder of questions (the classic 5-whys technique), record the chain in the
-sibling `<rca-id>.yaml` under a top-level `five_whys:` key. The view-layer
-renderer expands this into a collapsible drill panel below the causal-chain
-figure. Without this block the panel is omitted — the rest of the RCA still
-renders normally.
-
-When to emit:
-- Root cause confidence is `high` or `medium` AND the diagnosis actually
-  laddered through ≥3 questions.
-- Skip when the root cause was named directly from a stack trace with no
-  intermediate reasoning steps (the 5-whys structure would be artificial).
-
-Shape (between 1 and 7 steps; mark the final step as `root: true`):
-
-```yaml
-# excerpt from <rca-id>.yaml — riding alongside the existing artifact: rca block
-five_whys:
-  - question: "Why did checkout return 500 for 12k users?"
-    answer:   "Stripe webhook handler timed out at p99."
-  - question: "Why did the webhook handler time out?"
-    answer:   "Each event re-fetched the full customer record."
-  - question: "Why did each event re-fetch?"
-    answer:   "The memoisation key included a request-scoped trace id."
-  - question: "Why was the trace id in the key?"
-    answer:   "Copy-pasted from a per-request cache. Nobody noticed in review."
-    root: true
-```
-
-Authoring rules:
-- Each `answer` is one sentence — long enough to be a causal claim, short
-  enough to read in the collapsed-detail panel without scrolling.
-- Set `root: true` on exactly one step (the final one). If multiple plausible
-  roots survived investigation, pick the strongest and note the alternatives
-  in Section 4 of `01-rca.md` instead.
-- The chain must end where Section 4 ("Root cause") points; if they
-  disagree, fix Section 4 first.
-
+Author the sibling `01-rca.yaml` (diagnosis set: `incident:`, `title:`, `chain:`, `timeline:`; the resolution set and `heatmap:` only for a post-incident RCA) and the body-only `01-rca.html.fragment` per [intake/rca/_view.md](rca/_view.md), which also holds the `@include` chrome rules and the optional `five_whys[]` block. Without the `.yaml` the page degrades to plain prose.
 
 # Step 6 — Hand off to user
 
-Return per [_chat-return.md](../_chat-return.md) — narrative lead (what was found, built, or measured, and what it means for the user), then the structured anchors below.
-
-Emit a compact chat summary:
+Return per [_chat-return.md](../_chat-return.md): narrative lead (what was found and what it means for the user), then the structured anchors below.
 
 ```
 wf intake rca complete: <slug>
@@ -473,41 +177,27 @@ If the recommendation is `human-triage`, replace the `Recommended next:` line wi
 
 # Route — decision closure
 
-Runs only from Step 0 route mode (`/wf intake rca <slug> <plan|fix|hotfix|human-triage> [one-line reason]`).
-Recording the route is the workflow's decision record. It never starts the successor — it prints
-the invocation and stops.
+Runs only from Step 0 route mode (`/wf intake rca <slug> <plan|fix|hotfix|human-triage> [one-line reason]`). Recording the route is the workflow's decision record. It never starts the successor: it prints the invocation and stops.
 
-1. **Stamp the artifact.** Add to `01-rca.md` frontmatter: `chosen-route: <route>`; `routed-at:`
-   set to the real UTC timestamp (per [_timestamp.md](../_timestamp.md)); and
-   `decision-note: <the trailing prose>` if the user supplied any (omit the key otherwise).
-2. **Append a `## Decision` section** to the artifact body: which route was picked; why (the
-   user's reason verbatim, else "user routed without a stated reason"); which tripwires were
-   live at route time (from Section 11, or "none").
+1. **Stamp the artifact.** Add to `01-rca.md` frontmatter: `chosen-route: <route>`; `routed-at:` set to the real UTC timestamp (per [_timestamp.md](../_timestamp.md)); and `decision-note: <the trailing prose>` if the user supplied any (omit the key otherwise).
+2. **Append a `## Decision` section** to the artifact body: which route was picked; why (the user's reason word for word, else "user routed without a stated reason"); which tripwires were live at route time (from Section 11, or "none").
 3. **Close or continue, by route:**
-   - **`fix` / `hotfix`** — the successor is a NEW workflow, so this one closes: update
-     `00-index.md` with `status: closed`, `close-reason: route-recorded`,
-     `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`,
-     `next-invocation: "none — route recorded"`; update the registry row to `closed`. The
-     successor's link-back (`_intake-provenance.md`) corrects `superseded-by: pending`.
-   - **`plan`** — the SAME slug continues into the standard chain: the workflow stays open;
-     set `next-command: wf-plan`, `next-invocation: "/wf plan <slug>"`, refresh `updated-at`.
-   - **`human-triage`** — the workflow stays open awaiting the human: set
-     `next-command: user-picks`, `next-invocation: "user-picks — human triage; see 01-rca.md §9-10"`.
-4. **Print the next invocation** per the Section 10 table — `/wf plan <slug>`, or
-   `/wf intake fix "<suggested fix, one line>" from <slug>`, or
-   `/wf intake hotfix "<symptom, one line>" from <slug>` — and stop. Do not run it.
+   - **`fix` / `hotfix`**: the successor is a NEW workflow, so this one closes. Update `00-index.md` with `status: closed`, `close-reason: route-recorded`, `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`, `next-invocation: "none — route recorded"`; update the registry row to `closed`. The successor's link-back (`_intake-provenance.md`) corrects `superseded-by: pending`.
+   - **`plan`**: the SAME slug continues into the standard chain; the workflow stays open. Set `next-command: wf-plan`, `next-invocation: "/wf plan <slug>"`, refresh `updated-at`.
+   - **`human-triage`**: the workflow stays open awaiting the human. Set `next-command: user-picks`, `next-invocation: "user-picks — human triage; see 01-rca.md §9-10"`.
+4. **Print the next invocation** per the Section 10 table (`/wf plan <slug>`, or `/wf intake fix "<suggested fix, one line>" from <slug>`, or `/wf intake hotfix "<symptom, one line>" from <slug>`) and stop. Do not run it.
 
 # Routing notes (read carefully)
 
-- **`/wf plan <slug>` is the cleanest downstream path** — it reads the synthesized `02-shape.md` and the workflow directory without any modification; the Step 5 index carries the `stack:` block plan requires. Use this as the default unless the diagnosis clearly fits hotfix or fix.
-- **`fix` and `hotfix` routes start fresh workflows** that inherit this diagnosis via `_intake-provenance.md` — the printed `… from <slug>` invocation carries the root cause, blast radius, and Section 8 verification (which becomes the successor's acceptance criteria). Never print a bare `intake fix <slug>` form: a slug in that position parses as a description and dead-ends in the collision warning.
+- **`/wf plan <slug>` is the cleanest downstream path**: it reads the synthesized `02-shape.md` and the workflow directory without any modification, and the Step 5 index carries the `stack:` block plan requires. Use it as the default unless the diagnosis clearly fits hotfix or fix.
+- **`fix` and `hotfix` routes start fresh workflows** that inherit this diagnosis via `_intake-provenance.md`: the printed `… from <slug>` invocation carries the root cause, blast radius, and Section 8 verification (which becomes the successor's acceptance criteria). Never print a bare `intake fix <slug>` form: a slug in that position parses as a description and dead-ends in the collision warning.
 
 # What this command is NOT
 
-- **Not a fixer** — `/wf intake rca` produces an RCA artifact and a routing recommendation. It does not edit application code. It does not run mutating commands. It does not commit, push, or open a PR.
-- **Not a hotfix** — `/wf intake hotfix` is what you run *after* `/wf intake rca` recommends it. `/wf intake rca` decides whether the situation warrants the hotfix path.
-- **Not an explainer** — `/wf recap <slug> <focus>` (or a plain research conversation outside `/wf`) explains existing code or artifacts on demand. `/wf intake rca` is for *finding* a cause that is not yet explained.
+- **Not a fixer**: `/wf intake rca` produces an RCA artifact and a routing recommendation. It does not edit application code, run mutating commands, commit, push, or open a PR.
+- **Not a hotfix**: `/wf intake hotfix` is what you run *after* `/wf intake rca` recommends it. `/wf intake rca` decides whether the situation warrants the hotfix path.
+- **Not an explainer**: `/wf recap <slug> <focus>` (or a plain research conversation outside `/wf`) explains existing code or artifacts on demand. `/wf intake rca` is for *finding* a cause that is not yet explained.
 
 ## Step — Write free narrative fragments
 
-Author free narrative fragments for this artifact as described in the narrative-fragment tier of `_intake-context.md` — `<stem>.<NN-label>.html.fragment` siblings of unrestricted raw HTML, as many as the story needs, ordered with an `NN-` prefix, rendered raw-inline below the page.
+Author free narrative fragments for this artifact as described in the narrative-fragment tier of `_intake-context.md`: `<stem>.<NN-label>.html.fragment` siblings of unrestricted raw HTML, as many as the story needs, ordered with an `NN-` prefix, rendered raw-inline below the page.

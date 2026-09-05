@@ -280,5 +280,23 @@
     "to": "skills/wf/reference/handoff/_pr-triage.md",
     "category": "stops",
     "entry": "stop."
+  },
+  {
+    "from": "skills/wf/reference/intake/rca.md",
+    "to": "skills/wf/reference/intake/rca/_research.md",
+    "category": "dispatches",
+    "entry": "heading: research sub-agent 1 code path investigation"
+  },
+  {
+    "from": "skills/wf/reference/intake/rca.md",
+    "to": "skills/wf/reference/intake/rca/_research.md",
+    "category": "dispatches",
+    "entry": "heading: research sub-agent 2 recent change correlation"
+  },
+  {
+    "from": "skills/wf/reference/intake/rca.md",
+    "to": "skills/wf/reference/intake/rca/_research.md",
+    "category": "dispatches",
+    "entry": "heading: research sub-agent 3 blast radius"
   }
 ]
