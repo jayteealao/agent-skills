@@ -92,7 +92,6 @@
         "skills/wf/reference/review/testing.md": 1,
         "skills/wf/reference/review/ux-copy.md": 1,
         "skills/wf/reference/runtime-adapters.md": 6,
-        "skills/wf/reference/shape.md": 8,
         "skills/wf/reference/ship-plan.md": 1,
         "skills/wf/reference/ship-plan/audit.md": 2,
         "skills/wf/reference/ship-plan/build.md": 1,
@@ -141,7 +140,6 @@
         "skills/wf/reference/review/ci.md": 1,
         "skills/wf/reference/review/reliability.md": 1,
         "skills/wf/reference/review/ux-copy.md": 1,
-        "skills/wf/reference/shape.md": 1,
         "skills/wf/reference/ship-plan/init.md": 1,
         "skills/wf/reference/ship-plan/ship-plan-templates/container-image.md": 1,
         "skills/wf/reference/ship.md": 1,
@@ -196,7 +194,6 @@
         "skills/wf/reference/retro.md": 4,
         "skills/wf/reference/review/_stage.md": 9,
         "skills/wf/reference/review/correctness.md": 2,
-        "skills/wf/reference/shape.md": 9,
         "skills/wf/reference/ship-plan/audit.md": 1,
         "skills/wf/reference/ship.md": 6,
         "skills/wf/reference/simplify.md": 2,
@@ -257,7 +254,6 @@
         "skills/wf/reference/retro.md": 2,
         "skills/wf/reference/review/_stage.md": 7,
         "skills/wf/reference/runtime-adapters.md": 1,
-        "skills/wf/reference/shape.md": 2,
         "skills/wf/reference/ship-plan/edit.md": 1,
         "skills/wf/reference/ship-plan/init.md": 3,
         "skills/wf/reference/ship.md": 5,
@@ -357,7 +353,6 @@
         "skills/wf/reference/review.md": 2,
         "skills/wf/reference/review/_stage.md": 4,
         "skills/wf/reference/review/intent-fidelity.md": 1,
-        "skills/wf/reference/shape.md": 2,
         "skills/wf/reference/ship-plan.md": 2,
         "skills/wf/reference/ship-plan/build.md": 1,
         "skills/wf/reference/ship.md": 1,
@@ -384,7 +379,6 @@
         "skills/wf/reference/intake/modernize.md": 1,
         "skills/wf/reference/intake/rca.md": 2,
         "skills/wf/reference/retro.md": 1,
-        "skills/wf/reference/shape.md": 1,
         "skills/wf/reference/ship.md": 1,
         "skills/wf/reference/simplify.md": 3,
         "skills/wf/reference/slice.md": 3
@@ -456,7 +450,6 @@
     "skills/wf/reference/review/testing.md": 150,
     "skills/wf/reference/review/ux-copy.md": 782,
     "skills/wf/reference/runtime-adapters.md": 745,
-    "skills/wf/reference/shape.md": 500,
     "skills/wf/reference/ship-plan/build.md": 1146,
     "skills/wf/reference/ship-plan/init.md": 702,
     "skills/wf/reference/ship.md": 685,
@@ -531,8 +524,8 @@
       "instructed": 17426
     },
     "shape": {
-      "core": 8310,
-      "instructed": 14214
+      "core": 6955,
+      "instructed": 9952
     },
     "ship": {
       "core": 8707,
