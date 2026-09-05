@@ -103,7 +103,6 @@
         "skills/wf/reference/slice.md": 4,
         "skills/wf/reference/status.md": 2,
         "skills/wf/reference/task.md": 4,
-        "skills/wf/reference/verify.md": 20,
         "skills/wf/reference/yolo.md": 7
       }
     },
@@ -146,8 +145,7 @@
         "skills/wf/reference/simplify.md": 1,
         "skills/wf/reference/slice.md": 1,
         "skills/wf/reference/status.md": 1,
-        "skills/wf/reference/task.md": 1,
-        "skills/wf/reference/verify.md": 1
+        "skills/wf/reference/task.md": 1
       }
     },
     "MUST": {
@@ -194,8 +192,7 @@
         "skills/wf/reference/ship-plan/audit.md": 1,
         "skills/wf/reference/ship.md": 6,
         "skills/wf/reference/simplify.md": 2,
-        "skills/wf/reference/slice.md": 18,
-        "skills/wf/reference/verify.md": 17
+        "skills/wf/reference/slice.md": 18
       }
     },
     "NEVER": {
@@ -213,8 +210,7 @@
         "skills/wf/reference/intake/modernize.md": 1,
         "skills/wf/reference/intake/refactor.md": 5,
         "skills/wf/reference/retro.md": 1,
-        "skills/wf/reference/simplify.md": 1,
-        "skills/wf/reference/verify.md": 2
+        "skills/wf/reference/simplify.md": 1
       }
     },
     "Do NOT": {
@@ -257,8 +253,7 @@
         "skills/wf/reference/ship/rollback.md": 2,
         "skills/wf/reference/simplify.md": 6,
         "skills/wf/reference/slice.md": 3,
-        "skills/wf/reference/status.md": 2,
-        "skills/wf/reference/verify.md": 10
+        "skills/wf/reference/status.md": 2
       }
     },
     "STOP": {
@@ -313,7 +308,8 @@
         "skills/wf/reference/slice.md": 4,
         "skills/wf/reference/status.md": 5,
         "skills/wf/reference/task.md": 2,
-        "skills/wf/reference/verify.md": 7,
+        "skills/wf/reference/verify.md": 5,
+        "skills/wf/reference/verify/_deferrals.md": 2,
         "skills/wf/reference/yolo.md": 19
       }
     },
@@ -355,7 +351,6 @@
         "skills/wf/reference/ship.md": 1,
         "skills/wf/reference/simplify.md": 2,
         "skills/wf/reference/task.md": 1,
-        "skills/wf/reference/verify.md": 1,
         "skills/wf/reference/yolo.md": 2
       }
     },
@@ -450,8 +445,7 @@
     "skills/wf/reference/ship.md": 685,
     "skills/wf/reference/simplify.md": 528,
     "skills/wf/reference/slice.md": 324,
-    "skills/wf/reference/status.md": 446,
-    "skills/wf/reference/verify.md": 899
+    "skills/wf/reference/status.md": 446
   },
   "rubricFenceExceptions": {
     "skills/wf/reference/review/accessibility.md": 47,
@@ -538,8 +532,7 @@
       "instructed": 8916
     },
     "verify": {
-      "core": 14487,
-      "instructed": 20479
+      "core": 6009
     },
     "yolo": {
       "core": 8153,

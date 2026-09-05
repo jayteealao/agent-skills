@@ -28,5 +28,59 @@
     "to": "skills/wf/reference/_handoff-config.md",
     "category": "stops",
     "entry": "on-fail: diagnose diagnose (route into the fix path)"
+  },
+  {
+    "from": "skills/wf/reference/verify.md",
+    "to": "skills/wf/reference/_workflow-rules.md",
+    "category": "gates",
+    "entry": "workflow rules - store artifacts under .ai/workflows/<slug /"
+  },
+  {
+    "from": "skills/wf/reference/verify.md",
+    "to": "skills/wf/reference/verify/_artifact.md",
+    "category": "artifacts",
+    "entry": "07-review-<X>.md"
+  },
+  {
+    "from": "skills/wf/reference/verify.md",
+    "to": "skills/wf/reference/verify/_deferrals.md",
+    "category": "stops",
+    "entry": "absorbing a deferral into a third slice is"
+  },
+  {
+    "from": "skills/wf/reference/verify.md",
+    "to": "skills/wf/reference/verify/_deferrals.md",
+    "category": "stops",
+    "entry": "re-run the ownership triage at the stop, do"
+  },
+  {
+    "from": "skills/wf/reference/verify.md",
+    "to": "skills/wf/reference/verify/_sub-agents.md",
+    "category": "dispatches",
+    "entry": "heading: functional sub-agent 1 static analysis & build"
+  },
+  {
+    "from": "skills/wf/reference/verify.md",
+    "to": "skills/wf/reference/verify/_sub-agents.md",
+    "category": "dispatches",
+    "entry": "heading: functional sub-agent 2 test execution"
+  },
+  {
+    "from": "skills/wf/reference/verify.md",
+    "to": "skills/wf/reference/verify/_sub-agents.md",
+    "category": "dispatches",
+    "entry": "heading: functional sub-agent 3 interactive & runtime-truth verification"
+  },
+  {
+    "from": "skills/wf/reference/verify.md",
+    "to": "skills/wf/reference/verify/_sub-agents.md",
+    "category": "dispatches",
+    "entry": "heading: functional sub-agent 4 augmentation re-verification (only if 02c-craft.md or 00-index.md augmentations: list is non-empty)"
+  },
+  {
+    "from": "skills/wf/reference/verify.md",
+    "to": "skills/wf/reference/verify/_sub-agents.md",
+    "category": "dispatches",
+    "entry": "heading: web research sub-agent 5 freshness: dependencies, ac staleness, and standards drift"
   }
 ]

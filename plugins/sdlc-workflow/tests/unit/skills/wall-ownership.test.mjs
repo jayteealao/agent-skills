@@ -51,7 +51,7 @@ test('R1.2 — a code-owned wall cannot be deferred without a surfaced decision'
     assert.match(ladder, /`code-owned` wall may NOT be deferred/,
       `${name}: ladder lost the code-owned deferral prohibition`);
 
-    const verify = ref(root, 'verify.md');
+    const verify = ref(root, 'verify/_deferrals.md');
     assert.match(verify, /Classify the wall before deferring it/,
       `${name}: verify's escape hatch lost the wall-ownership gate`);
     assert.match(verify, /deferral hatch is \*\*unavailable\*\*/,
@@ -76,7 +76,7 @@ test('R1.3 — plan re-classifies rather than inheriting a prior verdict', () =>
   // The stacking STOP must re-triage too — a 3-deep stack is the loudest
   // available signal that the first classification was wrong.
   for (const { name, root } of trees) {
-    assert.match(ref(root, 'verify.md'), /Re-run the ownership triage at the STOP/,
+    assert.match(ref(root, 'verify/_deferrals.md'), /Re-run the ownership triage at the STOP/,
       `${name}: deferral-stacking STOP inherits the original (possibly wrong) verdict`);
   }
 });
@@ -84,7 +84,7 @@ test('R1.3 — plan re-classifies rather than inheriting a prior verdict', () =>
 // ── R2 — clearing events name an actor ───────────────────────────────────────
 test('R2.1 — verify rejects passive clearing events', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, 'verify.md');
+    const src = ref(root, 'verify/_deferrals.md');
     assert.match(src, /A clearing event names an actor, not a hope/,
       `${name}: verify lost the provisionable-clearing-event rule`);
     // The literal Playster wording is the canonical counter-example.
@@ -181,8 +181,8 @@ test('R1-R4 — every new rule is present, in the canonical /wf spelling', () =>
   const phrases = [
     ['runtime-adapters.md', 'Classify the wall before you climb it'],
     ['runtime-adapters.md', 'Negotiate the environment before declaring it'],
-    ['verify.md', 'Classify the wall before deferring it'],
-    ['verify.md', 'A clearing event names an actor'],
+    ['verify/_deferrals.md', 'Classify the wall before deferring it'],
+    ['verify/_deferrals.md', 'A clearing event names an actor'],
     ['plan.md', 'Cost the wall before choosing'],
     ['plan.md', 'Option 2 is unavailable to a `code-owned` wall'],
     ['probe.md', 'Climb the env-remediation rung'],
@@ -191,7 +191,7 @@ test('R1-R4 — every new rule is present, in the canonical /wf spelling', () =>
     assert.ok(ref(pluginRoot, file).includes(phrase), `${file} missing: ${phrase}`);
   }
   // Shared prose is written `/wf`; the Codex sigil maps only in _host-invocation.md.
-  for (const file of ['verify.md', 'plan.md', 'probe.md', 'runtime-adapters.md']) {
+  for (const file of ['verify.md', 'verify/_deferrals.md', 'verify/_sub-agents.md', 'verify/_artifact.md', 'plan.md', 'probe.md', 'runtime-adapters.md']) {
     assert.ok(!/\$wf/.test(ref(pluginRoot, file)), `${file}: leaked the Codex \`$wf\` sigil into shared prose`);
   }
 });

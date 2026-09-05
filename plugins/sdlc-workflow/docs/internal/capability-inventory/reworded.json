@@ -34,5 +34,17 @@
     "category": "dispatches",
     "from": "launch one sub-agent per slice.",
     "to": "parallel plan mode ( all ). launch one"
+  },
+  {
+    "file": "skills/wf/reference/verify.md",
+    "category": "gates",
+    "from": "critical execution discipline you are a workflow orchestrator",
+    "to": "you are a workflow orchestrator that owns its"
+  },
+  {
+    "file": "skills/wf/reference/verify.md",
+    "category": "gates",
+    "from": "step 0 orient (mandatory do this before all",
+    "to": "step 0 orient (do this before all other"
   }
 ]
