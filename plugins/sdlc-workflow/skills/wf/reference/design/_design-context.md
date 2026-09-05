@@ -118,7 +118,7 @@ The `imagery` skill (`../../../imagery/SKILL.md`) is invoked internally
 and fans out to the best available image backends at runtime (the host's built-in image tool
 where one exists — see the imagery provider table — plus the gpt-image-2 / nano-banana API
 backends when `externalDispatch.enabled`); the caller records the
-`IMAGEGEN_RESULT` and sets the gate. (Supersedes the former `imagegen` skill, D14.)
+`IMAGEGEN_RESULT` and sets the gate.
 
 ## Preflight gates (run before any design work that edits files)
 

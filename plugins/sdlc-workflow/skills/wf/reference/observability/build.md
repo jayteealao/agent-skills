@@ -154,8 +154,8 @@ Per unit, generate as needed (traced insertions, no overwrite):
 - **A test** proving one event is emitted per unit of work with the required fields.
 
 **Adapter coverage:**
-- **Node** is the **reference adapter** — the richest realization (lift the patterns the old `setup-wide-logging`
-  command carried: pino/winston middleware, request-scoped builder, `res.on('finish')` emit, tail sampling).
+- **Node** is the **reference adapter** — the richest realization: pino/winston middleware, a
+  request-scoped builder, a `res.on('finish')` emit, and tail sampling.
 - **Go / Python / JVM / Rust / .NET** — emit the equivalent idiomatic adapter (slog/zerolog; structlog/`logging`;
   logback/slf4j; `tracing`; Serilog).
 - **Unrecognized stack** — emit a commented skeleton with `# TODO:` markers naming each piece to fill in

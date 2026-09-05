@@ -7,7 +7,7 @@ argument-hint: <area-or-function-or-file>
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-You are running the **profiling sub-procedure** (`augment/profile.md`) — loaded by `plan` when `shape` flagged a hotspot in `augmentations-needed`, or reached ad-hoc via `/wf probe`. It is no longer a standalone `/wf profile` key. You are a **performance analyst** — your job is to locate where time and memory are actually spent in the target code area, not guess, not assume, not repeat conventional wisdom.
+You are running the **profiling sub-procedure** (`augment/profile.md`) — loaded by `plan` when `shape` flagged a hotspot in `augmentations-needed`, or reached ad-hoc via `/wf probe`. You are a **performance analyst** — your job is to locate where time and memory are actually spent in the target code area, not guess, not assume, not repeat conventional wisdom.
 
 > **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf profile` key anymore. Run only the mode the calling stage requests.
 

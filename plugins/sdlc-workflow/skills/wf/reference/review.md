@@ -1,5 +1,5 @@
 ---
-description: The single review surface — workflow stage AND ad-hoc, resolved by the first token (like `/wf simplify`). `/wf review <slug>` runs the lifecycle review STAGE (stage 7 of 10) — reads workflow artifacts + diff, dispatches one sub-agent per selected dimension, and maintains an ACCUMULATING LEDGER (re-runs dedupe + merge in place, mark cleared findings resolved, never overwrite). `/wf review <dimension>` runs one rubric inline and `/wf review sweep <aggregate>` fans out one reviewer per dimension — the AD-HOC path (no slug), absorbing the former standalone review skill. Re-run the stage with "triage" to revisit deferred findings.
+description: The single review surface — workflow stage AND ad-hoc, resolved by the first token (like `/wf simplify`). `/wf review <slug>` runs the lifecycle review STAGE (stage 7 of 10) — reads workflow artifacts + diff, dispatches one sub-agent per selected dimension, and maintains an ACCUMULATING LEDGER (re-runs dedupe + merge in place, mark cleared findings resolved, never overwrite). `/wf review <dimension>` runs one rubric inline and `/wf review sweep <aggregate>` fans out one reviewer per dimension — the AD-HOC path (no slug). Re-run the stage with "triage" to revisit deferred findings.
 argument-hint: "<slug> [slice | triage] | <dimension> | sweep <aggregate>"
 ---
 
@@ -48,7 +48,7 @@ fuzzy-suggest** (like `simplify`/`design`).
 
 # Ad-hoc review (no slug)
 
-Reached from Step 00 branch 2 — the former standalone `review` skill (now dissolved into `/wf review`). Two modes over one of five scopes (`pr` / `worktree` / `diff` / `file` / `repo`); parse the scope + target from the remaining tokens (a PR URL/number, a commit range, a file path, or bare = repo/worktree). Ad-hoc runs write **no** `07-review*` artifact — findings return inline (the numbered stage artifacts belong to slug mode).
+Reached from Step 00 branch 2. Two modes over one of five scopes (`pr` / `worktree` / `diff` / `file` / `repo`); parse the scope + target from the remaining tokens (a PR URL/number, a commit range, a file path, or bare = repo/worktree). Ad-hoc runs write **no** `07-review*` artifact — findings return inline (the numbered stage artifacts belong to slug mode).
 
 **Dimension keys** — each resolves to `review/<key>.md`:
 

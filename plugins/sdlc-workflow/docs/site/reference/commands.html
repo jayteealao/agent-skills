@@ -163,6 +163,8 @@
 <tr><td>the augmentation keys <code>instrument</code>, <code>experiment</code>, <code>benchmark</code>, <code>profile</code></td><td><code>shape</code> decides augmentations (<code>augmentations-needed</code>); <code>plan</code>, <code>implement</code>, and <code>verify</code> apply them. Ad-hoc profiling is <code>/wf probe</code>.</td></tr>
 <tr><td><code>setup-wide-logging</code></td><td><code>/wf observability init</code>, then <code>/wf observability build</code>, then <code>/wf observability audit</code></td></tr>
 <tr><td>the standalone <code>/review</code> skill</td><td><code>/wf review &lt;dimension&gt;</code> or <code>/wf review sweep &lt;aggregate&gt;</code></td></tr>
+<tr><td>the standalone <code>imagegen</code> skill</td><td>the <code>imagery</code> skill, invoked internally by <code>/wf design</code>. It emits the same <code>IMAGEGEN_RESULT</code> contract.</td></tr>
+<tr><td>the standalone <code>wide-event-observability</code> skill</td><td><code>/wf observability build</code>. The patterns live on as the knowledge base of the <code>instrument</code> augmentation.</td></tr>
 </tbody>
 </table></div>
 

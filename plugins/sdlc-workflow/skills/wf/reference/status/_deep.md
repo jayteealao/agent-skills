@@ -2,7 +2,7 @@
 
 Load this file from `status.md` when Step 0 set deep-mode. It holds the reality-drift procedure and the `00-sync.md` / `00-sync.yaml` write.
 
-`deep` runs the reality reconciliation the former `/wf-meta sync <slug>` performed: it checks whether
+`deep` runs a reality reconciliation: it checks whether
 referenced code, tests, PRs, branches, and dependencies actually exist or have drifted, and writes a
 `00-sync.md` report. Run it when a workflow has been idle mid-flight (stages 4–7) and you suspect the
 world moved underneath it. Plain `/wf status <slug>` (no `deep`) does **not** run this — it stays a

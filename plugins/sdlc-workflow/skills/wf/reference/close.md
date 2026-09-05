@@ -15,7 +15,7 @@ You are running `/wf close`, the **lifecycle-termination utility** for the SDLC 
 scopes, resolved by whether the second token names a slice:
 - **Workflow close** — `/wf close <slug> [reason]` archives the entire workflow.
 - **Slice close/skip** — `/wf close <slug> <slice>` terminates one slice so downstream prerequisites
-  are satisfied (this absorbs the former `/wf-meta skip`, now scoped to a *slice*, not a pipeline stage).
+  are satisfied.
 
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
@@ -127,8 +127,8 @@ close PR at `<pr-url>` (if open), delete branch `git branch -d <branch>` (if unn
 # Slice close / skip (`/wf close <slug> <slice>`)
 
 Terminates a single slice without building it, so downstream prerequisites (handoff aggregation, slice
-ordering) treat it as resolved rather than pending. This is the successor to the former stage-`skip`,
-rescoped to the **slice** — the unit that actually matters (see *What this is NOT*).
+ordering) treat it as resolved rather than pending. The **slice** is the unit that actually
+matters (see *What this is NOT*).
 
 ## Step S0 — Orient
 1. Read `00-index.md` (`current-stage`, `progress`, `branch-strategy`, `branch`, `selected-slice-or-focus`)
@@ -193,9 +193,9 @@ receipt: skipped slice, reason, skip-record path, next command (`/wf plan <slug>
 # What this command is NOT
 - **Not a delete** — `close` archives in place; all artifacts remain under `.ai/workflows/<slug>/`. To
   truly remove them, delete the directory manually after closing.
-- **Not a stage-skip** — the old `skip <slug> <stage>` bypassed a *pipeline stage*; that is retired.
-  Slices are the unit of skippable work now. If you don't want a stage's gate on a slice, either run the
-  stage or close the slice. To end the whole workflow before a stage, use workflow close.
+- **Not a stage-skip** — `close` never bypasses a pipeline stage. A slice is the unit of skippable
+  work. If you do not want a stage's gate on a slice, either run the stage or close the slice. To end
+  the whole workflow before a stage, use workflow close.
 - **Not a retro** — `/wf retro` extracts lessons after a successful ship; `close` is early/unplanned
   termination. Run `/wf retro <slug>` separately first if you want a retro on a cancelled effort.
 - **Not automatic** — it does not close PRs, delete branches, or notify teammates. Those are explicit

@@ -3,7 +3,7 @@
     "file": "skills/wf/SKILL.md",
     "category": "stops",
     "entry": "retired surfaces (the hint appended to the step",
-    "reason": "W2: the retired-surface redirect hints moved out of the hot path to docs/site/reference/commands.html (Renamed commands); the unknown-key STOP itself stays (`if the key candidate is not one of`)",
+    "reason": "W2: migration text older than five months. The retired-surface redirect hints moved out of the hot path to docs/site/reference/commands.html (Renamed commands), which verify:docs asserts by name. The unknown-key STOP itself stays (`if the key candidate is not one of`).",
     "release": "9.154.0"
   },
   {

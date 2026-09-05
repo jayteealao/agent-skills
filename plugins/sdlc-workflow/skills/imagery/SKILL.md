@@ -1,15 +1,14 @@
 ---
 name: imagery
-description: Generate images from a text prompt. Fans out to all available providers by default (built-in image_gen, gpt-image-2, nano-banana) → a variant set; a provider keyword yields one. Supersedes the imagegen skill. Internal to `/wf design`; invoke it through that key.
+description: Generate images from a text prompt. Fans out to all available providers by default (built-in image_gen, gpt-image-2, nano-banana) → a variant set; a provider keyword yields one. Internal to `/wf design`; invoke it through that key.
 version: 1.0.0
 user-invocable: false
 argument-hint: "[image_gen|openai|gemini|openai-sub] <prompt> [skip <reason>]"
 ---
 
 Generate an image (or a fan-out variant set) from a natural-language prompt, then
-embed it. Supersedes the `imagegen` skill — direct API calls replace the brittle
-`rollout.jsonl` scrape, and it is fan-out-capable. It **keeps the `IMAGEGEN_RESULT`
-output contract** so the `/wf design` image gate keeps working unchanged.
+embed it. This skill calls the image APIs directly, and it is fan-out-capable. It
+**emits the `IMAGEGEN_RESULT` output contract** that the `/wf design` image gate reads.
 `<skill-dir>` resolves per [_host-invocation.md](../wf/reference/_host-invocation.md).
 
 ## Step 0 — Resolve (positional, no flags)

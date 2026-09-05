@@ -27,7 +27,7 @@ The Runtime column shows `runtime-evidence-status`: `clean` → `—`; `deferral
 The Runtime column appears in every table because the deferral mechanism is orthogonal to lifecycle
 stage — a `Completed` workflow can still carry `deferrals: <N>`, a `Blocked` one `probe-findings: <N>`.
 
-**After the tables, a quick-actions section — this is where the former `/wf-meta next` lives now:**
+**After the tables, a quick-actions section:**
 
 ```
 ## Quick Actions

@@ -134,7 +134,7 @@ for (const f of docSources) {
   if (!section) {
     errors.push('reference/commands.html: missing the <h2 id="renamed">Renamed commands</h2> section (W2 moved the retired-surface map here)');
   } else {
-    for (const surface of ['/wf-quick', '/wf-meta', '/wf-docs', 'instrument', 'experiment', 'benchmark', 'profile', 'setup-wide-logging', '/review']) {
+    for (const surface of ['/wf-quick', '/wf-meta', '/wf-docs', 'instrument', 'experiment', 'benchmark', 'profile', 'setup-wide-logging', '/review', 'imagegen', 'wide-event-observability']) {
       if (!section.includes(`<code>${surface}`) && !section.includes(`${surface}</code>`) && !section.includes(`<code>${surface} `)) {
         errors.push(`reference/commands.html: Renamed commands does not name the retired surface ${surface}`);
       }

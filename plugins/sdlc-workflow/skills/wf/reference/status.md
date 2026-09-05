@@ -26,7 +26,7 @@ You are a **dashboard + router + registry keeper**, not a problem solver.
 
 # Step -1 — Reconcile the global registry (`.ai/workflows/INDEX.md`) — always, first
 
-`status` absorbs the former `/wf-meta sync` registry maintenance. This step runs **unconditionally on every invocation, before Step 0**, even with a slug argument. It is the read-side guarantee that positional slug detection (compressed-slice attach via `/wf intake`/`/wf probe`/`/wf simplify`) has a fresh registry to consult. The repair is **idempotent and low-risk** — running it twice produces an identical file — so `status` self-heals the registry rather than merely warning about drift.
+This step runs **unconditionally on every invocation, before Step 0**, even with a slug argument. It is the read-side guarantee that positional slug detection (compressed-slice attach via `/wf intake`/`/wf probe`/`/wf simplify`) has a fresh registry to consult. The repair is **idempotent and low-risk** — running it twice produces an identical file — so `status` self-heals the registry rather than merely warning about drift.
 
 **One-time advisory — artifact-tracking policy unset.** While reconciling, if `.ai/sdlc-config.json` has no `artifactTracking` key AND at least one workflow exists, append one advisory line to the status report (never a gate, never a prompt): "artifact-tracking policy unset — `.ai/` tracked-vs-ignored is currently decided ad hoc at ship time; record it via `/wf ship-plan edit` (or init Step 3.5) to give ship's clean-tree gate a policy to read." Print it at most once per invocation; a repo that has recorded the key never sees it again.
 
@@ -119,11 +119,11 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 
 **Staleness:** if `updated-at` is >7 days ago, append `(stale)` to the status (epoch seconds per [_timestamp.md](_timestamp.md) vs parsed `updated-at`).
 
-**Render the dashboard** from the dashboard render in [status/_renders.md](status/_renders.md): the Active / Blocked / Completed tables (the Runtime column appears in every table because the deferral mechanism is orthogonal to lifecycle stage), then the `## Quick Actions` section (continue most recent, `/wf auto <slug>`, `/wf status <slug>`, `/wf recap <slug>` — this is where the former `/wf-meta next` lives now), then a `## Branch Summary` table when any workflow has `branch-strategy: dedicated`.
+**Render the dashboard** from the dashboard render in [status/_renders.md](status/_renders.md): the Active / Blocked / Completed tables (the Runtime column appears in every table because the deferral mechanism is orthogonal to lifecycle stage), then the `## Quick Actions` section (continue most recent, `/wf auto <slug>`, `/wf status <slug>`, `/wf recap <slug>`), then a `## Branch Summary` table when any workflow has `branch-strategy: dedicated`.
 
 # Detail Mode (slug provided) — dashboard + routing in one
 
-`/wf status <slug>` renders the single-workflow detail **and** tells the user the exact next command (this absorbs the former `/wf-meta next`). It never advances the workflow.
+`/wf status <slug>` renders the single-workflow detail **and** tells the user the exact next command. It never advances the workflow.
 
 1. **Read `00-index.md`** for the slug. If not found → "Workflow `<slug>` not found. Run `/wf status`
    to list all workflows." STOP.
@@ -138,7 +138,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 
 # Deep Mode (`/wf status <slug> deep`) — reality-drift check
 
-`deep` runs the reality reconciliation the former `/wf-meta sync <slug>` performed: it checks whether referenced code, tests, PRs, branches, and dependencies actually exist or have drifted, and writes a `00-sync.md` report (`type: sync-report`, `regenerable: true`, `health: <rating>`) plus the sibling `00-sync.yaml` (`artifact: sync`). Run it when a workflow has been idle mid-flight (stages 4–7) and you suspect the world moved underneath it. Plain `/wf status <slug>` (no `deep`) does **not** run this — it stays a read-only detail view.
+`deep` runs a reality reconciliation: it checks whether referenced code, tests, PRs, branches, and dependencies actually exist or have drifted, and writes a `00-sync.md` report (`type: sync-report`, `regenerable: true`, `health: <rating>`) plus the sibling `00-sync.yaml` (`artifact: sync`). Run it when a workflow has been idle mid-flight (stages 4–7) and you suspect the world moved underneath it. Plain `/wf status <slug>` (no `deep`) does **not** run this — it stays a read-only detail view.
 
 Load [status/_deep.md](status/_deep.md) and run its seven steps: inventory references, check code reality, check git reality, check dependency reality, check steering reality (a contradiction between a stage artifact and a steering entry is a `⚠ steering-violation`; the file's presence is never a finding), check intent-risk reality (an `intent-risks` entry still `status: open` after shape is complete is a `⚠ intent-risk-open`), assess health (`in-sync` / `minor-drift` / `significant-drift` / `stale`), write `00-sync.md` + `00-sync.yaml` (overwrite freely), then the bookkeeping touch (`workflow-files`, `updated-at`; never `status`/`current-stage`).
 

@@ -11,7 +11,7 @@ You are running `wf-instrument`, an **observability augmentation** that adds an 
 
 > **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf instrument` key anymore. Run only the mode the calling stage requests.
 
-> **Deep reference — wide-event observability.** For the canonical wide-event / structured-logging patterns (tail sampling, canonical log lines, context-rich queryable events) this augmentation designs against, load [wide-event-observability.md](wide-event-observability.md) — the former standalone `wide-event-observability` skill, folded in here as this augmentation's knowledge base.
+> **Deep reference — wide-event observability.** For the canonical wide-event / structured-logging patterns (tail sampling, canonical log lines, context-rich queryable events) this augmentation designs against, load [wide-event-observability.md](wide-event-observability.md). It holds this augmentation's knowledge base.
 
 > **Foundation vs. per-change (the boundary).** This augmentation designs signals for **one change**, against the
 > project's existing observability foundation. To establish or audit that **project-wide** foundation — the schema,
