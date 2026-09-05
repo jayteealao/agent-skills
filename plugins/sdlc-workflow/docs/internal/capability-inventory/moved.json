@@ -352,5 +352,17 @@
     "to": "skills/wf/reference/simplify/_research.md",
     "category": "dispatches",
     "entry": "dispatch shape three parallel sub-agents same"
+  },
+  {
+    "from": "skills/wf/reference/review/_stage.md",
+    "to": "skills/wf/reference/review/_artifact.md",
+    "category": "artifacts",
+    "entry": "07-review-correctness.md"
+  },
+  {
+    "from": "skills/wf/reference/review/_stage.md",
+    "to": "skills/wf/reference/review/_artifact.md",
+    "category": "artifacts",
+    "entry": "07-review-security.md"
   }
 ]

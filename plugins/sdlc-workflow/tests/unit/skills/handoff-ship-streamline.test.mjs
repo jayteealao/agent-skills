@@ -80,7 +80,8 @@ test('W2.1 — every fix sub-agent LEADS its return with Method, never a trailin
   const surfaces = [
     ['_pr-ci-handoff.md', /Method: as-prescribed \| deviated/],
     ['verify.md', /Method: as-prescribed \| deviated/],
-    ['review/_stage.md', /Method: as-prescribed \| deviated/],
+    // W1 split: the fix prompt moved from review/_stage.md into review/_dispatch.md (Step 4c section).
+    ['review/_dispatch.md', /Method: as-prescribed \| deviated/],
   ];
   for (const { name, root } of trees) {
     for (const [rel, re] of surfaces) {
