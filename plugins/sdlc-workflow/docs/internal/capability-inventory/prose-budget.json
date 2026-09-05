@@ -96,7 +96,6 @@
         "skills/wf/reference/ship-plan/build.md": 1,
         "skills/wf/reference/ship-plan/edit.md": 1,
         "skills/wf/reference/ship-plan/init.md": 1,
-        "skills/wf/reference/ship.md": 4,
         "skills/wf/reference/ship/announce.md": 2,
         "skills/wf/reference/ship/rollback.md": 3,
         "skills/wf/reference/simplify.md": 3,
@@ -138,7 +137,6 @@
         "skills/wf/reference/review/ux-copy.md": 1,
         "skills/wf/reference/ship-plan/init.md": 1,
         "skills/wf/reference/ship-plan/ship-plan-templates/container-image.md": 1,
-        "skills/wf/reference/ship.md": 1,
         "skills/wf/reference/ship/announce.md": 1,
         "skills/wf/reference/ship/rollback.md": 1,
         "skills/wf/reference/simplify.md": 1,
@@ -188,7 +186,6 @@
         "skills/wf/reference/review/_stage.md": 9,
         "skills/wf/reference/review/correctness.md": 2,
         "skills/wf/reference/ship-plan/audit.md": 1,
-        "skills/wf/reference/ship.md": 6,
         "skills/wf/reference/simplify.md": 2
       }
     },
@@ -245,7 +242,6 @@
         "skills/wf/reference/runtime-adapters.md": 1,
         "skills/wf/reference/ship-plan/edit.md": 1,
         "skills/wf/reference/ship-plan/init.md": 3,
-        "skills/wf/reference/ship.md": 5,
         "skills/wf/reference/ship/announce.md": 4,
         "skills/wf/reference/ship/rollback.md": 2,
         "skills/wf/reference/simplify.md": 6,
@@ -297,7 +293,8 @@
         "skills/wf/reference/ship-plan/build.md": 2,
         "skills/wf/reference/ship-plan/edit.md": 1,
         "skills/wf/reference/ship-plan/init.md": 3,
-        "skills/wf/reference/ship.md": 19,
+        "skills/wf/reference/ship.md": 18,
+        "skills/wf/reference/ship/_run-artifact.md": 1,
         "skills/wf/reference/ship/announce.md": 2,
         "skills/wf/reference/ship/rollback.md": 5,
         "skills/wf/reference/simplify.md": 2,
@@ -344,7 +341,6 @@
         "skills/wf/reference/review/intent-fidelity.md": 1,
         "skills/wf/reference/ship-plan.md": 2,
         "skills/wf/reference/ship-plan/build.md": 1,
-        "skills/wf/reference/ship.md": 1,
         "skills/wf/reference/simplify.md": 2,
         "skills/wf/reference/task.md": 1,
         "skills/wf/reference/yolo.md": 2
@@ -366,7 +362,6 @@
         "skills/wf/reference/intake/modernize.md": 1,
         "skills/wf/reference/intake/rca.md": 2,
         "skills/wf/reference/retro.md": 1,
-        "skills/wf/reference/ship.md": 1,
         "skills/wf/reference/simplify.md": 3
       }
     }
@@ -437,7 +432,6 @@
     "skills/wf/reference/runtime-adapters.md": 745,
     "skills/wf/reference/ship-plan/build.md": 1146,
     "skills/wf/reference/ship-plan/init.md": 702,
-    "skills/wf/reference/ship.md": 685,
     "skills/wf/reference/simplify.md": 528,
     "skills/wf/reference/status.md": 446
   },
@@ -511,8 +505,8 @@
       "instructed": 9952
     },
     "ship": {
-      "core": 8707,
-      "instructed": 26348
+      "core": 6109,
+      "instructed": 22382
     },
     "simplify": {
       "core": 5825,

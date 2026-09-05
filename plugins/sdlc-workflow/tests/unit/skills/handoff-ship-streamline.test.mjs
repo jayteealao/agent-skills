@@ -219,7 +219,7 @@ test('W5.3 — handoff reconciles a stale roster instead of reporting "no implem
 
 test('W6.1 — Step Z inlines the ship-run sibling schema instead of citing a path', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, 'ship.md');
+    const src = ref(root, 'ship/_run-artifact.md');
     assert.match(src, /\*\*Required top-level keys:\*\* `release`, `run_at`, `stages`, `checks`, `rollback`/,
       `${name}: the ship-run required fields are no longer inlined`);
     assert.match(src, /artifact: ship-run/, `${name}: the minimal valid skeleton is gone`);
@@ -228,7 +228,7 @@ test('W6.1 — Step Z inlines the ship-run sibling schema instead of citing a pa
 
 test('W6.2 — the not-reached conclusion is the empty string, never the word "empty"', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, 'ship.md');
+    const src = ref(root, 'ship/_run-artifact.md');
     // This is the template that CAUSED the confusion: it literally offered `empty`
     // as an enum value while the schema wanted "".
     assert.ok(!/release-workflow-conclusion: <success \| failure \| cancelled \| empty>/.test(src),
@@ -276,7 +276,7 @@ test('W7.3 — ship asks its answerable questions before the atomic run opens', 
     const src = ref(root, 'ship.md');
     assert.match(src, /Batch the load-bearing questions/,
       `${name}: ship's pre-sequence question round is gone`);
-    assert.match(src, /^prefetched-answers:/m, `${name}: prefetched-answers is no longer recorded`);
+    assert.match(ref(root, 'ship/_run-artifact.md'), /^prefetched-answers:/m, `${name}: prefetched-answers is no longer recorded`);
     // Genuinely mid-run decisions must NOT be hoisted — asking them early is
     // asking the user to guess.
     assert.match(src, /Go\/No-Go/, `${name}: the do-not-hoist carve-out is gone`);

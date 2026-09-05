@@ -88,5 +88,29 @@
     "to": "skills/wf/reference/_workflow-rules.md",
     "category": "gates",
     "entry": "workflow rules - store artifacts under .ai/workflows/<slug /"
+  },
+  {
+    "from": "skills/wf/reference/ship.md",
+    "to": "skills/wf/reference/ship/_run-artifact.md",
+    "category": "artifacts",
+    "entry": "09-ship-run.md"
+  },
+  {
+    "from": "skills/wf/reference/ship.md",
+    "to": "skills/wf/reference/ship/_run-artifact.md",
+    "category": "artifacts",
+    "entry": "09-ship-run.yaml"
+  },
+  {
+    "from": "skills/wf/reference/ship.md",
+    "to": "skills/wf/reference/ship/_run-artifact.md",
+    "category": "stops",
+    "entry": "ship-plan-readiness: <ok acknowledged amended-inline ship-plan pre-check verdict (step"
+  },
+  {
+    "from": "skills/wf/reference/ship.md",
+    "to": "skills/wf/reference/ship/_run-artifact.md",
+    "category": "artifacts",
+    "entry": "07-review-<X>.md"
   }
 ]
