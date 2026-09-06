@@ -89,12 +89,12 @@ Each step is independently re-runnable: detect the already-done state before per
 
 ## Step 1 — Pre-flight
 
-1.1 **Branch + tree state.** Confirm you are on `<branch>`. `git status --porcelain` must be empty. If dirty, do not blanket-STOP — **classify every dirty path first** and only STOP on what needs a human:
+1.1 **Branch + tree state.** Confirm you are on `<branch>`. `git status --porcelain` must be empty. If dirty, do not stop outright — **classify every dirty path first** and only STOP on what needs a human:
 
    1. **Plugin-seeded files** — `CLAUDE.md` whose diff is entirely inside the `<!-- sdlc:wf-rules-import -->` fence, an untracked `AGENTS.md` containing only the `<!-- sdlc:wf-rules -->` fence, `.ai/.wf-rules-seeded`. These are the memory-seed kernel's own writes (verify mechanically: nothing outside the fences). Offer one-keystroke resolution as a gate question per [_gate-question.md](_gate-question.md): commit as `chore(sdlc): seed wf rules` (recommended) or gitignore the marker file; never a bare "go commit/stash it yourself".
    2. **`.ai/` workflow bookkeeping** — resolve per the repo's recorded `artifact-tracking` policy (`.ai/sdlc-config.json`; see `/wf ship-plan init`). `tracked` → offer "commit bookkeeping now" (`chore(sdlc): workflow artifacts`); `ignored` → these paths should not be dirty at all, so surface the policy violation (likely a missing `.gitignore` block) instead of committing; unset → ask once for this run and recommend recording it via `ship-plan edit`.
    3. **`ship-plan build` output** — files whose diff carries the `# Added by wf ship-plan build` provenance comment. Never silently commit-and-include. Offer: route to a review slice first (recommended; STOP with the `/wf intake <slug> fix …` seed), or explicitly accept as-is (recorded in `## Pre-flight` as `unreviewed-build-output-accepted` with the file list).
-   4. **Everything else** — STOP and ask the user to commit/stash, as before. Unknown always fails closed.
+   4. **Everything else** — STOP and ask the user to commit/stash. Unknown always fails closed.
 
    When the tree is clean or resolved, record `branch` and `head-sha-at-start: <git rev-parse HEAD>`.
 

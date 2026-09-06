@@ -241,61 +241,11 @@
     },
     "STOP": {
       "pattern": "\\bSTOP\\b",
-      "allowedFiles": {},
-      "files": {
-        "skills/uiproto/SKILL.md": 1,
-        "skills/wf/SKILL.md": 5,
-        "skills/wf/reference/_ci-red-routing.md": 1,
-        "skills/wf/reference/_decision-classes.md": 1,
-        "skills/wf/reference/_fix-loop.md": 1,
-        "skills/wf/reference/_handoff-config.md": 1,
-        "skills/wf/reference/_ship-plan-readiness.md": 6,
-        "skills/wf/reference/augment/benchmark.md": 2,
-        "skills/wf/reference/augment/experiment.md": 2,
-        "skills/wf/reference/augment/instrument.md": 2,
-        "skills/wf/reference/auto.md": 5,
-        "skills/wf/reference/close.md": 1,
-        "skills/wf/reference/design.md": 3,
-        "skills/wf/reference/design/_design-context.md": 1,
-        "skills/wf/reference/docs.md": 2,
-        "skills/wf/reference/handoff.md": 11,
-        "skills/wf/reference/handoff/_pr-triage.md": 2,
-        "skills/wf/reference/implement.md": 6,
-        "skills/wf/reference/intake.md": 3,
-        "skills/wf/reference/intake/_change-mode-tail.md": 1,
-        "skills/wf/reference/intake/adopt.md": 5,
-        "skills/wf/reference/intake/amend.md": 3,
-        "skills/wf/reference/intake/default.md": 5,
-        "skills/wf/reference/intake/extend.md": 4,
-        "skills/wf/reference/intake/ideate.md": 1,
-        "skills/wf/reference/intake/refactor.md": 1,
-        "skills/wf/reference/intake/update-deps.md": 2,
-        "skills/wf/reference/observability.md": 1,
-        "skills/wf/reference/observability/audit.md": 1,
-        "skills/wf/reference/observability/build.md": 1,
-        "skills/wf/reference/observability/init.md": 3,
-        "skills/wf/reference/plan.md": 4,
-        "skills/wf/reference/recap.md": 4,
-        "skills/wf/reference/retro.md": 3,
-        "skills/wf/reference/review/_stage.md": 8,
-        "skills/wf/reference/shape.md": 4,
-        "skills/wf/reference/ship-plan.md": 1,
-        "skills/wf/reference/ship-plan/_readiness-gate.md": 19,
-        "skills/wf/reference/ship-plan/audit.md": 1,
-        "skills/wf/reference/ship-plan/build.md": 2,
-        "skills/wf/reference/ship-plan/edit.md": 1,
-        "skills/wf/reference/ship-plan/init.md": 3,
-        "skills/wf/reference/ship.md": 18,
-        "skills/wf/reference/ship/_run-artifact.md": 1,
-        "skills/wf/reference/ship/announce.md": 2,
-        "skills/wf/reference/ship/rollback.md": 5,
-        "skills/wf/reference/simplify.md": 2,
-        "skills/wf/reference/slice.md": 4,
-        "skills/wf/reference/status.md": 5,
-        "skills/wf/reference/task.md": 2,
-        "skills/wf/reference/verify.md": 5,
-        "skills/wf/reference/verify/_deferrals.md": 2,
-        "skills/wf/reference/yolo.md": 18
+      "sentences": "stops",
+      "allowedSentences": {
+        "skills/wf/reference/handoff.md": {
+          "stop: the regen output disagrees with the staged": "T3.6 public-surface drift: a terminal condition added after the W0 baseline (handoff hardening); it joins baseline.json at the 9.154.0 regeneration."
+        }
       }
     },
     "verbatim": {
@@ -446,7 +396,7 @@
       "reason": "The 20-question floor with its Ambiguity Inventory and coverage gate (PO directive: never scale down), two sub-agent charters, Round 3b, the blind pre-mortem generator, the RIM adjudication gate, the Intake Fidelity table, and the AC direction/named-mechanism rules are each a capability surface; §4.3 cuts removed only rationale, examples, and restatements (5,236 → 4,932 words)."
     },
     "skills/wf/reference/ship.md": {
-      "words": 4104,
+      "words": 4103,
       "reason": "The polymorphic Step 0 with two hard-block gates (runtime-evidence deferrals, RIMs) and the pre-sequence question table, the 13 idempotent steps with their exact gh/git commands and per-step idempotency checks, the four-class dirty-tree triage, and the batch-ship contract are each a capability surface; §4.3 cuts removed only history anecdotes and rationale (4,390 → 4,104 words)."
     },
     "skills/wf/reference/verify.md": {

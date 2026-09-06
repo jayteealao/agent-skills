@@ -98,12 +98,12 @@ export function normalizePlaceholders(s) {
   return s.replace(/<[^>]+>/g, '<X>');
 }
 
-function paragraphs(text) {
+export function paragraphs(text) {
   return text.split(/\r?\n\s*\r?\n/);
 }
 
 /** Sentences of a paragraph: split on line breaks, then on sentence enders. */
-function sentences(paragraph) {
+export function sentences(paragraph) {
   const out = [];
   for (const line of paragraph.split(/\r?\n/)) {
     for (const s of line.split(/(?<=[.!?])\s+(?=[A-Z`*(\[])/)) {

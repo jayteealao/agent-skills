@@ -1,6 +1,6 @@
 # Ship-plan readiness — ledger filter and gate (Steps R2.5, R3, R3.5 of `_ship-plan-readiness.md`)
 
-The verdict rules, the `clears-on` taxonomy, and the two menu principles (`amendable`, gating-only counts) are in [../_ship-plan-readiness.md](../_ship-plan-readiness.md). This file carries the ledger filter, the question texts, the re-fire guards, the inline-amendment rules, and the orientation snapshot a STOP writes. Ask every question as a gate question per [../_gate-question.md](../_gate-question.md).
+The verdict rules, the `clears-on` taxonomy, and the two menu principles (`amendable`, gating-only counts) are in [../_ship-plan-readiness.md](../_ship-plan-readiness.md). This file carries the ledger filter, the question texts, the re-fire guards, the inline-amendment rules, and the orientation snapshot a stop writes. Ask every question as a gate question per [../_gate-question.md](../_gate-question.md).
 
 # Step R2.5 — Acknowledgement-ledger filter (persistence without silence)
 

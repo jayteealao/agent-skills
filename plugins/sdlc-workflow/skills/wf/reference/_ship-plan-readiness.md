@@ -60,7 +60,7 @@ Compute the verdict after the R2.5 filter (a run whose every finding was already
 
 Both `missing` and `drift` **gate**: present the situation and require an explicit decision. Ask a gate question per [_gate-question.md](_gate-question.md), with the texts, the two re-fire guards, and the per-answer procedures from the gate file. Two principles build the drift menu. Let `amendable` = the gating findings whose `clears-on` is `amend`; name in the amend options only the blocks the amendable findings point at, because a `merge`-class finding riding along must not drag its block into the amendment. When `amendable` is empty — never offer an amendment; offer only acknowledgement and, where a finding is `clears-on: repo`, the repo action that ends it. `<N>` in a question counts **gating findings only**.
 
-The answers map to verdicts: *Create it* / *Amend separately* / *Fix in the repo* / *Cancel* → STOP (`missing` or `drift`); *Shipping is external* (handoff only) → `not-applicable`; *Amend now and continue* → a scoped `ship-plan edit` sub-step, re-checked, → `amended-inline` on a clean re-check, else STOP; *Acknowledge and proceed* → `acknowledged`, with the reason in `po-answers.md` and the ledger.
+The answers map to verdicts: *Create it* / *Amend separately* / *Fix in the repo* / *Cancel* → stop the run (`missing` or `drift`); *Shipping is external* (handoff only) → `not-applicable`; *Amend now and continue* → a scoped `ship-plan edit` sub-step, re-checked, → `amended-inline` on a clean re-check, else the run stops; *Acknowledge and proceed* → `acknowledged`, with the reason in `po-answers.md` and the ledger.
 
 # Step R4 — Record the outcome
 

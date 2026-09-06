@@ -95,6 +95,59 @@ test('checkBudget: over-budget files, tokens, and rubric fences fail without a r
   }
 });
 
+test('a per-sentence token rule (§6.1 STOP) admits one token per resolved W0 stop entry and nothing else', () => {
+  const root = syntheticTree();
+  try {
+    const inv = path.join(root, 'docs', 'internal', 'capability-inventory');
+    mkdirSync(inv, { recursive: true });
+    const plan = 'skills/wf/reference/plan.md';
+    writeFileSync(path.join(inv, 'baseline.json'), JSON.stringify({
+      files: { [plan]: { stops: ['if the plan is missing, stop and ask.', 'if dirty, do not blanket-stop classify first and'] } },
+      treeWide: {},
+    }));
+    writeFileSync(path.join(root, plan), [
+      '# plan', '',
+      'If the plan is missing, STOP and ask.',
+      'If the plan is missing, STOP and ask.',        // the same terminal condition twice is two conditions, not decoration
+      'If dirty, do not blanket-STOP — classify first and only STOP on humans.',
+      'Decorative: STOP reading here.', '',
+    ].join('\n'));
+    const budget = { ...BUDGET, tokens: { STOP: { pattern: '\\bSTOP\\b', sentences: 'stops', allowedSentences: {} } } };
+
+    const first = checkBudget(budget, root).failures.filter((f) => /STOP/.test(f));
+    assert.equal(first.length, 2, first.join('\n'));
+    assert.match(first.join('\n'), /2 STOP tokens in one sentence \("if dirty, do not blanket-stop classify first and"\)/);
+    assert.match(first.join('\n'), /STOP sentence "decorative: stop reading here." is not a W0 stops entry/);
+
+    // Rewording the doubled sentence and recording it in reworded.json clears it; allowedSentences admits a new condition.
+    writeFileSync(path.join(inv, 'reworded.json'), JSON.stringify([
+      { file: plan, category: 'stops', from: 'if dirty, do not blanket-stop classify first and', to: 'if dirty, do not stop outright classify first' },
+    ]));
+    writeFileSync(path.join(root, plan), [
+      '# plan', '',
+      'If the plan is missing, STOP and ask.',
+      'If dirty, do not stop outright — classify first and only STOP on humans.',
+      'Decorative: STOP reading here.', '',
+    ].join('\n'));
+    budget.tokens.STOP.allowedSentences = { [plan]: { 'decorative: stop reading here.': 'a new terminal condition added after W0' } };
+    const second = checkBudget(budget, root).failures.filter((f) => /STOP/.test(f));
+    assert.deepEqual(second, []);
+
+    // A moved entry counts at its destination; a retired one nowhere. --update keeps the rule and writes no `files`.
+    writeFileSync(path.join(inv, 'moved.json'), JSON.stringify([
+      { from: plan, to: 'skills/wf/reference/verify.md', category: 'stops', entry: 'if the plan is missing, stop and ask.' },
+    ]));
+    writeFileSync(path.join(root, 'skills/wf/reference/verify.md'), '# verify\nIf the plan is missing, STOP and ask.\n');
+    const third = checkBudget(budget, root).failures.filter((f) => /STOP/.test(f));
+    assert.deepEqual(third, [`${plan}: STOP sentence "if the plan is missing, stop and ask." is not a W0 stops entry; drop the token, or list it under tokens.STOP.allowedSentences["${plan}"] with a reason`]);
+    const updated = updateBudget(budget, root);
+    assert.equal(updated.tokens.STOP.sentences, 'stops');
+    assert.equal(updated.tokens.STOP.files, undefined);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('compareInventories: a reworded sentence survives when reworded.json names its new first words in the same file', () => {
   const baseline = { files: { 'a.md': { artifacts: [], gates: [], stops: ['if the branch is behind base stop.'], dispatches: [], 'rubric-checks': [] } }, treeWide: { fields: [], invocations: [], config: [], citations: [] } };
   const current = { files: { 'a.md': { artifacts: [], gates: [], stops: ['when the branch is behind base, stop.'], dispatches: [], 'rubric-checks': [] } }, treeWide: { fields: [], invocations: [], config: [], citations: [] } };

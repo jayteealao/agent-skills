@@ -13,6 +13,16 @@
 //                                            gain a token; the total may not
 //                                            exceed `allowed` once the file
 //                                            counts reach zero
+//                {"<name>": {pattern, sentences: "<category>", allowedSentences}}
+//                                            per-sentence form (§6.1 STOP): every
+//                                            sentence carrying the token must key
+//                                            a W0 inventory entry of <category>
+//                                            (baseline → moved → reworded, minus
+//                                            retired) or an `allowedSentences`
+//                                            entry {"<file>": {"<key>": reason}};
+//                                            one sentence carries one token. No
+//                                            ratchet: a failure is fixed, not
+//                                            recorded
 //   load         {"<key>": {core, instructed}} a key over its §1.1 target; may
 //                                            shrink, never grow
 //
@@ -30,7 +40,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PLUGIN_ROOT, listProseFiles } from './extract-capabilities.mjs';
+import { PLUGIN_ROOT, firstWords, listProseFiles, paragraphs, sentences } from './extract-capabilities.mjs';
 import { listKeys, measureLoad, wordCount } from './measure-load.mjs';
 
 export const BUDGET_PATH = join(PLUGIN_ROOT, 'docs', 'internal', 'capability-inventory', 'prose-budget.json');
@@ -68,6 +78,61 @@ function countMatches(text, pattern) {
   return (text.match(new RegExp(pattern, 'g')) ?? []).length;
 }
 
+function readJsonOr(path, fallback) {
+  return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : fallback;
+}
+
+/**
+ * The W0 inventory keys of one per-file category, resolved to where they live now:
+ * a moved entry counts at its `to` file, a reworded entry under its new words, a
+ * retired entry nowhere. `null` when the tree carries no baseline.
+ * @returns {Record<string, Set<string>> | null}
+ */
+function resolvedInventoryKeys(root, category) {
+  const dir = join(root, 'docs', 'internal', 'capability-inventory');
+  const baseline = readJsonOr(join(dir, 'baseline.json'), null);
+  if (!baseline) return null;
+  const moved = readJsonOr(join(dir, 'moved.json'), []);
+  const retired = readJsonOr(join(dir, 'retired.json'), []);
+  const reworded = readJsonOr(join(dir, 'reworded.json'), []);
+  const out = {};
+  const add = (file, key) => (out[file] ??= new Set()).add(key);
+  for (const [file, cats] of Object.entries(baseline.files ?? {})) {
+    for (const entry of cats[category] ?? []) {
+      if (retired.some((r) => r.entry === entry && (!r.category || r.category === category) && (!r.file || r.file === file))) continue;
+      const dests = moved
+        .filter((m) => m.from === file && m.entry === entry && (!m.category || m.category === category))
+        .map((m) => m.to);
+      for (const dest of dests.length ? dests : [file]) {
+        add(dest, entry);
+        for (const r of reworded) if (r.file === dest && r.category === category && r.from === entry) add(dest, r.to);
+      }
+    }
+  }
+  return out;
+}
+
+/** §6.1 per-sentence token rule: one token per W0 terminal condition, none elsewhere. */
+function checkSentenceRule(rel, text, name, rule, resolved, failures) {
+  const re = new RegExp(rule.pattern, 'g');
+  const allowed = new Set([...(resolved?.[rel] ?? []), ...Object.keys(rule.allowedSentences?.[rel] ?? {})]);
+  for (const para of paragraphs(text)) {
+    for (const s of sentences(para)) {
+      const hits = (s.match(re) ?? []).length;
+      if (!hits) continue;
+      const key = firstWords(s, 8);
+      if (hits > 1) {
+        failures.push(`${rel}: ${hits} ${name} tokens in one sentence ("${key}"); one terminal condition carries one ${name}`);
+      }
+      if (!allowed.has(key)) {
+        failures.push(
+          `${rel}: ${name} sentence "${key}" is not a W0 ${rule.sentences} entry; drop the token, or list it under tokens.${name}.allowedSentences["${rel}"] with a reason`,
+        );
+      }
+    }
+  }
+}
+
 /** Code fences in a rubric other than one tagged `yaml`. */
 function rubricFenceViolations(text) {
   const fences = [...text.matchAll(/^```([^\n]*)$/gm)].map((m) => m[1].trim());
@@ -90,7 +155,11 @@ export function checkBudget(budget, root = PLUGIN_ROOT) {
   const keys = listKeys(root);
   const files = {};
   const tokenCounts = {};
-  for (const name of Object.keys(budget.tokens ?? {})) tokenCounts[name] = {};
+  const resolvedKeys = {};
+  for (const [name, rule] of Object.entries(budget.tokens ?? {})) {
+    tokenCounts[name] = {};
+    if (rule.sentences) resolvedKeys[name] = resolvedInventoryKeys(root, rule.sentences);
+  }
 
   for (const rel of listProseFiles(root)) {
     const text = readFileSync(join(root, rel), 'utf8');
@@ -138,6 +207,10 @@ export function checkBudget(budget, root = PLUGIN_ROOT) {
     for (const [name, rule] of Object.entries(budget.tokens ?? {})) {
       const n = countMatches(text, rule.pattern);
       if (n > 0) tokenCounts[name][rel] = n;
+      if (rule.sentences) {
+        checkSentenceRule(rel, text, name, rule, resolvedKeys[name], failures);
+        continue;
+      }
       const recorded = rule.files?.[rel] ?? 0;
       const allowedHere = rule.allowedFiles?.[rel] ?? 0;
       if (n > Math.max(recorded, allowedHere)) {
@@ -207,6 +280,12 @@ export function updateBudget(budget, root = PLUGIN_ROOT) {
     }
   }
   for (const [name, rule] of Object.entries(budget.tokens ?? {})) {
+    if (rule.sentences) {
+      // A per-sentence rule has no ratchet: nothing to record, nothing to lower.
+      const { files: _unused, ...rest } = rule;
+      next.tokens[name] = rest;
+      continue;
+    }
     const files = {};
     for (const [rel, n] of Object.entries(report.tokens[name] ?? {})) {
       if (n > (rule.allowedFiles?.[rel] ?? 0)) files[rel] = n;

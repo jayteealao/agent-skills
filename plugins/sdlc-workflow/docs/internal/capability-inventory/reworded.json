@@ -58,5 +58,11 @@
     "category": "stops",
     "from": "run /wf status to list workflows, or /wf",
     "to": "if a description was given instead of a"
+  },
+  {
+    "file": "skills/wf/reference/ship.md",
+    "category": "stops",
+    "from": "if dirty, do not blanket-stop classify every dirty",
+    "to": "if dirty, do not stop outright classify every"
   }
 ]
