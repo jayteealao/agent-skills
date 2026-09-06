@@ -14,21 +14,12 @@ You are running `/wf probe`: drive the running artifact, capture evidence, repor
 
 # Slug-mode contract (read before proceeding)
 
-`probe` is **slug-mode only** — it always operates on an existing slug from `.ai/workflows/INDEX.md`; runtime-truth verification only makes sense against already-implemented work. The `/wf` dispatcher routes `/wf probe`; **probe is slug-only, so a compressed slice is always the output** — follow `_compressed-slice.md` for exact slice frontmatter and index bookkeeping.
+`probe` is **slug-mode only** — it always operates on an existing slug from `.ai/workflows/INDEX.md`. The `/wf` dispatcher routes `/wf probe`; **probe is slug-only, so a compressed slice is always the output** — follow `_compressed-slice.md` for exact slice frontmatter and index bookkeeping.
 
 - **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-probe-<descriptor>.md` (collision suffix `-2`, `-3` if needed).
 - **Same content discipline** (research depth, evidence quality, recommendation logic) — only the output destination changes.
 - **No new workflow, no new branch, no `01-probe.md`, no new top-level `00-index.md`.** The slug already owns those.
 - **Index updates** follow the shared compressed-slice contract — see `_compressed-slice.md`.
-
-# Position among the /wf runtime commands
-
-`probe` fills the missing cell in this 2x2. `probe` is to `rca` what runtime is to static: `rca` reads code and git history; `probe` runs the artifact and observes it.
-
-| | Forward gate (per-slice) | Backward re-entry (slug-wide) |
-|---|---|---|
-| **Static** | lint/types/tests in `/wf verify` | `rca` (read-only static diagnosis of a reported symptom) |
-| **Runtime** | interactive sub-agent in `/wf verify` (gated, refuses pass without runtime evidence) | **`probe` (this command — runtime detection of reported or unreported symptoms)** |
 
 # CRITICAL — execution discipline
 You are a **runtime observer**, not a fixer.
@@ -56,14 +47,13 @@ No flags — probe takes a slug and an optional target string. It always surface
 > AC>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) the evidence is ambiguous against
 > the AC — no clean pass/fail; (b) the probe's verdict would clear a registered
 > runtime-evidence-deferral (its read unblocks ship, so it deserves two readers); (c) the
-> observation contradicts an earlier verify result. Skip only when none of the triggers hold; the
-> user may invoke it explicitly with any provider.
+> observation contradicts an earlier verify result. Skip only when none of the triggers hold.
 
 # Step 0 — Orient (MANDATORY)
 
-1. **Read `.ai/workflows/<slug>/00-index.md`.** Parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), the **`charter:` block** (the PO-ratified constraints — see Step 5's comparison basis; ACs are per-slice and expire, constraints are durable and cross-slice, so a runtime observer that reads only AC is checking the receipts and ignoring the contract), and the **`stack:` block** (written by `/wf intake` Step 0.5, confirmed in Batch B). When `user-confirmed: true`, it narrows adapter selection in Step 3 and tooling choice during drive/observe.
+1. **Read `.ai/workflows/<slug>/00-index.md`.** Parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), the **`charter:` block** (the PO-ratified constraints — see Step 5's comparison basis; constraints are durable and cross-slice, so a probe that reads only AC misses the contract), and the **`stack:` block** (written by `/wf intake` Step 0.5, confirmed in Batch B). When `user-confirmed: true`, it narrows adapter selection in Step 3 and tooling choice during drive/observe.
 2. **Read the slice index `03-slice.md`** (or `01-quick.md` for `workflow-type: quick`). Note every slice slug and source-mode (standard / compressed / forwarded / change-mode). Change-modes (`workflow-type: fix` / `hotfix` / `refactor` / `update-deps`) write a STANDARD `03-slice.md` (one slice), so this step is unchanged — but their lead is `01-<mode>.md`, not `01-quick.md`.
-3. **Read every per-slice file** referenced from the slice index. For compressed and forwarded modes, AC lives in the single source artifact (`01-quick.md`, `01-rca.md`). For change-mode, AC lives in the lead `01-<mode>.md` plus `03-slice.md` / `04-plan.md`. **Terminal analysis slugs** (`workflow-type: rca` / `discover` / `investigate` / `ideate`) have **no `03-slice.md`** — do not error on its absence: the probe target is the free-form target string (their escalation ladders route here with the runtime question the analysis hinges on), the comparison basis is that question plus the lead artifact's stated claim, and the finding lands as the standard compressed slice on that slug. (`investigate`/`ideate` have no build to probe in place — only their targeted question runs.)
+3. **Read every per-slice file** referenced from the slice index. For compressed and forwarded modes, AC lives in the single source artifact (`01-quick.md`, `01-rca.md`). For change-mode, AC lives in the lead `01-<mode>.md` plus `03-slice.md` / `04-plan.md`. **Terminal analysis slugs** (`workflow-type: rca` / `discover` / `investigate` / `ideate`) have **no `03-slice.md`** — do not error on its absence: the probe target is the free-form target string their escalation ladders route here with, the comparison basis is that question plus the lead artifact's stated claim, and the finding lands as the standard compressed slice on that slug. (`investigate`/`ideate` have no build to probe in place — only their targeted question runs.)
 4. **Read `runtime-adapters.md`** (the registry), then `runtime-adapters/_ladder.md`, `runtime-adapters/_protocols.md`, and `runtime-adapters/<key>.md` for each matched adapter.
 5. **Stack awareness (advisory).** Probe cannot refuse to run when `stack:` is missing, but MUST be honest about provenance:
    - **If `stack:` is missing entirely** → emit: *"`stack:` is not set on `<slug>`. Probe will run adapter detection cold; consider running `/wf intake <slug>` to capture stack so future runs respect PO intent."* Set `stack-source: probe-detected-from-repo`. Proceed.
@@ -71,13 +61,11 @@ No flags — probe takes a slug and an optional target string. It always surface
    - **If `stack.user-confirmed: true`** → set `stack-source: confirmed`. Step 3 intersects matched adapters with `stack.platforms` and surfaces any divergence as an artifact-level signal (not a stop).
    - In all cases, record the `stack:` block under `## Stack context` in the probe slice body so a reader can reconcile what probe saw against what intake confirmed.
 6. **Capture the target** from `$ARGUMENTS` per the argument grammar above: `target` = the single positional target string, or `slug-wide` if none was given.
-7. **Run the clearing-event tripwire.** For every open deferral (`cleared-by: null`) carrying a `clearing-probe`, execute that **one** recorded side-effect-free command with a short timeout. A hit means the event this deferral is waiting on has *already happened* — say so up front and prioritise that deferral in this run, because probe is the actor most clearing events name. Never improvise a substitute command, never edit `00-index.md` here (Step 7 owns the clearing mutation), and treat a miss as ordinary state, not a finding. An entry with no recorded probe is simply un-watched — note it in `## Tripwires` so the next verify can add one.
+7. **Run the clearing-event tripwire.** For every open deferral (`cleared-by: null`) carrying a `clearing-probe`, execute that **one** recorded side-effect-free command with a short timeout. A hit means the event this deferral is waiting on has *already happened* — say so up front and prioritise that deferral in this run. Never improvise a substitute command, never edit `00-index.md` here (Step 7 owns the clearing mutation), and treat a miss as ordinary state, not a finding. An entry with no recorded probe is simply un-watched — note it in `## Tripwires` so the next verify can add one.
 8. **Read `_surface-defects.md`.** MANDATORY in `sweep` mode, advisory in target mode (its classes are what Step 5.2 records incidentals against). It supplies the defect classes, the severity discipline, and the decidability boundary.
 9. **Declare decidability BEFORE driving (MANDATORY in `sweep` mode).** Using the standing not-observable set in `_surface-defects.md`, state which classes of correctness this artifact makes observable and which it does not, and where each unobservable class routes. Record it as the `decidability:` frontmatter block. When the artifact's **primary** correctness class is not observable (a ranking/generative system, a long-horizon pipeline), say so FIRST — at the top of the artifact and in the chat return, before any finding — so a clean wrapper report never reads as a verdict on the thing the wrapper wraps.
 
 # Step 1 — Branch posture (MANDATORY before bootstrap)
-
-`probe` intentionally breaks the "one-line invocation" ergonomic when the working tree is not on the slug's branch. Probe runs cold more often than verify — the user may have moved branches and forgotten — and silently switching can clobber uncommitted work.
 
 1. Run `git branch --show-current`. Call the result `current-branch`.
 2. Compare against `00-index.md.branch`. Call that `slug-branch`.
@@ -106,7 +94,7 @@ For `slug-wide` invocations, layer 1 expands to "every AC in every slice file" �
 
 1. **Match adapters.** Run every adapter's detection signal (the Adapters table in `runtime-adapters.md`) against the repo. Collect matches into `matched-adapters: [<key>, ...]`.
 2. **Stack intersection (when `stack-source: confirmed`).** Compute `stack-intersected-adapters = matched-adapters ∩ stack.platforms` from `00-index.md`.
-   - **Divergence** — record both sets in the slice frontmatter. If they differ, set `stack-adapter-divergence: true` and add `## Stack divergence` listing excluded adapters. Divergence is a signal, not a stop (the PO may want probe to surface unexpected platforms).
+   - **Divergence** — record both sets in the slice frontmatter. If they differ, set `stack-adapter-divergence: true` and add `## Stack divergence` listing excluded adapters. Divergence is a signal, not a stop.
    - **Default on divergence** — probe drives `stack-intersected-adapters`. If the intersection is empty, drive `matched-adapters` and set `stack-adapter-divergence-mode: full-bypass`; the artifact records the bypass.
    - **When `stack-source: unconfirmed-auto-detect` or `probe-detected-from-repo`** → skip intersection. `adapters-used` defaults to `matched-adapters`.
 3. **Run the appropriate set.** `adapters-used = stack-intersected-adapters` (confirmed stack, non-empty intersection), else `matched-adapters`. Probe drives every adapter in that set.
@@ -142,7 +130,7 @@ For each adapter in `adapters-used` whose bootstrap completed:
    c. every **defect class** in `_surface-defects.md` (`sweep` mode; advisory in target mode). Ask the class's detection question of each enumerated surface.
    Record which bases ran as `comparison-basis: [ac, charter, taxonomy]`.
 
-1b. **Perturb (MANDATORY in `sweep` mode where authorized).** After the happy path is observed, follow the adapter's `Perturb` section and the shared perturbation protocol: break exactly one dependency, re-observe, restore. This is the only way to find `dependency-collapse` and `branch-gap` on purpose rather than by luck. Never perturb a shared or production backend without explicit authorization — record what was skipped and why.
+1b. **Perturb (MANDATORY in `sweep` mode where authorized).** After the happy path is observed, follow the adapter's `Perturb` section and the shared perturbation protocol: break exactly one dependency, re-observe, restore. Never perturb a shared or production backend without explicit authorization — record what was skipped and why.
 
 1c. **Re-observe before recording (MANDATORY).** Any finding above `low` whose evidence is a **single observation on an interactive surface** MUST be re-observed from a clean state (fresh launch, dismissed system UI, known route) before it is recorded. On divergence, downgrade or drop it and record the divergence under `retracted-findings:`. Corroboration by two tools does NOT satisfy this — both tools observe the same corrupted state; only a clean-state re-observation does. See `env-interference` in `_surface-defects.md`.
 
@@ -169,12 +157,12 @@ Author **free narrative fragments** for any beat the structured page can't tell 
 If `runtime-evidence-deferrals` in `00-index.md` contains entries whose `cleared-by: null` and whose `slice` appears in `target-resolution.matched-slices`:
 
 - For each matched deferral, check whether the probe produced evidence that satisfies the deferred user-observable AC.
-- **Direction check first:** if the deferred AC is a prove-fail-closed criterion (a gate/guard/health-check catching a failure — shape.md's direction rule), the probe evidence must show the *failure branch firing* (induced fault caught, bad input rejected). A green happy-path observation does NOT clear it — one "unhealthy revision caught" AC was once cleared by a healthy release, leaving the gate never exercised. On a direction mismatch, leave `cleared-by: null` and record in `## Tripwires` what evidence would qualify (the fault to inject).
-- **Climb the env-remediation rung before leaving one uncleared.** Probe is the actor most deferrals name as their clearing event, so arriving and re-recording the same wall is the failure mode to avoid. Rebind a harness-owned service to a free port and record it (never leave a deferral standing over a port the run itself binds), boot the documented headless mode, start an existing AVD, run a provisioning script the repo ships — per the env-remediation rung in runtime-adapters/_ladder.md, including its denylist: do not kill a process the run did not start, mutate host configuration, or patch product code.
-- **Re-run the ownership triage on every wall that survives.** A deferral recorded `external` by an earlier run is a claim, not a fact. If the wall is `code-owned` (the repo's own hard-coded port/host/endpoint or fixture pins it), say so in `## Tripwires` and name the change that would dissolve it — a probe that reports "still blocked" over a constant in our own tree has found a scoping decision, not an environment.
+- **Direction check first:** if the deferred AC is a prove-fail-closed criterion (a gate/guard/health-check catching a failure — shape.md's direction rule), the probe evidence must show the *failure branch firing* (induced fault caught, bad input rejected). A green happy-path observation does NOT clear it. On a direction mismatch, leave `cleared-by: null` and record in `## Tripwires` what evidence would qualify (the fault to inject).
+- **Climb the env-remediation rung before leaving one uncleared.** Rebind a harness-owned service to a free port and record it (never leave a deferral standing over a port the run itself binds), boot the documented headless mode, start an existing AVD, run a provisioning script the repo ships — per the env-remediation rung in runtime-adapters/_ladder.md, including its denylist: do not kill a process the run did not start, mutate host configuration, or patch product code.
+- **Re-run the ownership triage on every wall that survives.** A deferral recorded `external` by an earlier run is a claim, not a fact. If the wall is `code-owned` (the repo's own hard-coded port/host/endpoint or fixture pins it), say so in `## Tripwires` and name the change that would dissolve it.
 - If yes, set `cleared-by: probe-<descriptor>` in `00-index.md.runtime-evidence-deferrals`.
 - If no, leave `cleared-by: null` and surface this in the slice's `## Tripwires` section — with the wall's current `wall-ownership` verdict and, when the recorded `clearing-event` turned out to be a passive wait ("once the port frees"), the provisionable event that should replace it.
-- **Leave a `clearing-probe` behind on every deferral that survives.** A deferral nobody can *check* is a deferral nobody will notice clearing — one AC shipped uncleared while its "device available" event was satisfied on-screen in the same session. Before writing the entry back, make sure it carries a one-line, side-effect-free command that answers "has the clearing event happened yet?" (verify.md's `clearing-probe` field). You just probed this wall, so you are the best-placed writer of that command in the whole lifecycle: record the check you would run next time.
+- **Leave a `clearing-probe` behind on every deferral that survives.** Before writing the entry back, make sure it carries a one-line, side-effect-free command that answers "has the clearing event happened yet?" (verify.md's `clearing-probe` field): record the check you would run next time.
 
 This is the one mutation `probe` makes to `00-index.md` beyond standard bookkeeping. The mutation is additive — clearing a deferral updates its status; it does not remove the entry.
 

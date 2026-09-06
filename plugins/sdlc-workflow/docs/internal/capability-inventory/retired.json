@@ -53,5 +53,11 @@
     "entry": "heading: reviewer focus areas",
     "reason": "W1: a false-positive dispatch key \u2014 a body-template section heading that names reviewers, not a sub-agent dispatch; the section survives as a list item under `# Artifacts`",
     "release": "9.154.0"
+  },
+  {
+    "entry": "/wf runtime",
+    "category": "invocations",
+    "reason": "Never a /wf key: the extractor read it from probe.md's deleted section heading \"Position among the /wf runtime commands\" (an explanation cut under WIDE-VIEW-REPAIR-PLAN \u00a74.3).",
+    "release": "9.154.0"
   }
 ]
