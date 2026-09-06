@@ -433,6 +433,10 @@
       "words": 4932,
       "reason": "The 20-question floor with its Ambiguity Inventory and coverage gate (PO directive: never scale down), two sub-agent charters, Round 3b, the blind pre-mortem generator, the RIM adjudication gate, the Intake Fidelity table, and the AC direction/named-mechanism rules are each a capability surface; §4.3 cuts removed only rationale, examples, and restatements (5,236 → 4,932 words)."
     },
+    "skills/wf/reference/ship.md": {
+      "words": 4104,
+      "reason": "The polymorphic Step 0 with two hard-block gates (runtime-evidence deferrals, RIMs) and the pre-sequence question table, the 13 idempotent steps with their exact gh/git commands and per-step idempotency checks, the four-class dirty-tree triage, and the batch-ship contract are each a capability surface; §4.3 cuts removed only history anecdotes and rationale (4,390 → 4,104 words)."
+    },
     "skills/wf/reference/yolo.md": {
       "words": 3758,
       "reason": "The Autonomous Decision Policy table (about 650 words of gate definitions with 10 inventoried STOP sentences), the five intake-class refusals, and the 16-line hand-back template are capability; rationale, history, and restatements were cut from 6,434 words to this count."
@@ -453,9 +457,6 @@
     },
     "retro": {
       "core": 4960
-    },
-    "ship": {
-      "core": 6109
     },
     "verify": {
       "core": 6009
