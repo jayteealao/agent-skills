@@ -1,7 +1,8 @@
 # Wide-View Repair Plan — prose budget, capability shield, exact cost ledger, runtime repair
 
-Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0 BUILT 2026-09-05** (eval baseline
-run pending — see §16). W1 onward not built. Source: a whole-tree survey of
+Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0, W1 (line budgets), W2 BUILT
+2026-09-05**; eval baseline run pending (§16); W1 word targets, W3 onward in progress —
+see the build ledger in §17. Source: a whole-tree survey of
 `plugins/sdlc-workflow` on 2026-09-04 against v9.153.4 (`6465707f`). Another
 session carried `_shell.mjs`, `nav.html`, and the root catalog to 9.153.5 while
 this plan was written. Every count below is a v9.153.4 count. W0 re-measures
@@ -1080,3 +1081,35 @@ W0 build notes (2026-09-05), where the build departed from the draft above:
 - W11.6 folds hooks per event. If a host's hook contract cannot run two
   checks in one process with distinct exit semantics, keep separate entries
   for that host only and record the exception in the host contract file.
+
+## 17. Build ledger
+
+One row per wave or sub-item. `State` is one of `built`, `in progress`, `blocked`, `open`.
+A row is `built` only when its gate in §15 is green on a commit. The commit column names
+the commit that closed the row. Every commit is local until the operator pushes.
+
+| Item | Scope | State | Commit | Note |
+|---|---|---|---|---|
+| W0 | Capability inventory, load metric, eval harness | built | `4a554592` | eval baseline not recorded: headless `claude -p` returns "OAuth session expired" |
+| W1 lines | Every stage body ≤ 250, shared contract ≤ 80, dispatchers under budget, §4.4 splits | built | `c30e5b30`…`7e212b16` | 46 commits, one file each |
+| W1 frontmatter | Delimiters restored in `intake.md`, `intake/extend.md`; gate added | built | `f462b6b2` | regression from the W1 unwrap passes |
+| W1 words | 16 key bodies ≤ 2,331 words so core ≤ 4,050; 3 keys within instructed | in progress | — | body target = 4,050 − SKILL.md 1,719 |
+| W2 | Retired-surface migration text deleted; doc-site table + assertion | built | `f5be5bf2` | 21 sentences, 13 files |
+| W3 | Emphasis vocabulary rewrite + token gate | open | — | counts at start: MANDATORY 151, CRITICAL 31, MUST 73, NEVER 14, Do NOT 74, STOP 199, verbatim 57, v9.x 7 |
+| W4 | Review rubrics 35 → 11 with aliases, focus, aggregates, docs page | open | — | 35 files, 17,653 lines |
+| W6 | Eval baseline + `--compare` | blocked | — | needs an authenticated `claude`; cases and fixtures exist |
+| W7 | One version carrier + render gate on renderer bytes | open | — | |
+| W8 | Exact cost ledger: Stop hook, parsers, readers, consult triggers | open | — | Phase 0 live checks in §10.2 and §10.6 |
+| W9 | Surface policy file + `verify:surface` + earn rule | open | — | |
+| W10 | README ≤ 150 lines + `verify:docs` extension | open | — | README is 1,087 lines |
+| W11.1 | `doctor` + installed check + cutover record | open | — | |
+| W11.2 | One runtime log, lifecycle log, error log routing, hex payload, restart count | open | — | |
+| W11.3 | Conditional SessionStart, registry refusals, litter deletion, comment fix | open | — | |
+| W11.4 | Port-held handling, EADDRINUSE, default port move + migration | open | — | |
+| W11.5 | Runtime store GC on every start | open | — | |
+| W11.6 | Folded hooks per event | open | — | |
+| W11.7 | Test isolation via `SDLC_HOME` + state-dir guard | open | — | |
+| W11.8 | Exposure defaults: basenames, code browser gate, tray hash manifest | open | — | |
+| W11.9 | Dead paths: deprecate (N), delete (N+1) | open | — | two releases by rule |
+| W11.10 | Bounded catch-up render + 5 s Codex wait | open | — | |
+| W11.11 | Shared `_assets` from the hub + prune-log rotation | open | — | |
