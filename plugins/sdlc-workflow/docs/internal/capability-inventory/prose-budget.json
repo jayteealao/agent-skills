@@ -421,6 +421,10 @@
       "words": 1719,
       "reason": "The 22-key tables (Arguments / Does / Writes cells) and the Step 0, 0.5, 0.7 STOP rules are the dispatcher's capability surface; 120 lines at 14 words per line. Cutting to 1,320 words would delete table cells that name invocations and artifacts."
     },
+    "skills/wf/reference/handoff.md": {
+      "words": 5069,
+      "reason": "The 60-field frontmatter template (about 600 words), the T3.5-T5.3 readiness procedure with 11 inventoried STOP sentences, and the per-slug/per-branch batch contract are capability; rationale and restatements were cut from 5,760 words to this count."
+    },
     "skills/wf/reference/yolo.md": {
       "words": 3758,
       "reason": "The Autonomous Decision Policy table (about 650 words of gate definitions with 10 inventoried STOP sentences), the five intake-class refusals, and the 16-line hand-back template are capability; rationale, history, and restatements were cut from 6,434 words to this count."
@@ -429,10 +433,6 @@
   "load": {
     "auto": {
       "core": 4855
-    },
-    "handoff": {
-      "core": 7479,
-      "instructed": 15737
     },
     "implement": {
       "core": 5115
