@@ -10,5 +10,6 @@
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 - Conditional inputs are mandatory when present. If a file in the stage's *Conditional inputs* row exists on disk, read it and honor it in the output. Existence is optional; consumption is required; silent omission is a contract violation.
 - Use parallel sub-agents for multi-domain research per [_subagents.md](_subagents.md). Do not spin up sub-agents for trivial work.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 A stage body cites this file instead of restating these rules. A stage-specific rule (an extra artifact, an idempotency invariant, an evidence layout) stays in the stage body, beneath the citation.

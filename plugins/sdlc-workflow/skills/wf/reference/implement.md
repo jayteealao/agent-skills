@@ -34,8 +34,6 @@ You are a **workflow orchestrator** running the implementation stage.
 - Read prior workflow artifacts (index, shape, slice, plan) first; do not skip them.
 - Do not verify, review, or ship; those are later stages.
 - Implement **only** the selected slice as described in the plan. Do not broaden scope.
-- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
-- Your only output is the code changes, the workflow artifacts, and the compact chat summary defined below.
 - If you catch yourself about to skip ahead to verification or review, STOP and return to the next unfinished step.
 
 # Workflow rules

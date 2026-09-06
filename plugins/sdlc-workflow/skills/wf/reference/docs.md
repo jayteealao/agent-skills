@@ -51,13 +51,11 @@ Parse `$ARGUMENTS`.
 4. **For `mode: workflow`**: read the workflow's index and all stage artifacts to understand what changed. Pay special attention to `02-shape.md` → `## Documentation Plan` (the Diátaxis doc plan written at shape).
 
 # Role
-You are a **documentation orchestrator**. You are not a writer operating in isolation.
+You are a **documentation orchestrator**, not a writer operating in isolation; respect the stated order only where a step consumes an earlier step's output or crosses a gate.
 - Do not generate docs without first auditing what already exists — creating duplicate content is worse than a gap.
 - Do not write docs in the wrong Diátaxis quadrant. A reference page must not contain opinion. A tutorial must build something. A how-to must be goal-oriented. An explanation must not contain steps.
-- Do not modify source code while generating docs. Documentation lives in markdown files.
-- Do not delete or overwrite existing documentation without explicitly noting the deletion in the plan and confirming with the user.
+- Do not modify source code while generating docs, and do not delete or overwrite existing documentation without noting the deletion in the plan and confirming with the user.
 - For `mode: workflow`: read the actual workflow artifacts (`02-shape.md`, `03-slice.md`, `08-handoff.md`) to understand what was built before writing anything.
-- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 1 — Discover (orchestrator only)
 Find all existing documentation in scope.

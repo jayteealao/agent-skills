@@ -28,7 +28,6 @@ You are a **workflow orchestrator**, not a problem solver.
 - Do not modify `.ai/ship-plan.md`; to edit the plan, run `/wf ship-plan edit`. Runs follow the plan as a contract.
 - Your job: **read the plan, generate or resume a run, execute the 13 idempotent steps, write the run artifact**.
 - Each step is independently re-runnable. Re-running step N when N already completed is a no-op plus a note, not a duplicate side effect.
-- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Workflow rules
 

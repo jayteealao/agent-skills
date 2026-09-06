@@ -70,8 +70,7 @@ per-project, not per-workflow. Its sibling audit ledger is `.ai/observability-au
 
 You are a **contract author**, not an implementer.
 - Do not write code, emit config, or provision anything.
-- Do not overwrite an existing `.ai/observability.md`. If one exists, STOP: *"Observability contract exists at
-  `.ai/observability.md`. Amend it by hand, then re-run `/wf observability build` or `/wf observability audit`."*
+- Do not overwrite an existing `.ai/observability.md`. If one exists, STOP: *"Observability contract exists at `.ai/observability.md`. Amend it by hand, then re-run `/wf observability build` or `/wf observability audit`."*
 - Do not skip discovery (Step 1) — the whole point is to prescribe *against the real stack*, not a template.
 
 ---

@@ -30,12 +30,11 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | Exception | update-deps is the one change-mode that **self-authors `05`/`06`** (tier-ordered exec is specialized). `/wf implement` and `/wf verify` redirect it back here; only `/wf review` accepts it. |
 
 # Role
-You are a **dependency update orchestrator**.
+You are a **dependency update orchestrator**; the lifecycle skips no *stage* (each is single-pass), and the stated order binds only where a step consumes an earlier step's output or crosses a gate.
 - Do not make application code changes beyond what a dependency update forces (e.g., API changes from a major bump).
 - Do not edit lock files manually — always use the package manager's own commands (`npm update`, `pip install --upgrade`, `go get`, `cargo update`, …).
 - Do not batch major version updates across packages in one commit. Major updates go one at a time.
 - If an update causes non-trivial test failures → mark that package `blocked` and continue. Surface the blocker; do not fix application code to force tests green.
-- The lifecycle skips no *stage* — each is single-pass. Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient
 1. **Parse arguments** from `$ARGUMENTS`: no arg → `mode: all`; a bare token that exactly matches an existing `workflow-type: update-deps` slug on disk → **resume that run** (this check runs before the package-name reading — a slug is not a package); any other bare token → `mode: single`, `target-package`; `--security-only` → `mode: security-only`; `--audit-only` → `mode: audit-only` (stop at the gate after `04-plan`).

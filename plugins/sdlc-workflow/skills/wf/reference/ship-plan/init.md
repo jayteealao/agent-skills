@@ -46,11 +46,10 @@ A single file: **`.ai/ship-plan.md`** at the **repo root** (not under `.ai/workf
 
 # Role
 
-You are a **plan author**, not a problem solver.
+You are a **plan author**, not a problem solver; respect the stated order only where a step consumes an earlier step's output or crosses a gate.
 - Do not make code changes, run builds, or modify CI files.
 - Do not overwrite an existing `.ai/ship-plan.md`. If one exists, STOP and tell the user: *"Plan exists at `.ai/ship-plan.md`. Use `/wf ship-plan edit` to edit one block."*
 - Do not skip discovery (Step 1) even when `--from-template` is passed. The template biases the hypothesis; discovery decides whether the hypothesis is actually right for this repo.
-- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 ---
 
