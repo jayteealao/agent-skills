@@ -30,7 +30,7 @@
   {
     "category": "invocations",
     "entry": "/wf plan my-slug",
-    "reason": "W1: an example argument (`my-slug auth-flow \u2026`) in the review-and-fix triggers, not an invocation form; the forms `/wf plan <X>` and `/wf plan <slug> all` remain",
+    "reason": "W1: an example argument (`my-slug auth-flow …`) in the review-and-fix triggers, not an invocation form; the forms `/wf plan <X>` and `/wf plan <slug> all` remain",
     "release": "9.154.0"
   },
   {
@@ -44,20 +44,32 @@
     "file": "skills/wf/reference/handoff.md",
     "category": "dispatches",
     "entry": "heading: reviewer comments triaged",
-    "reason": "W1: a false-positive dispatch key \u2014 a body-template section heading that names reviewers, not a sub-agent dispatch; the section survives as a list item under `# Artifacts`",
+    "reason": "W1: a false-positive dispatch key — a body-template section heading that names reviewers, not a sub-agent dispatch; the section survives as a list item under `# Artifacts`",
     "release": "9.154.0"
   },
   {
     "file": "skills/wf/reference/handoff.md",
     "category": "dispatches",
     "entry": "heading: reviewer focus areas",
-    "reason": "W1: a false-positive dispatch key \u2014 a body-template section heading that names reviewers, not a sub-agent dispatch; the section survives as a list item under `# Artifacts`",
+    "reason": "W1: a false-positive dispatch key — a body-template section heading that names reviewers, not a sub-agent dispatch; the section survives as a list item under `# Artifacts`",
     "release": "9.154.0"
   },
   {
     "entry": "/wf runtime",
     "category": "invocations",
-    "reason": "Never a /wf key: the extractor read it from probe.md's deleted section heading \"Position among the /wf runtime commands\" (an explanation cut under WIDE-VIEW-REPAIR-PLAN \u00a74.3).",
+    "reason": "Never a /wf key: the extractor read it from probe.md's deleted section heading \"Position among the /wf runtime commands\" (an explanation cut under WIDE-VIEW-REPAIR-PLAN §4.3).",
+    "release": "9.154.0"
+  },
+  {
+    "entry": "/wf auto myfeat",
+    "category": "invocations",
+    "reason": "Never a real invocation: the extractor read the placeholder slug `myfeat` from auto.md's deleted \"Worked shapes\" example list (examples cut under WIDE-VIEW-REPAIR-PLAN §4.3; the rules they illustrated live in Step 1).",
+    "release": "9.154.0"
+  },
+  {
+    "entry": "/wf handoff myfeat",
+    "category": "invocations",
+    "reason": "Never a real invocation: the extractor read the placeholder slug `myfeat` from auto.md's deleted \"Worked shapes\" example list (examples cut under WIDE-VIEW-REPAIR-PLAN §4.3; the rules they illustrated live in Step 1).",
     "release": "9.154.0"
   }
 ]

@@ -307,7 +307,7 @@
       "files": {
         "skills/consult/SKILL.md": 1,
         "skills/wf/reference/_steering.md": 1,
-        "skills/wf/reference/auto.md": 2,
+        "skills/wf/reference/auto.md": 1,
         "skills/wf/reference/design.md": 1,
         "skills/wf/reference/docs.md": 2,
         "skills/wf/reference/intake.md": 3,
@@ -455,9 +455,6 @@
     }
   },
   "load": {
-    "auto": {
-      "core": 4855
-    },
     "probe": {
       "core": 5180
     }

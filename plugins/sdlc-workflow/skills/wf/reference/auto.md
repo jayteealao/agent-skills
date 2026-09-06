@@ -15,14 +15,14 @@ You are running `/wf auto`, the **end-to-end lifecycle driver**. Your job is to 
 
 # What `/wf auto` is (and is not)
 
-- **A driver, not a stage.** `/wf auto` writes **no artifact of its own.** It reads `00-index.md`, decides which stage runs next, executes that stage's reference **in-process** (exactly as the `/wf` dispatcher's Step 1 does — load the reference, follow it verbatim), then reads the artifact the stage just wrote to decide whether to continue. Every artifact in `.ai/workflows/<slug>/` is written by the delegated stage, never by `auto`.
+- **A driver, not a stage.** `/wf auto` writes **no artifact of its own.** It reads `00-index.md`, decides which stage runs next, executes that stage's reference **in-process**, then reads the artifact the stage just wrote to decide whether to continue.
 - **It removes inter-stage friction, not intra-stage gates.** Each delegated stage keeps its own user gate: `verify` owns its Fix/Skip/Escalate gate-question loop ([_gate-question.md](_gate-question.md)), `review` owns its Fix/Defer/Dismiss triage. `auto` does **not** suppress, replace, or pre-answer any of them. When a stage asks the user a question, the user answers it in the normal way and the stage continues; `auto` resumes the chain afterward.
-- **It stops before handoff — always.** `auto` ends at the **review**. It never opens a PR or runs `handoff`, `ship`, or `retro`; those are deliberate, separately-invoked steps. There is no flag to extend past review — run `/wf handoff <slug>` yourself when the review is clean. CI never enters `auto`'s scope, so it is never silently fixed.
-- **Resume is free.** Because every stage updates `00-index.md` (`progress:`, `current-stage`, `selected-slice`, `updated-at`) and writes its own artifact, the artifact trail *is* the run log. If a run is interrupted (compaction, a fired gate), re-invoke and it picks up from the frontmatter. `auto` keeps no separate state file.
+- **It stops before handoff — always.** `auto` ends at the **review**. It never opens a PR or runs `handoff`, `ship`, or `retro`. There is no flag to extend past review; run `/wf handoff <slug>` yourself when the review is clean.
+- **Resume is free.** If a run is interrupted (compaction, a fired gate), re-invoke; `auto` picks up from the `00-index.md` frontmatter (`progress:`, `current-stage`, `selected-slice`). `auto` keeps no separate state file.
 
 # Slug-mode contract (read before proceeding)
 
-`auto` is **slug-mode only.** It drives an existing slug from `.ai/workflows/INDEX.md` forward. There is no fresh-workflow form: starting a workflow requires `/wf intake <description>`, which owns the product-owner alignment questions that must not be skipped autonomously. If the user gave a description instead of a slug, STOP and tell them to run `/wf intake <description>` first, then `/wf auto <slug>`.
+`auto` is **slug-mode only.** It drives an existing slug from `.ai/workflows/INDEX.md` forward. There is no fresh-workflow form: starting a workflow requires `/wf intake <description>`. If the user gave a description instead of a slug, STOP and tell them to run `/wf intake <description>` first, then `/wf auto <slug>`.
 
 The `/wf` dispatcher routes `/wf auto` and passes through the positional tokens. If you reach this reference, you own slug + slice resolution and the drive loop.
 
@@ -35,7 +35,7 @@ The `/wf` dispatcher routes `/wf auto` and passes through the positional tokens.
   - `review-scope: slug-wide` → each slice is driven `plan → implement → verify` (no per-slice review); once every slice is verified, the single **slug-wide review** (`07-review.md` over the whole branch diff) runs once. The run ends there.
 - **Slice mode — `/wf auto <slug> <slice>`** drives **just that one slice**, then **routes the user to the next slice**.
   - `review-scope: per-slice` → `plan → implement → verify → review` for the slice.
-  - `review-scope: slug-wide` → `plan → implement → verify`, then **stop just before review** — the slug-wide review is a whole-branch pass that runs once, later, in slug mode.
+  - `review-scope: slug-wide` → `plan → implement → verify`, then **stop just before review**.
 
 # Argument grammar
 
@@ -47,7 +47,7 @@ The dispatcher passes through everything after `auto`. Parse it as:
 | `<slug> <slice>` | **Slice mode** — drive only `<slice>` to its end (per scope), then route to the next slice. |
 | `(empty)` | Infer the slug from `.ai/workflows/INDEX.md`: if exactly one workflow has `status: active`, use it (slug mode); otherwise STOP and ask which slug. |
 
-There are no flags. `auto` always stops at the review; `handoff`, `ship`, and `retro` are run with their own commands. For finer-grained control than slug mode, use slice mode (one slice at a time) or the individual stage commands.
+There are no flags. `auto` always stops at the review; `handoff`, `ship`, and `retro` are run with their own commands.
 
 # Step 0 — Orient (MANDATORY)
 
@@ -56,29 +56,29 @@ There are no flags. `auto` always stops at the review; `handoff`, `ship`, and `r
 3. **Read the `03-slice.md` roster** (standard and compressed change-modes both write it). Capture every slice slug in roster order. In **slice mode**, confirm `<slice>` is in the roster; if not, STOP and tell the user to run `/wf slice <slug>` (or the right intake mode) to define it first.
 4. **Resolve the per-slice file convention** once, from `workflow-type`, matching exactly how `implement`/`verify` resolve it:
    - **Multi-slice standard** (roster with per-slice `03-slice-<slice>.md` files) → **suffixed**: `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md`.
-   - **Change-mode** (`workflow-type: fix | hotfix | refactor`) and **single-scope standard** (one slice, only a `04-plan.md` master, no per-slice plan files) → **un-suffixed**: `04-plan.md`, `05-implement.md`, `06-verify.md`, `07-review.md`. (Note: `05-implement.md`/`06-verify.md` also serve as *master indices* in suffixed mode — in suffixed mode always key off the suffixed per-slice files, never the master.)
+   - **Change-mode** (`workflow-type: fix | hotfix | refactor`) and **single-scope standard** (one slice, only a `04-plan.md` master, no per-slice plan files) → **un-suffixed**: `04-plan.md`, `05-implement.md`, `06-verify.md`, `07-review.md`. In suffixed mode, key off the suffixed per-slice files, never the `05-implement.md`/`06-verify.md` masters.
    - **`workflow-type: update-deps`** → implement and verify are self-managed by the mode; `auto` does NOT drive them. If the slug is not yet past verify, PAUSE and route the user to `/wf intake update-deps <slug>`.
-   - **`workflow-type: task`** → the task lifecycle is self-managed by `/wf task`, and its blast-radius authorization gate is a human gate a driver must not resolve (a `shared-env`/`external-party`/`irreversible` task stops for a person, always). `auto` drives NOTHING here — PAUSE and route the user to `/wf task <slug>`.
+   - **`workflow-type: task`** → the task lifecycle is self-managed by `/wf task`, and its blast-radius authorization gate is a human gate a driver must not resolve. `auto` drives NOTHING here — PAUSE and route the user to `/wf task <slug>`.
    - **`workflow-type: audit`** → a terminal defect hunt with no build stages; there is nothing to drive. PAUSE and route the user to `/wf intake audit <slug>` (an accumulating re-run) or to a finding's recorded route in `07-review.md` `## Triage Decisions`.
-5. **Branch posture.** Run `git branch --show-current`. If it differs from `00-index.md.branch` (and `branch` is non-empty), run `git switch <slug-branch>` without asking — the switch is reversible, and the release valve in [_autonomy-guards.md](_autonomy-guards.md) applies. Record the switch in the Step 3 hand-back. On a git refusal (uncommitted changes would be lost), surface the error and STOP — do not stash or force.
+5. **Branch posture.** Run `git branch --show-current`. If it differs from `00-index.md.branch` (and `branch` is non-empty), run `git switch <slug-branch>` without asking; the release valve in [_autonomy-guards.md](_autonomy-guards.md) applies. Record the switch in the Step 3 hand-back. On a git refusal (uncommitted changes would be lost), surface the error and STOP — do not stash or force.
 
 # Step 1 — The driver loop
 
 Repeat until the mode's endpoint is reached **or** a gate pauses the chain:
 
 1. **Select the next stage** (selection rule below).
-2. **Announce it** in one chat line: `auto → <stage> <slug> [<slice>]`. (Internal narration; the External Output Boundary still governs anything that reaches an external surface — it should not.)
+2. **Announce it** in one chat line: `auto → <stage> <slug> [<slice>]`.
 3. **Run the stage in-process.** Read `<stage>.md` in full and execute it verbatim against `<slug>` (and the slice for per-slice stages), passing the same `$ARGUMENTS` the manual command would. The stage does its own work, writes its own artifact, and updates `00-index.md`. Do not summarize or shortcut it. Apply the grounded-progress rule in [_grounded-progress.md](_grounded-progress.md) to every progress claim the drive emits.
 4. **Evaluate the gate** by reading the artifact the stage just wrote (Gate table below). **PROCEED** → loop. **PAUSE** → stop the chain and run Step 2 (residual durability), then Step 3 (hand back).
 5. **Re-read `00-index.md`** at the top of each iteration so `current-stage`, `progress`, and `selected-slice` reflect what the last stage wrote.
 
 ## Stage-selection rule
 
-Gate on **artifact existence + the artifact's terminal status**, not the `progress:` map alone — the map can lag what the stages actually wrote on disk. Use the per-slice file convention resolved in Step 0.4. Drive the pre-slice band first, then the mode-specific band.
+Gate on **artifact existence + the artifact's terminal status**, not the `progress:` map alone. Use the per-slice file convention resolved in Step 0.4. Drive the pre-slice band first, then the mode-specific band.
 
 **Pre-slice band (both modes, only if not yet done):**
-- `02-shape.md` missing → `shape`. (Change-modes author `02-shape.md` in their entry flow, so this is normally already satisfied.)
-- Else `03-slice.md` missing → `slice`. (Also authored up front by change-modes.)
+- `02-shape.md` missing → `shape`.
+- Else `03-slice.md` missing → `slice`.
 - `intake` is assumed complete — `auto` is started after intake. If `01-intake.md` is missing or `status: awaiting-input`, PAUSE and route to `/wf intake`.
 
 ### Slice mode — `/wf auto <slug> <slice>`
@@ -116,10 +116,9 @@ After each stage, read the named keys from the just-written artifact (or `00-ind
 
 Notes that bind the table:
 
-- **The stage already asked.** When a stage PAUSEs because it set `awaiting-input` / `escalated`, that state is the *result of the stage's own user interaction*, not something `auto` decides. `auto` reads the recorded verdict and stops — it does not re-prompt and never overrides the stage's own gate.
+- **The stage already asked.** When a stage PAUSEs with `awaiting-input` / `escalated`, `auto` reads the recorded verdict and stops; it does not re-prompt and never overrides the stage's own gate.
 - **Intent-bearing decisions are asked at the gate.** A delegated stage under `auto` ASKS an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)) at its gate — the human is present — rather than batching it into the stage's autonomous block; only implementation-detail decisions are auto-resolved and recorded.
 - **One fix pass per stage, then hand back.** `verify` enforces a single fix round per invocation by design; `review` accumulates findings across runs and runs its fix loop once per invocation. `auto` does **not** auto-re-invoke either for another pass — that is a deliberate user decision. When a stage PAUSEs (verify `escalated`, or `review` leaving open blockers), `auto` PAUSEs and recommends the re-invocation in the summary.
-- **A clean `review` is the endpoint, not a PROCEED into handoff.** `auto` stops there and recommends `/wf handoff <slug>`.
 - **Mid-build discover checkpoint.** When the workflow carries a `severity: high` RIM (risk/assumption/mitigation recorded in `00-index.md`) and the **visible-milestone** slice — the one whose completion first makes that risk observable — lands a clean `verify`, `auto` does not silently drive on. It **runs** the read-only `/wf discover <hypothesis derived from the RIM>` without asking (the analysis is read-only; the release valve in [_autonomy-guards.md](_autonomy-guards.md) applies), then surfaces the result in the hand-back. Acting on the finding stays the user's decision — `auto` never builds on it unattended.
 
 # Step 2 — Residual durability (on PAUSE or at the endpoint)
@@ -148,8 +147,7 @@ Next: <the routing command — see below>
 ```
 
 `Next` routing:
-- **Slice mode, endpoint reached:** the next roster slice → `/wf auto <slug> <next-slice>`. If it was the last slice → `/wf auto <slug>` (slug-wide scope, to run the final review) or `/wf handoff <slug>` (per-slice scope).
-- **Slug mode, endpoint reached:** `/wf handoff <slug>`.
+- **Endpoint reached:** the command the mode's endpoint rule in Step 1 names.
 - **Any mode, gate paused:** the paused stage's own recommended next command (e.g. `/wf verify <slug> <slice>` for a second round), followed by `/wf auto <slug> [<slice>]` to resume.
 
 Rules:
@@ -157,19 +155,8 @@ Rules:
 - **Internal audience.** `.ai/` paths are allowed in this chat block; the External Output Boundary still governs anything written to a PR, commit, or other external surface.
 - **Honesty.** Report what actually ran and what failed. If `auto` ran three stages then paused at verify, say so — do not imply the workflow is further along than the artifacts show. Apply [_grounded-progress.md](_grounded-progress.md): every count and claim in this summary must be readable from an artifact or tool result the driver actually opened **this run**, never from memory of the drive. Apply the early-stop guard in [_autonomy-guards.md](_autonomy-guards.md) before ending the turn.
 
-# Worked shapes (for grounding, not a script)
-
-- **Slice mode, per-slice scope:** `/wf auto myfeat slice-a` → `plan` (clean) → `implement` (clean) → `verify` (converged, pass) → `review` (ship, 0 blockers). Endpoint. Summary routes to `/wf auto myfeat slice-b`.
-- **Slice mode, slug-wide scope:** `/wf auto myfeat slice-a` → `plan` → `implement` → `verify` (clean). **Stops before review.** Routes to `/wf auto myfeat slice-b`. (The slug-wide review runs later, once, via `/wf auto myfeat`.)
-- **Slug mode, slug-wide scope:** `/wf auto myfeat` → drives slice-a `plan→implement→verify`, slice-b `plan→implement→verify`, … then the single slug-wide `review` over the branch. Endpoint = review clean. Stops before handoff; routes to `/wf handoff myfeat`.
-- **Slug mode, per-slice scope:** `/wf auto myfeat` → slice-a `plan→implement→verify→review`, slice-b `plan→implement→verify→review`, … endpoint = last review clean. Stops before handoff; routes to `/wf handoff myfeat`.
-- **Paused at verify:** any mode — `verify` returns `convergence: escalated`. `auto` PAUSEs, surfaces the unresolved issues, recommends `/wf verify <slug> <slice>` for a second round, then `/wf auto <slug> [<slice>]` to resume.
-
 # What this command is NOT
 
-- **Not a stage** — it writes no artifact; the stages it drives do.
 - **Not a fresh-start** — it never runs `/wf intake` from a bare description; intake's PO-alignment gates must be driven explicitly.
-- **Not a PR opener or releaser** — it always stops at the review; `handoff`, `ship`, and `retro` are run with their own commands.
 - **Not a CI auto-fixer** — CI is never in its scope; that stays handoff's diagnose-then-ask job, on a separate run.
-- **Not a gate remover** — every delegated stage's own user gate still fires; `auto` only removes the friction of typing each stage command by hand.
-- **Consults at the designated gates (free CLI, by objective trigger)** — `consult` is model-invocable, so at the plan, review, and diagnosis gates `auto` drives, the model **auto-invokes** `/consult codex …` (pinned to free `codex`/`claude`) whenever that stage's objective trigger fires — a carried intent-risk, a ship-with-caveats verdict, an inferred-not-observed AC, a risk-bearing surface (see each stage). A stage with no trigger present adds no consult and no round-trip, so the low-friction sequencing `auto` exists for is preserved; the "sparing" limit scopes to the paid REST oracles, which are never fanned out unattended.
+- **Consults at the designated gates (free CLI, by objective trigger)** — `consult` is model-invocable, so at the plan, review, and diagnosis gates `auto` drives, the model **auto-invokes** `/consult codex …` (pinned to free `codex`/`claude`) whenever that stage's objective trigger fires — a carried intent-risk, a ship-with-caveats verdict, an inferred-not-observed AC, a risk-bearing surface (see each stage). A stage with no trigger present adds no consult; the paid REST oracles are never fanned out unattended.
