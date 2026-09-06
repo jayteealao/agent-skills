@@ -1,8 +1,8 @@
 # Wide-View Repair Plan — prose budget, capability shield, exact cost ledger, runtime repair
 
 Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0, W1 (line budgets; word targets
-closed through §16 raises), W2 BUILT 2026-09-05, W3 BUILT 2026-09-07**; eval baseline run
-pending (§16); W4 onward in progress — see the build ledger in §17. Source: a whole-tree survey of
+closed through §16 raises), W2 BUILT 2026-09-05, W3 + W4 BUILT 2026-09-07**; eval baseline run
+pending (§16); W6 onward in progress — see the build ledger in §17. Source: a whole-tree survey of
 `plugins/sdlc-workflow` on 2026-09-04 against v9.153.4 (`6465707f`). Another
 session carried `_shell.mjs`, `nav.html`, and the root catalog to 9.153.5 while
 this plan was written. Every count below is a v9.153.4 count. W0 re-measures
@@ -410,6 +410,13 @@ The maximum becomes 11.
 4. Output shape, one `yaml` fence.
 
 ### 7.5 Regression gate
+
+Build note (2026-09-07): the extractor keyed checks under `PRIMARY QUESTIONS` /
+`NON-NEGOTIABLES` only; the §7.4 shape has neither, so the check headings now
+include `What to look for` and `Severity calibration`, and a `###` alias section
+stays inside the block. Dropping the rubric `args:` frontmatter retired the
+tree-wide `args:` field; the 24 `/wf review <alias>` invocations survive through
+the alias list in review.md.
 
 The W0 `rubric-checks` category is keyed per merged group: the union of
 bullets from the absorbed files must appear in the merged file, by
@@ -1110,7 +1117,7 @@ the commit that closed the row. Every commit is local until the operator pushes.
 | W1 words | 16 key bodies ≤ 2,331 words so core ≤ 4,050; 3 keys within instructed | built | `f2e8f0bd`…`a158fd6a` | 12 commits; 0 keys over the load target. retro (2,723) and auto (2,631) fit; 10 files carry §16 `wordBudgets` raises with reasons (see §16). §4.3 cuts only; 3 false invocations retired, 1 gate key moved |
 | W2 | Retired-surface migration text deleted; doc-site table + assertion | built | `f5be5bf2` | 21 sentences, 13 files |
 | W3 | Emphasis vocabulary rewrite + token gate | built | `e418df1c`, `6cd8ee94`, `4ccae1ed` | MANDATORY 151→0, CRITICAL 31→4 (3 rubric code-example strings for W4 + trivy's `--severity HIGH,CRITICAL`, allowed), MUST 72→0 outside `_ste-procedural.md`, NEVER 14→0, Do NOT 74→0, verbatim 56→1 (SKILL.md), v9.x 7→0; STOP is a per-sentence rule keyed on the W0 `stops` inventory (`tokens.STOP.sentences`), no ratchet; 5 keys reworded, 2 pins converted; 14 Role blocks trimmed to five lines, the shared order sentence moved into `_workflow-rules.md` |
-| W4 | Review rubrics 35 → 11 with aliases, focus, aggregates, docs page | open | — | 35 files, 17,653 lines |
+| W4 | Review rubrics 35 → 11 with aliases, focus, aggregates, docs page | built | `4fb5bb5e` | 35 files / 17,648 lines → 11 files / 1,482 lines, every rubric ≤ 100; 24 aliases via `focus:`; groups.json carries the 34→11 map; extractor check headings gained `What to look for` + `Severity calibration` (nested `###` stay inside); 17 duplicate generic bullets + 11 tree-wide keys retired; 6 sentence tests migrated; the `review-adhoc` before/after diff waits on W6 auth |
 | W6 | Eval baseline + `--compare` | blocked | — | needs an authenticated `claude`; cases and fixtures exist |
 | W7 | One version carrier + render gate on renderer bytes | open | — | |
 | W8 | Exact cost ledger: Stop hook, parsers, readers, consult triggers | open | — | Phase 0 live checks in §10.2 and §10.6 |
