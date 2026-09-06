@@ -1,8 +1,8 @@
 # Wide-View Repair Plan — prose budget, capability shield, exact cost ledger, runtime repair
 
 Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0, W1 (line budgets; word targets
-closed through §16 raises), W2 BUILT 2026-09-05**; eval baseline run pending (§16); W3
-onward in progress — see the build ledger in §17. Source: a whole-tree survey of
+closed through §16 raises), W2 BUILT 2026-09-05, W3 BUILT 2026-09-07**; eval baseline run
+pending (§16); W4 onward in progress — see the build ledger in §17. Source: a whole-tree survey of
 `plugins/sdlc-workflow` on 2026-09-04 against v9.153.4 (`6465707f`). Another
 session carried `_shell.mjs`, `nav.html`, and the root catalog to 9.153.5 while
 this plan was written. Every count below is a v9.153.4 count. W0 re-measures
@@ -336,9 +336,15 @@ months`.
 ### 6.2 Gate
 
 `verify-prose-budget.mjs` counts each token across `skills/**/*.md` and fails
-above the allowed count. The `stops` count is the W0 inventory count for that
-file, so a terminal condition cannot vanish and a new decorative STOP cannot
-appear.
+above the allowed count. STOP is a per-sentence rule (`tokens.STOP.sentences:
+"stops"`): every sentence carrying STOP must key a W0 `stops` entry, resolved
+through `moved.json`, `reworded.json`, and `retired.json`, or an
+`allowedSentences` entry with a reason; one sentence carries one STOP. A
+per-file count could not express this: two files hold two terminal conditions
+with identical wording, which the inventory deduplicates to one key (W3 build
+note, 2026-09-07). Two allowances stand: trivy's `--severity HIGH,CRITICAL` in
+the container-image template (tool vocabulary), and three quoted example
+strings inside rubric code fences, ratcheted until W4 deletes the fences.
 
 ### 6.3 Regression argument
 
@@ -1103,7 +1109,7 @@ the commit that closed the row. Every commit is local until the operator pushes.
 | W1 frontmatter | Delimiters restored in `intake.md`, `intake/extend.md`; gate added | built | `f462b6b2` | regression from the W1 unwrap passes |
 | W1 words | 16 key bodies ≤ 2,331 words so core ≤ 4,050; 3 keys within instructed | built | `f2e8f0bd`…`a158fd6a` | 12 commits; 0 keys over the load target. retro (2,723) and auto (2,631) fit; 10 files carry §16 `wordBudgets` raises with reasons (see §16). §4.3 cuts only; 3 false invocations retired, 1 gate key moved |
 | W2 | Retired-surface migration text deleted; doc-site table + assertion | built | `f5be5bf2` | 21 sentences, 13 files |
-| W3 | Emphasis vocabulary rewrite + token gate | open | — | counts at start: MANDATORY 151, CRITICAL 31, MUST 73, NEVER 14, Do NOT 74, STOP 199, verbatim 57, v9.x 7 |
+| W3 | Emphasis vocabulary rewrite + token gate | built | `e418df1c`, `6cd8ee94`, `4ccae1ed` | MANDATORY 151→0, CRITICAL 31→4 (3 rubric code-example strings for W4 + trivy's `--severity HIGH,CRITICAL`, allowed), MUST 72→0 outside `_ste-procedural.md`, NEVER 14→0, Do NOT 74→0, verbatim 56→1 (SKILL.md), v9.x 7→0; STOP is a per-sentence rule keyed on the W0 `stops` inventory (`tokens.STOP.sentences`), no ratchet; 5 keys reworded, 2 pins converted; 14 Role blocks trimmed to five lines, the shared order sentence moved into `_workflow-rules.md` |
 | W4 | Review rubrics 35 → 11 with aliases, focus, aggregates, docs page | open | — | 35 files, 17,653 lines |
 | W6 | Eval baseline + `--compare` | blocked | — | needs an authenticated `claude`; cases and fixtures exist |
 | W7 | One version carrier + render gate on renderer bytes | open | — | |
