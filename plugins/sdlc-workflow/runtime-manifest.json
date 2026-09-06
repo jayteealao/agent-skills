@@ -6,5 +6,6 @@
   "artifactSchema": "sdlc/v1",
   "registryVersion": 2,
   "hubConfigVersion": 1,
-  "buildId": "4f68dbec9827aae07a2c8b1d0a6cad01c331511ed4d0abd00ef62513db9b13f4"
+  "buildId": "998e306d6528f3da37050271b2af9a348314435392da526dc178205a8d11efcf",
+  "rendererBuildId": "05ed5054c53592117d4fb9731fb6ede83a3a0d349ad5e688c47b3b3e7d4958da"
 }

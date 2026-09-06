@@ -31,6 +31,12 @@ import { join, relative, sep } from 'node:path';
 // (hashing it would be circular).
 export const RUNTIME_BUILD_DIRS = ['dist', 'assets', 'components', 'schemas'];
 
+// The dirs whose bytes define the `rendererBuildId` (WIDE-VIEW-REPAIR-PLAN §9.3):
+// the renderer sources, the browser view sources, and the render components.
+// The render gate keys on this hash, so a page re-renders when the bytes that
+// shape it change — and stays put when only lib/, hooks/, or prose changed.
+export const RENDERER_BUILD_DIRS = ['renderers', 'view-src', 'components'];
+
 /** sha256 over a deterministic, sorted list of (relpath, bytes) across `dirs`. */
 export function computeBuildId(root, dirs = RUNTIME_BUILD_DIRS) {
   const hash = createHash('sha256');

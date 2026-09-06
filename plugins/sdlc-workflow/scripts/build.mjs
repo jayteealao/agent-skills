@@ -47,7 +47,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { RUNTIME_BUILD_DIRS, computeBuildId } from '../lib/runtime-buildid.mjs';
+import { RUNTIME_BUILD_DIRS, RENDERER_BUILD_DIRS, computeBuildId } from '../lib/runtime-buildid.mjs';
 
 const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(PLUGIN_ROOT, 'dist');
@@ -211,9 +211,16 @@ if (existsSync(join(VIEW_SRC, 'main.tsx'))) {
  * list so the SAME payload yields the SAME buildId regardless of OS — the cross-
  * host release invariant (`Claude runtime build ID == Codex runtime build ID`)
  * holds because the payload is COPIED, not rebuilt, into both packages.
+ *
+ * rendererBuildId (WIDE-VIEW-REPAIR-PLAN §9.3) is a second sha256, over the
+ * renderer SOURCES only (renderers/, view-src/, components/). The render gate
+ * and the stale-render heal key on it first, so a prose-only or lib-only release
+ * does not force a clean re-render of every view, while a CSS or template edit
+ * does — with or without a version bump.
  */
 const PKG_VERSION = JSON.parse(readFileSync(join(PLUGIN_ROOT, 'package.json'), 'utf-8')).version ?? '';
 const buildId = computeBuildId(PLUGIN_ROOT, RUNTIME_BUILD_DIRS);
+const rendererBuildId = computeBuildId(PLUGIN_ROOT, RENDERER_BUILD_DIRS);
 const manifest = {
   family: 'sdlc-workflow',
   hubName: 'sdlc-workflow-hub',
@@ -223,6 +230,7 @@ const manifest = {
   registryVersion: 2,
   hubConfigVersion: 1,
   buildId,
+  rendererBuildId,
 };
 writeFileSync(join(PLUGIN_ROOT, 'runtime-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf-8');
-console.log(`[build] runtime-manifest.json → runtimeVersion ${PKG_VERSION}, buildId ${buildId.slice(0, 12)}…`);
+console.log(`[build] runtime-manifest.json → runtimeVersion ${PKG_VERSION}, buildId ${buildId.slice(0, 12)}…, rendererBuildId ${rendererBuildId.slice(0, 12)}…`);

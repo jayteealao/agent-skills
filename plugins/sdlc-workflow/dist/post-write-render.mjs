@@ -3,7 +3,8 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   resolveActiveRuntimeRootSync
-} from "./chunk-5K66NEIW.mjs";
+} from "./chunk-LWJXELAZ.mjs";
+import "./chunk-EQC6XDOG.mjs";
 import {
   ensureHubEnabled,
   spawnHubEnsure

@@ -132,6 +132,9 @@ function defaultSpawnRender(script, args, opts) {
  *                                    and the view's `.last-render` carry a buildId, freshness keys
  *                                    on buildId (precise — catches a same-version rebuild); else it
  *                                    falls back to runtimeVersion, so legacy markers still heal.
+ * @param {string}   [o.rendererBuildId] the running daemon's renderer-bytes hash (§9.3). When BOTH
+ *                                    this and the marker carry one, freshness keys on it FIRST, so
+ *                                    a lib-only release does not re-render every view.
  * @param {object}   [o.healCfg]      staleRender config (normalised internally)
  * @param {Function} [o.log]          line logger (prefixed by the caller)
  * @param {Function} [o.emitReload]   emitReload(id) — belt-and-braces tab refresh on completion
@@ -143,6 +146,7 @@ export function createHealController({
   pluginRoot,
   pluginVersion,
   buildId = null,
+  rendererBuildId = null,
   healCfg = {},
   log = () => {},
   emitReload = () => {},
@@ -169,12 +173,13 @@ export function createHealController({
     try {
       if (!cfg.heal) return { action: 'disabled' };
       if (!entry || !entry.id || !entry.viewDir || !entry.repoRoot) return { action: 'invalid' };
-      // Compare the FULL recorded identity (version + buildId) against the active
-      // runtime. renderIdentityMatches keys on buildId when both sides carry one,
-      // else on runtimeVersion — so a legacy `version`-only marker still heals.
+      // Compare the FULL recorded identity (version + buildId + rendererBuildId)
+      // against the active runtime. renderIdentityMatches keys on rendererBuildId,
+      // then buildId, when both sides carry one, else on runtimeVersion — so a
+      // legacy `version`-only marker still heals.
       const recorded = readRenderedIdentity(markerOf(entry));
       const renderedVersion = recorded.version;   // display + `failed` snapshot (back-compat)
-      if (renderIdentityMatches(recorded, { runtimeVersion: pluginVersion, buildId })) {
+      if (renderIdentityMatches(recorded, { runtimeVersion: pluginVersion, buildId, rendererBuildId })) {
         // Fresh — clear transient state so a FUTURE drift heals from a clean slate.
         attempts.delete(entry.id);
         failed.delete(entry.id);

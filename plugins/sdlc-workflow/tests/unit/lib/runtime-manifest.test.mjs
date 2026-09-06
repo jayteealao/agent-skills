@@ -2,8 +2,9 @@
 //
 // Shared runtime identity (NATIVE-INTEROP Workstream B). Covers the keystone
 // module that both host plugins use to decide hub adoption (runtimeVersion) and
-// render freshness (buildId): the manifest load + fallback, the identity object,
-// and the migration-safe render-identity matcher.
+// render freshness (rendererBuildId, then buildId — WIDE-VIEW-REPAIR-PLAN §9.3):
+// the manifest load + fallback, the identity object, and the migration-safe
+// render-identity matcher.
 
 import { test } from 'node:test';
 import { equal, deepEqual, ok, match } from 'node:assert/strict';
@@ -33,18 +34,41 @@ test('runtime-manifest: reads the committed manifest with the host-neutral ident
   equal(m.runtimeVersion, PKG.version, 'runtimeVersion is generated from the package version');
   // After a build, buildId is a 64-char sha256 hex; before a build it may be null.
   if (m.buildId !== null) match(m.buildId, /^[0-9a-f]{64}$/, 'buildId is a sha256 hex digest');
+  // Same for rendererBuildId (sha256 over renderers/, view-src/, components/).
+  if (m.rendererBuildId !== null) match(m.rendererBuildId, /^[0-9a-f]{64}$/, 'rendererBuildId is a sha256 hex digest');
+  if (m.buildId !== null && m.rendererBuildId !== null) {
+    ok(m.buildId !== m.rendererBuildId, 'the two hashes cover different byte sets');
+  }
 });
 
 test('runtime-manifest: runtimeIdentity() exposes the comparison surface', () => {
   const id = runtimeIdentity();
-  deepEqual(Object.keys(id).sort(), ['buildId', 'hubName', 'hubProtocolVersion', 'runtimeVersion']);
+  deepEqual(Object.keys(id).sort(), ['buildId', 'hubName', 'hubProtocolVersion', 'rendererBuildId', 'runtimeVersion']);
   equal(id.runtimeVersion, PKG.version);
   equal(id.hubName, HUB_NAME);
 });
 
 /* ───────────────────────── render identity matching ───────────────────────── */
 
-test('renderIdentityMatches: buildId is the precise axis when both sides carry one', () => {
+test('renderIdentityMatches: rendererBuildId decides when both sides carry one (§9.3)', () => {
+  ok(renderIdentityMatches(
+    { version: 'x', buildId: 'abc', rendererBuildId: 'r1' },
+    { runtimeVersion: 'y', buildId: 'def', rendererBuildId: 'r1' }),
+  'equal rendererBuildId is fresh even when buildId AND version differ (a lib-only or prose-only release)');
+  ok(!renderIdentityMatches(
+    { version: 'x', buildId: 'abc', rendererBuildId: 'r1' },
+    { runtimeVersion: 'x', buildId: 'abc', rendererBuildId: 'r2' }),
+  'differing rendererBuildId is stale even when buildId and version match (a CSS edit without a bump)');
+});
+
+test('renderIdentityMatches: a pre-9.154 marker without rendererBuildId falls back to buildId', () => {
+  ok(renderIdentityMatches({ version: 'x', buildId: 'abc', rendererBuildId: null }, { runtimeVersion: 'y', buildId: 'abc', rendererBuildId: 'r1' }),
+    'marker without rendererBuildId → buildId axis');
+  ok(!renderIdentityMatches({ version: 'x', buildId: 'abc' }, { runtimeVersion: 'x', buildId: 'def', rendererBuildId: 'r1' }),
+    'marker without rendererBuildId and differing buildId → stale');
+});
+
+test('renderIdentityMatches: buildId is the precise axis when both sides carry one and neither has rendererBuildId', () => {
   ok(renderIdentityMatches({ version: 'x', buildId: 'abc' }, { runtimeVersion: 'y', buildId: 'abc' }),
     'equal buildId matches even when version differs (a same-version rebuild keeps one buildId)');
   ok(!renderIdentityMatches({ version: 'x', buildId: 'abc' }, { runtimeVersion: 'x', buildId: 'def' }),
@@ -76,19 +100,23 @@ test('readRenderedIdentity: parses version + buildId, tolerates legacy/missing/t
   try {
     const marker = join(dir, '.last-render');
 
+    writeFileSync(marker, JSON.stringify({ version: '9.154.0', buildId: 'deadbeef', rendererBuildId: 'cafe' }));
+    deepEqual(readRenderedIdentity(marker), { version: '9.154.0', buildId: 'deadbeef', rendererBuildId: 'cafe' });
+
+    // Pre-9.154 marker: version + buildId, no rendererBuildId.
     writeFileSync(marker, JSON.stringify({ version: '9.75.0', buildId: 'deadbeef' }));
-    deepEqual(readRenderedIdentity(marker), { version: '9.75.0', buildId: 'deadbeef' });
+    deepEqual(readRenderedIdentity(marker), { version: '9.75.0', buildId: 'deadbeef', rendererBuildId: null });
 
     // Legacy (pre-9.75) marker: version only.
     writeFileSync(marker, JSON.stringify({ version: '9.60.0' }));
-    deepEqual(readRenderedIdentity(marker), { version: '9.60.0', buildId: null });
+    deepEqual(readRenderedIdentity(marker), { version: '9.60.0', buildId: null, rendererBuildId: null });
 
-    // Torn / non-JSON → both null (sorts as stale).
+    // Torn / non-JSON → all null (sorts as stale).
     writeFileSync(marker, '{not json');
-    deepEqual(readRenderedIdentity(marker), { version: null, buildId: null });
+    deepEqual(readRenderedIdentity(marker), { version: null, buildId: null, rendererBuildId: null });
 
-    // Missing file → both null.
-    deepEqual(readRenderedIdentity(join(dir, 'nope')), { version: null, buildId: null });
+    // Missing file → all null.
+    deepEqual(readRenderedIdentity(join(dir, 'nope')), { version: null, buildId: null, rendererBuildId: null });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

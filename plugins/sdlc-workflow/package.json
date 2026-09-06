@@ -9,6 +9,8 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
+    "stamp:version": "node scripts/stamp-version.mjs",
+    "version": "node scripts/stamp-version.mjs && npm run build && npm run verify:versions && git add -- .claude-plugin/plugin.json .codex-plugin/plugin.json package-lock.json docs/site/nav.html runtime-manifest.json dist ../../.claude-plugin/marketplace.json",
     "build:icon": "node scripts/build-icon.mjs",
     "verify:runtime": "node scripts/verify-runtime.mjs",
     "verify:neutrality": "node scripts/verify-host-neutrality.mjs",

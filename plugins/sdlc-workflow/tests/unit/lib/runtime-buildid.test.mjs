@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { RUNTIME_BUILD_DIRS, computeBuildId } from '../../../lib/runtime-buildid.mjs';
+import { RUNTIME_BUILD_DIRS, RENDERER_BUILD_DIRS, computeBuildId } from '../../../lib/runtime-buildid.mjs';
 
 /** Lay down a minimal runtime payload under `root` and return it. */
 function seedPayload(root, { variant = 'a' } = {}) {
@@ -79,6 +79,10 @@ test('content outside the buildId dirs (docs/site) does not change the buildId',
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('RENDERER_BUILD_DIRS is the documented rendererBuildId input set (§9.3)', () => {
+  assert.deepEqual(RENDERER_BUILD_DIRS, ['renderers', 'view-src', 'components']);
 });
 
 test('RUNTIME_BUILD_DIRS is the documented buildId input set', () => {

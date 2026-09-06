@@ -20,8 +20,13 @@
 //                       Hub *adoption* and the reap decision key on this.
 //   • buildId         — sha256 over the shared runtime payload. Proves two
 //                       packages carrying the same runtimeVersion contain the
-//                       same runtime bytes. *Render freshness* (`.last-render`,
-//                       stale-heal) keys on this.
+//                       same runtime bytes.
+//   • rendererBuildId — sha256 over the renderer SOURCES only (renderers/,
+//                       view-src/, components/; WIDE-VIEW-REPAIR-PLAN §9.3).
+//                       *Render freshness* (`.last-render`, stale-heal) keys on
+//                       this first, then buildId, then runtimeVersion — so a
+//                       prose-only release leaves rendered views alone and a
+//                       CSS/template edit re-renders them without a bump.
 //   • hubName/protocol/schema/registryVersion/hubConfigVersion — the rest of
 //                       the compatibility surface.
 //
@@ -102,6 +107,7 @@ function normalizeManifest(m) {
     registryVersion: Number.isInteger(o.registryVersion) ? o.registryVersion : REGISTRY_VERSION,
     hubConfigVersion: Number.isInteger(o.hubConfigVersion) ? o.hubConfigVersion : HUB_CONFIG_VERSION,
     buildId: typeof o.buildId === 'string' && o.buildId ? o.buildId : null,
+    rendererBuildId: typeof o.rendererBuildId === 'string' && o.rendererBuildId ? o.rendererBuildId : null,
   });
 }
 
@@ -115,6 +121,7 @@ function fallbackManifest() {
     registryVersion: REGISTRY_VERSION,
     hubConfigVersion: HUB_CONFIG_VERSION,
     buildId: null,
+    rendererBuildId: null,
   });
 }
 
@@ -125,13 +132,14 @@ function readPackageVersion() {
 
 /**
  * The active runtime's identity, as the small object consumers compare against.
- * `{ runtimeVersion, buildId, hubName, hubProtocolVersion }`.
+ * `{ runtimeVersion, buildId, rendererBuildId, hubName, hubProtocolVersion }`.
  */
 export function runtimeIdentity() {
   const m = readRuntimeManifest();
   return {
     runtimeVersion: m.runtimeVersion,
     buildId: m.buildId,
+    rendererBuildId: m.rendererBuildId,
     hubName: m.hubName,
     hubProtocolVersion: m.hubProtocolVersion,
   };
@@ -139,9 +147,10 @@ export function runtimeIdentity() {
 
 /**
  * Read the runtime identity recorded in a view's `.last-render` marker.
- * Returns `{ version, buildId }` (each null when absent/torn/legacy). A pre-9.75
- * marker has `version` but no `buildId`; a pre-9.60 marker has neither — both
- * sort as "no buildId proof", handled by renderIdentityMatches.
+ * Returns `{ version, buildId, rendererBuildId }` (each null when absent/torn/
+ * legacy). A pre-9.154 marker has no `rendererBuildId`; a pre-9.75 marker has
+ * `version` but no `buildId`; a pre-9.60 marker has neither — each sorts as "no
+ * proof on that axis", handled by renderIdentityMatches.
  */
 export function readRenderedIdentity(markerPath) {
   try {
@@ -149,33 +158,39 @@ export function readRenderedIdentity(markerPath) {
     return {
       version: typeof parsed.version === 'string' && parsed.version ? parsed.version : null,
       buildId: typeof parsed.buildId === 'string' && parsed.buildId ? parsed.buildId : null,
+      rendererBuildId: typeof parsed.rendererBuildId === 'string' && parsed.rendererBuildId ? parsed.rendererBuildId : null,
     };
   } catch {
-    return { version: null, buildId: null };
+    return { version: null, buildId: null, rendererBuildId: null };
   }
 }
 
 /**
  * Does a recorded render identity match the active runtime?
  *
- * Precedence (the migration-safe rule):
- *   1. If BOTH the marker and the active runtime carry a buildId, compare
- *      buildId — the precise signal (catches a same-version rebuild).
- *   2. Otherwise fall back to runtimeVersion-vs-recorded-version — so a legacy
+ * Precedence (the migration-safe rule, WIDE-VIEW-REPAIR-PLAN §9.3):
+ *   1. If BOTH the marker and the active runtime carry a rendererBuildId,
+ *      compare rendererBuildId — the bytes that shape a page. A lib-only or
+ *      prose-only release keeps it, so rendered views stay put; a CSS or
+ *      template edit changes it, so they re-render without a version bump.
+ *   2. Else, if BOTH carry a buildId, compare buildId — the whole-runtime hash
+ *      (a marker written by a 9.75–9.153 runtime).
+ *   3. Otherwise fall back to runtimeVersion-vs-recorded-version — so a legacy
  *      marker (version only) still heals correctly against a bumped runtime,
- *      and an active runtime with no buildId (a pre-build source tree) still
+ *      and an active runtime with no hashes (a pre-build source tree) still
  *      compares on version.
  *
  * A null/empty on the deciding axis is a non-match (stale) — unversioned
  * content is exactly the split-brain the heal repairs.
  *
- * @param {{version:(string|null), buildId:(string|null)}} recorded
- * @param {{runtimeVersion:(string|null), buildId:(string|null)}} active
+ * @param {{version:(string|null), buildId:(string|null), rendererBuildId?:(string|null)}} recorded
+ * @param {{runtimeVersion:(string|null), buildId:(string|null), rendererBuildId?:(string|null)}} active
  * @returns {boolean}
  */
 export function renderIdentityMatches(recorded, active) {
   const r = recorded ?? {};
   const a = active ?? {};
+  if (r.rendererBuildId && a.rendererBuildId) return r.rendererBuildId === a.rendererBuildId;
   if (r.buildId && a.buildId) return r.buildId === a.buildId;
   return Boolean(r.version) && r.version === a.runtimeVersion;
 }

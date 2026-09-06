@@ -5,7 +5,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-DEINQYJ7.mjs";
+} from "./chunk-JFIFDBVI.mjs";
 import {
   PLUGIN_VERSION,
   breadcrumbFromView,
@@ -13,7 +13,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-Y45W7EMZ.mjs";
+} from "./chunk-SUJ36R7O.mjs";
 import {
   renderWarnBanner,
   validateFrontmatter
@@ -23,13 +23,14 @@ import {
   maybeConfigureTailscale,
   readHubConfig,
   tailscaleDnsName
-} from "./chunk-G44CGR7V.mjs";
-import "./chunk-J2RO6O56.mjs";
+} from "./chunk-RSIKQTAN.mjs";
+import "./chunk-XCSEJH3A.mjs";
+import "./chunk-LWJXELAZ.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
   runtimeIdentity
-} from "./chunk-5K66NEIW.mjs";
+} from "./chunk-EQC6XDOG.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-K6PBZI5W.mjs";
@@ -856,9 +857,10 @@ async function renderMain(args) {
   if (args.mode !== "clean") {
     const active = runtimeIdentity();
     const prior = readRenderedIdentity(join3(viewRoot, ".last-render"));
-    if ((prior.version || prior.buildId) && !renderIdentityMatches(prior, active)) {
-      const was = prior.buildId ? `build ${prior.buildId.slice(0, 12)}` : `v${prior.version}`;
-      const now = active.buildId ? `build ${active.buildId.slice(0, 12)}` : `v${active.runtimeVersion}`;
+    if ((prior.version || prior.buildId || prior.rendererBuildId) && !renderIdentityMatches(prior, active)) {
+      const label = (rb, b, v) => rb ? `renderer ${rb.slice(0, 12)}` : b ? `build ${b.slice(0, 12)}` : `v${v}`;
+      const was = label(prior.rendererBuildId, prior.buildId, prior.version);
+      const now = label(active.rendererBuildId, active.buildId, active.runtimeVersion);
       console.log(`[render] runtime ${was} \u2192 ${now}: template/runtime changed, forcing clean re-render`);
       args.mode = "clean";
     }
@@ -1110,6 +1112,7 @@ ${toYaml(manifest)}`);
     writeFileAtomic(join3(viewRoot, ".last-render"), `${JSON.stringify({
       version: rt.runtimeVersion,
       buildId: rt.buildId,
+      rendererBuildId: rt.rendererBuildId,
       renderedAt: manifest.generatedAt,
       renderedCount,
       schemaWarnings,

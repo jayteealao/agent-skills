@@ -1,93 +1,15 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  HUB_NAME,
+  HUB_PROTOCOL_VERSION,
+  readRuntimeManifest
+} from "./chunk-EQC6XDOG.mjs";
+import {
   hubPidPath,
   isPidAlive,
   sdlcHomeDir
 } from "./chunk-U4OUM73W.mjs";
-
-// lib/runtime-manifest.mjs
-import { readFileSync } from "node:fs";
-var HUB_NAME = "sdlc-workflow-hub";
-var HUB_PROTOCOL_VERSION = 1;
-var ARTIFACT_SCHEMA = "sdlc/v1";
-var REGISTRY_VERSION = 2;
-var HUB_CONFIG_VERSION = 1;
-var RUNTIME_FAMILY = "sdlc-workflow";
-var MANIFEST_URL = new URL("../runtime-manifest.json", import.meta.url);
-var PACKAGE_URL = new URL("../package.json", import.meta.url);
-var cached = null;
-function readRuntimeManifest() {
-  if (cached) return cached;
-  cached = loadManifest();
-  return cached;
-}
-function loadManifest() {
-  try {
-    const m = JSON.parse(readFileSync(MANIFEST_URL, "utf-8"));
-    return normalizeManifest(m);
-  } catch {
-    return fallbackManifest();
-  }
-}
-function normalizeManifest(m) {
-  const o = m && typeof m === "object" ? m : {};
-  return Object.freeze({
-    family: typeof o.family === "string" && o.family ? o.family : RUNTIME_FAMILY,
-    hubName: typeof o.hubName === "string" && o.hubName ? o.hubName : HUB_NAME,
-    runtimeVersion: typeof o.runtimeVersion === "string" && o.runtimeVersion ? o.runtimeVersion : readPackageVersion(),
-    hubProtocolVersion: Number.isInteger(o.hubProtocolVersion) ? o.hubProtocolVersion : HUB_PROTOCOL_VERSION,
-    artifactSchema: typeof o.artifactSchema === "string" && o.artifactSchema ? o.artifactSchema : ARTIFACT_SCHEMA,
-    registryVersion: Number.isInteger(o.registryVersion) ? o.registryVersion : REGISTRY_VERSION,
-    hubConfigVersion: Number.isInteger(o.hubConfigVersion) ? o.hubConfigVersion : HUB_CONFIG_VERSION,
-    buildId: typeof o.buildId === "string" && o.buildId ? o.buildId : null
-  });
-}
-function fallbackManifest() {
-  return Object.freeze({
-    family: RUNTIME_FAMILY,
-    hubName: HUB_NAME,
-    runtimeVersion: readPackageVersion(),
-    hubProtocolVersion: HUB_PROTOCOL_VERSION,
-    artifactSchema: ARTIFACT_SCHEMA,
-    registryVersion: REGISTRY_VERSION,
-    hubConfigVersion: HUB_CONFIG_VERSION,
-    buildId: null
-  });
-}
-function readPackageVersion() {
-  try {
-    return JSON.parse(readFileSync(PACKAGE_URL, "utf-8")).version ?? "";
-  } catch {
-    return "";
-  }
-}
-function runtimeIdentity() {
-  const m = readRuntimeManifest();
-  return {
-    runtimeVersion: m.runtimeVersion,
-    buildId: m.buildId,
-    hubName: m.hubName,
-    hubProtocolVersion: m.hubProtocolVersion
-  };
-}
-function readRenderedIdentity(markerPath) {
-  try {
-    const parsed = JSON.parse(readFileSync(markerPath, "utf-8"));
-    return {
-      version: typeof parsed.version === "string" && parsed.version ? parsed.version : null,
-      buildId: typeof parsed.buildId === "string" && parsed.buildId ? parsed.buildId : null
-    };
-  } catch {
-    return { version: null, buildId: null };
-  }
-}
-function renderIdentityMatches(recorded, active) {
-  const r = recorded ?? {};
-  const a = active ?? {};
-  if (r.buildId && a.buildId) return r.buildId === a.buildId;
-  return Boolean(r.version) && r.version === a.runtimeVersion;
-}
 
 // lib/cross-host-lock.mjs
 import { randomBytes } from "node:crypto";
@@ -294,7 +216,7 @@ var LockTimeoutError = class extends Error {
 
 // lib/runtime-store.mjs
 import { randomBytes as randomBytes2 } from "node:crypto";
-import { existsSync, readFileSync as readFileSync2, readdirSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { cp, mkdir as mkdir2, readFile as readFile2, rename as rename2, rm as rm2 } from "node:fs/promises";
 import { dirname as dirname2, join } from "node:path";
 var PAYLOAD_DIRS = ["dist", "assets", "components", "schemas", join("docs", "site")];
@@ -370,7 +292,7 @@ async function writeActiveRuntime({ buildId, runtimeRoot, runtimeVersion }) {
 }
 function readRuntimeIdentityAt(runtimeRoot) {
   try {
-    const m = JSON.parse(readFileSync2(join(runtimeRoot, "runtime-manifest.json"), "utf-8"));
+    const m = JSON.parse(readFileSync(join(runtimeRoot, "runtime-manifest.json"), "utf-8"));
     return {
       runtimeVersion: typeof m.runtimeVersion === "string" && m.runtimeVersion ? m.runtimeVersion : null,
       buildId: typeof m.buildId === "string" && m.buildId ? m.buildId : null,
@@ -385,7 +307,7 @@ function resolveActiveRuntimeRootSync() {
   const fromPid = pidRuntimeRoot();
   if (fromPid && verifyRuntimeStoreSync(fromPid)) return fromPid;
   try {
-    const act = JSON.parse(readFileSync2(activeRuntimePath(), "utf-8"));
+    const act = JSON.parse(readFileSync(activeRuntimePath(), "utf-8"));
     if (act?.runtimeRoot && verifyRuntimeStoreSync(act.runtimeRoot)) return act.runtimeRoot;
   } catch {
   }
@@ -401,7 +323,7 @@ function verifyRuntimeStoreSync(runtimeRoot) {
 }
 function pidRuntimeRoot() {
   try {
-    const rec = JSON.parse(readFileSync2(hubPidPath(), "utf-8"));
+    const rec = JSON.parse(readFileSync(hubPidPath(), "utf-8"));
     return typeof rec?.runtimeRoot === "string" && rec.runtimeRoot ? rec.runtimeRoot : null;
   } catch {
     return null;
@@ -436,7 +358,7 @@ function gcRuntimes({ keepBuildIds = [] } = {}) {
 }
 function safeReadJson(path) {
   try {
-    return JSON.parse(readFileSync2(path, "utf-8"));
+    return JSON.parse(readFileSync(path, "utf-8"));
   } catch {
     return null;
   }
@@ -453,9 +375,6 @@ export {
   atomicWriteJson,
   withLock,
   LockTimeoutError,
-  runtimeIdentity,
-  readRenderedIdentity,
-  renderIdentityMatches,
   materializeRuntime,
   verifyRuntimeStore,
   writeActiveRuntime,

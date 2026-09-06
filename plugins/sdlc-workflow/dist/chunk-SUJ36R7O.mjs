@@ -3,6 +3,9 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   escapeHtml
 } from "./chunk-4WRIEOIP.mjs";
+import {
+  runtimeIdentity
+} from "./chunk-EQC6XDOG.mjs";
 
 // renderers/_paths.mjs
 import { posix as path } from "node:path";
@@ -296,7 +299,8 @@ function breadcrumbFromView(viewRel, slug) {
 }
 
 // renderers/_shell.mjs
-var PLUGIN_VERSION = "9.153.5";
+var RUNTIME = runtimeIdentity();
+var PLUGIN_VERSION = RUNTIME.runtimeVersion;
 function renderShell(params) {
   const {
     title,
@@ -347,7 +351,7 @@ function renderShell(params) {
     <div class="actions m-sheet-links"><a href="${escapeHtml(pageHref(upHref))}">&uarr; up</a>${storageHref ? `<a href="${escapeHtml(storageHref)}" class="src-link" title="storage source">md &#8599;</a>` : ""}</div>
     ${updatedAt ? `<div class="m-sheet-meta">updated ${escapeHtml(updatedAt)}</div>` : ""}
   </aside>`;
-  const versionTag = `?v=${PLUGIN_VERSION}`;
+  const versionTag = `?v=${RUNTIME.rendererBuildId ? RUNTIME.rendererBuildId.slice(0, 12) : PLUGIN_VERSION}`;
   const liveReloadScript = liveReload ? `
   <script src="${escapeHtml(assetBase)}/livereload.js" defer></script>` : "";
   return `<!DOCTYPE html>

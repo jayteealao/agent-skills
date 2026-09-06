@@ -8,9 +8,15 @@
  *   1. THREE in-tree carriers must agree on one version:
  *        .claude-plugin/plugin.json · .codex-plugin/plugin.json · package.json
  *      (plus the derived carriers: runtime-manifest.json's runtimeVersion,
- *      which the build derives from package.json; renderers/_shell.mjs
- *      PLUGIN_VERSION, which the render version-gate keys on; the
- *      docs/site/nav.html brand line; and package-lock.json's root version).
+ *      which the build derives from package.json and which renderers/_shell.mjs
+ *      reads at run time — no literal lives there since WIDE-VIEW-REPAIR-PLAN
+ *      §9.2; the docs/site/nav.html brand line; and package-lock.json's root
+ *      version). runtime-manifest.json must also carry a `rendererBuildId`
+ *      (§9.3) — the render gate keys on it, so a manifest without one means
+ *      `npm run build` did not run after the renderer sources changed.
+ *
+ *      `npm version <level>` stamps every carrier (scripts/stamp-version.mjs),
+ *      rebuilds, and runs this guard; the guard stays the gate.
  *   2. The two REPO-ROOT catalogs, which resolve at a pinned commit SHA:
  *        .claude-plugin/marketplace.json pins the plugin version explicitly
  *          → a VERSION check;
@@ -52,15 +58,17 @@ export function checkVersions({ pluginRoot = PLUGIN_ROOT, repoRoot = REPO_ROOT }
   // Derived carriers.
   const manifest = path.join(pluginRoot, 'runtime-manifest.json');
   if (existsSync(manifest)) {
-    const rv = readJson(manifest).runtimeVersion;
+    const mj = readJson(manifest);
+    const rv = mj.runtimeVersion;
     carriers['runtime-manifest'] = rv;
     if (rv !== version) problems.push(`runtime-manifest.json runtimeVersion ${rv} ≠ ${version} — run \`npm run build\``);
-  }
+    if (!/^[0-9a-f]{64}$/.test(mj.rendererBuildId ?? '')) {
+      problems.push('runtime-manifest.json carries no rendererBuildId — run `npm run build`');
+    }
+  } else problems.push('missing runtime-manifest.json — run `npm run build`');
   const shell = path.join(pluginRoot, 'renderers', '_shell.mjs');
-  if (existsSync(shell)) {
-    const m = /PLUGIN_VERSION = '([^']+)'/.exec(readFileSync(shell, 'utf8'));
-    carriers['_shell.mjs'] = m?.[1];
-    if (m?.[1] !== version) problems.push(`renderers/_shell.mjs PLUGIN_VERSION ${m?.[1]} ≠ ${version}`);
+  if (existsSync(shell) && /PLUGIN_VERSION = '\d/.test(readFileSync(shell, 'utf8'))) {
+    problems.push('renderers/_shell.mjs carries a version literal; it must read runtimeVersion from the runtime manifest');
   }
   const lock = path.join(pluginRoot, 'package-lock.json');
   if (existsSync(lock)) {

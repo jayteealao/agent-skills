@@ -29,11 +29,19 @@ a hard failure, so a fresh clone or an offline box is not blocked.
 
 ## Release sequence
 
-1. Bump the version in **every** location (see the version-bump discipline —
-   the `_shell.mjs` `PLUGIN_VERSION` constant is the one that gets forgotten).
+1. Bump with `npm version <patch|minor|major>` from `plugins/sdlc-workflow/`
+   on a clean tree. `package.json` is the one source: the `version` lifecycle
+   script runs `scripts/stamp-version.mjs` (both plugin manifests, the lock
+   file, the `nav.html` brand line, the root marketplace pin), rebuilds
+   (`runtime-manifest.json` + `dist/`), runs `verify:versions`, and stages each
+   carrier by path. `npm version` then commits and tags. No carrier is edited by
+   hand; `renderers/_shell.mjs` reads `runtimeVersion` from the manifest.
 2. `npm run build` — any commit touching `scripts/`, `hooks/`, `lib/`,
    `renderers/`, `components/`, or `package.json` rebuilds `dist/` **in the same
    commit**. Tests run against source, so green does not mean `dist/` is fresh.
+   The build also records `rendererBuildId` (sha256 over `renderers/`,
+   `view-src/`, `components/`); the render gate keys on it, so a CSS or template
+   change re-renders views without a bump, and a prose-only bump re-renders none.
 3. `npm test`.
 4. `npm run verify:versions && npm run verify:neutrality && npm run verify:capabilities && npm run verify:prose && npm run verify` —
    every version carrier agrees, the skill prose stays host-neutral, and the

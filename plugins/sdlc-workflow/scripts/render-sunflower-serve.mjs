@@ -147,6 +147,7 @@ export function createSdlcStaticServer({
     pluginRoot,
     pluginVersion: RUNTIME.runtimeVersion,
     buildId: RUNTIME.buildId,
+    rendererBuildId: RUNTIME.rendererBuildId,
     healCfg: staleRender ?? { heal: false },
     log: (line) => console.log(`[serve] ${line}`),
     emitReload: () => emitEvent(clients, 'reload', healthPayload(root, configHash)),

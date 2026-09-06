@@ -94,7 +94,8 @@ test('checkVersions flags a drifted carrier and a wrong catalog path', async () 
   const root = mkdtempSync(path.join(tmpdir(), 'sdlc-versions-fixture-'));
   try {
     const plugin = path.join(root, 'plugins', 'sdlc-workflow');
-    for (const rel of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'package.json']) {
+    // runtime-manifest.json rides along: since W7 (§9.3) the gate requires it and its rendererBuildId.
+    for (const rel of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'package.json', 'runtime-manifest.json']) {
       mkdirSync(path.dirname(path.join(plugin, rel)), { recursive: true });
       cpSync(path.join(pluginRoot, rel), path.join(plugin, rel));
     }

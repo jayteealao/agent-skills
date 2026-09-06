@@ -3,10 +3,10 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-DPWKMH5A.mjs";
-import "./chunk-4OFQTE3Q.mjs";
+} from "./chunk-7D43F4KK.mjs";
+import "./chunk-6CEW7HRH.mjs";
 import "./chunk-PDBKNARE.mjs";
-import "./chunk-Y45W7EMZ.mjs";
+import "./chunk-SUJ36R7O.mjs";
 import {
   hostAllowed,
   renderCodeBrowserPage,
@@ -20,12 +20,13 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-J2RO6O56.mjs";
+} from "./chunk-XCSEJH3A.mjs";
+import "./chunk-LWJXELAZ.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
   runtimeIdentity
-} from "./chunk-5K66NEIW.mjs";
+} from "./chunk-EQC6XDOG.mjs";
 import {
   REGISTRY_FRESH_GRACE_MS,
   REGISTRY_VERSION,
@@ -158,6 +159,7 @@ function createHubServer({
     pluginRoot,
     pluginVersion: RUNTIME.runtimeVersion,
     buildId: RUNTIME.buildId,
+    rendererBuildId: RUNTIME.rendererBuildId,
     healCfg: staleRender ?? { heal: false },
     log: logHub,
     emitReload: (id) => emitReload(id),

@@ -15,12 +15,13 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-J2RO6O56.mjs";
+} from "./chunk-XCSEJH3A.mjs";
+import "./chunk-LWJXELAZ.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
   runtimeIdentity
-} from "./chunk-5K66NEIW.mjs";
+} from "./chunk-EQC6XDOG.mjs";
 import {
   createRenderQueueDrainer,
   removePidFile,
@@ -141,6 +142,7 @@ function createSdlcStaticServer({
     pluginRoot,
     pluginVersion: RUNTIME.runtimeVersion,
     buildId: RUNTIME.buildId,
+    rendererBuildId: RUNTIME.rendererBuildId,
     healCfg: staleRender ?? { heal: false },
     log: (line) => console.log(`[serve] ${line}`),
     emitReload: () => emitEvent(clients, "reload", healthPayload(root, configHash)),

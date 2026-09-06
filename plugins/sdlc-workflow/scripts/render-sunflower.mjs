@@ -550,16 +550,18 @@ async function renderMain(args) {
   // page frozen at its old chrome — while the unconditionally recopied assets
   // race ahead, producing split-brain pages (current CSS over stale markup).
   // When the recorded render identity differs from the active shared runtime
-  // (buildId when both sides have one, else runtimeVersion), force a clean pass
+  // (rendererBuildId, then buildId, when both sides have one, else
+  // runtimeVersion — WIDE-VIEW-REPAIR-PLAN §9.3), force a clean pass
   // so the new template reaches every page. A missing/unparseable record means a
   // first render (already exhaustive) or a prior clean — either way additive is
   // correct, so we never force a clean loop on absence.
   if (args.mode !== 'clean') {
     const active = runtimeIdentity();
     const prior = readRenderedIdentity(join(viewRoot, '.last-render'));
-    if ((prior.version || prior.buildId) && !renderIdentityMatches(prior, active)) {
-      const was = prior.buildId ? `build ${prior.buildId.slice(0, 12)}` : `v${prior.version}`;
-      const now = active.buildId ? `build ${active.buildId.slice(0, 12)}` : `v${active.runtimeVersion}`;
+    if ((prior.version || prior.buildId || prior.rendererBuildId) && !renderIdentityMatches(prior, active)) {
+      const label = (rb, b, v) => (rb ? `renderer ${rb.slice(0, 12)}` : b ? `build ${b.slice(0, 12)}` : `v${v}`);
+      const was = label(prior.rendererBuildId, prior.buildId, prior.version);
+      const now = label(active.rendererBuildId, active.buildId, active.runtimeVersion);
       console.log(`[render] runtime ${was} → ${now}: template/runtime changed, forcing clean re-render`);
       args.mode = 'clean';
     }
@@ -917,12 +919,14 @@ async function renderMain(args) {
     };
     writeFileAtomic(join(viewRoot, 'INDEX.yaml'), `# sdlc view manifest\n${toYaml(manifest)}`);
     // `.last-render` carries the shared-runtime identity the heal controller and
-    // the render gate compare against: buildId is the precise signal, version is
-    // the legacy/human alias. Both come from the runtime manifest (single source).
+    // the render gate compare against: rendererBuildId is the signal that decides
+    // (§9.3), buildId the whole-runtime hash, version the legacy/human alias. All
+    // three come from the runtime manifest (single source).
     const rt = runtimeIdentity();
     writeFileAtomic(join(viewRoot, '.last-render'), `${JSON.stringify({
       version: rt.runtimeVersion,
       buildId: rt.buildId,
+      rendererBuildId: rt.rendererBuildId,
       renderedAt: manifest.generatedAt,
       renderedCount,
       schemaWarnings,

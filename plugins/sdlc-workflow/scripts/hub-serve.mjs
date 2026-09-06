@@ -212,6 +212,7 @@ export function createHubServer({
     pluginRoot,
     pluginVersion: RUNTIME.runtimeVersion,
     buildId: RUNTIME.buildId,
+    rendererBuildId: RUNTIME.rendererBuildId,
     healCfg: staleRender ?? { heal: false },
     log: logHub,
     emitReload: (id) => emitReload(id),

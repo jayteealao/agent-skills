@@ -6,8 +6,13 @@
 
 import { escapeHtml } from './_validator.mjs';
 import { pageHref } from './_paths.mjs';
+import { runtimeIdentity } from '../lib/runtime-manifest.mjs';
 
-export const PLUGIN_VERSION = '9.153.5';
+// The page stamp comes from runtime-manifest.json (WIDE-VIEW-REPAIR-PLAN §9.2):
+// the build derives runtimeVersion from package.json, so no literal lives here.
+// Consumers keep importing PLUGIN_VERSION by name.
+const RUNTIME = runtimeIdentity();
+export const PLUGIN_VERSION = RUNTIME.runtimeVersion;
 
 /**
  * Wrap rendered content in the full HTML shell.
@@ -109,7 +114,10 @@ export function renderShell(params) {
     ${updatedAt ? `<div class="m-sheet-meta">updated ${escapeHtml(updatedAt)}</div>` : ''}
   </aside>`;
 
-  const versionTag = `?v=${PLUGIN_VERSION}`;
+  // Cache-buster on the shared CSS/JS. Keyed on the renderer bytes (§9.3) so a
+  // stylesheet edit reaches the browser without a version bump; falls back to
+  // the version on a pre-build source tree.
+  const versionTag = `?v=${RUNTIME.rendererBuildId ? RUNTIME.rendererBuildId.slice(0, 12) : PLUGIN_VERSION}`;
   // External (not inline) so served pages can run a strict `script-src 'self'`
   // CSP that blocks injected inline scripts. See render-sunflower-serve.mjs.
   const liveReloadScript = liveReload

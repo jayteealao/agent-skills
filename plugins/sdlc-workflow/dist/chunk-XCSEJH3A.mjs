@@ -1,10 +1,12 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
-  readRenderedIdentity,
-  renderIdentityMatches,
   resolveActiveRuntimeRootSync
-} from "./chunk-5K66NEIW.mjs";
+} from "./chunk-LWJXELAZ.mjs";
+import {
+  readRenderedIdentity,
+  renderIdentityMatches
+} from "./chunk-EQC6XDOG.mjs";
 import {
   resolveEntrypoint
 } from "./chunk-U4OUM73W.mjs";
@@ -708,6 +710,7 @@ function createHealController({
   pluginRoot,
   pluginVersion,
   buildId = null,
+  rendererBuildId = null,
   healCfg = {},
   log = () => {
   },
@@ -730,7 +733,7 @@ function createHealController({
       if (!entry || !entry.id || !entry.viewDir || !entry.repoRoot) return { action: "invalid" };
       const recorded = readRenderedIdentity(markerOf(entry));
       const renderedVersion = recorded.version;
-      if (renderIdentityMatches(recorded, { runtimeVersion: pluginVersion, buildId })) {
+      if (renderIdentityMatches(recorded, { runtimeVersion: pluginVersion, buildId, rendererBuildId })) {
         attempts.delete(entry.id);
         failed.delete(entry.id);
         return { action: "fresh", renderedVersion };

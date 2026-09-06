@@ -4,7 +4,8 @@
 //   verify-host-neutrality — host-mechanics wording fails outside the permanent
 //     exception list; the burndown allowlist is EMPTY at cutover and stays so.
 //   verify-release-versions — three in-tree carriers, the derived carriers
-//     (runtime-manifest, _shell.mjs, nav.html brand, package-lock), + two root catalogs agree.
+//     (runtime-manifest runtimeVersion + rendererBuildId, nav.html brand, package-lock),
+//     + two root catalogs agree; _shell.mjs carries no literal (W7 §9.2).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

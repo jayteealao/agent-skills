@@ -214,7 +214,10 @@ test('renderShell: wraps content with breadcrumbs and asset links', () => {
     headerHtml: '<h1>X</h1>', bodyHtml: '<p>body</p>',
   });
   match(html, /<title>Test — sdlc/);
-  match(html, /sdlc\.css\?v=9\.\d+\.\d+/);
+  // The cache-buster is the 12-char rendererBuildId prefix (WIDE-VIEW-REPAIR-PLAN
+  // §9.3), so a CSS edit reaches the browser without a bump; on a pre-build
+  // source tree it falls back to the version.
+  match(html, /sdlc\.css\?v=(?:[0-9a-f]{12}|9\.\d+\.\d+)/);
   match(html, /data-artifact-type="index"/);
 });
 
