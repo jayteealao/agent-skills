@@ -425,6 +425,10 @@
       "words": 5069,
       "reason": "The 60-field frontmatter template (about 600 words), the T3.5-T5.3 readiness procedure with 11 inventoried STOP sentences, and the per-slug/per-branch batch contract are capability; rationale and restatements were cut from 5,760 words to this count."
     },
+    "skills/wf/reference/plan.md": {
+      "words": 5138,
+      "reason": "Four research sub-agent charters with verbatim CONTRACT blocks, the build-avoidance ladder, the repeat-deferral tripwire, the 20-field frontmatter template, the Verification Strategy table with the force-scope rule, and the Step F sibling schema are each a capability surface; §4.3 cuts removed only rationale and examples (5,379 → 5,138 words)."
+    },
     "skills/wf/reference/yolo.md": {
       "words": 3758,
       "reason": "The Autonomous Decision Policy table (about 650 words of gate definitions with 10 inventoried STOP sentences), the five intake-class refusals, and the 16-line hand-back template are capability; rationale, history, and restatements were cut from 6,434 words to this count."
@@ -441,7 +445,7 @@
       "core": 5217
     },
     "plan": {
-      "core": 7098
+      "core": 6857
     },
     "probe": {
       "core": 5494
