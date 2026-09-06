@@ -31,7 +31,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PLUGIN_ROOT, listProseFiles } from './extract-capabilities.mjs';
-import { listKeys, measureLoad } from './measure-load.mjs';
+import { listKeys, measureLoad, wordCount } from './measure-load.mjs';
 
 export const BUDGET_PATH = join(PLUGIN_ROOT, 'docs', 'internal', 'capability-inventory', 'prose-budget.json');
 
@@ -158,6 +158,21 @@ export function checkBudget(budget, root = PLUGIN_ROOT) {
     if (!(rel in files)) failures.push(`exceptions names a missing file ${rel}; remove it (run --update)`);
   }
 
+  // Plan §16: a per-file word budget raised above its class target. Each entry needs a
+  // reason, may only fall, and is dropped once the file fits its class target again.
+  const wordBudgets = {};
+  for (const [rel, entry] of Object.entries(budget.wordBudgets ?? {})) {
+    if (!(rel in files)) { failures.push(`wordBudgets names a missing file ${rel}; remove it`); continue; }
+    if (!entry || typeof entry.reason !== 'string' || !entry.reason.trim()) failures.push(`wordBudgets ${rel}: needs a non-empty reason`);
+    const words = wordCount(rel, root);
+    const classTarget = (budget.classes?.[files[rel].class] ?? 0) * 11;
+    wordBudgets[rel] = { words, budget: entry.words, classTarget };
+    if (!Number.isFinite(entry.words)) failures.push(`wordBudgets ${rel}: words must be a number`);
+    else if (words > entry.words) failures.push(`wordBudgets ${rel}: grew from ${entry.words} to ${words} words; a raised budget may not grow`);
+    else if (words < entry.words) failures.push(`wordBudgets ${rel}: fell to ${words}; lower its entry from ${entry.words} (run --update)`);
+    if (words <= classTarget) failures.push(`wordBudgets ${rel}: within its class target (${words} ≤ ${classTarget}); remove the entry (run --update)`);
+  }
+
   const measured = measureLoad(root);
   const load = {};
   for (const key of keys) {
@@ -177,7 +192,7 @@ export function checkBudget(budget, root = PLUGIN_ROOT) {
       }
     }
   }
-  return { failures, files, tokens: tokenCounts, load };
+  return { failures, files, tokens: tokenCounts, load, wordBudgets };
 }
 
 /** Rewrite every ratchet in `budget` to the current tree (only ever lowers what the gate checks). */
@@ -203,6 +218,14 @@ export function updateBudget(budget, root = PLUGIN_ROOT) {
     if (l.core > l.target.core) entry.core = l.core;
     if (l.instructed > l.target.instructed) entry.instructed = l.instructed;
     if (Object.keys(entry).length) next.load[key] = entry;
+  }
+  // wordBudgets: keep the hand-written reason, lower `words` to the file, drop a fitted file.
+  if (budget.wordBudgets) {
+    next.wordBudgets = {};
+    for (const [rel, w] of Object.entries(report.wordBudgets)) {
+      if (w.words > w.classTarget) next.wordBudgets[rel] = { words: w.words, reason: budget.wordBudgets[rel].reason };
+    }
+    next.wordBudgets = sortKeys(next.wordBudgets);
   }
   next.exceptions = sortKeys(next.exceptions);
   next.rubricFenceExceptions = sortKeys(next.rubricFenceExceptions);

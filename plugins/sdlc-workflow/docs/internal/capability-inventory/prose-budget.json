@@ -1,5 +1,5 @@
 {
-  "comment": "WIDE-VIEW-REPAIR-PLAN §4.1 budgets and the W1 ratchets. Edit `classes`, `hardCapLines`, and each token's `pattern`/`allowedFiles` by hand. Never edit `exceptions`, `load`, `rubricFenceExceptions`, or a token's `files` by hand: run `node scripts/verify-prose-budget.mjs --update` after an intentional shrink.",
+  "comment": "WIDE-VIEW-REPAIR-PLAN §4.1 budgets and the W1 ratchets. Edit `classes`, `hardCapLines`, and each token's `pattern`/`allowedFiles` by hand. Never edit `exceptions`, `load`, `rubricFenceExceptions`, or a token's `files` by hand: run `node scripts/verify-prose-budget.mjs --update` after an intentional shrink. `wordBudgets` (plan §16) is hand-written: one entry per file that cannot meet its class word target without deleting a capability, `{words, reason}`; `--update` lowers `words` and drops a fitted file, never adds one.",
   "classes": {
     "dispatcher": 120,
     "stage-body": 250,
@@ -295,7 +295,7 @@
         "skills/wf/reference/task.md": 2,
         "skills/wf/reference/verify.md": 5,
         "skills/wf/reference/verify/_deferrals.md": 2,
-        "skills/wf/reference/yolo.md": 19
+        "skills/wf/reference/yolo.md": 18
       }
     },
     "verbatim": {
@@ -416,12 +416,19 @@
     "skills/wf/reference/review/scalability.md": 36,
     "skills/wf/reference/review/ux-copy.md": 50
   },
+  "wordBudgets": {
+    "skills/wf/SKILL.md": {
+      "words": 1719,
+      "reason": "The 22-key tables (Arguments / Does / Writes cells) and the Step 0, 0.5, 0.7 STOP rules are the dispatcher's capability surface; 120 lines at 14 words per line. Cutting to 1,320 words would delete table cells that name invocations and artifacts."
+    },
+    "skills/wf/reference/yolo.md": {
+      "words": 3758,
+      "reason": "The Autonomous Decision Policy table (about 650 words of gate definitions with 10 inventoried STOP sentences), the five intake-class refusals, and the 16-line hand-back template are capability; rationale, history, and restatements were cut from 6,434 words to this count."
+    }
+  },
   "load": {
     "auto": {
       "core": 4855
-    },
-    "docs": {
-      "core": 4093
     },
     "handoff": {
       "core": 7479,
@@ -439,9 +446,6 @@
     "probe": {
       "core": 5494
     },
-    "recap": {
-      "core": 4246
-    },
     "retro": {
       "core": 4960
     },
@@ -452,21 +456,8 @@
     "ship": {
       "core": 6109
     },
-    "simplify": {
-      "core": 4368
-    },
-    "slice": {
-      "core": 4385
-    },
-    "status": {
-      "core": 4353
-    },
     "verify": {
       "core": 6009
-    },
-    "yolo": {
-      "core": 8153,
-      "instructed": 10319
     }
   }
 }

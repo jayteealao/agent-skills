@@ -89,8 +89,21 @@ export function classOf(rel) {
   return 'shared-contract';
 }
 
-export function budgetWords(rel) {
-  return CLASS_BUDGET_LINES[classOf(rel)] * WORDS_PER_LINE;
+/**
+ * Plan §16: a file that cannot meet its class target without deleting a capability
+ * carries a raised per-file word budget in prose-budget.json `wordBudgets`, each with
+ * a reason. The load target follows the budget, never the other way.
+ * @returns {Record<string, {words:number, reason:string}>}
+ */
+export function loadWordBudgets(root = PLUGIN_ROOT) {
+  const p = join(root, 'docs', 'internal', 'capability-inventory', 'prose-budget.json');
+  if (!existsSync(p)) return {};
+  return JSON.parse(readFileSync(p, 'utf8')).wordBudgets ?? {};
+}
+
+export function budgetWords(rel, wordBudgets = {}) {
+  const raised = wordBudgets[rel]?.words;
+  return Number.isFinite(raised) ? raised : CLASS_BUDGET_LINES[classOf(rel)] * WORDS_PER_LINE;
 }
 
 function sentencesOf(text) {
@@ -220,6 +233,7 @@ const round50 = (n) => Math.round(n / 50) * 50;
 
 export function measureLoad(root = PLUGIN_ROOT) {
   const keys = {};
+  const wordBudgets = loadWordBudgets(root);
   for (const key of listKeys(root)) {
     const body = `${REFERENCE}/${key}.md`;
     const keyDir = `${REFERENCE}/${key}/`;
@@ -229,17 +243,18 @@ export function measureLoad(root = PLUGIN_ROOT) {
     const referencedAll = closure(instructedFiles, root, { orderedOnly: false, keyDir });
     const { files: referencedFiles } = collapseBranches(referencedAll, root, new Set(instructedFiles));
 
-    const coreTarget = round50(budgetWords(SKILL) + budgetWords(body));
-    const instructedTarget = round50(instructedFiles.reduce((n, f) => n + budgetWords(f), 0));
+    const coreTarget = round50(budgetWords(SKILL, wordBudgets) + budgetWords(body, wordBudgets));
+    const instructedTarget = round50(instructedFiles.reduce((n, f) => n + budgetWords(f, wordBudgets), 0));
+    const raised = [SKILL, ...instructedFiles].filter((f) => f in wordBudgets);
 
     keys[key] = {
       core: summarize(core, root),
       instructed: { ...summarize(instructedFiles, root), branches, allFiles: instructedAll.length },
       referenced: summarize(referencedFiles, root),
-      target: { core: coreTarget, instructed: instructedTarget },
+      target: { core: coreTarget, instructed: instructedTarget, raised },
     };
   }
-  return { wordsPerLine: WORDS_PER_LINE, classBudgetLines: CLASS_BUDGET_LINES, keys };
+  return { wordsPerLine: WORDS_PER_LINE, classBudgetLines: CLASS_BUDGET_LINES, wordBudgets, keys };
 }
 
 export function writeLoadBaseline(result, path = LOAD_BASELINE_PATH) {

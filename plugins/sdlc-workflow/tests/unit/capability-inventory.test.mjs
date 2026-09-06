@@ -159,7 +159,18 @@ test('measure-load: 22 keys, core ⊆ instructed ⊆ referenced, targets derive 
     for (const f of core.fileList) assert.ok(instructed.fileList.includes(f), `${k}: instructed ⊇ core (${f})`);
     for (const f of instructed.fileList) assert.ok(referenced.fileList.includes(f), `${k}: referenced ⊇ instructed (${f})`);
     assert.ok(referenced.files < 60, `${k}: referenced ${referenced.files} files — the citation graph became fully connected`);
-    assert.equal(target.core, 4050, `${k}: core target = dispatcher + stage body at 11 words/line`);
+    // §16: a body that cannot meet 4,050 without deleting a capability carries a raised
+    // per-file word budget with a reason; the target then follows that budget.
+    const skillShare = load.wordBudgets['skills/wf/SKILL.md']?.words ?? 120 * 11;
+    const classCore = Math.round((skillShare + 250 * 11) / 50) * 50;
+    const bodyBudget = load.wordBudgets[`skills/wf/reference/${k}.md`];
+    if (bodyBudget) {
+      assert.ok(bodyBudget.reason?.trim(), `${k}: a raised word budget needs a reason`);
+      assert.ok(target.core > classCore, `${k}: a raised body budget must lift the core target above the class target`);
+      assert.ok(target.raised.includes(`skills/wf/reference/${k}.md`), `${k}: target.raised names the body`);
+    } else {
+      assert.equal(target.core, classCore, `${k}: core target = dispatcher share + stage body at 11 words/line`);
+    }
     assert.ok(target.instructed >= target.core, `${k}: instructed target ≥ core target`);
     for (const b of instructed.branches) assert.ok(b.alternatives > 1 && instructed.fileList.includes(b.chosen));
   }

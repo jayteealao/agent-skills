@@ -52,5 +52,11 @@
     "category": "gates",
     "from": "step 0 orient (mandatory do this before all",
     "to": "step 0 orient (do this before all other"
+  },
+  {
+    "file": "skills/wf/reference/yolo.md",
+    "category": "stops",
+    "from": "run /wf status to list workflows, or /wf",
+    "to": "if a description was given instead of a"
   }
 ]
