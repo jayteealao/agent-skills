@@ -63,16 +63,16 @@ A concern names a subsystem; a lens needs files. Do not guess the mapping — en
 
 # Step 2 — Select lenses, and say why
 
-Lenses are the existing review rubrics at `../review/<lens>.md` (plus `design/audit.md` / `design/critique.md` for design surfaces). `audit` **owns no rubrics and adds no dimension** — it is a consumer.
+Lenses are the existing review rubrics at `../review/<lens>.md`, or one alias section inside a rubric (the alias table in [review.md](../review.md); dispatch with `focus: <alias>`), plus `design/audit.md` / `design/critique.md` for design surfaces). `audit` **owns no rubrics and adds no dimension** — it is a consumer.
 
-1. **Infer the lens set from the concern and the surface.** "Wrong assumptions between two paths" → `correctness`, `architecture`, `testing`. "Is this leaking memory" → `performance`, `reliability`. Concurrency vocabulary in the surface → `backend-concurrency`. Auth/credentials in the surface → `security`, `privacy`. Select 2–6 lenses; more only when the surface genuinely spans domains.
+1. **Infer the lens set from the concern and the surface.** "Wrong assumptions between two paths" → `correctness` (focus testing), `architecture`. "Is this leaking memory" → `performance`, `correctness` (focus reliability). Concurrency vocabulary in the surface → `correctness` (focus backend-concurrency). Auth/credentials in the surface → `security` (focus privacy). Select 2–6 lenses; more only when the surface genuinely spans domains.
 2. **State the selection** — each lens with a one-line reason — in `01-audit.md` AND in chat, before dispatch. Inference that cannot be inspected is an opaque router.
 3. **`lenses=` override** (Step 0.4) replaces inference; still record one line per lens: "user-forced".
 4. **No rubric fits** → say so honestly: write `01-audit.md` with the resolved surface and "no lens applies — <why>", and ask the user to force a set or accept the null result. Do not run a token lens to look busy.
 
 # Step 3 — Hunt (parallel lens sub-agents)
 
-For EACH selected lens, dispatch a sub-agent per [_subagents.md](../_subagents.md), in waves of at most 6 when the lens set is large. Effort tier per lens follows the ad-hoc review sweep's rule ([review.md](../review.md)): **medium** for `architecture`, `refactor-safety`, `security`; **low** otherwise — stated explicitly on every dispatch, never inherited. Prompt each with:
+For EACH selected lens, dispatch a sub-agent per [_subagents.md](../_subagents.md), in waves of at most 6 when the lens set is large. Effort tier per lens follows the ad-hoc review sweep's rule ([review.md](../review.md)): **medium** for `architecture`, `security`; **low** otherwise — stated explicitly on every dispatch, never inherited. Prompt each with:
 
 - The lens reference path: `<skill-dir>/reference/review/<lens>.md` (resolved to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch) — read it and apply its rubric.
 - **Scope: the confirmed file surface from Step 1** — read these files; there is no diff. Every finding is by construction about existing code (no `pre-existing` split — record `pre-existing: true` on every row for schema compatibility with the review family).

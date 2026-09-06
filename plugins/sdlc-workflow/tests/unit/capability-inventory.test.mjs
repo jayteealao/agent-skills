@@ -62,13 +62,14 @@ test('extractFile: every category follows its stated rule', () => {
   assert.deepEqual(perFile['rubric-checks'], [], 'rubric checks are extracted only under reference/review/');
 });
 
-test('extractFile: rubric checks come from PRIMARY QUESTIONS and NON-NEGOTIABLES only', () => {
-  const rubric = `# ROLE\n- not a check\n\n# PRIMARY QUESTIONS\n1. Does every input get validated at the boundary?\n- Are secrets read from the environment only?\n\n# WORKFLOW\n- not a check either\n\n## NON-NEGOTIABLES\n* **Evidence-first**: every finding has file:line\n`;
+test('extractFile: rubric checks come from the check headings only; nested alias sections stay inside', () => {
+  const rubric = `# ROLE\n- not a check\n\n# PRIMARY QUESTIONS\n1. Does every input get validated at the boundary?\n- Are secrets read from the environment only?\n\n# WORKFLOW\n- not a check either\n\n# What to look for\nRead every section.\n### testing\n- Nested section bullets count as checks\n\n# Output shape\n- not a check\n\n## NON-NEGOTIABLES\n* **Evidence-first**: every finding has file:line\n`;
   const { perFile } = extractFile('skills/wf/reference/review/security.md', rubric, pluginRoot);
   assert.deepEqual(perFile['rubric-checks'], [
     'are secrets read from the environment',
     'does every input get validated at',
     'evidence-first : every finding has file:line',
+    'nested section bullets count as checks',
   ]);
 });
 
@@ -185,7 +186,7 @@ test('measure-load: 22 keys, core ⊆ instructed ⊆ referenced, targets derive 
 
 test('tests/helpers/capabilities.mjs answers per-file and tree-wide lookups', () => {
   assert.ok(hasCapability('*', 'invocations', '/wf intake fix'));
-  assert.ok(hasCapability('*', 'fields', 'args:'));
+  assert.ok(hasCapability('*', 'fields', 'status:')); // W4: the rubric `args:` block retired with the 11-rubric shape
   const stops = capabilitiesOf('skills/wf/reference/plan.md', 'stops');
   assert.ok(stops.length > 0);
   assert.ok(hasCapability('skills/wf/reference/plan.md', 'stops', stops[0]));

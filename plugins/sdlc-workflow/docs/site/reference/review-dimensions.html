@@ -10,11 +10,11 @@
 <aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
 <main>
 <h1>Review dimensions</h1>
-<p class="lede">This page lists all 35 review dimensions, the 7 sweep aggregates that bundle them, and the rules for ad-hoc invocation. Use this page to pick the right rubric for the review you want.</p>
+<p class="lede">This page lists the 11 review rubrics, the 24 alias names that keep every former dimension reachable, the 7 sweep aggregates that bundle the rubrics, and the rules for ad-hoc invocation. Use this page to pick the right rubric for the review you want.</p>
 <div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
 
 <h2 id="invocation">Invocation and scope</h2>
-<p>Review has two modes, and the first token tells them apart. <code>/wf review &lt;slug&gt;</code> is the workflow stage: it dispatches one reviewer per selected dimension and merges findings into the accumulating ledger (<code>07-review[-&lt;slice&gt;].md</code> plus one file per dimension). Without a slug, <code>/wf review &lt;dimension&gt;</code> runs one rubric inline, and <code>/wf review sweep &lt;aggregate&gt;</code> fans out one reviewer per bundled dimension. These slug-less runs are the ad-hoc path. Ad-hoc runs write <strong>no artifact</strong>. Findings return inline in chat, with a verdict and severity counts.</p>
+<p>Review has two modes, and the first token tells them apart. <code>/wf review &lt;slug&gt;</code> is the workflow stage: it dispatches one reviewer per selected rubric and merges findings into the accumulating ledger (<code>07-review[-&lt;slice&gt;].md</code> plus one file per rubric). Without a slug, <code>/wf review &lt;rubric&gt;</code> runs one rubric inline, <code>/wf review &lt;alias&gt;</code> runs one section of a rubric, and <code>/wf review sweep &lt;aggregate&gt;</code> fans out one reviewer per bundled rubric. These slug-less runs are the ad-hoc path. Ad-hoc runs write <strong>no artifact</strong>. Findings return inline in chat, with a verdict and severity counts.</p>
 <p>Ad-hoc review runs over one of five scopes, parsed from the remaining tokens:</p>
 <table>
 <thead><tr><th>Scope</th><th>Target</th></tr></thead>
@@ -26,67 +26,61 @@
 <tr><td><code>repo</code></td><td>the whole repository (also the bare default)</td></tr>
 </tbody>
 </table>
-<p>To reach a dimension whose name is also a real workflow slug, invoke <code>/wf review sweep &lt;name&gt;</code>, or run the dimension in a repo without that slug.</p>
-<div class="note">When a dimension name is also a real workflow slug, the slug wins and the stage runs.</div>
+<p>To reach a rubric whose name is also a real workflow slug, invoke <code>/wf review sweep &lt;name&gt;</code>, or run the rubric in a repo without that slug.</p>
+<div class="note">When a rubric name is also a real workflow slug, the slug wins and the stage runs.</div>
 
-<h2 id="dimensions">The 35 dimensions</h2>
-<p>Each dimension is one rubric file that the reviewer follows. Each entry below describes one rubric:</p>
+<h2 id="dimensions">The 11 rubrics</h2>
+<p>Each rubric is one file of at most 100 lines that the reviewer follows. A rubric has four parts: a role, a <em>What to look for</em> list with one section per alias, a shared severity calibration, and the output shape. Each entry below describes one rubric and names its sections:</p>
 <dl class="cmd-grid">
-<dt><code>accessibility</code></dt><dd>Reviews UI changes for keyboard and assistive-technology usability, and for ARIA misuse.</dd>
-<dt><code>api-contracts</code></dt><dd>Reviews API contracts for stability, correctness, and usability for consumers.</dd>
-<dt><code>architecture</code></dt><dd>Reviews for architectural issues: boundaries, dependencies, and layering.</dd>
-<dt><code>backend-concurrency</code></dt><dd>Reviews backend code for race conditions, atomicity violations, locking issues, and idempotency bugs.</dd>
-<dt><code>ci</code></dt><dd>Reviews CI/CD pipelines for security, correctness, and deployment safety.</dd>
-<dt><code>code-simplification</code></dt><dd>Reviews through the three simplification lenses: missed reuse, quality issues, and inefficiencies.</dd>
-<dt><code>correctness</code></dt><dd>Reviews for logic flaws, broken invariants, and edge-case failures.</dd>
-<dt><code>cost</code></dt><dd>Reviews for changes that increase cloud infrastructure costs.</dd>
-<dt><code>data-integrity</code></dt><dd>Reviews whether stored data stays correct over time, across failures, retries, and concurrent writes.</dd>
-<dt><code>docs</code></dt><dd>Reviews documentation completeness and accuracy for behavior, config, and API changes.</dd>
-<dt><code>dx</code></dt><dd>Reviews developer experience: whether the project is easy to build, run, debug, and contribute to.</dd>
-<dt><code>frontend-accessibility</code></dt><dd>Reviews for accessibility issues specific to modern SPAs (React, Vue, Angular).</dd>
-<dt><code>frontend-performance</code></dt><dd>Reviews bundle size, rendering efficiency, and user-perceived latency in frontend changes.</dd>
-<dt><code>infra</code></dt><dd>Reviews infrastructure and deployment config for safety, least privilege, and operational clarity.</dd>
-<dt><code>infra-security</code></dt><dd>Reviews infrastructure code for security issues: IAM, networking, secrets, and configuration.</dd>
-<dt><code>intent-fidelity</code></dt><dd>Reviews whether the diff advances the intake's product or a simplified imitation of it. This code-to-intake fidelity is the thing every other dimension misses.</dd>
-<dt><code>interface-craft</code></dt><dd>Reviews the static visual detail that makes interfaces feel polished: radii, optical alignment, shadows, tabular numbers, text wrapping, and hit areas.</dd>
-<dt><code>logging</code></dt><dd>Reviews logging for secrets exposure, PII leaks, wide-event patterns, and query-optimized observability.</dd>
-<dt><code>maintainability</code></dt><dd>Reviews for long-term readability, ease of change, and reduced change amplification.</dd>
-<dt><code>migrations</code></dt><dd>Reviews database migrations for safety, compatibility, and operability in production.</dd>
-<dt><code>motion</code></dt><dd>Reviews animation and motion code against a high craft bar: easing, timing, interruptibility, GPU performance, and whether the motion should exist at all.</dd>
-<dt><code>observability</code></dt><dd>Reviews observability completeness: logs, metrics, tracing, error reporting, alertability, and runbook hooks.</dd>
-<dt><code>overengineering</code></dt><dd>Reviews for unnecessary complexity, abstractions, and YAGNI violations.</dd>
-<dt><code>performance</code></dt><dd>Reviews for algorithmic and system-level performance issues.</dd>
-<dt><code>privacy</code></dt><dd>Reviews data handling: PII collection, storage, transmission, and privacy compliance.</dd>
-<dt><code>refactor-safety</code></dt><dd>Reviews refactors for semantic drift: behavior equivalence and the subtle bugs that break it.</dd>
-<dt><code>release</code></dt><dd>Reviews for safe shipping: clear versioning, rollout, migration, and rollback plans.</dd>
-<dt><code>reliability</code></dt><dd>Reviews failure modes and operational safety under partial outages.</dd>
-<dt><code>scalability</code></dt><dd>Reviews behavior under higher load, larger datasets, and more tenants.</dd>
-<dt><code>security</code></dt><dd>Reviews for vulnerabilities, insecure defaults, and missing security controls.</dd>
-<dt><code>ste-compliance</code></dt><dd>Audits procedural and external-facing text against the controlled-language contract: terminology drift, ambiguous references, non-imperative instructions, and misplaced warnings.</dd>
-<dt><code>style-consistency</code></dt><dd>Reviews consistency with existing codebase style and language idioms.</dd>
-<dt><code>supply-chain</code></dt><dd>Reviews dependency and build integrity: lockfiles, build scripts, and artifact provenance.</dd>
-<dt><code>testing</code></dt><dd>Reviews test quality, coverage, and reliability.</dd>
-<dt><code>ux-copy</code></dt><dd>Reviews user-facing text for clarity, consistency, actionability, and helpful error recovery.</dd>
+<dt><code>correctness</code></dt><dd>Reviews logic flaws, broken invariants, edge cases, test quality, data integrity, concurrency, and reliability under failure. Sections: correctness, testing, data-integrity, backend-concurrency, reliability.</dd>
+<dt><code>security</code></dt><dd>Reviews code, infrastructure, dependencies, and data handling for vulnerabilities, insecure defaults, supply-chain risk, and privacy exposure. Sections: security, infra-security, supply-chain, privacy.</dd>
+<dt><code>performance</code></dt><dd>Reviews algorithmic and system performance, frontend rendering and bundle cost, behavior at scale, and cloud spend. Sections: performance, frontend-performance, scalability, cost.</dd>
+<dt><code>architecture</code></dt><dd>Reviews structure and simplicity: boundaries and dependencies, maintainability, overengineering, missed reuse, style consistency, and refactor safety. Sections: architecture, maintainability, overengineering, code-simplification, style-consistency, refactor-safety.</dd>
+<dt><code>api-contracts</code></dt><dd>Reviews API contracts and database migrations for stability, compatibility, and safe operation in production. Sections: api-contracts, migrations.</dd>
+<dt><code>accessibility</code></dt><dd>Reviews UI changes for keyboard and assistive-technology usability, ARIA correctness, and SPA-specific accessibility. Sections: accessibility, frontend-accessibility.</dd>
+<dt><code>interface-craft</code></dt><dd>Reviews the static visual detail and the motion that make an interface feel polished: radii, alignment, shadows, tabular numbers, hit areas, easing, timing, interruptibility. Sections: interface-craft, motion.</dd>
+<dt><code>docs</code></dt><dd>Reviews documentation completeness and Diátaxis fit, user-facing copy, and controlled-language compliance of text at rest. Sections: docs, ux-copy, ste-compliance.</dd>
+<dt><code>observability</code></dt><dd>Reviews observability and logging: wide events, metrics, tracing, error reporting, alertability, runbook hooks, and secrets or PII in logs. Sections: observability, logging.</dd>
+<dt><code>infra</code></dt><dd>Reviews infrastructure, CI/CD pipelines, release safety, and developer tooling for safety, least privilege, and operational clarity. Sections: infra, ci, release, dx.</dd>
+<dt><code>intent-fidelity</code></dt><dd>Reviews whether the diff advances the intake's product or a simplified imitation of it. This code-to-intake fidelity is the thing every other rubric misses. Section: intent-fidelity.</dd>
 </dl>
 
-<h2 id="sweeps">The 7 sweep aggregates</h2>
-<p>A sweep dispatches one reviewer sub-agent per bundled dimension, in parallel. The sweep then dedupes the findings and synthesizes them into a single verdict. Invoke a sweep with <code>/wf review sweep &lt;aggregate&gt;</code>:</p>
+<h2 id="aliases">The 24 aliases</h2>
+<p>Every former dimension name stays a valid key. An alias resolves to its rubric with a focus: the reviewer reads that one section plus the severity calibration, so <code>/wf review logging</code> stays as narrow as it was. In the workflow stage, a selection rule that names an alias dispatches the rubric once with the triggered sections as its focus.</p>
 <table>
-<thead><tr><th>Aggregate</th><th>Dimensions bundled</th></tr></thead>
+<thead><tr><th>Alias</th><th>Rubric</th></tr></thead>
 <tbody>
-<tr><td><code>all</code></td><td>every dimension (35 reviewers — the broadest and most expensive)</td></tr>
-<tr><td><code>architecture</code></td><td>architecture, performance, scalability, api-contracts</td></tr>
-<tr><td><code>infra</code></td><td>infra, ci, release, migrations, logging, observability</td></tr>
-<tr><td><code>pre-merge</code></td><td>correctness, testing, security, refactor-safety, maintainability</td></tr>
-<tr><td><code>quick</code></td><td>correctness, style-consistency, dx, ux-copy, overengineering</td></tr>
-<tr><td><code>security</code></td><td>security, privacy, infra-security, data-integrity, supply-chain</td></tr>
-<tr><td><code>ux</code></td><td>accessibility, frontend-accessibility, frontend-performance, interface-craft, motion, ux-copy, ste-compliance</td></tr>
+<tr><td><code>testing</code>, <code>data-integrity</code>, <code>backend-concurrency</code>, <code>reliability</code></td><td><code>correctness</code></td></tr>
+<tr><td><code>infra-security</code>, <code>supply-chain</code>, <code>privacy</code></td><td><code>security</code></td></tr>
+<tr><td><code>frontend-performance</code>, <code>scalability</code>, <code>cost</code></td><td><code>performance</code></td></tr>
+<tr><td><code>maintainability</code>, <code>overengineering</code>, <code>code-simplification</code>, <code>style-consistency</code>, <code>refactor-safety</code></td><td><code>architecture</code></td></tr>
+<tr><td><code>migrations</code></td><td><code>api-contracts</code></td></tr>
+<tr><td><code>frontend-accessibility</code></td><td><code>accessibility</code></td></tr>
+<tr><td><code>motion</code></td><td><code>interface-craft</code></td></tr>
+<tr><td><code>ux-copy</code>, <code>ste-compliance</code></td><td><code>docs</code></td></tr>
+<tr><td><code>logging</code></td><td><code>observability</code></td></tr>
+<tr><td><code>ci</code>, <code>release</code>, <code>dx</code></td><td><code>infra</code></td></tr>
 </tbody>
 </table>
-<p><strong>Bare name vs sweep.</strong> Three names exist as both a dimension and an aggregate: <code>architecture</code>, <code>infra</code>, and <code>security</code>. A bare <code>/wf review architecture</code> runs the single dimension. <code>/wf review sweep architecture</code> runs the four-reviewer aggregate. The same rule holds for the other two names.</p>
+
+<h2 id="sweeps">The 7 sweep aggregates</h2>
+<p>A sweep dispatches one reviewer sub-agent per bundled rubric, in parallel. The sweep then dedupes the findings and synthesizes them into a single verdict. Invoke a sweep with <code>/wf review sweep &lt;aggregate&gt;</code>:</p>
+<table>
+<thead><tr><th>Aggregate</th><th>Rubrics bundled</th></tr></thead>
+<tbody>
+<tr><td><code>all</code></td><td>every rubric (11 reviewers — the broadest and most expensive)</td></tr>
+<tr><td><code>architecture</code></td><td>architecture, performance, api-contracts</td></tr>
+<tr><td><code>infra</code></td><td>infra, observability, api-contracts</td></tr>
+<tr><td><code>pre-merge</code></td><td>correctness, security, architecture</td></tr>
+<tr><td><code>quick</code></td><td>correctness, architecture, docs</td></tr>
+<tr><td><code>security</code></td><td>the <code>security</code> rubric with all four sections (one reviewer)</td></tr>
+<tr><td><code>ux</code></td><td>accessibility, interface-craft, docs, performance (focus frontend-performance)</td></tr>
+</tbody>
+</table>
+<p><strong>Bare name vs sweep.</strong> Three names exist as both a rubric and an aggregate: <code>architecture</code>, <code>infra</code>, and <code>security</code>. A bare <code>/wf review architecture</code> runs the single rubric. <code>/wf review sweep architecture</code> runs the three-reviewer aggregate. The same rule holds for the other two names.</p>
 
 <h2 id="artifacts">What gets written</h2>
-<p>Remember one distinction. Ad-hoc runs (a dimension or a sweep, with no slug) write no artifact. Their findings, severity counts, and verdict return inline, and they are gone when the chat is gone. Stage runs (<code>/wf review &lt;slug&gt;</code>) write the accumulating review ledger. Re-runs merge and dedupe in place, preserve finding IDs and surfaced-at stamps, and mark findings that a re-run no longer surfaces as <code>resolved</code>. Nothing is ever overwritten or deleted.</p>
+<p>Remember one distinction. Ad-hoc runs (a rubric, an alias, or a sweep, with no slug) write no artifact. Their findings, severity counts, and verdict return inline, and they are gone when the chat is gone. Stage runs (<code>/wf review &lt;slug&gt;</code>) write the accumulating review ledger. Re-runs merge and dedupe in place, preserve finding IDs and surfaced-at stamps, and mark findings that a re-run no longer surfaces as <code>resolved</code>. Nothing is ever overwritten or deleted.</p>
 
 <div class="related">
   <h2>Related</h2>

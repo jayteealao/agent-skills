@@ -71,5 +71,190 @@
     "category": "invocations",
     "reason": "Never a real invocation: the extractor read the placeholder slug `myfeat` from auto.md's deleted \"Worked shapes\" example list (examples cut under WIDE-VIEW-REPAIR-PLAN §4.3; the rules they illustrated live in Step 1).",
     "release": "9.154.0"
+  },
+  {
+    "entry": "evidence-first : every finding includes file:line-range",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/correctness.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/backend-concurrency.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding includes file:line-range",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/architecture.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/code-simplification.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding includes file:line-range",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/correctness.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/correctness.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding shows what",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/docs.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/docs.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding includes specific",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/infra.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/dx.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding includes file:line-range",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/accessibility.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/frontend-accessibility.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding includes file:line-range",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/security.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/infra-security.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding includes a",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/interface-craft.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding includes a",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/observability.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/logging.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding includes file:line-range",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/architecture.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/maintainability.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding includes a",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/interface-craft.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/motion.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding includes a",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/observability.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/observability.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding includes file:line-range",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/architecture.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/overengineering.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding includes file:line-range",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/architecture.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/refactor-safety.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "severity + confidence on every finding",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Severity + Confidence: …` in skills/wf/reference/review/docs.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/ste-compliance.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding includes file:line-range",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/architecture.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/style-consistency.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "evidence-first : every finding includes file:line-range",
+    "reason": "duplicate of the shared `# Severity calibration` bullet `Evidence-first: …` in skills/wf/reference/review/correctness.md (W4 §7.1 merge, wording unified across the 11 rubrics)",
+    "release": "9.154.0",
+    "file": "skills/wf/reference/review/testing.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "args:",
+    "reason": "rubric frontmatter `args:` block dropped in the W4 §7.4 rubric shape; the ad-hoc scope, target, and paths come from the `/wf review` tokens (review.md)",
+    "release": "9.154.0",
+    "category": "fields"
+  },
+  {
+    "entry": "chore:",
+    "reason": "example string inside a code fence of a rubric deleted in the W4 §7.1 merge (release.md, ci.md, dx.md); never an artifact field",
+    "release": "9.154.0",
+    "category": "fields"
+  },
+  {
+    "entry": "deprecated:",
+    "reason": "example string inside a code fence of a rubric deleted in the W4 §7.1 merge (release.md, ci.md, dx.md); never an artifact field",
+    "release": "9.154.0",
+    "category": "fields"
+  },
+  {
+    "entry": "env:",
+    "reason": "example string inside a code fence of a rubric deleted in the W4 §7.1 merge (release.md, ci.md, dx.md); never an artifact field",
+    "release": "9.154.0",
+    "category": "fields"
+  },
+  {
+    "entry": "feat:",
+    "reason": "example string inside a code fence of a rubric deleted in the W4 §7.1 merge (release.md, ci.md, dx.md); never an artifact field",
+    "release": "9.154.0",
+    "category": "fields"
+  },
+  {
+    "entry": "fix:",
+    "reason": "example string inside a code fence of a rubric deleted in the W4 §7.1 merge (release.md, ci.md, dx.md); never an artifact field",
+    "release": "9.154.0",
+    "category": "fields"
+  },
+  {
+    "entry": "refactor:",
+    "reason": "example string inside a code fence of a rubric deleted in the W4 §7.1 merge (release.md, ci.md, dx.md); never an artifact field",
+    "release": "9.154.0",
+    "category": "fields"
+  },
+  {
+    "entry": "test:",
+    "reason": "example string inside a code fence of a rubric deleted in the W4 §7.1 merge (release.md, ci.md, dx.md); never an artifact field",
+    "release": "9.154.0",
+    "category": "fields"
+  },
+  {
+    "entry": "skills/wf/reference/review/supply-chain.md",
+    "reason": "merged into review/security.md `### supply-chain` (W4 §7.1); the three ship-plan citations now point at security.md",
+    "release": "9.154.0",
+    "category": "citations"
+  },
+  {
+    "entry": "unresolved:skills/wf/reference/review/CONTRIBUTING.md",
+    "reason": "dangling example link inside a code fence of dx.md, deleted in the W4 §7.1 merge",
+    "release": "9.154.0",
+    "category": "citations"
+  },
+  {
+    "entry": "unresolved:skills/wf/reference/review/docs/architecture.md",
+    "reason": "dangling example link inside a code fence of dx.md, deleted in the W4 §7.1 merge",
+    "release": "9.154.0",
+    "category": "citations"
   }
 ]

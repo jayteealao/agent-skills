@@ -147,7 +147,7 @@ Hypothesis from `inferred.governance`. The collaboration + protection rules. Con
 
 ## Block K — Security & supply-chain gates
 
-Hypothesis from `inferred.security`. The scanning + policy layer (align to `../review/supply-chain.md`). Each gate can be `none` — don't impose one the project doesn't want:
+Hypothesis from `inferred.security`. The scanning + policy layer (align to `../review/security.md` (`### supply-chain`)). Each gate can be `none` — don't impose one the project doesn't want:
 - `sast` — `{ tool, cmd, schedule }`. `tool` ∈ {`codeql`, `semgrep`, `sonar`, `none`}. CodeQL runs as its own workflow (PR + scheduled); others as a CI step. `schedule` freeform (default `weekly`).
 - `dependency-audit` — `{ tool, cmd, fail-on }`. e.g. `npm audit --audit-level=high`, `pip-audit`, `cargo audit`, `govulncheck ./...`, `osv-scanner`. `fail-on` ∈ {`critical`, `high`, `moderate`, `low`}.
 - `secret-scanning` — `{ tool, cmd, pre-commit }`. e.g. gitleaks, trufflehog, detect-secrets. `pre-commit: <true|false>` — also wire it as a Block-I `pre-commit` hook when true.

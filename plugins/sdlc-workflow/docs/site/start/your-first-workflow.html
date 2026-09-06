@@ -55,7 +55,7 @@
 <h2>Stage 7 — Review</h2>
 <p>With both slices verified, run the review:</p>
 <pre><code>/wf review export-json-flag</code></pre>
-<p>Review selects the quality dimensions relevant to this change, for example correctness, testing, and maintainability, from a much larger catalog. It dispatches one reviewer per dimension over the workflow's diff and artifacts. The findings land in <code>07-review.md</code> as an accumulating ledger with an overall verdict: <em>ship</em>, <em>ship-with-caveats</em>, or <em>dont-ship</em>. The ledger is durable. If you fix findings and re-run review, the ledger merges in the new run, marks cleared findings resolved, and never discards history. If there are blockers, <code>/wf implement export-json-flag reviews</code> works through the blockers one by one.</p>
+<p>Review selects the quality dimensions relevant to this change, for example correctness, security, and architecture, from the 11-rubric catalog. It dispatches one reviewer per rubric over the workflow's diff and artifacts. The findings land in <code>07-review.md</code> as an accumulating ledger with an overall verdict: <em>ship</em>, <em>ship-with-caveats</em>, or <em>dont-ship</em>. The ledger is durable. If you fix findings and re-run review, the ledger merges in the new run, marks cleared findings resolved, and never discards history. If there are blockers, <code>/wf implement export-json-flag reviews</code> works through the blockers one by one.</p>
 
 <h2>Stage 8 — Handoff</h2>
 <p>Package the work for a pull request:</p>

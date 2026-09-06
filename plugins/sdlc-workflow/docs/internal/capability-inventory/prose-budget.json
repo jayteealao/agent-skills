@@ -22,11 +22,7 @@
       "allowedFiles": {
         "skills/wf/reference/ship-plan/ship-plan-templates/container-image.md": 1
       },
-      "files": {
-        "skills/wf/reference/review/ci.md": 1,
-        "skills/wf/reference/review/reliability.md": 1,
-        "skills/wf/reference/review/ux-copy.md": 1
-      }
+      "files": {}
     },
     "MUST": {
       "pattern": "\\bMUST\\b",
@@ -71,69 +67,9 @@
     }
   },
   "exceptions": {
-    "skills/wf/reference/augment/wide-event-observability.md": 918,
-    "skills/wf/reference/review/accessibility.md": 818,
-    "skills/wf/reference/review/api-contracts.md": 528,
-    "skills/wf/reference/review/architecture.md": 504,
-    "skills/wf/reference/review/backend-concurrency.md": 901,
-    "skills/wf/reference/review/ci.md": 522,
-    "skills/wf/reference/review/code-simplification.md": 124,
-    "skills/wf/reference/review/correctness.md": 176,
-    "skills/wf/reference/review/cost.md": 715,
-    "skills/wf/reference/review/data-integrity.md": 999,
-    "skills/wf/reference/review/docs.md": 174,
-    "skills/wf/reference/review/dx.md": 1083,
-    "skills/wf/reference/review/frontend-accessibility.md": 875,
-    "skills/wf/reference/review/frontend-performance.md": 685,
-    "skills/wf/reference/review/infra-security.md": 953,
-    "skills/wf/reference/review/infra.md": 517,
-    "skills/wf/reference/review/interface-craft.md": 164,
-    "skills/wf/reference/review/logging.md": 447,
-    "skills/wf/reference/review/maintainability.md": 156,
-    "skills/wf/reference/review/migrations.md": 508,
-    "skills/wf/reference/review/motion.md": 184,
-    "skills/wf/reference/review/observability.md": 774,
-    "skills/wf/reference/review/performance.md": 445,
-    "skills/wf/reference/review/privacy.md": 264,
-    "skills/wf/reference/review/refactor-safety.md": 533,
-    "skills/wf/reference/review/release.md": 411,
-    "skills/wf/reference/review/reliability.md": 618,
-    "skills/wf/reference/review/scalability.md": 999,
-    "skills/wf/reference/review/security.md": 292,
-    "skills/wf/reference/review/style-consistency.md": 172,
-    "skills/wf/reference/review/supply-chain.md": 213,
-    "skills/wf/reference/review/testing.md": 150,
-    "skills/wf/reference/review/ux-copy.md": 782
+    "skills/wf/reference/augment/wide-event-observability.md": 918
   },
-  "rubricFenceExceptions": {
-    "skills/wf/reference/review/accessibility.md": 47,
-    "skills/wf/reference/review/api-contracts.md": 26,
-    "skills/wf/reference/review/architecture.md": 17,
-    "skills/wf/reference/review/backend-concurrency.md": 31,
-    "skills/wf/reference/review/ci.md": 18,
-    "skills/wf/reference/review/code-simplification.md": 1,
-    "skills/wf/reference/review/correctness.md": 1,
-    "skills/wf/reference/review/cost.md": 30,
-    "skills/wf/reference/review/data-integrity.md": 32,
-    "skills/wf/reference/review/docs.md": 1,
-    "skills/wf/reference/review/dx.md": 57,
-    "skills/wf/reference/review/frontend-accessibility.md": 25,
-    "skills/wf/reference/review/frontend-performance.md": 29,
-    "skills/wf/reference/review/infra-security.md": 24,
-    "skills/wf/reference/review/infra.md": 16,
-    "skills/wf/reference/review/interface-craft.md": 7,
-    "skills/wf/reference/review/logging.md": 16,
-    "skills/wf/reference/review/maintainability.md": 1,
-    "skills/wf/reference/review/migrations.md": 28,
-    "skills/wf/reference/review/motion.md": 3,
-    "skills/wf/reference/review/observability.md": 19,
-    "skills/wf/reference/review/performance.md": 16,
-    "skills/wf/reference/review/refactor-safety.md": 16,
-    "skills/wf/reference/review/release.md": 15,
-    "skills/wf/reference/review/reliability.md": 20,
-    "skills/wf/reference/review/scalability.md": 36,
-    "skills/wf/reference/review/ux-copy.md": 50
-  },
+  "rubricFenceExceptions": {},
   "wordBudgets": {
     "skills/wf/SKILL.md": {
       "words": 1719,

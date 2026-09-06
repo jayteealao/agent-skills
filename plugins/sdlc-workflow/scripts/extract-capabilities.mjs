@@ -41,7 +41,7 @@ const SCAN_DIR = 'skills';
 const RUBRIC_DIR = 'skills/wf/reference/review';
 // Rubric bodies name their check lists under these headings (the plan's draft said
 // "What to look for" / "Checks"; the tree uses these two — recorded in the plan §16).
-const RUBRIC_CHECK_HEADINGS = /^#{1,4}\s+(PRIMARY QUESTIONS|NON-NEGOTIABLES)\b/;
+const RUBRIC_CHECK_HEADINGS = /^#{1,4}\s+(PRIMARY QUESTIONS|NON-NEGOTIABLES|What to look for|Severity calibration)\b/;
 
 const RE_ARTIFACT = /\b\d{2}[a-z]?-[a-z-]+(?:<[^>]+>)?\.(?:md|yaml|html\.fragment)\b/g;
 const RE_FIELD = /`([a-z][a-z0-9-]*):`/g;
@@ -170,10 +170,16 @@ export function extractFile(rel, text, root = PLUGIN_ROOT) {
   }
 
   if (rel.startsWith(RUBRIC_DIR + '/') && !posix.basename(rel).startsWith('_')) {
+    // A check heading opens the block; deeper headings (the `### <alias>`
+    // sections of a merged rubric) stay inside it; a heading at the same or a
+    // shallower level closes it unless it is itself a check heading.
     let inChecks = false;
+    let checksLevel = 0;
     for (const line of text.split(/\r?\n/)) {
-      if (/^#{1,6}\s/.test(line)) {
-        inChecks = RUBRIC_CHECK_HEADINGS.test(line);
+      const h = line.match(/^(#{1,6})\s/);
+      if (h) {
+        if (RUBRIC_CHECK_HEADINGS.test(line)) { inChecks = true; checksLevel = h[1].length; }
+        else if (!(inChecks && h[1].length > checksLevel)) inChecks = false;
         continue;
       }
       if (!inChecks) continue;

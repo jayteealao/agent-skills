@@ -771,54 +771,37 @@ Self-contained workflows with their own lifecycle that do not require an existin
 | `/wf intake refactor <description>` | Behavior-preserving refactoring with test baseline, incremental green steps, and before/after API surface comparison | `.ai/workflows/refactor-<slug>/` |
 | `/wf task <description>` | Minimal lifecycle for work whose deliverable is not a code change (repo chores, key rotation, RFCs, coordination, one-shot backfills). Briefs with observable ACs + a `blast-radius` classification, gates before acting (`shared-env`/`external-party`/`irreversible` always stop for a human), executes, then re-observes — an AC evidenced only by `asserted` cannot close. | `.ai/workflows/task-<slug>/` |
 
-### Review domains (33 dimensions)
+### Review rubrics (11, with 24 aliases)
 
-Invoke a single domain as `/wf review <dimension>` (ad-hoc, no slug), or `/wf review sweep` for the full fan-out. The former standalone `/review` skill is dissolved into `/wf review` — the review surface now lives under [`skills/wf/reference/review/`](./skills/wf/reference/review/) (Step 00 in [`skills/wf/reference/review.md`](./skills/wf/reference/review.md); each dimension's rubric is at `skills/wf/reference/review/<dimension>.md`).
+Invoke one rubric as `/wf review <rubric>` (ad-hoc, no slug), one section of a rubric as `/wf review <alias>`, or `/wf review sweep <aggregate>` for a fan-out. The former standalone `/review` skill is dissolved into `/wf review`. Each rubric sections its checks by alias; a former dimension name (`testing`, `logging`, …) stays a valid key and runs its rubric with `focus: <alias>`.
 
-**Always selected for any code change:** `correctness`, `security`, `code-simplification`
+**Always selected for any code change:** `correctness`, `security`, `architecture` (plus `intent-fidelity` for lifecycle slugs)
 
-**Always selected for backend source changes:** `testing`, `maintainability`, `reliability`
-
-**Always selected for frontend source changes:** `accessibility`, `frontend-accessibility`, `frontend-performance`, `interface-craft`, `ux-copy`
-
-**Selected by feature type (from shape/slice artifacts):**
-
-| Domain | Trigger |
+| Rubric | Sections (aliases) |
 |---|---|
-| `motion` | Animation, transition, or gesture motion |
-| `backend-concurrency` | Async, concurrent, parallel behaviour |
-| `refactor-safety` | Refactor, restructure, rename, extraction |
-| `architecture` | New modules, services, architectural layers |
-| `overengineering` | Generic abstractions, base classes, factory patterns |
-| `performance` | DB queries, loops over collections, cache interactions |
-| `data-integrity` | DB writes, mutations, transactions, schema changes |
-| `migrations` | DB migration files |
-| `privacy` | User data, auth flows, PII, payment processing |
-| `api-contracts` | Route definitions, OpenAPI, GraphQL schemas, gRPC |
-| `scalability` | Queue consumers, batch ops, multi-tenant data |
-| `supply-chain` | Added or changed dependencies |
-| `infra` | Dockerfile, Terraform, Helm, K8s, Ansible |
-| `infra-security` | Infrastructure-level security configuration |
-| `ci` | CI/CD pipeline changes |
-| `release` | CHANGELOG, version fields, release configs |
-| `logging` | New or changed log statements |
-| `observability` | Metrics, OpenTelemetry, Prometheus, health checks |
-| `cost` | Cloud/API calls that incur spend |
-| `docs` | Documentation files, docstrings |
-| `style-consistency` | Mixed naming conventions within a file or module |
-| `dx` | Developer-facing tooling, scripts, README |
+| `correctness` | correctness, testing, data-integrity, backend-concurrency, reliability |
+| `security` | security, infra-security, supply-chain, privacy |
+| `performance` | performance, frontend-performance, scalability, cost |
+| `architecture` | architecture, maintainability, overengineering, code-simplification, style-consistency, refactor-safety |
+| `api-contracts` | api-contracts, migrations |
+| `accessibility` | accessibility, frontend-accessibility |
+| `interface-craft` | interface-craft, motion |
+| `docs` | docs, ux-copy, ste-compliance |
+| `observability` | observability, logging |
+| `infra` | infra, ci, release, dx |
+| `intent-fidelity` | intent-fidelity |
 
-**Multi-dimension sweeps:** `/wf review sweep <aggregate>` dispatches one parallel reviewer sub-agent per dimension in the aggregate's composition, then synthesizes a unified verdict. The `sweep` keyword disambiguates the three names (`architecture`, `infra`, `security`) that exist as both a dimension and an aggregate. Compositions are defined in [`skills/wf/reference/review.md`](./skills/wf/reference/review.md) and can be edited without code changes.
+**Multi-rubric sweeps:** `/wf review sweep <aggregate>` dispatches one parallel reviewer sub-agent per rubric in the aggregate's composition, then synthesizes a unified verdict. The `sweep` keyword disambiguates the three names (`architecture`, `infra`, `security`) that exist as both a rubric and an aggregate. Compositions are defined in [`skills/wf/reference/review.md`](./skills/wf/reference/review.md) and can be edited without code changes.
 
-| Sweep | Dimensions dispatched in parallel |
+| Sweep | Rubrics dispatched in parallel |
 |---|---|
-| `/wf review sweep all` | All 35 dimensions (broadest, most expensive) |
-| `/wf review sweep quick` | correctness, style-consistency, dx, ux-copy, overengineering |
-| `/wf review sweep pre-merge` | correctness, testing, security, refactor-safety, maintainability |
-| `/wf review sweep security` | security, privacy, infra-security, data-integrity, supply-chain |
-| `/wf review sweep architecture` | architecture, performance, scalability, api-contracts |
-| `/wf review sweep infra` | infra, ci, release, migrations, logging, observability |
-| `/wf review sweep ux` | accessibility, frontend-accessibility, frontend-performance, interface-craft, motion, ux-copy |
+| `/wf review sweep all` | All 11 rubrics (broadest, most expensive) |
+| `/wf review sweep quick` | correctness, architecture, docs |
+| `/wf review sweep pre-merge` | correctness, security, architecture |
+| `/wf review sweep security` | the `security` rubric, all four sections |
+| `/wf review sweep architecture` | architecture, performance, api-contracts |
+| `/wf review sweep infra` | infra, observability, api-contracts |
+| `/wf review sweep ux` | accessibility, interface-craft, docs, performance (focus frontend-performance) |
 
 ### Documentation skills
 

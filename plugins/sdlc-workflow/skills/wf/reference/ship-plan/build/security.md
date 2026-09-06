@@ -4,7 +4,7 @@ Load this file from `build.md` Steps 3–16 when audit P is Missing or Non-compl
 
 # Step 13 — Implement: security & supply-chain gates (Audit P)
 
-Skip if no `security` block. For each non-`none` gate (align generated steps to the conventions in `../review/supply-chain.md`):
+Skip if no `security` block. For each non-`none` gate (align generated steps to the conventions in `../review/security.md` (`### supply-chain`)):
 
 - **SAST** — `codeql` → create `.github/workflows/codeql.yml` (`on: pull_request` + `schedule`, `github/codeql-action/{init,analyze}@v3`, languages auto-detected from the ecosystem). Other tools → add a CI step running `security.sast.cmd`.
 - **Dependency audit** — add a step to the PR workflow running `dependency-audit.cmd` with the `fail-on` threshold (e.g. `npm audit --audit-level=high`, `pip-audit`, `cargo audit`, `osv-scanner -r .`).

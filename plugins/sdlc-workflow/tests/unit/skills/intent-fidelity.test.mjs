@@ -147,7 +147,7 @@ test('R3 — _decision-classes.md exists in every tree with both classes + the e
   }
 });
 
-test('R3 — the intent-fidelity review dimension exists in every tree (the 34th)', () => {
+test('R3 — the intent-fidelity review rubric exists in every tree (one of the 11)', () => {
   for (const { name, root } of trees) {
     const p = path.join(root, 'skills', 'wf', 'reference', 'review', 'intent-fidelity.md');
     assert.ok(existsSync(p), `${name}: missing review/intent-fidelity.md`);
@@ -177,12 +177,12 @@ test('R3 — question-craft consequence framing + shape pre-mortem (both trees)'
   }
 });
 
-test('R3 — the review dimension roster is 34 in every tree', () => {
+test('R3 — the review rubric roster is 11 in every tree (W4 merge)', () => {
   for (const { name, root } of trees) {
     const dir = path.join(root, 'skills', 'wf', 'reference', 'review');
     const dims = readdirSync(dir).filter((f) => f.endsWith('.md') && !f.startsWith('_'));
     assert.ok(dims.includes('intent-fidelity.md'), `${name}: intent-fidelity.md not in the roster`);
-    assert.ok(dims.length >= 34, `${name}: expected >=34 review dimensions, got ${dims.length}`);
+    assert.equal(dims.length, 11, `${name}: expected 11 review rubrics, got ${dims.length}`);
   }
 });
 

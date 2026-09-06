@@ -76,6 +76,7 @@ test('every EOB citation link resolves to the canonical file', () => {
         );
       }
     }
-    assert.ok(citations >= 60, `${name}: expected >=60 citation blocks, found ${citations}`);
+    // W4 merged 35 rubrics into 11, so the floor fell from 60 to 50 citation blocks.
+    assert.ok(citations >= 50, `${name}: expected >=50 citation blocks, found ${citations}`);
   }
 });

@@ -108,23 +108,23 @@ Extract:
 
 # Step 2: Select Review Commands
 
-**Selection philosophy:** Use shape, slice, and implementation artifacts — not just raw diff patterns — to reason about what the change *is*. A feature that adds async data fetching needs `backend-concurrency` even if the diff contains no "mutex". Lean toward inclusion: a missed review is worse than a redundant one. The max prevents sprawl, not thorough coverage.
+**Selection philosophy:** Use shape, slice, and implementation artifacts — not just raw diff patterns — to reason about what the change *is*. A feature that adds async data fetching needs `correctness` (focus backend-concurrency) even if the diff contains no "mutex". Lean toward inclusion: a missed review is worse than a redundant one. The max prevents sprawl, not thorough coverage.
 
 ### Core (always include for any code change)
-- `correctness` — logic, invariants, edge cases
-- `security` — vulnerabilities, insecure defaults
-- `code-simplification` — missed reuse, unnecessary complexity, inefficiencies
+- `correctness` — logic, invariants, edge cases; its sections also cover testing, data integrity, concurrency, and reliability
+- `security` — vulnerabilities, insecure defaults; its sections also cover infrastructure security, supply chain, and privacy
+- `architecture` — boundaries, maintainability, overengineering, missed reuse, style consistency, refactor safety
 - `intent-fidelity` — **always-on for lifecycle slugs** (`workflow-type: feature`, or unset), at BOTH per-slice and slug-wide scope: does the diff advance the intake's product, or a simplified imitation of it? Joins `correctness` in the always-kept set and is **never suppressed by the user-focus override**. Ad-hoc reviews reach it by name (`/wf review intent-fidelity`). (Compressed/change-mode slugs may skip it; it is a lifecycle-slug gate.)
 
-### Signal-driven dimensions
-Load [_select.md](_select.md) and apply its rules: the backend and frontend always-include sets, the design-work rule (`design-audit` / `design-critique` map to `design/audit.md` / `design/critique.md`), and the signal → dimension table for motion, concurrency, refactors, architecture, data, migrations, privacy, API surface, scale, dependencies, infra, CI, release, logging, observability, cost, docs, style, and developer tooling.
+### Signal-driven rubrics
+Load [_select.md](_select.md) and apply its rules: the backend and frontend always-include sets, the design-work rule (`design-audit` / `design-critique` map to `design/audit.md` / `design/critique.md`), and the signal → rubric table for motion, concurrency, refactors, architecture, data, migrations, privacy, API surface, scale, dependencies, infra, CI, release, logging, observability, cost, docs, style, and developer tooling. Dispatch one reviewer per rubric: a core rubric reads every section; a rubric that only a trigger selected receives `focus:` naming the triggered sections.
 
 ### Selection Constraints
-- **Minimum**: 3 (`correctness` + `security` + `code-simplification`); for lifecycle slugs (`workflow-type: feature`, or unset) `intent-fidelity` is also always-on (per-slice AND slug-wide), so the floor is 4.
-- **Maximum**: 15 — raise only if the change genuinely spans many domains; do not artificially cap thorough coverage
-- **User focus override**: include named dimensions + `correctness` (+ `intent-fidelity` for lifecycle slugs — never suppressed by the focus filter); suppress unrelated commands
-- **Config/docs-only**: drop `correctness`/`backend-concurrency`/`testing`/`code-simplification`; keep `security`, `docs`, relevant infra/release
-- **Test-only**: keep `testing`, `correctness`, `code-simplification`; drop most others
+- **Minimum**: 3 (`correctness` + `security` + `architecture`); for lifecycle slugs (`workflow-type: feature`, or unset) `intent-fidelity` is also always-on (per-slice AND slug-wide), so the floor is 4.
+- **Maximum**: 11 — one reviewer per rubric; a rubric never dispatches twice in one run
+- **User focus override**: include the named rubrics (an alias becomes its rubric with `focus: <alias>`) + `correctness` (+ `intent-fidelity` for lifecycle slugs — never suppressed by the focus filter); suppress unrelated rubrics
+- **Config/docs-only**: drop `correctness`/`architecture`; keep `security`, `docs`, and `infra` (focus ci, release) where relevant
+- **Test-only**: keep `correctness` (focus testing) and `architecture`; drop most others
 - **When in doubt, include**: a false positive costs one sub-agent; a missed issue costs a production incident
 
 Before dispatching, print the `## Review Scope` + `## Commands Selected` block from [_select.md](_select.md) to chat.

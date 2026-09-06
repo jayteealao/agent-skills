@@ -37,11 +37,11 @@ pass** is one wave of them.
   the tier to the host. **low** for mechanical, bounded extraction
   (inventories, structured reads, per-package research) and for rubric-driven
   review dimensions; **medium** for standard research, the judgment-heavy
-  review dimensions (`architecture`, `refactor-safety`, `security`), and fix
+  review rubrics (`architecture`, `security`), and fix
   dispatch; **high** only for judge, verify, and causal-reasoning children. A child must not silently
   inherit an expensive parent configuration for mechanical work.
 - **Waves bounded by the host's concurrency.** Batch a larger fan-out (for
-  example the 35-dimension review `all` aggregate) into waves of at most the
+  example the 11-rubric review `all` aggregate) into waves of at most the
   host's advertised concurrency (default 6): dispatch a wave, collect it, then
   dispatch the next.
 - **Non-interactive runs.** Under a headless run or the auto driver, children

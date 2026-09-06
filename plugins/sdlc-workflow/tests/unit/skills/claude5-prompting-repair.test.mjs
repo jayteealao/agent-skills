@@ -50,10 +50,13 @@ test('W1: auto/implement/retro reference the fragment', () => {
   }
 });
 
-test('W1: logging and observability rubrics carry the evidence non-negotiable', () => {
-  for (const f of ['logging.md', 'observability.md']) {
-    assert.match(read('review', f), /NON-NEGOTIABLES/i, `${f} lacks NON-NEGOTIABLES`);
+test('W1: the observability rubric (logging + observability sections) carries the evidence non-negotiable', () => {
+  // W4 merged logging.md into observability.md as a `### logging` section.
+  const s = read('review', 'observability.md');
+  for (const sec of ['### logging', '### observability']) {
+    assert.ok(s.includes(sec), `observability.md lacks ${sec}`);
   }
+  assert.match(s, /[*][*]Evidence-first[*][*]/, 'observability.md lacks the Evidence-first calibration bullet');
 });
 
 // --- W2: fan-outs on by default, single-writer index ------------------------

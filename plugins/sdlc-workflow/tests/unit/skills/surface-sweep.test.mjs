@@ -93,7 +93,7 @@ test('W1.4 — severity discipline and the growth rule survive', () => {
 
 test('W1.2 — the taxonomy is wired into review dimensions and verify', () => {
   for (const { name, root } of trees) {
-    for (const dim of ['reliability.md', 'correctness.md', 'ux-copy.md']) {
+    for (const dim of ['correctness.md', 'docs.md']) {
       assert.match(ref(root, path.join('review', dim)), /_surface-defects\.md/,
         `${name}: review/${dim} no longer cites the shared taxonomy`);
     }
@@ -249,7 +249,7 @@ test('W4.2 — every not-observable row routes somewhere that exists', () => {
       assert.ok(src.includes(kind), `${name}: not-observable set lost "${kind}"`);
     }
     // The routes it names must resolve to real dimension files.
-    for (const dim of ['backend-concurrency.md', 'scalability.md', 'security.md', 'api-contracts.md']) {
+    for (const dim of ['correctness.md', 'performance.md', 'security.md', 'api-contracts.md']) {
       assert.ok(src.includes(dim), `${name}: not-observable set no longer routes to ${dim}`);
       assert.ok(existsSync(refPath(root, path.join('review', dim))),
         `${name}: not-observable set routes to review/${dim}, which does not exist`);

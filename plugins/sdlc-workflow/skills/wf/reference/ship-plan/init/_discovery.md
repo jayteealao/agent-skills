@@ -56,7 +56,7 @@ Group G — **Repo governance** (collaboration + protection layer):
 - **Branch protection (read-only):** `gh api repos/<owner>/<repo>/branches/<base-branch>/protection 2>/dev/null` and `gh api repos/<owner>/<repo>/rulesets 2>/dev/null` — capture which mechanism is in use plus required checks, approvals, stale-dismissal, admin enforcement, code-owner review, conversation resolution, linear history. If `gh` is unauthenticated or the call 404s, record `none`.
 - **Environments (read-only):** `gh api repos/<owner>/<repo>/environments 2>/dev/null` — capture env names + protection rules (required reviewers, wait timer, branch policy) to seed Block A.
 
-Group H — **Security & supply-chain tooling** (align categories to `../review/supply-chain.md`):
+Group H — **Security & supply-chain tooling** (align categories to `../review/security.md` (`### supply-chain`)):
 - **SAST:** `.github/workflows/codeql*.yml` / `github/codeql-action`, `.semgrep.yml` / `semgrep` in CI, `sonar-project.properties`.
 - **Dependency audit / CVE scan:** `npm audit` / `pnpm audit`, `pip-audit` / `safety`, `cargo audit` / `cargo-deny`, `govulncheck`, `bundler-audit`, `osv-scanner`; Snyk/Dependabot alerts.
 - **Secret scanning:** `.gitleaks.toml` / gitleaks in CI, `trufflehog`, `.secrets.baseline` (detect-secrets), GitHub push protection.

@@ -7,7 +7,8 @@ Load this file from `_stage.md` Step 3 and Step 4c. The first section holds the 
 Substitute the per-slice or slug-wide variant based on the current `review-scope`. Resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against.
 
 ```
-Execute the review command at `<skill-dir>/reference/review/{command-name}.md`.
+Execute the review rubric at `<skill-dir>/reference/review/{command-name}.md`.
+Focus: {the triggered `###` sections, or "all sections" for a core rubric}
 
 Scope:
   - Per-slice mode: `git diff HEAD` (working-tree diff for the current slice)
@@ -16,7 +17,7 @@ Workflow slug: {slug}
 Review scope: {review-scope}                              # per-slice or slug-wide
 Selected slice: {slice or "(none — slug-wide)"}
 
-Read the command file and follow its WORKFLOW exactly. Perform the review for the given scope.
+Read the rubric. When Focus names sections, read those `###` sections of `# What to look for` plus `# Severity calibration`; otherwise read every section. Perform the review for the given scope.
 
 PRE-EXISTING determination (per finding, mandatory): check whether the finding's flagged
 line(s) appear in the workflow diff above. Lines untouched by this workflow's diff →

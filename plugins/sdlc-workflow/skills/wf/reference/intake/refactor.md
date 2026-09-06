@@ -15,7 +15,7 @@ If the dispatcher selected **slug-mode** (the first token after `intake` matched
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
 # Pipeline
-`01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]** → `/wf implement` (→`05`) → `/wf verify` (→`06`) → `/wf review refactor-safety` (→`07`) → `/wf handoff` → `/wf ship` → `/wf retro`
+`01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]** → `/wf implement` (→`05`) → `/wf verify` (→`06`) → `/wf review architecture` (focus refactor-safety, →`07`) → `/wf handoff` → `/wf ship` → `/wf retro`
 
 | | Detail |
 |---|---|
