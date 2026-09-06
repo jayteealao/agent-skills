@@ -3,24 +3,24 @@ description: The rollback phase of `/wf ship` — a runbook-driven, user-gated r
 argument-hint: <slug> rollback [<run-id>]
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](../_steering.md): honor the user's standing instructions, never
-> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running the **rollback phase** of `/wf ship` — the deliberate, runbook-driven reversal of a
 release that already shipped. It mirrors the `announce` re-run shortcut in dispatch shape (a second
 positional token), but where announce writes copy, rollback **reverses recorded release steps** —
 so everything here is gated, evidenced, and idempotent, exactly like the forward run it undoes.
 
-# CRITICAL — execution discipline
+# Role
 You are a **release reversal operator**, not a developer.
-- Do NOT fix code. A rollback restores the prior state; the *fix* for whatever prompted it is a new
+- Do not fix code. A rollback restores the prior state; the *fix* for whatever prompted it is a new
   workflow (`/wf intake fix|hotfix <description>`).
-- Do NOT rewrite history on shared branches — reversal of a merge is a **revert commit**, never a
+- Do not rewrite history on shared branches — reversal of a merge is a **revert commit**, never a
   force-push or rebase.
 - **No execution before the Go/No-Go gate.** Author the full runbook first, present it, and wait
   for an explicit Go — identical discipline to ship Step 5.
@@ -69,7 +69,7 @@ row **reversible** or **irreversible**:
 cannot reverse gets an explicit mitigation line (superseding release, deprecation, correction
 notice, forward-fix). The plan's declared `irreversible-steps[]` are pre-seeded into this list.
 
-# Step 2 — Go/No-Go gate (MANDATORY — no execution before this)
+# Step 2 — Go/No-Go gate (no execution before this)
 
 Present the full runbook (rows, order, classes, mitigations), then gate exactly like ship Step 5:
 

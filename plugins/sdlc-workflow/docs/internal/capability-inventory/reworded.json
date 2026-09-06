@@ -64,5 +64,35 @@
     "category": "stops",
     "from": "if dirty, do not blanket-stop classify every dirty",
     "to": "if dirty, do not stop outright classify every"
+  },
+  {
+    "file": "skills/wf/reference/intake/default.md",
+    "category": "gates",
+    "from": "step 0 orient (mandatory do this before all",
+    "to": "step 0 orient (do this before all other"
+  },
+  {
+    "file": "skills/wf/reference/intake/default.md",
+    "category": "stops",
+    "from": "surface the chosen command verbatim and stop.",
+    "to": "surface the chosen command exactly and stop."
+  },
+  {
+    "file": "skills/wf/reference/intake/refactor.md",
+    "category": "gates",
+    "from": "step 0 orient (mandatory) 1. resolve slug and",
+    "to": "step 0 orient 1. resolve slug and mode"
+  },
+  {
+    "file": "skills/wf/reference/intake/update-deps.md",
+    "category": "gates",
+    "from": "step 6 gate before implement (mandatory) apply the",
+    "to": "step 6 gate before implement apply the gate"
+  },
+  {
+    "file": "skills/wf/reference/simplify.md",
+    "category": "dispatches",
+    "from": "mandatory : dispatch all three sub-agents in one",
+    "to": "dispatch all three sub-agents in one parallel wave"
   }
 ]

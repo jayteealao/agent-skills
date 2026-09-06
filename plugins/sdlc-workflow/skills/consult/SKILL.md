@@ -6,7 +6,7 @@ disable-model-invocation: false
 argument-hint: "[codex|claude|gemini|openai|<provider>/<model>] <question>"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../wf/reference/_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
@@ -64,7 +64,7 @@ fire on them):
 - A short **preamble** for the inferred intent — e.g. *"You are a senior reviewer.
   Give a one-line VERDICT, then the key FINDINGS (most material first), then a
   RECOMMENDATION. Be specific and skeptical."*
-- The **question** verbatim.
+- The **question**, exact.
 - **Evidence handling (important):** the CLI oracles (`codex`, `claude`) run with
   `cwd=repoRoot` and read the live tree themselves — for them, a path/diff
   *pointer* is enough. The REST oracles (`gemini`, `openai`, gateway models) are

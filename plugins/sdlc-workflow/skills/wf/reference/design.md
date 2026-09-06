@@ -3,7 +3,7 @@ description: Design dispatcher for UI/UX transforms + analysis, run as a compres
 argument-hint: "[slug] <audit|critique|extract|setup|teach|animate|bolder|clarify|colorize|delight|distill|harden|layout|onboard|optimize|overdrive|polish|quieter|typeset|adapt> [instructions]"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
@@ -36,7 +36,7 @@ fuzzy** (a wrong guess sends the work down the wrong flow):
 1. **If `.ai/workflows/<token0>/00-index.md` exists** → `token0` is the **slug**; `token1` is
    the `<design-command>`; the rest are instructions. This is the **in-workflow** shape.
 2. **Else** → `token0` is the `<design-command>` (the **no-slug** shape); the rest are
-   instructions. Do NOT treat a non-matching first token as a typo'd slug — for `design` the
+   instructions. Do not treat a non-matching first token as a typo'd slug — for `design` the
    first token is a command, so Step 0.5 fuzzy-suggest in `wf/SKILL.md` is intentionally
    bypassed for this key.
 
@@ -126,7 +126,7 @@ Notes:
 # Step 3 — Load the command reference
 
 Load the reference for the resolved command from
-`design/<command>.md` and follow it verbatim. Do not
+`design/<command>.md` and follow it exactly. Do not
 summarize, paraphrase, or skip. The reference is the authoritative instruction for *what* the
 command does; this dispatcher governs *how far the flow runs* around it.
 
@@ -160,7 +160,7 @@ workflow.
      reference; **registers each as a `design-<sub>` augmentation** in `00-index.md`),
    - `verify` → `06-verify-<slice>.md` (the measurable design floor — a11y/perf/responsive +
      per-augmentation re-checks).
-   - **Do NOT write the contract and stop.** A transform *owns* its downstream flow — there is
+   - **Do not write the contract and stop.** A transform *owns* its downstream flow — there is
      no hand-back to `/wf slice`. Continuing straight through is what fires the slice/plan/
      implement/verify design-consumers; stopping early is the latent contract → implement skip.
 3. Update `00-index.md` `current-stage` as you advance; keep `augmentations:` current.
@@ -208,7 +208,7 @@ behavior with or without a slug.
 
 **Augmentation registration** and the **transformation artifact contract** (`design-notes/<sub-command>-<timestamp>.md`) are in [design/_output.md](design/_output.md). Follow them for every command that writes an artifact.
 
-# Step 6 — Emit Final Summary (MANDATORY)
+# Step 6 — Emit Final Summary
 
 After the flow completes, emit a chat summary as the LAST output before returning control. This
 contract is uniform across every design command and both invocation shapes.

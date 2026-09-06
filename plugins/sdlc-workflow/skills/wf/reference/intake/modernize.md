@@ -1,5 +1,5 @@
 ---
-description: "Modernize mode of intake — backfill an older workflow's artifacts to the schema the installed plugin now expects (charter, intent-risk ledger, wall-ownership and clearing-event fields on deferrals, revision ledgers). Slug-REQUIRED: `/wf intake <existing-slug> modernize`. Additive only: it fills absent fields from what the artifacts already say and NEVER rewrites a recorded decision, verdict, or acceptance criterion. Detected automatically by intake on an existing slug and offered as a first-class option."
+description: "Modernize mode of intake — backfill an older workflow's artifacts to the schema the installed plugin now expects (charter, intent-risk ledger, wall-ownership and clearing-event fields on deferrals, revision ledgers). Slug-REQUIRED: `/wf intake <existing-slug> modernize`. Additive only: it fills absent fields from what the artifacts already say and never rewrites a recorded decision, verdict, or acceptance criterion. Detected automatically by intake on an existing slug and offered as a first-class option."
 argument-hint: <existing-slug> modernize [dry-run]
 ---
 
@@ -48,7 +48,7 @@ plugin wrote them, and marker presence is what the consuming references actually
 
 | Marker | Absent means | Backfill source |
 |---|---|---|
-| `charter:` on the index | charter-fidelity checkpoints never run (`/wf yolo` skips them entirely) | the intake artifact's `## Charter` section, verbatim; if the intake has none, leave absent |
+| `charter:` on the index | charter-fidelity checkpoints never run (`/wf yolo` skips them entirely) | the intake artifact's `## Charter` section, unchanged; if the intake has none, leave absent |
 | `intent-risks:` on the index | the RIM ledger is invisible to shape, verify, status deep, and the mid-build discover checkpoint | shape's recorded risks/assumptions; leave absent when shape recorded none |
 | `wall-ownership:` on each open deferral | the ownership triage is skipped — `code-owned` walls get deferred instead of surfaced | the defer-reason's own words when they clearly name the wall; otherwise **leave absent and list it** as needing a re-triage |
 | `clearing-event:` on each open deferral | the deferral is indefinite by construction and reads as progress forever | the defer-reason when it names a provisionable act; otherwise leave absent and list it |
@@ -56,12 +56,12 @@ plugin wrote them, and marker presence is what the consuming references actually
 | `revisions:` / `revision-count` on revisable artifacts | provenance of past edits is unrecoverable | seed a single `rev: 1` entry with `trigger: manual`, `because: "pre-ledger artifact"` — do **not** reconstruct a history that was never recorded |
 | `slices[].status` on the index | drivers cannot tell a skipped slice from a live one | the per-slice artifacts' own terminal state on disk (the fixed mapping in the cardinal rule) |
 | `evidence-rung:` on user-observable AC rows | the mock-evidence gate cannot fire | the verify artifact's recorded evidence, when it is explicit; otherwise leave absent |
-| `review-scope-confirmed:` / `appetite:` / `stack:` on the index (v9.136 era) | plan reads an absent `review-scope-confirmed` as already-asked and silently skips the confirm; shape/slice/plan lose their appetite scaling; verify STOPs on the missing stack block | `review-scope-confirmed: false` (the honest value — nobody asked); `appetite` from the intake artifact's recorded appetite answer, else leave absent; `stack:` re-detected cheaply per `_change-mode-tail.md`'s stack policy with `user-confirmed: false` (detection is observational — running it now invents nothing) |
+| `review-scope-confirmed:` / `appetite:` / `stack:` on the index | plan reads an absent `review-scope-confirmed` as already-asked and silently skips the confirm; shape/slice/plan lose their appetite scaling; verify STOPs on the missing stack block | `review-scope-confirmed: false` (the honest value — nobody asked); `appetite` from the intake artifact's recorded appetite answer, else leave absent; `stack:` re-detected cheaply per `_change-mode-tail.md`'s stack policy with `user-confirmed: false` (detection is observational — running it now invents nothing) |
 | the slug's row in `.ai/workflows/INDEX.md` | `/wf status` reconcile and the registry-driven modes never see the workflow | append the row from the index's own `slug`/`status`/`workflow-type`/`branch`/`updated-at` (additive bootstrap per `_intake-context.md`) |
 | `needed-by:` / `absorbed-by:` on open deferrals | the deferral never escalates when its due slice completes; inheritance breadth is untracked | the deferral's own recorded prose when it names a due slice or an inheriting slice; otherwise leave absent and list it |
 | decision-lifecycle fields on a terminal analysis index (`chosen-option`/`chosen-route`/`chosen-idea`, closure) — **report-only** | the workflow parks in Active forever with its decision unrecorded | **never backfilled** — a decision nobody recorded is exactly what modernize must not invent. Report the row and name the recording command: `/wf intake investigate <slug> <option>` / `/wf intake rca <slug> <route>` / `/wf intake ideate <slug> <idea-id>` (or `/wf close <slug> <reason>`) |
 
-# Step 1 — Report before writing (MANDATORY)
+# Step 1 — Report before writing
 
 Show the user, before touching anything:
 

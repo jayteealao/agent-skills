@@ -1,6 +1,6 @@
 # Review stage body (slug mode — loaded by `review.md` Step 00)
 
-This file is the **workflow-stage** half of `/wf review`. `review.md` resolved the first token to an existing slug and instructed you to read this file — follow it verbatim. Ad-hoc review (dimension / sweep, no slug) never loads this file.
+This file is the **workflow-stage** half of `/wf review`. `review.md` resolved the first token to an existing slug and instructed you to read this file — follow it exactly. Ad-hoc review (dimension / sweep, no slug) never loads this file.
 
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → `7·review` → 8·handoff → 9·ship → 10·retro
@@ -9,21 +9,21 @@ This file is the **workflow-stage** half of `/wf review`. `review.md` resolved t
 |---|---|
 | Requires (per-slice mode) | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`, `06-verify-<slice-slug>.md` (recommended) |
 | Requires (slug-wide mode) | `02-shape.md`, `03-slice.md`, and at least one `05-implement-<slice>.md`. Reads every present per-slice implement/verify file for context. |
-| Conditional inputs (mandatory when present) | `02b-design.md`, `02c-craft.md`, `04b-instrument.md`, `04c-experiment.md`, `05c-benchmark.md`, `07-design-audit.md`, `07-design-critique.md`, `augmentations:` list in `00-index.md` — every artifact that exists MUST be checked by the relevant review (e.g., 02c-craft.md anti-goals MUST be honored; 04b-instrument.md signals MUST be present; 05c-benchmark.md baseline MUST not regress; every augmentation MUST get a type-specific re-check). |
+| Conditional inputs (mandatory when present) | `02b-design.md`, `02c-craft.md`, `04b-instrument.md`, `04c-experiment.md`, `05c-benchmark.md`, `07-design-audit.md`, `07-design-critique.md`, `augmentations:` list in `00-index.md` — every artifact that exists must be checked by the relevant review (e.g., 02c-craft.md anti-goals must be honored; 04b-instrument.md signals must be present; 05c-benchmark.md baseline must not regress; every augmentation must get a type-specific re-check). |
 | Produces (per-slice mode) | `07-review-<slice-slug>.md` + `07-review-<slice-slug>-<command>.md` per selected command. These are an **accumulating ledger** — a re-run on the same slice MERGES new findings into the existing files (dedupe + resolve-sweep), never overwrites. Running review on a different slice never touches a sibling slice's files. |
 | Produces (slug-wide mode) | `07-review.md` + `07-review-<command>.md` per selected command (single set per workflow). Re-running review **merges into the existing files** (accumulating ledger — new findings deduped + appended in place, cleared findings marked `resolved`; nothing overwritten or deleted). Sibling per-slice review files (if any from prior runs) are left untouched. |
 | Next | `/wf handoff <slug>` (when `verdict: ship`/`ship-with-caveats` and no OPEN blocker findings remain + all slices complete). If OPEN blockers remain: re-invoke `/wf review <slug> [<slice>]` (a normal accumulating re-run that re-checks the fixed code and merges fresh findings), or escalate to `/wf implement <slug> [<slice>] reviews` as a manual escape. Also: `/wf plan <slug> <next-slice>` (if more slices remain), or `/wf intake <slug> from-review` (if the review surfaced new scope — adds net-new slices via extension; a wrong spec becomes a new slice too, since there is no in-place amend). |
 
 > **Auto second opinion (verdict-gated).** After findings are merged and the verdict is derived, **auto-invoke** `/consult codex review <scope>` (pinning `codex`/`claude` keeps it free) whenever `verdict: ship-with-caveats` — the caveat verdict *is* the trigger, so fire it rather than listing it in next-steps. Also fire when a blocker finding was fixed in-loop this run and the re-check verdict flipped to ship. Skip only a clean `ship` with no fixed-in-loop findings, or an obvious block. The user may invoke it with any provider.
 
-# CRITICAL — execution discipline
+# Role
 You are a **review dispatch orchestrator that owns an accumulating findings ledger and its own triage→fix loop**.
-- Do NOT run reviews yourself — **select review commands and dispatch sub-agents**. Each sub-agent runs one command independently and reports findings.
+- Do not run reviews yourself — **select review commands and dispatch sub-agents**. Each sub-agent runs one command independently and reports findings.
 - The review artifacts **accumulate across invocations**. Before writing, READ the existing `07-review[-<slice>].md` + per-command files (if present) and **MERGE** this run's findings. The merge law — stable IDs, `surfaced-at` preservation, resolve-sweep, `runs:` append — is single-sourced in [_findings-ledger.md](../_findings-ledger.md); apply it, never restate it. Never overwrite or delete a prior finding.
-- Do NOT improvise fixes while sub-agents are running. The fix loop runs only at Step 4c, AFTER aggregation and AFTER user triage at Step 4b.
+- Do not improvise fixes while sub-agents are running. The fix loop runs only at Step 4c, AFTER aggregation and AFTER user triage at Step 4b.
 - At Step 4c: every finding marked `Fix` at Step 4b spawns a fix sub-agent that applies the minimal patch. After all fix sub-agents return, record each outcome **onto its finding** (`status: fixed` / `could-not-fix` + `fixed-at`) and refresh `## Fix Status`.
 - Do not auto-loop **within this invocation**: dispatch fix sub-agents once, record outcomes, stop. A further pass is a fresh `/wf review` that merges into the same ledger. **No round counter and no `convergence` state.** Verify-after-fixes requires the user to re-invoke `/wf verify`.
-- Do NOT handoff or ship — those are later stages.
+- Do not handoff or ship — those are later stages.
 - Your job: **orient → read existing ledger → gather change stats → select commands → dispatch review sub-agents → merge + dedupe + resolve-sweep → triage → dispatch fix sub-agents → record outcomes → write merged verdict + Fix Status**.
 - Order matters only where the ledger does: merge before triage, triage before the fix loop, outcomes recorded before the verdict. Reading and dispatch may interleave freely.
 - If you catch yourself reviewing code directly, STOP — spawn a sub-agent. If you catch yourself fixing code outside Step 4c, STOP — the fix loop only runs at Step 4c.
@@ -38,12 +38,12 @@ If the second argument is `triage` (e.g., `/wf review my-feature triage`), skip 
 2. **Read the target review file** — parse `## Triage Decisions`. Collect findings with `status: deferred` or `open`. Findings already `resolved`/`fixed`/`dismissed` are not re-presented unless the user names them.
 3. **If no findings to triage** → print "No deferred or untriaged findings. Run `/wf review <slug> [<slice>]` for a full review." and STOP.
 4. **Present for triage as a gate question per [_gate-question.md](../_gate-question.md)** — same protocol as Step 4b, but show only `deferred` and `open` findings. A `Fix` decision here may also run the Step 4c fix loop.
-5. **Edit the target review file in place** — update `## Triage Decisions` rows for re-triaged findings only; set each finding's `status` in `## All Findings`, `## Findings (Detailed)`, and the sibling `.yaml`; update `## Recommendations` counts. Preserve every other section verbatim. Do NOT overwrite the file.
+5. **Edit the target review file in place** — update `## Triage Decisions` rows for re-triaged findings only; set each finding's `status` in `## All Findings`, `## Findings (Detailed)`, and the sibling `.yaml`; update `## Recommendations` counts. Preserve every other section unchanged. Do not overwrite the file.
 6. **Print summary** — show fix/defer/dismiss counts and list findings newly marked for fixing.
 
 Then STOP — do not continue to the full review workflow.
 
-# Step 0 — Orient (MANDATORY — do this before all other steps)
+# Step 0 — Orient (do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector** (per-slice mode only; ignored in slug-wide mode). If no slug given, infer from `.ai/workflows/*/00-index.md`. If ambiguous, ask.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, **`review-scope`**.
 3. **Resolve `review-scope`** from `00-index.md`. Default: `per-slice`.
@@ -72,7 +72,7 @@ Then STOP — do not continue to the full review workflow.
    - At least one `05-implement-<slice-slug>.md` must exist. If `03-slice.md` lists slices with `status: complete` but only some have implement records, WARN: "Slug-wide review covers the entire branch diff. Slices without implement records: <list>. Their code may appear in the diff; their ACs will not be checked."
    - Any `06-verify-*.md` files are read for context but never block.
    - **Adoption-matrix reconciliation (mechanical pass over shape).** If `02-shape.md` carries an adoption matrix (the table of dependencies/libraries with a `USE`/`AVOID`/etc. decision per row), reconcile every `USE` row against the branch diff: each must cite at least one production usage site — a real import/call in shipped code. A `USE` row with zero usage (installed, never wired in) becomes a finding, severity **MED**, titled "committed and abandoned" (installed, zero usage) and routed through the normal ledger. This is a mechanical check, not a judgment call: no production import/call for a `USE` dependency ⇒ finding.
-   - **Success-Criteria re-basing (MANDATORY, slug-wide milestone check).** The slug-wide review MUST answer the intake's **Success Criteria verbatim** — quote each criterion from `01-intake.md`, state its current truth against the branch diff with concrete evidence (`file:line`, a passing test, or an observed run), and **never paraphrase** the criterion. This is the milestone the per-slice reviews structurally cannot judge: a branch can pass every per-slice gate and still miss the intake's headline outcome. Route each unmet or only-partially-met criterion through the normal ledger (via the `intent-fidelity` dimension). Additive: when `03-slice.md` marks a slice as a **visible milestone**, the same verbatim Success-Criteria check also runs once at that slice's per-slice review.
+   - **Success-Criteria re-basing (mandatory, slug-wide milestone check).** The slug-wide review must answer the intake's **Success Criteria exactly** — quote each criterion from `01-intake.md`, state its current truth against the branch diff with concrete evidence (`file:line`, a passing test, or an observed run), and **never paraphrase** the criterion. This is the milestone the per-slice reviews structurally cannot judge: a branch can pass every per-slice gate and still miss the intake's headline outcome. Route each unmet or only-partially-met criterion through the normal ledger (via the `intent-fidelity` dimension). Additive: when `03-slice.md` marks a slice as a **visible milestone**, the same exact Success-Criteria check also runs once at that slice's per-slice review.
    - If `07-review.md` already exists → this run **merges** into it. Read it now (with its sibling `.yaml`) for dedupe + resolve-sweep at Step 4; nothing is overwritten. Prior per-slice `07-review-<slice>.md` files are left untouched.
 6. **Read the full context** — load [_context.md](_context.md) item 6 and read every artifact it lists for the current `review-scope` (slice definition, plan, implement, verify, `02-shape.md`, `03-slice.md`, `po-answers.md`).
 7. **Read augmentation context** — load [_context.md](_context.md) item 7: the `augmentations:` list in `00-index.md` with its per-type reads (`07-design-audit.md`, `07-design-critique.md`, `04b-instrument.md`, `04c-experiment.md`, `05c-benchmark.md`), `02b-design.md` and `02c-craft.md` (mandatory when present), and the verify cross-reads that auto-promote to BLOCKER / HIGH / WARN findings.
@@ -138,7 +138,7 @@ Before dispatching, print the `## Review Scope` + `## Commands Selected` block f
 
 For EACH selected command, dispatch ONE sub-agent at **medium** effort per [_subagents.md](../_subagents.md). Set the tier explicitly — a reviewer must not inherit the parent configuration (per [_fix-loop.md](../_fix-loop.md) rule 3). All agents run in parallel, in waves of ≤6 when more dimensions are selected. Synthesis (Step 4 — aggregation, dedup, triage) stays with the coordinator.
 
-**Each sub-agent receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`; resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against): load [_dispatch.md](_dispatch.md) and send its fenced prompt verbatim. The prompt carries the pre-existing determination, the accumulate-never-overwrite merge law, the target path (`07-review-{slice-slug}-{command-name}.md` per-slice, `07-review-{command-name}.md` slug-wide), the `type: review-command` output contract, and the sibling `.yaml` + `.html.fragment` duty.
+**Each sub-agent receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`; resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against): load [_dispatch.md](_dispatch.md) and send its fenced prompt unchanged. The prompt carries the pre-existing determination, the accumulate-never-overwrite merge law, the target path (`07-review-{slice-slug}-{command-name}.md` per-slice, `07-review-{command-name}.md` slug-wide), the `type: review-command` output contract, and the sibling `.yaml` + `.html.fragment` duty.
 
 Wait for ALL sub-agents to complete before proceeding.
 
@@ -211,11 +211,11 @@ Write (merge into) the master artifact. Filename depends on `review-scope`: **pe
 
 When the file already exists, **edit in place** — preserve sections not changing (especially `## Triage Decisions` rows not re-triaged), update finding rows by ID, append net-new findings in severity-sorted position, mark resolved findings, and **append one entry to `runs:`**. Never overwrite the file wholesale.
 
-# Step 5b: Write the rich fragment (MANDATORY — do not skip)
+# Step 5b: Write the rich fragment (do not skip)
 
 For each review `.md` written, write the sibling `<stem>.yaml` (`siblingYamlSchemas.review`; `findings:` and `counts:` = OPEN findings only; bump `rev:` each run) and `<stem>.html.fragment` (`fragment-review`, body-only, deterministic from the `.yaml`) per [_artifact.md](_artifact.md) Step 5b. Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) **BLOCKS the `.md` write when the sibling `.yaml` is missing** — author the `.yaml` first (or in the same turn) while findings are in context.
 
-# Step 5c: Write per-dimension rich fragments (MANDATORY — do not skip)
+# Step 5c: Write per-dimension rich fragments (do not skip)
 
 Each per-dimension file (`07-review-<command>.md` slug-wide, `07-review-<slice-slug>-<command>.md` per-slice) needs its own `<stem>.yaml` (`siblingYamlSchemas.review-dimension`) and `<stem>.html.fragment` (`fragment-review-dimension`). The Step-3 review sub-agent authors them; confirm every per-dimension `.md` has its `.yaml` (or `fragment: none` for a clean dimension) and author any the sub-agent missed, per [_artifact.md](_artifact.md) Step 5c.
 

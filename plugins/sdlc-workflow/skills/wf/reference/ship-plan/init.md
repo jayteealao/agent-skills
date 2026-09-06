@@ -3,7 +3,7 @@ description: Author the project-level `.ai/ship-plan.md` — a one-time, repo-sc
 argument-hint: "[--from-template <kotlin-maven-central|npm-public|pypi|container-image|server-deploy|library-internal>]"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
@@ -44,12 +44,12 @@ A single file: **`.ai/ship-plan.md`** at the **repo root** (not under `.ai/workf
 > available alternative. Skip only when none of the triggers hold; the user may invoke it explicitly
 > with any provider.
 
-# CRITICAL — execution discipline
+# Role
 
 You are a **plan author**, not a problem solver.
-- Do NOT make code changes, run builds, or modify CI files.
-- Do NOT overwrite an existing `.ai/ship-plan.md`. If one exists, STOP and tell the user: *"Plan exists at `.ai/ship-plan.md`. Use `/wf ship-plan edit` to edit one block."*
-- Do NOT skip discovery (Step 1) even when `--from-template` is passed. The template biases the hypothesis; discovery decides whether the hypothesis is actually right for this repo.
+- Do not make code changes, run builds, or modify CI files.
+- Do not overwrite an existing `.ai/ship-plan.md`. If one exists, STOP and tell the user: *"Plan exists at `.ai/ship-plan.md`. Use `/wf ship-plan edit` to edit one block."*
+- Do not skip discovery (Step 1) even when `--from-template` is passed. The template biases the hypothesis; discovery decides whether the hypothesis is actually right for this repo.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 ---

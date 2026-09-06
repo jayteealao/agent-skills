@@ -27,14 +27,14 @@ You are running `/wf intake adopt`, the **reverse-entry** mode. Where `fix`/`hot
 | Next | `/wf verify <slug>` — the standard verification chain takes over from stage 6. |
 | Branch | Adopt **records** the current branch in `00-index.md`; it never creates or switches branches. The work already lives somewhere. |
 
-# CRITICAL — scope discipline
+# Scope discipline
 You are a **reconstruction orchestrator**, not a coder and not a shaper inventing new scope.
 - Infer scope from *what the diff actually does*, never from what it *could* have done. Scope-in is exactly the changed surface; scope-out is explicitly everything else.
 - **Constraint forethought still applies (W2d).** An adopted AC with an environment dependency on its critical path is NOT exempt just because the code exists — resolve it to a prerequisite slice, a proxy AC + named clearing event, or explicit PO risk-acceptance, exactly as a forward plan would. Adopted work does not get to skip verification engineering.
 - Ask at most **2 questions** in chat during reconstruction, plus the mandatory confirmation gate. No separate `po-answers.md` — answers go inline into `01-adopt.md`.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
-# Step 0 — Orient (MANDATORY — before anything else)
+# Step 0 — Orient (before anything else)
 
 1. **Derive the slug:** `adopt-<short-description>` (kebab-case, max 5 words) from the optional `[description]` argument; with no argument, derive it from the dominant concern of the diff after Step A0 collects it (defer the final slug until then, but resolve the collision check before any write).
 2. **Collision check:** apply the collision check in `_change-mode-tail.md`.
@@ -42,7 +42,7 @@ You are a **reconstruction orchestrator**, not a coder and not a shaper inventin
 4. **Provenance check:** apply `_intake-provenance.md` — the investigated-then-patched path is adopt's most common lineage. On an explicit `from <source-slug>` token (or an exact investigate/ideate label match), consume the Consume-table row: the chosen option card seeds `## Restated Intent` and the AC derivation, and the link-back records `origin-<type>` here and `superseded-by` on the source. No match → continue.
 5. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, write the block with `user-confirmed: false` (adopt rides verify's caveat path; its two questions are spent on reconstruction).
 
-# Step A0 — Gather the adoptable surface (MANDATORY)
+# Step A0 — Gather the adoptable surface
 
 1. **Resolve the base branch.** Use the same resolution the review stage uses: the tracked upstream of the current branch if set, else the repo default (`main`/`master`). Record it as `<base>`.
 2. **Collect the surface** with the shell (use real output, never guess). The adoptable surface is one defined union:
@@ -50,7 +50,7 @@ You are a **reconstruction orchestrator**, not a coder and not a shaper inventin
    - staged: `git diff --cached`;
    - unstaged: `git diff`;
    - untracked: every path from `git status --porcelain` (`??` rows), each **enumerated explicitly and read in full** — never summarized as "notable ones".
-   Exclusions: paths under `.ai/**` and `.scratch/**` are NEVER part of the adoptable surface — workflow artifacts and scratch reads are records *about* work, not product changes (and may belong to another session).
+   Exclusions: paths under `.ai/**` and `.scratch/**` are never part of the adoptable surface — workflow artifacts and scratch reads are records *about* work, not product changes (and may belong to another session).
 3. **Refuse when there is nothing to adopt.** If the surface union is empty (clean tree AND zero commits ahead of `<base>`) → STOP with:
    > *"Nothing to adopt — the working tree matches `<base>` and no unmerged commits are ahead. Use `/wf intake <description>` to start new work, or make the change first and re-run adopt."*
 4. **Refuse fully-published work — decidably.** `git fetch <remote>` first (skip on network failure with a one-line note), then check every commit ahead of `<base>` with `git branch -r --contains <sha>`: if **every** ahead-SHA is contained in the remote base branch AND the local diff (staged + unstaged + untracked) is empty → STOP: adoption's quality tail has nothing to gate; recommend `/wf intake <slug> <scope>` extension or a fresh workflow instead.
@@ -82,7 +82,7 @@ Prompt with:
 - **Acceptance criteria** — derived from the *observed behavior* of the change, each objectively verifiable, authored under the verifiability-first rules (an AC verify cannot evidence is a defect in the AC, not a fact to accept). Apply W2d to any AC with an environment dependency.
 - **Slice split** — a **single slice by default** (the workflow slug doubles as the one slice's `slice-slug`). Split into >1 slice **only** when sub-agent 1 reported clearly-separable concerns (disjoint file sets AND independently revertable); when in doubt, one slice.
 
-# Step 2 — Confirmation gate (MANDATORY — before any artifact is written)
+# Step 2 — Confirmation gate (before any artifact is written)
 
 Inference from a diff can be wrong, and a wrong adopted shape poisons every downstream stage. **Before writing any file**, present the inferred shape and confirm as a gate question per [_gate-question.md](../_gate-question.md):
 

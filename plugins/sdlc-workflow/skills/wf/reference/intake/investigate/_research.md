@@ -1,6 +1,6 @@
 # Investigate research charters (Step 2 of `intake/investigate.md`)
 
-Step 2 of `/wf intake investigate` dispatches the three sub-agents below in two waves: the cartographer and the option generator in parallel, then the tradeoff characterizer after both return. Every dispatch is read-only. The effort rubric named below is the one in `intake/investigate.md` (`# Effort rubric`); pass it word for word into any prompt that needs it.
+Step 2 of `/wf intake investigate` dispatches the three sub-agents below in two waves: the cartographer and the option generator in parallel, then the tradeoff characterizer after both return. Every dispatch is read-only. The effort rubric named below is the one in `intake/investigate.md` (`# Effort rubric`); pass it unchanged into any prompt that needs it.
 
 **Effort tier for every dispatched agent:** **medium** (per [_subagents.md](../../_subagents.md)). REQUIRED on every dispatch. Investigation is judgment-heavy: the Cartographer must surface non-obvious architectural constraints, the Option generator must trade off across the design space, the Tradeoff characterizer must reason about effort/risk/blast-radius. Low effort underserves the abstraction-critique work; high is overkill since each agent still runs against a bounded scope.
 
@@ -9,7 +9,7 @@ Step 2 of `/wf intake investigate` dispatches the three sub-agents below in two 
 ### research sub-agent 1 — Architecture cartographer
 
 Prompt with ALL of the following:
-- The problem: `<word for word from Step 1>`. The starting area: `<from question 2>`. The constraints: `<from question 3>`.
+- The problem: `<exact text from Step 1>`. The starting area: `<from question 2>`. The constraints: `<from question 3>`.
 - Your job is to **map the relevant code area** so options can be grounded. Do not propose solutions; that is sub-agent 2. Produce a faithful map.
 - Identify: entry points into the area, the call graph from those entry points 2–3 levels deep, the data model touched by the area, integration boundaries (DB, external services, message queues), existing tests that cover this area, configuration/feature flags that change behavior in this area, recent churn (`git log --oneline --since="90 days ago" -- <area>`).
 - Identify **constraints encoded in the architecture itself**: patterns that any option would need to respect (existing abstractions, dependency-injection wiring, error-handling style, transaction boundaries, async boundaries). These constraints are usually invisible until you try to violate them.
@@ -27,7 +27,7 @@ Return as structured text:
 ### research sub-agent 2 — Option generator
 
 Prompt with ALL of the following:
-- The problem: `<word for word>`. The starting area: `<from question 2>`. The constraints: `<from question 3>`.
+- The problem: `<exact text>`. The starting area: `<from question 2>`. The constraints: `<from question 3>`.
 - Your job is to enumerate **every genuinely distinct engineering approach** that could solve the problem within the current architecture (or, if you must violate it, name the violation explicitly as part of the option). The distinctness requirement below is the only ceiling; typically 2–5 mechanisms exist. Report exactly as many as you find: do not stop at 3 because it feels complete, and do not pad with a near-duplicate to reach a count. Selection for presentation happens at synthesis, not here.
 - Distinctness requirement: options must differ in *mechanism*, not just in surface choices. "Cache at layer X" vs. "cache at layer Y" is one option, not two, unless the layers materially change correctness or operational profile. "Add a cache" vs. "denormalize the data model" vs. "compute lazily on demand" are three distinct options.
 - For each option, do a light read of the affected area to confirm it is at least plausible (no obvious blocker like "this code path is generated and cannot be edited").
@@ -43,10 +43,10 @@ Return as structured text:
 ### research sub-agent 3 — Tradeoff characterizer
 
 Prompt with ALL of the following:
-- The problem: `<word for word>`. The starting area: `<from question 2>`. The constraints: `<from question 3>`.
-- Sub-agent 2's full `options` list, word for word.
-- Sub-agent 1's `architectural_constraints` and `integration_boundaries`, word for word. Judge each option against the mapped architecture, and flag any option that collides with a constraint or boundary.
-- The effort rubric (from `# Effort rubric`), word for word.
+- The problem: `<exact text>`. The starting area: `<from question 2>`. The constraints: `<from question 3>`.
+- Sub-agent 2's full `options` list, unchanged.
+- Sub-agent 1's `architectural_constraints` and `integration_boundaries`, unchanged. Judge each option against the mapped architecture, and flag any option that collides with a constraint or boundary.
+- The effort rubric (from `# Effort rubric`), unchanged.
 - For each option, however many sub-agent 2 returned, including any beyond three, characterize:
   - **Effort:** small | medium | large, per the effort rubric.
   - **Blast radius:** narrow (one module, one code path), moderate (one subsystem, several code paths), wide (cross-cutting, multiple subsystems).

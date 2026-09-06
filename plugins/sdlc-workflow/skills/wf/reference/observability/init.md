@@ -3,7 +3,7 @@ description: Author the project-level `.ai/observability.md` — a one-time, rep
 argument-hint: ""
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
@@ -66,13 +66,13 @@ per-project, not per-workflow. Its sibling audit ledger is `.ai/observability-au
 > conflicts with the deploy target read from `.ai/ship-plan.md`. Skip only when none of the
 > triggers hold; the user may invoke it explicitly with any provider.
 
-# CRITICAL — execution discipline
+# Role
 
 You are a **contract author**, not an implementer.
-- Do NOT write code, emit config, or provision anything.
-- Do NOT overwrite an existing `.ai/observability.md`. If one exists, STOP: *"Observability contract exists at
+- Do not write code, emit config, or provision anything.
+- Do not overwrite an existing `.ai/observability.md`. If one exists, STOP: *"Observability contract exists at
   `.ai/observability.md`. Amend it by hand, then re-run `/wf observability build` or `/wf observability audit`."*
-- Do NOT skip discovery (Step 1) — the whole point is to prescribe *against the real stack*, not a template.
+- Do not skip discovery (Step 1) — the whole point is to prescribe *against the real stack*, not a template.
 
 ---
 

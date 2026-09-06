@@ -26,22 +26,22 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | Next | `/wf implement <slug>` — standard execution; `07-review` defaults to **`security`**. |
 | Escalate | If the fix needs >3 files / >~50 lines / architectural change, the tripwire fires — record it per `_change-mode-tail.md` and offer the gate's *Escalate*, which closes this slug and restarts as `/wf intake "<description>" from <slug>`. |
 
-# CRITICAL — scope lock
+# Scope lock
 You are a **hotfix orchestrator**. This is not a feature workflow.
 - The **only** acceptable output is the minimum change that stops the incident.
-- **ZERO tolerance for scope creep.** Do NOT refactor, clean up, or improve code that is not the direct cause. Do not touch anything outside the identified root cause without explicit user approval.
+- **ZERO tolerance for scope creep.** Do not refactor, clean up, or improve code that is not the direct cause. Do not touch anything outside the identified root cause without explicit user approval.
 - Ask at most **3 questions**. No separate `po-answers.md` — answers go inline into `01-hotfix.md`.
 - The lifecycle skips no *stage* — but each is single-pass and incident-scoped. The hotfix tripwires are: >3 files · >~50 lines · any architectural change. A breach is recorded per `_change-mode-tail.md` (never a refusal) and surfaces the gate's *Escalate*.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
-# Step 0 — Orient (MANDATORY)
+# Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: hotfix` → **resume mode**. Read that index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `hf-*.md` files — re-author them as the standard set if continuing.)
    - Otherwise → **new hotfix**. Derive a slug: `hotfix-<short-description>` (kebab-case, max 5 words, e.g., `hotfix-auth-token-expiry`).
 2. **Collision check:** apply the collision check in `_change-mode-tail.md`.
 3. **Provenance check:** apply `_intake-provenance.md` — an rca frequently routes its critical cases here. On an explicit `from <rca-slug>` token, consume the rca Consume-table row (root cause seeds `## Diagnosis`, section 8 verification seeds the acceptance criteria, blast radius seeds scope — Step 2's sub-agents then re-verify instead of re-deriving) and link back. No match → continue.
 4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, write the block with `user-confirmed: false`, and spend no question on it (verify's caveat path carries it).
-5. **Branch check (MANDATORY):**
+5. **Branch check:**
    - Check current branch: `git branch --show-current`.
    - Identify the production/default branch **offline first**: `git symbolic-ref refs/remotes/origin/HEAD` (no network — mid-incident the network may be part of the incident). If unset, fall back to `git remote show origin | grep 'HEAD branch'`, then to `main`/`master` whichever exists locally.
    - A hotfix ALWAYS branches from the production/default branch: `git checkout -b hotfix/<slug> <production-branch>`.
@@ -72,7 +72,7 @@ next-command: wf-shape
 next-invocation: "/wf shape <slug>"
 ---
 ```
-Body: open with `## The Hotfix` — the story section (MUST follow `../_story-arc.md`; 1–2 short paragraphs — the problem inherited, the decisions with reasons, the top open risk; no "This hotfix implements…" opening) — then `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Acceptance Criteria` (≤2, each objectively verifiable; embed any inline question answers as italic notes — verify and review read the criteria from this lead, so a hotfix without them cannot pass its own quality tail; the incident is over when these are observably true, e.g. "checkout returns 200 for the repro request" + "no new occurrences of the error signature for 30 minutes"), `## Recent Changes` (or "none known"). The `## Diagnosis` section is appended after Step 2.
+Body: open with `## The Hotfix` — the story section (must follow `../_story-arc.md`; 1–2 short paragraphs — the problem inherited, the decisions with reasons, the top open risk; no "This hotfix implements…" opening) — then `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Acceptance Criteria` (≤2, each objectively verifiable; embed any inline question answers as italic notes — verify and review read the criteria from this lead, so a hotfix without them cannot pass its own quality tail; the incident is over when these are observably true, e.g. "checkout returns 200 for the repro request" + "no new occurrences of the error signature for 30 minutes"), `## Recent Changes` (or "none known"). The `## Diagnosis` section is appended after Step 2.
 
 # Step 2 — Diagnose → `02-shape.md`
 Launch parallel sub-agents to identify root cause. Do not proceed until both complete.
@@ -168,7 +168,7 @@ Author free narrative fragments for any artifact per the narrative-fragment tier
 # Step 5 — Write `00-index.md` (conformant `type: index`)
 Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `hotfix` column values (branch `hotfix/<slug>` off the production branch; `stack.user-confirmed: false` per the stack policy). **Seed `intent-risks` from `## Impact`:** write two entries (`id: RIM-1`/`RIM-2`, `severity` from the incident severity, `status: open`) — one for the incident's user/data impact, one for the blast-radius or data-remediation risk — so handoff/ship must adjudicate the incident severity instead of inheriting a hardcoded-empty list. Then register the slug in `.ai/workflows/INDEX.md` per the tail.
 
-# Step 6 — Gate before implement (MANDATORY)
+# Step 6 — Gate before implement
 Apply the gate per `_intake-context.md` and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — decision recorded in `01-hotfix.md` on every branch; Escalate closes this slug and prints `/wf intake "<description>" from <slug>`. Given incident pressure you MAY auto-proceed when the fix is clearly minimal (≤3 files, root cause confidence high, no data risk).
 
 # Step 7 — Hand off to the standard chain

@@ -7,10 +7,10 @@
 Merge findings from the sub-agents. **Do not invent root causes the agents did not surface.** If the agents disagree or returned low confidence, the RCA records that; uncertainty is data.
 
 ### The RCA
-<!-- STORY SECTION — first, and self-sufficient. MUST follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language MUST follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. must follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
 
 ### 1. Symptom
-The user-reported issue, word for word where possible. ≤3 sentences. Cite the original error message or stack trace if provided.
+The user-reported issue, exact where possible. ≤3 sentences. Cite the original error message or stack trace if provided.
 
 ### 2. Scope
 - **Who is affected:** all users / cohort / specific account / specific environment.

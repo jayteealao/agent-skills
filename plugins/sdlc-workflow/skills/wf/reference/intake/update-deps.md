@@ -29,7 +29,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | `--audit-only` | Run scan + research + plan only — STOP at the gate after `04-plan`, do not implement. The lawful terminus is `/wf close <slug> deferred` (see Step 6). |
 | Exception | update-deps is the one change-mode that **self-authors `05`/`06`** (tier-ordered exec is specialized). `/wf implement` and `/wf verify` redirect it back here; only `/wf review` accepts it. |
 
-# CRITICAL — execution discipline
+# Role
 You are a **dependency update orchestrator**.
 - Do not make application code changes beyond what a dependency update forces (e.g., API changes from a major bump).
 - Do not edit lock files manually — always use the package manager's own commands (`npm update`, `pip install --upgrade`, `go get`, `cargo update`, …).
@@ -37,7 +37,7 @@ You are a **dependency update orchestrator**.
 - If an update causes non-trivial test failures → mark that package `blocked` and continue. Surface the blocker; do not fix application code to force tests green.
 - The lifecycle skips no *stage* — each is single-pass. Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
-# Step 0 — Orient (MANDATORY)
+# Step 0 — Orient
 1. **Parse arguments** from `$ARGUMENTS`: no arg → `mode: all`; a bare token that exactly matches an existing `workflow-type: update-deps` slug on disk → **resume that run** (this check runs before the package-name reading — a slug is not a package); any other bare token → `mode: single`, `target-package`; `--security-only` → `mode: security-only`; `--audit-only` → `mode: audit-only` (stop at the gate after `04-plan`).
 2. **Resolve slug / resume:** new run → slug `update-deps-<YYYYMMDD>` (the date-only row of [_timestamp.md](../_timestamp.md), dashes removed). If `.ai/workflows/<slug>/00-index.md` exists with `workflow-type: update-deps` → resume from the first unwritten artifact. (Legacy `.ai/dep-updates/<run-id>/` runs still validate + render via fallback; new runs are in-slug.) Apply the collision check in `_change-mode-tail.md` if the slug exists with a different type.
 3. **Prior-run provenance:** apply `_intake-provenance.md` (update-deps row). Scan `.ai/workflows/INDEX.md` for the most recent prior `workflow-type: update-deps` run; when one exists, read its `02-shape.md` Hold tier and `05-implement.md` Blocked list and seed this run's Step 2 research from them — re-check each recorded revisit condition instead of cold-re-deriving last month's Hold research. Record `origin-update-deps: <prior-slug>` on the index when consumed.
@@ -68,7 +68,7 @@ next-command: wf-shape
 next-invocation: "/wf shape <slug>"
 ---
 ```
-Body: open with `## The Dependency Update` — the story section (MUST follow `../_story-arc.md`; 1–2 short paragraphs — the problem inherited, the decisions with reasons, the top open risk; no "This dependency update implements…" opening) — then `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (count only).
+Body: open with `## The Dependency Update` — the story section (must follow `../_story-arc.md`; 1–2 short paragraphs — the problem inherited, the decisions with reasons, the top open risk; no "This dependency update implements…" opening) — then `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (count only).
 
 # Step 2 — Research + prioritize → `02-shape.md`
 For each package that needs updating, launch parallel web-research sub-agents in batches of 3–5.
@@ -104,7 +104,7 @@ next-command: wf-slice
 next-invocation: "/wf slice <slug>"
 ---
 ```
-Body: one `## <package>` section each (current/latest, CVEs, breaking changes, migration steps, recommendation, reason, **`changelog-source:` URL(s) + `changelog-read-through:` the highest version whose notes were read, or `unverified`**), then `## Priority Groups` (the four tiers with their packages), then `## In Scope` / `## Out of Scope` (the Hold tier). **Every P1 (major+migration) package's migration steps MUST cite the changelog source they derive from** — an uncited P1 migration is not plan-ready and drops to `Hold: changelog unverified`.
+Body: one `## <package>` section each (current/latest, CVEs, breaking changes, migration steps, recommendation, reason, **`changelog-source:` URL(s) + `changelog-read-through:` the highest version whose notes were read, or `unverified`**), then `## Priority Groups` (the four tiers with their packages), then `## In Scope` / `## Out of Scope` (the Hold tier). **Every P1 (major+migration) package's migration steps must cite the changelog source they derive from** — an uncited P1 migration is not plan-ready and drops to `Hold: changelog unverified`.
 
 # Step 3 — Slice → `03-slice.md` (`type: slice-index`, one slice)
 ```yaml
@@ -165,7 +165,7 @@ Author free narrative fragments for any artifact per the narrative-fragment tier
 # Step 5 — Write `00-index.md` (conformant `type: index`)
 Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `update-deps` column values (`mode: <all|single|security-only|audit-only>` mirrored onto the index frontmatter as an extra key; `origin-update-deps` when Step 0 consumed a prior run; `stack.user-confirmed: false`). Then register the slug in `.ai/workflows/INDEX.md` per the tail.
 
-# Step 6 — Gate before implement (MANDATORY)
+# Step 6 — Gate before implement
 Apply the gate per `_intake-context.md` and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — for update-deps ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)) with the tier-aware options:
 ```
 question: "Dependency update plan ready. P0: <N> security · P1: <N> major · P2: <N> safe · Hold: <N>. Proceed?"

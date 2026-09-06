@@ -82,7 +82,7 @@ Never converge on the same choices across projects. Vary.
 ### Motion & interface detail
 - Motion craft lives in `animate.md`: the frequency framework (match motion to how often it's seen; never animate keyboard / 100+-per-day actions), strong custom easing (never `ease-in` on an entrance), sub-300ms product UI, origin-aware popovers, never `scale(0)`, interruptible transitions/springs, GPU-only (`transform`/`opacity`), `bounce: 0` for product.
 - Interface-detail craft lives in `polish.md`: concentric radius (`outer = inner + padding`), optical alignment, shadows-over-borders for elevation, pure-black/white image outlines, ≥40–44px hit areas.
-- These two files are the single source of truth for craft — the summary above is a pointer, not the canon itself. `plan`, `implement`, and every design transform that touches motion or component detail MUST load the relevant home (`animate.md` / `polish.md`) for the full rules before deciding; the visual contract (`02c-craft.md`, authored at `plan`) draws from them too.
+- These two files are the single source of truth for craft — the summary above is a pointer, not the canon itself. `plan`, `implement`, and every design transform that touches motion or component detail must load the relevant home (`animate.md` / `polish.md`) for the full rules before deciding; the visual contract (`02c-craft.md`, authored at `plan`) draws from them too.
 - Building a *reusable* component (a design-system primitive or library, not a one-off screen)? See `_component-craft.md` — DX-first API, excellent defaults, memorable naming, a touchable example.
 
 ## Absolute bans (both registers)
@@ -153,4 +153,4 @@ fingerprint from `00-index.md` for framework/library facts where it already answ
 - **Context** — `setup`, `teach`. PRODUCT.md / DESIGN.md only; allowed unconditionally.
 - **Read-only** — `extract`. Produces a report; no project files modified.
 
-Do NOT edit any file until the appropriate mutation gate is open.
+Do not edit any file until the appropriate mutation gate is open.

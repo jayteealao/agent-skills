@@ -29,7 +29,7 @@ For each change in scope:
 3. **Flag any inline logic that could use an existing utility** — hand-rolled string manipulation, manual path handling, custom environment checks, ad-hoc type guards, custom retry loops, hand-written debounce/throttle.
 
 ### Plan-scope adaptation
-For `plan` scope: flag plan steps that propose new code where a reuse-scan should have surfaced an existing helper. Quote the plan section verbatim in `location` and the existing helper path in `suggestion`.
+For `plan` scope: flag plan steps that propose new code where a reuse-scan should have surfaced an existing helper. Quote the plan section exactly in `location` and the existing helper path in `suggestion`.
 
 ## Agent 2 — Code Quality Review
 
@@ -67,7 +67,7 @@ For `plan` scope: hunt the same efficiency classes in the plan's steps instead o
 
 | | Upstream bundled `simplify` | sdlc-workflow `/wf simplify` |
 |---|---|---|
-| Agent rubrics | Reuse, Quality, Efficiency | Same — kept verbatim |
+| Agent rubrics | Reuse, Quality, Efficiency | Same — kept unchanged |
 | Dispatch shape | Three parallel sub-agents | Same |
 | Action after findings | **Applies fixes directly** | **Routes findings to downstream commands; never writes code** |
 | Output | Ephemeral chat summary | `.ai/workflows/<slug>/01-simplify.md` artifact (`type: simplify-run`) in a `type: workflow-index` slug workflow |

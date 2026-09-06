@@ -75,7 +75,7 @@ Nothing else. In particular:
    with the concrete before → after for each reading. Config edits are cheap to confirm and annoying
    to undo.
 
-# Step 1 — Confirm before writing (MANDATORY)
+# Step 1 — Confirm before writing
 
 Show the exact diff — one line per field, `field: old → new` — and get a yes. Amend is small enough
 that a confirmation costs nothing, and it is the only gate between "fix a typo in the base branch"

@@ -6,13 +6,13 @@ the narrative-fragment tier, and the workflow-registry / slug semantics. The dis
 this file rather than restating it. (Mirrors how the design commands defer to
 `design/_design-context.md`.)
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](../_steering.md): honor the user's standing instructions, never
-> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 # Narrative fragments — any artifact
 Beyond the typed `.html.fragment` the rich stages project from a sibling `.yaml`, *any* artifact a

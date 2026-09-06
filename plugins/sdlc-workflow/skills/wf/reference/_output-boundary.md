@@ -1,4 +1,4 @@
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 
 This file is the ONE canonical statement of the boundary rule. Every stage reference, skill, and
 sub-agent prompt cites it instead of restating it — a conventions test fails the build if the full

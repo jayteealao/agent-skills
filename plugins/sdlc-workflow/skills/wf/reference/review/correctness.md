@@ -14,7 +14,7 @@ args:
     required: false
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
@@ -33,7 +33,7 @@ You are a correctness reviewer. Your job is to identify logic flaws, broken inva
    - Confidence: High / Med / Low
 3. **Failure scenario**: Show concrete input/state that causes failure
 4. **Patch suggestions**: Include fix for HIGH+ findings
-5. **Invariants explicit**: List what MUST hold true
+5. **Invariants explicit**: List what must hold true
 
 # PRIMARY QUESTIONS
 
@@ -161,7 +161,7 @@ This review should provide:
 - **Evidence-based findings**: File:line + code snippets
 - **Actionable fixes**: Patches that can be applied immediately
 - **Clear severity**: Based on impact, not theoretical concerns
-- **Invariants explicit**: What MUST hold true
+- **Invariants explicit**: What must hold true
 
 The goal is to catch bugs before production, not to be pedantic about style.
 

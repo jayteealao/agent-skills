@@ -3,12 +3,12 @@ description: Runtime-truth verification — drives a running artifact through ac
 argument-hint: <slug> [target|sweep] | sweep [path]
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
-> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf probe`: drive the running artifact, capture evidence, report findings. No fixes.
 
@@ -21,9 +21,9 @@ You are running `/wf probe`: drive the running artifact, capture evidence, repor
 - **No new workflow, no new branch, no `01-probe.md`, no new top-level `00-index.md`.** The slug already owns those.
 - **Index updates** follow the shared compressed-slice contract — see `_compressed-slice.md`.
 
-# CRITICAL — execution discipline
+# Role
 You are a **runtime observer**, not a fixer.
-- Output: the compressed probe slice and index bookkeeping only. Do NOT edit application code, propose a patch, or run mutating commands beyond what the adapter's bootstrap section authorizes (start dev server, boot emulator, build + install — these are authorized).
+- Output: the compressed probe slice and index bookkeeping only. Do not edit application code, propose a patch, or run mutating commands beyond what the adapter's bootstrap section authorizes (start dev server, boot emulator, build + install — these are authorized).
 - You may drive the running artifact (clicks, taps, HTTP requests, CLI invocations). You may NOT edit source files.
 - "Suggested fix shape" in the slice body is **direction, not a plan** — 1 to 3 lines naming the area and approach.
 - Complete the branch-posture check before bootstrap, and complete bootstrap before you drive. Write the probe slice before Step 7 updates `00-index.md`.
@@ -49,23 +49,23 @@ No flags — probe takes a slug and an optional target string. It always surface
 > runtime-evidence-deferral (its read unblocks ship, so it deserves two readers); (c) the
 > observation contradicts an earlier verify result. Skip only when none of the triggers hold.
 
-# Step 0 — Orient (MANDATORY)
+# Step 0 — Orient
 
 1. **Read `.ai/workflows/<slug>/00-index.md`.** Parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), the **`charter:` block** (the PO-ratified constraints — see Step 5's comparison basis; constraints are durable and cross-slice, so a probe that reads only AC misses the contract), and the **`stack:` block** (written by `/wf intake` Step 0.5, confirmed in Batch B). When `user-confirmed: true`, it narrows adapter selection in Step 3 and tooling choice during drive/observe.
 2. **Read the slice index `03-slice.md`** (or `01-quick.md` for `workflow-type: quick`). Note every slice slug and source-mode (standard / compressed / forwarded / change-mode). Change-modes (`workflow-type: fix` / `hotfix` / `refactor` / `update-deps`) write a STANDARD `03-slice.md` (one slice), so this step is unchanged — but their lead is `01-<mode>.md`, not `01-quick.md`.
 3. **Read every per-slice file** referenced from the slice index. For compressed and forwarded modes, AC lives in the single source artifact (`01-quick.md`, `01-rca.md`). For change-mode, AC lives in the lead `01-<mode>.md` plus `03-slice.md` / `04-plan.md`. **Terminal analysis slugs** (`workflow-type: rca` / `discover` / `investigate` / `ideate`) have **no `03-slice.md`** — do not error on its absence: the probe target is the free-form target string their escalation ladders route here with, the comparison basis is that question plus the lead artifact's stated claim, and the finding lands as the standard compressed slice on that slug. (`investigate`/`ideate` have no build to probe in place — only their targeted question runs.)
 4. **Read `runtime-adapters.md`** (the registry), then `runtime-adapters/_ladder.md`, `runtime-adapters/_protocols.md`, and `runtime-adapters/<key>.md` for each matched adapter.
-5. **Stack awareness (advisory).** Probe cannot refuse to run when `stack:` is missing, but MUST be honest about provenance:
+5. **Stack awareness (advisory).** Probe cannot refuse to run when `stack:` is missing, but must be honest about provenance:
    - **If `stack:` is missing entirely** → emit: *"`stack:` is not set on `<slug>`. Probe will run adapter detection cold; consider running `/wf intake <slug>` to capture stack so future runs respect PO intent."* Set `stack-source: probe-detected-from-repo`. Proceed.
    - **If `stack.user-confirmed: false`** → emit the same warning referencing unconfirmed-auto-detect; set `stack-source: unconfirmed-auto-detect`. Proceed.
    - **If `stack.user-confirmed: true`** → set `stack-source: confirmed`. Step 3 intersects matched adapters with `stack.platforms` and surfaces any divergence as an artifact-level signal (not a stop).
    - In all cases, record the `stack:` block under `## Stack context` in the probe slice body so a reader can reconcile what probe saw against what intake confirmed.
 6. **Capture the target** from `$ARGUMENTS` per the argument grammar above: `target` = the single positional target string, or `slug-wide` if none was given.
 7. **Run the clearing-event tripwire.** For every open deferral (`cleared-by: null`) carrying a `clearing-probe`, execute that **one** recorded side-effect-free command with a short timeout. A hit means the event this deferral is waiting on has *already happened* — say so up front and prioritise that deferral in this run. Never improvise a substitute command, never edit `00-index.md` here (Step 7 owns the clearing mutation), and treat a miss as ordinary state, not a finding. An entry with no recorded probe is simply un-watched — note it in `## Tripwires` so the next verify can add one.
-8. **Read `_surface-defects.md`.** MANDATORY in `sweep` mode, advisory in target mode (its classes are what Step 5.2 records incidentals against). It supplies the defect classes, the severity discipline, and the decidability boundary.
-9. **Declare decidability BEFORE driving (MANDATORY in `sweep` mode).** Using the standing not-observable set in `_surface-defects.md`, state which classes of correctness this artifact makes observable and which it does not, and where each unobservable class routes. Record it as the `decidability:` frontmatter block. When the artifact's **primary** correctness class is not observable (a ranking/generative system, a long-horizon pipeline), say so FIRST — at the top of the artifact and in the chat return, before any finding — so a clean wrapper report never reads as a verdict on the thing the wrapper wraps.
+8. **Read `_surface-defects.md`.** mandatory in `sweep` mode, advisory in target mode (its classes are what Step 5.2 records incidentals against). It supplies the defect classes, the severity discipline, and the decidability boundary.
+9. **Declare decidability BEFORE driving (mandatory in `sweep` mode).** Using the standing not-observable set in `_surface-defects.md`, state which classes of correctness this artifact makes observable and which it does not, and where each unobservable class routes. Record it as the `decidability:` frontmatter block. When the artifact's **primary** correctness class is not observable (a ranking/generative system, a long-horizon pipeline), say so FIRST — at the top of the artifact and in the chat return, before any finding — so a clean wrapper report never reads as a verdict on the thing the wrapper wraps.
 
-# Step 1 — Branch posture (MANDATORY before bootstrap)
+# Step 1 — Branch posture (mandatory before bootstrap)
 
 1. Run `git branch --show-current`. Call the result `current-branch`.
 2. Compare against `00-index.md.branch`. Call that `slug-branch`.
@@ -88,7 +88,7 @@ multiSelect: false
 
 **`sweep` mode skips this step entirely** — it has no target to resolve. Set `target-resolution: {sweep: true}` and go to Step 3; the comparison basis is AC + charter + taxonomy (Step 5), not a resolved target. Slug-less sweeps have no AC and no charter, so their `comparison-basis` is `[taxonomy]` and the artifact says so.
 
-For `slug-wide` invocations, layer 1 expands to "every AC in every slice file" — the other three layers do not apply. For a non-empty target string `T`, load [probe/_target-resolution.md](probe/_target-resolution.md) and run all four layers: Layer 1 AC text match (≥50% content-word overlap → `target-resolution.matched-ac`), Layer 2 slice match (→ `matched-slices`), Layer 3 surface inference (route / screen / command / endpoint hints → `inferred-surfaces`), Layer 4 ad-hoc criterion (`ad-hoc: true`, `T` verbatim is the comparison text). Ad-hoc targets are data, not failures.
+For `slug-wide` invocations, layer 1 expands to "every AC in every slice file" — the other three layers do not apply. For a non-empty target string `T`, load [probe/_target-resolution.md](probe/_target-resolution.md) and run all four layers: Layer 1 AC text match (≥50% content-word overlap → `target-resolution.matched-ac`), Layer 2 slice match (→ `matched-slices`), Layer 3 surface inference (route / screen / command / endpoint hints → `inferred-surfaces`), Layer 4 ad-hoc criterion (`ad-hoc: true`, `T` itself is the comparison text). Ad-hoc targets are data, not failures.
 
 # Step 3 — Adapter selection
 
@@ -99,7 +99,7 @@ For `slug-wide` invocations, layer 1 expands to "every AC in every slice file" �
    - **When `stack-source: unconfirmed-auto-detect` or `probe-detected-from-repo`** → skip intersection. `adapters-used` defaults to `matched-adapters`.
 3. **Run the appropriate set.** `adapters-used = stack-intersected-adapters` (confirmed stack, non-empty intersection), else `matched-adapters`. Probe drives every adapter in that set.
 4. **No matches → ad-hoc adapter unavailable.** If `matched-adapters` is empty, write a probe slice with `status: awaiting-environment`, `bootstrap-failure: { step: adapter-detection, remediation: "No runtime adapter matched this repo. Add a new adapter file under runtime-adapters/ and its row to runtime-adapters.md, or run probe in a directory containing a recognized project." }`. Skip Steps 4 and 5.
-5. **Enumerate the surface (MANDATORY in `sweep` mode, after bootstrap).** Climb the **surface enumeration ladder** in `runtime-adapters/_protocols.md` — `recipe` (the adapter's `Enumerate` section) → `static` (read the nav/route model in source) → `traversal` (bounded breadth-first drive) → `named` (caller supplies the list). Record the rung reached as `surface-coverage.enumeration-method`. **An adapter with no `Enumerate` recipe is NOT unsupported** — it sweeps at rung 2 or 3 at a declared, lower-confidence denominator. A `traversal` count is a FLOOR, not a total, and must be described as such **wherever it is rendered** (artifact AND chat return).
+5. **Enumerate the surface (mandatory in `sweep` mode, after bootstrap).** Climb the **surface enumeration ladder** in `runtime-adapters/_protocols.md` — `recipe` (the adapter's `Enumerate` section) → `static` (read the nav/route model in source) → `traversal` (bounded breadth-first drive) → `named` (caller supplies the list). Record the rung reached as `surface-coverage.enumeration-method`. **An adapter with no `Enumerate` recipe is NOT unsupported** — it sweeps at rung 2 or 3 at a declared, lower-confidence denominator. A `traversal` count is a FLOOR, not a total, and must be described as such **wherever it is rendered** (artifact AND chat return).
 
 # Step 4 — Two-phase bootstrap
 
@@ -124,15 +124,15 @@ For each adapter in `adapters-used` whose bootstrap completed:
    d. **Read the evidence** (multimodal for visuals, parsed for textual) and compare to the target/AC text.
    e. Record `{target-or-ac, adapter, evidence-path, observation, result: pass | fail | partial}`.
 
-1a. **Comparison basis (MANDATORY).** Every observation is compared against, in order:
+1a. **Comparison basis.** Every observation is compared against, in order:
    a. the matched **AC text** (target mode) or every AC in the slug (`sweep`);
    b. every **charter constraint** whose subject the observation touches — a violation is a finding at the constraint's own weight whether or not any AC covers it. Record the constraint id (e.g. `C4`) on the finding;
    c. every **defect class** in `_surface-defects.md` (`sweep` mode; advisory in target mode). Ask the class's detection question of each enumerated surface.
    Record which bases ran as `comparison-basis: [ac, charter, taxonomy]`.
 
-1b. **Perturb (MANDATORY in `sweep` mode where authorized).** After the happy path is observed, follow the adapter's `Perturb` section and the shared perturbation protocol: break exactly one dependency, re-observe, restore. Never perturb a shared or production backend without explicit authorization — record what was skipped and why.
+1b. **Perturb (mandatory in `sweep` mode where authorized).** After the happy path is observed, follow the adapter's `Perturb` section and the shared perturbation protocol: break exactly one dependency, re-observe, restore. Never perturb a shared or production backend without explicit authorization — record what was skipped and why.
 
-1c. **Re-observe before recording (MANDATORY).** Any finding above `low` whose evidence is a **single observation on an interactive surface** MUST be re-observed from a clean state (fresh launch, dismissed system UI, known route) before it is recorded. On divergence, downgrade or drop it and record the divergence under `retracted-findings:`. Corroboration by two tools does NOT satisfy this — both tools observe the same corrupted state; only a clean-state re-observation does. See `env-interference` in `_surface-defects.md`.
+1c. **Re-observe before recording.** Any finding above `low` whose evidence is a **single observation on an interactive surface** must be re-observed from a clean state (fresh launch, dismissed system UI, known route) before it is recorded. On divergence, downgrade or drop it and record the divergence under `retracted-findings:`. Corroboration by two tools does NOT satisfy this — both tools observe the same corrupted state; only a clean-state re-observation does. See `env-interference` in `_surface-defects.md`.
 
 2. **Incidental observations.** Record any defects noticed during navigation (console errors, crashes, HTTP 500s) in `## Findings` with `severity: incidental`; they count toward `findings-count`.
 
@@ -176,7 +176,7 @@ Per `_compressed-slice.md`:
 4. If `03-slice.md` exists, append `{slug: probe-<descriptor>, status: defined, slice-type: probe, compressed: true}` to `slices`, bump `total-slices`, update `updated-at`.
 5. Rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md`.
 
-Do NOT modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress` on `00-index.md`. Probe slices are additive and do not advance the main lifecycle.
+Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress` on `00-index.md`. Probe slices are additive and do not advance the main lifecycle.
 
 # Step 9 — Hand off to user
 

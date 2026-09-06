@@ -66,7 +66,7 @@ Embed each generated image as a data-URI fragment (MIME sniffed from the bytes):
 figure per provider). The caller (`/wf design`) decides where the fragment lives
 next to its design artifact.
 
-## Output Format — MUST stay `IMAGEGEN_RESULT` (contract, A2)
+## Output Format — must stay `IMAGEGEN_RESULT` (contract, A2)
 
 The visual-contract step (`plan`, following `design/contract.md`) and standalone
 design transforms branch on `method=text-only` and consume `scene_sentence`, and the

@@ -3,13 +3,13 @@ description: The post-publish announce phase of `/wf ship`. Drafts stakeholder-f
 argument-hint: <slug> [audience]
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](../_steering.md): honor the user's standing instructions, never
-> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running the **announce phase** of `/wf ship` — post-publish communications. It runs at the
 tail of a `go` / `conditional-go` ship run (drafting announcements from the just-written run artifact),
@@ -35,11 +35,11 @@ or edits code.
 > product surface, with no prior template or tone to lean on. Skip only when none of the triggers
 > hold; the user may invoke it explicitly with any provider.
 
-# CRITICAL — execution discipline
+# Role
 You are a **communications writer**, not a developer.
-- Do NOT modify code, workflow stage files, or any artifact other than `announce.md` (and the
+- Do not modify code, workflow stage files, or any artifact other than `announce.md` (and the
   `announcements-sent` touch on the ship-run).
-- Do NOT send, post, or publish announcements — only draft them. The user decides where to send.
+- Do not send, post, or publish announcements — only draft them. The user decides where to send.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - If you catch yourself about to fix code or advance the workflow, STOP. This phase writes communication copy only.
 
@@ -174,7 +174,7 @@ Read `<latest-run-path>` frontmatter. Update ONLY:
 - `announcements-sent` → append the list of channels the announcements were drafted for
 - `updated-at` → current ISO 8601 timestamp
 
-Do NOT change any other field. This closes the ship→announce loop: the run artifact records which channels received the announcement, visible to retro analysis. If the legacy `09-ship.md` was used instead of a run artifact, skip this step.
+Do not change any other field. This closes the ship→announce loop: the run artifact records which channels received the announcement, visible to retro analysis. If the legacy `09-ship.md` was used instead of a run artifact, skip this step.
 
 ## Step — Write free narrative fragments
 
@@ -187,7 +187,7 @@ Read `00-index.md` frontmatter. Update ONLY:
 - Add `announce.md` to `workflow-files` if not already present
 - Add any doc paths generated in Step 2 to `workflow-files` if not already present
 
-Do NOT change `status`, `current-stage`, or any other field.
+Do not change `status`, `current-stage`, or any other field.
 
 # Chat return contract
 Return per [_chat-return.md](../_chat-return.md) — narrative lead, then this receipt:

@@ -21,7 +21,7 @@ Provenance is explicit or inferred — explicit always wins:
    `workflow-type: ideate` rows whose `updated-at` is within the last **30 days** (older
    sources require the explicit `from <slug>` token). For each candidate, read the option
    labels (investigate) or idea labels (ideate) from its lead artifact. Attach only on an
-   **exact label match** — the description contains a label verbatim (case-insensitive).
+   **exact label match** — the description contains a label exactly (case-insensitive).
    A partial or fuzzy resemblance is NOT a match. If exactly one workflow matches, ask ONE
    confirmation question ("This description matches `<id> — <label>` from `<type>` workflow
    `<slug>`. Use that analysis as context?") and attach on yes. If several match, ask which
@@ -39,7 +39,7 @@ targets the research, it does not replace it.
 | Source `workflow-type` | Read | Seed |
 |---|---|---|
 | `investigate` | `01-investigate.md`, the **chosen option's card** (the picked option, or the matched option when the pick is implicit) | The card's mechanism + sketch seed the restated request / shape direction. The files-touched estimate targets research. Top risks, constraint collisions, and the decisive unknown seed the risk inventory / known unknowns. The relevant architecture-map entries (section 2) go into research sub-agent prompts as prior context. The user's stated constraints (section 1) carry into this workflow's constraints. |
-| `rca` | `01-rca.md` | Section 4 (root cause) seeds the restated request — the fix targets the named mechanism, not the symptom. Section 6 (blast radius, same-pattern-elsewhere) seeds scope and the risk inventory. Section 5 (contributing factors) seeds known unknowns / follow-up scope decisions. Section 8 (verification) seeds the acceptance criteria verbatim — it was written to be them. |
+| `rca` | `01-rca.md` | Section 4 (root cause) seeds the restated request — the fix targets the named mechanism, not the symptom. Section 6 (blast radius, same-pattern-elsewhere) seeds scope and the risk inventory. Section 5 (contributing factors) seeds known unknowns / follow-up scope decisions. Section 8 (verification) seeds the acceptance criteria unchanged — it was written to be them. |
 | `discover` | `01-discover.md` | The verdict and its evidence seed the restated request's factual ground. The ranked counter-hypotheses seed the diagnosis candidates (they are literally candidate root causes when the successor is an rca). Recorded contradictions seed the risk inventory. |
 | `ideate` | `01-ideate.md`, the **chosen idea's card** | The idea's description + `evidence:` (`file:line` anchors) seed the restated request and research targeting. The rationale that culled its sibling ideas seeds the out-of-scope list — what was considered and rejected, so the successor does not re-widen. |
 | `update-deps` (a prior run) | The prior run's `02-shape.md` Hold tier + `05-implement.md` Blocked list | Hold/Blocked packages, their reasons, revisit conditions, and `changelog-source:` citations seed this run's research — re-check the revisit condition instead of cold-rescanning last month's findings. A citation is re-used only after confirming the target version is unchanged. |

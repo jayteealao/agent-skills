@@ -48,7 +48,7 @@ Match on the detection signals, then load the file for every matched adapter. Th
 
 ## Shared protocols (load with every adapter run)
 
-- [runtime-adapters/_ladder.md](runtime-adapters/_ladder.md) — the constraint-resolution ladder (MANDATORY before any deferral): wall-ownership triage, attempt-before-declare, headless boot first, pre-authorized tool absence, and the env-remediation rung. Per-wall rung lists: [runtime-adapters/_ladder-walls.md](runtime-adapters/_ladder-walls.md).
+- [runtime-adapters/_ladder.md](runtime-adapters/_ladder.md) — the constraint-resolution ladder (mandatory before any deferral): wall-ownership triage, attempt-before-declare, headless boot first, pre-authorized tool absence, and the env-remediation rung. Per-wall rung lists: [runtime-adapters/_ladder-walls.md](runtime-adapters/_ladder-walls.md).
 - [runtime-adapters/_protocols.md](runtime-adapters/_protocols.md) — the surface enumeration ladder, the perturbation protocol, the evidence protocol, and the accessibility checks.
 
 # Adding a new adapter

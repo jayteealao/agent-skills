@@ -68,7 +68,7 @@ Use this structure unless the task genuinely needs branching:
 
 ## Writing rules
 
-Steps, warnings, and notes MUST follow the instruction and warning rules
+Steps, warnings, and notes must follow the instruction and warning rules
 (sections 2 and 3) in [_ste-procedural.md](../_ste-procedural.md).
 
 - start with the outcome

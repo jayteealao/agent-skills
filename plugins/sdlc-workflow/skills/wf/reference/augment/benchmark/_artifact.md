@@ -26,7 +26,7 @@ measured-at: <real UTC timestamp per _timestamp.md>
 **Body sections:**
 
 ## The Benchmark
-<!-- STORY SECTION — first, and self-sufficient. MUST follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language MUST follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. must follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
 
 ## Benchmark Targets
 
@@ -54,7 +54,7 @@ Exact commands to reproduce these results, in order:
 <exact command>
 ```
 
-These MUST be reproduced identically in compare mode.
+These must be reproduced identically in compare mode.
 
 ## Targets That Could Not Be Measured
 
@@ -66,7 +66,7 @@ If any targets failed:
 
 ## Compare Step 4 — comparison data
 
-Add a `## Comparison Results` section to the existing `05c-benchmark.md`. Do NOT overwrite baseline data.
+Add a `## Comparison Results` section to the existing `05c-benchmark.md`. Do not overwrite baseline data.
 
 Update frontmatter to add:
 ```yaml

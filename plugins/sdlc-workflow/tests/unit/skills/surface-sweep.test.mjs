@@ -55,7 +55,7 @@ test('W1.1 — probe Step 0 parses the charter block', () => {
 test('W1.1 — Step 5 compares against charter constraints at their own weight', () => {
   for (const { name, root } of trees) {
     const src = ref(root, 'probe.md');
-    assert.match(src, /Comparison basis \(MANDATORY\)/,
+    assert.match(src, /Comparison basis\./,
       `${name}: probe lost the Step 5 comparison-basis block`);
     assert.match(src, /charter constraint.*whose subject the observation touches/s,
       `${name}: charter constraints are no longer a comparison basis`);
@@ -318,7 +318,7 @@ test('W5.3 — perturbation is tied to the classes it exists to find', () => {
 test('W6.1 — findings above low get a clean-state re-observation', () => {
   for (const { name, root } of trees) {
     const src = ref(root, 'probe.md');
-    assert.match(src, /Re-observe before recording \(MANDATORY\)/,
+    assert.match(src, /Re-observe before recording\./,
       `${name}: the re-observation rule is gone`);
     assert.match(src, /above `low`/, `${name}: the re-observation threshold is gone`);
     assert.match(src, /clean state/, `${name}: clean-state re-observation is no longer required`);

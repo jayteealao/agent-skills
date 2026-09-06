@@ -3,13 +3,13 @@ description: Minimal lifecycle for work whose deliverable is not a code change �
 argument-hint: "<description> | <task-slug> (resume) | <existing-slug> <description> (compressed slice)"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
-> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf task`, the **minimal lifecycle** for a unit of work with a slug whose deliverable is not a code change verified by executing software. Every other surface assumes that deliverable; `task` exists for the five classes that have nowhere else to go: repo chores with no behavior change, environment/infra operations, non-code deliverables, coordination with external parties, and one-shot throwaway execution. Uniquely on the surface except `ship`, a task may act **outside the repository** — which is why it carries an authorization gate no intake mode has.
 
@@ -30,14 +30,14 @@ If the first token matches an existing slug whose `workflow-type` IS `task`, tha
 | Next | `Done` for most tasks. A task that left a reviewable diff → ad-hoc `/wf review <dimension>` or `/wf handoff <slug>`. |
 | Escalate | Deliverable turns out to be a code behavior change → `/wf intake fix`; more than one slice of work → `/wf intake` (tripwires below). |
 
-# CRITICAL — task discipline
+# Task discipline
 - **Re-observe; never assert.** An acceptance criterion closes only on independent observation of the outcome — re-read the system of record after acting (`ls` the directory, `curl` the DNS record, query the API, read the file back). An AC whose only evidence is the agent's own claim of success carries `evidence-rung: asserted` and **cannot close** — managed-artifact enforcement ([_host-invocation.md](_host-invocation.md)) blocks `result: pass` on the same path that blocks a mock-evidenced code AC. The rung ladder for tasks is a **contract revision (§7)** of [EVIDENCE-SCHEMA-CONTRACT](../../../docs/internal/EVIDENCE-SCHEMA-CONTRACT.md); `verify.md` places the two new rungs on the existing ladder.
 - **The gate is not optional above `local-env`.** A `shared-env`, `external-party`, or `irreversible` task stops for explicit human authorization even when every other signal says proceed. No written policy resolves these unattended — the non-interactive default is STOP with the missing authorization recorded, never proceed (the drivers refuse `task` slugs entirely).
 - **`task` is not a todo list.** One task = one outcome. More than one independent outcome → enumerate them and have the user pick one, or escalate to a feature.
 - `current-stage` stays inside the standard enum — `implement` while working, `verify` while checking. Never a bespoke label.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
-# Step 0 — Orient (MANDATORY)
+# Step 0 — Orient
 1. **Resolve slug and mode:**
    - First token matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: task` → **resume**. Read the index; pick up at the first incomplete step.
    - First token matches an existing non-closed slug of another `workflow-type` → **slug-mode** (see above).
@@ -52,7 +52,7 @@ Author the brief. Ask at most **2 questions** in chat; answers go inline into th
 `01-task.md` (`type: intake`; satisfies the intake required set: `status: complete`, `stage-number: 1`, `created-at`/`updated-at` per [_timestamp.md](_timestamp.md), `tags`, `refs`, `next-command`, `next-invocation`) carries:
 
 - **Restated request** — what outcome this task exists to produce, in one paragraph.
-- **`blast-radius`** (frontmatter, MANDATORY) — one of:
+- **`blast-radius`** (frontmatter, mandatory) — one of:
 
 | `blast-radius` | Meaning | Gate |
 |---|---|---|
@@ -70,7 +70,7 @@ Author the brief. Ask at most **2 questions** in chat; answers go inline into th
 
 `00-index.md` is a fully-conformant `type: index` (the heavy 22-field set from `intake/default.md`) plus `workflow-type: task`. `progress:` marks `shape`, `slice`, `plan` as `skipped`; `review`, `handoff`, `ship` as `skipped` (revisited at Step 4); `intake: complete`. Register the row in `.ai/workflows/INDEX.md` per `intake/_intake-context.md`.
 
-**[Gate]** — apply the blast-radius table as a gate question per [_gate-question.md](_gate-question.md) (Proceed / Adjust / Escalate). `repo-local` may auto-proceed low-risk at your discretion — record `auto-proceeded-low-risk` in the brief. The bottom three rows always stop; their **non-interactive default is STOP** (record the missing authorization; do not proceed). For `irreversible`, the confirmation must echo exactly what will happen, verbatim.
+**[Gate]** — apply the blast-radius table as a gate question per [_gate-question.md](_gate-question.md) (Proceed / Adjust / Escalate). `repo-local` may auto-proceed low-risk at your discretion — record `auto-proceeded-low-risk` in the brief. The bottom three rows always stop; their **non-interactive default is STOP** (record the missing authorization; do not proceed). For `irreversible`, the confirmation must echo exactly what will happen.
 
 > **Auto second opinion (objective triggers).** At the gate, **auto-invoke** `/consult codex <critique this task brief: steps, rollback, blast radius>` (pinning `codex`/`claude` keeps it free) when ANY of:
 > - `blast-radius` is `shared-env`, `external-party`, or `irreversible`;

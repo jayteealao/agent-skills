@@ -68,7 +68,7 @@ The remaining audits cover the **inbound** half of the plan. Run them only when 
 For each of `format-check`, `lint`, `type-check`, `test-coverage` whose `cmd` is non-empty:
 - Does a PR workflow (`on: pull_request:`) contain a step running that literal `cmd`?
 - **Missing:** the command does not appear in any PR workflow.
-- **Note — supersedes command-guessing.** Where Block H provides a literal `cmd`, it is authoritative: Audit A's pre-merge job and Step 3's derived-command table ([pre-merge.md](pre-merge.md)) both use the Block-H `cmd` verbatim, falling back to the name→command heuristic table only for checks with no Block-H entry.
+- **Note — supersedes command-guessing.** Where Block H provides a literal `cmd`, it is authoritative: Audit A's pre-merge job and Step 3's derived-command table ([pre-merge.md](pre-merge.md)) both use the Block-H `cmd` unchanged, falling back to the name→command heuristic table only for checks with no Block-H entry.
 
 ## Audit L — Commit + PR-title convention CI (`plan.code-quality.commit-convention`, `plan.code-quality.pr-title-convention`)
 - If `commit-convention.spec ≠ none` and `ci` ∈ `commit-convention.enforce`: does a config file exist (`commitlint.config.*` / `.commitlintrc*`) **and** does a PR workflow run commitlint against the PR's commits?

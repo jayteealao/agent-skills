@@ -3,7 +3,7 @@ description: Block-editor for the project-level `.ai/ship-plan.md`. Opens the ex
 argument-hint: ""
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
@@ -70,7 +70,7 @@ multiSelect: false
 
 ## Step S4 — Write
 
-Update only the changed block's frontmatter and corresponding markdown section. Bump `plan-version` by 1 and refresh `updated-at`. Do NOT touch other blocks — **with one exception for derived fields:**
+Update only the changed block's frontmatter and corresponding markdown section. Bump `plan-version` by 1 and refresh `updated-at`. Do not touch other blocks — **with one exception for derived fields:**
 
 **Re-derive after a Block H or C amendment.** Block H's enabled code-quality gates are the canonical source of the pre-merge check list; Block C's `ci-pipeline.pre-merge-checks[]` and Block J's `governance.branch-protection.required-checks[]` are *derived* from them. So when the amended block is **H** (gate added/removed/renamed) or **C** (pre-merge-checks edited directly), recompute the other two derived lists to match and write them in the same amendment. This is not "touching an unrelated block" — it keeps a single source of truth consistent. Note the cross-block update in the chat return.
 

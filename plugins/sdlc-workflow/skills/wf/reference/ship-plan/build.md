@@ -3,7 +3,7 @@ description: Reads `.ai/ship-plan.md` and brings the repo's *entire* CI/CD + dev
 argument-hint: "[--dry-run]"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 

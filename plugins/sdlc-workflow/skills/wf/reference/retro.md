@@ -3,13 +3,13 @@ description: Extract reusable lessons and turn them into concrete improvements t
 argument-hint: <slug|pr#N|branch>
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
-> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf retro`, **stage 10 of 10** in the SDLC lifecycle.
 
@@ -19,7 +19,7 @@ You are running `/wf retro`, **stage 10 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `09-ship.md` (strongly recommended), plus as many prior stage files as exist |
-| Conditional inputs (mandatory when present) | All design artifacts (`02b-design.md`, `02c-craft.md`, `design-notes/*`, `07-design-audit.md`, `07-design-critique.md`) — every artifact that exists on disk MUST be reflected in the retro. Design decisions and augmentation outcomes are first-class retro inputs, not optional commentary. |
+| Conditional inputs (mandatory when present) | All design artifacts (`02b-design.md`, `02c-craft.md`, `design-notes/*`, `07-design-audit.md`, `07-design-critique.md`) — every artifact that exists on disk must be reflected in the retro. Design decisions and augmentation outcomes are first-class retro inputs, not optional commentary. |
 | Produces | `10-retro.md` |
 | Next | Workflow complete. No further stages. |
 
@@ -30,16 +30,16 @@ You are running `/wf retro`, **stage 10 of 10** in the SDLC lifecycle.
 > (plugin-feedback entries exist); (c) the same friction class recurs across 2+ stages. Skip only when none of the
 > triggers hold.
 
-# CRITICAL — execution discipline
+# Role
 You are a **workflow orchestrator**, not a problem solver.
-- Do NOT apply the improvements you suggest — only document them.
-- Do NOT reopen implementation or start new work.
+- Do not apply the improvements you suggest — only document them.
+- Do not reopen implementation or start new work.
 - Your job is to **extract lessons and propose concrete, copy-paste-ready improvements**.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
 - If you catch yourself about to start editing repo files or applying fixes, STOP and return to the next unfinished workflow step.
 
-# Step 0 — Orient (MANDATORY — do this before all other steps)
+# Step 0 — Orient (do this before all other steps)
 1. **Resolve the first argument — it is polymorphic** (`slug` | `pr#N`/`#N`/bare int | branch name), first match wins so a slug is never mistaken for a branch:
    - **Exact slug**: `.ai/workflows/<arg>/00-index.md` exists → **single-slug retro** (`retro-scope: slug`). The classic path — continue with items 2–5 for that one slug.
    - **PR reference** `pr#N` / `#N` / bare integer → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then the branch path below.
@@ -88,7 +88,7 @@ When the workflow trail is large or spans multiple domains, launch parallel sub-
 
 ### Analysis sub-agent 1 — Implementation & Verification Friction
 
-Charter: read the plan, implement, and verify artifacts plus the git log, and report where the build fought its plan — plan-to-implementation drift with a cause per deviation (stale assumption, thin exploration, scope creep, or legitimate discovery), verification effectiveness (what the checks caught, what should have been caught earlier, what could not be verified and why), and rework signals in the commit history. Every count names the artifact or tool result it came from. The harvest below is CONTRACT — pass it verbatim:
+Charter: read the plan, implement, and verify artifacts plus the git log, and report where the build fought its plan — plan-to-implementation drift with a cause per deviation (stale assumption, thin exploration, scope creep, or legitimate discovery), verification effectiveness (what the checks caught, what should have been caught earlier, what could not be verified and why), and rework signals in the commit history. Every count names the artifact or tool result it came from. The harvest below is CONTRACT — pass it unchanged:
 
 **Deferred-debt harvest (this workflow only):**
 - Collect every intentional-simplification marker this workflow introduced: grep the workflow's commits for `sdlc-debt:` (`git log -p <base-branch>..HEAD | grep -nE 'sdlc-debt:'`) and read each slice's `05-implement-<slice>.md` → `## Anything Deferred` / `## Known Risks / Caveats`.
@@ -97,7 +97,7 @@ Charter: read the plan, implement, and verify artifacts plus the git log, and re
 
 ### Analysis sub-agent 2 — Review & Handoff Quality
 
-Charter: read every `07-review-*.md` (master per slice plus per-command sub-reviews), `08-handoff.md`, `po-answers.md`, and `02-shape.md`, and report — findings quality (real bugs vs. nits vs. false positives, what stayed `open` at handoff, what tests or planning should have caught, what review missed that ship or production later found); handoff completeness (PR clarity, migration/rollback accuracy, whether the shape's documentation plan was fulfilled); communication friction (multi-round questions, wrong unasked assumptions, artifacts the next stage could not use); and adoption-matrix `USE` rows that never earned their install. Every count names the artifact it came from. The block below is CONTRACT — pass it verbatim:
+Charter: read every `07-review-*.md` (master per slice plus per-command sub-reviews), `08-handoff.md`, `po-answers.md`, and `02-shape.md`, and report — findings quality (real bugs vs. nits vs. false positives, what stayed `open` at handoff, what tests or planning should have caught, what review missed that ship or production later found); handoff completeness (PR clarity, migration/rollback accuracy, whether the shape's documentation plan was fulfilled); communication friction (multi-round questions, wrong unasked assumptions, artifacts the next stage could not use); and adoption-matrix `USE` rows that never earned their install. Every count names the artifact it came from. The block below is CONTRACT — pass it unchanged:
 
 **Intent drift (transitive fidelity — code vs. intake):**
 - Which intake directives did the shipped code **narrow**, and was each narrowing **ratified**? Cross-reference `02-shape.md`'s `## Intake Fidelity` table and any `07-review-*intent-fidelity*.md` findings against what actually shipped.
@@ -155,7 +155,7 @@ misfired, a gate was wrong, a reference misled). The two go different places:
 - **Promote a project lesson to the global corpus (W12.1) — user-confirmed, never automatic.** Only
   when `.ai/sdlc-config.json` sets `solutions.globalDir` (default `null` = disabled). Promotion is a **privacy
   decision the user makes**: offer it as a gate question per [_gate-question.md](_gate-question.md) and copy to the global dir ONLY on an
-  explicit yes. NEVER promote silently or by policy (a stop condition on an autonomous run).
+  explicit yes. Never promote silently or by policy (a stop condition on an autonomous run).
 - **Channel a workflow lesson to plugin-backlog (W12.2).** When `solutions.globalDir` is set, append
   each `about-the-workflow` lesson to a user-reviewable `plugin-feedback.md` in that dir. Append only; never edit `/wf`
   itself. If `globalDir` is unset, keep the lesson in the repo corpus and note it in the retro body.

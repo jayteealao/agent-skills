@@ -187,7 +187,7 @@ The contract is a `plan`-stage artifact. Reflect its obligations in the `04-plan
 
 ---
 
-## Step 6: Write the contract's rich `.yaml` + fragment (MANDATORY — do not skip)
+## Step 6: Write the contract's rich `.yaml` + fragment (do not skip)
 
 The visual contract page (`02c-craft.md`, `type: design-contract`) renders from a
 sibling `.yaml` + `.html.fragment` written next to it. `design-contract.mjs` gates its

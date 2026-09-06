@@ -26,7 +26,7 @@ Extension is a **utility flow**, not a pipeline stage. It adds net-new slices; i
 > `_compressed-slice.md` override does **not** apply here (it governs the *mode-keyword* slug-mode
 > flows: `fix`/`rca`/`hotfix`/…). The `intake` dispatcher routes extension around that override.
 
-# CRITICAL — execution discipline
+# Role
 You are a **scope expander**, not a problem solver.
 - Do not modify any existing slice files.
 - Do not change `status: complete` entries in `03-slice.md`.
@@ -36,7 +36,7 @@ You are a **scope expander**, not a problem solver.
 
 ---
 
-# Step 0 — Orient (MANDATORY)
+# Step 0 — Orient
 
 1. **Resolve the slug.** The `intake` dispatcher consumed the existing on-disk slug as `<slug>` (an exact `.ai/workflows/<slug>/00-index.md` match) before routing here — use it. (If you somehow arrive with no slug, infer the most recent active workflow from `.ai/workflows/*/00-index.md`; if ambiguous, ask ONE gate question per [_gate-question.md](../_gate-question.md) to list options.)
 2. **Resolve the seed** from the remaining `$ARGUMENTS`:
@@ -129,7 +129,7 @@ Extension is additive by contract — it never modifies existing slices — so o
 
 ---
 
-# Step 3b — Intent-risk & charter delta (MANDATORY for the new scope)
+# Step 3b — Intent-risk & charter delta (mandatory for the new scope)
 
 New scope enters the lifecycle here without passing through `intake default` or `shape`, so this step is where the intent-fidelity machinery covers it (before this step existed, extended scope carried zero RIM/charter tracking):
 
@@ -156,7 +156,7 @@ Read the current `03-slice.md`. Update it by:
 3. **Updating `updated-at`** to the current ISO 8601 timestamp.
 4. **Appending a new section** to the markdown body: the `## Extension Round <N>` section in [intake/extend/_artifacts.md](extend/_artifacts.md) (source, New Slices Added table, Motivation).
 
-5. **Reconciling author-written counts in the existing body.** The markdown body the slice stage wrote carries author-facing slice numbers that the rendered view prints **verbatim** — they do NOT recompute from the roster, so they go stale the moment `total-slices` grows. Two spots:
+5. **Reconciling author-written counts in the existing body.** The markdown body the slice stage wrote carries author-facing slice numbers that the rendered view prints **exactly** — they do NOT recompute from the roster, so they go stale the moment `total-slices` grows. Two spots:
    - **Any summary sentence stating a slice total** (e.g. "These 5 slices cover…") — update the number to the new total so the prose agrees with the header, figure, and metric row (which are all roster-derived and already correct).
    - **The `## Recommended Order` list** — append the new slices as *additional* numbered entries (continue the numbering; do NOT renumber, reorder, or remove existing lines), each with a one-line reason, so the order reflects the full set. This is the only edit you make to existing body text, and it is purely clerical — correcting a stale count and extending a list. It is NOT a change to existing slice entries, slice files, or `status: complete` rows.
 

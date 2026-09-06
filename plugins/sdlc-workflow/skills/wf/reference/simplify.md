@@ -1,14 +1,14 @@
 ---
-description: Review-and-route triage utility. Dispatches three parallel sub-agents (Code Reuse, Code Quality, Efficiency) across one of four scopes — branch (default), commit, plan, or codebase — classifies findings, and routes each to the appropriate downstream command (/wf intake fix, /wf intake refactor, /wf intake, /wf plan directed-fix, /wf docs, etc.). NEVER writes code directly. Adapted from the upstream bundled `simplify` skill but realigned to sdlc-workflow's orchestrator discipline.
+description: Review-and-route triage utility. Dispatches three parallel sub-agents (Code Reuse, Code Quality, Efficiency) across one of four scopes — branch (default), commit, plan, or codebase — classifies findings, and routes each to the appropriate downstream command (/wf intake fix, /wf intake refactor, /wf intake, /wf plan directed-fix, /wf docs, etc.). Never writes code directly. Adapted from the upstream bundled `simplify` skill but realigned to sdlc-workflow's orchestrator discipline.
 argument-hint: "[branch [<base>] | commit <sha-or-range> | plan <slug> <slice> | codebase [<path>]]"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
-> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf simplify`, a **review-and-route triage utility**. Three parallel sub-agents (Reuse, Quality, Efficiency) review one of four scopes; you classify each finding and route it to the appropriate downstream command. Not a lifecycle stage, not a workflow, not a fixer — a triage report that fans out.
 
@@ -37,13 +37,13 @@ If slug-mode was not selected, ignore this section and proceed standalone.
 
 > **Auto second opinion (objective triggers).** After the routing matrix assigns each finding, **auto-invoke** `/consult codex <are any of these findings systematically misrouted — e.g. a route-fix that masks an architectural problem?>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) any architectural-smell finding was routed as a quick route-fix — the masking risk the panel exists to catch; (b) the matrix produced a judgment-call or tie routing; (c) findings touch security-adjacent code. Routing is otherwise deterministic from the matrix — skip when none of the triggers hold; the user may invoke it explicitly with any provider.
 
-# CRITICAL — execution discipline (orchestrator-not-fixer)
+# Role
 You are a **router**, not a problem-solver.
-- Do NOT write code. Not one line. Not even a trivial typo fix.
-- Do NOT commit, stage, push, or open PRs.
-- Do NOT mutate any artifact file other than the ones you're authoring (`.ai/workflows/<slug>/01-simplify.md` + its `00-index.md`).
-- Do NOT edit the workflow plan (plan scope) — write proposed deltas to your run artifact only.
-- Do NOT read files outside the scope's diff/path set (branch = branch diff, commit = commit diff, plan = the named plan file only, codebase = the named path subtree only).
+- Do not write code. Not one line. Not even a trivial typo fix.
+- Do not commit, stage, push, or open PRs.
+- Do not mutate any artifact file other than the ones you're authoring (`.ai/workflows/<slug>/01-simplify.md` + its `00-index.md`).
+- Do not edit the workflow plan (plan scope) — write proposed deltas to your run artifact only.
+- Do not read files outside the scope's diff/path set (branch = branch diff, commit = commit diff, plan = the named plan file only, codebase = the named path subtree only).
 - Your only output is the run artifact and a compact chat summary of recommended downstream commands.
 - If you catch yourself about to make a code edit, STOP. Route the finding; do not execute it yourself.
 - Resolve the scope before dispatch, complete triage before routing, and write the run artifact last.
@@ -104,7 +104,7 @@ Debt findings join the aggregate in **Step 3** and route through the **Step 4** 
 
 # Step 2 — Dispatch three sub-agents in parallel
 
-**MANDATORY**: dispatch all three sub-agents in ONE parallel wave per [_subagents.md](_subagents.md). Sequential dispatch is forbidden — the three rubrics run as parallel read-only children.
+dispatch all three sub-agents in ONE parallel wave per [_subagents.md](_subagents.md). Sequential dispatch is forbidden — the three rubrics run as parallel read-only children.
 
 Load [simplify/_research.md](simplify/_research.md). It holds the effort tier (**low**, REQUIRED on every dispatch), the inputs each agent receives, the `findings:` output contract, and the three charters: Agent 1 Code Reuse Review, Agent 2 Code Quality Review, Agent 3 Efficiency Review, each with its plan-scope adaptation. Give each agent exactly one charter.
 

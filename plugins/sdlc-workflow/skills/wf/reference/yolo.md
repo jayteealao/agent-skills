@@ -3,13 +3,13 @@ description: Autonomous lifecycle driver (Claude Code only). The no-human-gates 
 argument-hint: <slug> [<slice>]
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
-> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf yolo`, the **autonomous lifecycle driver**. Where `/wf auto` pauses at every stage gate, `yolo` resolves the gate itself by the Autonomous Decision Policy and drives the slug to the review endpoint without stopping. It runs the stages as background-workflow subagents through Claude Code's **Workflow** tool. The user typing `/wf yolo <slug>` is the explicit opt-in to run that tool.
 
@@ -17,13 +17,13 @@ You are running `/wf yolo`, the **autonomous lifecycle driver**. Where `/wf auto
 
 # What `/wf yolo` is (and is not)
 
-- **A driver, not a stage.** Every artifact in `.ai/workflows/<slug>/` is written by a delegated stage subagent that follows the on-disk reference (`plan.md` / `implement.md` / `verify.md` / `review.md`) **verbatim**, with one override: where the reference asks the user, the subagent resolves it by policy.
+- **A driver, not a stage.** Every artifact in `.ai/workflows/<slug>/` is written by a delegated stage subagent that follows the on-disk reference (`plan.md` / `implement.md` / `verify.md` / `review.md`) **exactly**, with one override: where the reference asks the user, the subagent resolves it by policy.
 - **It resolves gates; it does not remove them.** Each stage's quality gate still runs; `yolo` supplies the answer and records it. Where it cannot produce the runtime proof a criterion needs, it defers that criterion through verify's `interactive-verification: deferred` hatch — recorded, ship-blocking, visible.
 - **It stops before handoff — always.** It never opens a PR or runs `handoff`, `ship`, or `retro`. CI is never in its scope.
 - **Resume is free.** The durable record is the artifact trail (`00-index.md` + numbered files). A killed run resumes on re-invocation: orientation skips stages already terminal-clean. No separate state file.
 - **A dead driver looks dead.** Every dispatched subagent appends a heartbeat line to `.ai/workflows/<slug>/.driver-journal.jsonl` on start and on finish. Read it by the staleness rule; never by its existence.
 
-# Driver liveness (MANDATORY)
+# Driver liveness
 
 **The heartbeat.** Each dispatched agent appends one JSONL line before it starts and one before it returns:
 
@@ -34,7 +34,7 @@ You are running `/wf yolo`, the **autonomous lifecycle driver**. Where `/wf auto
 
 It is diagnostic, never a gate: a failed append never changes what a stage does.
 
-**Judging it.** Apply the staleness rule in [_control-file-ownership.md](_control-file-ownership.md) verbatim at every read site: orientation, the hand-back, and `/wf status <slug>`. Never infer liveness from a file existing, a task id being known, or a chip saying "running independently".
+**Judging it.** Apply the staleness rule in [_control-file-ownership.md](_control-file-ownership.md) exactly at every read site: orientation, the hand-back, and `/wf status <slug>`. Never infer liveness from a file existing, a task id being known, or a chip saying "running independently".
 
 **Reconciling a dead driver.** A presumed-dead driver's last writes are suspect. Re-read every control file from disk immediately before editing it. Where an artifact on disk contradicts `00-index.md`, trust the artifact and correct the index. Report what the journal shows the run completed versus abandoned.
 
@@ -61,7 +61,7 @@ The target itself — the slug-wide review in slug mode, the named slice in slic
 
 **Bounded re-verify.** A re-challenge is a wall probe, not a verify. The driver dispatches a read-only agent that re-executes the recorded capability probes for the slice's open deferrals and answers, per wall, whether the wall still stands, writing nothing. If every wall stands, the deferrals carry fresh receipts and the slice is done for this run. The driver escalates to a full verify only for a named reason — a wall fell, or the artifacts contradict the index — and records that reason as a decision.
 
-# Control files while a driver is live (MANDATORY)
+# Control files while a driver is live
 
 While a driver is running for a slug — or is presumed-dead and not yet reconciled — that slug's `00-index.md` and the global `.ai/workflows/INDEX.md` are driver-owned. Any writer, foreground or delegated:
 
@@ -102,7 +102,7 @@ Fix posture: the default action on any finding is **fix**. LOW/NITs keep a recor
 
 Branch posture: under `branch-strategy: dedicated`, orientation switches to the slug branch if it exists, else creates it from `base-branch`. It never stashes or force-switches: a switch or create that git refuses because uncommitted work would be lost is a HARD-STOP. A created or switched branch is reported in `outcome.branch`.
 
-Standing steering: orientation reads `steer.md` and injects the relevant entries into each stage subagent's prompt, because subagents never re-read the workflow directory. A steering entry `yolo` cannot honor without crossing a MANDATORY gate or a HARD-STOP is surfaced, never obeyed into a broken state. Steering cannot authorize shipping with an open deferral or waive a `dont-ship` verdict.
+Standing steering: orientation reads `steer.md` and injects the relevant entries into each stage subagent's prompt, because subagents never re-read the workflow directory. A steering entry `yolo` cannot honor without crossing a mandatory gate or a HARD-STOP is surfaced, never obeyed into a broken state. Steering cannot authorize shipping with an open deferral or waive a `dont-ship` verdict.
 
 Deferrals: the `verify` row above is the single normative statement of `yolo`'s deferral posture; verify.md's deferral law is the underlying law. Open deferrals from earlier runs are re-challenged fresh at orientation, and the standing pile is surfaced as `outcome.deferralPressure` (open count, oldest wall, repeat-of clusters). `/wf ship` HARD-BLOCKS until every deferral is cleared.
 
@@ -116,7 +116,7 @@ Mid-build discover checkpoint: when a `severity: high` RIM's **visible-milestone
 
 Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-guards.md](_autonomy-guards.md) to the driving session itself.
 
-# Step 0 — Resolve arguments (MANDATORY)
+# Step 0 — Resolve arguments
 
 1. **Slug + mode.** First positional after `yolo` = slug. Second positional, if present, = `<slice>` → **slice mode**; absent → **slug mode**. `yolo` owns its own slug resolution (the dispatcher excludes it from fuzzy-suggest). If the slug is empty, infer it from `.ai/workflows/INDEX.md`: exactly one `status: active` workflow → use it (slug mode); otherwise STOP with: *"`/wf yolo` needs a slug. Active workflows: `<list>`. Run `/wf yolo <slug>`."*
 2. **Existence check.** Confirm `.ai/workflows/<slug>/00-index.md` exists. If not, STOP: *"No workflow `<slug>`. Run `/wf status` to list workflows, or `/wf intake <description>` to start one."* Do not fuzzy-correct here. If a description was given instead of a slug, STOP and route to `/wf intake <description>` first.
@@ -159,7 +159,7 @@ When the model resumes a `yolo` run, it relaunches this script through the Workf
 2. **Write the patch down** at `.ai/patches/<date>-<symbol>.md` in the repo being worked on: the diff, the symptom, and the file + symbol it targets.
 3. **Record it against the plugin dev tree** — a task, an issue, or a note the next plugin session will see.
 
-# Step 2 — Hand back to the user (MANDATORY)
+# Step 2 — Hand back to the user
 
 When the workflow completes, read its returned `outcome` and emit a chat summary. Lead with a short **narrative** paragraph (prose, no bullets): which stages ran, the load-bearing decisions each produced, the autonomous calls the driver made, and why the run ended. Then the anchors:
 

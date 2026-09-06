@@ -180,7 +180,7 @@ If the recommendation is `human-triage`, replace the `Recommended next:` line wi
 Runs only from Step 0 route mode (`/wf intake rca <slug> <plan|fix|hotfix|human-triage> [one-line reason]`). Recording the route is the workflow's decision record. It never starts the successor: it prints the invocation and stops.
 
 1. **Stamp the artifact.** Add to `01-rca.md` frontmatter: `chosen-route: <route>`; `routed-at:` set to the real UTC timestamp (per [_timestamp.md](../_timestamp.md)); and `decision-note: <the trailing prose>` if the user supplied any (omit the key otherwise).
-2. **Append a `## Decision` section** to the artifact body: which route was picked; why (the user's reason word for word, else "user routed without a stated reason"); which tripwires were live at route time (from Section 11, or "none").
+2. **Append a `## Decision` section** to the artifact body: which route was picked; why (the user's exact reason, else "user routed without a stated reason"); which tripwires were live at route time (from Section 11, or "none").
 3. **Close or continue, by route:**
    - **`fix` / `hotfix`**: the successor is a NEW workflow, so this one closes. Update `00-index.md` with `status: closed`, `close-reason: route-recorded`, `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`, `next-invocation: "none — route recorded"`; update the registry row to `closed`. The successor's link-back (`_intake-provenance.md`) corrects `superseded-by: pending`.
    - **`plan`**: the SAME slug continues into the standard chain; the workflow stays open. Set `next-command: wf-plan`, `next-invocation: "/wf plan <slug>"`, refresh `updated-at`.

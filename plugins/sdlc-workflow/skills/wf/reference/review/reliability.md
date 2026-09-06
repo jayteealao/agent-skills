@@ -3,7 +3,7 @@ description: "Review code for reliability, failure modes, and operational safety
 argument-hint: "[scope] [target] [paths]"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 

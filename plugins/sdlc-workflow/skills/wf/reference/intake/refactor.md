@@ -25,16 +25,16 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | Gate | Stop-and-prompt before `05-implement` (Proceed / Adjust / Escalate). |
 | Next | `/wf implement <slug>` — standard execution; `07-review` defaults to **`refactor-safety`**. |
 
-# CRITICAL — behavior preservation is the only acceptance criterion
+# Behavior preservation is the only acceptance criterion
 You are a **refactoring orchestrator**. The singular goal is identical external behavior before and after.
-- **NEVER add new functionality** during a refactor. Finish the refactor, then start a separate `/wf intake` for new behavior.
-- **NEVER change public API surface** (exported signatures, REST routes, event names, component props, config keys) unless API simplification is the explicit stated goal.
-- **NEVER skip a failing test** with `skip`/`xtest`/`@Ignore`/comments. A test failing after your changes = a regression — fix the refactor, not the test.
-- **NEVER rewrite in one large commit.** Each plan step must leave the codebase working and green.
-- **NEVER assume tests are sufficient.** The baseline (Step 2) records what tests actually cover; gaps are risk.
+- **Never add new functionality** during a refactor. Finish the refactor, then start a separate `/wf intake` for new behavior.
+- **Never change public API surface** (exported signatures, REST routes, event names, component props, config keys) unless API simplification is the explicit stated goal.
+- **Never skip a failing test** with `skip`/`xtest`/`@Ignore`/comments. A test failing after your changes = a regression — fix the refactor, not the test.
+- **Never rewrite in one large commit.** Each plan step must leave the codebase working and green.
+- **Never assume tests are sufficient.** The baseline (Step 2) records what tests actually cover; gaps are risk.
 - The lifecycle skips no *stage* — each is single-pass. Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
-# Step 0 — Orient (MANDATORY)
+# Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/<slug>/00-index.md` with `workflow-type: refactor` → **resume mode**. Read the index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `rf-*.md` — re-author as the standard set if continuing.)
    - Otherwise → **new refactor**. Derive a slug: `refactor-<short-description>` (kebab-case, max 5 words, e.g., `refactor-auth-service-layer`).
@@ -72,7 +72,7 @@ next-command: wf-shape
 next-invocation: "/wf shape <slug>"
 ---
 ```
-Body: open with `## The Refactor` — the story section (MUST follow `../_story-arc.md`; 1–2 short paragraphs — the problem inherited, the decisions with reasons, the top open risk; no "This refactor implements…" opening) — then `## Target` (what), `## Why` (the structural problem), `## Frozen` (must-not-change APIs/behaviors), `## Target Structure`.
+Body: open with `## The Refactor` — the story section (must follow `../_story-arc.md`; 1–2 short paragraphs — the problem inherited, the decisions with reasons, the top open risk; no "This refactor implements…" opening) — then `## Target` (what), `## Why` (the structural problem), `## Frozen` (must-not-change APIs/behaviors), `## Target Structure`.
 
 # Step 2 — Baseline → `02-shape.md` (the most important step)
 The baseline captures ground truth before any code change — it IS the shape. Launch parallel sub-agents.
@@ -172,7 +172,7 @@ Author free narrative fragments for any artifact per the narrative-fragment tier
 # Step 5 — Write `00-index.md` (conformant `type: index`)
 Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `refactor` column values (`branch` empty when the user kept the current branch; `stack.user-confirmed: true` after the Step 1 confirm). Then register the slug in `.ai/workflows/INDEX.md` per the tail.
 
-# Step 6 — Gate before implement (MANDATORY)
+# Step 6 — Gate before implement
 Apply the gate per `_intake-context.md` and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — decision recorded in `01-refactor.md` on every branch. On **Escalate** (the refactor needs real multi-slicing), the tail closes this slug and prints `/wf intake "<description>" from <slug>` — the successor inherits the API-surface and coverage baseline via `_intake-provenance.md` (escalated change-mode row) instead of discarding two sub-agents of work.
 
 # Step 7 — Hand off to the standard chain

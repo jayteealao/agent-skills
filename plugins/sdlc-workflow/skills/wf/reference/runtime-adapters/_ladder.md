@@ -2,11 +2,11 @@
 
 Load this file with the registry, [../runtime-adapters.md](../runtime-adapters.md), before any deferral. The per-wall rung lists are in [_ladder-walls.md](_ladder-walls.md).
 
-## Constraint-resolution ladder (climb before deferring — MANDATORY)
+## Constraint-resolution ladder (climb before deferring — mandatory)
 
 A user-observable AC asserts runtime behavior, so it requires runtime (or device-free runtime-proxy) evidence — static or truth-table reasoning never satisfies it. When the obvious path is blocked (no device, viewport pinned, no live creds, no display), do **not** jump to a deferral or rationalize a `pass`. Climb the ladder for the AC's class, record the highest rung that holds, and defer **only** the residual that no rung can reach — naming every rung tried in the defer-reason. "No emulator" is not a defer-reason; "no emulator → Robolectric covers the state machine (9/9), Roborazzi covers the visual, AVD boot failed (HAXM unavailable), residual = live multi-touch routing" is.
 
-**Classify the wall before you climb it (wall-ownership triage — the MANDATORY first move).** A
+**Classify the wall before you climb it (wall-ownership triage — the mandatory first move).** A
 ladder climb answers "what other rung can produce this evidence?" — but that is only the right
 question when the wall genuinely belongs to the environment. Before climbing, answer one question and
 record the verdict: **would a change to code in THIS repo dissolve this wall?**

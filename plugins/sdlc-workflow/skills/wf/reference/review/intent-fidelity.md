@@ -3,7 +3,7 @@ description: "Review whether the diff advances the intake's product, or a simpli
 argument-hint: "[scope] [target] [paths]"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
@@ -22,7 +22,7 @@ agent-taught tutor intake that shipped a fixed 5-question vending machine).
 3. **Name the directive, not a vibe**: "this narrows intake directive X" with X quoted, not "feels off".
 
 # INPUTS (read these before scanning the diff)
-- `01-intake.md` — the **Restated Request**, **Known Constraints**, and **Success Criteria** (verbatim).
+- `01-intake.md` — the **Restated Request**, **Known Constraints**, and **Success Criteria** (exact text).
 - The **intent-risk (RIM) ledger** on `00-index.md` — which risks were adjudicated, and how.
 - Shape's **`## Intake Fidelity` table** (W2.2) — the declared honored/narrowed/dropped dispositions.
 - The **charter** (`00-index.md` `charter:`, when present) — the positive commitments.

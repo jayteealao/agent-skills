@@ -3,13 +3,13 @@ description: The single review surface — workflow stage AND ad-hoc, resolved b
 argument-hint: "<slug> [slice | triage] | <dimension> | sweep <aggregate>"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
-> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 > **Ground findings in the real source (both modes).** Before asserting that code misuses a
 > dependency, framework, or SDK — wrong signature, unhandled edge case, a call that "can't
@@ -24,14 +24,14 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `/wf review`, **stage 7 of 10** in the SDLC lifecycle.
 
-# Step 00 — Resolve scope: workflow stage vs ad-hoc (MANDATORY, before everything)
+# Step 00 — Resolve scope: workflow stage vs ad-hoc (mandatory, before everything)
 
 `/wf review` is the single review surface — it spans the **workflow stage** (a slug) and **ad-hoc**
 review (a dimension or a sweep, no slug), the way `/wf simplify` unifies its scopes. This absorbed the
 former standalone `review` skill. Resolve the first token BEFORE any stage logic:
 
 1. **Exact slug match** — `.ai/workflows/<token>/00-index.md` exists → **stage mode**. **Read
-   `review/_stage.md` in full now and follow it verbatim** —
+   `review/_stage.md` in full now and follow it exactly** —
    it carries the whole stage body (preamble table, TRIAGE MODE, Step 0 orient, the accumulating-ledger
    dispatch, fix loop, artifact templates). The optional second token is `<slice>` or `triage`, exactly as before.
 2. **`sweep` or a known dimension/aggregate key** (no slug matched) → **ad-hoc mode**. Jump to the
@@ -69,7 +69,7 @@ Reached from Step 00 branch 2. Two modes over one of five scopes (`pr` / `worktr
 `architecture`, `infra`, and `security` exist as BOTH a dimension and an aggregate — a bare `/wf review <name>` is the dimension; `/wf review sweep <name>` is the aggregate.
 
 ## Single-dimension execution
-1. Read the rubric in full from `review/<key>.md` and follow it verbatim (its `args:` frontmatter describes how it consumes scope/target/paths).
+1. Read the rubric in full from `review/<key>.md` and follow it exactly (its `args:` frontmatter describes how it consumes scope/target/paths).
 2. Run the rubric inline over the resolved scope. Return findings in the standard schema (severity + confidence + file:line + evidence + suggested fix).
 
 ## Sweep execution (parallel sub-agent dispatch)

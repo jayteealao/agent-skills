@@ -3,13 +3,13 @@ description: Read-only adversarial audit of the ship pipeline — questions whet
 argument-hint: "[<lens> | triage]"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0, read the active workflow's `steer.md` if it exists and
 > apply the contract in [_steering.md](../_steering.md): honor the user's standing instructions, never above a
-> MANDATORY gate, and inject the relevant entries into every audit sub-agent prompt you dispatch.
+> mandatory gate, and inject the relevant entries into every audit sub-agent prompt you dispatch.
 
 > **Ground findings in the real source.** Before asserting that a workflow step, a published artifact, or the
 > code misuses a dependency, action, or registry — a wrong signature, an action that "can't work," a security
@@ -188,7 +188,7 @@ findings:
 ---
 
 ## The Audit
-<Story section — MUST follow ../_story-arc.md (heading `## The Audit`): the state audited, then the
+<Story section — must follow ../_story-arc.md (heading `## The Audit`): the state audited, then the
 verdict and the finding that most threatens a real release, then the route forward. Name what a release would
 actually get wrong, not a checklist. STE language throughout.>
 

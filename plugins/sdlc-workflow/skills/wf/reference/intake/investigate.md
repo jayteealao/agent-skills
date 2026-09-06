@@ -47,13 +47,13 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 
 # Effort rubric (single source)
 
-The one definition of effort for this command. Every other mention in this file — sub-agent prompts, option sections, routing — cites this rubric instead of restating thresholds; pass it verbatim into any sub-agent prompt that needs it.
+The one definition of effort for this command. Every other mention in this file — sub-agent prompts, option sections, routing — cites this rubric instead of restating thresholds; pass it unchanged into any sub-agent prompt that needs it.
 
 - **small** — ≤3 files, ≤5 steps, no new dependency, no schema change.
 - **medium** — 4–10 files, or a new dependency, or a config change.
 - **large** — >10 files, or an architecture change, migration, or cross-team coordination.
 
-# CRITICAL — sketching discipline
+# Sketching discipline
 You are an **options sketcher**, not a chooser, planner, or implementer.
 - The **only** acceptable output is the investigate artifact and index. Do not edit application code. Do not write a plan. Do not pick a winning option (the user picks).
 - Read-only investigation only: `git log`, `git blame`, your native file-reading and search tools, static code inspection.
@@ -62,7 +62,7 @@ You are an **options sketcher**, not a chooser, planner, or implementer.
 - Ask at most **3 questions** in chat. No structured gate question, no separate `po-answers.md` — answers go inline into the artifact.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
-# Step 0 — Orient (MANDATORY)
+# Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the first token matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: investigate` → the workflow exists. Read that index, then split on three sub-cases:
      - **A token after the slug matches an option id (`A`, `B`, …) or an option label** from `01-investigate.md` → **pick mode**. Jump to `# Pick — decision closure` below; any trailing prose after the option token is the decision note. If the token matches more than one label, ask one question to disambiguate. If the index is already `status: closed`, WARN: "Workflow `<slug>` is closed (chosen-option: `<value>`)." and stop.
@@ -97,7 +97,7 @@ Charters, effort tier, and return shapes for the three sub-agents are in [intake
 
 Merge findings from the three sub-agents. **Do not invent options the agents did not surface; do not silently drop options that survived the agents' filtering.** If sub-agent 2 returned only one option and `options_considered_and_rejected` shows nothing was rejected, that's a tripwire — surface it.
 
-**Constraint cross-check (MANDATORY):** before writing, verify every surviving option against sub-agent 1's `architectural_constraints` and `integration_boundaries` — start from sub-agent 3's `constraint_collisions` and add any collision it missed. A collision does not drop the option: set or extend that option's `requires_architecture_violation` and add the collision to its top risks, with the `file:line` evidence from the map. If every option collides, that is the `architecture-blocking` tripwire. Extend the same check to the **user's stated constraints** from Step 1 question 3: start from sub-agent 3's `honors_stated_constraints`, correct it where the map contradicts it, and add any violation to that option's top risks — a violating option loses ties in the presentation-cap selection but is not dropped (the user may relax a constraint once they see the price of keeping it).
+**Constraint cross-check:** before writing, verify every surviving option against sub-agent 1's `architectural_constraints` and `integration_boundaries` — start from sub-agent 3's `constraint_collisions` and add any collision it missed. A collision does not drop the option: set or extend that option's `requires_architecture_violation` and add the collision to its top risks, with the `file:line` evidence from the map. If every option collides, that is the `architecture-blocking` tripwire. Extend the same check to the **user's stated constraints** from Step 1 question 3: start from sub-agent 3's `honors_stated_constraints`, correct it where the map contradicts it, and add any violation to that option's top risks — a violating option loses ties in the presentation-cap selection but is not dropped (the user may relax a constraint once they see the price of keeping it).
 
 **Select for presentation (cap = 3 full cards):** if more than 3 viable options survived, pick the 3 that maximize spread across mechanism, effort, and risk profile (preferring options that honor the user's constraints) for full option sections. Demote the surplus to compressed entries under "Demoted by presentation cap" in the rejected section — `<label> — <mechanism, one phrase> — effort:<X> — <why it lost the differentiation cut>` — taking the effort value from sub-agent 3's cards. Demotion by cap is NOT rejection on merit: fire the `option-space-truncated` tripwire so the reader knows the option space was wider than the full cards.
 
@@ -108,7 +108,7 @@ schema: sdlc/v1
 type: investigate
 slug: <slug>
 workflow-type: investigate
-problem-statement: <one-line problem verbatim>
+problem-statement: <one-line problem, exact>
 option-count: <N: total distinct viable options found>
 presented-count: <min(N, 3)>
 option-ids: [A, B, C, …]   # all found; the first `presented-count` are full cards
@@ -199,7 +199,7 @@ starts the successor — it prints the invocation and stops.
    `chosen-at:` set to the real UTC timestamp (per [_timestamp.md](../_timestamp.md)); and
    `decision-note: <the trailing prose>` if the user supplied any (omit the key otherwise).
 2. **Append a `## Decision` section** to the artifact body: which option was picked; why (the
-   user's reason verbatim, else "user picked without a stated reason"); which tripwires were live
+   user's reason exactly, else "user picked without a stated reason"); which tripwires were live
    at pick time (from section 6, or "none").
 3. **Close the workflow.** Update `00-index.md`: `status: closed`, `close-reason: option-picked`,
    `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`,

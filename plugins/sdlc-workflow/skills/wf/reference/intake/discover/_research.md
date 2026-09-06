@@ -4,7 +4,7 @@ Step 2 of `/wf intake discover` dispatches the three sub-agents below simultaneo
 
 **Effort tier for every dispatched agent:** **low** (per [_subagents.md](../../_subagents.md)) — each agent does targeted code reading + structured-output extraction (FOR / AGAINST / counter-hypotheses), the bounded-rubric profile the low tier handles cleanly. **Exception:** when Step 1 question 3 says a large decision rides on the verdict (a major refactor, an architecture choice, a plan's premise), raise the tier to **medium** — "dig harder" is a judgment instruction, and the tier must match it. State the chosen tier on every dispatch.
 
-Each sub-agent receives the same two inputs: the verbatim hypothesis from Step 1 and the starting area from Step 1 question 2. Every returned item cites `file:line` with a snippet of 5 lines or fewer.
+Each sub-agent receives the same two inputs: the exact hypothesis from Step 1 and the starting area from Step 1 question 2. Every returned item cites `file:line` with a snippet of 5 lines or fewer.
 
 ### research sub-agent 1 — Evidence FOR
 

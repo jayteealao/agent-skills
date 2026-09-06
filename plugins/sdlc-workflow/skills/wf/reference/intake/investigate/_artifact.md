@@ -3,11 +3,11 @@
 `intake/investigate.md` holds the `01-investigate.md` frontmatter and the synthesis rules (constraint cross-check, presentation cap). This file holds the body sections, in order.
 
 ## The Investigation
-<!-- STORY SECTION — first, and self-sufficient. MUST follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language MUST follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. must follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
 
 ## 1. Problem & constraints
 
-Problem word for word. Then 1–2 sentences of restatement that name the observable being solved for (latency? error rate? code clarity? capability gap?). Then the constraint list from Step 1 question 3, each as a bullet.
+The exact problem. Then 1–2 sentences of restatement that name the observable being solved for (latency? error rate? code clarity? capability gap?). Then the constraint list from Step 1 question 3, each as a bullet.
 
 ## 2. Architecture map
 

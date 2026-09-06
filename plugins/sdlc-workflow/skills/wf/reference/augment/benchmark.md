@@ -3,7 +3,7 @@ description: Performance benchmarking wrapper for an existing workflow. Runs in 
 argument-hint: <slug> [baseline|compare]
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
@@ -52,15 +52,15 @@ existing-workflow/
 > reverse an expected improvement (the plan predicted faster, the compare measured slower). Skip only
 > when none of the triggers hold; the user may invoke it explicitly with any provider.
 
-# CRITICAL — measurement discipline
+# Measurement discipline
 You are a **performance analyst**, not an optimizer.
-- Do NOT modify application code. Do NOT rewrite benchmarks to make them faster.
+- Do not modify application code. Do not rewrite benchmarks to make them faster.
 - Benchmarks must be run on the **actual code** as it currently exists — not on hypothetical or refactored versions.
 - If no benchmark framework exists, construct ad-hoc timing measurements using shell commands or language built-ins. Document the measurement method so it can be reproduced exactly in compare mode.
-- Do NOT mutate database state, send real API calls to production, or otherwise cause side effects. Benchmarks must be safe to run in a development environment.
+- Do not mutate database state, send real API calls to production, or otherwise cause side effects. Benchmarks must be safe to run in a development environment.
 - Follow the steps below in order. Mode-specific sections are labeled clearly.
 
-# Step 0 — Orient (MANDATORY)
+# Step 0 — Orient
 1. **Resolve slug** from first argument. Must match an existing workflow directory.
    - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found."
    - If `02-shape.md` does not exist → STOP: "No shape found for `<slug>`. Run `/wf shape <slug>` first."
@@ -114,7 +114,7 @@ Run the benchmark commands identified in Step 1. Rules:
 If benchmarks fail to run (missing dependency, build error, missing test fixtures):
 - Document the failure in the artifact.
 - Record "manual measurement required" for that target.
-- Do NOT block — write the artifact with whatever ran successfully.
+- Do not block — write the artifact with whatever ran successfully.
 
 ## Baseline Step 3 — Write `05c-benchmark.md` (baseline)
 
@@ -145,7 +145,7 @@ Read `05c-benchmark.md` in full. Extract:
 - All commands from "## Measurement Commands" — run these EXACTLY as recorded.
 - All baseline numbers from "## Baseline Results".
 
-Do NOT add new targets or change commands. Compare mode must be a faithful reproduction of baseline mode.
+Do not add new targets or change commands. Compare mode must be a faithful reproduction of baseline mode.
 
 ## Compare Step 2 — Run benchmarks
 
@@ -164,7 +164,7 @@ For each measured target, calculate:
 
 ## Compare Step 4 — Update `05c-benchmark.md` with comparison data
 
-Add the `## Comparison Results` section and the comparison frontmatter per [benchmark/_artifact.md](benchmark/_artifact.md) → *Compare Step 4*. Do NOT overwrite baseline data.
+Add the `## Comparison Results` section and the comparison frontmatter per [benchmark/_artifact.md](benchmark/_artifact.md) → *Compare Step 4*. Do not overwrite baseline data.
 
 # Step 5 — Hand off to user
 
@@ -204,7 +204,7 @@ If regressions found, prefix compare summary with:
 
 ---
 
-## Step — Sibling YAML `benchmark` (v9.22.0+, Phase 3)
+## Step — Sibling YAML `benchmark`
 
 After writing the benchmark MD (`.ai/workflows/<slug>/05c-benchmark.md`
 or, when invoked as an augmentation under a slug,

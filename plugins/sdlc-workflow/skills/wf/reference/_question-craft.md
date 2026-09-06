@@ -9,7 +9,7 @@ topics and round structure; this file owns how each question is written. (How a
 question is *delivered* — which rung of the ladder — is
 [_gate-question.md](_gate-question.md)'s concern, not this file's.)
 
-Question and option text MUST follow the word-discipline rules (section 1) in
+Question and option text must follow the word-discipline rules (section 1) in
 [_ste-procedural.md](_ste-procedural.md): one term per concept across the whole
 batch, every pronoun with exactly one referent, concrete conditions and
 quantities instead of abstract statements.
@@ -47,7 +47,7 @@ quantities instead of abstract statements.
    label (INTENT-FIDELITY W10.2).** For any decision that classes as
    intent-bearing per [_decision-classes.md](_decision-classes.md) — one that
    assigns *control authority* or reframes what the product fundamentally *is* —
-   each option MUST say, in one sentence, what the user or learner **experiences
+   each option must say, in one sentence, what the user or learner **experiences
    differently at runtime**, not the name of the architecture behind it:
    *"the model never decides what to ask next; a fixed 5-stage script asks the
    same questions in the same order every time"* — NOT *"state-machine-driven
@@ -57,7 +57,7 @@ quantities instead of abstract statements.
 
 **Scope of authority — a PO answer decides only the question it was asked (INTENT-FIDELITY W2.1).**
 When an answer forecloses an *approach* (kills a vendor, a library, a budget), the *requirement*
-that approach served does NOT silently degrade into being dropped. The stage MUST either (a) show
+that approach served does NOT silently degrade into being dropped. The stage must either (a) show
 the requirement is still met another way, or (b) ask the PO a follow-up question about the
 requirement itself. A vendor answer ("no Neon; only Cloudflare backends") does not authorise a
 requirement change ("no sync in v1") — that is a second decision the PO never made. When recording

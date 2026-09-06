@@ -25,7 +25,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | Next | If `holds` → no required follow-up; act on the confirmed understanding however you originally intended. If `fails` or `inconclusive` → `/wf intake rca "<symptom>" from <slug>` (if the falsified hypothesis was about why something behaves badly — the counter-hypotheses travel with it) or a plain research conversation outside `/wf` (if you need to actually learn how the code works rather than test a theory). The workflow **closes at write time** — a verdict is terminal by construction; there is nothing left to pick. |
 | Escalate | If FOR and AGAINST evidence are roughly equal AND a definitive answer requires runtime data (not static code reading) → surface `needs-runtime-evidence` with the executable rungs: `/wf probe <slug> "<the runtime question>"` for a runtime observation, the `study-sources` skill for a dependency/framework fact. List exactly what would resolve it (a test run, a profile, a log line). |
 
-# CRITICAL — adjudication discipline
+# Adjudication discipline
 You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
 - The **only** acceptable output is the discover artifact and index. Do not edit application code. Do not write a plan. Do not propose a fix. Do not produce a tutorial-style explanation of how the area works (that is a plain research conversation outside `/wf`).
 - Read-only investigation only: `git log`, `git blame`, your native file-reading and search tools, static code inspection.
@@ -34,7 +34,7 @@ You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
 - Ask at most **3 questions** in chat. No structured gate question, no separate `po-answers.md` — answers go inline into the artifact.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
-# Step 0 — Orient (MANDATORY)
+# Step 0 — Orient
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: discover` → **resume mode**. Read that index. If `01-discover.md` is complete, tell the user and stop. If incomplete, pick up from the missing section.
    - Otherwise → **new discover**. Derive a slug: `discover-<short-hypothesis>` (kebab-case, max 5 words, e.g., `discover-auth-uses-jwt`).
@@ -82,7 +82,7 @@ schema: sdlc/v1
 type: discover
 slug: <slug>
 workflow-type: discover
-hypothesis: <one-line hypothesis verbatim>
+hypothesis: <one-line hypothesis, exact>
 verdict: holds | partial | fails | inconclusive
 confidence: high | medium | low
 recommended-next: <command-if-any or "none">
@@ -94,15 +94,15 @@ created-at: <real UTC timestamp per _timestamp.md>
 **Body sections (in order):**
 
 ## The Discovery
-<!-- STORY SECTION — first, and self-sufficient. MUST follow `../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language MUST follow `../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. must follow `../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
 
 ## 0. What this decides
 
-The Step 1 question 3 answer, verbatim: the decision that rides on this verdict. On `fails`, name explicitly which plan, assumption, or in-flight work lost its premise — a falsified hypothesis with no record of what it falsified helps nobody. On `holds`, one line: what now proceeds on confirmed ground.
+The Step 1 question 3 answer, exact: the decision that rides on this verdict. On `fails`, name explicitly which plan, assumption, or in-flight work lost its premise — a falsified hypothesis with no record of what it falsified helps nobody. On `holds`, one line: what now proceeds on confirmed ground.
 
 ## 1. Hypothesis
 
-The hypothesis verbatim, as a falsifiable claim. Add 1–2 sentences of restatement that clarify what would have to be true for it to hold, and what would have to be true for it to fail.
+The exact hypothesis, as a falsifiable claim. Add 1–2 sentences of restatement that clarify what would have to be true for it to hold, and what would have to be true for it to fail.
 
 ## 2. Evidence FOR
 

@@ -3,7 +3,7 @@ description: Observability augmentation for an existing workflow. Scans the file
 argument-hint: <slug>
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
@@ -47,15 +47,15 @@ existing-workflow/
 > label/dimension carries unbounded-cardinality risk. Skip only when none of the triggers hold; the
 > user may invoke it explicitly with any provider.
 
-# CRITICAL — scope discipline
+# Scope discipline
 You are an **observability architect**, not an implementer.
-- Do NOT write application code. Do NOT modify `02-shape.md`, `04-plan-*.md`, or any stage artifact.
+- Do not write application code. Do not modify `02-shape.md`, `04-plan-*.md`, or any stage artifact.
 - Your output is the instrumentation *plan*, not the implementation. `wf-implement` builds the code; this command tells it what to build.
 - Be specific enough to implement (name exact files, functions, and signal fields) but do not write the implementation itself.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
-# Step 0 — Orient (MANDATORY)
-1. **Resolve slug** from `$ARGUMENTS`. This MUST match an existing workflow directory.
+# Step 0 — Orient
+1. **Resolve slug** from `$ARGUMENTS`. This must match an existing workflow directory.
    - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
    - If `02-shape.md` does not exist → STOP: "Workflow `<slug>` has no shape yet. Run `/wf shape <slug>` first."
 2. **Check for existing augmentation:**
@@ -66,7 +66,7 @@ You are an **observability architect**, not an implementer.
    - Read any `04-plan-*.md` files present — these name specific files and steps.
    - Read `00-index.md` frontmatter — check `current-stage`, `status`, and any existing `augmentations:` entries.
    - **If `.ai/observability.md` exists at the repo root**, read its **Block A** (canonical wide-event schema) and
-     **Block E** (collection pipeline). The signals you design MUST use that schema's field vocabulary and target
+     **Block E** (collection pipeline). The signals you design must use that schema's field vocabulary and target
      that pipeline — not a fresh convention. This is how per-change instrumentation stays consistent with the
      project foundation. If it does not exist, design against the shared doctrine and note that
      `/wf observability init` would establish the project-wide contract.

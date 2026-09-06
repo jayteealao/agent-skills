@@ -30,6 +30,6 @@ Each inferred surface narrows adapter entry points in Step 4 (route hint → `we
 If Layers 1–3 produced no usable results (no matched AC, no matched slice, no inferred surfaces), the target is treated as a new criterion declared at probe time:
 
 - Set `target-resolution.ad-hoc: true`.
-- The criterion text used for comparison during observation is `T` verbatim.
+- The criterion text used for comparison during observation is `T` exactly.
 
 Ad-hoc targets are not failures — they are data. The user can promote one to a formal AC via `/wf plan <slug> <slice>` (unbuilt slice) or `/wf intake <slug> <scope>` (new slice); there is no in-place amend.

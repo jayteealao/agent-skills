@@ -3,7 +3,7 @@ description: Documentation dispatcher for the SDLC plugin. Orchestrator mode run
 argument-hint: "[<primitive> | <slug> | --audit-only | <path>]"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
 
 You are the **documentation dispatcher** for the SDLC plugin, invoked as `/wf docs`.
@@ -15,7 +15,7 @@ Two modes of operation:
 
 > **Narrative fragments.** Any docs artifact may ship free narrative fragments whenever a bespoke diagram, flow, comparison, or interactive example tells the story better than prose. Rules: [_fragment-authoring.md](_fragment-authoring.md) Step F2.
 
-> **Controlled language (MANDATORY for every document either mode writes).** Apply
+> **Controlled language (mandatory for every document either mode writes).** Apply
 > [_ste-procedural.md](_ste-procedural.md): section 1 (word discipline) to all documentation text;
 > sections 2–3 (instruction and warning rules) to every step sequence in tutorials, how-tos, and
 > runbooks; section 3 S4 (paragraph structure) to descriptive prose in reference, explanation, and
@@ -29,7 +29,7 @@ Two modes of operation:
 > for work that changed user-facing behavior — that contradiction is itself the trigger. Skip only
 > when none of the triggers hold; the user may invoke it explicitly with any provider.
 
-# Step 0 — Mode + sub-command resolution (MANDATORY)
+# Step 0 — Mode + sub-command resolution
 
 Parse `$ARGUMENTS`.
 
@@ -50,12 +50,12 @@ Parse `$ARGUMENTS`.
 
 4. **For `mode: workflow`**: read the workflow's index and all stage artifacts to understand what changed. Pay special attention to `02-shape.md` → `## Documentation Plan` (the Diátaxis doc plan written at shape).
 
-# CRITICAL — execution discipline (orchestrator mode)
+# Role
 You are a **documentation orchestrator**. You are not a writer operating in isolation.
-- Do NOT generate docs without first auditing what already exists — creating duplicate content is worse than a gap.
-- Do NOT write docs in the wrong Diátaxis quadrant. A reference page must not contain opinion. A tutorial must build something. A how-to must be goal-oriented. An explanation must not contain steps.
-- Do NOT modify source code while generating docs. Documentation lives in markdown files.
-- Do NOT delete or overwrite existing documentation without explicitly noting the deletion in the plan and confirming with the user.
+- Do not generate docs without first auditing what already exists — creating duplicate content is worse than a gap.
+- Do not write docs in the wrong Diátaxis quadrant. A reference page must not contain opinion. A tutorial must build something. A how-to must be goal-oriented. An explanation must not contain steps.
+- Do not modify source code while generating docs. Documentation lives in markdown files.
+- Do not delete or overwrite existing documentation without explicitly noting the deletion in the plan and confirming with the user.
 - For `mode: workflow`: read the actual workflow artifacts (`02-shape.md`, `03-slice.md`, `08-handoff.md`) to understand what was built before writing anything.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
@@ -125,7 +125,7 @@ For each action:
 
 1. **Track the action** on the host's progress surface, if it has one ([_host-invocation.md](_host-invocation.md)): `"<action-type> <file-path>"`.
 2. **Read required source files** before writing anything — do not write from memory.
-3. **Load the matching primitive reference** from `docs/<primitive>.md` and follow it verbatim. The primitive references are:
+3. **Load the matching primitive reference** from `docs/<primitive>.md` and follow it exactly. The primitive references are:
    - `docs/tutorial.md` — learning-oriented content that builds something step-by-step
    - `docs/how-to.md` — task-oriented goal-driven steps
    - `docs/reference.md` — neutral, structured, scannable technical reference
@@ -159,7 +159,7 @@ Write a `## Review Notes` section to `generate.md` with any issues found. For an
 Invoked only when Step 0 resolved to a primitive (first token matched a known key).
 
 1. Load `docs/<primitive>.md` in full.
-2. Treat its content as your instructions. Follow it verbatim — no summarizing, paraphrasing, or skipping.
+2. Treat its content as your instructions. Follow it exactly — no summarizing, paraphrasing, or skipping.
 3. Pass the remaining `$ARGUMENTS` (everything after the primitive key) to it as the writing target.
 4. The primitive is responsible for its own inputs-to-gather, structure, writing rules, and output contract. It writes one document at a path it decides (or the user supplies). It does not register a workflow artifact and does not run the orchestrator pipeline.
 5. After the primitive completes, return a brief summary to the user: file path written, primitive used, anti-patterns avoided.
@@ -178,13 +178,13 @@ Invoked only when Step 0 resolved to a primitive (first token matched a known ke
 
 # Workflow rules (orchestrator mode)
 - Store audit artifacts under `.ai/docs/<run-id>/`. Documentation output goes to project doc paths (not under `.ai/`).
-- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`.
+- **Every artifact must have YAML frontmatter** with `schema: sdlc/v1`.
 - **Timestamps must be real:** take the real UTC timestamp per [_timestamp.md](_timestamp.md).
 - Always read source code before writing docs — do not write from memory or inference alone.
 - Diátaxis quadrant discipline is non-negotiable. When in doubt, consult the [Diátaxis framework](https://diataxis.fr).
 - For `mode: workflow`: check `02-shape.md → ## Documentation Plan` first — that plan was written by the author who knew the intent. Fulfill it before adding new docs.
 
-# Step 7 — Emit Final Summary (MANDATORY)
+# Step 7 — Emit Final Summary
 
 After the reference's logic completes, emit a chat summary as the LAST output before returning control to the user. This contract is uniform across both modes (orchestrator and primitive).
 

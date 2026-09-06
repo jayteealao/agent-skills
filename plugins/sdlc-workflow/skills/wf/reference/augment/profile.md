@@ -3,7 +3,7 @@ description: Performance profiling sub-procedure (shape-flagged or ad-hoc; no st
 argument-hint: <area-or-function-or-file>
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
@@ -43,11 +43,11 @@ This is a **standalone command**, not tied to any workflow. It writes to `.ai/pr
 - **Static analysis is fast; dynamic profiling is authoritative.** Always do static first. If runtime tools are available, run them too and let dynamic data override static guesses.
 - **Do not optimize.** This command produces an analysis. Optimization decisions belong to a follow-up workflow (`/wf intake fix`, `/wf intake`, `/wf intake investigate`).
 - **One area at a time.** If asked to profile a large system, ask for a more specific entry point (a function, endpoint, or file path) before proceeding.
-- Do NOT modify application code. Do NOT run commands that mutate state (DB writes, API calls to production, git commits).
+- Do not modify application code. Do not run commands that mutate state (DB writes, API calls to production, git commits).
 - If profiling tools are available, run them in read-only or test-only mode.
 - Follow the steps below in order.
 
-# Step 0 — Orient (MANDATORY)
+# Step 0 — Orient
 1. **Resolve the target** from `$ARGUMENTS`. The target may be:
    - A file path: `src/checkout/payment.ts`
    - A function or method: `processPayment`

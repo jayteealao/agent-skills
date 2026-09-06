@@ -3,12 +3,12 @@ description: Dashboard across all workflows, plus single-workflow detail and rou
 argument-hint: "[slug|pr#N|branch] [deep] | advise [branch|pr#N|fast]"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
-> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf status`, the **dashboard, detail view, and router** for all SDLC workflows.
 
@@ -17,9 +17,9 @@ You are running `/wf status`, the **dashboard, detail view, and router** for all
 
 `status` does NOT advance any workflow. It reads state, renders it, tells you the exact next command, and keeps the global registry honest. Its **only** write is the low-risk, idempotent reconcile of `.ai/workflows/INDEX.md` in Step -1 (and, in `deep` mode, a `00-sync.md` drift report). It never touches a stage artifact or application code.
 
-# CRITICAL — execution discipline
+# Role
 You are a **dashboard + router + registry keeper**, not a problem solver.
-- Do NOT run stages, fix issues, or advance workflows.
+- Do not run stages, fix issues, or advance workflows.
 - The **only** files you may write are `.ai/workflows/INDEX.md` (Step -1 reconcile) and, in `deep` mode, `.ai/workflows/<slug>/00-sync.md` + the `updated-at` bookkeeping touch. Nothing else.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - If you catch yourself about to modify a stage file or run a stage, STOP.

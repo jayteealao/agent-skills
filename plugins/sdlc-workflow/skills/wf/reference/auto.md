@@ -3,13 +3,13 @@ description: End-to-end lifecycle driver. Drives an already-started workflow for
 argument-hint: <slug> [<slice>]
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
-> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf auto`, the **end-to-end lifecycle driver**. Your job is to sequence the existing `/wf` stages on an already-started workflow so the user gets a one-command run, **without** weakening any of sdlc's quality gates and **without** opening a PR or releasing on its own.
 
@@ -49,7 +49,7 @@ The dispatcher passes through everything after `auto`. Parse it as:
 
 There are no flags. `auto` always stops at the review; `handoff`, `ship`, and `retro` are run with their own commands.
 
-# Step 0 — Orient (MANDATORY)
+# Step 0 — Orient
 
 1. **Resolve slug + mode.** First positional = slug (or single-active inference per the grammar). Second positional, if present, = `<slice>` → **slice mode**; absent → **slug mode**. If slug is empty and not exactly one `active` workflow exists, STOP with: *"`/wf auto` needs a slug. Active workflows: `<list>`. Run `/wf auto <slug>`."*
 2. **Read `.ai/workflows/<slug>/00-index.md`.** Parse `status`, `current-stage`, `progress`, `selected-slice`, `review-scope`, `workflow-type`, `branch-strategy`, `branch`, `base-branch`, `pr-number`, and `compressed-slices` (if present).
@@ -68,7 +68,7 @@ Repeat until the mode's endpoint is reached **or** a gate pauses the chain:
 
 1. **Select the next stage** (selection rule below).
 2. **Announce it** in one chat line: `auto → <stage> <slug> [<slice>]`.
-3. **Run the stage in-process.** Read `<stage>.md` in full and execute it verbatim against `<slug>` (and the slice for per-slice stages), passing the same `$ARGUMENTS` the manual command would. The stage does its own work, writes its own artifact, and updates `00-index.md`. Do not summarize or shortcut it. Apply the grounded-progress rule in [_grounded-progress.md](_grounded-progress.md) to every progress claim the drive emits.
+3. **Run the stage in-process.** Read `<stage>.md` in full and execute it exactly against `<slug>` (and the slice for per-slice stages), passing the same `$ARGUMENTS` the manual command would. The stage does its own work, writes its own artifact, and updates `00-index.md`. Do not summarize or shortcut it. Apply the grounded-progress rule in [_grounded-progress.md](_grounded-progress.md) to every progress claim the drive emits.
 4. **Evaluate the gate** by reading the artifact the stage just wrote (Gate table below). **PROCEED** → loop. **PAUSE** → stop the chain and run Step 2 (residual durability), then Step 3 (hand back).
 5. **Re-read `00-index.md`** at the top of each iteration so `current-stage`, `progress`, and `selected-slice` reflect what the last stage wrote.
 
@@ -130,7 +130,7 @@ Make unresolved findings durable so nothing dies silently inside an artifact.
 3. **If no PR exists** (the usual case — `auto` never opens one): name the unresolved findings explicitly in the Step 3 summary so the user sees them. Do not invent a tracker. The review artifact is already the durable record; the summary makes it visible.
 4. Never block the hand-back on a `gh` failure — report it and fall back to listing the findings inline.
 
-# Step 3 — Hand back to the user (MANDATORY)
+# Step 3 — Hand back to the user
 
 End every run with a chat summary. Lead with a short **narrative** paragraph (prose, no bullets) telling the story: which stages ran, what they produced, why the chain stopped (reached the endpoint, or which gate paused it), and the single most important next action. Then the anchors:
 

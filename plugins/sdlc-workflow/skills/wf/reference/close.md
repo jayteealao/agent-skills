@@ -3,13 +3,13 @@ description: End a workflow, or terminate a single slice, without completing the
 argument-hint: "<slug> [<slice> | cancelled|superseded|deferred|completed-externally|merged-into]"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
-> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf close`, the **lifecycle-termination utility** for the SDLC lifecycle. It has two
 scopes, resolved by whether the second token names a slice:
@@ -20,13 +20,13 @@ scopes, resolved by whether the second token names a slice:
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
 
-# CRITICAL — scope discipline
-- Do NOT delete any workflow files. Do NOT run any stage. Do NOT edit application code.
+# Scope discipline
+- Do not delete any workflow files. Do not run any stage. Do not edit application code.
 - Branch cleanup is OPTIONAL and requires explicit user confirmation — never delete a branch silently.
-- Do NOT close a PR automatically — surface the PR URL and tell the user to close it manually.
+- Do not close a PR automatically — surface the PR URL and tell the user to close it manually.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
-# Step 0 — Resolve scope (MANDATORY)
+# Step 0 — Resolve scope
 
 1. **Parse `$ARGUMENTS`:** first token is the **slug**; the optional second token is either a
    **slice-slug** or a **close reason**.
@@ -66,7 +66,7 @@ files remain for audit or revival.
 
 ## Step W1 — Collect reason and note
 If no reason was given, ask (present the five options above). If `superseded`/`merged-into`, also ask
-"What superseded/absorbed it? (PR URL, workflow slug, or description)". Do NOT write until you have a reason.
+"What superseded/absorbed it? (PR URL, workflow slug, or description)". Do not write until you have a reason.
 
 ## Step W2 — Branch and PR state check
 - `git branch --show-current`. If `branch-strategy: dedicated` and `branch` non-empty: note whether the
@@ -113,7 +113,7 @@ no contract, no sibling `.yaml`, ordered by an `NN-` prefix, injected raw-inline
 
 ## Step W4 — Update `00-index.md`
 Update `status: closed`, `close-reason`, `superseded-by`, `closed-at`, `next-command: none`,
-`next-invocation: none`, `updated-at`. Do NOT change `current-stage` — it reflects the last stage reached.
+`next-invocation: none`, `updated-at`. Do not change `current-stage` — it reflects the last stage reached.
 
 ## Step W5 — Hand off
 Lead with a short **narrative** paragraph (the closure story), then a compact receipt (reason, last
@@ -141,7 +141,7 @@ matters (see *What this is NOT*).
 ## Step S1 — Collect reason
 If no reason followed the slice token, ask (one question): *"Why is slice `<slice>` being closed/skipped?
 (e.g. 'descoped', 'covered by another slice', 'not needed for this release', 'done externally')"*.
-Do NOT write until you have a reason.
+Do not write until you have a reason.
 
 ## Step S2 — Write the slice skip record `skip-slice-<slice>.md`
 
@@ -164,7 +164,7 @@ Body: `# Slice skipped: <slice>` — **Reason**, **What was bypassed** (what thi
 
 ## Step S3 — Mark the slice terminated (so downstream prereqs pass)
 1. In `03-slice.md`'s `slices:` roster, set the entry for `<slice>` to `status: skipped` and add
-   `skip-record: skip-slice-<slice>.md`. Do NOT touch other slices' entries; do NOT renumber.
+   `skip-record: skip-slice-<slice>.md`. Do not touch other slices' entries; do NOT renumber.
 2. If `03-slice-<slice>.md` exists → set its frontmatter `status: skipped`, add `skipped: true` and
    `skip-record: skip-slice-<slice>.md`; leave its body intact. If it does **not** exist → write a
    minimal stub `03-slice-<slice>.md` (`type: slice`, `status: skipped`, `skipped: true`,
@@ -179,7 +179,7 @@ The skip record may ship free narrative fragments — same contract as above.
 
 ## Step S4 — Update `00-index.md`
 Update `updated-at`; add `skip-slice-<slice>.md` (and any stub) to `workflow-files`. If `<slice>` was
-the `selected-slice-or-focus`, advance it to the next unresolved slice. Do NOT change `status` or
+the `selected-slice-or-focus`, advance it to the next unresolved slice. Do not change `status` or
 `current-stage` — the workflow continues; only this slice is done.
 
 ## Step S5 — Hand off

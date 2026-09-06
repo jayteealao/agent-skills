@@ -18,7 +18,7 @@ Selected slice: {slice or "(none — slug-wide)"}
 
 Read the command file and follow its WORKFLOW exactly. Perform the review for the given scope.
 
-PRE-EXISTING determination (per finding, MANDATORY): check whether the finding's flagged
+PRE-EXISTING determination (per finding, mandatory): check whether the finding's flagged
 line(s) appear in the workflow diff above. Lines untouched by this workflow's diff →
 `pre-existing: true` (the defect was already on the base branch); lines the diff
 added/modified → `pre-existing: false`. For moved or renamed code where the diff test is
@@ -127,8 +127,8 @@ Suggested fix: {fix suggestion}
 
 Read the file(s) at the specified location. Understand the issue.
 Apply the minimal fix that resolves the issue without introducing
-new problems. Do NOT change anything beyond what is needed for this
-specific finding. Do NOT refactor. Do NOT broaden scope.
+new problems. Do not change anything beyond what is needed for this
+specific finding. Do not refactor. Do not broaden scope.
 
 The suggested fix names a METHOD, not only an outcome. Follow it. You
 may deviate if it is wrong or impossible — but disclose that FIRST,

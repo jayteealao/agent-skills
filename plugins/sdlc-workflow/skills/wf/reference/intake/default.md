@@ -8,7 +8,7 @@ Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to ever
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](../_steering.md): honor the user's standing instructions, never
-> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf intake`, **stage 1 of 10** in the SDLC lifecycle.
 
@@ -32,7 +32,7 @@ You are a **workflow orchestrator**, not a problem solver.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
 - If you catch yourself about to start solving the problem, STOP and return to the next unfinished workflow step.
 
-# Step 0 — Orient (MANDATORY — do this before all other steps)
+# Step 0 — Orient (do this before all other steps)
 1. **Derive the slug** from `$ARGUMENTS`. Use the task description to create a lowercase kebab-case slug. If `$ARGUMENTS` looks like an existing slug, use it.
 2. **Registry collision check.** Before touching disk, consult `.ai/workflows/INDEX.md` if it exists:
    - **If `INDEX.md` does NOT exist**, no collision detection is possible at this step (the disk check in sub-step 3 still gates the fresh-vs-resume decision). Do not bail out: Step 10 bootstraps `.ai/workflows/INDEX.md` with a header line + this workflow's row at the end of intake, so the *next* intake gets full collision detection. Intake only does additive "append self if absent"; `/wf status` owns the full reconcile.
@@ -50,7 +50,7 @@ You are a **workflow orchestrator**, not a problem solver.
          - label: "Cancel — don't start anything"
            description: "Abort intake."
        ```
-       Do not proceed past Step 0 regardless of the answer; every option redirects to a different command or aborts. Surface the chosen command verbatim and STOP.
+       Do not proceed past Step 0 regardless of the answer; every option redirects to a different command or aborts. Surface the chosen command exactly and STOP.
      - **Row exists AND status column = `closed`**: reusing a closed slug would orphan its committed history and break the slug-is-stable invariant. STOP and ask the gate question per [_gate-question.md](../_gate-question.md):
        ```
        question: "Slug `<slug>` belongs to a closed workflow. Slugs are stable — a new workflow cannot reuse it. What do you want to do?"
@@ -116,14 +116,14 @@ Do this in order:
 4. Capture ALL answers (structured + freeform) in `po-answers.md`.
 5. Run freshness research for any external technology, dependency, platform, API, or standard that is mentioned or obviously implicated.
 6. **Draft** the intake brief without designing the implementation (steps 6a–6c refine it before it is written to disk in Step 9). When the request implies a core loop, state it as NUMBERED STEPS in `## Restated Request`; shape derives the Charter Scenario from it.
-6a. **Misreading pass (MANDATORY — the RIM quality floor).** Before the brief is final, run one short in-run pass: *"Name the 3 most likely ways this request could be misread."* Each candidate either becomes a RIM entry in `## Risks if Misunderstood` (stable id `RIM-1..n`, with severity) or is dismissed in that section with a stated reason ("considered: <misreading> — dismissed because <reason>"). In-run, no sub-agents; this is the floor, and shape's blind pre-mortem stays the deep pass. The `## Risks if Misunderstood` and `## Charter` sections may NEVER be silently absent in default mode: zero entries is legal only as the explicit declaration `intent-risks: none-declared` / `charter: none-declared` in `00-index.md` frontmatter plus a one-line reason in the body ("pure mechanical rename; no interpretive surface"). Silence is illegal; shape's Step 9a backfills a missing ledger instead of waving it through.
-6b. **Ratify the charter with the PO (MANDATORY when a charter is authored).** Present the 3–7 distilled commitments in ONE multi-select gate question, *"These are the promises I heard — confirm or correct"* (confirm/edit per [_question-craft.md](../_question-craft.md)). Record the ratification in `po-answers.md`; ratified charter entries carry `po-ratified: true` in the `00-index.md` `charter` ledger. A charter the PO ratified at stage 1 carries real authority downstream (shape's adjudications and the intent-fidelity review dimension cite it); an unratified charter is only inferred authority.
+6a. **Misreading pass (the RIM quality floor).** Before the brief is final, run one short in-run pass: *"Name the 3 most likely ways this request could be misread."* Each candidate either becomes a RIM entry in `## Risks if Misunderstood` (stable id `RIM-1..n`, with severity) or is dismissed in that section with a stated reason ("considered: <misreading> — dismissed because <reason>"). In-run, no sub-agents; this is the floor, and shape's blind pre-mortem stays the deep pass. The `## Risks if Misunderstood` and `## Charter` sections may never be silently absent in default mode: zero entries is legal only as the explicit declaration `intent-risks: none-declared` / `charter: none-declared` in `00-index.md` frontmatter plus a one-line reason in the body ("pure mechanical rename; no interpretive surface"). Silence is illegal; shape's Step 9a backfills a missing ledger instead of waving it through.
+6b. **Ratify the charter with the PO (mandatory when a charter is authored).** Present the 3–7 distilled commitments in ONE multi-select gate question, *"These are the promises I heard — confirm or correct"* (confirm/edit per [_question-craft.md](../_question-craft.md)). Record the ratification in `po-answers.md`; ratified charter entries carry `po-ratified: true` in the `00-index.md` `charter` ledger. A charter the PO ratified at stage 1 carries real authority downstream (shape's adjudications and the intent-fidelity review dimension cite it); an unratified charter is only inferred authority.
 6c. **Auto second opinion**: apply the objective triggers in the blockquote above the Execution discipline section; when any holds, fire `/consult` now, and fold material findings back into the brief (a confirmed misreading becomes a RIM or a reworded Restated Request).
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
 8. Update `00-index.md` with the recommended default option.
 9. Write `.ai/workflows/<slug>/01-intake.md` per the template in [intake/default/_artifact.md](default/_artifact.md).
 10. **Register this workflow in `.ai/workflows/INDEX.md`** (additive bootstrap). After `00-index.md` is finalized, ensure the registry contains a row for this slug. Re-read the just-written `00-index.md` frontmatter so the row reflects the *final* values (branch/status/workflow-type can change between Step 0 and now based on Batch A answers).
-    - **If `.ai/workflows/INDEX.md` does NOT exist**, create it with the header comment (verbatim from the [`/wf status` reconcile spec](../status.md)) followed by exactly one row for this workflow. Use the canonical column order: `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`. Header line:
+    - **If `.ai/workflows/INDEX.md` does NOT exist**, create it with the header comment (exactly from the [`/wf status` reconcile spec](../status.md)) followed by exactly one row for this workflow. Use the canonical column order: `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`. Header line:
       ```
       # .ai/workflows/INDEX.md — global workflow registry. Reconciled by /wf status (bootstrap+refresh) and additively touched by slug-mode compressed-slice writes from /wf intake/probe/simplify (updated-at only) and by /wf intake (append self if absent). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.
       ```

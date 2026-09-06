@@ -33,7 +33,7 @@ next-invocation: ""
 # Retro
 
 ## The Retro
-<!-- STORY SECTION — first, and self-sufficient. MUST follow `_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language MUST follow `_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. must follow `_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
 
 ## What Went Well
 - ...
@@ -85,7 +85,7 @@ If the workflow introduced no shortcuts: "No deferred debt — no `sdlc-debt:` m
 - **Option D:** Apply improvements — [list quick wins, if applicable]
 
 
-## Additive-write contract (v9.20.2+)
+## Additive-write contract
 
 `10-retro.md` is usually one-shot (a retro runs once at workflow close), but
 it IS revisable — extended retrospectives sometimes add a follow-up "30-day
@@ -105,4 +105,4 @@ slug that already has one, follow the shared additive-write contract in
 
 A retro's value is largely *historical* — the point of the revisit is to compare
 original intent against later reality. That comparison lives in the story
-section and in the verbatim history snapshots, not in a stack of body sections.
+section and in the exact history snapshots, not in a stack of body sections.

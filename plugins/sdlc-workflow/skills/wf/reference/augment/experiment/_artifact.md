@@ -26,7 +26,7 @@ created-at: <real UTC timestamp per _timestamp.md>
 **Body sections (in order):**
 
 ## The Experiment
-<!-- STORY SECTION — first, and self-sufficient. MUST follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language MUST follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. must follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
 
 ## 1. Hypothesis
 
@@ -100,7 +100,7 @@ List any design decisions that require human input before the experiment can go 
 
 If all decisions are made: write "None — experiment design is complete."
 
-## Step — Sibling YAML `experiment` (v9.22.0+, Phase 3)
+## Step — Sibling YAML `experiment`
 
 After writing the experiment MD (`.ai/workflows/<slug>/04c-experiment.md`
 or, when invoked as an augmentation under a slug,

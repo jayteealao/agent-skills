@@ -47,7 +47,7 @@ scaffolding, error-message wording, and library idioms *within* an already-commi
   **STOP** — record the pending decision in the artifact + `po-answers.md` as awaiting-input,
   surface it in the run report, and halt rather than settle it.
 - A recorded autonomous decision carries a mandatory `class: implementation-detail` stamp. An
-  autonomous record may NEVER carry `class: intent-bearing` — writing one is the tell that the
+  autonomous record may never carry `class: intent-bearing` — writing one is the tell that the
   policy overstepped.
 - Standing steering (`_steering.md`) may pre-answer a *named* intent-bearing question (that is
   ratification in advance); it may not blanket-authorize the class.

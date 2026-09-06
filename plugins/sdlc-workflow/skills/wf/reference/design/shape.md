@@ -12,7 +12,7 @@ A sparse prompt is not a brief. Do **not** invent answers that no source provide
 
 ## Phase 1: Discovery Interview
 
-Do NOT write any code or make any design decisions during this phase. Your only job is to understand the feature deeply enough to make excellent design decisions later.
+Do not write any code or make any design decisions during this phase. Your only job is to understand the feature deeply enough to make excellent design decisions later.
 
 Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Before you ask any question, pre-fill the answers:
 
@@ -110,7 +110,7 @@ When `shape` runs this procedure (`../shape.md` Step 5b):
 - Continue the normal shape flow (documentation plan, routing). `plan` will read `02b-design.md`,
   resolve the direction gates, and author the visual contract `02c-craft.md`.
 
-## Step — Write the rich `.yaml` + fragment for `02b-design.md` (MANDATORY — do not skip)
+## Step — Write the rich `.yaml` + fragment for `02b-design.md` (do not skip)
 
 The sunflower view renders the design page from a sibling `.yaml` + `.html.fragment`
 written next to `02b-design.md`. **Without the `.yaml` the page silently degrades to

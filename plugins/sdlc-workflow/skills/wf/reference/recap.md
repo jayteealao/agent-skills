@@ -3,13 +3,13 @@ description: Recap or explain a workflow in plain understandable language. Give 
 argument-hint: "<slug|pr#N|branch> [slice-slug | plan | shape | slice | review | findings]"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
-> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+> above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `recap`, the **plain-language catch-up** command for the SDLC lifecycle.
 
@@ -24,7 +24,7 @@ Recap tells you **what has been done so far** on a workflow, in language a human
 
 This command does NOT advance the workflow, run a stage, or change any code. The thing that *continues* the work is `/wf auto`, `/wf yolo`, or the specific next stage — recap only tells the story of what already happened.
 
-# CRITICAL — execution discipline
+# Role
 You are a **storyteller of the work done**, not a problem solver.
 - Recap is read-only: do not advance the workflow, do not change code, and do not modify any workflow file except `90-recap.md`.
 - Your job is to **read the trail and retell it understandably** — someone who has been away, or has never seen this workflow, should finish the recap knowing what happened and where it stands.
@@ -58,7 +58,7 @@ You are a **storyteller of the work done**, not a problem solver.
 Runs when Step 0 resolved a branch. This is the read-mostly, branch-scoped counterpart of batch `/wf handoff` / `/wf ship` and of `/wf status pr#N` roster mode: catch me up on **everything on this branch**, not one slug.
 
 1. **Build the roster.** From `.ai/workflows/INDEX.md` (or a glob of `.ai/workflows/*/00-index.md`), collect every slug whose `branch:` equals the resolved branch. Include non-closed slugs; note any closed ones in the combined header but don't re-narrate them in depth. If the roster is empty → STOP: *"No workflows are on branch `<branch>`. Run `/wf status` to list workflows."* Record the roster as `branch-slugs:`.
-2. **Per-slug recap.** For each roster slug, run Steps 1–2 (read the trail, compose the whole-workflow recap) and Step 3 (write that slug's `90-recap.md`) — with `recap-scope: branch`, `branch: <branch>`, and `branch-slugs: [...]` added to that artifact's frontmatter so each records it was part of a branch recap. Do NOT recap individual slices in batch mode — whole-workflow scope only.
+2. **Per-slug recap.** For each roster slug, run Steps 1–2 (read the trail, compose the whole-workflow recap) and Step 3 (write that slug's `90-recap.md`) — with `recap-scope: branch`, `branch: <branch>`, and `branch-slugs: [...]` added to that artifact's frontmatter so each records it was part of a branch recap. Do not recap individual slices in batch mode — whole-workflow scope only.
 3. **Compose the combined branch narrative** — the value batch recap adds over N separate recaps. Per `_ste-procedural.md` sections 1 and 3, tell the story that ties the slugs together:
    - **What this branch is doing** — the shared goal across the slugs (1–3 sentences).
    - **How the slugs relate** — dependencies, ordering, which slug blocks which, what they share.
@@ -117,7 +117,7 @@ Only if the workflow is sliced. A quick table so the state is scannable alongsid
 (✓ done · → in progress · ✗ failed/blocked · · not started)
 
 ## What you need to know
-The non-obvious decisions and constraints someone picking this up MUST respect — "migration must be
+The non-obvious decisions and constraints someone picking this up must respect — "migration must be
 reversible", "can't touch auth until slice X lands", "the external API caps at 100/min". Include open
 questions and active blockers here (or "None"). If `steer.md` exists, add one line naming the active
 standing-steering entries (e.g. "Steering in effect: don't touch `config/loader.ts`; prefer the queue").

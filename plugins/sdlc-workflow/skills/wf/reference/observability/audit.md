@@ -3,7 +3,7 @@ description: Read-only adversarial audit of the observability surface — questi
 argument-hint: "[<lens> | triage]"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
@@ -164,7 +164,7 @@ findings:
 ---
 
 ## The Audit
-<Story section — MUST follow ../_story-arc.md (heading `## The Audit`): the state audited, then the
+<Story section — must follow ../_story-arc.md (heading `## The Audit`): the state audited, then the
 verdict and the finding that most threatens production debuggability, then the route forward. Name what an
 on-call engineer would fail to see, not a checklist. STE language throughout.>
 

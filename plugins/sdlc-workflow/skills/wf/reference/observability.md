@@ -3,7 +3,7 @@ description: Observability router — establish and audit the project-level `.ai
 argument-hint: "<init|build|audit> [args...]"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
@@ -38,10 +38,10 @@ Which would you like to run?
 
 There is no `edit` sub-command yet — amend `.ai/observability.md` by hand (it is a plain markdown contract, like `.ai/ship-plan.md`). If `audit` routing surfaces repeated contract friction, an `edit` sub-key is the sanctioned next addition.
 
-# Step 1 — Load the sub-reference and follow it verbatim
+# Step 1 — Load the sub-reference and follow it exactly
 
 Once the token is resolved, load the corresponding reference file from
-`<reference>` and follow it verbatim.
+`<reference>` and follow it exactly.
 Do not summarize, paraphrase, or skip steps. Pass any remaining tokens in `$ARGUMENTS`
 (after the sub-command token) as the arguments for the sub-reference.
 

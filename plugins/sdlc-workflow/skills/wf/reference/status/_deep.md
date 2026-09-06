@@ -38,7 +38,7 @@ read-only detail view.
    `diverged_files[]`/`recommendation`) — without it the rich sync page degrades to plain prose. Schema:
    `siblingYamlSchemas["sync-report"]` in `tests/frontmatter.schema.json`.
 7. **Bookkeeping touch:** add `00-sync.md` to `workflow-files` and set `updated-at` in `00-index.md`
-   (and the matching `updated-at` column in `INDEX.md`). Do NOT change `status`/`current-stage`.
+   (and the matching `updated-at` column in `INDEX.md`). Do not change `status`/`current-stage`.
 
 Recommended-actions in the report point at real commands: `/wf plan <slug>` (stale plan refs),
 `/wf intake <slug> <scope>` (new scope surfaced), `/wf status <slug> deep` (re-check after fixes).

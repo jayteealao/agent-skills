@@ -24,7 +24,7 @@ created-at: <real UTC timestamp per _timestamp.md>
 
 ```
 ## The Profile
-<!-- STORY SECTION — first, and self-sufficient. MUST follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language MUST follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. must follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
 
 ## Profile analysis: <area>
 
@@ -60,7 +60,7 @@ static | dynamic-cpu | dynamic-memory | hybrid | fallback-timing
 <list what was NOT profiled: async I/O timing, DB query plans, network latency, GC pressure, etc.>
 ```
 
-## Step — Sibling YAML `profile` (v9.22.0+, Phase 3)
+## Step — Sibling YAML `profile`
 
 After writing `.ai/profiles/<run-id>/01-profile.md`, write
 `.ai/profiles/<run-id>/01-profile.yaml` next to it with `artifact: profile`.

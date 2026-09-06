@@ -14,7 +14,7 @@ re-typed into every stage gate.
 bullets of standing constraints and preferences ("don't touch `config/loader.ts` — it's being
 rewritten", "prefer the queue approach", "no new runtime deps"). Stages **never author or edit it.**
 The one exception: when the user dictates steering in chat ("add to steering: never touch
-`config/loader.ts`"), the stage may transcribe the instruction verbatim — transcription, not
+`config/loader.ts`"), the stage may transcribe the instruction exactly — transcription, not
 authorship.
 
 ## The contract every stage honors
@@ -22,7 +22,7 @@ authorship.
 1. **Read.** At Step 0, before any stage work, read `steer.md` if it is present. Absent file → no
    steering: proceed normally, add no steering fields, make no noise.
 2. **Precedence.** Live user instructions in this session outrank `steer.md`, which outranks
-   stage-reference defaults. Steering **never overrides a MANDATORY gate** — the External Output
+   stage-reference defaults. Steering **never overrides a mandatory gate** — the External Output
    Boundary, sibling-fragment enforcement, AC verifiability, the plan/verify constraint-resolution
    rule. A steering entry that tries to is surfaced to the user, not obeyed.
 3. **Conflict.** When an entry conflicts with the stage contract, is impossible for this stage, or is
@@ -33,7 +33,7 @@ authorship.
    approach"]`). Absent file → omit the field entirely; do not emit an empty list as noise.
 5. **Propagate (load-bearing).** Sub-agents run with fresh context and never re-read the workflow
    directory. Any stage that dispatches sub-agents — plan research, implement coders, verify/review
-   panels, the docs pipeline — MUST inject the relevant steering entries into each sub-agent's
+   panels, the docs pipeline — must inject the relevant steering entries into each sub-agent's
    prompt. A steering file only the orchestrator reads is decorative.
 
 ## Scope notes

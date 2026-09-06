@@ -17,7 +17,7 @@ Product: semantic-first and almost always Restrained. Accent color is reserved f
 1. **Understand current state**: color absence, missed semantic opportunities, existing brand constraints.
 2. **Identify where color adds value**: semantic meaning, hierarchy, categorization, emotional tone, wayfinding, delight.
 
-**CRITICAL**: More color ≠ better. Strategic color beats rainbow vomit every time. Every color should have a purpose.
+More color ≠ better. Strategic color beats rainbow vomit every time. Every color should have a purpose.
 
 ## Plan Color Strategy
 

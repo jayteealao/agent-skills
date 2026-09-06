@@ -24,7 +24,7 @@ created-at: <real UTC timestamp per _timestamp.md>
 **Body sections (in order):**
 
 ## The Instrumentation
-<!-- STORY SECTION — first, and self-sufficient. MUST follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language MUST follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. must follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
 
 ## 1. Current state
 
@@ -99,7 +99,7 @@ Specific guidance for `wf-implement`:
 
 This section is **direction, not a plan** — do not enumerate full implementation steps. `wf-implement` owns the implementation.
 
-## Step — Sibling YAML `instrument` (v9.22.0+, Phase 3)
+## Step — Sibling YAML `instrument`
 
 After writing the instrument MD (`.ai/workflows/<slug>/04b-instrument.md`
 or, when invoked as an augmentation under a slug,

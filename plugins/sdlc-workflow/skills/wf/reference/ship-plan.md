@@ -3,7 +3,7 @@ description: Ship-plan router — manage the project-level `.ai/ship-plan.md` co
 argument-hint: "<init|build|edit|audit> [args...]"
 ---
 
-# External Output Boundary (MANDATORY)
+# External Output Boundary
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
@@ -33,10 +33,10 @@ Usage:
 Which would you like to run?
 ```
 
-# Step 1 — Load the sub-reference and follow it verbatim
+# Step 1 — Load the sub-reference and follow it exactly
 
 Once the token is resolved, load the corresponding reference file from
-`<reference>` and follow it verbatim.
+`<reference>` and follow it exactly.
 Do not summarize, paraphrase, or skip steps. Pass any remaining tokens in `$ARGUMENTS`
 (after the sub-command token) as the arguments for the sub-reference.
 

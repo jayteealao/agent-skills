@@ -55,7 +55,7 @@ next-invocation: "<based on verdict>"
 # Review
 
 ## The Review
-<!-- STORY SECTION — first, and self-sufficient. MUST follow `../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language MUST follow `../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. must follow `../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
 
 ## Verdict
 
@@ -156,7 +156,7 @@ sub-agent's stated reason so the next stage knows what is still open.}
 
 ---
 
-## Step 5b — the sweep-level rich fragment (MANDATORY — do not skip)
+## Step 5b — the sweep-level rich fragment (do not skip)
 
 The sunflower view renders the review page from a sibling `.yaml` + `.html.fragment`. **Without them the page silently degrades to plain prose** — the Σ severity-heatmap, dimension chips, severity filter, and findings list never appear. Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) **BLOCKS the `.md` write when the sibling `.yaml` is missing** — author the `.yaml` first (or in the same turn) while findings are in context.
 
@@ -177,7 +177,7 @@ Full contract in [`reference/fragment-author-contract.md`](../../../../reference
 
 ---
 
-## Step 5c — per-dimension rich fragments (MANDATORY — do not skip)
+## Step 5c — per-dimension rich fragments (do not skip)
 
 Step 5b covers the sweep-level review page. Each **per-dimension** file — `07-review-<command>.md` (slug-wide) or `07-review-<slice-slug>-<command>.md` (per-slice) — renders through `review-dimension.mjs`. **Without a sibling `.yaml` it falls back to `renderSimple`** (plain prose, no interactive findings); managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) BLOCKS a `type: review-command` `.md` written without it.
 

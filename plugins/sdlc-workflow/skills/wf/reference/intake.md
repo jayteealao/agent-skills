@@ -28,7 +28,7 @@ Resolve in this exact order (the order matters — the slug checks come FIRST):
    - If `token0` matches a **closed** workflow → ASK: *"Workflow `<token0>` is closed. Append a
      compressed slice anyway?"* On yes → slug-mode; on no → STOP.
 
-2. **Slug + free scope (or nothing) → extension.** Else if `token0` exactly matches an existing `.ai/workflows/<token0>/00-index.md` on disk **AND** `token1` is *not* a mode keyword (it is free scope text, `from-review`, `from-retro`, or absent) → **extension mode**. Consume `token0` as `<slug>`; the rest is the new scope (seed) passed through verbatim. Load `intake/extend.md` and follow it — it adds net-new slice(s) to that workflow and never touches completed work. **Extension writes full slice files, so the `_compressed-slice.md` override does NOT apply** (unlike branch 1's compressed slice). Correcting already-built **work** is still a *new* slice (this branch) or `/wf intake <slug> fix` — never an in-place re-specification. `amend` (branch 0) covers only recorded **configuration** (branch strategy, base branch, review scope, title, tags).
+2. **Slug + free scope (or nothing) → extension.** Else if `token0` exactly matches an existing `.ai/workflows/<token0>/00-index.md` on disk **AND** `token1` is *not* a mode keyword (it is free scope text, `from-review`, `from-retro`, or absent) → **extension mode**. Consume `token0` as `<slug>`; the rest is the new scope (seed) passed through unchanged. Load `intake/extend.md` and follow it — it adds net-new slice(s) to that workflow and never touches completed work. **Extension writes full slice files, so the `_compressed-slice.md` override does NOT apply** (unlike branch 1's compressed slice). Correcting already-built **work** is still a *new* slice (this branch) or `/wf intake <slug> fix` — never an in-place re-specification. `amend` (branch 0) covers only recorded **configuration** (branch strategy, base branch, review scope, title, tags).
    - **Schema-era check.** While reading `00-index.md` for this branch, note whether the workflow predates the current schema — no `charter:`, no `intent-risks:`, or open `runtime-evidence-deferrals` entries missing `wall-ownership` / `clearing-event`. **Nag suppression:** when the index carries a `schema-modernized-at:` stamp, skip the offer for any field listed in its `schema-absent-fields:` — a modernize run already adjudicated those as honestly unanswerable; only markers outside that list (a later era's additions) still fire. When drift does fire, say so in one line **before** running the extension and offer `modernize` as a first-class option: *"`<slug>` was authored before `<the missing block>`, so `<the stage that reads it>` silently gets nothing. Extend now, or run `/wf intake <slug> modernize` first?"* Do not modernize silently, and do not block the extension on it.
    - If `token0` matches a **closed** workflow → extension is still valid (new scope may extend a closed workflow). Proceed; `extend.md` handles closed/complete workflows by construction.
 
@@ -106,7 +106,7 @@ Notes:
 
 # Step 3 — Load the mode reference
 
-Load the resolved reference in full and follow it verbatim. Do not summarize, paraphrase, or skip.
+Load the resolved reference in full and follow it exactly. Do not summarize, paraphrase, or skip.
 
 | Mode | Reference file |
 |---|---|
@@ -130,9 +130,9 @@ The reference is the authoritative instruction for *what* the mode does; this di
 # Step 4 — Execute
 
 1. Run the loaded mode reference. In **standalone** shape, honor every artifact write, branch step, and routing rule it describes. In **slug-mode** (branch 1), the `_compressed-slice.md` contract overrides any instruction that would create a new workflow, branch, top-level `00-index.md`, standalone `01-<mode>.md` / `hf-*` / `rf-*` artifact, or off-pipeline companion — write only the one compressed slice plus the additive index updates. In **extension** (branch 2), follow `intake/extend.md` as written; the compressed-slice override does not apply. In **maintenance** (branch 0), follow `intake/amend.md` / `intake/modernize.md` as written — no compressed slice, no numbered artifact, no new workflow; both confirm before writing and both are bounded by their own whitelist (amend) or additive-only rule (modernize).
-2. The remaining `$ARGUMENTS` after the matched mode (and after the slug, if consumed) are the mode's own arguments — pass them through verbatim.
+2. The remaining `$ARGUMENTS` after the matched mode (and after the slug, if consumed) are the mode's own arguments — pass them through unchanged.
 
-# Step 5 — Emit Final Summary (MANDATORY)
+# Step 5 — Emit Final Summary
 
 After the mode's logic completes, emit a chat summary as the LAST output before returning control.
 
