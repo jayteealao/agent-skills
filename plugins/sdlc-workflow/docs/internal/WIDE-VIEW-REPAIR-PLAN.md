@@ -1,7 +1,7 @@
 # Wide-View Repair Plan — prose budget, capability shield, exact cost ledger, runtime repair
 
 Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0, W1 (line budgets; word targets
-closed through §16 raises), W2 BUILT 2026-09-05, W3 + W4 BUILT 2026-09-07**; eval baseline run
+closed through §16 raises), W2 BUILT 2026-09-05, W3, W4 + W7 BUILT 2026-09-07**; eval baseline run
 pending (§16); W6 onward in progress — see the build ledger in §17. Source: a whole-tree survey of
 `plugins/sdlc-workflow` on 2026-09-04 against v9.153.4 (`6465707f`). Another
 session carried `_shell.mjs`, `nav.html`, and the root catalog to 9.153.5 while
@@ -538,6 +538,21 @@ Tests to update: `tests/unit/lib/multi-repo-hub.test.mjs`,
 `scripts/verify-release-versions.mjs` (drop the `_shell.mjs` literal check,
 add the `rendererBuildId` presence check). `tests/e2e/acceptance.mjs` must
 stay green.
+
+Build note (2026-09-07): built as specified with three additions. (1) The
+comparison keeps `buildId` as a middle rung: `rendererBuildId` when both sides
+carry one, then `buildId`, then `runtimeVersion` — a 9.75–9.153 marker has a
+`buildId` but no `rendererBuildId`, and comparing the whole-runtime hash is
+still more precise than the version for that one transition. (2) The shell's
+`?v=` cache-buster on `sdlc.css`/`sdlc.js` is the 12-character `rendererBuildId`
+prefix (version fallback on an unbuilt tree), so a stylesheet edit reaches the
+browser without a bump. (3) The gate requires `runtime-manifest.json` to exist
+(it was optional) and fails when `_shell.mjs` carries a version literal again.
+The stamp does not touch the marketplace catalog's own top-level `version`
+(1.179.x): that is the catalog's release line, not a plugin carrier; the
+operator bumps it. `npm version` refuses a dirty tree and commits + tags by
+default; RELEASE-DISCIPLINE step 1 says so. The memory rule "a bump is required
+to ship a template/CSS change" is retired by this wave.
 
 ## 10. W8 — Exact cost ledger
 
@@ -1119,7 +1134,7 @@ the commit that closed the row. Every commit is local until the operator pushes.
 | W3 | Emphasis vocabulary rewrite + token gate | built | `e418df1c`, `6cd8ee94`, `4ccae1ed` | MANDATORY 151→0, CRITICAL 31→4 (3 rubric code-example strings for W4 + trivy's `--severity HIGH,CRITICAL`, allowed), MUST 72→0 outside `_ste-procedural.md`, NEVER 14→0, Do NOT 74→0, verbatim 56→1 (SKILL.md), v9.x 7→0; STOP is a per-sentence rule keyed on the W0 `stops` inventory (`tokens.STOP.sentences`), no ratchet; 5 keys reworded, 2 pins converted; 14 Role blocks trimmed to five lines, the shared order sentence moved into `_workflow-rules.md` |
 | W4 | Review rubrics 35 → 11 with aliases, focus, aggregates, docs page | built | `4fb5bb5e` | 35 files / 17,648 lines → 11 files / 1,482 lines, every rubric ≤ 100; 24 aliases via `focus:`; groups.json carries the 34→11 map; extractor check headings gained `What to look for` + `Severity calibration` (nested `###` stay inside); 17 duplicate generic bullets + 11 tree-wide keys retired; 6 sentence tests migrated; the `review-adhoc` before/after diff waits on W6 auth |
 | W6 | Eval baseline + `--compare` | blocked | — | needs an authenticated `claude`; cases and fixtures exist |
-| W7 | One version carrier + render gate on renderer bytes | open | — | |
+| W7 | One version carrier + render gate on renderer bytes | built | `7e755fbf` | `scripts/stamp-version.mjs` + the package.json `version` lifecycle script (`npm version <level>` stamps 5 carriers, builds, verifies, stages by path); `_shell.mjs` literal removed (reads `runtimeVersion` from the manifest); `rendererBuildId` = sha256 over renderers/, view-src/, components/ decides render freshness before buildId and version; CSS/JS cache-buster is its 12-char prefix; `verify:versions` requires the manifest + a 64-hex `rendererBuildId` and fails on a shell literal; dist rebuilt; 7 sentence tests migrated + 5 new stamp tests; e2e 50 types green |
 | W8 | Exact cost ledger: Stop hook, parsers, readers, consult triggers | open | — | Phase 0 live checks in §10.2 and §10.6 |
 | W9 | Surface policy file + `verify:surface` + earn rule | open | — | |
 | W10 | README ≤ 150 lines + `verify:docs` extension | open | — | README is 1,087 lines |
