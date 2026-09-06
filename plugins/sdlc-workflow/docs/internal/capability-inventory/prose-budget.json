@@ -429,6 +429,10 @@
       "words": 5138,
       "reason": "Four research sub-agent charters with verbatim CONTRACT blocks, the build-avoidance ladder, the repeat-deferral tripwire, the 20-field frontmatter template, the Verification Strategy table with the force-scope rule, and the Step F sibling schema are each a capability surface; §4.3 cuts removed only rationale and examples (5,379 → 5,138 words)."
     },
+    "skills/wf/reference/shape.md": {
+      "words": 4932,
+      "reason": "The 20-question floor with its Ambiguity Inventory and coverage gate (PO directive: never scale down), two sub-agent charters, Round 3b, the blind pre-mortem generator, the RIM adjudication gate, the Intake Fidelity table, and the AC direction/named-mechanism rules are each a capability surface; §4.3 cuts removed only rationale, examples, and restatements (5,236 → 4,932 words)."
+    },
     "skills/wf/reference/yolo.md": {
       "words": 3758,
       "reason": "The Autonomous Decision Policy table (about 650 words of gate definitions with 10 inventoried STOP sentences), the five intake-class refusals, and the 16-line hand-back template are capability; rationale, history, and restatements were cut from 6,434 words to this count."
@@ -449,10 +453,6 @@
     },
     "retro": {
       "core": 4960
-    },
-    "shape": {
-      "core": 6955,
-      "instructed": 9937
     },
     "ship": {
       "core": 6109
