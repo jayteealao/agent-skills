@@ -162,7 +162,7 @@ test('measure-load: 22 keys, core ⊆ instructed ⊆ referenced, targets derive 
     // §16: a body that cannot meet 4,050 without deleting a capability carries a raised
     // per-file word budget with a reason; the target then follows that budget.
     const skillShare = load.wordBudgets['skills/wf/SKILL.md']?.words ?? 120 * 11;
-    const classCore = Math.round((skillShare + 250 * 11) / 50) * 50;
+    const classCore = Math.ceil((skillShare + 250 * 11) / 50) * 50;
     const bodyBudget = load.wordBudgets[`skills/wf/reference/${k}.md`];
     if (bodyBudget) {
       assert.ok(bodyBudget.reason?.trim(), `${k}: a raised word budget needs a reason`);

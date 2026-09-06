@@ -229,7 +229,9 @@ function summarize(files, root) {
   return { files: files.length, words: files.reduce((n, f) => n + wordCount(f, root), 0), fileList: files };
 }
 
-const round50 = (n) => Math.round(n / 50) * 50;
+// Ceiling, not nearest: a raised §16 budget that sums to 6,857 must yield a target of
+// 6,900, never 6,850, or the raise fails the very file it exists for.
+const round50 = (n) => Math.ceil(n / 50) * 50;
 
 export function measureLoad(root = PLUGIN_ROOT) {
   const keys = {};
