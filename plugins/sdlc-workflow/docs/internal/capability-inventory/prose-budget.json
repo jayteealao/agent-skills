@@ -180,7 +180,7 @@
         "skills/wf/reference/probe.md": 2,
         "skills/wf/reference/probe/_artifact.md": 3,
         "skills/wf/reference/recap.md": 1,
-        "skills/wf/reference/retro.md": 2,
+        "skills/wf/reference/retro.md": 1,
         "skills/wf/reference/retro/_artifact.md": 2,
         "skills/wf/reference/review/_artifact.md": 2,
         "skills/wf/reference/review/_stage.md": 6,
@@ -460,9 +460,6 @@
     },
     "probe": {
       "core": 5180
-    },
-    "retro": {
-      "core": 4960
     }
   }
 }

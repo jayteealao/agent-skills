@@ -394,5 +394,11 @@
     "to": "skills/consult/panel.md",
     "category": "artifacts",
     "entry": "01-consult.html.fragment"
+  },
+  {
+    "from": "skills/wf/reference/retro.md",
+    "to": "skills/wf/reference/_workflow-rules.md",
+    "category": "gates",
+    "entry": "workflow rules - store artifacts under .ai/workflows/<slug /"
   }
 ]

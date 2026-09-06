@@ -27,9 +27,8 @@ You are running `/wf retro`, **stage 10 of 10** in the SDLC lifecycle.
 > sub-agents return), **auto-invoke** `/consult codex <what systemic patterns span this workflow's
 > friction?>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) the workflow carried a
 > hotfix, rollback, or production incident; (b) any finding implicates the workflow tooling itself
-> (plugin-feedback entries exist); (c) the same friction class recurs across 2+ stages — the
-> cross-stage pattern is what per-domain sub-agents structurally miss. Skip only when none of the
-> triggers hold; the user may invoke it explicitly with any provider.
+> (plugin-feedback entries exist); (c) the same friction class recurs across 2+ stages. Skip only when none of the
+> triggers hold.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
@@ -52,24 +51,22 @@ You are a **workflow orchestrator**, not a problem solver.
    - At minimum, `05-implement.md` should exist (there must be something to retro on). If nothing exists beyond intake → STOP. Tell the user: "Not enough completed work to retrospect. Run more stages first."
    - `09-ship.md` is strongly recommended but not blocking — a retro can run after a cancelled or abandoned effort.
    - If `current-stage` in the index shows the workflow is already complete → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
-4. **Read the full workflow trail** — every stage file that exists, plus `po-answers.md`. This includes design artifacts: `02b-design.md`, `02c-craft.md`, `design-notes/*`, `07-design-audit.md`, `07-design-critique.md`. Retro should reflect on design decisions (was the chosen color strategy right? did the mock fidelity inventory hold?) and augmentation outcomes (did `harden` catch real issues? did `optimize` deliver measurable gains?), not just engineering ones.
+4. **Read the full workflow trail** — every stage file that exists, plus `po-answers.md`. This includes design artifacts: `02b-design.md`, `02c-craft.md`, `design-notes/*`, `07-design-audit.md`, `07-design-critique.md`. Retro reflects on design decisions and augmentation outcomes, not only engineering ones.
 5. **Carry forward** `open-questions` from the index.
 
 # Batch retro (`pr#N` / branch)
 
-Runs when Step 0 resolved a branch — the retrospective counterpart of batch `/wf ship pr#N`: after a batch of slugs shipped together on one branch, retro them together.
+Runs when Step 0 resolved a branch: the slugs that shipped together on one branch are retrospected together.
 
 1. **Build the roster.** Scan every `.ai/workflows/*/00-index.md`; the roster is every slug whose `branch:` equals the resolved branch. If none → STOP: *"No workflows are on branch `<branch>`. Run `/wf status` to list workflows."* Record the roster as `branch-slugs:`.
-2. **Per-slug retro.** For each roster slug, run the full single-slug procedure — Step 0 items 2–5 (orient + prereq check + read the trail), the parallel analysis, and the write of `10-retro.md` — with `retro-scope: branch`, `branch:`, and `branch-slugs:` added to that slug's retro frontmatter. **Prerequisite skip, don't abort:** a slug with nothing beyond intake (no `05-implement*.md`) is marked "nothing to retro" in the roster and skipped — a laggard slug must not block retrospecting its shipped siblings (mirrors handoff's not-ready-skip). Mark each retrospected slug complete in its `00-index.md`.
-3. **Synthesize cross-slug lessons — the value batch retro adds.** After the per-slug retros, look across the whole branch for patterns no single-slug retro can see: friction that recurred across slugs, a root cause shared by multiple slugs, a plan assumption that broke the same way twice, sequencing pain between slugs. Distill these into `.ai/solutions/` under the **same durability filter and dedupe-on-merge discipline** as the single-slug distillation step (see *Parallel analysis*), setting `source-workflow` to the list of contributing roster slugs. Cross-slug learnings are exactly what gets lost when a batch is retrospected one slug at a time. Zero cross-slug learnings is a legitimate outcome; do not pad.
+2. **Per-slug retro.** For each roster slug, run the full single-slug procedure — Step 0 items 2–5 (orient + prereq check + read the trail), the parallel analysis, and the write of `10-retro.md` — with `retro-scope: branch`, `branch:`, and `branch-slugs:` added to that slug's retro frontmatter. **Prerequisite skip, don't abort:** a slug with nothing beyond intake (no `05-implement*.md`) is marked "nothing to retro" in the roster and skipped. Mark each retrospected slug complete in its `00-index.md`.
+3. **Synthesize cross-slug lessons — the value batch retro adds.** After the per-slug retros, look across the whole branch for patterns no single-slug retro can see: friction that recurred across slugs, a root cause shared by multiple slugs, a plan assumption that broke the same way twice, sequencing pain between slugs. Distill these into `.ai/solutions/` under the **same durability filter and dedupe-on-merge discipline** as the single-slug distillation step (see *Parallel analysis*), setting `source-workflow` to the list of contributing roster slugs. Zero cross-slug learnings is a legitimate outcome; do not pad.
 4. **Return in chat** per the *Chat return contract* — a combined branch-level retro narrative (what went well / what hurt across the whole branch, the cross-slug root causes, the top improvements) first, then a per-slug roster of outcomes (slug · retrospected / skipped · learnings written).
 
 # Deep retro (`deep` token — opt-in)
 
-Runs only when Step 0 set `deep-retro: true`. The artifact trail records *decisions*; it does not
-record the *moments* — the "I'll mirror it exactly" beat that no stage file captured. The deep pass's
-richest source is the repo's session transcripts, mined to recover those moments and feed grounding
-evidence into the analysis sub-agents below.
+Runs only when Step 0 set `deep-retro: true`. The deep pass mines the repo's session transcripts for the
+decision moments the stage files did not record and feeds that evidence into the analysis sub-agents below.
 
 - **Transcript mining is host-gated.** Session transcripts exist only under a host that keeps a
   per-repo transcript directory (see [_host-invocation.md](_host-invocation.md)); when this host has
@@ -77,8 +74,7 @@ evidence into the analysis sub-agents below.
   artifact-only deep pass**: a deeper, more adversarial re-read of the existing stage trail,
   `po-answers.md`, and the git history for the same decision moments. The retro then notes that
   transcript mining was skipped (host-gated). It never instructs a read of a transcript path this host lacks.
-- **Opt-in, never default.** It is heavy (large transcript scans) and host-specific. Only the
-  explicit `deep` token turns it on.
+- **Opt-in, never default.** Only the explicit `deep` token turns it on.
 - **What the deep pass looks for.** **Decision moments** — points where an approach was chosen, an
   assumption locked in, or a user instruction interpreted (especially "mirror/match exactly", "just like
   X", silent narrowings). Extract the moment, what was decided, and whether the artifacts recorded it.
@@ -96,7 +92,7 @@ Charter: read the plan, implement, and verify artifacts plus the git log, and re
 
 **Deferred-debt harvest (this workflow only):**
 - Collect every intentional-simplification marker this workflow introduced: grep the workflow's commits for `sdlc-debt:` (`git log -p <base-branch>..HEAD | grep -nE 'sdlc-debt:'`) and read each slice's `05-implement-<slice>.md` → `## Anything Deferred` / `## Known Risks / Caveats`.
-- For each marker, record: file:line, the ceiling, the upgrade path, and where it was recorded. **Scope to THIS workflow's debt — do NOT grep the whole repo** (that is `/wf simplify codebase`'s sweep). Retro reconciles only what this workflow deliberately deferred, so already-tracked debt from prior workflows is not re-surfaced.
+- For each marker, record: file:line, the ceiling, the upgrade path, and where it was recorded. **Scope to THIS workflow's debt — do NOT grep the whole repo** (that is `/wf simplify codebase`'s sweep).
 - Classify each as **act-now** (worth its own follow-up workflow this sprint) or **accept** (a deliberate, acceptable ceiling that just needs to stay visible). The act-now items drive `## Deferred Debt` and Option B routing below.
 
 ### Analysis sub-agent 2 — Review & Handoff Quality
@@ -104,7 +100,7 @@ Charter: read the plan, implement, and verify artifacts plus the git log, and re
 Charter: read every `07-review-*.md` (master per slice plus per-command sub-reviews), `08-handoff.md`, `po-answers.md`, and `02-shape.md`, and report — findings quality (real bugs vs. nits vs. false positives, what stayed `open` at handoff, what tests or planning should have caught, what review missed that ship or production later found); handoff completeness (PR clarity, migration/rollback accuracy, whether the shape's documentation plan was fulfilled); communication friction (multi-round questions, wrong unasked assumptions, artifacts the next stage could not use); and adoption-matrix `USE` rows that never earned their install. Every count names the artifact it came from. The block below is CONTRACT — pass it verbatim:
 
 **Intent drift (transitive fidelity — code vs. intake):**
-- Which intake directives did the shipped code **narrow**, and was each narrowing **ratified**? Cross-reference `02-shape.md`'s `## Intake Fidelity` table and any `07-review-*intent-fidelity*.md` findings against what actually shipped — an unratified narrowing is a lesson, not a footnote.
+- Which intake directives did the shipped code **narrow**, and was each narrowing **ratified**? Cross-reference `02-shape.md`'s `## Intake Fidelity` table and any `07-review-*intent-fidelity*.md` findings against what actually shipped.
 - Which **RIMs** (the `00-index.md` `intent-risks` ledger) turned out **mis-adjudicated** — the shape-time decision looked right but the shipped behaviour proved it wrong?
 - Which **limitation-claims** (the "known limitation — document at handoff" deferrals) were later **disproven** — the wall cleared on its own, or was never really a wall?
 
@@ -123,11 +119,9 @@ pattern-level learnings from the merged findings. Each must pass ALL THREE durab
 
 Zero learnings is a legitimate outcome; do not pad. A **repeated runtime-evidence deferral** is a
 prime candidate ("<wall> blocks all interactive ACs; the one-time harness that retires it = …",
-category `testing` or `gotcha`) — plan's learnings scan is what stops the next slug from re-paying
-that wall. A **standing-steering entry that recurs across workflows** (from this or prior slugs'
-`steer.md`; see `_steering.md`) is likewise a candidate — when a preference or veto keeps being
-re-typed, promote it to a durable learning (usually `process` or category matching its subject) so a
-future plan reads it instead of waiting for the user to steer again; the durability filter still applies.
+category `testing` or `gotcha`). A **standing-steering entry that recurs across workflows** (from this or prior slugs'
+`steer.md`; see `_steering.md`) is likewise a candidate (usually `process` or the category matching its
+subject); the durability filter still applies.
 
 **Dedupe before write:** read `.ai/solutions/INDEX.md` (if it exists) and check for overlapping
 tags/titles. On overlap, UPDATE the existing file — refresh the evidence, extend
@@ -149,42 +143,25 @@ status: active
 ---
 ```
 
-Body: **Problem / Learning / How to apply** — three short sections, ≤ ~30 lines (a learning that
-needs more is probably a workflow, not a note). Append one line per new learning to
+Body: **Problem / Learning / How to apply** — three short sections, ≤ ~30 lines. Append one line per new learning to
 `.ai/solutions/INDEX.md` (`- [title](<category>/<file>.md) — <hook>`; create the index with a
 `# Solutions` heading if missing — producers append, consumers read the index first and load only
 matching files). Stamp `learnings-written: [<paths>]` in the retro frontmatter (empty list
-allowed). Writing these files IS part of retro's output contract — it is not "applying
-improvements" (Option D's scope stays repo instruction/hook/CI edits, which retro still never
-applies).
+allowed). Writing these files is part of retro's output contract, not "applying improvements".
 
 **Classify each learning `about-the-project` vs `about-the-workflow`.** A project lesson is about
 *this repo* (its code, stack, domain); a workflow lesson is about `/wf` itself (a stage prompt
 misfired, a gate was wrong, a reference misled). The two go different places:
 - **Promote a project lesson to the global corpus (W12.1) — user-confirmed, never automatic.** Only
-  when `.ai/sdlc-config.json` sets `solutions.globalDir` (default `null` = disabled). A repo lesson
-  can carry project specifics (paths, names, secrets-shaped detail), so promotion is a **privacy
-  decision the user makes** — offer it as a gate question per [_gate-question.md](_gate-question.md) and copy to the global dir ONLY on an
+  when `.ai/sdlc-config.json` sets `solutions.globalDir` (default `null` = disabled). Promotion is a **privacy
+  decision the user makes**: offer it as a gate question per [_gate-question.md](_gate-question.md) and copy to the global dir ONLY on an
   explicit yes. NEVER promote silently or by policy (a stop condition on an autonomous run).
 - **Channel a workflow lesson to plugin-backlog (W12.2).** When `solutions.globalDir` is set, append
-  each `about-the-workflow` lesson to a user-reviewable `plugin-feedback.md` in that dir — the channel
-  by which the workflow improves the workflow, with the user as editor. Append only; never edit `/wf`
+  each `about-the-workflow` lesson to a user-reviewable `plugin-feedback.md` in that dir. Append only; never edit `/wf`
   itself. If `globalDir` is unset, keep the lesson in the repo corpus and note it in the retro body.
 
-# Purpose
-Extract reusable lessons and turn them into concrete improvements to prompts, hooks, repo instructions, tests, and automation.
-
 # Workflow rules
-- Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
-- **Timestamps must be real:** For `created-at` and `updated-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
-- If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
-- Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
-- `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- **Ask multiple-choice PO questions as gate questions** per [_gate-question.md](_gate-question.md) (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
-- Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
-- **Conditional inputs are mandatory when present.** If a file in this command's *Conditional inputs* row exists on disk, read it and honor it in the output — existence is optional, consumption is required; silent omission is a contract violation.
+Apply [_workflow-rules.md](_workflow-rules.md).
 
 # Chat return contract
 Apply [_grounded-progress.md](_grounded-progress.md): every count this stage reports (checks run/passed, commits, findings) names the artifact or tool result it came from. After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Retro` story voice, then this receipt:
@@ -211,10 +188,10 @@ After completing the retro, evaluate whether the workflow is truly done:
 Use when: All slices are shipped, no follow-up work is warranted.
 
 **Option B: Open follow-up workflow** → `/wf intake <new-task-description>`
-Use when: The retro identified follow-up work significant enough to warrant its own workflow (e.g., "we deferred X and it should be done next sprint"), OR the `## Deferred Debt` harvest surfaced any `act-now` items — route each to `/wf intake fix` (one-file ceiling) or `/wf intake refactor` (cross-file) so the deliberate shortcut becomes tracked work instead of a buried comment.
+Use when: The retro identified follow-up work significant enough to warrant its own workflow, OR the `## Deferred Debt` harvest surfaced any `act-now` items — route each to `/wf intake fix` (one-file ceiling) or `/wf intake refactor` (cross-file).
 
 **Option C: Next slice** → `/wf plan <slug> <next-slice>` or `/wf implement <slug> <next-slice>`
-Use when: The retro is running mid-workflow (e.g., after shipping one slice) and there are more slices.
+Use when: The retro is running mid-workflow and there are more slices.
 
 **Option D: Apply retro improvements** → suggest specific file edits
 Use when: The retro identified quick-win improvements to repo instructions, hooks, or CI that the user might want to apply now. List them as actionable suggestions but do NOT apply them. Durable learnings are already written to `.ai/solutions/` by the distillation step — Option D's remaining scope is repo instruction/hook/CI edits only.
