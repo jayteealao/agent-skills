@@ -42,14 +42,26 @@
  *   node tests/run-all.mjs                      # everything
  *   node tests/run-all.mjs skills               # only paths containing "skills"
  *   node tests/run-all.mjs --test-concurrency=1 # flags pass through to node --test
+ *
+ * MACHINE STATE (WIDE-VIEW-REPAIR-PLAN §14.2.7, W11.7). The suite must never
+ * touch the real ~/.sdlc: before it, tests registered temp repositories in the
+ * operator's registry, wrote prune lines, and started hubs against the real
+ * state dir. This script sets SDLC_HOME to a fresh temp directory for the whole
+ * run when the caller left it unset, fingerprints the REAL ~/.sdlc first, and
+ * runs tests/unit/state-dir-guard.test.mjs AFTER every other file so the
+ * fingerprint comparison sees the finished suite. A leak fails the run.
  */
-import { readdirSync, statSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stateFingerprint } from './helpers/state-fingerprint.mjs';
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.resolve(TESTS_DIR, '..');
+const REAL_STATE_DIR = path.join(homedir(), '.sdlc');
+const STATE_GUARD = path.join(TESTS_DIR, 'unit', 'state-dir-guard.test.mjs');
 
 /** Recursively collect every `*.test.mjs` under `dir`. */
 function collect(dir) {
@@ -105,10 +117,13 @@ if (filters.length > 0) {
   }
 }
 
-const rel = files.map((f) => path.relative(PLUGIN_ROOT, f).split(path.sep).join('/'));
+// The state-dir guard runs LAST, on its own, so its comparison sees the whole
+// suite. Every other file runs in the main pass.
+const toRel = (f) => path.relative(PLUGIN_ROOT, f).split(path.sep).join('/');
+const rel = files.filter((f) => path.resolve(f) !== STATE_GUARD).map(toRel);
 console.error(
   filters.length > 0
-    ? `[run-all] ${rel.length} of ${discovered} discovered test files match: ${filters.join(', ')}`
+    ? `[run-all] ${files.length} of ${discovered} discovered test files match: ${filters.join(', ')}`
     : `[run-all] ${discovered} test files discovered under tests/`,
 );
 
@@ -118,13 +133,33 @@ console.error(
 // so they see it too.
 process.env.SDLC_ALLOW_TEMP_ROOTS ??= '1';
 
-const result = spawnSync(process.execPath, ['--test', ...passThroughFlags, ...rel], {
-  cwd: PLUGIN_ROOT,
-  stdio: 'inherit',
-});
-
-if (result.error) {
-  console.error('[run-all] failed to spawn node --test:', result.error.message);
-  process.exit(1);
+// W11.7: one temp state dir for the whole run unless the caller chose one, and
+// the real state dir's fingerprint for the guard to compare against.
+let tempHome = null;
+if (!process.env.SDLC_HOME || !process.env.SDLC_HOME.trim()) {
+  tempHome = mkdtempSync(path.join(tmpdir(), 'sdlc-test-home-'));
+  process.env.SDLC_HOME = tempHome;
 }
-process.exit(result.status ?? 1);
+process.env.SDLC_STATE_GUARD_BASELINE = JSON.stringify(stateFingerprint(REAL_STATE_DIR));
+console.error(`[run-all] SDLC_HOME=${process.env.SDLC_HOME}; guarding ${REAL_STATE_DIR}`);
+
+function runNodeTest(list) {
+  if (!list.length) return 0;
+  const result = spawnSync(process.execPath, ['--test', ...passThroughFlags, ...list], {
+    cwd: PLUGIN_ROOT,
+    stdio: 'inherit',
+  });
+  if (result.error) {
+    console.error('[run-all] failed to spawn node --test:', result.error.message);
+    return 1;
+  }
+  return result.status ?? 1;
+}
+
+const mainStatus = runNodeTest(rel);
+const guardStatus = runNodeTest([toRel(STATE_GUARD)]);
+if (tempHome) {
+  // A sandbox hub a test failed to stop may still hold a file here; best-effort.
+  try { rmSync(tempHome, { recursive: true, force: true }); } catch { /* leave it to the OS temp cleaner */ }
+}
+process.exit(mainStatus !== 0 ? mainStatus : guardStatus);
