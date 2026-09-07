@@ -22,14 +22,20 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-S5HJX2DB.mjs";
-import "./chunk-7PUP6U7Y.mjs";
+} from "./chunk-4I3KKSMG.mjs";
+import {
+  hubLogLine,
+  readHubHistory,
+  recordHubStart
+} from "./chunk-RYUCL5SR.mjs";
+import "./chunk-KZAGDADS.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
   runtimeIdentity
 } from "./chunk-EQC6XDOG.mjs";
 import "./chunk-KRRL2TSM.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import {
   REGISTRY_FRESH_GRACE_MS,
   REGISTRY_VERSION,
@@ -45,11 +51,8 @@ import {
   validateEntry,
   writePidFile,
   writeRegistry
-} from "./chunk-TGGDCZSB.mjs";
-import "./chunk-NTSUEAI6.mjs";
-import "./chunk-5U76735W.mjs";
+} from "./chunk-BIK57RP4.mjs";
 import "./chunk-LFGT2BKG.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/hub-serve.mjs
@@ -378,7 +381,10 @@ function createHubServer({
         sseClients: clients.size,
         perRepoLastServed: metrics.perRepoLastServed,
         rssBytes: process.memoryUsage().rss
-      }
+      },
+      // Restart count + last start reason from ~/.sdlc/hub-history.jsonl
+      // (W11.2). Read once at bind; the tray tooltip shows it.
+      history: history ?? readHubHistory()
     };
   }
   function dropEntry(id, reason) {
@@ -683,6 +689,7 @@ data: ${JSON.stringify({ ok: true })}
       sendJson(res, { ok: true, id: entry.id });
     });
   }
+  let history = null;
   const server = createServer((req, res) => {
     metrics.requests++;
     if (!hostAllowed(req, allowAllHosts, extraHosts)) {
@@ -819,6 +826,20 @@ data: ${JSON.stringify({ ok: true })}
     clients.clear();
     return close(callback);
   };
+  server.on("listening", () => {
+    const address = server.address();
+    const boundPort = address && typeof address === "object" ? address.port : null;
+    recordHubStart({
+      pid: process.pid,
+      version: RUNTIME.runtimeVersion,
+      buildId: RUNTIME.buildId,
+      startedBy: STARTED_BY_HOST,
+      reason: process.env.SDLC_HUB_START_REASON || "unknown",
+      port: boundPort
+    });
+    history = readHubHistory();
+    logHub(`listening on http://${address && typeof address === "object" ? address.address : "?"}:${boundPort} (start #${history.starts}, reason: ${history.lastReason}, runtime ${RUNTIME.runtimeVersion} ${String(RUNTIME.buildId ?? "").slice(0, 12)})`);
+  });
   reload();
   try {
     renderQueue.catchUp(entries);
@@ -845,6 +866,7 @@ function escapeAttr(s) {
 }
 function logHub(line) {
   console.log(`[hub] ${line}`);
+  hubLogLine(`[hub] ${line}`);
 }
 async function main() {
   const args = parseHubArgs(process.argv.slice(2));
@@ -886,7 +908,6 @@ async function main() {
         startedByHost: STARTED_BY_HOST
       });
     }
-    console.log(`[hub] listening on http://${args.host}:${boundPort}`);
   });
   let cleaning = false;
   const shutdown = async () => {

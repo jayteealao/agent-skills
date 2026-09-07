@@ -3,23 +3,21 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   readHubConfig
-} from "./chunk-KAHDX7UW.mjs";
-import "./chunk-S5HJX2DB.mjs";
+} from "./chunk-VXRDWVSQ.mjs";
+import "./chunk-4I3KKSMG.mjs";
 import {
   readActiveRuntime,
   runtimeStoreDir
-} from "./chunk-7PUP6U7Y.mjs";
+} from "./chunk-KZAGDADS.mjs";
 import "./chunk-EQC6XDOG.mjs";
 import "./chunk-KRRL2TSM.mjs";
+import "./chunk-YVM64S7E.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import {
   readRegistry,
   sdlcHomeDir
-} from "./chunk-TGGDCZSB.mjs";
-import "./chunk-NTSUEAI6.mjs";
-import "./chunk-5U76735W.mjs";
+} from "./chunk-BIK57RP4.mjs";
 import "./chunk-LFGT2BKG.mjs";
-import "./chunk-YVM64S7E.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/doctor.mjs

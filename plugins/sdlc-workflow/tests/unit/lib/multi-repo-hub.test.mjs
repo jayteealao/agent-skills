@@ -1245,6 +1245,10 @@ test('hub-lifecycle: refuses 0.0.0.0 without machine-wide tailscale acknowledgem
   }));
   const res = await ensureHubLifecycle({ pluginRoot: process.cwd(), log: () => {} });
   equal(res.action, 'refused-host', 'public bind refused before any spawn');
+  // W11.2: every supervisor decision is one JSON line in ~/.sdlc/lifecycle.log.
+  const lifecycle = readFileSync(join(sdlcHomeDir(), 'lifecycle.log'), 'utf-8').trim().split('\n').map((l) => JSON.parse(l));
+  equal(lifecycle.at(-1).event, 'refused-host', 'the refusal is in lifecycle.log');
+  ok(typeof lifecycle.at(-1).version === 'string' && lifecycle.at(-1).host, 'the line carries host + version');
 });
 
 test('tailscale: funnel is refused without acknowledgedPublic (gate fires before spawn)', () => {

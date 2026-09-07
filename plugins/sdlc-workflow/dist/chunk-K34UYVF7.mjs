@@ -152,13 +152,19 @@ function normalizeHookPayload(input) {
   }
   return input;
 }
+var INVALID_JSON_HEX_BYTES = 200;
+function describeInvalidJson(text, err, { bytes = INVALID_JSON_HEX_BYTES } = {}) {
+  const buf = Buffer.from(String(text ?? ""), "utf-8");
+  const head = buf.subarray(0, bytes).toString("hex");
+  return `invalid hook JSON on stdin: ${err?.message ?? err}; ${buf.length} bytes; first ${Math.min(bytes, buf.length)} bytes hex: ${head}`;
+}
 async function readStdinJson({ emptyValue = {} } = {}) {
   const text = (await readStdin()).trim();
   if (!text) return emptyValue;
   try {
     return normalizeHookPayload(JSON.parse(text));
   } catch (err) {
-    err.message = `invalid hook JSON on stdin: ${err.message}`;
+    err.message = describeInvalidJson(text, err);
     throw err;
   }
 }

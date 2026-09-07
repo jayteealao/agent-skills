@@ -112,9 +112,15 @@ export function formatHealth(result = {}, now = Date.now()) {
   if (isHub) {
     const upStr = fmtUptime(payload.uptimeMs);
     const reqStr = `${payload.metrics?.requests ?? 0} req`;
+    // Restart count + last reason from health.history (W11.2); absent on a
+    // pre-W11.2 hub, so the tooltip is unchanged there.
+    const restarts = payload.history?.restarts;
+    const restartStr = Number.isInteger(restarts) && restarts > 0
+      ? ` · ${restarts} restart${restarts === 1 ? '' : 's'}${payload.history?.lastReason ? ` (${payload.history.lastReason})` : ''}`
+      : '';
     return {
       iconState: 'up',
-      tooltip: `SDLC hub v${version} · ${repoCount} repo${repoCount === 1 ? '' : 's'} · up ${upStr} · ${reqStr}`,
+      tooltip: `SDLC hub v${version} · ${repoCount} repo${repoCount === 1 ? '' : 's'} · up ${upStr} · ${reqStr}${restartStr}`,
       summary: `● healthy — v${version} · ${repoCount} repo${repoCount === 1 ? '' : 's'}`,
       detailRows,
       repoItems,

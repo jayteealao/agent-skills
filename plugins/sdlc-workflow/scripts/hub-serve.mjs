@@ -43,6 +43,7 @@ import {
 import { createRenderQueueDrainer, countPending, enqueue as enqueueRenderJob } from '../lib/render-queue.mjs';
 import { renderHubLanding } from '../renderers/hub-dashboard.mjs';
 import { renderCodeBrowserPage } from '../renderers/_code-browser-page.mjs';
+import { hubLogLine, readHubHistory, recordHubStart } from '../lib/runtime-log.mjs';
 
 // Shared runtime identity (NATIVE-INTEROP Workstream B): the host-neutral
 // { runtimeVersion, buildId, hubName, hubProtocolVersion } both plugins carry
@@ -472,6 +473,9 @@ export function createHubServer({
         perRepoLastServed: metrics.perRepoLastServed,
         rssBytes: process.memoryUsage().rss,
       },
+      // Restart count + last start reason from ~/.sdlc/hub-history.jsonl
+      // (W11.2). Read once at bind; the tray tooltip shows it.
+      history: history ?? readHubHistory(),
     };
   }
 
@@ -742,6 +746,10 @@ export function createHubServer({
     });
   }
 
+  // One hub-history record per bind, written from the server itself so an
+  // in-process test and the detached hub record the same way. `history` is
+  // cached for the health payload.
+  let history = null;
   const server = createServer((req, res) => {
     metrics.requests++;
 
@@ -857,6 +865,17 @@ export function createHubServer({
     return close(callback);
   };
 
+  server.on('listening', () => {
+    const address = server.address();
+    const boundPort = address && typeof address === 'object' ? address.port : null;
+    recordHubStart({
+      pid: process.pid, version: RUNTIME.runtimeVersion, buildId: RUNTIME.buildId,
+      startedBy: STARTED_BY_HOST, reason: process.env.SDLC_HUB_START_REASON || 'unknown', port: boundPort,
+    });
+    history = readHubHistory();
+    logHub(`listening on http://${address && typeof address === 'object' ? address.address : '?'}:${boundPort} (start #${history.starts}, reason: ${history.lastReason}, runtime ${RUNTIME.runtimeVersion} ${String(RUNTIME.buildId ?? '').slice(0, 12)})`);
+  });
+
   reload();
 
   // Startup catch-up (RENDER-DISPATCH-PLAN "Catch-up on start"): immediately
@@ -887,8 +906,12 @@ function escapeHtml(s) {
 }
 function escapeAttr(s) { return escapeHtml(s); }
 
+// Every hub line goes to stdout AND to ~/.sdlc/hub.log (WIDE-VIEW-REPAIR-PLAN
+// §14.2.2). The supervisor spawns the hub with stdio 'ignore', so without the
+// file a hub decision leaves no trace.
 function logHub(line) {
   console.log(`[hub] ${line}`);
+  hubLogLine(`[hub] ${line}`);
 }
 
 /* ───────────────────────── entrypoint ───────────────────────── */
@@ -933,7 +956,6 @@ async function main() {
         startedByHost: STARTED_BY_HOST,
       });
     }
-    console.log(`[hub] listening on http://${args.host}:${boundPort}`);
   });
 
   let cleaning = false;

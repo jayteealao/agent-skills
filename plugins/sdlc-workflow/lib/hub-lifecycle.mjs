@@ -17,6 +17,7 @@ import { isPidAlive, pidFileStatus, removePidFile, writePidFile } from './pid-fi
 import { hubPidPath, sdlcHomeDir } from './registry.mjs';
 import { readHubConfig, hubConfigHash } from './hub-config.mjs';
 import { maybeConfigureTailscale, tailscaleDnsName } from './tailscale.mjs';
+import { logLifecycle } from './runtime-log.mjs';
 import { runtimeIdentity } from './runtime-manifest.mjs';
 import { withLock, LockTimeoutError, atomicWriteJson } from './cross-host-lock.mjs';
 import { gcRuntimes, materializeRuntime, readRuntimeIdentityAt, verifyRuntimeStore, writeActiveRuntime } from './runtime-store.mjs';
@@ -110,6 +111,15 @@ export function decideHubAction(id, runtime, status) {
  * another host started while we waited is adopted rather than reaped — so
  * simultaneous Claude+Codex activation yields exactly one hub.
  */
+/**
+ * One JSON line per supervisor decision in ~/.sdlc/lifecycle.log (WIDE-VIEW-
+ * REPAIR-PLAN §14.2.2): event, host, version, buildId, pid, reason. Never
+ * throws and never changes a decision — it is the record, not the policy.
+ */
+function lifecycle(event, extra = {}) {
+  try { logLifecycle({ event, host: STARTED_BY_HOST, version: RUNTIME.runtimeVersion, buildId: RUNTIME.buildId, ...extra }); } catch { /* never block */ }
+}
+
 export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
   const cfg = readHubConfig();   // reads/creates ~/.sdlc/hub-config.json
   const host = cfg.host ?? '127.0.0.1';
@@ -118,6 +128,7 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
 
   if (host === '0.0.0.0' && !(cfg.tailscale?.enabled === true && cfg.tailscale?.acknowledgedPublic === true)) {
     log('[hub] refused host 0.0.0.0 without tailscale.enabled + acknowledgedPublic');
+    lifecycle('refused-host', { reason: '0.0.0.0 without tailscale.enabled + acknowledgedPublic' });
     return { action: 'refused-host' };
   }
 
@@ -129,11 +140,13 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
     const decision = decideHubAction(id, RUNTIME, status);
     if (decision.action === 'adopt') {
       log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ''}hub at http://${displayHost(host)}:${port} (runtime ${RUNTIME.runtimeVersion}${decision.reason ? `; ${decision.reason}` : ''})`);
+      lifecycle('adopt', { pid: id.pid, reason: decision.reason ?? null, peerVersion: id.runtimeVersion ?? null, peerBuildId: id.buildId ?? null, peerHost: id.startedByHost ?? null });
       maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
       return { action: 'already-running', pid: id.pid, adopted: true };
     }
     if (decision.action === 'protocol-incompatible') {
       log(`[hub] protocol-incompatible hub running (proto ${id.hubProtocolVersion ?? '?'} vs ${RUNTIME.hubProtocolVersion}); leaving it — explicit upgrade required`);
+      lifecycle('protocol-incompatible', { pid: id.pid, reason: `proto ${id.hubProtocolVersion ?? '?'} vs ${RUNTIME.hubProtocolVersion}` });
       return { action: 'protocol-incompatible', pid: id.pid, hubProtocolVersion: id.hubProtocolVersion ?? null };
     }
     // start / reap / recover → enter the cross-host critical section below.
@@ -151,31 +164,39 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
 
       if (decision.action === 'adopt') {
         log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ''}hub after lock wait (runtime ${RUNTIME.runtimeVersion}${decision.reason ? `; ${decision.reason}` : ''})`);
+        lifecycle('adopt', { pid: id.pid, reason: `after lock wait${decision.reason ? `; ${decision.reason}` : ''}`, peerVersion: id.runtimeVersion ?? null, peerBuildId: id.buildId ?? null, peerHost: id.startedByHost ?? null });
         maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
         return { action: 'already-running', pid: id.pid, adopted: true };
       }
       if (decision.action === 'protocol-incompatible') {
         log(`[hub] protocol-incompatible hub running (proto ${id.hubProtocolVersion ?? '?'} vs ${RUNTIME.hubProtocolVersion}); leaving it — explicit upgrade required`);
+        lifecycle('protocol-incompatible', { pid: id.pid, reason: `proto ${id.hubProtocolVersion ?? '?'} vs ${RUNTIME.hubProtocolVersion}` });
         return { action: 'protocol-incompatible', pid: id.pid, hubProtocolVersion: id.hubProtocolVersion ?? null };
       }
 
+      let startReason = 'fresh';
       if (decision.action === 'reap') {
         if (id?.pid) stopPid(id.pid, log);
         await removePidFile(pidPath);
         await waitForGone({ host, port, timeoutMs: 2000 });   // free the port before respawn
         log(`[hub] reaped ${decision.reason} (pid ${id?.pid ?? '?'})`);
+        lifecycle('reap', { pid: id?.pid ?? null, reason: decision.reason ?? null, peerVersion: id?.runtimeVersion ?? null, peerBuildId: id?.buildId ?? null });
+        startReason = `reap: ${decision.reason ?? 'unknown'}`;
       } else if (decision.action === 'recover') {
         await removePidFile(pidPath);
         log(`[hub] removed stale pid file for pid ${status.record?.pid}`);
+        lifecycle('recover', { pid: status.record?.pid ?? null, reason: 'stale pid file' });
+        startReason = 'recover: stale pid file';
       }
 
-      return startHubFromStore({ cfg, host, port, pidPath, pluginRoot, log });
+      return startHubFromStore({ cfg, host, port, pidPath, pluginRoot, log, startReason });
     });
   } catch (err) {
     if (err instanceof LockTimeoutError) {
       // Another host held the startup lock the whole time — it is presumably
       // bringing the hub up. Re-probe once: adopt if it is now healthy, else report.
       log(`[hub] ${err.message}; re-probing for a peer-started hub`);
+      lifecycle('lock-timeout', { reason: err.message });
       const status = await pidFileStatus(pidPath);
       const id = await probeHubIdentity({ host, port, timeoutMs: 700 });
       if (decideHubAction(id, RUNTIME, status).action === 'adopt') {
@@ -196,7 +217,7 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
  * materialization fails — a degraded but working hub beats no hub. Caller holds
  * the cross-host lock.
  */
-async function startHubFromStore({ cfg, host, port, pidPath, pluginRoot, log }) {
+async function startHubFromStore({ cfg, host, port, pidPath, pluginRoot, log, startReason = 'fresh' }) {
   let runtimeRoot = pluginRoot;
   let identity = RUNTIME;
   try {
@@ -211,7 +232,7 @@ async function startHubFromStore({ cfg, host, port, pidPath, pluginRoot, log }) 
     identity = RUNTIME;
   }
 
-  return startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port, pidPath, log });
+  return startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port, pidPath, log, startReason });
 }
 
 /**
@@ -221,7 +242,7 @@ async function startHubFromStore({ cfg, host, port, pidPath, pluginRoot, log }) 
  * bundled RUNTIME). Pre-writes hub.pid with the given identity, waits for health.
  * Caller holds hub.lock. Returns { action: 'started' | 'started-unconfirmed', pid }.
  */
-async function startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port, pidPath, log }) {
+async function startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port, pidPath, log, startReason = 'upgrade' }) {
   const buildId = identity.buildId;
   const token = randomBytes(24).toString('hex');
   const cfgHash = hubConfigHash(cfg);
@@ -255,6 +276,9 @@ async function startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port,
       // Diagnostic provenance: the host that started this hub, surfaced in
       // health.startedBy + the PID record. Never controls adoption.
       SDLC_HUB_STARTED_BY: STARTED_BY_HOST,
+      // Why this hub starts (fresh, reap: …, recover: …, upgrade); the hub
+      // records it in ~/.sdlc/hub-history.jsonl (W11.2).
+      SDLC_HUB_START_REASON: startReason,
       SDLC_CODE_BROWSER: JSON.stringify(cfg.codeBrowser ?? {}),
       // Stale-render heal config (STALE-RENDER-HEAL-PLAN §3). Via env for the
       // same reason as codeBrowser; configHash covers it so editing the block in
@@ -283,9 +307,11 @@ async function startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port,
   const healthy = await waitForHealth({ host, port, timeoutMs: 2500 });
   if (!healthy) {
     log(`[hub] started pid ${child.pid}, health check not ready yet`);
+    lifecycle('unconfirmed', { pid: child.pid ?? null, reason: startReason, version: identity.runtimeVersion, buildId });
     return { action: 'started-unconfirmed', pid: child.pid };
   }
   log(`[hub] started pid ${child.pid} at http://${displayHost(host)}:${port} (runtime ${identity.runtimeVersion}${buildId ? ` ${buildId.slice(0, 12)}` : ''})`);
+  lifecycle('start', { pid: child.pid ?? null, reason: startReason, version: identity.runtimeVersion, buildId });
   maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
   return { action: 'started', pid: child.pid };
 }

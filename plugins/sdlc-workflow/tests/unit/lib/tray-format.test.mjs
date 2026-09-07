@@ -131,3 +131,14 @@ test('fmtRelTime', () => {
   equal(fmtRelTime(ago(2 * HOUR), NOW), '2h ago');
   equal(fmtRelTime(ago(5 * DAY), NOW), '5d ago');
 });
+
+test('hub up: tooltip carries the restart count and last reason when health.history is present (W11.2)', () => {
+  const payload = {
+    version: '9.45.0', entries: [], uptimeMs: 60_000, metrics: { requests: 3 },
+    history: { starts: 3, restarts: 2, lastReason: 'reap: version-mismatch', lastAt: '2026-09-07T00:00:00.000Z' },
+  };
+  const r = formatHealth({ reachable: true, payload, pluginVersion: '9.45.0' }, Date.now());
+  equal(r.tooltip, 'SDLC hub v9.45.0 · 0 repos · up 1m · 3 req · 2 restarts (reap: version-mismatch)');
+  const first = formatHealth({ reachable: true, payload: { ...payload, history: { starts: 1, restarts: 0, lastReason: 'fresh' } }, pluginVersion: '9.45.0' }, Date.now());
+  equal(first.tooltip, 'SDLC hub v9.45.0 · 0 repos · up 1m · 3 req', 'a first start adds nothing');
+});

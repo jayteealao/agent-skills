@@ -14,34 +14,33 @@ import {
   restartHub,
   stopHubAction,
   togglePerRepoServe
-} from "./chunk-BSUD6WWC.mjs";
-import "./chunk-3VICNUKK.mjs";
-import "./chunk-KAHDX7UW.mjs";
-import "./chunk-S5HJX2DB.mjs";
+} from "./chunk-ANYR4PGU.mjs";
+import "./chunk-LEH2GT6B.mjs";
+import "./chunk-VXRDWVSQ.mjs";
+import "./chunk-4I3KKSMG.mjs";
 import {
   clearTrayHeartbeat,
   writeTrayHeartbeat
-} from "./chunk-FPML4TCB.mjs";
+} from "./chunk-U4MIRMZ3.mjs";
 import {
   disableAutostart,
   enableAutostart,
   isAutostartEnabled,
   refreshAutostart
 } from "./chunk-ERHYJB4B.mjs";
-import "./chunk-7PUP6U7Y.mjs";
+import "./chunk-RYUCL5SR.mjs";
+import "./chunk-KZAGDADS.mjs";
 import {
   runtimeIdentity
 } from "./chunk-EQC6XDOG.mjs";
 import "./chunk-K6PBZI5W.mjs";
 import "./chunk-KRRL2TSM.mjs";
-import {
-  sdlcHomeDir
-} from "./chunk-TGGDCZSB.mjs";
-import "./chunk-NTSUEAI6.mjs";
-import "./chunk-5U76735W.mjs";
-import "./chunk-LFGT2BKG.mjs";
 import "./chunk-YVM64S7E.mjs";
 import "./chunk-FZ2GR6GF.mjs";
+import {
+  sdlcHomeDir
+} from "./chunk-BIK57RP4.mjs";
+import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/tray.mjs
@@ -406,9 +405,11 @@ function formatHealth(result = {}, now = Date.now()) {
   if (isHub) {
     const upStr = fmtUptime(payload.uptimeMs);
     const reqStr = `${payload.metrics?.requests ?? 0} req`;
+    const restarts = payload.history?.restarts;
+    const restartStr = Number.isInteger(restarts) && restarts > 0 ? ` \xB7 ${restarts} restart${restarts === 1 ? "" : "s"}${payload.history?.lastReason ? ` (${payload.history.lastReason})` : ""}` : "";
     return {
       iconState: "up",
-      tooltip: `SDLC hub v${version} \xB7 ${repoCount} repo${repoCount === 1 ? "" : "s"} \xB7 up ${upStr} \xB7 ${reqStr}`,
+      tooltip: `SDLC hub v${version} \xB7 ${repoCount} repo${repoCount === 1 ? "" : "s"} \xB7 up ${upStr} \xB7 ${reqStr}${restartStr}`,
       summary: `\u25CF healthy \u2014 v${version} \xB7 ${repoCount} repo${repoCount === 1 ? "" : "s"}`,
       detailRows,
       repoItems

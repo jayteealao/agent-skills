@@ -3,7 +3,10 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   hubConfigHash,
   readHubConfig
-} from "./chunk-KAHDX7UW.mjs";
+} from "./chunk-VXRDWVSQ.mjs";
+import {
+  logLifecycle
+} from "./chunk-RYUCL5SR.mjs";
 import {
   LockTimeoutError,
   atomicWriteJson,
@@ -13,7 +16,7 @@ import {
   verifyRuntimeStore,
   withLock,
   writeActiveRuntime
-} from "./chunk-7PUP6U7Y.mjs";
+} from "./chunk-KZAGDADS.mjs";
 import {
   runtimeIdentity
 } from "./chunk-EQC6XDOG.mjs";
@@ -30,7 +33,7 @@ import {
   removePidFile,
   sdlcHomeDir,
   writePidFile
-} from "./chunk-TGGDCZSB.mjs";
+} from "./chunk-BIK57RP4.mjs";
 
 // lib/hub-lifecycle.mjs
 import { randomBytes } from "node:crypto";
@@ -120,6 +123,12 @@ function decideHubAction(id, runtime, status) {
     reason: !sameRuntime ? `runtime v${id.runtimeVersion || "?"} \u2192 v${runtime.runtimeVersion}` : "untracked hub (orphaned pid file)"
   };
 }
+function lifecycle(event, extra = {}) {
+  try {
+    logLifecycle({ event, host: STARTED_BY_HOST, version: RUNTIME.runtimeVersion, buildId: RUNTIME.buildId, ...extra });
+  } catch {
+  }
+}
 async function ensureHubLifecycle({ pluginRoot, log = () => {
 } } = {}) {
   const cfg = readHubConfig();
@@ -128,6 +137,7 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
   const pidPath = hubPidPath();
   if (host === "0.0.0.0" && !(cfg.tailscale?.enabled === true && cfg.tailscale?.acknowledgedPublic === true)) {
     log("[hub] refused host 0.0.0.0 without tailscale.enabled + acknowledgedPublic");
+    lifecycle("refused-host", { reason: "0.0.0.0 without tailscale.enabled + acknowledgedPublic" });
     return { action: "refused-host" };
   }
   {
@@ -136,11 +146,13 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
     const decision = decideHubAction(id, RUNTIME, status);
     if (decision.action === "adopt") {
       log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ""}hub at http://${displayHost(host)}:${port} (runtime ${RUNTIME.runtimeVersion}${decision.reason ? `; ${decision.reason}` : ""})`);
+      lifecycle("adopt", { pid: id.pid, reason: decision.reason ?? null, peerVersion: id.runtimeVersion ?? null, peerBuildId: id.buildId ?? null, peerHost: id.startedByHost ?? null });
       maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
       return { action: "already-running", pid: id.pid, adopted: true };
     }
     if (decision.action === "protocol-incompatible") {
       log(`[hub] protocol-incompatible hub running (proto ${id.hubProtocolVersion ?? "?"} vs ${RUNTIME.hubProtocolVersion}); leaving it \u2014 explicit upgrade required`);
+      lifecycle("protocol-incompatible", { pid: id.pid, reason: `proto ${id.hubProtocolVersion ?? "?"} vs ${RUNTIME.hubProtocolVersion}` });
       return { action: "protocol-incompatible", pid: id.pid, hubProtocolVersion: id.hubProtocolVersion ?? null };
     }
   }
@@ -151,27 +163,35 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
       const decision = decideHubAction(id, RUNTIME, status);
       if (decision.action === "adopt") {
         log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ""}hub after lock wait (runtime ${RUNTIME.runtimeVersion}${decision.reason ? `; ${decision.reason}` : ""})`);
+        lifecycle("adopt", { pid: id.pid, reason: `after lock wait${decision.reason ? `; ${decision.reason}` : ""}`, peerVersion: id.runtimeVersion ?? null, peerBuildId: id.buildId ?? null, peerHost: id.startedByHost ?? null });
         maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
         return { action: "already-running", pid: id.pid, adopted: true };
       }
       if (decision.action === "protocol-incompatible") {
         log(`[hub] protocol-incompatible hub running (proto ${id.hubProtocolVersion ?? "?"} vs ${RUNTIME.hubProtocolVersion}); leaving it \u2014 explicit upgrade required`);
+        lifecycle("protocol-incompatible", { pid: id.pid, reason: `proto ${id.hubProtocolVersion ?? "?"} vs ${RUNTIME.hubProtocolVersion}` });
         return { action: "protocol-incompatible", pid: id.pid, hubProtocolVersion: id.hubProtocolVersion ?? null };
       }
+      let startReason = "fresh";
       if (decision.action === "reap") {
         if (id?.pid) stopPid(id.pid, log);
         await removePidFile(pidPath);
         await waitForGone({ host, port, timeoutMs: 2e3 });
         log(`[hub] reaped ${decision.reason} (pid ${id?.pid ?? "?"})`);
+        lifecycle("reap", { pid: id?.pid ?? null, reason: decision.reason ?? null, peerVersion: id?.runtimeVersion ?? null, peerBuildId: id?.buildId ?? null });
+        startReason = `reap: ${decision.reason ?? "unknown"}`;
       } else if (decision.action === "recover") {
         await removePidFile(pidPath);
         log(`[hub] removed stale pid file for pid ${status.record?.pid}`);
+        lifecycle("recover", { pid: status.record?.pid ?? null, reason: "stale pid file" });
+        startReason = "recover: stale pid file";
       }
-      return startHubFromStore({ cfg, host, port, pidPath, pluginRoot, log });
+      return startHubFromStore({ cfg, host, port, pidPath, pluginRoot, log, startReason });
     });
   } catch (err) {
     if (err instanceof LockTimeoutError) {
       log(`[hub] ${err.message}; re-probing for a peer-started hub`);
+      lifecycle("lock-timeout", { reason: err.message });
       const status = await pidFileStatus(pidPath);
       const id = await probeHubIdentity({ host, port, timeoutMs: 700 });
       if (decideHubAction(id, RUNTIME, status).action === "adopt") {
@@ -183,7 +203,7 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
     throw err;
   }
 }
-async function startHubFromStore({ cfg, host, port, pidPath, pluginRoot, log }) {
+async function startHubFromStore({ cfg, host, port, pidPath, pluginRoot, log, startReason = "fresh" }) {
   let runtimeRoot = pluginRoot;
   let identity = RUNTIME;
   try {
@@ -197,9 +217,9 @@ async function startHubFromStore({ cfg, host, port, pidPath, pluginRoot, log }) 
     runtimeRoot = pluginRoot;
     identity = RUNTIME;
   }
-  return startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port, pidPath, log });
+  return startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port, pidPath, log, startReason });
 }
-async function startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port, pidPath, log }) {
+async function startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port, pidPath, log, startReason = "upgrade" }) {
   const buildId = identity.buildId;
   const token = randomBytes(24).toString("hex");
   const cfgHash = hubConfigHash(cfg);
@@ -238,6 +258,9 @@ async function startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port,
       // Diagnostic provenance: the host that started this hub, surfaced in
       // health.startedBy + the PID record. Never controls adoption.
       SDLC_HUB_STARTED_BY: STARTED_BY_HOST,
+      // Why this hub starts (fresh, reap: …, recover: …, upgrade); the hub
+      // records it in ~/.sdlc/hub-history.jsonl (W11.2).
+      SDLC_HUB_START_REASON: startReason,
       SDLC_CODE_BROWSER: JSON.stringify(cfg.codeBrowser ?? {}),
       // Stale-render heal config (STALE-RENDER-HEAL-PLAN §3). Via env for the
       // same reason as codeBrowser; configHash covers it so editing the block in
@@ -263,9 +286,11 @@ async function startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port,
   const healthy = await waitForHealth({ host, port, timeoutMs: 2500 });
   if (!healthy) {
     log(`[hub] started pid ${child.pid}, health check not ready yet`);
+    lifecycle("unconfirmed", { pid: child.pid ?? null, reason: startReason, version: identity.runtimeVersion, buildId });
     return { action: "started-unconfirmed", pid: child.pid };
   }
   log(`[hub] started pid ${child.pid} at http://${displayHost(host)}:${port} (runtime ${identity.runtimeVersion}${buildId ? ` ${buildId.slice(0, 12)}` : ""})`);
+  lifecycle("start", { pid: child.pid ?? null, reason: startReason, version: identity.runtimeVersion, buildId });
   maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
   return { action: "started", pid: child.pid };
 }
