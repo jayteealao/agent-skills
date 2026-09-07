@@ -1,7 +1,7 @@
 # Wide-View Repair Plan — prose budget, capability shield, exact cost ledger, runtime repair
 
 Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0, W1 (line budgets; word targets
-closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10, W11.1 + W11.2 BUILT 2026-09-07**; eval baseline run
+closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10, W11.1, W11.2 + W11.3 BUILT 2026-09-07**; eval baseline run
 pending (§16); W6 onward in progress — see the build ledger in §17. Source: a whole-tree survey of
 `plugins/sdlc-workflow` on 2026-09-04 against v9.153.4 (`6465707f`). Another
 session carried `_shell.mjs`, `nav.html`, and the root catalog to 9.153.5 while
@@ -1107,6 +1107,21 @@ same way. The gate's e2e is a live start in an `SDLC_HOME` sandbox on port
 41987 inside the unit suite (`runtime-log.test.mjs`), because the repository
 has no separate e2e lane for the hub.
 
+Build note (2026-09-07) — W11.3 built with two departures. (1) The git gate is
+"inside a git checkout", not "is the git toplevel": `lib/project-root.mjs`
+anchors a monorepo sub-project with its own `.ai/workflows` below the
+toplevel on purpose, and a toplevel gate would stop its bootstrap. The
+`Documents/dev` case the item targets is outside any checkout, so the gate
+still covers it. (2) The litter deletion (item 5) did not run: the operator
+declined the `rm -rf` in this session, so the eight directories and their
+eight pending queue records stay, and the CHANGELOG lists them as the
+operator's step. The plan counted two stuck records; the machine held eight.
+The registry refusal needed a suite-wide escape, `SDLC_ALLOW_TEMP_ROOTS=1`,
+set once in `tests/run-all.mjs`, because every test repository is under the
+OS temp dir; a single test file therefore runs through `npm test -- <filter>`.
+`lib/doctor.mjs` `classifyRoot` now delegates to the registry's rule, so the
+doctor and the registry cannot disagree about what "ephemeral" means.
+
 ## 15. Releases and order
 
 | Release | Waves | Gate before push |
@@ -1210,7 +1225,7 @@ the commit that closed the row. Every commit is local until the operator pushes.
 | W10 | README ≤ 150 lines + `verify:docs` extension | built | `19a67f29` | README rewritten to 90 lines (hosts table, install + first-workflow pointers, ten-stage sequence, 22-key table, hooks pointer, full site map, develop commands); the 11 release blockquotes and every retired name deleted; `verify-doc-site.mjs` check (h): ≤ 150 lines, no `wf-meta`/`wf-quick`/`wf-design`/`wf-docs`/"two hosts", names Claude Code + Codex + pi |
 | W11.1 | `doctor` + installed check + cutover record | built | `3228b18f` | `lib/doctor.mjs` + `scripts/doctor.mjs` (`npm run doctor`, tray "Run doctor…", bundled to `dist/`); `verify-release-pushed.mjs` `installed` check (blocking off CI, advisory on CI, `--skip-installed`); SINGLE-SOURCE-CUTOVER.md §2 steps 0 + 7 and §5 before-record; 9 tests |
 | W11.2 | One runtime log, lifecycle log, error log routing, hex payload, restart count | built | `d4759aa6` | `lib/runtime-log.mjs` (1 MB, 2 generations); hub.log via `logHub()`; lifecycle.log from every supervisor decision (8 events); errors.log keyed by repoRoot, per-repo file only with `.ai/workflows`; `describeInvalidJson` hex head; hub-history.jsonl → `health.history` + tray tooltip; 7 tests incl. a live start |
-| W11.3 | Conditional SessionStart, registry refusals, litter deletion, comment fix | open | — | |
+| W11.3 | Conditional SessionStart, registry refusals, litter deletion, comment fix | built | `8da11530` | `lib/session-start-policy.mjs` decision (compact / no `.ai/workflows` / outside git → nothing; hub-ensure on startup+resume); Codex `session-start` returns on compact; `ephemeralRootReason` + `validateEntry` refusal (temp, worktree, scratchpad; `SDLC_ALLOW_TEMP_ROOTS=1` in run-all); header comment fixed; 4 + 3 + 1 tests. Litter deletion NOT done (declined) — the operator's step, list in CHANGELOG |
 | W11.4 | Port-held handling, EADDRINUSE, default port move + migration | open | — | |
 | W11.5 | Runtime store GC on every start | open | — | |
 | W11.6 | Folded hooks per event | open | — | |
