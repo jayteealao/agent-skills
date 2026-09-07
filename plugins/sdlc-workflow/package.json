@@ -18,6 +18,7 @@
     "verify:deployment": "node scripts/verify-deployment.mjs",
     "verify:capabilities": "node scripts/verify-capabilities.mjs",
     "verify:prose": "node scripts/verify-prose-budget.mjs",
+    "verify:surface": "node scripts/verify-surface.mjs",
     "measure:load": "node scripts/measure-load.mjs",
     "evals": "node tests/evals/run.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
