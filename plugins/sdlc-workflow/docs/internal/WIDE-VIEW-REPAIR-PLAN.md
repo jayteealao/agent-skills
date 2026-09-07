@@ -1,7 +1,7 @@
 # Wide-View Repair Plan — prose budget, capability shield, exact cost ledger, runtime repair
 
 Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0, W1 (line budgets; word targets
-closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10, W11.1–W11.5 BUILT 2026-09-07**; eval baseline run
+closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10, W11.1–W11.6 BUILT 2026-09-07**; eval baseline run
 pending (§16); W6 onward in progress — see the build ledger in §17. Source: a whole-tree survey of
 `plugins/sdlc-workflow` on 2026-09-04 against v9.153.4 (`6465707f`). Another
 session carried `_shell.mjs`, `nav.html`, and the root catalog to 9.153.5 while
@@ -1153,6 +1153,23 @@ GC as built is safe for every install that upgrades through releases.
 `active-runtime.json` reads as `previousBuildId: null` until the next
 upgrade writes one.
 
+Build note (2026-09-07) — W11.6 built with two readings and one departure.
+Reading 1: "keep the matcher per event unchanged" became one group per event
+whose matcher is the union of the old groups (`Write|Edit|MultiEdit|Bash`);
+three groups pointing at one file would run it twice on a Write. The payload
+shape selects the checks inside the process. Reading 2: `codex.hooks.json`
+was not re-pointed. Codex needs its adapter layer (event parsing,
+apply_patch, the Stop ledger), so the adapters now spawn the folded bundle
+once; the wiring file is byte-identical and no re-trust is needed.
+Departure: under Codex the order changes from verify-first (skip the rest on
+a block) to auto-stage, verify, render with the render request queued after
+a block — the Claude Code behaviour, now identical on both hosts. The
+standalone entries are guarded by process.argv basename (`isEntry`), not by
+`import.meta.url`: esbuild gives every inlined module the bundle URL, so a
+URL guard would have run each single-purpose main() inside the fold. Warm
+timing on the operator machine: 97 ms (post) / 91 ms (pre) against 245 ms for
+the three PostToolUse processes summed; the 0.30 s gate holds.
+
 ## 15. Releases and order
 
 | Release | Waves | Gate before push |
@@ -1259,7 +1276,7 @@ the commit that closed the row. Every commit is local until the operator pushes.
 | W11.3 | Conditional SessionStart, registry refusals, litter deletion, comment fix | built | `8da11530` | `lib/session-start-policy.mjs` decision (compact / no `.ai/workflows` / outside git → nothing; hub-ensure on startup+resume); Codex `session-start` returns on compact; `ephemeralRootReason` + `validateEntry` refusal (temp, worktree, scratchpad; `SDLC_ALLOW_TEMP_ROOTS=1` in run-all); header comment fixed; 4 + 3 + 1 tests. Litter deletion NOT done (declined) — the operator's step, list in CHANGELOG |
 | W11.4 | Port-held handling, EADDRINUSE, default port move + migration | built | `0b771478` | `lib/port-owner.mjs` (`portHeld`, `portOwner`); supervisor returns `port-held` + lifecycle line, no spawn; hub-serve EADDRINUSE → hub.log + exit 2; tray tooltip names the holder; default port 4173 → 48173 with one-shot `migrateHubConfig` (marker `portMigratedFrom`) + `port-migrated` lifecycle line; docs updated (installation.html left: another session's file); 6 tests incl. live port-held + live EADDRINUSE |
 | W11.5 | Runtime store GC on every start | built | `c9654108` | `gcRuntimes` runs after every confirmed start and both adopt paths (try/catch, `gc` lifecycle line on removal); `active-runtime.json` records `previousBuildId` and GC keeps it; never-remove rules unchanged; gate test 6 → 3 |
-| W11.6 | Folded hooks per event | open | — | |
+| W11.6 | Folded hooks per event | built | `ff303546` | `hooks/pre-tool-use-all.mjs` + `hooks/post-tool-use-all.mjs`; every check exports `run(input)`; `lib/hook-runner.mjs` (`runStandalone`/`runFolded`/`blockToolCall`/`isEntry`); one systemMessage line per process; Codex adapters call the folded bundles, codex.hooks.json unchanged; warm Write path 97 ms (was 245 ms summed); 6 tests red-first |
 | W11.7 | Test isolation via `SDLC_HOME` + state-dir guard | open | — | |
 | W11.8 | Exposure defaults: basenames, code browser gate, tray hash manifest | open | — | |
 | W11.9 | Dead paths: deprecate (N), delete (N+1) | open | — | two releases by rule |
