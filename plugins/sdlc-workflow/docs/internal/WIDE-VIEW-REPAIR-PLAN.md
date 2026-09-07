@@ -1,7 +1,7 @@
 # Wide-View Repair Plan — prose budget, capability shield, exact cost ledger, runtime repair
 
 Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0, W1 (line budgets; word targets
-closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10, W11.1–W11.7 BUILT 2026-09-07**; eval baseline run
+closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10, W11.1–W11.8 BUILT 2026-09-07**; eval baseline run
 pending (§16); W6 onward in progress — see the build ledger in §17. Source: a whole-tree survey of
 `plugins/sdlc-workflow` on 2026-09-04 against v9.153.4 (`6465707f`). Another
 session carried `_shell.mjs`, `nav.html`, and the root catalog to 9.153.5 while
@@ -1182,6 +1182,20 @@ unchanged, which also shows the pre-W11.7 leaks came from tests that now
 inherit the temp `SDLC_HOME`. The one-week prune-log observation is the
 operator's; the baseline size stands in the doctor record.
 
+Build note (2026-09-07) — W11.8 built with two placements the plan did not
+name. The tailnet gate lives in the supervisors, not the daemon: hub-serve
+never reads hub-config.json (it gets its code-browser block through
+`SDLC_CODE_BROWSER`), so `effectiveCodeBrowserConfig(hubConfig)` runs once
+at each spawn site and the daemon receives a config that already carries
+`enabled:false` and the one-line reason. The hash check lives in
+`lib/tray-autostart.mjs` as the plan says, but the call site is
+`scripts/tray.mjs` `ensureRuntimeBinary`, which is where the copy to
+`~/.sdlc/bin` happens; `tray-autostart.mjs` itself only writes the logon
+launcher. The helper README records what is knowable: the upstream project
+and the vendoring commit. The upstream version and build date were never
+recorded and cannot be recovered from the binaries; the README says so and
+asks for both on the next refresh.
+
 ## 15. Releases and order
 
 | Release | Waves | Gate before push |
@@ -1290,7 +1304,7 @@ the commit that closed the row. Every commit is local until the operator pushes.
 | W11.5 | Runtime store GC on every start | built | `c9654108` | `gcRuntimes` runs after every confirmed start and both adopt paths (try/catch, `gc` lifecycle line on removal); `active-runtime.json` records `previousBuildId` and GC keeps it; never-remove rules unchanged; gate test 6 → 3 |
 | W11.6 | Folded hooks per event | built | `ff303546` | `hooks/pre-tool-use-all.mjs` + `hooks/post-tool-use-all.mjs`; every check exports `run(input)`; `lib/hook-runner.mjs` (`runStandalone`/`runFolded`/`blockToolCall`/`isEntry`); one systemMessage line per process; Codex adapters call the folded bundles, codex.hooks.json unchanged; warm Write path 97 ms (was 245 ms summed); 6 tests red-first |
 | W11.7 | Test isolation via `SDLC_HOME` + state-dir guard | built | `dd64fb31` | run-all sets a temp `SDLC_HOME` per run, records the real `~/.sdlc` fingerprint, runs `state-dir-guard.test.mjs` last; fingerprint = registry roots/shards, prune-log size, hub.pid, runtime builds, active build (not the dir mtime); red-first; full suite 960 pass + guard green, real state untouched |
-| W11.8 | Exposure defaults: basenames, code browser gate, tray hash manifest | open | — | |
+| W11.8 | Exposure defaults: basenames, code browser gate, tray hash manifest | built | `d8330cf5` | health/registry basenames + no viewDir without `x-sdlc-token`; `codeBrowser.acknowledgedTailnet` + `effectiveCodeBrowserConfig` at both spawn sites, 404 with reason, health `codeBrowser.reason`; `bin/tray/SHA256SUMS` + `verifyTrayHelper` refusal in tray.mjs; `bin/tray/README.md`; 5 tests red-first |
 | W11.9 | Dead paths: deprecate (N), delete (N+1) | open | — | two releases by rule |
 | W11.10 | Bounded catch-up render + 5 s Codex wait | open | — | |
 | W11.11 | Shared `_assets` from the hub + prune-log rotation | open | — | |
