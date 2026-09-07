@@ -1,7 +1,7 @@
 # Wide-View Repair Plan — prose budget, capability shield, exact cost ledger, runtime repair
 
 Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0, W1 (line budgets; word targets
-closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10, W11.1, W11.2 + W11.3 BUILT 2026-09-07**; eval baseline run
+closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10, W11.1–W11.4 BUILT 2026-09-07**; eval baseline run
 pending (§16); W6 onward in progress — see the build ledger in §17. Source: a whole-tree survey of
 `plugins/sdlc-workflow` on 2026-09-04 against v9.153.4 (`6465707f`). Another
 session carried `_shell.mjs`, `nav.html`, and the root catalog to 9.153.5 while
@@ -1122,6 +1122,22 @@ OS temp dir; a single test file therefore runs through `npm test -- <filter>`.
 `lib/doctor.mjs` `classifyRoot` now delegates to the registry's rule, so the
 doctor and the registry cannot disagree about what "ephemeral" means.
 
+Build note (2026-09-07) — W11.4 built as specified, plus a marker. The new
+default is 48173. `migrateHubConfig` writes `portMigratedFrom: 4173` when it
+moves a config, so an operator who later sets 4173 on purpose is not moved
+again; the plan's "one-line rewrite" is two lines for that reason. The
+`tailscale serve` update needs no new code: `maybeConfigureTailscale` runs on
+every start and adopt with the configured port, so the first hub start after
+the migration re-targets the proxy. `start/installation.html` still names
+4173; that file is another session's uncommitted work and was not touched.
+Two test-suite facts surfaced while gating: a `net.Server` fixture must
+destroy its accepted sockets before `close()`, or a probe's half-closed
+socket leaves the close pending after the event loop drains and node:test
+cancels the file; and a live-hub test on a FIXED port meets the zombie hub of
+an earlier aborted run (its pid file died with that run's sandbox) and reaps
+it as "untracked" — the runtime-log live test now takes a free port and
+stops its hub by the pid the hub's own health reports.
+
 ## 15. Releases and order
 
 | Release | Waves | Gate before push |
@@ -1226,7 +1242,7 @@ the commit that closed the row. Every commit is local until the operator pushes.
 | W11.1 | `doctor` + installed check + cutover record | built | `3228b18f` | `lib/doctor.mjs` + `scripts/doctor.mjs` (`npm run doctor`, tray "Run doctor…", bundled to `dist/`); `verify-release-pushed.mjs` `installed` check (blocking off CI, advisory on CI, `--skip-installed`); SINGLE-SOURCE-CUTOVER.md §2 steps 0 + 7 and §5 before-record; 9 tests |
 | W11.2 | One runtime log, lifecycle log, error log routing, hex payload, restart count | built | `d4759aa6` | `lib/runtime-log.mjs` (1 MB, 2 generations); hub.log via `logHub()`; lifecycle.log from every supervisor decision (8 events); errors.log keyed by repoRoot, per-repo file only with `.ai/workflows`; `describeInvalidJson` hex head; hub-history.jsonl → `health.history` + tray tooltip; 7 tests incl. a live start |
 | W11.3 | Conditional SessionStart, registry refusals, litter deletion, comment fix | built | `8da11530` | `lib/session-start-policy.mjs` decision (compact / no `.ai/workflows` / outside git → nothing; hub-ensure on startup+resume); Codex `session-start` returns on compact; `ephemeralRootReason` + `validateEntry` refusal (temp, worktree, scratchpad; `SDLC_ALLOW_TEMP_ROOTS=1` in run-all); header comment fixed; 4 + 3 + 1 tests. Litter deletion NOT done (declined) — the operator's step, list in CHANGELOG |
-| W11.4 | Port-held handling, EADDRINUSE, default port move + migration | open | — | |
+| W11.4 | Port-held handling, EADDRINUSE, default port move + migration | built | `0b771478` | `lib/port-owner.mjs` (`portHeld`, `portOwner`); supervisor returns `port-held` + lifecycle line, no spawn; hub-serve EADDRINUSE → hub.log + exit 2; tray tooltip names the holder; default port 4173 → 48173 with one-shot `migrateHubConfig` (marker `portMigratedFrom`) + `port-migrated` lifecycle line; docs updated (installation.html left: another session's file); 6 tests incl. live port-held + live EADDRINUSE |
 | W11.5 | Runtime store GC on every start | open | — | |
 | W11.6 | Folded hooks per event | open | — | |
 | W11.7 | Test isolation via `SDLC_HOME` + state-dir guard | open | — | |
