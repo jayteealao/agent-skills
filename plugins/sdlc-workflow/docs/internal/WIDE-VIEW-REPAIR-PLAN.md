@@ -1,7 +1,7 @@
 # Wide-View Repair Plan — prose budget, capability shield, exact cost ledger, runtime repair
 
 Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0, W1 (line budgets; word targets
-closed through §16 raises), W2 BUILT 2026-09-05, W3, W4 + W7 BUILT 2026-09-07**; eval baseline run
+closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7 + W8 BUILT 2026-09-07**; eval baseline run
 pending (§16); W6 onward in progress — see the build ledger in §17. Source: a whole-tree survey of
 `plugins/sdlc-workflow` on 2026-09-04 against v9.153.4 (`6465707f`). Another
 session carried `_shell.mjs`, `nav.html`, and the root catalog to 9.153.5 while
@@ -687,6 +687,33 @@ between pi-unified's subagent append and pi-code's `agent_end` Stop hook.
   writes no row. A missing row is visible in `/wf status` as a turn gap; a
   wrong number never is, so the hook prefers no row to a guessed row.
 
+Build note (2026-09-07): built as specified with these departures. (1) The Codex
+side is a separate thin adapter, `hooks/stop-cost.mjs`, not an extension of
+`stop-verify.mjs`: the adapter contract test allows only `./_adapter.mjs` and
+`node:` imports, and the policy lives in the bundle. The adapter passes
+`PLUGIN_DATA` to the bundle as `sdlc_plugin_data` in the payload. (2) The cursor
+records `turn` and the last attribution (`slug`, `key`, `slice`, `root`) beside the
+offsets, so a turn with no artifact write inherits the session's last slug and
+key; a turn with no known slug writes no row. (3) Under Claude Code and pi the
+cursor lives under `sdlcHomeDir()/cost-cursor` (SDLC_HOME-relocatable), not the
+plugin data dir; under Codex it lives under `PLUGIN_DATA/cost-cursor`. (4) Codex
+usage is the delta of the cumulative `total_token_usage` between two Stops, kept
+under the verbatim Codex names with `fields: "codex"`; a Codex payload with no
+`transcript_path` is resolved to the rollout by session id under
+`$CODEX_HOME/sessions/`. (5) The cost table also renders on the pipeline slug page
+(`renderers/index.mjs`); §10.4 named only the dashboard and `workflow-index.mjs`.
+(6) The consult dispatcher writes a standalone `external` row (`turn: null`,
+`main: null`) keyed by `SDLC_COST_SLUG` / `SDLC_COST_KEY`; without the variable it
+writes nothing, so a consult with no slug is never mis-charged. (7) The trigger
+list grew from the eleven names in §10.5 to twenty-nine — the union of every
+stage's prose — in `skills/wf/reference/_consult-triggers.md`; the coverage test
+checks the names each consult block cites against that table rather than against
+a list in the test. (8) The rewritten consult paragraphs would have grown five
+ratcheted prose budgets; the paragraphs name a trigger and the table defines it,
+so the definitions were removed from the stages. (9) The evals baseline stays
+unregenerated until release (§8.4); `--compare` prints the two ledger columns as
+`—` for a baseline without them.
+
 ## 11. W9 — Freeze the surface
 
 ### 11.1 `docs/internal/SURFACE-POLICY.md` and `surface-policy.json`
@@ -1135,7 +1162,7 @@ the commit that closed the row. Every commit is local until the operator pushes.
 | W4 | Review rubrics 35 → 11 with aliases, focus, aggregates, docs page | built | `4fb5bb5e` | 35 files / 17,648 lines → 11 files / 1,482 lines, every rubric ≤ 100; 24 aliases via `focus:`; groups.json carries the 34→11 map; extractor check headings gained `What to look for` + `Severity calibration` (nested `###` stay inside); 17 duplicate generic bullets + 11 tree-wide keys retired; 6 sentence tests migrated; the `review-adhoc` before/after diff waits on W6 auth |
 | W6 | Eval baseline + `--compare` | blocked | — | needs an authenticated `claude`; cases and fixtures exist |
 | W7 | One version carrier + render gate on renderer bytes | built | `7e755fbf` | `scripts/stamp-version.mjs` + the package.json `version` lifecycle script (`npm version <level>` stamps 5 carriers, builds, verifies, stages by path); `_shell.mjs` literal removed (reads `runtimeVersion` from the manifest); `rendererBuildId` = sha256 over renderers/, view-src/, components/ decides render freshness before buildId and version; CSS/JS cache-buster is its 12-char prefix; `verify:versions` requires the manifest + a 64-hex `rendererBuildId` and fails on a shell literal; dist rebuilt; 7 sentence tests migrated + 5 new stamp tests; e2e 50 types green |
-| W8 | Exact cost ledger: Stop hook, parsers, readers, consult triggers | open | — | Phase 0 live checks in §10.2 and §10.6 |
+| W8 | Exact cost ledger: Stop hook, parsers, readers, consult triggers | built | `4b1e7dae` | `lib/cost-ledger.mjs` (incremental byte reads, host detection, Claude / Codex / pi parsers, attribution, atomic append, `aggregateCost`) + `hooks/cost-ledger.mjs` → `dist/cost-ledger.mjs` on the new Claude `Stop` event and the Codex `Stop` group via the thin `hooks/stop-cost.mjs`; `hooks.costLedger` toggle; cost tables on the slug pages (`index.mjs`, `workflow-index.mjs`), the dashboard, `/wf status` (both modes), and two evals `--compare` columns; `_consult-triggers.md` (29 recorded, exclusive names), 10 stage paragraphs name their triggers, `consult-runs` on 5 frontmatter types + schema, dispatcher `usage` + `external` rows keyed by `SDLC_COST_SLUG`; 17 new tests + 3 migrated; e2e 50 types green |
 | W9 | Surface policy file + `verify:surface` + earn rule | open | — | |
 | W10 | README ≤ 150 lines + `verify:docs` extension | open | — | README is 1,087 lines |
 | W11.1 | `doctor` + installed check + cutover record | open | — | |
