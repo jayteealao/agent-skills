@@ -77,6 +77,7 @@ cross-browser-delta: <"none" | "findings">     # HIGH if findings
 web-vitals-lcp-ms: <N | null>                  # null if non-web
 web-vitals-cls: <N | null>
 web-vitals-inp-ms: <N | null>                  # HIGH if > 200 ms
+consult-runs: []                     # [{trigger, provider, at}] per _consult-triggers.md
 tags: []
 refs:
   index: 00-index.md

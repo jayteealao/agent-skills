@@ -90,7 +90,9 @@ next session.
 3. Open an interactive Codex session and run `/hooks`. Trust all seven events
    (SessionStart, SubagentStart, PreToolUse, PermissionRequest, PostToolUse,
    Stop, SubagentStop). Trust keys embed the hooks-file relpath and a content
-   hash, so the move to `hooks/codex.hooks.json` re-asks once.
+   hash, so the move to `hooks/codex.hooks.json` re-asks once. The Stop event
+   runs two commands since the cost ledger landed (`stop-verify.mjs`, then
+   `stop-cost.mjs`); that content change re-asks once more.
 4. Verify:
    ```bash
    node plugins/sdlc-workflow/scripts/verify-deployment.mjs

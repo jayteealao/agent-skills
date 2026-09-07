@@ -40,7 +40,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, existsSync, rmSync } from 'node:fs';
-import { basename } from 'node:path';
+import { basename, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
@@ -49,6 +49,7 @@ import {
   prepareCodexHome,
   userCodexHome,
 } from './isolate.mjs';
+import { appendCostRow, CLAUDE_USAGE_FIELDS, CODEX_USAGE_FIELDS } from '../../../lib/cost-ledger.mjs';
 
 // ── configuration (NOT user-facing flags, D15) ──────────────────────────────
 // Default reasoning models for the REST oracles. To pin a specific model use the
@@ -161,7 +162,18 @@ export function winWrap(bin, args) {
 
 // ── CLI output parsing (pure) ───────────────────────────────────────────────
 
-/** Parse `claude --output-format json` stdout → { text, costUsd, sessionId }. */
+/** Copy the integer fields `names` from `usage`; null when none is present. */
+function pickUsage(usage, names) {
+  if (!usage || typeof usage !== 'object') return null;
+  const out = {};
+  let any = false;
+  for (const k of names) {
+    if (Number.isFinite(usage[k])) { out[k] = usage[k]; any = true; }
+  }
+  return any ? out : null;
+}
+
+/** Parse `claude --output-format json` stdout → { text, costUsd, sessionId, usage }. */
 export function parseClaudeOutput(stdout) {
   try {
     const obj = JSON.parse(stdout);
@@ -169,10 +181,12 @@ export function parseClaudeOutput(stdout) {
       text: typeof obj.result === 'string' ? obj.result : (obj.result ?? '').toString(),
       costUsd: typeof obj.total_cost_usd === 'number' ? obj.total_cost_usd : null,
       sessionId: obj.session_id ?? null,
+      // Exact token usage for the cost ledger (WIDE-VIEW-REPAIR-PLAN §10).
+      usage: pickUsage(obj.usage, CLAUDE_USAGE_FIELDS),
     };
   } catch {
     // Not JSON (e.g. an early error printed plain) — surface the raw text.
-    return { text: String(stdout || '').trim(), costUsd: null, sessionId: null };
+    return { text: String(stdout || '').trim(), costUsd: null, sessionId: null, usage: null };
   }
 }
 
@@ -185,13 +199,36 @@ export function parseClaudeOutput(stdout) {
 export function parseCodexOutput(stdout) {
   const raw = String(stdout || '');
   const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  // `turn.completed` carries `usage` with Codex's own field names; keep them
+  // verbatim for the cost ledger (WIDE-VIEW-REPAIR-PLAN §10).
+  let usage = null;
+  for (const line of lines) {
+    let evt;
+    try { evt = JSON.parse(line); } catch { continue; }
+    const u = pickUsage(evt?.usage ?? evt?.payload?.usage ?? evt?.info?.total_token_usage, CODEX_USAGE_FIELDS);
+    if (u) usage = { fields: 'codex', ...u };
+  }
   for (let i = lines.length - 1; i >= 0; i--) {
     let evt;
     try { evt = JSON.parse(lines[i]); } catch { continue; }
     const text = extractCodexText(evt);
-    if (text) return { text, costUsd: null };
+    if (text) return { text, costUsd: null, usage };
   }
-  return { text: raw.trim(), costUsd: null };
+  return { text: raw.trim(), costUsd: null, usage };
+}
+
+/**
+ * One standalone ledger row for a consult fan-out: `turn: null`, `main: null`,
+ * one `external` entry per provider that reported usage. Returns null when no
+ * provider reported usage. Written only when SDLC_COST_SLUG names a slug.
+ */
+export function externalCostRow(results, { slug, key = null, now = () => new Date() } = {}) {
+  if (!slug) return null;
+  const external = (results ?? [])
+    .filter((r) => r?.ok && r.usage)
+    .map((r) => ({ provider: r.provider, model: r.model ?? null, ...r.usage }));
+  if (!external.length) return null;
+  return { ts: now().toISOString(), host: 'external', session: null, turn: null, key, slug, slice: null, main: null, subagents: [], external };
 }
 
 /**
@@ -412,8 +449,8 @@ function runCli(provider, prompt, repoRoot) {
       // stdout while exiting 0 in some versions), so classify both paths.
       const inBand = provider === 'claude' ? claudeFailureText(stdout) : null;
       if (code === 0 && !inBand) {
-        const { text, costUsd } = parse(stdout);
-        resolve({ provider, ok: Boolean(text), text, costUsd, evidenceScope: evScope, error: text ? null : `empty output${stderr ? `: ${stderr.trim()}` : ''}` });
+        const { text, costUsd, usage } = parse(stdout);
+        resolve({ provider, ok: Boolean(text), text, costUsd, usage: usage ?? null, evidenceScope: evScope, error: text ? null : `empty output${stderr ? `: ${stderr.trim()}` : ''}` });
       } else {
         const { reason, kind, remedy } = extractCliFailure(provider, stdout, stderr, code);
         resolve({
@@ -499,6 +536,13 @@ async function main() {
   const prompt = readFileSync(promptFile, 'utf-8');
   const { toRun, skipped, bare } = resolveProviders(providers);
   const results = toRun.length ? await runFanout(toRun, prompt, repoRoot) : [];
+  // Exact cost ledger (WIDE-VIEW-REPAIR-PLAN §10): when the caller names the
+  // slug, each provider's usage lands as an `external` row in that slug's
+  // cost.jsonl. No slug → no row; a write failure never fails the consult.
+  const row = externalCostRow(results, { slug: process.env.SDLC_COST_SLUG || null, key: process.env.SDLC_COST_KEY || null });
+  if (row) {
+    try { appendCostRow(join(repoRoot, '.ai', 'workflows', row.slug), row); } catch (err) { process.stderr.write(`cost ledger skipped: ${String(err?.message || err)}\n`); }
+  }
   process.stdout.write(`${JSON.stringify({ results, skipped, bare }, null, 2)}\n`);
   process.exit(0);
 }

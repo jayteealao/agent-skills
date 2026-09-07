@@ -15,6 +15,10 @@ import {
   siblingPaths
 } from "./chunk-SUJ36R7O.mjs";
 import {
+  aggregateCost,
+  readCostRows
+} from "./chunk-H5LFYXT6.mjs";
+import {
   renderWarnBanner,
   validateFrontmatter
 } from "./chunk-4WRIEOIP.mjs";
@@ -23,9 +27,9 @@ import {
   maybeConfigureTailscale,
   readHubConfig,
   tailscaleDnsName
-} from "./chunk-RSIKQTAN.mjs";
-import "./chunk-XCSEJH3A.mjs";
-import "./chunk-LWJXELAZ.mjs";
+} from "./chunk-27XGYXG6.mjs";
+import "./chunk-P5PZNJMN.mjs";
+import "./chunk-JYTXMUMI.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -35,15 +39,17 @@ import {
   spawnDetachedNode
 } from "./chunk-K6PBZI5W.mjs";
 import {
+  resolveEntrypoint
+} from "./chunk-KRRL2TSM.mjs";
+import {
   hubPidPath,
   isPidAlive,
   pidFileStatus,
   readPidFile,
   removePidFile,
-  resolveEntrypoint,
   upsertRegistryEntry,
   writePidFile
-} from "./chunk-U4OUM73W.mjs";
+} from "./chunk-TGGDCZSB.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -60,7 +66,7 @@ import {
 import {
   configHash,
   loadConfigWithMeta
-} from "./chunk-45QLEW5Y.mjs";
+} from "./chunk-YVM64S7E.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
@@ -1069,7 +1075,13 @@ async function renderMain(args) {
         for (const [slug, list] of slugArtifacts) {
           if (slug.startsWith("__")) continue;
           const indexArt = list.find((x) => x.frontmatter?.type === "index" || x.frontmatter?.type === "workflow-index") ?? list.find((x) => /(?:^|[\\/])00-index\.md$/.test(x.storageRel ?? ""));
-          if (indexArt) slugsSummary.push({ slug, frontmatter: indexArt.frontmatter });
+          let cost = null;
+          try {
+            cost = aggregateCost(readCostRows(join3(storageRoot, slug)));
+          } catch {
+            cost = null;
+          }
+          if (indexArt) slugsSummary.push({ slug, frontmatter: indexArt.frontmatter, cost });
         }
         const projectSummary = (slugArtifacts.get("__project__") ?? []).map((x) => ({
           path: x.storageRel,

@@ -33,6 +33,7 @@ runs:                            # compact per-invocation audit trail (frontmatt
     dimensions: [correctness, security, ...]    # commands run THIS invocation
     verdict: <ship|ship-with-caveats|dont-ship>  # verdict snapshot after this run
     fix-commit: "<SHA | null>"                   # review-time fix commit this run, if any
+consult-runs: []                     # [{trigger, provider, at}] per _consult-triggers.md
 tags: []
 refs:
   index: 00-index.md

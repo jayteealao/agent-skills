@@ -912,6 +912,12 @@ This replaced the former Python `tests/verify_frontmatter.py`, which has now bee
 
 Fires after Write, Edit, MultiEdit, and NotebookEdit for workflow, simplify, and profile artifacts. It debounces writes and launches the renderer in the background, so `.ai/_view/` catches up without blocking normal tool use.
 
+### Stop — cost ledger
+
+**Script:** `hooks/cost-ledger.mjs` (bundled to `dist/cost-ledger.mjs`; Codex adapter `hooks/stop-cost.mjs`)
+
+Fires when a turn ends. It reads the transcript bytes the host appended since the previous turn and appends one row to `.ai/workflows/<slug>/cost.jsonl`: the main model's exact token usage, each sub-agent's usage, and the slug and stage key the turn wrote (a turn that wrote nothing inherits the session's last attribution). Every integer is copied from the host's own record — Claude Code, Codex (cumulative totals, so the row is a delta), or pi — and nothing is estimated or priced. `/wf status`, the slug page, and the dashboard sum the rows on read. Never blocks; always exits 0. Disable with `hooks.costLedger: false`.
+
 > **No PreCompact hook.** Earlier releases shipped a `PreCompact` hook that wrote "preserve this in the summary" instructions to stdout. Claude Code does **not** feed `PreCompact` stdout to the compaction summarizer (only `UserPromptSubmit`, `UserPromptExpansion`, and `SessionStart` have their stdout added to context), so that hook was a no-op and has been removed (v9.41.0). Post-compaction reorientation is handled by **SessionStart**, which re-fires with `source: compact` and re-reads workflow state from the on-disk artifact files — see above.
 
 ---

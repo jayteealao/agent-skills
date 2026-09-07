@@ -62,6 +62,7 @@ const HOOK_ENTRIES = [
   'post-write-auto-stage',  // PostToolUse
   'post-write-verify',      // PostToolUse
   'post-write-render',      // PostToolUse (inlines render-on-artifact-write)
+  'cost-ledger',            // Stop — exact cost ledger, appends .ai/workflows/<slug>/cost.jsonl (WIDE-VIEW-REPAIR-PLAN §10); both hosts
 ];
 const SCRIPT_ENTRIES = [
   'render-sunflower',        // spawned: bootstrap + incremental render jobs

@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   CODE_BROWSER_DEFAULTS,
   STALE_RENDER_DEFAULTS
-} from "./chunk-XCSEJH3A.mjs";
+} from "./chunk-P5PZNJMN.mjs";
 import {
   LockTimeoutError,
   atomicWriteJson,
@@ -13,7 +13,7 @@ import {
   verifyRuntimeStore,
   withLock,
   writeActiveRuntime
-} from "./chunk-LWJXELAZ.mjs";
+} from "./chunk-JYTXMUMI.mjs";
 import {
   runtimeIdentity
 } from "./chunk-EQC6XDOG.mjs";
@@ -21,18 +21,20 @@ import {
   spawnDetachedNode
 } from "./chunk-K6PBZI5W.mjs";
 import {
+  resolveEntrypoint
+} from "./chunk-KRRL2TSM.mjs";
+import {
   hubPidPath,
   isPidAlive,
   pidFileStatus,
   removePidFile,
-  resolveEntrypoint,
   sdlcHomeDir,
   writePidFile
-} from "./chunk-U4OUM73W.mjs";
+} from "./chunk-TGGDCZSB.mjs";
 import {
   configHash,
   deepMerge
-} from "./chunk-45QLEW5Y.mjs";
+} from "./chunk-YVM64S7E.mjs";
 
 // lib/hub-config.mjs
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";

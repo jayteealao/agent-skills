@@ -77,6 +77,7 @@ blocks or warns. All keys default to <code>true</code>.</p>
 <tr><td><code>hooks.suppressionDebtLint</code></td><td><code>true</code></td><td>When <code>true</code>, the hook warns (non-blocking) when a new type/lint suppression (<code>as any</code>, <code>@ts-ignore</code>, <code>eslint-disable</code>, language equivalents) is added without an <code>sdlc-debt:</code> marker within two lines.</td></tr>
 <tr><td><code>hooks.namedMechanismLint</code></td><td><code>true</code></td><td>When <code>true</code>, the hook warns (non-blocking) when a mechanism-suggesting noun (state machine, scheduler, queue, cache, and so on) appears in a shape or slice acceptance criterion but in no decision section of the artifact. A test may not name a machine the design does not own.</td></tr>
 <tr><td><code>hooks.intakeLedgerLint</code></td><td><code>true</code></td><td>When <code>true</code>, the hook warns (non-blocking) when a default-mode intake artifact lands with neither intent-risk/charter ledger entries on the sibling <code>00-index.md</code> nor the explicit <code>none-declared</code> escapes.</td></tr>
+<tr><td><code>hooks.costLedger</code></td><td><code>true</code></td><td>When <code>true</code>, the Stop hook appends the turn's exact token usage, copied from the host transcript, to <code>.ai/workflows/&lt;slug&gt;/cost.jsonl</code>. Never blocks. See <a href="hooks.html#cost-ledger">cost-ledger</a>.</td></tr>
 </tbody>
 </table>
 

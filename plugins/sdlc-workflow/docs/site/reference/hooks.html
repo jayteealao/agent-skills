@@ -34,11 +34,12 @@ or inside a dispatched read-only sub-agent.</p>
 <tr><td><a href="#post-write-auto-stage"><code>post-write-auto-stage</code></a></td><td>PostToolUse · <code>Write|Edit|MultiEdit|NotebookEdit</code></td><td>Never</td><td><code>hooks.autoStage: false</code> or a <code>.ai/.no-auto-stage</code> marker file</td></tr>
 <tr><td><a href="#post-write-verify"><code>post-write-verify</code></a></td><td>PostToolUse · <code>Write|Edit|MultiEdit|NotebookEdit</code></td><td><strong>Blocks</strong> on some checks, warns on others</td><td><code>hooks.verifyOnWrite: false</code> plus per-check keys</td></tr>
 <tr><td><a href="#post-write-render"><code>post-write-render</code></a></td><td>PostToolUse · <code>Write|Edit|MultiEdit|NotebookEdit</code></td><td>Never</td><td><code>view.renderDispatch</code> / a <code>.ai/_view/.render-suppress</code> marker file</td></tr>
+<tr><td><a href="#cost-ledger"><code>cost-ledger</code></a></td><td>Stop</td><td>Never</td><td><code>hooks.costLedger: false</code></td></tr>
 </tbody>
 </table>
 
 <h2 id="codex">Under Codex</h2>
-<p>Codex reads a different wiring file, <code>hooks/codex.hooks.json</code>, which the Codex manifest declares. Codex never loads <code>hooks/hooks.json</code>. Seven small adapter scripts under <code>hooks/</code> receive the Codex events and run the same bundled policy as the hooks above, with the host signal <code>SDLC_HOST=codex</code> set. Two Claude Code hooks have no Codex counterpart: the <code>leak-guard-write</code> and <code>leak-guard-bash</code> scans do not run under Codex. The verification outcome of a write is the same on both hosts. The timing differs: Codex cannot undo a completed patch, so its enforcement point is the Stop hook.</p>
+<p>Codex reads a different wiring file, <code>hooks/codex.hooks.json</code>, which the Codex manifest declares. Codex never loads <code>hooks/hooks.json</code>. Eight small adapter scripts under <code>hooks/</code> receive the Codex events and run the same bundled policy as the hooks above, with the host signal <code>SDLC_HOST=codex</code> set. Two Claude Code hooks have no Codex counterpart: the <code>leak-guard-write</code> and <code>leak-guard-bash</code> scans do not run under Codex. The verification outcome of a write is the same on both hosts. The timing differs: Codex cannot undo a completed patch, so its enforcement point is the Stop hook.</p>
 <table>
 <thead><tr><th>Codex event</th><th>Adapter</th><th>What it runs</th></tr></thead>
 <tbody>
@@ -48,6 +49,7 @@ or inside a dispatched read-only sub-agent.</p>
 <tr><td>PermissionRequest</td><td><code>permission-request.mjs</code></td><td>Auto-allows the plugin's own runtime scripts under <code>dist/</code>; has no opinion on anything else.</td></tr>
 <tr><td>PostToolUse · <code>apply_patch|Edit|Write</code></td><td><code>post-tool-use.mjs</code></td><td>Runs <code>post-write-verify</code>, then <code>post-write-auto-stage</code>, then <code>post-write-render</code>, in that order, and records touched artifacts for the Stop check.</td></tr>
 <tr><td>Stop, SubagentStop</td><td><code>stop-verify.mjs</code></td><td>Re-checks every managed artifact the turn touched. An invalid artifact blocks the turn until it is repaired, at most three times.</td></tr>
+<tr><td>Stop</td><td><code>stop-cost.mjs</code></td><td>Runs <code>cost-ledger</code>: appends the turn's exact token usage to <code>.ai/workflows/&lt;slug&gt;/cost.jsonl</code>. Never blocks.</td></tr>
 </tbody>
 </table>
 <p>Codex runs no hook until you trust it. Open an interactive session and run <code>/hooks</code> once; an upgrade that changes the wiring file asks again. The doctor script <code>npm run verify:deployment</code> reports the trust state. See <a href="hosts.html">Hosts</a> for the full host comparison.</p>
@@ -236,6 +238,10 @@ the touched path is inside <code>.ai/_view/</code> (this avoids render-write loo
 plugin installation.</p>
 
 <div class="note"><p>The rendered output under <code>.ai/_view/</code> is machine-owned; hand edits are lost on the next render. When a view looks stale, the hub's self-heal usually catches the drift. When the self-heal does not catch the drift, the render error log above holds the first clue.</p></div>
+
+<h2 id="cost-ledger">cost-ledger</h2>
+<p><strong>Stop.</strong> When a turn ends, this hook reads the bytes the host appended to the session transcript since the previous turn and copies the token usage it finds there into <code>.ai/workflows/&lt;slug&gt;/cost.jsonl</code>: one JSON row per turn with the main model's usage, each sub-agent's usage, and the slug and stage key the turn wrote. Every integer comes from the host's own record — a Claude Code transcript line, a Codex rollout <code>token_count</code> event, or a pi session entry. Codex reports cumulative totals, so the row holds the difference between two Stops. Nothing is estimated or priced.</p>
+<p>A turn that wrote no artifact inherits the last attributed slug and key of the session; that is how a gate-question turn is attributed. A turn with no known slug writes no row. The hook writes only <code>cost.jsonl</code>, never <code>00-index.md</code>; it appends atomically and always exits 0. A parse failure logs to <code>.ai/_view/.hook-errors.log</code> and writes no row. <code>/wf status</code>, the slug page, and the dashboard sum the rows on read. Under Codex the per-session cursor lives under the plugin data directory; under Claude Code and pi it lives under <code>SDLC_HOME</code>. Disable with <code>hooks.costLedger: false</code>.</p>
 
 <div class="related">
   <h2>Related</h2>

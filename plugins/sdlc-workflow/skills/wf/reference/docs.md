@@ -23,11 +23,13 @@ Two modes of operation:
 
 > **Auto second opinion (objective triggers).** After the audit (and again after generate),
 > **auto-invoke** `/consult codex <completeness blind spots in this doc plan>` / `/consult codex
-> <accuracy pass on this reference doc>` (pinning `codex`/`claude` keeps it free) when ANY of:
-> (a) the audit found quadrant violations or stale claims in existing docs; (b) the generated doc
-> documents a public API surface external readers depend on; (c) the plan concludes "None required"
-> for work that changed user-facing behavior — that contradiction is itself the trigger. Skip only
-> when none of the triggers hold; the user may invoke it explicitly with any provider.
+> <accuracy pass on this reference doc>` (pinning `codex`/`claude` keeps it free) when ANY of
+> the [_consult-triggers.md](_consult-triggers.md) triggers holds: (a) `docs-audit-violations` — the audit
+> found quadrant violations or stale claims in existing docs; (b) `docs-public-api` — the
+> generated doc documents a public API surface external readers depend on; (c)
+> `docs-none-required-contradiction` — the plan concludes "None required" for work that changed
+> user-facing behavior. When no trigger holds, add no consult; the user may invoke it explicitly
+> with any provider (`user-invoked`).
 
 # Step 0 — Mode + sub-command resolution
 

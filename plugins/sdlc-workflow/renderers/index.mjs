@@ -9,6 +9,7 @@ import { renderHistoryBlock, renderRevisionLedger } from './_history.mjs';
 import { figureCanvas, evenX } from './_figure.mjs';
 import { escapeHtml } from './_validator.mjs';
 import { pageHref } from './_paths.mjs';
+import { costRowsFor, costSectionHtml } from './_cost.mjs';
 
 const STAGES = [
   'intake', 'shape', 'slice', 'plan', 'implement',
@@ -149,6 +150,7 @@ export function render(artifact, ctx) {
     ${stagesGridHtml}
     ${slicesHtml}
     ${plansHtml}
+    ${costSectionHtml(costRowsFor(ctx.slugRoot))}
     ${renderRevisionLedger(fm, artifact.siblingYaml)}
     ${renderHistoryBlock(artifact.history)}
   `;

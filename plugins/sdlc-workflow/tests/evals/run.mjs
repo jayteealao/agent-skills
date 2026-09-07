@@ -30,6 +30,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateFrontmatterFile, validateSiblingYamlFile } from '../../lib/schema-validator.mjs';
+import { aggregateCost, readCostRows } from '../../lib/cost-ledger.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.resolve(HERE, '..', '..');
@@ -299,6 +300,9 @@ async function runAll({ only, dryRun }) {
       total: assertions.length,
       ok: !run.isError && passed === assertions.length,
       artifacts: existsSync(path.join(ws, '.ai')) ? matchGlob(ws, '.ai/**') : [],
+      // Exact ledger totals (WIDE-VIEW-REPAIR-PLAN §10.4): what the Stop hook
+      // recorded across every slug the case wrote; null when no ledger exists.
+      costLedger: costLedgerTotals(ws),
     };
     report.cases.push(entry);
     writeFileSync(path.join(runDir, `${c.name}.json`), JSON.stringify(entry, null, 2) + '\n');
@@ -311,6 +315,16 @@ async function runAll({ only, dryRun }) {
   // Workspaces are large and reproducible; keep only the reports.
   rmSync(path.join(runDir, 'ws'), { recursive: true, force: true });
   return report;
+}
+
+function costLedgerTotals(ws) {
+  const root = path.join(ws, '.ai', 'workflows');
+  if (!existsSync(root)) return null;
+  const rows = [];
+  for (const d of readdirSync(root, { withFileTypes: true })) {
+    if (d.isDirectory()) rows.push(...readCostRows(path.join(root, d.name)));
+  }
+  return rows.length ? aggregateCost(rows).total : null;
 }
 
 function newestReport() {
@@ -328,15 +342,17 @@ function compare(baselineDir) {
   }
   const base = JSON.parse(readFileSync(basePath, 'utf8'));
   const now = newestReport();
-  console.log('| Case | Artifact set equal | Schema valid | Input tokens before/after | Output tokens before/after |');
-  console.log('|---|---|---|---|---|');
+  console.log('| Case | Artifact set equal | Schema valid | Input tokens before/after | Output tokens before/after | Ledger in before/after | Ledger out before/after |');
+  console.log('|---|---|---|---|---|---|---|');
   let same = true;
   for (const c of now.cases) {
     const b = base.cases.find((x) => x.name === c.name);
     const art = b ? JSON.stringify(b.artifacts.map((p) => p.replace(b.slug ?? '', '<slug>'))) === JSON.stringify(c.artifacts.map((p) => p.replace(c.slug ?? '', '<slug>'))) : null;
     const schemaOk = c.assertions.filter((a) => a.type.startsWith('frontmatter') || a.type === 'sibling-yaml-valid').every((a) => a.ok);
     const tok = (r, k) => (r?.usage ? (r.usage[k] ?? 0) + (k === 'input_tokens' ? (r.usage.cache_read_input_tokens ?? 0) + (r.usage.cache_creation_input_tokens ?? 0) : 0) : '—');
-    console.log(`| ${c.name} | ${art == null ? 'no baseline' : art ? 'yes' : 'NO'} | ${schemaOk ? 'yes' : 'NO'} | ${tok(b?.run, 'input_tokens')} / ${tok(c.run, 'input_tokens')} | ${tok(b?.run, 'output_tokens')} / ${tok(c.run, 'output_tokens')} |`);
+    // Ledger columns are the exact `cost.jsonl` sums (input = input + cache read + cache write).
+    const led = (e, k) => (e?.costLedger ? (k === 'in' ? e.costLedger.input + e.costLedger.cacheRead + e.costLedger.cacheWrite : e.costLedger.output) : '—');
+    console.log(`| ${c.name} | ${art == null ? 'no baseline' : art ? 'yes' : 'NO'} | ${schemaOk ? 'yes' : 'NO'} | ${tok(b?.run, 'input_tokens')} / ${tok(c.run, 'input_tokens')} | ${tok(b?.run, 'output_tokens')} / ${tok(c.run, 'output_tokens')} | ${led(b, 'in')} / ${led(c, 'in')} | ${led(b, 'out')} / ${led(c, 'out')} |`);
     if (art === false || !schemaOk) same = false;
   }
   process.exit(same ? 0 : 1);

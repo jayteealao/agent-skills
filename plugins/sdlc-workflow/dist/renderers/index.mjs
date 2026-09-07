@@ -6,6 +6,10 @@ import {
   renderRevisionLedger
 } from "../chunk-JFIFDBVI.mjs";
 import {
+  costRowsFor,
+  costSectionHtml
+} from "../chunk-PTGPEXQV.mjs";
+import {
   evenX,
   figureCanvas
 } from "../chunk-PDBKNARE.mjs";
@@ -15,6 +19,7 @@ import {
   stageBadge,
   statusBadge
 } from "../chunk-SUJ36R7O.mjs";
+import "../chunk-H5LFYXT6.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";
@@ -141,6 +146,7 @@ function render(artifact, ctx) {
     ${stagesGridHtml}
     ${slicesHtml}
     ${plansHtml}
+    ${costSectionHtml(costRowsFor(ctx.slugRoot))}
     ${renderRevisionLedger(fm, artifact.siblingYaml)}
     ${renderHistoryBlock(artifact.history)}
   `;

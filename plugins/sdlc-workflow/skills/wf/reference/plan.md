@@ -18,7 +18,7 @@ You are running `/wf plan`, **stage 4 of 10**: 1·intake → 2·shape → 3·sli
 | Produces | `04-plan.md` (master) + `04-plan-<slice-slug>.md` per planned slice + (design brief without a contract) `02c-craft.md` |
 | Next | `/wf implement <slug> <slice-slug>` |
 
-**Second opinion (default on).** After the plan is written, invoke `/consult codex <question about this plan>` and embed the read-only critique panel next to the plan artifact. Fire it when any objective signal is present: the slice touches concurrency, auth, data migration, money/billing, or an external API; the plan carries a `## Unknowns / Open Questions` entry; any `intent-risk` (RIM) is `carried`; or appetite is medium or larger. Skip it only for a plan with none of these and a small appetite.
+**Second opinion (default on).** After the plan is written, **auto-invoke** `/consult codex <question about this plan>` and embed the read-only critique panel next to the plan artifact when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `touches-concurrency`, `touches-auth`, `touches-migration`, `touches-billing`, `touches-external-api`, `unknowns-present` (a `## Unknowns / Open Questions` entry), `intent-risk-carried`, or `appetite-medium-or-larger`. Record each run in the plan's `consult-runs:` frontmatter (`trigger`, `provider`, `at`). When no trigger holds, add no consult.
 
 **Plan against the real API.** When plan steps call a dependency, framework, or SDK, invoke the `study-sources` skill and read the installed source first. Reads land in gitignored `.scratch/`; the plan stays the only written artifact.
 
@@ -151,6 +151,7 @@ metric-step-count: <N>
 has-blockers: false
 revision-count: 0
 revisions: []   # reason-centric ledger per _additive-write.md; one entry per re-run that changed the plan
+consult-runs: []                     # [{trigger, provider, at}] per _consult-triggers.md
 tags: []
 stack-source: <confirmed|unconfirmed-auto-detect>   # from 00-index.md stack.user-confirmed; downstream stages may refuse `unconfirmed-auto-detect`
 refs: { index: 00-index.md, plan-index: 04-plan.md, slice-def: 03-slice-<slice-slug>.md, siblings: [04-plan-<other>.md], implement: 05-implement-<slice-slug>.md }

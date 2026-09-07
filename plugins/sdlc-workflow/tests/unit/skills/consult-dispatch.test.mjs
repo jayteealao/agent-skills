@@ -27,6 +27,7 @@ import {
   parseGemini,
   runFanout,
   buildCliSpawn,
+  externalCostRow,
 } from '../../../skills/consult/scripts/dispatch.mjs';
 import {
   buildClaudeEnv,
@@ -138,14 +139,44 @@ test('winWrap: win32 routes CLI shims through cmd.exe; posix spawns directly', (
 
 // ── output parsing ───────────────────────────────────────────────────────────
 
-test('parseClaudeOutput: pulls result/total_cost_usd/session_id, tolerates non-JSON', () => {
+test('parseClaudeOutput: pulls result/total_cost_usd/session_id/usage, tolerates non-JSON', () => {
+  // WIDE-VIEW-REPAIR-PLAN §10: the result now carries the exact `usage` (null when absent).
   deepEqual(
     parseClaudeOutput(JSON.stringify({ result: 'verdict', total_cost_usd: 0.012, session_id: 's1' })),
-    { text: 'verdict', costUsd: 0.012, sessionId: 's1' },
+    { text: 'verdict', costUsd: 0.012, sessionId: 's1', usage: null },
+  );
+  deepEqual(
+    parseClaudeOutput(JSON.stringify({ result: 'v', usage: { input_tokens: 3, output_tokens: 9, cache_read_input_tokens: 100, cache_creation_input_tokens: 5, server_tool_use: { web_search_requests: 0 } } })).usage,
+    { input_tokens: 3, output_tokens: 9, cache_read_input_tokens: 100, cache_creation_input_tokens: 5 },
   );
   const plain = parseClaudeOutput('boom: not json');
   equal(plain.text, 'boom: not json');
   equal(plain.costUsd, null);
+  equal(plain.usage, null);
+});
+
+test('parseCodexOutput: copies turn.completed usage under codex field names; externalCostRow keys the row by slug', () => {
+  const ndjson = [
+    '{"type":"turn.completed","usage":{"input_tokens":18176,"cached_input_tokens":0,"output_tokens":142}}',
+    '{"type":"item.completed","item":{"type":"agent_message","text":"done"}}',
+  ].join('\n');
+  const parsed = parseCodexOutput(ndjson);
+  deepEqual(parsed.usage, { fields: 'codex', input_tokens: 18176, cached_input_tokens: 0, output_tokens: 142 });
+  equal(parseCodexOutput('{"type":"item.completed","item":{"type":"agent_message","text":"x"}}').usage, null);
+
+  const results = [
+    { provider: 'codex', ok: true, usage: parsed.usage },
+    { provider: 'claude', ok: false, usage: { input_tokens: 1 } },
+    { provider: 'gemini', ok: true, usage: null },
+  ];
+  equal(externalCostRow(results, { slug: null }), null, 'no slug → no row');
+  const row = externalCostRow(results, { slug: 'demo', key: 'plan', now: () => new Date('2026-09-07T00:00:00Z') });
+  equal(row.turn, null);
+  equal(row.main, null);
+  equal(row.slug, 'demo');
+  equal(row.key, 'plan');
+  deepEqual(row.external, [{ provider: 'codex', model: null, fields: 'codex', input_tokens: 18176, cached_input_tokens: 0, output_tokens: 142 }], 'failed and usage-less providers add no entry');
+  equal(externalCostRow([results[1]], { slug: 'demo' }), null, 'no successful usage → no row');
 });
 
 test('parseCodexOutput: extracts the last assistant text from the NDJSON stream', () => {

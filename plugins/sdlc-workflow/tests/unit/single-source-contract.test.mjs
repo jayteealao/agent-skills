@@ -28,7 +28,7 @@ const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 const repoRoot = path.resolve(pluginRoot, '..', '..');
 const read = (...p) => readFileSync(path.join(pluginRoot, ...p), 'utf8');
 
-const CODEX_ADAPTERS = ['_adapter.mjs', 'session-start.mjs', 'subagent-start.mjs', 'pre-tool-use.mjs', 'permission-request.mjs', 'post-tool-use.mjs', 'stop-verify.mjs'];
+const CODEX_ADAPTERS = ['_adapter.mjs', 'session-start.mjs', 'subagent-start.mjs', 'pre-tool-use.mjs', 'permission-request.mjs', 'post-tool-use.mjs', 'stop-verify.mjs', 'stop-cost.mjs'];
 
 test('codex adapters import only ./_adapter.mjs and node builtins (they run from source with no node_modules)', () => {
   for (const name of CODEX_ADAPTERS) {

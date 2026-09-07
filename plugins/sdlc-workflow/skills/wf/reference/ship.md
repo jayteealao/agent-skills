@@ -19,7 +19,7 @@ You are running `/wf ship`, **stage 9 of 10**: 1·intake → 2·shape → 3·sli
 | Phases | `ship/announce.md` (post-publish comms), `ship/rollback.md` (user-gated reversal). |
 | Next | `/wf retro <slug>` (go) or `/wf implement <slug> <slice>` (blockers) |
 
-**Auto second opinion (objective triggers).** At the Go/No-Go gate, before the irreversible merge, auto-invoke `/consult codex <risk-review this release: pre-flight, dry-run, freshness delta, and any deferred findings>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) any deferred review finding or runtime-evidence-deferral rides the release; (b) the freshness delta shows the base branch moved since verify; (c) pre-flight or the dry-run surfaced a warning that was overridden. Skip only when none of the triggers hold.
+**Auto second opinion (objective triggers).** At the Go/No-Go gate, before the irreversible merge, **auto-invoke** `/consult codex <risk-review this release: pre-flight, dry-run, freshness delta, and any deferred findings>` (pinning `codex`/`claude` keeps it free) when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `deferred-finding-rides-release`, `base-moved-since-verify`, or `preflight-warning-overridden`. Record each run in the ship-run artifact's `consult-runs:` frontmatter. When no trigger holds, add no consult.
 
 # Role
 

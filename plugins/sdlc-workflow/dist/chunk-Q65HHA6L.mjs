@@ -4,9 +4,11 @@ import {
   spawnDetachedNode
 } from "./chunk-K6PBZI5W.mjs";
 import {
-  appendError,
   resolveEntrypoint
-} from "./chunk-U4OUM73W.mjs";
+} from "./chunk-KRRL2TSM.mjs";
+import {
+  appendError
+} from "./chunk-TGGDCZSB.mjs";
 
 // lib/ensure-hub.mjs
 function ensureHubEnabled(viewConfig, env = process.env) {

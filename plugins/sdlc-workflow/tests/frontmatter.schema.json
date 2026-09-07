@@ -92,6 +92,19 @@
         }
       }
     },
+    "consultRuns": {
+      "type": "array",
+      "description": "One entry per /consult run the stage fired (WIDE-VIEW-REPAIR-PLAN §10.5). `trigger` is a name from skills/wf/reference/_consult-triggers.md.",
+      "items": {
+        "type": "object",
+        "required": ["trigger", "provider"],
+        "properties": {
+          "trigger": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "provider": { "type": "string", "enum": ["codex", "claude", "gemini", "openai"] },
+          "at": { "type": "string" }
+        }
+      }
+    },
     "base": {
       "description": "Fields shared by every workflow artifact.",
       "type": "object",
@@ -579,6 +592,7 @@
         "tags", "refs", "next-command", "next-invocation"
       ],
       "properties": {
+        "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "plan" },
         "slice-slug": { "type": "string" },
         "status": { "enum": ["complete", "awaiting-input"] },
@@ -678,6 +692,7 @@
         "evidence-dir", "tags", "refs", "next-command", "next-invocation"
       ],
       "properties": {
+        "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "verify" },
         "slice-slug": { "type": "string" },
         "status": { "enum": ["complete", "awaiting-input"] },
@@ -745,6 +760,7 @@
         "next-command", "next-invocation"
       ],
       "properties": {
+        "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "review" },
         "review-scope": { "enum": ["per-slice", "slug-wide"] },
         "slice-slug": { "type": "string" },
@@ -817,6 +833,7 @@
         "docs-generated", "tags", "refs", "next-command", "next-invocation"
       ],
       "properties": {
+        "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "handoff" },
         "slice-slugs": { "$ref": "#/$defs/stringArray" },
         "handoff-mode": { "enum": ["aggregate", "single-slice"] },
@@ -903,6 +920,7 @@
         "next-command", "next-invocation"
       ],
       "properties": {
+        "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "ship-run" },
         "run-id": { "$ref": "#/$defs/runId" },
         "status": { "enum": ["complete", "awaiting-input", "failed", "rolled-back"] },

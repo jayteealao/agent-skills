@@ -16,6 +16,7 @@ import { artifactHeader } from './_shell.mjs';
 import { figureCanvas, evenX } from './_figure.mjs';
 import { escapeHtml } from './_validator.mjs';
 import { pageHref } from './_paths.mjs';
+import { costDashboardHtml } from './_cost.mjs';
 
 const STAGES = [
   'intake', 'shape', 'slice', 'plan', 'implement',
@@ -34,6 +35,7 @@ export function render(artifact, ctx) {
   const slugs = (ctx.allArtifacts?.__summary__ ?? []).map((s) => ({
     slug: s.slug,
     fm:   s.frontmatter ?? {},
+    cost: s.cost ?? null,
   }));
   const project = ctx.allArtifacts?.__project__ ?? [];
 
@@ -92,6 +94,7 @@ export function render(artifact, ctx) {
     ${projectSection(project)}
     <div class="d-only">${desktopBody}</div>
     <div class="m-only">${mobileBody}</div>
+    ${costDashboardHtml(slugs)}
   `;
 
   return { headerHtml, bodyHtml, links: [], children: [] };

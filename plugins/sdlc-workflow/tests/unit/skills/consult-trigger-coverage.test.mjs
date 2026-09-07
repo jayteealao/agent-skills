@@ -81,3 +81,37 @@ test('dialect — trigger blocks use the canonical /consult spelling (single-sou
     assert.ok(!/\$consult/.test(main), `${rel}: a $consult token leaked into shared prose — the host sigil maps in _host-invocation.md`);
   }
 });
+
+// WIDE-VIEW-REPAIR-PLAN §10.5 — the trigger vocabulary is exclusive. Every
+// backticked kebab-case name a consult block cites must be a row of
+// `_consult-triggers.md`; a stage may not invent a trigger the table lacks.
+// The scan covers every "Auto second opinion" / "Second opinion" / "Consult
+// pre-mortem" paragraph (blockquote-wrapped or not) across the reference tree.
+test('triggers — every trigger name a consult block cites is a row in _consult-triggers.md', () => {
+  for (const { name, root } of trees) {
+    const table = ref(root, '_consult-triggers.md');
+    const rows = [...table.matchAll(/^\| `([a-z][a-z0-9-]*)` \|/gm)].map((m) => m[1]);
+    assert.ok(rows.length >= 29, `${name}: the trigger table lost rows (${rows.length})`);
+    assert.equal(new Set(rows).size, rows.length, `${name}: duplicate trigger rows`);
+    const known = new Set(rows);
+    // Words that are legitimately backticked inside these paragraphs but are not triggers.
+    const NOT_TRIGGERS = new Set(['codex', 'claude', 'consult-runs', 'sdlc-debt', 'intent-risk', 'carried', 'ship-with-caveats', 'severity', 'trigger', 'provider', 'at']);
+    const cited = new Set();
+    for (const file of walk(refDir(root))) {
+      if (file.endsWith('_consult-triggers.md')) continue;
+      const src = readFileSync(file, 'utf8');
+      const rel = path.relative(refDir(root), file);
+      const blocks = src.match(/\*\*(?:Auto second opinion|Second opinion|Consult pre-mortem)[^\n]*(?:\n>[^\n]*)*/g) ?? [];
+      for (const block of blocks) {
+        if (!/_consult-triggers\.md/.test(block)) continue; // legacy prose blocks name no triggers
+        for (const m of block.matchAll(/`([a-z][a-z0-9]*(?:-[a-z0-9]+)+)`/g)) {
+          const word = m[1];
+          if (NOT_TRIGGERS.has(word)) continue;
+          cited.add(word);
+          assert.ok(known.has(word), `${name}/${rel}: cites trigger \`${word}\` that _consult-triggers.md does not list`);
+        }
+      }
+    }
+    assert.ok(cited.size >= 20, `${name}: expected the primary stages to cite the table (${cited.size} names cited)`);
+  }
+});

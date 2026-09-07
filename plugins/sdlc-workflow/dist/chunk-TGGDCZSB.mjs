@@ -4,19 +4,11 @@ import {
   scanWorkflowIndexes
 } from "./chunk-NTSUEAI6.mjs";
 
-// lib/entrypoint.mjs
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-function resolveEntrypoint(pluginRoot, name) {
-  const dist = join(pluginRoot, "dist", `${name}.mjs`);
-  return existsSync(dist) ? dist : join(pluginRoot, "scripts", `${name}.mjs`);
-}
-
 // lib/render-queue.mjs
 import { randomBytes } from "node:crypto";
 import {
   appendFileSync,
-  existsSync as existsSync2,
+  existsSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -25,7 +17,7 @@ import {
   statSync,
   writeFileSync
 } from "node:fs";
-import { join as join2 } from "node:path";
+import { join } from "node:path";
 var QUEUE_VERSION = 1;
 var QUEUE_DIRNAME = ".render-queue";
 var PROCESSING = ".processing";
@@ -41,19 +33,19 @@ var RENDER_QUEUE_DEFAULTS = Object.freeze({
   // reclaim a .processing/ file abandoned by a dead drain
 });
 function queueDir(viewDir) {
-  return join2(viewDir, QUEUE_DIRNAME);
+  return join(viewDir, QUEUE_DIRNAME);
 }
 function processingDir(viewDir) {
-  return join2(queueDir(viewDir), PROCESSING);
+  return join(queueDir(viewDir), PROCESSING);
 }
 function failedDir(viewDir) {
-  return join2(queueDir(viewDir), FAILED);
+  return join(queueDir(viewDir), FAILED);
 }
 function statusPath(viewDir) {
-  return join2(queueDir(viewDir), STATUS_FILE);
+  return join(queueDir(viewDir), STATUS_FILE);
 }
 function errorLogPath(viewDir) {
-  return join2(viewDir, ERROR_LOG);
+  return join(viewDir, ERROR_LOG);
 }
 function writeFileAtomic(path, text) {
   const tmp = `${path}.${process.pid}.${randomBytes(3).toString("hex")}.tmp`;
@@ -98,7 +90,7 @@ function enqueue(viewDir, item = {}, {
       const overflow = existing.sort().slice(0, existing.length - maxPending + 1);
       for (const name2 of overflow) {
         try {
-          rmSync(join2(dir, name2), { force: true });
+          rmSync(join(dir, name2), { force: true });
         } catch {
         }
       }
@@ -122,7 +114,7 @@ function enqueue(viewDir, item = {}, {
       }
     };
     const name = `${String(ts).padStart(15, "0")}-${randomBytes(4).toString("hex")}.json`;
-    writeFileAtomic(join2(dir, name), `${JSON.stringify(record, null, 2)}
+    writeFileAtomic(join(dir, name), `${JSON.stringify(record, null, 2)}
 `);
     return { ok: true, file: name };
   } catch (err) {
@@ -133,7 +125,7 @@ function readPending(viewDir) {
   const dir = queueDir(viewDir);
   const out = [];
   for (const name of listRecordFiles(dir)) {
-    const abs = join2(dir, name);
+    const abs = join(dir, name);
     try {
       out.push({ name, file: abs, record: JSON.parse(readFileSync(abs, "utf-8")) });
     } catch {
@@ -169,15 +161,15 @@ function claim(viewDir, names) {
   }
   const claimed = [];
   for (const name of names) {
-    const from = join2(dir, name);
+    const from = join(dir, name);
     let record = null;
     try {
       record = JSON.parse(readFileSync(from, "utf-8"));
     } catch {
     }
     try {
-      renameSync(from, join2(proc, name));
-      claimed.push({ name, file: join2(proc, name), record });
+      renameSync(from, join(proc, name));
+      claimed.push({ name, file: join(proc, name), record });
     } catch {
     }
   }
@@ -195,7 +187,7 @@ function unclaim(viewDir, claimed) {
   const dir = queueDir(viewDir);
   for (const c of claimed ?? []) {
     try {
-      renameSync(c.file, join2(dir, c.name));
+      renameSync(c.file, join(dir, c.name));
     } catch {
     }
   }
@@ -220,7 +212,7 @@ function fail(viewDir, claimed, {
       }
     }
     try {
-      writeFileAtomic(join2(dest, c.name), text);
+      writeFileAtomic(join(dest, c.name), text);
     } catch {
     }
     try {
@@ -244,7 +236,7 @@ function reclaimOrphans(viewDir, {
   }
   let reclaimed = 0;
   for (const name of names) {
-    const from = join2(proc, name);
+    const from = join(proc, name);
     let mtime;
     try {
       mtime = statSync(from).mtimeMs;
@@ -253,7 +245,7 @@ function reclaimOrphans(viewDir, {
     }
     if (now() - mtime < ttlMs) continue;
     try {
-      renameSync(from, join2(dir, name));
+      renameSync(from, join(dir, name));
       reclaimed++;
     } catch {
     }
@@ -471,7 +463,7 @@ function refreshEntriesLiveness(entries = [], { checkPr = false } = {}) {
 import { createHash } from "node:crypto";
 import { execFileSync as execFileSync2 } from "node:child_process";
 import {
-  existsSync as existsSync3,
+  existsSync as existsSync2,
   mkdirSync as mkdirSync2,
   readFileSync as readFileSync2,
   readdirSync as readdirSync2,
@@ -484,25 +476,25 @@ import {
 } from "node:fs";
 import { request } from "node:http";
 import { homedir } from "node:os";
-import { basename, dirname as dirname2, join as join3, sep } from "node:path";
+import { basename, dirname as dirname2, join as join2, sep } from "node:path";
 var REGISTRY_VERSION = 2;
 var SHARD_SOFT_CAP = 100;
 var REGISTRY_FRESH_GRACE_MS = 10 * 60 * 1e3;
 function sdlcHomeDir() {
   const override = process.env.SDLC_HOME;
-  return override && override.trim() ? override : join3(homedir(), ".sdlc");
+  return override && override.trim() ? override : join2(homedir(), ".sdlc");
 }
 function registryPath() {
-  return join3(sdlcHomeDir(), "registry.json");
+  return join2(sdlcHomeDir(), "registry.json");
 }
 function shardDir() {
-  return join3(sdlcHomeDir(), "registry.d");
+  return join2(sdlcHomeDir(), "registry.d");
 }
 function pruneLogPath() {
-  return join3(sdlcHomeDir(), "registry.prune.log");
+  return join2(sdlcHomeDir(), "registry.prune.log");
 }
 function hubPidPath() {
-  return join3(sdlcHomeDir(), "hub.pid");
+  return join2(sdlcHomeDir(), "hub.pid");
 }
 function git(cwd, args) {
   try {
@@ -531,7 +523,7 @@ function gitIdentity(cwd) {
   const commonDirRaw = git(cwd, ["rev-parse", "--git-common-dir"]);
   let isWorktree = false;
   if (gitDir && commonDirRaw) {
-    const commonAbs = commonDirRaw.match(/^([a-zA-Z]:[\\/]|\/)/) ? commonDirRaw : join3(repoRoot, commonDirRaw);
+    const commonAbs = commonDirRaw.match(/^([a-zA-Z]:[\\/]|\/)/) ? commonDirRaw : join2(repoRoot, commonDirRaw);
     isWorktree = canon(gitDir) !== canon(commonAbs);
   }
   return {
@@ -586,14 +578,14 @@ function validateEntry(entry) {
   if (realView !== realRepo && !realView.startsWith(repoWithSep)) {
     return { ok: false, reason: `viewDir escapes repoRoot: ${realView} \u2284 ${realRepo}` };
   }
-  if (!existsSync3(join3(realRepo, ".git"))) {
+  if (!existsSync2(join2(realRepo, ".git"))) {
     return { ok: false, reason: `repoRoot is not a git repo: ${realRepo}` };
   }
   return { ok: true };
 }
 function readLastRender(viewDir) {
-  const marker = join3(viewDir, ".last-render");
-  if (!existsSync3(marker)) return { renderedAt: null, configHash: null, version: null, buildId: null };
+  const marker = join2(viewDir, ".last-render");
+  if (!existsSync2(marker)) return { renderedAt: null, configHash: null, version: null, buildId: null };
   try {
     const parsed = JSON.parse(readFileSync2(marker, "utf-8"));
     return {
@@ -655,7 +647,7 @@ async function buildEntry({ projectRoot, viewDir, configHash = null, existing = 
   })();
   const id = resolveEntryId(repoRoot, existing);
   const last = readLastRender(resolvedViewDir);
-  const workflowsRoot = join3(repoRoot, ".ai", "workflows");
+  const workflowsRoot = join2(repoRoot, ".ai", "workflows");
   const slugMeta = await collectSlugMeta({ projectRoot: repoRoot, workflowsRoot });
   const stamp = nowIso ?? (/* @__PURE__ */ new Date()).toISOString();
   const prior = existing.find((e) => e.id === id);
@@ -722,7 +714,7 @@ function migrateRegistry(raw) {
 }
 function readRegistryFile() {
   const path = registryPath();
-  if (!existsSync3(path)) return { version: REGISTRY_VERSION, entries: [] };
+  if (!existsSync2(path)) return { version: REGISTRY_VERSION, entries: [] };
   try {
     return migrateRegistry(JSON.parse(readFileSync2(path, "utf-8")));
   } catch {
@@ -731,7 +723,7 @@ function readRegistryFile() {
 }
 function readShards() {
   const dir = shardDir();
-  if (!existsSync3(dir)) return [];
+  if (!existsSync2(dir)) return [];
   const out = [];
   let names;
   try {
@@ -741,8 +733,8 @@ function readShards() {
   }
   for (const name of names) {
     try {
-      const entry = JSON.parse(readFileSync2(join3(dir, name), "utf-8"));
-      if (entry && typeof entry === "object" && entry.id) out.push({ entry, file: join3(dir, name) });
+      const entry = JSON.parse(readFileSync2(join2(dir, name), "utf-8"));
+      if (entry && typeof entry === "object" && entry.id) out.push({ entry, file: join2(dir, name) });
     } catch {
     }
   }
@@ -806,8 +798,8 @@ function pruneRegistry({ graceMs = REGISTRY_FRESH_GRACE_MS, now = Date.now() } =
   let pruned = 0;
   for (const e of entries) {
     const valid = validateEntry(e).ok;
-    const backing = valid && existsSync3(e.repoRoot) && existsSync3(e.viewDir);
-    const hasWork = backing && (existsSync3(join3(e.viewDir, ".last-render")) || countPending(e.viewDir) > 0);
+    const backing = valid && existsSync2(e.repoRoot) && existsSync2(e.viewDir);
+    const hasWork = backing && (existsSync2(join2(e.viewDir, ".last-render")) || countPending(e.viewDir) > 0);
     if (backing && (hasWork || entryWithinGrace(e, graceMs, now))) {
       kept.push(e);
     } else {
@@ -836,7 +828,7 @@ function logPrune(line) {
 function writeShard(entry) {
   const dir = shardDir();
   mkdirSync2(dir, { recursive: true });
-  const path = join3(dir, `${entry.id}.json`);
+  const path = join2(dir, `${entry.id}.json`);
   const tmp = `${path}.${process.pid}.tmp`;
   writeFileSync2(tmp, `${JSON.stringify(entry, null, 2)}
 `, "utf-8");
@@ -852,7 +844,7 @@ function writeShard(entry) {
 }
 function shardCount() {
   const dir = shardDir();
-  if (!existsSync3(dir)) return 0;
+  if (!existsSync2(dir)) return 0;
   try {
     return readdirSync2(dir).filter((n) => n.endsWith(".json")).length;
   } catch {
@@ -905,7 +897,7 @@ function postEntryToHub(hub, entry) {
 var AI_GITIGNORE_RULES = ["_view/", "workflows/*/.locks/"];
 function seedAiGitignore(viewDir) {
   try {
-    const path = join3(dirname2(viewDir), ".gitignore");
+    const path = join2(dirname2(viewDir), ".gitignore");
     let text = "";
     try {
       text = readFileSync2(path, "utf-8");
@@ -922,7 +914,7 @@ function seedAiGitignore(viewDir) {
 }
 async function upsertRegistryEntry({ projectRoot = process.cwd(), viewDir, configHash = null } = {}) {
   try {
-    const resolvedView = viewDir ?? join3(projectRoot, ".ai", "_view");
+    const resolvedView = viewDir ?? join2(projectRoot, ".ai", "_view");
     const existing = readRegistry({ logInvalid: false }).entries;
     const entry = await buildEntry({ projectRoot, viewDir: resolvedView, configHash, existing });
     if (!entry) {
@@ -964,7 +956,6 @@ async function upsertRegistryEntry({ projectRoot = process.cwd(), viewDir, confi
 }
 
 export {
-  resolveEntrypoint,
   queueDir,
   appendError,
   enqueue,

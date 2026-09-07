@@ -14,6 +14,7 @@ import { renderHistoryBlock } from './_history.mjs';
 import { figureCanvas, evenX } from './_figure.mjs';
 import { escapeHtml } from './_validator.mjs';
 import { pageHref } from './_paths.mjs';
+import { costRowsFor, costSectionHtml } from './_cost.mjs';
 
 export function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
@@ -65,6 +66,7 @@ export function render(artifact, ctx) {
         ${tagsHtml}
       </aside>
     </section>
+    ${costSectionHtml(costRowsFor(ctx.slugRoot))}
     ${renderHistoryBlock(artifact.history)}
   `;
 

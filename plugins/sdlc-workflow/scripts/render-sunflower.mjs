@@ -47,6 +47,7 @@ import { latestMtimeMs, latestTreeMtimeMs, classifyRenderState, viewMtimeForSlug
 import { activeWorkflowIndexes, scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 import { upsertRegistryEntry } from '../lib/registry.mjs';
 import { resolveProjectRoot } from '../lib/project-root.mjs';
+import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT_DEFAULT = resolve(__dirname, '..');
@@ -876,7 +877,10 @@ async function renderMain(args) {
           const indexArt =
             list.find((x) => x.frontmatter?.type === 'index' || x.frontmatter?.type === 'workflow-index')
             ?? list.find((x) => /(?:^|[\\/])00-index\.md$/.test(x.storageRel ?? ''));
-          if (indexArt) slugsSummary.push({ slug, frontmatter: indexArt.frontmatter });
+          // The dashboard cost table sums the slug's exact ledger on read (§10.4).
+          let cost = null;
+          try { cost = aggregateCost(readCostRows(join(storageRoot, slug))); } catch { cost = null; }
+          if (indexArt) slugsSummary.push({ slug, frontmatter: indexArt.frontmatter, cost });
         }
         const projectSummary = (slugArtifacts.get('__project__') ?? []).map((x) => ({
           path: x.storageRel,

@@ -45,6 +45,15 @@ If any workflow has `branch-strategy: dedicated`, add a branch summary:
 |------|--------|------|----|
 ```
 
+If any slug has a `cost.jsonl`, add the cost table (one row per slug with a ledger; every integer copied from the ledger):
+
+```
+## Cost (exact tokens)
+| Slug | Turns | Sub-agents | Input | Output | Cache read | Cache write | External in / out |
+|------|-------|------------|-------|--------|------------|-------------|-------------------|
+| **total** | | | | | | | |
+```
+
 ## Detail view render
 
 ```
@@ -82,6 +91,12 @@ If any workflow has `branch-strategy: dedicated`, add a branch summary:
 ## Open Deferrals (when any are open)
 - <slice>/<ac> — <reason> · clearing event: <clearing-event>
 - ⚠ **clearing event appears SATISFIED** for <slice>/<ac> — run `/wf probe <slug>` to capture the evidence
+
+## Cost (exact tokens · from cost.jsonl; omit when the file is absent)
+| Key | Turns | Sub-agents | Input | Output | Cache read | Cache write | External in / out |
+|-----|-------|------------|-------|--------|------------|-------------|-------------------|
+| plan | 7 | 2 | 12 | 3,104 | 210,980 | 88,120 | 18,176 / 142 |
+| **total** | | | | | | | |
 
 ## Next
 - **Default:** `<recommended-next-invocation>` — <one-line reason>

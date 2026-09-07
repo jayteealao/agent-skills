@@ -84,7 +84,8 @@ node "<skill-dir>/scripts/dispatch.mjs" read-only <repoRoot> <promptFile> [provi
 ```
 
 - Omit `[provider ...]` for the bare fan-out; pass the pinned provider(s) otherwise.
-- It prints one JSON object: `{ results: [{provider, ok, text, costUsd, evidenceScope, error}], skipped: [{provider, reason}], bare }`.
+- It prints one JSON object: `{ results: [{provider, ok, text, costUsd, usage, evidenceScope, error}], skipped: [{provider, reason}], bare }`.
+- When the question is about a workflow slug, set `SDLC_COST_SLUG=<slug>` and `SDLC_COST_KEY=<stage key>` on the command. The runner then appends each provider's `usage` as an `external` row to `.ai/workflows/<slug>/cost.jsonl` (see [_consult-triggers.md](../wf/reference/_consult-triggers.md)). Without the variable, no row is written.
 - Exit `0` = well-formed (per-provider failures are inside `results`); `2` = usage
   error.
 

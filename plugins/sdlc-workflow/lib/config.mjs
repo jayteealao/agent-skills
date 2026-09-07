@@ -62,6 +62,10 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
   },
   hooks: {
     autoStage: true,
+    // When true, the Stop hook appends the turn's exact token usage (copied from
+    // the host transcript) to .ai/workflows/<slug>/cost.jsonl. Never blocks.
+    // WIDE-VIEW-REPAIR-PLAN §10.
+    costLedger: true,
     validateOnWrite: true,
     verifyOnWrite: true,
     // When true, post-write-verify BLOCKS a rich-tier .md written without its

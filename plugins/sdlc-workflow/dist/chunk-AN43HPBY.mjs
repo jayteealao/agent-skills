@@ -1,6 +1,9 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  costDashboardHtml
+} from "./chunk-PTGPEXQV.mjs";
+import {
   evenX,
   figureCanvas
 } from "./chunk-PDBKNARE.mjs";
@@ -30,7 +33,8 @@ var TERMINAL_CLOSED = /* @__PURE__ */ new Set(["closed", "abandoned", "cancelled
 function render(artifact, ctx) {
   const slugs = (ctx.allArtifacts?.__summary__ ?? []).map((s) => ({
     slug: s.slug,
-    fm: s.frontmatter ?? {}
+    fm: s.frontmatter ?? {},
+    cost: s.cost ?? null
   }));
   const project = ctx.allArtifacts?.__project__ ?? [];
   const pipeline = slugs.filter((s) => s.fm.type !== "workflow-index");
@@ -73,6 +77,7 @@ function render(artifact, ctx) {
     ${projectSection(project)}
     <div class="d-only">${desktopBody}</div>
     <div class="m-only">${mobileBody}</div>
+    ${costDashboardHtml(slugs)}
   `;
   return { headerHtml, bodyHtml, links: [], children: [] };
 }

@@ -162,6 +162,11 @@
           "default": true,
           "description": "When true (default), the post-write-verify hook WARNS (non-blocking) when a mechanism-suggesting noun (state machine, scheduler, queue, cache, pipeline, orchestrator, regex) appears in a shape/slice AC or verification line but in no decision section of the artifact body. INTENT-FIDELITY W7 — a test may not name a machine the design does not own. Heuristic, so it warns. Set false to silence."
         },
+        "costLedger": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the Stop hook appends one row per turn to .ai/workflows/<slug>/cost.jsonl with the exact token usage copied from the host transcript (Claude Code, Codex, or pi), attributed to the slug and stage key the turn wrote. WIDE-VIEW-REPAIR-PLAN §10. Never blocks. Set false to write no ledger."
+        },
         "intakeLedgerLint": {
           "type": "boolean",
           "default": true,

@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   sdlcHomeDir
-} from "./chunk-U4OUM73W.mjs";
+} from "./chunk-TGGDCZSB.mjs";
 
 // lib/tray-heartbeat.mjs
 import { readFileSync, writeFileSync, rmSync } from "node:fs";

@@ -22,7 +22,7 @@ You are running `/wf handoff`, **stage 8 of 10**: 1·intake → 2·shape → 3·
 | Ship-plan gate (step 6.7) | Runs the shared [_ship-plan-readiness.md](_ship-plan-readiness.md) pre-check; a missing or drifted `.ai/ship-plan.md` STOPs at `awaiting-input`, routing to `/wf ship-plan init` / `edit`. |
 | Config | The optional `00-index.md` keys (`public-surface`, `docs-mirror`, `review-bots`, `ci-watch`, `review-settle`, `pre-push-checks`) are documented in [_handoff-config.md](_handoff-config.md). |
 
-**Auto second opinion.** Before writing the final readiness verdict, auto-invoke `/consult codex <review this PR diff and open findings for design drift, architectural smell, or security blind spots>` whenever the PR carries any open review finding, touches a security-sensitive or externally-observable surface, or any `intent-risk` (RIM) is still `carried`. Skip only a clean, low-surface PR with no open findings.
+**Auto second opinion.** Before writing the final readiness verdict, **auto-invoke** `/consult codex <review this PR diff and open findings for design drift, architectural smell, or security blind spots>` when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `open-review-finding`, `touches-security`, or `intent-risk-carried`. Record each run in the handoff artifact's `consult-runs:` frontmatter. Otherwise add no consult.
 
 # Role
 You are a workflow orchestrator, not a problem solver.
@@ -210,6 +210,7 @@ live-checks-failing: [<check-name>, ...]
 live-checks-pending: [<check-name>, ...]
 readiness-verdict: <ready | blocked | awaiting-input>
 
+consult-runs: []                     # [{trigger, provider, at}] per _consult-triggers.md
 tags: []
 refs:
   index: 00-index.md

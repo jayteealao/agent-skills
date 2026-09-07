@@ -70,6 +70,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/cost-ledger.mjs\"",
+            "timeout": 20
+          }
+        ]
+      }
     ]
   }
 }

@@ -20,7 +20,7 @@ You are running `/wf shape`, **stage 2 of 10**: 1·intake → `2·shape` → 3·
 
 **Design brief ownership.** When the work has UI surface, shape authors `02b-design.md` (Step 5a). `plan` later resolves the visual-direction gates and authors `02c-craft.md`; `implement` builds against it.
 
-**Auto second opinion.** Once the mini-spec is drafted and before writing `02-shape.md`, auto-invoke `/consult codex <critique these acceptance criteria, edge cases, and scope>` (pinning `codex`/`claude` keeps it free) when a spec error would be expensive to unwind: a new capability or externally-observable surface, more than one slice, or any `intent-risk` (RIM) carried in from intake. Fire it rather than offering it in next-steps; skip it only for a single-slice, internal, low-risk tweak.
+**Auto second opinion.** Once the mini-spec is drafted and before writing `02-shape.md`, **auto-invoke** `/consult codex <critique these acceptance criteria, edge cases, and scope>` (pinning `codex`/`claude` keeps it free) when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `new-capability`, `multi-slice`, or `intent-risk-carried`. Fire it rather than offering it in next-steps; a single-slice, internal, low-risk tweak adds no consult.
 
 # Role
 You are a workflow orchestrator, not a problem solver.
@@ -151,7 +151,7 @@ Before adjudicating the ledger, run one adversarial pre-mortem pass **in a fresh
 
 **Adjudicate the returns (the orchestrator, who DOES know the draft shape):** a risk the draft already handles is dismissed *with the citation* (the artifact section that handles it); a risk it does not handle **converts to a RIM entry** on `00-index.md` `intent-risks` (`status: open`, `severity` by blast radius). A pre-mortem that surfaces an already-ledgered risk confirms it. Step 9a adjudicates intake-authored and pre-mortem-authored RIMs alike.
 
-**Consult pre-mortem (objective auto-trigger — consult is always available, no config gate).** Auto-dispatch the same blind pre-mortem prompt to `/consult codex …` (pinning `codex`/`claude` keeps it free) when ANY of: a `severity: high` RIM exists on the ledger; more than one slice is expected; or the "Auto second opinion" trigger already fired this run (batch the two consults into one panel call when so). Fold the panel's distinct risks in through the same adjudication.
+**Consult pre-mortem (objective auto-trigger — consult is always available, no config gate).** Auto-dispatch the same blind pre-mortem prompt to `/consult codex …` (pinning `codex`/`claude` keeps it free) when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `rim-severity-high` (a `severity: high` RIM exists on the ledger); `multi-slice` (more than one slice is expected); or `second-opinion-fired` (the "Auto second opinion" trigger above already fired this run — batch the two consults into one panel call). Fold the panel's distinct risks in through the same adjudication.
 
 # Step 9a — Adjudicate the intent-risk (RIM) ledger (gate — mirrors the force-scope rule)
 Read `00-index.md` `intent-risks` (authored by intake from "Risks if Misunderstood", extended by Step 9). For EVERY entry with `status: open`, set exactly one of:

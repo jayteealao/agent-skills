@@ -78,6 +78,13 @@
             "commandWindows": "node \"${PLUGIN_ROOT}\\hooks\\stop-verify.mjs\" --plugin-root \"${PLUGIN_ROOT}\" --plugin-data \"${PLUGIN_DATA}\"",
             "timeout": 20,
             "statusMessage": "Final managed-artifact check"
+          },
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/stop-cost.mjs\" --plugin-root \"${PLUGIN_ROOT}\" --plugin-data \"${PLUGIN_DATA}\"",
+            "commandWindows": "node \"${PLUGIN_ROOT}\\hooks\\stop-cost.mjs\" --plugin-root \"${PLUGIN_ROOT}\" --plugin-data \"${PLUGIN_DATA}\"",
+            "timeout": 20,
+            "statusMessage": "Recording the turn's exact token usage"
           }
         ]
       }

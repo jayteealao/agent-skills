@@ -5,6 +5,10 @@ import {
   renderHistoryBlock
 } from "../chunk-JFIFDBVI.mjs";
 import {
+  costRowsFor,
+  costSectionHtml
+} from "../chunk-PTGPEXQV.mjs";
+import {
   evenX,
   figureCanvas
 } from "../chunk-PDBKNARE.mjs";
@@ -15,6 +19,7 @@ import {
   stageBadge,
   statusBadge
 } from "../chunk-SUJ36R7O.mjs";
+import "../chunk-H5LFYXT6.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";
@@ -69,6 +74,7 @@ function render(artifact, ctx) {
         ${tagsHtml}
       </aside>
     </section>
+    ${costSectionHtml(costRowsFor(ctx.slugRoot))}
     ${renderHistoryBlock(artifact.history)}
   `;
   return { headerHtml, bodyHtml, links: [], children: [] };
