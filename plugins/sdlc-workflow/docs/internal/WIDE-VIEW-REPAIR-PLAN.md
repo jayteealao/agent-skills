@@ -1,7 +1,7 @@
 # Wide-View Repair Plan — prose budget, capability shield, exact cost ledger, runtime repair
 
 Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0, W1 (line budgets; word targets
-closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7 + W8 BUILT 2026-09-07**; eval baseline run
+closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8 + W9 BUILT 2026-09-07**; eval baseline run
 pending (§16); W6 onward in progress — see the build ledger in §17. Source: a whole-tree survey of
 `plugins/sdlc-workflow` on 2026-09-04 against v9.153.4 (`6465707f`). Another
 session carried `_shell.mjs`, `nav.html`, and the root catalog to 9.153.5 while
@@ -752,6 +752,16 @@ separate skill has its own version carrier, which W7 is removing. The freeze
 and the earn rule deliver the value without the churn. This plan proceeds
 without extraction unless the PO overrides.
 
+Build note (2026-09-07): built as specified with two departures. (1) The pins
+record the tree, not §11.1's estimates: the tree has 7 aggregates (`all` is a
+row of the aggregate table), 93 distinct artifact names (the W0 baseline held
+91; `01-rca.yaml` and `01-rca.html.fragment` were named since), and 66 distinct
+`type` values across the schema's 52 `oneOf` branches. (2) The gate treats a pin
+as a ceiling — a count under its pin is reported as slack, not failed — while
+the unit test pins equality, so a deleted surface also requires the one-line
+policy edit and the file always states the tree. §11.3 stands: no router
+extraction; the PO may override by a plan edit.
+
 ## 12. W10 — README
 
 1. Rewrite `README.md` to ≤ 150 lines: what the plugin is, the three hosts,
@@ -1163,7 +1173,7 @@ the commit that closed the row. Every commit is local until the operator pushes.
 | W6 | Eval baseline + `--compare` | blocked | — | needs an authenticated `claude`; cases and fixtures exist |
 | W7 | One version carrier + render gate on renderer bytes | built | `7e755fbf` | `scripts/stamp-version.mjs` + the package.json `version` lifecycle script (`npm version <level>` stamps 5 carriers, builds, verifies, stages by path); `_shell.mjs` literal removed (reads `runtimeVersion` from the manifest); `rendererBuildId` = sha256 over renderers/, view-src/, components/ decides render freshness before buildId and version; CSS/JS cache-buster is its 12-char prefix; `verify:versions` requires the manifest + a 64-hex `rendererBuildId` and fails on a shell literal; dist rebuilt; 7 sentence tests migrated + 5 new stamp tests; e2e 50 types green |
 | W8 | Exact cost ledger: Stop hook, parsers, readers, consult triggers | built | `4b1e7dae` | `lib/cost-ledger.mjs` (incremental byte reads, host detection, Claude / Codex / pi parsers, attribution, atomic append, `aggregateCost`) + `hooks/cost-ledger.mjs` → `dist/cost-ledger.mjs` on the new Claude `Stop` event and the Codex `Stop` group via the thin `hooks/stop-cost.mjs`; `hooks.costLedger` toggle; cost tables on the slug pages (`index.mjs`, `workflow-index.mjs`), the dashboard, `/wf status` (both modes), and two evals `--compare` columns; `_consult-triggers.md` (29 recorded, exclusive names), 10 stage paragraphs name their triggers, `consult-runs` on 5 frontmatter types + schema, dispatcher `usage` + `external` rows keyed by `SDLC_COST_SLUG`; 17 new tests + 3 migrated; e2e 50 types green |
-| W9 | Surface policy file + `verify:surface` + earn rule | open | — | |
+| W9 | Surface policy file + `verify:surface` + earn rule | built | `d84bbce9` | `docs/internal/surface-policy.json` pins keys 22 · intakeModes 12 · reviewRubrics 11 · aggregates 7 · artifactStems 93 · frontmatterTypes 66 (tree counts, not the plan's estimates); `scripts/verify-surface.mjs` counts from the tree, fails over the pin, reports slack; `docs/internal/SURFACE-POLICY.md` carries the earn rule, the hold condition, and the router-extraction decision (no); `verify:surface` in package.json + CI; 5 tests |
 | W10 | README ≤ 150 lines + `verify:docs` extension | open | — | README is 1,087 lines |
 | W11.1 | `doctor` + installed check + cutover record | open | — | |
 | W11.2 | One runtime log, lifecycle log, error log routing, hex payload, restart count | open | — | |
