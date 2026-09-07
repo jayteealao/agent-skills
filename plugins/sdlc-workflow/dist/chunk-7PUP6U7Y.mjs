@@ -290,6 +290,13 @@ async function writeActiveRuntime({ buildId, runtimeRoot, runtimeVersion }) {
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   });
 }
+async function readActiveRuntime() {
+  try {
+    return JSON.parse(await readFile2(activeRuntimePath(), "utf-8"));
+  } catch {
+    return null;
+  }
+}
 function readRuntimeIdentityAt(runtimeRoot) {
   try {
     const m = JSON.parse(readFileSync(join(runtimeRoot, "runtime-manifest.json"), "utf-8"));
@@ -375,9 +382,11 @@ export {
   atomicWriteJson,
   withLock,
   LockTimeoutError,
+  runtimeStoreDir,
   materializeRuntime,
   verifyRuntimeStore,
   writeActiveRuntime,
+  readActiveRuntime,
   readRuntimeIdentityAt,
   resolveActiveRuntimeRootSync,
   gcRuntimes

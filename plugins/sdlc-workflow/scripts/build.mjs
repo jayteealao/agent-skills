@@ -73,6 +73,7 @@ const SCRIPT_ENTRIES = [
   'tray-heal',               // detached: reconcile a running stale tray after upgrade (lib/tray-lifecycle)
   'verify-runtime',          // self-contained runtime integrity/parity check (NATIVE-INTEROP Workstream D)
   'hub-upgrade',             // explicit controlled runtime upgrade + rollback (NATIVE-INTEROP Workstream C)
+  'doctor',                  // machine-state report; spawned by the tray's "Run doctor…" (WIDE-VIEW §14.2.1)
 ];
 
 // Public renderers are loaded at runtime by render-sunflower's loadRenderer()

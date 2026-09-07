@@ -11,7 +11,7 @@
 // browser or touching the real filesystem. The pure helpers `openerCommand` and
 // `resolveLogTarget` are exported for direct assertion.
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { request } from 'node:http';
 import { join } from 'node:path';
@@ -176,6 +176,27 @@ export function resolveLogTarget({ cwd = process.cwd(), homeDir = sdlcHomeDir(),
 /** Open the resolved log target. */
 export function openLogs({ opener, platform, cwd, homeDir, exists } = {}) {
   return openTarget(resolveLogTarget({ cwd, homeDir, exists }), { opener, platform });
+}
+
+/**
+ * Pure: the doctor script to spawn — the bundle when it exists (installed
+ * plugin), else the source (development tree).
+ */
+export function resolveDoctorScript(pluginRoot, { exists = existsSync } = {}) {
+  const bundled = join(pluginRoot, 'dist', 'doctor.mjs');
+  return exists(bundled) ? bundled : join(pluginRoot, 'scripts', 'doctor.mjs');
+}
+
+/**
+ * "Run doctor…": run scripts/doctor.mjs (WIDE-VIEW-REPAIR-PLAN §14.2.1) with
+ * `--out ~/.sdlc/doctor.txt --advisory`, then open the text file. The report
+ * is machine-wide, so it lives beside the registry, not under a repo.
+ */
+export function openDoctor({ pluginRoot, opener, platform, homeDir = sdlcHomeDir(), exists = existsSync, run = spawnSync } = {}) {
+  const script = resolveDoctorScript(pluginRoot, { exists });
+  const out = join(homeDir, 'doctor.txt');
+  run(process.execPath, [script, '--out', out, '--advisory'], { stdio: 'ignore', windowsHide: true, timeout: 30_000 });
+  return openTarget(out, { opener, platform });
 }
 
 /* ───────────────────────── http helpers ───────────────────────── */

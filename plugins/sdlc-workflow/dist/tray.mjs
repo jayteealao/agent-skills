@@ -6,6 +6,7 @@ import {
   getHealth,
   openConfig,
   openDashboard,
+  openDoctor,
   openLogs,
   openRepo,
   perRepoServeEnabled,
@@ -13,9 +14,10 @@ import {
   restartHub,
   stopHubAction,
   togglePerRepoServe
-} from "./chunk-A5TAVI3G.mjs";
-import "./chunk-27XGYXG6.mjs";
-import "./chunk-P5PZNJMN.mjs";
+} from "./chunk-BSUD6WWC.mjs";
+import "./chunk-3VICNUKK.mjs";
+import "./chunk-KAHDX7UW.mjs";
+import "./chunk-S5HJX2DB.mjs";
 import {
   clearTrayHeartbeat,
   writeTrayHeartbeat
@@ -26,7 +28,7 @@ import {
   isAutostartEnabled,
   refreshAutostart
 } from "./chunk-ERHYJB4B.mjs";
-import "./chunk-JYTXMUMI.mjs";
+import "./chunk-7PUP6U7Y.mjs";
 import {
   runtimeIdentity
 } from "./chunk-EQC6XDOG.mjs";
@@ -557,6 +559,13 @@ function buildMenu(h) {
   items.push(SEPARATOR);
   items.push({ title: "Open hub config\u2026", onClick: () => openConfig() });
   items.push({ title: "Open logs\u2026", onClick: () => openLogs() });
+  items.push({ title: "Run doctor\u2026", tooltip: "Installed versions per host, hub build, runtime store, registry, tailnet, port owner", onClick: () => {
+    try {
+      openDoctor({ pluginRoot: PLUGIN_ROOT });
+    } catch (e) {
+      log(`doctor failed: ${e?.message ?? e}`);
+    }
+  } });
   items.push({ title: "Per-repo serve", tooltip: "Toggle per-repo daemons (takes effect next session)", checked: perRepoServeEnabled(), onClick: onTogglePerRepoServe });
   items.push({ title: "Start at login", tooltip: "Launch the tray + hub at logon", checked: isAutostartEnabled(), onClick: onToggleAutostart });
   items.push(SEPARATOR);

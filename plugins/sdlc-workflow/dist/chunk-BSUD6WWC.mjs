@@ -2,11 +2,13 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   ensureHubLifecycle,
+  stopHub
+} from "./chunk-3VICNUKK.mjs";
+import {
   hubConfigPath,
   readHubConfig,
-  stopHub,
   writeHubConfig
-} from "./chunk-27XGYXG6.mjs";
+} from "./chunk-KAHDX7UW.mjs";
 import {
   hubPidPath,
   readPidFile,
@@ -14,7 +16,7 @@ import {
 } from "./chunk-TGGDCZSB.mjs";
 
 // lib/tray-actions.mjs
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { request } from "node:http";
 import { join } from "node:path";
@@ -114,6 +116,16 @@ function resolveLogTarget({ cwd = process.cwd(), homeDir = sdlcHomeDir(), exists
 function openLogs({ opener, platform, cwd, homeDir, exists } = {}) {
   return openTarget(resolveLogTarget({ cwd, homeDir, exists }), { opener, platform });
 }
+function resolveDoctorScript(pluginRoot, { exists = existsSync } = {}) {
+  const bundled = join(pluginRoot, "dist", "doctor.mjs");
+  return exists(bundled) ? bundled : join(pluginRoot, "scripts", "doctor.mjs");
+}
+function openDoctor({ pluginRoot, opener, platform, homeDir = sdlcHomeDir(), exists = existsSync, run = spawnSync } = {}) {
+  const script = resolveDoctorScript(pluginRoot, { exists });
+  const out = join(homeDir, "doctor.txt");
+  run(process.execPath, [script, "--out", out, "--advisory"], { stdio: "ignore", windowsHide: true, timeout: 3e4 });
+  return openTarget(out, { opener, platform });
+}
 function httpGetJson({ host, port, path, timeoutMs }) {
   return new Promise((resolve) => {
     const req = request({ hostname: host, port, path, method: "GET", timeout: timeoutMs }, (res) => {
@@ -186,5 +198,7 @@ export {
   openRepo,
   openConfig,
   resolveLogTarget,
-  openLogs
+  openLogs,
+  resolveDoctorScript,
+  openDoctor
 };

@@ -33,11 +33,20 @@
  * USAGE
  *   node scripts/verify-release-pushed.mjs
  *   node scripts/verify-release-pushed.mjs --max-age-hours=0   # any unpushed release fails
+ *   node scripts/verify-release-pushed.mjs --skip-installed   # skip the installed-version check
+ *
+ * The `installed` check (WIDE-VIEW-REPAIR-PLAN §14.2.1, W11.1) compares every
+ * plugin install on THIS machine (Claude Code scopes, Codex cache) with the
+ * shipped package.json version. A mismatch is the install gap the plan names:
+ * the tree says one version, the hosts run another. Blocking outside CI;
+ * advisory under CI, where no plugin is installed.
  *   node scripts/verify-release-pushed.mjs --branch=main --remote=upstream
  */
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { readClaudeInstalls, readCodexInstalls, shippedVersion, versionVerdict } from '../lib/doctor.mjs';
 
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -94,6 +103,39 @@ export function readAheadCommits(remote, branch) {
   });
 }
 
+/**
+ * Pure over injected readers: every install row with its verdict against
+ * `shipped`, plus `ok` (no install is behind or ahead). No installs at all is
+ * ok — a CI runner or a fresh machine has nothing to mismatch.
+ */
+export function evaluateInstalled({ shipped, claude = [], codex = [] }) {
+  const rows = [
+    ...claude.map((i) => ({ host: 'claude', where: i.scope + (i.projectPath ? `:${i.projectPath}` : ''), version: i.version, verdict: versionVerdict(i.version, shipped) })),
+    ...codex.map((i) => ({ host: 'codex', where: i.marketplace + (i.enabled === false ? ' (disabled)' : ''), version: i.version, verdict: versionVerdict(i.version, shipped) })),
+  ];
+  // A Codex cache keeps superseded versions beside the current one; only a
+  // cache with NO row at the shipped version is a gap.
+  const codexOk = rows.filter((r) => r.host === 'codex').length === 0 || rows.some((r) => r.host === 'codex' && r.verdict === 'ok');
+  const claudeOk = rows.filter((r) => r.host === 'claude').every((r) => r.verdict === 'ok');
+  return { shipped, rows, ok: codexOk && claudeOk };
+}
+
+function checkInstalled({ ci = Boolean(process.env.CI) } = {}) {
+  const shipped = shippedVersion(PLUGIN_ROOT);
+  const result = evaluateInstalled({ shipped, claude: readClaudeInstalls(), codex: readCodexInstalls().installs });
+  const list = result.rows.map((r) => `  ${r.host.padEnd(6)} ${r.where.padEnd(48)} ${String(r.version).padEnd(10)} ${r.verdict}`).join('\n');
+  if (result.ok) {
+    console.log(`[release-guard] installed OK — every plugin install on this machine is at ${shipped}.${list ? `\n${list}` : ''}`);
+    return true;
+  }
+  const header = ci ? '[release-guard] NOTE (installed, advisory under CI)' : '[release-guard] INSTALL GAP';
+  console[ci ? 'log' : 'error'](
+    `${header} — the tree ships ${shipped} but a host on this machine runs another version:\n${list}\n` +
+    'Run `npm run doctor`, then follow docs/internal/SINGLE-SOURCE-CUTOVER.md §2 to update the host.'
+  );
+  return ci;
+}
+
 function main() {
   const argv = process.argv.slice(2);
   const arg = (name, fallback) => {
@@ -104,16 +146,18 @@ function main() {
   const branch = arg('branch', 'master');
   const maxAgeHours = Number(arg('max-age-hours', '12'));
 
+  const installedOk = argv.includes('--skip-installed') ? true : checkInstalled();
+
   const ahead = readAheadCommits(remote, branch);
   if (ahead === null) {
     console.log(`[release-guard] no ${remote}/${branch} ref locally — cannot compare. Run \`git fetch ${remote}\` if you expected one.`);
-    process.exit(0);
+    process.exit(installedOk ? 0 : 1);
   }
 
   const verdict = evaluateDelivery(ahead, Date.now(), maxAgeHours);
   if (verdict.undelivered.length === 0) {
     console.log(`[release-guard] OK — no release commit is sitting undelivered ahead of ${remote}/${branch}.`);
-    process.exit(0);
+    process.exit(installedOk ? 0 : 1);
   }
 
   const list = verdict.undelivered.map((c) => `  ${c.sha.slice(0, 8)}  ${c.subject}`).join('\n');
@@ -124,7 +168,7 @@ function main() {
     `The marketplace pins a commit SHA from the remote, so an unpushed release is invisible to every project:\n` +
     `  git push ${remote} ${branch}`
   );
-  process.exit(verdict.ok ? 0 : 1);
+  process.exit(verdict.ok && installedOk ? 0 : 1);
 }
 
 // Only run when invoked directly, so the pure functions above stay importable by tests.

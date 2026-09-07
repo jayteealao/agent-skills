@@ -6,20 +6,23 @@ import {
   hubEndpoint,
   openConfig,
   openDashboard,
+  openDoctor,
   openLogs,
   openRepo,
   openerCommand,
   perRepoServeEnabled,
   readToken,
   refreshRegistry,
+  resolveDoctorScript,
   resolveLogTarget,
   restartHub,
   stopHubAction,
   togglePerRepoServe
-} from "./chunk-A5TAVI3G.mjs";
-import "./chunk-27XGYXG6.mjs";
-import "./chunk-P5PZNJMN.mjs";
-import "./chunk-JYTXMUMI.mjs";
+} from "./chunk-BSUD6WWC.mjs";
+import "./chunk-3VICNUKK.mjs";
+import "./chunk-KAHDX7UW.mjs";
+import "./chunk-S5HJX2DB.mjs";
+import "./chunk-7PUP6U7Y.mjs";
 import "./chunk-EQC6XDOG.mjs";
 import "./chunk-K6PBZI5W.mjs";
 import "./chunk-KRRL2TSM.mjs";
@@ -36,12 +39,14 @@ export {
   hubEndpoint,
   openConfig,
   openDashboard,
+  openDoctor,
   openLogs,
   openRepo,
   openerCommand,
   perRepoServeEnabled,
   readToken,
   refreshRegistry,
+  resolveDoctorScript,
   resolveLogTarget,
   restartHub,
   stopHubAction,

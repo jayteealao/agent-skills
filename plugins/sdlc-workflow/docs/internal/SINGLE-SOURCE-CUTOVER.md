@@ -71,6 +71,13 @@ same repository. Remove the old identity BEFORE you add the new one, so no
 moment exists in which both are enabled. Run the three commands, then open the
 next session.
 
+0. Record the machine before you change it. In the development clone, run:
+   ```bash
+   npm run doctor
+   ```
+   Paste the table under §5 as the "before" record. The doctor exits 1
+   while any host runs a version other than the tree's; that is the state
+   this procedure removes.
 1. Close every Codex session (CLI and Desktop) on the machine.
 2. Refresh the catalog, remove the old identity, add the new one:
    ```bash
@@ -121,6 +128,10 @@ next session.
    Confirm with `/__sdlc/health`: after one session on each host, the hub
    reports one `runtimeVersion`, and it does not change between the two hosts'
    session starts.
+7. Run `npm run doctor` again. Every host row reads `ok` and the verdict row
+   reads `OK`; the exit code is 0. Paste the table under §5 as the "after"
+   record. The tray's *Run doctor…* item writes the same table to
+   `~/.sdlc/doctor.txt`.
 
 ## 3. Rollback (per machine)
 
@@ -158,3 +169,40 @@ the manual-trust cost a second time. That asymmetry is why step 0 exists.
 - `$wf` under Codex accepts 21 keys; `/wf` under Claude Code accepts 22. The
   extra key is `yolo`. Both hosts show the same 22-row table in `SKILL.md`,
   with `yolo` marked Claude Code only.
+
+## 5. Doctor record (operator machine)
+
+`npm run doctor` writes this table (WIDE-VIEW-REPAIR-PLAN §14.2.1). The
+"before" record is the state the procedure in §2 removes; the operator pastes
+the "after" record when step 7 exits 0.
+
+### Before — 2026-09-07, tree at 9.153.5, exit 1
+
+```text
+shipped (package.json)                                          9.153.5
+claude install (user)                                           9.153.5 @ abdca984                                                                                ok
+claude install (local: C:\Users\jayte\Documents\dev\Isometric)  9.144.0 @ 203dfa4f                                                                                behind
+codex cache (agent-skills-marketplace)                          9.153.5 enabled                                                                                   ok
+codex trusted hook events                                       permission_request, post_tool_use, pre_tool_use, session_start, stop, subagent_start, subagent_stop
+hub 127.0.0.1:4173                                              9.153.5 build e4d53d559202 pid 60888 by claude · 13 repos                                         ok
+hub port owner                                                  pid 60888 (netstat)
+active runtime                                                  9.153.5 build e4d53d559202
+runtime store                                                   30 builds · 118.8 MB · C:\Users\jayte\.sdlc\runtime                                               gc
+registry entries                                                13
+registry ephemeral roots                                        worktree: C:\Users\jayte\Documents\dev\Playster\.claude\worktrees\agent-ad60ea59bc98badec; temp: C:\Users\jayte\AppData\Local\Temp\claude\C--Users-jayte-Documents-dev-agent-skills\f97a0867-517e-4597-99e8-fb72757dc22a\scratchpad\preflight-repo  refuse
+registry entries with 0 slugs                                   C:\Users\jayte\Documents\dev\agent-skills; C:\Users\jayte\Documents\dev\HomeLab-PDU-V1; C:\Users\jayte\Documents\dev\pi-unified; C:\Users\jayte\Documents\rollover
+tailscale                                                       configured (serve) · serve status: |-- / proxy http://127.0.0.1:3000
+verdict                                                         claude mixed · codex ok · hub ok                                                                  ACTION
+```
+
+Reading: the user-scope Claude Code install and the Codex cache both run the
+shipped version; the merge cutover of §2 is already done on this machine. The
+one install gap is the Isometric project-local scope (`9.144.0`), which the
+plan's exit criterion "hosts on the shipped version 2/2" counts as a host. The
+two ephemeral registry roots and the 30-build runtime store are W11.3 and W11.5
+work; the doctor only reports them.
+
+### After — pending
+
+The operator updates the Isometric local scope (§2 step 6, run from that
+repository), reruns `npm run doctor`, and pastes the table here.

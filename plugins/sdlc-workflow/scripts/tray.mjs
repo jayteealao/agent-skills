@@ -25,7 +25,7 @@ import { Tray, SEPARATOR } from '../lib/tray-protocol.mjs';
 import { formatHealth } from '../lib/tray-format.mjs';
 import {
   getHealth, openDashboard, openRepo, refreshRegistry, restartHub, stopHubAction,
-  ensureHubOnLaunch, openConfig, openLogs, togglePerRepoServe, perRepoServeEnabled,
+  ensureHubOnLaunch, openConfig, openLogs, openDoctor, togglePerRepoServe, perRepoServeEnabled,
 } from '../lib/tray-actions.mjs';
 import {
   isAutostartEnabled, enableAutostart, disableAutostart, refreshAutostart,
@@ -141,6 +141,7 @@ function buildMenu(h) {
   items.push(SEPARATOR);
   items.push({ title: 'Open hub config…', onClick: () => openConfig() });
   items.push({ title: 'Open logs…', onClick: () => openLogs() });
+  items.push({ title: 'Run doctor…', tooltip: 'Installed versions per host, hub build, runtime store, registry, tailnet, port owner', onClick: () => { try { openDoctor({ pluginRoot: PLUGIN_ROOT }); } catch (e) { log(`doctor failed: ${e?.message ?? e}`); } } });
   items.push({ title: 'Per-repo serve', tooltip: 'Toggle per-repo daemons (takes effect next session)', checked: perRepoServeEnabled(), onClick: onTogglePerRepoServe });
   items.push({ title: 'Start at login', tooltip: 'Launch the tray + hub at logon', checked: isAutostartEnabled(), onClick: onToggleAutostart });
   items.push(SEPARATOR);
