@@ -67,7 +67,8 @@ function main() {
   // (2) Ensure the shared hub adoption-first AND confirm it came up — bounded
   //     within the SessionStart budget. The hub is spawned detached and survives
   //     this hook; we only wait for hub-ensure's readiness verdict.
-  const hubReady = ensureHubConfirmed(layout.runtimeRoot, projectRoot);
+  const verdict = ensureHubConfirmed(layout.runtimeRoot, projectRoot);
+  const hubReady = verdict === 'confirmed' || verdict === 'assumed';
 
   // (3) Once-only activation: record the baseline the FIRST time it is seen AND
   //     the shared hub is confirmed healthy. The native-interop contract requires
@@ -83,18 +84,23 @@ function main() {
   }
 }
 
-// How long SessionStart will wait for the hub to confirm healthy. Bounded well
-// under the 30s SessionStart budget (codex.hooks.json) — the common adopt case resolves
-// in well under a second; this ceiling only bites a contended cold start (covers
-// the cross-host startup lock's own 15s wait + the health confirm).
-const HUB_CONFIRM_TIMEOUT_MS = 20000;
+// How long SessionStart waits for the hub to confirm healthy: 5 s (W11.10; was
+// 20 s). The common adopt case resolves in well under a second. A contended cold
+// start keeps starting detached after the wait expires, and the next SessionStart
+// confirms it. SDLC_HUB_CONFIRM_TIMEOUT_MS overrides the ceiling (tests).
+const HUB_CONFIRM_TIMEOUT_MS = 5000;
+function hubConfirmTimeoutMs() {
+  const n = Number(process.env.SDLC_HUB_CONFIRM_TIMEOUT_MS);
+  return Number.isFinite(n) && n > 0 ? n : HUB_CONFIRM_TIMEOUT_MS;
+}
 
 /**
  * Ensure the shared hub adoption-first and confirm it came up, BOUNDED so it can
  * never exceed the SessionStart budget. hub-ensure spawns the hub itself detached
  * (it survives this hook); here we run hub-ensure SYNCHRONOUSLY with --confirm so
  * its exit code reports readiness: 0 = adopted/started healthy, non-zero = not
- * confirmed. Returns whether the hub is confirmed ready.
+ * confirmed. Returns a verdict: 'confirmed' | 'assumed' | 'disabled' |
+ * 'started-unconfirmed' (the wait expired; one line on stderr) | 'not-confirmed'.
  *
  * Seams:
  *   SDLC_DISABLE_HUB_ENSURE=1 → do not start/adopt a hub at all → not confirmed
@@ -103,8 +109,9 @@ const HUB_CONFIRM_TIMEOUT_MS = 20000;
  *                               a self-managed hub or to exercise activation in tests.
  */
 function ensureHubConfirmed(runtimeRoot, projectRoot) {
-  if (process.env.SDLC_ASSUME_HUB_READY === '1') return true;
-  if (process.env.SDLC_DISABLE_HUB_ENSURE === '1') return false;
+  if (process.env.SDLC_ASSUME_HUB_READY === '1') return 'assumed';
+  if (process.env.SDLC_DISABLE_HUB_ENSURE === '1') return 'disabled';
+  const timeoutMs = hubConfirmTimeoutMs();
   try {
     execFileSync(
       process.execPath,
@@ -119,14 +126,19 @@ function ensureHubConfirmed(runtimeRoot, projectRoot) {
       ],
       // Codex provenance: hub-ensure (and any hub it starts) must record this
       // launch as codex-started, not the shared runtime's claude default.
-      { stdio: 'ignore', windowsHide: true, timeout: HUB_CONFIRM_TIMEOUT_MS, env: codexHostEnv() },
+      { stdio: 'ignore', windowsHide: true, timeout: timeoutMs, env: codexHostEnv() },
     );
-    return true;   // exit 0 → hub confirmed healthy
-  } catch {
-    // non-zero exit (not confirmed), timeout, or spawn failure → treat as not
-    // ready. The detached hub bring-up may still complete; the next trusted
-    // SessionStart will confirm and record activation.
-    return false;
+    return 'confirmed';   // exit 0 → hub confirmed healthy
+  } catch (err) {
+    // The detached hub bring-up may still complete; the next trusted
+    // SessionStart will confirm and record activation. An expired wait says so
+    // in one line (W11.10); a non-zero exit or a spawn failure stays silent.
+    const timedOut = err?.code === 'ETIMEDOUT' || (err?.signal != null && err?.status == null);
+    if (timedOut) {
+      try { process.stderr.write(`[sdlc] hub started-unconfirmed: no health confirm within ${timeoutMs} ms; the hub keeps starting detached and the next SessionStart confirms it.\n`); } catch { /* best-effort */ }
+      return 'started-unconfirmed';
+    }
+    return 'not-confirmed';
   }
 }
 

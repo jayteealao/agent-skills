@@ -895,12 +895,19 @@ export function createHubServer({
 
   reload();
 
-  // Startup catch-up (RENDER-DISPATCH-PLAN "Catch-up on start"): immediately
-  // reclaim any orphaned in-flight claims and drain everything queued while the
-  // hub was down, before the 10s reconcile cadence begins. reload() has already
+  // Startup catch-up, bounded (W11.10; RENDER-DISPATCH-PLAN "Catch-up on
+  // start"): a view renders now only when it fails the version gate
+  // (heal.consider, ahead of the 10s tick) or carries queued work
+  // (renderQueue.catchUp, which reclaims orphaned claims first). Every other
+  // view is skipped, and one line reports the counts. reload() has already
   // populated `entries` (folding in any registry.d/ shards a hook dropped while
   // the hub was down). Best-effort — never block startup.
-  try { renderQueue.catchUp(entries); } catch (err) { logHub(`render-queue catch-up error: ${err?.message ?? err}`); }
+  try {
+    let stale = 0;
+    for (const e of entries) if (heal.consider(e).action === 'enqueued') stale++;
+    const drained = renderQueue.catchUp(entries).filter((r) => r?.action === 'submitted').length;
+    logHub(`catch-up: ${entries.length} registered, ${stale} stale re-rendered, ${drained} queues drained, ${Math.max(0, entries.length - stale - drained)} fresh skipped`);
+  } catch (err) { logHub(`catch-up error: ${err?.message ?? err}`); }
 
   return server;
 }

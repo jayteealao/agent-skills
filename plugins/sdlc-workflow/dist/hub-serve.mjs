@@ -848,9 +848,12 @@ data: ${JSON.stringify({ ok: true })}
   });
   reload();
   try {
-    renderQueue.catchUp(entries);
+    let stale = 0;
+    for (const e of entries) if (heal.consider(e).action === "enqueued") stale++;
+    const drained = renderQueue.catchUp(entries).filter((r) => r?.action === "submitted").length;
+    logHub(`catch-up: ${entries.length} registered, ${stale} stale re-rendered, ${drained} queues drained, ${Math.max(0, entries.length - stale - drained)} fresh skipped`);
   } catch (err) {
-    logHub(`render-queue catch-up error: ${err?.message ?? err}`);
+    logHub(`catch-up error: ${err?.message ?? err}`);
   }
   return server;
 }
