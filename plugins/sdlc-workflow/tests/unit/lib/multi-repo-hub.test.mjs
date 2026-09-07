@@ -938,9 +938,11 @@ test('hub: reconcile heals a version-stale view via a background re-render (§4)
   await upsertRegistryEntry({ projectRoot: repo, viewDir: join(repo, '.ai', '_view') });
   const rec = readRegistry().entries[0];
 
-  // Stamp the view as rendered by an OLD plugin version → drift vs PLUGIN_VERSION.
+  // Fresh at start: since W11.10 the start-up catch-up heals a stale view
+  // before any client connects, so the drift is stamped below, after the SSE
+  // client is listening, and the reconcile tick is what heals it.
   writeFileSync(join(rec.viewDir, '.last-render'),
-    JSON.stringify({ renderedAt: new Date().toISOString(), configHash: 'old', version: '0.0.0-old' }));
+    JSON.stringify({ renderedAt: new Date().toISOString(), configHash: 'cfg0', version: PLUGIN_VERSION }));
 
   // Injected render-spawn stub: simulate render-sunflower by rewriting
   // .last-render to the CURRENT version, then exiting 0. Forks nothing.
@@ -968,6 +970,10 @@ test('hub: reconcile heals a version-stale view via a background re-render (§4)
   const port = await listen(server);
   try {
     const collected = sseCollect(port, 800);
+    await wait(100);   // let the SSE client connect before the drift is stamped
+    // Stamp the view as rendered by an OLD plugin version → drift vs PLUGIN_VERSION.
+    writeFileSync(join(rec.viewDir, '.last-render'),
+      JSON.stringify({ renderedAt: new Date().toISOString(), configHash: 'old', version: '0.0.0-old' }));
     await wait(300);   // several reconcile ticks → heal spawns + the stub completes
     const events = await collected;
 
