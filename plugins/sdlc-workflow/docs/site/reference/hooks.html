@@ -23,6 +23,8 @@ or inside a dispatched read-only sub-agent.</p>
 
 <h2 id="overview">At a glance</h2>
 
+<p>Claude Code runs one process per tool event. <code>pre-tool-use-all</code> (matcher <code>Write|Edit|MultiEdit|Bash</code>) runs <code>pre-write-validate</code>, then <code>leak-guard-write</code> on a file write, or <code>leak-guard-bash</code> on a shell command, and stops at the first block. <code>post-tool-use-all</code> (matcher <code>Write|Edit|MultiEdit|NotebookEdit</code>) runs <code>post-write-auto-stage</code>, then <code>post-write-verify</code>, then <code>post-write-render</code>; a verify block still exits 2 after the render request is queued. The rows below describe the checks inside those two processes. Each check also ships as its own script for one release.</p>
+
 <table>
 <thead><tr><th>Hook</th><th>Event · matcher</th><th>Blocks?</th><th>Disable with</th></tr></thead>
 <tbody>
@@ -45,9 +47,9 @@ or inside a dispatched read-only sub-agent.</p>
 <tbody>
 <tr><td>SessionStart</td><td><code>session-start.mjs</code></td><td>Runs <code>seed-memory</code> silently, queues the whole-repo render refresh, confirms the hub, and records activation once.</td></tr>
 <tr><td>SubagentStart</td><td><code>subagent-start.mjs</code></td><td>Injects the active workflow slug, its stage, and the output-boundary reminder into the child.</td></tr>
-<tr><td>PreToolUse · <code>apply_patch|Edit|Write</code></td><td><code>pre-tool-use.mjs</code></td><td>Runs <code>pre-write-validate</code> on a new managed artifact whose full body is visible; denies on a hard violation.</td></tr>
+<tr><td>PreToolUse · <code>apply_patch|Edit|Write</code></td><td><code>pre-tool-use.mjs</code></td><td>Runs <code>pre-tool-use-all</code> (the validator, then the leak guard) on a new managed artifact whose full body is visible; denies on a hard violation.</td></tr>
 <tr><td>PermissionRequest</td><td><code>permission-request.mjs</code></td><td>Auto-allows the plugin's own runtime scripts under <code>dist/</code>; has no opinion on anything else.</td></tr>
-<tr><td>PostToolUse · <code>apply_patch|Edit|Write</code></td><td><code>post-tool-use.mjs</code></td><td>Runs <code>post-write-verify</code>, then <code>post-write-auto-stage</code>, then <code>post-write-render</code>, in that order, and records touched artifacts for the Stop check.</td></tr>
+<tr><td>PostToolUse · <code>apply_patch|Edit|Write</code></td><td><code>post-tool-use.mjs</code></td><td>Runs <code>post-tool-use-all</code> once (auto-stage, then verify, then the render request), relays a verify block, and records touched artifacts for the Stop check.</td></tr>
 <tr><td>Stop, SubagentStop</td><td><code>stop-verify.mjs</code></td><td>Re-checks every managed artifact the turn touched. An invalid artifact blocks the turn until it is repaired, at most three times.</td></tr>
 <tr><td>Stop</td><td><code>stop-cost.mjs</code></td><td>Runs <code>cost-ledger</code>: appends the turn's exact token usage to <code>.ai/workflows/&lt;slug&gt;/cost.jsonl</code>. Never blocks.</td></tr>
 </tbody>

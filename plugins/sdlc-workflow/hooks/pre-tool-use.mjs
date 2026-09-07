@@ -5,7 +5,8 @@
 // final-content shape as a Claude Write, so pre-tool validation is BEST-EFFORT —
 // it validates only what is visible before the write lands. For an apply_patch
 // `Add File` (or an Edit/Write that carries full content) the new managed-artifact
-// body is present, so we run the bundled pre-write validator on it and DENY
+// body is present, so we run the folded PreToolUse bundle (the validator, then
+// the leak guard — WIDE-VIEW §14.2.6) on it and DENY
 // (exit 2) on a hard violation. For an `Update File` patch the full final content
 // isn't reconstructable here, so we defer to the post-tool audit and the Stop
 // enforcement boundary. Always best-effort: never blocks a non-artifact write.
@@ -36,7 +37,7 @@ function main() {
   if (!candidates.length) return 0;
 
   for (const t of candidates) {
-    const res = runBundled(layout.runtimeRoot, 'pre-write-validate', synthSingleStdin(cwd, 'PreToolUse', t.path, t.content), {
+    const res = runBundled(layout.runtimeRoot, 'pre-tool-use-all', synthSingleStdin(cwd, 'PreToolUse', t.path, t.content), {
       cwd,
       timeoutMs: 4000,
     });

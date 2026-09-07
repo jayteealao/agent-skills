@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`/wf` Step 0 is an explicit dispatch check.** The first visible output of every invocation is a one-line `wf dispatch:` proof, the unknown-key STOP, or (for `yolo` under Codex or pi) the host redirect. An unknown first token is never a slug and never an intake mode; the retired-surface hints remain hints.
 - **Eval case `unknown-key`** asserts the STOP text and a clean workspace. The harness ignores `.ai/.gitignore` and `.ai/_view/`, which the plugin's own hooks create in any opened repository, in `no-changes` and `changes-only-under`.
 
+### Changed
+
+- **One hook process per tool event (W11.6).** `hooks/hooks.json` wires `dist/pre-tool-use-all.mjs` for `Write|Edit|MultiEdit|Bash` and `dist/post-tool-use-all.mjs` for `Write|Edit|MultiEdit|NotebookEdit`. The PreToolUse process runs `pre-write-validate`, then `leak-guard-write` on a file write, or `leak-guard-bash` on a shell command, and stops at the first block. The PostToolUse process runs `post-write-auto-stage`, then `post-write-verify`, then `post-write-render`; a verify block still exits 2 after the render request is queued. Each check exports `run(input)` (`lib/hook-runner.mjs`: `runStandalone`, `runFolded`, `blockToolCall`); the single-purpose scripts keep a guarded entry for one release. systemMessages from one process are flushed as one JSON line. The Codex adapters call the two folded bundles instead of two-plus-N spawns; `hooks/codex.hooks.json` is unchanged, so no re-trust is needed. `post-write-auto-stage` stages every touched path (`file_path` and `edits[].file_path`).
+
 ### Fixed
 
 - All six Codex skills now set `policy.allow_implicit_invocation: false`: users must explicitly select `wf`, `consult`, `diataxis`, `study-sources`, `imagery`, or `uiproto`. Updated both skill-policy tests and the host contract. Current official documentation confirms explicit invocation remains available, superseding the earlier visibility workaround. Workflow steps and event-hook wiring are unchanged.

@@ -8,10 +8,7 @@ import {
   HUB_DEFAULT_PORT,
   hubConfigHash,
   readHubConfig
-} from "./chunk-YTSTSKHX.mjs";
-import {
-  logLifecycle
-} from "./chunk-RCBTEB7Z.mjs";
+} from "./chunk-EQJNVSBF.mjs";
 import {
   LockTimeoutError,
   atomicWriteJson,
@@ -21,7 +18,7 @@ import {
   verifyRuntimeStore,
   withLock,
   writeActiveRuntime
-} from "./chunk-MGT7PMCG.mjs";
+} from "./chunk-JM633JQP.mjs";
 import {
   runtimeIdentity
 } from "./chunk-EQC6XDOG.mjs";
@@ -34,11 +31,12 @@ import {
 import {
   hubPidPath,
   isPidAlive,
+  logLifecycle,
   pidFileStatus,
   removePidFile,
   sdlcHomeDir,
   writePidFile
-} from "./chunk-4K63PVBZ.mjs";
+} from "./chunk-RV4GKXDG.mjs";
 
 // lib/hub-lifecycle.mjs
 import { randomBytes } from "node:crypto";

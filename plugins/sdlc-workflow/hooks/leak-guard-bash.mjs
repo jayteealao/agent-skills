@@ -15,12 +15,12 @@
  * ~0 across real workflows. Body-file flags (`-F`, `--body-file`) are NOT read
  * in Phase 1 — the file path itself is still scanned as text.
  * Never fires inside external-model dispatch (SDLC_DISPATCH_ACTIVE).
+ * Exports `run(input)` for the folded `pre-tool-use-all` entry (WIDE-VIEW §14.2.6).
  */
 
 import { loadConfig } from '../lib/config.mjs';
 import { buildLexicon, scanText, formatFindings } from '../lib/leak-lexicon.mjs';
-import { logError } from '../lib/error-log.mjs';
-import { readStdinJson } from '../lib/stdin.mjs';
+import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import { outputSystemMessage, projectRootFromInput } from '../lib/hook-utils.mjs';
 
 const PUBLISH_COMMANDS = /\bgit\s+commit\b|\bgit\s+tag\b|\bgh\s+pr\s+create\b|\bgh\s+release\s+(?:create|edit)\b/;
@@ -51,11 +51,7 @@ export function extractOutwardText(command) {
   return texts;
 }
 
-async function main() {
-  if (process.env.CLAUDE_PLUGIN_INSTALL === '1') return;
-  if (process.env.SDLC_DISPATCH_ACTIVE === '1') return;
-
-  const input = await readStdinJson();
+export async function run(input) {
   const command = input?.tool_input?.command;
   if (!command || !PUBLISH_COMMANDS.test(String(command))) return;
 
@@ -78,12 +74,9 @@ async function main() {
 
   if (config.semantic?.mode === 'enforce') {
     console.error(message);
-    process.exit(2);
+    blockToolCall();
   }
   outputSystemMessage(message);
 }
 
-main().catch((err) => {
-  logError('leak-guard-bash', err);
-  process.exit(0); // advisory infrastructure must never break the tool call
-});
+if (isEntry('leak-guard-bash')) runStandalone('leak-guard-bash', run);

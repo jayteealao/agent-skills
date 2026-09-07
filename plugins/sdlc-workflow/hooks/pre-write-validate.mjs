@@ -11,14 +11,16 @@
  * - Exempt the po-answers.md prose log (see isProseLogPath).
  * - Warn, do not block, when .ai/workflows/INDEX.md is missing or lacks the slug row.
  * - Block with exit 2 + stderr on validation errors.
+ *
+ * Exports `run(input)` for the folded `pre-tool-use-all` entry (WIDE-VIEW
+ * §14.2.6). The standalone entry below stays one release.
  */
 
 import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { loadConfig } from '../lib/config.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
-import { logError } from '../lib/error-log.mjs';
-import { readStdinJson } from '../lib/stdin.mjs';
+import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import {
   formatList,
   hasFrontmatterFence,
@@ -66,13 +68,7 @@ async function registryWarnings({ projectRoot, filePath, workflowDir, filename }
   return [];
 }
 
-async function main() {
-  if (process.env.CLAUDE_PLUGIN_INSTALL === '1') return;
-  // Defense-in-depth: a dispatched sub-agent (consult skill) must not have its
-  // writes validated as SDLC artifacts. See EXTERNAL-MODEL-DISPATCH-PLAN §3.1.
-  if (process.env.SDLC_DISPATCH_ACTIVE === '1') return;
-
-  const input = await readStdinJson();
+export async function run(input) {
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
   if (config.hooks.validateOnWrite === false) return;
@@ -142,7 +138,7 @@ async function main() {
 
   if (errors.length > 0) {
     process.stderr.write(`wf-validate: blocked write to ${filename} in workflow '${info.slug}'. Errors:\n${formatList(errors)}\n\nFix these issues and retry the write.\n`);
-    process.exit(2);
+    blockToolCall();
   }
 
   const warnings = await registryWarnings({
@@ -182,7 +178,7 @@ function validateProjectContextWrite({ filePath, content }) {
 
   if (errors.length > 0) {
     process.stderr.write(`wf-validate: blocked write to project context file ${info.filename}. Errors:\n${formatList(errors)}\n\nFix these issues and retry the write.\n`);
-    process.exit(2);
+    blockToolCall();
   }
 }
 
@@ -190,11 +186,4 @@ function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-main().catch(async (err) => {
-  try {
-    await logError('pre-write-validate', err);
-  } catch {
-    // ignore logging failures
-  }
-  process.exit(0);
-});
+if (isEntry('pre-write-validate')) runStandalone('pre-write-validate', run);

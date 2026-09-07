@@ -110,7 +110,7 @@ export const FAMILIES = [
     // enforcement" and cites _host-invocation.md; the Codex adapters wire
     // different scripts and block at Stop (v9.153.1).
     name: 'claude-hook-names',
-    pattern: /`(pre-write-validate|post-write-verify|post-write-auto-stage|post-write-render|session-start-orient|leak-guard-(bash|write))(\.mjs)?`|\bhooks\/hooks\.json\b/,
+    pattern: /`(pre-write-validate|post-write-verify|post-write-auto-stage|post-write-render|pre-tool-use-all|post-tool-use-all|session-start-orient|leak-guard-(bash|write))(\.mjs)?`|\bhooks\/hooks\.json\b/,
   },
   {
     // Host names in skill prose. Availability annotations are permitted data:

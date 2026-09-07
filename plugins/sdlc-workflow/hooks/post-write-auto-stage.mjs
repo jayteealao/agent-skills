@@ -4,31 +4,27 @@
  * - Exit 0 for all outcomes.
  * - Honor .ai/.no-auto-stage.
  * - Skip when no workflows directory exists.
- * - Skip when no file_path is present.
+ * - Skip when no file_path is present (every touched path is staged: file_path
+ *   plus edits[].file_path, so a multi-file host payload stages each file).
  * - Skip workflow artifact files; implementation commits own those.
  * - Stage with git add only when an active workflow is in implement stage
  *   and branch-strategy is dedicated or shared.
+ * Exports `run(input)` for the folded `post-tool-use-all` entry (WIDE-VIEW §14.2.6).
  */
 
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadConfig } from '../lib/config.mjs';
-import { logError } from '../lib/error-log.mjs';
-import { readStdinJson } from '../lib/stdin.mjs';
+import { isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import {
+  collectToolInputPaths,
   gitAdd,
   isInsideWorkflowArtifacts,
   projectRootFromInput,
 } from '../lib/hook-utils.mjs';
 import { scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 
-async function main() {
-  if (process.env.CLAUDE_PLUGIN_INSTALL === '1') return;
-  // Defense-in-depth: a dispatched sub-agent (consult skill) must not have its
-  // writes git-staged into this repo. See EXTERNAL-MODEL-DISPATCH-PLAN §3.1.
-  if (process.env.SDLC_DISPATCH_ACTIVE === '1') return;
-
-  const input = await readStdinJson();
+export async function run(input) {
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
   if (config.hooks.autoStage === false) return;
@@ -36,9 +32,8 @@ async function main() {
   if (existsSync(join(projectRoot, '.ai', '.no-auto-stage'))) return;
   if (!existsSync(join(projectRoot, '.ai', 'workflows'))) return;
 
-  const filePath = input?.tool_input?.file_path;
-  if (!filePath) return;
-  if (isInsideWorkflowArtifacts(filePath)) return;
+  const filePaths = collectToolInputPaths(input).filter((p) => !isInsideWorkflowArtifacts(p));
+  if (!filePaths.length) return;
 
   const workflows = await scanWorkflowIndexes({ projectRoot });
   const hasImplementWorkflow = workflows.some((workflow) => {
@@ -49,15 +44,7 @@ async function main() {
   });
   if (!hasImplementWorkflow) return;
 
-  await gitAdd(projectRoot, filePath);
+  for (const filePath of filePaths) await gitAdd(projectRoot, filePath);
 }
 
-main().catch(async (err) => {
-  try {
-    await logError('post-write-auto-stage', err);
-  } catch {
-    // ignore logging failures
-  }
-}).finally(() => {
-  process.exit(0);
-});
+if (isEntry('post-write-auto-stage')) runStandalone('post-write-auto-stage', run);

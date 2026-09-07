@@ -62,6 +62,8 @@ const HOOK_ENTRIES = [
   'post-write-auto-stage',  // PostToolUse
   'post-write-verify',      // PostToolUse
   'post-write-render',      // PostToolUse (inlines render-on-artifact-write)
+  'pre-tool-use-all',       // PreToolUse — ONE process: validate → leak guards (WIDE-VIEW §14.2.6)
+  'post-tool-use-all',      // PostToolUse — ONE process: auto-stage → verify → render enqueue
   'cost-ledger',            // Stop — exact cost ledger, appends .ai/workflows/<slug>/cost.jsonl (WIDE-VIEW-REPAIR-PLAN §10); both hosts
 ];
 const SCRIPT_ENTRIES = [

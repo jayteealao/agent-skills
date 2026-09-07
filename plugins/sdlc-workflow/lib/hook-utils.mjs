@@ -16,8 +16,30 @@ export function projectRootFromInput(input = {}) {
   return resolveProjectRoot(input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
 }
 
+// A host parses hook stdout as ONE JSON object. Between beginSystemMessages()
+// and flushSystemMessages() every message is collected and written as a single
+// line at the end (lib/hook-runner.mjs); outside that window each call writes
+// its own line, as before.
+let systemMessageBuffer = null;
+
+export function beginSystemMessages() {
+  systemMessageBuffer = [];
+}
+
 export function outputSystemMessage(message) {
+  if (systemMessageBuffer) {
+    systemMessageBuffer.push(message);
+    return;
+  }
   process.stdout.write(`${JSON.stringify({ systemMessage: message })}\n`);
+}
+
+export function flushSystemMessages() {
+  if (!systemMessageBuffer) return;
+  const messages = systemMessageBuffer;
+  systemMessageBuffer = null;
+  if (!messages.length) return;
+  process.stdout.write(`${JSON.stringify({ systemMessage: messages.join('\n\n') })}\n`);
 }
 
 export function collectToolInputPaths(input = {}) {

@@ -2,54 +2,17 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
-  gitAdd,
-  isInsideWorkflowArtifacts,
-  projectRootFromInput,
-  readStdinJson
-} from "./chunk-32AEWLR6.mjs";
-import {
-  logError
-} from "./chunk-KBD6NG6A.mjs";
-import "./chunk-RCBTEB7Z.mjs";
+  run
+} from "./chunk-U3FUVLDD.mjs";
+import "./chunk-2AHSIRRU.mjs";
+import "./chunk-Z76NJHKM.mjs";
+import "./chunk-BHTZZLQM.mjs";
 import "./chunk-DOKC4AFB.mjs";
-import {
-  loadConfig
-} from "./chunk-YVM64S7E.mjs";
+import "./chunk-YVM64S7E.mjs";
+import "./chunk-RV4GKXDG.mjs";
 import "./chunk-FZ2GR6GF.mjs";
-import {
-  scanWorkflowIndexes
-} from "./chunk-4K63PVBZ.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
-
-// hooks/post-write-auto-stage.mjs
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-async function main() {
-  if (process.env.CLAUDE_PLUGIN_INSTALL === "1") return;
-  if (process.env.SDLC_DISPATCH_ACTIVE === "1") return;
-  const input = await readStdinJson();
-  const projectRoot = projectRootFromInput(input);
-  const config = await loadConfig(projectRoot);
-  if (config.hooks.autoStage === false) return;
-  if (existsSync(join(projectRoot, ".ai", ".no-auto-stage"))) return;
-  if (!existsSync(join(projectRoot, ".ai", "workflows"))) return;
-  const filePath = input?.tool_input?.file_path;
-  if (!filePath) return;
-  if (isInsideWorkflowArtifacts(filePath)) return;
-  const workflows = await scanWorkflowIndexes({ projectRoot });
-  const hasImplementWorkflow = workflows.some((workflow) => {
-    const strategy = workflow.frontmatter?.["branch-strategy"];
-    return workflow.isActive && workflow.currentStage === "implement" && (strategy === "dedicated" || strategy === "shared");
-  });
-  if (!hasImplementWorkflow) return;
-  await gitAdd(projectRoot, filePath);
-}
-main().catch(async (err) => {
-  try {
-    await logError("post-write-auto-stage", err);
-  } catch {
-  }
-}).finally(() => {
-  process.exit(0);
-});
+export {
+  run
+};

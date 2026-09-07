@@ -14,8 +14,24 @@ var execFileAsync = promisify(execFile);
 function projectRootFromInput(input = {}) {
   return resolveProjectRoot(input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
 }
+var systemMessageBuffer = null;
+function beginSystemMessages() {
+  systemMessageBuffer = [];
+}
 function outputSystemMessage(message) {
+  if (systemMessageBuffer) {
+    systemMessageBuffer.push(message);
+    return;
+  }
   process.stdout.write(`${JSON.stringify({ systemMessage: message })}
+`);
+}
+function flushSystemMessages() {
+  if (!systemMessageBuffer) return;
+  const messages = systemMessageBuffer;
+  systemMessageBuffer = null;
+  if (!messages.length) return;
+  process.stdout.write(`${JSON.stringify({ systemMessage: messages.join("\n\n") })}
 `);
 }
 function collectToolInputPaths(input = {}) {
@@ -171,7 +187,9 @@ async function readStdinJson({ emptyValue = {} } = {}) {
 
 export {
   projectRootFromInput,
+  beginSystemMessages,
   outputSystemMessage,
+  flushSystemMessages,
   collectToolInputPaths,
   normalizePathForMatch,
   resolveProjectPath,

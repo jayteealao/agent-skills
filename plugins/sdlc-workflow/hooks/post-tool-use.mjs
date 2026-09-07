@@ -9,12 +9,12 @@
 //   1. determine final touched files from the event (+ on-disk reality)
 //   2. record touched managed artifacts to the per-turn ledger (the Stop hook
 //      re-checks these — the enforcement boundary)
-//   3. VERIFY (schema/path/slug/sibling/fragment) via the bundled shared policy.
-//      On failure: relay corrective feedback (exit 2) and SKIP auto-stage + the
-//      render signal.
-//   4. AUTO-STAGE (git add of implement-stage source files) — unchanged policy.
-//   5. emit the filesystem-local DIRTY RENDER SIGNAL (enqueue + best-effort hub
-//      ensure) via the bundled render dispatcher. No inline render.
+//   3. run the folded PostToolUse bundle ONCE (WIDE-VIEW §14.2.6): auto-stage
+//      (git add of implement-stage source files), then VERIFY (schema/path/
+//      slug/sibling/fragment), then the filesystem-local DIRTY RENDER SIGNAL
+//      (enqueue + best-effort hub ensure; no inline render). A verify failure
+//      relays corrective feedback (exit 2); the render signal still fires, as
+//      it does under Claude Code.
 //
 // Every stage runs the SAME bundled runtime policy Claude runs, so the final
 // on-disk + verification outcome is identical across hosts. Exit 0 on success.
@@ -28,7 +28,6 @@ import {
   resolveLayout,
   runBundled,
   synthMultiStdin,
-  synthSingleStdin,
   touchedFromEvent,
 } from './_adapter.mjs';
 
@@ -49,32 +48,17 @@ function main() {
     try { recordTouched(layout.pluginData, event.session_id, managed); } catch { /* best-effort */ }
   }
 
-  // (3) VERIFY — block + corrective feedback on failure, skip the rest
-  const verify = runBundled(layout.runtimeRoot, 'post-write-verify', synthMultiStdin(cwd, 'PostToolUse', touched), {
+  // (3) ONE bundled process: auto-stage → verify → render enqueue. The bundle
+  // stages every touched path (file_path + edits[].file_path), skips artifacts,
+  // and checks implement stage / branch strategy itself. Exit 2 = verify blocked.
+  const result = runBundled(layout.runtimeRoot, 'post-tool-use-all', synthMultiStdin(cwd, 'PostToolUse', touched), {
     cwd,
-    timeoutMs: 12000,
+    timeoutMs: 20000,
   });
-  if (verify.status === 2) {
-    if (verify.stderr) process.stderr.write(verify.stderr);
+  if (result.status === 2) {
+    if (result.stderr) process.stderr.write(result.stderr);
     return 2;
   }
-
-  // (4) AUTO-STAGE — per touched file (the bundled policy skips artifacts +
-  // checks implement stage / branch strategy itself; always exits 0).
-  for (const path of touched) {
-    runBundled(layout.runtimeRoot, 'post-write-auto-stage', synthSingleStdin(cwd, 'PostToolUse', path), {
-      cwd,
-      timeoutMs: 5000,
-    });
-  }
-
-  // (5) DIRTY RENDER SIGNAL — enqueue the affected buckets + best-effort hub
-  // ensure (the bundled dispatcher does this and returns fast; it does NOT
-  // render inline). The hub renders off the request path.
-  runBundled(layout.runtimeRoot, 'post-write-render', synthMultiStdin(cwd, 'PostToolUse', touched), {
-    cwd,
-    timeoutMs: 6000,
-  });
 
   return 0;
 }

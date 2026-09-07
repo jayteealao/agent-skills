@@ -10,17 +10,20 @@
  *   mandatory sibling `.yaml` BLOCKS (exit 2); see enforceSiblingFragments.
  * - Silent exit 0 on success.
  * - Exit 2 + stderr when validation fails or a mandatory sibling .yaml is absent.
+ *
+ * Exports `run(input)` for the folded `post-tool-use-all` entry (WIDE-VIEW
+ * §14.2.6). A check blocks with blockToolCall() after writing its reason; the
+ * standalone entry below stays one release.
  */
 
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../lib/config.mjs';
-import { logError } from '../lib/error-log.mjs';
+import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { validateFrontmatterFile, validateSiblingYamlFile, formatValidationErrors } from '../lib/schema-validator.mjs';
 import { findUncitedLimitationClaims, findUnmarkedSuppressions, findUnownedMechanisms } from '../lib/limitation-lexicon.mjs';
-import { readStdinJson } from '../lib/stdin.mjs';
 import {
   collectToolInputPaths,
   hasFrontmatterFence,
@@ -177,7 +180,7 @@ async function enforceSiblingFragments(paths, config) {
       'If this artifact legitimately has no structured data to project, set\n' +
       '`fragment: none` in its frontmatter to opt out.\n',
     );
-    process.exit(2);
+    blockToolCall();
   }
 
   if (nudges.length) {
@@ -234,7 +237,7 @@ async function validateSiblingYamls(paths, config, schemaPath) {
   process.stderr.write('(see plugins/sdlc-workflow/tests/frontmatter.schema.json). The sunflower view\n');
   process.stderr.write('reads this file to build the rich page; a malformed shape degrades the figure.\n');
   process.stderr.write('Fix the issues above, then continue.\n');
-  process.exit(2);
+  blockToolCall();
 }
 
 // Shadow-deferral vocabulary (AC-VERIFIABILITY R7 prose-deferral lint). When a
@@ -251,7 +254,7 @@ function blockVerifyResultGate(rel, message) {
     'broken" pass mechanically impossible. Re-Edit the frontmatter to reconcile result\n' +
     'with the acceptance evidence, then continue. Opt out with hooks.verifyResultGate: false.\n',
   );
-  process.exit(2);
+  blockToolCall();
 }
 
 /**
@@ -542,19 +545,13 @@ async function enforceShipPlanAuditTriage(paths, config) {
       'the user answers, set `triage-status: awaiting-user` and `awaiting-since: <last-run>` instead; that escape\n' +
       'lasts one run. Opt out with hooks.shipPlanAuditTriageGate: false.\n',
     );
-    process.exit(2);
+    blockToolCall();
   }
 }
 
 const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
-async function main() {
-  if (process.env.CLAUDE_PLUGIN_INSTALL === '1') return;
-  // Defense-in-depth: a dispatched sub-agent (consult skill) must not have its
-  // writes schema-verified as SDLC artifacts. See EXTERNAL-MODEL-DISPATCH-PLAN §3.1.
-  if (process.env.SDLC_DISPATCH_ACTIVE === '1') return;
-
-  const input = await readStdinJson();
+export async function run(input) {
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
   if (config.hooks.verifyOnWrite === false) return;
@@ -617,14 +614,7 @@ async function main() {
   process.stderr.write('The file was written but does not conform to the sdlc/v1 schema\n');
   process.stderr.write('(see plugins/sdlc-workflow/tests/frontmatter.schema.json).\n');
   process.stderr.write('Re-Edit the frontmatter to fix the issues above, then continue.\n');
-  process.exit(2);
+  blockToolCall();
 }
 
-main().catch(async (err) => {
-  try {
-    await logError('post-write-verify', err);
-  } catch {
-    // ignore logging failures
-  }
-  process.exit(0);
-});
+if (isEntry('post-write-verify')) runStandalone('post-write-verify', run);

@@ -11,12 +11,12 @@
  *
  * Default OFF (`semantic.enabled: false`); advisory-first (`semantic.mode`).
  * Never fires inside external-model dispatch (SDLC_DISPATCH_ACTIVE).
+ * Exports `run(input)` for the folded `pre-tool-use-all` entry (WIDE-VIEW §14.2.6).
  */
 
 import { loadConfig } from '../lib/config.mjs';
 import { buildLexicon, scanText, formatFindings } from '../lib/leak-lexicon.mjs';
-import { logError } from '../lib/error-log.mjs';
-import { readStdinJson } from '../lib/stdin.mjs';
+import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import { normalizePathForMatch, outputSystemMessage, projectRootFromInput } from '../lib/hook-utils.mjs';
 
 export function isPublicDocPath(filePath, roots) {
@@ -33,11 +33,7 @@ export function isPublicDocPath(filePath, roots) {
   return false;
 }
 
-async function main() {
-  if (process.env.CLAUDE_PLUGIN_INSTALL === '1') return;
-  if (process.env.SDLC_DISPATCH_ACTIVE === '1') return;
-
-  const input = await readStdinJson();
+export async function run(input) {
   const filePath = input?.tool_input?.file_path;
   // Write carries full content; Edit carries the replacement text; MultiEdit
   // carries an edits[] array of replacements — scan them all.
@@ -69,12 +65,9 @@ async function main() {
 
   if (config.semantic?.mode === 'enforce') {
     console.error(message);
-    process.exit(2);
+    blockToolCall();
   }
   outputSystemMessage(message);
 }
 
-main().catch((err) => {
-  logError('leak-guard-write', err);
-  process.exit(0); // advisory infrastructure must never break the tool call
-});
+if (isEntry('leak-guard-write')) runStandalone('leak-guard-write', run);

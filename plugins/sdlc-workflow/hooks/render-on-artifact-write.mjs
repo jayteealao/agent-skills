@@ -14,6 +14,10 @@
  *   - CLAUDE_PLUGIN_INSTALL=1 in env → no-op (bulk extraction is noisy)
  *   - .ai/_view/.render-suppress exists → no-op (per-project pause)
  *   - touched path is inside .ai/_view/ → no-op (avoid render→write loops)
+ *
+ * Exports `run(input)` for the folded `post-tool-use-all` entry (WIDE-VIEW
+ * §14.2.6); the standalone entries (this file, post-write-render.mjs) stay one
+ * release. The `--debounce-stage2` child mode stays here.
  */
 
 import { readFileSync, existsSync, mkdirSync, writeFileSync, statSync, appendFileSync } from 'node:fs';
@@ -21,6 +25,7 @@ import { spawn } from 'node:child_process';
 import { dirname, resolve, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnDetachedNode } from '../lib/detach.mjs';
+import { isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import { resolveEntrypoint } from '../lib/entrypoint.mjs';
 import { resolveActiveRuntimeRootSync } from '../lib/runtime-store.mjs';
 import { resolveProjectRoot } from '../lib/project-root.mjs';
@@ -31,19 +36,13 @@ import { ensureHubEnabled, spawnHubEnsure } from '../lib/ensure-hub.mjs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PLUGIN_ROOT = resolve(__dirname, '..');
+// The stage-2 debounce child must be a script that handles --debounce-stage2.
+// The folded post-tool-use-all bundle does not, so the sibling render entry
+// (hooks/ or dist/ post-write-render.mjs) is spawned instead of __filename.
+const STAGE2_ENTRY = resolve(__dirname, 'post-write-render.mjs');
 const DEBOUNCE_MS = 2000;
 // Bound how often a burst of writes re-spawns the (idempotent) hub-ensure helper.
 const ENSURE_DEBOUNCE_MS = 3000;
-
-function readInput() {
-  try {
-    const text = readFileSync(0, 'utf-8');
-    if (!text) return null;
-    return JSON.parse(text);
-  } catch { return null; }
-}
-
-function exitClean() { process.exit(0); }
 
 function shouldSkipForPath(touchedAbs, viewRoot) {
   if (!touchedAbs) return true;
@@ -140,28 +139,20 @@ function readViewConfig(projectRoot) {
 // defers to bootstrap, exactly as before): touch-file debounce, then a detached
 // render-sunflower. `buckets` are incremental-kind bucket names.
 function legacyInlineDispatch(cwd, viewRoot, buckets) {
-  if (!buckets.length) exitClean();
+  if (!buckets.length) return;
   mkdirSync(viewRoot, { recursive: true });
   const touchFile = join(viewRoot, '.render-pending');
   const now = Date.now();
   writeFileSync(touchFile, String(now), 'utf-8');
   spawnDetachedNode(
-    __filename,
+    STAGE2_ENTRY,
     ['--debounce-stage2', String(now), buckets.join(',')],
     { cwd, env: { ...process.env, SDLC_DEBOUNCE_ORIGIN_TS: String(now) } },
   );
-  exitClean();
 }
 
-async function main() {
-  // Bulk-install suppression
-  if (process.env.CLAUDE_PLUGIN_INSTALL === '1') exitClean();
-  // Defense-in-depth: a dispatched sub-agent (consult skill) must not trigger
-  // view renders in this repo. See EXTERNAL-MODEL-DISPATCH-PLAN §3.1.
-  if (process.env.SDLC_DISPATCH_ACTIVE === '1') exitClean();
-
-  const input = readInput();
-  if (!input) exitClean();
+export async function run(input) {
+  if (!input || typeof input !== 'object') return;
 
   // input.cwd is the SESSION's working directory — it can sit in a repo
   // subfolder (an agent cd'd into a data dir or even a workflow slug dir).
@@ -170,14 +161,14 @@ async function main() {
   const cwd = resolveProjectRoot(input.cwd ?? process.cwd());
   const viewRoot = resolve(cwd, '.ai/_view');
   const suppressFile = join(viewRoot, '.render-suppress');
-  if (existsSync(suppressFile)) exitClean();
+  if (existsSync(suppressFile)) return;
 
   const touchedPaths = pickArtifactPaths(input);
-  if (!touchedPaths.length) exitClean();
+  if (!touchedPaths.length) return;
 
   // All paths inside view tree? skip
   const relevant = touchedPaths.filter((p) => !shouldSkipForPath(resolve(cwd, p), viewRoot));
-  if (!relevant.length) exitClean();
+  if (!relevant.length) return;
 
   // Classify each touched path into a render bucket (+ kind), grouped by bucket.
   // detectRenderBucket assigns kind 1:1 with the bucket, so the bucket name is a
@@ -189,7 +180,7 @@ async function main() {
     if (!byBucket.has(d.bucket)) byBucket.set(d.bucket, { kind: d.kind, bucket: d.bucket, paths: [] });
     byBucket.get(d.bucket).paths.push(p);
   }
-  if (!byBucket.size) exitClean();
+  if (!byBucket.size) return;
 
   const view = readViewConfig(cwd);
   const dispatch = view.renderDispatch ?? 'hub';
@@ -198,7 +189,7 @@ async function main() {
   // only; off-pipeline defers to bootstrap, exactly as before.
   if (dispatch === 'inline') {
     const incremental = [...byBucket.values()].filter((b) => b.kind === 'incremental').map((b) => b.bucket);
-    legacyInlineDispatch(cwd, viewRoot, incremental);   // exits (already unique by bucket)
+    legacyInlineDispatch(cwd, viewRoot, incremental);   // spawns the stage-2 child (already unique by bucket)
     return;
   }
 
@@ -220,8 +211,6 @@ async function main() {
   // Off the critical path: ensure the hub is up + register this repo + record
   // status, so the queued change renders (now, or at the hub's startup catch-up).
   ensureHubBestEffort(cwd, viewRoot, view);
-
-  exitClean();
 }
 
 async function debounceStage2() {
@@ -281,6 +270,6 @@ async function debounceStage2() {
 
 if (process.argv[2] === '--debounce-stage2') {
   debounceStage2().catch(() => process.exit(0));
-} else {
-  main().catch(() => process.exit(0));
+} else if (isEntry('render-on-artifact-write', 'post-write-render')) {
+  runStandalone('post-write-render', run);
 }
