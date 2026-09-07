@@ -14,10 +14,10 @@ import {
   restartHub,
   stopHubAction,
   togglePerRepoServe
-} from "./chunk-CIH4KD2Y.mjs";
-import "./chunk-QHN3RP4E.mjs";
-import "./chunk-MKMDFMEG.mjs";
-import "./chunk-N7IAPX7N.mjs";
+} from "./chunk-S5ZRIQJC.mjs";
+import "./chunk-QND3D6B6.mjs";
+import "./chunk-KIZZEX5M.mjs";
+import "./chunk-W6LOWUXC.mjs";
 import {
   clearTrayHeartbeat,
   writeTrayHeartbeat
@@ -378,6 +378,17 @@ function shortHash(h) {
 }
 function formatHealth(result = {}, now = Date.now()) {
   const { reachable = false, payload = null, pluginVersion = "" } = result;
+  if (!reachable && result.portHeld && Number.isInteger(result.portHeld.port)) {
+    const { port, pid } = result.portHeld;
+    const who = Number.isInteger(pid) ? ` (pid ${pid})` : "";
+    return {
+      iconState: "down",
+      tooltip: `SDLC hub \u2014 another process holds port ${port}${who}`,
+      summary: `\u25CF port ${port} held by another process${who}`,
+      detailRows: [{ label: "Status", value: `another process holds port ${port}${who}` }],
+      repoItems: []
+    };
+  }
   if (!reachable || !payload || typeof payload !== "object") {
     return {
       iconState: "down",

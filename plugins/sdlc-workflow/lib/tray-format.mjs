@@ -76,6 +76,19 @@ function shortHash(h) {
 export function formatHealth(result = {}, now = Date.now()) {
   const { reachable = false, payload = null, pluginVersion = '' } = result;
 
+  // ── port-held (W11.4): no hub answer, but another process accepts TCP there ──
+  if (!reachable && result.portHeld && Number.isInteger(result.portHeld.port)) {
+    const { port, pid } = result.portHeld;
+    const who = Number.isInteger(pid) ? ` (pid ${pid})` : '';
+    return {
+      iconState: 'down',
+      tooltip: `SDLC hub — another process holds port ${port}${who}`,
+      summary: `● port ${port} held by another process${who}`,
+      detailRows: [{ label: 'Status', value: `another process holds port ${port}${who}` }],
+      repoItems: [],
+    };
+  }
+
   // ── down: probe failed / non-200 / parse error ──
   if (!reachable || !payload || typeof payload !== 'object') {
     return {

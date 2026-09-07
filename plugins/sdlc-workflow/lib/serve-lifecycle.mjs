@@ -7,6 +7,7 @@ import { maybeConfigureTailscale, tailscaleDnsName } from './tailscale.mjs';
 import { hubPidPath } from './registry.mjs';
 import { readHubConfig } from './hub-config.mjs';
 import { runtimeIdentity } from './runtime-manifest.mjs';
+import { HUB_DEFAULT_PORT } from './hub-config.mjs';
 
 // Shared runtime identity (NATIVE-INTEROP Workstream B). The per-repo fallback
 // daemon reports its runtimeVersion in /__sdlc/health; a running daemon on a
@@ -34,7 +35,7 @@ export async function ensureServeLifecycle({
   // not read here anymore.)
   const hubCfg = readHubConfig({ create: false });
   const host = hubCfg.host ?? '127.0.0.1';
-  const port = Number(hubCfg.port ?? 4173);
+  const port = Number(hubCfg.port ?? HUB_DEFAULT_PORT);
   const tailscale = hubCfg.tailscale ?? {};
   const liveReload = hubCfg.liveReload !== false;
   const pidPath = servePidPath(projectRoot);

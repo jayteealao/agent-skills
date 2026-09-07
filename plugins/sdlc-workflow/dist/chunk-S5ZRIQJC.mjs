@@ -3,12 +3,17 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   ensureHubLifecycle,
   stopHub
-} from "./chunk-QHN3RP4E.mjs";
+} from "./chunk-QND3D6B6.mjs";
 import {
+  portHeld,
+  portOwner
+} from "./chunk-KIZZEX5M.mjs";
+import {
+  HUB_DEFAULT_PORT,
   hubConfigPath,
   readHubConfig,
   writeHubConfig
-} from "./chunk-MKMDFMEG.mjs";
+} from "./chunk-W6LOWUXC.mjs";
 import {
   hubPidPath,
   readPidFile,
@@ -26,9 +31,9 @@ async function hubEndpoint() {
     const host = rec.host && rec.host !== "0.0.0.0" ? rec.host : "127.0.0.1";
     return { host, port: Number(rec.port), token: rec.token ?? "", pid: rec.pid ?? null };
   }
-  let port = 4173;
+  let port = HUB_DEFAULT_PORT;
   try {
-    port = Number(readHubConfig({ create: false }).port) || 4173;
+    port = Number(readHubConfig({ create: false }).port) || HUB_DEFAULT_PORT;
   } catch {
   }
   return { host: "127.0.0.1", port, token: "", pid: null };
@@ -40,7 +45,11 @@ async function readToken() {
 async function getHealth({ timeoutMs = 1200 } = {}) {
   const endpoint = await hubEndpoint();
   const probe = await httpGetJson({ host: endpoint.host, port: endpoint.port, path: "/__sdlc/health", timeoutMs });
-  return { reachable: probe.ok, payload: probe.json, endpoint };
+  let held = null;
+  if (!probe.ok && await portHeld({ host: endpoint.host, port: endpoint.port })) {
+    held = { port: endpoint.port, pid: portOwner(endpoint.port)?.pid ?? null };
+  }
+  return { reachable: probe.ok, payload: probe.json, endpoint, portHeld: held };
 }
 async function refreshRegistry({ timeoutMs = 1500 } = {}) {
   const endpoint = await hubEndpoint();

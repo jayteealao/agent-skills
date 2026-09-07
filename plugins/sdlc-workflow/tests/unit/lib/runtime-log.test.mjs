@@ -135,13 +135,38 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function probe(port) {
   try { const r = await fetch(`http://127.0.0.1:${port}/__sdlc/health`); return r.ok ? await r.json() : null; } catch { return null; }
 }
-async function probeUntil(port, pred, tries = 40) {
+// 120 × 150 ms = 18 s: under the full suite the store materialization and the
+// hub start share the machine with a dozen other test files.
+async function probeUntil(port, pred, tries = 120) {
   for (let i = 0; i < tries; i++) { const h = await probe(port); if (pred(h)) return h; await sleep(150); }
   return null;
 }
 
+// A port nothing holds right now. A fixed port can meet a zombie hub from an
+// earlier aborted run (its pid file died with that run's sandbox), which the
+// fresh sandbox would reap as "untracked" and so report a reap, not `fresh`.
+async function freePort() {
+  const { createServer } = await import('node:net');
+  return new Promise((resolve) => {
+    const srv = createServer();
+    srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => resolve(port)); });
+  });
+}
+
+// Stop the sandbox hub by the pid its OWN health reports (the pid file may still
+// carry the Windows launcher's pid before the hub binds), then wait for the port.
+async function stopSandboxHub(port) {
+  try { await stopHub({ log: () => {} }); } catch { /* ignore */ }
+  for (let i = 0; i < 20; i++) {
+    const h = await probe(port);
+    if (!h) return;
+    if (Number.isInteger(h.pid)) { try { process.kill(h.pid); } catch { /* gone */ } }
+    await sleep(250);
+  }
+}
+
 test('live: a real hub start leaves a lifecycle line, a hub.log line, and history.restarts 0; the next call adopts', async () => {
-  const PORT = 41987;
+  const PORT = await freePort();
   const home = tmp('sdlc-runtime-log-live-');
   const prevHome = process.env.SDLC_HOME;
   process.env.SDLC_HOME = home;
@@ -163,13 +188,13 @@ test('live: a real hub start leaves a lifecycle line, a hub.log line, and histor
 
     // The hub's own log exists and names the bind.
     await probeUntil(PORT, () => existsSync(hubLogPath(home)), 20);
-    assert.match(readFileSync(hubLogPath(home), 'utf-8'), /\[hub\] listening on http:\/\/127\.0\.0\.1:41987 \(start #1, reason: fresh/);
+    assert.match(readFileSync(hubLogPath(home), 'utf-8'), new RegExp(`\\[hub\\] listening on http://127\\.0\\.0\\.1:${PORT} \\(start #1, reason: fresh`));
 
     const again = await ensureHubLifecycle({ pluginRoot, log: () => {} });
     assert.equal(again.action, 'already-running');
     assert.ok(readLifecycleLog(home).some((r) => r.event === 'adopt'), 'the second call writes adopt');
   } finally {
-    try { await stopHub({ log: () => {} }); } catch { /* ignore */ }
+    await stopSandboxHub(PORT);
     await sleep(300);
     if (prevHome === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = prevHome;
     try { rmSync(home, { recursive: true, force: true }); } catch { /* a handle may linger on Windows */ }

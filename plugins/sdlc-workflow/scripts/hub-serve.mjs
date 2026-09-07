@@ -44,6 +44,7 @@ import { createRenderQueueDrainer, countPending, enqueue as enqueueRenderJob } f
 import { renderHubLanding } from '../renderers/hub-dashboard.mjs';
 import { renderCodeBrowserPage } from '../renderers/_code-browser-page.mjs';
 import { hubLogLine, readHubHistory, recordHubStart } from '../lib/runtime-log.mjs';
+import { HUB_DEFAULT_PORT } from '../lib/hub-config.mjs';
 
 // Shared runtime identity (NATIVE-INTEROP Workstream B): the host-neutral
 // { runtimeVersion, buildId, hubName, hubProtocolVersion } both plugins carry
@@ -122,7 +123,7 @@ const RELOAD_DEBOUNCE_MS = 500;
 export function parseHubArgs(argv) {
   const args = {
     host: '127.0.0.1',
-    port: 4173,
+    port: HUB_DEFAULT_PORT,
     pidFile: null,
     configHash: '',
     liveReload: true,
@@ -160,7 +161,7 @@ export function parseHubArgs(argv) {
 
 export function createHubServer({
   host = '127.0.0.1',
-  port = 4173,
+  port = HUB_DEFAULT_PORT,
   token = '',
   configHash = '',
   liveReload = true,
@@ -933,6 +934,16 @@ async function main() {
     staleRender: staleRenderConfigFromEnv(),
   });
 
+  // W11.4: a port another process holds is a reason in hub.log and exit code 2,
+  // not an uncaught exception. The supervisor reads exit 2 as port-held.
+  server.on('error', (err) => {
+    if (err?.code === 'EADDRINUSE') {
+      logHub(`port ${args.port} is held by another process (EADDRINUSE); exiting 2`);
+      process.exit(2);
+    }
+    logHub(`server error ${err?.code ?? ''} ${err?.message ?? err}; exiting 1`);
+    process.exit(1);
+  });
   server.listen(args.port, args.host, async () => {
     const address = server.address();
     const boundPort = typeof address === 'object' && address ? address.port : args.port;

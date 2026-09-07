@@ -505,7 +505,8 @@ test('registry: pruneRegistry keeps a registered-but-unrendered repo that has qu
 test('hub-config: created with defaults on first read; never shares per-repo fields', () => {
   setHome();
   const cfg = readHubConfig();
-  equal(cfg.port, 4173, 'default canonical port');
+  equal(cfg.port, HUB_CONFIG_DEFAULTS.port, 'default canonical port (48173 since W11.4)');
+  equal(HUB_CONFIG_DEFAULTS.port, 48173);
   equal(cfg.maxSseClients, 200);
   equal(cfg.tailscale.acknowledgedPublic, false, 'public exposure off by default');
   ok(existsSync(hubConfigPath()), 'file created on first read');

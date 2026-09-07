@@ -22,7 +22,7 @@ docs/site/
 
 ## Serving
 
-The hub daemon serves this tree at `http://127.0.0.1:4173/docs/`. It also works from
+The hub daemon serves this tree at `http://127.0.0.1:48173/docs/`. It also works from
 any static file server. Over bare `file://` the fetched sidebar is unavailable
 (browsers block fetch); pages fall back to a "Contents" link — use a server for the
 full experience.

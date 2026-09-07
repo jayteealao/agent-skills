@@ -8,6 +8,7 @@ import {
 } from "./chunk-IOYXLHW6.mjs";
 import "./chunk-4WRIEOIP.mjs";
 import {
+  HUB_DEFAULT_PORT,
   codeBrowserConfigFromEnv,
   createHealController,
   normalizeCodeBrowserConfig,
@@ -15,7 +16,8 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-N7IAPX7N.mjs";
+} from "./chunk-W6LOWUXC.mjs";
+import "./chunk-AIBXAMBJ.mjs";
 import "./chunk-FVH7UCVI.mjs";
 import {
   readRenderedIdentity,
@@ -26,6 +28,7 @@ import "./chunk-KRRL2TSM.mjs";
 import {
   resolveProjectRoot
 } from "./chunk-DOKC4AFB.mjs";
+import "./chunk-YVM64S7E.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import {
   createRenderQueueDrainer,
@@ -77,7 +80,7 @@ function parseServeArgs(argv) {
   const args = {
     view: ".ai/_view",
     host: "127.0.0.1",
-    port: 4173,
+    port: HUB_DEFAULT_PORT,
     pidFile: null,
     // null = no explicit --project-root; main() climbs from cwd to the project
     // root so a daemon launched from a repo subfolder can't mint a stray

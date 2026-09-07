@@ -16,24 +16,31 @@ import { dirname, join } from 'node:path';
 
 import { deepMerge, configHash } from './config.mjs';
 import { sdlcHomeDir } from './registry.mjs';
+import { logLifecycle } from './runtime-log.mjs';
 import { CODE_BROWSER_DEFAULTS } from './code-browser.mjs';
 import { STALE_RENDER_DEFAULTS } from './heal-render.mjs';
 
 export const HUB_CONFIG_VERSION = 1;
 
+// The hub's port. 4173 was Vite's preview default, so a `vite preview` in any
+// repo squatted the hub (WIDE-VIEW-REPAIR-PLAN §14.2.4). A config that still
+// carries the old default is rewritten once on read (see migrateHubConfig).
+export const HUB_DEFAULT_PORT = 48173;
+export const LEGACY_DEFAULT_PORT = 4173;
+
 export const HUB_CONFIG_DEFAULTS = Object.freeze({
   version: HUB_CONFIG_VERSION,
   host: '127.0.0.1',
   // The canonical SDLC URL in both single-repo and hub modes (Q4 resolved). The
-  // per-repo daemon falls back to 4174 only when forced alongside a live hub.
-  port: 4173,
+  // per-repo daemon falls back to port+1 only when forced alongside a live hub.
+  port: HUB_DEFAULT_PORT,
   // Machine-wide authority over per-repo daemons. Per-repo serving is OPT-IN:
   // a daemon runs ONLY when this is explicitly `true`. At any other value
   // (`false`, or absent) ensureServeLifecycle reaps any running per-repo daemon
   // and never spawns one — overriding even a repo's force `view.serve.enabled:true`.
   // The hub serves every repo at /r/<id>/, so a per-repo daemon is pure
   // redundancy whenever the hub runs, and the only thing that can squat the hub's
-  // port (a pre-hub daemon on 4173 = the inbox disappears behind one repo's
+  // port (a pre-hub daemon on the hub port = the inbox disappears behind one repo's
   // dashboard). Default `false` makes the hub the sole server on this machine;
   // set `true` to allow the standalone per-repo fallback daemon.
   perRepoServe: false,
@@ -90,6 +97,23 @@ function migrate(raw) {
   return merged;
 }
 
+/**
+ * Pure: the W11.4 port migration. A config whose `port` is the legacy default
+ * and that carries no `portMigratedFrom` marker moves to HUB_DEFAULT_PORT and
+ * gets the marker, so an operator who later sets 4173 on purpose is respected.
+ * @returns {{ config: object, changes: Array<{key:string, from:*, to:*}> }}
+ */
+export function migrateHubConfig(raw) {
+  const config = migrate(raw);
+  const changes = [];
+  if (Number(config.port) === LEGACY_DEFAULT_PORT && config.portMigratedFrom === undefined) {
+    changes.push({ key: 'port', from: LEGACY_DEFAULT_PORT, to: HUB_DEFAULT_PORT });
+    config.port = HUB_DEFAULT_PORT;
+    config.portMigratedFrom = LEGACY_DEFAULT_PORT;
+  }
+  return { config, changes };
+}
+
 function writeAtomic(path, obj) {
   mkdirSync(dirname(path), { recursive: true });
   const tmp = `${path}.${process.pid}.tmp`;
@@ -111,7 +135,16 @@ export function readHubConfig({ create = true } = {}) {
     return structuredClone(HUB_CONFIG_DEFAULTS);
   }
   try {
-    return migrate(JSON.parse(readFileSync(path, 'utf-8')));
+    const { config, changes } = migrateHubConfig(JSON.parse(readFileSync(path, 'utf-8')));
+    if (changes.length) {
+      // One-line rewrite + one lifecycle line (W11.4). Best-effort: a read
+      // never fails because the rewrite could not land.
+      try { writeAtomic(path, config); } catch { /* read-only home */ }
+      for (const c of changes) {
+        try { logLifecycle({ event: `${c.key}-migrated`, reason: `${c.key} ${c.from} → ${c.to} (hub-config.json rewritten)` }); } catch { /* never block */ }
+      }
+    }
+    return config;
   } catch {
     return structuredClone(HUB_CONFIG_DEFAULTS);
   }

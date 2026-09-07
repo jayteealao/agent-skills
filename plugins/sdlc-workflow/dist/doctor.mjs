@@ -2,9 +2,13 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  portOwner
+} from "./chunk-KIZZEX5M.mjs";
+import {
+  HUB_DEFAULT_PORT,
   readHubConfig
-} from "./chunk-MKMDFMEG.mjs";
-import "./chunk-N7IAPX7N.mjs";
+} from "./chunk-W6LOWUXC.mjs";
+import "./chunk-AIBXAMBJ.mjs";
 import {
   readActiveRuntime,
   runtimeStoreDir
@@ -161,28 +165,6 @@ function hubHealth({ host = "127.0.0.1", port, timeoutMs = 1200 } = {}) {
     req.end();
   });
 }
-function parseNetstatListeners(text) {
-  const out = [];
-  for (const line of String(text ?? "").split(/\r?\n/)) {
-    const m = /^\s*(TCP|UDP)\s+(\S+?):(\d+)\s+\S+\s+LISTENING\s+(\d+)\s*$/.exec(line);
-    if (m) out.push({ proto: m[1], local: m[2], port: Number(m[3]), pid: Number(m[4]) });
-  }
-  return out;
-}
-function portOwner(port, { platform = process.platform, exec = spawnSync } = {}) {
-  try {
-    if (platform === "win32") {
-      const r2 = exec("netstat", ["-ano", "-p", "TCP"], { encoding: "utf-8", windowsHide: true, timeout: 1e4 });
-      const row = parseNetstatListeners(r2.stdout).find((x) => x.port === Number(port));
-      return row ? { pid: row.pid, source: "netstat" } : null;
-    }
-    const r = exec("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"], { encoding: "utf-8", timeout: 1e4 });
-    const pid = Number(String(r.stdout ?? "").trim().split(/\s+/)[0]);
-    return Number.isInteger(pid) && pid > 0 ? { pid, source: "lsof" } : null;
-  } catch {
-    return null;
-  }
-}
 function dirBytes(dir) {
   let total = 0;
   const stack = [dir];
@@ -257,11 +239,11 @@ async function runDoctor({
     try {
       cfg = readHubConfig({ create: false });
     } catch {
-      cfg = { host: "127.0.0.1", port: 4173, tailscale: { enabled: false } };
+      cfg = { host: "127.0.0.1", port: HUB_DEFAULT_PORT, tailscale: { enabled: false } };
     }
   }
   const host = cfg.host ?? "127.0.0.1";
-  const port = cfg.port ?? 4173;
+  const port = cfg.port ?? HUB_DEFAULT_PORT;
   const health = probeHub ? await hubHealth({ host, port }) : { reachable: false, status: "skipped" };
   const owner = portOwner(port, { platform, exec });
   let active = null;

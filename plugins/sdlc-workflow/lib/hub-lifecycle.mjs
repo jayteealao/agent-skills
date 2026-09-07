@@ -15,9 +15,10 @@ import { spawnDetachedNode } from './detach.mjs';
 import { resolveEntrypoint } from './entrypoint.mjs';
 import { isPidAlive, pidFileStatus, removePidFile, writePidFile } from './pid-file.mjs';
 import { hubPidPath, sdlcHomeDir } from './registry.mjs';
-import { readHubConfig, hubConfigHash } from './hub-config.mjs';
+import { readHubConfig, hubConfigHash, HUB_DEFAULT_PORT } from './hub-config.mjs';
 import { maybeConfigureTailscale, tailscaleDnsName } from './tailscale.mjs';
 import { logLifecycle } from './runtime-log.mjs';
+import { portHeld, portOwner } from './port-owner.mjs';
 import { runtimeIdentity } from './runtime-manifest.mjs';
 import { withLock, LockTimeoutError, atomicWriteJson } from './cross-host-lock.mjs';
 import { gcRuntimes, materializeRuntime, readRuntimeIdentityAt, verifyRuntimeStore, writeActiveRuntime } from './runtime-store.mjs';
@@ -123,7 +124,7 @@ function lifecycle(event, extra = {}) {
 export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
   const cfg = readHubConfig();   // reads/creates ~/.sdlc/hub-config.json
   const host = cfg.host ?? '127.0.0.1';
-  const port = Number(cfg.port ?? 4173);
+  const port = Number(cfg.port ?? HUB_DEFAULT_PORT);
   const pidPath = hubPidPath();
 
   if (host === '0.0.0.0' && !(cfg.tailscale?.enabled === true && cfg.tailscale?.acknowledgedPublic === true)) {
@@ -172,6 +173,15 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
         log(`[hub] protocol-incompatible hub running (proto ${id.hubProtocolVersion ?? '?'} vs ${RUNTIME.hubProtocolVersion}); leaving it — explicit upgrade required`);
         lifecycle('protocol-incompatible', { pid: id.pid, reason: `proto ${id.hubProtocolVersion ?? '?'} vs ${RUNTIME.hubProtocolVersion}` });
         return { action: 'protocol-incompatible', pid: id.pid, hubProtocolVersion: id.hubProtocolVersion ?? null };
+      }
+
+      // W11.4: nothing answered as a hub, but something accepts TCP on the port —
+      // a foreign process. Spawning would only die on EADDRINUSE; report instead.
+      if (!id && await portHeld({ host, port })) {
+        const owner = portOwner(port);
+        log(`[hub] another process holds port ${port}${owner ? ` (pid ${owner.pid})` : ''}; not spawning`);
+        lifecycle('port-held', { pid: owner?.pid ?? null, reason: `another process holds port ${port}` });
+        return { action: 'port-held', port, pid: owner?.pid ?? null };
       }
 
       let startReason = 'fresh';
@@ -367,7 +377,7 @@ export function upgradeDecision({ requested, prev, aliveSameBuild, allowDowngrad
 export async function controlledUpgrade({ pluginRoot, allowDowngrade = false, confirm = false, log = () => {} } = {}) {
   const cfg = readHubConfig();
   const host = cfg.host ?? '127.0.0.1';
-  const port = Number(cfg.port ?? 4173);
+  const port = Number(cfg.port ?? HUB_DEFAULT_PORT);
   const pidPath = hubPidPath();
 
   const requested = readRuntimeIdentityAt(pluginRoot) ?? RUNTIME;

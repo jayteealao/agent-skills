@@ -144,7 +144,7 @@ test('runDoctor on a fixture home: install gap → not ok; equal versions → ok
   const { home, codex, sdlc } = fixtureHome();
   try {
     const exec = () => ({ stdout: '', status: 1, stderr: 'not installed' });
-    const common = { pluginRoot, homeDir: home, codexHome: codex, sdlcHome: sdlc, hubConfig: { host: '127.0.0.1', port: 1, tailscale: { enabled: false } }, exec, platform: 'linux', probeHub: false, tmpDir: tmpdir() };
+    const common = { pluginRoot, homeDir: home, codexHome: codex, sdlcHome: sdlc, hubConfig: { host: '127.0.0.1', port: 1, tailscale: { enabled: false } }, exec, platform: 'linux', probeHub: false, tmpDir: path.join(home, 'no-such-tmp') };
     const r = await runDoctor(common);
     assert.equal(r.shipped, SHIPPED);
     // 9.153.5 and 9.144.0 are both behind the shipped version unless shipped is 9.153.5.

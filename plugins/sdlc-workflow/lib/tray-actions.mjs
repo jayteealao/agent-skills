@@ -17,7 +17,8 @@ import { request } from 'node:http';
 import { join } from 'node:path';
 
 import { ensureHubLifecycle, stopHub } from './hub-lifecycle.mjs';
-import { readHubConfig, writeHubConfig, hubConfigPath } from './hub-config.mjs';
+import { readHubConfig, writeHubConfig, hubConfigPath, HUB_DEFAULT_PORT } from './hub-config.mjs';
+import { portHeld, portOwner } from './port-owner.mjs';
 import { readPidFile } from './pid-file.mjs';
 import { hubPidPath, sdlcHomeDir } from './registry.mjs';
 
@@ -25,7 +26,7 @@ import { hubPidPath, sdlcHomeDir } from './registry.mjs';
 
 /**
  * Resolve the hub's address + write token from ~/.sdlc/hub.pid, falling back to
- * the configured port (or 4173) at 127.0.0.1 when no pid file is present. Always
+ * the configured port (or the default) at 127.0.0.1 when no pid file is present. Always
  * probes a loopback host (a hub bound 0.0.0.0 still answers on 127.0.0.1).
  * @returns {Promise<{host:string,port:number,token:string,pid:number|null}>}
  */
@@ -35,8 +36,8 @@ export async function hubEndpoint() {
     const host = rec.host && rec.host !== '0.0.0.0' ? rec.host : '127.0.0.1';
     return { host, port: Number(rec.port), token: rec.token ?? '', pid: rec.pid ?? null };
   }
-  let port = 4173;
-  try { port = Number(readHubConfig({ create: false }).port) || 4173; } catch { /* defaults */ }
+  let port = HUB_DEFAULT_PORT;
+  try { port = Number(readHubConfig({ create: false }).port) || HUB_DEFAULT_PORT; } catch { /* defaults */ }
   return { host: '127.0.0.1', port, token: '', pid: null };
 }
 
@@ -55,7 +56,12 @@ export async function readToken() {
 export async function getHealth({ timeoutMs = 1200 } = {}) {
   const endpoint = await hubEndpoint();
   const probe = await httpGetJson({ host: endpoint.host, port: endpoint.port, path: '/__sdlc/health', timeoutMs });
-  return { reachable: probe.ok, payload: probe.json, endpoint };
+  // W11.4: no hub answer, but the port accepts TCP → another process holds it.
+  let held = null;
+  if (!probe.ok && await portHeld({ host: endpoint.host, port: endpoint.port })) {
+    held = { port: endpoint.port, pid: portOwner(endpoint.port)?.pid ?? null };
+  }
+  return { reachable: probe.ok, payload: probe.json, endpoint, portHeld: held };
 }
 
 /** POST /__sdlc/registry/refresh with the write token. */

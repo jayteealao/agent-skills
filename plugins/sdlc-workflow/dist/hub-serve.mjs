@@ -16,13 +16,14 @@ import {
 } from "./chunk-IOYXLHW6.mjs";
 import "./chunk-4WRIEOIP.mjs";
 import {
+  HUB_DEFAULT_PORT,
   codeBrowserConfigFromEnv,
   createHealController,
   normalizeCodeBrowserConfig,
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-N7IAPX7N.mjs";
+} from "./chunk-W6LOWUXC.mjs";
 import {
   hubLogLine,
   readHubHistory,
@@ -35,6 +36,7 @@ import {
   runtimeIdentity
 } from "./chunk-EQC6XDOG.mjs";
 import "./chunk-KRRL2TSM.mjs";
+import "./chunk-YVM64S7E.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import {
   REGISTRY_FRESH_GRACE_MS,
@@ -98,7 +100,7 @@ var RELOAD_DEBOUNCE_MS = 500;
 function parseHubArgs(argv) {
   const args = {
     host: "127.0.0.1",
-    port: 4173,
+    port: HUB_DEFAULT_PORT,
     pidFile: null,
     configHash: "",
     liveReload: true,
@@ -124,7 +126,7 @@ function parseHubArgs(argv) {
 }
 function createHubServer({
   host = "127.0.0.1",
-  port = 4173,
+  port = HUB_DEFAULT_PORT,
   token = "",
   configHash = "",
   liveReload = true,
@@ -880,6 +882,14 @@ async function main() {
     token,
     codeBrowser: codeBrowserConfigFromEnv(),
     staleRender: staleRenderConfigFromEnv()
+  });
+  server.on("error", (err) => {
+    if (err?.code === "EADDRINUSE") {
+      logHub(`port ${args.port} is held by another process (EADDRINUSE); exiting 2`);
+      process.exit(2);
+    }
+    logHub(`server error ${err?.code ?? ""} ${err?.message ?? err}; exiting 1`);
+    process.exit(1);
   });
   server.listen(args.port, args.host, async () => {
     const address = server.address();

@@ -28,6 +28,7 @@ import {
 } from '../lib/runtime-manifest.mjs';
 import { createRenderQueueDrainer } from '../lib/render-queue.mjs';
 import { renderCodeBrowserPage } from '../renderers/_code-browser-page.mjs';
+import { HUB_DEFAULT_PORT } from '../lib/hub-config.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -70,7 +71,7 @@ export function parseServeArgs(argv) {
   const args = {
     view: '.ai/_view',
     host: '127.0.0.1',
-    port: 4173,
+    port: HUB_DEFAULT_PORT,
     pidFile: null,
     // null = no explicit --project-root; main() climbs from cwd to the project
     // root so a daemon launched from a repo subfolder can't mint a stray

@@ -26,11 +26,12 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-QHN3RP4E.mjs";
+} from "./chunk-QND3D6B6.mjs";
+import "./chunk-KIZZEX5M.mjs";
 import {
+  HUB_DEFAULT_PORT,
   readHubConfig
-} from "./chunk-MKMDFMEG.mjs";
-import "./chunk-N7IAPX7N.mjs";
+} from "./chunk-W6LOWUXC.mjs";
 import "./chunk-AIBXAMBJ.mjs";
 import "./chunk-FVH7UCVI.mjs";
 import {
@@ -269,7 +270,7 @@ async function ensureServeLifecycle({
 } = {}) {
   const hubCfg = readHubConfig({ create: false });
   const host = hubCfg.host ?? "127.0.0.1";
-  const port = Number(hubCfg.port ?? 4173);
+  const port = Number(hubCfg.port ?? HUB_DEFAULT_PORT);
   const tailscale = hubCfg.tailscale ?? {};
   const liveReload = hubCfg.liveReload !== false;
   const pidPath = servePidPath(projectRoot);

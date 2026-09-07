@@ -24,7 +24,8 @@ import { request } from 'node:http';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { readHubConfig } from './hub-config.mjs';
+import { HUB_DEFAULT_PORT, readHubConfig } from './hub-config.mjs';
+import { portOwner } from './port-owner.mjs';
 import { ephemeralRootReason, readRegistry, sdlcHomeDir } from './registry.mjs';
 import { runtimeStoreDir, readActiveRuntime } from './runtime-store.mjs';
 
@@ -173,29 +174,9 @@ export function hubHealth({ host = '127.0.0.1', port, timeoutMs = 1200 } = {}) {
 
 /* ───────────────────────── port owner ───────────────────────── */
 
-/** Windows `netstat -ano` → LISTENING rows as { proto, local, port, pid }. */
-export function parseNetstatListeners(text) {
-  const out = [];
-  for (const line of String(text ?? '').split(/\r?\n/)) {
-    const m = /^\s*(TCP|UDP)\s+(\S+?):(\d+)\s+\S+\s+LISTENING\s+(\d+)\s*$/.exec(line);
-    if (m) out.push({ proto: m[1], local: m[2], port: Number(m[3]), pid: Number(m[4]) });
-  }
-  return out;
-}
-
-/** The pid listening on `port`, or null. `exec` is injectable for tests. */
-export function portOwner(port, { platform = process.platform, exec = spawnSync } = {}) {
-  try {
-    if (platform === 'win32') {
-      const r = exec('netstat', ['-ano', '-p', 'TCP'], { encoding: 'utf-8', windowsHide: true, timeout: 10_000 });
-      const row = parseNetstatListeners(r.stdout).find((x) => x.port === Number(port));
-      return row ? { pid: row.pid, source: 'netstat' } : null;
-    }
-    const r = exec('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'], { encoding: 'utf-8', timeout: 10_000 });
-    const pid = Number(String(r.stdout ?? '').trim().split(/\s+/)[0]);
-    return Number.isInteger(pid) && pid > 0 ? { pid, source: 'lsof' } : null;
-  } catch { return null; }
-}
+// The port question lives in lib/port-owner.mjs (the supervisor and the tray
+// ask it too); re-exported so the doctor's callers and tests keep one import.
+export { parseNetstatListeners, portOwner } from './port-owner.mjs';
 
 /* ───────────────────────── runtime store ───────────────────────── */
 
@@ -276,9 +257,9 @@ export async function runDoctor({
   const codex = codexRead.installs.map((i) => ({ ...i, verdict: versionVerdict(i.version, shipped) }));
 
   let cfg = hubConfig;
-  if (!cfg) { try { cfg = readHubConfig({ create: false }); } catch { cfg = { host: '127.0.0.1', port: 4173, tailscale: { enabled: false } }; } }
+  if (!cfg) { try { cfg = readHubConfig({ create: false }); } catch { cfg = { host: '127.0.0.1', port: HUB_DEFAULT_PORT, tailscale: { enabled: false } }; } }
   const host = cfg.host ?? '127.0.0.1';
-  const port = cfg.port ?? 4173;
+  const port = cfg.port ?? HUB_DEFAULT_PORT;
   const health = probeHub ? await hubHealth({ host, port }) : { reachable: false, status: 'skipped' };
   const owner = portOwner(port, { platform, exec });
 

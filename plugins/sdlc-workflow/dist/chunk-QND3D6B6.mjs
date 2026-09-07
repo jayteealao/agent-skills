@@ -1,9 +1,14 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  portHeld,
+  portOwner
+} from "./chunk-KIZZEX5M.mjs";
+import {
+  HUB_DEFAULT_PORT,
   hubConfigHash,
   readHubConfig
-} from "./chunk-MKMDFMEG.mjs";
+} from "./chunk-W6LOWUXC.mjs";
 import {
   logLifecycle
 } from "./chunk-AIBXAMBJ.mjs";
@@ -133,7 +138,7 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
 } } = {}) {
   const cfg = readHubConfig();
   const host = cfg.host ?? "127.0.0.1";
-  const port = Number(cfg.port ?? 4173);
+  const port = Number(cfg.port ?? HUB_DEFAULT_PORT);
   const pidPath = hubPidPath();
   if (host === "0.0.0.0" && !(cfg.tailscale?.enabled === true && cfg.tailscale?.acknowledgedPublic === true)) {
     log("[hub] refused host 0.0.0.0 without tailscale.enabled + acknowledgedPublic");
@@ -171,6 +176,12 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
         log(`[hub] protocol-incompatible hub running (proto ${id.hubProtocolVersion ?? "?"} vs ${RUNTIME.hubProtocolVersion}); leaving it \u2014 explicit upgrade required`);
         lifecycle("protocol-incompatible", { pid: id.pid, reason: `proto ${id.hubProtocolVersion ?? "?"} vs ${RUNTIME.hubProtocolVersion}` });
         return { action: "protocol-incompatible", pid: id.pid, hubProtocolVersion: id.hubProtocolVersion ?? null };
+      }
+      if (!id && await portHeld({ host, port })) {
+        const owner = portOwner(port);
+        log(`[hub] another process holds port ${port}${owner ? ` (pid ${owner.pid})` : ""}; not spawning`);
+        lifecycle("port-held", { pid: owner?.pid ?? null, reason: `another process holds port ${port}` });
+        return { action: "port-held", port, pid: owner?.pid ?? null };
       }
       let startReason = "fresh";
       if (decision.action === "reap") {
@@ -313,7 +324,7 @@ async function controlledUpgrade({ pluginRoot, allowDowngrade = false, confirm =
 } } = {}) {
   const cfg = readHubConfig();
   const host = cfg.host ?? "127.0.0.1";
-  const port = Number(cfg.port ?? 4173);
+  const port = Number(cfg.port ?? HUB_DEFAULT_PORT);
   const pidPath = hubPidPath();
   const requested = readRuntimeIdentityAt(pluginRoot) ?? RUNTIME;
   if (!requested.buildId) {

@@ -155,7 +155,7 @@ the manual-trust cost a second time. That asymmetry is why step 0 exists.
 ## 4. Field checks after cutover (W8)
 
 - A Claude Code session and a Codex session against the SAME repository adopt
-  one hub: `http://127.0.0.1:4173/__sdlc/health` reports one `runtimeVersion`
+  one hub: `http://127.0.0.1:48173/__sdlc/health` reports one `runtimeVersion`
   and `buildId` from both, and the value does not change between the two hosts'
   session starts.
 - The seed-memory notice appears once in a fresh Claude Code session and never
