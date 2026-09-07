@@ -1,7 +1,7 @@
 # Wide-View Repair Plan — prose budget, capability shield, exact cost ledger, runtime repair
 
 Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0, W1 (line budgets; word targets
-closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9 + W10 BUILT 2026-09-07**; eval baseline run
+closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10 + W11.1 BUILT 2026-09-07**; eval baseline run
 pending (§16); W6 onward in progress — see the build ledger in §17. Source: a whole-tree survey of
 `plugins/sdlc-workflow` on 2026-09-04 against v9.153.4 (`6465707f`). Another
 session carried `_shell.mjs`, `nav.html`, and the root catalog to 9.153.5 while
@@ -1080,6 +1080,21 @@ check; the render version gate bumps for the template change.
 | Unauthenticated routes that list absolute paths | 2 | 0 |
 | Per-repo config keys | 29 | 27 |
 
+Build note (2026-09-07) — W11.1 built as specified, with one correction to the
+premise. The before-record (`SINGLE-SOURCE-CUTOVER.md` §5) shows the user-scope
+Claude Code install and the Codex cache both at 9.153.5 with all seven hook
+events trusted: the cutover of §2 is done on the operator machine, and the "0
+of 2" in §14.4 was wrong when written. The one install gap is the Isometric
+project-local scope at 9.144.0, so the doctor exits 1 until the operator
+updates that scope; the plan's "2 of 2" reads every install scope as a host.
+The doctor also counted the W11.3 and W11.5 inputs on the day: 2 ephemeral
+registry roots (one `.claude/worktrees`, one scratchpad `preflight-repo`), 4
+registry entries with no slugs, 30 runtime builds at 118.8 MB (the plan said
+28), and 13 registry entries. `doctor` grades a Codex cache by its newest
+enabled version, because the cache keeps superseded versions beside the current
+one. The "after" record is the operator's, after step 6 runs in the Isometric
+repository.
+
 ## 15. Releases and order
 
 | Release | Waves | Gate before push |
@@ -1181,7 +1196,7 @@ the commit that closed the row. Every commit is local until the operator pushes.
 | W8 | Exact cost ledger: Stop hook, parsers, readers, consult triggers | built | `4b1e7dae` | `lib/cost-ledger.mjs` (incremental byte reads, host detection, Claude / Codex / pi parsers, attribution, atomic append, `aggregateCost`) + `hooks/cost-ledger.mjs` → `dist/cost-ledger.mjs` on the new Claude `Stop` event and the Codex `Stop` group via the thin `hooks/stop-cost.mjs`; `hooks.costLedger` toggle; cost tables on the slug pages (`index.mjs`, `workflow-index.mjs`), the dashboard, `/wf status` (both modes), and two evals `--compare` columns; `_consult-triggers.md` (29 recorded, exclusive names), 10 stage paragraphs name their triggers, `consult-runs` on 5 frontmatter types + schema, dispatcher `usage` + `external` rows keyed by `SDLC_COST_SLUG`; 17 new tests + 3 migrated; e2e 50 types green |
 | W9 | Surface policy file + `verify:surface` + earn rule | built | `d84bbce9` | `docs/internal/surface-policy.json` pins keys 22 · intakeModes 12 · reviewRubrics 11 · aggregates 7 · artifactStems 93 · frontmatterTypes 66 (tree counts, not the plan's estimates); `scripts/verify-surface.mjs` counts from the tree, fails over the pin, reports slack; `docs/internal/SURFACE-POLICY.md` carries the earn rule, the hold condition, and the router-extraction decision (no); `verify:surface` in package.json + CI; 5 tests |
 | W10 | README ≤ 150 lines + `verify:docs` extension | built | `19a67f29` | README rewritten to 90 lines (hosts table, install + first-workflow pointers, ten-stage sequence, 22-key table, hooks pointer, full site map, develop commands); the 11 release blockquotes and every retired name deleted; `verify-doc-site.mjs` check (h): ≤ 150 lines, no `wf-meta`/`wf-quick`/`wf-design`/`wf-docs`/"two hosts", names Claude Code + Codex + pi |
-| W11.1 | `doctor` + installed check + cutover record | open | — | |
+| W11.1 | `doctor` + installed check + cutover record | built | `3228b18f` | `lib/doctor.mjs` + `scripts/doctor.mjs` (`npm run doctor`, tray "Run doctor…", bundled to `dist/`); `verify-release-pushed.mjs` `installed` check (blocking off CI, advisory on CI, `--skip-installed`); SINGLE-SOURCE-CUTOVER.md §2 steps 0 + 7 and §5 before-record; 9 tests |
 | W11.2 | One runtime log, lifecycle log, error log routing, hex payload, restart count | open | — | |
 | W11.3 | Conditional SessionStart, registry refusals, litter deletion, comment fix | open | — | |
 | W11.4 | Port-held handling, EADDRINUSE, default port move + migration | open | — | |
