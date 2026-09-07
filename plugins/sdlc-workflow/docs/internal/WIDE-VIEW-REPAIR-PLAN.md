@@ -1,7 +1,7 @@
 # Wide-View Repair Plan — prose budget, capability shield, exact cost ledger, runtime repair
 
 Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0, W1 (line budgets; word targets
-closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10, W11.1–W11.9 (step 1) BUILT 2026-09-07**; eval baseline run
+closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10, W11.1–W11.10 (W11.9 step 1 only) BUILT 2026-09-07**; eval baseline run
 pending (§16); W6 onward in progress — see the build ledger in §17. Source: a whole-tree survey of
 `plugins/sdlc-workflow` on 2026-09-04 against v9.153.4 (`6465707f`). Another
 session carried `_shell.mjs`, `nav.html`, and the root catalog to 9.153.5 while
@@ -1211,6 +1211,21 @@ tray) is a PO call for N+1. No `retired.json` entry is written in this
 release; the keys are still present and the inventory gate would count a
 retired entry for a live key as a lie.
 
+Build note (2026-09-07) — W11.10 built with one finding the plan did not
+predict. The hub already rendered only queued views at start; what it did not
+do was consult the version gate until the first 10 s reconcile tick, so a
+stale view waited a tick and a fresh view was never rendered at start. The
+change moves the heal pass to start and adds the counts line; the "3 fresh
+repos render 0" gate holds as a unit test with an injected render spawn, not
+an e2e run (the e2e acceptance runner has no hub fixture). The heal-on-
+reconcile test in `multi-repo-hub.test.mjs` stamped its drift before the
+server started and so was healed by the new start pass before its SSE client
+connected; it is re-pointed to stamp the drift after the client connects, and
+the feat commit landed red for one run because the commit script's gate read
+the guard suite's `# fail 0`; the fix commit and the script repair are
+recorded in `d2d35c9c`. The Codex `started-unconfirmed` line goes to stderr
+because the adapter's stdout is contractually silent (codex-hooks tests).
+
 ## 15. Releases and order
 
 | Release | Waves | Gate before push |
@@ -1321,5 +1336,5 @@ the commit that closed the row. Every commit is local until the operator pushes.
 | W11.7 | Test isolation via `SDLC_HOME` + state-dir guard | built | `dd64fb31` | run-all sets a temp `SDLC_HOME` per run, records the real `~/.sdlc` fingerprint, runs `state-dir-guard.test.mjs` last; fingerprint = registry roots/shards, prune-log size, hub.pid, runtime builds, active build (not the dir mtime); red-first; full suite 960 pass + guard green, real state untouched |
 | W11.8 | Exposure defaults: basenames, code browser gate, tray hash manifest | built | `d8330cf5` | health/registry basenames + no viewDir without `x-sdlc-token`; `codeBrowser.acknowledgedTailnet` + `effectiveCodeBrowserConfig` at both spawn sites, 404 with reason, health `codeBrowser.reason`; `bin/tray/SHA256SUMS` + `verifyTrayHelper` refusal in tray.mjs; `bin/tray/README.md`; 5 tests red-first |
 | W11.9 | Dead paths: deprecate (N), delete (N+1) | step 1 built; step 2 waits for release N+1 | `60a714ab` | `lib/deprecations.mjs` (`deprecatedConfigWarnings`, `logDeprecatedConfig`); `hub-ensure --session-start` from both SessionStart spawns → one `deprecated-config` lifecycle line per setting per session; comments + 3 docs rows + CHANGELOG Deprecated; 4 tests red-first. Step 2 = R11 (delete `serve-lifecycle.mjs`, `render-sunflower-serve.mjs`, the keys; `retired.json` entries) |
-| W11.10 | Bounded catch-up render + 5 s Codex wait | open | — | |
+| W11.10 | Bounded catch-up render + 5 s Codex wait | built | `bc11c586` + `d2d35c9c` | start-up pass = heal.consider (version gate) + queue drain, rest skipped, one `catch-up:` hub.log line; `HUB_CONFIRM_TIMEOUT_MS` 5000, verdict `started-unconfirmed` + one stderr line, `SDLC_HUB_CONFIRM_TIMEOUT_MS` seam; 3 tests red-first; 1 test re-pointed (heal-on-reconcile) |
 | W11.11 | Shared `_assets` from the hub + prune-log rotation | open | — | |
