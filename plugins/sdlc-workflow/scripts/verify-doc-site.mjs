@@ -142,6 +142,22 @@ for (const f of docSources) {
   }
 }
 
+// --- (h) README is a map, not a manual (WIDE-VIEW-REPAIR-PLAN §12) -----------
+// ≤ 150 lines; names all three hosts; carries no retired surface name and no
+// "two hosts" (there are three). The site holds the detail; the README points.
+{
+  const readmePath = path.join(ROOT, 'README.md');
+  const readme = existsSync(readmePath) ? readFileSync(readmePath, 'utf8') : '';
+  const lines = readme.replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n').length;
+  if (lines > 150) errors.push(`README.md: ${lines} lines; the cap is 150 (W10) — move detail to the site and link it`);
+  for (const forbidden of ['wf-meta', 'wf-quick', 'wf-design', 'wf-docs', 'two hosts']) {
+    if (readme.includes(forbidden)) errors.push(`README.md: names the retired surface or stale phrase "${forbidden}"`);
+  }
+  for (const [host, re] of [['Claude Code', /Claude Code/], ['Codex', /\bCodex\b/], ['pi', /\bpi\b/]]) {
+    if (!re.test(readme)) errors.push(`README.md: does not name the host ${host}`);
+  }
+}
+
 // --- report ----------------------------------------------------------------
 if (errors.length) {
   console.error(`✗ doc-site verification failed (${errors.length} issue(s)):`);
