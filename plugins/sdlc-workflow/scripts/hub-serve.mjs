@@ -428,7 +428,14 @@ export function createHubServer({
     return Boolean(token) && req.headers['x-sdlc-token'] === token;
   }
 
-  function healthPayload() {
+  // W11.8: without the write token, paths leave the machine as basenames only.
+  // The tray and the supervisors carry the token from hub.pid and see full paths.
+  function redactEntry(e) {
+    const { viewDir, ...rest } = e;
+    return { ...rest, repoRoot: basename(String(e.repoRoot ?? '')) };
+  }
+
+  function healthPayload({ full = false } = {}) {
     return {
       ok: true,
       status: 'ok',
@@ -457,13 +464,15 @@ export function createHubServer({
         // an unversioned/unbuilt marker = stale.
         const rendered = readRenderedIdentity(`${e.viewDir}/.last-render`);
         return {
-          id: e.id, repoRoot: e.repoRoot, headBranch: e.headBranch ?? e.branch ?? null,
+          id: e.id, repoRoot: full ? e.repoRoot : basename(String(e.repoRoot ?? '')), headBranch: e.headBranch ?? e.branch ?? null,
           lastRenderedAt: e.lastRenderedAt, slugs: e.slugs,
           renderedVersion: rendered.version,
           renderedBuildId: rendered.buildId,
           stale: !renderIdentityMatches(rendered, RUNTIME),
         };
       }),
+      // W11.8: the code browser's effective state and, when gated, the reason.
+      codeBrowser: { enabled: cbCfg.enabled, reason: cbCfg.disabledReason ?? null },
       // Stale-render heal state: { heal, maxConcurrent, inFlight, queued, failed }.
       heal: heal.snapshot(),
       // Render-queue state (RENDER-DISPATCH-PLAN): { pending:{id:n}, failed[], lastDrainAt }.
@@ -762,7 +771,7 @@ export function createHubServer({
     catch { res.writeHead(400).end('bad request'); return; }
     const p = url.pathname;
 
-    if (p === '/__sdlc/health') { sendJson(res, healthPayload()); return; }
+    if (p === '/__sdlc/health') { sendJson(res, healthPayload({ full: tokenOk(req) })); return; }
     if (p === '/__sdlc/hub-reload.js') {
       res.writeHead(200, {
         'content-type': 'text/javascript; charset=utf-8',
@@ -778,11 +787,18 @@ export function createHubServer({
     // Committed browser-bundle assets (shared by every repo's code page).
     // Gated on the kill switch so enabled:false really does 404 everything.
     if (p === '/__sdlc/code-browser.js' || p === '/__sdlc/code-browser.css') {
-      if (!cbCfg.enabled) { res.writeHead(404).end('not found'); return; }
+      if (!cbCfg.enabled) {
+        res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
+          .end(cbCfg.disabledReason ? `code browser disabled: ${cbCfg.disabledReason}` : 'not found');
+        return;
+      }
       serveCodeBrowserAsset({ req, res, name: p.slice('/__sdlc/'.length) });
       return;
     }
-    if (p === '/__sdlc/registry') { sendJson(res, { version: REGISTRY_VERSION, entries }); return; }
+    if (p === '/__sdlc/registry') {
+      sendJson(res, { version: REGISTRY_VERSION, entries: tokenOk(req) ? entries : entries.map(redactEntry) });
+      return;
+    }
     if (p === '/__sdlc/registry/refresh') {
       if (!tokenOk(req)) { res.writeHead(403).end('forbidden'); return; }
       reload();

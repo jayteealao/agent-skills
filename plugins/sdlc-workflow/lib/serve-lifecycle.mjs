@@ -7,6 +7,7 @@ import { maybeConfigureTailscale, tailscaleDnsName } from './tailscale.mjs';
 import { hubPidPath } from './registry.mjs';
 import { readHubConfig } from './hub-config.mjs';
 import { runtimeIdentity } from './runtime-manifest.mjs';
+import { effectiveCodeBrowserConfig } from './code-browser.mjs';
 import { HUB_DEFAULT_PORT } from './hub-config.mjs';
 
 // Shared runtime identity (NATIVE-INTEROP Workstream B). The per-repo fallback
@@ -125,7 +126,7 @@ export async function ensureServeLifecycle({
     // hub-config hash). See STALE-RENDER-HEAL-PLAN §8.
     env: {
       ...process.env,
-      SDLC_CODE_BROWSER: JSON.stringify(hubCfg.codeBrowser ?? {}),
+      SDLC_CODE_BROWSER: JSON.stringify(effectiveCodeBrowserConfig(hubCfg)),
       SDLC_STALE_RENDER: JSON.stringify(hubCfg.staleRender ?? {}),
     },
   });

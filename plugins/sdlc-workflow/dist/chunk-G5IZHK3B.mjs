@@ -2,9 +2,10 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 
 // lib/tray-autostart.mjs
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 var LABEL = "com.sdlc.sunflower-tray";
 var APP_NAME = "SDLC Sunflower Tray";
 function autostartLauncherDir({ platform = process.platform, env = process.env, home = homedir() } = {}) {
@@ -164,11 +165,43 @@ function refreshAutostart({
   writeFile(path, content, "utf-8");
   return { action: "rewritten", path };
 }
+function parseSha256Sums(text) {
+  const out = /* @__PURE__ */ new Map();
+  for (const raw of String(text ?? "").split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const m = /^([0-9a-fA-F]{64})\s+\*?(.+)$/.exec(line);
+    if (m) out.set(m[2].trim(), m[1].toLowerCase());
+  }
+  return out;
+}
+function verifyTrayHelper(helperPath, { sumsPath = join(dirname(helperPath), "SHA256SUMS"), read = readFileSync } = {}) {
+  const name = basename(helperPath);
+  let sums;
+  try {
+    sums = parseSha256Sums(read(sumsPath, "utf-8"));
+  } catch (err) {
+    return { ok: false, expected: null, actual: null, reason: `cannot read ${sumsPath}: ${err.message}` };
+  }
+  const expected = sums.get(name) ?? null;
+  if (!expected) return { ok: false, expected: null, actual: null, reason: `no SHA256SUMS entry for ${name} in ${sumsPath}` };
+  let actual;
+  try {
+    actual = createHash("sha256").update(read(helperPath)).digest("hex");
+  } catch (err) {
+    return { ok: false, expected, actual: null, reason: `cannot read ${helperPath}: ${err.message}` };
+  }
+  if (actual !== expected) {
+    return { ok: false, expected, actual, reason: `sha256 mismatch for ${name}: expected ${expected.slice(0, 12)}\u2026, got ${actual.slice(0, 12)}\u2026` };
+  }
+  return { ok: true, expected, actual, reason: null };
+}
 
 export {
   resolveDurableNodePath,
   isAutostartEnabled,
   enableAutostart,
   disableAutostart,
-  refreshAutostart
+  refreshAutostart,
+  verifyTrayHelper
 };

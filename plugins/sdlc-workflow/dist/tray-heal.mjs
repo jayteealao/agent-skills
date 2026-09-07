@@ -9,7 +9,7 @@ import {
 } from "./chunk-WGIV4N6E.mjs";
 import {
   resolveDurableNodePath
-} from "./chunk-ERHYJB4B.mjs";
+} from "./chunk-G5IZHK3B.mjs";
 import {
   spawnDetached
 } from "./chunk-K6PBZI5W.mjs";
@@ -120,7 +120,7 @@ function defaultRespawn({ nodePath, trayBundle, env = process.env }) {
 }
 async function defaultProbeHub() {
   try {
-    const { getHealth } = await import("./tray-actions-GQVZSW55.mjs");
+    const { getHealth } = await import("./tray-actions-TBYQQDQG.mjs");
     const probe = await getHealth();
     return { reachable: Boolean(probe?.reachable), uptimeMs: Number(probe?.payload?.uptimeMs) };
   } catch {

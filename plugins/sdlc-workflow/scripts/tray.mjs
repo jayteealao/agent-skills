@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 import { Tray, SEPARATOR } from '../lib/tray-protocol.mjs';
 import { formatHealth } from '../lib/tray-format.mjs';
+import { verifyTrayHelper } from '../lib/tray-autostart.mjs';
 import {
   getHealth, openDashboard, openRepo, refreshRegistry, restartHub, stopHubAction,
   ensureHubOnLaunch, openConfig, openLogs, openDoctor, togglePerRepoServe, perRepoServeEnabled,
@@ -81,6 +82,12 @@ function ensureRuntimeBinary() {
   if (!name) throw new Error(`tray: unsupported platform ${process.platform}`);
   const vendored = resolve(PLUGIN_ROOT, 'bin', 'tray', name);
   if (!existsSync(vendored)) throw new Error(`tray: vendored helper missing at ${vendored}`);
+  // W11.8: the helper must match bin/tray/SHA256SUMS before it is copied anywhere.
+  const verified = verifyTrayHelper(vendored);
+  if (!verified.ok) {
+    log(`refusing helper ${name}: ${verified.reason}`);
+    throw new Error(`tray: helper ${name} failed SHA256SUMS verification — ${verified.reason}`);
+  }
   const dir = join(sdlcHomeDir(), 'bin');
   mkdirSync(dir, { recursive: true });
   const runtime = join(dir, name);

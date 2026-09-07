@@ -26,12 +26,13 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-H6J5PHFK.mjs";
+} from "./chunk-4LLRYNVZ.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
+  effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-EQJNVSBF.mjs";
+} from "./chunk-QWC7RKH3.mjs";
 import "./chunk-JM633JQP.mjs";
 import {
   readRenderedIdentity,
@@ -344,7 +345,7 @@ async function ensureServeLifecycle({
     // hub-config hash). See STALE-RENDER-HEAL-PLAN §8.
     env: {
       ...process.env,
-      SDLC_CODE_BROWSER: JSON.stringify(hubCfg.codeBrowser ?? {}),
+      SDLC_CODE_BROWSER: JSON.stringify(effectiveCodeBrowserConfig(hubCfg)),
       SDLC_STALE_RENDER: JSON.stringify(hubCfg.staleRender ?? {})
     }
   });

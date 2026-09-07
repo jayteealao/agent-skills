@@ -4,7 +4,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   isAutostartEnabled,
   refreshAutostart
-} from "./chunk-ERHYJB4B.mjs";
+} from "./chunk-G5IZHK3B.mjs";
 import {
   ensureHubEnabled,
   spawnHubEnsure

@@ -112,7 +112,7 @@ in.</p>
 <tr><td><code>liveReload</code></td><td><code>true</code></td><td>Live-reload for the standalone per-repo daemon. The hub itself always live-reloads.</td></tr>
 <tr><td><code>maxSseClients</code></td><td><code>200</code></td><td>The cap on live-reload SSE clients, aggregate across repos.</td></tr>
 <tr><td><code>maxWatchedRepos</code></td><td><code>50</code></td><td>Beyond this many registered repos, the hub polls for changes instead of using filesystem watchers.</td></tr>
-<tr><td><code>tailscale.enabled</code></td><td><code>false</code></td><td>Opt-in remote access to the hub via Tailscale.</td></tr>
+<tr><td><code>tailscale.enabled</code></td><td><code>false</code></td><td>Opt-in remote access to the hub via Tailscale. The scope is the whole tailnet: every peer reaches every registered repository view. Without the write token, <code>/__sdlc/health</code> and <code>/__sdlc/registry</code> return repository basenames only (no <code>viewDir</code>); the token in <code>hub.pid</code> unlocks full paths. The code browser stays disabled until <code>codeBrowser.acknowledgedTailnet</code> is <code>true</code>.</td></tr>
 <tr><td><code>tailscale.mode</code></td><td><code>"serve"</code></td><td>The Tailscale exposure mode.</td></tr>
 <tr><td><code>tailscale.path</code></td><td><code>"/"</code></td><td>The path prefix exposed through Tailscale.</td></tr>
 <tr><td><code>tailscale.https</code></td><td><code>true</code></td><td>When <code>true</code>, the hub serves over HTTPS through Tailscale.</td></tr>
@@ -124,6 +124,7 @@ in.</p>
 <tr><td><code>codeBrowser.showIgnoredBadge</code></td><td><code>true</code></td><td>When <code>true</code>, gitignored nodes get a badge in listings (presentation only).</td></tr>
 <tr><td><code>codeBrowser.serveSecrets</code></td><td><code>false</code></td><td>When <code>true</code>, the secret denylist is dropped, so <code>.env</code> files and keys become servable. Keep this key <code>false</code> whenever the host is anything but <code>127.0.0.1</code>.</td></tr>
 <tr><td><code>codeBrowser.denyGlobs</code></td><td><code>[]</code></td><td>Extra deny patterns appended to the built-in denylist.</td></tr>
+<tr><td><code>codeBrowser.acknowledgedTailnet</code></td><td><code>false</code></td><td>A one-time, per-machine acknowledgement that, with <code>tailscale.enabled</code>, the code browser serves repository <em>source</em> to every tailnet peer. While <code>tailscale.enabled</code> is <code>true</code> and this key is not, the hub serves the code browser as disabled: every <code>__code</code> request answers 404 with a one-line reason, and <code>/__sdlc/health</code> carries it under <code>codeBrowser.reason</code>.</td></tr>
 <tr><td><code>staleRender.heal</code></td><td><code>true</code></td><td>When a served view's rendered version drifts from the running plugin (an upgrade left content behind), the hub daemon spawns a bounded background clean re-render off the request path. Set <code>false</code> to detect and flag only.</td></tr>
 <tr><td><code>staleRender.maxConcurrent</code></td><td><code>1</code></td><td>The number of simultaneous heal renders across all repos.</td></tr>
 <tr><td><code>staleRender.cooldownMs</code></td><td><code>60000</code></td><td>The per-repo minimum interval between heal attempts.</td></tr>

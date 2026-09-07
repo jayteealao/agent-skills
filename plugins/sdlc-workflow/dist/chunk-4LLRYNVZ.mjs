@@ -6,9 +6,10 @@ import {
 } from "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
+  effectiveCodeBrowserConfig,
   hubConfigHash,
   readHubConfig
-} from "./chunk-EQJNVSBF.mjs";
+} from "./chunk-QWC7RKH3.mjs";
 import {
   LockTimeoutError,
   atomicWriteJson,
@@ -282,7 +283,9 @@ async function startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port,
       // Why this hub starts (fresh, reap: …, recover: …, upgrade); the hub
       // records it in ~/.sdlc/hub-history.jsonl (W11.2).
       SDLC_HUB_START_REASON: startReason,
-      SDLC_CODE_BROWSER: JSON.stringify(cfg.codeBrowser ?? {}),
+      // W11.8: the tailnet gate is applied HERE, once, so the daemon only ever
+      // sees the config it must run with (and the one-line reason).
+      SDLC_CODE_BROWSER: JSON.stringify(effectiveCodeBrowserConfig(cfg)),
       // Stale-render heal config (STALE-RENDER-HEAL-PLAN §3). Via env for the
       // same reason as codeBrowser; configHash covers it so editing the block in
       // hub-config.json restarts the hub. heal defaults ON.

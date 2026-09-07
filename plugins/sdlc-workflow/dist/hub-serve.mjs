@@ -23,7 +23,7 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-EQJNVSBF.mjs";
+} from "./chunk-QWC7RKH3.mjs";
 import "./chunk-JM633JQP.mjs";
 import {
   readRenderedIdentity,
@@ -337,7 +337,11 @@ function createHubServer({
   function tokenOk(req) {
     return Boolean(token) && req.headers["x-sdlc-token"] === token;
   }
-  function healthPayload() {
+  function redactEntry(e) {
+    const { viewDir, ...rest } = e;
+    return { ...rest, repoRoot: basename(String(e.repoRoot ?? "")) };
+  }
+  function healthPayload({ full = false } = {}) {
     return {
       ok: true,
       status: "ok",
@@ -363,7 +367,7 @@ function createHubServer({
         const rendered = readRenderedIdentity(`${e.viewDir}/.last-render`);
         return {
           id: e.id,
-          repoRoot: e.repoRoot,
+          repoRoot: full ? e.repoRoot : basename(String(e.repoRoot ?? "")),
           headBranch: e.headBranch ?? e.branch ?? null,
           lastRenderedAt: e.lastRenderedAt,
           slugs: e.slugs,
@@ -372,6 +376,8 @@ function createHubServer({
           stale: !renderIdentityMatches(rendered, RUNTIME)
         };
       }),
+      // W11.8: the code browser's effective state and, when gated, the reason.
+      codeBrowser: { enabled: cbCfg.enabled, reason: cbCfg.disabledReason ?? null },
       // Stale-render heal state: { heal, maxConcurrent, inFlight, queued, failed }.
       heal: heal.snapshot(),
       // Render-queue state (RENDER-DISPATCH-PLAN): { pending:{id:n}, failed[], lastDrainAt }.
@@ -705,7 +711,7 @@ data: ${JSON.stringify({ ok: true })}
     }
     const p = url.pathname;
     if (p === "/__sdlc/health") {
-      sendJson(res, healthPayload());
+      sendJson(res, healthPayload({ full: tokenOk(req) }));
       return;
     }
     if (p === "/__sdlc/hub-reload.js") {
@@ -728,14 +734,14 @@ data: ${JSON.stringify({ ok: true })}
     }
     if (p === "/__sdlc/code-browser.js" || p === "/__sdlc/code-browser.css") {
       if (!cbCfg.enabled) {
-        res.writeHead(404).end("not found");
+        res.writeHead(404, { "content-type": "text/plain; charset=utf-8" }).end(cbCfg.disabledReason ? `code browser disabled: ${cbCfg.disabledReason}` : "not found");
         return;
       }
       serveCodeBrowserAsset({ req, res, name: p.slice("/__sdlc/".length) });
       return;
     }
     if (p === "/__sdlc/registry") {
-      sendJson(res, { version: REGISTRY_VERSION, entries });
+      sendJson(res, { version: REGISTRY_VERSION, entries: tokenOk(req) ? entries : entries.map(redactEntry) });
       return;
     }
     if (p === "/__sdlc/registry/refresh") {

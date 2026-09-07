@@ -14,20 +14,21 @@ import {
   restartHub,
   stopHubAction,
   togglePerRepoServe
-} from "./chunk-GL63Q7RC.mjs";
+} from "./chunk-HNASXNQX.mjs";
 import {
   clearTrayHeartbeat,
   writeTrayHeartbeat
 } from "./chunk-WGIV4N6E.mjs";
-import "./chunk-H6J5PHFK.mjs";
+import "./chunk-4LLRYNVZ.mjs";
 import "./chunk-KIZZEX5M.mjs";
-import "./chunk-EQJNVSBF.mjs";
+import "./chunk-QWC7RKH3.mjs";
 import {
   disableAutostart,
   enableAutostart,
   isAutostartEnabled,
-  refreshAutostart
-} from "./chunk-ERHYJB4B.mjs";
+  refreshAutostart,
+  verifyTrayHelper
+} from "./chunk-G5IZHK3B.mjs";
 import "./chunk-JM633JQP.mjs";
 import {
   runtimeIdentity
@@ -495,6 +496,11 @@ function ensureRuntimeBinary() {
   if (!name) throw new Error(`tray: unsupported platform ${process.platform}`);
   const vendored = resolve(PLUGIN_ROOT, "bin", "tray", name);
   if (!existsSync(vendored)) throw new Error(`tray: vendored helper missing at ${vendored}`);
+  const verified = verifyTrayHelper(vendored);
+  if (!verified.ok) {
+    log(`refusing helper ${name}: ${verified.reason}`);
+    throw new Error(`tray: helper ${name} failed SHA256SUMS verification \u2014 ${verified.reason}`);
+  }
   const dir = join(sdlcHomeDir(), "bin");
   mkdirSync(dir, { recursive: true });
   const runtime = join(dir, name);

@@ -18,9 +18,10 @@
 // Every fs/OS seam is injectable so the whole module is unit-testable against a
 // temp dir without touching the real Startup folder.
 
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 
 const LABEL = 'com.sdlc.sunflower-tray';
 const APP_NAME = 'SDLC Sunflower Tray';
@@ -206,4 +207,43 @@ export function refreshAutostart({
   mkdir(dir, { recursive: true });
   writeFile(path, content, 'utf-8');
   return { action: 'rewritten', path };
+}
+
+/* ───────────────────────── helper integrity (W11.8) ───────────────────────── */
+
+/**
+ * Parse a `sha256sum`-style manifest: `<hex>  <name>` (text) or `<hex> *<name>`
+ * (binary). Returns name → lowercase hex. Blank lines and `#` comments skip.
+ */
+export function parseSha256Sums(text) {
+  const out = new Map();
+  for (const raw of String(text ?? '').split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const m = /^([0-9a-fA-F]{64})\s+\*?(.+)$/.exec(line);
+    if (m) out.set(m[2].trim(), m[1].toLowerCase());
+  }
+  return out;
+}
+
+/**
+ * Verify one vendored tray helper against the SHA256SUMS beside it
+ * (WIDE-VIEW-REPAIR-PLAN §14.2.8 item 3). scripts/tray.mjs calls this before it
+ * copies the helper to ~/.sdlc/bin and refuses on anything but `ok: true`.
+ * Returns `{ ok, expected, actual, reason }`; never throws.
+ */
+export function verifyTrayHelper(helperPath, { sumsPath = join(dirname(helperPath), 'SHA256SUMS'), read = readFileSync } = {}) {
+  const name = basename(helperPath);
+  let sums;
+  try { sums = parseSha256Sums(read(sumsPath, 'utf-8')); }
+  catch (err) { return { ok: false, expected: null, actual: null, reason: `cannot read ${sumsPath}: ${err.message}` }; }
+  const expected = sums.get(name) ?? null;
+  if (!expected) return { ok: false, expected: null, actual: null, reason: `no SHA256SUMS entry for ${name} in ${sumsPath}` };
+  let actual;
+  try { actual = createHash('sha256').update(read(helperPath)).digest('hex'); }
+  catch (err) { return { ok: false, expected, actual: null, reason: `cannot read ${helperPath}: ${err.message}` }; }
+  if (actual !== expected) {
+    return { ok: false, expected, actual, reason: `sha256 mismatch for ${name}: expected ${expected.slice(0, 12)}…, got ${actual.slice(0, 12)}…` };
+  }
+  return { ok: true, expected, actual, reason: null };
 }

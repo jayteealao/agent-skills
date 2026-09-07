@@ -46,8 +46,11 @@ var CODE_BROWSER_DEFAULTS = Object.freeze({
   // badge gitignored nodes (presentation only — costs one cached git spawn)
   serveSecrets: false,
   // ⚠ true drops the secret denylist (.env/keys become servable)
-  denyGlobs: []
+  denyGlobs: [],
   // appended to denyGlobsDefault(); see compileDeny grammar
+  // W11.8: with tailscale.enabled the code browser serves SOURCE to the whole
+  // tailnet. It stays disabled until this machine acknowledges that scope.
+  acknowledgedTailnet: false
 });
 function normalizeCodeBrowserConfig(raw) {
   const cfg = { ...CODE_BROWSER_DEFAULTS, ...raw && typeof raw === "object" ? raw : {} };
@@ -58,6 +61,21 @@ function normalizeCodeBrowserConfig(raw) {
   cfg.showIgnoredBadge = cfg.showIgnoredBadge !== false;
   cfg.serveSecrets = cfg.serveSecrets === true;
   cfg.denyGlobs = Array.isArray(cfg.denyGlobs) ? cfg.denyGlobs.map(String) : [];
+  cfg.acknowledgedTailnet = cfg.acknowledgedTailnet === true;
+  if (typeof cfg.disabledReason === "string" && cfg.disabledReason.trim()) {
+    cfg.disabledReason = cfg.disabledReason.trim();
+    cfg.enabled = false;
+  } else {
+    delete cfg.disabledReason;
+  }
+  return cfg;
+}
+var TAILNET_UNACKNOWLEDGED_REASON = "tailscale.enabled is true and codeBrowser.acknowledgedTailnet is not; the code browser serves repository source to every tailnet peer, so it stays off until this machine sets codeBrowser.acknowledgedTailnet: true in hub-config.json";
+function effectiveCodeBrowserConfig(hubConfig) {
+  const cfg = normalizeCodeBrowserConfig(hubConfig?.codeBrowser);
+  if (hubConfig?.tailscale?.enabled === true && !cfg.acknowledgedTailnet) {
+    return { ...cfg, enabled: false, disabledReason: TAILNET_UNACKNOWLEDGED_REASON };
+  }
   return cfg;
 }
 function boundedInt(v, min, max, fallback) {
@@ -508,7 +526,7 @@ function serveCodeBrowser({
 }) {
   let cfg = normalizeCodeBrowserConfig(config);
   if (!cfg.enabled) {
-    res.writeHead(404).end("not found");
+    res.writeHead(404, { "content-type": "text/plain; charset=utf-8" }).end(cfg.disabledReason ? `code browser disabled: ${cfg.disabledReason}` : "not found");
     return;
   }
   if (cfg.serveSecrets && publicExposure) cfg = { ...cfg, serveSecrets: false };
@@ -1003,6 +1021,7 @@ function hubConfigHash(cfg) {
 
 export {
   normalizeCodeBrowserConfig,
+  effectiveCodeBrowserConfig,
   codeBrowserConfigFromEnv,
   repoHeadBranch,
   serveCodeBrowserAsset,

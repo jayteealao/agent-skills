@@ -53,6 +53,9 @@ export const CODE_BROWSER_DEFAULTS = Object.freeze({
   showIgnoredBadge: true,   // badge gitignored nodes (presentation only — costs one cached git spawn)
   serveSecrets: false,      // ⚠ true drops the secret denylist (.env/keys become servable)
   denyGlobs: [],            // appended to denyGlobsDefault(); see compileDeny grammar
+  // W11.8: with tailscale.enabled the code browser serves SOURCE to the whole
+  // tailnet. It stays disabled until this machine acknowledges that scope.
+  acknowledgedTailnet: false,
 });
 
 export function normalizeCodeBrowserConfig(raw) {
@@ -64,6 +67,33 @@ export function normalizeCodeBrowserConfig(raw) {
   cfg.showIgnoredBadge = cfg.showIgnoredBadge !== false;
   cfg.serveSecrets = cfg.serveSecrets === true;
   cfg.denyGlobs = Array.isArray(cfg.denyGlobs) ? cfg.denyGlobs.map(String) : [];
+  cfg.acknowledgedTailnet = cfg.acknowledgedTailnet === true;
+  // A one-line reason the supervisor attaches when it disables the browser
+  // (effectiveCodeBrowserConfig). Survives the env round-trip; forces enabled:false.
+  if (typeof cfg.disabledReason === 'string' && cfg.disabledReason.trim()) {
+    cfg.disabledReason = cfg.disabledReason.trim();
+    cfg.enabled = false;
+  } else {
+    delete cfg.disabledReason;   // absent, not null: the defaults object stays the shape callers compare against
+  }
+  return cfg;
+}
+
+/**
+ * The code-browser config a daemon must run with, derived from the whole
+ * hub-config (W11.8, WIDE-VIEW-REPAIR-PLAN §14.2.8 item 2). When the hub is
+ * exposed to the tailnet and this machine has not acknowledged that the code
+ * browser serves source to every tailnet peer, the browser is disabled with a
+ * one-line reason. Pure; the supervisors call it at spawn.
+ */
+export const TAILNET_UNACKNOWLEDGED_REASON =
+  'tailscale.enabled is true and codeBrowser.acknowledgedTailnet is not; the code browser serves repository source to every tailnet peer, so it stays off until this machine sets codeBrowser.acknowledgedTailnet: true in hub-config.json';
+
+export function effectiveCodeBrowserConfig(hubConfig) {
+  const cfg = normalizeCodeBrowserConfig(hubConfig?.codeBrowser);
+  if (hubConfig?.tailscale?.enabled === true && !cfg.acknowledgedTailnet) {
+    return { ...cfg, enabled: false, disabledReason: TAILNET_UNACKNOWLEDGED_REASON };
+  }
   return cfg;
 }
 
@@ -557,7 +587,12 @@ export function serveCodeBrowser({
   publicExposure = false,
 }) {
   let cfg = normalizeCodeBrowserConfig(config);
-  if (!cfg.enabled) { res.writeHead(404).end('not found'); return; }
+  if (!cfg.enabled) {
+    // W11.8: a gated browser says why, in one line, on every __code request.
+    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
+      .end(cfg.disabledReason ? `code browser disabled: ${cfg.disabledReason}` : 'not found');
+    return;
+  }
   if (cfg.serveSecrets && publicExposure) cfg = { ...cfg, serveSecrets: false };
 
   const pathname = url.pathname;
