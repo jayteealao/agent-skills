@@ -19,7 +19,7 @@
 
 import { existsSync, statSync, createReadStream, readFileSync, rmSync, watch } from 'node:fs';
 import { createServer } from 'node:http';
-import { basename, extname } from 'node:path';
+import { basename, extname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { writePidFile, removePidFile } from '../lib/pid-file.mjs';
@@ -88,6 +88,7 @@ const MIME = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
 };
 
 const CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'";
@@ -560,6 +561,29 @@ export function createHubServer({
     });
   }
 
+  // W11.11: the plugin's asset bundle (assets/) at /__sdlc/assets/<buildId>/<name>.
+  // The buildId segment is a cache key only (immutable caching); the hub serves
+  // its own bundle whatever the segment says. Basenames only — nothing can
+  // escape assets/. Rendered pages reference this route; no view carries a copy.
+  const ASSETS_ROOT = join(pluginRoot, 'assets');
+  function serveBundledAsset({ req, res, name }) {
+    let file;
+    try { file = decodeURIComponent(name); } catch { res.writeHead(400).end('bad request'); return; }
+    if (!file || file !== basename(file) || file.startsWith('.')) { res.writeHead(404).end('not found'); return; }
+    const filePath = join(ASSETS_ROOT, file);
+    let stats;
+    try { stats = statSync(filePath); } catch { res.writeHead(404).end('not found'); return; }
+    if (!stats.isFile()) { res.writeHead(404).end('not found'); return; }
+    res.writeHead(200, {
+      'content-type': MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream',
+      'content-length': stats.size,
+      'cache-control': 'public, max-age=31536000, immutable',
+      'content-security-policy': CSP,
+    });
+    if (req.method === 'HEAD') { res.end(); return; }
+    createReadStream(filePath).pipe(res);
+  }
+
   // Serve the plugin's own docs site (docs/site) under /docs/. Reuses the same
   // containment kernel as the repo routes — rooted at DOCS_ROOT with the
   // lowercase index basename — so a traversal can never escape the docs tree.
@@ -795,6 +819,9 @@ export function createHubServer({
       serveCodeBrowserAsset({ req, res, name: p.slice('/__sdlc/'.length) });
       return;
     }
+    const am = p.match(/^\/__sdlc\/assets\/[^/]+\/([^/]+)$/);
+    if (am) { serveBundledAsset({ req, res, name: am[1] }); return; }
+
     if (p === '/__sdlc/registry') {
       sendJson(res, { version: REGISTRY_VERSION, entries: tokenOk(req) ? entries : entries.map(redactEntry) });
       return;

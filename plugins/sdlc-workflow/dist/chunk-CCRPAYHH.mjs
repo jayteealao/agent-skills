@@ -297,6 +297,10 @@ function breadcrumbFromView(viewRel, slug) {
   }
   return crumbs;
 }
+var HUB_ASSET_ROUTE = "/__sdlc/assets";
+function hubAssetBase(buildId) {
+  return `${HUB_ASSET_ROUTE}/${encodeURIComponent(String(buildId || "dev"))}`;
+}
 
 // renderers/_shell.mjs
 var RUNTIME = runtimeIdentity();
@@ -440,6 +444,7 @@ export {
   classifyFragmentName,
   pageHref,
   breadcrumbFromView,
+  hubAssetBase,
   PLUGIN_VERSION,
   renderShell,
   artifactHeader,

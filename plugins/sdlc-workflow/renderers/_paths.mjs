@@ -425,3 +425,14 @@ export function assetUrl(assetBase, filename) {
   const base = assetBase.replace(/\/$/, '');
   return `${base}/${filename}`;
 }
+
+/**
+ * W11.11: the hub serves the plugin's asset bundle (assets/) at one
+ * buildId-keyed route. Rendered pages reference it there and no repository
+ * view carries a copy. The buildId segment is a cache key only — the hub
+ * serves its own bundle whatever the segment says.
+ */
+export const HUB_ASSET_ROUTE = '/__sdlc/assets';
+export function hubAssetBase(buildId) {
+  return `${HUB_ASSET_ROUTE}/${encodeURIComponent(String(buildId || 'dev'))}`;
+}

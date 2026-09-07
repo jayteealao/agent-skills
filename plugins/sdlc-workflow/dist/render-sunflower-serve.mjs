@@ -16,8 +16,8 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-W7SZIRDL.mjs";
-import "./chunk-WIOD7AIL.mjs";
+} from "./chunk-6UIE4HPE.mjs";
+import "./chunk-LYPLZSMD.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -32,7 +32,7 @@ import {
   createRenderQueueDrainer,
   removePidFile,
   writePidFile
-} from "./chunk-O3FUA7PQ.mjs";
+} from "./chunk-KXEWPJJ7.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
@@ -182,6 +182,11 @@ function createSdlcStaticServer({
       return;
     }
     const p = url.pathname;
+    const am = p.match(/^\/__sdlc\/assets\/[^/]+\/([^/]+)$/);
+    if (am) {
+      serveBundledAsset(req, res, join(pluginRoot, "assets"), am[1]);
+      return;
+    }
     if (p === "/__sdlc/code-browser.js" || p === "/__sdlc/code-browser.css" || p === "/__code" || p.startsWith("/__code/")) {
       if (!cbCfg.enabled) {
         res.writeHead(404).end("not found");
@@ -272,6 +277,42 @@ function serveStatic({ root, req, res }) {
     return;
   }
   createReadStream(resolved.path).pipe(res);
+}
+function serveBundledAsset(req, res, assetsRoot, name) {
+  let file;
+  try {
+    file = decodeURIComponent(name);
+  } catch {
+    res.writeHead(400).end("bad request");
+    return;
+  }
+  if (!file || file !== basename(file) || file.startsWith(".")) {
+    res.writeHead(404).end("not found");
+    return;
+  }
+  const filePath = join(assetsRoot, file);
+  let stats;
+  try {
+    stats = statSync(filePath);
+  } catch {
+    res.writeHead(404).end("not found");
+    return;
+  }
+  if (!stats.isFile()) {
+    res.writeHead(404).end("not found");
+    return;
+  }
+  res.writeHead(200, {
+    "content-type": MIME[extname(filePath).toLowerCase()] ?? "application/octet-stream",
+    "content-length": stats.size,
+    "cache-control": "public, max-age=31536000, immutable",
+    "content-security-policy": CSP
+  });
+  if (req.method === "HEAD") {
+    res.end();
+    return;
+  }
+  createReadStream(filePath).pipe(res);
 }
 function resolveRequestPath2(root, rawUrl) {
   return resolveRequestPath(root, rawUrl, { stripPrefix: "/sdlc" });

@@ -5,15 +5,16 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-JFIFDBVI.mjs";
+} from "./chunk-64CJF4MS.mjs";
 import {
   PLUGIN_VERSION,
   breadcrumbFromView,
   classifyFragmentName,
+  hubAssetBase,
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-SUJ36R7O.mjs";
+} from "./chunk-CCRPAYHH.mjs";
 import {
   aggregateCost,
   readCostRows
@@ -26,14 +27,14 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-UPEBEO3C.mjs";
+} from "./chunk-SSUNTTDI.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-W7SZIRDL.mjs";
-import "./chunk-WIOD7AIL.mjs";
+} from "./chunk-6UIE4HPE.mjs";
+import "./chunk-LYPLZSMD.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -66,7 +67,7 @@ import {
   upsertRegistryEntry,
   viewMtimeForSlug,
   writePidFile
-} from "./chunk-O3FUA7PQ.mjs";
+} from "./chunk-KXEWPJJ7.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
@@ -539,9 +540,11 @@ function parseArgs(argv) {
   args.schema ??= join3(args.pluginRoot, "tests", "frontmatter.schema.json");
   return args;
 }
-function relativeAssetBase(fileAbs, viewRoot) {
-  const up = relative(dirname(fileAbs), viewRoot);
-  return up ? `${up.replace(/\\/g, "/")}/_assets` : "_assets";
+var cachedAssetBase = null;
+function defaultAssetBase(args) {
+  if (args.assetBase) return args.assetBase;
+  cachedAssetBase ??= hubAssetBase(runtimeIdentity().buildId);
+  return cachedAssetBase;
 }
 function* walkStorage(root) {
   if (!existsSync3(root)) return;
@@ -688,38 +691,6 @@ async function loadRenderer(type, pluginRoot) {
     console.warn(`[renderer] failed to load ${type}: ${err.message}`);
     rendererCache.set(type, null);
     return null;
-  }
-}
-function copyAssets(pluginRoot, viewRoot) {
-  const src = join3(pluginRoot, "assets");
-  const dst = join3(viewRoot, "_assets");
-  if (!existsSync3(src)) return;
-  copyDirResilient(src, dst);
-}
-function copyDirResilient(srcDir, dstDir) {
-  mkdirSync(dstDir, { recursive: true });
-  for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
-    const s = join3(srcDir, entry.name);
-    const d = join3(dstDir, entry.name);
-    if (entry.isDirectory()) {
-      copyDirResilient(s, d);
-    } else if (entry.isFile()) {
-      try {
-        if (assetUpToDate(s, d)) continue;
-        copyFileSync(s, d);
-      } catch (err) {
-        console.warn(`[assets] skipped ${entry.name}: ${err.code ?? err.message}`);
-      }
-    }
-  }
-}
-function assetUpToDate(src, dst) {
-  if (!existsSync3(dst)) return false;
-  try {
-    if (statSync2(src).size !== statSync2(dst).size) return false;
-    return readFileSync2(src).equals(readFileSync2(dst));
-  } catch {
-    return false;
   }
 }
 function writeFileAtomic(absPath, content) {
@@ -878,11 +849,14 @@ async function renderMain(args) {
         rmSync(join3(viewRoot, entry.name), { recursive: true, force: true });
       }
     }
+    try {
+      rmSync(join3(viewRoot, "_assets"), { recursive: true, force: true });
+    } catch {
+    }
     for (const f of ["INDEX.html", "INDEX.yaml", ".last-render"]) {
       rmSync(join3(viewRoot, f), { force: true });
     }
   }
-  copyAssets(args.pluginRoot, viewRoot);
   const artifacts = discoverArtifacts({
     storageRoot,
     simplifyRoot,
@@ -985,7 +959,7 @@ async function renderMain(args) {
       return acc;
     }, {});
     const displaySlug = a.kind === "docs" ? "docs" : a.slug;
-    const effectiveAssetBase = args.assetBase ?? relativeAssetBase(a.viewAbs, viewRoot);
+    const effectiveAssetBase = defaultAssetBase(args);
     const ctx = {
       slug: displaySlug,
       slugRoot: a.kind === "workflow" ? join3(storageRoot, a.slug) : null,
@@ -1091,7 +1065,7 @@ async function renderMain(args) {
         }));
         const result = dashboardMod.render(
           { type: "dashboard", frontmatter: { title: "sdlc dashboard" }, body: "", siblingYaml: null, history: [], fragment: null, path: "__dashboard__" },
-          { slug: "", viewRoot, assetBase: args.assetBase ?? relativeAssetBase(join3(viewRoot, "INDEX.html"), viewRoot), allArtifacts: { __summary__: slugsSummary, __project__: projectSummary } }
+          { slug: "", viewRoot, assetBase: defaultAssetBase(args), allArtifacts: { __summary__: slugsSummary, __project__: projectSummary } }
         );
         const html = renderShell({
           title: "sdlc \xB7 dashboard",
@@ -1099,7 +1073,7 @@ async function renderMain(args) {
           slug: "",
           status: "",
           breadcrumbs: [{ label: "sdlc", href: "./" }],
-          assetBase: args.assetBase ?? relativeAssetBase(join3(viewRoot, "INDEX.html"), viewRoot),
+          assetBase: defaultAssetBase(args),
           headerHtml: result.headerHtml ?? "",
           bodyHtml: result.bodyHtml ?? "",
           upHref: "./",

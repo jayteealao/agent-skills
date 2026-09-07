@@ -17,7 +17,7 @@
  *   --simplify <path>    Default ".ai/simplify"
  *   --profiles <path>    Default ".ai/profiles"
  *   --docs <path>        Default ".ai/docs"
- *   --asset-base <path>  Override asset URL prefix (default: depth-relative path)
+ *   --asset-base <path>  Override asset URL prefix (default: the hub route /__sdlc/assets/<buildId>)
  *   --plugin-root <path> Default plugin install dir (auto-detected)
  *   --schema <path>      Default <plugin-root>/tests/frontmatter.schema.json
  */
@@ -32,7 +32,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { loadArtifact } from '../renderers/_yaml.mjs';
 import { validateFrontmatter, renderWarnBanner } from '../renderers/_validator.mjs';
-import { resolveViewPath, siblingPaths, classifyFragmentName, breadcrumbFromView } from '../renderers/_paths.mjs';
+import { resolveViewPath, siblingPaths, classifyFragmentName, breadcrumbFromView, hubAssetBase } from '../renderers/_paths.mjs';
 import { buildPathMap, rewriteBodyLinks } from '../renderers/_link-graph.mjs';
 import { workSetFilter } from '../renderers/_mtime.mjs';
 import { loadHistory } from '../renderers/_history.mjs';
@@ -119,17 +119,16 @@ function parseArgs(argv) {
 }
 
 /**
- * Compute a depth-relative asset base for a rendered HTML file.
- * The _assets/ directory always lives at the view root, so the prefix is
- * purely a function of how many directory levels separate fileAbs from viewRoot.
- *
- *   viewRoot/INDEX.html             → '_assets'
- *   viewRoot/slug/INDEX.html        → '../_assets'
- *   viewRoot/slug/stage/INDEX.html  → '../../_assets'
+ * The asset base for every rendered page (W11.11): the hub route
+ * `/__sdlc/assets/<buildId>/` (renderers/_paths.mjs hubAssetBase), or the
+ * --asset-base override. No `_assets` copy lives in the view any more; the hub
+ * (and, for this release, the per-repo daemon) serves the bundle.
  */
-function relativeAssetBase(fileAbs, viewRoot) {
-  const up = relative(dirname(fileAbs), viewRoot);
-  return up ? `${up.replace(/\\/g, '/')}/_assets` : '_assets';
+let cachedAssetBase = null;
+function defaultAssetBase(args) {
+  if (args.assetBase) return args.assetBase;
+  cachedAssetBase ??= hubAssetBase(runtimeIdentity().buildId);
+  return cachedAssetBase;
 }
 
 /* ───────────────────────── Storage walk ───────────────────────── */
@@ -302,40 +301,6 @@ async function loadRenderer(type, pluginRoot) {
     console.warn(`[renderer] failed to load ${type}: ${err.message}`);
     rendererCache.set(type, null);
     return null;
-  }
-}
-
-/* ───────────────────────── Asset copy ───────────────────────── */
-
-function copyAssets(pluginRoot, viewRoot) {
-  const src = join(pluginRoot, 'assets');
-  const dst = join(viewRoot, '_assets');
-  if (!existsSync(src)) return;
-  copyDirResilient(src, dst);
-}
-
-// Copy a directory tree file-by-file, skipping any file whose destination is
-// already up to date (same size, dest mtime ≥ src mtime). This avoids the
-// wholesale unlink+rewrite that `cpSync({ force: true })` performs on every
-// render: an unchanged asset (favicon, css, js, fonts) is never touched, so a
-// destination held open by the serve daemon or a browser tab on Windows can't
-// trip EBUSY. A file that genuinely changed but is momentarily locked is
-// logged and skipped rather than aborting the entire render job.
-function copyDirResilient(srcDir, dstDir) {
-  mkdirSync(dstDir, { recursive: true });
-  for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
-    const s = join(srcDir, entry.name);
-    const d = join(dstDir, entry.name);
-    if (entry.isDirectory()) {
-      copyDirResilient(s, d);
-    } else if (entry.isFile()) {
-      try {
-        if (assetUpToDate(s, d)) continue;
-        copyFileSync(s, d);
-      } catch (err) {
-        console.warn(`[assets] skipped ${entry.name}: ${err.code ?? err.message}`);
-      }
-    }
   }
 }
 
@@ -574,6 +539,10 @@ async function renderMain(args) {
         rmSync(join(viewRoot, entry.name), { recursive: true, force: true });
       }
     }
+    // W11.11: an `_assets` copy from a pre-9.154 render is litter now — pages
+    // reference the hub route. Dropped best-effort on its own, because a browser
+    // tab may hold one of its files open on Windows (EBUSY must not abort the render).
+    try { rmSync(join(viewRoot, '_assets'), { recursive: true, force: true }); } catch { /* next clean render */ }
     // Also drop root-level outputs so a stale dashboard/manifest can't survive a
     // --clean (especially when paired with --no-shared-output).
     for (const f of ['INDEX.html', 'INDEX.yaml', '.last-render']) {
@@ -581,8 +550,7 @@ async function renderMain(args) {
     }
   }
 
-  // 2. copy assets
-  copyAssets(args.pluginRoot, viewRoot);
+  // 2. (W11.11) no asset copy: pages reference the hub's /__sdlc/assets/<buildId>/ route.
 
   // 3. discover artifacts
   const artifacts = discoverArtifacts({
@@ -744,7 +712,7 @@ async function renderMain(args) {
     }, {});
 
     const displaySlug = a.kind === 'docs' ? 'docs' : a.slug;
-    const effectiveAssetBase = args.assetBase ?? relativeAssetBase(a.viewAbs, viewRoot);
+    const effectiveAssetBase = defaultAssetBase(args);
     const ctx = {
       slug: displaySlug,
       slugRoot: a.kind === 'workflow' ? join(storageRoot, a.slug) : null,
@@ -838,7 +806,7 @@ async function renderMain(args) {
     } catch (err) {
       // A locked destination (EBUSY/EACCES on Windows when a browser tab or the
       // serve daemon holds the file) must not abort the whole render — warn and
-      // move on, consistent with copyDirResilient.
+      // move on.
       console.warn(`[render] write failed for ${a.viewRel}: ${err.code ?? err.message}`);
     }
   }
@@ -889,7 +857,7 @@ async function renderMain(args) {
         }));
         const result = dashboardMod.render(
           { type: 'dashboard', frontmatter: { title: 'sdlc dashboard' }, body: '', siblingYaml: null, history: [], fragment: null, path: '__dashboard__' },
-          { slug: '', viewRoot, assetBase: args.assetBase ?? relativeAssetBase(join(viewRoot, 'INDEX.html'), viewRoot), allArtifacts: { __summary__: slugsSummary, __project__: projectSummary } },
+          { slug: '', viewRoot, assetBase: defaultAssetBase(args), allArtifacts: { __summary__: slugsSummary, __project__: projectSummary } },
         );
         const html = renderShell({
           title: 'sdlc · dashboard',
@@ -897,7 +865,7 @@ async function renderMain(args) {
           slug:  '',
           status: '',
           breadcrumbs: [{ label: 'sdlc', href: './' }],
-          assetBase: args.assetBase ?? relativeAssetBase(join(viewRoot, 'INDEX.html'), viewRoot),
+          assetBase: defaultAssetBase(args),
           headerHtml: result.headerHtml ?? '',
           bodyHtml:   result.bodyHtml ?? '',
           upHref: './',

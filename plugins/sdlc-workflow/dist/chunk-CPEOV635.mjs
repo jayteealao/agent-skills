@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   isEntry,
   runStandalone
-} from "./chunk-ZVYCLTPL.mjs";
+} from "./chunk-3SWSVG7U.mjs";
 import {
   collectToolInputPaths,
   gitAdd,
@@ -15,7 +15,7 @@ import {
 } from "./chunk-XLUSO7MY.mjs";
 import {
   scanWorkflowIndexes
-} from "./chunk-O3FUA7PQ.mjs";
+} from "./chunk-KXEWPJJ7.mjs";
 
 // hooks/post-write-auto-stage.mjs
 import { existsSync } from "node:fs";

@@ -39,6 +39,9 @@ live reload refreshes the page when any repo re-renders.</li>
 <li>An in-browser code browser for each repo at <code>/r/&lt;id&gt;/__code/</code>.</li>
 <li>This documentation site at <code>/docs/</code>.</li>
 <li>A health endpoint at <code>/__sdlc/health</code>. The tray polls the same endpoint.</li>
+<li>The asset bundle (stylesheet, script, favicon) at <code>/__sdlc/assets/&lt;buildId&gt;/</code>.
+Rendered pages reference the bundle there; no repository view carries a copy, and a page opened
+from the file system has no stylesheet.</li>
 <li>Live reload through server-sent events. An open workflow view refreshes the moment its
 artifacts re-render.</li>
 </ul>

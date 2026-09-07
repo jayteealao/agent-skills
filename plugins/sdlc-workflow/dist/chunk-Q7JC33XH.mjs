@@ -9,7 +9,7 @@ import {
   blockToolCall,
   isEntry,
   runStandalone
-} from "./chunk-ZVYCLTPL.mjs";
+} from "./chunk-3SWSVG7U.mjs";
 import {
   normalizePathForMatch,
   outputSystemMessage,

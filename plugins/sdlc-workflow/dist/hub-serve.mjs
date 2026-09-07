@@ -3,11 +3,11 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-IGGVQPCA.mjs";
-import "./chunk-AN43HPBY.mjs";
+} from "./chunk-EG22HRD7.mjs";
+import "./chunk-CGBZNDS4.mjs";
 import "./chunk-PTGPEXQV.mjs";
 import "./chunk-PDBKNARE.mjs";
-import "./chunk-SUJ36R7O.mjs";
+import "./chunk-CCRPAYHH.mjs";
 import "./chunk-H5LFYXT6.mjs";
 import {
   hostAllowed,
@@ -23,8 +23,8 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-W7SZIRDL.mjs";
-import "./chunk-WIOD7AIL.mjs";
+} from "./chunk-6UIE4HPE.mjs";
+import "./chunk-LYPLZSMD.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -50,7 +50,7 @@ import {
   validateEntry,
   writePidFile,
   writeRegistry
-} from "./chunk-O3FUA7PQ.mjs";
+} from "./chunk-KXEWPJJ7.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
@@ -58,7 +58,7 @@ import "./chunk-SGA7NFMW.mjs";
 // scripts/hub-serve.mjs
 import { existsSync, statSync, createReadStream, readFileSync, rmSync, watch } from "node:fs";
 import { createServer } from "node:http";
-import { basename, extname } from "node:path";
+import { basename, extname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 var RUNTIME = runtimeIdentity();
 var PLUGIN_VERSION = RUNTIME.runtimeVersion;
@@ -82,7 +82,8 @@ var MIME = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
-  ".webp": "image/webp"
+  ".webp": "image/webp",
+  ".ico": "image/x-icon"
 };
 var CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'";
 var DOCS_ROOT = (() => {
@@ -490,6 +491,43 @@ function createHubServer({
       publicExposure: allowAllHosts || extraHosts.size > 0
     });
   }
+  const ASSETS_ROOT = join(pluginRoot, "assets");
+  function serveBundledAsset({ req, res, name }) {
+    let file;
+    try {
+      file = decodeURIComponent(name);
+    } catch {
+      res.writeHead(400).end("bad request");
+      return;
+    }
+    if (!file || file !== basename(file) || file.startsWith(".")) {
+      res.writeHead(404).end("not found");
+      return;
+    }
+    const filePath = join(ASSETS_ROOT, file);
+    let stats;
+    try {
+      stats = statSync(filePath);
+    } catch {
+      res.writeHead(404).end("not found");
+      return;
+    }
+    if (!stats.isFile()) {
+      res.writeHead(404).end("not found");
+      return;
+    }
+    res.writeHead(200, {
+      "content-type": MIME[extname(filePath).toLowerCase()] ?? "application/octet-stream",
+      "content-length": stats.size,
+      "cache-control": "public, max-age=31536000, immutable",
+      "content-security-policy": CSP
+    });
+    if (req.method === "HEAD") {
+      res.end();
+      return;
+    }
+    createReadStream(filePath).pipe(res);
+  }
   function serveDocsFile({ req, res, rest }) {
     if (!DOCS_ROOT || !existsSync(DOCS_ROOT)) {
       res.writeHead(404).end("docs not available");
@@ -738,6 +776,11 @@ data: ${JSON.stringify({ ok: true })}
         return;
       }
       serveCodeBrowserAsset({ req, res, name: p.slice("/__sdlc/".length) });
+      return;
+    }
+    const am = p.match(/^\/__sdlc\/assets\/[^/]+\/([^/]+)$/);
+    if (am) {
+      serveBundledAsset({ req, res, name: am[1] });
       return;
     }
     if (p === "/__sdlc/registry") {

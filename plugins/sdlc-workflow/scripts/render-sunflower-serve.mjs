@@ -196,6 +196,10 @@ export function createSdlcStaticServer({
     // the same Host allowlist the hub applies globally (§0.2-4: DNS rebinding
     // must not reach source). View-route behaviour is unchanged.
     const p = url.pathname;
+    // W11.11: pages reference the hub's asset route; serve the same bundle here
+    // so the (deprecated) per-repo daemon keeps rendering styled pages in 9.154.
+    const am = p.match(/^\/__sdlc\/assets\/[^/]+\/([^/]+)$/);
+    if (am) { serveBundledAsset(req, res, join(pluginRoot, 'assets'), am[1]); return; }
     if (p === '/__sdlc/code-browser.js' || p === '/__sdlc/code-browser.css'
       || p === '/__code' || p.startsWith('/__code/')) {
       if (!cbCfg.enabled) { res.writeHead(404).end('not found'); return; }
@@ -287,6 +291,25 @@ function serveStatic({ root, req, res }) {
     return;
   }
   createReadStream(resolved.path).pipe(res);
+}
+
+// W11.11: the asset bundle at /__sdlc/assets/<buildId>/<name> (basenames only).
+function serveBundledAsset(req, res, assetsRoot, name) {
+  let file;
+  try { file = decodeURIComponent(name); } catch { res.writeHead(400).end('bad request'); return; }
+  if (!file || file !== basename(file) || file.startsWith('.')) { res.writeHead(404).end('not found'); return; }
+  const filePath = join(assetsRoot, file);
+  let stats;
+  try { stats = statSync(filePath); } catch { res.writeHead(404).end('not found'); return; }
+  if (!stats.isFile()) { res.writeHead(404).end('not found'); return; }
+  res.writeHead(200, {
+    'content-type': MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream',
+    'content-length': stats.size,
+    'cache-control': 'public, max-age=31536000, immutable',
+    'content-security-policy': CSP,
+  });
+  if (req.method === 'HEAD') { res.end(); return; }
+  createReadStream(filePath).pipe(res);
 }
 
 // Thin wrapper over the shared containment kernel (lib/resolve-request-path.mjs).

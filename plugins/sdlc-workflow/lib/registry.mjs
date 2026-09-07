@@ -25,9 +25,10 @@
 
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { appendLogLine } from './runtime-log.mjs';
 import {
   existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync,
-  renameSync, rmSync, realpathSync, statSync, appendFileSync,
+  renameSync, rmSync, realpathSync, statSync,
 } from 'node:fs';
 import { request } from 'node:http';
 import { homedir, tmpdir } from 'node:os';
@@ -534,10 +535,11 @@ export function pruneRegistry({ graceMs = REGISTRY_FRESH_GRACE_MS, now = Date.no
 // Exported so the hub's reconcile loop can mirror its prunes into the same
 // on-disk log (F3) — a daemon's stdout is gone once the console closes, and a
 // reaped fresh repo used to leave zero trace.
+// W11.11: appendLogLine rotates the file at 1 MB and keeps two generations,
+// the same rule as hub.log and lifecycle.log (lib/runtime-log.mjs).
 export function logPrune(line) {
   try {
-    mkdirSync(sdlcHomeDir(), { recursive: true });
-    appendFileSync(pruneLogPath(), `[${new Date().toISOString()}] ${line}\n`, 'utf-8');
+    appendLogLine(pruneLogPath(), `[${new Date().toISOString()}] ${line}`);
   } catch { /* best-effort */ }
 }
 

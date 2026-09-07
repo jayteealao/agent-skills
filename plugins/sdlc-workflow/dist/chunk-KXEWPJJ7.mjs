@@ -767,39 +767,163 @@ function createRenderQueueDrainer({
 // lib/registry.mjs
 import { createHash } from "node:crypto";
 import { execFileSync as execFileSync2 } from "node:child_process";
+
+// lib/runtime-log.mjs
+import { appendFileSync as appendFileSync2, existsSync as existsSync4, mkdirSync as mkdirSync2, readFileSync as readFileSync2, renameSync as renameSync2, rmSync as rmSync2, statSync as statSync2 } from "node:fs";
+import { dirname as dirname2, join as join4 } from "node:path";
+var MAX_LOG_BYTES = 1024 * 1024;
+var KEEP_GENERATIONS = 2;
+var hubLogPath = (home = sdlcHomeDir()) => join4(home, "hub.log");
+var lifecycleLogPath = (home = sdlcHomeDir()) => join4(home, "lifecycle.log");
+var errorsLogPath = (home = sdlcHomeDir()) => join4(home, "errors.log");
+var hubHistoryPath = (home = sdlcHomeDir()) => join4(home, "hub-history.jsonl");
+function rotateIfLarge(path, { maxBytes = MAX_LOG_BYTES, keep = KEEP_GENERATIONS } = {}) {
+  let size;
+  try {
+    size = statSync2(path).size;
+  } catch {
+    return false;
+  }
+  if (size <= maxBytes) return false;
+  try {
+    rmSync2(`${path}.${keep}`, { force: true });
+  } catch {
+  }
+  for (let i = keep - 1; i >= 1; i--) {
+    try {
+      if (existsSync4(`${path}.${i}`)) renameSync2(`${path}.${i}`, `${path}.${i + 1}`);
+    } catch {
+    }
+  }
+  try {
+    renameSync2(path, `${path}.1`);
+  } catch {
+    return false;
+  }
+  return true;
+}
+function appendLogLine(path, line, opts = {}) {
+  try {
+    mkdirSync2(dirname2(path), { recursive: true });
+    rotateIfLarge(path, opts);
+    appendFileSync2(path, line.endsWith("\n") ? line : `${line}
+`, "utf-8");
+    return true;
+  } catch (e) {
+    try {
+      process.stderr.write(`[runtime-log] could not write ${path}: ${e?.message ?? e}
+`);
+    } catch {
+    }
+    return false;
+  }
+}
+function parseJsonLines(text) {
+  const out = [];
+  for (const line of String(text ?? "").split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t) continue;
+    try {
+      out.push(JSON.parse(t));
+    } catch {
+    }
+  }
+  return out;
+}
+function readJsonLines(path) {
+  try {
+    return parseJsonLines(readFileSync2(path, "utf-8"));
+  } catch {
+    return [];
+  }
+}
+function hubLogLine(line, { home, now = () => /* @__PURE__ */ new Date() } = {}) {
+  const written = `${now().toISOString()} ${line}`;
+  appendLogLine(hubLogPath(home), written);
+  return written;
+}
+var LIFECYCLE_EVENTS = Object.freeze([
+  "adopt",
+  "reap",
+  "recover",
+  "start",
+  "unconfirmed",
+  "refused-host",
+  "protocol-incompatible",
+  "lock-timeout",
+  "port-held",
+  "port-migrated",
+  "gc",
+  "deprecated-config"
+]);
+function formatLifecycleLine(record, now = /* @__PURE__ */ new Date()) {
+  const { event, host = null, version = null, buildId = null, pid = null, reason = null, ...extra } = record ?? {};
+  return JSON.stringify({
+    at: now.toISOString(),
+    event: String(event ?? "unknown"),
+    host,
+    version,
+    buildId,
+    pid: Number.isInteger(pid) ? pid : null,
+    reason: reason == null ? null : String(reason),
+    ...extra
+  });
+}
+function logLifecycle(record, { home, now = /* @__PURE__ */ new Date() } = {}) {
+  const line = formatLifecycleLine(record, now);
+  appendLogLine(lifecycleLogPath(home), line);
+  return line;
+}
+function recordHubStart({ pid, version = null, buildId = null, startedBy = null, reason = "unknown", port = null } = {}, { home, now = /* @__PURE__ */ new Date() } = {}) {
+  const record = { at: now.toISOString(), event: "start", pid: Number.isInteger(pid) ? pid : null, version, buildId, startedBy, reason: String(reason), port };
+  appendLogLine(hubHistoryPath(home), JSON.stringify(record));
+  return record;
+}
+function readHubHistory(home) {
+  const records = readJsonLines(hubHistoryPath(home)).filter((r) => r && r.event === "start");
+  const last = records.at(-1) ?? null;
+  return {
+    starts: records.length,
+    restarts: Math.max(0, records.length - 1),
+    lastReason: last?.reason ?? null,
+    lastAt: last?.at ?? null,
+    lastPid: last?.pid ?? null
+  };
+}
+
+// lib/registry.mjs
 import {
-  existsSync as existsSync4,
-  mkdirSync as mkdirSync2,
-  readFileSync as readFileSync2,
+  existsSync as existsSync5,
+  mkdirSync as mkdirSync3,
+  readFileSync as readFileSync3,
   readdirSync as readdirSync2,
   writeFileSync as writeFileSync2,
-  renameSync as renameSync2,
-  rmSync as rmSync2,
+  renameSync as renameSync3,
+  rmSync as rmSync3,
   realpathSync,
-  statSync as statSync2,
-  appendFileSync as appendFileSync2
+  statSync as statSync3
 } from "node:fs";
 import { request } from "node:http";
 import { homedir, tmpdir } from "node:os";
-import { basename as basename2, dirname as dirname2, join as join4, sep } from "node:path";
+import { basename as basename2, dirname as dirname3, join as join5, sep } from "node:path";
 var REGISTRY_VERSION = 2;
 var SHARD_SOFT_CAP = 100;
 var REGISTRY_FRESH_GRACE_MS = 10 * 60 * 1e3;
 function sdlcHomeDir() {
   const override = process.env.SDLC_HOME;
-  return override && override.trim() ? override : join4(homedir(), ".sdlc");
+  return override && override.trim() ? override : join5(homedir(), ".sdlc");
 }
 function registryPath() {
-  return join4(sdlcHomeDir(), "registry.json");
+  return join5(sdlcHomeDir(), "registry.json");
 }
 function shardDir() {
-  return join4(sdlcHomeDir(), "registry.d");
+  return join5(sdlcHomeDir(), "registry.d");
 }
 function pruneLogPath() {
-  return join4(sdlcHomeDir(), "registry.prune.log");
+  return join5(sdlcHomeDir(), "registry.prune.log");
 }
 function hubPidPath() {
-  return join4(sdlcHomeDir(), "hub.pid");
+  return join5(sdlcHomeDir(), "hub.pid");
 }
 function git(cwd, args) {
   try {
@@ -828,7 +952,7 @@ function gitIdentity(cwd) {
   const commonDirRaw = git(cwd, ["rev-parse", "--git-common-dir"]);
   let isWorktree = false;
   if (gitDir && commonDirRaw) {
-    const commonAbs = commonDirRaw.match(/^([a-zA-Z]:[\\/]|\/)/) ? commonDirRaw : join4(repoRoot, commonDirRaw);
+    const commonAbs = commonDirRaw.match(/^([a-zA-Z]:[\\/]|\/)/) ? commonDirRaw : join5(repoRoot, commonDirRaw);
     isWorktree = canon(gitDir) !== canon(commonAbs);
   }
   return {
@@ -884,7 +1008,7 @@ function validateEntry(entry, { allowEphemeral = process.env.SDLC_ALLOW_TEMP_ROO
   } catch {
     return { ok: false, reason: `viewDir does not resolve: ${viewDir}` };
   }
-  if (basename2(realView) !== "_view" || basename2(dirname2(realView)) !== ".ai") {
+  if (basename2(realView) !== "_view" || basename2(dirname3(realView)) !== ".ai") {
     return { ok: false, reason: `viewDir is not a .ai/_view path: ${realView}` };
   }
   let realRepo;
@@ -901,16 +1025,16 @@ function validateEntry(entry, { allowEphemeral = process.env.SDLC_ALLOW_TEMP_ROO
   if (realView !== realRepo && !realView.startsWith(repoWithSep)) {
     return { ok: false, reason: `viewDir escapes repoRoot: ${realView} \u2284 ${realRepo}` };
   }
-  if (!existsSync4(join4(realRepo, ".git"))) {
+  if (!existsSync5(join5(realRepo, ".git"))) {
     return { ok: false, reason: `repoRoot is not a git repo: ${realRepo}` };
   }
   return { ok: true };
 }
 function readLastRender(viewDir) {
-  const marker = join4(viewDir, ".last-render");
-  if (!existsSync4(marker)) return { renderedAt: null, configHash: null, version: null, buildId: null };
+  const marker = join5(viewDir, ".last-render");
+  if (!existsSync5(marker)) return { renderedAt: null, configHash: null, version: null, buildId: null };
   try {
-    const parsed = JSON.parse(readFileSync2(marker, "utf-8"));
+    const parsed = JSON.parse(readFileSync3(marker, "utf-8"));
     return {
       renderedAt: parsed.renderedAt ?? null,
       configHash: parsed.configHash ?? null,
@@ -970,7 +1094,7 @@ async function buildEntry({ projectRoot, viewDir, configHash = null, existing = 
   })();
   const id = resolveEntryId(repoRoot, existing);
   const last = readLastRender(resolvedViewDir);
-  const workflowsRoot = join4(repoRoot, ".ai", "workflows");
+  const workflowsRoot = join5(repoRoot, ".ai", "workflows");
   const slugMeta = await collectSlugMeta({ projectRoot: repoRoot, workflowsRoot });
   const stamp = nowIso ?? (/* @__PURE__ */ new Date()).toISOString();
   const prior = existing.find((e) => e.id === id);
@@ -1037,16 +1161,16 @@ function migrateRegistry(raw) {
 }
 function readRegistryFile() {
   const path = registryPath();
-  if (!existsSync4(path)) return { version: REGISTRY_VERSION, entries: [] };
+  if (!existsSync5(path)) return { version: REGISTRY_VERSION, entries: [] };
   try {
-    return migrateRegistry(JSON.parse(readFileSync2(path, "utf-8")));
+    return migrateRegistry(JSON.parse(readFileSync3(path, "utf-8")));
   } catch {
     return { version: REGISTRY_VERSION, entries: [] };
   }
 }
 function readShards() {
   const dir = shardDir();
-  if (!existsSync4(dir)) return [];
+  if (!existsSync5(dir)) return [];
   const out = [];
   let names;
   try {
@@ -1056,8 +1180,8 @@ function readShards() {
   }
   for (const name of names) {
     try {
-      const entry = JSON.parse(readFileSync2(join4(dir, name), "utf-8"));
-      if (entry && typeof entry === "object" && entry.id) out.push({ entry, file: join4(dir, name) });
+      const entry = JSON.parse(readFileSync3(join5(dir, name), "utf-8"));
+      if (entry && typeof entry === "object" && entry.id) out.push({ entry, file: join5(dir, name) });
     } catch {
     }
   }
@@ -1078,15 +1202,15 @@ function readRegistry({ validate = true, logInvalid = true } = {}) {
 }
 function writeRegistryAtomic(registry) {
   const path = registryPath();
-  mkdirSync2(dirname2(path), { recursive: true });
+  mkdirSync3(dirname3(path), { recursive: true });
   const tmp = `${path}.${process.pid}.tmp`;
   writeFileSync2(tmp, `${JSON.stringify(registry, null, 2)}
 `, "utf-8");
   try {
-    renameSync2(tmp, path);
+    renameSync3(tmp, path);
   } catch (err) {
     try {
-      rmSync2(tmp, { force: true });
+      rmSync3(tmp, { force: true });
     } catch {
     }
     throw err;
@@ -1105,7 +1229,7 @@ function mergeShardsIntoRegistry() {
   writeRegistryAtomic({ version: REGISTRY_VERSION, entries: merged });
   for (const { file: shardFile } of shards) {
     try {
-      rmSync2(shardFile, { force: true });
+      rmSync3(shardFile, { force: true });
     } catch {
     }
   }
@@ -1121,8 +1245,8 @@ function pruneRegistry({ graceMs = REGISTRY_FRESH_GRACE_MS, now = Date.now() } =
   let pruned = 0;
   for (const e of entries) {
     const valid = validateEntry(e).ok;
-    const backing = valid && existsSync4(e.repoRoot) && existsSync4(e.viewDir);
-    const hasWork = backing && (existsSync4(join4(e.viewDir, ".last-render")) || countPending(e.viewDir) > 0);
+    const backing = valid && existsSync5(e.repoRoot) && existsSync5(e.viewDir);
+    const hasWork = backing && (existsSync5(join5(e.viewDir, ".last-render")) || countPending(e.viewDir) > 0);
     if (backing && (hasWork || entryWithinGrace(e, graceMs, now))) {
       kept.push(e);
     } else {
@@ -1134,7 +1258,7 @@ function pruneRegistry({ graceMs = REGISTRY_FRESH_GRACE_MS, now = Date.now() } =
   writeRegistryAtomic({ version: REGISTRY_VERSION, entries: kept });
   for (const { file } of readShards()) {
     try {
-      rmSync2(file, { force: true });
+      rmSync3(file, { force: true });
     } catch {
     }
   }
@@ -1142,24 +1266,22 @@ function pruneRegistry({ graceMs = REGISTRY_FRESH_GRACE_MS, now = Date.now() } =
 }
 function logPrune(line) {
   try {
-    mkdirSync2(sdlcHomeDir(), { recursive: true });
-    appendFileSync2(pruneLogPath(), `[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}
-`, "utf-8");
+    appendLogLine(pruneLogPath(), `[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}`);
   } catch {
   }
 }
 function writeShard(entry) {
   const dir = shardDir();
-  mkdirSync2(dir, { recursive: true });
-  const path = join4(dir, `${entry.id}.json`);
+  mkdirSync3(dir, { recursive: true });
+  const path = join5(dir, `${entry.id}.json`);
   const tmp = `${path}.${process.pid}.tmp`;
   writeFileSync2(tmp, `${JSON.stringify(entry, null, 2)}
 `, "utf-8");
   try {
-    renameSync2(tmp, path);
+    renameSync3(tmp, path);
   } catch (err) {
     try {
-      rmSync2(tmp, { force: true });
+      rmSync3(tmp, { force: true });
     } catch {
     }
     throw err;
@@ -1167,7 +1289,7 @@ function writeShard(entry) {
 }
 function shardCount() {
   const dir = shardDir();
-  if (!existsSync4(dir)) return 0;
+  if (!existsSync5(dir)) return 0;
   try {
     return readdirSync2(dir).filter((n) => n.endsWith(".json")).length;
   } catch {
@@ -1177,7 +1299,7 @@ function shardCount() {
 function liveHub() {
   let record = null;
   try {
-    const text = readFileSync2(hubPidPath(), "utf-8").trim();
+    const text = readFileSync3(hubPidPath(), "utf-8").trim();
     record = text ? JSON.parse(text) : null;
   } catch {
     return null;
@@ -1220,10 +1342,10 @@ function postEntryToHub(hub, entry) {
 var AI_GITIGNORE_RULES = ["_view/", "workflows/*/.locks/"];
 function seedAiGitignore(viewDir) {
   try {
-    const path = join4(dirname2(viewDir), ".gitignore");
+    const path = join5(dirname3(viewDir), ".gitignore");
     let text = "";
     try {
-      text = readFileSync2(path, "utf-8");
+      text = readFileSync3(path, "utf-8");
     } catch {
     }
     const have = new Set(text.split(/\r?\n/).map((l) => l.trim()));
@@ -1237,7 +1359,7 @@ function seedAiGitignore(viewDir) {
 }
 async function upsertRegistryEntry({ projectRoot = process.cwd(), viewDir, configHash = null } = {}) {
   try {
-    const resolvedView = viewDir ?? join4(projectRoot, ".ai", "_view");
+    const resolvedView = viewDir ?? join5(projectRoot, ".ai", "_view");
     const existing = readRegistry({ logInvalid: false }).entries;
     const entry = await buildEntry({ projectRoot, viewDir: resolvedView, configHash, existing });
     if (!entry) {
@@ -1245,7 +1367,7 @@ async function upsertRegistryEntry({ projectRoot = process.cwd(), viewDir, confi
       return { action: "skipped-not-git" };
     }
     try {
-      mkdirSync2(resolvedView, { recursive: true });
+      mkdirSync3(resolvedView, { recursive: true });
       entry.viewDir = realpathSync.native(resolvedView);
     } catch {
     }
@@ -1276,129 +1398,6 @@ async function upsertRegistryEntry({ projectRoot = process.cwd(), viewDir, confi
     }
     return { action: "error" };
   }
-}
-
-// lib/runtime-log.mjs
-import { appendFileSync as appendFileSync3, existsSync as existsSync5, mkdirSync as mkdirSync3, readFileSync as readFileSync3, renameSync as renameSync3, rmSync as rmSync3, statSync as statSync3 } from "node:fs";
-import { dirname as dirname3, join as join5 } from "node:path";
-var MAX_LOG_BYTES = 1024 * 1024;
-var KEEP_GENERATIONS = 2;
-var hubLogPath = (home = sdlcHomeDir()) => join5(home, "hub.log");
-var lifecycleLogPath = (home = sdlcHomeDir()) => join5(home, "lifecycle.log");
-var errorsLogPath = (home = sdlcHomeDir()) => join5(home, "errors.log");
-var hubHistoryPath = (home = sdlcHomeDir()) => join5(home, "hub-history.jsonl");
-function rotateIfLarge(path, { maxBytes = MAX_LOG_BYTES, keep = KEEP_GENERATIONS } = {}) {
-  let size;
-  try {
-    size = statSync3(path).size;
-  } catch {
-    return false;
-  }
-  if (size <= maxBytes) return false;
-  try {
-    rmSync3(`${path}.${keep}`, { force: true });
-  } catch {
-  }
-  for (let i = keep - 1; i >= 1; i--) {
-    try {
-      if (existsSync5(`${path}.${i}`)) renameSync3(`${path}.${i}`, `${path}.${i + 1}`);
-    } catch {
-    }
-  }
-  try {
-    renameSync3(path, `${path}.1`);
-  } catch {
-    return false;
-  }
-  return true;
-}
-function appendLogLine(path, line, opts = {}) {
-  try {
-    mkdirSync3(dirname3(path), { recursive: true });
-    rotateIfLarge(path, opts);
-    appendFileSync3(path, line.endsWith("\n") ? line : `${line}
-`, "utf-8");
-    return true;
-  } catch (e) {
-    try {
-      process.stderr.write(`[runtime-log] could not write ${path}: ${e?.message ?? e}
-`);
-    } catch {
-    }
-    return false;
-  }
-}
-function parseJsonLines(text) {
-  const out = [];
-  for (const line of String(text ?? "").split(/\r?\n/)) {
-    const t = line.trim();
-    if (!t) continue;
-    try {
-      out.push(JSON.parse(t));
-    } catch {
-    }
-  }
-  return out;
-}
-function readJsonLines(path) {
-  try {
-    return parseJsonLines(readFileSync3(path, "utf-8"));
-  } catch {
-    return [];
-  }
-}
-function hubLogLine(line, { home, now = () => /* @__PURE__ */ new Date() } = {}) {
-  const written = `${now().toISOString()} ${line}`;
-  appendLogLine(hubLogPath(home), written);
-  return written;
-}
-var LIFECYCLE_EVENTS = Object.freeze([
-  "adopt",
-  "reap",
-  "recover",
-  "start",
-  "unconfirmed",
-  "refused-host",
-  "protocol-incompatible",
-  "lock-timeout",
-  "port-held",
-  "port-migrated",
-  "gc",
-  "deprecated-config"
-]);
-function formatLifecycleLine(record, now = /* @__PURE__ */ new Date()) {
-  const { event, host = null, version = null, buildId = null, pid = null, reason = null, ...extra } = record ?? {};
-  return JSON.stringify({
-    at: now.toISOString(),
-    event: String(event ?? "unknown"),
-    host,
-    version,
-    buildId,
-    pid: Number.isInteger(pid) ? pid : null,
-    reason: reason == null ? null : String(reason),
-    ...extra
-  });
-}
-function logLifecycle(record, { home, now = /* @__PURE__ */ new Date() } = {}) {
-  const line = formatLifecycleLine(record, now);
-  appendLogLine(lifecycleLogPath(home), line);
-  return line;
-}
-function recordHubStart({ pid, version = null, buildId = null, startedBy = null, reason = "unknown", port = null } = {}, { home, now = /* @__PURE__ */ new Date() } = {}) {
-  const record = { at: now.toISOString(), event: "start", pid: Number.isInteger(pid) ? pid : null, version, buildId, startedBy, reason: String(reason), port };
-  appendLogLine(hubHistoryPath(home), JSON.stringify(record));
-  return record;
-}
-function readHubHistory(home) {
-  const records = readJsonLines(hubHistoryPath(home)).filter((r) => r && r.event === "start");
-  const last = records.at(-1) ?? null;
-  return {
-    starts: records.length,
-    restarts: Math.max(0, records.length - 1),
-    lastReason: last?.reason ?? null,
-    lastAt: last?.at ?? null,
-    lastPid: last?.pid ?? null
-  };
 }
 
 export {
