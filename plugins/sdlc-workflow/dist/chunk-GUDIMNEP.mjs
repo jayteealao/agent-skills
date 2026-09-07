@@ -8,10 +8,10 @@ import {
   HUB_DEFAULT_PORT,
   hubConfigHash,
   readHubConfig
-} from "./chunk-W6LOWUXC.mjs";
+} from "./chunk-YTSTSKHX.mjs";
 import {
   logLifecycle
-} from "./chunk-AIBXAMBJ.mjs";
+} from "./chunk-RCBTEB7Z.mjs";
 import {
   LockTimeoutError,
   atomicWriteJson,
@@ -21,7 +21,7 @@ import {
   verifyRuntimeStore,
   withLock,
   writeActiveRuntime
-} from "./chunk-FVH7UCVI.mjs";
+} from "./chunk-MGT7PMCG.mjs";
 import {
   runtimeIdentity
 } from "./chunk-EQC6XDOG.mjs";
@@ -134,6 +134,16 @@ function lifecycle(event, extra = {}) {
   } catch {
   }
 }
+function gcAfterLifecycle(log) {
+  try {
+    const { removed } = gcRuntimes({ keepBuildIds: [RUNTIME.buildId] });
+    if (removed.length) {
+      log(`[hub] runtime store gc removed ${removed.length} build${removed.length === 1 ? "" : "s"}`);
+      lifecycle("gc", { reason: `removed ${removed.length}: ${removed.map((b) => b.slice(0, 12)).join(", ")}` });
+    }
+  } catch {
+  }
+}
 async function ensureHubLifecycle({ pluginRoot, log = () => {
 } } = {}) {
   const cfg = readHubConfig();
@@ -153,6 +163,7 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
       log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ""}hub at http://${displayHost(host)}:${port} (runtime ${RUNTIME.runtimeVersion}${decision.reason ? `; ${decision.reason}` : ""})`);
       lifecycle("adopt", { pid: id.pid, reason: decision.reason ?? null, peerVersion: id.runtimeVersion ?? null, peerBuildId: id.buildId ?? null, peerHost: id.startedByHost ?? null });
       maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
+      gcAfterLifecycle(log);
       return { action: "already-running", pid: id.pid, adopted: true };
     }
     if (decision.action === "protocol-incompatible") {
@@ -170,6 +181,7 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
         log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ""}hub after lock wait (runtime ${RUNTIME.runtimeVersion}${decision.reason ? `; ${decision.reason}` : ""})`);
         lifecycle("adopt", { pid: id.pid, reason: `after lock wait${decision.reason ? `; ${decision.reason}` : ""}`, peerVersion: id.runtimeVersion ?? null, peerBuildId: id.buildId ?? null, peerHost: id.startedByHost ?? null });
         maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
+        gcAfterLifecycle(log);
         return { action: "already-running", pid: id.pid, adopted: true };
       }
       if (decision.action === "protocol-incompatible") {
@@ -302,6 +314,7 @@ async function startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port,
   }
   log(`[hub] started pid ${child.pid} at http://${displayHost(host)}:${port} (runtime ${identity.runtimeVersion}${buildId ? ` ${buildId.slice(0, 12)}` : ""})`);
   lifecycle("start", { pid: child.pid ?? null, reason: startReason, version: identity.runtimeVersion, buildId });
+  gcAfterLifecycle(log);
   maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
   return { action: "started", pid: child.pid };
 }

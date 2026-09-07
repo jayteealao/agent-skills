@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   appendLogLine,
   errorsLogPath
-} from "./chunk-AIBXAMBJ.mjs";
+} from "./chunk-RCBTEB7Z.mjs";
 
 // lib/error-log.mjs
 import { existsSync } from "node:fs";

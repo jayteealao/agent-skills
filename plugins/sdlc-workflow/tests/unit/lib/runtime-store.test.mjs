@@ -7,7 +7,7 @@
 
 import { test } from 'node:test';
 import { equal, ok, deepEqual } from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -163,5 +163,47 @@ test('runtime-store: gcRuntimes removes unprotected builds but spares protected 
     ok(existsSync(runtimeRootFor('keep-listed')), 'explicitly-listed build kept');
     ok(existsSync(runtimeRootFor('keep-sameversion')), 'same-runtimeVersion build kept');
     ok(existsSync(join(runtimeStoreDir(), '.build-tmp.123.tmp')), 'in-flight temp dir untouched');
+  });
+});
+
+/* ───────────────────────── W11.5: GC on every start keeps active + previous + bundled ───────────────────────── */
+
+test('runtime-store: writeActiveRuntime tracks the build it replaced (previousBuildId)', async () => {
+  await withHome(async () => {
+    await writeActiveRuntime({ buildId: 'b1', runtimeRoot: runtimeRootFor('b1'), runtimeVersion: '1.0.0' });
+    equal((await readActiveRuntime()).previousBuildId, null, 'the first record replaced nothing');
+    await writeActiveRuntime({ buildId: 'b2', runtimeRoot: runtimeRootFor('b2'), runtimeVersion: '1.0.1' });
+    equal((await readActiveRuntime()).previousBuildId, 'b1');
+    await writeActiveRuntime({ buildId: 'b2', runtimeRoot: runtimeRootFor('b2'), runtimeVersion: '1.0.1' });
+    equal((await readActiveRuntime()).previousBuildId, 'b1', 'a same-build rewrite keeps the previous');
+    await writeActiveRuntime({ buildId: 'b3', runtimeRoot: runtimeRootFor('b3'), runtimeVersion: '1.0.2' });
+    equal((await readActiveRuntime()).previousBuildId, 'b2');
+  });
+});
+
+test('runtime-store: gcRuntimes leaves 3 of 6 — active, previous, bundled (WIDE-VIEW §14.2.5 gate)', async () => {
+  await withHome(async () => {
+    const { readRuntimeManifest } = await import('../../../lib/runtime-manifest.mjs');
+    const bundled = readRuntimeManifest().buildId;
+    const mk = async (buildId, version) => {
+      const p = fakePluginRoot({ buildId, runtimeVersion: version });
+      await materializeRuntime(p, { manifest: { buildId, runtimeVersion: version } });
+      rmSync(p, { recursive: true, force: true });
+    };
+    // Six builds on six versions: none shares a protected runtimeVersion, so only
+    // the three named protections decide.
+    await mk('gc-active', '1.0.5');
+    await mk('gc-previous', '1.0.4');
+    await mk(bundled, '1.0.9');
+    await mk('gc-old-a', '1.0.1');
+    await mk('gc-old-b', '1.0.2');
+    await mk('gc-old-c', '1.0.3');
+    await writeActiveRuntime({ buildId: 'gc-previous', runtimeRoot: runtimeRootFor('gc-previous'), runtimeVersion: '1.0.4' });
+    await writeActiveRuntime({ buildId: 'gc-active', runtimeRoot: runtimeRootFor('gc-active'), runtimeVersion: '1.0.5' });
+
+    const { removed } = gcRuntimes({ keepBuildIds: [bundled] });
+    deepEqual(removed.sort(), ['gc-old-a', 'gc-old-b', 'gc-old-c']);
+    const left = readdirSync(runtimeStoreDir()).filter((n) => !n.startsWith('.')).sort();
+    deepEqual(left, [bundled, 'gc-active', 'gc-previous'].sort(), '3 directories remain from a fixture of 6');
   });
 });

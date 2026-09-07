@@ -87,7 +87,9 @@ var LIFECYCLE_EVENTS = Object.freeze([
   "refused-host",
   "protocol-incompatible",
   "lock-timeout",
-  "port-held"
+  "port-held",
+  "port-migrated",
+  "gc"
 ]);
 function formatLifecycleLine(record, now = /* @__PURE__ */ new Date()) {
   const { event, host = null, version = null, buildId = null, pid = null, reason = null, ...extra } = record ?? {};

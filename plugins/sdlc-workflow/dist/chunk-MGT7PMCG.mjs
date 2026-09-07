@@ -283,10 +283,13 @@ async function verifyRuntimeStore(runtimeRoot, expectedBuildId = null) {
   }
 }
 async function writeActiveRuntime({ buildId, runtimeRoot, runtimeVersion }) {
+  const current = await readActiveRuntime();
+  const previousBuildId = current?.buildId && current.buildId !== buildId ? current.buildId : current?.previousBuildId ?? null;
   await atomicWriteJson(activeRuntimePath(), {
     buildId,
     runtimeRoot,
     runtimeVersion,
+    previousBuildId,
     updatedAt: (/* @__PURE__ */ new Date()).toISOString()
   });
 }
@@ -344,6 +347,7 @@ function gcRuntimes({ keepBuildIds = [] } = {}) {
   if (bundled) keep.add(bundled);
   const active = safeReadJson(activeRuntimePath());
   if (active?.buildId) keep.add(active.buildId);
+  if (active?.previousBuildId) keep.add(active.previousBuildId);
   const pid = safeReadJson(hubPidPath());
   if (pid?.buildId) keep.add(pid.buildId);
   const protectedVersions = new Set(

@@ -121,6 +121,23 @@ function lifecycle(event, extra = {}) {
   try { logLifecycle({ event, host: STARTED_BY_HOST, version: RUNTIME.runtimeVersion, buildId: RUNTIME.buildId, ...extra }); } catch { /* never block */ }
 }
 
+/**
+ * W11.5: after every confirmed start or adopt, drop the materialized builds
+ * nothing protects. gcRuntimes keeps the active build, the build it replaced
+ * (`previousBuildId`), the bundled build, the live hub's build, and any build
+ * on a protected runtimeVersion (lib/runtime-store.mjs never-remove rules).
+ * Best-effort; a removal is one `gc` lifecycle line.
+ */
+function gcAfterLifecycle(log) {
+  try {
+    const { removed } = gcRuntimes({ keepBuildIds: [RUNTIME.buildId] });
+    if (removed.length) {
+      log(`[hub] runtime store gc removed ${removed.length} build${removed.length === 1 ? '' : 's'}`);
+      lifecycle('gc', { reason: `removed ${removed.length}: ${removed.map((b) => b.slice(0, 12)).join(', ')}` });
+    }
+  } catch { /* never block a session start */ }
+}
+
 export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
   const cfg = readHubConfig();   // reads/creates ~/.sdlc/hub-config.json
   const host = cfg.host ?? '127.0.0.1';
@@ -143,6 +160,7 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
       log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ''}hub at http://${displayHost(host)}:${port} (runtime ${RUNTIME.runtimeVersion}${decision.reason ? `; ${decision.reason}` : ''})`);
       lifecycle('adopt', { pid: id.pid, reason: decision.reason ?? null, peerVersion: id.runtimeVersion ?? null, peerBuildId: id.buildId ?? null, peerHost: id.startedByHost ?? null });
       maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
+      gcAfterLifecycle(log);
       return { action: 'already-running', pid: id.pid, adopted: true };
     }
     if (decision.action === 'protocol-incompatible') {
@@ -167,6 +185,7 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
         log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ''}hub after lock wait (runtime ${RUNTIME.runtimeVersion}${decision.reason ? `; ${decision.reason}` : ''})`);
         lifecycle('adopt', { pid: id.pid, reason: `after lock wait${decision.reason ? `; ${decision.reason}` : ''}`, peerVersion: id.runtimeVersion ?? null, peerBuildId: id.buildId ?? null, peerHost: id.startedByHost ?? null });
         maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
+        gcAfterLifecycle(log);
         return { action: 'already-running', pid: id.pid, adopted: true };
       }
       if (decision.action === 'protocol-incompatible') {
@@ -322,6 +341,7 @@ async function startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port,
   }
   log(`[hub] started pid ${child.pid} at http://${displayHost(host)}:${port} (runtime ${identity.runtimeVersion}${buildId ? ` ${buildId.slice(0, 12)}` : ''})`);
   lifecycle('start', { pid: child.pid ?? null, reason: startReason, version: identity.runtimeVersion, buildId });
+  gcAfterLifecycle(log);
   maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
   return { action: 'started', pid: child.pid };
 }

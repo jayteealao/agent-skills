@@ -120,9 +120,19 @@ export async function verifyRuntimeStore(runtimeRoot, expectedBuildId = null) {
   } catch { return false; }
 }
 
+/**
+ * Record the runtime behind the live/last hub. Keeps `previousBuildId` — the
+ * build this one replaced — so the GC (W11.5) and a rollback can find the
+ * previous known-good build; a rewrite with the same buildId keeps the one
+ * already recorded.
+ */
 export async function writeActiveRuntime({ buildId, runtimeRoot, runtimeVersion }) {
+  const current = await readActiveRuntime();
+  const previousBuildId = current?.buildId && current.buildId !== buildId
+    ? current.buildId
+    : (current?.previousBuildId ?? null);
   await atomicWriteJson(activeRuntimePath(), {
-    buildId, runtimeRoot, runtimeVersion, updatedAt: new Date().toISOString(),
+    buildId, runtimeRoot, runtimeVersion, previousBuildId, updatedAt: new Date().toISOString(),
   });
 }
 
@@ -200,7 +210,8 @@ function pidRuntimeRoot() {
 
 /**
  * Garbage-collect materialized builds. NEVER removes (plan GC safeguards):
- *   • the active runtime (active-runtime.json)
+ *   • the active runtime (active-runtime.json) and the build it replaced
+ *     (`previousBuildId`, W11.5)
  *   • the runtime used by the live hub PID
  *   • the caller's own bundled build
  *   • any build whose runtimeVersion matches a protected build (same version ⇒
@@ -218,6 +229,7 @@ export function gcRuntimes({ keepBuildIds = [] } = {}) {
   if (bundled) keep.add(bundled);
   const active = safeReadJson(activeRuntimePath());
   if (active?.buildId) keep.add(active.buildId);
+  if (active?.previousBuildId) keep.add(active.previousBuildId);
   const pid = safeReadJson(hubPidPath());
   if (pid?.buildId) keep.add(pid.buildId);
 
