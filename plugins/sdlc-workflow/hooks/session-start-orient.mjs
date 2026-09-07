@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 /**
+ * SessionStart (Claude Code, pi). Background maintenance only; it never writes
+ * to stdout (the orientation message was removed in 9.97.0 — the /wf commands
+ * re-read 00-index.md themselves).
+ *
  * Behavior:
- * - Scan workflow 00-index.md files under .ai/workflows/.
- * - Skip terminal statuses and malformed indexes.
- * - Emit no output when no active workflows exist.
- * - Emit JSON {systemMessage} when active workflows exist.
- * - Include branch mismatch information best-effort from git.
- * - Start detached bootstrap rendering after the fast orientation pass.
+ * - When the project root has `.ai/workflows`, is inside a git checkout, and the
+ *   payload `source` is not `compact`: enqueue one whole-repo bootstrap render
+ *   request under `.ai/_view/.render-queue/` and, on `startup` or `resume`
+ *   only, spawn the detached hub-ensure (lib/session-start-policy.mjs, W11.3).
+ * - Otherwise create nothing: no `.ai/_view`, no queue record, no spawn.
+ * - Re-stamp the tray autostart launcher and reconcile a stale running tray.
  */
 
-import { mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../lib/config.mjs';
@@ -19,6 +23,8 @@ import { logError } from '../lib/error-log.mjs';
 import { enqueue } from '../lib/render-queue.mjs';
 import { ensureHubEnabled, spawnHubEnsure } from '../lib/ensure-hub.mjs';
 import { projectRootFromInput } from '../lib/hook-utils.mjs';
+import { isInsideGitCheckout } from '../lib/project-root.mjs';
+import { sessionStartDecision } from '../lib/session-start-policy.mjs';
 import { readStdinJson } from '../lib/stdin.mjs';
 import { isAutostartEnabled, refreshAutostart } from '../lib/tray-autostart.mjs';
 import { sdlcHomeDir } from '../lib/registry.mjs';
@@ -37,7 +43,7 @@ async function main() {
   const input = await readStdinJson();
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
-  startBootstrap(projectRoot, config);
+  startBootstrap(projectRoot, config, { source: typeof input.source === 'string' ? input.source : null });
   healAutostartLauncher();
   healRunningTray();
 }
@@ -100,9 +106,20 @@ function trayHealDue(now = Date.now()) {
   }
 }
 
-function startBootstrap(projectRoot, config) {
+function startBootstrap(projectRoot, config, { source = null } = {}) {
   if (process.env.SDLC_DISABLE_BOOTSTRAP === '1') return;
   if (config.view?.bootstrap?.enabled === false) return;
+  // W11.3: a repository with no workflow store, a directory outside any git
+  // checkout, or a context compaction gets no .ai/_view, no queue record, and
+  // no hub-ensure. `insideGit` (not "is the toplevel") because project-root.mjs
+  // deliberately anchors a monorepo sub-project below the toplevel.
+  const decision = sessionStartDecision({
+    source,
+    hasWorkflows: existsSync(join(projectRoot, '.ai', 'workflows')),
+    insideGit: isInsideGitCheckout(projectRoot),
+    ensureHubEnabled: ensureHubEnabled(config.view),
+  });
+  if (!decision.enqueue) return;
   const dispatch = config.view?.renderDispatch ?? 'hub';
 
   // 'inline' (rollback): spawn the bootstrap render directly, as before.
@@ -132,7 +149,7 @@ function startBootstrap(projectRoot, config) {
       enqueuedBy: { host: process.env.SDLC_HOST || 'claude', pid: process.pid },
     }, { maxPending: config.view?.renderQueue?.maxPending });
 
-    if (ensureHubEnabled(config.view)) {
+    if (decision.ensureHub) {
       spawnHubEnsure({ pluginRoot: PLUGIN_ROOT, projectRoot, viewDir: viewRoot });
     }
   } catch {

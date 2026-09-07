@@ -30,7 +30,7 @@ import {
   renameSync, rmSync, realpathSync, statSync, appendFileSync,
 } from 'node:fs';
 import { request } from 'node:http';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, join, sep } from 'node:path';
 
 import { readPidFile, isPidAlive } from './pid-file.mjs';
@@ -167,7 +167,32 @@ function resolveEntryId(repoRoot, existing) {
  * viewDir realpaths under its own repoRoot, ends in `.ai/_view`, and the repoRoot
  * is a real git repo. Returns { ok, reason? }. Never throws.
  */
-export function validateEntry(entry) {
+/* ───────────────────────── ephemeral roots (W11.3) ───────────────────────── */
+
+const normPath = (p) => String(p ?? '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+
+/**
+ * 'temp' | 'worktree' | 'scratchpad' | null — a root the registry refuses
+ * (WIDE-VIEW-REPAIR-PLAN §14.2.3 item 4). Case- and separator-insensitive;
+ * the OS temp dir is matched by its given AND its realpath form.
+ */
+export function ephemeralRootReason(repoRoot, { tmpDir = tmpdir() } = {}) {
+  const r = normPath(repoRoot);
+  if (!r) return null;
+  const temps = new Set([normPath(tmpDir)]);
+  try { temps.add(normPath(realpathSync.native(tmpDir))); } catch { /* absent */ }
+  for (const t of temps) if (t && (r === t || r.startsWith(`${t}/`))) return 'temp';
+  if (/\/\.claude\/worktrees(\/|$)/.test(r)) return 'worktree';
+  if (/\/claude\/[^/]+\/[^/]+\/scratchpad(\/|$)/.test(r)) return 'scratchpad';
+  return null;
+}
+
+/**
+ * `allowEphemeral` defaults from SDLC_ALLOW_TEMP_ROOTS=1 — the test suite's
+ * escape (tests/run-all.mjs sets it once; every test repo lives under tmpdir).
+ * Production never sets it.
+ */
+export function validateEntry(entry, { allowEphemeral = process.env.SDLC_ALLOW_TEMP_ROOTS === '1', tmpDir } = {}) {
   if (!entry || typeof entry !== 'object') return { ok: false, reason: 'not an object' };
   const { id, repoRoot, viewDir } = entry;
   // `headBranch` is canonical (§4.2); tolerate a legacy v1 `branch` so an
@@ -190,6 +215,13 @@ export function validateEntry(entry) {
   let realRepo;
   try { realRepo = realpathSync.native(repoRoot); }
   catch { return { ok: false, reason: `repoRoot does not resolve: ${repoRoot}` }; }
+
+  // 1b. (W11.3) an ephemeral root never registers: the OS temp dir, a Claude
+  // scratchpad, a .claude/worktrees checkout.
+  if (!allowEphemeral) {
+    const eph = ephemeralRootReason(realRepo, { tmpDir });
+    if (eph) return { ok: false, reason: `repoRoot is ephemeral (${eph}): ${realRepo}` };
+  }
   const repoWithSep = realRepo.endsWith(sep) ? realRepo : `${realRepo}${sep}`;
   if (realView !== realRepo && !realView.startsWith(repoWithSep)) {
     return { ok: false, reason: `viewDir escapes repoRoot: ${realView} ⊄ ${realRepo}` };

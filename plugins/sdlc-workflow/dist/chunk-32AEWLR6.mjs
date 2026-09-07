@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   resolveProjectRoot
-} from "./chunk-UTP6CBAZ.mjs";
+} from "./chunk-DOKC4AFB.mjs";
 
 // lib/hook-utils.mjs
 import { existsSync } from "node:fs";

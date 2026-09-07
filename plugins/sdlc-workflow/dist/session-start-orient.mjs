@@ -8,22 +8,24 @@ import {
 import {
   projectRootFromInput,
   readStdinJson
-} from "./chunk-K34UYVF7.mjs";
+} from "./chunk-32AEWLR6.mjs";
 import {
   logError
-} from "./chunk-CWTKB7KG.mjs";
-import "./chunk-RYUCL5SR.mjs";
+} from "./chunk-YU5ZYAX3.mjs";
+import "./chunk-AIBXAMBJ.mjs";
 import {
   ensureHubEnabled,
   spawnHubEnsure
-} from "./chunk-DYPFJ6TV.mjs";
+} from "./chunk-VODXRTAX.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-K6PBZI5W.mjs";
 import {
   resolveEntrypoint
 } from "./chunk-KRRL2TSM.mjs";
-import "./chunk-UTP6CBAZ.mjs";
+import {
+  isInsideGitCheckout
+} from "./chunk-DOKC4AFB.mjs";
 import {
   loadConfig
 } from "./chunk-YVM64S7E.mjs";
@@ -31,14 +33,33 @@ import "./chunk-FZ2GR6GF.mjs";
 import {
   enqueue,
   sdlcHomeDir
-} from "./chunk-BIK57RP4.mjs";
+} from "./chunk-4K63PVBZ.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // hooks/session-start-orient.mjs
-import { mkdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+// lib/session-start-policy.mjs
+var HUB_ENSURE_SOURCES = Object.freeze(/* @__PURE__ */ new Set(["startup", "resume"]));
+function sessionStartDecision({
+  source = null,
+  hasWorkflows,
+  insideGit,
+  bootstrapDisabled = false,
+  ensureHubEnabled: ensureHubEnabled2 = true
+} = {}) {
+  if (bootstrapDisabled) return { enqueue: false, ensureHub: false, reason: "bootstrap disabled" };
+  if (source === "compact") return { enqueue: false, ensureHub: false, reason: "source compact" };
+  if (!hasWorkflows) return { enqueue: false, ensureHub: false, reason: "no .ai/workflows" };
+  if (!insideGit) return { enqueue: false, ensureHub: false, reason: "not inside a git checkout" };
+  const ensureHub = ensureHubEnabled2 && (source == null || HUB_ENSURE_SOURCES.has(source));
+  return { enqueue: true, ensureHub, reason: ensureHub ? "session start" : `source ${source}: enqueue only` };
+}
+
+// hooks/session-start-orient.mjs
 var __dirname = dirname(fileURLToPath(import.meta.url));
 var PLUGIN_ROOT = resolve(__dirname, "..");
 async function main() {
@@ -47,7 +68,7 @@ async function main() {
   const input = await readStdinJson();
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
-  startBootstrap(projectRoot, config);
+  startBootstrap(projectRoot, config, { source: typeof input.source === "string" ? input.source : null });
   healAutostartLauncher();
   healRunningTray();
 }
@@ -84,9 +105,16 @@ function trayHealDue(now = Date.now()) {
     return false;
   }
 }
-function startBootstrap(projectRoot, config) {
+function startBootstrap(projectRoot, config, { source = null } = {}) {
   if (process.env.SDLC_DISABLE_BOOTSTRAP === "1") return;
   if (config.view?.bootstrap?.enabled === false) return;
+  const decision = sessionStartDecision({
+    source,
+    hasWorkflows: existsSync(join(projectRoot, ".ai", "workflows")),
+    insideGit: isInsideGitCheckout(projectRoot),
+    ensureHubEnabled: ensureHubEnabled(config.view)
+  });
+  if (!decision.enqueue) return;
   const dispatch = config.view?.renderDispatch ?? "hub";
   if (dispatch === "inline") {
     try {
@@ -108,7 +136,7 @@ function startBootstrap(projectRoot, config) {
       bucket: "__bootstrap__",
       enqueuedBy: { host: process.env.SDLC_HOST || "claude", pid: process.pid }
     }, { maxPending: config.view?.renderQueue?.maxPending });
-    if (ensureHubEnabled(config.view)) {
+    if (decision.ensureHub) {
       spawnHubEnsure({ pluginRoot: PLUGIN_ROOT, projectRoot, viewDir: viewRoot });
     }
   } catch {

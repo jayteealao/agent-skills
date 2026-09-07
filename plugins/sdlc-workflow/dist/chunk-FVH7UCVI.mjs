@@ -9,7 +9,7 @@ import {
   hubPidPath,
   isPidAlive,
   sdlcHomeDir
-} from "./chunk-BIK57RP4.mjs";
+} from "./chunk-4K63PVBZ.mjs";
 
 // lib/cross-host-lock.mjs
 import { randomBytes } from "node:crypto";

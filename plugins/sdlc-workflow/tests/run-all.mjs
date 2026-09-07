@@ -112,6 +112,12 @@ console.error(
     : `[run-all] ${discovered} test files discovered under tests/`,
 );
 
+// W11.3: lib/registry.mjs refuses repositories under the OS temp dir, and every
+// test repository is one. The escape is set HERE, once, and inherited by every
+// hook and hub the tests spawn. Run single files through `npm test -- <filter>`
+// so they see it too.
+process.env.SDLC_ALLOW_TEMP_ROOTS ??= '1';
+
 const result = spawnSync(process.execPath, ['--test', ...passThroughFlags, ...rel], {
   cwd: PLUGIN_ROOT,
   stdio: 'inherit',

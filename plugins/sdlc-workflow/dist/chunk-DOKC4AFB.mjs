@@ -19,6 +19,9 @@ function gitToplevel(dir) {
     return null;
   }
 }
+function isInsideGitCheckout(dir) {
+  return gitToplevel(dir) !== null;
+}
 function canon(p) {
   try {
     return realpathSync.native(p);
@@ -51,5 +54,6 @@ function resolveProjectRoot(startDir = process.cwd()) {
 }
 
 export {
+  isInsideGitCheckout,
   resolveProjectRoot
 };

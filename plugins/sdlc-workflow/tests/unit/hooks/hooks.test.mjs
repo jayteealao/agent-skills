@@ -1207,9 +1207,12 @@ test('post-write-render skips writes inside the view tree (no self-trigger loop)
   }
 });
 
-test('session-start-orient (hub dispatch) enqueues a bootstrap render request', () => {
+test('session-start-orient (hub dispatch) enqueues a bootstrap render request', (t) => {
+  if (spawnSync('git', ['--version'], { encoding: 'utf-8' }).status !== 0) { t.skip('git unavailable'); return; }
   const tmp = tempDir();
   try {
+    // W11.3: the enqueue needs a git checkout AND a workflow store.
+    spawnSync('git', ['init', '-q'], { cwd: tmp, encoding: 'utf-8' });
     writeFile(join(tmp, '.ai', 'workflows', 'demo', '00-index.md'), md(minimalIndex()));
 
     // bootstrap ENABLED (no SDLC_DISABLE_BOOTSTRAP) but ensure-hub disabled, so
@@ -1224,6 +1227,49 @@ test('session-start-orient (hub dispatch) enqueues a bootstrap render request', 
 
     // orientation message is stripped — the hook emits nothing to stdout
     equal(result.stdout.trim(), '', 'session-start-orient emits nothing to stdout');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+/* ───────────────────────── conditional SessionStart (WIDE-VIEW §14.2.3, W11.3) ───────────────────────── */
+
+test('session-start-orient creates no .ai/_view in a checkout with no workflow store (W11.3)', (t) => {
+  if (spawnSync('git', ['--version'], { encoding: 'utf-8' }).status !== 0) { t.skip('git unavailable'); return; }
+  const tmp = tempDir();
+  try {
+    spawnSync('git', ['init', '-q'], { cwd: tmp, encoding: 'utf-8' });
+    const result = runHook(HOOKS.sessionStartOrient, { cwd: tmp, source: 'startup' }, tmp, renderEnv(tmp));
+    equal(result.status, 0, result.stderr);
+    equal(existsSync(join(tmp, '.ai')), false, 'no .ai/_view litter, no queue record');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('session-start-orient enqueues nothing outside a git checkout (W11.3)', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai', 'workflows', 'demo', '00-index.md'), md(minimalIndex()));
+    const result = runHook(HOOKS.sessionStartOrient, { cwd: tmp, source: 'startup' }, tmp, renderEnv(tmp));
+    equal(result.status, 0, result.stderr);
+    equal(queueRecords(tmp).length, 0, 'no bootstrap request outside git');
+    equal(existsSync(join(tmp, '.ai', '_view')), false, 'no .ai/_view created');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('session-start-orient enqueues nothing on source compact (W11.3)', (t) => {
+  if (spawnSync('git', ['--version'], { encoding: 'utf-8' }).status !== 0) { t.skip('git unavailable'); return; }
+  const tmp = tempDir();
+  try {
+    spawnSync('git', ['init', '-q'], { cwd: tmp, encoding: 'utf-8' });
+    writeFile(join(tmp, '.ai', 'workflows', 'demo', '00-index.md'), md(minimalIndex()));
+    const result = runHook(HOOKS.sessionStartOrient, { cwd: tmp, source: 'compact' }, tmp, renderEnv(tmp));
+    equal(result.status, 0, result.stderr);
+    equal(queueRecords(tmp).length, 0, 'a compaction is not a session start');
+    equal(existsSync(join(tmp, '.ai', '_view')), false, 'no .ai/_view created on compact');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

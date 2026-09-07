@@ -3,10 +3,10 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   hubConfigHash,
   readHubConfig
-} from "./chunk-VXRDWVSQ.mjs";
+} from "./chunk-MKMDFMEG.mjs";
 import {
   logLifecycle
-} from "./chunk-RYUCL5SR.mjs";
+} from "./chunk-AIBXAMBJ.mjs";
 import {
   LockTimeoutError,
   atomicWriteJson,
@@ -16,7 +16,7 @@ import {
   verifyRuntimeStore,
   withLock,
   writeActiveRuntime
-} from "./chunk-KZAGDADS.mjs";
+} from "./chunk-FVH7UCVI.mjs";
 import {
   runtimeIdentity
 } from "./chunk-EQC6XDOG.mjs";
@@ -33,7 +33,7 @@ import {
   removePidFile,
   sdlcHomeDir,
   writePidFile
-} from "./chunk-BIK57RP4.mjs";
+} from "./chunk-4K63PVBZ.mjs";
 
 // lib/hub-lifecycle.mjs
 import { randomBytes } from "node:crypto";

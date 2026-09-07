@@ -48,6 +48,8 @@ function main() {
   const args = parseHookArgs();
   const layout = resolveLayout(args);
   const event = readEvent() ?? {};
+  // W11.3: a context compaction is not a session start — no seed, no hub confirm.
+  if (event.source === 'compact') return;
   const projectRoot = findProjectRoot(event.cwd);
 
   // (4, first) Seed the /wf rules kernel BEFORE the hub confirm. The seed is fast

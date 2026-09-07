@@ -3,20 +3,21 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   readHubConfig
-} from "./chunk-VXRDWVSQ.mjs";
-import "./chunk-4I3KKSMG.mjs";
+} from "./chunk-MKMDFMEG.mjs";
+import "./chunk-N7IAPX7N.mjs";
 import {
   readActiveRuntime,
   runtimeStoreDir
-} from "./chunk-KZAGDADS.mjs";
+} from "./chunk-FVH7UCVI.mjs";
 import "./chunk-EQC6XDOG.mjs";
 import "./chunk-KRRL2TSM.mjs";
 import "./chunk-YVM64S7E.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import {
+  ephemeralRootReason,
   readRegistry,
   sdlcHomeDir
-} from "./chunk-BIK57RP4.mjs";
+} from "./chunk-4K63PVBZ.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
@@ -211,14 +212,8 @@ function runtimeStoreStats(dir = runtimeStoreDir()) {
   const builds = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
   return { dir, count: builds.length, bytes: dirBytes(dir), builds };
 }
-var norm = (p) => String(p ?? "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
 function classifyRoot(repoRoot, { tmpDir = tmpdir() } = {}) {
-  const r = norm(repoRoot);
-  const t = norm(tmpDir);
-  if (t && (r === t || r.startsWith(`${t}/`))) return "temp";
-  if (/\/\.claude\/worktrees(\/|$)/.test(r)) return "worktree";
-  if (/\/(temp|tmp)\//.test(`${r}/`)) return "temp";
-  return null;
+  return ephemeralRootReason(repoRoot, { tmpDir });
 }
 function registryAudit(entries, { tmpDir } = {}) {
   const list = Array.isArray(entries) ? entries : [];

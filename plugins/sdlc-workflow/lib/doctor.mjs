@@ -25,7 +25,7 @@ import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { readHubConfig } from './hub-config.mjs';
-import { readRegistry, sdlcHomeDir } from './registry.mjs';
+import { ephemeralRootReason, readRegistry, sdlcHomeDir } from './registry.mjs';
 import { runtimeStoreDir, readActiveRuntime } from './runtime-store.mjs';
 
 export const PLUGIN_NAME = 'sdlc-workflow';
@@ -223,16 +223,9 @@ export function runtimeStoreStats(dir = runtimeStoreDir()) {
 
 /* ───────────────────────── registry ───────────────────────── */
 
-const norm = (p) => String(p ?? '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
-
-/** 'temp' | 'worktree' | null — an ephemeral root the registry should refuse. */
+/** 'temp' | 'worktree' | 'scratchpad' | null — the registry's own rule (W11.3). */
 export function classifyRoot(repoRoot, { tmpDir = tmpdir() } = {}) {
-  const r = norm(repoRoot);
-  const t = norm(tmpDir);
-  if (t && (r === t || r.startsWith(`${t}/`))) return 'temp';
-  if (/\/\.claude\/worktrees(\/|$)/.test(r)) return 'worktree';
-  if (/\/(temp|tmp)\//.test(`${r}/`)) return 'temp';
-  return null;
+  return ephemeralRootReason(repoRoot, { tmpDir });
 }
 
 export function registryAudit(entries, { tmpDir } = {}) {

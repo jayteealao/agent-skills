@@ -3,14 +3,14 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   CODE_BROWSER_DEFAULTS,
   STALE_RENDER_DEFAULTS
-} from "./chunk-4I3KKSMG.mjs";
+} from "./chunk-N7IAPX7N.mjs";
 import {
   configHash,
   deepMerge
 } from "./chunk-YVM64S7E.mjs";
 import {
   sdlcHomeDir
-} from "./chunk-BIK57RP4.mjs";
+} from "./chunk-4K63PVBZ.mjs";
 
 // lib/hub-config.mjs
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";

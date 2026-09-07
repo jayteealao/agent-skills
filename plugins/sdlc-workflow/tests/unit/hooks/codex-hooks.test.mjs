@@ -297,6 +297,20 @@ test('session-start emits NO orientation and records NO activation without a con
   }
 });
 
+test('session-start returns before the seed and the hub confirm when source is compact (W11.3)', () => {
+  const { repo, pluginData, cleanup } = mkRepo();
+  try {
+    writeFileSync(join(repo, '.ai', 'workflows', 'demo', '00-index.md'), DEMO_INDEX);
+    const res = runHook('session-start.mjs', { cwd: repo, hook_event_name: 'SessionStart', source: 'compact', session_id: 's1' }, { repo, pluginData, env: { SDLC_DISABLE_HUB_ENSURE: '1' } });
+    assert.equal(res.status, 0, `stderr=${res.stderr}`);
+    assert.equal(res.stdout.trim(), '');
+    assert.ok(!existsSync(join(repo, 'AGENTS.md')), 'no seed on compact');
+    assert.ok(!existsSync(join(pluginData, 'activation.json')), 'no activation on compact');
+  } finally {
+    cleanup();
+  }
+});
+
 test('session-start seeds the /wf rules kernel silently (SDLC_HOST=codex suppresses the Claude notice)', () => {
   const { repo, pluginData, cleanup } = mkRepo();
   try {

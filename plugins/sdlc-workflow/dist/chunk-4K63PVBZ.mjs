@@ -780,7 +780,7 @@ import {
   appendFileSync as appendFileSync2
 } from "node:fs";
 import { request } from "node:http";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename as basename2, dirname as dirname2, join as join4, sep } from "node:path";
 var REGISTRY_VERSION = 2;
 var SHARD_SOFT_CAP = 100;
@@ -857,7 +857,21 @@ function resolveEntryId(repoRoot, existing) {
   const suffix = createHash("sha256").update(String(repoRoot)).digest("hex").slice(0, 4);
   return `${base}-${suffix}`;
 }
-function validateEntry(entry) {
+var normPath = (p) => String(p ?? "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+function ephemeralRootReason(repoRoot, { tmpDir = tmpdir() } = {}) {
+  const r = normPath(repoRoot);
+  if (!r) return null;
+  const temps = /* @__PURE__ */ new Set([normPath(tmpDir)]);
+  try {
+    temps.add(normPath(realpathSync.native(tmpDir)));
+  } catch {
+  }
+  for (const t of temps) if (t && (r === t || r.startsWith(`${t}/`))) return "temp";
+  if (/\/\.claude\/worktrees(\/|$)/.test(r)) return "worktree";
+  if (/\/claude\/[^/]+\/[^/]+\/scratchpad(\/|$)/.test(r)) return "scratchpad";
+  return null;
+}
+function validateEntry(entry, { allowEphemeral = process.env.SDLC_ALLOW_TEMP_ROOTS === "1", tmpDir } = {}) {
   if (!entry || typeof entry !== "object") return { ok: false, reason: "not an object" };
   const { id, repoRoot, viewDir } = entry;
   const headBranch = entry.headBranch ?? entry.branch;
@@ -878,6 +892,10 @@ function validateEntry(entry) {
     realRepo = realpathSync.native(repoRoot);
   } catch {
     return { ok: false, reason: `repoRoot does not resolve: ${repoRoot}` };
+  }
+  if (!allowEphemeral) {
+    const eph = ephemeralRootReason(realRepo, { tmpDir });
+    if (eph) return { ok: false, reason: `repoRoot is ephemeral (${eph}): ${realRepo}` };
   }
   const repoWithSep = realRepo.endsWith(sep) ? realRepo : `${realRepo}${sep}`;
   if (realView !== realRepo && !realView.startsWith(repoWithSep)) {
@@ -1285,6 +1303,7 @@ export {
   REGISTRY_FRESH_GRACE_MS,
   sdlcHomeDir,
   hubPidPath,
+  ephemeralRootReason,
   validateEntry,
   readRegistry,
   writeRegistry,

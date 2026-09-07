@@ -8,7 +8,7 @@ import {
 } from "./chunk-KRRL2TSM.mjs";
 import {
   appendError
-} from "./chunk-BIK57RP4.mjs";
+} from "./chunk-4K63PVBZ.mjs";
 
 // lib/ensure-hub.mjs
 function ensureHubEnabled(viewConfig, env = process.env) {
