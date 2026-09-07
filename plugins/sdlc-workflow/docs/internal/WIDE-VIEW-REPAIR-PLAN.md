@@ -1,7 +1,7 @@
 # Wide-View Repair Plan — prose budget, capability shield, exact cost ledger, runtime repair
 
 Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0, W1 (line budgets; word targets
-closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10, W11.1–W11.6 BUILT 2026-09-07**; eval baseline run
+closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10, W11.1–W11.7 BUILT 2026-09-07**; eval baseline run
 pending (§16); W6 onward in progress — see the build ledger in §17. Source: a whole-tree survey of
 `plugins/sdlc-workflow` on 2026-09-04 against v9.153.4 (`6465707f`). Another
 session carried `_shell.mjs`, `nav.html`, and the root catalog to 9.153.5 while
@@ -1170,6 +1170,18 @@ URL guard would have run each single-purpose main() inside the fold. Warm
 timing on the operator machine: 97 ms (post) / 91 ms (pre) against 245 ms for
 the three PostToolUse processes summed; the 0.30 s gate holds.
 
+Build note (2026-09-07) — W11.7 built with one substitution. The plan's guard
+compares the mtime of `~/.sdlc`. That directory's mtime moves on every atomic
+write inside it (temp file + rename): the live hub rewriting `registry.json`
+or `active-runtime.json` during a two-minute suite would fail the guard on a
+healthy machine. The guard instead fingerprints the state a leaking test
+changes — registry roots and shard names, `registry.prune.log` size,
+`hub.pid`, the runtime build list, the active build — and reports the
+changed keys. The first full run under the guard left the real state dir
+unchanged, which also shows the pre-W11.7 leaks came from tests that now
+inherit the temp `SDLC_HOME`. The one-week prune-log observation is the
+operator's; the baseline size stands in the doctor record.
+
 ## 15. Releases and order
 
 | Release | Waves | Gate before push |
@@ -1277,7 +1289,7 @@ the commit that closed the row. Every commit is local until the operator pushes.
 | W11.4 | Port-held handling, EADDRINUSE, default port move + migration | built | `0b771478` | `lib/port-owner.mjs` (`portHeld`, `portOwner`); supervisor returns `port-held` + lifecycle line, no spawn; hub-serve EADDRINUSE → hub.log + exit 2; tray tooltip names the holder; default port 4173 → 48173 with one-shot `migrateHubConfig` (marker `portMigratedFrom`) + `port-migrated` lifecycle line; docs updated (installation.html left: another session's file); 6 tests incl. live port-held + live EADDRINUSE |
 | W11.5 | Runtime store GC on every start | built | `c9654108` | `gcRuntimes` runs after every confirmed start and both adopt paths (try/catch, `gc` lifecycle line on removal); `active-runtime.json` records `previousBuildId` and GC keeps it; never-remove rules unchanged; gate test 6 → 3 |
 | W11.6 | Folded hooks per event | built | `ff303546` | `hooks/pre-tool-use-all.mjs` + `hooks/post-tool-use-all.mjs`; every check exports `run(input)`; `lib/hook-runner.mjs` (`runStandalone`/`runFolded`/`blockToolCall`/`isEntry`); one systemMessage line per process; Codex adapters call the folded bundles, codex.hooks.json unchanged; warm Write path 97 ms (was 245 ms summed); 6 tests red-first |
-| W11.7 | Test isolation via `SDLC_HOME` + state-dir guard | open | — | |
+| W11.7 | Test isolation via `SDLC_HOME` + state-dir guard | built | `dd64fb31` | run-all sets a temp `SDLC_HOME` per run, records the real `~/.sdlc` fingerprint, runs `state-dir-guard.test.mjs` last; fingerprint = registry roots/shards, prune-log size, hub.pid, runtime builds, active build (not the dir mtime); red-first; full suite 960 pass + guard green, real state untouched |
 | W11.8 | Exposure defaults: basenames, code browser gate, tray hash manifest | open | — | |
 | W11.9 | Dead paths: deprecate (N), delete (N+1) | open | — | two releases by rule |
 | W11.10 | Bounded catch-up render + 5 s Codex wait | open | — | |
