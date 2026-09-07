@@ -1,7 +1,7 @@
 # Wide-View Repair Plan — prose budget, capability shield, exact cost ledger, runtime repair
 
 Status: **DRAFTED 2026-09-04, W11 added 2026-09-05. W0, W1 (line budgets; word targets
-closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10, W11.1–W11.10 (W11.9 step 1 only) BUILT 2026-09-07**; eval baseline run
+closed through §16 raises), W2 BUILT 2026-09-05, W3, W4, W7, W8, W9, W10, W11.1–W11.11 (W11.9 step 1 only) BUILT 2026-09-07**; eval baseline run
 pending (§16); W6 onward in progress — see the build ledger in §17. Source: a whole-tree survey of
 `plugins/sdlc-workflow` on 2026-09-04 against v9.153.4 (`6465707f`). Another
 session carried `_shell.mjs`, `nav.html`, and the root catalog to 9.153.5 while
@@ -1226,6 +1226,22 @@ the guard suite's `# fail 0`; the fix commit and the script repair are
 recorded in `d2d35c9c`. The Codex `started-unconfirmed` line goes to stderr
 because the adapter's stdout is contractually silent (codex-hooks tests).
 
+Build note (2026-09-07) — W11.11 built as specified, with three points the
+plan left implicit. The asset base moved into `renderers/_paths.mjs`
+(`hubAssetBase`) rather than staying in `scripts/render-sunflower.mjs`, so
+the change lands in the renderer tree and `rendererBuildId` bumps by
+construction — the "version gate bumps for the template change" gate needs no
+manual bump. A page opened via file:// loses its stylesheet from this release
+on; the plan's choice of the hub as the sole server implies it, and the docs
+and CHANGELOG say so. The deprecated per-repo daemon serves the same route
+for release N so its pages stay styled until W11.9 step 2 deletes it. The
+"0 failed asset requests in the e2e browser check" gate holds as a live unit
+test through the hub over a real fixture render (root + slug pages + the
+injected livereload client); the acceptance runner has no browser. On the
+operator machine, the next hub start re-renders every registered view once
+(the gate bump), bounded by the W11.10 start pass and the engine's
+concurrency.
+
 ## 15. Releases and order
 
 | Release | Waves | Gate before push |
@@ -1337,4 +1353,4 @@ the commit that closed the row. Every commit is local until the operator pushes.
 | W11.8 | Exposure defaults: basenames, code browser gate, tray hash manifest | built | `d8330cf5` | health/registry basenames + no viewDir without `x-sdlc-token`; `codeBrowser.acknowledgedTailnet` + `effectiveCodeBrowserConfig` at both spawn sites, 404 with reason, health `codeBrowser.reason`; `bin/tray/SHA256SUMS` + `verifyTrayHelper` refusal in tray.mjs; `bin/tray/README.md`; 5 tests red-first |
 | W11.9 | Dead paths: deprecate (N), delete (N+1) | step 1 built; step 2 waits for release N+1 | `60a714ab` | `lib/deprecations.mjs` (`deprecatedConfigWarnings`, `logDeprecatedConfig`); `hub-ensure --session-start` from both SessionStart spawns → one `deprecated-config` lifecycle line per setting per session; comments + 3 docs rows + CHANGELOG Deprecated; 4 tests red-first. Step 2 = R11 (delete `serve-lifecycle.mjs`, `render-sunflower-serve.mjs`, the keys; `retired.json` entries) |
 | W11.10 | Bounded catch-up render + 5 s Codex wait | built | `bc11c586` + `d2d35c9c` | start-up pass = heal.consider (version gate) + queue drain, rest skipped, one `catch-up:` hub.log line; `HUB_CONFIRM_TIMEOUT_MS` 5000, verdict `started-unconfirmed` + one stderr line, `SDLC_HUB_CONFIRM_TIMEOUT_MS` seam; 3 tests red-first; 1 test re-pointed (heal-on-reconcile) |
-| W11.11 | Shared `_assets` from the hub + prune-log rotation | open | — | |
+| W11.11 | Shared `_assets` from the hub + prune-log rotation | built | `c91108f6` | `/__sdlc/assets/<buildId>/<name>` (hub + per-repo daemon for N), `hubAssetBase` in `renderers/_paths.mjs` (gate bumps), no `_assets` copy, `--clean` drops the old copy, `logPrune` via `appendLogLine`; 6 tests red-first incl. a live 0-failed-asset-requests check |
