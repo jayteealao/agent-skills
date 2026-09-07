@@ -26,14 +26,14 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-4LLRYNVZ.mjs";
+} from "./chunk-UPEBEO3C.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-QWC7RKH3.mjs";
-import "./chunk-JM633JQP.mjs";
+} from "./chunk-W7SZIRDL.mjs";
+import "./chunk-WIOD7AIL.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -51,7 +51,7 @@ import {
 import {
   configHash,
   loadConfigWithMeta
-} from "./chunk-YVM64S7E.mjs";
+} from "./chunk-XLUSO7MY.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -66,7 +66,7 @@ import {
   upsertRegistryEntry,
   viewMtimeForSlug,
   writePidFile
-} from "./chunk-RV4GKXDG.mjs";
+} from "./chunk-O3FUA7PQ.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";

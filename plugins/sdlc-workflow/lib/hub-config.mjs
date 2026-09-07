@@ -42,10 +42,14 @@ export const HUB_CONFIG_DEFAULTS = Object.freeze({
   // redundancy whenever the hub runs, and the only thing that can squat the hub's
   // port (a pre-hub daemon on the hub port = the inbox disappears behind one repo's
   // dashboard). Default `false` makes the hub the sole server on this machine;
-  // set `true` to allow the standalone per-repo fallback daemon.
+  // set `true` to allow the standalone per-repo fallback daemon. DEPRECATED in
+  // 9.154.0 (W11.9): `true` logs one deprecated-config lifecycle line per
+  // session; the key and the daemon are removed in the next release.
   perRepoServe: false,
   // Live-reload for the standalone per-repo fallback daemon (the hub always
   // live-reloads). Machine-wide because serve settings are not per-repo.
+  // DEPRECATED in 9.154.0 with the daemon (W11.9): `false` logs one
+  // deprecated-config lifecycle line per session.
   liveReload: true,
   maxSseClients: 200,    // aggregate across repos; client-side filtering scopes per-repo
   maxWatchedRepos: 50,   // beyond this, poll instead of fs.watch

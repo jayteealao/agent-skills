@@ -1363,7 +1363,8 @@ var LIFECYCLE_EVENTS = Object.freeze([
   "lock-timeout",
   "port-held",
   "port-migrated",
-  "gc"
+  "gc",
+  "deprecated-config"
 ]);
 function formatLifecycleLine(record, now = /* @__PURE__ */ new Date()) {
   const { event, host = null, version = null, buildId = null, pid = null, reason = null, ...extra } = record ?? {};

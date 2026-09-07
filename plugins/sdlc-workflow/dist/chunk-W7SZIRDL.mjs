@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   resolveActiveRuntimeRootSync
-} from "./chunk-JM633JQP.mjs";
+} from "./chunk-WIOD7AIL.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches
@@ -13,11 +13,11 @@ import {
 import {
   configHash,
   deepMerge
-} from "./chunk-YVM64S7E.mjs";
+} from "./chunk-XLUSO7MY.mjs";
 import {
   logLifecycle,
   sdlcHomeDir
-} from "./chunk-RV4GKXDG.mjs";
+} from "./chunk-O3FUA7PQ.mjs";
 
 // lib/code-browser.mjs
 import { execFileSync } from "node:child_process";
@@ -903,10 +903,14 @@ var HUB_CONFIG_DEFAULTS = Object.freeze({
   // redundancy whenever the hub runs, and the only thing that can squat the hub's
   // port (a pre-hub daemon on the hub port = the inbox disappears behind one repo's
   // dashboard). Default `false` makes the hub the sole server on this machine;
-  // set `true` to allow the standalone per-repo fallback daemon.
+  // set `true` to allow the standalone per-repo fallback daemon. DEPRECATED in
+  // 9.154.0 (W11.9): `true` logs one deprecated-config lifecycle line per
+  // session; the key and the daemon are removed in the next release.
   perRepoServe: false,
   // Live-reload for the standalone per-repo fallback daemon (the hub always
   // live-reloads). Machine-wide because serve settings are not per-repo.
+  // DEPRECATED in 9.154.0 with the daemon (W11.9): `false` logs one
+  // deprecated-config lifecycle line per session.
   liveReload: true,
   maxSseClients: 200,
   // aggregate across repos; client-side filtering scopes per-repo

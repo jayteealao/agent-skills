@@ -150,7 +150,7 @@ function startBootstrap(projectRoot, config, { source = null } = {}) {
     }, { maxPending: config.view?.renderQueue?.maxPending });
 
     if (decision.ensureHub) {
-      spawnHubEnsure({ pluginRoot: PLUGIN_ROOT, projectRoot, viewDir: viewRoot });
+      spawnHubEnsure({ pluginRoot: PLUGIN_ROOT, projectRoot, viewDir: viewRoot, sessionStart: true });
     }
   } catch {
     // Session orientation must remain fail-open.

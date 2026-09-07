@@ -8,17 +8,17 @@ import {
 } from "./chunk-KRRL2TSM.mjs";
 import {
   appendError
-} from "./chunk-RV4GKXDG.mjs";
+} from "./chunk-O3FUA7PQ.mjs";
 
 // lib/ensure-hub.mjs
 function ensureHubEnabled(viewConfig, env = process.env) {
   return viewConfig?.ensureHubOnWrite !== false && env.SDLC_DISABLE_ENSURE_HUB !== "1";
 }
-function spawnHubEnsure({ pluginRoot, projectRoot, viewDir, env = process.env }) {
+function spawnHubEnsure({ pluginRoot, projectRoot, viewDir, env = process.env, sessionStart = false }) {
   try {
     spawnDetachedNode(
       resolveEntrypoint(pluginRoot, "hub-ensure"),
-      ["--plugin-root", pluginRoot, "--project-root", projectRoot, "--view", viewDir],
+      ["--plugin-root", pluginRoot, "--project-root", projectRoot, "--view", viewDir, ...sessionStart ? ["--session-start"] : []],
       { cwd: projectRoot, env }
     );
     return true;

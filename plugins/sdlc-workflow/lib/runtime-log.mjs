@@ -91,7 +91,7 @@ export function hubLogLine(line, { home, now = () => new Date() } = {}) {
 export const LIFECYCLE_EVENTS = Object.freeze([
   'adopt', 'reap', 'recover', 'start', 'unconfirmed',
   'refused-host', 'protocol-incompatible', 'lock-timeout', 'port-held',
-  'port-migrated', 'gc',
+  'port-migrated', 'gc', 'deprecated-config',
 ]);
 
 /**

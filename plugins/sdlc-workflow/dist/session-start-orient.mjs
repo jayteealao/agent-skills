@@ -8,7 +8,7 @@ import {
 import {
   ensureHubEnabled,
   spawnHubEnsure
-} from "./chunk-QHIBXSRO.mjs";
+} from "./chunk-LZJA3HOL.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-K6PBZI5W.mjs";
@@ -21,17 +21,17 @@ import {
 } from "./chunk-Z76NJHKM.mjs";
 import {
   logError
-} from "./chunk-BHTZZLQM.mjs";
+} from "./chunk-KVCYXUV7.mjs";
 import {
   isInsideGitCheckout
 } from "./chunk-DOKC4AFB.mjs";
 import {
   loadConfig
-} from "./chunk-YVM64S7E.mjs";
+} from "./chunk-XLUSO7MY.mjs";
 import {
   enqueue,
   sdlcHomeDir
-} from "./chunk-RV4GKXDG.mjs";
+} from "./chunk-O3FUA7PQ.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
@@ -136,7 +136,7 @@ function startBootstrap(projectRoot, config, { source = null } = {}) {
       enqueuedBy: { host: process.env.SDLC_HOST || "claude", pid: process.pid }
     }, { maxPending: config.view?.renderQueue?.maxPending });
     if (decision.ensureHub) {
-      spawnHubEnsure({ pluginRoot: PLUGIN_ROOT, projectRoot, viewDir: viewRoot });
+      spawnHubEnsure({ pluginRoot: PLUGIN_ROOT, projectRoot, viewDir: viewRoot, sessionStart: true });
     }
   } catch {
   }

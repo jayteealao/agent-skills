@@ -25,11 +25,11 @@ export function ensureHubEnabled(viewConfig, env = process.env) {
  * status), OFF the hook's critical path. Reports a spawn failure to the view's
  * .render-errors.log. Returns true if the spawn was issued. Never throws.
  */
-export function spawnHubEnsure({ pluginRoot, projectRoot, viewDir, env = process.env }) {
+export function spawnHubEnsure({ pluginRoot, projectRoot, viewDir, env = process.env, sessionStart = false }) {
   try {
     spawnDetachedNode(
       resolveEntrypoint(pluginRoot, 'hub-ensure'),
-      ['--plugin-root', pluginRoot, '--project-root', projectRoot, '--view', viewDir],
+      ['--plugin-root', pluginRoot, '--project-root', projectRoot, '--view', viewDir, ...(sessionStart ? ['--session-start'] : [])],
       { cwd: projectRoot, env },
     );
     return true;

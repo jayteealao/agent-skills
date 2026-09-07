@@ -56,8 +56,9 @@ var DEFAULT_SDLC_CONFIG = Object.freeze({
     //              drains + renders it through the shared bounded engine. No
     //              short-lived per-write renderer; one renderer (the daemon)
     //              keeps .last-render identity consistent across hosts.
-    //   'inline' — the legacy path: the hook spawns `render-sunflower` itself
-    //              (2s debounce). The rollback / A-B switch.
+    //   'inline' — DEPRECATED in 9.154.0, removed in the next release (W11.9):
+    //              the hook spawns `render-sunflower` itself (2s debounce). A
+    //              session that sets it logs one deprecated-config line.
     renderDispatch: "hub",
     // When 'hub' dispatch is active and no daemon is answering, the write hook
     // makes a best-effort detached attempt to start the hub (the queued change

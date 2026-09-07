@@ -18,12 +18,18 @@
  * and --bootstrap to enqueue the whole-repo freshness pass first — what the
  * Claude Code SessionStart hook does inline, so the Codex SessionStart adapter
  * (which imports no lib/) can ask for the same refresh (v9.153.2).
+ * --session-start (W11.9) logs one `deprecated-config` lifecycle line per
+ * deprecated setting in use; only the SessionStart spawn passes it, so a
+ * session logs each warning once.
  */
 
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { loadConfig } from '../lib/config.mjs';
+import { logDeprecatedConfig } from '../lib/deprecations.mjs';
+import { readHubConfig } from '../lib/hub-config.mjs';
 import { ensureHubLifecycle } from '../lib/hub-lifecycle.mjs';
 import { upsertRegistryEntry } from '../lib/registry.mjs';
 import { writeStatus, countPending, appendError, enqueue } from '../lib/render-queue.mjs';
@@ -47,6 +53,16 @@ async function main() {
   const projectRoot = argValue('--project-root', process.cwd());
   const viewDir = argValue('--view', resolve(projectRoot, '.ai', '_view'));
   const skipEnsure = hasFlag('--no-ensure');
+
+  // W11.9: one deprecation warning per session for each dead-path setting in
+  // use (lib/deprecations.mjs). The write hook's ensureHubOnWrite spawn omits
+  // --session-start and stays silent.
+  if (hasFlag('--session-start')) {
+    try {
+      const config = await loadConfig(projectRoot);
+      logDeprecatedConfig({ config, hubConfig: readHubConfig({ create: false }), log: (l) => process.stderr.write(`${l}\n`) });
+    } catch { /* best-effort */ }
+  }
 
   // --bootstrap: queue the whole-repo freshness pass BEFORE the hub comes up, so
   // a hub started below drains it in its startup catch-up. Artifacts changed

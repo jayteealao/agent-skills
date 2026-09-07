@@ -111,6 +111,7 @@ function ensureHubConfirmed(runtimeRoot, projectRoot) {
       [
         bundledEntry(runtimeRoot, 'hub-ensure'),
         '--confirm',
+        '--session-start', // W11.9: log the deprecated-config warnings once per session
         '--bootstrap', // whole-repo freshness pass, as the Claude Code SessionStart hook enqueues inline
         '--plugin-root', runtimeRoot,
         '--project-root', projectRoot,
