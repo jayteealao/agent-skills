@@ -44,10 +44,7 @@ Every step runs from `plugins/sdlc-workflow/`.
    the carriers it stamps. Commit every change that belongs in the release
    first, staged **explicitly by path** — never `git add -A`, which has swept
    a parallel session's uncommitted work into a release commit. A file another
-   session left modified (see `git status`) stays out of every commit. When
-   one is present at step 4, run `npm version <level> --force`: the flag
-   skips only the clean-tree check, and the bump commit still carries only
-   the carriers the `version` script staged.
+   session left modified (see `git status`) stays out of every commit.
 2. Run the gates on the tree that will ship:
    `npm run build && npm test && npm run verify:versions && npm run verify:neutrality && npm run verify:capabilities && npm run verify:prose && npm run verify`.
    Tests run against source, so green does not mean `dist/` is fresh; any
@@ -58,18 +55,35 @@ Every step runs from `plugins/sdlc-workflow/`.
    re-renders views without a bump, and a prose-only bump re-renders none.
 3. Turn the `## [Unreleased]` CHANGELOG heading into `## [X.Y.Z] - <date>` and
    commit that change by path. The bump commit carries no prose.
-4. `npm version <patch|minor|major>`. `package.json` is the one source: the
+4. Bump the catalog line by hand: the top-level `version` of the root
+   `.claude-plugin/marketplace.json` (the `1.x.y` marketplace release line)
+   moves with the plugin — a patch for a patch, a minor for a minor. Then
+   `npm version <patch|minor|major>`. `package.json` is the one source: the
    `version` lifecycle script runs `scripts/stamp-version.mjs` (both plugin
    manifests, the lock file, the `nav.html` brand line, the root marketplace
    pin), rebuilds (`runtime-manifest.json` + `dist/`), runs `verify:versions`,
-   and stages each carrier by path. `npm version` then commits with the
-   subject `release(sdlc-workflow): vX.Y.Z` (from `.npmrc`) and tags
-   `vX.Y.Z`. No carrier is edited by hand; `renderers/_shell.mjs` reads
-   `runtimeVersion` from the manifest.
-5. **`git push origin master --follow-tags`.**
-6. `npm run verify:release -- --skip-installed` — confirm the delivered check
+   and stages each carrier by path. No carrier is edited by hand;
+   `renderers/_shell.mjs` reads `runtimeVersion` from the manifest.
+   `npm version` makes no commit and no tag here: it looks for `.git` in the
+   current directory only (`@npmcli/git` `is.js`), and the plugin is a
+   subdirectory of the checkout. It also never sees the dirty tree, so
+   `--force` changes nothing. `.npmrc` keeps the subject for the day npm
+   runs at a checkout root.
+5. Commit the carriers and tag, from the plugin directory:
+   ```bash
+   git add -- package.json
+   git commit -m "release(sdlc-workflow): vX.Y.Z"
+   git tag -a vX.Y.Z -m "release(sdlc-workflow): vX.Y.Z"
+   ```
+   The commit holds the seven carriers and nothing else; a file another
+   session left modified is not staged and stays out. The subject is the one
+   the release guard watches (`RELEASE_SUBJECT`). Tags before 9.154.0 were
+   occasional and used two names (`vX.Y.Z`, `sdlc-workflow/vX.Y.Z`); from
+   9.154.0 on, every release carries `vX.Y.Z`.
+6. **`git push origin master --follow-tags`.**
+7. `npm run verify:release -- --skip-installed` — confirm the delivered check
    reports OK.
-7. Reinstall the plugin on every host of this machine
+8. Reinstall the plugin on every host of this machine
    (SINGLE-SOURCE-CUTOVER.md §2), then `npm run verify:release` with no flag —
    confirm both checks report OK. `npm run doctor` shows the same table with
    every row.
