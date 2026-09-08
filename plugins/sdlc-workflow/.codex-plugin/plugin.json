@@ -1,6 +1,6 @@
 {
   "name": "sdlc-workflow",
-  "version": "9.153.5",
+  "version": "9.154.0",
   "description": "SDLC workflow plugin, one source for Claude Code and Codex: one `$wf` workflow skill (22 keys — the ten lifecycle stages intake through retro, the intake modes fix/rca/investigate/discover/audit/hotfix/refactor/update-deps/ideate/adopt, design, probe, simplify, auto, task, status/recap, close, ship-plan, docs, observability; `yolo` is Claude Code only) plus consult, imagery, uiproto, diataxis, and study-sources — over a shared runtime, hub, and .ai/ artifacts. Requires a hooks-GA Codex CLI (verified on 0.146.0) with hooks enabled.",
   "author": {
     "name": "jayte",
