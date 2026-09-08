@@ -2,18 +2,21 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   costDashboardHtml
-} from "./chunk-MCF77ETJ.mjs";
+} from "./chunk-TNCDSDXJ.mjs";
+import {
+  humanRelative
+} from "./chunk-3FHNYCY6.mjs";
 import {
   evenX,
   figureCanvas
-} from "./chunk-PDBKNARE.mjs";
+} from "./chunk-RFW2L66D.mjs";
 import {
   artifactHeader,
   pageHref
-} from "./chunk-CCRPAYHH.mjs";
+} from "./chunk-T5KRRFZB.mjs";
 import {
   escapeHtml
-} from "./chunk-4WRIEOIP.mjs";
+} from "./chunk-3RXHOXIK.mjs";
 
 // renderers/dashboard.mjs
 var STAGES = [
@@ -31,6 +34,7 @@ var STAGES = [
 var TERMINAL_COMPLETE = /* @__PURE__ */ new Set(["complete", "completed", "shipped", "done"]);
 var TERMINAL_CLOSED = /* @__PURE__ */ new Set(["closed", "abandoned", "cancelled"]);
 function render(artifact, ctx) {
+  const now = ctx.now ?? Date.now();
   const slugs = (ctx.allArtifacts?.__summary__ ?? []).map((s) => ({
     slug: s.slug,
     fm: s.frontmatter ?? {},
@@ -45,7 +49,7 @@ function render(artifact, ctx) {
   const active = pipeline.filter((s) => !TERMINAL_COMPLETE.has(statusOf(s)) && !TERMINAL_CLOSED.has(statusOf(s)));
   const headerHtml = artifactHeader({
     h1: "sdlc dashboard",
-    lede: `${slugs.length} workflow${slugs.length === 1 ? "" : "s"} \xB7 generated ${(/* @__PURE__ */ new Date()).toISOString().slice(0, 16).replace("T", " ")}`
+    lede: `${slugs.length} workflow${slugs.length === 1 ? "" : "s"} \xB7 generated ${new Date(now).toISOString().slice(0, 16).replace("T", " ")}`
   });
   const figureSvg = swimlanesSvg(active, complete);
   const figureHtml = figureCanvas({
@@ -62,15 +66,15 @@ function render(artifact, ctx) {
   });
   const desktopBody = `
     ${figureHtml}
-    ${slugSection("Active", active, { groupByBranch: true })}
-    ${slugSection("Recently shipped", complete)}
-    ${slugSection("Closed", closed)}
+    ${slugSection("Active", active, now, { groupByBranch: true })}
+    ${slugSection("Recently shipped", complete, now)}
+    ${slugSection("Closed", closed, now)}
     ${quickSection(quick)}
   `;
   const mobileBody = `
     ${mobileTiles(active)}
-    ${mobileCardGroup("Active", active, false)}
-    ${mobileCardGroup("Recently shipped", complete, true)}
+    ${mobileCardGroup("Active", active, false, now)}
+    ${mobileCardGroup("Recently shipped", complete, true, now)}
     ${mobileQuickGroup(quick)}
   `;
   const bodyHtml = `
@@ -88,15 +92,15 @@ function mobileTiles(active) {
     <div class="mtile"><div class="lbl">Blockers</div><div class="val${blockers ? " is-blocker" : ""}">${blockers}</div></div>
   </div>`;
 }
-function mobileCardGroup(label, list, shipped) {
+function mobileCardGroup(label, list, shipped, now) {
   if (!list.length) return "";
-  const cards = list.map((s) => mobilePcard(s, shipped)).join("");
+  const cards = list.map((s) => mobilePcard(s, shipped, now)).join("");
   return `<div class="subhead">${escapeHtml(label)} <span class="ct">${list.length}</span></div>${cards}`;
 }
 function isBlocked(fm) {
   return String(fm.status ?? "").trim().toLowerCase() === "blocked" || fm.blocked === true;
 }
-function mobilePcard({ slug, fm }, shipped) {
+function mobilePcard({ slug, fm }, shipped, now) {
   const stage = fm["current-stage"] ?? "intake";
   const declaredIdx = STAGES.indexOf(stage);
   const currentIdx = shipped ? STAGES.length - 1 : declaredIdx < 0 ? 0 : declaredIdx;
@@ -114,7 +118,7 @@ function mobilePcard({ slug, fm }, shipped) {
   return `<a class="pcard" href="${escapeHtml(pageHref(slug))}">
     <div class="top"><span class="slug">${escapeHtml(slug)}</span><span class="${chipCls}">${escapeHtml(stage)}</span></div>
     ${desc ? `<p class="desc">${escapeHtml(desc)}</p>` : ""}
-    <div class="foot"><div class="stagestrip">${dots}</div><span class="when">${escapeHtml(humanRelative(fm["updated-at"] ?? ""))}</span></div>
+    <div class="foot"><div class="stagestrip">${dots}</div><span class="when">${escapeHtml(humanRelative(fm["updated-at"] ?? "", now))}</span></div>
     <div class="statusline ${lineTone}"><span class="glyph" aria-hidden="true">${h.glyph}</span>${escapeHtml(h.label)}</div>
   </a>`;
 }
@@ -149,15 +153,15 @@ function projectSection(list) {
     ${rows}
   </section>`;
 }
-function slugSection(label, list, { groupByBranch = false } = {}) {
+function slugSection(label, list, now, { groupByBranch = false } = {}) {
   if (!list.length) return "";
-  const rows = groupByBranch ? renderRowsGroupedByBranch(list) : list.map((s) => projectRow(s)).join("");
+  const rows = groupByBranch ? renderRowsGroupedByBranch(list, now) : list.map((s) => projectRow(s, now)).join("");
   return `<section class="project-list">
     <h2 class="sdlc-h2">${label} <span class="meta">(${list.length})</span></h2>
     ${rows}
   </section>`;
 }
-function renderRowsGroupedByBranch(list) {
+function renderRowsGroupedByBranch(list, now) {
   const byBranch = /* @__PURE__ */ new Map();
   for (const s of list) {
     const b = String(s.fm.branch ?? "").trim();
@@ -173,16 +177,16 @@ function renderRowsGroupedByBranch(list) {
     const members = b ? byBranch.get(b) : null;
     if (members && members.length >= 2) {
       members.forEach((m) => emitted.add(m));
-      parts.push(branchGroup(b, members));
+      parts.push(branchGroup(b, members, now));
     } else {
       emitted.add(s);
-      parts.push(projectRow(s));
+      parts.push(projectRow(s, now));
     }
   }
   return parts.join("");
 }
-function branchGroup(branch, members) {
-  const rows = members.map((s) => projectRow(s)).join("");
+function branchGroup(branch, members, now) {
+  const rows = members.map((s) => projectRow(s, now)).join("");
   const r = branchReadiness(members);
   return `<div class="branch-group">
     <div class="branch-head">
@@ -230,7 +234,7 @@ function quickSection(list) {
     ${rows}
   </section>`;
 }
-function projectRow({ slug, fm }) {
+function projectRow({ slug, fm }, now) {
   const stage = fm["current-stage"] ?? "intake";
   const title = fm.title ?? slug;
   const updated = fm["updated-at"] ?? "";
@@ -245,7 +249,7 @@ function projectRow({ slug, fm }) {
     <span class="desc">${escapeHtml(desc)}</span>
     <span class="stage-pill ${stageVariant}">${escapeHtml(stage)}</span>
     <span class="status ${h.tone}"><span class="glyph" aria-hidden="true">${h.glyph}</span>${escapeHtml(h.label)}</span>
-    <span class="time">${escapeHtml(humanRelative(updated))}</span>
+    <span class="time">${escapeHtml(humanRelative(updated, now))}</span>
   </article>`;
 }
 function health(fm) {
@@ -256,22 +260,6 @@ function health(fm) {
   if (["closed", "abandoned", "cancelled"].includes(status)) return { tone: "idle", glyph: "\u25CE", label: status };
   if (["paused", "on-hold", "waiting"].includes(status)) return { tone: "warn", glyph: "\u25D0", label: status };
   return { tone: "ok", glyph: "\u25C9", label: status || "active" };
-}
-function humanRelative(iso) {
-  if (!iso) return "";
-  const then = Date.parse(iso);
-  if (Number.isNaN(then)) return String(iso);
-  const diff = Date.now() - then;
-  if (diff < 0) return String(iso);
-  const min = Math.round(diff / 6e4);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min} min ago`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr} hr ago`;
-  const d = Math.round(hr / 24);
-  if (d < 30) return `${d} day${d === 1 ? "" : "s"} ago`;
-  const mo = Math.round(d / 30);
-  return `${mo} mo ago`;
 }
 function swimlanesSvg(active = [], shipped = []) {
   const rows = [...active, ...shipped];

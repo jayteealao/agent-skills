@@ -1,26 +1,28 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  countBySeverity,
   findingListItem,
+  normalizeVerdict,
   severityChip,
   verdictBlock
-} from "../chunk-EG7S7OJR.mjs";
+} from "../chunk-VQ7FT7IB.mjs";
 import {
   renderSimple
-} from "../chunk-7ET6WARA.mjs";
+} from "../chunk-BHUAUYVV.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-64CJF4MS.mjs";
+} from "../chunk-V35JPU6V.mjs";
 import {
   artifactHeader,
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-CCRPAYHH.mjs";
+} from "../chunk-T5KRRFZB.mjs";
 import {
   escapeHtml
-} from "../chunk-4WRIEOIP.mjs";
+} from "../chunk-3RXHOXIK.mjs";
 import "../chunk-EQC6XDOG.mjs";
 import "../chunk-FZ2GR6GF.mjs";
 import "../chunk-LFGT2BKG.mjs";
@@ -33,7 +35,7 @@ function render(artifact, ctx) {
   if (!sy && !fm["severity-distribution"]) {
     return renderSimple(artifact, ctx, { title: fm.title ?? "Design audit" });
   }
-  const severity = sy ? deriveSeverity(sy.violations ?? []) : fm["severity-distribution"];
+  const severity = sy ? countBySeverity(sy.violations ?? [], ["blocker", "high", "medium", "low"]) : fm["severity-distribution"];
   const verdict = sy?.verdict ?? fm.verdict;
   const headerHtml = artifactHeader({
     crumb: artifact.path,
@@ -65,13 +67,6 @@ function render(artifact, ctx) {
     children: []
   };
 }
-function deriveSeverity(violations) {
-  const out = { blocker: 0, high: 0, medium: 0, low: 0 };
-  for (const violation of violations) {
-    if (out[violation.severity] != null) out[violation.severity]++;
-  }
-  return out;
-}
 function violationItem(violation) {
   const cssSeverity = violation.severity === "medium" ? "med" : violation.severity;
   return findingListItem({
@@ -83,12 +78,6 @@ function violationItem(violation) {
     id: violation.id,
     dataAttr: { name: "severity", value: violation.severity ?? "" }
   });
-}
-function normalizeVerdict(verdict) {
-  if (verdict === "pass") return "ship";
-  if (verdict === "conditional") return "caveats";
-  if (verdict === "fail") return "no";
-  return verdict;
 }
 function auditedAgainst(data) {
   const refs = data["audited-against"] ?? [];

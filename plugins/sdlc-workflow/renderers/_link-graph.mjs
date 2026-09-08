@@ -6,6 +6,7 @@
 import { posix as path } from 'node:path';
 
 import { resolveViewPath } from './_paths.mjs';
+import { escapeHtml } from './_validator.mjs';
 
 /**
  * Build pathMap: storagePath → viewPath for every artifact in a slug. Used
@@ -111,16 +112,11 @@ export function rewriteBodyLinks(html, { pathMap, fromStorageRel, fromViewRel } 
 export function renderRefs(resolved) {
   if (!resolved?.length) return '';
   const rows = resolved.map((r) => {
-    const label = escape(r.label);
+    const label = escapeHtml(r.label);
     return r.broken
-      ? `<dt>${escape(r.role)}</dt><dd><span class="broken-link" title="missing artifact">${label}</span></dd>`
-      : `<dt>${escape(r.role)}</dt><dd><a href="${escape(r.href)}">${label}</a></dd>`;
+      ? `<dt>${escapeHtml(r.role)}</dt><dd><span class="broken-link" title="missing artifact">${label}</span></dd>`
+      : `<dt>${escapeHtml(r.role)}</dt><dd><a href="${escapeHtml(r.href)}">${label}</a></dd>`;
   }).join('');
   return `<dl class="refs-card">${rows}</dl>`;
 }
 
-function escape(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
-}

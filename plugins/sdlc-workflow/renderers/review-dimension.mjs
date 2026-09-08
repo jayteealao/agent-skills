@@ -8,7 +8,7 @@
 import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs';
 import { renderHistoryBlock } from './_history.mjs';
-import { verdictBlock, severityChip, findingListItem } from './_icons.mjs';
+import { verdictBlock, severityChip, findingListItem, normalizeVerdict } from './_icons.mjs';
 import { escapeHtml } from './_validator.mjs';
 import { renderSimple } from './_simple.mjs';
 
@@ -98,11 +98,4 @@ function findingItem(finding) {
     id: finding.id,
     dataAttr: { name: 'severity', value: finding.severity ?? '' },
   });
-}
-
-function normalizeVerdict(verdict) {
-  if (verdict === 'pass') return 'ship';
-  if (verdict === 'conditional') return 'caveats';
-  if (verdict === 'fail') return 'no';
-  return verdict;
 }

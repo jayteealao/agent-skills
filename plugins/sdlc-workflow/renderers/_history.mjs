@@ -8,6 +8,7 @@ import { readdirSync, existsSync, readFileSync, statSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { splitFrontmatter } from './_yaml.mjs';
 import { pageHref } from './_paths.mjs';
+import { escapeHtml } from './_validator.mjs';
 
 /**
  * Load all history snapshots for an artifact. The history/ folder lives next
@@ -61,7 +62,7 @@ export function renderHistoryBlock(history) {
   if (!history?.length) return '';
   const items = history.map((h) => {
     const when = h.snapshotFrontmatter?.['updated-at'] ?? new Date(h.mtime).toISOString().slice(0, 16).replace('T', ' ');
-    return `<li><a href="${escape(pageHref(`history/${h.rev}`))}">Rev ${h.rev} — ${escape(when)}</a></li>`;
+    return `<li><a href="${escapeHtml(pageHref(`history/${h.rev}`))}">Rev ${h.rev} — ${escapeHtml(when)}</a></li>`;
   }).join('');
   return `<details class="history revisions">
     <summary>${history.length} prior revision${history.length === 1 ? '' : 's'}</summary>
@@ -88,21 +89,16 @@ export function renderRevisionLedger(fm, sy) {
   const ordered = [...revs].sort((a, b) => (Number(b?.rev) || 0) - (Number(a?.rev) || 0));
   const items = ordered.map((r) => {
     if (typeof r !== 'object' || r === null) {
-      return `<li><span class="rev-why">${escape(String(r))}</span></li>`;
+      return `<li><span class="rev-why">${escapeHtml(String(r))}</span></li>`;
     }
-    const rev = r.rev != null ? `<span class="rev-n">rev ${escape(r.rev)}</span>` : '';
+    const rev = r.rev != null ? `<span class="rev-n">rev ${escapeHtml(r.rev)}</span>` : '';
     const when = r.at ?? r.when ?? '';
-    const trigger = r.trigger ? `<span class="rev-trigger">${escape(r.trigger)}</span>` : '';
+    const trigger = r.trigger ? `<span class="rev-trigger">${escapeHtml(r.trigger)}</span>` : '';
     const why = r.because ?? r.summary ?? r.note ?? r.what ?? '';
-    const changed = r.changed ? ` — ${escape(r.changed)}` : '';
-    return `<li>${rev}${trigger}${when ? `<span class="rev-when">${escape(when)}</span>` : ''}`
-         + `<span class="rev-why">${escape(why)}${changed}</span></li>`;
+    const changed = r.changed ? ` — ${escapeHtml(r.changed)}` : '';
+    return `<li>${rev}${trigger}${when ? `<span class="rev-when">${escapeHtml(when)}</span>` : ''}`
+         + `<span class="rev-why">${escapeHtml(why)}${changed}</span></li>`;
   }).join('');
   return `<details class="revisions rev-ledger" open><summary>Revision ledger (${revs.length})</summary><ol class="rev-timeline">${items}</ol></details>`;
 }
 
-function escape(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
-}

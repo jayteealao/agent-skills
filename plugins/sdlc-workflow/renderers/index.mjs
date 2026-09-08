@@ -5,6 +5,7 @@
 
 import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs';
+import { humanRelative } from './_cards.mjs';
 import { renderHistoryBlock, renderRevisionLedger } from './_history.mjs';
 import { figureCanvas, evenX } from './_figure.mjs';
 import { escapeHtml } from './_validator.mjs';
@@ -473,23 +474,6 @@ function sliceTone(status) {
   if (s === 'blocked') return 'is-bad';
   if (['active', 'in-progress', 'in progress', 'wip', 'review', 'in-review'].includes(s)) return 'is-current';
   return '';
-}
-
-// ISO timestamp → "12 min ago". Returns raw text (escaped at call site).
-function humanRelative(iso) {
-  if (!iso) return '';
-  const then = Date.parse(iso);
-  if (Number.isNaN(then)) return String(iso);
-  const diff = Date.now() - then;
-  if (diff < 0) return String(iso);
-  const min = Math.round(diff / 60000);
-  if (min < 1) return 'just now';
-  if (min < 60) return `${min} min ago`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr} hr ago`;
-  const d = Math.round(hr / 24);
-  if (d < 30) return `${d} day${d === 1 ? '' : 's'} ago`;
-  return `${Math.round(d / 30)} mo ago`;
 }
 
 /**

@@ -2,25 +2,26 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   findingListItem,
+  normalizeVerdict,
   severityChip,
   verdictBlock
-} from "./chunk-EG7S7OJR.mjs";
+} from "./chunk-VQ7FT7IB.mjs";
 import {
   renderSimple
-} from "./chunk-7ET6WARA.mjs";
+} from "./chunk-BHUAUYVV.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "./chunk-64CJF4MS.mjs";
+} from "./chunk-V35JPU6V.mjs";
 import {
   artifactHeader,
   metricRow,
   stageBadge,
   statusBadge
-} from "./chunk-CCRPAYHH.mjs";
+} from "./chunk-T5KRRFZB.mjs";
 import {
   escapeHtml
-} from "./chunk-4WRIEOIP.mjs";
+} from "./chunk-3RXHOXIK.mjs";
 
 // renderers/review-dimension.mjs
 function render(artifact, ctx) {
@@ -92,12 +93,6 @@ function findingItem(finding) {
     id: finding.id,
     dataAttr: { name: "severity", value: finding.severity ?? "" }
   });
-}
-function normalizeVerdict(verdict) {
-  if (verdict === "pass") return "ship";
-  if (verdict === "conditional") return "caveats";
-  if (verdict === "fail") return "no";
-  return verdict;
 }
 
 export {

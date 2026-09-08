@@ -49,11 +49,13 @@ export function blockerPart(count, label = 'blocker') {
 }
 
 // ISO timestamp → "12 min ago". Returns raw text (escaped at call site).
-export function humanRelative(iso) {
+// `now` (epoch ms) defaults to the wall clock; a caller with a fixed clock
+// (the dashboard under snapshot, the hub landing page) passes its own.
+export function humanRelative(iso, now = Date.now()) {
   if (!iso) return '';
   const then = Date.parse(iso);
   if (Number.isNaN(then)) return String(iso);
-  const diff = Date.now() - then;
+  const diff = now - then;
   if (diff < 0) return String(iso);
   const min = Math.round(diff / 60000);
   if (min < 1) return 'just now';

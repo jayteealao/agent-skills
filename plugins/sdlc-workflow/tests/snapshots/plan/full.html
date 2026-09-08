@@ -1,0 +1,70 @@
+
+    <header class="artifact-header">
+      <div class="sdlc-crumb">04-plan-idempotency-key.md</div>
+      <h1 class="pg-title">Idempotency key on checkout</h1>
+      <p class="sdlc-lede">One key per order; the gateway drops a replay.</p>
+      <div class="meta-row"><span class="status-badge is-ok">complete</span><span class="stage-badge">plan</span><span class="meta">rev 2</span><span class="meta">2026-06-05T08:00:00Z</span></div>
+    </header><div class="metric-row"><div class="metric">
+      <span class="metric-label">files to touch</span>
+      <span class="metric-value">3</span>
+      
+    </div><div class="metric">
+      <span class="metric-label">steps</span>
+      <span class="metric-value">5</span>
+      
+    </div><div class="metric is-ok">
+      <span class="metric-label">blockers</span>
+      <span class="metric-value">none</span>
+      
+    </div></div>
+<!-- body -->
+<figure class="figure-canvas">
+  <figcaption class="figure-meta">
+    <span class="figure-title"><b>Figure 3</b> · File-change topology</span>
+    <span class="figure-legend" aria-hidden="true"><span class="legend-entry"><span class="sw modified"></span>modified</span><span class="legend-entry"><span class="sw new"></span>new</span><span class="legend-entry"><span class="sw deleted"></span>deleted</span><span class="legend-entry"><span class="sw external"></span>external</span></span>
+  </figcaption>
+  <svg viewBox="0 0 980 158" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="File-change topology">
+    <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a8377"/>
+    </marker>
+  </defs><rect x="20" y="30" width="458" height="108" rx="6" fill="none" stroke="#cbc4b1" stroke-dasharray="4 3" stroke-width="1"/>
+     <text x="30" y="48" font-size="10" font-weight="600" fill="#8a8377" letter-spacing="0.8">API</text><rect x="490" y="30" width="458" height="76" rx="6" fill="none" stroke="#cbc4b1" stroke-dasharray="4 3" stroke-width="1"/>
+     <text x="500" y="48" font-size="10" font-weight="600" fill="#8a8377" letter-spacing="0.8">STORAGE</text><rect x="32" y="58" width="434" height="24" rx="3" fill="#e9eef4" stroke="#4a6c8c" stroke-width="1"/>
+      <text x="40" y="70" font-size="11" fill="#1f1b16" font-family="ui-monospace, monospace">checkout.ts</text>
+      <text x="40" y="80" font-size="8" fill="#8a8377">modified · +18/−4</text><rect x="32" y="90" width="434" height="24" rx="3" fill="#ecf3e7" stroke="#3e7d4a" stroke-width="1"/>
+      <text x="40" y="102" font-size="11" fill="#1f1b16" font-family="ui-monospace, monospace">idempotency.ts</text>
+      <text x="40" y="112" font-size="8" fill="#8a8377">modified · +40</text><rect x="502" y="58" width="434" height="24" rx="3" fill="#ecf3e7" stroke="#3e7d4a" stroke-width="1"/>
+      <text x="510" y="70" font-size="11" fill="#1f1b16" font-family="ui-monospace, monospace">0042_idempotency.sql</text>
+      <text x="510" y="80" font-size="8" fill="#8a8377">modified · −NaN</text><path d="M 466 71 C 249 71, 249 103, 32 103" fill="none" stroke="#8a8377" stroke-width="1.2" marker-end="url(#arrow)"/>
+  </svg>
+</figure><dl class="frontmatter-card"><div><dt>slug</dt><dd>idempotency-key</dd></div><div><dt>parent</dt><dd>checkout</dd></div><div><dt>files</dt><dd>3</dd></div><div><dt>steps</dt><dd>5</dd></div><div><dt>revisions</dt><dd>2</dd></div><div><dt>tags</dt><dd>checkout, payments</dd></div><div><dt>updated</dt><dd>2026-06-05T08:00:00Z</dd></div></dl><section><h2 class="sec">acceptance criteria</h2><ul class="ac-list"><li><span class="chk todo" aria-hidden="true"></span><span class="ac-body">One charge per order under retry</span></li><li><span class="chk todo" aria-hidden="true"></span><span class="ac-body">Replay within 24 h returns the first response</span></li></ul></section><section><h2 class="sec">files touched</h2><div class="d-only"><div class="table-scroll"><table class="files-touched">
+    <thead><tr><th>Path</th><th>LOC</th><th>&#916;</th><th>Role</th></tr></thead>
+    <tbody><tr>
+      <td class="path"><code>src/api/checkout.ts</code></td>
+      <td class="loc">120</td>
+      <td class="delta"><span class="pos">+18</span> <span class="neg">&minus;4</span></td>
+      <td><span class="role is-modified">modified</span></td>
+    </tr><tr>
+      <td class="path"><code>src/api/idempotency.ts</code></td>
+      <td class="loc">40</td>
+      <td class="delta"><span class="pos">+40</span></td>
+      <td><span class="role is-modified">modified</span></td>
+    </tr><tr>
+      <td class="path"><code>migrations/0042_idempotency.sql</code></td>
+      <td class="loc"></td>
+      <td class="delta">+12/-0</td>
+      <td><span class="role is-modified">modified</span></td>
+    </tr></tbody>
+  </table></div></div><div class="m-only"><div class="modgroup"><div class="modhd"><span>src/api</span><span class="ct">2 files</span></div><div class="frow is-modified"><span class="role-dot"></span><span class="fname">checkout.ts</span><span class="delta"><span class="a">+18</span> <span class="r">&minus;4</span></span></div><div class="frow is-modified"><span class="role-dot"></span><span class="fname">idempotency.ts</span><span class="delta"><span class="a">+40</span></span></div></div><div class="modgroup"><div class="modhd"><span>migrations</span><span class="ct">1 file</span></div><div class="frow is-modified"><span class="role-dot"></span><span class="fname">0042_idempotency.sql</span><span class="delta">+12/-0</span></div></div></div></section><section><h2 class="sec">risks</h2><aside class="callout callout-risk">
+    <div class="callout-hd">Key collision</div>
+    <div class="callout-body">Two orders with one key charge once.</div>
+  </aside><aside class="callout callout-info">
+    <div class="callout-hd">Migration lock</div>
+    <div class="callout-body">The index build takes the table lock for a few seconds.</div>
+  </aside></section><details class="revisions rev-ledger" open><summary>Revision ledger (1)</summary><ol class="rev-timeline"><li><span class="rev-n">rev 2</span><span class="rev-trigger">review-feedback</span><span class="rev-when">2026-06-05T08:00:00Z</span><span class="rev-why">Key must survive a gateway timeout. — Step 3.</span></li></ol></details><div class="prose"><h2 id="steps" tabindex="-1"><a class="header-anchor" href="#steps"><span>Steps</span></a></h2>
+<ol>
+<li>Generate the key.</li>
+<li>Store it.</li>
+<li>Replay on timeout.</li>
+</ol></div>

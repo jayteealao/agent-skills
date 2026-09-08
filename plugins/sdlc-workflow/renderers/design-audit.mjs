@@ -3,7 +3,7 @@
 import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs';
 import { renderHistoryBlock } from './_history.mjs';
-import { findingListItem, severityChip, verdictBlock } from './_icons.mjs';
+import { findingListItem, severityChip, verdictBlock, normalizeVerdict, countBySeverity } from './_icons.mjs';
 import { escapeHtml } from './_validator.mjs';
 import { renderSimple } from './_simple.mjs';
 
@@ -14,7 +14,7 @@ export function render(artifact, ctx) {
     return renderSimple(artifact, ctx, { title: fm.title ?? 'Design audit' });
   }
 
-  const severity = sy ? deriveSeverity(sy.violations ?? []) : fm['severity-distribution'];
+  const severity = sy ? countBySeverity(sy.violations ?? [], ['blocker', 'high', 'medium', 'low']) : fm['severity-distribution'];
   const verdict = sy?.verdict ?? fm.verdict;
   const headerHtml = artifactHeader({
     crumb: artifact.path,
@@ -60,14 +60,6 @@ export function render(artifact, ctx) {
   };
 }
 
-function deriveSeverity(violations) {
-  const out = { blocker: 0, high: 0, medium: 0, low: 0 };
-  for (const violation of violations) {
-    if (out[violation.severity] != null) out[violation.severity]++;
-  }
-  return out;
-}
-
 function violationItem(violation) {
   const cssSeverity = violation.severity === 'medium' ? 'med' : violation.severity;
   return findingListItem({
@@ -79,13 +71,6 @@ function violationItem(violation) {
     id: violation.id,
     dataAttr: { name: 'severity', value: violation.severity ?? '' },
   });
-}
-
-function normalizeVerdict(verdict) {
-  if (verdict === 'pass') return 'ship';
-  if (verdict === 'conditional') return 'caveats';
-  if (verdict === 'fail') return 'no';
-  return verdict;
 }
 
 function auditedAgainst(data) {

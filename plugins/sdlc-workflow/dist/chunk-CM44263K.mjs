@@ -2,10 +2,13 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   swimlanesSvg
-} from "./chunk-VTDAWHJD.mjs";
+} from "./chunk-ZPWM4DWE.mjs";
+import {
+  humanRelative
+} from "./chunk-3FHNYCY6.mjs";
 import {
   escapeHtml
-} from "./chunk-4WRIEOIP.mjs";
+} from "./chunk-3RXHOXIK.mjs";
 
 // renderers/hub-dashboard.mjs
 var TERMINAL_COMPLETE = /* @__PURE__ */ new Set(["complete", "completed", "shipped", "done"]);
@@ -34,21 +37,8 @@ function laneKeyFor(sm, entry) {
   }
   return declared;
 }
-function humanRelative(iso, now) {
-  if (!iso) return "never rendered";
-  const then = Date.parse(iso);
-  if (Number.isNaN(then)) return String(iso);
-  const diff = now - then;
-  if (diff < 0) return String(iso);
-  const min = Math.round(diff / 6e4);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min} min ago`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr} hr ago`;
-  const d = Math.round(hr / 24);
-  if (d < 30) return `${d} day${d === 1 ? "" : "s"} ago`;
-  const mo = Math.round(d / 30);
-  return `${mo} mo ago`;
+function renderedAgo(iso, now) {
+  return iso ? humanRelative(iso, now) : "never rendered";
 }
 function basenameOf(p) {
   const parts = String(p ?? "").replace(/[\\/]+$/, "").split(/[\\/]/);
@@ -65,7 +55,7 @@ function inboxItems(entries = [], now = Date.now()) {
       if (low(sm.currentStage) === "review" || low(sm.status) === "review") {
         reasons.push({ key: "review", label: "in review", tone: "cur" });
       }
-      if (stale) reasons.push({ key: "stale", label: `idle ${humanRelative(e.lastRenderedAt, now)}`, tone: "idle" });
+      if (stale) reasons.push({ key: "stale", label: `idle ${renderedAgo(e.lastRenderedAt, now)}`, tone: "idle" });
       const bs = low(sm.branchState);
       if (bs === "merged") reasons.push({ key: "merged", label: "merged", tone: "ok" });
       else if (bs === "gone") reasons.push({ key: "gone", label: "branch gone", tone: "idle" });
@@ -180,7 +170,7 @@ function repoCard(repoRoot, groupEntries, now, codeBrowserEnabled = true) {
     <article class="entry${stale ? " stale" : ""}">
       <div class="entry-head">
         <span class="entry-links"><a class="open-view" href="/r/${idEnc}/">open view \u2192</a>${codeBrowserEnabled ? ` <a class="open-code" href="/r/${idEnc}/__code/">code \u2192</a>` : ""}</span>
-        <span class="ago">${escapeHtml(humanRelative(entry.lastRenderedAt, now))}</span>
+        <span class="ago">${escapeHtml(renderedAgo(entry.lastRenderedAt, now))}</span>
       </div>
       ${laneHtml}
     </article>

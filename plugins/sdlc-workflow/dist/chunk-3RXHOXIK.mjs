@@ -77,7 +77,7 @@ function renderWarnBanner(errors, kind = "schema") {
   return `<aside class="warn-banner" role="status"><strong>${escapeHtml(kind)} warnings</strong><ul>${items}${overflow}</ul></aside>`;
 }
 function escapeHtml(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
 }
 
 export {

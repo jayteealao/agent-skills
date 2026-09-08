@@ -12,6 +12,7 @@
 // stale warnings · aggregate live reload.
 
 import { escapeHtml } from './_validator.mjs';
+import { humanRelative } from './_cards.mjs';
 import { swimlanesSvg } from './dashboard.mjs';
 
 const TERMINAL_COMPLETE = new Set(['complete', 'completed', 'shipped', 'done']);
@@ -50,21 +51,10 @@ function laneKeyFor(sm, entry) {
   return declared;
 }
 
-function humanRelative(iso, now) {
-  if (!iso) return 'never rendered';
-  const then = Date.parse(iso);
-  if (Number.isNaN(then)) return String(iso);
-  const diff = now - then;
-  if (diff < 0) return String(iso);
-  const min = Math.round(diff / 60000);
-  if (min < 1) return 'just now';
-  if (min < 60) return `${min} min ago`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr} hr ago`;
-  const d = Math.round(hr / 24);
-  if (d < 30) return `${d} day${d === 1 ? '' : 's'} ago`;
-  const mo = Math.round(d / 30);
-  return `${mo} mo ago`;
+// A repository with no render yet reads "never rendered" where the shared
+// helper would read "".
+function renderedAgo(iso, now) {
+  return iso ? humanRelative(iso, now) : 'never rendered';
 }
 
 function basenameOf(p) {
@@ -88,7 +78,7 @@ export function inboxItems(entries = [], now = Date.now()) {
       if (low(sm.currentStage) === 'review' || low(sm.status) === 'review') {
         reasons.push({ key: 'review', label: 'in review', tone: 'cur' });
       }
-      if (stale) reasons.push({ key: 'stale', label: `idle ${humanRelative(e.lastRenderedAt, now)}`, tone: 'idle' });
+      if (stale) reasons.push({ key: 'stale', label: `idle ${renderedAgo(e.lastRenderedAt, now)}`, tone: 'idle' });
       // Branch liveness (§4.3/§4.4): a still-active workflow whose branch is
       // merged or gone needs closing — surfaced as a fourth attention reason.
       // 'planned' (declared, implement hasn't cut it yet) is expected and
@@ -259,7 +249,7 @@ function repoCard(repoRoot, groupEntries, now, codeBrowserEnabled = true) {
         <span class="entry-links"><a class="open-view" href="/r/${idEnc}/">open view →</a>${
           codeBrowserEnabled ? ` <a class="open-code" href="/r/${idEnc}/__code/">code →</a>` : ''
         }</span>
-        <span class="ago">${escapeHtml(humanRelative(entry.lastRenderedAt, now))}</span>
+        <span class="ago">${escapeHtml(renderedAgo(entry.lastRenderedAt, now))}</span>
       </div>
       ${laneHtml}
     </article>

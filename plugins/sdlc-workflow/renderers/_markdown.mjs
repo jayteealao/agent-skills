@@ -87,6 +87,8 @@ export function mdInline(source) {
   return md.renderInline(source).trim();
 }
 
+// Not the shared escaper (_validator.escapeHtml): prose keeps a literal
+// apostrophe, and every rendered markdown body depends on that.
 function escapeHtml(s) {
   return String(s ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')

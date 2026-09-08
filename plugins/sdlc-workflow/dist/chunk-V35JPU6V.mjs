@@ -2,7 +2,10 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   pageHref
-} from "./chunk-CCRPAYHH.mjs";
+} from "./chunk-T5KRRFZB.mjs";
+import {
+  escapeHtml
+} from "./chunk-3RXHOXIK.mjs";
 import {
   jsYaml
 } from "./chunk-LFGT2BKG.mjs";
@@ -451,7 +454,7 @@ function renderHistoryBlock(history) {
   if (!history?.length) return "";
   const items = history.map((h) => {
     const when = h.snapshotFrontmatter?.["updated-at"] ?? new Date(h.mtime).toISOString().slice(0, 16).replace("T", " ");
-    return `<li><a href="${escape(pageHref(`history/${h.rev}`))}">Rev ${h.rev} \u2014 ${escape(when)}</a></li>`;
+    return `<li><a href="${escapeHtml(pageHref(`history/${h.rev}`))}">Rev ${h.rev} \u2014 ${escapeHtml(when)}</a></li>`;
   }).join("");
   return `<details class="history revisions">
     <summary>${history.length} prior revision${history.length === 1 ? "" : "s"}</summary>
@@ -464,19 +467,16 @@ function renderRevisionLedger(fm, sy) {
   const ordered = [...revs].sort((a, b) => (Number(b?.rev) || 0) - (Number(a?.rev) || 0));
   const items = ordered.map((r) => {
     if (typeof r !== "object" || r === null) {
-      return `<li><span class="rev-why">${escape(String(r))}</span></li>`;
+      return `<li><span class="rev-why">${escapeHtml(String(r))}</span></li>`;
     }
-    const rev = r.rev != null ? `<span class="rev-n">rev ${escape(r.rev)}</span>` : "";
+    const rev = r.rev != null ? `<span class="rev-n">rev ${escapeHtml(r.rev)}</span>` : "";
     const when = r.at ?? r.when ?? "";
-    const trigger = r.trigger ? `<span class="rev-trigger">${escape(r.trigger)}</span>` : "";
+    const trigger = r.trigger ? `<span class="rev-trigger">${escapeHtml(r.trigger)}</span>` : "";
     const why = r.because ?? r.summary ?? r.note ?? r.what ?? "";
-    const changed = r.changed ? ` \u2014 ${escape(r.changed)}` : "";
-    return `<li>${rev}${trigger}${when ? `<span class="rev-when">${escape(when)}</span>` : ""}<span class="rev-why">${escape(why)}${changed}</span></li>`;
+    const changed = r.changed ? ` \u2014 ${escapeHtml(r.changed)}` : "";
+    return `<li>${rev}${trigger}${when ? `<span class="rev-when">${escapeHtml(when)}</span>` : ""}<span class="rev-why">${escapeHtml(why)}${changed}</span></li>`;
   }).join("");
   return `<details class="revisions rev-ledger" open><summary>Revision ledger (${revs.length})</summary><ol class="rev-timeline">${items}</ol></details>`;
-}
-function escape(s) {
-  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
 }
 
 // node_modules/markdown-it/lib/common/utils.mjs
@@ -484,7 +484,7 @@ var utils_exports = {};
 __export(utils_exports, {
   arrayReplaceAt: () => arrayReplaceAt,
   assign: () => assign,
-  escapeHtml: () => escapeHtml,
+  escapeHtml: () => escapeHtml2,
   escapeRE: () => escapeRE,
   fromCodePoint: () => fromCodePoint2,
   has: () => has,
@@ -1343,7 +1343,7 @@ var getCodePoint = (
   )
 );
 function getEscaper(regex, map) {
-  return function escape4(data) {
+  return function escape3(data) {
     let match2;
     let lastIdx = 0;
     let result = "";
@@ -1496,7 +1496,7 @@ var HTML_REPLACEMENTS = {
 function replaceUnsafeChar(ch) {
   return HTML_REPLACEMENTS[ch];
 }
-function escapeHtml(str) {
+function escapeHtml2(str) {
   if (HTML_ESCAPE_TEST_RE.test(str)) {
     return str.replace(HTML_ESCAPE_REPLACE_RE, replaceUnsafeChar);
   }
@@ -1765,11 +1765,11 @@ function parseLinkTitle(str, start, max, prev_state) {
 var default_rules = {};
 default_rules.code_inline = function(tokens, idx, options, env, slf) {
   const token = tokens[idx];
-  return "<code" + slf.renderAttrs(token) + ">" + escapeHtml(token.content) + "</code>";
+  return "<code" + slf.renderAttrs(token) + ">" + escapeHtml2(token.content) + "</code>";
 };
 default_rules.code_block = function(tokens, idx, options, env, slf) {
   const token = tokens[idx];
-  return "<pre" + slf.renderAttrs(token) + "><code>" + escapeHtml(tokens[idx].content) + "</code></pre>\n";
+  return "<pre" + slf.renderAttrs(token) + "><code>" + escapeHtml2(tokens[idx].content) + "</code></pre>\n";
 };
 default_rules.fence = function(tokens, idx, options, env, slf) {
   const token = tokens[idx];
@@ -1783,9 +1783,9 @@ default_rules.fence = function(tokens, idx, options, env, slf) {
   }
   let highlighted;
   if (options.highlight) {
-    highlighted = options.highlight(token.content, langName, langAttrs) || escapeHtml(token.content);
+    highlighted = options.highlight(token.content, langName, langAttrs) || escapeHtml2(token.content);
   } else {
-    highlighted = escapeHtml(token.content);
+    highlighted = escapeHtml2(token.content);
   }
   if (highlighted.indexOf("<pre") === 0) {
     return highlighted + "\n";
@@ -1820,7 +1820,7 @@ default_rules.softbreak = function(tokens, idx, options) {
   return options.breaks ? options.xhtmlOut ? "<br />\n" : "<br>\n" : "\n";
 };
 default_rules.text = function(tokens, idx) {
-  return escapeHtml(tokens[idx].content);
+  return escapeHtml2(tokens[idx].content);
 };
 default_rules.html_block = function(tokens, idx) {
   return tokens[idx].content;
@@ -1838,7 +1838,7 @@ Renderer.prototype.renderAttrs = function renderAttrs(token) {
   }
   result = "";
   for (i = 0, l = token.attrs.length; i < l; i++) {
-    result += " " + escapeHtml(token.attrs[i][0]) + '="' + escapeHtml(token.attrs[i][1]) + '"';
+    result += " " + escapeHtml2(token.attrs[i][0]) + '="' + escapeHtml2(token.attrs[i][1]) + '"';
   }
   return result;
 };
@@ -4098,7 +4098,7 @@ for (let i = 0; i < 256; i++) {
 "\\!\"#$%&'()*+,./:;<=>?@[]^_`{|}~-".split("").forEach(function(ch) {
   ESCAPED[ch.charCodeAt(0)] = 1;
 });
-function escape3(state, silent) {
+function escape2(state, silent) {
   let pos = state.pos;
   const max = state.posMax;
   if (state.src.charCodeAt(pos) !== 92) return false;
@@ -4820,7 +4820,7 @@ var _rules3 = [
   ["text", text],
   ["linkify", linkify2],
   ["newline", newline],
-  ["escape", escape3],
+  ["escape", escape2],
   ["backticks", backtick],
   ["strikethrough", strikethrough_default.tokenize],
   ["emphasis", emphasis_default.tokenize],
@@ -5661,7 +5661,7 @@ var md = new lib_default({
   breaks: false,
   highlight: (str, lang) => {
     const langClass = lang ? ` language-${escapeAttr(lang)}` : "";
-    return `<pre><code class="hljs${langClass}">${escapeHtml2(str)}</code></pre>`;
+    return `<pre><code class="hljs${langClass}">${escapeHtml3(str)}</code></pre>`;
   }
 });
 md.use(import_markdown_it_anchor.default, {
@@ -5675,7 +5675,7 @@ function md2html(source) {
   if (!source || typeof source !== "string") return "";
   return md.render(source).trim();
 }
-function escapeHtml2(s) {
+function escapeHtml3(s) {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function escapeAttr(s) {

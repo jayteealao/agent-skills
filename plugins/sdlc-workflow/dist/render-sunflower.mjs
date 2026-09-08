@@ -5,7 +5,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-64CJF4MS.mjs";
+} from "./chunk-V35JPU6V.mjs";
 import {
   PLUGIN_VERSION,
   breadcrumbFromView,
@@ -14,7 +14,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-CCRPAYHH.mjs";
+} from "./chunk-T5KRRFZB.mjs";
 import {
   aggregateCost,
   readCostRows
@@ -22,7 +22,7 @@ import {
 import {
   renderWarnBanner,
   validateFrontmatter
-} from "./chunk-4WRIEOIP.mjs";
+} from "./chunk-3RXHOXIK.mjs";
 import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
@@ -172,7 +172,7 @@ function loadSnippet(componentsRoot, name) {
   snippetCache.set(cacheKey, text);
   return text;
 }
-function escapeHtml(s) {
+function escapeHtml2(s) {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 function renderSnippet(body, data) {
@@ -219,7 +219,7 @@ function renderSnippet(body, data) {
   });
   out = out.replace(/\{\{([a-z0-9_.-]+)\}\}/g, (_, key) => {
     const v = resolvePath(data, key);
-    return v == null ? "" : escapeHtml(v);
+    return v == null ? "" : escapeHtml2(v);
   });
   return out;
 }

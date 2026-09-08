@@ -13,6 +13,7 @@
 // Blocked current dot = --blocker.
 
 import { artifactHeader } from './_shell.mjs';
+import { humanRelative } from './_cards.mjs';
 import { figureCanvas, evenX } from './_figure.mjs';
 import { escapeHtml } from './_validator.mjs';
 import { pageHref } from './_paths.mjs';
@@ -32,6 +33,9 @@ const TERMINAL_COMPLETE = new Set(['complete', 'completed', 'shipped', 'done']);
 const TERMINAL_CLOSED = new Set(['closed', 'abandoned', 'cancelled']);
 
 export function render(artifact, ctx) {
+  // One clock per render. `ctx.now` (epoch ms) pins it — the snapshot suite
+  // passes a fixed value; the orchestrator passes none.
+  const now = ctx.now ?? Date.now();
   const slugs = (ctx.allArtifacts?.__summary__ ?? []).map((s) => ({
     slug: s.slug,
     fm:   s.frontmatter ?? {},
@@ -57,7 +61,7 @@ export function render(artifact, ctx) {
 
   const headerHtml = artifactHeader({
     h1: 'sdlc dashboard',
-    lede: `${slugs.length} workflow${slugs.length === 1 ? '' : 's'} · generated ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`,
+    lede: `${slugs.length} workflow${slugs.length === 1 ? '' : 's'} · generated ${new Date(now).toISOString().slice(0, 16).replace('T', ' ')}`,
   });
 
   const figureSvg = swimlanesSvg(active, complete);
@@ -79,15 +83,15 @@ export function render(artifact, ctx) {
   // 10-column swimlane SVG is illegible at 390px (M-DASH-02..05).
   const desktopBody = `
     ${figureHtml}
-    ${slugSection('Active', active, { groupByBranch: true })}
-    ${slugSection('Recently shipped', complete)}
-    ${slugSection('Closed', closed)}
+    ${slugSection('Active', active, now, { groupByBranch: true })}
+    ${slugSection('Recently shipped', complete, now)}
+    ${slugSection('Closed', closed, now)}
     ${quickSection(quick)}
   `;
   const mobileBody = `
     ${mobileTiles(active)}
-    ${mobileCardGroup('Active', active, false)}
-    ${mobileCardGroup('Recently shipped', complete, true)}
+    ${mobileCardGroup('Active', active, false, now)}
+    ${mobileCardGroup('Recently shipped', complete, true, now)}
     ${mobileQuickGroup(quick)}
   `;
   const bodyHtml = `
@@ -111,9 +115,9 @@ function mobileTiles(active) {
   </div>`;
 }
 
-function mobileCardGroup(label, list, shipped) {
+function mobileCardGroup(label, list, shipped, now) {
   if (!list.length) return '';
-  const cards = list.map((s) => mobilePcard(s, shipped)).join('');
+  const cards = list.map((s) => mobilePcard(s, shipped, now)).join('');
   return `<div class="subhead">${escapeHtml(label)} <span class="ct">${list.length}</span></div>${cards}`;
 }
 
@@ -123,7 +127,7 @@ function isBlocked(fm) {
 
 // A native project card: slug + stage chip, description, a mini stage strip
 // (the swimlane's row reborn as dots), a relative timestamp, and a health line.
-function mobilePcard({ slug, fm }, shipped) {
+function mobilePcard({ slug, fm }, shipped, now) {
   const stage = fm['current-stage'] ?? 'intake';
   const declaredIdx = STAGES.indexOf(stage);
   const currentIdx = shipped ? STAGES.length - 1 : (declaredIdx < 0 ? 0 : declaredIdx);
@@ -141,7 +145,7 @@ function mobilePcard({ slug, fm }, shipped) {
   return `<a class="pcard" href="${escapeHtml(pageHref(slug))}">
     <div class="top"><span class="slug">${escapeHtml(slug)}</span><span class="${chipCls}">${escapeHtml(stage)}</span></div>
     ${desc ? `<p class="desc">${escapeHtml(desc)}</p>` : ''}
-    <div class="foot"><div class="stagestrip">${dots}</div><span class="when">${escapeHtml(humanRelative(fm['updated-at'] ?? ''))}</span></div>
+    <div class="foot"><div class="stagestrip">${dots}</div><span class="when">${escapeHtml(humanRelative(fm['updated-at'] ?? '', now))}</span></div>
     <div class="statusline ${lineTone}"><span class="glyph" aria-hidden="true">${h.glyph}</span>${escapeHtml(h.label)}</div>
   </a>`;
 }
@@ -179,9 +183,9 @@ function projectSection(list) {
   </section>`;
 }
 
-function slugSection(label, list, { groupByBranch = false } = {}) {
+function slugSection(label, list, now, { groupByBranch = false } = {}) {
   if (!list.length) return '';
-  const rows = groupByBranch ? renderRowsGroupedByBranch(list) : list.map((s) => projectRow(s)).join('');
+  const rows = groupByBranch ? renderRowsGroupedByBranch(list, now) : list.map((s) => projectRow(s, now)).join('');
   return `<section class="project-list">
     <h2 class="sdlc-h2">${label} <span class="meta">(${list.length})</span></h2>
     ${rows}
@@ -193,7 +197,7 @@ function slugSection(label, list, { groupByBranch = false } = {}) {
 // branches are ready to `/wf handoff pr#N` / `/wf ship pr#N` together. Solo and
 // branchless slugs render as plain rows (no group chrome for the common case).
 // Deterministic: groups emit at their first member's position, in list order.
-function renderRowsGroupedByBranch(list) {
+function renderRowsGroupedByBranch(list, now) {
   const byBranch = new Map();
   for (const s of list) {
     const b = String(s.fm.branch ?? '').trim();
@@ -209,17 +213,17 @@ function renderRowsGroupedByBranch(list) {
     const members = b ? byBranch.get(b) : null;
     if (members && members.length >= 2) {
       members.forEach((m) => emitted.add(m));
-      parts.push(branchGroup(b, members));
+      parts.push(branchGroup(b, members, now));
     } else {
       emitted.add(s);
-      parts.push(projectRow(s));
+      parts.push(projectRow(s, now));
     }
   }
   return parts.join('');
 }
 
-function branchGroup(branch, members) {
-  const rows = members.map((s) => projectRow(s)).join('');
+function branchGroup(branch, members, now) {
+  const rows = members.map((s) => projectRow(s, now)).join('');
   const r = branchReadiness(members);
   return `<div class="branch-group">
     <div class="branch-head">
@@ -279,7 +283,7 @@ function quickSection(list) {
 // A ledger row is an <article> with a stacked serif name + mono slug, a
 // description, the current-stage pill, an at-a-glance health glyph, and a
 // human-relative timestamp (D3.7–D3.11). The whole-row link lives on the name.
-function projectRow({ slug, fm }) {
+function projectRow({ slug, fm }, now) {
   const stage = fm['current-stage'] ?? 'intake';
   const title = fm.title ?? slug;
   const updated = fm['updated-at'] ?? '';
@@ -294,7 +298,7 @@ function projectRow({ slug, fm }) {
     <span class="desc">${escapeHtml(desc)}</span>
     <span class="stage-pill ${stageVariant}">${escapeHtml(stage)}</span>
     <span class="status ${h.tone}"><span class="glyph" aria-hidden="true">${h.glyph}</span>${escapeHtml(h.label)}</span>
-    <span class="time">${escapeHtml(humanRelative(updated))}</span>
+    <span class="time">${escapeHtml(humanRelative(updated, now))}</span>
   </article>`;
 }
 
@@ -308,24 +312,6 @@ function health(fm) {
   if (['closed', 'abandoned', 'cancelled'].includes(status)) return { tone: 'idle', glyph: '◎', label: status };
   if (['paused', 'on-hold', 'waiting'].includes(status)) return { tone: 'warn', glyph: '◐', label: status };
   return { tone: 'ok', glyph: '◉', label: status || 'active' };
-}
-
-// ISO timestamp → "12 min ago" style. Returns raw text (escaped at call site).
-function humanRelative(iso) {
-  if (!iso) return '';
-  const then = Date.parse(iso);
-  if (Number.isNaN(then)) return String(iso);
-  const diff = Date.now() - then;
-  if (diff < 0) return String(iso);
-  const min = Math.round(diff / 60000);
-  if (min < 1) return 'just now';
-  if (min < 60) return `${min} min ago`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr} hr ago`;
-  const d = Math.round(hr / 24);
-  if (d < 30) return `${d} day${d === 1 ? '' : 's'} ago`;
-  const mo = Math.round(d / 30);
-  return `${mo} mo ago`;
 }
 
 // Exported (was module-private) so the multi-repo hub landing page

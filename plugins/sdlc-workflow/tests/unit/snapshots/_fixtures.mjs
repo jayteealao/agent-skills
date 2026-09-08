@@ -6,9 +6,10 @@
 //
 // Determinism contract: every fixture uses `history: []`. renderHistoryBlock([])
 // returns '' (renderers/_history.mjs:61), so no wall-clock mtime ever leaks into
-// a golden. None of the 15 renderers exercised here read Date.now()/random — the
-// only time-dependent renderers (dashboard, hub-dashboard, index, slice-index)
-// are intentionally NOT snapshot-tested.
+// a golden. No renderer exercised here reads Date.now()/random on its own: the
+// dashboard takes its clock from `ctx.now` (epoch ms), and its case pins one.
+// The other time-dependent renderers (hub-dashboard, index, slice-index) are
+// intentionally NOT snapshot-tested.
 
 import { render as benchmark } from '../../../renderers/benchmark.mjs';
 import { render as experiment } from '../../../renderers/experiment.mjs';
@@ -35,6 +36,15 @@ import { render as docsAudit } from '../../../renderers/docs-audit.mjs';
 import { render as docsPlanR } from '../../../renderers/docs-plan.mjs';
 import { render as docsGenerate } from '../../../renderers/docs-generate.mjs';
 import { render as ideation } from '../../../renderers/ideation.mjs';
+// Lifecycle stages + the cross-slug dashboard (2026-09-08).
+import { render as intake } from '../../../renderers/intake.mjs';
+import { render as shape } from '../../../renderers/shape.mjs';
+import { render as plan } from '../../../renderers/plan.mjs';
+import { render as verify } from '../../../renderers/verify.mjs';
+import { render as review } from '../../../renderers/review.mjs';
+import { render as handoff } from '../../../renderers/handoff.mjs';
+import { render as ship } from '../../../renderers/ship.mjs';
+import { render as dashboard } from '../../../renderers/dashboard.mjs';
 
 // renderSimple-based renderers read ctx.slug directly (not ctx?.slug), so every
 // case is rendered with a populated ctx.
@@ -657,6 +667,255 @@ export const CASES = [
       }),
     },
   },
+
+  /* ── lifecycle stages (renderSimple family) ────────────────────────── */
+  {
+    name: 'intake', render: intake, ctx: CTX,
+    variants: {
+      full: artifact({
+        type: 'intake', path: '01-intake.md',
+        frontmatter: {
+          schema: 'sdlc/v1', type: 'intake', slug: 'demo', title: 'Checkout retries', status: 'complete',
+          'stage-number': 1, 'created-at': '2026-06-04T00:00:00Z', 'updated-at': '2026-06-04T01:00:00Z',
+          'revision-count': 1, tags: ['checkout', 'payments'], refs: [], 'next-command': '/wf shape demo',
+          revisions: [{ rev: 1, at: '2026-06-04T01:00:00Z', trigger: 'answers-returned', because: 'Two open questions answered.', changed: 'Constraints section.' }],
+        },
+        body: '## Problem\nRetried checkouts double-charge.\n\n## Acceptance criteria\n- [ ] One charge per order\n',
+      }),
+      fragment: artifact({
+        type: 'intake', path: '01-intake.md',
+        frontmatter: { schema: 'sdlc/v1', type: 'intake', slug: 'demo', title: 'Checkout retries', status: 'complete', 'stage-number': 1 },
+        fragment: FRAG,
+      }),
+    },
+  },
+  {
+    name: 'shape', render: shape, ctx: CTX,
+    variants: {
+      full: artifact({
+        type: 'shape', path: '02-shape.md',
+        frontmatter: {
+          schema: 'sdlc/v1', type: 'shape', slug: 'demo', title: 'Checkout retries', status: 'complete',
+          'stage-number': 2, 'metric-slice-count': 3, 'metric-risk-count': 2, 'docs-needed': true, 'docs-types': ['how-to'],
+          'updated-at': '2026-06-04T02:00:00Z', tags: ['checkout'],
+        },
+        body: '## Slices\n1. idempotency key\n2. retry budget\n3. audit log\n',
+      }),
+      fragment: artifact({
+        type: 'shape', path: '02-shape.md',
+        frontmatter: { schema: 'sdlc/v1', type: 'shape', slug: 'demo', title: 'Checkout retries', status: 'complete', 'stage-number': 2, 'metric-slice-count': 3 },
+        fragment: FRAG,
+      }),
+    },
+  },
+  {
+    name: 'verify', render: verify, ctx: CTX,
+    variants: {
+      full: artifact({
+        type: 'verify', path: '06-verify-idempotency-key.md',
+        frontmatter: {
+          schema: 'sdlc/v1', type: 'verify', slug: 'demo', 'slice-slug': 'idempotency-key', status: 'complete',
+          'stage-number': 6, 'metric-test-count': 14, 'metric-pass-count': 13, 'metric-fail-count': 1,
+          'updated-at': '2026-06-05T09:00:00Z',
+        },
+        body: '## Results\n13 of 14 pass. The failing case is the replay after a timeout.\n',
+      }),
+      fragment: artifact({
+        type: 'verify', path: '06-verify-idempotency-key.md',
+        frontmatter: { schema: 'sdlc/v1', type: 'verify', slug: 'demo', 'slice-slug': 'idempotency-key', status: 'complete', 'stage-number': 6, 'metric-test-count': 14 },
+        fragment: FRAG,
+      }),
+    },
+  },
+  {
+    name: 'handoff', render: handoff, ctx: CTX,
+    variants: {
+      full: artifact({
+        type: 'handoff', path: '08-handoff.md',
+        frontmatter: {
+          schema: 'sdlc/v1', type: 'handoff', slug: 'demo', title: 'Checkout retries · handoff', status: 'complete',
+          'stage-number': 8, 'handoff-mode': 'aggregate', 'handoff-scope': 'branch', 'handoff-lead': 'demo',
+          'slice-slugs': ['idempotency-key', 'retry-budget'], 'pr-number': 42, 'updated-at': '2026-06-06T10:00:00Z',
+        },
+        body: '## PR readiness\nCI green on `feat/checkout-v2`. Two slices, one PR.\n',
+      }),
+      fragment: artifact({
+        type: 'handoff', path: '08-handoff.md',
+        frontmatter: { schema: 'sdlc/v1', type: 'handoff', slug: 'demo', title: 'Checkout retries · handoff', status: 'complete', 'stage-number': 8 },
+        fragment: FRAG,
+      }),
+    },
+  },
+  {
+    // `type: ship` is the deprecated pre-v9.2.0 doc: the alias renders the
+    // banner from ship-legacy above the simple page.
+    name: 'ship', render: ship, ctx: CTX,
+    variants: {
+      full: artifact({
+        type: 'ship', path: '09-ship.md',
+        frontmatter: { schema: 'sdlc/v1', type: 'ship', slug: 'demo', title: 'Checkout retries · ship', status: 'complete', 'updated-at': '2026-06-07T10:00:00Z' },
+        body: '## Shipped\nMerged as PR #42.\n',
+      }),
+      fragment: artifact({
+        type: 'ship', path: '09-ship.md',
+        frontmatter: { schema: 'sdlc/v1', type: 'ship', slug: 'demo', title: 'Checkout retries · ship', status: 'complete' },
+        fragment: FRAG,
+      }),
+    },
+  },
+
+  /* ── plan (Figure 3 topology + structured sections) ────────────────── */
+  {
+    name: 'plan', render: plan, ctx: CTX,
+    variants: {
+      full: artifact({
+        type: 'plan', path: '04-plan-idempotency-key.md',
+        frontmatter: {
+          schema: 'sdlc/v1', type: 'plan', slug: 'demo', 'slice-slug': 'idempotency-key', title: 'Idempotency key on checkout',
+          summary: 'One key per order; the gateway drops a replay.', status: 'complete', 'stage-number': 4,
+          'metric-files-to-touch': 3, 'metric-step-count': 5, 'has-blockers': false, 'revision-count': 2,
+          parent: 'checkout', tags: ['checkout', 'payments'], 'updated-at': '2026-06-05T08:00:00Z',
+          revisions: [{ rev: 2, at: '2026-06-05T08:00:00Z', trigger: 'review-feedback', because: 'Key must survive a gateway timeout.', changed: 'Step 3.' }],
+        },
+        siblingYaml: {
+          artifact: 'plan', slug: 'demo', slice: 'idempotency-key', rev: 2,
+          modules: [{ id: 'api', label: 'API', role: 'service' }, { id: 'db', label: 'Storage', role: 'data' }],
+          files: [
+            { path: 'src/api/checkout.ts', status: 'modified', module: 'api', loc: 120, delta: { add: 18, rem: 4 }, planned_change: { intent: 'Attach the key to the charge request.' } },
+            { path: 'src/api/idempotency.ts', status: 'new', module: 'api', loc: 40, delta: 40 },
+            { path: 'migrations/0042_idempotency.sql', status: 'new', module: 'db', delta: '+12/-0' },
+          ],
+          edges: [{ from: 'src/api/checkout.ts', to: 'src/api/idempotency.ts', kind: 'import' }],
+          acceptance: ['One charge per order under retry', 'Replay within 24 h returns the first response'],
+          risks: [
+            { title: 'Key collision', level: 'high', body: 'Two orders with one key charge once.' },
+            { title: 'Migration lock', level: 'low', body: 'The index build takes the table lock for a few seconds.' },
+          ],
+        },
+        body: '## Steps\n1. Generate the key.\n2. Store it.\n3. Replay on timeout.\n',
+      }),
+      // Two lanes and a cross-service edge switch Figure 3 to data-flow lanes.
+      lanes: artifact({
+        type: 'plan', path: '04-plan-retry-budget.md',
+        frontmatter: {
+          schema: 'sdlc/v1', type: 'plan', slug: 'demo', 'slice-slug': 'retry-budget', title: 'Retry budget',
+          status: 'complete', 'stage-number': 4, 'metric-files-to-touch': 2, 'metric-step-count': 3, 'has-blockers': true,
+        },
+        siblingYaml: {
+          artifact: 'plan', slug: 'demo', slice: 'retry-budget', rev: 1,
+          modules: [{ id: 'web', label: 'Web' }, { id: 'gateway', label: 'Gateway' }],
+          lanes: [{ id: 'web', label: 'Web' }, { id: 'gateway', label: 'Gateway' }],
+          files: [
+            { path: 'web/src/retry.ts', status: 'modified', module: 'web' },
+            { path: 'gateway/src/budget.go', status: 'new', module: 'gateway' },
+          ],
+          edges: [{ from: 'web/src/retry.ts', to: 'gateway/src/budget.go', kind: 'crosses-service' }],
+        },
+        body: '## Steps\n1. Count retries per order.\n',
+      }),
+      // No sibling YAML: placeholder topology, frontmatter card only.
+      fallback: artifact({
+        type: 'plan', path: '04-plan-audit-log.md',
+        frontmatter: { schema: 'sdlc/v1', type: 'plan', slug: 'demo', 'slice-slug': 'audit-log', status: 'awaiting-input', 'stage-number': 4, 'has-blockers': false },
+        body: '## Steps\n1. Append one row per charge.\n',
+      }),
+      fragment: artifact({
+        type: 'plan', path: '04-plan-idempotency-key.md',
+        frontmatter: { schema: 'sdlc/v1', type: 'plan', slug: 'demo', 'slice-slug': 'idempotency-key', title: 'Idempotency key on checkout', status: 'complete', 'stage-number': 4, 'has-blockers': false },
+        siblingYaml: {
+          artifact: 'plan', modules: ['src/api'],
+          files: [{ path: 'src/api/checkout.ts', role: 'modified' }, { path: 'src/api/idempotency.ts', role: 'new' }],
+          acceptance: ['One charge per order under retry'],
+        },
+        fragment: FRAG,
+      }),
+    },
+  },
+
+  /* ── review (Figure 4 heatmap + verdict + severity metrics) ────────── */
+  {
+    name: 'review', render: review, ctx: CTX,
+    variants: {
+      full: artifact({
+        type: 'review', path: '07-review.md',
+        frontmatter: {
+          schema: 'sdlc/v1', type: 'review', slug: 'demo', title: 'Review · checkout retries', status: 'complete',
+          'stage-number': 7, 'review-scope': 'slug-wide', verdict: 'ship-with-caveats', 'updated-at': '2026-06-06T09:00:00Z',
+          'metric-findings-total': 4, 'metric-findings-blocker': 0, 'metric-findings-high': 1, 'metric-findings-med': 2, 'metric-findings-low': 1, 'metric-findings-nit': 0,
+        },
+        siblingYaml: {
+          artifact: 'review', rev: 1, verdict: 'caveats', summary: 'Ship after the replay window is bounded.',
+          counts: { blocker: 0, high: 1, med: 2, low: 1, nit: 0 },
+          dimensions: [{ name: 'correctness' }, { name: 'security' }, { name: 'performance' }],
+          findings: [
+            { id: 'R-1', severity: 'high', dimension: 'correctness', file: 'src/api/idempotency.ts', line: 41, msg: 'Replay window is unbounded.', action: 'accept' },
+            { id: 'R-2', severity: 'med', dimension: 'correctness', file: 'src/api/checkout.ts', line: 88, msg: 'Timeout path skips the audit row.' },
+            { id: 'R-3', severity: 'med', dimension: 'security', file: 'src/api/idempotency.ts', line: 12, msg: 'Key is logged in full.' },
+            { id: 'R-4', severity: 'low', dimension: 'performance', file: 'migrations/0042_idempotency.sql', msg: 'Index is not partial.' },
+          ],
+        },
+        body: '## Findings\nOne high, two medium, one low.\n',
+      }),
+      // No sibling YAML: verdict + counts from the frontmatter, no Figure 4.
+      fallback: artifact({
+        type: 'review', path: '07-review.md',
+        frontmatter: {
+          schema: 'sdlc/v1', type: 'review', slug: 'demo', title: 'Review · checkout retries', status: 'complete', 'stage-number': 7,
+          verdict: 'ship', counts: { blocker: 0, high: 0, med: 0, low: 1, nit: 2 },
+        },
+        body: '## Findings\nNothing blocks.\n',
+      }),
+      fragment: artifact({
+        type: 'review', path: '07-review.md',
+        frontmatter: { schema: 'sdlc/v1', type: 'review', slug: 'demo', title: 'Review · checkout retries', status: 'complete', 'stage-number': 7, verdict: 'dont-ship' },
+        siblingYaml: {
+          artifact: 'review', rev: 2, verdict: 'no', summary: 'A blocker is open.',
+          counts: { blocker: 1, high: 0, med: 0, low: 0, nit: 0 },
+          dimensions: [{ name: 'correctness' }],
+          findings: [{ id: 'R-5', severity: 'blocker', dimension: 'correctness', file: 'src/api/checkout.ts', msg: 'Double charge on replay.' }],
+        },
+        fragment: FRAG,
+      }),
+    },
+  },
+
+  /* ── dashboard (cross-slug INDEX; clock pinned through ctx.now) ────── */
+  {
+    name: 'dashboard', render: dashboard,
+    ctx: {
+      slug: '',
+      now: Date.parse('2026-09-08T12:00:00Z'),
+      allArtifacts: {
+        __project__: [
+          { path: 'project-context.md', viewRel: 'project-context.html', frontmatter: { type: 'project-context', title: 'Shop monorepo', status: 'current' } },
+        ],
+        __summary__: [
+          // Two slugs on one branch: one ready for handoff, one blocked → the
+          // branch group carries a "1 blocked" chip.
+          { slug: 'checkout-retries', frontmatter: { type: 'index', title: 'Checkout retries', description: 'One charge per order under retry.', status: 'active', branch: 'feat/checkout-v2', 'current-stage': 'handoff', 'revision-count': 2, 'updated-at': '2026-09-08T11:48:00Z' } },
+          { slug: 'refund-audit', frontmatter: { type: 'index', title: 'Refund audit log', status: 'blocked', blockers: 2, branch: 'feat/checkout-v2', 'current-stage': 'implement', 'updated-at': '2026-09-07T12:00:00Z' } },
+          // Solo active slug at the first stage, paused.
+          { slug: 'search-facets', frontmatter: { type: 'index', title: 'Search facets', status: 'paused', 'current-stage': 'intake', 'updated-at': '2026-09-01T12:00:00Z' } },
+          // Shipped and closed rows.
+          { slug: 'cart-merge', frontmatter: { type: 'index', title: 'Cart merge', description: 'Merge guest carts on login.', status: 'shipped', 'current-stage': 'retro', 'updated-at': '2026-08-20T12:00:00Z' } },
+          { slug: 'legacy-export', frontmatter: { type: 'index', title: 'Legacy export', status: 'abandoned', 'current-stage': 'plan', 'updated-at': '2026-06-01T12:00:00Z' } },
+          // Quick / investigative workflow (own list, no swimlane row).
+          { slug: 'rca-timeout', frontmatter: { type: 'workflow-index', title: 'Gateway timeouts', 'workflow-type': 'rca', status: 'ready', 'current-stage': 'routing', 'updated-at': '2026-09-08T09:00:00Z' } },
+        ],
+      },
+    },
+    variants: {
+      full: artifact({ type: 'dashboard', path: 'INDEX.html', frontmatter: { type: 'dashboard' }, body: '' }),
+    },
+  },
+  {
+    // No workflows and no project context: the empty swimlane placeholder.
+    name: 'dashboard-empty', render: dashboard,
+    ctx: { slug: '', now: Date.parse('2026-09-08T12:00:00Z'), allArtifacts: { __summary__: [], __project__: [] } },
+    variants: {
+      full: artifact({ type: 'dashboard', path: 'INDEX.html', frontmatter: { type: 'dashboard' }, body: '' }),
+    },
+  },
 ];
 
 // Renderers that emit a <div class="fragment"> block when artifact.fragment is
@@ -664,4 +923,5 @@ export const CASES = [
 export const FRAGMENT_RENDERERS = new Set([
   'benchmark', 'experiment', 'instrument', 'rca',
   'review-dimension', 'design-contract', 'design-critique', 'design-audit', 'profile',
+  'intake', 'shape', 'plan', 'verify', 'review', 'handoff', 'ship',
 ]);

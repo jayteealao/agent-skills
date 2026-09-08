@@ -2,10 +2,10 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   pageHref
-} from "./chunk-CCRPAYHH.mjs";
+} from "./chunk-T5KRRFZB.mjs";
 import {
   escapeHtml
-} from "./chunk-4WRIEOIP.mjs";
+} from "./chunk-3RXHOXIK.mjs";
 
 // renderers/_cards.mjs
 function sliceState(status) {
@@ -34,11 +34,11 @@ function blockerPart(count, label = "blocker") {
   if (!n) return null;
   return `<span class="blocker-cnt">${n} ${label}${n === 1 ? "" : "s"}</span>`;
 }
-function humanRelative(iso) {
+function humanRelative(iso, now = Date.now()) {
   if (!iso) return "";
   const then = Date.parse(iso);
   if (Number.isNaN(then)) return String(iso);
-  const diff = Date.now() - then;
+  const diff = now - then;
   if (diff < 0) return String(iso);
   const min = Math.round(diff / 6e4);
   if (min < 1) return "just now";
@@ -141,6 +141,7 @@ export {
   sliceState,
   countPart,
   blockerPart,
+  humanRelative,
   sliceCard,
   sliceGridFigure
 };

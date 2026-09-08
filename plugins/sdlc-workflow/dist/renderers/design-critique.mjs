@@ -1,25 +1,26 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  countBySeverity,
   findingListItem,
   severityChip
-} from "../chunk-EG7S7OJR.mjs";
+} from "../chunk-VQ7FT7IB.mjs";
 import {
   renderSimple
-} from "../chunk-7ET6WARA.mjs";
+} from "../chunk-BHUAUYVV.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-64CJF4MS.mjs";
+} from "../chunk-V35JPU6V.mjs";
 import {
   artifactHeader,
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-CCRPAYHH.mjs";
+} from "../chunk-T5KRRFZB.mjs";
 import {
   escapeHtml
-} from "../chunk-4WRIEOIP.mjs";
+} from "../chunk-3RXHOXIK.mjs";
 import "../chunk-EQC6XDOG.mjs";
 import "../chunk-FZ2GR6GF.mjs";
 import "../chunk-LFGT2BKG.mjs";
@@ -32,7 +33,7 @@ function render(artifact, ctx) {
   if (!sy && !fm["severity-distribution"]) {
     return renderSimple(artifact, ctx, { title: fm.title ?? "Design critique" });
   }
-  const severity = sy ? deriveSeverity(sy.findings ?? []) : fm["severity-distribution"];
+  const severity = sy ? countBySeverity(sy.findings ?? []) : fm["severity-distribution"];
   const headerHtml = artifactHeader({
     crumb: artifact.path,
     h1: escapeHtml(fm.title ?? "Design critique"),
@@ -63,13 +64,6 @@ function render(artifact, ctx) {
     links: [],
     children: []
   };
-}
-function deriveSeverity(findings) {
-  const out = { blocker: 0, high: 0, medium: 0, low: 0, nit: 0 };
-  for (const finding of findings) {
-    if (out[finding.severity] != null) out[finding.severity]++;
-  }
-  return out;
 }
 function findingItem(finding) {
   const cssSeverity = finding.severity === "medium" ? "med" : finding.severity;

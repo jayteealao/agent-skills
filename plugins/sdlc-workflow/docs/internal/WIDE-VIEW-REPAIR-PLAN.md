@@ -16,8 +16,8 @@ neutrality gate this plan copies as a pattern),
 this plan supersedes in part).
 
 Scope: items 1, 2, 3, 4, 6, 7, 8, 9, and 10 of the 2026-09-04 review. Item 5
-(the view-layer split) is not a wave. §13 makes the case for it and asks for a
-decision. §14 (W11) adds the 2026-09-05 runtime review: the runtime stays in
+(the view-layer split) is not a wave. §13 makes the case for it; the operator
+declined it on 2026-09-08 (§13.6). §14 (W11) adds the 2026-09-05 runtime review: the runtime stays in
 the plugin, and eleven in-place changes repair how it is installed, observed,
 started, and bounded.
 
@@ -847,6 +847,12 @@ Approve the split as its own plan after this one, or decline it and accept
 that every W1 budget carries the fragment step and the sibling block as
 lifecycle prose. Either answer is workable. The recommendation stands.
 
+**Decision (2026-09-08): declined.** The operator keeps the view layer in
+the plugin. The W1 budgets keep the fragment step and the sibling block. The
+two in-place repairs the review of the view code named were built instead:
+snapshot coverage for the lifecycle renderers and one shared body for each
+duplicated helper (see the build note before §15). No split plan follows.
+
 ## 14. W11 — Runtime repair, in place
 
 The runtime stays in the plugin. This wave repairs how the runtime is
@@ -1282,6 +1288,21 @@ replaced by the installed hub at 18:27; its source was not proven (the suite
 under an isolated home spawned nothing). The two spellings of the hub-ensure
 kill switch are one switch on both hosts, documented on the configuration
 page. RELEASE-DISCIPLINE names `npm version --force` instead of a stash.
+
+View-code follow-up (2026-09-08). The renderer review found 27 of the 51
+renderers under snapshot and five helper bodies copied across twelve files.
+The eight lifecycle renderers with the most traffic (intake, shape, plan,
+verify, review, handoff, ship, dashboard) now have golden cases: 19 goldens
+and 26 more cases, 85 in the snapshot suite. The dashboard takes its clock from
+`ctx.now` (the orchestrator passes none, so the live page is unchanged), which
+is what let it join the suite. `escapeHtml`, `humanRelative`,
+`normalizeVerdict`, and the severity count each have one body
+(`_validator`, `_cards`, `_icons`); the private copies are gone. The three
+`findingItem` functions stay: each maps a different sibling-YAML field set
+onto the shared list item, so they are adapters, not copies.
+`_markdown.escapeHtml` stays private because it leaves the apostrophe
+literal and every prose body depends on that. §13.6 records the split as
+declined.
 
 ## 15. Releases and order
 

@@ -4,25 +4,28 @@ import {
   md2html,
   renderHistoryBlock,
   renderRevisionLedger
-} from "../chunk-64CJF4MS.mjs";
+} from "../chunk-V35JPU6V.mjs";
 import {
   costRowsFor,
   costSectionHtml
-} from "../chunk-MCF77ETJ.mjs";
+} from "../chunk-TNCDSDXJ.mjs";
+import {
+  humanRelative
+} from "../chunk-3FHNYCY6.mjs";
 import {
   evenX,
   figureCanvas
-} from "../chunk-PDBKNARE.mjs";
+} from "../chunk-RFW2L66D.mjs";
 import {
   metricRow,
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-CCRPAYHH.mjs";
+} from "../chunk-T5KRRFZB.mjs";
 import "../chunk-PNDGQNSP.mjs";
 import {
   escapeHtml
-} from "../chunk-4WRIEOIP.mjs";
+} from "../chunk-3RXHOXIK.mjs";
 import "../chunk-EQC6XDOG.mjs";
 import "../chunk-FZ2GR6GF.mjs";
 import "../chunk-LFGT2BKG.mjs";
@@ -360,21 +363,6 @@ function sliceTone(status) {
   if (s === "blocked") return "is-bad";
   if (["active", "in-progress", "in progress", "wip", "review", "in-review"].includes(s)) return "is-current";
   return "";
-}
-function humanRelative(iso) {
-  if (!iso) return "";
-  const then = Date.parse(iso);
-  if (Number.isNaN(then)) return String(iso);
-  const diff = Date.now() - then;
-  if (diff < 0) return String(iso);
-  const min = Math.round(diff / 6e4);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min} min ago`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr} hr ago`;
-  const d = Math.round(hr / 24);
-  if (d < 30) return `${d} day${d === 1 ? "" : "s"} ago`;
-  return `${Math.round(d / 30)} mo ago`;
 }
 function stagesGrid(current, allArtifacts) {
   const cards = STAGES.map((stage) => {

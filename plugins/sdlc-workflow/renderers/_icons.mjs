@@ -4,6 +4,8 @@
 // mapping. Renderers and the shell consume these for status chips, severity
 // chips, and verdict glyphs.
 
+import { escapeHtml } from './_validator.mjs';
+
 export const SEVERITY_GLYPH = {
   blocker: '●',
   high:    '▲',
@@ -32,17 +34,17 @@ export function severityChip(level, label) {
  *  stays semantic (D6.9 / D1.8). VERDICT_GLYPH stays exported for the snippet
  *  template + external consumers that still want the codepoint. */
 export function verdictBlock(kind, label, summary) {
-  return `<section class="verdict verdict-${escape(kind)}">
+  return `<section class="verdict verdict-${escapeHtml(kind)}">
     <div class="v-label">Verdict</div>
-    <div class="v-text">${escape(label ?? kind)}</div>
-    ${summary ? `<p class="v-sum">${escape(summary)}</p>` : ''}
+    <div class="v-text">${escapeHtml(label ?? kind)}</div>
+    ${summary ? `<p class="v-sum">${escapeHtml(summary)}</p>` : ''}
   </section>`;
 }
 
 /** Callout — `.callout.callout-X` with header + body. */
 export function callout(kind, title, body) {
   return `<aside class="callout callout-${kind}">
-    <div class="callout-hd">${escape(title ?? '')}</div>
+    <div class="callout-hd">${escapeHtml(title ?? '')}</div>
     <div class="callout-body">${body ?? ''}</div>
   </aside>`;
 }
@@ -73,27 +75,43 @@ export function findingListItem(params) {
   } = params;
 
   const ref = file
-    ? `<code class="finding-ref">${escape(file)}${line != null ? `:${escape(line)}` : ''}</code>`
+    ? `<code class="finding-ref">${escapeHtml(file)}${line != null ? `:${escapeHtml(line)}` : ''}</code>`
     : '';
   const actionChip = action
-    ? `<span class="finding-action is-${escape(action)}">${escape(action)}</span>`
+    ? `<span class="finding-action is-${escapeHtml(action)}">${escapeHtml(action)}</span>`
     : '';
-  const fixCallout = fix ? callout('info', 'suggested fix', `<p>${escape(fix)}</p>`) : '';
+  const fixCallout = fix ? callout('info', 'suggested fix', `<p>${escapeHtml(fix)}</p>`) : '';
 
-  const liClass = `finding${variant ? ' ' + escape(variant) : ''}`;
+  const liClass = `finding${variant ? ' ' + escapeHtml(variant) : ''}`;
   const dataAttrHtml = dataAttr
-    ? ` data-${escape(dataAttr.name)}="${escape(dataAttr.value)}"`
+    ? ` data-${escapeHtml(dataAttr.name)}="${escapeHtml(dataAttr.value)}"`
     : '';
 
-  return `<li class="${liClass}"${dataAttrHtml} id="${escape(id)}">
+  return `<li class="${liClass}"${dataAttrHtml} id="${escapeHtml(id)}">
     <div class="finding-head">${chip}${ref}${actionChip}</div>
-    <p class="finding-msg">${escape(msg)}</p>
+    <p class="finding-msg">${escapeHtml(msg)}</p>
     ${fixCallout}
   </li>`;
 }
 
-function escape(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+// Sibling-YAML verdict vocabulary (pass / conditional / fail) → the verdict
+// glyph vocabulary verdictBlock reads (ship / caveats / no). Any other value
+// passes through unchanged.
+export function normalizeVerdict(verdict) {
+  if (verdict === 'pass') return 'ship';
+  if (verdict === 'conditional') return 'caveats';
+  if (verdict === 'fail') return 'no';
+  return verdict;
+}
+
+// Count items per severity key, in key order. A severity outside `keys` is
+// not counted. The default key set is the design-critique vocabulary; the
+// design-audit renderer passes its four-key set.
+export function countBySeverity(items, keys = ['blocker', 'high', 'medium', 'low', 'nit']) {
+  const out = {};
+  for (const key of keys) out[key] = 0;
+  for (const item of items) {
+    if (out[item.severity] != null) out[item.severity]++;
+  }
+  return out;
 }

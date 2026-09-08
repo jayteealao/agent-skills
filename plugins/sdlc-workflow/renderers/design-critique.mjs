@@ -3,7 +3,7 @@
 import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs';
 import { renderHistoryBlock } from './_history.mjs';
-import { findingListItem, severityChip } from './_icons.mjs';
+import { findingListItem, severityChip, countBySeverity } from './_icons.mjs';
 import { escapeHtml } from './_validator.mjs';
 import { renderSimple } from './_simple.mjs';
 
@@ -14,7 +14,7 @@ export function render(artifact, ctx) {
     return renderSimple(artifact, ctx, { title: fm.title ?? 'Design critique' });
   }
 
-  const severity = sy ? deriveSeverity(sy.findings ?? []) : fm['severity-distribution'];
+  const severity = sy ? countBySeverity(sy.findings ?? []) : fm['severity-distribution'];
   const headerHtml = artifactHeader({
     crumb: artifact.path,
     h1: escapeHtml(fm.title ?? 'Design critique'),
@@ -58,14 +58,6 @@ export function render(artifact, ctx) {
     links: [],
     children: [],
   };
-}
-
-function deriveSeverity(findings) {
-  const out = { blocker: 0, high: 0, medium: 0, low: 0, nit: 0 };
-  for (const finding of findings) {
-    if (out[finding.severity] != null) out[finding.severity]++;
-  }
-  return out;
 }
 
 function findingItem(finding) {
