@@ -997,7 +997,7 @@ function readHubConfig({ create = true } = {}) {
   }
   try {
     const { config, changes } = migrateHubConfig(JSON.parse(readFileSync2(path, "utf-8")));
-    if (changes.length) {
+    if (changes.length && create) {
       try {
         writeAtomic(path, config);
       } catch {

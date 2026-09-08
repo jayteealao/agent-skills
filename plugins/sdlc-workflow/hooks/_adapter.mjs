@@ -412,6 +412,21 @@ export function findProjectRoot(cwd) {
 }
 
 /**
+ * True when `dir` or an ancestor (≤ 40 levels) carries `.git` (dir or worktree
+ * file). The W11.3 SessionStart policy: outside a checkout, nothing is set up.
+ */
+export function insideGitCheckout(dir) {
+  let cur = resolve(dir || process.cwd());
+  for (let i = 0; i < 40; i++) {
+    if (existsSync(join(cur, '.git'))) return true;
+    const parent = dirname(cur);
+    if (parent === cur) return false;
+    cur = parent;
+  }
+  return false;
+}
+
+/**
  * True for a managed sdlc artifact markdown path (mirrors the shared
  * isManagedArtifactMarkdownPath, incl. the project-context paths PRODUCT.md /
  * DESIGN.md / .ai/ship-plan.md). Must stay in sync so every managed artifact the

@@ -18,7 +18,7 @@ import {
 import {
   aggregateCost,
   readCostRows
-} from "./chunk-H5LFYXT6.mjs";
+} from "./chunk-PNDGQNSP.mjs";
 import {
   renderWarnBanner,
   validateFrontmatter
@@ -27,13 +27,13 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-SSUNTTDI.mjs";
+} from "./chunk-AQHSBCX2.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-6UIE4HPE.mjs";
+} from "./chunk-PSP4GYGJ.mjs";
 import "./chunk-LYPLZSMD.mjs";
 import {
   readRenderedIdentity,
@@ -81,7 +81,6 @@ import {
   writeFileSync,
   statSync as statSync2,
   rmSync,
-  copyFileSync,
   renameSync,
   appendFileSync
 } from "node:fs";

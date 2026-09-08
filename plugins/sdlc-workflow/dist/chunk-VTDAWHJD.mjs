@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   costDashboardHtml
-} from "./chunk-PTGPEXQV.mjs";
+} from "./chunk-MCF77ETJ.mjs";
 import {
   evenX,
   figureCanvas

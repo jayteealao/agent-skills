@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   ensureHubLifecycle,
   stopHub
-} from "./chunk-SSUNTTDI.mjs";
+} from "./chunk-AQHSBCX2.mjs";
 import {
   portHeld,
   portOwner
@@ -13,7 +13,7 @@ import {
   hubConfigPath,
   readHubConfig,
   writeHubConfig
-} from "./chunk-6UIE4HPE.mjs";
+} from "./chunk-PSP4GYGJ.mjs";
 import {
   hubPidPath,
   readPidFile,

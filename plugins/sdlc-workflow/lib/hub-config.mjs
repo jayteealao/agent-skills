@@ -140,9 +140,11 @@ export function readHubConfig({ create = true } = {}) {
   }
   try {
     const { config, changes } = migrateHubConfig(JSON.parse(readFileSync(path, 'utf-8')));
-    if (changes.length) {
+    if (changes.length && create) {
       // One-line rewrite + one lifecycle line (W11.4). Best-effort: a read
-      // never fails because the rewrite could not land.
+      // never fails because the rewrite could not land. A read-only caller
+      // (`create: false` — the doctor, the tray probe) gets the migrated value
+      // in memory and leaves the file to the supervisor's read.
       try { writeAtomic(path, config); } catch { /* read-only home */ }
       for (const c of changes) {
         try { logLifecycle({ event: `${c.key}-migrated`, reason: `${c.key} ${c.from} → ${c.to} (hub-config.json rewritten)` }); } catch { /* never block */ }

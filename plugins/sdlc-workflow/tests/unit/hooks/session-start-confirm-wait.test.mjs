@@ -25,6 +25,7 @@ test('an expired wait exits 0, keeps stdout silent, prints one started-unconfirm
     mkdirSync(join(fakeRoot, 'dist'), { recursive: true });
     writeFileSync(join(fakeRoot, 'dist', 'hub-ensure.mjs'), 'setTimeout(() => process.exit(0), 4000);\n', 'utf-8');
     mkdirSync(join(repo, '.ai', 'workflows'), { recursive: true });
+    mkdirSync(join(repo, '.git'), { recursive: true });   // the adapter's W11.3 gate needs a checkout
     const event = { cwd: repo, hook_event_name: 'SessionStart', source: 'startup', session_id: 's1' };
     const res = spawnSync(process.execPath, [HOOK, '--plugin-root', fakeRoot, '--plugin-data', pluginData], {
       input: JSON.stringify(event), cwd: repo, encoding: 'utf-8', windowsHide: true,

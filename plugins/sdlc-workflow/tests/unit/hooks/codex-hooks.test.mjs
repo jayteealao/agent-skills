@@ -49,6 +49,7 @@ function mkRepo() {
   const repo = mkdtempSync(join(tmpdir(), 'codex-hook-repo-'));
   const pluginData = mkdtempSync(join(tmpdir(), 'codex-hook-data-'));
   mkdirSync(join(repo, '.ai', 'workflows', 'demo'), { recursive: true });
+  mkdirSync(join(repo, '.git'), { recursive: true });   // session-start's W11.3 gate needs a checkout
   // Keep tests hermetic: suppress the render stage so no hub is spawned.
   mkdirSync(join(repo, '.ai', '_view'), { recursive: true });
   writeFileSync(join(repo, '.ai', '_view', '.render-suppress'), '');

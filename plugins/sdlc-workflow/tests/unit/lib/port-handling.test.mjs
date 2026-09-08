@@ -8,9 +8,11 @@
 //     port-held with no spawn (no hub.pid) and one lifecycle line
 // (5) hub-serve on a held port exits 2 and writes the reason to hub.log
 // (6) the tray tooltip names the holder
+// (7) review 2026-09-08: a read-only readHubConfig does not rewrite; a hub left on
+//     the previous port is reaped before the start on the configured port
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -22,6 +24,8 @@ import {
 } from '../../../lib/hub-config.mjs';
 import { portHeld } from '../../../lib/port-owner.mjs';
 import { ensureHubLifecycle } from '../../../lib/hub-lifecycle.mjs';
+import { writePidFile } from '../../../lib/pid-file.mjs';
+import { hubPidPath } from '../../../lib/registry.mjs';
 import { formatHealth } from '../../../lib/tray-format.mjs';
 import { hubLogPath, readLifecycleLog } from '../../../lib/runtime-log.mjs';
 
@@ -145,4 +149,67 @@ test('tray: the tooltip names the holder when the port is held', () => {
   assert.equal(noPid.tooltip, 'SDLC hub — another process holds port 48173');
   const plainDown = formatHealth({ reachable: false, payload: null, portHeld: null }, Date.now());
   assert.equal(plainDown.tooltip, 'SDLC hub — down', 'no holder → the plain down state');
+});
+
+test('readHubConfig({ create: false }) returns the migrated port and leaves the file alone', () => {
+  const home = tmp('sdlc-port-ro-');
+  const prev = process.env.SDLC_HOME;
+  process.env.SDLC_HOME = home;
+  try {
+    writeFileSync(hubConfigPath(), JSON.stringify({ version: 1, host: '127.0.0.1', port: 4173 }), 'utf-8');
+    const cfg = readHubConfig({ create: false });
+    assert.equal(cfg.port, 48173, 'the value the supervisor will use');
+    assert.equal(JSON.parse(readFileSync(hubConfigPath(), 'utf-8')).port, 4173, 'a read-only caller does not rewrite');
+    assert.equal(readLifecycleLog(home).length, 0, 'and logs nothing');
+  } finally {
+    if (prev === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = prev;
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('live: a hub still on the previous port is reaped before the start on the configured port', async () => {
+  const OLD = 41990;
+  const NEW = 41991;
+  const home = tmp('sdlc-port-change-');
+  const prev = process.env.SDLC_HOME;
+  process.env.SDLC_HOME = home;
+  writeFileSync(path.join(home, 'hub-config.json'), JSON.stringify({ version: 1, host: '127.0.0.1', port: NEW, portMigratedFrom: OLD }), 'utf-8');
+  // A child that answers /__sdlc/health as a hub on the OLD port — the hub the
+  // 4173 → 48173 migration leaves behind.
+  const script = `
+    import { createServer } from 'node:http';
+    const s = createServer((q, r) => {
+      if (q.url === '/__sdlc/health') {
+        r.writeHead(200, { 'content-type': 'application/json' });
+        r.end(JSON.stringify({ ok: true, pid: process.pid, entries: [], hub: { name: 'sdlc-workflow-hub', protocolVersion: 1, runtimeVersion: '0.0.1', buildId: null }, startedBy: { host: 'claude' } }));
+        return;
+      }
+      r.writeHead(404); r.end();
+    });
+    s.listen(${OLD}, '127.0.0.1', () => process.stdout.write('ready\\n'));
+  `;
+  const child = spawn(process.execPath, ['--input-type=module', '-e', script], { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
+  const exited = new Promise((r) => child.once('exit', () => r(true)));
+  await new Promise((r) => child.stdout.once('data', () => r()));
+  await writePidFile(hubPidPath(), { pid: child.pid, host: '127.0.0.1', port: OLD, token: 't' });
+  // Hold the NEW port with a foreign listener so the flow ends at port-held and
+  // never spawns a real hub.
+  const srv = await listen(NEW);
+  try {
+    const res = await ensureHubLifecycle({ pluginRoot, log: () => {} });
+    assert.equal(res.action, 'port-held', JSON.stringify(res));
+    const gone = await Promise.race([exited, new Promise((r) => setTimeout(() => r(false), 5000))]);
+    assert.equal(gone, true, 'the hub on the previous port was stopped');
+    assert.equal(existsSync(path.join(home, 'hub.pid')), false, 'its pid record is gone');
+    const rows = readLifecycleLog(home);
+    const reap = rows.find((r) => r.event === 'reap');
+    assert.ok(reap, `reap line: ${JSON.stringify(rows)}`);
+    assert.equal(reap.pid, child.pid);
+    assert.match(reap.reason, /port change 41990 → 41991/);
+  } finally {
+    try { child.kill(); } catch { /* already gone */ }
+    await close(srv);
+    if (prev === undefined) delete process.env.SDLC_HOME; else process.env.SDLC_HOME = prev;
+    rmSync(home, { recursive: true, force: true });
+  }
 });

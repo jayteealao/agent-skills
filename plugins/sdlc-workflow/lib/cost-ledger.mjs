@@ -24,7 +24,7 @@
 // parser prefers no row to a guessed row.
 
 import {
-  closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync,
+  appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync,
   renameSync, statSync, writeFileSync,
 } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
@@ -417,17 +417,31 @@ export function writeCursor(cursorDir, sessionId, cursor) {
   writeAtomic(cursorPath(cursorDir, sessionId), `${JSON.stringify(cursor)}\n`);
 }
 
+/** True when the file is empty, absent, or ends with a newline (one-byte read). */
+function endsWithNewline(file) {
+  try {
+    const size = statSync(file).size;
+    if (size === 0) return true;
+    const fd = openSync(file, 'r');
+    try {
+      const b = Buffer.alloc(1);
+      readSync(fd, b, 0, 1, size - 1);
+      return b[0] === 0x0a;
+    } finally { closeSync(fd); }
+  } catch { return true; }
+}
+
 /**
- * Append one row to `<slugDir>/cost.jsonl` atomically: the new content is
- * written to a temp file and renamed over the ledger, so two sessions on one
- * slug never leave a torn line. Returns the ledger path.
+ * Append one row to `<slugDir>/cost.jsonl` as one O_APPEND write. Two sessions
+ * on one slug each add their own line; a read-modify-write-rename would let
+ * the later writer drop the earlier row. A line torn by a crash mid-write is
+ * closed with a newline first and skipped by `readCostRows`. Returns the
+ * ledger path.
  */
 export function appendCostRow(slugDir, row) {
   const file = join(slugDir, COST_FILE);
   mkdirSync(slugDir, { recursive: true });
-  const prev = existsSync(file) ? readFileSync(file, 'utf-8') : '';
-  const sep = prev && !prev.endsWith('\n') ? '\n' : '';
-  writeAtomic(file, `${prev}${sep}${JSON.stringify(row)}\n`);
+  appendFileSync(file, `${endsWithNewline(file) ? '' : '\n'}${JSON.stringify(row)}\n`, 'utf-8');
   return file;
 }
 

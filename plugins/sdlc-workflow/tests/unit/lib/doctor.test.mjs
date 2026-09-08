@@ -199,3 +199,39 @@ test('verify-release-pushed evaluateInstalled: a local scope behind shipped is t
   // A newer install than the tree is also a mismatch: the tree is behind the machine.
   assert.equal(evaluateInstalled({ shipped: '9.153.5', claude: [{ scope: 'user', version: '9.160.0' }] }).ok, false);
 });
+
+test('runDoctor: an absent host is not a gap; a cache at shipped with no enabled line is "disabled"; deprecated keys and the code browser are rows', async () => {
+  const { home, codex, sdlc } = fixtureHome();
+  try {
+    const exec = () => ({ stdout: '', status: 1, stderr: 'not installed' });
+    const common = { pluginRoot, homeDir: home, codexHome: codex, sdlcHome: sdlc, hubConfig: { host: '127.0.0.1', port: 1, tailscale: { enabled: false } }, exec, platform: 'linux', probeHub: false, tmpDir: path.join(home, 'no-such-tmp') };
+    const eq = JSON.parse(JSON.stringify(INSTALLED));
+    for (const i of eq.plugins['sdlc-workflow@agent-skills-marketplace']) i.version = SHIPPED;
+    writeFileSync(path.join(home, '.claude', 'plugins', 'installed_plugins.json'), JSON.stringify(eq));
+
+    // No Codex at all on this machine.
+    rmSync(path.join(codex, 'plugins'), { recursive: true, force: true });
+    rmSync(path.join(codex, 'config.toml'), { force: true });
+    const r = await runDoctor(common);
+    assert.equal(r.verdicts.claude, 'ok');
+    assert.equal(r.verdicts.codex, 'absent');
+    assert.equal(r.ok, true, 'a host that is not installed is not an install gap');
+    assert.deepEqual(r.deprecated, []);
+    const table = formatDoctorTable(r);
+    assert.match(table, /codex install\s+none\s+absent/);
+    assert.match(table, /code browser\s+unknown \(hub unreachable\)/);
+    assert.match(table, /deprecated hub-config keys\s+none/);
+    assert.match(table, /verdict .*OK$/m);
+
+    // The shipped version sits in the cache, but config.toml has no enabled line.
+    mkdirSync(path.join(codex, 'plugins', 'cache', 'agent-skills-marketplace', 'sdlc-workflow', SHIPPED), { recursive: true });
+    const r2 = await runDoctor(common);
+    assert.equal(r2.verdicts.codex, 'disabled');
+    assert.equal(r2.ok, false, 'installed but not enabled is a gap');
+
+    // Deprecated hub-config keys in use are one row with a verdict.
+    const r3 = await runDoctor({ ...common, hubConfig: { ...common.hubConfig, perRepoServe: true, liveReload: false } });
+    assert.deepEqual(r3.deprecated.map((d) => d.key), ['perRepoServe', 'liveReload']);
+    assert.match(formatDoctorTable(r3), /deprecated hub-config keys\s+perRepoServe, liveReload\s+deprecated/);
+  } finally { rmSync(home, { recursive: true, force: true }); }
+});

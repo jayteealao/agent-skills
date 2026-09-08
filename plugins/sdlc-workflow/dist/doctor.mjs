@@ -2,12 +2,15 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  deprecatedConfigWarnings
+} from "./chunk-4J55QJF2.mjs";
+import {
   portOwner
 } from "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   readHubConfig
-} from "./chunk-6UIE4HPE.mjs";
+} from "./chunk-PSP4GYGJ.mjs";
 import {
   readActiveRuntime,
   runtimeStoreDir
@@ -26,7 +29,7 @@ import "./chunk-SGA7NFMW.mjs";
 
 // scripts/doctor.mjs
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, resolve as resolve2 } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // lib/doctor.mjs
@@ -34,7 +37,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { request } from "node:http";
 import { homedir, tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 var PLUGIN_NAME = "sdlc-workflow";
 var MARKETPLACE = "agent-skills-marketplace";
 function shippedVersion(pluginRoot) {
@@ -149,7 +152,10 @@ function hubHealth({ host = "127.0.0.1", port, timeoutMs = 1200 } = {}) {
             buildId: hub.buildId ?? null,
             startedBy: body.startedBy && typeof body.startedBy.host === "string" ? body.startedBy.host : typeof body.startedBy === "string" ? body.startedBy : null,
             entries: Array.isArray(body.entries) ? body.entries.length : null,
-            uptimeMs: Number.isFinite(body.uptimeMs) ? body.uptimeMs : null
+            uptimeMs: Number.isFinite(body.uptimeMs) ? body.uptimeMs : null,
+            // The code browser's effective state: `codeBrowser.acknowledgedTailnet`
+            // switches it off on a tailnet-exposed hub, and nothing else says so.
+            codeBrowser: body.codeBrowser && typeof body.codeBrowser === "object" ? { enabled: body.codeBrowser.enabled === true, reason: typeof body.codeBrowser.reason === "string" ? body.codeBrowser.reason : null } : null
           });
         } catch {
           resolveP({ reachable: false, status: "unparseable" });
@@ -262,10 +268,14 @@ async function runDoctor({
   const tailscale = { configured: cfg.tailscale?.enabled === true, mode: cfg.tailscale?.mode ?? null, ...tailscaleServeStatus({ exec }) };
   const hostVerdicts = {
     claude: claude.length ? claude.every((i) => i.verdict === "ok") ? "ok" : claude.some((i) => i.verdict === "ok") ? "mixed" : "mismatch" : "absent",
-    codex: codex.length ? codex.some((i) => i.enabled === true && i.verdict === "ok") ? "ok" : "mismatch" : "absent",
+    // `disabled`: the shipped version sits in the cache but config.toml has no
+    // `enabled = true` for it — the reinstall landed, the enable step did not.
+    codex: codex.length ? codex.some((i) => i.enabled === true && i.verdict === "ok") ? "ok" : codex.some((i) => i.verdict === "ok") ? "disabled" : "mismatch" : "absent",
     hub: health.reachable ? versionVerdict(health.runtimeVersion, shipped) : "unreachable"
   };
-  const ok = hostVerdicts.claude === "ok" && hostVerdicts.codex === "ok" && (hostVerdicts.hub === "ok" || hostVerdicts.hub === "unreachable");
+  const hostOk = (v) => v === "ok" || v === "absent";
+  const ok = hostOk(hostVerdicts.claude) && hostOk(hostVerdicts.codex) && (hostVerdicts.hub === "ok" || hostVerdicts.hub === "unreachable");
+  const deprecated = deprecatedConfigWarnings({ hubConfig: cfg });
   return {
     at: now().toISOString(),
     shipped,
@@ -274,6 +284,7 @@ async function runDoctor({
     runtimeStore: store,
     registry,
     tailscale,
+    deprecated,
     verdicts: hostVerdicts,
     ok
   };
@@ -297,6 +308,10 @@ function formatDoctorTable(r) {
   push("registry ephemeral roots", r.registry.flagged.length ? r.registry.flagged.map((f) => `${f.reason}: ${f.repoRoot}`).join("; ") : "none", r.registry.flagged.length ? "refuse" : "");
   push("registry entries with 0 slugs", r.registry.zeroSlugs.length ? r.registry.zeroSlugs.map((z) => z.repoRoot).join("; ") : "none");
   push("tailscale", `${r.tailscale.configured ? `configured (${r.tailscale.mode})` : "not configured"} \xB7 serve status: ${r.tailscale.available ? r.tailscale.text.split("\n").filter(Boolean).slice(-1)[0] ?? "ok" : "unavailable"}`);
+  const cb = r.hub.reachable ? r.hub.codeBrowser : null;
+  push("code browser", !r.hub.reachable ? "unknown (hub unreachable)" : cb ? cb.enabled ? "enabled" : `disabled: ${cb.reason ?? "no reason given"}` : "not reported");
+  const dep = Array.isArray(r.deprecated) ? r.deprecated : [];
+  push("deprecated hub-config keys", dep.length ? dep.map((d) => d.key).join(", ") : "none", dep.length ? "deprecated" : "");
   push("verdict", `claude ${r.verdicts.claude} \xB7 codex ${r.verdicts.codex} \xB7 hub ${r.verdicts.hub}`, r.ok ? "OK" : "ACTION");
   const w0 = Math.max(...rows.map((x) => x[0].length));
   const w1 = Math.min(96, Math.max(...rows.map((x) => x[1].length)));
@@ -304,7 +319,7 @@ function formatDoctorTable(r) {
 }
 
 // scripts/doctor.mjs
-var PLUGIN_ROOT = resolve2(dirname(fileURLToPath(import.meta.url)), "..");
+var PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 function parseArgs(argv) {
   const out = { json: false, out: null, advisory: false, probeHub: true };
   for (let i = 0; i < argv.length; i++) {
@@ -321,7 +336,7 @@ var args = parseArgs(process.argv.slice(2));
 var report = await runDoctor({ pluginRoot: PLUGIN_ROOT, probeHub: args.probeHub });
 var table = formatDoctorTable(report);
 if (args.out) {
-  mkdirSync(dirname(resolve2(args.out)), { recursive: true });
+  mkdirSync(dirname(resolve(args.out)), { recursive: true });
   writeFileSync(args.out, `sdlc doctor \xB7 ${report.at}
 
 ${table}

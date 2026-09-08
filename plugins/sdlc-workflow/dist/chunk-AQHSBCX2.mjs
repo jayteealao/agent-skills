@@ -9,7 +9,7 @@ import {
   effectiveCodeBrowserConfig,
   hubConfigHash,
   readHubConfig
-} from "./chunk-6UIE4HPE.mjs";
+} from "./chunk-PSP4GYGJ.mjs";
 import {
   LockTimeoutError,
   atomicWriteJson,
@@ -173,7 +173,21 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
   }
   try {
     return await withLock(hubLockPath(), { ownerHost: STARTED_BY_HOST, ttlMs: 3e4, timeoutMs: 15e3, log }, async () => {
-      const status = await pidFileStatus(pidPath);
+      let status = await pidFileStatus(pidPath);
+      let startReason = "fresh";
+      const recordPort = Number(status.record?.port);
+      if (status.alive && Number.isInteger(recordPort) && recordPort > 0 && recordPort !== port) {
+        const other = await probeHubIdentity({ host, port: recordPort, timeoutMs: 700 });
+        if (other?.isHub && other.pid === status.record.pid) {
+          stopPid(other.pid, log);
+          await removePidFile(pidPath);
+          await waitForGone({ host, port: recordPort, timeoutMs: 2e3 });
+          log(`[hub] reaped hub on previous port ${recordPort} (pid ${other.pid}); configured port is ${port}`);
+          lifecycle("reap", { pid: other.pid, reason: `port change ${recordPort} \u2192 ${port}`, peerVersion: other.runtimeVersion ?? null, peerBuildId: other.buildId ?? null });
+          startReason = `reap: port change ${recordPort} \u2192 ${port}`;
+          status = await pidFileStatus(pidPath);
+        }
+      }
       const id = await probeHubIdentity({ host, port, timeoutMs: status.alive ? 700 : 350 });
       const decision = decideHubAction(id, RUNTIME, status);
       if (decision.action === "adopt") {
@@ -194,7 +208,6 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
         lifecycle("port-held", { pid: owner?.pid ?? null, reason: `another process holds port ${port}` });
         return { action: "port-held", port, pid: owner?.pid ?? null };
       }
-      let startReason = "fresh";
       if (decision.action === "reap") {
         if (id?.pid) stopPid(id.pid, log);
         await removePidFile(pidPath);

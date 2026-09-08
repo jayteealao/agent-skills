@@ -20,9 +20,14 @@
 //
 // Rendering is owned by the hub (Resolution 7): registration + the hub's
 // reconcile/heal loop render this repo's views; this hook never renders inline.
+// The W11.3 policy applies on this host too: a `compact` source returns at
+// once; a root with no `.ai/workflows`, or outside any git checkout, returns
+// after the seed — no hub confirm, no bootstrap record, no `.ai/_view`, no
+// activation record (review 2026-09-08).
 // Always exits 0 — orientation must never block a session.
 
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -30,6 +35,7 @@ import {
   codexHostEnv,
   computeBaseline,
   findProjectRoot,
+  insideGitCheckout,
   needsActivation,
   parseHookArgs,
   readActivation,
@@ -63,6 +69,11 @@ function main() {
       timeoutMs: 8000,
     });
   }
+
+  // (1b) W11.3 on the Codex side: no workflow store, or outside a checkout →
+  //      nothing else. Before this the adapter ran hub-ensure --bootstrap in
+  //      every directory and hub-ensure created `.ai/_view` there.
+  if (!existsSync(join(projectRoot, '.ai', 'workflows')) || !insideGitCheckout(projectRoot)) return;
 
   // (2) Ensure the shared hub adoption-first AND confirm it came up — bounded
   //     within the SessionStart budget. The hub is spawned detached and survives

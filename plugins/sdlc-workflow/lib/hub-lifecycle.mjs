@@ -178,7 +178,27 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
     return await withLock(hubLockPath(), { ownerHost: STARTED_BY_HOST, ttlMs: 30000, timeoutMs: 15000, log }, async () => {
       // Double-checked: a peer host may have started/healed the hub while we
       // waited for the lock — adopt it rather than reap-and-respawn.
-      const status = await pidFileStatus(pidPath);
+      let status = await pidFileStatus(pidPath);
+      let startReason = 'fresh';
+
+      // Port change (the 4173 → 48173 migration, or an operator edit): hub.pid
+      // names a live hub on another port. Nothing on the configured port answers,
+      // so without this the record was dropped and that hub lived on as an
+      // orphan. Confirm it is our hub (same pid) and stop it first.
+      const recordPort = Number(status.record?.port);
+      if (status.alive && Number.isInteger(recordPort) && recordPort > 0 && recordPort !== port) {
+        const other = await probeHubIdentity({ host, port: recordPort, timeoutMs: 700 });
+        if (other?.isHub && other.pid === status.record.pid) {
+          stopPid(other.pid, log);
+          await removePidFile(pidPath);
+          await waitForGone({ host, port: recordPort, timeoutMs: 2000 });
+          log(`[hub] reaped hub on previous port ${recordPort} (pid ${other.pid}); configured port is ${port}`);
+          lifecycle('reap', { pid: other.pid, reason: `port change ${recordPort} → ${port}`, peerVersion: other.runtimeVersion ?? null, peerBuildId: other.buildId ?? null });
+          startReason = `reap: port change ${recordPort} → ${port}`;
+          status = await pidFileStatus(pidPath);
+        }
+      }
+
       const id = await probeHubIdentity({ host, port, timeoutMs: status.alive ? 700 : 350 });
       const decision = decideHubAction(id, RUNTIME, status);
 
@@ -204,7 +224,6 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
         return { action: 'port-held', port, pid: owner?.pid ?? null };
       }
 
-      let startReason = 'fresh';
       if (decision.action === 'reap') {
         if (id?.pid) stopPid(id.pid, log);
         await removePidFile(pidPath);

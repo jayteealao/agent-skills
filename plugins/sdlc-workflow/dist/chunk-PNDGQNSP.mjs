@@ -3,6 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 
 // lib/cost-ledger.mjs
 import {
+  appendFileSync,
   closeSync,
   existsSync,
   mkdirSync,
@@ -330,13 +331,27 @@ function writeCursor(cursorDir, sessionId, cursor) {
   writeAtomic(cursorPath(cursorDir, sessionId), `${JSON.stringify(cursor)}
 `);
 }
+function endsWithNewline(file) {
+  try {
+    const size = statSync(file).size;
+    if (size === 0) return true;
+    const fd = openSync(file, "r");
+    try {
+      const b = Buffer.alloc(1);
+      readSync(fd, b, 0, 1, size - 1);
+      return b[0] === 10;
+    } finally {
+      closeSync(fd);
+    }
+  } catch {
+    return true;
+  }
+}
 function appendCostRow(slugDir, row) {
   const file = join(slugDir, COST_FILE);
   mkdirSync(slugDir, { recursive: true });
-  const prev = existsSync(file) ? readFileSync(file, "utf-8") : "";
-  const sep = prev && !prev.endsWith("\n") ? "\n" : "";
-  writeAtomic(file, `${prev}${sep}${JSON.stringify(row)}
-`);
+  appendFileSync(file, `${endsWithNewline(file) ? "" : "\n"}${JSON.stringify(row)}
+`, "utf-8");
   return file;
 }
 function readCostRows(slugDir) {

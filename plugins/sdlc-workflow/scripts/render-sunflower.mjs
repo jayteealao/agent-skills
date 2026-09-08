@@ -24,7 +24,7 @@
 
 import {
   existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync,
-  statSync, rmSync, copyFileSync, renameSync, appendFileSync,
+  statSync, rmSync, renameSync, appendFileSync,
 } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, resolve, join, relative, basename } from 'node:path';

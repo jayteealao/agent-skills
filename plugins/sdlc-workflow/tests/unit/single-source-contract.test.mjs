@@ -129,6 +129,7 @@ test('hub-ensure --bootstrap enqueues the whole-repo pass with the host signal (
   const repo = mkdtempSync(path.join(tmpdir(), 'sdlc-bootstrap-'));
   try {
     const viewDir = path.join(repo, '.ai', '_view');
+    mkdirSync(path.join(repo, '.ai', 'workflows'), { recursive: true });   // --bootstrap gates on the workflow store (W11.3)
     const env = { ...process.env, SDLC_HOST: 'codex', SDLC_HOME: path.join(repo, '.sdlc-home') };
     delete env.SDLC_HUB_STARTED_BY;
     const r = spawnSync(process.execPath, [

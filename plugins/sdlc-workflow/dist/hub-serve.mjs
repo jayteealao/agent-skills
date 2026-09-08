@@ -3,12 +3,12 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-EG22HRD7.mjs";
-import "./chunk-CGBZNDS4.mjs";
-import "./chunk-PTGPEXQV.mjs";
+} from "./chunk-IV3JVWQG.mjs";
+import "./chunk-VTDAWHJD.mjs";
+import "./chunk-MCF77ETJ.mjs";
 import "./chunk-PDBKNARE.mjs";
 import "./chunk-CCRPAYHH.mjs";
-import "./chunk-H5LFYXT6.mjs";
+import "./chunk-PNDGQNSP.mjs";
 import {
   hostAllowed,
   renderCodeBrowserPage,
@@ -23,7 +23,7 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-6UIE4HPE.mjs";
+} from "./chunk-PSP4GYGJ.mjs";
 import "./chunk-LYPLZSMD.mjs";
 import {
   readRenderedIdentity,
@@ -891,10 +891,22 @@ data: ${JSON.stringify({ ok: true })}
   });
   reload();
   try {
+    const rendered = /* @__PURE__ */ new Set();
     let stale = 0;
-    for (const e of entries) if (heal.consider(e).action === "enqueued") stale++;
-    const drained = renderQueue.catchUp(entries).filter((r) => r?.action === "submitted").length;
-    logHub(`catch-up: ${entries.length} registered, ${stale} stale re-rendered, ${drained} queues drained, ${Math.max(0, entries.length - stale - drained)} fresh skipped`);
+    entries.forEach((e, i) => {
+      if (heal.consider(e).action === "enqueued") {
+        stale++;
+        rendered.add(i);
+      }
+    });
+    let drained = 0;
+    renderQueue.catchUp(entries).forEach((r, i) => {
+      if (r?.action === "submitted") {
+        drained++;
+        rendered.add(i);
+      }
+    });
+    logHub(`catch-up: ${entries.length} registered, ${stale} stale re-rendered, ${drained} queues drained, ${Math.max(0, entries.length - rendered.size)} fresh skipped`);
   } catch (err) {
     logHub(`catch-up error: ${err?.message ?? err}`);
   }

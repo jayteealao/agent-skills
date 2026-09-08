@@ -22,8 +22,9 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { request } from 'node:http';
 import { homedir, tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 
+import { deprecatedConfigWarnings } from './deprecations.mjs';
 import { HUB_DEFAULT_PORT, readHubConfig } from './hub-config.mjs';
 import { portOwner } from './port-owner.mjs';
 import { ephemeralRootReason, readRegistry, sdlcHomeDir } from './registry.mjs';
@@ -162,6 +163,11 @@ export function hubHealth({ host = '127.0.0.1', port, timeoutMs = 1200 } = {}) {
             startedBy: body.startedBy && typeof body.startedBy.host === 'string' ? body.startedBy.host : (typeof body.startedBy === 'string' ? body.startedBy : null),
             entries: Array.isArray(body.entries) ? body.entries.length : null,
             uptimeMs: Number.isFinite(body.uptimeMs) ? body.uptimeMs : null,
+            // The code browser's effective state: `codeBrowser.acknowledgedTailnet`
+            // switches it off on a tailnet-exposed hub, and nothing else says so.
+            codeBrowser: body.codeBrowser && typeof body.codeBrowser === 'object'
+              ? { enabled: body.codeBrowser.enabled === true, reason: typeof body.codeBrowser.reason === 'string' ? body.codeBrowser.reason : null }
+              : null,
           });
         } catch { resolveP({ reachable: false, status: 'unparseable' }); }
       });
@@ -237,7 +243,8 @@ export function tailscaleServeStatus({ exec = spawnSync } = {}) {
 /**
  * Collect the whole report. Every root is injectable; nothing here writes.
  * `ok` is true when every installed host is at the shipped version and the hub,
- * when reachable, answers with the shipped version.
+ * when reachable, answers with the shipped version. A host that is not
+ * installed at all is `absent`, not a gap: one-host machines pass.
  */
 export async function runDoctor({
   pluginRoot,
@@ -275,10 +282,18 @@ export async function runDoctor({
 
   const hostVerdicts = {
     claude: claude.length ? (claude.every((i) => i.verdict === 'ok') ? 'ok' : (claude.some((i) => i.verdict === 'ok') ? 'mixed' : 'mismatch')) : 'absent',
-    codex: codex.length ? (codex.some((i) => i.enabled === true && i.verdict === 'ok') ? 'ok' : 'mismatch') : 'absent',
+    // `disabled`: the shipped version sits in the cache but config.toml has no
+    // `enabled = true` for it — the reinstall landed, the enable step did not.
+    codex: codex.length
+      ? (codex.some((i) => i.enabled === true && i.verdict === 'ok') ? 'ok' : (codex.some((i) => i.verdict === 'ok') ? 'disabled' : 'mismatch'))
+      : 'absent',
     hub: health.reachable ? versionVerdict(health.runtimeVersion, shipped) : 'unreachable',
   };
-  const ok = hostVerdicts.claude === 'ok' && hostVerdicts.codex === 'ok' && (hostVerdicts.hub === 'ok' || hostVerdicts.hub === 'unreachable');
+  const hostOk = (v) => v === 'ok' || v === 'absent';
+  const ok = hostOk(hostVerdicts.claude) && hostOk(hostVerdicts.codex) && (hostVerdicts.hub === 'ok' || hostVerdicts.hub === 'unreachable');
+  // W11.9: the deprecated hub-config keys in use, so the warning has a surface
+  // a person reads (lifecycle.log and hub-ensure's stderr reach nobody).
+  const deprecated = deprecatedConfigWarnings({ hubConfig: cfg });
 
   return {
     at: now().toISOString(),
@@ -288,6 +303,7 @@ export async function runDoctor({
     runtimeStore: store,
     registry,
     tailscale,
+    deprecated,
     verdicts: hostVerdicts,
     ok,
   };
@@ -314,12 +330,13 @@ export function formatDoctorTable(r) {
   push('registry ephemeral roots', r.registry.flagged.length ? r.registry.flagged.map((f) => `${f.reason}: ${f.repoRoot}`).join('; ') : 'none', r.registry.flagged.length ? 'refuse' : '');
   push('registry entries with 0 slugs', r.registry.zeroSlugs.length ? r.registry.zeroSlugs.map((z) => z.repoRoot).join('; ') : 'none');
   push('tailscale', `${r.tailscale.configured ? `configured (${r.tailscale.mode})` : 'not configured'} · serve status: ${r.tailscale.available ? (r.tailscale.text.split('\n').filter(Boolean).slice(-1)[0] ?? 'ok') : 'unavailable'}`);
+  const cb = r.hub.reachable ? r.hub.codeBrowser : null;
+  push('code browser', !r.hub.reachable ? 'unknown (hub unreachable)' : (cb ? (cb.enabled ? 'enabled' : `disabled: ${cb.reason ?? 'no reason given'}`) : 'not reported'));
+  const dep = Array.isArray(r.deprecated) ? r.deprecated : [];
+  push('deprecated hub-config keys', dep.length ? dep.map((d) => d.key).join(', ') : 'none', dep.length ? 'deprecated' : '');
   push('verdict', `claude ${r.verdicts.claude} · codex ${r.verdicts.codex} · hub ${r.verdicts.hub}`, r.ok ? 'OK' : 'ACTION');
   const w0 = Math.max(...rows.map((x) => x[0].length));
   const w1 = Math.min(96, Math.max(...rows.map((x) => x[1].length)));
   return rows.map(([k, v, verdict]) => `${k.padEnd(w0)}  ${v.padEnd(w1)}  ${verdict}`.trimEnd()).join('\n');
 }
 
-export function resolvePluginRootFrom(metaUrl) {
-  return resolve(new URL('..', metaUrl).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
-}

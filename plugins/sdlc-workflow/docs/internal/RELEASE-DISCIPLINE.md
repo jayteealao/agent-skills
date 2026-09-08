@@ -21,33 +21,53 @@ silent by construction; the only cure is a check that is not.
 npm run verify:release
 ```
 
-Fails when a `release(sdlc-workflow):` commit has been sitting ahead of
-`origin/master` longer than the age bound (default 12h — long enough to commit
-and push in one sitting, loud after that). Passing `--max-age-hours=0` makes any
-undelivered release a failure. A missing remote-tracking ref is reported, never
-a hard failure, so a fresh clone or an offline box is not blocked.
+Two checks, both from `plugins/sdlc-workflow/`:
+
+- **delivered** — fails when a release commit sits ahead of `origin/master`
+  longer than the age bound (default 12h — long enough to commit and push in
+  one sitting, loud after that). A release commit is one whose subject starts
+  with `release(sdlc-workflow):` (the subject `.npmrc` gives `npm version`) or
+  with a bare `vX.Y.Z` (npm's default when `.npmrc` is absent). Passing
+  `--max-age-hours=0` makes any undelivered release a failure. A missing
+  remote-tracking ref is reported, never a hard failure, so a fresh clone or an
+  offline box is not blocked.
+- **installed** — fails when a host on this machine runs a version behind the
+  shipped one (`lib/doctor.mjs`; a host that is not installed is not a gap).
+  Blocking off CI, advisory on CI. Pass `--skip-installed` for the check that
+  runs right after the push, before the hosts are reinstalled.
 
 ## Release sequence
 
-1. Bump with `npm version <patch|minor|major>` from `plugins/sdlc-workflow/`
-   on a clean tree. `package.json` is the one source: the `version` lifecycle
-   script runs `scripts/stamp-version.mjs` (both plugin manifests, the lock
-   file, the `nav.html` brand line, the root marketplace pin), rebuilds
-   (`runtime-manifest.json` + `dist/`), runs `verify:versions`, and stages each
-   carrier by path. `npm version` then commits and tags. No carrier is edited by
-   hand; `renderers/_shell.mjs` reads `runtimeVersion` from the manifest.
-2. `npm run build` — any commit touching `scripts/`, `hooks/`, `lib/`,
-   `renderers/`, `components/`, or `package.json` rebuilds `dist/` **in the same
-   commit**. Tests run against source, so green does not mean `dist/` is fresh.
-   The build also records `rendererBuildId` (sha256 over `renderers/`,
-   `view-src/`, `components/`); the render gate keys on it, so a CSS or template
-   change re-renders views without a bump, and a prose-only bump re-renders none.
-3. `npm test`.
-4. `npm run verify:versions && npm run verify:neutrality && npm run verify:capabilities && npm run verify:prose && npm run verify` —
-   every version carrier agrees, the skill prose stays host-neutral, and the
-   doc site is consistent. One tree serves both hosts since v9.153.0; there is
-   no second tree to sync.
-5. Commit the release. Stage **explicitly by path** — never `git add -A`, which
-   has swept a parallel session's uncommitted work into a release commit.
-6. **`git push origin master`.**
-7. `npm run verify:release` — confirm it reports OK.
+Every step runs from `plugins/sdlc-workflow/`.
+
+1. Prepare the tree. `npm version` refuses a dirty tree, and it commits only
+   the carriers it stamps. Commit every change that belongs in the release
+   first, staged **explicitly by path** — never `git add -A`, which has swept
+   a parallel session's uncommitted work into a release commit. A file another
+   session left modified (see `git status`) stays out of every commit; when
+   one blocks the bump, stash it and restore it after step 4.
+2. Run the gates on the tree that will ship:
+   `npm run build && npm test && npm run verify:versions && npm run verify:neutrality && npm run verify:capabilities && npm run verify:prose && npm run verify`.
+   Tests run against source, so green does not mean `dist/` is fresh; any
+   commit touching `scripts/`, `hooks/`, `lib/`, `renderers/`, `components/`,
+   or `package.json` rebuilds `dist/` **in the same commit**. The build also
+   records `rendererBuildId` (sha256 over `renderers/`, `view-src/`,
+   `components/`); the render gate keys on it, so a CSS or template change
+   re-renders views without a bump, and a prose-only bump re-renders none.
+3. Turn the `## [Unreleased]` CHANGELOG heading into `## [X.Y.Z] - <date>` and
+   commit that change by path. The bump commit carries no prose.
+4. `npm version <patch|minor|major>`. `package.json` is the one source: the
+   `version` lifecycle script runs `scripts/stamp-version.mjs` (both plugin
+   manifests, the lock file, the `nav.html` brand line, the root marketplace
+   pin), rebuilds (`runtime-manifest.json` + `dist/`), runs `verify:versions`,
+   and stages each carrier by path. `npm version` then commits with the
+   subject `release(sdlc-workflow): vX.Y.Z` (from `.npmrc`) and tags
+   `vX.Y.Z`. No carrier is edited by hand; `renderers/_shell.mjs` reads
+   `runtimeVersion` from the manifest.
+5. **`git push origin master --follow-tags`.**
+6. `npm run verify:release -- --skip-installed` — confirm the delivered check
+   reports OK.
+7. Reinstall the plugin on every host of this machine
+   (SINGLE-SOURCE-CUTOVER.md §2), then `npm run verify:release` with no flag —
+   confirm both checks report OK. `npm run doctor` shows the same table with
+   every row.

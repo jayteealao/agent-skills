@@ -23,8 +23,8 @@
  * session logs each warning once.
  */
 
-import { mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, mkdirSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { loadConfig } from '../lib/config.mjs';
@@ -68,7 +68,9 @@ async function main() {
   // a hub started below drains it in its startup catch-up. Artifacts changed
   // outside the write hooks (pull, checkout, hand edits) are re-rendered on the
   // next session instead of on the next managed write.
-  if (hasFlag('--bootstrap')) {
+  // A root with no workflow store gets no `.ai/_view` and no record (W11.3):
+  // both SessionStart hooks gate on it, and this is the last line of defence.
+  if (hasFlag('--bootstrap') && existsSync(join(projectRoot, '.ai', 'workflows'))) {
     try {
       mkdirSync(viewDir, { recursive: true });
       enqueue(viewDir, {

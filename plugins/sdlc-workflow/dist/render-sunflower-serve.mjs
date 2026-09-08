@@ -16,7 +16,7 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-6UIE4HPE.mjs";
+} from "./chunk-PSP4GYGJ.mjs";
 import "./chunk-LYPLZSMD.mjs";
 import {
   readRenderedIdentity,

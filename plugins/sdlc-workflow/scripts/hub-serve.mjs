@@ -930,10 +930,14 @@ export function createHubServer({
   // populated `entries` (folding in any registry.d/ shards a hook dropped while
   // the hub was down). Best-effort — never block startup.
   try {
+    // `rendered` holds the entries that got work; one that is both stale and
+    // queued counts once, so "fresh skipped" is the true remainder.
+    const rendered = new Set();
     let stale = 0;
-    for (const e of entries) if (heal.consider(e).action === 'enqueued') stale++;
-    const drained = renderQueue.catchUp(entries).filter((r) => r?.action === 'submitted').length;
-    logHub(`catch-up: ${entries.length} registered, ${stale} stale re-rendered, ${drained} queues drained, ${Math.max(0, entries.length - stale - drained)} fresh skipped`);
+    entries.forEach((e, i) => { if (heal.consider(e).action === 'enqueued') { stale++; rendered.add(i); } });
+    let drained = 0;
+    renderQueue.catchUp(entries).forEach((r, i) => { if (r?.action === 'submitted') { drained++; rendered.add(i); } });
+    logHub(`catch-up: ${entries.length} registered, ${stale} stale re-rendered, ${drained} queues drained, ${Math.max(0, entries.length - rendered.size)} fresh skipped`);
   } catch (err) { logHub(`catch-up error: ${err?.message ?? err}`); }
 
   return server;

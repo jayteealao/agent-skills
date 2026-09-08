@@ -6,7 +6,7 @@ import {
   collectTurn,
   readCursor,
   writeCursor
-} from "./chunk-H5LFYXT6.mjs";
+} from "./chunk-PNDGQNSP.mjs";
 import {
   projectRootFromInput,
   readStdinJson

@@ -53,7 +53,7 @@ function main() {
   // and checks implement stage / branch strategy itself. Exit 2 = verify blocked.
   const result = runBundled(layout.runtimeRoot, 'post-tool-use-all', synthMultiStdin(cwd, 'PostToolUse', touched), {
     cwd,
-    timeoutMs: 20000,
+    timeoutMs: 12000,   // under the host's 15 s hook timeout (codex.hooks.json), so a slow bundle reports instead of being killed
   });
   if (result.status === 2) {
     if (result.stderr) process.stderr.write(result.stderr);
