@@ -5,6 +5,7 @@ import {
 } from "./chunk-LFGT2BKG.mjs";
 
 // lib/pid-file.mjs
+import { readFileSync, rmSync } from "node:fs";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 function isPidAlive(pid) {
@@ -44,6 +45,27 @@ async function writePidFile(pidPath, record) {
 }
 async function removePidFile(pidPath) {
   await rm(pidPath, { force: true });
+}
+async function removeOwnPidFile(pidPath, pid = process.pid) {
+  const record = await readPidFile(pidPath);
+  if (record && record.pid !== pid) return false;
+  await rm(pidPath, { force: true });
+  return true;
+}
+function removeOwnPidFileSync(pidPath, pid = process.pid) {
+  let record = null;
+  try {
+    const text = readFileSync(pidPath, "utf-8").trim();
+    record = /^\d+$/.test(text) ? { pid: Number(text) } : text ? JSON.parse(text) : null;
+  } catch {
+    record = null;
+  }
+  if (record && typeof record === "object" && record.pid !== pid) return false;
+  try {
+    rmSync(pidPath, { force: true });
+  } catch {
+  }
+  return true;
 }
 async function pidFileStatus(pidPath) {
   const record = await readPidFile(pidPath);
@@ -435,9 +457,9 @@ import {
   existsSync as existsSync3,
   mkdirSync,
   readdirSync,
-  readFileSync,
+  readFileSync as readFileSync2,
   renameSync,
-  rmSync,
+  rmSync as rmSync2,
   statSync,
   writeFileSync
 } from "node:fs";
@@ -478,7 +500,7 @@ function writeFileAtomic(path, text) {
     renameSync(tmp, path);
   } catch (err) {
     try {
-      rmSync(tmp, { force: true });
+      rmSync2(tmp, { force: true });
     } catch {
     }
     throw err;
@@ -514,7 +536,7 @@ function enqueue(viewDir, item = {}, {
       const overflow = existing.sort().slice(0, existing.length - maxPending + 1);
       for (const name2 of overflow) {
         try {
-          rmSync(join3(dir, name2), { force: true });
+          rmSync2(join3(dir, name2), { force: true });
         } catch {
         }
       }
@@ -551,7 +573,7 @@ function readPending(viewDir) {
   for (const name of listRecordFiles(dir)) {
     const abs = join3(dir, name);
     try {
-      out.push({ name, file: abs, record: JSON.parse(readFileSync(abs, "utf-8")) });
+      out.push({ name, file: abs, record: JSON.parse(readFileSync2(abs, "utf-8")) });
     } catch {
     }
   }
@@ -588,7 +610,7 @@ function claim(viewDir, names) {
     const from = join3(dir, name);
     let record = null;
     try {
-      record = JSON.parse(readFileSync(from, "utf-8"));
+      record = JSON.parse(readFileSync2(from, "utf-8"));
     } catch {
     }
     try {
@@ -602,7 +624,7 @@ function claim(viewDir, names) {
 function ack(viewDir, claimed) {
   for (const c of claimed ?? []) {
     try {
-      rmSync(c.file, { force: true });
+      rmSync2(c.file, { force: true });
     } catch {
     }
   }
@@ -640,7 +662,7 @@ function fail(viewDir, claimed, {
     } catch {
     }
     try {
-      rmSync(c.file, { force: true });
+      rmSync2(c.file, { force: true });
     } catch {
     }
   }
@@ -769,7 +791,7 @@ import { createHash } from "node:crypto";
 import { execFileSync as execFileSync2 } from "node:child_process";
 
 // lib/runtime-log.mjs
-import { appendFileSync as appendFileSync2, existsSync as existsSync4, mkdirSync as mkdirSync2, readFileSync as readFileSync2, renameSync as renameSync2, rmSync as rmSync2, statSync as statSync2 } from "node:fs";
+import { appendFileSync as appendFileSync2, existsSync as existsSync4, mkdirSync as mkdirSync2, readFileSync as readFileSync3, renameSync as renameSync2, rmSync as rmSync3, statSync as statSync2 } from "node:fs";
 import { dirname as dirname2, join as join4 } from "node:path";
 var MAX_LOG_BYTES = 1024 * 1024;
 var KEEP_GENERATIONS = 2;
@@ -786,7 +808,7 @@ function rotateIfLarge(path, { maxBytes = MAX_LOG_BYTES, keep = KEEP_GENERATIONS
   }
   if (size <= maxBytes) return false;
   try {
-    rmSync2(`${path}.${keep}`, { force: true });
+    rmSync3(`${path}.${keep}`, { force: true });
   } catch {
   }
   for (let i = keep - 1; i >= 1; i--) {
@@ -832,7 +854,7 @@ function parseJsonLines(text) {
 }
 function readJsonLines(path) {
   try {
-    return parseJsonLines(readFileSync2(path, "utf-8"));
+    return parseJsonLines(readFileSync3(path, "utf-8"));
   } catch {
     return [];
   }
@@ -895,11 +917,11 @@ function readHubHistory(home) {
 import {
   existsSync as existsSync5,
   mkdirSync as mkdirSync3,
-  readFileSync as readFileSync3,
+  readFileSync as readFileSync4,
   readdirSync as readdirSync2,
   writeFileSync as writeFileSync2,
   renameSync as renameSync3,
-  rmSync as rmSync3,
+  rmSync as rmSync4,
   realpathSync,
   statSync as statSync3
 } from "node:fs";
@@ -1034,7 +1056,7 @@ function readLastRender(viewDir) {
   const marker = join5(viewDir, ".last-render");
   if (!existsSync5(marker)) return { renderedAt: null, configHash: null, version: null, buildId: null };
   try {
-    const parsed = JSON.parse(readFileSync3(marker, "utf-8"));
+    const parsed = JSON.parse(readFileSync4(marker, "utf-8"));
     return {
       renderedAt: parsed.renderedAt ?? null,
       configHash: parsed.configHash ?? null,
@@ -1163,7 +1185,7 @@ function readRegistryFile() {
   const path = registryPath();
   if (!existsSync5(path)) return { version: REGISTRY_VERSION, entries: [] };
   try {
-    return migrateRegistry(JSON.parse(readFileSync3(path, "utf-8")));
+    return migrateRegistry(JSON.parse(readFileSync4(path, "utf-8")));
   } catch {
     return { version: REGISTRY_VERSION, entries: [] };
   }
@@ -1180,7 +1202,7 @@ function readShards() {
   }
   for (const name of names) {
     try {
-      const entry = JSON.parse(readFileSync3(join5(dir, name), "utf-8"));
+      const entry = JSON.parse(readFileSync4(join5(dir, name), "utf-8"));
       if (entry && typeof entry === "object" && entry.id) out.push({ entry, file: join5(dir, name) });
     } catch {
     }
@@ -1210,7 +1232,7 @@ function writeRegistryAtomic(registry) {
     renameSync3(tmp, path);
   } catch (err) {
     try {
-      rmSync3(tmp, { force: true });
+      rmSync4(tmp, { force: true });
     } catch {
     }
     throw err;
@@ -1229,7 +1251,7 @@ function mergeShardsIntoRegistry() {
   writeRegistryAtomic({ version: REGISTRY_VERSION, entries: merged });
   for (const { file: shardFile } of shards) {
     try {
-      rmSync3(shardFile, { force: true });
+      rmSync4(shardFile, { force: true });
     } catch {
     }
   }
@@ -1258,7 +1280,7 @@ function pruneRegistry({ graceMs = REGISTRY_FRESH_GRACE_MS, now = Date.now() } =
   writeRegistryAtomic({ version: REGISTRY_VERSION, entries: kept });
   for (const { file } of readShards()) {
     try {
-      rmSync3(file, { force: true });
+      rmSync4(file, { force: true });
     } catch {
     }
   }
@@ -1281,7 +1303,7 @@ function writeShard(entry) {
     renameSync3(tmp, path);
   } catch (err) {
     try {
-      rmSync3(tmp, { force: true });
+      rmSync4(tmp, { force: true });
     } catch {
     }
     throw err;
@@ -1299,7 +1321,7 @@ function shardCount() {
 function liveHub() {
   let record = null;
   try {
-    const text = readFileSync3(hubPidPath(), "utf-8").trim();
+    const text = readFileSync4(hubPidPath(), "utf-8").trim();
     record = text ? JSON.parse(text) : null;
   } catch {
     return null;
@@ -1345,7 +1367,7 @@ function seedAiGitignore(viewDir) {
     const path = join5(dirname3(viewDir), ".gitignore");
     let text = "";
     try {
-      text = readFileSync3(path, "utf-8");
+      text = readFileSync4(path, "utf-8");
     } catch {
     }
     const have = new Set(text.split(/\r?\n/).map((l) => l.trim()));
@@ -1405,6 +1427,8 @@ export {
   readPidFile,
   writePidFile,
   removePidFile,
+  removeOwnPidFile,
+  removeOwnPidFileSync,
   pidFileStatus,
   safeParseFrontmatter,
   safeLoadFrontmatterFile,

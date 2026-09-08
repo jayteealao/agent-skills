@@ -51,7 +51,8 @@
  * runs tests/unit/state-dir-guard.test.mjs AFTER every other file so the
  * fingerprint comparison sees the finished suite. A leak fails the run.
  */
-import { mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { spawnSync } from 'node:child_process';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
@@ -139,6 +140,16 @@ let tempHome = null;
 if (!process.env.SDLC_HOME || !process.env.SDLC_HOME.trim()) {
   tempHome = mkdtempSync(path.join(tmpdir(), 'sdlc-test-home-'));
   process.env.SDLC_HOME = tempHome;
+  // Review 2026-09-08: a temp home with no hub-config would use the operator's
+  // port, and the supervisor's "same runtime, untracked pid → reap" rule would
+  // then reap the operator's live hub from any test that reaches the real
+  // supervisor. A private port keeps the suite off it whatever a test forgets.
+  const port = await new Promise((res, rej) => {
+    const srv = createServer();
+    srv.once('error', rej);
+    srv.listen(0, '127.0.0.1', () => { const p = srv.address().port; srv.close(() => res(p)); });
+  });
+  writeFileSync(path.join(tempHome, 'hub-config.json'), JSON.stringify({ version: 1, host: '127.0.0.1', port }), 'utf-8');
 }
 process.env.SDLC_STATE_GUARD_BASELINE = JSON.stringify(stateFingerprint(REAL_STATE_DIR));
 console.error(`[run-all] SDLC_HOME=${process.env.SDLC_HOME}; guarding ${REAL_STATE_DIR}`);

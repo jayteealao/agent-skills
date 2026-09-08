@@ -14,10 +14,12 @@ import { appendError } from './render-queue.mjs';
 /**
  * Whether a write/session hook may auto-start the hub: opt-out via
  * `view.ensureHubOnWrite:false`, or the SDLC_DISABLE_ENSURE_HUB=1 kill switch
+ * (SDLC_DISABLE_HUB_ENSURE=1 is the same switch: the Codex adapter read that
+ * spelling first, and both hosts now honour both — review 2026-09-08)
  * (used by tests + operators). `viewConfig` is the `view` config sub-object.
  */
 export function ensureHubEnabled(viewConfig, env = process.env) {
-  return viewConfig?.ensureHubOnWrite !== false && env.SDLC_DISABLE_ENSURE_HUB !== '1';
+  return viewConfig?.ensureHubOnWrite !== false && env.SDLC_DISABLE_ENSURE_HUB !== '1' && env.SDLC_DISABLE_HUB_ENSURE !== '1';
 }
 
 /**

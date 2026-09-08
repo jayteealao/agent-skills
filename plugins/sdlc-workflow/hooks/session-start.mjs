@@ -121,7 +121,7 @@ function hubConfirmTimeoutMs() {
  */
 function ensureHubConfirmed(runtimeRoot, projectRoot) {
   if (process.env.SDLC_ASSUME_HUB_READY === '1') return 'assumed';
-  if (process.env.SDLC_DISABLE_HUB_ENSURE === '1') return 'disabled';
+  if (process.env.SDLC_DISABLE_HUB_ENSURE === '1' || process.env.SDLC_DISABLE_ENSURE_HUB === '1') return 'disabled';
   const timeoutMs = hubConfirmTimeoutMs();
   try {
     execFileSync(

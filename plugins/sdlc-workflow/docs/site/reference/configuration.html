@@ -138,7 +138,7 @@ in.</p>
 <h2 id="env">Environment variables</h2>
 
 <p>Some environment variables adjust behavior outside either config file. The first three are
-kill switches for the session-start hooks. The rest supply machine state or credentials.</p>
+kill switches for the session-start hooks, and the fourth stops both hosts from starting the hub. The rest supply machine state or credentials.</p>
 
 <dl class="cmd-grid">
 <dt><code>SDLC_DISABLE_BOOTSTRAP=1</code></dt>
@@ -149,6 +149,10 @@ suppressed.</dd>
 <dd>Skips the memory-seeding session-start hook entirely (the fenced <code>/wf</code> rules
 block in <code>AGENTS.md</code>). The per-repo equivalent is
 <code>memory.seedRules: false</code>.</dd>
+<dt><code>SDLC_DISABLE_ENSURE_HUB=1</code></dt>
+<dd>Neither host starts or adopts the hub: the write hook, the Claude session-start hook, and the
+Codex session-start adapter all skip hub-ensure. <code>SDLC_DISABLE_HUB_ENSURE=1</code> is the same
+switch under its older spelling; both are honoured everywhere.</dd>
 <dt><code>SDLC_DISABLE_TRAY_HEAL=1</code></dt>
 <dd>Skips the Windows-only reconcile of an already-running tray app after a plugin upgrade.
 That step would restart a tray that still executes a prior version's code.</dd>

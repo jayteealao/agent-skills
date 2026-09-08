@@ -22,7 +22,7 @@ import { createServer } from 'node:http';
 import { basename, extname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { writePidFile, removePidFile } from '../lib/pid-file.mjs';
+import { writePidFile, removeOwnPidFile, removeOwnPidFileSync } from '../lib/pid-file.mjs';
 import { resolveRequestPath } from '../lib/resolve-request-path.mjs';
 import { hostAllowed } from '../lib/host-allowlist.mjs';
 import {
@@ -1027,8 +1027,11 @@ async function main() {
   const shutdown = async () => {
     if (cleaning) return;
     cleaning = true;
+    // Only our own record: `server.close` waits for keep-alive connections, and
+    // by then the supervisor may have started the next hub, which wrote its own
+    // record (review 2026-09-08).
     server.close(async () => {
-      if (args.pidFile) await removePidFile(args.pidFile);
+      if (args.pidFile) await removeOwnPidFile(args.pidFile);
       process.exit(0);
     });
   };
@@ -1039,7 +1042,7 @@ async function main() {
   // exit (synchronously — async fs is unsafe in an 'exit' handler). Abrupt
   // TerminateProcess is covered by stopHub + the stale-PID recovery on next start.
   process.on('exit', () => {
-    if (args.pidFile) { try { rmSync(args.pidFile, { force: true }); } catch { /* ignore */ } }
+    if (args.pidFile) removeOwnPidFileSync(args.pidFile);
   });
 }
 

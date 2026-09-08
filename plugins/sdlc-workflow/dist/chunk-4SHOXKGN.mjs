@@ -8,11 +8,11 @@ import {
 } from "./chunk-KRRL2TSM.mjs";
 import {
   appendError
-} from "./chunk-KXEWPJJ7.mjs";
+} from "./chunk-5LBIJZHF.mjs";
 
 // lib/ensure-hub.mjs
 function ensureHubEnabled(viewConfig, env = process.env) {
-  return viewConfig?.ensureHubOnWrite !== false && env.SDLC_DISABLE_ENSURE_HUB !== "1";
+  return viewConfig?.ensureHubOnWrite !== false && env.SDLC_DISABLE_ENSURE_HUB !== "1" && env.SDLC_DISABLE_HUB_ENSURE !== "1";
 }
 function spawnHubEnsure({ pluginRoot, projectRoot, viewDir, env = process.env, sessionStart = false }) {
   try {

@@ -167,6 +167,9 @@ function main() {
   console.log(`[e2e] excluded by design: ${excluded.slice().sort().join(', ')}`);
 
   const tmp = mkdtempSync(join(tmpdir(), 'sdlc-e2e-'));
+  // Review 2026-09-08: the renderer registers the fixture with the hub, so the
+  // run gets its own state dir instead of writing into the operator's ~/.sdlc.
+  const home = mkdtempSync(join(tmpdir(), 'sdlc-e2e-home-'));
   try {
     for (const type of eligible) {
       const slug = `t-${type}`;
@@ -180,6 +183,7 @@ function main() {
     const child = spawnSync(process.execPath, [RENDER, '--clean', '--diag', '--plugin-root', PLUGIN_ROOT], {
       cwd: tmp,
       encoding: 'utf-8',
+      env: { ...process.env, SDLC_HOME: home, SDLC_ALLOW_TEMP_ROOTS: '1', SDLC_DISABLE_ENSURE_HUB: '1' },
     });
 
     const stdout = child.stdout ?? '';
@@ -216,6 +220,7 @@ function main() {
     console.log(`[e2e] PASS — ${eligible.length} eligible types rendered, 0 missing renderers, ${schemaWarnings} schema warnings`);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
+    rmSync(home, { recursive: true, force: true });
   }
 }
 

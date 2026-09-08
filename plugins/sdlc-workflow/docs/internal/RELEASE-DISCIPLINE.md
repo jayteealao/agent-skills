@@ -44,8 +44,10 @@ Every step runs from `plugins/sdlc-workflow/`.
    the carriers it stamps. Commit every change that belongs in the release
    first, staged **explicitly by path** — never `git add -A`, which has swept
    a parallel session's uncommitted work into a release commit. A file another
-   session left modified (see `git status`) stays out of every commit; when
-   one blocks the bump, stash it and restore it after step 4.
+   session left modified (see `git status`) stays out of every commit. When
+   one is present at step 4, run `npm version <level> --force`: the flag
+   skips only the clean-tree check, and the bump commit still carries only
+   the carriers the `version` script staged.
 2. Run the gates on the tree that will ship:
    `npm run build && npm test && npm run verify:versions && npm run verify:neutrality && npm run verify:capabilities && npm run verify:prose && npm run verify`.
    Tests run against source, so green does not mean `dist/` is fresh; any

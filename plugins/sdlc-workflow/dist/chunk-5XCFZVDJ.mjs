@@ -7,7 +7,7 @@ import {
 } from "./chunk-Z76NJHKM.mjs";
 import {
   logError
-} from "./chunk-DFFTFQDP.mjs";
+} from "./chunk-AOYZAFVW.mjs";
 
 // lib/hook-runner.mjs
 import { basename } from "node:path";

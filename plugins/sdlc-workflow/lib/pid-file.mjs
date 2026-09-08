@@ -1,3 +1,4 @@
+import { readFileSync, rmSync } from 'node:fs';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
@@ -40,6 +41,30 @@ export async function writePidFile(pidPath, record) {
 
 export async function removePidFile(pidPath) {
   await rm(pidPath, { force: true });
+}
+
+/**
+ * Remove the record only when it names `pid` (default: this process) or is
+ * absent. A reaped hub's late shutdown must not delete the record the next hub
+ * already wrote (review 2026-09-08). Returns true when nothing foreign remains.
+ */
+export async function removeOwnPidFile(pidPath, pid = process.pid) {
+  const record = await readPidFile(pidPath);
+  if (record && record.pid !== pid) return false;
+  await rm(pidPath, { force: true });
+  return true;
+}
+
+/** The synchronous twin for an 'exit' handler, where async fs is unsafe. */
+export function removeOwnPidFileSync(pidPath, pid = process.pid) {
+  let record = null;
+  try {
+    const text = readFileSync(pidPath, 'utf-8').trim();
+    record = /^\d+$/.test(text) ? { pid: Number(text) } : (text ? JSON.parse(text) : null);
+  } catch { record = null; }
+  if (record && typeof record === 'object' && record.pid !== pid) return false;
+  try { rmSync(pidPath, { force: true }); } catch { /* ignore */ }
+  return true;
 }
 
 export async function pidFileStatus(pidPath) {

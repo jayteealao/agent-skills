@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   resolveActiveRuntimeRootSync
-} from "./chunk-LYPLZSMD.mjs";
+} from "./chunk-NIWWFUVD.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches
@@ -17,7 +17,7 @@ import {
 import {
   logLifecycle,
   sdlcHomeDir
-} from "./chunk-KXEWPJJ7.mjs";
+} from "./chunk-5LBIJZHF.mjs";
 
 // lib/code-browser.mjs
 import { execFileSync } from "node:child_process";

@@ -23,8 +23,8 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-PSP4GYGJ.mjs";
-import "./chunk-LYPLZSMD.mjs";
+} from "./chunk-MOYVXQMI.mjs";
+import "./chunk-NIWWFUVD.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -46,11 +46,12 @@ import {
   readRegistry,
   recordHubStart,
   refreshEntriesLiveness,
-  removePidFile,
+  removeOwnPidFile,
+  removeOwnPidFileSync,
   validateEntry,
   writePidFile,
   writeRegistry
-} from "./chunk-KXEWPJJ7.mjs";
+} from "./chunk-5LBIJZHF.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
@@ -986,19 +987,14 @@ async function main() {
     if (cleaning) return;
     cleaning = true;
     server.close(async () => {
-      if (args.pidFile) await removePidFile(args.pidFile);
+      if (args.pidFile) await removeOwnPidFile(args.pidFile);
       process.exit(0);
     });
   };
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
   process.on("exit", () => {
-    if (args.pidFile) {
-      try {
-        rmSync(args.pidFile, { force: true });
-      } catch {
-      }
-    }
+    if (args.pidFile) removeOwnPidFileSync(args.pidFile);
   });
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

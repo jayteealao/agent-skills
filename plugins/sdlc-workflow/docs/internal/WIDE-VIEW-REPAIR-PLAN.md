@@ -1265,6 +1265,24 @@ rewriting, the catch-up count no longer double-subtracts, two dead imports
 and one dead helper are gone, and `tailscale.path` documents the absolute
 asset route. Tests: 2 new files + 3 new cases in existing files, red-first.
 
+Second pass (2026-09-08), one more commit. The first pass's `insideGitCheckout`
+called `dirname` without importing it; every nested layout threw and the
+adapter's `exit(0)` hid it (the test's second case passed for the wrong
+reason — it now asserts empty stderr and covers the nested layout). The hub's
+shutdown removed `hub.pid` unconditionally after `server.close`, which waits
+for keep-alive connections, so a reaped hub could delete the next hub's
+record; it now removes only its own. W11.7's hermeticity rested on per-test
+env flags: the temp home had no hub-config, so its port was the operator's,
+and the "same runtime, untracked pid → reap" rule would reap the live hub
+from any test that reached the real supervisor. `run-all` now writes a
+private port into the temp home, and the e2e runner gets its own state dir
+(the real prune log carried two `sdlc-e2e-*` lines). A dev-build hub with a
+one-repo registry was seen on the operator port on 2026-09-08 18:20 and
+replaced by the installed hub at 18:27; its source was not proven (the suite
+under an isolated home spawned nothing). The two spellings of the hub-ensure
+kill switch are one switch on both hosts, documented on the configuration
+page. RELEASE-DISCIPLINE names `npm version --force` instead of a stash.
+
 ## 15. Releases and order
 
 | Release | Waves | Gate before push |
