@@ -12,6 +12,8 @@ Prose writes every skill invocation with a leading slash: `/wf <key> …`, `/con
 | Codex | `$<skill> …` | `$wf status`, `$consult plan` |
 | pi | `/skill:<skill> …` | `/skill:wf status`, `/skill:consult plan` |
 
+`$ARGUMENTS` is the text after the skill mention, and `$1` is its first whitespace token. Claude Code substitutes both tokens before the skill body reaches the model. Codex and pi do not substitute them. On those hosts, read the tokens as the user's text after `$<skill>` or `/skill:<skill>`.
+
 Three rules follow:
 - When you tell the user what to run, write the invocation in your host's spelling.
 - When you write an invocation into an artifact (`next-invocation`, `recommended-next-invocation`, `Next:` lines), write the neutral `/wf …` form. The host that reads the artifact substitutes.
