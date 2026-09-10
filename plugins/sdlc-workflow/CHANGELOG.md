@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`/wf yolo` launches from a staged copy of the driver.** The Workflow tool accepts a `scriptPath` only inside the working directory, so the plugin-cache path that `yolo.md` Step 0 prescribed was refused (`scriptPath must be a script path this tool returned, or a file you can already read`). New `scripts/stage-yolo-driver.mjs <projectRoot>` copies `skills/wf/workflows/yolo.js` to `<projectRoot>/.scratch/wf/yolo.js` at every launch and resume, writes a self-ignoring `.scratch/.gitignore` when absent, records provenance in `yolo.js.source.json`, prints one JSON line with the path, and prints a `CAUTION` before overwriting a hot-patched copy. `yolo.md` Step 0.4 runs it; Step 1 passes the staged path; the resume and hot-patch sections point at the staged copy. Unit test `tests/unit/stage-yolo-driver.test.mjs`. Found in a Crumb run on 2026-09-09, where the session copied the script by hand.
+
 ## [9.154.0] - 2026-09-08
 
 ### Added

@@ -11,7 +11,7 @@ this operation produces: translate workflow context to product language and leak
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `/wf yolo`, the **autonomous lifecycle driver**. Where `/wf auto` pauses at every stage gate, `yolo` resolves the gate itself by the Autonomous Decision Policy and drives the slug to the review endpoint without stopping. It runs the stages as background-workflow subagents through Claude Code's **Workflow** tool. The user typing `/wf yolo <slug>` is the explicit opt-in to run that tool.
+You are running `/wf yolo`, the **autonomous lifecycle driver**. It resolves every stage gate by the Autonomous Decision Policy and drives the slug to the review endpoint through Claude Code's **Workflow** tool.
 
 > **Claude Code only.** Under Codex or pi this key is unavailable: treat it as an unknown key and point the user to `/wf auto` (see [_host-invocation.md](_host-invocation.md)). This file is a named host-contract file and may describe Claude Code's tools directly.
 
@@ -122,17 +122,23 @@ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-
 2. **Existence check.** Confirm `.ai/workflows/<slug>/00-index.md` exists. If not, STOP: *"No workflow `<slug>`. Run `/wf status` to list workflows, or `/wf intake <description>` to start one."* Do not fuzzy-correct here. If a description was given instead of a slug, STOP and route to `/wf intake <description>` first.
 3. **Resolve the absolute paths the Workflow script needs.** The script and its stage subagents inherit no working directory:
    - `projectRoot` = the absolute root of the repo that owns `.ai/workflows/<slug>/` (the nearest ancestor containing `.ai/workflows`, capped at the git toplevel).
-   - `pluginRoot` = the absolute install path of this plugin — the directory you loaded this reference from, equivalently `$CLAUDE_PLUGIN_ROOT` if set.
+   - `pluginRoot` = the directory you loaded this reference from (`$CLAUDE_PLUGIN_ROOT` when set).
    - `referenceRoot` = `<pluginRoot>/skills/wf/reference`.
-   - `scriptPath` = `<pluginRoot>/skills/wf/workflows/yolo.js`.
+4. **Stage the driver script inside the repo.** The Workflow tool refuses a `scriptPath` outside the working directory. Run it at every launch and every resume:
+
+   ```
+   node "<pluginRoot>/scripts/stage-yolo-driver.mjs" "<projectRoot>"
+   ```
+
+   The script copies the driver to `<projectRoot>/.scratch/wf/yolo.js`, makes `.scratch/` ignore itself, and prints one JSON line that holds `scriptPath`. Every call overwrites the copy. A `CAUTION` on stderr means a hot-patched copy was overwritten.
 
 # Step 1 — Invoke the Workflow tool
 
-Call the **Workflow** tool with the shipped script and the resolved absolute args. Pass `slice` only in slice mode:
+Call the **Workflow** tool with the staged script and the resolved args. Pass `slice` only in slice mode:
 
 ```
 Workflow({
-  scriptPath: "<pluginRoot>/skills/wf/workflows/yolo.js",
+  scriptPath: "<projectRoot>/.scratch/wf/yolo.js",   // from Step 0.4
   args: {
     projectRoot:   "<absolute repo root owning .ai/workflows>",
     referenceRoot: "<pluginRoot>/skills/wf/reference",
@@ -143,19 +149,19 @@ Workflow({
 })
 ```
 
-The workflow runs in the background and returns a task id; a completion notification arrives when it finishes. Do not start a second driver for the same slug while it runs. During development, pass `scriptPath` to the dev checkout's `…/skills/wf/workflows/yolo.js`; skills and this script are read from source, not `dist/`.
+The workflow runs in the background and returns a task id; a notification arrives when it finishes. Do not start a second driver for the same slug while it runs.
 
 # Resuming — one sanctioned path
 
-When the model resumes a `yolo` run, it relaunches this script through the Workflow tool. It does not invoke `/wf`.
+When the model resumes a `yolo` run, it relaunches this script through the Workflow tool.
 
 - **Slash-command `/wf` stays user-only.** A human typing `/wf yolo <slug>` is the explicit opt-in that authorizes an unattended run.
-- **Relaunching the script is not a new opt-in** — it continues the run the user authorized. After a hand-back is answered, resume with the Step 1 Workflow call, same args. Orientation skips every stage already terminal-clean.
+- **Relaunching the script is not a new opt-in** — it continues the run the user authorized. After a hand-back is answered, repeat Step 0.4, then the Step 1 Workflow call with the same args. Orientation skips every stage already terminal-clean.
 - Say what you are doing: *"resuming the driver from `<slice>`"* — not *"run `/wf yolo <slug>` yourself"*.
 
 # Hot-patching the driver mid-run
 
-1. **Never patch the plugin cache.** A hot-patch to the installed copy is invisible to the dev tree and is erased by the next plugin update.
+1. **Never patch the plugin cache.** A hot-patch to the installed copy is invisible to the dev tree and is erased by the next plugin update. Patch the staged copy instead; the next launch overwrites it.
 2. **Write the patch down** at `.ai/patches/<date>-<symbol>.md` in the repo being worked on: the diff, the symptom, and the file + symbol it targets.
 3. **Record it against the plugin dev tree** — a task, an issue, or a note the next plugin session will see.
 
@@ -206,6 +212,5 @@ Rules:
 - **Not a fresh-start** — it never runs `intake`/`shape` from a bare description.
 - **Not a PR opener or releaser** — `handoff`, `ship`, and `retro` are separate commands.
 - **Not a CI auto-fixer** — CI is never in its scope.
-- **Not a gate remover** — every stage's quality gate still runs; `yolo` supplies the answer by policy and records it.
+- **Not a gate remover** — every quality gate still runs; `yolo` supplies the answer by policy and records it.
 - **Consults at the designated gates (free only, by objective trigger)** — `yolo` auto-invokes `consult` whenever a plan/review/diagnosis gate's objective trigger fires, pinned to a free subscription CLI (`codex`/`claude`). It never spends on the paid REST oracles.
-- **Not under Codex or pi** — Claude Code only, by design.
