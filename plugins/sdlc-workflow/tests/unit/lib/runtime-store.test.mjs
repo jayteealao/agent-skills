@@ -7,12 +7,12 @@
 
 import { test } from 'node:test';
 import { equal, ok, deepEqual } from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
-  materializeRuntime, verifyRuntimeStore, writeActiveRuntime, readActiveRuntime,
+  materializeRuntime, refreshStoredManifest, verifyRuntimeStore, writeActiveRuntime, readActiveRuntime,
   resolveActiveRuntimeRoot, resolveActiveRuntimeRootSync, gcRuntimes,
   runtimeRootFor, runtimeStoreDir,
 } from '../../../lib/runtime-store.mjs';
@@ -61,6 +61,58 @@ test('runtime-store: materializeRuntime copies the payload and is idempotent', a
       const second = await materializeRuntime(plugin, { manifest: m });
       equal(second.materialized, false, 'an already-materialized build is reused, not recopied');
       equal(second.runtimeRoot, first.runtimeRoot);
+    } finally {
+      rmSync(plugin, { recursive: true, force: true });
+    }
+  });
+});
+
+test('runtime-store: a same-buildId version bump refreshes the stored manifest (no reap loop)', async () => {
+  // A prose-only release keeps the buildId, so the store dir already exists and
+  // its manifest names the OLD runtimeVersion — the hub then reports the old
+  // version and the new supervisor reaps it at every session start (9.154.0 →
+  // 9.154.1, 271 restarts). Reuse must carry the newer runtimeVersion into the
+  // stored manifest; the payload is identical by construction.
+  await withHome(async () => {
+    const older = fakePluginRoot({ buildId: 'build-same', runtimeVersion: '9.154.0' });
+    const newer = fakePluginRoot({ buildId: 'build-same', runtimeVersion: '9.154.1' });
+    try {
+      const first = await materializeRuntime(older, { manifest: { buildId: 'build-same', runtimeVersion: '9.154.0' } });
+      equal(first.materialized, true);
+      const manifestPath = join(first.runtimeRoot, 'runtime-manifest.json');
+      equal(JSON.parse(readFileSync(manifestPath, 'utf-8')).runtimeVersion, '9.154.0');
+
+      const second = await materializeRuntime(newer, { manifest: { buildId: 'build-same', runtimeVersion: '9.154.1', rendererBuildId: 'r-2' } });
+      equal(second.materialized, false, 'same buildId → the payload is reused, not recopied');
+      equal(second.runtimeRoot, first.runtimeRoot);
+      const stored = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+      equal(stored.runtimeVersion, '9.154.1', 'the stored manifest now names the newer runtimeVersion');
+      equal(stored.buildId, 'build-same', 'buildId unchanged');
+      equal(stored.rendererBuildId, 'r-2', 'the other bundled manifest fields ride along');
+      ok(await verifyRuntimeStore(first.runtimeRoot, 'build-same'), 'the store still verifies');
+    } finally {
+      rmSync(older, { recursive: true, force: true });
+      rmSync(newer, { recursive: true, force: true });
+    }
+  });
+});
+
+test('runtime-store: refreshStoredManifest never downgrades and never crosses buildIds', async () => {
+  await withHome(async () => {
+    const plugin = fakePluginRoot({ buildId: 'build-keep', runtimeVersion: '9.154.1' });
+    try {
+      const { runtimeRoot } = await materializeRuntime(plugin, { manifest: { buildId: 'build-keep', runtimeVersion: '9.154.1' } });
+      const manifestPath = join(runtimeRoot, 'runtime-manifest.json');
+      // An older host sharing the buildId must not write its version back (ping-pong guard).
+      equal(await refreshStoredManifest(runtimeRoot, { buildId: 'build-keep', runtimeVersion: '9.154.0' }), false);
+      equal(JSON.parse(readFileSync(manifestPath, 'utf-8')).runtimeVersion, '9.154.1');
+      // Same version: nothing to do.
+      equal(await refreshStoredManifest(runtimeRoot, { buildId: 'build-keep', runtimeVersion: '9.154.1' }), false);
+      // A different buildId is a different store dir; refuse to relabel this one.
+      equal(await refreshStoredManifest(runtimeRoot, { buildId: 'build-other', runtimeVersion: '9.155.0' }), false);
+      equal(JSON.parse(readFileSync(manifestPath, 'utf-8')).runtimeVersion, '9.154.1');
+      // A missing manifest is a false, not a throw.
+      equal(await refreshStoredManifest(join(runtimeRoot, 'nope'), { buildId: 'build-keep', runtimeVersion: '9.155.0' }), false);
     } finally {
       rmSync(plugin, { recursive: true, force: true });
     }

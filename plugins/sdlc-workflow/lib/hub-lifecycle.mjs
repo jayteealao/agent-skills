@@ -20,7 +20,9 @@ import { maybeConfigureTailscale, tailscaleDnsName } from './tailscale.mjs';
 import { effectiveCodeBrowserConfig } from './code-browser.mjs';
 import { logLifecycle } from './runtime-log.mjs';
 import { portHeld, portOwner } from './port-owner.mjs';
-import { runtimeIdentity } from './runtime-manifest.mjs';
+import { compareVersions, runtimeIdentity } from './runtime-manifest.mjs';
+// Re-exported for the callers that imported it from here (hub-upgrade tests).
+export { compareVersions };
 import { withLock, LockTimeoutError, atomicWriteJson } from './cross-host-lock.mjs';
 import { gcRuntimes, materializeRuntime, readRuntimeIdentityAt, verifyRuntimeStore, writeActiveRuntime } from './runtime-store.mjs';
 
@@ -530,18 +532,6 @@ async function rollback({ prev, cfg, host, port, pidPath, log }) {
 
 function clearUpgradeRecord() {
   try { rmSync(upgradeRecordPath(), { force: true }); } catch { /* best-effort */ }
-}
-
-/** Numeric major.minor.patch compare: <0 if a<b, >0 if a>b, 0 if equal. */
-export function compareVersions(a, b) {
-  const pa = String(a ?? '').split('.').map((n) => parseInt(n, 10) || 0);
-  const pb = String(b ?? '').split('.').map((n) => parseInt(n, 10) || 0);
-  for (let i = 0; i < 3; i++) {
-    const x = pa[i] || 0;
-    const y = pb[i] || 0;
-    if (x !== y) return x < y ? -1 : 1;
-  }
-  return 0;
 }
 
 /* ───────────────────────── helpers (mirror serve-lifecycle) ───────────────────────── */

@@ -88,6 +88,16 @@ function renderIdentityMatches(recorded, active) {
   if (r.buildId && a.buildId) return r.buildId === a.buildId;
   return Boolean(r.version) && r.version === a.runtimeVersion;
 }
+function compareVersions(a, b) {
+  const pa = String(a ?? "").split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = String(b ?? "").split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const x = pa[i] || 0;
+    const y = pb[i] || 0;
+    if (x !== y) return x < y ? -1 : 1;
+  }
+  return 0;
+}
 
 export {
   HUB_NAME,
@@ -95,5 +105,6 @@ export {
   readRuntimeManifest,
   runtimeIdentity,
   readRenderedIdentity,
-  renderIdentityMatches
+  renderIdentityMatches,
+  compareVersions
 };

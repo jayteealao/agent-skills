@@ -5,7 +5,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-V35JPU6V.mjs";
+} from "./chunk-L2O55KIF.mjs";
 import {
   PLUGIN_VERSION,
   breadcrumbFromView,
@@ -14,7 +14,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-T5KRRFZB.mjs";
+} from "./chunk-PCCTLKQ6.mjs";
 import {
   aggregateCost,
   readCostRows
@@ -27,19 +27,19 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-JRPWQSIX.mjs";
+} from "./chunk-QBCRKGJH.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-MOYVXQMI.mjs";
-import "./chunk-NIWWFUVD.mjs";
+} from "./chunk-PW2DCMX3.mjs";
+import "./chunk-6A72YATQ.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
   runtimeIdentity
-} from "./chunk-EQC6XDOG.mjs";
+} from "./chunk-CGSPUUFD.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-K6PBZI5W.mjs";

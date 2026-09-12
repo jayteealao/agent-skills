@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **A same-buildId version bump no longer puts the hub in a reap loop.** The runtime store keys a build on `buildId`, which hashes the payload and not the version. A release that changes no payload file (9.154.1 after 9.154.0) reused the existing store directory, whose `runtime-manifest.json` still named the old `runtimeVersion`. The hub reads its own version from that stored manifest, so every hub started from the store reported the old version, and the supervisor on the new plugin reaped it at every session start (271 restarts on 2026-09-11/12; `npm run doctor` showed `hub … behind`). `materializeRuntime` now calls `refreshStoredManifest` when it reuses a verified store directory: when the bundled `runtimeVersion` is newer than the stored one and the `buildId` matches, it rewrites the stored manifest atomically; an older host never writes its version back. `compareVersions` moved to `lib/runtime-manifest.mjs` (re-exported from `lib/hub-lifecycle.mjs`) so the store can use it without a circular import. Two unit tests in `tests/unit/lib/runtime-store.test.mjs`. Machine repair for a store already in this state: copy the installed plugin's `runtime-manifest.json` over `~/.sdlc/runtime/<buildId>/runtime-manifest.json`; the next session start reaps once more and then adopts.
+
 ## [9.154.1] - 2026-09-10
 
 ### Fixed

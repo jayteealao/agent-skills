@@ -24,7 +24,7 @@ import { cp, mkdir, readFile, rename, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 import { atomicWriteJson } from './cross-host-lock.mjs';
-import { HUB_NAME, HUB_PROTOCOL_VERSION, readRuntimeManifest } from './runtime-manifest.mjs';
+import { HUB_NAME, HUB_PROTOCOL_VERSION, compareVersions, readRuntimeManifest } from './runtime-manifest.mjs';
 import { sdlcHomeDir, hubPidPath } from './registry.mjs';
 
 // The shared runtime payload copied into the store. Mirrors what a hub/renderer
@@ -60,6 +60,7 @@ export async function materializeRuntime(pluginRoot, { manifest = readRuntimeMan
   }
   const target = runtimeRootFor(buildId);
   if (existsSync(target) && await verifyRuntimeStore(target, buildId)) {
+    await refreshStoredManifest(target, manifest);
     return { buildId, runtimeRoot: target, materialized: false };
   }
 
@@ -76,6 +77,7 @@ export async function materializeRuntime(pluginRoot, { manifest = readRuntimeMan
   } catch (err) {
     await rm(tmp, { recursive: true, force: true });
     if (existsSync(target) && await verifyRuntimeStore(target, buildId)) {
+      await refreshStoredManifest(target, manifest);
       return { buildId, runtimeRoot: target, materialized: false };
     }
     throw err;
@@ -85,6 +87,34 @@ export async function materializeRuntime(pluginRoot, { manifest = readRuntimeMan
     throw new Error(`materialized runtime at ${target} failed verification`);
   }
   return { buildId, runtimeRoot: target, materialized: true };
+}
+
+/**
+ * A release that changes no payload file keeps the previous buildId (the id
+ * hashes dist/assets/components/schemas, not the version), so the store dir
+ * already exists and the copy above is skipped — leaving the stored manifest on
+ * the OLD runtimeVersion. The hub reads its own version from that stored
+ * manifest, so every hub started from the store reports the old version, and a
+ * supervisor on the new version reaps it at every session start (271 restarts
+ * on 2026-09-11/12 across the 9.154.0 → 9.154.1 bump). The payload bytes are
+ * identical by construction (same buildId), so refreshing only the manifest is
+ * safe. Only a NEWER bundled runtimeVersion is written: a host still on the
+ * older plugin never downgrades the stored manifest back (no ping-pong).
+ * Returns true when the manifest was rewritten. Never throws.
+ */
+export async function refreshStoredManifest(runtimeRoot, manifest) {
+  try {
+    const path = join(runtimeRoot, 'runtime-manifest.json');
+    const stored = JSON.parse(await readFile(path, 'utf-8'));
+    const bundled = manifest?.runtimeVersion;
+    if (typeof bundled !== 'string' || !bundled) return false;
+    if (stored.buildId !== manifest.buildId) return false;
+    if (compareVersions(bundled, stored.runtimeVersion) <= 0) return false;
+    await atomicWriteJson(path, { ...stored, ...manifest, buildId: stored.buildId });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

@@ -3,8 +3,9 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   HUB_NAME,
   HUB_PROTOCOL_VERSION,
+  compareVersions,
   readRuntimeManifest
-} from "./chunk-EQC6XDOG.mjs";
+} from "./chunk-CGSPUUFD.mjs";
 import {
   hubPidPath,
   isPidAlive,
@@ -238,6 +239,7 @@ async function materializeRuntime(pluginRoot, { manifest = readRuntimeManifest()
   }
   const target = runtimeRootFor(buildId);
   if (existsSync(target) && await verifyRuntimeStore(target, buildId)) {
+    await refreshStoredManifest(target, manifest);
     return { buildId, runtimeRoot: target, materialized: false };
   }
   await mkdir2(runtimeStoreDir(), { recursive: true });
@@ -249,6 +251,7 @@ async function materializeRuntime(pluginRoot, { manifest = readRuntimeManifest()
   } catch (err) {
     await rm2(tmp, { recursive: true, force: true });
     if (existsSync(target) && await verifyRuntimeStore(target, buildId)) {
+      await refreshStoredManifest(target, manifest);
       return { buildId, runtimeRoot: target, materialized: false };
     }
     throw err;
@@ -257,6 +260,20 @@ async function materializeRuntime(pluginRoot, { manifest = readRuntimeManifest()
     throw new Error(`materialized runtime at ${target} failed verification`);
   }
   return { buildId, runtimeRoot: target, materialized: true };
+}
+async function refreshStoredManifest(runtimeRoot, manifest) {
+  try {
+    const path = join(runtimeRoot, "runtime-manifest.json");
+    const stored = JSON.parse(await readFile2(path, "utf-8"));
+    const bundled = manifest?.runtimeVersion;
+    if (typeof bundled !== "string" || !bundled) return false;
+    if (stored.buildId !== manifest.buildId) return false;
+    if (compareVersions(bundled, stored.runtimeVersion) <= 0) return false;
+    await atomicWriteJson(path, { ...stored, ...manifest, buildId: stored.buildId });
+    return true;
+  } catch {
+    return false;
+  }
 }
 async function copyRuntimePayload(src, dst) {
   await mkdir2(dst, { recursive: true });

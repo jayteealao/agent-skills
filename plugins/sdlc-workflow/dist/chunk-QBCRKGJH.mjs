@@ -9,7 +9,7 @@ import {
   effectiveCodeBrowserConfig,
   hubConfigHash,
   readHubConfig
-} from "./chunk-MOYVXQMI.mjs";
+} from "./chunk-PW2DCMX3.mjs";
 import {
   LockTimeoutError,
   atomicWriteJson,
@@ -19,10 +19,11 @@ import {
   verifyRuntimeStore,
   withLock,
   writeActiveRuntime
-} from "./chunk-NIWWFUVD.mjs";
+} from "./chunk-6A72YATQ.mjs";
 import {
+  compareVersions,
   runtimeIdentity
-} from "./chunk-EQC6XDOG.mjs";
+} from "./chunk-CGSPUUFD.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-K6PBZI5W.mjs";
@@ -452,16 +453,6 @@ function clearUpgradeRecord() {
     rmSync(upgradeRecordPath(), { force: true });
   } catch {
   }
-}
-function compareVersions(a, b) {
-  const pa = String(a ?? "").split(".").map((n) => parseInt(n, 10) || 0);
-  const pb = String(b ?? "").split(".").map((n) => parseInt(n, 10) || 0);
-  for (let i = 0; i < 3; i++) {
-    const x = pa[i] || 0;
-    const y = pb[i] || 0;
-    if (x !== y) return x < y ? -1 : 1;
-  }
-  return 0;
 }
 function stopPid(pid, log) {
   if (!isPidAlive(pid)) return;
