@@ -58,6 +58,7 @@ import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stateFingerprint } from './helpers/state-fingerprint.mjs';
+import { hubBaseline } from './helpers/hub-processes.mjs';
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.resolve(TESTS_DIR, '..');
@@ -152,7 +153,14 @@ if (!process.env.SDLC_HOME || !process.env.SDLC_HOME.trim()) {
   writeFileSync(path.join(tempHome, 'hub-config.json'), JSON.stringify({ version: 1, host: '127.0.0.1', port }), 'utf-8');
 }
 process.env.SDLC_STATE_GUARD_BASELINE = JSON.stringify(stateFingerprint(REAL_STATE_DIR));
-console.error(`[run-all] SDLC_HOME=${process.env.SDLC_HOME}; guarding ${REAL_STATE_DIR}`);
+// 2026-09-12: the fingerprint misses two leaks — a test that reaches the real
+// supervisor with no private port reaps the operator's hub and leaves a
+// detached sandbox hub on the operator's port; a live test whose cleanup misses
+// its hub leaves a zombie on its own port. Record who owns the operator's hub
+// port and which hub-serve processes exist, so the guard can compare after.
+const hubBase = hubBaseline(REAL_STATE_DIR);
+process.env.SDLC_HUB_GUARD_BASELINE = JSON.stringify(hubBase);
+console.error(`[run-all] SDLC_HOME=${process.env.SDLC_HOME}; guarding ${REAL_STATE_DIR} (hub port ${hubBase.port} owner pid ${hubBase.ownerPid ?? 'none'}, ${hubBase.hubProcesses ? hubBase.hubProcesses.length : '?'} hub-serve process(es))`);
 
 function runNodeTest(list) {
   if (!list.length) return 0;

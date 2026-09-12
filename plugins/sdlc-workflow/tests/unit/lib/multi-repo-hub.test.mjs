@@ -4,12 +4,13 @@
 // relocates the machine-wide state dir to a fresh temp dir via SDLC_HOME so the
 // real ~/.sdlc/ is never touched.
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import {
   existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync,
 } from 'node:fs';
 import { request as httpRequest } from 'node:http';
+import { createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -53,9 +54,39 @@ const PLUGIN_VERSION = JSON.parse(
 
 function tmp(prefix) { return mkdtempSync(join(tmpdir(), prefix)); }
 
-function setHome() {
+// A port nothing else on this machine listens on, picked once per file. Every
+// sandbox home gets a hub-config naming it, so a code path that reaches the real
+// supervisor (ensureHubLifecycle — the real renderer's bootstrap calls it) never
+// falls back to the operator's canonical port. Without this, the cold-start
+// acceptance test below reaped the operator's live hub on 48173 and left a
+// sandbox hub in its place (2026-09-12).
+const PRIVATE_PORT = await new Promise((res, rej) => {
+  const srv = createNetServer();
+  srv.once('error', rej);
+  srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => res(port)); });
+});
+
+// Safety net for the whole file: whatever a sandbox spawned onto PRIVATE_PORT
+// (a supervisor reached after a test's own hub closed) is stopped here, by the
+// pid its health reports. Deterministic tests above make this a no-op; the
+// run-level hub guard (tests/unit/state-dir-guard.test.mjs) fails the run if
+// something still slips through.
+test.after(async () => {
+  for (let i = 0; i < 20; i++) {
+    let h = null;
+    try { h = await (await fetch(`http://127.0.0.1:${PRIVATE_PORT}/__sdlc/health`)).json(); } catch { /* nothing listening */ }
+    if (!h?.pid || h.pid === process.pid) return;
+    try { process.kill(h.pid, 'SIGTERM'); } catch { /* gone */ }
+    await new Promise((r) => setTimeout(r, 150));
+  }
+});
+
+function setHome({ config = true } = {}) {
   const home = tmp('sdlc-home-');
   process.env.SDLC_HOME = home;
+  if (config) {
+    writeFileSync(join(home, 'hub-config.json'), JSON.stringify({ version: 1, host: '127.0.0.1', port: PRIVATE_PORT }), 'utf-8');
+  }
   return home;
 }
 
@@ -503,7 +534,7 @@ test('registry: pruneRegistry keeps a registered-but-unrendered repo that has qu
 /* ───────────────────────── hub-config (§6.1) ───────────────────────── */
 
 test('hub-config: created with defaults on first read; never shares per-repo fields', () => {
-  setHome();
+  setHome({ config: false });   // this test IS about the first-read defaults
   const cfg = readHubConfig();
   equal(cfg.port, HUB_CONFIG_DEFAULTS.port, 'default canonical port (48173 since W11.4)');
   equal(HUB_CONFIG_DEFAULTS.port, 48173);
@@ -517,7 +548,7 @@ test('hub-config: created with defaults on first read; never shares per-repo fie
 });
 
 test('hub-config: perRepoServe defaults false (per-repo daemons are opt-in)', () => {
-  setHome();
+  setHome({ config: false });   // sparse first read
   equal(HUB_CONFIG_DEFAULTS.perRepoServe, false, 'default makes the hub the sole server');
   equal(readHubConfig().perRepoServe, false, 'sparse/first-read config inherits the default');
 });
@@ -1637,12 +1668,30 @@ test('e2e: cold start — fresh repo + one workflow: registers, REALLY renders, 
   const viewDir = join(repo, '.ai', '_view');
   ok(!existsSync(viewDir), 'precondition: never rendered, no view dir');
 
-  // Default spawnRender — this spawns the REAL renderer (dist/render-sunflower).
+  // The REAL renderer (dist/render-sunflower), spawned exactly as the hub's
+  // default seam does (lib/heal-render.mjs defaultSpawnRender) but TRACKED, so
+  // the test can wait for the render PROCESS to exit — not just for its first
+  // output file. The renderer's bootstrap tail runs ensureHubLifecycle after
+  // .last-render lands; a test that tore down on the file alone left that tail
+  // to find a closed hub and a dead pid record, recover, and spawn a detached
+  // hub that outlived the suite (2026-09-12).
+  const renders = [];
+  const spawnRender = (script, args, opts) => {
+    const child = spawn(process.execPath, [script, ...args], { stdio: 'ignore', windowsHide: true, ...opts });
+    renders.push(new Promise((res) => { child.once('exit', res); child.once('error', res); }));
+    return child;
+  };
   const server = createHubServer({
-    token: 'tok', liveReload: false, reconcileMs: 200, pluginRoot: PLUGIN_ROOT_REAL,
+    token: 'tok', liveReload: false, reconcileMs: 200, pluginRoot: PLUGIN_ROOT_REAL, spawnRender,
   });
   const port = await listen(server);
   try {
+    // The REAL renderer's bootstrap runs ensureHubLifecycle. Point the sandbox's
+    // machine config AND its pid record at this in-process hub, so the
+    // supervisor adopts it (the production shape: hub already up) instead of
+    // spawning a detached hub — on the operator's port, when the sandbox had no
+    // hub-config at all (2026-09-12: reaped the live hub, left a zombie).
+    writeFileSync(hubConfigPath(), JSON.stringify({ version: 1, host: '127.0.0.1', port }), 'utf-8');
     writeHubPid(port);
     const res = await upsertRegistryEntry({ projectRoot: repo, viewDir });
     equal(res.action, 'posted-to-hub', 'cold-start registration accepted');
@@ -1656,6 +1705,14 @@ test('e2e: cold start — fresh repo + one workflow: registers, REALLY renders, 
     equal(reg.entries.length, 1, 'registry.json holds the fresh repo');
     const page = await httpReq(port, `/r/${encodeURIComponent(reg.entries[0].id)}/`);
     equal(page.status, 200, 'hub serves the fresh repo view');
+    // Let every render process finish its bootstrap tail while this hub is still
+    // up, so its supervisor call adopts THIS hub. Only then check the record: a
+    // spawned hub would have rewritten hub.pid with its own pid.
+    ok(renders.length >= 1, 'the hub spawned at least one real render');
+    await Promise.all(renders);
+    const pidRec = JSON.parse(readFileSync(join(sdlcHomeDir(), 'hub.pid'), 'utf-8'));
+    equal(pidRec.pid, process.pid, 'the real renderer adopted the in-process hub — no detached hub spawned');
+    equal(pidRec.port, port, 'pid record still names the in-process hub port');
   } finally {
     await closeServer(server);
   }

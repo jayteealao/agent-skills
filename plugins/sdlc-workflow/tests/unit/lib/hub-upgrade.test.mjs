@@ -90,8 +90,22 @@ async function makeRuntimeRoot({ version, buildId, breakHub = false }) {
   return root;
 }
 
-async function cleanup(home, roots) {
+async function cleanup(home, roots, port) {
   try { await stopHub({ log: () => {} }); } catch { /* ignore */ }
+  // stopHub trusts the sandbox pid record. On Windows the supervisor's
+  // pre-written record names the wscript launcher (already gone), and the hub
+  // rewrites the record only after it binds — so a test that returns the moment
+  // health answers can run this cleanup while the record is still stale and
+  // leave the hub alive (the port-41987 zombie that failed every later run of
+  // the rollback test). Health reports the hub's real pid: stop THAT, then wait
+  // for the port to go quiet.
+  if (port) {
+    const h = await probe(port);
+    if (h?.pid && h.pid !== process.pid) {
+      try { process.kill(h.pid, 'SIGTERM'); } catch { /* already gone */ }
+      await probeUntil(port, (x) => x === null, 20);
+    }
+  }
   await sleep(200);
   delete process.env.SDLC_HOME;
   for (const r of [home, ...roots]) { try { rmSync(r, { recursive: true, force: true }); } catch { /* ignore */ } }
@@ -128,7 +142,7 @@ test('controlled upgrade swaps the live hub to a new build and retains state', a
     assert.ok(Array.isArray(h1.entries), 'new hub still serves the registry (isHub)');
     assert.equal(readFileSync(sentinel, 'utf-8'), '{"keep":true}', '~/.sdlc state retained');
   } finally {
-    await cleanup(home, roots);
+    await cleanup(home, roots, PORT);
   }
 });
 
@@ -155,6 +169,6 @@ test('a failed upgrade rolls the hub back to the previous runtime', async () => 
     assert.ok(h1, 'hub is back on the previous build after rollback');
     assert.equal(h1.hub.buildId, b0);
   } finally {
-    await cleanup(home, roots);
+    await cleanup(home, roots, PORT);
   }
 });
