@@ -8,6 +8,9 @@ argument-hint: "[tutorial|how-to|reference|explanation|readme|plan|review] <what
 
 # Diátaxis documentation
 
+Read [_host-invocation.md](../wf/reference/_host-invocation.md) first. It defines the invocation
+spelling, `<skill-dir>`, and the `$ARGUMENTS` token for your host.
+
 Author and review documentation under the [Diátaxis](https://diataxis.fr) framework.
 Diátaxis splits documentation into four modes serving four distinct user needs, plus
 two supporting activities — a planner that classifies and maps a whole docs set, and a

@@ -41,10 +41,14 @@ Every other file states the INTENT and cites one of those files.
 ## The gate
 
 `node scripts/verify-host-neutrality.mjs` (also `npm run verify:neutrality`,
-and `tests/unit/gates.test.mjs` runs it under `npm test`). Ten scan families
+and `tests/unit/gates.test.mjs` runs it under `npm test`). Eleven scan families
 over `skills/**/*.md` and `reference/*.md`; fenced code blocks are exempt for
 the tool and timestamp families (a literal shell command is data), never for
-the sigil, plugin-root, or stale-tree families.
+the sigil, plugin-root, or stale-tree families. The `arguments-token` family
+binds only `skills/<name>/SKILL.md`: a body that reads `$ARGUMENTS` or `$1`
+must cite `_host-invocation.md` on an earlier line, because Claude Code
+substitutes the tokens and Codex and pi inject the body verbatim (verified
+by a live `codex exec` probe on codex-cli 0.146.0, 2026-09-08).
 
 Two lists, kept separate on purpose:
 

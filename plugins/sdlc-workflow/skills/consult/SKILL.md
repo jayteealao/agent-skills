@@ -10,6 +10,10 @@ argument-hint: "[codex|claude|gemini|openai|<provider>/<model>] <question>"
 Apply the boundary rule in [_output-boundary.md](../wf/reference/_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
+# Host contract
+Read [_host-invocation.md](../wf/reference/_host-invocation.md) first. It defines the invocation
+spelling, `<skill-dir>`, and the `$ARGUMENTS` token for your host.
+
 # What this is
 
 `consult` sends a question to one or more external AI models acting as **read-only

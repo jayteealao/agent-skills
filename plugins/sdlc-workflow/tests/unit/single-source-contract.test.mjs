@@ -75,6 +75,7 @@ test('every neutrality family fires on a fixture, and the fence exemption holds'
       'Under Claude Code this differs.',                        // host-names
       'See sdlc-workflow-codex for the mirror.',                // stale-tree
       'Run $wf-intake now.',                                    // retired-router
+      'Split $ARGUMENTS on whitespace.',                        // arguments-token (no earlier citation)
       '```',
       'date -u +"%Y" inside a fence is data',                   // exempt in a fence
       '```',
@@ -83,7 +84,7 @@ test('every neutrality family fires on a fixture, and the fence exemption holds'
     const findings = scan(root);
     const fired = new Set(findings.map((f) => f.family));
     assert.deepEqual([...fired].sort(), FAMILIES.map((f) => f.name).sort(), 'a family with no hit has a regex that matches nothing');
-    assert.ok(!findings.some((f) => f.line === 12), 'a fenced shell clock read is data, not prose');
+    assert.ok(!findings.some((f) => f.line === 13), 'a fenced shell clock read is data, not prose');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

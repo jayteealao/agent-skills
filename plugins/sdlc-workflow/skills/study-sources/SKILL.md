@@ -8,6 +8,9 @@ argument-hint: "[<git-url> | <package>@<version> | <ecosystem>] <what you need t
 
 # Study sources
 
+Read [_host-invocation.md](../wf/reference/_host-invocation.md) first. It defines the invocation
+spelling, `<skill-dir>`, and the `$ARGUMENTS` token for your host.
+
 Ground your work in **real upstream source** rather than recalled API shapes. When a
 task turns on how a library, framework, or SDK actually behaves — its exact function
 signatures, its edge cases, an error string, a private helper, a version-specific change —

@@ -31,12 +31,37 @@ test('host-neutrality gate: clean, with an empty burndown allowlist', () => {
   if (process.env.CI) assert.equal(out.note, null, `merge-base comparison degraded in CI: ${out.note}`);
 });
 
-test('host-neutrality gate: the family roster is the documented ten', async () => {
+test('host-neutrality gate: the family roster is the documented eleven', async () => {
   const { FAMILIES } = await import('../../scripts/verify-host-neutrality.mjs');
   assert.deepEqual(FAMILIES.map((f) => f.name), [
     'claude-tools', 'claude-model-pins', 'codex-tools', 'invocation-sigil', 'plugin-root',
     'timestamp-mandate', 'claude-hook-names', 'host-names', 'stale-tree', 'retired-router',
+    'arguments-token',
   ]);
+});
+
+test('host-neutrality gate: arguments-token binds SKILL.md files and clears on an earlier citation', async () => {
+  const { scan } = await import('../../scripts/verify-host-neutrality.mjs');
+  const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const root = mkdtempSync(path.join(tmpdir(), 'sdlc-arguments-token-'));
+  try {
+    mkdirSync(path.join(root, 'skills', 'cited'), { recursive: true });
+    mkdirSync(path.join(root, 'skills', 'late'), { recursive: true });
+    mkdirSync(path.join(root, 'skills', 'ref', 'reference'), { recursive: true });
+    // Citation first, token after: clean.
+    writeFileSync(path.join(root, 'skills', 'cited', 'SKILL.md'),
+      'Read [_host-invocation.md](../wf/reference/_host-invocation.md) first.\nSplit $ARGUMENTS on whitespace.\nThe slug is $1.\n');
+    // Token first, citation after: the token lines fire, the citation line does not.
+    writeFileSync(path.join(root, 'skills', 'late', 'SKILL.md'),
+      'Split $ARGUMENTS on whitespace.\nSee [_host-invocation.md](../wf/reference/_host-invocation.md) for `$ARGUMENTS`.\n');
+    // A reference file is out of scope: wf cites the contract before it loads one.
+    writeFileSync(path.join(root, 'skills', 'ref', 'reference', 'plan.md'), 'Resolve the slug from $ARGUMENTS.\n');
+    const hits = scan(root).filter((f) => f.family === 'arguments-token');
+    assert.deepEqual(hits.map((f) => `${f.file}:${f.line}`), ['skills/late/SKILL.md:1']);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('host-neutrality gate: the permanent exception list is exactly the §3.3 budget', async () => {

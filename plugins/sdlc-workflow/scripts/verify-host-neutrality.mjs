@@ -128,6 +128,19 @@ export const FAMILIES = [
     name: 'retired-router',
     pattern: /\$wf-(intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|hotfix|quick|design|meta|docs)\b/,
   },
+  {
+    // A skill entry point that reads `$ARGUMENTS` or `$1` cites _host-invocation.md
+    // on an EARLIER line. Claude Code substitutes both tokens before the body
+    // reaches the model; Codex and pi inject the body verbatim (verified by a live
+    // `codex exec` probe on codex-cli 0.146.0, 2026-09-08), so the model needs the
+    // contract's definition in context before it reads the token. The wf reference
+    // files are loaded by wf/SKILL.md after that citation, so the rule binds only
+    // `skills/<name>/SKILL.md`.
+    name: 'arguments-token',
+    pattern: /\$ARGUMENTS|\$1\b/,
+    fileScope: /^skills\/[^/]+\/SKILL\.md$/,
+    citedBefore: /_host-invocation\.md/,
+  },
 ];
 
 function* walk(dir) {
@@ -165,9 +178,13 @@ export function scan(root = ROOT) {
       const fenced = inFence(lines);
       for (const family of FAMILIES) {
         if (exempt.has(family.name)) continue;
+        if (family.fileScope && !family.fileScope.test(rel)) continue;
+        // A citation-ordered family: hits on or after the first citing line are fine.
+        const citeAt = family.citedBefore ? lines.findIndex((l) => family.citedBefore.test(l)) : -1;
         for (let i = 0; i < lines.length; i++) {
           if (!family.pattern.test(lines[i])) continue;
           if (family.lineExclude && family.lineExclude.test(lines[i])) continue;
+          if (citeAt !== -1 && i >= citeAt) continue;
           // A fenced code block is a literal command or data sample, not prose —
           // except for the sigil and plugin-root families, which are wrong anywhere.
           if (fenced[i] && !['invocation-sigil', 'plugin-root', 'stale-tree'].includes(family.name)) continue;
