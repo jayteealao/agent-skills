@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **The `/wf` picker takes the arrow keys again.** 9.156.0 drew every row as a `Button`, and the band's focus ring did not move between Buttons on the arrows, so `ctrl+x tab` followed by an arrow did nothing. The list is a `Select` again (a click on it or `ctrl+x tab` gives it the keyboard; arrows move, Enter picks) and the digits live in a key row of plain Buttons under it (`1: intake  2: shape ...  0: more`), so a digit in the empty prompt still picks a row. Each list row carries its digit in its label. `fitPage` in `hooks/mod/views.tsx` sizes the page to the band's `maxRows` and `bodyColumns` together, so a key row that wraps on a narrow band still leaves the whole tree inside the band and the digits armed. Two more kit tests: the narrow band, and the row labels.
+- **The `/wf` picker takes the arrow keys again.** 9.156.0 drew every row as a `Button`, and the band's focus ring did not move between Buttons on the arrows, so `ctrl+x tab` followed by an arrow did nothing. The list is a `Select` again (a click on it or `ctrl+x tab` gives it the keyboard; arrows move, Enter picks) and the digits stand in a column beside it, one plain `Button` with an empty label per row, so a digit in the empty prompt still picks the row it sits on. The `0: more` key moved into the title row, so the band's chrome is two rows and a page holds up to nine rows under `maxRows`.
 
 ## [9.156.0] - 2026-09-16
 

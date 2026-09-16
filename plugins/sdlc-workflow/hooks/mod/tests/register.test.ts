@@ -248,7 +248,7 @@ describe('register', () => {
     await $.session.start(SESSION)
 
     await run($, 'wf')
-    expect(hotkeysOf(await $.ui.render(BAND))).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'])
+    expect(hotkeysOf(await $.ui.render(BAND))).toEqual(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])
     await pickRow($, 'plan')
     expect(textOf(await $.ui.render(BAND))).toContain('/wf plan — pick a workflow')
     expect(world.filled).toEqual([])
@@ -306,29 +306,8 @@ describe('register', () => {
     await run($, 'wf')
     const short = { ...BAND, props: { ...BAND.props, maxRows: 6, scroll: { offset: 0, bodyRows: 5 } } }
     const tree = await $.ui.render(short)
-    expect(hotkeysOf(tree)).toEqual(['1', '2', '3', '0'])
-    expect(textOf(tree)).toContain('(page 1 of 8)')
-  })
-
-  test('a narrow band shrinks the page so the wrapped key row still fits', async ($, on) => {
-    seat(on)
-    await $.session.start(SESSION)
-    await run($, 'wf')
-    const narrow = { ...BAND, props: { ...BAND.props, bodyColumns: 40 } }
-    const tree = await $.ui.render(narrow)
-    expect(hotkeysOf(tree)).toEqual(['1', '2', '3', '4', '5', '6', '7', '0'])
-    expect(textOf(tree)).toContain('(page 1 of 4)')
-  })
-
-  test('the list rows carry their digit and the key row carries the short names', async ($, on) => {
-    seat(on)
-    await $.session.start(SESSION)
-    await run($, 'wf-plan', 'alpha-flow')
-    const text = textOf(await $.ui.render(BAND))
-    expect(text).toContain('1  (no slice)')
-    expect(text).toContain('2  all  every slice')
-    expect(text).toContain('3  auth  complete · verified · s')
-    expect(text).toContain('none all auth ui')
+    expect(hotkeysOf(tree)).toEqual(['0', '1', '2', '3', '4'])
+    expect(textOf(tree)).toContain('(page 1 of 6)')
   })
 
   test('a list that fits one page draws no "more" row', async ($, on) => {
