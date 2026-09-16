@@ -3,7 +3,7 @@ import { describe, expect, mock, test, tier } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
 import { CATALOG } from '../catalog.ts'
-import { CLOSE_KEY, PLUGIN_NAME } from '../names.ts'
+import { CLOSE_KEY, MORE_KEY, OPTION_KEY_PREFIX, PLUGIN_NAME } from '../names.ts'
 
 tier('user')
 
@@ -112,6 +112,20 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
 
 const run = ($: Engine, command: string, args = '') =>
   $.command.run({ command, args, origin: { kind: 'composer' }, presentation: PRESENTATION })
+
+/** Presses the band's row for one option value, as its digit hotkey does. */
+const pickRow = ($: Engine, value: string) => $.ui.press({ plugin: PLUGIN_NAME, key: `${OPTION_KEY_PREFIX}${value}` })
+
+/** The hotkey digits of the rows on screen, in draw order. */
+function hotkeysOf(node: unknown): string[] {
+  if (Array.isArray(node)) return node.flatMap(hotkeysOf)
+  if (node && typeof node === 'object') {
+    const record = node as { props?: Record<string, unknown>; children?: unknown }
+    const own = typeof record.props?.['hotkey'] === 'string' ? [record.props['hotkey'] as string] : []
+    return [...own, ...hotkeysOf(record.children ?? record.props?.['children'] ?? [])]
+  }
+  return []
+}
 
 describe('register', () => {
   test('session start registers one command per key', async ($, on) => {
@@ -227,6 +241,83 @@ describe('register', () => {
     expect(textOf(await $.ui.render(BAND))).toContain('pick a key')
     await $.prompt.submit({ text: 'hello', wait: false, origin: { kind: 'composer' } })
     expect(textOf(await $.ui.render(BAND))).toBe('')
+  })
+
+  test('a digit row picks: key, then workflow, then slice, and the last pick fills the prompt', async ($, on) => {
+    const world = seat(on)
+    await $.session.start(SESSION)
+
+    await run($, 'wf')
+    expect(hotkeysOf(await $.ui.render(BAND))).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'])
+    await pickRow($, 'plan')
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan — pick a workflow')
+    expect(world.filled).toEqual([])
+
+    await pickRow($, 'alpha-flow')
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan alpha-flow — pick a slice')
+
+    await pickRow($, 'ui')
+    expect(world.filled).toEqual(['/wf plan alpha-flow ui '])
+    expect(textOf(await $.ui.render(BAND))).toBe('')
+  })
+
+  test('a "(no slice)" row fills the key and the slug alone', async ($, on) => {
+    const world = seat(on)
+    await $.session.start(SESSION)
+    await run($, 'wf-verify', 'alpha-flow')
+    expect(textOf(await $.ui.render(BAND))).toContain('(no slice)')
+    await pickRow($, '-')
+    expect(world.filled).toEqual(['/wf verify alpha-flow '])
+  })
+
+  test('the key list pages nine rows at a time and the "more" row turns the page', async ($, on) => {
+    seat(on)
+    await $.session.start(SESSION)
+    await run($, 'wf')
+
+    const first = textOf(await $.ui.render(BAND))
+    expect(first).toContain('(page 1 of 3)')
+    expect(first).toContain('intake  ')
+    expect(first).toContain('ship  ')
+    expect(first).not.toContain('retro  ')
+    expect(first).toContain('more')
+
+    await $.ui.press({ plugin: PLUGIN_NAME, key: MORE_KEY })
+    const second = textOf(await $.ui.render(BAND))
+    expect(second).toContain('(page 2 of 3)')
+    expect(second).toContain('retro  ')
+    expect(second).not.toContain('intake  ')
+
+    await $.ui.press({ plugin: PLUGIN_NAME, key: MORE_KEY })
+    expect(textOf(await $.ui.render(BAND))).toContain('(page 3 of 3)')
+    await $.ui.press({ plugin: PLUGIN_NAME, key: MORE_KEY })
+    expect(textOf(await $.ui.render(BAND))).toContain('(page 1 of 3)')
+
+    // A new step starts on its first page.
+    await pickRow($, 'plan')
+    await $.ui.press({ plugin: PLUGIN_NAME, key: CLOSE_KEY })
+    await run($, 'wf')
+    expect(textOf(await $.ui.render(BAND))).toContain('(page 1 of 3)')
+  })
+
+  test('a short band shrinks the page so every row keeps a hotkey', async ($, on) => {
+    seat(on)
+    await $.session.start(SESSION)
+    await run($, 'wf')
+    const short = { ...BAND, props: { ...BAND.props, maxRows: 6, scroll: { offset: 0, bodyRows: 5 } } }
+    const tree = await $.ui.render(short)
+    expect(hotkeysOf(tree)).toEqual(['1', '2', '3', '0'])
+    expect(textOf(tree)).toContain('(page 1 of 8)')
+  })
+
+  test('a list that fits one page draws no "more" row', async ($, on) => {
+    seat(on)
+    await $.session.start(SESSION)
+    await run($, 'wf-plan')
+    const tree = await $.ui.render(BAND)
+    expect(hotkeysOf(tree)).toEqual(['1', '2'])
+    expect(textOf(tree)).not.toContain('more')
+    expect(textOf(tree)).not.toContain('(page')
   })
 
   test('without .ai/workflows the workflow step says so', async ($, on) => {

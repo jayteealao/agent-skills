@@ -35,6 +35,6 @@ test('the /wf picker mod: pure state machine and workflow readers', { skip: supp
   assert.equal(result.status, 0, `harness failed:\n${output}`);
   const pass = /^# pass (\d+)/m.exec(output);
   const fail = /^# fail (\d+)/m.exec(output);
-  assert.ok(pass && Number(pass[1]) >= 9, `expected at least 9 passing harness tests:\n${output}`);
+  assert.ok(pass && Number(pass[1]) >= 10, `expected at least 10 passing harness tests:\n${output}`);
   assert.ok(fail && Number(fail[1]) === 0, `harness reported failures:\n${output}`);
 });

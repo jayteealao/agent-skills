@@ -5,7 +5,8 @@
  * `/wf-<key>`, so the native typeahead lists every key with its description
  * when the person types `/wf`. At `command.run` of a bare `/wf`, of a
  * `/wf <key>` that still needs a slug, or of any `/wf-<key>`, the mod draws a
- * list above the prompt: the keys, then the workflows under `.ai/workflows`
+ * numbered list above the prompt (a digit picks a row from the empty composer;
+ * ctrl+x tab gives the band the keys for the arrows): the keys, then the workflows under `.ai/workflows`
  * (active first, closed marked), then the slices of the picked workflow
  * (roster status and the furthest stage file present). The last pick writes
  * the full command into the prompt box with `$.prompt.fill`; the person
@@ -28,9 +29,9 @@ import {
   RUN_TEXT,
   registerFailedTextOf,
 } from './names.ts'
-import { keyOptions, pick, sliceOptions, slugOptions, stepFor, titleOf } from './picker.ts'
+import { keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, titleOf } from './picker.ts'
 import type { Option, Step } from './picker.ts'
-import { bandView, stack } from './views.tsx'
+import { bandView, pageSizeOf, stack } from './views.tsx'
 import { findProjectRoot, listSlices, listWorkflows } from './workflows.ts'
 import type { Reader, SliceEntry, WorkflowEntry } from './workflows.ts'
 
@@ -47,6 +48,8 @@ type Host = {
 
 type Model = {
   step: Step | null
+  /** The page of the step's options on screen; reset to the first at every step. */
+  page: number
   /** The directory holding `.ai/workflows`; null before a read, or when none. */
   root: string | null
   isRead: boolean
@@ -54,11 +57,13 @@ type Model = {
   slices: Map<string, SliceEntry[]>
 }
 
-const EMPTY: Model = { step: null, root: null, isRead: false, workflows: [], slices: new Map() }
+const EMPTY: Model = { step: null, page: 0, root: null, isRead: false, workflows: [], slices: new Map() }
 
 export function register(on: On) {
   let host: Host | null = null
   let model: Model = EMPTY
+  /** The work the last row press started: a press settles once it is done. */
+  let pending: Promise<void> = Promise.resolve()
 
   const commandNames: string[] = [...DISPATCHER_COMMANDS, ...CATALOG.map(entry => commandNameOf(entry.key))]
 
@@ -98,7 +103,12 @@ export function register(on: On) {
   }
 
   function show(engine: Host, step: Step): void {
-    model = { ...model, step }
+    model = { ...model, step, page: 0 }
+    engine.invalidate()
+  }
+
+  function turnPage(engine: Host): void {
+    model = { ...model, page: model.page + 1 }
     engine.invalidate()
   }
 
@@ -205,15 +215,20 @@ export function register(on: On) {
     const engine = host
     const step = model.step
     if (!engine || step === null || e.surface !== 'terminal' || e.props.hasSurvey) return below
-    const { Box, Text, Select, Button } = $.ui.resolve(e)
+    const { Box, Text, Button } = $.ui.resolve(e)
     const { options, note } = await optionsOf(engine, step)
+    // Every row carries a digit hotkey, and a digit arms only while the whole
+    // band fits the rows the site gives it: size the page to those rows.
+    const size = pageSizeOf(e.props.maxRows, options.length > pageSizeOf(e.props.maxRows, false))
+    const page = pageOf(options, model.page, size)
     const band = bandView(
-      { Box, Text, Select, Button },
-      { title: titleOf(step), options, ...(note === undefined ? {} : { note }) },
+      { Box, Text, Button },
+      { title: titleOf(step), page, ...(note === undefined ? {} : { note }) },
       {
         pick: value => {
-          void advance(engine, value).catch(error => engine.log(messageOf(error)))
+          pending = advance(engine, value).catch(error => engine.log(messageOf(error)))
         },
+        more: () => turnPage(engine),
         close: () => {
           close(engine)
           engine.log(CLOSED_TEXT)
@@ -221,6 +236,14 @@ export function register(on: On) {
       },
     )
     return stack(Box, below, band)
+  })
+
+  on('ui.press', { plugin: PLUGIN_NAME }, async ($, e, next) => {
+    // A row press reads the workflow tree before it shows the next step or
+    // fills the prompt; the press resolves once that work is done.
+    const result = await next(e)
+    await pending
+    return result
   })
 
   on('prompt.submit', ($, e, next) => {

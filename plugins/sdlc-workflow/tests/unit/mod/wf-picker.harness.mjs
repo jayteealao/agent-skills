@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { CATALOG, commandNameOf, keyOfCommand } from '../../../hooks/mod/catalog.ts';
-import { ALL, NONE, fillOf, keyOptions, pick, sliceOptions, slugOptions, stepFor, titleOf } from '../../../hooks/mod/picker.ts';
+import { ALL, NONE, fillOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, titleOf } from '../../../hooks/mod/picker.ts';
 import { findProjectRoot, frontmatterOf, joinPath, listSlices, listWorkflows, rosterOf } from '../../../hooks/mod/workflows.ts';
 
 const WORKFLOWS = [
@@ -85,6 +85,23 @@ test('pick walks key → slug → slice and ends in a fill', () => {
   assert.deepEqual(pick({ kind: 'slice', key: 'plan', slug: 'alpha' }, ALL, hasSlices), { kind: 'fill', text: '/wf plan alpha all ' });
   assert.deepEqual(pick({ kind: 'slice', key: 'plan', slug: 'alpha' }, NONE, hasSlices), { kind: 'fill', text: '/wf plan alpha ' });
   assert.equal(fillOf('verify', 'alpha'), '/wf verify alpha ');
+});
+
+test('pageOf slices the options into pages that wrap, never wider than nine rows', () => {
+  const keys = keyOptions();
+  assert.equal(keys.length, 22);
+  const first = pageOf(keys, 0, 9);
+  assert.deepEqual({ page: first.page, pages: first.pages, length: first.items.length }, { page: 0, pages: 3, length: 9 });
+  assert.equal(first.items[0].value, 'intake');
+  const last = pageOf(keys, 2, 9);
+  assert.deepEqual({ page: last.page, length: last.items.length }, { page: 2, length: 4 });
+  assert.equal(last.items[3].value, 'observability');
+  assert.equal(pageOf(keys, 3, 9).page, 0, 'a page past the last wraps to the first');
+  assert.equal(pageOf(keys, -1, 9).page, 2, 'a page before the first wraps to the last');
+  const one = pageOf(keys, 0, 0);
+  assert.deepEqual({ pages: one.pages, length: one.items.length }, { pages: 22, length: 1 }, 'a width below one is one');
+  const empty = pageOf([], 4, 9);
+  assert.deepEqual(empty, { items: [], page: 0, pages: 1 });
 });
 
 test('frontmatterOf and rosterOf read the index and slice-roster fields', () => {

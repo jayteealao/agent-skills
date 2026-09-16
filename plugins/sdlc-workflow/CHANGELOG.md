@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **The `/wf` picker's rows answer to digits; no click is needed before the first key.** The band above the prompt cannot take the keyboard on its own, so the first arrow key went to the prompt's history until you clicked the list or pressed `ctrl+x tab`. The list is now one plain `Button` per row with the row's digit as its hotkey: a digit pressed in the empty prompt picks that row at once. A step longer than nine rows shows nine at a time with a `0: more` row that turns the page (the title says `page i of n`, and a new step starts on page one); the page shrinks with the band's `maxRows` so the whole tree always fits, because a band that scrolls arms no hotkey. Arrow keys still move between rows once the band has the keyboard, and the hint line under the list names the chord. The module hooks `ui.press` for its own buttons so a press settles after the workflow tree is read. `pageOf` in `hooks/mod/picker.ts`, `pageSizeOf` in `hooks/mod/views.tsx`; five new kit tests drive the picks through `$.ui.press`.
+
 ## [9.155.0] - 2026-09-16
 
 ### Added

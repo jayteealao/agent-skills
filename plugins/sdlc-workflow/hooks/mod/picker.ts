@@ -133,3 +133,17 @@ export function pick(step: Step, value: string, hasSlices: (slug: string) => boo
 export function fillOf(key: string, slug?: string, slice?: string): string {
   return `/wf ${[key, slug, slice].filter(part => part !== undefined && part !== '').join(' ')} `
 }
+
+/** One page of options: at most `size` rows, `size` never below one. */
+export type Page = { items: Option[]; page: number; pages: number }
+
+/**
+ * The options a page shows, so every row can carry a one-digit hotkey. The
+ * page index wraps, so a "more" press after the last page shows the first.
+ */
+export function pageOf(options: readonly Option[], page: number, size: number): Page {
+  const width = Math.max(1, Math.floor(size))
+  const pages = Math.max(1, Math.ceil(options.length / width))
+  const index = ((page % pages) + pages) % pages
+  return { items: options.slice(index * width, index * width + width), page: index, pages }
+}

@@ -72,7 +72,7 @@ Arguments and artifacts for each key are in [reference/commands.html](docs/site/
 
 Hooks verify each managed artifact on write, stage it, render it, and record the turn's exact token usage to `.ai/workflows/<slug>/cost.jsonl`. They never block a valid write. [reference/hooks.html](docs/site/reference/hooks.html) lists every hook, its event, and its toggle in `.ai/sdlc-config.json` ([reference/configuration.html](docs/site/reference/configuration.html)).
 
-One hook is a Claude Code mod: `hooks/mod/register.ts`, a function-hooks module that adds the `/wf` picker. With `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` set, typing `/wf` lists every key in the typeahead as `/wf-<key>`, and a `/wf` that still needs a key, a slug, or a slice draws a list above the prompt. The last pick fills the prompt; you press Enter to run it. Without the flag the module does not load and `/wf` works as before.
+One hook is a Claude Code mod: `hooks/mod/register.ts`, a function-hooks module that adds the `/wf` picker. With `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` set, typing `/wf` lists every key in the typeahead as `/wf-<key>`, and a `/wf` that still needs a key, a slug, or a slice draws a numbered list above the prompt; a digit picks a row. The last pick fills the prompt; you press Enter to run it. Without the flag the module does not load and `/wf` works as before.
 
 ## Site map
 

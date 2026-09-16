@@ -12,7 +12,9 @@ export const CLOSE_KEY = 'wf-close'
 /** The names the bare dispatcher command may resolve to at `command.run`. */
 export const DISPATCHER_COMMANDS = ['wf', `${PLUGIN_NAME}:wf`] as const
 
-export const HINT_TEXT = 'Enter picks · Esc returns to the prompt · the pick fills the prompt, you press Enter to run it'
+export const HINT_TEXT = 'a digit picks · ctrl+x tab focuses the list for the arrow keys · Esc returns to the prompt'
+export const MORE_KEY = 'wf-more'
+export const OPTION_KEY_PREFIX = 'wf-opt:'
 export const NO_ROOT_TEXT = 'No .ai/workflows directory at or above the working directory; type the command in full.'
 export const NO_WORKFLOWS_TEXT = 'No workflows under .ai/workflows yet; start one with /wf intake <description>.'
 export const CLOSED_TEXT = 'Picker closed.'
