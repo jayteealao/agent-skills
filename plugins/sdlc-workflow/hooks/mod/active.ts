@@ -228,7 +228,8 @@ function tokensOf(usage: unknown): number {
     int(u['cache_read_input_tokens']) +
     int(u['cached_input_tokens']) +
     int(u['cache_creation_input_tokens']) +
-    int(u['cache_write_input_tokens'])
+    int(u['cache_write_input_tokens']) +
+    int(u['reasoning_output_tokens'])
   )
 }
 
@@ -286,7 +287,9 @@ export function driverStatusOf(key: string, beats: readonly Beat[], now: number)
   let longestGap = 0
   for (let i = 1; i < run.length; i += 1) longestGap = Math.max(longestGap, (run[i] as Beat).at - (run[i - 1] as Beat).at)
   const silence = now - last.at
-  const where = [last.stage, last.slice].filter(Boolean).join(' ')
+  // An `agent-end` row may omit the stage: the newest row of the run that names one says where.
+  const placed = [...run].reverse().find(beat => beat.stage !== null) ?? last
+  const where = [placed.stage, placed.slice].filter(Boolean).join(' ')
   if (silence > Math.max(longestGap, DEAD_FLOOR_MS)) {
     return `${key} · presumed dead since ${clockText(last.at)} · last: ${where || last.event}`
   }
@@ -339,9 +342,87 @@ export function sliceMarkOf(slice: SliceEntry): string {
   return '▰'.repeat(filled) + '▱'.repeat(3 - filled)
 }
 
-/** Open rows of a findings ledger: `status: open` rows in YAML, or unchecked markdown rows. */
+/**
+ * The items of a YAML list under a top-level key (`findings:`), each as its
+ * scalar fields; null when the text has no such list. Enough YAML for the
+ * ledgers: a list item starts with `- `, its fields are `key: value` lines
+ * indented past the dash, and nested lists are skipped.
+ */
+export function yamlListItemsOf(text: string, key: string): Array<Record<string, string>> | null {
+  const lines = text.split(/\r?\n/u)
+  const start = lines.findIndex(line => line.replace(/\s+$/u, '') === `${key}:`)
+  if (start === -1) return null
+  const items: Array<Record<string, string>> = []
+  let item: Record<string, string> | null = null
+  /** The column of the items' dashes, from the first; a deeper dash is a nested list. */
+  let itemIndent = -1
+  /** The column of the items' fields, from the first; a deeper line is nested. */
+  let fieldIndent = -1
+  for (const line of lines.slice(start + 1)) {
+    if (line.trim() === '') continue
+    if (/^\S/u.test(line)) break
+    const indent = line.length - line.trimStart().length
+    const dash = /^\s*-\s*(.*)$/u.exec(line)
+    if (dash !== null && (itemIndent === -1 || indent === itemIndent)) {
+      itemIndent = indent
+      item = {}
+      items.push(item)
+      const field = /^([\w-]+):\s*(.*)$/u.exec(dash[1] ?? '')
+      if (field !== null) {
+        fieldIndent = indent + 2
+        item[field[1] as string] = unquoted(field[2] ?? '')
+      }
+      continue
+    }
+    if (dash !== null || item === null || indent <= itemIndent) continue
+    if (fieldIndent === -1) fieldIndent = indent
+    if (indent !== fieldIndent) continue
+    const field = /^([\w-]+):\s*(.*)$/u.exec(line.trimStart())
+    if (field !== null && !((field[1] as string) in item)) item[field[1] as string] = unquoted(field[2] ?? '')
+  }
+  return items
+}
+
+function unquoted(value: string): string {
+  const trimmed = value.trim()
+  const quoted = /^"(.*)"$|^'(.*)'$/u.exec(trimmed)
+  return quoted ? (quoted[1] ?? quoted[2] ?? '').trim() : trimmed
+}
+
+/** The finding statuses a review ledger counts as open (review/_artifact.md Step 5b). */
+const OPEN_FINDING_STATUSES: ReadonlySet<string> = new Set(['open', 'deferred', 'could-not-fix'])
+
+/**
+ * Open rows of a review ledger: the `findings:` items whose status is open
+ * (absent counts as open), else, without such a list, unchecked markdown rows.
+ */
 export function openFindingsOf(text: string): number {
-  const yamlOpen = (text.match(/^\s*(?:-\s+)?status:\s*open\b/gmu) ?? []).length
-  if (yamlOpen > 0) return yamlOpen
+  const items = yamlListItemsOf(text, 'findings')
+  if (items !== null) return items.filter(item => OPEN_FINDING_STATUSES.has((item['status'] ?? 'open').toLowerCase())).length
   return (text.match(/^\s*[-*]\s+\[ \]\s/gmu) ?? []).length
+}
+
+/** Open BLOCKER and HIGH findings of `.ai/ship-plan-audit.md`: the rows its triage gate counts. */
+export function shipPlanBlockersOf(text: string): number {
+  const items = yamlListItemsOf(text, 'findings') ?? []
+  return items.filter(item => (item['status'] ?? 'open').toLowerCase() === 'open' && /^(?:BLOCKER|HIGH)$/iu.test(item['severity'] ?? '')).length
+}
+
+/**
+ * The review ledger a workflow's dashboard row reads, from the names in its
+ * directory: the sweep-level sibling YAML (`07-review.yaml`, else the selected
+ * slice's), else the last YAML by name; the markdown by the same rule when
+ * there is no YAML.
+ */
+export function reviewLedgerNameOf(names: readonly string[], selectedSlice: string | null): string | null {
+  const ledgers = names.filter(name => /^07-review.*\.(?:md|yaml)$/u.test(name)).sort()
+  for (const extension of ['yaml', 'md']) {
+    const own = ledgers.filter(name => name.endsWith(`.${extension}`))
+    if (own.length === 0) continue
+    const sweep =
+      own.find(name => name === `07-review.${extension}`) ??
+      (selectedSlice === null ? undefined : own.find(name => name === `07-review-${selectedSlice}.${extension}`))
+    return sweep ?? (own[own.length - 1] as string)
+  }
+  return null
 }

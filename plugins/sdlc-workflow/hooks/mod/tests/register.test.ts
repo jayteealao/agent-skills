@@ -31,6 +31,11 @@ const LEDGER = {
   '/work/.ai/workflows/alpha-flow/cost.jsonl':
     '{"turn":1,"key":"plan","slug":"alpha-flow","main":{"input_tokens":1000,"output_tokens":200},"subagents":[{"input_tokens":300,"output_tokens":100}]}\n{"turn":2,"main":{"input_tokens":400,"output_tokens":0}}\n',
   '/work/.ai/workflows/alpha-flow/07-review-auth.md': '- [ ] one\n- [x] two\n- [ ] three\n',
+  '/work/.ai/workflows/alpha-flow/07-review-auth.yaml':
+    'rev: 1\nfindings:\n  - id: r1\n    severity: HIGH\n    status: open\n  - id: r2\n    status: deferred\n  - id: r3\n    status: could-not-fix\n  - id: r4\n    status: fixed\ncounts:\n  open: 3\n',
+  '/work/.ai/workflows/alpha-flow/07-review-auth-security.yaml': 'findings:\n  - id: s1\n  - id: s2\n  - id: s3\n  - id: s4\n  - id: s5\n',
+  '/work/.ai/ship-plan-audit.md':
+    '---\nkind: ship-plan-audit\ntriage-status: pending\nfindings:\n  - id: a1\n    severity: BLOCKER\n  - id: a2\n    severity: HIGH\n    status: acknowledged\n  - id: a3\n    severity: LOW\n    status: open\n  - id: a4\n    severity: high\n    status: open\n---\n# Audit\n',
 }
 /** The stat mock's time for a path no write touched: before any turn starts. */
 const UNTOUCHED = -1
@@ -536,9 +541,29 @@ describe('register', () => {
     world.usd = 1.42
     await $.tool.call({ tool: 'Write', file_path: '/work/.ai/workflows/alpha-flow/05-implement-auth.md', content: 'done' })
     await $.turn.complete({ answer: 'done', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
+    expect(world.suggested).toEqual([])
+    await world.clock.advance(1)
     expect(world.suggested).toEqual(['/wf verify alpha-flow auth'])
     expect(world.toasts).toEqual([])
     expect(textOf(await $.ui.render(BAND))).toContain('$0.42 this stage')
+    await $.ui.render(SPINNER)
+    expect(wordOf(world.props)).toBe('Sauteing')
+  })
+
+  test('the dispatcher run names the turn that follows it when the turn text is the expanded skill', async ($, on) => {
+    const world = seat(on)
+    on('command.run', () => ({ text: '' }))
+    await $.session.start(SESSION)
+    await run($, 'wf', 'implement alpha-flow auth')
+    await $.turn.start({ text: 'You are the implement stage. Read 04-plan-auth.md and ...', turnId: 't9' })
+    await $.ui.render(SPINNER)
+    expect(wordOf(world.props)).toBe('Implementing auth')
+    await $.turn.complete({ answer: 'done', durationMs: 1, isAborted: false, turnId: 't9', reason: 'answer' })
+    expect(world.toasts).toEqual(['wf: implement ended without 05-implement-auth.md'])
+    // A run older than the window names nothing.
+    await run($, 'wf', 'verify alpha-flow auth')
+    await world.clock.advance(11_000)
+    await $.turn.start({ text: 'You are the verify stage ...', turnId: 't10' })
     await $.ui.render(SPINNER)
     expect(wordOf(world.props)).toBe('Sauteing')
   })
@@ -590,11 +615,23 @@ describe('register', () => {
       `{"at":"${at(clock.now() - 600_000)}","run":"r3","seq":1,"event":"start","agent":"a1","phase":"stage","stage":"implement","slice":"auth"}\n{"at":"${at(clock.now() - 120_000)}","run":"r3","seq":2,"event":"finish","agent":"a1","phase":"stage","stage":"implement","slice":"auth"}\n`
     await clock.advance(5_000)
     expect(world.statuses.at(-1)).toMatch(/^yolo · run r3 · implement auth · agent a1 · \d+ min · last beat 2 min ago$/u)
+    // The driver runs in the background: the watch outlives the turn, and a write's refresh keeps the driver line.
     await $.turn.complete({ answer: 'done', durationMs: 1, isAborted: false, turnId: 't3', reason: 'answer' })
-    delete tree['/work/.ai/workflows/alpha-flow/.driver-journal.jsonl']
+    await $.tool.call({ tool: 'Write', file_path: '/work/.ai/workflows/alpha-flow/05-implement-auth.md', content: 'x' })
+    expect(world.statuses.at(-1)).toMatch(/^yolo · run r3/u)
+    await clock.advance(5_000)
+    expect(world.statuses.at(-1)).toMatch(/last beat 2 min ago$/u)
+    // Silence past the 20-minute floor: presumed dead, one toast, and the watch stops.
+    await clock.advance(20 * 60_000)
+    expect(world.statuses.at(-1)).toMatch(/^yolo · presumed dead since \d\d:\d\d · last: implement auth$/u)
+    expect(world.toasts).toEqual([expect.stringMatching(/^wf yolo alpha-flow: driver presumed dead since/u)])
     const after = world.statuses.length
-    await clock.advance(10_000)
+    await clock.advance(60_000)
     expect(world.statuses.length).toBe(after)
+    expect(world.toasts).toHaveLength(1)
+    // The next turn hands the status line back to the strip.
+    await $.turn.start({ text: 'hello', turnId: 't4' })
+    expect(world.statuses.at(-1)).toBe('wf alpha-flow · implement · auth')
   })
 
   test('the hub line draws under the logo, and a state change is one toast', async ($, on) => {
@@ -609,6 +646,26 @@ describe('register', () => {
     world.hub = HUB_HEALTH
     await clock.advance(60_000)
     expect(world.toasts).toEqual(['sdlc hub stopped answering', 'sdlc hub is back (9.157.0)'])
+    // Off: the notice is the engine's own and the poll stops; on again: it resumes.
+    await setSetting($, 'hubNotice', false)
+    expect(textOf(await $.ui.render(NOTICE))).toBe('')
+    world.hub = null
+    await clock.advance(60_000)
+    expect(world.toasts).toHaveLength(2)
+    await setSetting($, 'hubNotice', true)
+    expect(textOf(await $.ui.render(NOTICE))).toBe('model: sonnet sdlc hub down · /wf-doctor')
+    world.hub = HUB_HEALTH
+    await clock.advance(60_000)
+    expect(world.toasts).toHaveLength(3)
+  })
+
+  test('the hub line joins one notice only, and keeps the engine\'s command', async ($, on) => {
+    seat(on)
+    await $.session.start(SESSION)
+    const first = { ...NOTICE, requestId: 'n1', props: { text: 'model: sonnet', command: '/model' } }
+    const second = { ...NOTICE, requestId: 'n2', props: { text: 'tip', command: null } }
+    expect(textOf(await $.ui.render(first))).toBe('model: sonnet /model sdlc hub 9.157.0 · 3 repos · 2 renders stale · /wf-doctor')
+    expect(textOf(await $.ui.render(second))).toBe('')
   })
 
   test('without a hub config the notice is the engine\'s own', async ($, on) => {
@@ -627,8 +684,7 @@ describe('register', () => {
     expect(pane).toContain('alpha-flow  active    implement   auth        /wf verify alpha-flow auth')
     expect(pane).toContain('beta        closed')
     expect(pane).toContain('alpha-flow slices   auth ▰▰▰ verified   ui ▱▱▱ defined')
-    expect(pane).toContain('alpha-flow open findings 2')
-    expect(pane).toContain('hub 9.157.0 ok')
+    expect(pane).toContain('alpha-flow open findings 3 · ship-plan blockers 2 · hub 9.157.0 ok')
 
     await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-dash-status:beta' })
     expect(world.filled).toEqual(['/wf status beta '])

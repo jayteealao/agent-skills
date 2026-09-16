@@ -12,7 +12,7 @@ import { findProjectRoot, frontmatterOf, joinPath, listSlices, listWorkflows, ro
 import {
   beatsOf, costTextOf, driverStatusOf, expectedArtifactOf, hubHealthOf, hubNoticeTextOf, isWorkflowPath,
   ledgerTokensOf, modeLabelOf, openFindingsOf, settingOfKey, settingsOf, slugOfPath, spinnerWordOf, statusTextOf,
-  stripTextOf, wfCommandOf,
+  reviewLedgerNameOf, shipPlanBlockersOf, stripTextOf, wfCommandOf, yamlListItemsOf,
 } from '../../../hooks/mod/active.ts';
 
 const WORKFLOWS = [
@@ -249,6 +249,7 @@ test('the strip, status, mode, and spinner texts', () => {
 test('the cost row sums the ledger tokens and formats the stage dollars', () => {
   const ledger = '{"main":{"input_tokens":1000,"output_tokens":200},"subagents":[{"input_tokens":300,"output_tokens":100}]}\nnot json\n{"main":{"cached_input_tokens":400}}\n';
   assert.equal(ledgerTokensOf(ledger), 2000);
+  assert.equal(ledgerTokensOf('{"main":{"output_tokens":10,"reasoning_output_tokens":5}}'), 15);
   assert.equal(costTextOf(0.42, 2000), '$0.42 this stage · 2k tokens workflow');
   assert.equal(costTextOf(null, 1_250_000), '1.3M tokens workflow');
   assert.equal(costTextOf(null, null), null);
@@ -284,8 +285,41 @@ test('settings come from boolean options only, and a config key names its settin
   assert.equal(settingOfKey('sdlc-workflow', 'theme'), null);
 });
 
-test('open findings count YAML open rows, else unchecked markdown rows', () => {
-  assert.equal(openFindingsOf('- id: a\n  status: open\n- id: b\n  status: cleared\n'), 1);
+test('open findings are the findings items in an open status, else unchecked markdown rows', () => {
+  assert.equal(openFindingsOf('findings:\n  - id: a\n    status: open\n  - id: b\n    status: fixed\n  - id: c\n    status: deferred\n  - id: d\ncounts:\n  open: 3\n'), 3);
   assert.equal(openFindingsOf('- [ ] one\n- [x] two\n* [ ] three\n'), 2);
+  assert.equal(openFindingsOf('findings:\n'), 0);
   assert.equal(openFindingsOf(''), 0);
+});
+
+test('yamlListItemsOf reads the scalar fields of each item under a top-level key', () => {
+  const text = 'rev: 2\nfindings:\n  - id: "a"\n    severity: HIGH\n    evidence:\n      - one\n      - two\n    status: open\n  -\n    id: b\n    status: fixed\nverdict: pass\n';
+  assert.deepEqual(yamlListItemsOf(text, 'findings'), [
+    { id: 'a', severity: 'HIGH', evidence: '', status: 'open' },
+    { id: 'b', status: 'fixed' },
+  ]);
+  assert.equal(yamlListItemsOf(text, 'counts'), null);
+});
+
+test('ship-plan blockers are the open BLOCKER and HIGH findings, as the triage gate counts them', () => {
+  const audit = '---\nfindings:\n  - id: a1\n    severity: BLOCKER\n  - id: a2\n    severity: HIGH\n    status: acknowledged\n  - id: a3\n    severity: LOW\n  - id: a4\n    severity: high\n    status: open\n---\n';
+  assert.equal(shipPlanBlockersOf(audit), 2);
+  assert.equal(shipPlanBlockersOf('# no frontmatter'), 0);
+});
+
+test('the review ledger is the sweep-level YAML, else the selected slice\'s, else the last by name, then the markdown', () => {
+  assert.equal(reviewLedgerNameOf(['07-review-auth-security.yaml', '07-review-auth.yaml', '07-review-auth.md'], 'auth'), '07-review-auth.yaml');
+  assert.equal(reviewLedgerNameOf(['07-review.yaml', '07-review-auth.yaml'], 'auth'), '07-review.yaml');
+  assert.equal(reviewLedgerNameOf(['07-review-auth-security.yaml', '07-review-ui.yaml'], null), '07-review-ui.yaml');
+  assert.equal(reviewLedgerNameOf(['07-review-auth.md', '07-review.md', '00-index.md'], null), '07-review.md');
+  assert.equal(reviewLedgerNameOf(['00-index.md'], 'auth'), null);
+});
+
+test('the driver status names the stage from the newest row that carries one', () => {
+  const at = ms => new Date(ms).toISOString();
+  const journal = [
+    { at: at(2_000_000), run: 'r2', seq: 1, event: 'agent-start', agent: 'a1', phase: 'Drive', stage: 'implement', slice: 'auth' },
+    { at: at(2_300_000), run: 'r2', seq: 1, event: 'agent-end', agent: 'a1', status: 'complete', errors: 0 },
+  ].map(row => JSON.stringify(row)).join('\n');
+  assert.equal(driverStatusOf('yolo', beatsOf(journal), 2_360_000), 'yolo · run r2 · implement auth · agent a1 · 6 min · last beat 1 min ago');
 });

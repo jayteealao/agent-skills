@@ -43,7 +43,9 @@ import {
   ledgerTokensOf,
   modeLabelOf,
   openFindingsOf,
+  reviewLedgerNameOf,
   settingOfKey,
+  shipPlanBlockersOf,
   settingsOf,
   slugOfPath,
   spinnerWordOf,
@@ -155,6 +157,11 @@ const DOCTOR_COMMAND = '/wf-doctor'
 const QUESTION_FLOOR = 20
 const HUB_DEFAULT_PORT = 48173
 const WRITE_TOOLS = ['Write', 'Edit', 'NotebookEdit'] as const
+const DRIVER_TICK_MS = 5_000
+/** How long a dispatcher run names the turn that follows it. */
+const LAST_RUN_WINDOW_MS = 10_000
+/** Keys whose turn is not a stage: no "this stage" cost. */
+const READ_ONLY_KEYS: ReadonlySet<string> = new Set(['status', 'recap'])
 
 export function register(on: On, options: PluginOptions = {}) {
   let host: Host | null = null
@@ -162,7 +169,15 @@ export function register(on: On, options: PluginOptions = {}) {
   let settings: Settings = settingsOf(options ?? {})
   let bracket: Bracket | null = null
   let driverTimer: { cancel: () => void } | null = null
+  /** The driver line the status shows while a driver is watched; null hands the line back to the strip. */
+  let driverText: string | null = null
+  /** The run a presumed-dead toast went out for, so it goes out once. */
+  let deadToastedRun: string | null = null
   let hubTimer: { cancel: () => void } | null = null
+  /** The complete `/wf` command the dispatcher last ran, for a `turn.start` whose text is the expanded skill. */
+  let lastRun: { command: WfCommand; at: number } | null = null
+  /** The InfoNotice instance the hub line joins: the first one drawn. */
+  let noticeRequestId: string | null = null
   /** The work the last row press started: a press settles once it is done. */
   let pending: Promise<void> = Promise.resolve()
   /** The rows the band had at its last draw; the focus hook pages by the same size. */
@@ -212,8 +227,23 @@ export function register(on: On, options: PluginOptions = {}) {
     await readWorkflows(engine, true)
     const workflow = activeWorkflow()
     if (workflow !== null) await readSlices(engine, workflow.slug)
-    if (model.step === null) engine.status(settings.strip && workflow !== null ? statusTextOf(workflow) : undefined)
+    if (model.step === null) drawStatus(engine)
     engine.invalidate()
+  }
+
+  /** The pinned status line: the driver's heartbeat while one is watched, else the strip's short text. */
+  function drawStatus(engine: Host): void {
+    if (driverText !== null) {
+      engine.status(driverText)
+      return
+    }
+    const workflow = activeWorkflow()
+    engine.status(settings.strip && workflow !== null ? statusTextOf(workflow) : undefined)
+  }
+
+  function stopDriver(): void {
+    driverTimer?.cancel()
+    driverTimer = null
   }
 
   /** Marks a workflow active, as a `/wf` run or a write names it. */
@@ -256,8 +286,7 @@ export function register(on: On, options: PluginOptions = {}) {
 
   function close(engine: Host): void {
     model = { ...model, step: null, filter: '', ring: null }
-    const workflow = activeWorkflow()
-    engine.status(settings.strip && workflow !== null ? statusTextOf(workflow) : undefined)
+    drawStatus(engine)
     engine.invalidate()
   }
 
@@ -370,8 +399,11 @@ export function register(on: On, options: PluginOptions = {}) {
       openPane: (id, title) => $.ui.open({ id, title }),
     }
     bracket = null
-    driverTimer?.cancel()
-    driverTimer = null
+    stopDriver()
+    driverText = null
+    deadToastedRun = null
+    lastRun = null
+    noticeRequestId = null
     hubTimer?.cancel()
     hubTimer = null
     try {
@@ -392,12 +424,11 @@ export function register(on: On, options: PluginOptions = {}) {
 
   /** Reads the hub's health once, then every minute; a change of state is one toast. */
   async function watchHub(engine: Host): Promise<void> {
+    if (hubTimer !== null) return
     const url = await hubUrl(engine)
     if (url === null) return
-    const read = async () => {
-      const text = await engine.fetchText(url)
-      return text === null ? null : hubHealthOf(text)
-    }
+    // A hub that does not answer is down, not unknown: the line says so.
+    const read = async () => hubHealthOf((await engine.fetchText(url)) ?? '')
     model = { ...model, hub: await read() }
     engine.invalidate()
     hubTimer = engine.every(60_000, () => {
@@ -433,7 +464,21 @@ export function register(on: On, options: PluginOptions = {}) {
     const name = settingOfKey(PLUGIN_NAME, e.key)
     if (name !== null && result.deny === undefined && typeof result.value === 'boolean') {
       settings = { ...settings, [name]: result.value }
-      if (host) await refreshActive(host)
+      if (host) {
+        if (name === 'hubNotice') {
+          if (result.value) await watchHub(host)
+          else {
+            hubTimer?.cancel()
+            hubTimer = null
+            model = { ...model, hub: null }
+          }
+        }
+        if (name === 'driverStatus' && !result.value) {
+          stopDriver()
+          driverText = null
+        }
+        await refreshActive(host)
+      }
     }
     return result
   })
@@ -464,7 +509,10 @@ export function register(on: On, options: PluginOptions = {}) {
       // command in the prompt box; the bare `/wf` runs as typed. A band still
       // up from an earlier pick closes either way.
       if (model.step !== null) close(engine)
-      if (key === null) return next(e)
+      if (key === null) {
+        if (named !== null) lastRun = { command: named, at: await engine.now() }
+        return next(e)
+      }
       return { text: await fill(engine, `/wf ${key} ${e.args.trim()}`.trimEnd()) }
     }
     await readWorkflows(engine, true)
@@ -538,8 +586,12 @@ export function register(on: On, options: PluginOptions = {}) {
 
   on('ui.render', { component: 'InfoNotice' }, async ($, e, next) => {
     if (!settings.hubNotice || model.hub === null || e.surface !== 'terminal') return next(e)
+    // The hub line joins one notice, the first drawn; the others stay the engine's.
+    noticeRequestId ??= e.requestId
+    if (e.requestId !== noticeRequestId) return next(e)
     const { Box, Text } = $.ui.resolve(e)
-    return noticeView({ Box, Text }, e.props.text, hubNoticeTextOf(model.hub), DOCTOR_COMMAND)
+    const engineText = e.props.command === null ? e.props.text : `${e.props.text} ${e.props.command}`
+    return noticeView({ Box, Text }, engineText, hubNoticeTextOf(model.hub), DOCTOR_COMMAND)
   })
 
   on('ui.render', { component: 'AskUserQuestion' }, async ($, e, next) => {
@@ -565,12 +617,11 @@ export function register(on: On, options: PluginOptions = {}) {
     if (model.root !== null) {
       for (const workflow of model.workflows) {
         if (workflow.terminal) continue
-        const count = await openFindingsCount(engine, model.root, workflow.slug)
+        const count = await openFindingsCount(engine, model.root, workflow)
         if (count !== null) findings.set(workflow.slug, count)
       }
       try {
-        const audit = await engine.reader.read(joinPath(model.root, '.ai', 'ship-plan-audit.md'))
-        shipPlanBlockers = (audit.match(/^\s*(?:-\s+)?severity:\s*(?:BLOCKER|HIGH)\b/gimu) ?? []).length
+        shipPlanBlockers = shipPlanBlockersOf(await engine.reader.read(joinPath(model.root, '.ai', 'ship-plan-audit.md')))
       } catch {
         shipPlanBlockers = null
       }
@@ -591,20 +642,17 @@ export function register(on: On, options: PluginOptions = {}) {
     )
   })
 
-  /** Open findings of the newest review ledger of a workflow: the sibling YAML, else the markdown. */
-  async function openFindingsCount(engine: Host, root: string, slug: string): Promise<number | null> {
-    const dir = joinPath(root, '.ai', 'workflows', slug)
+  /** Open findings of a workflow's review ledger: the sweep-level sibling YAML, else the markdown. */
+  async function openFindingsCount(engine: Host, root: string, workflow: WorkflowEntry): Promise<number | null> {
+    const dir = joinPath(root, '.ai', 'workflows', workflow.slug)
     let names: string[]
     try {
       names = (await engine.reader.list(dir)).filter(entry => entry.kind === 'file').map(entry => entry.name)
     } catch {
       return null
     }
-    const ledgers = names.filter(name => /^07-review.*\.(?:md|yaml)$/u.test(name)).sort()
-    const yaml = ledgers.filter(name => name.endsWith('.yaml')).pop()
-    const markdown = ledgers.filter(name => name.endsWith('.md')).pop()
-    const chosen = yaml ?? markdown
-    if (chosen === undefined) return null
+    const chosen = reviewLedgerNameOf(names, workflow.selectedSlice)
+    if (chosen === null) return null
     try {
       return openFindingsOf(await engine.reader.read(joinPath(dir, chosen)))
     } catch {
@@ -620,7 +668,7 @@ export function register(on: On, options: PluginOptions = {}) {
   on('tool.call', { tool: [...WRITE_TOOLS] }, async ($, e, next) => {
     const result = await next(e)
     const engine = host
-    if (!engine || model.root === null) return result
+    if (!engine || model.root === null || result.deny !== undefined || result.isError === true) return result
     const path = 'file_path' in e && typeof e.file_path === 'string' ? e.file_path : 'notebook_path' in e && typeof e.notebook_path === 'string' ? e.notebook_path : null
     if (path === null || !isWorkflowPath(model.root, path)) return result
     if (bracket !== null) bracket.writes.push(path)
@@ -639,24 +687,39 @@ export function register(on: On, options: PluginOptions = {}) {
     const engine = host
     const result = await next(e)
     if (!engine) return result
-    const command = wfCommandOf(e.text)
-    bracket = { turnId: e.turnId, startedAt: await engine.now(), command, costAtStart: await engine.costUsd(), writes: [], questions: 0 }
+    const startedAt = await engine.now()
+    // The text of a slash-command turn may be the expanded skill; the
+    // dispatcher's own run, seconds before, names the command then.
+    const typed = wfCommandOf(e.text)
+    const command = typed ?? (lastRun !== null && startedAt - lastRun.at < LAST_RUN_WINDOW_MS ? lastRun.command : null)
+    lastRun = null
+    bracket = { turnId: e.turnId, startedAt, command, costAtStart: await engine.costUsd(), writes: [], questions: 0 }
     if (command?.slug) setActive(engine, command.slug)
-    driverTimer?.cancel()
-    driverTimer = null
+    // A watched driver that ended or died hands the status line back at the next turn.
+    if (driverTimer === null && driverText !== null) {
+      driverText = null
+      drawStatus(engine)
+    }
     if (settings.driverStatus && command !== null && (command.key === 'auto' || command.key === 'yolo') && command.slug !== null) {
+      stopDriver()
+      deadToastedRun = null
       const slug = command.slug
       const key = command.key
       const tick = () => {
         void driverTick(engine, key, slug)
       }
-      driverTimer = engine.every(5_000, tick)
+      driverTimer = engine.every(DRIVER_TICK_MS, tick)
       await driverTick(engine, key, slug)
     }
     return result
   })
 
-  /** One read of the driver journal into the status line. */
+  /**
+   * One read of the driver journal into the status line. The driver runs in
+   * the background past its own turn, so the watch outlives the turn; it stops
+   * at the first presumed-dead reading, with one toast, and the line stays
+   * until the next turn starts.
+   */
   async function driverTick(engine: Host, key: string, slug: string): Promise<void> {
     if (model.root === null) return
     let text = ''
@@ -665,7 +728,17 @@ export function register(on: On, options: PluginOptions = {}) {
     } catch {
       text = ''
     }
-    engine.status(driverStatusOf(key, beatsOf(text), await engine.now()))
+    const beats = beatsOf(text)
+    driverText = driverStatusOf(key, beats, await engine.now())
+    if (model.step === null) engine.status(driverText)
+    if (driverText.includes('presumed dead')) {
+      const run = beats[beats.length - 1]?.run ?? ''
+      if (deadToastedRun !== run) {
+        deadToastedRun = run
+        engine.toast(`wf ${key} ${slug}: driver ${driverText.slice(driverText.indexOf('presumed dead'))}`)
+      }
+      stopDriver()
+    }
   }
 
   on('turn.complete', async ($, e, next) => {
@@ -673,11 +746,9 @@ export function register(on: On, options: PluginOptions = {}) {
     const engine = host
     const turn = bracket
     bracket = null
-    driverTimer?.cancel()
-    driverTimer = null
     if (!engine || turn === null) return result
     const command = turn.command
-    if (command !== null) {
+    if (command !== null && !READ_ONLY_KEYS.has(command.key)) {
       const costNow = await engine.costUsd()
       if (costNow !== null && turn.costAtStart !== null) model = { ...model, lastStageUsd: Math.max(0, costNow - turn.costAtStart) }
     }
@@ -700,11 +771,11 @@ export function register(on: On, options: PluginOptions = {}) {
     }
     // The next step, dim in the prompt box, Tab to take.
     if (settings.suggestNext && workflow !== null && !workflow.terminal && workflow.nextInvocation && turn.writes.length > 0) {
-      try {
-        await engine.suggest(workflow.nextInvocation)
-      } catch (error) {
-        engine.log(messageOf(error))
-      }
+      // Proposed once this dispatch is over: the engine drops a suggestion made while a turn runs.
+      const text = workflow.nextInvocation
+      engine.later(() => {
+        engine.suggest(text).catch(error => engine.log(messageOf(error)))
+      })
     }
     return result
   })
