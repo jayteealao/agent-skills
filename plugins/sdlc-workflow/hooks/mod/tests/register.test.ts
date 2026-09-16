@@ -3,7 +3,7 @@ import { describe, expect, mock, test, tier } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
 import { CATALOG } from '../catalog.ts'
-import { CLOSE_KEY, MORE_KEY, OPTION_KEY_PREFIX, PLUGIN_NAME } from '../names.ts'
+import { CLOSE_KEY, FILTER_KEY, MORE_KEY, OPTION_KEY_PREFIX, PLUGIN_NAME } from '../names.ts'
 
 tier('user')
 
@@ -55,11 +55,13 @@ type World = {
   registered: string[]
   filled: string[]
   logged: string[]
+  /** The element keys the ring landed on, as the chain's bottom saw them. */
+  focused: string[]
 }
 
 /** The world beneath the mod: a session in /work, the tree above, an empty band. */
 function seat(on: On, tree: Record<string, string> = TREE): World {
-  const world: World = { registered: [], filled: [], logged: [] }
+  const world: World = { registered: [], filled: [], logged: [], focused: [] }
   const dirs = new Set<string>()
   for (const file of Object.keys(tree)) {
     const parts = file.split('/')
@@ -94,6 +96,11 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
     return text === undefined ? { deny: `ENOENT: ${e.path}` } : { value: text }
   })
   on('ui.invalidate', () => ({ value: undefined }))
+  on('ui.scroll', () => ({}))
+  on('ui.focus', ($, e) => {
+    if (e.element !== undefined) world.focused.push(e.element)
+    return {}
+  })
   on('ui.status', () => ({ value: undefined }))
   on('ui.log', ($, e) => {
     world.logged.push(e.text)
@@ -115,6 +122,14 @@ const run = ($: Engine, command: string, args = '') =>
 
 /** Presses the band's row for one option value, as its digit hotkey does. */
 const pickRow = ($: Engine, value: string) => $.ui.press({ plugin: PLUGIN_NAME, key: `${OPTION_KEY_PREFIX}${value}` })
+
+/** A wheel tick over the band, or a page key while it holds the keyboard. */
+const wheel = ($: Engine, by: number) =>
+  $.ui.scroll({ component: 'AbovePrompt', requestId: 'band', offset: 0, by, bodyRows: 11, contentRows: 11, origin: { kind: 'person' } })
+
+/** The person moves the ring onto one of the mod's elements. */
+const ringTo = ($: Engine, element: string) =>
+  $.ui.focus({ component: 'AbovePrompt', requestId: 'band', plugin: PLUGIN_NAME, element, origin: { kind: 'person' } })
 
 /** The hotkey digits of the rows on screen, in draw order. */
 function hotkeysOf(node: unknown): string[] {
@@ -248,7 +263,7 @@ describe('register', () => {
     await $.session.start(SESSION)
 
     await run($, 'wf')
-    expect(hotkeysOf(await $.ui.render(BAND))).toEqual(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])
+    expect(hotkeysOf(await $.ui.render(BAND))).toEqual(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a'])
     await pickRow($, 'plan')
     expect(textOf(await $.ui.render(BAND))).toContain('/wf plan — pick a workflow')
     expect(world.filled).toEqual([])
@@ -270,7 +285,7 @@ describe('register', () => {
     expect(world.filled).toEqual(['/wf verify alpha-flow '])
   })
 
-  test('the key list pages nine rows at a time and the "more" row turns the page', async ($, on) => {
+  test('the key list pages ten rows at a time under twelve, and the "more" key turns the page', async ($, on) => {
     seat(on)
     await $.session.start(SESSION)
     await run($, 'wf')
@@ -278,14 +293,14 @@ describe('register', () => {
     const first = textOf(await $.ui.render(BAND))
     expect(first).toContain('(page 1 of 3)')
     expect(first).toContain('intake  ')
-    expect(first).toContain('ship  ')
-    expect(first).not.toContain('retro  ')
+    expect(first).toContain('retro  ')
+    expect(first).not.toContain('design  ')
     expect(first).toContain('more')
 
     await $.ui.press({ plugin: PLUGIN_NAME, key: MORE_KEY })
     const second = textOf(await $.ui.render(BAND))
     expect(second).toContain('(page 2 of 3)')
-    expect(second).toContain('retro  ')
+    expect(second).toContain('design  ')
     expect(second).not.toContain('intake  ')
 
     await $.ui.press({ plugin: PLUGIN_NAME, key: MORE_KEY })
@@ -308,6 +323,78 @@ describe('register', () => {
     const tree = await $.ui.render(short)
     expect(hotkeysOf(tree)).toEqual(['0', '1', '2', '3', '4'])
     expect(textOf(tree)).toContain('(page 1 of 6)')
+  })
+
+  test('a tall band draws every key at once: digits, then letters, and no "more" key', async ($, on) => {
+    seat(on)
+    await $.session.start(SESSION)
+    await run($, 'wf')
+    const tall = { ...BAND, props: { ...BAND.props, maxRows: 40, scroll: { offset: 0, bodyRows: 39 } } }
+    const tree = await $.ui.render(tall)
+    const keys = hotkeysOf(tree)
+    expect(keys).toHaveLength(22)
+    expect(keys.slice(0, 9)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9'])
+    expect(keys[9]).toBe('a')
+    expect(keys[21]).toBe('m')
+    expect(textOf(tree)).toContain('observability  ')
+    expect(textOf(tree)).not.toContain('(page')
+  })
+
+  test('the wheel over the band turns the page either way, and the window stays', async ($, on) => {
+    seat(on)
+    await $.session.start(SESSION)
+    await run($, 'wf')
+    expect(textOf(await $.ui.render(BAND))).toContain('(page 1 of 3)')
+
+    expect(await wheel($, 1)).toEqual({})
+    expect(textOf(await $.ui.render(BAND))).toContain('(page 2 of 3)')
+    await wheel($, 3)
+    expect(textOf(await $.ui.render(BAND))).toContain('(page 3 of 3)')
+    await wheel($, -1)
+    expect(textOf(await $.ui.render(BAND))).toContain('(page 2 of 3)')
+    await wheel($, -1)
+    await wheel($, -1)
+    expect(textOf(await $.ui.render(BAND))).toContain('(page 3 of 3)')
+  })
+
+  test('the wheel with no band up passes through', async ($, on) => {
+    seat(on)
+    await $.session.start(SESSION)
+    expect(await wheel($, 1)).toEqual({})
+    expect(textOf(await $.ui.render(BAND))).toBe('')
+  })
+
+  test('the ring past the last row lands on the next page, and before the first on the previous', async ($, on) => {
+    const world = seat(on)
+    await $.session.start(SESSION)
+    await run($, 'wf')
+    await $.ui.render(BAND)
+
+    // The ring walks the rows; nothing turns.
+    await ringTo($, `${OPTION_KEY_PREFIX}intake`)
+    await ringTo($, `${OPTION_KEY_PREFIX}shape`)
+    expect(textOf(await $.ui.render(BAND))).toContain('(page 1 of 3)')
+
+    // From the last row (retro) a move onto a title control is Tab past the end.
+    await ringTo($, `${OPTION_KEY_PREFIX}retro`)
+    world.focused.length = 0
+    await ringTo($, MORE_KEY)
+    expect(textOf(await $.ui.render(BAND))).toContain('(page 2 of 3)')
+    expect(world.focused).toEqual([`${OPTION_KEY_PREFIX}design`])
+
+    // From the first row of page 2 a move onto the field is Shift+Tab before the start.
+    await ringTo($, FILTER_KEY)
+    expect(textOf(await $.ui.render(BAND))).toContain('(page 1 of 3)')
+    expect(world.focused).toEqual([`${OPTION_KEY_PREFIX}design`, `${OPTION_KEY_PREFIX}retro`])
+
+    // On a one-page step the ring moves as the engine says.
+    await $.ui.press({ plugin: PLUGIN_NAME, key: `${OPTION_KEY_PREFIX}plan` })
+    await $.ui.render(BAND)
+    world.focused.length = 0
+    await ringTo($, `${OPTION_KEY_PREFIX}beta`)
+    await ringTo($, CLOSE_KEY)
+    expect(world.focused).toEqual([`${OPTION_KEY_PREFIX}beta`, CLOSE_KEY])
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a workflow')
   })
 
   test('a list that fits one page draws no "more" row', async ($, on) => {

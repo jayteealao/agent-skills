@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **The `/wf` picker is one list again, with wheel paging, ring-wrap paging, a filter field, and no pages on a tall band.** The terminal `Select` is a dropdown (one row and a `▾`, open only under a click), so 9.156.1 showed a closed dropdown beside nine digits. The rows are plain `Button`s again, one per option with the full label, and the `Select` is gone. The band shows every row it has room for, up to 35: digits `1`–`9` on the first nine (a digit presses from the empty prompt), letters `a`–`z` after (a letter presses while the band holds the keyboard); the 22 keys draw whole on a 24-row band, and a fullscreen bottom slot of 12 rows shows ten. When rows remain, a `ui.scroll` hook turns the page on a wheel tick over the band (no focus needed; the engine's window never moves) and on PageUp / PageDown while the band holds the keyboard; `0: more` still turns it forward. A `ui.focus` hook turns the page when the ring leaves the last row forward or the first row backward, and lands the ring on the new page's first or last row (through the chain, and once more after the dispatch when the new tree was not yet drawn). A filter `Input` in the title row takes the ring when the band takes the keyboard: typing narrows the rows to those holding every word, case-insensitively, and Enter picks the first row left. Plan and probes: `docs/internal/WF-PICKER-UX-PLAN.md`. Kit tests cover the tall band, the wheel, and the ring wrap; the harness covers `hotkeyOf` and `filterOptions`. The kit cannot type into an `Input`, so the field's wiring is covered by the live probe P5 only.
+
 ## [9.156.1] - 2026-09-16
 
 ### Fixed

@@ -4,15 +4,18 @@
  */
 export const PLUGIN_NAME = 'sdlc-workflow'
 
-/** The `Select` the band draws; `e.element` at `ui.select`. */
-export const PICK_KEY = 'wf-pick'
+/** The filter `Input` in the band's title row; `e.element` at `ui.input`. */
+export const FILTER_KEY = 'wf-filter'
 /** The `Button` that closes the band; `e.element` at `ui.press`. */
 export const CLOSE_KEY = 'wf-close'
 
 /** The names the bare dispatcher command may resolve to at `command.run`. */
 export const DISPATCHER_COMMANDS = ['wf', `${PLUGIN_NAME}:wf`] as const
 
-export const HINT_TEXT = 'a digit picks · click the list or ctrl+x tab, then arrows move and Enter picks · Esc returns to the prompt'
+/** One row at 80 columns: a longer hint wraps, and a wrapped band arms no digit. */
+export const HINT_TEXT = 'digit picks · wheel or 0 pages · ctrl+x tab: type filters, Tab moves, Enter picks · Esc'
+export const NO_MATCH_TEXT = '(nothing matches the filter)'
+export const NOTHING_TEXT = '(nothing to pick)'
 export const MORE_KEY = 'wf-more'
 export const OPTION_KEY_PREFIX = 'wf-opt:'
 export const NO_ROOT_TEXT = 'No .ai/workflows directory at or above the working directory; type the command in full.'

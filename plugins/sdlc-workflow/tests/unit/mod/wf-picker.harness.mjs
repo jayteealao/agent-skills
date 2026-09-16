@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { CATALOG, commandNameOf, keyOfCommand } from '../../../hooks/mod/catalog.ts';
-import { ALL, NONE, fillOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, titleOf } from '../../../hooks/mod/picker.ts';
+import { ALL, NONE, fillOf, filterOptions, hotkeyOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, titleOf } from '../../../hooks/mod/picker.ts';
 import { findProjectRoot, frontmatterOf, joinPath, listSlices, listWorkflows, rosterOf } from '../../../hooks/mod/workflows.ts';
 
 const WORKFLOWS = [
@@ -102,6 +102,22 @@ test('pageOf slices the options into pages that wrap, never wider than nine rows
   assert.deepEqual({ pages: one.pages, length: one.items.length }, { pages: 22, length: 1 }, 'a width below one is one');
   const empty = pageOf([], 4, 9);
   assert.deepEqual(empty, { items: [], page: 0, pages: 1 });
+});
+
+test('hotkeyOf gives the nine digits, then the letters, then nothing', () => {
+  assert.deepEqual([0, 8, 9, 34, 35].map(hotkeyOf), ['1', '9', 'a', 'z', undefined]);
+  assert.equal(hotkeyOf(-1), undefined);
+});
+
+test('filterOptions keeps the rows whose value or label holds every word, case-insensitively', () => {
+  const keys = keyOptions();
+  assert.equal(filterOptions(keys, '').length, 22, 'no text keeps every row');
+  const pl = filterOptions(keys, 'PL').map(o => o.value);
+  assert.ok(pl.includes('plan') && pl.includes('implement') && pl.includes('ship-plan'), pl.join(' '));
+  assert.ok(!pl.includes('intake') && !pl.includes('shape'), pl.join(' '));
+  assert.deepEqual(filterOptions(keys, 'ship plan').map(o => o.value), ['ship', 'ship-plan'], 'every word must match, in catalog order');
+  assert.deepEqual(filterOptions(keys, 'zzz'), []);
+  assert.equal(filterOptions(keys, 'status').length, 1, 'a word with an s inside stays one word');
 });
 
 test('frontmatterOf and rosterOf read the index and slice-roster fields', () => {

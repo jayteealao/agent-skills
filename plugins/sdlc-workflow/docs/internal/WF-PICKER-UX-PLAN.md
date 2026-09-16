@@ -1,6 +1,6 @@
 # /wf Picker UX Plan — one list, no dropdown, paging by wheel, ring wrap, and a filter
 
-Status: **DRAFTED 2026-09-16** against v9.156.1 (`73160ed2`). Nothing built.
+Status: **DRAFTED 2026-09-16** against v9.156.1 (`73160ed2`); **W1–W4 BUILT 2026-09-16** (unreleased at the time of writing). W3 took option (a): the field carries `autoFocus`. The probes P1–P6 are still open; W2 lands the ring through the chain first and asks again after the dispatch (the kit answered P4 in part: `$.ui.focus` inside a `ui.focus` dispatch has no implementation there).
 Source: the operator's screenshot of the v9.156.1 band and the Claude Code
 2.1.271 plugin contract (`.claude/types/claude-code.d.ts`, byte-identical at
 anthropics/claude-code@f96c3b4). Every claim below is tagged **contract**

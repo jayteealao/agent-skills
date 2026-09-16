@@ -147,3 +147,27 @@ export function pageOf(options: readonly Option[], page: number, size: number): 
   const index = ((page % pages) + pages) % pages
   return { items: options.slice(index * width, index * width + width), page: index, pages }
 }
+
+/** The most rows one page may hold: nine digits, then the 26 letters. */
+export const MAX_PAGE_SIZE = 35
+
+/**
+ * The hotkey of the row at `index` on its page: `1`–`9` for the first nine
+ * (a digit presses from the empty prompt), then `a`–`z` (a letter presses
+ * only while the band holds the keyboard); none past 35.
+ */
+export function hotkeyOf(index: number): string | undefined {
+  if (index < 0 || index >= MAX_PAGE_SIZE) return undefined
+  if (index < 9) return String(index + 1)
+  return String.fromCharCode('a'.charCodeAt(0) + index - 9)
+}
+
+/** The options whose value or label holds every word of `text`, case-insensitively. */
+export function filterOptions(options: readonly Option[], text: string): Option[] {
+  const words = text.trim().toLowerCase().split(/\s+/u).filter(Boolean)
+  if (words.length === 0) return [...options]
+  return options.filter(option => {
+    const haystack = `${option.value} ${option.label}`.toLowerCase()
+    return words.every(word => haystack.includes(word))
+  })
+}
