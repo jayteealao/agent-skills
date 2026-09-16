@@ -1,0 +1,252 @@
+import type { On, RenderElement, RenderInput } from 'claude-code'
+import { describe, expect, mock, test, tier } from 'claude-code/testing'
+import type { Engine } from 'claude-code/testing'
+
+import { CATALOG } from '../catalog.ts'
+import { CLOSE_KEY, PLUGIN_NAME } from '../names.ts'
+
+tier('user')
+
+const SESSION = { surface: 'terminal', isInteractive: true, cwd: '/work' } as const
+
+const BAND: RenderInput<'AbovePrompt'> = {
+  component: 'AbovePrompt',
+  surface: 'terminal',
+  requestId: 'band',
+  viewport: { columns: 120, rows: 40 },
+  props: {
+    hasSurvey: false,
+    isWorking: false,
+    maxRows: 12,
+    bodyColumns: 120,
+    scroll: { offset: 0, bodyRows: 11 },
+    view: {},
+  },
+}
+
+const PRESENTATION = { isFullscreen: false, columns: 120 } as const
+
+/** A repository with one active workflow of two slices and one closed workflow. */
+const TREE: Record<string, string> = {
+  '/work/.ai/workflows/alpha-flow/00-index.md':
+    '---\nslug: alpha-flow\nstatus: active\ncurrent-stage: implement\nselected-slice: auth\n---\n',
+  '/work/.ai/workflows/alpha-flow/03-slice.md':
+    '---\nslices:\n  - slug: auth\n    status: complete\n    complexity: s\n  - slug: ui\n    status: defined\n    complexity: m\n---\n',
+  '/work/.ai/workflows/alpha-flow/06-verify-auth.md': '',
+  '/work/.ai/workflows/beta/00-index.md': '---\nslug: beta\nstatus: closed\n---\n',
+}
+
+/** Every string in a tree, joined with spaces: what the band would show. */
+function textOf(node: unknown): string {
+  if (typeof node === 'string') return node
+  if (Array.isArray(node)) return node.map(textOf).filter(Boolean).join(' ')
+  if (node && typeof node === 'object') {
+    const record = node as { props?: Record<string, unknown>; children?: unknown }
+    const own = [record.props?.['label'], record.props?.['title']].filter(v => typeof v === 'string').join(' ')
+    const options = Array.isArray(record.props?.['options'])
+      ? (record.props?.['options'] as Array<{ label?: string; value: string }>).map(o => o.label ?? o.value).join(' ')
+      : ''
+    return [own, options, textOf(record.children ?? record.props?.['children'] ?? '')].filter(Boolean).join(' ')
+  }
+  return ''
+}
+
+type World = {
+  registered: string[]
+  filled: string[]
+  logged: string[]
+}
+
+/** The world beneath the mod: a session in /work, the tree above, an empty band. */
+function seat(on: On, tree: Record<string, string> = TREE): World {
+  const world: World = { registered: [], filled: [], logged: [] }
+  const dirs = new Set<string>()
+  for (const file of Object.keys(tree)) {
+    const parts = file.split('/')
+    for (let i = 2; i < parts.length; i += 1) dirs.add(parts.slice(0, i).join('/'))
+  }
+  // The engine resolves a path against the process's working directory before
+  // a hook sees it: on Windows "/work" arrives as "C:\work". Strip the drive.
+  const normal = (path: string) => path.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '').replace(/\/+$/, '')
+
+  mock.clock(on)
+  mock.store(on, {})
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('command.register', ($, e) => {
+    world.registered.push(e.name)
+    return { value: { command: e.name } }
+  })
+  on('fs.exists', ($, e) => ({ value: dirs.has(normal(e.path)) || normal(e.path) in tree }))
+  on('fs.list', ($, e) => {
+    const dir = normal(e.path)
+    if (!dirs.has(dir)) return { deny: `ENOENT: ${dir}` }
+    const names = new Map<string, 'file' | 'dir'>()
+    for (const file of Object.keys(tree)) {
+      if (!file.startsWith(`${dir}/`)) continue
+      const rest = file.slice(dir.length + 1)
+      const head = rest.split('/')[0] as string
+      names.set(head, rest.includes('/') ? 'dir' : 'file')
+    }
+    return { value: [...names].map(([name, kind]) => ({ name, kind, size: 0 })) }
+  })
+  on('fs.read', ($, e) => {
+    const text = tree[normal(e.path)]
+    return text === undefined ? { deny: `ENOENT: ${e.path}` } : { value: text }
+  })
+  on('ui.invalidate', () => ({ value: undefined }))
+  on('ui.status', () => ({ value: undefined }))
+  on('ui.log', ($, e) => {
+    world.logged.push(e.text)
+    return { value: undefined }
+  })
+  on('prompt.fill', ($, e) => {
+    world.filled.push(e.text)
+    return { isFilled: true }
+  })
+  on('ui.render', ($, e) => {
+    const { Box } = $.ui.resolve(e)
+    return Box({}) as RenderElement
+  })
+  return world
+}
+
+const run = ($: Engine, command: string, args = '') =>
+  $.command.run({ command, args, origin: { kind: 'composer' }, presentation: PRESENTATION })
+
+describe('register', () => {
+  test('session start registers one command per key', async ($, on) => {
+    const world = seat(on)
+    await $.session.start(SESSION)
+    expect(world.registered).toEqual(CATALOG.map(entry => `wf-${entry.key}`))
+    expect(world.registered).toHaveLength(22)
+  })
+
+  test('a bare /wf opens the key list; /wf <key> opens the workflow list', async ($, on) => {
+    seat(on)
+    await $.session.start(SESSION)
+    expect(textOf(await $.ui.render(BAND))).toBe('')
+
+    const { text } = await run($, 'wf')
+    expect(text).toContain('Pick from the list')
+    const keys = textOf(await $.ui.render(BAND))
+    expect(keys).toContain('pick a key')
+    expect(keys).toContain('plan  Plan one or more workflow slices.')
+
+    await run($, 'wf', 'plan')
+    const slugs = textOf(await $.ui.render(BAND))
+    expect(slugs).toContain('/wf plan — pick a workflow')
+    expect(slugs).toContain('alpha-flow  active · stage implement · slice auth')
+    expect(slugs).toContain('beta  closed (closed)')
+    expect(slugs.indexOf('alpha-flow')).toBeLessThan(slugs.indexOf('beta'))
+  })
+
+  test('/wf-plan lists workflows, then slices with status and stage, then fills the prompt', async ($, on) => {
+    const world = seat(on)
+    await $.session.start(SESSION)
+
+    await run($, 'wf-plan')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a workflow')
+
+    await run($, 'wf-plan', 'alpha-flow')
+    const slices = textOf(await $.ui.render(BAND))
+    expect(slices).toContain('/wf plan alpha-flow — pick a slice')
+    expect(slices).toContain('(no slice)')
+    expect(slices).toContain('all  every slice')
+    expect(slices).toContain('auth  complete · verified · s')
+    expect(slices).toContain('ui  defined · m')
+
+    await run($, 'wf-plan', 'alpha-flow auth')
+    expect(world.filled).toEqual(['/wf plan alpha-flow auth '])
+    expect(textOf(await $.ui.render(BAND))).toBe('')
+  })
+
+  test('a workflow without a roster skips the slice step', async ($, on) => {
+    const world = seat(on)
+    await $.session.start(SESSION)
+    const { text } = await run($, 'wf-verify', 'beta')
+    expect(text).toContain('Press Enter to run /wf verify beta')
+    expect(world.filled).toEqual(['/wf verify beta '])
+    expect(textOf(await $.ui.render(BAND))).toBe('')
+  })
+
+  test('a key that takes no argument fills the prompt at once', async ($, on) => {
+    const world = seat(on)
+    await $.session.start(SESSION)
+    await run($, 'wf-ship-plan')
+    expect(world.filled).toEqual(['/wf ship-plan '])
+  })
+
+  test('an optional-slug key offers "(no slug)" first', async ($, on) => {
+    const world = seat(on)
+    await $.session.start(SESSION)
+    await run($, 'wf-status')
+    const text = textOf(await $.ui.render(BAND))
+    expect(text.indexOf('(no slug)')).toBeLessThan(text.indexOf('alpha-flow'))
+    expect(world.filled).toEqual([])
+  })
+
+  test('/wf-implement with a complete argument list fills the dispatcher form', async ($, on) => {
+    const world = seat(on)
+    await $.session.start(SESSION)
+    const { text } = await run($, 'wf-implement', 'alpha-flow ui')
+    expect(text).toContain('Press Enter to run /wf implement alpha-flow ui')
+    expect(world.filled).toEqual(['/wf implement alpha-flow ui '])
+  })
+
+  test('/wf plan <slug> typed in full opens the slice step; with a slice it runs as typed', async ($, on) => {
+    const world = seat(on)
+    let ran = 0
+    on('command.run', () => {
+      ran += 1
+      return { text: 'the skill ran' }
+    })
+    await $.session.start(SESSION)
+
+    await run($, 'wf', 'plan alpha-flow')
+    expect(ran).toBe(0)
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a slice')
+
+    const { text } = await run($, 'wf', 'plan alpha-flow ui')
+    expect(text).toBe('the skill ran')
+    expect(ran).toBe(1)
+    expect(world.filled).toEqual([])
+    expect(textOf(await $.ui.render(BAND))).toBe('')
+  })
+
+  test('the close button and a submitted prompt both close the band', async ($, on) => {
+    seat(on)
+    on('prompt.submit', ($, e) => ({ text: e.text }))
+    await $.session.start(SESSION)
+
+    await run($, 'wf')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a key')
+    await $.ui.press({ plugin: PLUGIN_NAME, key: CLOSE_KEY })
+    expect(textOf(await $.ui.render(BAND))).toBe('')
+
+    await run($, 'wf')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a key')
+    await $.prompt.submit({ text: 'hello', wait: false, origin: { kind: 'composer' } })
+    expect(textOf(await $.ui.render(BAND))).toBe('')
+  })
+
+  test('without .ai/workflows the workflow step says so', async ($, on) => {
+    seat(on, {})
+    await $.session.start(SESSION)
+    await run($, 'wf-plan')
+    const text = textOf(await $.ui.render(BAND))
+    expect(text).toContain('No .ai/workflows directory')
+  })
+
+  test('a non-terminal session registers nothing and passes every command on', async ($, on) => {
+    const world = seat(on)
+    let ran = 0
+    on('command.run', () => {
+      ran += 1
+      return { text: 'passed on' }
+    })
+    await $.session.start({ surface: null, isInteractive: false, cwd: '/work' })
+    expect(world.registered).toEqual([])
+    expect(await run($, 'wf')).toEqual({ text: 'passed on' })
+    expect(ran).toBe(1)
+  })
+})

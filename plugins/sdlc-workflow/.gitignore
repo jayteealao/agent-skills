@@ -24,3 +24,7 @@ node_modules/
 
 # Behavior-eval run output (tests/evals/run.mjs); the committed baseline lives in tests/evals/baseline/.
 tests/evals/results/
+
+# The Claude Code mod under hooks/mod/ typechecks against the declarations that
+# `/plugin-types` writes to .claude/types/. They are a build input, not a source.
+.claude/types/
