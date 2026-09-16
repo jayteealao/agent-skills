@@ -12,7 +12,7 @@ export const CLOSE_KEY = 'wf-close'
 /** The names the bare dispatcher command may resolve to at `command.run`. */
 export const DISPATCHER_COMMANDS = ['wf', `${PLUGIN_NAME}:wf`] as const
 
-export const HINT_TEXT = 'a digit picks · ctrl+x tab focuses the list for the arrow keys · Esc returns to the prompt'
+export const HINT_TEXT = 'a digit picks · click the list or ctrl+x tab, then arrows move and Enter picks · Esc returns to the prompt'
 export const MORE_KEY = 'wf-more'
 export const OPTION_KEY_PREFIX = 'wf-opt:'
 export const NO_ROOT_TEXT = 'No .ai/workflows directory at or above the working directory; type the command in full.'

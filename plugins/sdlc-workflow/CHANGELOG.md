@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The `/wf` picker takes the arrow keys again.** 9.156.0 drew every row as a `Button`, and the band's focus ring did not move between Buttons on the arrows, so `ctrl+x tab` followed by an arrow did nothing. The list is a `Select` again (a click on it or `ctrl+x tab` gives it the keyboard; arrows move, Enter picks) and the digits live in a key row of plain Buttons under it (`1: intake  2: shape ...  0: more`), so a digit in the empty prompt still picks a row. Each list row carries its digit in its label. `fitPage` in `hooks/mod/views.tsx` sizes the page to the band's `maxRows` and `bodyColumns` together, so a key row that wraps on a narrow band still leaves the whole tree inside the band and the digits armed. Two more kit tests: the narrow band, and the row labels.
+
 ## [9.156.0] - 2026-09-16
 
 ### Changed

@@ -12,7 +12,8 @@ export type Step =
   | { kind: 'slug'; key: string }
   | { kind: 'slice'; key: string; slug: string }
 
-export type Option = { value: string; label: string }
+/** One row: its value, the label the list draws, and the short name the key row draws. */
+export type Option = { value: string; label: string; short: string }
 
 export type Outcome =
   | { kind: 'step'; step: Step }
@@ -64,7 +65,7 @@ export function titleOf(step: Step): string {
 
 /** The options of the key step: every key with its description. */
 export function keyOptions(): Option[] {
-  return CATALOG.map(entry => ({ value: entry.key, label: `${entry.key}  ${entry.description}` }))
+  return CATALOG.map(entry => ({ value: entry.key, label: `${entry.key}  ${entry.description}`, short: entry.key }))
 }
 
 /**
@@ -75,9 +76,9 @@ export function keyOptions(): Option[] {
 export function slugOptions(step: Extract<Step, { kind: 'slug' }>, workflows: readonly WorkflowEntry[]): Option[] {
   const entry = entryOf(step.key)
   const options: Option[] = []
-  if (entry?.need === 'slug-optional') options.push({ value: NONE, label: '(no slug)' })
+  if (entry?.need === 'slug-optional') options.push({ value: NONE, label: '(no slug)', short: 'none' })
   const ordered = [...workflows.filter(w => !w.terminal), ...workflows.filter(w => w.terminal)]
-  for (const workflow of ordered) options.push({ value: workflow.slug, label: workflowLabel(workflow) })
+  for (const workflow of ordered) options.push({ value: workflow.slug, label: workflowLabel(workflow), short: workflow.slug })
   return options
 }
 
@@ -94,9 +95,9 @@ export function workflowLabel(workflow: WorkflowEntry): string {
  */
 export function sliceOptions(step: Extract<Step, { kind: 'slice' }>, slices: readonly SliceEntry[]): Option[] {
   const entry = entryOf(step.key)
-  const options: Option[] = [{ value: NONE, label: '(no slice)' }]
-  if (entry?.need === 'slug-slice-or-all') options.push({ value: ALL, label: 'all  every slice' })
-  for (const slice of slices) options.push({ value: slice.slug, label: sliceLabel(slice) })
+  const options: Option[] = [{ value: NONE, label: '(no slice)', short: 'none' }]
+  if (entry?.need === 'slug-slice-or-all') options.push({ value: ALL, label: 'all  every slice', short: ALL })
+  for (const slice of slices) options.push({ value: slice.slug, label: sliceLabel(slice), short: slice.slug })
   return options
 }
 

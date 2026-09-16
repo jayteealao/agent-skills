@@ -29,9 +29,9 @@ import {
   RUN_TEXT,
   registerFailedTextOf,
 } from './names.ts'
-import { keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, titleOf } from './picker.ts'
+import { keyOptions, pick, sliceOptions, slugOptions, stepFor, titleOf } from './picker.ts'
 import type { Option, Step } from './picker.ts'
-import { bandView, pageSizeOf, stack } from './views.tsx'
+import { bandView, fitPage, stack } from './views.tsx'
 import { findProjectRoot, listSlices, listWorkflows } from './workflows.ts'
 import type { Reader, SliceEntry, WorkflowEntry } from './workflows.ts'
 
@@ -215,14 +215,13 @@ export function register(on: On) {
     const engine = host
     const step = model.step
     if (!engine || step === null || e.surface !== 'terminal' || e.props.hasSurvey) return below
-    const { Box, Text, Button } = $.ui.resolve(e)
+    const { Box, Text, Button, Select } = $.ui.resolve(e)
     const { options, note } = await optionsOf(engine, step)
     // Every row carries a digit hotkey, and a digit arms only while the whole
     // band fits the rows the site gives it: size the page to those rows.
-    const size = pageSizeOf(e.props.maxRows, options.length > pageSizeOf(e.props.maxRows, false))
-    const page = pageOf(options, model.page, size)
+    const page = fitPage(options, model.page, e.props.maxRows, e.props.bodyColumns)
     const band = bandView(
-      { Box, Text, Button },
+      { Box, Text, Button, Select },
       { title: titleOf(step), page, ...(note === undefined ? {} : { note }) },
       {
         pick: value => {
