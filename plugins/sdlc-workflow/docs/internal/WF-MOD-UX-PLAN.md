@@ -1,6 +1,6 @@
 # /wf Mod UX Plan — strip, next step, dashboard, and six session aids
 
-Status: **DRAFTED 2026-09-16** against v9.156.2 (`6932c2ea`). Nothing built.
+Status: **DRAFTED 2026-09-16** against v9.156.2 (`6932c2ea`); **W1–W7 BUILT 2026-09-16** (unreleased at the time of writing). Departures: the cost row shows the workflow in ledger tokens, not dollars, because `cost.jsonl` records tokens only; the pane is drawn with `userConfig` rows whose schema the validator settled (P8: `type`, `title`, `description`, `default`); P9 answered yes (`mock.clock` has `advance` and `set`); P10 taken as `status: open` rows in a sibling YAML, else unchecked markdown rows, until a live ledger says otherwise.
 Scope, as the operator chose it on 2026-09-16: candidates C1, C2, and C5 of
 [PI-SDLC-MOD-PORT-CANDIDATES.md](PI-SDLC-MOD-PORT-CANDIDATES.md), and the
 additions 1, 2, 3, 4, 6, 7, and 8 from the same conversation (the artifact

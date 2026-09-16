@@ -9,6 +9,11 @@ import { test } from 'node:test';
 import { CATALOG, commandNameOf, keyOfCommand } from '../../../hooks/mod/catalog.ts';
 import { ALL, NONE, fillOf, filterOptions, hotkeyOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, titleOf } from '../../../hooks/mod/picker.ts';
 import { findProjectRoot, frontmatterOf, joinPath, listSlices, listWorkflows, rosterOf } from '../../../hooks/mod/workflows.ts';
+import {
+  beatsOf, costTextOf, driverStatusOf, expectedArtifactOf, hubHealthOf, hubNoticeTextOf, isWorkflowPath,
+  ledgerTokensOf, modeLabelOf, openFindingsOf, settingOfKey, settingsOf, slugOfPath, spinnerWordOf, statusTextOf,
+  stripTextOf, wfCommandOf,
+} from '../../../hooks/mod/active.ts';
 
 const WORKFLOWS = [
   { slug: 'alpha', status: 'active', terminal: false, currentStage: 'plan', selectedSlice: 'auth', nextInvocation: null },
@@ -202,4 +207,85 @@ test('listSlices reads the roster and marks the furthest stage file present', as
     { slug: 'ui', status: 'defined', complexity: null, stage: 'planned' },
   ]);
   assert.deepEqual(await listSlices('/repo', 'beta', readerOf(TREE)), []);
+});
+
+test('wfCommandOf parses the dispatcher, the per-key command, and the namespaced form; unknown keys are null', () => {
+  assert.deepEqual(wfCommandOf('/wf implement alpha-flow auth'), { key: 'implement', slug: 'alpha-flow', slice: 'auth' });
+  assert.deepEqual(wfCommandOf('/wf-plan alpha-flow'), { key: 'plan', slug: 'alpha-flow', slice: null });
+  assert.deepEqual(wfCommandOf('/sdlc-workflow:wf status'), { key: 'status', slug: null, slice: null });
+  assert.equal(wfCommandOf('/wf bogus alpha'), null);
+  assert.equal(wfCommandOf('hello /wf plan'), null);
+  assert.equal(wfCommandOf('/wf'), null);
+});
+
+test('expectedArtifactOf names the stage file, or null for keys without one', () => {
+  assert.equal(expectedArtifactOf({ key: 'implement', slug: 'a', slice: 'auth' }), '05-implement-auth.md');
+  assert.equal(expectedArtifactOf({ key: 'plan', slug: 'a', slice: 'all' }), null);
+  assert.equal(expectedArtifactOf({ key: 'verify', slug: 'a', slice: null }), null);
+  assert.equal(expectedArtifactOf({ key: 'shape', slug: 'a', slice: null }), '02-shape.md');
+  assert.equal(expectedArtifactOf({ key: 'status', slug: 'a', slice: null }), null);
+});
+
+test('workflow paths are recognised on either slash and yield their slug', () => {
+  assert.ok(isWorkflowPath('C:/work', 'C:\\work\\.ai\\workflows\\alpha\\00-index.md'));
+  assert.ok(!isWorkflowPath('/work', '/work/src/a.ts'));
+  assert.equal(slugOfPath('/work', '/work/.ai/workflows/alpha/04-plan-x.md'), 'alpha');
+  assert.equal(slugOfPath('/work', '/work/.ai/workflows/INDEX.md'), null);
+});
+
+test('the strip, status, mode, and spinner texts', () => {
+  const wf = { slug: 'alpha', status: 'active', terminal: false, currentStage: 'implement', selectedSlice: 'auth', nextInvocation: '/wf verify alpha auth' };
+  const slices = [{ slug: 'auth', status: 'complete', complexity: null, stage: 'verified' }, { slug: 'ui', status: 'defined', complexity: null, stage: 'defined' }];
+  assert.equal(stripTextOf(wf, slices), 'wf alpha · implement · slice auth (1 of 2 complete) · next: /wf verify alpha auth');
+  assert.equal(stripTextOf({ ...wf, status: 'closed', terminal: true }, slices), 'wf alpha · closed (closed)');
+  assert.equal(statusTextOf(wf), 'wf alpha · implement · auth');
+  assert.equal(modeLabelOf(wf), 'wf:implement');
+  assert.equal(modeLabelOf({ ...wf, terminal: true }), null);
+  assert.equal(spinnerWordOf({ key: 'implement', slug: 'alpha', slice: 'auth' }), 'Implementing auth');
+  assert.equal(spinnerWordOf({ key: 'handoff', slug: 'alpha', slice: null }), 'Handing off alpha');
+  assert.equal(spinnerWordOf({ key: 'intake', slug: null, slice: null }), null);
+});
+
+test('the cost row sums the ledger tokens and formats the stage dollars', () => {
+  const ledger = '{"main":{"input_tokens":1000,"output_tokens":200},"subagents":[{"input_tokens":300,"output_tokens":100}]}\nnot json\n{"main":{"cached_input_tokens":400}}\n';
+  assert.equal(ledgerTokensOf(ledger), 2000);
+  assert.equal(costTextOf(0.42, 2000), '$0.42 this stage · 2k tokens workflow');
+  assert.equal(costTextOf(null, 1_250_000), '1.3M tokens workflow');
+  assert.equal(costTextOf(null, null), null);
+});
+
+test('the driver status reads the newest run and presumes death past the longest gap with a 20-minute floor', () => {
+  const at = ms => new Date(ms).toISOString();
+  const journal = [
+    { at: at(1_000_000), run: 'r1', seq: 1, event: 'start', agent: 'a0', phase: 'p', stage: 'plan', slice: 'x' },
+    { at: at(2_000_000), run: 'r2', seq: 1, event: 'start', agent: 'a1', phase: 'p', stage: 'implement', slice: 'auth' },
+    { at: at(2_300_000), run: 'r2', seq: 2, event: 'finish', agent: 'a1', phase: 'p', stage: 'implement', slice: 'auth' },
+  ].map(row => JSON.stringify(row)).join('\n');
+  const beats = beatsOf(journal);
+  assert.equal(beats.length, 3);
+  assert.equal(driverStatusOf('yolo', beats, 2_360_000), 'yolo · run r2 · implement auth · agent a1 · 6 min · last beat 1 min ago');
+  assert.match(driverStatusOf('yolo', beats, 2_300_000 + 21 * 60_000), /^yolo · presumed dead since \d\d:\d\d · last: implement auth$/);
+  assert.equal(driverStatusOf('auto', [], 0), 'auto · no driver journal');
+});
+
+test('the hub notice reads the health answer', () => {
+  const health = hubHealthOf('{"ok":true,"version":"9.157.0","entries":[{"stale":false},{"stale":true}]}');
+  assert.deepEqual(health, { version: '9.157.0', repos: 2, stale: 1, ok: true });
+  assert.equal(hubNoticeTextOf(health), 'sdlc hub 9.157.0 · 2 repos · 1 renders stale');
+  assert.equal(hubNoticeTextOf(hubHealthOf('nope')), 'sdlc hub down');
+  assert.equal(hubNoticeTextOf(null), 'sdlc hub down');
+});
+
+test('settings come from boolean options only, and a config key names its setting', () => {
+  assert.equal(settingsOf({ strip: false, cost: 'no', other: true }).strip, false);
+  assert.equal(settingsOf({ cost: 'no' }).cost, true);
+  assert.equal(settingOfKey('sdlc-workflow', 'sdlc-workflow.hubNotice'), 'hubNotice');
+  assert.equal(settingOfKey('sdlc-workflow', 'sdlc-workflow.bogus'), null);
+  assert.equal(settingOfKey('sdlc-workflow', 'theme'), null);
+});
+
+test('open findings count YAML open rows, else unchecked markdown rows', () => {
+  assert.equal(openFindingsOf('- id: a\n  status: open\n- id: b\n  status: cleared\n'), 1);
+  assert.equal(openFindingsOf('- [ ] one\n- [x] two\n* [ ] three\n'), 2);
+  assert.equal(openFindingsOf(''), 0);
 });
