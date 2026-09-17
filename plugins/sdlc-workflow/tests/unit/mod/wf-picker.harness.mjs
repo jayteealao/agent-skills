@@ -12,7 +12,7 @@ import { findProjectRoot, frontmatterOf, joinPath, listSlices, listWorkflows, ro
 import {
   beatsOf, costTextOf, driverStatusOf, expectedArtifactOf, hubHealthOf, hubNoticeTextOf, isWorkflowPath,
   ledgerTokensOf, modeLabelOf, openFindingsOf, settingOfKey, settingsOf, slugOfPath, spinnerWordOf, statusTextOf,
-  reviewLedgerNameOf, shipPlanBlockersOf, stripTextOf, wfCommandOf, yamlListItemsOf,
+  nextActiveSlug, reviewLedgerNameOf, shipPlanBlockersOf, stripTextOf, wfCommandOf, wrappedRowsOf, yamlListItemsOf,
 } from '../../../hooks/mod/active.ts';
 
 const WORKFLOWS = [
@@ -238,7 +238,17 @@ test('the strip, status, mode, and spinner texts', () => {
   const slices = [{ slug: 'auth', status: 'complete', complexity: null, stage: 'verified' }, { slug: 'ui', status: 'defined', complexity: null, stage: 'defined' }];
   assert.equal(stripTextOf(wf, slices), 'wf alpha · implement · slice auth (1 of 2 complete) · next: /wf verify alpha auth');
   assert.equal(stripTextOf({ ...wf, status: 'closed', terminal: true }, slices), 'wf alpha · closed (closed)');
-  assert.equal(statusTextOf(wf), 'wf alpha · implement · auth');
+  assert.equal(statusTextOf(wf), 'next /wf verify alpha auth');
+  assert.equal(statusTextOf(wf, 0.5, { version: '9.157.0', repos: 1, stale: 0, ok: true }), 'next /wf verify alpha auth · $0.50 stage · hub 9.157.0');
+  assert.equal(statusTextOf({ ...wf, nextInvocation: null }, null, { version: null, repos: null, stale: null, ok: false }), 'wf alpha · implement · auth · hub down');
+  assert.equal(statusTextOf({ ...wf, terminal: true, status: 'closed' }), 'wf alpha · closed');
+  assert.equal(nextActiveSlug(WORKFLOWS, 'alpha'), 'gamma');
+  assert.equal(nextActiveSlug(WORKFLOWS, 'gamma'), 'alpha');
+  assert.equal(nextActiveSlug(WORKFLOWS, null), 'alpha');
+  assert.equal(nextActiveSlug([WORKFLOWS[0]], 'alpha'), 'alpha');
+  assert.equal(nextActiveSlug([WORKFLOWS[1]], null), null);
+  assert.equal(wrappedRowsOf('', 80), 1);
+  assert.equal(wrappedRowsOf('x'.repeat(81), 80), 2);
   assert.equal(modeLabelOf(wf), 'wf:implement');
   assert.equal(modeLabelOf({ ...wf, terminal: true }), null);
   assert.equal(spinnerWordOf({ key: 'implement', slug: 'alpha', slice: 'auth' }), 'Implementing auth');
@@ -253,6 +263,7 @@ test('the cost row sums the ledger tokens and formats the stage dollars', () => 
   assert.equal(costTextOf(0.42, 2000), '$0.42 this stage · 2k tokens workflow');
   assert.equal(costTextOf(null, 1_250_000), '1.3M tokens workflow');
   assert.equal(costTextOf(null, null), null);
+  assert.equal(costTextOf(null, null, { version: '9.157.0', repos: 2, stale: 0, ok: true }), 'sdlc hub 9.157.0 · 2 repos');
 });
 
 test('the driver status reads the newest run and presumes death past the longest gap with a 20-minute floor', () => {

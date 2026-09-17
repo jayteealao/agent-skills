@@ -37,6 +37,8 @@ const LEDGER = {
   '/work/.ai/ship-plan-audit.md':
     '---\nkind: ship-plan-audit\ntriage-status: pending\nfindings:\n  - id: a1\n    severity: BLOCKER\n  - id: a2\n    severity: HIGH\n    status: acknowledged\n  - id: a3\n    severity: LOW\n    status: open\n  - id: a4\n    severity: high\n    status: open\n---\n# Audit\n',
 }
+/** The hub config the hub tests add; without it the strip has no hub row and the picker tests keep a one-row strip. */
+const HUB_CONFIG = { '/home/.sdlc/hub-config.json': '{"version":1,"host":"127.0.0.1","port":48173}' }
 /** The stat mock's time for a path no write touched: before any turn starts. */
 const UNTOUCHED = -1
 
@@ -44,7 +46,6 @@ const UNTOUCHED = -1
 const TREE: Record<string, string> = {
   '/work/.ai/workflows/alpha-flow/00-index.md':
     '---\nslug: alpha-flow\nstatus: active\ncurrent-stage: implement\nselected-slice: auth\nnext-invocation: /wf verify alpha-flow auth\n---\n',
-  '/home/.sdlc/hub-config.json': '{"version":1,"host":"127.0.0.1","port":48173}',
   '/work/.ai/workflows/alpha-flow/03-slice.md':
     '---\nslices:\n  - slug: auth\n    status: complete\n    complexity: s\n  - slug: ui\n    status: defined\n    complexity: m\n---\n',
   '/work/.ai/workflows/alpha-flow/06-verify-auth.md': '',
@@ -229,7 +230,7 @@ describe('register', () => {
     const world = seat(on)
     await $.session.start(SESSION)
     expect(world.registered.slice(0, 22)).toEqual(CATALOG.map(entry => `wf-${entry.key}`))
-    expect(world.registered).toEqual([...CATALOG.map(entry => `wf-${entry.key}`), 'wf-dashboard'])
+    expect(world.registered).toEqual([...CATALOG.map(entry => `wf-${entry.key}`), 'wf-dashboard', 'wf-active'])
   })
 
   test('a bare /wf opens the key list; /wf <key> opens the workflow list', async ($, on) => {
@@ -498,16 +499,43 @@ describe('register', () => {
   })
 
   test('the strip shows the newest workflow with its stage, slice count, next step, and cost', async ($, on) => {
-    const world = seat(on, { ...TREE, ...LEDGER })
+    const world = seat(on, { ...TREE, ...HUB_CONFIG, ...LEDGER })
     world.mtimes.set('/work/.ai/workflows/alpha-flow/00-index.md', 5_000_000)
     await $.session.start(SESSION)
     const text = textOf(await $.ui.render(BAND))
     expect(text).toContain('wf alpha-flow · implement · slice auth (1 of 2 complete) · next: /wf verify alpha-flow auth')
-    expect(text).toContain('2k tokens workflow')
+    expect(text).toContain('2k tokens workflow · sdlc hub 9.157.0 · 3 repos · 2 renders stale')
     expect(text).not.toContain('this stage')
-    expect(world.statuses.at(-1)).toBe('wf alpha-flow · implement · auth')
+    expect(world.statuses.at(-1)).toBe('next /wf verify alpha-flow auth · hub 9.157.0')
     await $.ui.render(MODE)
     expect(modesOf(world.props)).toEqual(['focus', 'wf:implement'])
+  })
+
+  test('the rotate button and /wf-active walk the active workflows; the strip wraps to the band width', async ($, on) => {
+    const world = seat(on, {
+      ...TREE,
+      ...HUB_CONFIG,
+      '/work/.ai/workflows/gamma/00-index.md': '---\nslug: gamma\nstatus: active\ncurrent-stage: plan\nselected-slice: core\nnext-invocation: /wf implement gamma core\n---\n',
+    })
+    world.mtimes.set('/work/.ai/workflows/alpha-flow/00-index.md', 5_000_000)
+    await $.session.start(SESSION)
+    let text = textOf(await $.ui.render(BAND))
+    expect(text).toContain('wf alpha-flow · implement')
+    expect(text).toContain('⇄ 1 more')
+    await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-strip-rotate' })
+    text = textOf(await $.ui.render(BAND))
+    expect(text).toContain('wf gamma · plan · slice core')
+    expect(world.statuses.at(-1)).toBe('next /wf implement gamma core · hub 9.157.0')
+    await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-strip-rotate' })
+    expect(textOf(await $.ui.render(BAND))).toContain('wf alpha-flow · implement')
+    const { text: said } = await run($, 'wf-active', 'gamma')
+    expect(said).toBe('The strip shows gamma.')
+    expect(textOf(await $.ui.render(BAND))).toContain('wf gamma')
+    expect((await run($, 'wf-active', 'nope')).text).toContain('No workflow named nope')
+    // A narrow band: the strip takes more rows and the key list pages fewer.
+    const narrow = { ...BAND, props: { ...BAND.props, bodyColumns: 40, maxRows: 12 } }
+    await run($, 'wf')
+    expect(hotkeysOf(await $.ui.render(narrow)).length).toBeLessThan(hotkeysOf(await $.ui.render(BAND)).length)
   })
 
   test('a /wf run names the active workflow, and the strip draws under the picker', async ($, on) => {
@@ -533,7 +561,7 @@ describe('register', () => {
   })
 
   test('a stage turn that writes its artifact suggests the next step, charges the stage, and names the spinner', async ($, on) => {
-    const world = seat(on)
+    const world = seat(on, { ...TREE, ...HUB_CONFIG })
     await $.session.start(SESSION)
     await $.turn.start({ text: '/wf implement alpha-flow auth', turnId: 't1' })
     await $.ui.render(SPINNER)
@@ -546,6 +574,7 @@ describe('register', () => {
     expect(world.suggested).toEqual(['/wf verify alpha-flow auth'])
     expect(world.toasts).toEqual([])
     expect(textOf(await $.ui.render(BAND))).toContain('$0.42 this stage')
+    expect(world.statuses.at(-1)).toBe('next /wf verify alpha-flow auth · $0.42 stage · hub 9.157.0')
     await $.ui.render(SPINNER)
     expect(wordOf(world.props)).toBe('Sauteing')
   })
@@ -603,7 +632,7 @@ describe('register', () => {
   })
 
   test('the driver status follows the heartbeat journal during a yolo turn', async ($, on) => {
-    const tree: Record<string, string> = { ...TREE }
+    const tree: Record<string, string> = { ...TREE, ...HUB_CONFIG }
     const world = seat(on, tree)
     const clock = world.clock
     await clock.set(10_000_000)
@@ -631,11 +660,11 @@ describe('register', () => {
     expect(world.toasts).toHaveLength(1)
     // The next turn hands the status line back to the strip.
     await $.turn.start({ text: 'hello', turnId: 't4' })
-    expect(world.statuses.at(-1)).toBe('wf alpha-flow · implement · auth')
+    expect(world.statuses.at(-1)).toBe('next /wf verify alpha-flow auth · $0.00 stage · hub 9.157.0')
   })
 
   test('the hub line draws under the logo, and a state change is one toast', async ($, on) => {
-    const world = seat(on)
+    const world = seat(on, { ...TREE, ...HUB_CONFIG })
     const clock = world.clock
     await $.session.start(SESSION)
     expect(textOf(await $.ui.render(NOTICE))).toBe('model: sonnet sdlc hub 9.157.0 · 3 repos · 2 renders stale · /wf-doctor')
@@ -660,7 +689,7 @@ describe('register', () => {
   })
 
   test('the hub line joins one notice only, and keeps the engine\'s command', async ($, on) => {
-    seat(on)
+    seat(on, { ...TREE, ...HUB_CONFIG })
     await $.session.start(SESSION)
     const first = { ...NOTICE, requestId: 'n1', props: { text: 'model: sonnet', command: '/model' } }
     const second = { ...NOTICE, requestId: 'n2', props: { text: 'tip', command: null } }
@@ -675,7 +704,7 @@ describe('register', () => {
   })
 
   test('/wf-dashboard opens the pane; its rows fill a status command or open the picker', async ($, on) => {
-    const world = seat(on, { ...TREE, ...LEDGER })
+    const world = seat(on, { ...TREE, ...HUB_CONFIG, ...LEDGER })
     await $.session.start(SESSION)
     const { text } = await run($, 'wf-dashboard')
     expect(text).toContain('dashboard is open')

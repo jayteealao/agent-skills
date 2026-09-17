@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **The strip after the first live test** (MOD-FEATURES.md §5). The workflow row wraps to the band's width instead of truncating, and carries a `⇄ N more` button that walks the other active workflows; `/wf-active [slug]` does the same from the prompt. The pinned status line no longer repeats the strip: it reads `next /wf verify alpha-flow auth · $0.42 stage · hub 9.157.0`, the three things the strip's identity row does not show, so it stays useful while the plugin panel is hidden. The hub joins the strip's dim detail row (`… · sdlc hub 9.157.0 · 15 repos`), because a session with no engine notice under the logo draws no `InfoNotice` for the hub line to join. `scripts/mod-fixture.mjs <dir>` writes a throwaway repository (two workflows, a roster, a cost ledger, a review ledger pair, a driver journal, a ship-plan audit) for live tests away from real projects.
+
 ## [9.157.0] - 2026-09-16
 
 ### Added

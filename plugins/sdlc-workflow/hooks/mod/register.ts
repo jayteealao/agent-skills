@@ -40,6 +40,7 @@ import {
   hubHealthOf,
   hubNoticeTextOf,
   isWorkflowPath,
+  nextActiveSlug,
   ledgerTokensOf,
   modeLabelOf,
   openFindingsOf,
@@ -69,7 +70,8 @@ import {
 } from './names.ts'
 import { filterOptions, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, titleOf } from './picker.ts'
 import type { Option, Step } from './picker.ts'
-import { PICK_KEY_PREFIX, STATUS_KEY_PREFIX, dashboardView, noticeView, stripRows, stripView } from './strip.tsx'
+import { PICK_KEY_PREFIX, ROTATE_KEY, STATUS_KEY_PREFIX, dashboardView, noticeView, stripRows, stripView } from './strip.tsx'
+import type { StripModel } from './strip.tsx'
 import { bandView, pageSizeOf, rowKeyOf, stack } from './views.tsx'
 import { findProjectRoot, joinPath, listSlices, listWorkflows } from './workflows.ts'
 import type { Reader, SliceEntry, WorkflowEntry } from './workflows.ts'
@@ -152,6 +154,7 @@ const EMPTY: Model = {
 }
 
 const DASHBOARD_COMMAND = 'wf-dashboard'
+const ACTIVE_COMMAND = 'wf-active'
 const DASHBOARD_PANE = 'wf-dashboard'
 const DOCTOR_COMMAND = '/wf-doctor'
 const QUESTION_FLOOR = 20
@@ -238,7 +241,7 @@ export function register(on: On, options: PluginOptions = {}) {
       return
     }
     const workflow = activeWorkflow()
-    engine.status(settings.strip && workflow !== null ? statusTextOf(workflow) : undefined)
+    engine.status(settings.strip && workflow !== null ? statusTextOf(workflow, settings.cost ? model.lastStageUsd : null, settings.hubNotice ? model.hub : null) : undefined)
   }
 
   function stopDriver(): void {
@@ -254,24 +257,32 @@ export function register(on: On, options: PluginOptions = {}) {
   }
 
   /** The strip's rows for the active workflow, or null when nothing is active. */
-  async function stripOf(engine: Host): Promise<{ text: string; cost: string | null } | null> {
+  async function stripOf(engine: Host, columns: number): Promise<StripModel | null> {
     if (!settings.strip) return null
     const workflow = activeWorkflow()
     if (workflow === null) return null
     const slices = await readSlices(engine, workflow.slug)
-    let cost: string | null = null
-    if (settings.cost) {
-      let tokens: number | null = null
-      if (model.root !== null) {
-        try {
-          tokens = ledgerTokensOf(await engine.reader.read(joinPath(model.root, '.ai', 'workflows', workflow.slug, 'cost.jsonl')))
-        } catch {
-          tokens = null
-        }
+    let tokens: number | null = null
+    if (settings.cost && model.root !== null) {
+      try {
+        tokens = ledgerTokensOf(await engine.reader.read(joinPath(model.root, '.ai', 'workflows', workflow.slug, 'cost.jsonl')))
+      } catch {
+        tokens = null
       }
-      cost = costTextOf(model.lastStageUsd, tokens)
     }
-    return { text: stripTextOf(workflow, slices), cost }
+    const detail = costTextOf(settings.cost ? model.lastStageUsd : null, tokens, settings.hubNotice ? model.hub : null)
+    const others = model.workflows.filter(w => !w.terminal && w.slug !== workflow.slug).length
+    return { text: stripTextOf(workflow, slices), detail, others, columns }
+  }
+
+  /** The rotate button and `/wf-active`: the next active workflow by slug, or the named one. */
+  async function rotateActive(engine: Host, slug: string | null): Promise<void> {
+    const target = slug ?? nextActiveSlug(model.workflows, model.active)
+    if (target === null || !model.workflows.some(w => w.slug === target)) return
+    model = { ...model, active: target }
+    await readSlices(engine, target)
+    if (model.step === null) drawStatus(engine)
+    engine.invalidate()
   }
 
   async function readSlices(engine: Host, slug: string): Promise<SliceEntry[]> {
@@ -413,6 +424,11 @@ export function register(on: On, options: PluginOptions = {}) {
       } catch (error) {
         engine.log(registerFailedTextOf(DASHBOARD_COMMAND, messageOf(error)))
       }
+      try {
+        await engine.registerCommand({ name: ACTIVE_COMMAND, description: 'Show the named workflow in the strip, or the next active one.', argumentHint: '[slug]' })
+      } catch (error) {
+        engine.log(registerFailedTextOf(ACTIVE_COMMAND, messageOf(error)))
+      }
       host = engine
       await refreshActive(engine)
       if (settings.hubNotice) await watchHub(engine)
@@ -430,13 +446,17 @@ export function register(on: On, options: PluginOptions = {}) {
     // A hub that does not answer is down, not unknown: the line says so.
     const read = async () => hubHealthOf((await engine.fetchText(url)) ?? '')
     model = { ...model, hub: await read() }
+    if (model.step === null) drawStatus(engine)
     engine.invalidate()
     hubTimer = engine.every(60_000, () => {
       void read().then(health => {
         const wasUp = model.hub?.ok === true
         const isUp = health?.ok === true
         model = { ...model, hub: health }
-        if (wasUp !== isUp) engine.toast(isUp ? `sdlc hub is back (${health?.version ?? '?'})` : 'sdlc hub stopped answering')
+        if (wasUp === isUp) return
+        engine.toast(isUp ? `sdlc hub is back (${health?.version ?? '?'})` : 'sdlc hub stopped answering')
+        if (model.step === null) drawStatus(engine)
+        engine.invalidate()
       })
     })
   }
@@ -494,6 +514,13 @@ export function register(on: On, options: PluginOptions = {}) {
       await engine.openPane(DASHBOARD_PANE, 'sdlc workflows')
       return { text: 'The workflows dashboard is open above the prompt (docked in fullscreen); ctrl+x x closes it.' }
     }
+    if (e.command === ACTIVE_COMMAND || e.command === `${PLUGIN_NAME}:${ACTIVE_COMMAND}`) {
+      await readWorkflows(engine, true)
+      const slug = e.args.trim() === '' ? null : e.args.trim()
+      if (slug !== null && !model.workflows.some(w => w.slug === slug)) return { text: `No workflow named ${slug} under .ai/workflows.` }
+      await rotateActive(engine, slug)
+      return { text: model.active === null ? 'No active workflow.' : `The strip shows ${model.active}.` }
+    }
     const isOwn = commandNames.includes(e.command)
     if (!isOwn) {
       // Another command while the band is up closes it.
@@ -536,9 +563,11 @@ export function register(on: On, options: PluginOptions = {}) {
     const step = model.step
     if (!engine || e.surface !== 'terminal' || e.props.hasSurvey) return below
     const { Box, Text, Button, Input } = $.ui.resolve(e)
-    const strip = await stripOf(engine)
-    const stripTree = strip === null ? null : stripView({ Box, Text, Button }, strip.text, strip.cost)
-    const stripHeight = strip === null ? 0 : stripRows(strip.cost)
+    const strip = await stripOf(engine, e.props.bodyColumns)
+    const stripTree = strip === null ? null : stripView({ Box, Text, Button }, strip, () => {
+      pending = rotateActive(engine, null).catch(error => engine.log(messageOf(error)))
+    })
+    const stripHeight = strip === null ? 0 : stripRows(strip)
     if (step === null) return stripTree === null ? below : stack(Box, below, stripTree)
     ringMaxRows = e.props.maxRows - stripHeight
     const { options, note } = await rowsOf(engine, step)

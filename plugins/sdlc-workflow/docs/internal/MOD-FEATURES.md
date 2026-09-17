@@ -76,12 +76,17 @@ from the prompt.
 
 ### 3.2 The workflow strip, status line, and mode label (`strip`)
 
-Under the picker (or alone) one row: `wf alpha-flow · implement · slice auth
-(2 of 5 complete) · next: /wf verify alpha-flow auth`. The same text,
-shortened (`wf alpha-flow · implement · auth`), is the plugin's pinned status
-line (`$.ui.status`), and `wf:<stage>` joins the footer's mode labels
-(`ui.render { component: 'SessionMode' }`, `modes` rewritten). A closed
-workflow reads `wf beta · closed (closed)` and adds no mode label.
+Under the picker (or alone) one row, wrapped to the band's width: `wf
+alpha-flow · implement · slice auth (2 of 5 complete) · next: /wf verify
+alpha-flow auth`, with a `⇄ N more` button that walks the other active
+workflows by slug (`/wf-active [slug]` does the same from the prompt). The
+pinned status line (`$.ui.status`) carries what the strip does not: `next
+/wf verify alpha-flow auth · $0.42 stage · hub 9.157.0`, so it stays useful
+while the plugin panel is hidden (`ctrl+x ctrl+a`). `wf:<stage>` joins the
+footer's mode labels (`ui.render { component: 'SessionMode' }`, `modes`
+rewritten). A closed workflow reads `wf beta · closed (closed)` and adds no
+mode label. The strip's height at the band's width is subtracted from the
+picker's page size.
 
 The active workflow is the last one a `/wf` run or a `/wf` prompt named,
 else the one whose `00-index.md` has the newest modification time
@@ -91,7 +96,9 @@ refreshes the tree after every write under `.ai/workflows` (after
 
 ### 3.3 The cost row (`cost`)
 
-A dim second row: `$0.42 this stage · 1.2M tokens workflow`. The stage
+A dim second row: `$0.42 this stage · 1.2M tokens workflow · sdlc hub
+9.157.0 · 15 repos`. The row is absent only when none of the three is known;
+a workflow without `cost.jsonl` shows no token figure. The stage
 figure is the session cost difference (`$.session.usage().cost.usd`) across
 the last `/wf` turn that was not `status` or `recap`; the workflow figure is
 the sum of `cost.jsonl` (main and subagent rows; Claude and Codex token
@@ -201,7 +208,31 @@ with severity BLOCKER or HIGH and status open.
   call; a rewritten render's props are read back through a bottom
   `ui.render` hook, not from the returned tree.
 
-## 5. Not verified live
+## 5. Live findings and what is still open
+
+First live test, 2026-09-17, Claude Code 2.1.273, the Aperture repository:
+
+- The band can be hidden (`plugin panel hidden · ctrl+x ctrl+a or click to
+  show`); while hidden the strip is invisible and only the status line and
+  the mode label remain. The status line therefore carries the next step,
+  the stage cost, and the hub, not the strip's identity row.
+- The strip truncated at the band's width; it now wraps, and the rotate
+  button walks the active workflows.
+- No line appeared under the logo: a session with no engine notice draws no
+  `InfoNotice`, so the hub line had nothing to join. The hub is now in the
+  strip's detail row too; the `InfoNotice` hook stays for sessions that
+  have a notice.
+- No cost row: none of Aperture's workflows has a `cost.jsonl`, so the
+  ledger figure was null and the stage figure needs one `/wf` turn first.
+- The status line is drawn with a warning glyph (`⚠`) by the engine; a
+  plugin status line has no level of its own.
+- `ctrl+x tab` to focus the band is the engine's `abovePrompt:focus`
+  chord; `~/.claude/keybindings.json` can rebind it (for example `ctrl+f`
+  in the `Chat` context).
+- `scripts/mod-fixture.mjs <dir>` writes a throwaway repository for the
+  tests below; run them there, not on a live project.
+
+Still open:
 
 1. The `userConfig` rows in `/config`.
 2. The pane's draw, and its width behaviour under 144 columns.

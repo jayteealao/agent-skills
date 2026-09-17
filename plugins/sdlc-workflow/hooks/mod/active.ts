@@ -152,15 +152,38 @@ export function stripTextOf(workflow: WorkflowEntry, slices: readonly SliceEntry
   return parts.join(' · ')
 }
 
-/** The pinned status line: the strip's slug, stage, and slice only. */
-export function statusTextOf(workflow: WorkflowEntry): string {
-  const parts = [`wf ${workflow.slug}`]
-  if (workflow.terminal) parts.push('closed')
-  else {
-    if (workflow.currentStage) parts.push(workflow.currentStage)
-    if (workflow.selectedSlice) parts.push(workflow.selectedSlice)
-  }
+/**
+ * The pinned status line, the one row that stays when the band is hidden:
+ * the next invocation (the strip's identity and roster are not repeated),
+ * the last stage's dollars, and the hub in short.
+ */
+export function statusTextOf(workflow: WorkflowEntry, stageUsd: number | null = null, hub: HubHealth | null = null): string {
+  const parts: string[] = []
+  if (workflow.terminal) parts.push(`wf ${workflow.slug} · closed`)
+  else if (workflow.nextInvocation) parts.push(`next ${workflow.nextInvocation}`)
+  else parts.push([`wf ${workflow.slug}`, workflow.currentStage, workflow.selectedSlice].filter(Boolean).join(' · '))
+  if (stageUsd !== null) parts.push(`$${stageUsd.toFixed(2)} stage`)
+  if (hub !== null) parts.push(hubShortTextOf(hub))
   return parts.join(' · ')
+}
+
+/** `hub 9.157.0` or `hub down`, for the rows that have no room for the notice. */
+export function hubShortTextOf(hub: HubHealth): string {
+  return hub.ok ? `hub ${hub.version ?? '?'}` : 'hub down'
+}
+
+/** The workflows the strip rotates through: the active ones by slug, in a ring. */
+export function nextActiveSlug(workflows: readonly WorkflowEntry[], current: string | null): string | null {
+  const ring = workflows.filter(w => !w.terminal).map(w => w.slug).sort()
+  if (ring.length === 0) return null
+  const at = current === null ? -1 : ring.indexOf(current)
+  return ring[(at + 1) % ring.length] ?? null
+}
+
+/** Rows a text takes when wrapped into `columns` cells (one at least). */
+export function wrappedRowsOf(text: string, columns: number): number {
+  const width = Math.max(1, columns)
+  return Math.max(1, Math.ceil(text.length / width))
 }
 
 /** The footer mode label for a workflow, or null for a closed one. */
@@ -240,11 +263,12 @@ export function tokensText(count: number): string {
   return String(count)
 }
 
-/** The strip's cost row: the last stage in dollars and the workflow in ledger tokens. */
-export function costTextOf(stageUsd: number | null, ledgerTokens: number | null): string | null {
+/** The strip's detail row: the last stage in dollars, the workflow in ledger tokens, and the hub. */
+export function costTextOf(stageUsd: number | null, ledgerTokens: number | null, hub: HubHealth | null = null): string | null {
   const parts: string[] = []
   if (stageUsd !== null) parts.push(`$${stageUsd.toFixed(2)} this stage`)
   if (ledgerTokens !== null) parts.push(`${tokensText(ledgerTokens)} tokens workflow`)
+  if (hub !== null) parts.push(hubNoticeTextOf(hub))
   return parts.length === 0 ? null : parts.join(' · ')
 }
 

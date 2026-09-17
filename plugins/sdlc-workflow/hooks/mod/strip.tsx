@@ -3,29 +3,46 @@
 /* @jsxFrag Fragment */
 import type { ElementTable, RenderElement } from 'claude-code'
 
-import { sliceMarkOf } from './active.ts'
+import { sliceMarkOf, wrappedRowsOf } from './active.ts'
 import type { SliceEntry, WorkflowEntry } from './workflows.ts'
 
 export type StripUi = Pick<ElementTable<'terminal'>, 'Box' | 'Text' | 'Button'>
 
-/** The strip under the picker: the workflow row and, when known, the cost row. */
-export function stripView(ui: StripUi, text: string, cost: string | null): RenderElement {
-  const { Box, Text } = ui
+export const ROTATE_KEY = 'wf-strip-rotate'
+
+export type StripModel = {
+  text: string
+  /** The dim detail row: cost and hub, or null when nothing is known. */
+  detail: string | null
+  /** Other active workflows the rotate button walks to; 0 hides the button. */
+  others: number
+  columns: number
+}
+
+/** The strip under the picker: the workflow row (wrapped, with the rotate button), then the detail row. */
+export function stripView(ui: StripUi, model: StripModel, rotate: () => void): RenderElement {
+  const { Box, Text, Button } = ui
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Text wrap="truncate-end">{text}</Text>
-      {cost === null ? null : (
-        <Text dimColor wrap="truncate-end">
-          {`   ${cost}`}
+      <Box flexDirection="row" gap={1}>
+        <Text wrap="wrap">{model.text}</Text>
+        {model.others === 0 ? null : <Button key={ROTATE_KEY} label={`⇄ ${model.others} more`} dimColor onPress={rotate} />}
+      </Box>
+      {model.detail === null ? null : (
+        <Text dimColor wrap="wrap">
+          {`   ${model.detail}`}
         </Text>
       )}
     </Box>
   )
 }
 
-/** Rows the strip takes: one, or two with a cost row. */
-export function stripRows(cost: string | null): number {
-  return cost === null ? 1 : 2
+/** Rows the strip takes at a width: the wrapped workflow row, plus the wrapped detail row. */
+export function stripRows(model: StripModel): number {
+  const width = Math.max(1, model.columns - 2)
+  const button = model.others === 0 ? 0 : `⇄ ${model.others} more`.length + 1
+  const rows = wrappedRowsOf(model.text, Math.max(1, width - button))
+  return rows + (model.detail === null ? 0 : wrappedRowsOf(`   ${model.detail}`, width))
 }
 
 export const STATUS_KEY_PREFIX = 'wf-dash-status:'
