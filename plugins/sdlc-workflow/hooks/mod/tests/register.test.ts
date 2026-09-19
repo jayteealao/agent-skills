@@ -3,7 +3,7 @@ import { describe, expect, mock, test, tier } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
 
 import { CATALOG } from '../catalog.ts'
-import { CLOSE_KEY, FILTER_KEY, MORE_KEY, OPTION_KEY_PREFIX, PLUGIN_NAME } from '../names.ts'
+import { BACK_KEY, CLOSE_KEY, FILTER_KEY, MORE_KEY, OPTION_KEY_PREFIX, PLUGIN_NAME } from '../names.ts'
 
 tier('user')
 
@@ -214,6 +214,23 @@ const setSetting = ($: Engine, name: string, value: boolean) =>
 const modesOf = (props: unknown): string[] => ((props as { modes?: string[] })?.modes ?? [])
 const wordOf = (props: unknown): string => ((props as { word?: string })?.word ?? '')
 
+/** The props of the element keyed `key` in a tree, or null. */
+function elementOf(node: unknown, key: string): Record<string, unknown> | null {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const hit = elementOf(child, key)
+      if (hit) return hit
+    }
+    return null
+  }
+  if (node && typeof node === 'object') {
+    const record = node as { props?: Record<string, unknown>; children?: unknown }
+    if (record.props?.['key'] === key) return record.props
+    return elementOf(record.children ?? record.props?.['children'] ?? [], key)
+  }
+  return null
+}
+
 /** The hotkey digits of the rows on screen, in draw order. */
 function hotkeysOf(node: unknown): string[] {
   if (Array.isArray(node)) return node.flatMap(hotkeysOf)
@@ -408,19 +425,33 @@ describe('register', () => {
     expect(textOf(tree)).toContain('(page 1 of 8)')
   })
 
-  test('a tall band draws every key at once: digits, then letters, and no "more" key', async ($, on) => {
+  test('a tall band still pages nine rows, one digit each, and never arms a letter', async ($, on) => {
     seat(on)
     await $.session.start(SESSION)
     await run($, 'wf')
     const tall = { ...BAND, props: { ...BAND.props, maxRows: 40, scroll: { offset: 0, bodyRows: 39 } } }
     const tree = await $.ui.render(tall)
-    const keys = hotkeysOf(tree)
-    expect(keys).toHaveLength(22)
-    expect(keys.slice(0, 9)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9'])
-    expect(keys[9]).toBe('a')
-    expect(keys[21]).toBe('m')
-    expect(textOf(tree)).toContain('observability  ')
-    expect(textOf(tree)).not.toContain('(page')
+    expect(hotkeysOf(tree)).toEqual(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])
+    expect(textOf(tree)).toContain('(page 1 of 3)')
+    expect(textOf(tree)).not.toContain('observability  ')
+  })
+
+  test('the back button returns to the step before, and the key step has none', async ($, on) => {
+    seat(on)
+    await $.session.start(SESSION)
+    await run($, 'wf')
+    expect(textOf(await $.ui.render(BAND))).not.toContain('← back')
+    await pickRow($, 'plan')
+    await $.ui.render(BAND)
+    await pickRow($, 'alpha-flow')
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan alpha-flow — pick a slice')
+    await $.ui.press({ plugin: PLUGIN_NAME, key: BACK_KEY })
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan — pick a workflow')
+    await $.ui.press({ plugin: PLUGIN_NAME, key: BACK_KEY })
+    await $.ui.render(BAND)
+    const tree = textOf(await $.ui.render(BAND))
+    expect(tree).toContain('/wf — pick a key')
+    expect(tree).not.toContain('← back')
   })
 
   test('the wheel over the band turns the page either way, and the window stays', async ($, on) => {
@@ -486,7 +517,7 @@ describe('register', () => {
     await run($, 'wf-plan')
     const tree = await $.ui.render(BAND)
     expect(hotkeysOf(tree)).toEqual(['1', '2'])
-    expect(textOf(tree)).not.toContain('more')
+    expect(elementOf(tree, MORE_KEY)).toBeNull()
     expect(textOf(tree)).not.toContain('(page')
   })
 
@@ -504,14 +535,15 @@ describe('register', () => {
     await $.session.start(SESSION)
     const text = textOf(await $.ui.render(BAND))
     expect(text).toContain('wf alpha-flow · implement · slice auth (1 of 2 complete) · next: /wf verify alpha-flow auth')
-    expect(text).toContain('2k tokens workflow · sdlc hub 9.157.0 · 3 repos · 2 renders stale')
+    expect(text).toContain('2k tokens workflow')
+    expect(text).not.toContain('sdlc hub')
     expect(text).not.toContain('this stage')
     expect(world.statuses.at(-1)).toBe('next /wf verify alpha-flow auth · hub 9.157.0')
     await $.ui.render(MODE)
     expect(modesOf(world.props)).toEqual(['focus', 'wf:implement'])
   })
 
-  test('the rotate button and /wf-active walk the active workflows; the strip wraps to the band width', async ($, on) => {
+  test('the rotate button and /wf-active walk every workflow, active first; the strip wraps to the band width', async ($, on) => {
     const world = seat(on, {
       ...TREE,
       ...HUB_CONFIG,
@@ -521,11 +553,13 @@ describe('register', () => {
     await $.session.start(SESSION)
     let text = textOf(await $.ui.render(BAND))
     expect(text).toContain('wf alpha-flow · implement')
-    expect(text).toContain('⇄ 1 more')
+    expect(text).toContain('⇄ 2 more')
     await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-strip-rotate' })
     text = textOf(await $.ui.render(BAND))
     expect(text).toContain('wf gamma · plan · slice core')
     expect(world.statuses.at(-1)).toBe('next /wf implement gamma core · hub 9.157.0')
+    await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-strip-rotate' })
+    expect(textOf(await $.ui.render(BAND))).toContain('wf beta · closed (closed)')
     await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-strip-rotate' })
     expect(textOf(await $.ui.render(BAND))).toContain('wf alpha-flow · implement')
     const { text: said } = await run($, 'wf-active', 'gamma')
@@ -536,6 +570,20 @@ describe('register', () => {
     const narrow = { ...BAND, props: { ...BAND.props, bodyColumns: 40, maxRows: 12 } }
     await run($, 'wf')
     expect(hotkeysOf(await $.ui.render(narrow)).length).toBeLessThan(hotkeysOf(await $.ui.render(BAND)).length)
+  })
+
+  test('the active workflow survives a session restart, and the strip never opens on a closed one', async ($, on) => {
+    const world = seat(on)
+    // The closed workflow's index is the newest file: the strip still opens on the active one.
+    world.mtimes.set('/work/.ai/workflows/beta/00-index.md', 9_000_000)
+    world.mtimes.set('/work/.ai/workflows/alpha-flow/00-index.md', 5_000_000)
+    await $.session.start(SESSION)
+    expect(textOf(await $.ui.render(BAND))).toContain('wf alpha-flow · implement')
+    await run($, 'wf-active', 'beta')
+    expect(textOf(await $.ui.render(BAND))).toContain('wf beta · closed (closed)')
+    // A reload (a /config change) or the next session starts on the remembered workflow.
+    await $.session.start(SESSION)
+    expect(textOf(await $.ui.render(BAND))).toContain('wf beta · closed (closed)')
   })
 
   test('a /wf run names the active workflow, and the strip draws under the picker', async ($, on) => {

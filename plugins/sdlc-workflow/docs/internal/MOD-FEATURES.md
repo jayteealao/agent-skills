@@ -53,12 +53,15 @@ under `.ai/workflows` (active first, closed marked), then the slices of the
 picked workflow (roster status and furthest stage file). The last pick
 writes the complete command into the prompt box; Enter runs it.
 
-Keys: a digit picks a row from the empty composer; the wheel over the band
-and `0` turn the page; `ctrl+x tab` gives the band the keyboard, where the
-filter field narrows the rows as the person types, Tab walks the rows and
-wraps onto the next page, Enter picks, Esc leaves. Letters past nine are
-hotkeys while the band holds the keyboard. A tree taller than `maxRows`
-disarms the hotkeys, so the page is sized to the band.
+Keys: a digit picks a row from the empty composer; a page holds nine rows
+(digits only; the letter hotkeys were dropped after the second live test);
+the wheel over the band and `0` turn the page; `ctrl+x tab` gives the band
+the keyboard, where a word in the filter field narrows the rows as the
+person types and Enter picks the first row left, one digit then Enter picks
+that row of the page on screen (`0` then Enter turns the page), Tab walks
+the rows and wraps onto the next page, Esc leaves. `← back` returns to the
+step before. A tree taller than `maxRows` disarms the hotkeys, so the page
+is sized to the band.
 
 Engine surface: `session.start` (`$.command.register` × 22 + the dashboard),
 `command.run` (own commands, and any other command closes the band),
@@ -78,8 +81,9 @@ from the prompt.
 
 Under the picker (or alone) one row, wrapped to the band's width: `wf
 alpha-flow · implement · slice auth (2 of 5 complete) · next: /wf verify
-alpha-flow auth`, with a `⇄ N more` button that walks the other active
-workflows by slug (`/wf-active [slug]` does the same from the prompt). The
+alpha-flow auth`, with a `⇄ N more` button that walks the other workflows,
+active ones first by slug and closed ones after (`/wf-active [slug]` does
+the same from the prompt). The
 pinned status line (`$.ui.status`) carries what the strip does not: `next
 /wf verify alpha-flow auth · $0.42 stage · hub 9.157.0`, so it stays useful
 while the plugin panel is hidden (`ctrl+x ctrl+a`). `wf:<stage>` joins the
@@ -88,17 +92,22 @@ rewritten). A closed workflow reads `wf beta · closed (closed)` and adds no
 mode label. The strip's height at the band's width is subtracted from the
 picker's page size.
 
-The active workflow is the last one a `/wf` run or a `/wf` prompt named,
-else the one whose `00-index.md` has the newest modification time
-(`$.fs.stat`). A `tool.call` hook on `Write`, `Edit`, and `NotebookEdit`
+The active workflow is the last one a `/wf` run, a `/wf` prompt, a write,
+or a rotate named; the module keeps that slug in `$.store` under
+`active:<root>`, so a reload (every `/config` change reloads the module
+and resets its state) or a new session opens on it. Without a remembered
+slug, the strip opens on the active workflow whose `00-index.md` has the
+newest modification time (`$.fs.stat`), and on a closed one only when no
+workflow is active. A `tool.call` hook on `Write`, `Edit`, and `NotebookEdit`
 refreshes the tree after every write under `.ai/workflows` (after
 `next(e)`; a denied or errored write does not count).
 
 ### 3.3 The cost row (`cost`)
 
-A dim second row: `$0.42 this stage · 1.2M tokens workflow · sdlc hub
-9.157.0 · 15 repos`. The row is absent only when none of the three is known;
-a workflow without `cost.jsonl` shows no token figure. The stage
+A dim second row: `$0.42 this stage · 1.2M tokens workflow`. The row is
+absent when neither figure is known; a workflow without `cost.jsonl` shows
+no token figure. The hub is not in this row (second live test: the hub is
+already in the status line and under the logo). The stage
 figure is the session cost difference (`$.session.usage().cost.usd`) across
 the last `/wf` turn that was not `status` or `recap`; the workflow figure is
 the sum of `cost.jsonl` (main and subagent rows; Claude and Codex token
@@ -202,8 +211,17 @@ with severity BLOCKER or HIGH and status open.
 - `$.session.usage()` answers `{ context, rateLimits, cost?: { usd } }`.
 - The health answer is `{ ok, version, entries: [{ stale, ... }], ... }`.
 - The kit engine raises every event as `$.noun.event(...)`; `$.ui.input`
-  and `$.ui.select` are not on it (the filter field is covered by the
-  harness only); `mock.clock(on)` answers `{ now, advance, set }`; a bottom
+  and `$.ui.select` are not on it, and a rendered tree carries handlers as
+  `{ plugin, handle }` records, not functions, so the filter field's
+  `onInput`/`onSubmit` cannot be driven from a kit test (the pure
+  `submitActionOf` is covered by the harness);
+- A `/config` change on a `userConfig` row reloads the module with the new
+  options and raises `session.start` again; every module variable resets.
+  `config.set` still runs, on the old environment. State that must outlive
+  the reload goes in `$.store`.
+- `$.fs.read` and `$.fs.stat` of an absent path are logged by the engine at
+  `[ERROR]` even when the hook catches the rejection; check `$.fs.exists`
+  first for a file that is often absent. `mock.clock(on)` answers `{ now, advance, set }`; a bottom
   mock for every op must be registered in the seat before the first `$`
   call; a rewritten render's props are read back through a bottom
   `ui.render` hook, not from the returned tree.
@@ -232,12 +250,42 @@ First live test, 2026-09-17, Claude Code 2.1.273, the Aperture repository:
 - `scripts/mod-fixture.mjs <dir>` writes a throwaway repository for the
   tests below; run them there, not on a live project.
 
+Second live test, 2026-09-18, the fixture repository, `--debug`:
+
+- The strip opened on `beta-closed`, the closed workflow, because the
+  fixture wrote its index last and the newest mtime won. Now the newest
+  active workflow wins, and the slug is remembered in `$.store`.
+- The rotate ring skipped closed workflows, so one active workflow had
+  nothing to rotate to and back. The ring now walks every workflow.
+- Every `/config` toggle reloaded the module (debug log: `options changed
+  — reloaded`), which reset the active workflow to the newest mtime and
+  made the toggles look inert. The store fix above covers the reset; the
+  `hubNotice` toggle did change the status line each time (the log shows
+  `ui.status` with and without `hub 9.157.0`).
+- With `--debug` the engine draws a notice (`Debug mode enabled`), so the
+  hub line under the logo appeared; without a notice it does not.
+- The hub in the dim row repeated the notice line and the status line; the
+  dim row is cost only now.
+- The letter hotkeys were unwanted; digits only, nine rows a page.
+- A digit typed into the focused filter field filtered the rows to nothing;
+  a digit then Enter now picks by position.
+- No way back from a wrong pick; `← back` added.
+- `/wf plan alpha-flow ui` stopped at Step 0 (no `stack:` block, no
+  `03-slice-ui.md`, no `augmentations-needed`); the fixture now writes
+  full-schema artifacts, validated against `tests/frontmatter.schema.json`.
+- The engine logged `[ERROR]` ENOENT lines for reads the hooks caught
+  (`beta-closed/03-slice.md`, `cost.jsonl`, `04-plan-ui.md` mtime); every
+  such read now checks `exists` first.
+- `/wf slice` from the prompt opens the workflow list and fills
+  `/wf slice <slug>`; `slice` takes a slug and no slice.
+
 Still open:
 
-1. The `userConfig` rows in `/config`.
-2. The pane's draw, and its width behaviour under 144 columns.
-3. The filter field's `ui.input` wiring.
-4. Picker probes P1–P6 of WF-PICKER-UX-PLAN.md.
-5. Whether `turn.start`'s text is the typed `/wf` line or the expanded
+1. The pane's draw, and its width behaviour under 144 columns.
+2. Picker probes P1 (Tab wrap across pages), P2 (Shift+Tab), P4, and P6
+   (an `action` Button) of WF-PICKER-UX-PLAN.md; P3 (the wheel) needs a
+   mouse; P5 (a digit in the focused field) is answered: the digit types.
+3. Whether `turn.start`'s text is the typed `/wf` line or the expanded
    skill (the fallback covers both).
-6. How many `InfoNotice` instances the engine draws in one session.
+4. The driver watch against a real `/wf yolo` run (the fixture journal
+   covers the read path only).

@@ -42,6 +42,7 @@ import {
   isWorkflowPath,
   nextActiveSlug,
   ledgerTokensOf,
+  openingCandidatesOf,
   modeLabelOf,
   openFindingsOf,
   reviewLedgerNameOf,
@@ -68,7 +69,7 @@ import {
   RUN_TEXT,
   registerFailedTextOf,
 } from './names.ts'
-import { filterOptions, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, titleOf } from './picker.ts'
+import { backOf, filterOptions, filterTextOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from './picker.ts'
 import type { Option, Step } from './picker.ts'
 import { PICK_KEY_PREFIX, ROTATE_KEY, STATUS_KEY_PREFIX, dashboardView, noticeView, stripRows, stripView } from './strip.tsx'
 import type { StripModel } from './strip.tsx'
@@ -102,6 +103,9 @@ type Host = {
   every: (ms: number, fn: () => void) => { cancel: () => void }
   now: () => Promise<number>
   openPane: (id: string, title: string) => Promise<void>
+  /** The plugin's store, kept across sessions and reloads. */
+  storeGet: (key: string) => Promise<unknown>
+  storeSet: (key: string, value: unknown) => Promise<void>
 }
 
 /** The turn under way: what it ran, when it started, what it wrote. */
@@ -163,6 +167,8 @@ const WRITE_TOOLS = ['Write', 'Edit', 'NotebookEdit'] as const
 const DRIVER_TICK_MS = 5_000
 /** How long a dispatcher run names the turn that follows it. */
 const LAST_RUN_WINDOW_MS = 10_000
+/** The store key of the active workflow, per repository root. */
+const activeStoreKeyOf = (root: string) => `active:${root}`
 /** Keys whose turn is not a stage: no "this stage" cost. */
 const READ_ONLY_KEYS: ReadonlySet<string> = new Set(['status', 'recap'])
 
@@ -206,15 +212,41 @@ export function register(on: On, options: PluginOptions = {}) {
     const workflows = root === null ? [] : await listWorkflows(root, engine.reader)
     model = { ...model, root, isRead: true, workflows, slices: new Map() }
     if (model.active === null || !workflows.some(w => w.slug === model.active)) {
-      model = { ...model, active: await newestSlug(engine, root, workflows) }
+      const remembered = await rememberedSlug(engine, root)
+      const active = remembered !== null && workflows.some(w => w.slug === remembered) ? remembered : await newestSlug(engine, root, workflows)
+      model = { ...model, active }
     }
   }
 
-  /** The workflow whose index changed last, by mtime; the first when none can be read. */
+  /** The slug the store holds for this root: the last one a run, a write, or a rotate named. */
+  async function rememberedSlug(engine: Host, root: string | null): Promise<string | null> {
+    if (root === null) return null
+    try {
+      const value = await engine.storeGet(activeStoreKeyOf(root))
+      return typeof value === 'string' && value !== '' ? value : null
+    } catch {
+      return null
+    }
+  }
+
+  /** Keeps the active slug across a module reload (a `/config` change) and across sessions. */
+  async function remember(engine: Host): Promise<void> {
+    if (model.root === null || model.active === null) return
+    try {
+      await engine.storeSet(activeStoreKeyOf(model.root), model.active)
+    } catch (error) {
+      engine.log(messageOf(error))
+    }
+  }
+
+  /**
+   * The active workflow whose index changed last, by mtime; a closed one only
+   * when no workflow is active; the first when none can be read.
+   */
   async function newestSlug(engine: Host, root: string | null, workflows: readonly WorkflowEntry[]): Promise<string | null> {
     if (root === null || workflows.length === 0) return null
     let best: { slug: string; at: number } | null = null
-    for (const workflow of workflows) {
+    for (const workflow of openingCandidatesOf(workflows)) {
       const at = (await engine.mtime(joinPath(root, '.ai', 'workflows', workflow.slug, '00-index.md'))) ?? 0
       if (best === null || at > best.at) best = { slug: workflow.slug, at }
     }
@@ -253,6 +285,7 @@ export function register(on: On, options: PluginOptions = {}) {
   function setActive(engine: Host, slug: string | null): void {
     if (slug === null || slug === model.active) return
     model = { ...model, active: slug }
+    void remember(engine)
     engine.invalidate()
   }
 
@@ -264,22 +297,30 @@ export function register(on: On, options: PluginOptions = {}) {
     const slices = await readSlices(engine, workflow.slug)
     let tokens: number | null = null
     if (settings.cost && model.root !== null) {
-      try {
-        tokens = ledgerTokensOf(await engine.reader.read(joinPath(model.root, '.ai', 'workflows', workflow.slug, 'cost.jsonl')))
-      } catch {
-        tokens = null
-      }
+      const ledger = await readIfPresent(engine, joinPath(model.root, '.ai', 'workflows', workflow.slug, 'cost.jsonl'))
+      tokens = ledger === null ? null : ledgerTokensOf(ledger)
     }
-    const detail = costTextOf(settings.cost ? model.lastStageUsd : null, tokens, settings.hubNotice ? model.hub : null)
-    const others = model.workflows.filter(w => !w.terminal && w.slug !== workflow.slug).length
+    const detail = costTextOf(settings.cost ? model.lastStageUsd : null, tokens)
+    const others = model.workflows.length - 1
     return { text: stripTextOf(workflow, slices), detail, others, columns }
   }
 
-  /** The rotate button and `/wf-active`: the next active workflow by slug, or the named one. */
+  /** A file's text, or null when it is absent; an absent file is no error to log. */
+  async function readIfPresent(engine: Host, path: string): Promise<string | null> {
+    try {
+      if (!(await engine.reader.exists(path))) return null
+      return await engine.reader.read(path)
+    } catch {
+      return null
+    }
+  }
+
+  /** The rotate button and `/wf-active`: the next workflow in the ring (active first, then closed), or the named one. */
   async function rotateActive(engine: Host, slug: string | null): Promise<void> {
     const target = slug ?? nextActiveSlug(model.workflows, model.active)
     if (target === null || !model.workflows.some(w => w.slug === target)) return
     model = { ...model, active: target }
+    await remember(engine)
     await readSlices(engine, target)
     if (model.step === null) drawStatus(engine)
     engine.invalidate()
@@ -306,6 +347,12 @@ export function register(on: On, options: PluginOptions = {}) {
     engine.invalidate()
   }
 
+  /** The `back` button: the step before, on its first page. */
+  function back(engine: Host): void {
+    const previous = model.step === null ? null : backOf(model.step)
+    if (previous !== null) show(engine, previous)
+  }
+
   function turnPage(engine: Host, by: number): void {
     model = { ...model, page: model.page + by }
     engine.invalidate()
@@ -316,10 +363,10 @@ export function register(on: On, options: PluginOptions = {}) {
     engine.invalidate()
   }
 
-  /** The rows of the step after the filter, before paging. */
+  /** The rows of the step after the filter, before paging; a bare digit in the field narrows nothing. */
   async function rowsOf(engine: Host, step: Step): Promise<{ options: Option[]; note?: string }> {
     const { options, note } = await optionsOf(engine, step)
-    return { options: filterOptions(options, model.filter), ...(note === undefined ? {} : { note }) }
+    return { options: filterOptions(options, filterTextOf(model.filter)), ...(note === undefined ? {} : { note }) }
   }
 
   async function fill(engine: Host, text: string): Promise<string> {
@@ -382,6 +429,7 @@ export function register(on: On, options: PluginOptions = {}) {
       registerCommand: spec => $.command.register(spec),
       mtime: async path => {
         try {
+          if (!(await $.fs.exists(path))) return null
           return (await $.fs.stat(path)).mtimeMs
         } catch {
           return null
@@ -408,6 +456,8 @@ export function register(on: On, options: PluginOptions = {}) {
       every: (ms, fn) => $.clock.every(ms, fn),
       now: () => $.clock.now(),
       openPane: (id, title) => $.ui.open({ id, title }),
+      storeGet: key => $.store.get(key),
+      storeSet: (key, value) => $.store.set(key, value),
     }
     bracket = null
     stopDriver()
@@ -580,15 +630,21 @@ export function register(on: On, options: PluginOptions = {}) {
     }
     const band = bandView(
       { Box, Text, Button, Input },
-      { title: titleOf(step), page, filter: model.filter, ...(note === undefined ? {} : { note }) },
+      { title: titleOf(step), page, filter: model.filter, hasBack: backOf(step) !== null, ...(note === undefined ? {} : { note }) },
       {
         pick: pickRow,
         filter: text => setFilter(engine, text),
         submit: text => {
-          // Enter in the field picks the first row the text leaves.
-          const first = filterOptions(options, text)[0]
-          if (first !== undefined) pickRow(first.value)
+          const action = submitActionOf(text, page, options)
+          if (action === null) return
+          if (action.kind === 'pick') {
+            pickRow(action.value)
+            return
+          }
+          setFilter(engine, '')
+          turnPage(engine, 1)
         },
+        back: () => back(engine),
         more: () => turnPage(engine, 1),
         close: () => {
           close(engine)
@@ -649,11 +705,8 @@ export function register(on: On, options: PluginOptions = {}) {
         const count = await openFindingsCount(engine, model.root, workflow)
         if (count !== null) findings.set(workflow.slug, count)
       }
-      try {
-        shipPlanBlockers = shipPlanBlockersOf(await engine.reader.read(joinPath(model.root, '.ai', 'ship-plan-audit.md')))
-      } catch {
-        shipPlanBlockers = null
-      }
+      const audit = await readIfPresent(engine, joinPath(model.root, '.ai', 'ship-plan-audit.md'))
+      shipPlanBlockers = audit === null ? null : shipPlanBlockersOf(audit)
     }
     const hub = model.hub === null ? 'hub unknown' : `hub ${model.hub.version ?? '?'} ${model.hub.ok ? 'ok' : 'down'}`
     return dashboardView(
@@ -702,7 +755,10 @@ export function register(on: On, options: PluginOptions = {}) {
     if (path === null || !isWorkflowPath(model.root, path)) return result
     if (bracket !== null) bracket.writes.push(path)
     const slug = slugOfPath(model.root, path)
-    if (slug !== null && bracket?.command?.slug == null) model = { ...model, active: slug }
+    if (slug !== null && bracket?.command?.slug == null) {
+      model = { ...model, active: slug }
+      await remember(engine)
+    }
     await refreshActive(engine)
     return result
   })
@@ -751,12 +807,7 @@ export function register(on: On, options: PluginOptions = {}) {
    */
   async function driverTick(engine: Host, key: string, slug: string): Promise<void> {
     if (model.root === null) return
-    let text = ''
-    try {
-      text = await engine.reader.read(joinPath(model.root, '.ai', 'workflows', slug, '.driver-journal.jsonl'))
-    } catch {
-      text = ''
-    }
+    const text = (await readIfPresent(engine, joinPath(model.root, '.ai', 'workflows', slug, '.driver-journal.jsonl'))) ?? ''
     const beats = beatsOf(text)
     driverText = driverStatusOf(key, beats, await engine.now())
     if (model.step === null) engine.status(driverText)

@@ -148,18 +148,55 @@ export function pageOf(options: readonly Option[], page: number, size: number): 
   return { items: options.slice(index * width, index * width + width), page: index, pages }
 }
 
-/** The most rows one page may hold: nine digits, then the 26 letters. */
-export const MAX_PAGE_SIZE = 35
+/** The most rows one page may hold: the nine digits; `0` turns the page. */
+export const MAX_PAGE_SIZE = 9
 
-/**
- * The hotkey of the row at `index` on its page: `1`–`9` for the first nine
- * (a digit presses from the empty prompt), then `a`–`z` (a letter presses
- * only while the band holds the keyboard); none past 35.
- */
+/** The hotkey of the row at `index` on its page: `1`–`9`; none past nine. */
 export function hotkeyOf(index: number): string | undefined {
   if (index < 0 || index >= MAX_PAGE_SIZE) return undefined
-  if (index < 9) return String(index + 1)
-  return String.fromCharCode('a'.charCodeAt(0) + index - 9)
+  return String(index + 1)
+}
+
+/** The step a "back" press returns to: the key step from a slug step, the slug step from a slice step; none from the key step. */
+export function backOf(step: Step): Step | null {
+  if (step.kind === 'slug') return { kind: 'key' }
+  if (step.kind === 'slice') return { kind: 'slug', key: step.key }
+  return null
+}
+
+/**
+ * What a digit typed into the filter field means: `1`–`9` the row at that
+ * position on the page shown, `0` the next page. Any other text is a filter.
+ */
+export type DigitCommand = { kind: 'row'; index: number } | { kind: 'more' }
+
+export function digitCommandOf(text: string): DigitCommand | null {
+  const trimmed = text.trim()
+  if (!/^[0-9]$/u.test(trimmed)) return null
+  return trimmed === '0' ? { kind: 'more' } : { kind: 'row', index: Number(trimmed) - 1 }
+}
+
+/** The filter the rows narrow by: a bare digit is a pick, not a filter. */
+export function filterTextOf(text: string): string {
+  return digitCommandOf(text) === null ? text : ''
+}
+
+/**
+ * What Enter in the filter field does: a digit picks that row of the page
+ * shown (`0` turns the page); other text picks the first row it leaves;
+ * nothing when no row fits.
+ */
+export type SubmitAction = { kind: 'pick'; value: string } | { kind: 'more' }
+
+export function submitActionOf(text: string, page: Page, options: readonly Option[]): SubmitAction | null {
+  const digit = digitCommandOf(text)
+  if (digit !== null) {
+    if (digit.kind === 'more') return { kind: 'more' }
+    const row = page.items[digit.index]
+    return row === undefined ? null : { kind: 'pick', value: row.value }
+  }
+  const first = filterOptions(options, text)[0]
+  return first === undefined ? null : { kind: 'pick', value: first.value }
 }
 
 /** The options whose value or label holds every word of `text`, case-insensitively. */

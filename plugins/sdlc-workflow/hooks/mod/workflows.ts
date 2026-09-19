@@ -165,9 +165,12 @@ export async function listWorkflows(root: string, reader: Reader): Promise<Workf
  */
 export async function listSlices(root: string, slug: string, reader: Reader): Promise<SliceEntry[]> {
   const workflowDir = joinPath(root, '.ai', 'workflows', slug)
+  const rosterPath = joinPath(workflowDir, '03-slice.md')
   let text: string
   try {
-    text = await reader.read(joinPath(workflowDir, '03-slice.md'))
+    // An absent roster is the common case; the exists check keeps it out of the engine's error log.
+    if (!(await reader.exists(rosterPath))) return []
+    text = await reader.read(rosterPath)
   } catch {
     return []
   }

@@ -12,9 +12,9 @@ export const ROTATE_KEY = 'wf-strip-rotate'
 
 export type StripModel = {
   text: string
-  /** The dim detail row: cost and hub, or null when nothing is known. */
+  /** The dim detail row: the stage cost and the ledger tokens, or null when neither is known. */
   detail: string | null
-  /** Other active workflows the rotate button walks to; 0 hides the button. */
+  /** Other workflows the rotate button walks to (active first, then closed); 0 hides the button. */
   others: number
   columns: number
 }

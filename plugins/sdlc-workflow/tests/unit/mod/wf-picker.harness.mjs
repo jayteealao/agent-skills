@@ -7,12 +7,12 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { CATALOG, commandNameOf, keyOfCommand } from '../../../hooks/mod/catalog.ts';
-import { ALL, NONE, fillOf, filterOptions, hotkeyOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, titleOf } from '../../../hooks/mod/picker.ts';
+import { ALL, NONE, backOf, digitCommandOf, fillOf, filterOptions, filterTextOf, hotkeyOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from '../../../hooks/mod/picker.ts';
 import { findProjectRoot, frontmatterOf, joinPath, listSlices, listWorkflows, rosterOf } from '../../../hooks/mod/workflows.ts';
 import {
   beatsOf, costTextOf, driverStatusOf, expectedArtifactOf, hubHealthOf, hubNoticeTextOf, isWorkflowPath,
   ledgerTokensOf, modeLabelOf, openFindingsOf, settingOfKey, settingsOf, slugOfPath, spinnerWordOf, statusTextOf,
-  nextActiveSlug, reviewLedgerNameOf, shipPlanBlockersOf, stripTextOf, wfCommandOf, wrappedRowsOf, yamlListItemsOf,
+  nextActiveSlug, openingCandidatesOf, reviewLedgerNameOf, shipPlanBlockersOf, stripTextOf, wfCommandOf, wrappedRowsOf, yamlListItemsOf,
 } from '../../../hooks/mod/active.ts';
 
 const WORKFLOWS = [
@@ -109,9 +109,33 @@ test('pageOf slices the options into pages that wrap, never wider than nine rows
   assert.deepEqual(empty, { items: [], page: 0, pages: 1 });
 });
 
-test('hotkeyOf gives the nine digits, then the letters, then nothing', () => {
-  assert.deepEqual([0, 8, 9, 34, 35].map(hotkeyOf), ['1', '9', 'a', 'z', undefined]);
+test('hotkeyOf gives the nine digits, then nothing', () => {
+  assert.deepEqual([0, 8, 9, 35].map(hotkeyOf), ['1', '9', undefined, undefined]);
   assert.equal(hotkeyOf(-1), undefined);
+});
+
+test('backOf steps back one step and stops at the key step', () => {
+  assert.deepEqual(backOf({ kind: 'slice', key: 'plan', slug: 'alpha' }), { kind: 'slug', key: 'plan' });
+  assert.deepEqual(backOf({ kind: 'slug', key: 'plan' }), { kind: 'key' });
+  assert.equal(backOf({ kind: 'key' }), null);
+});
+
+test('a bare digit in the filter is a pick or a page turn, never a filter', () => {
+  assert.deepEqual(digitCommandOf('3'), { kind: 'row', index: 2 });
+  assert.deepEqual(digitCommandOf(' 0 '), { kind: 'more' });
+  assert.equal(digitCommandOf('12'), null);
+  assert.equal(digitCommandOf('auth'), null);
+  assert.equal(digitCommandOf(''), null);
+  assert.equal(filterTextOf('3'), '');
+  assert.equal(filterTextOf('auth'), 'auth');
+  // Enter in the field: the digit's row of the page shown, the next page, or the first row a word leaves.
+  const options = keyOptions();
+  const second = pageOf(options, 1, 9);
+  assert.deepEqual(submitActionOf('3', second, options), { kind: 'pick', value: options[11].value });
+  assert.deepEqual(submitActionOf('0', second, options), { kind: 'more' });
+  assert.equal(submitActionOf('9', pageOf(options, 2, 9), options), null);
+  assert.deepEqual(submitActionOf('yo', second, options), { kind: 'pick', value: 'yolo' });
+  assert.equal(submitActionOf('zzz', second, options), null);
 });
 
 test('filterOptions keeps the rows whose value or label holds every word, case-insensitively', () => {
@@ -242,11 +266,17 @@ test('the strip, status, mode, and spinner texts', () => {
   assert.equal(statusTextOf(wf, 0.5, { version: '9.157.0', repos: 1, stale: 0, ok: true }), 'next /wf verify alpha auth · $0.50 stage · hub 9.157.0');
   assert.equal(statusTextOf({ ...wf, nextInvocation: null }, null, { version: null, repos: null, stale: null, ok: false }), 'wf alpha · implement · auth · hub down');
   assert.equal(statusTextOf({ ...wf, terminal: true, status: 'closed' }), 'wf alpha · closed');
+  // The ring: the active workflows by slug, then the closed ones, then round again.
   assert.equal(nextActiveSlug(WORKFLOWS, 'alpha'), 'gamma');
-  assert.equal(nextActiveSlug(WORKFLOWS, 'gamma'), 'alpha');
+  assert.equal(nextActiveSlug(WORKFLOWS, 'gamma'), 'beta');
+  assert.equal(nextActiveSlug(WORKFLOWS, 'beta'), 'alpha');
   assert.equal(nextActiveSlug(WORKFLOWS, null), 'alpha');
   assert.equal(nextActiveSlug([WORKFLOWS[0]], 'alpha'), 'alpha');
-  assert.equal(nextActiveSlug([WORKFLOWS[1]], null), null);
+  assert.equal(nextActiveSlug([WORKFLOWS[1]], null), 'beta');
+  assert.equal(nextActiveSlug([], null), null);
+  // The strip opens on an active workflow; on a closed one only when none is active.
+  assert.deepEqual(openingCandidatesOf(WORKFLOWS).map(w => w.slug), ['alpha', 'gamma']);
+  assert.deepEqual(openingCandidatesOf([WORKFLOWS[1]]).map(w => w.slug), ['beta']);
   assert.equal(wrappedRowsOf('', 80), 1);
   assert.equal(wrappedRowsOf('x'.repeat(81), 80), 2);
   assert.equal(modeLabelOf(wf), 'wf:implement');
@@ -263,7 +293,6 @@ test('the cost row sums the ledger tokens and formats the stage dollars', () => 
   assert.equal(costTextOf(0.42, 2000), '$0.42 this stage · 2k tokens workflow');
   assert.equal(costTextOf(null, 1_250_000), '1.3M tokens workflow');
   assert.equal(costTextOf(null, null), null);
-  assert.equal(costTextOf(null, null, { version: '9.157.0', repos: 2, stale: 0, ok: true }), 'sdlc hub 9.157.0 · 2 repos');
 });
 
 test('the driver status reads the newest run and presumes death past the longest gap with a 20-minute floor', () => {

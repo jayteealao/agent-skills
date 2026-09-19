@@ -174,10 +174,23 @@ export function hubShortTextOf(hub: HubHealth): string {
 
 /** The workflows the strip rotates through: the active ones by slug, in a ring. */
 export function nextActiveSlug(workflows: readonly WorkflowEntry[], current: string | null): string | null {
-  const ring = workflows.filter(w => !w.terminal).map(w => w.slug).sort()
+  const ring = [...ringSlugs(workflows, false), ...ringSlugs(workflows, true)]
   if (ring.length === 0) return null
   const at = current === null ? -1 : ring.indexOf(current)
   return ring[(at + 1) % ring.length] ?? null
+}
+
+function ringSlugs(workflows: readonly WorkflowEntry[], terminal: boolean): string[] {
+  return workflows.filter(w => w.terminal === terminal).map(w => w.slug).sort()
+}
+
+/**
+ * The workflows the strip may open on: the active ones, or every one when
+ * none is active. The caller picks the newest by its index's mtime.
+ */
+export function openingCandidatesOf(workflows: readonly WorkflowEntry[]): WorkflowEntry[] {
+  const active = workflows.filter(w => !w.terminal)
+  return active.length > 0 ? active : [...workflows]
 }
 
 /** Rows a text takes when wrapped into `columns` cells (one at least). */
@@ -264,11 +277,10 @@ export function tokensText(count: number): string {
 }
 
 /** The strip's detail row: the last stage in dollars, the workflow in ledger tokens, and the hub. */
-export function costTextOf(stageUsd: number | null, ledgerTokens: number | null, hub: HubHealth | null = null): string | null {
+export function costTextOf(stageUsd: number | null, ledgerTokens: number | null): string | null {
   const parts: string[] = []
   if (stageUsd !== null) parts.push(`$${stageUsd.toFixed(2)} this stage`)
   if (ledgerTokens !== null) parts.push(`${tokensText(ledgerTokens)} tokens workflow`)
-  if (hub !== null) parts.push(hubNoticeTextOf(hub))
   return parts.length === 0 ? null : parts.join(' · ')
 }
 
