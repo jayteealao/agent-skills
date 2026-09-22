@@ -13,11 +13,11 @@ from the tree and fails when a count exceeds its pin.
 | Pin | Counted from | 2026-09-07 |
 |---|---|---|
 | `keys` | rows of the four key tables in `skills/wf/SKILL.md` | 22 |
-| `intakeModes` | the mode keyword set that `reference/intake.md` names | 12 |
+| `intakeModes` | the mode keyword set that `reference/intake.md` names | 12 → 13 (2026-09-22, `brainstorm`) |
 | `reviewRubrics` | `reference/review/<rubric>.md`, underscore files excluded | 11 |
 | `aggregates` | rows of the aggregate table in `reference/review.md` | 7 |
-| `artifactStems` | distinct artifact names in the capability inventory's `artifacts` union | 93 |
-| `frontmatterTypes` | distinct `type` values the frontmatter schema's `oneOf` branches accept | 66 |
+| `artifactStems` | distinct artifact names in the capability inventory's `artifacts` union | 93 → 95 (2026-09-22, `01-brainstorm`, `03-slice-brainstorm-*`) |
+| `frontmatterTypes` | distinct `type` values the frontmatter schema's `oneOf` branches accept | 66 → 67 (2026-09-22, `brainstorm`) |
 
 A count under its pin is slack. The gate reports slack and does not fail on
 it. Lower a pin when a surface is deleted, so the file states the tree.

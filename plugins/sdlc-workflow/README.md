@@ -43,7 +43,7 @@ Follow [start/your-first-workflow.html](docs/site/start/your-first-workflow.html
 
 | Key | Does |
 |---|---|
-| `intake` | Entry dispatcher. A description starts stage 1; a mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `adopt`, `amend`, `modernize`) runs a compressed or maintenance flow. |
+| `intake` | Entry dispatcher. A description starts stage 1; a mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `amend`, `modernize`) runs a compressed or maintenance flow. |
 | `shape` | Product-owner discovery: acceptance criteria, documentation plan, augmentations. |
 | `slice` | Decomposes the shape into shippable slices. |
 | `plan` | Per-slice plan with a reuse scan. |

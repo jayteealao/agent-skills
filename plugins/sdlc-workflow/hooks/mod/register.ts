@@ -178,6 +178,8 @@ const ACTIVE_COMMAND = 'wf-active'
 const DASHBOARD_PANE = 'wf-dashboard'
 const DOCTOR_COMMAND = '/wf-doctor'
 const QUESTION_FLOOR = 20
+/** The intake mode whose question batches carry no floor annotation. */
+const NO_FLOOR_INTAKE_MODE = 'brainstorm'
 const HUB_DEFAULT_PORT = 48173
 const WRITE_TOOLS = ['Write', 'Edit', 'NotebookEdit'] as const
 const DRIVER_TICK_MS = 5_000
@@ -714,6 +716,8 @@ export function register(on: On, options: PluginOptions = {}) {
   on('ui.render', { component: 'AskUserQuestion' }, async ($, e, next) => {
     const key = bracket?.command?.key
     if (!settings.questionProgress || bracket === null || (key !== 'intake' && key !== 'shape')) return next(e)
+    // A brainstorm has no question floor: its batches run until the person says `done`.
+    if (key === 'intake' && bracket.command?.slug === NO_FLOOR_INTAKE_MODE) return next(e)
     const count = bracket.questions
     if (count === 0 || !Array.isArray(e.props.questions)) return next(e)
     const questions = e.props.questions.map(question => {

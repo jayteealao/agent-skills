@@ -4,14 +4,14 @@ import {
   md2html,
   renderHistoryBlock,
   renderRevisionLedger
-} from "../chunk-L2O55KIF.mjs";
+} from "../chunk-SCNOIKJL.mjs";
 import {
   costRowsFor,
   costSectionHtml
 } from "../chunk-TNCDSDXJ.mjs";
 import {
   humanRelative
-} from "../chunk-4RLI3RZK.mjs";
+} from "../chunk-DW5WFXUB.mjs";
 import {
   evenX,
   figureCanvas
@@ -21,7 +21,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-PCCTLKQ6.mjs";
+} from "../chunk-O2MCLXSW.mjs";
 import "../chunk-PNDGQNSP.mjs";
 import {
   escapeHtml

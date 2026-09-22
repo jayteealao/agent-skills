@@ -834,6 +834,17 @@ describe('register', () => {
     expect(questions[0]?.question).toBe('Which host? (question 2, floor 20)')
   })
 
+  test('a brainstorm turn counts its questions but shows no floor', async ($, on) => {
+    const world = seat(on)
+    await $.session.start(SESSION)
+    await $.turn.start({ text: '/wf intake brainstorm a per-slug cost budget', turnId: 't2' })
+    await $.tool.call({ tool: 'AskUserQuestion', questions: [] } as never)
+    await $.tool.call({ tool: 'AskUserQuestion', questions: [] } as never)
+    await $.ui.render(QUESTION)
+    const questions = (world.props as { questions?: Array<{ question: string }> }).questions ?? []
+    expect(questions[0]?.question).toBe('Which host?')
+  })
+
   test('the driver status follows the heartbeat journal during a yolo turn', async ($, on) => {
     const tree: Record<string, string> = { ...TREE, ...HUB_CONFIG }
     const world = seat(on, tree)

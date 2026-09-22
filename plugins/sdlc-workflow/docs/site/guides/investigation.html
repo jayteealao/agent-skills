@@ -19,7 +19,7 @@
 
 <p>This separation is deliberate. Each investigation ends with an artifact and a recommendation. The fix, when there is one, goes through its own lifecycle with its own planning, verification, and review. That keeps the evidence trail honest: the diagnosis is never contaminated by pressure to make the fix look easy, and no code change slips through a side door that bypasses review.</p>
 
-<p>Five of these commands are intake modes: <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>ideate</code>, and <code>audit</code>. The five modes are <em>terminal</em>: they end in an artifact and a routing decision rather than flow into a build. They create no branch. The other two commands, <code>probe</code> and <code>simplify</code>, are standalone keys with the same read-only posture. All seven can also attach to an existing workflow: pass a slug first, and the result lands as a quick-lane slice inside that workflow's directory instead of a new workflow.</p>
+<p>Six of these commands are intake modes: <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>ideate</code>, <code>audit</code>, and <code>brainstorm</code>. The six modes are <em>terminal</em>: they end in an artifact and a routing decision rather than flow into a build. They create no branch. The other two commands, <code>probe</code> and <code>simplify</code>, are standalone keys with the same read-only posture. All seven can also attach to an existing workflow: pass a slug first, and the result lands as a quick-lane slice inside that workflow's directory instead of a new workflow.</p>
 
 <h2 id="rca">rca — find out why it broke</h2>
 
@@ -65,6 +65,15 @@
 <p>Then comes the adversarial filter, which is mandatory. Every candidate must survive five challenges: is it real, is it already in progress, is the effort justified, is it specific enough to act on right now, and is it a root cause or just a symptom? Culled ideas are recorded with reasons. Survivors are scored by impact and effort and presented as a ranked catalog, and the catalog is the point of the whole exercise: <strong>each surviving idea maps directly to a <code>/wf intake</code> command</strong>. ideate does not start any of them. It hands you a menu; your selection is persisted on the artifact, and a recorded pick (<code>/wf intake ideate &lt;slug&gt; &lt;idea-id&gt;</code>) closes the workflow and prints the successor invocation, seeded with the idea's evidence via <code>from &lt;slug&gt;</code>. To narrow the scan, add a focus area and a count:</p>
 
 <pre><code>/wf intake ideate security 5</code></pre>
+
+<h2 id="brainstorm">brainstorm — think a half-formed thought through</h2>
+
+<p>brainstorm is the rubber duck. Every other mode on this page starts from something you can state: a symptom, a problem, a theory, a subsystem. brainstorm starts before that, from a thought you cannot yet phrase as a request. You do the generating. The agent asks question batches through the host's question tool: a reflection offers candidate readings of what you just said, a probe targets one assumption, a fork offers directions. Picking a reading confirms it; the free-text option is where you rethink. There is no question floor and no cap. The loop runs until you type <code>done</code>.</p>
+
+<p>The board is the artifact. It holds threads, each with claims, assumptions, and contradictions, and it is rewritten after every batch, so a session that dies loses at most one batch and a resume never re-asks what the board answers. When you state something about the codebase that one read can check, the agent runs that one read and records the claim as verified or contradicted with a file and line. It sends a research sub-agent only when you say <code>look it up</code>. It writes no plan, no option card, and no code. <code>done</code> distills every live thread into a candidate card with its own entry command; the successor inherits the thread's claims and assumptions, and the parked and dropped threads as what it must not re-widen.</p>
+
+<pre><code>/wf intake brainstorm a per-slug cost budget
+/wf intake brainstorm brainstorm-a-per-slug-cost-budget-20260922   # resume</code></pre>
 
 <h2 id="audit">audit — hunt the defects nobody has named yet</h2>
 
@@ -166,6 +175,7 @@ covered.</p>
   <dt><code>/wf intake investigate</code></dt><dd>You know the problem and need to see the <em>solution space</em>. investigate starts from a problem; you pick the approach.</dd>
   <dt><code>/wf intake discover</code></dt><dd>You have a <em>theory</em> about the code and need a verdict. discover starts from a falsifiable claim.</dd>
   <dt><code>/wf intake ideate</code></dt><dd>You do not have a question yet; you want to know what is <em>worth doing</em>. ideate starts from nothing.</dd>
+  <dt><code>/wf intake brainstorm</code></dt><dd>You have a half-formed thought and want to <em>think it through</em>. brainstorm starts from your thought; the agent asks, you generate.</dd>
   <dt><code>/wf probe</code></dt><dd>You need to know what the <em>running product actually does</em>, versus what was promised.</dd>
   <dt><code>/wf simplify</code></dt><dd>You want the code reviewed for reuse, quality, and efficiency, with each finding sent to the correct fix lane.</dd>
 </dl>

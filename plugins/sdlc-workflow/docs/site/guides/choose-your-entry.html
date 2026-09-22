@@ -117,6 +117,12 @@ or "is it feasible to…". It produces a feasibility verdict.</dd>
 <dd>Use this mode for open-ended brainstorming with no specific defect or decision in view, for
 example "ideas for improving onboarding". It produces a ranked idea catalog. Each idea you pick
 seeds its own fresh intake.</dd>
+<dt><code>/wf intake brainstorm &lt;topic&gt;</code></dt>
+<dd>Use this mode when you have a half-formed thought of your own and want to think it through
+aloud, for example "help me think through a per-slug cost budget". The agent is the duck: it
+asks question batches, reflects your thought back as candidate readings, names the assumptions
+inside it, and keeps a board on disk. You leave with <code>done</code>; the live threads become
+candidate cards, each with its own entry command.</dd>
 <dt><code>/wf intake audit &lt;concern&gt; [paths…]</code></dt>
 <dd>Use this mode to hunt <em>unknown</em> defects across a named subsystem, for example "audit
 the paint-ordering code for bugs and wrong assumptions". No symptom, no hypothesis, no diff —
@@ -126,8 +132,10 @@ keeps an accumulating findings ledger you can re-run against. Each accepted find
 its own follow-up command.</dd>
 </dl>
 
-<p>The four modes are near neighbors. <code>investigate</code> sketches approaches to a
+<p>The five modes are near neighbors. <code>investigate</code> sketches approaches to a
 <em>stated</em> problem. <code>ideate</code> hunts for problems worth having.
+<code>brainstorm</code> examines a thought you already have — who generates is the
+difference: you (<code>brainstorm</code>) or a codebase scan (<code>ideate</code>).
 <code>discover</code> answers one sharp question. <code>audit</code> hunts defects when nobody
 can yet name one — if you can describe a specific symptom, that is <code>rca</code>, not
 <code>audit</code>. When your description spans two of these modes, intake falls back to the
@@ -251,7 +259,7 @@ what to run next. When several workflows are open, run <code>/wf status advise</
   <ul>
     <li><a href="the-standard-lifecycle.html">The standard lifecycle</a> — what the ten stages do after you enter.</li>
     <li><a href="quick-lanes.html">Quick lanes</a> — fix, hotfix, refactor, and update-deps in depth.</li>
-    <li><a href="investigation.html">Investigation</a> — rca, investigate, discover, and ideate as thinking tools.</li>
+    <li><a href="investigation.html">Investigation</a> — rca, investigate, discover, ideate, and brainstorm as thinking tools.</li>
     <li><a href="staying-oriented.html">Staying oriented</a> — status, recap, and how to find your footing mid-workflow.</li>
   </ul>
 </div>

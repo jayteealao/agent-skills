@@ -559,11 +559,11 @@ async function orient() {
     `5. READINESS GATE (yolo drives from PLAN onward only — it NEVER runs intake or shape autonomously; those own ` +
     `product-owner alignment). First CLASSIFY by 00-index.md workflow-type — only workflows with a decided build are ` +
     `drivable, and a non-build type must NOT fall through to the slice check:\n` +
-    `   5a. TERMINAL-ANALYSIS, no decided build — workflow-type ∈ {investigate, discover, ideate} (00-index.md ` +
+    `   5a. TERMINAL-ANALYSIS, no decided build — workflow-type ∈ {investigate, discover, ideate, brainstorm} (00-index.md ` +
     `type: workflow-index; by design NO 03-slice.md/04-plan.md). Unlike rca, these do NOT converge on one build: ` +
     `investigate emits 2–3 UNPICKED option sketches and writes NO 02-shape.md; discover emits a yes/no VERDICT whose ` +
     `only follow-up is more analysis (e.g. /wf intake rca), not a build; ideate emits a RANKED MENU whose ideas each ` +
-    `become their OWN new workflow. The missing ingredient is a human product decision (pick an option / act on the ` +
+    `become their OWN new workflow; brainstorm keeps an OPEN BOARD the person continues by hand. The missing ingredient is a human product decision (pick an option / act on the ` +
     `verdict / choose an idea) — exactly the intake+shape alignment yolo must not make. So yolo drives NOTHING here; ` +
     `'missing 03-slice.md' is EXPECTED and must NEVER route to '/wf slice'. These are also never continued IN PLACE ` +
     `(investigate has no shape to plan) — each SEEDS A NEW /wf intake workflow, so do NOT route to '/wf plan ${slug}' ` +
@@ -571,7 +571,8 @@ async function orient() {
     `step (00-index.md next-invocation / the 01-<mode>.md lead): ideate → its recorded '/wf intake <chosen-idea>'; ` +
     `investigate → 'pick an option in 01-investigate.md, then /wf intake fix <option> (or /wf intake <option>) — ` +
     `/wf yolo drives it once intaked+shaped'; discover → 'act on the verdict in 01-discover.md (/wf intake rca ` +
-    `<symptom> if it failed; no build if it holds)'.\n` +
+    `<symptom> if it failed; no build if it holds)'; brainstorm → '/wf intake brainstorm ${slug} to continue, or a ` +
+    `candidate entry command from 01-brainstorm.md once distilled'.\n` +
     `   5b. RCA with a DECIDED build — workflow-type 'rca'. The diagnosis IS the intake and 02-shape.md is its ` +
     `synthesized shape, so intake+shape are already COMPLETE and yolo may drive plan→implement→verify→review over ` +
     `the single scope (the plan/implement/verify/review references all have a 'forwarded mode' path for this). Read ` +

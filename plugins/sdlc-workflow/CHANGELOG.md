@@ -5,6 +5,16 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`/wf intake brainstorm` — the rubber-duck intake mode** (BRAINSTORM-MODE-PLAN.md). A person with a half-formed thought runs `/wf intake brainstorm <topic>` and thinks it through with the agent as the duck: the person generates, the agent asks. Each turn is a batch of one to four questions through the host's question tool (the new batch clause of `_gate-question.md`), unbounded in number and with no floor: a *reflection* offers candidate readings of the last thought, a *probe* targets one assumption, a *fork* offers directions, and every fourth batch adds a steer question. Control words at the start of a free-text reply drive the loop: `park`, `pull`, and `drop` a thread, `board`, `look it up` (one research sub-agent on the last unverified claim), `second opinion` (consult), and `done`. The board (`01-brainstorm.md`, new `type: brainstorm`, no rich-tier sibling) holds threads with claims, assumptions, and contradictions and is rewritten after every batch, so a resume (`/wf intake brainstorm <slug>`) never re-asks what the board answers; the agent runs one bounded read per claim it can check and cites the file and line. The agent writes no plan, no option card, and no code inside the loop. `done` distills every live thread into a candidate card whose entry command carries `from <slug>`; `_intake-provenance.md` seeds the successor from the routed thread's claims and assumptions and marks the thread `routed`. The workflow stays open (audit's shape) until `/wf close <slug>`. `auto` pauses and `yolo` refuses a brainstorm slug. The auto-route table proposes `brainstorm` for "help me think through …", "talk me through …", "rubber duck", and "brainstorm with me"; "ideas for X" stays with `ideate`. Two consult triggers (`thread-contested`, `claim-contradicted`), a schema branch, the view-path and lexicon entries, the mod's question counter without the floor suffix on brainstorm turns, one eval case, and a guard suite. Surface pins raised: `intakeModes` 13, `artifactStems` 95, `frontmatterTypes` 67.
+
+### Changed
+
+- **Dispatcher prose trimmed** under the prose-budget ratchet: six restatements left `intake.md`, `yolo.md`, and `SKILL.md` so the brainstorm rows fit the load target.
+
 ## [9.158.0] - 2026-09-22
 
 ### Added

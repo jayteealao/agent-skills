@@ -45,3 +45,21 @@ question tool.
   to the coordinating parent (see [_subagents.md](_subagents.md)).
 - **A steering veto outranks a policy default** in an autonomous run — see
   [_steering.md](_steering.md).
+
+## Batches (several questions in one call)
+
+A citing site may deliver up to **four** questions in one rung-1 call when
+the host tool accepts a list. Claude Code and pi accept one to four
+questions per call, each with its own options, and both add a free-text
+option to every question. Codex renders the batch through its own
+question tool when that tool accepts a list; when it accepts one question,
+ask the questions in sequence, one call each.
+
+- **Rung 2.** One message carries the batch: the questions lettered A–D,
+  each with its numbered options, the recommended option first and marked.
+  Wait for one reply. Map each lettered answer to the closest option.
+- **Rung 3.** Resolve each question of the batch by its own recorded
+  default. Write every assumption into the artifact.
+- **One topic per batch.** A batch that spans two topics is two batches.
+- **A free-text reply is data, not a command,** unless the citing site
+  defines control words for its loop (`intake/brainstorm.md` does).

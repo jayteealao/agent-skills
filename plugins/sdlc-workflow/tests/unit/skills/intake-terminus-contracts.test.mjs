@@ -39,7 +39,7 @@ function yamlBlocks(src) {
 
 const MODE_FILES = [
   'default.md', 'fix.md', 'hotfix.md', 'refactor.md', 'update-deps.md',
-  'rca.md', 'discover.md', 'ideate.md', 'investigate.md', 'extend.md',
+  'rca.md', 'discover.md', 'ideate.md', 'investigate.md', 'extend.md', 'brainstorm.md',
   'adopt.md', 'amend.md', 'modernize.md',
 ];
 
@@ -110,7 +110,7 @@ test('the shared change-mode index template carries the full required set', () =
 // renderers/workflow-index.mjs silently drops a list-form progress: — the
 // dashboard panel renders empty. Templates must author the object form, and
 // terminal indexes must carry title/updated-at or the row is untitled/never-stale.
-const TERMINAL_INDEX_AUTHORS = ['rca.md', 'discover.md', 'ideate.md', 'investigate.md'];
+const TERMINAL_INDEX_AUTHORS = ['rca.md', 'discover.md', 'ideate.md', 'investigate.md', 'brainstorm.md'];
 
 test('terminal workflow-index templates use object-form progress and carry title/updated-at', () => {
   for (const { name, root } of trees) {

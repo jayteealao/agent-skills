@@ -33,6 +33,12 @@
       "expectedReferencePath": "skills/wf/reference/intake/ideate.md"
     },
     {
+      "id": "wf-intake-brainstorm-mode",
+      "purpose": "intake 'brainstorm' mode - the rubber-duck loop; a terminal workflow-index slug with the 01-brainstorm board, stays open.",
+      "invocation": "/wf intake brainstorm a per-slug cost budget",
+      "expectedReferencePath": "skills/wf/reference/intake/brainstorm.md"
+    },
+    {
       "id": "wf-intake-investigate-mode",
       "purpose": "intake 'investigate' mode \u00e2\u20ac\u201d solution-options sketch.",
       "invocation": "/wf intake investigate payments",

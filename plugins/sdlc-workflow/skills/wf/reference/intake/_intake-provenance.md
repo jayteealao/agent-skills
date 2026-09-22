@@ -1,8 +1,8 @@
 # Intake provenance — consume a prior analysis workflow's evidence
 
 Shared contract for every intake mode that can inherit evidence from a prior analysis
-workflow. The terminal analysis modes (`investigate`, `rca`, `discover`, `ideate`) and the
-research half of `update-deps` spend real sub-agent work building maps, diagnoses, verdicts,
+workflow. The terminal analysis modes (`investigate`, `rca`, `discover`, `ideate`,
+`brainstorm`) and the research half of `update-deps` spend real sub-agent work building maps, diagnoses, verdicts,
 and tradeoff cards — when the user routes the follow-on work here, that evidence must arrive
 with it, not die in the source artifact. Slug-mode runs skip this file entirely.
 
@@ -15,12 +15,14 @@ Provenance is explicit or inferred — explicit always wins:
    `.ai/workflows/<source-slug>/00-index.md` and read its `workflow-type`. If the type has
    no row in the Consume table below, WARN ("`<slug>` has workflow-type `<type>` — no
    provenance contract for it; proceeding without inherited context") and continue.
-2. **Inferred (labeled sources only):** inference applies only to `investigate` and
-   `ideate` sources — they are the two whose artifacts carry machine-matchable labels.
-   If `.ai/workflows/INDEX.md` exists, scan its `workflow-type: investigate` and
-   `workflow-type: ideate` rows whose `updated-at` is within the last **30 days** (older
-   sources require the explicit `from <slug>` token). For each candidate, read the option
-   labels (investigate) or idea labels (ideate) from its lead artifact. Attach only on an
+2. **Inferred (labeled sources only):** inference applies only to `investigate`,
+   `ideate`, and `brainstorm` sources — they are the three whose artifacts carry
+   machine-matchable labels. If `.ai/workflows/INDEX.md` exists, scan its
+   `workflow-type: investigate`, `workflow-type: ideate`, and `workflow-type: brainstorm`
+   rows whose `updated-at` is within the last **30 days** (older sources require the
+   explicit `from <slug>` token). For each candidate, read the option labels
+   (investigate), the idea labels (ideate), or the candidate titles (brainstorm,
+   `candidates[].title`) from its lead artifact. Attach only on an
    **exact label match** — the description contains a label exactly (case-insensitive).
    A partial or fuzzy resemblance is NOT a match. If exactly one workflow matches, ask ONE
    confirmation question ("This description matches `<id> — <label>` from `<type>` workflow
@@ -42,6 +44,7 @@ targets the research, it does not replace it.
 | `rca` | `01-rca.md` | Section 4 (root cause) seeds the restated request — the fix targets the named mechanism, not the symptom. Section 6 (blast radius, same-pattern-elsewhere) seeds scope and the risk inventory. Section 5 (contributing factors) seeds known unknowns / follow-up scope decisions. Section 8 (verification) seeds the acceptance criteria unchanged — it was written to be them. |
 | `discover` | `01-discover.md` | The verdict and its evidence seed the restated request's factual ground. The ranked counter-hypotheses seed the diagnosis candidates (they are literally candidate root causes when the successor is an rca). Recorded contradictions seed the risk inventory. |
 | `ideate` | `01-ideate.md`, the **chosen idea's card** | The idea's description + `evidence:` (`file:line` anchors) seed the restated request and research targeting. The rationale that culled its sibling ideas seeds the out-of-scope list — what was considered and rejected, so the successor does not re-widen. |
+| `brainstorm` | `01-brainstorm.md`, the **routed thread's** claims, assumptions, and contradictions, plus its candidate card | The candidate title and the thread's `verified` claims seed the restated request. The `named` and `confirmed` assumptions seed the risk inventory. The `contradicted` claims seed known unknowns. The `dropped` and `parked` threads seed the out-of-scope list, so the successor does not re-widen. |
 | `update-deps` (a prior run) | The prior run's `02-shape.md` Hold tier + `05-implement.md` Blocked list | Hold/Blocked packages, their reasons, revisit conditions, and `changelog-source:` citations seed this run's research — re-check the revisit condition instead of cold-rescanning last month's findings. A citation is re-used only after confirming the target version is unchanged. |
 | an **escalated change-mode** (`fix`/`hotfix`/`refactor`/`update-deps` closed with `close-reason: superseded`) | Its `01-<mode>.md` and `02-shape.md` | The brief, diagnosis/baseline, and recorded tripwire breaches seed the successor's intake — the reason the mode escalated is the first risk entry. |
 
@@ -52,13 +55,17 @@ entry itself (id, files, rationale, severity) travels in the invocation text per
 ## Link back
 
 1. Record `origin-<source-type>: <source-slug>` in the new workflow's `00-index.md`
-   frontmatter (`origin-investigate`, `origin-rca`, `origin-discover`, `origin-ideate` —
-   optional field; omit when there is no provenance).
+   frontmatter (`origin-investigate`, `origin-rca`, `origin-discover`, `origin-ideate`,
+   `origin-brainstorm` — optional field; omit when there is no provenance).
 2. When the source is a **decision-shaped** workflow whose decision this new workflow
    executes (`investigate` pick, `ideate` pick, `rca` route to a fix), update the source's
    `00-index.md`: set `superseded-by: <new-slug>`. Updating this one field on a closed
    index is additive and safe. A `discover` source is not superseded — its verdict stands
-   on its own; the `origin-discover` key alone records the lineage.
+   on its own; the `origin-discover` key alone records the lineage. A `brainstorm`
+   source is not decision-shaped as a whole and is never superseded: the successor sets
+   the routed thread's `state: routed` and `routed-to: <new-slug>` and the matching
+   candidate's `state: routed` in `01-brainstorm.md`. Updating those fields on an open
+   board is additive; the board stays open until `/wf close <slug>`.
 3. If a decision-shaped source is still **open** (the user routed without recording the
    pick/route), this IS the implicit decision: apply the source mode's decision-closure
    section (investigate `# Pick`, ideate `# Pick`, rca `# Route`) first, with

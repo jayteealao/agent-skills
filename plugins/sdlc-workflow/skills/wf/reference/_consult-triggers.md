@@ -49,6 +49,8 @@ Set `SDLC_COST_SLUG=<slug>` and `SDLC_COST_KEY=<key>` in the environment of the 
 | `docs-audit-violations` | the docs audit found quadrant violations or stale claims | docs |
 | `docs-public-api` | the generated doc documents a public API surface | docs |
 | `docs-none-required-contradiction` | the doc plan concludes "None required" for work that changed user-facing behaviour | docs |
+| `thread-contested` | at `done`, a live brainstorm thread is party to an `open` contradiction | intake |
+| `claim-contradicted` | a brainstorm claim's bounded read returned `contradicted` and the person kept the thread live | intake |
 | `user-invoked` | the user ran `/consult` explicitly | any |
 
 ## Rules

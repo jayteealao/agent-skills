@@ -29,7 +29,7 @@ status: where the work came from, the road it took, and where it goes next.
   Intake modes inherit the mode noun: `## The Fix`, `## The RCA`,
   `## The Investigation`, `## The Discovery`, `## The Hotfix`,
   `## The Refactor`, `## The Dependency Update`, `## The Ideation`,
-  `## The Adoption`. The drivers `auto` and `yolo` write no artifact of their
+  `## The Adoption`, `## The Brainstorm`. The drivers `auto` and `yolo` write no artifact of their
   own; their final chat summary follows A6.
 - **A2 — Three beats, in this order, every time.**
   1. **Origin.** The state this stage inherited: what the previous stage

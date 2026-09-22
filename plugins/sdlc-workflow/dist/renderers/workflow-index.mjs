@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-L2O55KIF.mjs";
+} from "../chunk-SCNOIKJL.mjs";
 import {
   costRowsFor,
   costSectionHtml
@@ -18,7 +18,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-PCCTLKQ6.mjs";
+} from "../chunk-O2MCLXSW.mjs";
 import "../chunk-PNDGQNSP.mjs";
 import {
   escapeHtml

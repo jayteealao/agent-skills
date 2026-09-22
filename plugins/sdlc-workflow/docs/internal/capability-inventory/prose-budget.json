@@ -84,7 +84,7 @@
       "reason": "WIDE-VIEW-REPAIR-PLAN §16: implement.md holds 22 artifact keys, 6 stops, 2 dispatches, the suppressionDebtLint/limitationClaimLint config entries, and the pinned build-discipline phrases; the 2,731-word share is unreachable without deleting capability. §4.3 cuts (rationale, history, restatements) landed first."
     },
     "skills/wf/reference/intake.md": {
-      "words": 3091,
+      "words": 3088,
       "reason": "The five-branch shape resolution with its STOPs, the nine-row auto-route signal table with six discriminators, the 14-row mode→span map, and the 14-row mode→file map are the intake dispatcher capability surface; §4.3 cuts removed only rationale and restatements (3,498 → 3,092 words)."
     },
     "skills/wf/reference/plan.md": {
@@ -108,7 +108,7 @@
       "reason": "WIDE-VIEW-REPAIR-PLAN §16: verify.md holds 22 artifact keys, 4 gates, 5 stops, 7 dispatches, the mockEvidenceGate/verifyResultGate/verifyDeferralLint config entries, the AC-gate semantics and the verbatim fix-sub-agent prompt; the 2,731-word share is unreachable without deleting capability. §4.3 cuts (anecdote, rationale, examples) landed first."
     },
     "skills/wf/reference/yolo.md": {
-      "words": 3753,
+      "words": 3752,
       "reason": "The Autonomous Decision Policy table (about 650 words of gate definitions with 10 inventoried STOP sentences), the five intake-class refusals, and the 16-line hand-back template are capability; rationale, history, and restatements were cut from 6,434 words to this count."
     }
   },

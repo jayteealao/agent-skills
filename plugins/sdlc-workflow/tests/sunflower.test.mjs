@@ -72,6 +72,7 @@ test('resolveViewPath: compressed change-mode leads all land at intake/', () => 
 test('resolveViewPath: terminal analysis-mode leads land in their own named dirs', () => {
   // ideate/simplify root in a type:workflow-index slug workflow with a named lead.
   strictEqual(resolveViewPath('01-ideate.md').viewRel, 'ideate/INDEX.html');
+  strictEqual(resolveViewPath('01-brainstorm.md').viewRel, 'brainstorm/INDEX.html');
   strictEqual(resolveViewPath('01-simplify.md').viewRel, 'simplify/INDEX.html');
   // 01-audit (/wf intake audit) roots a type:workflow-index slug — named dir
   // like rca/investigate/discover/ideate, NOT intake/ (no fixed intake card).

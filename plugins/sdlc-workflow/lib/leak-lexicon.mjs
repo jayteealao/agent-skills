@@ -33,7 +33,7 @@ const STAGE_NAMES =
   'intake|quick|shape|design|craft|slice|plan|implement|verify|review|handoff|' +
   'ship-run|ship-runs|ship|rollback|retro|recap|resume|rca|investigate|fix|hotfix|' +
   'refactor|instrument|experiment|benchmark|close|index|docs|' +
-  'discover|ideate|adopt|probe|simplify|update-deps|task|audit';
+  'discover|ideate|adopt|probe|simplify|update-deps|task|audit|brainstorm';
 
 /** Extract the internal roots (`.ai/**`, `.claude/**` / `.codex/**`) from the predicate text. */
 export function parseBoundaryRoots(text) {

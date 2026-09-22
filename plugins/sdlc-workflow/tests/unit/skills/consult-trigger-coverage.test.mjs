@@ -43,6 +43,9 @@ const SWEPT = [
   // credentials/billing/prod data, no rollback); audit fires on zero-findings-on-a-
   // large-surface, any BLOCKER, needs-runtime-evidence, or a sensitive surface.
   'task.md', 'intake/audit.md',
+  // BRAINSTORM-MODE-PLAN §7 — fires on thread-contested / claim-contradicted / the
+  // touches-* surfaces / user-invoked (the `second opinion` control word).
+  'intake/brainstorm.md',
 ];
 
 test('sweep — every formerly-weak stage carries an objective-trigger block that auto-invokes', () => {

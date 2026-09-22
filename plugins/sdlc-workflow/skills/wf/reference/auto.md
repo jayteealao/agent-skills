@@ -60,6 +60,7 @@ There are no flags. `auto` always stops at the review; `handoff`, `ship`, and `r
    - **`workflow-type: update-deps`** → implement and verify are self-managed by the mode; `auto` does NOT drive them. If the slug is not yet past verify, PAUSE and route the user to `/wf intake update-deps <slug>`.
    - **`workflow-type: task`** → the task lifecycle is self-managed by `/wf task`, and its blast-radius authorization gate is a human gate a driver must not resolve. `auto` drives NOTHING here — PAUSE and route the user to `/wf task <slug>`.
    - **`workflow-type: audit`** → a terminal defect hunt with no build stages; there is nothing to drive. PAUSE and route the user to `/wf intake audit <slug>` (an accumulating re-run) or to a finding's recorded route in `07-review.md` `## Triage Decisions`.
+   - **`workflow-type: brainstorm`** → a thinking loop with no build stages; there is nothing to drive. PAUSE and route the user to `/wf intake brainstorm <slug>` (resume the board) or, once distilled, to a candidate's entry command in `01-brainstorm.md`.
 5. **Branch posture.** Run `git branch --show-current`. If it differs from `00-index.md.branch` (and `branch` is non-empty), run `git switch <slug-branch>` without asking; the release valve in [_autonomy-guards.md](_autonomy-guards.md) applies. Record the switch in the Step 3 hand-back. On a git refusal (uncommitted changes would be lost), surface the error and STOP — do not stash or force.
 
 # Step 1 — The driver loop

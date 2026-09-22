@@ -58,6 +58,9 @@ var PHASE_BY_BASENAME = {
   // `type: workflow-index` slug — named dir like rca/investigate/discover/ideate,
   // NOT intake/ (a workflow-index overview has no fixed intake card).
   "01-audit": ["audit", null],
+  // `01-brainstorm` (/wf intake brainstorm) is the board of a rubber-duck
+  // brainstorm on a `type: workflow-index` slug — terminal, named dir, no build.
+  "01-brainstorm": ["brainstorm", null],
   "02-shape": ["shape", null],
   "02b-design": ["design", null],
   "02c-craft": ["design-brief", null],

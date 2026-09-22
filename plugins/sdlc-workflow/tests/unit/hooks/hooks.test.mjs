@@ -422,6 +422,39 @@ test('post-write-verify validates written workflow artifacts with Ajv', () => {
   }
 });
 
+// BRAINSTORM-MODE-PLAN P-B4 — the write hook accepts a brainstorm board and its
+// workflow-index, and demands no sibling fragment (brainstorm is not rich-tier).
+test('post-write-verify accepts a brainstorm board and its workflow-index', () => {
+  const tmp = tempDir();
+  try {
+    const dir = join(tmp, '.ai', 'workflows', 'brainstorm-cost-budget-20260922');
+    writeFile(join(dir, '00-index.md'), md({
+      schema: 'sdlc/v1', type: 'workflow-index', slug: 'brainstorm-cost-budget-20260922',
+      title: 'Brainstorm: a per-slug cost budget 2026-09-22', 'workflow-type': 'brainstorm',
+      'current-stage': 'brainstorm', status: 'ready', 'branch-strategy': 'none', 'open-questions': [],
+      'next-command': 'intake', 'next-invocation': '/wf intake brainstorm brainstorm-cost-budget-20260922',
+      progress: { brainstorm: 'in-progress' }, 'created-at': '2026-09-22T10:00:00Z', 'updated-at': '2026-09-22T10:00:00Z',
+    }));
+    writeFile(join(dir, '01-brainstorm.md'), md({
+      schema: 'sdlc/v1', type: 'brainstorm', slug: 'brainstorm-cost-budget-20260922',
+      topic: 'a per-slug cost budget', status: 'open', 'created-at': '2026-09-22T10:00:00Z',
+      'updated-at': '2026-09-22T10:00:00Z', sessions: 1, batches: 0,
+      threads: [{ id: 'T-01', label: 'budget per slug', state: 'live', 'routed-to': null }],
+      claims: [], assumptions: [], contradictions: [], candidates: [], selected: [], revisions: [],
+    }));
+    for (const file of ['00-index.md', '01-brainstorm.md']) {
+      const result = runHook(HOOKS.postWriteVerify, {
+        cwd: tmp,
+        tool_input: { file_path: `.ai/workflows/brainstorm-cost-budget-20260922/${file}` },
+      }, tmp);
+      equal(result.status, 0, `${file}: ${result.stderr}`);
+      equal(result.stderr, '', `${file}: the hook demanded something of a brainstorm artifact`);
+    }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('post-write-verify mock-evidence gate blocks result: pass with a user-observable mock AC', () => {
   const tmp = tempDir();
   try {

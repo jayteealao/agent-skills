@@ -17,7 +17,7 @@ var BOUNDARY_PATH = resolve(
 var DEFAULT_ROOTS = [".ai/", ".claude/"];
 var WF_KEYS = "intake|shape|slice|plan|implement|verify|review|handoff|ship-plan|ship|retro|design|probe|simplify|auto|yolo|status|recap|close|docs|observability|task";
 var SKILL_SUFFIXES = `${WF_KEYS}|meta|quick|next|resume|amend|extend|announce`;
-var STAGE_NAMES = "intake|quick|shape|design|craft|slice|plan|implement|verify|review|handoff|ship-run|ship-runs|ship|rollback|retro|recap|resume|rca|investigate|fix|hotfix|refactor|instrument|experiment|benchmark|close|index|docs|discover|ideate|adopt|probe|simplify|update-deps|task|audit";
+var STAGE_NAMES = "intake|quick|shape|design|craft|slice|plan|implement|verify|review|handoff|ship-run|ship-runs|ship|rollback|retro|recap|resume|rca|investigate|fix|hotfix|refactor|instrument|experiment|benchmark|close|index|docs|discover|ideate|adopt|probe|simplify|update-deps|task|audit|brainstorm";
 function parseBoundaryRoots(text) {
   const roots = /* @__PURE__ */ new Set();
   const re = /`\.([a-z][\w-]*)\/\*\*`/g;

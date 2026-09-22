@@ -5,7 +5,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-L2O55KIF.mjs";
+} from "./chunk-SCNOIKJL.mjs";
 import {
   PLUGIN_VERSION,
   breadcrumbFromView,
@@ -14,7 +14,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-PCCTLKQ6.mjs";
+} from "./chunk-O2MCLXSW.mjs";
 import {
   aggregateCost,
   readCostRows

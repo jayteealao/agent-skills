@@ -5,7 +5,7 @@ import {
 } from "./chunk-TNCDSDXJ.mjs";
 import {
   humanRelative
-} from "./chunk-4RLI3RZK.mjs";
+} from "./chunk-DW5WFXUB.mjs";
 import {
   evenX,
   figureCanvas
@@ -13,7 +13,7 @@ import {
 import {
   artifactHeader,
   pageHref
-} from "./chunk-PCCTLKQ6.mjs";
+} from "./chunk-O2MCLXSW.mjs";
 import {
   escapeHtml
 } from "./chunk-3RXHOXIK.mjs";

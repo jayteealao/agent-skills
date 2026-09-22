@@ -28,7 +28,7 @@ Run this check before any read or write. Its result is your first visible output
 
 | Key | Arguments | Does | Writes |
 |---|---|---|---|
-| `intake` | `[slug] [mode] <description>` | Entry dispatcher. A description starts stage 1. A mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `adopt`) runs a compressed entry flow. An existing slug plus a mode attaches a compressed slice; a slug plus free scope extends the workflow. `amend` and `modernize` edit an existing workflow's recorded config. | per mode |
+| `intake` | `[slug] [mode] <description>` | Entry dispatcher. A description starts stage 1. A mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`) runs a compressed entry flow. An existing slug plus a mode attaches a compressed slice; a slug plus free scope extends the workflow. `amend` and `modernize` edit a workflow's recorded config. | per mode |
 | `shape` | `[slug] [hint]` | Product-owner discovery. Authors the documentation plan and `augmentations-needed`. | `02-shape.md` |
 | `slice` | `<slug>` | Decompose the shape into shippable slices. | `03-slice.md`, `03-slice-<slug>.md` |
 | `plan` | `<slug> [slice]` | Per-slice plan with a reuse scan. Applies the augmentation plan via `reference/augment/<type>.md`. | `04-plan-<slice>.md` |
