@@ -982,6 +982,11 @@ export function register(on: On, options: PluginOptions = {}) {
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
     const engine = host
+    // A sub-agent raises no `turn.start` but does raise `turn.complete` with
+    // its `agentId`. It is not the person's turn: it must not consume the
+    // bracket, or the first sub-agent to finish ends the stage's bookkeeping
+    // and the writes that follow it are counted against nothing.
+    if (e.agentId !== undefined) return result
     const turn = bracket
     bracket = null
     if (!engine || turn === null) return result
@@ -1021,25 +1026,38 @@ export function register(on: On, options: PluginOptions = {}) {
     if (settings.stageCompact && landed === true && command !== null && workflow !== null && compactEligible(command, workflow, e)) {
       const instructions = compactInstructionsOf(workflow, command, turn.writes)
       const key = command.key
-      journalTurn(command, landed, 'compact')
+      journalTurn(command, turn, landed, 'compact')
       engine.later(() => {
         void compactAfterStage(engine, key, instructions).then(suggest)
       })
       return result
     }
-    if (command !== null) journalTurn(command, landed, suggestion === null ? 'none' : 'suggest')
+    if (command !== null) journalTurn(command, turn, landed, compactSkipReason(command, workflow, landed, e, suggestion))
     // Proposed once this dispatch is over: the engine drops a suggestion made while a turn runs.
     if (suggestion !== null) engine.later(suggest)
     return result
   })
 
-  /** One journal row per `/wf` turn: what ran, whether its artifact landed, and what followed. */
-  function journalTurn(command: WfCommand, landed: boolean | null, action: 'compact' | 'suggest' | 'none'): void {
+  /**
+   * One journal row per `/wf` turn: what ran, what it wrote, whether its
+   * artifact landed, and what followed. A turn that compacted nothing says
+   * which test refused it, so one row answers "why did it not compact".
+   */
+  function journalTurn(command: WfCommand, turn: Bracket, landed: boolean | null, action: string): void {
+    const target = `${command.key} ${command.slug ?? '-'}${command.slice === null ? '' : ` ${command.slice}`}`
     void journal?.write({
       event: 'turn',
-      ok: action !== 'none',
-      detail: `${command.key} ${command.slug ?? '-'} · landed ${landed === null ? 'n/a' : String(landed)} · ${action}`,
+      ok: action === 'compact' || action === 'suggest',
+      detail: `${target} · writes ${turn.writes.length} · landed ${landed === null ? 'n/a' : String(landed)} · ${action}`,
     })
+  }
+
+  /** Why a `/wf` turn compacted nothing, in one word the journal carries. */
+  function compactSkipReason(command: WfCommand, workflow: WorkflowEntry | null, landed: boolean | null, end: { reason: string; agentId?: string | undefined }, suggestion: string | null): string {
+    if (!settings.stageCompact) return 'off'
+    if (landed !== true) return 'unlanded'
+    if (!compactEligible(command, workflow, end)) return `ineligible(${command.key})`
+    return suggestion === null ? 'none' : 'suggest'
   }
 
   /**

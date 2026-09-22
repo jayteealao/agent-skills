@@ -5,6 +5,16 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **A sub-agent no longer ends the person's turn** (MOD-FEATURES.md §4). A sub-agent raises no `turn.start` but does raise `turn.complete` with its `agentId`, and the mod consumed the turn's bookkeeping on the first one to finish. A `/wf plan` turn, which dispatches one sub-agent per slice, therefore ended with an empty write list: no stage check, no cost row, and no post-stage compaction. The probe journal caught it in the SoccerManager repository (`plan football-manager-match-engine · landed false · none`). `turn.complete` now ignores a sub-agent's turn entirely.
+
+### Changed
+
+- **The probe journal's `turn` row says why a turn compacted nothing**: the key, the slug, the slice, the writes counted, whether the artifact landed, and `compact`, `suggest`, `off`, `unlanded`, or `ineligible(<key>)`.
+
 ## [9.161.0] - 2026-09-22
 
 ### Fixed

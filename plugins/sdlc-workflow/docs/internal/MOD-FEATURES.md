@@ -254,7 +254,10 @@ What gates now, and where:
 The probe journal answers "did it run here". Every session appends rows to
 `<SDLC_HOME|~/.sdlc>/mod-probe.jsonl`, at most 400, through `$.fs.write` of
 the whole text (there is no append call), serialized on one promise chain,
-each row taking its identity when the fact happens. The events are `load`,
+each row taking its identity when the fact happens. A `turn` row names the key, the slug, the slice, the writes counted, whether
+the artifact landed, and what followed — `compact`, `suggest`, or why not
+(`off`, `unlanded`, `ineligible(<key>)`), so one row answers "why did it not
+compact". The events are `load`,
 `attach`, `commands`, `turn`, `compact`, and `call`; a row carries the time,
 eight characters of the session id, the host from `CLAUDE_CODE_ENTRYPOINT`,
 the surface, and one short detail. No prompt text and no file content is
@@ -276,6 +279,11 @@ own `probe.ts` so the table and the tests judge by the same code.
   matchers accept `requestId`.
 - `turn.complete` carries `reason: 'answer' | 'aborted' | 'refusal' |
   'error'`, `answer`, `durationMs`, `isAborted`, `turnId`.
+- A sub-agent raises no `turn.start` but does raise `turn.complete`, with
+  its `agentId`. A hook that keeps per-turn state must ignore those, or the
+  first sub-agent to finish consumes the person's turn: this is what stopped
+  the post-stage compaction of a `/wf plan` turn on 2026-09-22, since the
+  plan stage dispatches one sub-agent per slice.
 - A void `$.ui.*` call (`log`, `status`, `toast`) never rejects at the
   plugin: where a surface does not carry it, the engine drops the call and
   reports it in its own log. A try/catch around one catches nothing, so the

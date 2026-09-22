@@ -779,6 +779,24 @@ describe('register', () => {
     expect(world.compacted).toEqual([])
   })
 
+  test('a sub-agent finishing mid-turn does not consume the turn, and the stage still compacts', async ($, on) => {
+    // A `/wf plan` turn dispatches per-slice sub-agents. A sub-agent raises no
+    // `turn.start` but does raise `turn.complete` with its `agentId`; the main
+    // turn's bracket must survive it, writes and all.
+    const world = seat(on, { ...TREE })
+    await $.session.start(SESSION)
+    await $.turn.start({ text: '/wf plan alpha-flow auth', turnId: 'main' })
+    await $.turn.complete({ answer: 'sub done', durationMs: 1, isAborted: false, turnId: 'sub-1', reason: 'answer', agentId: 'agent-1' })
+    await $.tool.call({ tool: 'Write', file_path: '/work/.ai/workflows/alpha-flow/04-plan-auth.md', content: 'plan' })
+    await $.turn.complete({ answer: 'done', durationMs: 1, isAborted: false, turnId: 'main', reason: 'answer' })
+    await world.clock.advance(1)
+    await settle()
+    const turns = probeRows(world).filter(row => row['event'] === 'turn')
+    expect(turns).toHaveLength(1)
+    expect(turns[0]).toMatchObject({ ok: true, detail: 'plan alpha-flow auth · writes 1 · landed true · compact' })
+    expect(world.compacted).toHaveLength(1)
+  })
+
   test('a vetoed compaction logs the reason and still suggests; a refused call is retried once', async ($, on) => {
     const world = seat(on, { ...TREE })
     await $.session.start(SESSION)
@@ -1020,7 +1038,7 @@ describe('register', () => {
     await world.clock.advance(1)
     await settle()
     const rows = probeRows(world)
-    expect(rows.find(row => row['event'] === 'turn')).toMatchObject({ ok: true, detail: 'implement alpha-flow · landed true · compact' })
+    expect(rows.find(row => row['event'] === 'turn')).toMatchObject({ ok: true, detail: 'implement alpha-flow auth · writes 1 · landed true · compact' })
     expect(rows.find(row => row['event'] === 'compact')).toMatchObject({ ok: true, detail: 'done' })
   })
 
@@ -1035,7 +1053,7 @@ describe('register', () => {
     // A session that already draws somewhere keeps that surface; the rows go on.
     await turn($, '/wf implement alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md'])
     await settle()
-    expect(probeRows(world).find(row => row['event'] === 'turn')).toMatchObject({ detail: 'implement alpha-flow · landed true · compact' })
+    expect(probeRows(world).find(row => row['event'] === 'turn')).toMatchObject({ detail: 'implement alpha-flow auth · writes 1 · landed true · compact' })
   })
 
   test('with probeJournal off no journal is written', async ($, on) => {
