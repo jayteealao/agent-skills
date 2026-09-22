@@ -1,8 +1,12 @@
 # Post-stage auto compaction in the Claude Code mod — plan
 
-Status: **DRAFTED 2026-09-22** against v9.157.1 (`9e275206`); **W1–W3 BUILT
-2026-09-22** (unreleased at the time of writing), W4 docs written, the
-release pending. The operator settled three points the same day (§11):
+Status: **SHIPPED v9.158.0 2026-09-22**; two live defects repaired after
+it, in v9.161.1 (a sub-agent's `turn.complete` consumed the person's turn)
+and in v9.161.2 (the compaction was called from a timer the
+`turn.complete` hook started, and the engine refuses it there). **P-C1 is
+answered: the engine accepts `session.compact` from a `turn.complete` hook
+and refuses it from any later event.** The call now runs inside that
+dispatch and there is no retry. The operator settled three points the same day (§11):
 every landed stage compacts with no context floor, `review` is exempt, and
 the toast stands (no ask). Departures from the draft: the turn-id guard of
 W2 step 2 is not needed, because the hook nulls the turn bracket at the
@@ -10,8 +14,9 @@ first `turn.complete` and a second one for the same turn finds none; the
 kit refuses a compaction input or result with an empty `messages` list, so
 the tests carry one message each way; a rejected call reaches the mod as
 a thrown error, not a `deny`. W0 was not run: probes P-C1, P-C2, P-C4, and
-P-C6 stay open in MOD-FEATURES.md §5 (the code covers both answers to
-P-C1 with the retry, and both answers to P-C4 with the sentence check);
+P-C6 stay open in MOD-FEATURES.md §5 (P-C1 is now answered by the live
+run described above; the code covers both answers to P-C4 with the
+sentence check);
 P-C5 is settled (the kit raises `session.compact` with a bottom mock);
 P-C3 fell with the floor. Every engine mechanism below is in the Claude
 Code 2.1.271 mod contract (`.claude/types/claude-code.d.ts`) unless a line
