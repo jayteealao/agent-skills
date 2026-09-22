@@ -10,9 +10,9 @@ import { CATALOG, commandNameOf, keyOfCommand } from '../../../hooks/mod/catalog
 import { ALL, NONE, backOf, digitCommandOf, fillOf, filterOptions, filterTextOf, hotkeyOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from '../../../hooks/mod/picker.ts';
 import { findProjectRoot, frontmatterOf, joinPath, listSlices, listWorkflows, rosterOf } from '../../../hooks/mod/workflows.ts';
 import {
-  beatsOf, costTextOf, driverStatusOf, expectedArtifactOf, hubHealthOf, hubNoticeTextOf, isWorkflowPath,
+  COMPACT_KEYS, beatsOf, compactEligible, compactInstructionsOf, compactKeepSentenceOf, compactToastOf, costTextOf, driverStatusOf, expectedArtifactOf, hubHealthOf, hubNoticeTextOf, isWorkflowPath,
   ledgerTokensOf, modeLabelOf, openFindingsOf, settingOfKey, settingsOf, slugOfPath, spinnerWordOf, statusTextOf,
-  nextActiveSlug, openingCandidatesOf, reviewLedgerNameOf, shipPlanBlockersOf, stripTextOf, wfCommandOf, wrappedRowsOf, yamlListItemsOf,
+  nextActiveSlug, openingCandidatesOf, reviewLedgerNameOf, shipPlanBlockersOf, stageLanded, stripTextOf, wfCommandOf, wrappedRowsOf, yamlListItemsOf,
 } from '../../../hooks/mod/active.ts';
 
 const WORKFLOWS = [
@@ -362,4 +362,69 @@ test('the driver status names the stage from the newest row that carries one', (
     { at: at(2_300_000), run: 'r2', seq: 1, event: 'agent-end', agent: 'a1', status: 'complete', errors: 0 },
   ].map(row => JSON.stringify(row)).join('\n');
   assert.equal(driverStatusOf('yolo', beatsOf(journal), 2_360_000), 'yolo · run r2 · implement auth · agent a1 · 6 min · last beat 1 min ago');
+});
+
+test('stageLanded: the artifact in the writes, or an mtime at or after the start; without an expected file, any write', () => {
+  const writes = ['/r/.ai/workflows/a/05-IMPLEMENT-auth.md'];
+  assert.equal(stageLanded(writes, '05-implement-auth.md', 100, null), true);
+  assert.equal(stageLanded([], '05-implement-auth.md', 100, 100), true);
+  assert.equal(stageLanded([], '05-implement-auth.md', 100, 99), false);
+  assert.equal(stageLanded([], '05-implement-auth.md', 100, null), false);
+  assert.equal(stageLanded(['/r/.ai/workflows/a/04-plan-ui.md'], null, 100, null), true);
+  assert.equal(stageLanded([], null, 100, null), false);
+});
+
+test('compactEligible: an answered main-loop stage turn of a compacting key, on an open workflow with a next step', () => {
+  const workflow = { slug: 'a', status: 'active', terminal: false, currentStage: 'implement', selectedSlice: 'auth', nextInvocation: '/wf verify a auth' };
+  const command = { key: 'implement', slug: 'a', slice: 'auth' };
+  const end = { reason: 'answer' };
+  assert.equal(compactEligible(command, workflow, end), true);
+  assert.equal(compactEligible(null, workflow, end), false);
+  assert.equal(compactEligible(command, null, end), false);
+  assert.equal(compactEligible(command, workflow, { reason: 'aborted' }), false);
+  assert.equal(compactEligible(command, workflow, { reason: 'error' }), false);
+  assert.equal(compactEligible(command, workflow, { reason: 'answer', agentId: 'sub' }), false);
+  assert.equal(compactEligible({ ...command, slug: null }, workflow, end), false);
+  assert.equal(compactEligible({ ...command, key: 'review' }, workflow, end), false);
+  assert.equal(compactEligible({ ...command, key: 'intake' }, workflow, end), false);
+  assert.equal(compactEligible({ ...command, key: 'auto' }, workflow, end), false);
+  assert.equal(compactEligible({ ...command, key: 'status' }, workflow, end), false);
+  assert.equal(compactEligible(command, { ...workflow, terminal: true }, end), false);
+  assert.equal(compactEligible(command, { ...workflow, nextInvocation: null }, end), false);
+  assert.deepEqual([...COMPACT_KEYS], ['shape', 'slice', 'plan', 'implement', 'verify', 'handoff', 'ship', 'retro']);
+});
+
+test('compactInstructionsOf names the position, the paths (or their count past twelve), and what to keep and drop', () => {
+  const workflow = { slug: 'a', status: 'active', terminal: false, currentStage: 'plan', selectedSlice: null, nextInvocation: '/wf implement a ui' };
+  const command = { key: 'plan', slug: 'a', slice: 'ui' };
+  const one = compactInstructionsOf(workflow, command, ['/r/.ai/workflows/a/04-plan-ui.md', '/r/.ai/workflows/a/04-plan-ui.md']);
+  assert.equal(
+    one,
+    'The /wf plan stage of workflow a is complete. Keep the workflow slug a, the next invocation /wf implement a ui. Keep the paths of the artifacts written this turn: /r/.ai/workflows/a/04-plan-ui.md. Keep verbatim every decision, acceptance criterion, blocker, and answer the person gave that is not yet written to an artifact. Drop tool output, test logs, and file contents; the next stage re-reads the artifacts from disk.',
+  );
+  const none = compactInstructionsOf({ ...workflow, selectedSlice: 'ui' }, command, []);
+  assert.match(none, /^The \/wf plan stage of workflow a is complete\. Keep the workflow slug a, the selected slice ui, the next invocation \/wf implement a ui\. Keep verbatim/u);
+  assert.doesNotMatch(none, /written this turn/u);
+  const many = compactInstructionsOf(workflow, command, Array.from({ length: 13 }, (_, i) => `/r/.ai/workflows/a/f${i}.md`));
+  assert.match(many, / Keep the paths of the 13 artifacts written this turn under \.ai\/workflows\/a\/\. /u);
+});
+
+test('compactKeepSentenceOf names the position fields that are present; compactToastOf carries the percent when known', () => {
+  assert.equal(
+    compactKeepSentenceOf({ slug: 'a', status: 'active', terminal: false, currentStage: 'implement', selectedSlice: 'auth', nextInvocation: '/wf verify a auth' }),
+    'Keep the active /wf workflow a, its stage implement, its slice auth, its next invocation /wf verify a auth, the paths under .ai/workflows/a/.',
+  );
+  assert.equal(
+    compactKeepSentenceOf({ slug: 'a', status: 'active', terminal: false, currentStage: null, selectedSlice: null, nextInvocation: null }),
+    'Keep the active /wf workflow a, the paths under .ai/workflows/a/.',
+  );
+  assert.equal(compactToastOf('implement', 62), 'wf: compacting after implement (context 62%)');
+  assert.equal(compactToastOf('implement', null), 'wf: compacting after implement');
+});
+
+test('settingsOf reads stageCompact like every other boolean field', () => {
+  assert.equal(settingsOf({}).stageCompact, true);
+  assert.equal(settingsOf({ stageCompact: false }).stageCompact, false);
+  assert.equal(settingsOf({ stageCompact: 'no' }).stageCompact, true);
+  assert.equal(settingOfKey('sdlc-workflow', 'sdlc-workflow.stageCompact'), 'stageCompact');
 });

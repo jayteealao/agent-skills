@@ -196,6 +196,37 @@ markdown's unchecked rows serve without one. The audit count follows
 `auditTriageViolation` in `hooks/post-write-verify.mjs`: `findings:` items
 with severity BLOCKER or HIGH and status open.
 
+### 3.11 The post-stage compaction (`stageCompact`)
+
+Plan: [POST-STAGE-COMPACT-PLAN.md](POST-STAGE-COMPACT-PLAN.md). A
+`/wf <key> <slug> [slice]` turn on the main loop that ends with an answer
+and lands its artifact (the stage check's own test) is followed by one
+`$.session.compact({ instructions })` call, scheduled past the
+`turn.complete` dispatch with `$.clock.after(0)`. The keys are `shape`,
+`slice`, `plan`, `implement`, `verify`, `handoff`, `ship`, and `retro`;
+`review` is exempt (its findings feed the fix turn), `intake` has no stage
+boundary, `auto` and `yolo` run their stages as sub-agent turns. There is
+no context floor: every landed stage compacts. Before the call one toast
+reads `wf: compacting after implement (context 62%)` (no percent when
+`$.session.usage()` has none). The instructions name the slug, the slice,
+the next invocation, the paths written this turn (the count past twelve),
+ask for every decision, acceptance criterion, blocker, and answer not yet
+in an artifact verbatim, and drop tool output, test logs, and file
+contents. A `{ skip }` answer logs `wf: compaction skipped: <reason>`; a
+rejected call (the engine refuses one made inside a turn) logs
+`wf: compaction refused: <message>` and is retried once after 500 ms. The
+next-step suggestion is proposed after the compaction, whatever its
+outcome.
+
+A `session.compact` hook on the main loop (any trigger but `precompute`)
+prepends one sentence to the instructions while a workflow is active:
+`Keep the active /wf workflow alpha-flow, its stage implement, its slice
+auth, its next invocation /wf verify alpha-flow auth, the paths under
+.ai/workflows/alpha-flow/.` The mod's own call already names each item, so
+the sentence is not added when the instructions hold it. Both are off
+when `stageCompact` is false. Codex and pi see none of this; the skill
+prose keeps its "consider compacting" lines for them.
+
 ## 4. Engine facts the build settled
 
 - `userConfig` fields need `type`, `title`, `description`, and `default`;
@@ -208,7 +239,14 @@ with severity BLOCKER or HIGH and status open.
   matchers accept `requestId`.
 - `turn.complete` carries `reason: 'answer' | 'aborted' | 'refusal' |
   'error'`, `answer`, `durationMs`, `isAborted`, `turnId`.
-- `$.session.usage()` answers `{ context, rateLimits, cost?: { usd } }`.
+- `$.session.usage()` answers `{ context, rateLimits, cost?: { usd } }`;
+  `context.percent` is the whole-number fill and may be absent.
+- `$.session.compact({ instructions })` is the `session.compact` event
+  with `trigger: 'plugin'`; the result is `{ messages, tokensBefore?,
+  tokensAfter? }` or `{ skip }`, and a rejection is a thrown error. The
+  kit validates the event: an input or a result with an empty `messages`
+  list is refused ("a compaction leaves at least one"), so a bottom mock
+  answers one summary message and a test input carries one message.
 - The health answer is `{ ok, version, entries: [{ stale, ... }], ... }`.
 - The kit engine raises every event as `$.noun.event(...)`; `$.ui.input`
   and `$.ui.select` are not on it, and a rendered tree carries handlers as
@@ -289,3 +327,13 @@ Still open:
    skill (the fallback covers both).
 4. The driver watch against a real `/wf yolo` run (the fixture journal
    covers the read path only).
+5. The post-stage compaction's probes P-C1, P-C2, P-C4, and P-C6 of
+   POST-STAGE-COMPACT-PLAN.md: whether a `$.clock.after(0)` call inside
+   the `turn.complete` dispatch counts as between turns (the code retries
+   once after 500 ms either way), whether a compaction clears a
+   suggestion proposed before it (the suggestion is proposed after it),
+   whether the mod's own call runs the mod's own `session.compact` hook
+   (the hook skips instructions that already hold its sentence), and what
+   the engine shows after a `plugin`-triggered compaction. P-C5 is
+   settled: the kit raises `session.compact` as `$.session.compact(...)`
+   with a bottom mock.

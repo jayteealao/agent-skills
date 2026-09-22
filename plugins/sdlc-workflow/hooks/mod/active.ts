@@ -1,7 +1,7 @@
 /**
  * The active workflow and the turn bracket: pure helpers the strip, the
- * next-step suggestion, the stage-landed check, the driver status, and the
- * dashboard read. Nothing here touches the engine.
+ * next-step suggestion, the stage-landed check, the post-stage compaction,
+ * the driver status, and the dashboard read. Nothing here touches the engine.
  */
 import { entryOf } from './catalog.ts'
 import type { SliceEntry, WorkflowEntry } from './workflows.ts'
@@ -16,6 +16,7 @@ export type Settings = {
   spinnerVerb: boolean
   cost: boolean
   hubNotice: boolean
+  stageCompact: boolean
 }
 
 export const SETTING_NAMES: ReadonlyArray<keyof Settings> = [
@@ -27,6 +28,7 @@ export const SETTING_NAMES: ReadonlyArray<keyof Settings> = [
   'spinnerVerb',
   'cost',
   'hubNotice',
+  'stageCompact',
 ]
 
 /** Every setting on, as the manifest defaults them. */
@@ -39,6 +41,7 @@ export const DEFAULT_SETTINGS: Settings = {
   spinnerVerb: true,
   cost: true,
   hubNotice: true,
+  stageCompact: true,
 }
 
 /** The settings from the plugin's options: a boolean field takes its value, anything else its default. */
@@ -106,6 +109,71 @@ export function expectedArtifactOf(command: WfCommand): string | null {
     default:
       return null
   }
+}
+
+/**
+ * Whether a stage turn landed its artifact: the expected file is in the turn's
+ * writes, or its modification time is at or after the turn's start. Without an
+ * expected file (`plan <slug> all`, a key with no artifact) any write under the
+ * workflow counts.
+ */
+export function stageLanded(writes: readonly string[], expected: string | null, startedAt: number, mtime: number | null): boolean {
+  if (expected === null) return writes.length > 0
+  const name = expected.toLowerCase()
+  if (writes.some(path => basenameOf(path) === name)) return true
+  return mtime !== null && mtime >= startedAt
+}
+
+/** The keys whose landed turn is a stage boundary the mod compacts at; `review` is exempt (its findings feed the fix turn). */
+export const COMPACT_KEYS: ReadonlySet<string> = new Set(['shape', 'slice', 'plan', 'implement', 'verify', 'handoff', 'ship', 'retro'])
+
+/** The end of a turn as `turn.complete` reports it, the fields the compaction decision reads. */
+export type TurnEnd = { reason: string; agentId?: string | undefined }
+
+/**
+ * Whether a landed stage turn is one the mod compacts after: the model answered
+ * (no interruption, refusal, or error), on the main loop, a `/wf <key> <slug>`
+ * of a compacting key, with a workflow still open and a next step to take.
+ */
+export function compactEligible(command: WfCommand | null, workflow: WorkflowEntry | null, end: TurnEnd): boolean {
+  if (command === null || workflow === null) return false
+  if (end.reason !== 'answer' || end.agentId !== undefined) return false
+  if (command.slug === null || !COMPACT_KEYS.has(command.key)) return false
+  if (workflow.terminal || !workflow.nextInvocation) return false
+  return true
+}
+
+/** Past this many paths the instructions name the count, not the list. */
+const COMPACT_PATH_LIMIT = 12
+
+/** The instructions the post-stage compaction hands the summarizer: what to keep, never a format. */
+export function compactInstructionsOf(workflow: WorkflowEntry, command: WfCommand, writes: readonly string[]): string {
+  const parts = [`The /wf ${command.key} stage of workflow ${workflow.slug} is complete.`]
+  const keep = [`the workflow slug ${workflow.slug}`]
+  if (workflow.selectedSlice) keep.push(`the selected slice ${workflow.selectedSlice}`)
+  keep.push(`the next invocation ${workflow.nextInvocation ?? ''}`.trimEnd())
+  parts.push(`Keep ${keep.join(', ')}.`)
+  const paths = [...new Set(writes)]
+  if (paths.length > COMPACT_PATH_LIMIT) parts.push(`Keep the paths of the ${paths.length} artifacts written this turn under .ai/workflows/${workflow.slug}/.`)
+  else if (paths.length > 0) parts.push(`Keep the paths of the artifacts written this turn: ${paths.join(', ')}.`)
+  parts.push('Keep verbatim every decision, acceptance criterion, blocker, and answer the person gave that is not yet written to an artifact.')
+  parts.push('Drop tool output, test logs, and file contents; the next stage re-reads the artifacts from disk.')
+  return parts.join(' ')
+}
+
+/** The sentence every compaction gains while a workflow is active: its position and its files. */
+export function compactKeepSentenceOf(workflow: WorkflowEntry): string {
+  const items = [`the active /wf workflow ${workflow.slug}`]
+  if (workflow.currentStage) items.push(`its stage ${workflow.currentStage}`)
+  if (workflow.selectedSlice) items.push(`its slice ${workflow.selectedSlice}`)
+  if (workflow.nextInvocation) items.push(`its next invocation ${workflow.nextInvocation}`)
+  items.push(`the paths under .ai/workflows/${workflow.slug}/`)
+  return `Keep ${items.join(', ')}.`
+}
+
+/** The toast before a post-stage compaction; the percent is left out when the usage read gave none. */
+export function compactToastOf(key: string, percent: number | null): string {
+  return percent === null ? `wf: compacting after ${key}` : `wf: compacting after ${key} (context ${percent}%)`
 }
 
 /** True when `path` lies under `<root>/.ai/workflows`, on either slash. */

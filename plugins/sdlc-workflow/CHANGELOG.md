@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Post-stage compaction in the Claude Code mod** (POST-STAGE-COMPACT-PLAN.md, MOD-FEATURES.md §3.11). After a `/wf shape`, `slice`, `plan`, `implement`, `verify`, `handoff`, `ship`, or `retro` turn lands its artifact, the mod toasts `wf: compacting after implement (context 62%)` and compacts the session between turns (`$.session.compact`) with instructions that keep the workflow slug, the slice, the next invocation, the artifact paths written this turn, and every decision not yet in an artifact, and drop tool output and file contents; the next-step suggestion follows the compaction. There is no context floor; `review` is exempt so its findings reach the fix turn; a vetoed or refused compaction is one log line (one retry after 500 ms for a refusal) and the next stage runs either way. Every other compaction of the main loop (`/compact`, the threshold) gains one sentence that names the workflow's position while one is active. The switch is `stageCompact` in the plugin's settings, on by default. Codex and pi see none of this; the skill prose keeps its "consider compacting" lines for them.
+
 ## [9.157.1] - 2026-09-19
 
 ### Changed

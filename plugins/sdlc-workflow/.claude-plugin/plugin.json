@@ -74,6 +74,12 @@
       "title": "Hub notice",
       "description": "At session start, one line under the logo with the sdlc hub version and repos; a toast when the hub stops or returns.",
       "default": true
+    },
+    "stageCompact": {
+      "type": "boolean",
+      "title": "Compact after a stage",
+      "description": "After a /wf stage turn lands its artifact, compact the session with instructions that keep the workflow's position and the person's decisions; every other compaction while a workflow is active gains the same sentence.",
+      "default": true
     }
   }
 }

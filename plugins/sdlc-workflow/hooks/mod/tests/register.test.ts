@@ -1,4 +1,4 @@
-import type { On, RenderElement, RenderInput } from 'claude-code'
+import type { On, RenderElement, RenderInput, SessionMessage } from 'claude-code'
 import { describe, expect, mock, test, tier } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
 
@@ -39,6 +39,9 @@ const LEDGER = {
 }
 /** The hub config the hub tests add; without it the strip has no hub row and the picker tests keep a one-row strip. */
 const HUB_CONFIG = { '/home/.sdlc/hub-config.json': '{"version":1,"host":"127.0.0.1","port":48173}' }
+/** One transcript message, for a compaction's input; the compact mock answers one summary. */
+const MESSAGE: SessionMessage = { role: 'user', text: 'hello', toolUses: [] }
+const SUMMARY: SessionMessage = { role: 'assistant', text: 'summary', toolUses: [] }
 /** The stat mock's time for a path no write touched: before any turn starts. */
 const UNTOUCHED = -1
 
@@ -79,6 +82,12 @@ type World = {
   opened: string[]
   /** The session cost the usage mock answers; a test raises it between turns. */
   usd: number
+  /** The context percent the usage mock answers; null leaves the figure out, 'reject' fails the read. */
+  percent: number | null | 'reject'
+  /** The instructions each `session.compact` call carried, in order. */
+  compacted: string[]
+  /** What the compact mock answers, one entry per call, the last repeating: a compaction, a veto, or a rejection. */
+  compactAnswers: Array<'done' | 'skip' | 'reject'>
   /** The hub health body the fetch mock answers, or null for a dead hub. */
   hub: string | null
   /** Modification times by path, for the stat mock; absent paths are untouched. */
@@ -90,7 +99,7 @@ type World = {
 
 /** The world beneath the mod: a session in /work, the tree above, an empty band. */
 function seat(on: On, tree: Record<string, string> = TREE): World {
-  const world: World = { registered: [], filled: [], logged: [], focused: [], toasts: [], suggested: [], statuses: [], opened: [], usd: 1, hub: HUB_HEALTH, mtimes: new Map(), clock: null as unknown as MockClock, props: null }
+  const world: World = { registered: [], filled: [], logged: [], focused: [], toasts: [], suggested: [], statuses: [], opened: [], usd: 1, percent: 62, compacted: [], compactAnswers: ['done'], hub: HUB_HEALTH, mtimes: new Map(), clock: null as unknown as MockClock, props: null }
   const dirs = new Set<string>()
   for (const file of Object.keys(tree)) {
     const parts = file.split('/')
@@ -147,7 +156,18 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
     world.suggested.push(e.text)
     return { isShown: true }
   })
-  on('session.usage', () => ({ value: { context: { tokens: 0, window: 200000 }, rateLimits: [], cost: { usd: world.usd } } }))
+  on('session.usage', () => {
+    if (world.percent === 'reject') return { deny: 'no usage' }
+    const context = world.percent === null ? { tokens: 0, window: 200000 } : { tokens: 0, window: 200000, percent: world.percent }
+    return { value: { context, rateLimits: [], cost: { usd: world.usd } } }
+  })
+  on('session.compact', ($, e) => {
+    world.compacted.push(e.instructions ?? '')
+    const answer = (world.compactAnswers.length > 1 ? world.compactAnswers.shift() : world.compactAnswers[0]) ?? 'done'
+    if (answer === 'reject') throw new Error('a turn is running')
+    if (answer === 'skip') return { skip: 'off' }
+    return { messages: [SUMMARY], tokensBefore: 1000, tokensAfter: 100 }
+  })
   on('env.get', ($, e) => ({ value: e.name === 'USERPROFILE' ? '/home' : undefined }))
   on('http.fetch', () => (world.hub === null ? { deny: 'ECONNREFUSED' } : { value: { status: 200, ok: true, headers: {}, text: world.hub } }))
   on('fs.stat', ($, e) => {
@@ -206,6 +226,11 @@ async function turn($: Engine, text: string, writes: readonly string[] = [], rea
   await $.turn.start({ text, turnId: `t-${text.length}-${writes.length}` })
   for (const path of writes) await $.tool.call({ tool: 'Write', file_path: path, content: 'x' })
   await $.turn.complete({ answer: 'done', durationMs: 1000, isAborted: reason === 'aborted', turnId: 't', reason })
+}
+
+/** Lets the promise chains a timer started run to their end. */
+const settle = async (): Promise<void> => {
+  for (let i = 0; i < 8; i += 1) await Promise.resolve()
 }
 
 const setSetting = ($: Engine, name: string, value: boolean) =>
@@ -618,9 +643,16 @@ describe('register', () => {
     await $.tool.call({ tool: 'Write', file_path: '/work/.ai/workflows/alpha-flow/05-implement-auth.md', content: 'done' })
     await $.turn.complete({ answer: 'done', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
     expect(world.suggested).toEqual([])
+    expect(world.compacted).toEqual([])
     await world.clock.advance(1)
+    await settle()
+    // The compaction runs first, then the suggestion is proposed on the compacted session.
+    expect(world.toasts).toEqual(['wf: compacting after implement (context 62%)'])
+    expect(world.compacted).toHaveLength(1)
+    expect(world.compacted[0]).toBe(
+      'The /wf implement stage of workflow alpha-flow is complete. Keep the workflow slug alpha-flow, the selected slice auth, the next invocation /wf verify alpha-flow auth. Keep the paths of the artifacts written this turn: /work/.ai/workflows/alpha-flow/05-implement-auth.md. Keep verbatim every decision, acceptance criterion, blocker, and answer the person gave that is not yet written to an artifact. Drop tool output, test logs, and file contents; the next stage re-reads the artifacts from disk.',
+    )
     expect(world.suggested).toEqual(['/wf verify alpha-flow auth'])
-    expect(world.toasts).toEqual([])
     expect(textOf(await $.ui.render(BAND))).toContain('$0.42 this stage')
     expect(world.statuses.at(-1)).toBe('next /wf verify alpha-flow auth · $0.42 stage · hub 9.157.0')
     await $.ui.render(SPINNER)
@@ -655,6 +687,129 @@ describe('register', () => {
     expect(world.toasts).toHaveLength(1)
     await turn($, 'hello there')
     expect(world.toasts).toHaveLength(1)
+  })
+
+  test('a landed stage compacts at any fill, without a percent when the usage read fails', async ($, on) => {
+    const world = seat(on, { ...TREE })
+    await $.session.start(SESSION)
+    world.percent = 8
+    await turn($, '/wf implement alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md'])
+    await world.clock.advance(1)
+    await settle()
+    expect(world.toasts).toEqual(['wf: compacting after implement (context 8%)'])
+    expect(world.compacted).toHaveLength(1)
+    expect(world.suggested).toEqual(['/wf verify alpha-flow auth'])
+    world.percent = 'reject'
+    await turn($, '/wf verify alpha-flow auth', ['/work/.ai/workflows/alpha-flow/06-verify-auth.md', '/work/.ai/workflows/alpha-flow/06-verify-auth.md'])
+    await world.clock.advance(1)
+    await settle()
+    expect(world.toasts.at(-1)).toBe('wf: compacting after verify')
+    expect(world.compacted).toHaveLength(2)
+    expect(world.compacted[1]).toContain('written this turn: /work/.ai/workflows/alpha-flow/06-verify-auth.md.')
+  })
+
+  test('a review turn, a read-only turn, a sub-agent turn, a driver turn, and an unlanded turn compact nothing', async ($, on) => {
+    const world = seat(on, { ...TREE })
+    await $.session.start(SESSION)
+    await turn($, '/wf review alpha-flow auth', ['/work/.ai/workflows/alpha-flow/07-review-auth.md'])
+    await world.clock.advance(1)
+    await settle()
+    expect(world.compacted).toEqual([])
+    expect(world.suggested).toEqual(['/wf verify alpha-flow auth'])
+    await turn($, '/wf status alpha-flow', ['/work/.ai/workflows/alpha-flow/status-notes.md'])
+    await world.clock.advance(1)
+    await settle()
+    expect(world.compacted).toEqual([])
+    await $.turn.start({ text: '/wf implement alpha-flow auth', turnId: 'sub' })
+    await $.tool.call({ tool: 'Write', file_path: '/work/.ai/workflows/alpha-flow/05-implement-auth.md', content: 'x' })
+    await $.turn.complete({ answer: 'done', durationMs: 1, isAborted: false, turnId: 'sub', reason: 'answer', agentId: 'agent-1' })
+    await world.clock.advance(1)
+    await settle()
+    expect(world.compacted).toEqual([])
+    await turn($, '/wf auto alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md'])
+    await world.clock.advance(1)
+    await settle()
+    expect(world.compacted).toEqual([])
+    await turn($, '/wf verify alpha-flow ui')
+    await world.clock.advance(1)
+    await settle()
+    expect(world.compacted).toEqual([])
+    expect(world.toasts.at(-1)).toBe('wf: verify ended without 06-verify-ui.md')
+    await turn($, '/wf verify alpha-flow ui', ['/work/.ai/workflows/alpha-flow/06-verify-ui.md'], 'aborted')
+    await world.clock.advance(1)
+    await settle()
+    expect(world.compacted).toEqual([])
+  })
+
+  test('a vetoed compaction logs the reason and still suggests; a refused call is retried once', async ($, on) => {
+    const world = seat(on, { ...TREE })
+    await $.session.start(SESSION)
+    world.compactAnswers = ['skip']
+    await turn($, '/wf implement alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md'])
+    await world.clock.advance(1)
+    await settle()
+    expect(world.compacted).toHaveLength(1)
+    expect(world.logged.at(-1)).toBe('wf: compaction skipped: off')
+    expect(world.suggested).toEqual(['/wf verify alpha-flow auth'])
+    world.compactAnswers = ['reject', 'done']
+    await turn($, '/wf verify alpha-flow auth', ['/work/.ai/workflows/alpha-flow/06-verify-auth.md'])
+    await world.clock.advance(1)
+    await settle()
+    expect(world.compacted).toHaveLength(2)
+    expect(world.logged.at(-1)).toContain('wf: compaction refused: ')
+    expect(world.suggested).toHaveLength(1)
+    await world.clock.advance(500)
+    await settle()
+    expect(world.compacted).toHaveLength(3)
+    expect(world.suggested).toEqual(['/wf verify alpha-flow auth', '/wf verify alpha-flow auth'])
+    world.compactAnswers = ['reject']
+    await turn($, '/wf implement alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md', '/work/.ai/workflows/alpha-flow/x.md'])
+    await world.clock.advance(1)
+    await settle()
+    await world.clock.advance(500)
+    await settle()
+    expect(world.compacted).toHaveLength(5)
+    expect(world.logged.filter(line => line.startsWith('wf: compaction refused')).length).toBe(3)
+    expect(world.suggested).toHaveLength(3)
+  })
+
+  test('with stageCompact off nothing compacts and the suggestion is proposed as before', async ($, on) => {
+    const world = seat(on, { ...TREE })
+    await $.session.start(SESSION)
+    await setSetting($, 'stageCompact', false)
+    await turn($, '/wf implement alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md'])
+    await world.clock.advance(1)
+    await settle()
+    expect(world.compacted).toEqual([])
+    expect(world.toasts).toEqual([])
+    expect(world.suggested).toEqual(['/wf verify alpha-flow auth'])
+    const kept = await $.session.compact({ trigger: 'manual', instructions: 'the plan', messages: [MESSAGE] })
+    expect(kept).toEqual({ messages: [SUMMARY], tokensBefore: 1000, tokensAfter: 100 })
+    expect(world.compacted).toEqual(['the plan'])
+  })
+
+  test('every compaction of the main loop keeps the workflow position while one is active', async ($, on) => {
+    const world = seat(on, { ...TREE })
+    await $.session.start(SESSION)
+    const sentence = 'Keep the active /wf workflow alpha-flow, its stage implement, its slice auth, its next invocation /wf verify alpha-flow auth, the paths under .ai/workflows/alpha-flow/.'
+    await $.session.compact({ trigger: 'manual', instructions: 'the plan', messages: [MESSAGE] })
+    expect(world.compacted).toEqual([`${sentence} the plan`])
+    await $.session.compact({ trigger: 'auto', messages: [MESSAGE] })
+    expect(world.compacted[1]).toBe(sentence)
+    await $.session.compact({ trigger: 'precompute', messages: [MESSAGE] })
+    expect(world.compacted[2]).toBe('')
+    await $.session.compact({ trigger: 'auto', agentId: 'agent-1', messages: [MESSAGE] })
+    expect(world.compacted[3]).toBe('')
+    // The mod's own instructions already name the position: the sentence is added once at most.
+    await $.session.compact({ trigger: 'plugin', instructions: `${sentence} more`, messages: [MESSAGE] })
+    expect(world.compacted[4]).toBe(`${sentence} more`)
+  })
+
+  test('a compaction with no active workflow passes through untouched', async ($, on) => {
+    const world = seat(on, { '/work/README.md': '' })
+    await $.session.start(SESSION)
+    await $.session.compact({ trigger: 'manual', instructions: 'the plan', messages: [MESSAGE] })
+    expect(world.compacted).toEqual(['the plan'])
   })
 
   test('the engine\'s own suggestion yields to the next step while a workflow is active', async ($, on) => {

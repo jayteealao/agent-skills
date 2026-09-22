@@ -27,13 +27,22 @@
  * the status line during auto and yolo; the spinner's verb from the stage;
  * the hub's health under the logo; and a `/wf-dashboard` pane. Each has a
  * switch in the plugin's settings.
+ *
+ * After a stage turn lands its artifact (POST-STAGE-COMPACT-PLAN.md), the mod
+ * compacts the session between turns with instructions that keep the
+ * workflow's position and the person's decisions, then proposes the next
+ * step; every other compaction while a workflow is active gains one sentence
+ * that names the position. The switch is `stageCompact`.
  */
 import type { On, PluginOptions, RenderElement } from 'claude-code'
 
 import {
   DEFAULT_SETTINGS,
-  basenameOf,
   beatsOf,
+  compactEligible,
+  compactInstructionsOf,
+  compactKeepSentenceOf,
+  compactToastOf,
   costTextOf,
   driverStatusOf,
   expectedArtifactOf,
@@ -51,6 +60,7 @@ import {
   settingsOf,
   slugOfPath,
   spinnerWordOf,
+  stageLanded,
   statusTextOf,
   stripTextOf,
   wfCommandOf,
@@ -96,6 +106,12 @@ type Host = {
   suggest: (text: string) => Promise<unknown>
   /** The session's cost so far in dollars, or null where the host keeps none. */
   costUsd: () => Promise<number | null>
+  /** The context window's fill as a whole percent, or null when the engine has no figure. */
+  contextPercent: () => Promise<number | null>
+  /** Compacts the session between turns; `{ skip }` when a hook vetoed it. Rejects while a turn runs. */
+  compact: (instructions: string) => Promise<{ skip?: string | undefined }>
+  /** Runs `fn` after `ms`. */
+  after: (ms: number, fn: () => void) => void
   /** A GET of `url`: the body when the answer is ok, else null. */
   fetchText: (url: string) => Promise<string | null>
   /** The person's home directory, from USERPROFILE then HOME. */
@@ -167,6 +183,8 @@ const WRITE_TOOLS = ['Write', 'Edit', 'NotebookEdit'] as const
 const DRIVER_TICK_MS = 5_000
 /** How long a dispatcher run names the turn that follows it. */
 const LAST_RUN_WINDOW_MS = 10_000
+/** The wait before the one retry of a compaction call the engine refused as inside a turn. */
+const COMPACT_RETRY_MS = 500
 /** The store key of the active workflow, per repository root. */
 const activeStoreKeyOf = (root: string) => `active:${root}`
 /** Keys whose turn is not a stage: no "this stage" cost. */
@@ -443,6 +461,20 @@ export function register(on: On, options: PluginOptions = {}) {
         } catch {
           return null
         }
+      },
+      contextPercent: async () => {
+        try {
+          return (await $.session.usage()).context.percent ?? null
+        } catch {
+          return null
+        }
+      },
+      compact: async instructions => {
+        const result = await $.session.compact({ instructions })
+        return result.skip === undefined ? {} : { skip: result.skip }
+      },
+      after: (ms, fn) => {
+        $.clock.after(ms, fn)
       },
       fetchText: async url => {
         try {
@@ -835,29 +867,77 @@ export function register(on: On, options: PluginOptions = {}) {
     if (turn.writes.length > 0 || command !== null) await refreshActive(engine)
     else return result
     const workflow = activeWorkflow()
-    // The stage-landed check: a `/wf <key> <slug> [slice]` turn the person
-    // did not interrupt must have written the key's artifact.
-    if (settings.stageCheck && command !== null && command.slug !== null && e.reason === 'answer' && model.root !== null) {
+    // Whether the stage landed: a `/wf <key> <slug> [slice]` turn the person
+    // did not interrupt must have written the key's artifact. The check's
+    // toast and the compaction read the same answer.
+    let landed: boolean | null = null
+    if (command !== null && command.slug !== null && e.reason === 'answer' && model.root !== null) {
       const expected = expectedArtifactOf(command)
-      if (expected !== null) {
-        const wrote = turn.writes.some(path => basenameOf(path) === expected.toLowerCase())
-        const at = await engine.mtime(joinPath(model.root, '.ai', 'workflows', command.slug, expected))
-        if (!wrote && (at === null || at < turn.startedAt)) {
-          const text = `wf: ${command.key} ended without ${expected}`
-          engine.toast(text)
-          engine.log(text)
-        }
+      const at = expected === null ? null : await engine.mtime(joinPath(model.root, '.ai', 'workflows', command.slug, expected))
+      landed = stageLanded(turn.writes, expected, turn.startedAt, at)
+      if (settings.stageCheck && expected !== null && !landed) {
+        const text = `wf: ${command.key} ended without ${expected}`
+        engine.toast(text)
+        engine.log(text)
       }
     }
     // The next step, dim in the prompt box, Tab to take.
-    if (settings.suggestNext && workflow !== null && !workflow.terminal && workflow.nextInvocation && turn.writes.length > 0) {
-      // Proposed once this dispatch is over: the engine drops a suggestion made while a turn runs.
-      const text = workflow.nextInvocation
-      engine.later(() => {
-        engine.suggest(text).catch(error => engine.log(messageOf(error)))
-      })
+    const suggestion = settings.suggestNext && workflow !== null && !workflow.terminal && workflow.nextInvocation && turn.writes.length > 0 ? workflow.nextInvocation : null
+    const suggest = () => {
+      if (suggestion === null) return
+      engine.suggest(suggestion).catch(error => engine.log(messageOf(error)))
     }
+    // The post-stage compaction, between turns; the suggestion follows it so
+    // the dim text is proposed on the compacted session.
+    if (settings.stageCompact && landed === true && command !== null && workflow !== null && compactEligible(command, workflow, e)) {
+      const instructions = compactInstructionsOf(workflow, command, turn.writes)
+      const key = command.key
+      engine.later(() => {
+        void compactAfterStage(engine, key, instructions).then(suggest)
+      })
+      return result
+    }
+    // Proposed once this dispatch is over: the engine drops a suggestion made while a turn runs.
+    if (suggestion !== null) engine.later(suggest)
     return result
+  })
+
+  /**
+   * One compaction after a landed stage: the toast, the call, one retry when
+   * the engine refused the first as inside a turn, and a log line for a veto
+   * or a second refusal. Never throws.
+   */
+  async function compactAfterStage(engine: Host, key: string, instructions: string): Promise<void> {
+    engine.toast(compactToastOf(key, await engine.contextPercent()))
+    const attempt = async (): Promise<'done' | 'skipped' | 'refused'> => {
+      try {
+        const outcome = await engine.compact(instructions)
+        if (outcome.skip === undefined) return 'done'
+        engine.log(`wf: compaction skipped: ${outcome.skip}`)
+        return 'skipped'
+      } catch (error) {
+        engine.log(`wf: compaction refused: ${messageOf(error)}`)
+        return 'refused'
+      }
+    }
+    if ((await attempt()) !== 'refused') return
+    await new Promise<void>(resolve => {
+      engine.after(COMPACT_RETRY_MS, () => {
+        void attempt().then(() => resolve())
+      })
+    })
+  }
+
+  on('session.compact', async ($, e, next) => {
+    // Every compaction of the main conversation, while a workflow is active,
+    // keeps the workflow's position: one sentence ahead of the instructions.
+    // A precompute installs nothing and passes through.
+    const workflow = activeWorkflow()
+    if (!settings.stageCompact || e.agentId !== undefined || e.trigger === 'precompute' || workflow === null) return next(e)
+    const sentence = compactKeepSentenceOf(workflow)
+    if (e.instructions?.includes(sentence)) return next(e)
+    const instructions = e.instructions === undefined || e.instructions === '' ? sentence : `${sentence} ${e.instructions}`
+    return next({ ...e, instructions })
   })
 
   on('prompt.suggest', { origin: { kind: 'suggestion' } }, async ($, e, next) => {
