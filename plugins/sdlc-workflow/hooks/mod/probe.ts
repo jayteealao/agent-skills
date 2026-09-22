@@ -39,7 +39,7 @@ export const PROBE_FILE = 'mod-probe.jsonl'
 /** Rows past this count are dropped from the front at the next write. */
 export const PROBE_CAP = 400
 /** A detail longer than this is cut, so one row stays one short line. */
-const DETAIL_CAP = 160
+const DETAIL_CAP = 400
 
 /** The row a caller hands the journal, without the fields every row shares. */
 export type ProbeFact = { event: ProbeEvent; ok: boolean; detail?: string }

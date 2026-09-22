@@ -196,6 +196,7 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
   on('session.id', () => ({ value: 'abcdef0123456789' }))
   on('session.surfaces', () => ({ value: [...world.surfaces] }))
   on('session.attach', ($, e) => ({ clientId: e.clientId }))
+  on('prompt.submit', ($, e) => ({ text: e.text }))
   on('fs.write', ($, e) => {
     world.written.set(normal(e.path), e.text)
     return { value: undefined }
@@ -407,7 +408,6 @@ describe('register', () => {
 
   test('the close button and a submitted prompt both close the band', async ($, on) => {
     seat(on)
-    on('prompt.submit', ($, e) => ({ text: e.text }))
     await $.session.start(SESSION)
 
     await run($, 'wf')
@@ -680,13 +680,13 @@ describe('register', () => {
     world.usd = 1.42
     await $.tool.call({ tool: 'Write', file_path: '/work/.ai/workflows/alpha-flow/05-implement-auth.md', content: 'done' })
     await $.turn.complete({ answer: 'done', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
-    expect(world.suggested).toEqual([])
-    expect(world.compacted).toEqual([])
-    await world.clock.advance(1)
-    await settle()
-    // The compaction runs first, then the suggestion is proposed on the compacted session.
+    // The compaction runs inside the turn.complete dispatch, where the engine
+    // accepts it; the suggestion follows on the compacted session.
     expect(world.toasts).toEqual(['wf: compacting after implement (context 62%)'])
     expect(world.compacted).toHaveLength(1)
+    expect(world.suggested).toEqual([])
+    await world.clock.advance(1)
+    await settle()
     expect(world.compacted[0]).toBe(
       'The /wf implement stage of workflow alpha-flow is complete. Keep the workflow slug alpha-flow, the selected slice auth, the next invocation /wf verify alpha-flow auth. Keep the paths of the artifacts written this turn: /work/.ai/workflows/alpha-flow/05-implement-auth.md. Keep verbatim every decision, acceptance criterion, blocker, and answer the person gave that is not yet written to an artifact. Drop tool output, test logs, and file contents; the next stage re-reads the artifacts from disk.',
     )
@@ -797,7 +797,7 @@ describe('register', () => {
     expect(world.compacted).toHaveLength(1)
   })
 
-  test('a vetoed compaction logs the reason and still suggests; a refused call is retried once', async ($, on) => {
+  test('a vetoed compaction logs the reason and still suggests; a refused call is one row carrying the engine reason', async ($, on) => {
     const world = seat(on, { ...TREE })
     await $.session.start(SESSION)
     world.compactAnswers = ['skip']
@@ -807,26 +807,23 @@ describe('register', () => {
     expect(world.compacted).toHaveLength(1)
     expect(world.logged.at(-1)).toBe('wf: compaction skipped: off')
     expect(world.suggested).toEqual(['/wf verify alpha-flow auth'])
-    world.compactAnswers = ['reject', 'done']
+    // One refusal, then the first rung of the ladder carries it.
+    world.compactAnswers = ['reject']
     await turn($, '/wf verify alpha-flow auth', ['/work/.ai/workflows/alpha-flow/06-verify-auth.md'])
     await world.clock.advance(1)
     await settle()
     expect(world.compacted).toHaveLength(2)
     expect(world.logged.at(-1)).toContain('wf: compaction refused: ')
-    expect(world.suggested).toHaveLength(1)
-    await world.clock.advance(500)
+    // The next step is still proposed: a refused compaction ends nothing.
+    expect(world.suggested).toEqual(['/wf verify alpha-flow auth', '/wf verify alpha-flow auth'])
+    // A refusal is one call and one row that carries the engine's own reason.
+    world.compactAnswers = ['reject']
+    await turn($, '/wf implement alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md'])
     await settle()
     expect(world.compacted).toHaveLength(3)
-    expect(world.suggested).toEqual(['/wf verify alpha-flow auth', '/wf verify alpha-flow auth'])
-    world.compactAnswers = ['reject']
-    await turn($, '/wf implement alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md', '/work/.ai/workflows/alpha-flow/x.md'])
-    await world.clock.advance(1)
-    await settle()
-    await world.clock.advance(500)
-    await settle()
-    expect(world.compacted).toHaveLength(5)
-    expect(world.logged.filter(line => line.startsWith('wf: compaction refused')).length).toBe(3)
-    expect(world.suggested).toHaveLength(3)
+    // The row carries the engine's own words, whatever they are: that is how a
+    // live refusal is diagnosed without a transcript.
+    expect(probeRows(world).at(-1)).toMatchObject({ event: 'compact', ok: false, detail: expect.stringContaining('turn.complete refused: ') })
   })
 
   test('with stageCompact off nothing compacts and the suggestion is proposed as before', async ($, on) => {
@@ -1039,7 +1036,7 @@ describe('register', () => {
     await settle()
     const rows = probeRows(world)
     expect(rows.find(row => row['event'] === 'turn')).toMatchObject({ ok: true, detail: 'implement alpha-flow auth · writes 1 · landed true · compact' })
-    expect(rows.find(row => row['event'] === 'compact')).toMatchObject({ ok: true, detail: 'done' })
+    expect(rows.find(row => row['event'] === 'compact')).toMatchObject({ ok: true, detail: 'turn.complete done' })
   })
 
   test('a client that attaches becomes the surface, and the journal says so', async ($, on) => {

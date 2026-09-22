@@ -213,10 +213,10 @@ the next invocation, the paths written this turn (the count past twelve),
 ask for every decision, acceptance criterion, blocker, and answer not yet
 in an artifact verbatim, and drop tool output, test logs, and file
 contents. A `{ skip }` answer logs `wf: compaction skipped: <reason>`; a
-rejected call (the engine refuses one made inside a turn) logs
-`wf: compaction refused: <message>` and is retried once after 500 ms. The
-next-step suggestion is proposed after the compaction, whatever its
-outcome.
+rejected call logs `wf: compaction refused: <message>` and writes that
+message to the probe journal; there is no retry, because a retry on a timer
+asks from the one place the engine refuses. The next-step suggestion is
+proposed after the compaction, whatever its outcome.
 
 A `session.compact` hook on the main loop (any trigger but `precompute`)
 prepends one sentence to the instructions while a workflow is active:
@@ -279,6 +279,14 @@ own `probe.ts` so the table and the tests judge by the same code.
   matchers accept `requestId`.
 - `turn.complete` carries `reason: 'answer' | 'aborted' | 'refusal' |
   'error'`, `answer`, `durationMs`, `isAborted`, `turnId`.
+- `$.session.compact` is accepted from a `turn.complete` hook and refused
+  anywhere later. A call made from a `$.clock.after` timer that hook starts
+  counts as later and is refused; so is one from a `prompt.submit` hook,
+  which the engine answers with "called from a prompt.submit hook, it would
+  compact under the turn this hook is holding; call it from a later event
+  (turn.complete)". The compaction therefore runs inside the `turn.complete`
+  dispatch, and the turn ends when the summary lands. This answers probe
+  P-C1 of POST-STAGE-COMPACT-PLAN.md.
 - A sub-agent raises no `turn.start` but does raise `turn.complete`, with
   its `agentId`. A hook that keeps per-turn state must ignore those, or the
   first sub-agent to finish consumes the person's turn: this is what stopped
@@ -383,11 +391,13 @@ Still open:
    skill (the fallback covers both).
 4. The driver watch against a real `/wf yolo` run (the fixture journal
    covers the read path only).
-5. What Claude Code Desktop reports at `session.start` (`surface`,
+5. Whether a Desktop `/wf` stage now compacts: the journal's `compact` row
+   carries the engine's own reason when it does not.
+6. What Claude Code Desktop reports at `session.start` (`surface`,
    `isInteractive`), whether it raises `session.attach`, and whether
    `$.ui.status`, `$.ui.toast`, and `$.prompt.suggest` reach it. One Desktop
    session followed by `npm run mod:probe` answers all four.
-6. The post-stage compaction's probes P-C1, P-C2, P-C4, and P-C6 of
+7. The post-stage compaction's probes P-C2, P-C4, and P-C6 of
    POST-STAGE-COMPACT-PLAN.md: whether a `$.clock.after(0)` call inside
    the `turn.complete` dispatch counts as between turns (the code retries
    once after 500 ms either way), whether a compaction clears a

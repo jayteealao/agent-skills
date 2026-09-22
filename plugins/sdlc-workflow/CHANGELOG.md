@@ -5,6 +5,13 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The post-stage compaction is called from the place the engine accepts** (MOD-FEATURES.md §4). The call was scheduled on a `$.clock.after(0)` timer started by the `turn.complete` hook. The engine accepts `session.compact` from a `turn.complete` hook and refuses it from any later event, and a detached timer is a later event: a live `/wf implement` on Claude Code Desktop was refused twice, at 0 ms and at 500 ms. The compaction now runs inside the `turn.complete` dispatch, and the turn ends when the summary lands. The 500 ms retry is gone, because a retry on a timer asks from the one place that cannot answer.
+- **A refused compaction now says why.** The engine's own message goes into the probe journal's `compact` row (`turn.complete refused: …`), not only into a log line no host keeps. A journal detail may now run to 400 characters.
+
 ## [9.161.1] - 2026-09-22
 
 ### Fixed

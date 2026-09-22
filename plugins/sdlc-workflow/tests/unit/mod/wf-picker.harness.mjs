@@ -440,7 +440,7 @@ test('a probe row carries the identity, the fact, and a whole-second timestamp',
   assert.equal(row.host, 'cli');
   assert.equal(row.surface, 'none');
   assert.equal(row.interactive, false);
-  assert.equal(row.detail.length, 160);
+  assert.equal(row.detail.length, 200);
   assert.equal(rowOf(IDENTITY, { event: 'turn', ok: false }, 0).detail, '');
 });
 

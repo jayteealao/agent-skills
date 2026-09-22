@@ -121,8 +121,6 @@ type Host = {
   contextPercent: () => Promise<number | null>
   /** Compacts the session between turns; `{ skip }` when a hook vetoed it. Rejects while a turn runs. */
   compact: (instructions: string) => Promise<{ skip?: string | undefined }>
-  /** Runs `fn` after `ms`. */
-  after: (ms: number, fn: () => void) => void
   /** A GET of `url`: the body when the answer is ok, else null. */
   fetchText: (url: string) => Promise<string | null>
   /** The person's home directory, from USERPROFILE then HOME. */
@@ -212,8 +210,6 @@ const WRITE_TOOLS = ['Write', 'Edit', 'NotebookEdit'] as const
 const DRIVER_TICK_MS = 5_000
 /** How long a dispatcher run names the turn that follows it. */
 const LAST_RUN_WINDOW_MS = 10_000
-/** The wait before the one retry of a compaction call the engine refused as inside a turn. */
-const COMPACT_RETRY_MS = 500
 /** The store key of the active workflow, per repository root. */
 const activeStoreKeyOf = (root: string) => `active:${root}`
 /** Every command the module registers: one per key, plus the dashboard and the active-workflow commands. */
@@ -549,9 +545,6 @@ export function register(on: On, options: PluginOptions = {}) {
       compact: async instructions => {
         const result = await $.session.compact({ instructions })
         return result.skip === undefined ? {} : { skip: result.skip }
-      },
-      after: (ms, fn) => {
-        $.clock.after(ms, fn)
       },
       fetchText: async url => {
         try {
@@ -1027,9 +1020,11 @@ export function register(on: On, options: PluginOptions = {}) {
       const instructions = compactInstructionsOf(workflow, command, turn.writes)
       const key = command.key
       journalTurn(command, turn, landed, 'compact')
-      engine.later(() => {
-        void compactAfterStage(engine, key, instructions).then(suggest)
-      })
+      // Inside this dispatch, not in a timer it starts: the engine accepts
+      // `session.compact` from a `turn.complete` hook and refuses it from a
+      // later event, which is what a detached call becomes.
+      await compactAfterStage(engine, key, instructions)
+      engine.later(suggest)
       return result
     }
     if (command !== null) journalTurn(command, turn, landed, compactSkipReason(command, workflow, landed, e, suggestion))
@@ -1067,28 +1062,29 @@ export function register(on: On, options: PluginOptions = {}) {
    */
   async function compactAfterStage(engine: Host, key: string, instructions: string): Promise<void> {
     engine.toast(compactToastOf(key, await engine.contextPercent()))
-    const call = async (): Promise<'done' | 'skipped' | 'refused'> => {
-      try {
-        const outcome = await engine.compact(instructions)
-        if (outcome.skip === undefined) return 'done'
-        engine.log(`wf: compaction skipped: ${outcome.skip}`)
-        return 'skipped'
-      } catch (error) {
-        engine.log(`wf: compaction refused: ${messageOf(error)}`)
-        return 'refused'
+    // One attempt, here. The engine accepts `session.compact` from a
+    // `turn.complete` hook and refuses it from any later event, so a retry on
+    // a timer would ask from the one place that cannot be answered.
+    await compactOnce(engine, instructions, 'turn.complete')
+  }
+
+  /** One compaction call, journalled with the engine's own words for a refusal. */
+  async function compactOnce(engine: Host, instructions: string, label: string): Promise<'done' | 'skipped' | 'refused'> {
+    try {
+      const outcome = await engine.compact(instructions)
+      if (outcome.skip === undefined) {
+        void journal?.write({ event: 'compact', ok: true, detail: `${label} done` })
+        return 'done'
       }
+      engine.log(`wf: compaction skipped: ${outcome.skip}`)
+      void journal?.write({ event: 'compact', ok: false, detail: `${label} skipped: ${outcome.skip}` })
+      return 'skipped'
+    } catch (error) {
+      const message = messageOf(error)
+      engine.log(`wf: compaction refused: ${message}`)
+      void journal?.write({ event: 'compact', ok: false, detail: `${label} refused: ${message}` })
+      return 'refused'
     }
-    const first = await call()
-    void journal?.write({ event: 'compact', ok: first === 'done', detail: first })
-    if (first !== 'refused') return
-    await new Promise<void>(resolve => {
-      engine.after(COMPACT_RETRY_MS, () => {
-        void call().then(again => {
-          void journal?.write({ event: 'compact', ok: again === 'done', detail: `retry ${again}` })
-          resolve()
-        })
-      })
-    })
   }
 
   on('session.compact', async ($, e, next) => {
@@ -1169,7 +1165,9 @@ export function register(on: On, options: PluginOptions = {}) {
   })
 
   on('prompt.submit', ($, e, next) => {
-    // Any submission ends the pick: the person typed past it.
+    // Any submission ends the pick: the person typed past it. A compaction
+    // never happens here: the engine refuses `session.compact` from this hook,
+    // because the hook holds the turn it would compact under.
     if (host && model.step !== null) close(host)
     return next(e)
   })
