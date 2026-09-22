@@ -14,9 +14,14 @@ freeze's three pins were raised (`intakeModes` 13, `artifactStems` 95,
 not three; `docs/site/reference/artifacts.html` was left untouched because
 another session holds an uncommitted edit on the same row; `_story-arc.md`
 gained the `## The Brainstorm` heading; P-B4 became a permanent hook test.
-**Still open:** W8 (the live session), probes P-B1, P-B2, and P-B3, and the
-`artifacts.html` row. Every line reference below was read from the working
-tree at v9.158.0.
+**W8 RAN 2026-09-22** on `SoccerManager`, slug
+`brainstorm-realism-additions-20260922`, seven batches. It found three
+defects, fixed in **v9.160.0** (§17): the agent distilled without the
+person's `done`, `done` handed the person a list of intake commands rather
+than a question, and a resumed board carried `status: distilled` with no
+instruction to reopen it. **Still open:** probes P-B1, P-B2, and P-B3, and
+the `artifacts.html` row. Every line reference below was read from the
+working tree at v9.158.0.
 
 Related: [INTAKE-MODES-REPAIR-PLAN.md](INTAKE-MODES-REPAIR-PLAN.md) (the
 mode family's terminus contracts), the archived
@@ -647,3 +652,44 @@ Build record:
   `.codex-plugin/plugin.json` line 4.
 - `docs/internal/archived/INTAKE-AUDIT-MODE-PLAN.md` Appendix A (what an
   intake mode gets for free; re-checked above at v9.158.0).
+
+## 17. W8 — the live session, and the three defects it found
+
+The first real session ran on 2026-09-22 in `~/Documents/dev/SoccerManager`:
+`/wf intake brainstorm what needs to be added to players, teams, tactics and
+match engine to improve realism`. It produced the slug
+`brainstorm-realism-additions-20260922`, seven batches of two to four
+questions, 39 claims, 16 assumptions, 6 contradictions, and 8 threads. The
+loop itself worked: the batches landed, the control words were never needed,
+the board carried the state, and the bounded reads grounded the claims.
+
+Three defects appeared at the end of the session.
+
+**D1 — the agent ended the loop.** After batch 7 the agent wrote "All eight
+threads have material now. I distill." The person never sent `done`. The
+transcript holds exactly two person-authored text turns, both the opening
+command; every other answer arrived through the question tool. The mode said
+"Repeat until the person says `done`", which is a condition, not a
+prohibition, so nothing stopped the agent from judging the thinking complete.
+**Fix:** a WARNING at the head of Step 2 that the agent never ends the loop,
+a discipline rule that forbids judging the thinking complete, and an entry
+gate on Step 3 that admits only the person's `done`.
+
+**D2 — `done` gave the person homework.** Step 3 printed eight candidate
+cards with eight `/wf intake … from <slug>` commands and asked which to act
+on. The person wanted to be asked what to do with the thinking. The mode had
+assumed the answer was always "start workflows". **Fix:** Step 3 prints the
+live threads with no command, then asks one disposition batch — keep the
+board, write the thinking up, start work on some threads, take a second
+opinion, or drop threads — and produces only what the person chose. Entry
+commands are written for chosen threads only.
+
+**D3 — a resumed board stayed closed.** Step 3 set `status: distilled` and
+`progress.brainstorm: complete`, and Step 0's resume path never said to undo
+either. **Fix:** the resume path reopens a distilled board, and Step 3 sets
+`distilled` only when the person chose to start work or to write the thinking
+up.
+
+The person owns the end of a brainstorm. That is the rule the three fixes
+share, and it is now pinned by three guard tests in
+`tests/unit/skills/brainstorm-mode.test.mjs`.

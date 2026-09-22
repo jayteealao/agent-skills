@@ -34,14 +34,14 @@ contradictions:
     threads: [T-01, T-02]
     text: "<what conflicts, one sentence>"
     state: open              # open | resolved
-candidates: []               # written at done; see the card below
-selected: []                 # candidate ids the person selected at done
+candidates: []               # written when the person starts work; see the card below
+selected: []                 # candidate ids the person chose to act on
 consult-runs: []
 revisions: []
 ---
 ```
 
-A candidate card (one per live thread, written at `done`):
+A candidate card (one per thread the person chooses to act on):
 ```yaml
 candidates:
   - id: B-01
@@ -75,7 +75,7 @@ candidates:
 
 ## Candidates
 
-<Empty until `done`. Then one card per candidate, in the format of `ideate/_artifact.md`'s ranked ideas: title, the thread it came from, the shape, the entry command, and the claims and assumptions the successor inherits.>
+<Empty until the person chooses to start work. Then one card per candidate: title, the thread it came from, the shape, the entry command, and the claims and assumptions the successor inherits.>
 
 ## How to continue
 

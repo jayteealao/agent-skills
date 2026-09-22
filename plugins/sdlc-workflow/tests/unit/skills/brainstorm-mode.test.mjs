@@ -68,6 +68,27 @@ test('the terminus stays open and never picks', () => {
   assert.ok(!/_fix-loop\.md/.test(src), 'brainstorm.md cites the fix loop — the mode writes no code');
 });
 
+test('only the person ends the loop', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.match(src, /\*\*WARNING: you never end this loop\.\*\*/, 'brainstorm.md lost the loop-ownership warning');
+  assert.match(src, /Only the person's `done` reaches Step 3/, 'brainstorm.md lost the person-only exit');
+  assert.match(src, /Enter this step only when the person's reply is the control word `done`/, 'Step 3 lost its entry gate');
+  assert.match(src, /Never decide that the thinking is complete/, 'the discipline list lost the no-self-closure rule');
+});
+
+test('a resumed session reopens a distilled board', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.match(src, /reopen a distilled board \(`status: open`, `progress\.brainstorm: in-progress`/, 'Step 0 resume does not reopen a distilled board');
+});
+
+test('done asks the disposition before it prints any command', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.match(src, /Ask what the person wants to do with the thinking/, 'Step 3 lost the disposition question');
+  assert.match(src, /The options are dispositions, never commands/, 'Step 3 lost the dispositions-not-commands rule');
+  assert.match(src, /Print no entry command here/, 'Step 3 prints entry commands before the person chooses');
+  assert.ok(!/Step 5's card format/.test(src), 'Step 3 still hands the person a list of intakes');
+});
+
 test('the provenance contract consumes a brainstorm source', () => {
   const src = read('reference', 'intake', '_intake-provenance.md');
   assert.match(src, /^\| `brainstorm` \|/m, '_intake-provenance.md lost the brainstorm Consume row');

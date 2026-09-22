@@ -1,5 +1,5 @@
 ---
-description: Rubber-duck brainstorm. The person has a half-formed thought and thinks it through with the agent as the duck. The person generates; the agent asks question batches, reflects each thought back as candidate readings, names the assumption inside it, and keeps a board on disk. `done` distills the live threads into candidate cards, each with an entry command that carries `from <slug>`. Writes no code, no plan, no option card. The workflow stays open until every thread is routed, parked, or dropped.
+description: Rubber-duck brainstorm. The person has a half-formed thought and thinks it through with the agent as the duck. The person generates; the agent asks question batches, reflects each thought back as candidate readings, names the assumption inside it, and keeps a board on disk. Only the person ends the loop. On `done` the mode asks what the person wants to do with the thinking, and it produces only that. Writes no code, no plan, no option card. The workflow stays open until every thread is routed, parked, or dropped, and a resumed session reopens a distilled board.
 argument-hint: <topic> | <slug> (resume) | <slug> (existing workflow) brainstorm <topic>
 ---
 
@@ -24,7 +24,7 @@ If neither applies, proceed standalone below.
 | Requires | A topic, or an existing brainstorm slug to resume. |
 | Produces | `00-index.md` (`type: workflow-index`, `workflow-type: brainstorm`) and `01-brainstorm.md` (`type: brainstorm`, the board). No branch. |
 | Skips | Every build stage. A brainstorm is not a build lifecycle. |
-| Next | Terminal. `done` writes candidate cards; each routes with `from <slug>`. The workflow **stays open**; retire it with `/wf close <slug>` when no thread is live. |
+| Next | Terminal. Only the person's `done` leaves the loop, and `done` asks what to do with the thinking. The workflow **stays open**; retire it with `/wf close <slug>` when no thread is live. |
 
 # Brainstorm discipline
 You are a **duck with a notebook**. Respect the stated order only where a step consumes an earlier step's output.
@@ -32,12 +32,13 @@ You are a **duck with a notebook**. Respect the stated order only where a step c
 - Ask no question the board already answers, and no question whose answer is in the last reply.
 - Run no sub-agent unless the person says `look it up`.
 - Rewrite the board after every batch. The board is the memory across sessions and across compaction.
-- Never close the workflow. `done` distills; `/wf close <slug>` retires.
+- Never decide that the thinking is complete. Only the person's `done` leaves the loop.
+- Never close the workflow. `done` asks what to do next; `/wf close <slug>` retires.
 - If you catch yourself solving, stop, record the urge as a claim, and ask the next question.
 
 # Step 0 — Orient
 1. **Resolve the shape** from the instructions:
-   - First token matches an existing `workflow-type: brainstorm` slug → **resume**. Read `00-index.md` and `01-brainstorm.md`, snapshot the board and add a `revisions:` entry (`trigger: resume`) per [_additive-write.md](../_additive-write.md), bump `sessions`, print the board (Step 2.6), then continue at Step 2.
+   - First token matches an existing `workflow-type: brainstorm` slug → **resume**. Read `00-index.md` and `01-brainstorm.md`, snapshot the board and add a `revisions:` entry (`trigger: resume`) per [_additive-write.md](../_additive-write.md), bump `sessions`, reopen a distilled board (`status: open`, `progress.brainstorm: in-progress`, the candidates kept as they are), print the board (Step 2.6), then continue at Step 2.
    - Otherwise the tokens are the **topic**. Derive the slug `brainstorm-<topic-slug>-<YYYYMMDD>` (the topic in kebab form, the date from the date-only row of [_timestamp.md](../_timestamp.md), dashes removed). If that slug exists, append `-2`, `-3`.
 2. **Read recorded history** for the topic, as cheap reads, skipping whatever is absent: retro action items (`.ai/workflows/*/10-retro.md`), `.ai/solutions/INDEX.md`, deferred review findings, and `sdlc-debt:` markers. A recorded item that touches the topic becomes the first claim on the first thread, with its evidence.
 3. **Announce the plan** in chat, four lines: the topic, the slug, the control words (Step 2.4), and how to leave (`done`).
@@ -66,6 +67,8 @@ updated-at: "<ISO 8601>"
 ```
 
 # Step 2 — The loop
+> **WARNING: you never end this loop.** Only the person's `done` reaches Step 3. A board where every thread has material is not a reason to distill. When you believe the thinking is complete, ask the steer question (2.5) and continue. A distillation the person did not ask for takes the person's decision and ends the session the person wanted.
+
 Repeat until the person says `done`. In a non-interactive run (rung 3 of the ladder, no person to answer), ask no batch: leave the board as Step 1 wrote it, with the history claims, and go to Step 4 with the resume command as `Next`.
 
 ## 2.1 Pick the thread
@@ -109,14 +112,21 @@ One line per thread: `T-NN · <state> · <label> · <claims> claims · <open ass
 > **Auto second opinion (objective triggers).** Auto-invoke `/consult codex <read these threads and name the assumptions and contradictions this thinking missed>` (pinning `codex`/`claude` keeps it free) when ANY of: `thread-contested` (at `done`, a live thread is party to an `open` contradiction); `claim-contradicted` (a bounded read returned `contradicted` and the person kept the thread live); `touches-auth`, `touches-billing`, `touches-security`, or `touches-migration` (a live thread touches that surface); `user-invoked` (the `second opinion` control word). The names are rows of [_consult-triggers.md](../_consult-triggers.md); record each run in `consult-runs:`. Fold the panel's distinct additions in as claims with `evidence: consult`, never as candidates.
 
 # Step 3 — `done`
-1. Snapshot the board to `history/` and add a `revisions:` entry (`trigger: manual`, `because: done`).
-2. For every `live` thread, write one candidate into `candidates:` (the template's card). The `shape` follows the thread's content, in the auto-route table's own vocabulary ([../intake.md](../intake.md) Step 4): a stated problem with unknown approach → `investigate`; a self-evident localized correction → `fix`; a yes/no truth question → `discover`; a deliverable that is not a code change → `task`; net-new scope on an existing workflow → `extension` (`/wf intake <existing-slug> <scope>`); everything else → `intake`. The `entry` is the invocation with `from <slug>` appended for the new-workflow forms.
-3. A `parked` thread gets no candidate and stays parked. A `dropped` thread gets none.
-4. Print the candidates to chat in [ideate.md](ideate.md) Step 5's card format, then ask which to act on: at most three candidates → one multi-select gate question per [_gate-question.md](../_gate-question.md); four or more → a numbered chat reply, exactly as `ideate.md` Step 5 does.
-5. Record the selection in `selected:`. Print one entry command per selected candidate. Do not run any of them.
-6. Set `status: distilled` and `progress.brainstorm: complete`. Leave the index `status: ready` and `next-invocation` as the resume command; when no thread is live, set `next-invocation: "/wf close <slug>"`. Update the slug's row in `.ai/workflows/INDEX.md` (`updated-at` only).
+Enter this step only when the person's reply is the control word `done`.
 
-A second `done` on a distilled board re-distills only the threads whose state changed since the last distillation.
+1. Snapshot the board to `history/` and add a `revisions:` entry (`trigger: manual`, `because: done`).
+2. Print the live threads to chat, one line each: the thread id, what the thread holds, and the open contradiction it is party to. Print no entry command here. Give the parked and the dropped threads as counts only.
+3. Ask what the person wants to do with the thinking, as one question batch per [_gate-question.md](../_gate-question.md). The options are dispositions, never commands: keep the board and think more later; write the thinking up as one document; start work on one or more threads; take a second opinion first; drop the threads the person no longer wants. Free text carries every other answer. An answer that asks for more thinking returns to Step 2.
+4. Act on that answer, and on nothing else.
+   - **Keep the board.** Change the timestamps only. `status` stays `open`.
+   - **Start work.** Ask which threads. For each named thread write one candidate into `candidates:` (the template's card) and print its entry command. Record the choice in `selected:`. Run no command.
+   - **Write it up.** Write one `task` candidate for the document and print its entry command.
+   - **Second opinion.** Run Step 2.7, then return to step 2 of this step.
+   - **Drop.** Set each named thread to `dropped` with the person's reason, then return to step 2 of this step.
+5. A candidate's `shape` follows the thread's content, in the auto-route table's own vocabulary ([../intake.md](../intake.md) Step 4): a stated problem with unknown approach → `investigate`; a self-evident localized correction → `fix`; a yes/no truth question → `discover`; a deliverable that is not a code change → `task`; net-new scope on an existing workflow → `extension` (`/wf intake <existing-slug> <scope>`); everything else → `intake`. The `entry` is the invocation with `from <slug>` appended for the new-workflow forms.
+6. Set `status: distilled` and `progress.brainstorm: complete` only when the person chose to start work or to write the thinking up. Leave the index `status: ready` and `next-invocation` as the resume command; when no thread is live, set `next-invocation: "/wf close <slug>"`. Update the slug's row in `.ai/workflows/INDEX.md` (`updated-at` only).
+
+A second `done` on a distilled board repeats this step for the threads whose state changed since the last `done`.
 
 **Link-back.** A successor started `from <slug>` applies [_intake-provenance.md](_intake-provenance.md): it records `origin-brainstorm`, and it sets the routed thread's `state: routed` and `routed-to`, and the candidate's `state: routed`. The board is never superseded.
 
