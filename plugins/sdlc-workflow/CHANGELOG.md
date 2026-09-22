@@ -5,6 +5,14 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.160.0] - 2026-09-22
+
+### Fixed
+
+- **The person owns the end of a brainstorm** (BRAINSTORM-MODE-PLAN.md §17). The first live session found that the agent left the loop on its own after seven batches, with no `done` from the person. `reference/intake/brainstorm.md` Step 2 now opens with a WARNING that the agent never ends the loop, the discipline list forbids judging the thinking complete, and Step 3 admits only the person's `done` control word.
+- **`done` asks what to do with the thinking.** It printed a list of candidate cards with `/wf intake …` commands and asked which to act on. It now prints the live threads with no command, asks one disposition batch — keep the board and think more later, write the thinking up as one document, start work on some threads, take a second opinion first, or drop threads — and produces only what the person chose. An entry command is written for a chosen thread only.
+- **A resumed brainstorm reopens a distilled board.** `status: distilled` and `progress.brainstorm: complete` survived a resume, so a returning session read as finished. Step 0's resume path now reopens the board, and Step 3 marks it `distilled` only when the person chose to start work or to write the thinking up.
+
 ## [9.159.0] - 2026-09-22
 
 ### Added
