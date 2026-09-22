@@ -9,6 +9,7 @@ import { test } from 'node:test';
 import { CATALOG, commandNameOf, keyOfCommand } from '../../../hooks/mod/catalog.ts';
 import { ALL, NONE, backOf, digitCommandOf, fillOf, filterOptions, filterTextOf, hotkeyOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from '../../../hooks/mod/picker.ts';
 import { findProjectRoot, frontmatterOf, joinPath, listSlices, listWorkflows, rosterOf } from '../../../hooks/mod/workflows.ts';
+import { PROBE_CAP, ProbeJournal, rowOf, rowsOf, sinceOf, surfaceAfterAttach, textOf, verdictOf } from '../../../hooks/mod/probe.ts';
 import {
   COMPACT_KEYS, beatsOf, compactEligible, compactInstructionsOf, compactKeepSentenceOf, compactToastOf, costTextOf, driverStatusOf, expectedArtifactOf, hubHealthOf, hubNoticeTextOf, isWorkflowPath,
   ledgerTokensOf, modeLabelOf, openFindingsOf, settingOfKey, settingsOf, slugOfPath, spinnerWordOf, statusTextOf,
@@ -427,4 +428,86 @@ test('settingsOf reads stageCompact like every other boolean field', () => {
   assert.equal(settingsOf({ stageCompact: false }).stageCompact, false);
   assert.equal(settingsOf({ stageCompact: 'no' }).stageCompact, true);
   assert.equal(settingOfKey('sdlc-workflow', 'sdlc-workflow.stageCompact'), 'stageCompact');
+});
+
+const NL = String.fromCharCode(10);
+const IDENTITY = { session: 'abcdef01', host: 'cli', surface: 'none', interactive: false };
+
+test('a probe row carries the identity, the fact, and a whole-second timestamp', () => {
+  const row = rowOf(IDENTITY, { event: 'load', ok: true, detail: 'x'.repeat(200) }, 1_700_000_000_123);
+  assert.equal(row.at, '2023-11-14T22:13:20Z');
+  assert.equal(row.session, 'abcdef01');
+  assert.equal(row.host, 'cli');
+  assert.equal(row.surface, 'none');
+  assert.equal(row.interactive, false);
+  assert.equal(row.detail.length, 160);
+  assert.equal(rowOf(IDENTITY, { event: 'turn', ok: false }, 0).detail, '');
+});
+
+test('the journal text keeps the newest rows up to the cap, and a broken line is dropped', () => {
+  const rows = Array.from({ length: PROBE_CAP + 5 }, (_, i) => rowOf(IDENTITY, { event: 'turn', ok: true, detail: String(i) }, i * 1000));
+  const kept = rowsOf(textOf(rows));
+  assert.equal(kept.length, PROBE_CAP);
+  assert.equal(kept[0].detail, '5');
+  assert.equal(kept.at(-1).detail, String(PROBE_CAP + 4));
+  assert.equal(textOf([]), '');
+  assert.deepEqual(rowsOf(['not json', '{"no":"fields"}', ''].join(NL)), []);
+});
+
+test('surfaceAfterAttach keeps a surface the session already had', () => {
+  assert.equal(surfaceAfterAttach(null, 'desktop'), 'desktop');
+  assert.equal(surfaceAfterAttach('terminal', 'mobile'), 'terminal');
+  assert.equal(surfaceAfterAttach('desktop', 'desktop'), 'desktop');
+});
+
+test('the verdict groups by host and surface, and calls a host without a load row dead', () => {
+  const rows = rowsOf([
+    JSON.stringify({ at: '2026-09-22T10:00:00Z', session: 's1', host: 'cli', surface: 'terminal', interactive: true, event: 'load', ok: true, detail: '' }),
+    JSON.stringify({ at: '2026-09-22T10:00:01Z', session: 's1', host: 'cli', surface: 'terminal', interactive: true, event: 'commands', ok: true, detail: '24/24' }),
+    JSON.stringify({ at: '2026-09-22T10:00:02Z', session: 's1', host: 'cli', surface: 'terminal', interactive: true, event: 'turn', ok: true, detail: 'implement a · landed true · compact' }),
+    JSON.stringify({ at: '2026-09-22T10:00:03Z', session: 's1', host: 'cli', surface: 'terminal', interactive: true, event: 'compact', ok: true, detail: 'done' }),
+    JSON.stringify({ at: '2026-09-22T11:00:00Z', session: 's2', host: 'desktop', surface: 'none', interactive: false, event: 'commands', ok: false, detail: '0/24' }),
+    JSON.stringify({ at: '2026-09-22T11:00:01Z', session: 's2', host: 'desktop', surface: 'none', interactive: false, event: 'call', ok: false, detail: 'fill: refused' }),
+  ].join(NL));
+  const [newest, older] = verdictOf(rows);
+  assert.equal(newest.host, 'desktop');
+  assert.equal(newest.status, 'dead');
+  assert.equal(newest.commandsOk, false);
+  assert.deepEqual(newest.failures, ['fill: refused']);
+  assert.equal(older.host, 'cli');
+  assert.equal(older.status, 'ok');
+  assert.equal(older.sessions, 1);
+  assert.equal(older.turns, 1);
+  assert.equal(older.actions, 1);
+  assert.equal(older.compactions, 'done 1');
+  assert.equal(sinceOf(rows, Date.parse('2026-09-22T10:30:00Z')).length, 2);
+  assert.equal(sinceOf(rows, null).length, 6);
+});
+
+test('the journal serializes its writes, caps the file, and swallows a broken file system', async () => {
+  const files = new Map();
+  let at = 0;
+  const io = {
+    read: async (path) => files.get(path) ?? null,
+    write: async (path, text) => { files.set(path, text); },
+    now: async () => { at += 1000; return at; },
+  };
+  const journal = new ProbeJournal(io, '/j.jsonl', IDENTITY);
+  journal.write({ event: 'load', ok: true, detail: 'one' });
+  journal.write({ event: 'commands', ok: true, detail: '24/24' });
+  journal.setSurface('desktop');
+  await journal.write({ event: 'turn', ok: true, detail: 'two' });
+  const rows = rowsOf(files.get('/j.jsonl'));
+  assert.deepEqual(rows.map((r) => r.event), ['load', 'commands', 'turn']);
+  assert.deepEqual(rows.map((r) => r.surface), ['none', 'none', 'desktop']);
+  assert.equal(journal.surface, 'desktop');
+
+  // One kind of call failure is one row per session.
+  journal.callFailed('fill', 'refused');
+  journal.callFailed('fill', 'refused again');
+  await journal.settled();
+  assert.equal(rowsOf(files.get('/j.jsonl')).filter((r) => r.event === 'call').length, 1);
+
+  const broken = new ProbeJournal({ read: async () => { throw new Error('EACCES'); }, write: async () => {}, now: async () => 0 }, '/j.jsonl', IDENTITY);
+  await broken.write({ event: 'load', ok: true });
 });

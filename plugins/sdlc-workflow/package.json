@@ -39,6 +39,7 @@
     "hub:stop": "node -e \"import('./lib/hub-lifecycle.mjs').then(m=>m.stopHub({log:console.log}))\"",
     "verify:release": "node scripts/verify-release-pushed.mjs",
     "typecheck:mod": "tsc -p hooks/mod/tsconfig.json",
+    "mod:probe": "node --experimental-strip-types scripts/mod-probe.mjs",
     "test:mod": "claude plugin test ."
   },
   "comment:dependencies": "Runtime deps are EMPTY by design — every Claude-invoked entrypoint ships pre-bundled under dist/ (npm run build, esbuild). A fresh install needs no runtime `npm install`. The libs below are devDependencies: bundled into dist/ and imported by tests, never installed at a user's runtime. See docs/internal/archived/SELF-CONTAINED-BUILD-PLAN.md.",

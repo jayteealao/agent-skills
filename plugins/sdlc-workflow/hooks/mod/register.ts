@@ -33,6 +33,14 @@
  * workflow's position and the person's decisions, then proposes the next
  * step; every other compaction while a workflow is active gains one sentence
  * that names the position. The switch is `stageCompact`.
+ *
+ * The module binds its host on every session, whatever the surface
+ * (MOD-DESKTOP-PLAN.md): Claude Code Desktop runs the engine through the SDK,
+ * where `session.start` reports no surface and no person at the prompt, and
+ * the parts that never draw belong there too. Each draw gates on its own
+ * `e.surface === 'terminal'`; each prompt or notice call is attempted and its
+ * failure recorded. `hooks/mod/probe.ts` keeps the journal that says which
+ * parts ran, on which host, for `scripts/mod-probe.mjs` to judge.
  */
 import type { On, PluginOptions, RenderElement } from 'claude-code'
 
@@ -70,6 +78,7 @@ import type { HubHealth, Settings, WfCommand } from './active.ts'
 import { CATALOG, commandNameOf, keyOfCommand } from './catalog.ts'
 import {
   CLOSED_TEXT,
+  DASHBOARD_TERMINAL_TEXT,
   DISPATCHER_COMMANDS,
   FILL_REFUSED_TEXT,
   NO_ROOT_TEXT,
@@ -84,6 +93,8 @@ import type { Option, Step } from './picker.ts'
 import { PICK_KEY_PREFIX, ROTATE_KEY, STATUS_KEY_PREFIX, dashboardView, noticeView, stripRows, stripView } from './strip.tsx'
 import type { StripModel } from './strip.tsx'
 import { bandView, pageSizeOf, rowKeyOf, stack } from './views.tsx'
+import { PROBE_FILE, ProbeJournal, surfaceAfterAttach } from './probe.ts'
+import type { ProbeIdentity } from './probe.ts'
 import { findProjectRoot, joinPath, listSlices, listWorkflows } from './workflows.ts'
 import type { Reader, SliceEntry, WorkflowEntry } from './workflows.ts'
 
@@ -122,6 +133,16 @@ type Host = {
   /** The plugin's store, kept across sessions and reloads. */
   storeGet: (key: string) => Promise<unknown>
   storeSet: (key: string, value: unknown) => Promise<void>
+  /** Writes the whole text of a file, making its directories; the probe journal alone uses it. */
+  writeFile: (path: string, text: string) => Promise<void>
+  /** The session's id, or an empty string when the engine gives none. */
+  sessionId: () => Promise<string>
+  /** The host's own name, from `CLAUDE_CODE_ENTRYPOINT`. */
+  entrypoint: () => Promise<string | undefined>
+  /** The machine-wide sdlc state directory, `SDLC_HOME` or `<home>/.sdlc`. */
+  sdlcHome: () => Promise<string | null>
+  /** Every surface the session draws on now. */
+  surfaces: () => Promise<readonly string[]>
 }
 
 /** The turn under way: what it ran, when it started, what it wrote. */
@@ -156,6 +177,10 @@ type Model = {
   hub: HubHealth | null
   /** The pane's open state; the render hook draws only while open. */
   isDashboardOpen: boolean
+  /** Where the session draws: `terminal` under the REPL, else a surface that attached, else null. */
+  surface: string | null
+  /** Whether a person is at the prompt, as `session.start` reported it. */
+  interactive: boolean
 }
 
 const EMPTY: Model = {
@@ -171,6 +196,8 @@ const EMPTY: Model = {
   lastStageUsd: null,
   hub: null,
   isDashboardOpen: false,
+  surface: null,
+  interactive: false,
 }
 
 const DASHBOARD_COMMAND = 'wf-dashboard'
@@ -189,6 +216,8 @@ const LAST_RUN_WINDOW_MS = 10_000
 const COMPACT_RETRY_MS = 500
 /** The store key of the active workflow, per repository root. */
 const activeStoreKeyOf = (root: string) => `active:${root}`
+/** Every command the module registers: one per key, plus the dashboard and the active-workflow commands. */
+const COMMAND_TOTAL = CATALOG.length + 2
 /** Keys whose turn is not a stage: no "this stage" cost. */
 const READ_ONLY_KEYS: ReadonlySet<string> = new Set(['status', 'recap'])
 
@@ -211,18 +240,61 @@ export function register(on: On, options: PluginOptions = {}) {
   let pending: Promise<void> = Promise.resolve()
   /** The rows the band had at its last draw; the focus hook pages by the same size. */
   let ringMaxRows = 12
+  /** The probe journal of this session, or null when the switch is off or no home was found. */
+  let journal: ProbeJournal | null = null
 
   const commandNames: string[] = [...DISPATCHER_COMMANDS, ...CATALOG.map(entry => commandNameOf(entry.key))]
 
-  async function registerCommands(engine: Host): Promise<void> {
+  /** True where the band, the pinned line, and the pane draw: the terminal alone. */
+  function isTerminal(): boolean {
+    return model.surface === 'terminal'
+  }
+
+  /**
+   * A void `$.ui.*` call never rejects at the plugin: where a surface does not
+   * carry it the engine drops the call and reports it in its own log. So the
+   * journal records the calls that answer — `prompt.suggest` and
+   * `prompt.fill` — and the `load` and `turn` rows carry the rest.
+   */
+
+  async function registerCommands(engine: Host): Promise<number> {
+    let registered = 0
     for (const entry of CATALOG) {
       const name = commandNameOf(entry.key)
       try {
         await engine.registerCommand({ name, description: entry.description, argumentHint: entry.argumentHint })
+        registered += 1
       } catch (error) {
         engine.log(registerFailedTextOf(name, messageOf(error)))
       }
     }
+    return registered
+  }
+
+  /**
+   * Opens this session's probe journal, or leaves it closed when the switch is
+   * off or no home directory answers. The identity it carries names the host
+   * and the surface every row is written under.
+   */
+  async function openJournal(engine: Host, surface: string | null, interactive: boolean): Promise<ProbeJournal | null> {
+    if (!settings.probeJournal) return null
+    const home = await engine.sdlcHome()
+    if (home === null) return null
+    const identity: ProbeIdentity = {
+      session: (await engine.sessionId()).slice(0, 8),
+      host: (await engine.entrypoint()) ?? 'unknown',
+      surface: surface ?? 'none',
+      interactive,
+    }
+    return new ProbeJournal(
+      {
+        read: path => readIfPresent(engine, path),
+        write: (path, text) => engine.writeFile(path, text),
+        now: () => engine.now(),
+      },
+      joinPath(home, PROBE_FILE),
+      identity,
+    )
   }
 
   /** Reads the workflow list once per session; a later `/wf` re-reads it. */
@@ -288,6 +360,7 @@ export function register(on: On, options: PluginOptions = {}) {
 
   /** The pinned status line: the driver's heartbeat while one is watched, else the strip's short text. */
   function drawStatus(engine: Host): void {
+    if (!isTerminal()) return
     if (driverText !== null) {
       engine.status(driverText)
       return
@@ -394,8 +467,10 @@ export function register(on: On, options: PluginOptions = {}) {
     try {
       isFilled = (await engine.fill(`${text} `)).isFilled
     } catch (error) {
+      journal?.callFailed('fill', messageOf(error))
       engine.log(messageOf(error))
     }
+    if (!isFilled) journal?.callFailed('fill', FILL_REFUSED_TEXT.trim())
     return isFilled ? `${RUN_TEXT} ${text}` : `${FILL_REFUSED_TEXT}${text}`
   }
 
@@ -428,9 +503,9 @@ export function register(on: On, options: PluginOptions = {}) {
   }
 
   on('session.start', async ($, e, next) => {
-    model = EMPTY
+    model = { ...EMPTY, surface: e.surface, interactive: e.isInteractive }
     host = null
-    if (e.surface !== 'terminal' || !e.isInteractive) return next(e)
+    journal = null
     const engine: Host = {
       cwd: e.cwd,
       reader: {
@@ -492,6 +567,28 @@ export function register(on: On, options: PluginOptions = {}) {
       openPane: (id, title) => $.ui.open({ id, title }),
       storeGet: key => $.store.get(key),
       storeSet: (key, value) => $.store.set(key, value),
+      writeFile: (path, text) => $.fs.write(path, text),
+      sessionId: async () => {
+        try {
+          return await $.session.id()
+        } catch {
+          return ''
+        }
+      },
+      entrypoint: () => $.env.get('CLAUDE_CODE_ENTRYPOINT'),
+      sdlcHome: async () => {
+        const override = await $.env.get('SDLC_HOME')
+        if (override !== undefined && override.trim() !== '') return override.trim()
+        const home = await ((await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')))
+        return home === undefined || home === '' ? null : joinPath(home, '.sdlc')
+      },
+      surfaces: async () => {
+        try {
+          return await $.session.surfaces()
+        } catch {
+          return []
+        }
+      },
     }
     bracket = null
     stopDriver()
@@ -502,24 +599,46 @@ export function register(on: On, options: PluginOptions = {}) {
     hubTimer?.cancel()
     hubTimer = null
     try {
-      await registerCommands(engine)
+      journal = await openJournal(engine, e.surface, e.isInteractive)
+      let registered = await registerCommands(engine)
       try {
         await engine.registerCommand({ name: DASHBOARD_COMMAND, description: 'Open the sdlc workflows dashboard pane.' })
+        registered += 1
       } catch (error) {
         engine.log(registerFailedTextOf(DASHBOARD_COMMAND, messageOf(error)))
       }
       try {
         await engine.registerCommand({ name: ACTIVE_COMMAND, description: 'Show the named workflow in the strip, or the next active one.', argumentHint: '[slug]' })
+        registered += 1
       } catch (error) {
         engine.log(registerFailedTextOf(ACTIVE_COMMAND, messageOf(error)))
       }
       host = engine
       await refreshActive(engine)
-      if (settings.hubNotice) await watchHub(engine)
+      if (settings.hubNotice && isTerminal()) await watchHub(engine)
+      const surfaces = await engine.surfaces()
+      void journal?.write({ event: 'load', ok: true, detail: `surfaces ${surfaces.join(',') || 'none'} · root ${model.root ?? 'none'} · workflows ${model.workflows.length}` })
+      void journal?.write({ event: 'commands', ok: registered === COMMAND_TOTAL, detail: `${registered}/${COMMAND_TOTAL}` })
     } catch (error) {
       engine.log(messageOf(error))
+      void journal?.write({ event: 'load', ok: false, detail: messageOf(error) })
     }
     return next(e)
+  })
+
+  on('session.attach', async ($, e, next) => {
+    // A remote client (the Desktop app, a phone) joined after the session
+    // started. It is the surface the session draws on from now on, and the
+    // one positive signal that does not depend on `isInteractive`.
+    const engine = host
+    const result = await next(e)
+    if (!engine) return result
+    const surface = surfaceAfterAttach(model.surface, e.surface)
+    model = { ...model, surface }
+    journal?.setSurface(surface)
+    void journal?.write({ event: 'attach', ok: true, detail: `${e.surface} · client ${e.clientId}` })
+    await refreshActive(engine)
+    return result
   })
 
   /** Reads the hub's health once, then every minute; a change of state is one toast. */
@@ -591,6 +710,7 @@ export function register(on: On, options: PluginOptions = {}) {
     const engine = host
     if (!engine) return next(e)
     if (e.command === DASHBOARD_COMMAND || e.command === `${PLUGIN_NAME}:${DASHBOARD_COMMAND}`) {
+      if (!isTerminal()) return { text: DASHBOARD_TERMINAL_TEXT }
       if (model.step !== null) close(engine)
       await refreshActive(engine)
       for (const workflow of model.workflows) if (!workflow.terminal) await readSlices(engine, workflow.slug)
@@ -614,7 +734,9 @@ export function register(on: On, options: PluginOptions = {}) {
     const key = keyOfCommand(e.command)
     const named = wfCommandOf(`/wf ${key === null ? '' : `${key} `}${e.args}`)
     if (named?.slug) setActive(engine, named.slug)
-    const step = stepFor(key, e.args)
+    // The band draws on the terminal alone, so a step that cannot be shown is
+    // not opened: the command runs as typed, or goes into the prompt box.
+    const step = isTerminal() ? stepFor(key, e.args) : null
     if (step === null) {
       // The arguments are complete. A `/wf-<key>` run becomes the dispatcher's
       // command in the prompt box; the bare `/wf` runs as typed. A band still
@@ -889,22 +1011,36 @@ export function register(on: On, options: PluginOptions = {}) {
     const suggestion = settings.suggestNext && workflow !== null && !workflow.terminal && workflow.nextInvocation && turn.writes.length > 0 ? workflow.nextInvocation : null
     const suggest = () => {
       if (suggestion === null) return
-      engine.suggest(suggestion).catch(error => engine.log(messageOf(error)))
+      engine.suggest(suggestion).catch(error => {
+        journal?.callFailed('suggest', messageOf(error))
+        engine.log(messageOf(error))
+      })
     }
     // The post-stage compaction, between turns; the suggestion follows it so
     // the dim text is proposed on the compacted session.
     if (settings.stageCompact && landed === true && command !== null && workflow !== null && compactEligible(command, workflow, e)) {
       const instructions = compactInstructionsOf(workflow, command, turn.writes)
       const key = command.key
+      journalTurn(command, landed, 'compact')
       engine.later(() => {
         void compactAfterStage(engine, key, instructions).then(suggest)
       })
       return result
     }
+    if (command !== null) journalTurn(command, landed, suggestion === null ? 'none' : 'suggest')
     // Proposed once this dispatch is over: the engine drops a suggestion made while a turn runs.
     if (suggestion !== null) engine.later(suggest)
     return result
   })
+
+  /** One journal row per `/wf` turn: what ran, whether its artifact landed, and what followed. */
+  function journalTurn(command: WfCommand, landed: boolean | null, action: 'compact' | 'suggest' | 'none'): void {
+    void journal?.write({
+      event: 'turn',
+      ok: action !== 'none',
+      detail: `${command.key} ${command.slug ?? '-'} · landed ${landed === null ? 'n/a' : String(landed)} · ${action}`,
+    })
+  }
 
   /**
    * One compaction after a landed stage: the toast, the call, one retry when
@@ -913,7 +1049,7 @@ export function register(on: On, options: PluginOptions = {}) {
    */
   async function compactAfterStage(engine: Host, key: string, instructions: string): Promise<void> {
     engine.toast(compactToastOf(key, await engine.contextPercent()))
-    const attempt = async (): Promise<'done' | 'skipped' | 'refused'> => {
+    const call = async (): Promise<'done' | 'skipped' | 'refused'> => {
       try {
         const outcome = await engine.compact(instructions)
         if (outcome.skip === undefined) return 'done'
@@ -924,10 +1060,15 @@ export function register(on: On, options: PluginOptions = {}) {
         return 'refused'
       }
     }
-    if ((await attempt()) !== 'refused') return
+    const first = await call()
+    void journal?.write({ event: 'compact', ok: first === 'done', detail: first })
+    if (first !== 'refused') return
     await new Promise<void>(resolve => {
       engine.after(COMPACT_RETRY_MS, () => {
-        void attempt().then(() => resolve())
+        void call().then(again => {
+          void journal?.write({ event: 'compact', ok: again === 'done', detail: `retry ${again}` })
+          resolve()
+        })
       })
     })
   }

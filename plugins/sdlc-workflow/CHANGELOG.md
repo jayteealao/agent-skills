@@ -5,6 +5,16 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The mod runs on Claude Code Desktop** (MOD-DESKTOP-PLAN.md, MOD-FEATURES.md §3.12). The module bound its host only when `session.start` reported a terminal surface and a person at the prompt. Claude Code Desktop runs the engine through the SDK, which reports neither, so nothing ran there — not the picker, and not the parts that never draw. The module now binds on every session; each draw keeps its own `e.surface === 'terminal'` test, and the calls that are not renders (the pinned status line, the picker's steps, the hub watch, `/wf-dashboard`) gate on the session's own surface. A client that joins later (`session.attach`) becomes the surface when the session had none. The stage-landed check, the post-stage compaction, the compaction keep-sentence, and the remembered active workflow run wherever the module loads.
+
+### Added
+
+- **The probe journal** (switch `probeJournal`, on by default). Each session appends rows to `<SDLC_HOME|~/.sdlc>/mod-probe.jsonl`, at most 400: that the module bound its host, how many commands registered, a client that attached, each `/wf` turn and what followed it, each compaction's outcome, and any prompt call that was refused. No prompt text and no file content is written. `npm run mod:probe` prints one verdict per host and surface and exits 1 when a host did not bind or did not register every command; `--json`, `--rows`, `--since 24h`, `--clear`, and `--path` are its flags.
+
 ## [9.160.0] - 2026-09-22
 
 ### Fixed

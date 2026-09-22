@@ -80,6 +80,12 @@
       "title": "Compact after a stage",
       "description": "After a /wf stage turn lands its artifact, compact the session with instructions that keep the workflow's position and the person's decisions; every other compaction while a workflow is active gains the same sentence.",
       "default": true
+    },
+    "probeJournal": {
+      "type": "boolean",
+      "title": "Probe journal",
+      "description": "Record which parts of the mod ran, on which host and surface, in ~/.sdlc/mod-probe.jsonl (at most 400 rows, no prompt text); `npm run mod:probe` in the plugin directory prints the verdict.",
+      "default": true
     }
   }
 }

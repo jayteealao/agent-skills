@@ -1,4 +1,4 @@
-import type { On, RenderElement, RenderInput, SessionMessage } from 'claude-code'
+import type { On, RenderElement, RenderInput, RenderSurface, SessionMessage } from 'claude-code'
 import { describe, expect, mock, test, tier } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
 
@@ -24,7 +24,18 @@ const BAND: RenderInput<'AbovePrompt'> = {
   },
 }
 
+const DESKTOP_BAND: RenderInput<'AbovePrompt'> = { ...BAND, surface: 'desktop', requestId: 'band-desktop' }
+
 const PRESENTATION = { isFullscreen: false, columns: 120 } as const
+
+/**
+ * A session started without a surface, as Claude Code Desktop starts one
+ * through the SDK. The kit fills a null surface in with `terminal`, so these
+ * tests cover the parts that do not depend on the surface; the surface gate
+ * itself is covered by `surfaceAfterAttach` in the harness and by the live
+ * probe journal (MOD-DESKTOP-PLAN.md §6).
+ */
+const SDK_SESSION = { surface: null, isInteractive: false, cwd: '/work' } as const
 
 const HUB_HEALTH = '{"ok":true,"status":"ok","version":"9.157.0","entries":[{"id":"a","stale":false},{"id":"b","stale":true},{"id":"c","stale":true}]}'
 const LEDGER = {
@@ -95,11 +106,17 @@ type World = {
   clock: MockClock
   /** The props the bottom render hook last saw, after every rewrite above it. */
   props: unknown
+  /** Every file the mod wrote through `$.fs.write`, by path. */
+  written: Map<string, string>
+  /** What `$.session.surfaces()` answers. */
+  surfaces: RenderSurface[]
+  /** True makes the status-line mock throw, as a surface without one would. */
+  statusThrows: boolean
 }
 
 /** The world beneath the mod: a session in /work, the tree above, an empty band. */
 function seat(on: On, tree: Record<string, string> = TREE): World {
-  const world: World = { registered: [], filled: [], logged: [], focused: [], toasts: [], suggested: [], statuses: [], opened: [], usd: 1, percent: 62, compacted: [], compactAnswers: ['done'], hub: HUB_HEALTH, mtimes: new Map(), clock: null as unknown as MockClock, props: null }
+  const world: World = { registered: [], filled: [], logged: [], focused: [], toasts: [], suggested: [], statuses: [], opened: [], usd: 1, percent: 62, compacted: [], compactAnswers: ['done'], hub: HUB_HEALTH, mtimes: new Map(), clock: null as unknown as MockClock, props: null, written: new Map(), surfaces: ['terminal'], statusThrows: false }
   const dirs = new Set<string>()
   for (const file of Object.keys(tree)) {
     const parts = file.split('/')
@@ -116,7 +133,9 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
     world.registered.push(e.name)
     return { value: { command: e.name } }
   })
-  on('fs.exists', ($, e) => ({ value: dirs.has(normal(e.path)) || normal(e.path) in tree }))
+  // A written file answers a later read: the probe journal reads its own text
+  // back before each append. It stays out of `tree`, which some tests share.
+  on('fs.exists', ($, e) => ({ value: dirs.has(normal(e.path)) || normal(e.path) in tree || world.written.has(normal(e.path)) }))
   on('fs.list', ($, e) => {
     const dir = normal(e.path)
     if (!dirs.has(dir)) return { deny: `ENOENT: ${dir}` }
@@ -130,7 +149,7 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
     return { value: [...names].map(([name, kind]) => ({ name, kind, size: 0 })) }
   })
   on('fs.read', ($, e) => {
-    const text = tree[normal(e.path)]
+    const text = tree[normal(e.path)] ?? world.written.get(normal(e.path))
     return text === undefined ? { deny: `ENOENT: ${e.path}` } : { value: text }
   })
   on('ui.invalidate', () => ({ value: undefined }))
@@ -140,6 +159,7 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
     return {}
   })
   on('ui.status', ($, e) => {
+    if (world.statusThrows) throw new Error('no status line here')
     world.statuses.push(e.text)
     return { value: undefined }
   })
@@ -168,7 +188,18 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
     if (answer === 'skip') return { skip: 'off' }
     return { messages: [SUMMARY], tokensBefore: 1000, tokensAfter: 100 }
   })
-  on('env.get', ($, e) => ({ value: e.name === 'USERPROFILE' ? '/home' : undefined }))
+  on('env.get', ($, e) => {
+    if (e.name === 'USERPROFILE') return { value: '/home' }
+    if (e.name === 'CLAUDE_CODE_ENTRYPOINT') return { value: 'cli' }
+    return { value: undefined }
+  })
+  on('session.id', () => ({ value: 'abcdef0123456789' }))
+  on('session.surfaces', () => ({ value: [...world.surfaces] }))
+  on('session.attach', ($, e) => ({ clientId: e.clientId }))
+  on('fs.write', ($, e) => {
+    world.written.set(normal(e.path), e.text)
+    return { value: undefined }
+  })
   on('http.fetch', () => (world.hub === null ? { deny: 'ECONNREFUSED' } : { value: { status: 200, ok: true, headers: {}, text: world.hub } }))
   on('fs.stat', ($, e) => {
     const path = normal(e.path)
@@ -228,13 +259,20 @@ async function turn($: Engine, text: string, writes: readonly string[] = [], rea
   await $.turn.complete({ answer: 'done', durationMs: 1000, isAborted: reason === 'aborted', turnId: 't', reason })
 }
 
-/** Lets the promise chains a timer started run to their end. */
+/** Lets the promise chains a timer or the probe journal started run to their end. */
 const settle = async (): Promise<void> => {
-  for (let i = 0; i < 8; i += 1) await Promise.resolve()
+  for (let i = 0; i < 200; i += 1) await Promise.resolve()
 }
 
 const setSetting = ($: Engine, name: string, value: boolean) =>
   $.config.set({ key: `sdlc-workflow.${name}`, value, previous: !value, provider: { plugin: PLUGIN_NAME, tier: 'user' }, origin: { kind: 'composer' } })
+
+/** The probe journal's rows, as the mod wrote them. */
+const probeRows = (world: World): Array<Record<string, unknown>> =>
+  (world.written.get('/home/.sdlc/mod-probe.jsonl') ?? '')
+    .split('\n')
+    .filter(line => line.trim() !== '')
+    .map(line => JSON.parse(line) as Record<string, unknown>)
 
 const modesOf = (props: unknown): string[] => ((props as { modes?: string[] })?.modes ?? [])
 const wordOf = (props: unknown): string => ((props as { word?: string })?.word ?? '')
@@ -935,16 +973,91 @@ describe('register', () => {
     expect(textOf(await $.ui.render(BAND))).toContain('/wf plan alpha-flow — pick a slice')
   })
 
-  test('a non-terminal session registers nothing and passes every command on', async ($, on) => {
-    const world = seat(on)
+  test('a surfaceless session binds the host, registers the commands, and draws nothing', async ($, on) => {
+    const world = seat(on, { ...TREE })
+    world.surfaces = []
     let ran = 0
     on('command.run', () => {
       ran += 1
       return { text: 'passed on' }
     })
-    await $.session.start({ surface: null, isInteractive: false, cwd: '/work' })
-    expect(world.registered).toEqual([])
+    await $.session.start(SDK_SESSION)
+    // Claude Code Desktop runs the engine through the SDK: no surface, no
+    // person at the prompt. The module still binds and registers.
+    expect(world.registered).toEqual([...CATALOG.map(entry => `wf-${entry.key}`), 'wf-dashboard', 'wf-active'])
+    // The band never draws, so the picker never opens: the command runs as typed.
     expect(await run($, 'wf')).toEqual({ text: 'passed on' })
     expect(ran).toBe(1)
+    expect(textOf(await $.ui.render(DESKTOP_BAND))).toBe('')
+    expect(world.statuses).toEqual([])
+    expect(await run($, 'wf-dashboard')).toEqual({ text: 'The workflows dashboard draws in the terminal only; this session draws elsewhere.' })
+    expect(world.opened).toEqual([])
+  })
+
+  test('a surfaceless session still checks the stage, compacts, and suggests', async ($, on) => {
+    const world = seat(on, { ...TREE })
+    world.surfaces = []
+    await $.session.start(SDK_SESSION)
+    await turn($, '/wf implement alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md'])
+    await world.clock.advance(1)
+    await settle()
+    expect(world.compacted).toHaveLength(1)
+    expect(world.suggested).toEqual(['/wf verify alpha-flow auth'])
+    await turn($, '/wf verify alpha-flow ui')
+    expect(world.toasts.at(-1)).toBe('wf: verify ended without 06-verify-ui.md')
+  })
+
+  test('the probe journal records the load, the commands, the turn, and the compaction', async ($, on) => {
+    const world = seat(on, { ...TREE })
+    world.surfaces = []
+    await $.session.start(SDK_SESSION)
+    await settle()
+    const load = probeRows(world)
+    expect(load[0]).toMatchObject({ event: 'load', ok: true, host: 'cli', session: 'abcdef01' })
+    expect(load[0]?.['detail']).toContain('root /work')
+    expect(load[1]).toMatchObject({ event: 'commands', ok: true, detail: '24/24' })
+    await turn($, '/wf implement alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md'])
+    await world.clock.advance(1)
+    await settle()
+    const rows = probeRows(world)
+    expect(rows.find(row => row['event'] === 'turn')).toMatchObject({ ok: true, detail: 'implement alpha-flow · landed true · compact' })
+    expect(rows.find(row => row['event'] === 'compact')).toMatchObject({ ok: true, detail: 'done' })
+  })
+
+  test('a client that attaches becomes the surface, and the journal says so', async ($, on) => {
+    const world = seat(on, { ...TREE })
+    world.surfaces = []
+    await $.session.start(SDK_SESSION)
+    await $.session.attach({ surface: 'desktop', clientId: 'desktop:default' })
+    await settle()
+    const attach = probeRows(world).find(row => row['event'] === 'attach')
+    expect(attach).toMatchObject({ ok: true, detail: 'desktop · client desktop:default' })
+    // A session that already draws somewhere keeps that surface; the rows go on.
+    await turn($, '/wf implement alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md'])
+    await settle()
+    expect(probeRows(world).find(row => row['event'] === 'turn')).toMatchObject({ detail: 'implement alpha-flow · landed true · compact' })
+  })
+
+  test('with probeJournal off no journal is written', async ($, on) => {
+    const world = seat(on, { ...TREE })
+    await setSetting($, 'probeJournal', false)
+    await $.session.start(SDK_SESSION)
+    await settle()
+    expect(world.written.size).toBe(0)
+  })
+
+  test('a status line the surface does not carry ends nothing: the engine drops the call', async ($, on) => {
+    // A void `$.ui.*` call never rejects at the plugin, so the journal cannot
+    // record its failure; the session and its rows carry on regardless.
+    const world = seat(on, { ...TREE })
+    world.statusThrows = true
+    await $.session.start(SESSION)
+    await settle()
+    expect(probeRows(world).filter(row => row['event'] === 'call')).toEqual([])
+    expect(probeRows(world)[0]).toMatchObject({ event: 'load', ok: true })
+    await turn($, '/wf implement alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md'])
+    await world.clock.advance(1)
+    await settle()
+    expect(world.compacted).toHaveLength(1)
   })
 })

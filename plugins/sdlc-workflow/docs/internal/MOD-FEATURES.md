@@ -227,6 +227,43 @@ the sentence is not added when the instructions hold it. Both are off
 when `stageCompact` is false. Codex and pi see none of this; the skill
 prose keeps its "consider compacting" lines for them.
 
+### 3.12 Every surface, and the probe journal (`probeJournal`)
+
+Plan: [MOD-DESKTOP-PLAN.md](MOD-DESKTOP-PLAN.md). The module binds its host
+at `session.start` whatever the surface. Claude Code Desktop runs the engine
+through the SDK, where `session.start` reports `surface: null` and
+`isInteractive: false`; before this the module returned at that test and
+nothing ran there, UI or not.
+
+What gates now, and where:
+
+- The four `ui.render` hooks test `e.surface === 'terminal'`, as they always
+  did. Each render ask carries its own surface, so a terminal render on a
+  session that started elsewhere still draws.
+- `model.surface` carries the session's own surface, and `isTerminal()` gates
+  the calls that are not renders: the pinned status line, the picker's steps
+  (a band that cannot draw must not report itself open, so the command runs as
+  typed or goes into the prompt box), the hub watch, and `/wf-dashboard`
+  (which answers `DASHBOARD_TERMINAL_TEXT` elsewhere).
+- `session.attach` records a client that joins later and redraws;
+  `surfaceAfterAttach` keeps a surface the session already had.
+- Everything that never draws — the stage check, the post-stage compaction,
+  the compaction keep-sentence, the active-workflow store, the cost row's
+  bookkeeping — runs wherever the host is bound.
+
+The probe journal answers "did it run here". Every session appends rows to
+`<SDLC_HOME|~/.sdlc>/mod-probe.jsonl`, at most 400, through `$.fs.write` of
+the whole text (there is no append call), serialized on one promise chain,
+each row taking its identity when the fact happens. The events are `load`,
+`attach`, `commands`, `turn`, `compact`, and `call`; a row carries the time,
+eight characters of the session id, the host from `CLAUDE_CODE_ENTRYPOINT`,
+the surface, and one short detail. No prompt text and no file content is
+written. `npm run mod:probe` prints one verdict per host and surface and
+exits 1 when one did not bind or did not register every command;
+`--json`, `--rows`, `--since 24h`, `--clear`, and `--path` are its flags.
+The script needs `--experimental-strip-types`, because it imports the mod's
+own `probe.ts` so the table and the tests judge by the same code.
+
 ## 4. Engine facts the build settled
 
 - `userConfig` fields need `type`, `title`, `description`, and `default`;
@@ -239,6 +276,17 @@ prose keeps its "consider compacting" lines for them.
   matchers accept `requestId`.
 - `turn.complete` carries `reason: 'answer' | 'aborted' | 'refusal' |
   'error'`, `answer`, `durationMs`, `isAborted`, `turnId`.
+- A void `$.ui.*` call (`log`, `status`, `toast`) never rejects at the
+  plugin: where a surface does not carry it, the engine drops the call and
+  reports it in its own log. A try/catch around one catches nothing, so the
+  journal records the calls that answer (`prompt.suggest`, `prompt.fill`) and
+  the `load` and `turn` rows carry the rest.
+- The kit fills a null `surface` in `$.session.start` with `terminal`, so a
+  surfaceless start cannot be raised in a kit test. The surface decision is
+  a pure function (`surfaceAfterAttach`) covered by the harness, and the live
+  answer is the probe journal's.
+- `$.fs.write` replaces the whole file and has no append; two writes at once
+  lose a row, so the journal serializes them.
 - `$.session.usage()` answers `{ context, rateLimits, cost?: { usd } }`;
   `context.percent` is the whole-number fill and may be absent.
 - `$.session.compact({ instructions })` is the `session.compact` event
@@ -327,7 +375,11 @@ Still open:
    skill (the fallback covers both).
 4. The driver watch against a real `/wf yolo` run (the fixture journal
    covers the read path only).
-5. The post-stage compaction's probes P-C1, P-C2, P-C4, and P-C6 of
+5. What Claude Code Desktop reports at `session.start` (`surface`,
+   `isInteractive`), whether it raises `session.attach`, and whether
+   `$.ui.status`, `$.ui.toast`, and `$.prompt.suggest` reach it. One Desktop
+   session followed by `npm run mod:probe` answers all four.
+6. The post-stage compaction's probes P-C1, P-C2, P-C4, and P-C6 of
    POST-STAGE-COMPACT-PLAN.md: whether a `$.clock.after(0)` call inside
    the `turn.complete` dispatch counts as between turns (the code retries
    once after 500 ms either way), whether a compaction clears a

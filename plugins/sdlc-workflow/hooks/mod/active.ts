@@ -17,6 +17,7 @@ export type Settings = {
   cost: boolean
   hubNotice: boolean
   stageCompact: boolean
+  probeJournal: boolean
 }
 
 export const SETTING_NAMES: ReadonlyArray<keyof Settings> = [
@@ -29,6 +30,7 @@ export const SETTING_NAMES: ReadonlyArray<keyof Settings> = [
   'cost',
   'hubNotice',
   'stageCompact',
+  'probeJournal',
 ]
 
 /** Every setting on, as the manifest defaults them. */
@@ -42,6 +44,7 @@ export const DEFAULT_SETTINGS: Settings = {
   cost: true,
   hubNotice: true,
   stageCompact: true,
+  probeJournal: true,
 }
 
 /** The settings from the plugin's options: a boolean field takes its value, anything else its default. */
