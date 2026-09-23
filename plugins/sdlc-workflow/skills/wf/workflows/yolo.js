@@ -35,7 +35,9 @@ export const meta = {
 //   slug          the workflow slug to drive
 //   slice         (optional) one slice → slice mode; absent → slug mode
 //   reviewFanout  (optional, default true) Phase-3 parallel-dimension review; pass false to opt out
-//   planFanout    (optional, default true) plan all slices concurrently first; pass false to opt out
+//   planFanout    (optional, default false) plan all slices concurrently first; pass true to opt in.
+//                 Off by default: a plan made before the earlier slices build describes a stale
+//                 tree, and a hard-stopped plan is re-planned by every run and again by the walk.
 // args may arrive as a JSON object or — depending on how the caller encodes the
 // Workflow invocation — as a JSON string. Tolerate both so a stringified payload
 // doesn't silently fail the object check (the Workflow runtime can hand a
@@ -1744,12 +1746,13 @@ if (idx.workflowType === 'update-deps') {
 } else {
   // ---- Slug mode — sequential over the roster (mirrors /wf auto). --------
   // Cross-slice IMPLEMENT serializes on the shared tree (the governing
-  // principle: serialize anything that writes code). Plan fan-out is ON by
-  // default (pass planFanout: false to opt out): plan subagents write ONLY
+  // principle: serialize anything that writes code). Plan fan-out is OFF by
+  // default, so each slice runs plan → implement → verify before the next
+  // slice plans (pass planFanout: true to opt in): plan subagents write ONLY
   // their per-slice 04-plan file, and the DRIVER records plan completion in
   // 00-index.md as the single writer — the old 00-index write race is closed
   // by construction, not by retry.
-  if (OPT.planFanout !== false) {
+  if (OPT.planFanout === true) {
     const unplanned = idx.slices.filter(s => (s.stages || {}).plan !== 'done' && s.status !== 'skipped')
     if (unplanned.length > 1) {
       log(`plan fan-out: planning ${unplanned.length} un-planned slices concurrently (per-slice writes only; the driver is the single 00-index writer)`)

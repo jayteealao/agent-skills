@@ -65,8 +65,9 @@ test('W2: yolo review fan-out defaults on (opt-out only)', () => {
   assert.ok(!/OPT\.reviewFanout !== true/.test(yoloSrc));
 });
 
-test('W2: yolo plan fan-out defaults on with single-writer index assembly', () => {
-  assert.match(yoloSrc, /OPT\.planFanout !== false/);
+test('W2: yolo plan fan-out is opt-in with single-writer index assembly', () => {
+  assert.match(yoloSrc, /OPT\.planFanout === true/);
+  assert.ok(!/OPT\.planFanout !== false/.test(yoloSrc));
   assert.match(yoloSrc, /noIndexWrites: true/);
   assert.match(yoloSrc, /INDEX WRITES WITHHELD/);
   assert.match(yoloSrc, /PLAN FAN-OUT BOOKKEEPING/);

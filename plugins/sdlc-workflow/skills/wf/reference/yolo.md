@@ -144,7 +144,7 @@ Workflow({
     referenceRoot: "<pluginRoot>/skills/wf/reference",
     slug:          "<slug>",
     slice:         "<slice>"        // slice mode only — omit for slug mode
-    // reviewFanout / planFanout: omit (both default ON; pass false to opt out, see the script header)
+    // reviewFanout (default ON) / planFanout (default OFF): omit unless the person asks
   }
 })
 ```
