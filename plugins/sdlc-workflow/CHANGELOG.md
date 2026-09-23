@@ -5,6 +5,18 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.164.0] - 2026-09-23
+
+### Changed
+
+- **Brainstorm runs on principles, not quotas** (BRAINSTORM-MODE-PLAN.md §20). The counters that steered the conversation are gone: at most one tension question per batch, a fork or widen question in every batch, and a steer question every fourth batch. The reference now has three layers. *Your role* says what the agent is for. *Invariants* hold the few hard rules that protect the person: only the person ends the loop, plain words, no commitments and no code, nothing becomes work until the person confirms, the board is the memory, and evidence is bounded. *Craft* holds seven principles, each with its reason and an example: follow the person, go wide before deep, bring your own ideas, start from the problem, raise a tension when it matters now, read the signals, and explain then ask. The agent checks in at natural moments, not on a schedule.
+- **The brainstorm board is built for the person.** `01-brainstorm.md` is now the person's document, in plain prose with no keys: a summary of what we believe now (rewritten and confirmed at every check-in), the map, the decisions with their reasons, the open ideas, the findings with their sources, the assumptions, the tensions, the questions for the plan, and, after `done`, the scope and the work. The agent works from a separate `brainstorm-board.json` with readable keys (`club-style`, not `C-128`) and six item kinds (decision, idea, finding, question, assumption, tension). A board in the old one-file form converts on its first resume.
+- **The agent has one clear role: ideas are welcome, commitments are not.** The agent brings ideas freely, including concrete solutions, compares them, disagrees with a reason, and gives its view. A commitment that other work would build on, such as a data format, is recorded as a question for the plan. The contradictory rules "you do not design" and "no option is a solution" are gone.
+
+### Added
+
+- **Write-time validation of the brainstorm board.** `post-write-verify` validates `brainstorm-board.json` against `$defs.brainstormBoard` on every write and blocks a board that does not parse or does not match. Opt out with `hooks.validateBrainstormBoard: false`.
+
 ## [9.163.1] - 2026-09-23
 
 ### Fixed
