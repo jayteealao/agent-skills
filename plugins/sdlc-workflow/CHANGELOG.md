@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.161.3] - 2026-09-23
+
+### Changed
+
+- **`/wf yolo` plans each slice when its turn comes, not all slices first.** Plan fan-out (`planFanout`) is now off by default. In slug mode the driver runs plan → implement → verify on one slice before the next slice plans. A live SoccerManager run showed the cost of the old default: 12 plans made before any slice built, plans that described a tree the earlier slices later changed, and a hard-stopped plan planned again by every run and again by the walk (`viewer-match-day` hard-stopped three times on one open question). Pass `planFanout: true` to get the fan-out; ask for it when you start the run.
+
 ## [9.161.2] - 2026-09-22
 
 ### Fixed
