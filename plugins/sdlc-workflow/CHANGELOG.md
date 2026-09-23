@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.163.1] - 2026-09-23
+
+### Fixed
+
+- **A second brainstorm `done` walks every unscoped decision.** A board distilled before 9.163.0 has no keep, cut, or later answers, and the rule walked only the decisions added since the last `done`, so it could skip all of them. It now walks every decision with no `scope` value.
+
 ## [9.163.0] - 2026-09-23
 
 ### Changed
