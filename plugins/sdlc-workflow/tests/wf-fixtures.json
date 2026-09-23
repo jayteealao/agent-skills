@@ -34,7 +34,7 @@
     },
     {
       "id": "wf-intake-brainstorm-mode",
-      "purpose": "intake 'brainstorm' mode - the rubber-duck loop; a terminal workflow-index slug with the 01-brainstorm board, stays open.",
+      "purpose": "intake 'brainstorm' mode - the thinking-partner loop; a terminal workflow-index slug with the 01-brainstorm board, stays open.",
       "invocation": "/wf intake brainstorm a per-slug cost budget",
       "expectedReferencePath": "skills/wf/reference/intake/brainstorm.md"
     },

@@ -60,6 +60,10 @@ candidates:
 
 *Sessions: <N> | Batches: <N> | Threads: <live> live · <parked> parked · <routed> routed · <dropped> dropped*
 
+## Map
+
+<The areas the topic touches, from Step 0.3 of `intake/brainstorm.md`, in plain words. One line per area: `<area> · problem|solution · open|touched|explored · <the threads that cover it>`. Rewrite it after every batch. An area the person adds in free text joins the map.>
+
 ## Threads
 
 ### T-01 — <label>
@@ -71,7 +75,7 @@ candidates:
 
 ## Turn log
 
-<One line per question, in order: `batch N · T-NN · reflection|probe|fork|steer · <question in ten words> → <answer in ten words>`. A control word gets its own line: `batch N · control · <word> → <effect>`.>
+<One line per question, in order: `batch N · T-NN · reflection|probe|fork|widen|steer · <question in ten words> → <answer in ten words>`. The ids in this file are bookkeeping: the person never sees them (see the Plain words section of `intake/brainstorm.md`). A control word gets its own line: `batch N · control · <word> → <effect>`.>
 
 ## Candidates
 

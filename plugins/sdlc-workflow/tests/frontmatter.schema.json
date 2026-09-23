@@ -1684,7 +1684,7 @@
 
     "brainstormFrontmatter": {
       "type": "object",
-      "description": "01-brainstorm.md — the board of a rubber-duck brainstorm (/wf intake brainstorm). Rooted in a type:workflow-index slug workflow with workflow-type brainstorm. Rewritten after every question batch; threads carry claims, assumptions, and contradictions; candidates are written at `done`. The workflow stays open until /wf close.",
+      "description": "01-brainstorm.md — the board of a thinking-partner brainstorm (/wf intake brainstorm). Rooted in a type:workflow-index slug workflow with workflow-type brainstorm. Rewritten after every question batch; threads carry claims, assumptions, and contradictions; candidates are written at `done`. The workflow stays open until /wf close.",
       "required": ["schema", "type", "slug", "topic", "status", "created-at"],
       "properties": {
         "type": { "const": "brainstorm" },

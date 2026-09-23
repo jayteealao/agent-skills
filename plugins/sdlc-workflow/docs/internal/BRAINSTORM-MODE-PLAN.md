@@ -19,7 +19,10 @@ gained the `## The Brainstorm` heading; P-B4 became a permanent hook test.
 defects, fixed in **v9.160.0** (§17): the agent distilled without the
 person's `done`, `done` handed the person a list of intake commands rather
 than a question, and a resumed board carried `status: distilled` with no
-instruction to reopen it. **Still open:** probes P-B1, P-B2, and P-B3, and
+instruction to reopen it. Sessions 2 and 3 ran on the same board (129
+questions in total) and found two more defects, fixed in **v9.162.0**
+(§18): the agent interviewed rather than explored, and every question
+carried board ids the person could not remember. **Still open:** probes P-B1, P-B2, and P-B3, and
 the `artifacts.html` row. Every line reference below was read from the
 working tree at v9.158.0.
 
@@ -693,3 +696,67 @@ up.
 The person owns the end of a brainstorm. That is the rule the three fixes
 share, and it is now pinned by three guard tests in
 `tests/unit/skills/brainstorm-mode.test.mjs`.
+
+## 18. Sessions 2 and 3 — the agent interviewed, and it spoke in ids
+
+Sessions 2 and 3 resumed `brainstorm-realism-additions-20260922` on
+2026-09-22 and 2026-09-23. Across the three sessions the agent asked 129
+questions. The board grew to 213 claims, 8 threads, and 41 named
+assumptions. The person's verdict: the agent does not properly explore the
+problem and solution space, and its questions use numbering the person
+cannot remember.
+
+**D4 — the agent interviewed; it did not explore.** Every question was a
+closed choice among four options the agent wrote. No question was open. In
+session 3, 24 of 82 questions opened from a contradiction the agent had
+logged, for example whether a tactic change "counts twice" against a measured
+possession rule. The new ground came from the person: the manager as an
+entity, the season layer, "moments" as a development factor, and further
+personality traits all arrived in free text (44 free-text answers in the
+three sessions), and the person picked every option on 13 multi-select
+questions. The person also had to correct the frame ("all actions in
+football are important", after the agent made the duel the central action)
+and ask for a full list of actions. The loop drifted into plan-level design:
+which provider schema to copy, which provider wins a conflict. Three rules in
+the mode caused this. The framing said "the person does the generating" and
+"you do not solve", so the agent contributed no ideas of its own. Step 2.1
+chose "the live thread with the newest unanswered question", which only goes
+deeper. Step 2.2 loaded `_question-craft.md` in full, and that file is the
+contract for decision interviews (frame the decision, recommend, state
+reversibility).
+
+**D5 — the questions spoke in board ids.** Step 2.2 said "Name the board id
+the question builds on in the question text." IDs per question rose from 1.2
+in session 1 to 3.2 in session 3: 264 ids in 82 questions. Headers carried
+ids ("X-24 agree") and so did the chat ("Batch 22 follows up on X-22 and on
+the cost A-42 names"). The person answered "Explain this more" at least four
+times, and each answer cost a batch.
+
+**Fix (v9.162.0).**
+- The framing is a **thinking partner**: the person leads, the agent explores
+  beside the person, maps the space, and brings directions of its own. It
+  still decides nothing and designs nothing.
+- Step 0.3 **maps the space** (problem side and solution side, every member
+  of a named family) before any area goes deep; the board gains a `## Map`
+  body section with `open` / `touched` / `explored` areas. A resume starts
+  from the map and adds what earlier sessions missed.
+- Step 2.1 chooses where to go from the person's last reply first, then an
+  unexplored area, then open assumptions. At most one question per batch
+  resolves a contradiction. Signals of narrow options (every option picked,
+  "mix of", "all", "more", a new idea) make the next batch widen.
+- Step 2.2 adds the **widen** question kind (another point of view, a
+  comparison, an extreme case, "what makes this feel wrong?") and requires
+  one fork or widen question per batch. A new area starts from the problem.
+  Questions cite only rules 2 and 3 of `_question-craft.md`: no
+  `(Recommended)` option, and no "explain this more" option, because each
+  question explains first.
+- A new **Plain words** section: no board id and no mode mechanics in any
+  text the person reads; plain headers; one plain sentence between batches.
+  The ids stay in the board file.
+- Technical design choices are recorded as questions for the plan, not asked.
+- The steer question offers go deeper, open a new area, zoom out for what is
+  missing, and show where we are.
+
+Three guard tests pin the rules, and each fails against the v9.161.3 text.
+The next live session is the test of the map and the widen question.
+

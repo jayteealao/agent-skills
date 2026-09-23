@@ -1,5 +1,5 @@
 // Roster and contract guards for BRAINSTORM-MODE-PLAN (/wf intake brainstorm —
-// the rubber-duck intake mode). The surfaces that enumerate the mode roster
+// the thinking-partner intake mode). The surfaces that enumerate the mode roster
 // have no other automated guard: a mode that exists on disk but is missing
 // from a dispatch table is invisible to users. The contract guards pin the
 // operator's decisions: question batches through the ladder (never a named
@@ -87,6 +87,39 @@ test('done asks the disposition before it prints any command', () => {
   assert.match(src, /The options are dispositions, never commands/, 'Step 3 lost the dispositions-not-commands rule');
   assert.match(src, /Print no entry command here/, 'Step 3 prints entry commands before the person chooses');
   assert.ok(!/Step 5's card format/.test(src), 'Step 3 still hands the person a list of intakes');
+});
+
+test('the person reads plain words, never a board id', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.ok(!/Name the board id/.test(src), 'brainstorm.md again tells the agent to put board ids in the question text');
+  assert.match(src, /^# Plain words$/m, 'brainstorm.md lost the Plain words section');
+  assert.match(src, /Write no board id in any text the person reads/, 'the Plain words section lost the no-id rule');
+  assert.match(src, /Write no mode mechanics in that text/, 'the Plain words section lost the no-mechanics rule');
+  assert.match(src, /Open every question with two or three plain sentences/, 'questions no longer explain before they ask');
+  assert.match(src, /offer no "explain this more" option/, 'the explain-this-more option is back');
+  assert.match(src, /## 2\.6 Show where we are\nIn plain words, with no board id/, 'the board print shows ids again');
+});
+
+test('the loop explores before it converges', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.match(src, /\*\*Map the space\.\*\*/, 'Step 0 lost the map of the space');
+  assert.match(src, /When the topic names a family of things, list every member/, 'the map no longer covers a whole family');
+  assert.match(src, /\*\*Widen\.\*\* A direction the person has not raised/, 'Step 2.2 lost the widen question');
+  assert.match(src, /Every batch holds at least one fork or widen question/, 'a batch can again be all convergent');
+  assert.match(src, /ask about the problem first/, 'Step 2.2 lost problem-before-solution');
+  assert.match(src, /mark no option `\(Recommended\)`/, 'brainstorm options can again carry a recommendation');
+  assert.ok(!/_question-craft\.md\]\(\.\.\/_question-craft\.md\) in full/.test(src), 'brainstorm.md loads the decision-interview contract in full again');
+});
+
+test('the person sets the agenda', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.match(src, /\*\*The person sets the agenda\.\*\*/, 'the discipline list lost the agenda rule');
+  assert.match(src, /At most one question per batch resolves a contradiction/, 'contradictions can again drive the whole batch');
+  assert.match(src, /the options were too narrow: the next batch widens before it deepens/, 'the loop no longer reads the widen signals');
+  assert.match(src, /is not a brainstorm question\. Record it on the thread as a question for the plan/, 'technical design choices are asked in the loop again');
+  assert.ok(!/Continue \/ Park a thread \/ Show the board \/ Done/.test(src), 'the mechanical steer question is back');
+  assert.match(src, /zoom out and look for what is missing/, 'the steer question lost the zoom-out option');
+  assert.match(read('reference', 'intake', 'brainstorm', '_artifact.md'), /^## Map$/m, 'the board template lost the Map section');
 });
 
 test('the provenance contract consumes a brainstorm source', () => {
