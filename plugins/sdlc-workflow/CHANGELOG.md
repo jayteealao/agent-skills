@@ -5,6 +5,13 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.162.0] - 2026-09-23
+
+### Changed
+
+- **`/wf intake brainstorm` explores with the person** (BRAINSTORM-MODE-PLAN.md §18). Three live sessions (129 questions) showed an agent that interviewed rather than explored: every question was a closed choice, a quarter of the third session's questions came from contradictions the agent had logged, and the new ground came from the person's free text. The mode now frames the agent as a thinking partner that brings directions of its own. Step 0 maps the problem space and the solution space before any area goes deep (the board gains a `## Map` section with `open`, `touched`, and `explored` areas; a resume adds the areas earlier sessions missed). The person's last reply sets the agenda, at most one question per batch resolves a contradiction, and signals of narrow options (every option picked, "mix of", "more") make the next batch widen. A new **widen** question kind brings another point of view, a comparison, or an extreme case, and every batch holds at least one fork or widen question. A new area starts from the problem before any mechanism. Technical design choices are recorded as questions for the plan and are not asked. The steer question offers go deeper, open a new area, zoom out for what is missing, and show where we are.
+- **Brainstorm questions speak in plain words.** The mode required each question to name its board id, and the third session averaged 3.2 ids per question (`T-`, `C-`, `A-`, `X-`). A new Plain words section bans board ids and mode mechanics (batch numbers, "steer") from every question, option, header, and chat line the person reads; the ids stay in the board file. Each question opens with what is known and why it matters, no option is marked Recommended, and no option is "explain this more".
+
 ## [9.161.3] - 2026-09-23
 
 ### Changed
