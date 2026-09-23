@@ -81,12 +81,34 @@ test('a resumed session reopens a distilled board', () => {
   assert.match(src, /reopen a distilled board \(`status: open`, `progress\.brainstorm: in-progress`/, 'Step 0 resume does not reopen a distilled board');
 });
 
-test('done asks the disposition before it prints any command', () => {
+test('done scopes the work with the person', () => {
   const src = read('reference', 'intake', 'brainstorm.md');
-  assert.match(src, /Ask what the person wants to do with the thinking/, 'Step 3 lost the disposition question');
-  assert.match(src, /The options are dispositions, never commands/, 'Step 3 lost the dispositions-not-commands rule');
-  assert.match(src, /Print no entry command here/, 'Step 3 prints entry commands before the person chooses');
-  assert.ok(!/Step 5's card format/.test(src), 'Step 3 still hands the person a list of intakes');
+  assert.match(src, /# Step 3 — `done`: scope the work together/, 'Step 3 is no longer a scoping conversation');
+  assert.match(src, /The person decides what goes into work, and decides it with you/, 'Step 3 lost the joint-decision rule');
+  assert.match(src, /go through the discussion together and scope the work/, '3.1 lost the scope option');
+  assert.match(src, /Print no entry command/, '3.1 prints entry commands before the scope is agreed');
+});
+
+test('the walk decides keep, cut, or later for every decision', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.match(src, /## 3\.2 Walk through the discussion/, 'Step 3 lost the walk through the discussion');
+  assert.match(src, /keep all of it; go through it one by one; cut all of it; leave it for later/, 'the walk lost the area-level choices');
+  assert.match(src, /ask one question per decision: keep; cut; later; change it/, 'the walk lost the per-decision choices');
+  assert.match(src, /`scope: keep`, `scope: cut`, or `scope: later`/, 'the walk no longer records scope on the claim');
+  assert.match(src, /When a kept decision needs a decision that is cut or left for later/, 'the walk lost the dependency check');
+  assert.match(src, /a resume continues the walk at the first area with no answer/, 'an interrupted walk can no longer resume');
+});
+
+test('the work is shaped and confirmed before any candidate is written', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.match(src, /## 3\.3 Shape the work/, 'Step 3 lost the shaping conversation');
+  assert.match(src, /Propose a first split, then change it as the person directs\. Continue until the person says that the split holds/, 'the split is no longer agreed with the person');
+  assert.match(src, /## 3\.4 Confirm and record/, 'Step 3 lost the confirm step');
+  assert.match(src, /After the person confirms, write one candidate per piece of work/, 'candidates are written before the person confirms');
+  assert.match(src, /Run no command/, 'Step 3 runs a command');
+  assert.match(src, /A decision with `scope: cut` never seeds a successor/, 'a cut decision can seed a successor');
+  assert.match(read('reference', 'intake', 'brainstorm', '_artifact.md'), /^## Scope$/m, 'the board template lost the Scope section');
+  assert.match(read('reference', 'intake', '_intake-provenance.md'), /a `scope: cut` claim never seeds it/, 'the provenance contract lets a cut decision through');
 });
 
 test('the person reads plain words, never a board id', () => {
@@ -167,6 +189,24 @@ test('an unknown thread state fails validation', () => {
   bad.threads[0].state = 'pending';
   const result = validateFrontmatter(bad, { schemaPath: SCHEMA_PATH });
   assert.ok(!result.valid, 'a thread state outside live|parked|routed|dropped validated');
+});
+
+test('a scoped board with a multi-thread piece of work validates', () => {
+  const scoped = board();
+  scoped.claims[0].scope = 'keep';
+  scoped.claims.push({ id: 'C-02', thread: 'T-01', text: 'a budget per slice', evidence: 'unverified', scope: 'cut', reason: 'too fine-grained' });
+  scoped.candidates[0].threads = ['T-01'];
+  scoped.candidates[0].claims = ['C-01'];
+  const result = validateFrontmatter(scoped, { schemaPath: SCHEMA_PATH });
+  assert.deepEqual(result.errors, []);
+  assert.ok(result.valid);
+});
+
+test('an unknown scope value fails validation', () => {
+  const bad = board();
+  bad.claims[0].scope = 'maybe';
+  const result = validateFrontmatter(bad, { schemaPath: SCHEMA_PATH });
+  assert.ok(!result.valid, 'a claim scope outside keep|cut|later validated');
 });
 
 test('a workflow-index for a brainstorm validates', () => {

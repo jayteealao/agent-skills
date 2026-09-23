@@ -1684,7 +1684,7 @@
 
     "brainstormFrontmatter": {
       "type": "object",
-      "description": "01-brainstorm.md — the board of a thinking-partner brainstorm (/wf intake brainstorm). Rooted in a type:workflow-index slug workflow with workflow-type brainstorm. Rewritten after every question batch; threads carry claims, assumptions, and contradictions; candidates are written at `done`. The workflow stays open until /wf close.",
+      "description": "01-brainstorm.md — the board of a thinking-partner brainstorm (/wf intake brainstorm). Rooted in a type:workflow-index slug workflow with workflow-type brainstorm. Rewritten after every question batch; threads carry claims, assumptions, and contradictions; at `done` the person marks each decision keep, cut, or later, and candidates are the agreed pieces of work. The workflow stays open until /wf close.",
       "required": ["schema", "type", "slug", "topic", "status", "created-at"],
       "properties": {
         "type": { "const": "brainstorm" },
@@ -1717,7 +1717,9 @@
               "id": { "type": "string", "pattern": "^C-[0-9]{2,}$" },
               "thread": { "type": "string" },
               "text": { "type": "string" },
-              "evidence": { "type": "string", "pattern": "^(unverified|verified .+|contradicted .+|consult)$" }
+              "evidence": { "type": "string", "pattern": "^(unverified|verified .+|contradicted .+|consult)$" },
+              "scope": { "enum": ["keep", "cut", "later", null] },
+              "reason": { "type": "string" }
             }
           }
         },
@@ -1755,6 +1757,8 @@
             "properties": {
               "id": { "type": "string", "pattern": "^B-[0-9]{2,}$" },
               "thread": { "type": "string" },
+              "threads": { "$ref": "#/$defs/stringArray" },
+              "claims": { "$ref": "#/$defs/stringArray" },
               "title": { "type": "string" },
               "shape": { "enum": ["intake", "investigate", "fix", "discover", "task", "extension"] },
               "entry": { "type": "string" },

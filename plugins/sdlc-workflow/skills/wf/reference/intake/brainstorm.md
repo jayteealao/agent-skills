@@ -1,5 +1,5 @@
 ---
-description: Brainstorm with a thinking partner. The person has a half-formed thought and explores the problem space and the solution space with the agent. The agent maps the areas the topic touches, asks question batches in plain words, brings directions of its own, reflects each thought back as candidate readings, names the assumption inside it, and keeps a board on disk. Only the person ends the loop. On `done` the mode asks what the person wants to do with the thinking, and it produces only that. Writes no code, no plan, no option card. The workflow stays open until every thread is routed, parked, or dropped, and a resumed session reopens a distilled board.
+description: Brainstorm with a thinking partner. The person has a half-formed thought and explores the problem space and the solution space with the agent. The agent maps the areas the topic touches, asks question batches in plain words, brings directions of its own, reflects each thought back as candidate readings, names the assumption inside it, and keeps a board on disk. Only the person ends the loop. On `done` the person and the agent walk through the discussion, decide what to keep, cut, or leave for later, and shape the kept decisions into pieces of work together. Writes no code, no plan, no option card. The workflow stays open until every thread is routed, parked, or dropped, and a resumed session reopens a distilled board.
 argument-hint: <topic> | <slug> (resume) | <slug> (existing workflow) brainstorm <topic>
 ---
 
@@ -24,7 +24,7 @@ If neither applies, proceed standalone below.
 | Requires | A topic, or an existing brainstorm slug to resume. |
 | Produces | `00-index.md` (`type: workflow-index`, `workflow-type: brainstorm`) and `01-brainstorm.md` (`type: brainstorm`, the board). No branch. |
 | Skips | Every build stage. A brainstorm is not a build lifecycle. |
-| Next | Terminal. Only the person's `done` leaves the loop, and `done` asks what to do with the thinking. The workflow **stays open**; retire it with `/wf close <slug>` when no thread is live. |
+| Next | Terminal. Only the person's `done` leaves the loop, and `done` scopes the work with the person. The workflow **stays open**; retire it with `/wf close <slug>` when no thread is live. |
 
 # Brainstorm discipline
 You are a **thinking partner with a notebook**. Respect the stated order only where a step consumes an earlier step's output.
@@ -36,7 +36,7 @@ You are a **thinking partner with a notebook**. Respect the stated order only wh
 - Run no sub-agent unless the person says `look it up`.
 - Rewrite the board after every batch. The board is the memory across sessions and across compaction.
 - Never decide that the thinking is complete. Only the person's `done` leaves the loop.
-- Never close the workflow. `done` asks what to do next; `/wf close <slug>` retires.
+- Never close the workflow. `done` scopes the work with the person; `/wf close <slug>` retires.
 
 # Plain words
 The person reads every question, option, header, and chat line. The board ids (`T-`, `C-`, `A-`, `X-`, `B-`) are the board file's bookkeeping, and the person does not remember them.
@@ -128,24 +128,47 @@ In plain words, with no board id: the map, one line per area with its state. The
 ## 2.7 Second opinion
 > **Auto second opinion (objective triggers).** Auto-invoke `/consult codex <read these threads and name the assumptions and contradictions this thinking missed>` (pinning `codex`/`claude` keeps it free) when ANY of: `thread-contested` (at `done`, a live thread is party to an `open` contradiction); `claim-contradicted` (a bounded read returned `contradicted` and the person kept the thread live); `touches-auth`, `touches-billing`, `touches-security`, or `touches-migration` (a live thread touches that surface); `user-invoked` (the `second opinion` control word). The names are rows of [_consult-triggers.md](../_consult-triggers.md); record each run in `consult-runs:`. Fold the panel's distinct additions in as claims with `evidence: consult`, never as candidates.
 
-# Step 3 — `done`
+# Step 3 — `done`: scope the work together
 Enter this step only when the person's reply is the control word `done`.
 
+The person decides what goes into work, and decides it with you. You recap, explain, and propose; the person keeps, cuts, and shapes. Every text in this step follows the Plain words section.
+
+## 3.1 Choose what happens now
 1. Snapshot the board to `history/` and add a `revisions:` entry (`trigger: manual`, `because: done`).
-2. Print the live threads to chat, one line each: the thread name, what the thread holds, and the open contradiction it is party to, in plain words. Print no entry command here. Give the parked and the dropped threads as counts only.
-3. Ask what the person wants to do with the thinking, as one question batch per [_gate-question.md](../_gate-question.md). The options are dispositions, never commands: keep the board and think more later; write the thinking up as one document; start work on one or more threads; take a second opinion first; drop the threads the person no longer wants. Free text carries every other answer. An answer that asks for more thinking returns to Step 2.
-4. Act on that answer, and on nothing else.
+2. Say in plain words what the sessions covered: each area of the map, and how many decisions it holds. Print no entry command.
+3. Ask one question per [_gate-question.md](../_gate-question.md), with these options: go through the discussion together and scope the work; keep the board and think more later; take a second opinion first. Free text carries every other answer. An answer that asks for more thinking returns to Step 2.
    - **Keep the board.** Change the timestamps only. `status` stays `open`.
-   - **Start work.** Ask which threads. For each named thread write one candidate into `candidates:` (the template's card) and print its entry command. Record the choice in `selected:`. Run no command.
-   - **Write it up.** Write one `task` candidate for the document and print its entry command.
-   - **Second opinion.** Run Step 2.7, then return to step 2 of this step.
-   - **Drop.** Set each named thread to `dropped` with the person's reason, then return to step 2 of this step.
-5. A candidate's `shape` follows the thread's content, in the auto-route table's own vocabulary ([../intake.md](../intake.md) Step 4): a stated problem with unknown approach → `investigate`; a self-evident localized correction → `fix`; a yes/no truth question → `discover`; a deliverable that is not a code change → `task`; net-new scope on an existing workflow → `extension` (`/wf intake <existing-slug> <scope>`); everything else → `intake`. The `entry` is the invocation with `from <slug>` appended for the new-workflow forms.
-6. Set `status: distilled` and `progress.brainstorm: complete` only when the person chose to start work or to write the thinking up. Leave the index `status: ready` and `next-invocation` as the resume command; when no thread is live, set `next-invocation: "/wf close <slug>"`. Update the slug's row in `.ai/workflows/INDEX.md` (`updated-at` only).
+   - **Second opinion.** Run Step 2.7, then ask this question again.
+   - **Scope the work.** Go to 3.2.
 
-A second `done` on a distilled board repeats this step for the threads whose state changed since the last `done`.
+## 3.2 Walk through the discussion
+Go through the map one area at a time, in the order the areas were explored. The walk covers the **decisions**: every claim that records a choice the person made, or an idea that either of you raised. A measured finding appears only as the reason behind a decision.
+1. Before each question, list the area's decisions in chat, one plain sentence each, with the reason given for it.
+2. Ask what happens to the area: keep all of it; go through it one by one; cut all of it; leave it for later. Ask about up to four areas per batch.
+3. For an area the person goes through one by one, ask one question per decision: keep; cut; later; change it (free text says how). Ask about up to four decisions per batch. When you have a view, give it and its reason in the question text. The person decides.
+4. Record each answer on the claim as `scope: keep`, `scope: cut`, or `scope: later`. Rewrite a changed decision, then record it as kept. Record the person's reason for a cut when the person gives one.
+5. When a kept decision needs a decision that is cut or left for later, say so in plain words. Ask how to resolve it before the next area.
+6. The person can stop the walk at any time. The `scope` fields hold the progress, and a resume continues the walk at the first area with no answer.
 
-**Link-back.** A successor started `from <slug>` applies [_intake-provenance.md](_intake-provenance.md): it records `origin-brainstorm`, and it sets the routed thread's `state: routed` and `routed-to`, and the candidate's `state: routed`. The board is never superseded.
+## 3.3 Shape the work
+When every area has an answer, talk through how the kept decisions become work. Ask in batches, and give your view with its reason:
+- What comes first: the smallest piece that shows the thinking is right.
+- How the kept decisions group into pieces of work, the order of the pieces, and the dependencies between them, in plain words.
+- The size of each piece, and whether a piece is too large to start.
+- The form of each piece: a feature to build (`intake`), a problem to investigate first (`investigate`), a yes-or-no question to check (`discover`), a small correction (`fix`), a document or other deliverable that is not code (`task`), or new scope on a workflow that exists (`extension`, `/wf intake <existing-slug> <scope>`).
+
+Propose a first split, then change it as the person directs. Continue until the person says that the split holds.
+
+## 3.4 Confirm and record
+1. Print the agreed scope in plain words: each piece of work in order, with its kept decisions; then the decisions left for later; then the cut decisions with their reasons.
+2. Ask the person to confirm the scope or to change it. A change returns to 3.2 or 3.3.
+3. After the person confirms, write one candidate per piece of work into `candidates:` (the template's card, with its kept decisions in `claims:`). Record the candidates in `selected:`, and print each entry command in order. Run no command. The `entry` carries `from <slug>` for the new-workflow forms.
+4. A thread with no kept decision becomes `parked` when any of its decisions is `later`, and `dropped` with the person's reason when all are `cut`.
+5. Write the agreed scope to the board's `## Scope` section. Set `status: distilled` and `progress.brainstorm: complete`. Leave the index `status: ready` and `next-invocation` as the resume command; when no thread is live, set `next-invocation: "/wf close <slug>"`. Update the slug's row in `.ai/workflows/INDEX.md` (`updated-at` only).
+
+A second `done` on a distilled board shows the recorded scope and asks what to change. It walks only the areas the person names and the decisions added since the last `done`.
+
+**Link-back.** A successor started `from <slug>` applies [_intake-provenance.md](_intake-provenance.md): it records `origin-brainstorm`, and it sets the routed thread's `state: routed` and `routed-to`, and the candidate's `state: routed`. A decision with `scope: cut` never seeds a successor. The board is never superseded.
 
 ## Step — Write free narrative fragments
 
@@ -162,5 +185,6 @@ After writing files, return per [_chat-return.md](../_chat-return.md) — narrat
 - `wrote: .ai/workflows/<slug>/01-brainstorm.md + 00-index.md`
 - `threads: <live> live · <parked> parked · <routed> routed · <dropped> dropped`
 - `batches: <N> this session · <sessions> sessions`
-- `candidates:` — one line per candidate with its entry command (after `done`), or `none yet`
+- `scope:` — `<kept> kept · <later> later · <cut> cut` after `done`, or `not scoped yet`
+- `candidates:` — one line per piece of work with its entry command (after `done`), or `none yet`
 - `Next: /wf intake brainstorm <slug>` (resume), or the selected entry commands, or `/wf close <slug>` when no thread is live

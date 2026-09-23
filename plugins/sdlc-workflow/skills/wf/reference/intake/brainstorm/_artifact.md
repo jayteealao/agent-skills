@@ -24,6 +24,7 @@ claims:
     thread: T-01
     text: "<the claim, one sentence>"
     evidence: unverified     # unverified | verified <file:line> | contradicted <file:line> | consult
+    scope: null              # set at done: keep | cut | later
 assumptions:
   - id: A-01
     thread: T-01
@@ -41,11 +42,13 @@ revisions: []
 ---
 ```
 
-A candidate card (one per thread the person chooses to act on):
+A candidate card (one per piece of work the person agreed at `done`):
 ```yaml
 candidates:
   - id: B-01
-    thread: T-01
+    thread: T-01             # the main thread; threads lists every thread it draws on
+    threads: [T-01]
+    claims: [C-01]           # the kept decisions this piece of work carries
     title: "<verb phrase>"
     shape: intake            # intake | investigate | fix | discover | task | extension
     entry: "/wf intake <slug-suggestion> from <slug>"
@@ -79,7 +82,11 @@ candidates:
 
 ## Candidates
 
-<Empty until the person chooses to start work. Then one card per candidate: title, the thread it came from, the shape, the entry command, and the claims and assumptions the successor inherits.>
+<Empty until the person confirms the scope at `done`. Then one card per piece of work, in order: title, the threads it draws on, the shape, the entry command, and the kept decisions and assumptions the successor inherits.>
+
+## Scope
+
+<Empty until `done`. Then the agreed scope in plain words: each piece of work in order with its kept decisions, the decisions left for later, and the cut decisions with the person's reasons.>
 
 ## How to continue
 

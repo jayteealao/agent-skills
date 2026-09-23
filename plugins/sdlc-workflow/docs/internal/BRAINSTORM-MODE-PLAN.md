@@ -22,7 +22,8 @@ than a question, and a resumed board carried `status: distilled` with no
 instruction to reopen it. Sessions 2 and 3 ran on the same board (129
 questions in total) and found two more defects, fixed in **v9.162.0**
 (§18): the agent interviewed rather than explored, and every question
-carried board ids the person could not remember. **Still open:** probes P-B1, P-B2, and P-B3, and
+carried board ids the person could not remember. The person then asked for `done` to be a scoping
+conversation; that shipped in **v9.163.0** (§19). **Still open:** probes P-B1, P-B2, and P-B3, and
 the `artifacts.html` row. Every line reference below was read from the
 working tree at v9.158.0.
 
@@ -759,4 +760,44 @@ times, and each answer cost a batch.
 
 Three guard tests pin the rules, and each fails against the v9.161.3 text.
 The next live session is the test of the map and the widen question.
+
+## 19. `done` is a scoping conversation
+
+**What `done` did before v9.163.0.** After the v9.160.0 fix, `done` printed
+the live threads, asked one disposition question (keep the board, write it
+up, start work, second opinion, drop), and for "start work" asked which
+threads and wrote one candidate per thread. In session 3 of the live board
+the person answered the disposition question in free text ("what is a
+reasonable split for this work"). The agent proposed a 12-unit split from
+the board on its own, the person redirected it to three programmes, and the
+agent wrote 12 task cards. Every decision from 129 questions went into the
+cards as it stood. Nothing let the person look back over the discussion and
+cut.
+
+**The person's requirement.** How the session becomes work is a decision the
+person makes with the agent: talk about how to scope the decided changes, run
+back through the discussion, and decide what to cut and what to keep.
+
+**Fix (v9.163.0).** Step 3 has four parts.
+- **3.1 Choose what happens now:** scope the work together, keep the board,
+  or take a second opinion. No entry command.
+- **3.2 Walk through the discussion:** one map area at a time, the area's
+  decisions listed in plain words with their reasons, then keep all / go
+  one by one / cut all / later per area, and keep / cut / later / change it
+  per decision. The agent may give its view with a reason; the person
+  decides. Each answer is written on the claim (`scope: keep | cut | later`,
+  optional `reason`), so an interrupted walk resumes where it stopped. A
+  kept decision that needs a cut one is raised before the next area.
+- **3.3 Shape the work:** what comes first, how the kept decisions group,
+  the order and dependencies, the size, and the form of each piece. The
+  agent proposes a split and changes it until the person says it holds.
+- **3.4 Confirm and record:** the scope in plain words (pieces in order,
+  later, cut with reasons), a confirm, and only then one candidate per piece
+  of work (`threads:` and `claims:` on the card), a `## Scope` section on the
+  board, and printed entry commands. Nothing runs.
+
+A cut decision never seeds a successor (`_intake-provenance.md`); a `later`
+decision joins its out-of-scope list. Schema: optional `scope` and `reason`
+on claims, optional `threads` and `claims` on candidates. Three guard tests
+and two schema round-trips pin it.
 
