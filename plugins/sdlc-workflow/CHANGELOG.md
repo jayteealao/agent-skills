@@ -5,6 +5,20 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.165.0] - 2026-09-23
+
+### Changed
+
+- **Brainstorm asks the person to choose** (BRAINSTORM-MODE-PLAN.md §21). When the person picks every option of a list, the next question on that thread is a *choice*: options that exclude each other (an order, a trade-off, or a cut), each with its cost. A new principle, *Make the options choose*, lets a "which of these belong?" list open an area and has choices follow it.
+- **The agent is the counterweight.** When the person sets a risk aside or takes the costliest option, the agent states the consequence once and records the decision with its accepted risk. When it thinks a choice is a mistake, it says so once, with its reason.
+- **An area is scoped when it closes.** A check-in after an explored area offers to close it: a brief of five lines or fewer, the core decisions, keep, cut, or later for the area, and whether it changes work that already exists, which marks that work stale. `done` walks only the areas not yet closed. A newer decision marks the one it replaces.
+- **The person's document opens with a short front**: the summary, the area briefs, and what is open now. The full record follows it.
+
+### Added
+
+- **A live brainstorm page.** Where the host can publish a page, the agent presents the board as one page, gives its link, and republishes it to the same link at each check-in, area close, `board`, and `done`. The host contract gains a "Published page" row: Claude Code uses the Artifact tool with the `artifact-design` skill; Codex and pi fall back to the document.
+- **Every gate question carries its own context.** The host's question dialog can hide the text before it, so the question text now carries the summary, finding, or list the person needs to answer.
+
 ## [9.164.0] - 2026-09-23
 
 ### Changed
