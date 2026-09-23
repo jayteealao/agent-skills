@@ -97,6 +97,7 @@ test('the walk decides keep, cut, or later for every decision', () => {
   assert.match(src, /`scope: keep`, `scope: cut`, or `scope: later`/, 'the walk no longer records scope on the claim');
   assert.match(src, /When a kept decision needs a decision that is cut or left for later/, 'the walk lost the dependency check');
   assert.match(src, /a resume continues the walk at the first area with no answer/, 'an interrupted walk can no longer resume');
+  assert.match(src, /every decision with no `scope` value/, 'a second done can skip decisions that were never scoped');
 });
 
 test('the work is shaped and confirmed before any candidate is written', () => {

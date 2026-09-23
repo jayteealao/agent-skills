@@ -166,7 +166,7 @@ Propose a first split, then change it as the person directs. Continue until the 
 4. A thread with no kept decision becomes `parked` when any of its decisions is `later`, and `dropped` with the person's reason when all are `cut`.
 5. Write the agreed scope to the board's `## Scope` section. Set `status: distilled` and `progress.brainstorm: complete`. Leave the index `status: ready` and `next-invocation` as the resume command; when no thread is live, set `next-invocation: "/wf close <slug>"`. Update the slug's row in `.ai/workflows/INDEX.md` (`updated-at` only).
 
-A second `done` on a distilled board shows the recorded scope and asks what to change. It walks only the areas the person names and the decisions added since the last `done`.
+A second `done` on a distilled board shows the recorded scope and asks what to change. It walks the areas the person names and every decision with no `scope` value, which includes every decision on a board distilled before this walk existed.
 
 **Link-back.** A successor started `from <slug>` applies [_intake-provenance.md](_intake-provenance.md): it records `origin-brainstorm`, and it sets the routed thread's `state: routed` and `routed-to`, and the candidate's `state: routed`. A decision with `scope: cut` never seeds a successor. The board is never superseded.
 
