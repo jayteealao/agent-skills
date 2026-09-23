@@ -285,3 +285,81 @@ test('a workflow-index for a brainstorm validates', () => {
   assert.deepEqual(result.errors, []);
   assert.ok(result.valid);
 });
+
+// BRAINSTORM-MODE-PLAN §21 — choosing inside the conversation. The v9.164.0 live
+// session answered 36 of 45 "which belong" questions with every option, never
+// scoped an area, and asked twice to confirm a summary the person could not see.
+
+test('the options make the person choose, and the agent is the counterweight', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.ok(src.includes('**Make the options choose.**'), 'the craft section lost "Make the options choose"');
+  assert.ok(src.includes('**Be the counterweight.**'), 'the craft section lost "Be the counterweight"');
+  assert.match(src, /When the person picks every option of a list, the list asked nothing: the next question on that thread is a choice/, 'picking every option widens again instead of asking for a choice');
+  assert.ok(!/When the person picks every option, writes "mix of", "all", or "more"/.test(src), 'the old widen-on-every-option rule is back');
+  assert.match(src, /a \*\*choice\*\* — options that exclude each other: an order, a trade-off, or a cut, each option with its cost/, 'the loop lost the choice question form');
+  assert.match(src, /An option that adds something says what it costs/, 'options no longer carry their cost');
+  assert.match(src, /state the consequence once, in one sentence, in the next question text/, 'the counterweight no longer states the consequence');
+  assert.match(src, /as its `accepted-risk`, not as a closed question/, 'a set-aside risk is recorded as closed again');
+  for (const quota of [/every third batch/i, /one trade-off question per/i]) {
+    assert.ok(!quota.test(src), `a quota came back with the choice rule: ${quota}`);
+  }
+});
+
+test('an area is scoped when it closes, so done walks only what is left', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.match(src, /^## 2\.8 Close an area$/m, 'the loop lost the area close');
+  assert.match(src, /3\. \*\*Close the area\*\* \(2\.8\) when the check-in follows an area that feels explored/, 'the check-in no longer closes an explored area');
+  assert.match(src, /the person can answer "not yet"/, 'an area close is forced on the person');
+  assert.match(src, /which decisions are core \(multi-select\)/, 'the area close lost the core question');
+  assert.match(src, /whether the area changes a piece of work that already exists/, 'the area close no longer checks existing work');
+  assert.match(src, /set `stale: true` and `stale-because` on that piece/, 'a changed piece of work is not marked stale');
+  assert.match(src, /set `replaced-by` on the older item/, 'a replaced decision is not marked');
+  assert.match(src, /An area closed with a scope \(2\.8\) is not walked again/, 'done walks a closed area again');
+  assert.match(src, /A stale piece of work \(2\.8\): propose the piece that brings it up to date/, 'shaping ignores stale work');
+});
+
+test('every question carries its own context', () => {
+  const gate = read('reference', '_gate-question.md');
+  assert.match(gate, /\*\*A question carries its own context\.\*\* The host's question dialog can\s+hide the chat text before it/, '_gate-question.md lost the own-context rule');
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.match(src, /Put the summary in the question text/, 'the check-in summary is back in chat only');
+  assert.ok(!/in a few plain sentences\. Show it in chat\./.test(src), 'the check-in shows its summary in chat again');
+  assert.match(src, /In each question's text, list the area's decisions and ideas/, 'the done walk lists items in chat only');
+  assert.match(src, /Put that scope in the text of a question that asks the person to confirm it/, 'the scope to confirm is not in the question');
+});
+
+test('the document has a short front, and the page presents the board where the host has one', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  const artifact = read('reference', 'intake', 'brainstorm', '_artifact.md');
+  const host = read('reference', '_host-invocation.md');
+  assert.match(src, /It opens with a short front: what we believe now, the map with a brief of five lines or fewer per area, and what is open now/, 'the person document lost its short front');
+  assert.ok(artifact.includes('\n## Open now\n'), 'the document template lost the Open now section');
+  assert.match(artifact, /<!-- The front ends here\. The record follows\. -->/, 'the template no longer separates the front from the record');
+  assert.match(src, /^## 2\.9 The page$/m, 'the loop lost the page');
+  assert.match(src, /row "Published page"/, 'the page does not defer its mechanics to the host contract');
+  assert.match(host, /^\| Published page \(brainstorm\) \| When the session lists the Artifact tool: load the `artifact-design` skill/m, '_host-invocation.md lost the published-page row');
+  assert.match(src, /The page presents the board and never replaces it\. Write every change to the two files first/, 'the page can become the source of truth');
+  assert.match(src, /Republish it to the same link at each check-in, each area close, each `board`, and at `done`/, 'the page is no longer kept current');
+  assert.match(src, /Where the host has no published page, the person reads `01-brainstorm\.md`/, 'a host with no page has no fallback');
+  assert.ok(!/Artifact tool|AskUserQuestion/.test(src), 'brainstorm.md names a host tool instead of citing the contract');
+});
+
+test('a board with briefs, core items, accepted risks, replaced items, stale work, and a page validates', () => {
+  const board = jsonBoard();
+  board.page = 'https://claude.ai/artifact/example';
+  Object.assign(board.areas[0], { brief: 'A limit warns and never blocks. Core: the warning.', scope: 'mixed' });
+  Object.assign(board.items[0], { core: true, 'accepted-risk': 'A warning can be ignored.' });
+  board.items.push({ key: 'limit-blocks-runs', kind: 'decision', thread: 'limit-per-project', text: 'A limit stops a run.', source: 'person', 'replaced-by': 'limit-warns-only' });
+  Object.assign(board.work[0], { stale: true, 'stale-because': 'the research area changed the limit' });
+  board.log.push({ session: 1, batch: 2, thread: 'limit-per-project', kind: 'choice', asked: 'which first', answer: 'warning' });
+  board.log.push({ session: 1, batch: 3, thread: 'limit-per-project', kind: 'close', asked: 'close the area', answer: 'keep all' });
+  const result = validateBrainstormBoard(board, { schemaPath: SCHEMA_PATH });
+  assert.deepEqual(result.errors, []);
+  const badScope = jsonBoard();
+  badScope.areas[0].scope = 'partly';
+  assert.ok(!validateBrainstormBoard(badScope, { schemaPath: SCHEMA_PATH }).valid, 'an area scope outside keep|cut|later|mixed validated');
+  const badReplaced = jsonBoard();
+  badReplaced.items[0]['replaced-by'] = 'C-12';
+  assert.ok(!validateBrainstormBoard(badReplaced, { schemaPath: SCHEMA_PATH }).valid, 'replaced-by accepted a numbered id');
+  assert.deepEqual(validateFrontmatter({ ...doc(), page: 'https://claude.ai/artifact/example' }, { schemaPath: SCHEMA_PATH }).errors, []);
+});

@@ -1694,6 +1694,7 @@
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "sessions": { "type": "integer", "minimum": 1 },
         "batches": { "type": "integer", "minimum": 0 },
+        "page": { "type": ["string", "null"] },
         "areas": {
           "type": "array",
           "items": {
@@ -1704,6 +1705,8 @@
               "name": { "type": "string" },
               "side": { "enum": ["problem", "solution", "both"] },
               "state": { "enum": ["open", "touched", "explored"] },
+              "brief": { "type": "string" },
+              "scope": { "enum": ["keep", "cut", "later", "mixed", null] },
               "was": { "type": "string" }
             }
           }
@@ -1742,6 +1745,9 @@
               "between": { "$ref": "#/$defs/stringArray" },
               "scope": { "enum": ["keep", "cut", "later", null] },
               "reason": { "type": "string" },
+              "core": { "type": "boolean" },
+              "accepted-risk": { "type": "string" },
+              "replaced-by": { "$ref": "#/$defs/brainstormKey" },
               "was": { "type": "string" }
             }
           }
@@ -1761,6 +1767,8 @@
               "entry": { "type": "string" },
               "state": { "enum": ["proposed", "routed"] },
               "routed-to": { "type": ["string", "null"] },
+              "stale": { "type": "boolean" },
+              "stale-because": { "type": "string" },
               "was": { "type": "string" }
             }
           }
@@ -1775,7 +1783,7 @@
               "session": { "type": "integer", "minimum": 1 },
               "batch": { "type": "integer", "minimum": 0 },
               "thread": { "type": ["string", "null"] },
-              "kind": { "enum": ["reflection", "probe", "fork", "widen", "check-in", "control", "walk", "steer", "legacy"] },
+              "kind": { "enum": ["reflection", "probe", "fork", "widen", "choice", "check-in", "close", "control", "walk", "steer", "legacy"] },
               "asked": { "type": "string" },
               "answer": { "type": "string" }
             }
@@ -1793,6 +1801,7 @@
         "type": { "const": "brainstorm" },
         "topic": { "type": "string" },
         "board": { "const": "brainstorm-board.json" },
+        "page": { "type": ["string", "null"] },
         "status": { "enum": ["open", "distilled"] },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },

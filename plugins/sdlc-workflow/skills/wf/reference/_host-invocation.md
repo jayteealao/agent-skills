@@ -70,6 +70,7 @@ pi has no plugin manifest and no external-command hooks of its own. The `pi-code
 | Session transcripts (deep retro) | `~/.claude/projects/<repo-path-slug>/*.jsonl` — the repo's absolute path with separators replaced | None. Deep retro falls back to the artifact-only reading | None verified. Deep retro falls back to the artifact-only reading |
 | Browser and runtime drive (probe, verify) | The session's browser pane and Chrome connector tools | The Browser or Chrome plugin when installed; otherwise a Playwright script | A Playwright script |
 | Built-in image generation (imagery) | None; use the scripted providers | The built-in `image_gen` tool | None; use the scripted providers |
+| Published page (brainstorm) | When the session lists the Artifact tool: load the `artifact-design` skill before the first publish, publish the page file with the Artifact tool and follow the tool's own instructions, and pass the recorded link to update the same page in a later session | None; the person reads the document | None; the person reads the document |
 | Context compaction | Compact the session; the SessionStart hook re-reads the control files afterwards | Compact the session; the SessionStart hook re-reads the control files afterwards | Same as Claude Code |
 
 The enforcement timing differs by design. The verification outcome does not: the same bundled runtime validates the artifact under every host.

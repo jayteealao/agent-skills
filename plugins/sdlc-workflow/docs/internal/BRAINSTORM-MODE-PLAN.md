@@ -25,7 +25,9 @@ questions in total) and found two more defects, fixed in **v9.162.0**
 carried board ids the person could not remember. The person then asked for `done` to be a scoping
 conversation; that shipped in **v9.163.0** (§19). A high-level critique then found that the mode steered
 the conversation with quotas, kept its bookkeeping for the agent, and gave
-the agent a contradictory role; **v9.164.0** fixes all three (§20). **Still open:** probes P-B1, P-B2, and P-B3, and
+the agent a contradictory role; **v9.164.0** fixes all three (§20). The first live session on v9.164.0 then showed that
+the mode drew out intent well but never asked the person to choose; **v9.165.0**
+puts choosing into the conversation (§21). **Still open:** probes P-B1, P-B2, and P-B3, and
 the `artifacts.html` row. Every line reference below was read from the
 working tree at v9.158.0.
 
@@ -863,4 +865,72 @@ board, the six kinds, the synthesis beat, and the legacy conversion; each
 fails against the v9.163.1 text. Schema round-trips cover the document, a
 legacy board, a valid JSON board, and three invalid JSON boards, and a hook
 test proves a broken or unparseable board blocks the write.
+
+## 21. Choosing inside the conversation
+
+The first live session on v9.164.0 (the `SoccerManager` realism board, session
+6, 2026-09-23) ran 46 batches and 94 questions in two hours and added 166
+items. It asked well: no id leaked, every new area started from the problem,
+and nine research sub-agents fed their findings straight into the next
+questions. It never made the person choose. The person chose every option in
+36 of 45 multi-select questions, the agent disagreed once, two of 365 earlier
+items changed, and the session ended with "Stop here", so about 230 decisions
+waited for one `done` walk that grows with every session. Two check-ins asked
+the person to confirm a summary that the question dialog had hidden. The
+person chose all five fixes.
+
+**Questions that choose.** "Read the signals" no longer widens when the person
+picks every option: the next question on that thread is a **choice**, a new
+question form whose options exclude each other (an order, a trade-off, or a
+cut) and state their cost. A new principle, *Make the options choose*, says
+that a "which of these belong?" list opens an area and choices follow it. It
+is a response to a signal, not a counter.
+
+**The counterweight.** A new principle, *Be the counterweight*: when the
+person sets a risk aside or takes the costliest option, the agent states the
+consequence once, in one sentence, in the next question text, and records the
+choice as a decision with its `accepted-risk`. When the agent thinks a choice
+is a mistake, it says so once, with its reason.
+
+**Scope as an area closes.** A check-in that follows an explored area closes
+it (§2.8 of the reference): the area gets a `brief` of five lines or fewer,
+the person names the core decisions (`core: true`) and keeps, cuts, or leaves
+the area for later (item `scope`, area `scope`), and says whether the area
+changes existing work (work `stale`, `stale-because`). A newer decision that
+replaces an older one sets `replaced-by`. `done` walks only the areas not yet
+closed, and shaping proposes the piece that brings a stale piece up to date.
+The person can answer "not yet".
+
+**Every question carries its own context.** `_gate-question.md` gains the rule
+for every gate in the plugin: the host's question dialog can hide the chat text
+before it, so the question text carries the summary, the finding, or the list.
+The brainstorm check-in, the board view, the `done` walk, and the scope
+confirmation all put their content in the question.
+
+**A document the person reads, and a live page.** The person's document opens
+with a short front — the summary, the map with the area briefs, and a new
+`## Open now` section (open tensions, accepted risks, open questions) — and the
+full record follows. Where the host can publish a page, the agent builds
+`brainstorm-page.html` beside the board, publishes it the first time the person
+needs to see the board, records its link as `page` in both files, and
+republishes it to the same link at each check-in, area close, `board`, and
+`done`. The host contract `_host-invocation.md` gains a "Published page" row:
+Claude Code uses the Artifact tool with the `artifact-design` skill when the
+session lists it; Codex and pi have none, and the person reads the document.
+The page presents the board and never replaces it.
+
+**Schema.** `$defs.brainstormBoard` gains `page`, area `brief` and `scope`
+(`keep|cut|later|mixed`), item `core`, `accepted-risk`, and `replaced-by` (a
+readable key), work `stale` and `stale-because`, and the log kinds `choice` and
+`close`. `brainstormFrontmatter` gains `page`. All are optional, so the
+converted `SoccerManager` board stays valid and gains its briefs on its next
+resume.
+
+Guard tests pin each fix, and each fails against the v9.164.0 text: the choice
+form and the removed widen-on-every-option rule, the counterweight, the area
+close with its core, stale, and replaced-by records, the own-context rule in
+the gate ladder and at every brainstorm question, the short front, and the page
+with its host-contract row and no tool name in the mode. A schema round-trip
+covers every new field and rejects an unknown area scope and a numbered
+`replaced-by`.
 

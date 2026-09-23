@@ -66,14 +66,19 @@ These are principles, not quotas. Before each batch, judge it against them.
 
 **Raise a tension when it matters now.** Bring up a conflict between two decisions when it touches what the person is thinking about. Leave it on the board when it does not. *Why:* a tension raised out of context is bookkeeping, not thinking.
 
-**Read the signals.** When the person picks every option, writes "mix of", "all", or "more", or adds an idea of their own, your options were too narrow. Widen the next batch. When the answers get short, or the same thread comes back without new ground, check in (2.5).
+**Read the signals.** When the person picks every option of a list, the list asked nothing: the next question on that thread is a choice (2.1). When the person writes "more", or adds an idea of their own, your options were too narrow: widen the next batch. When the answers get short, or the same thread comes back without new ground, check in (2.5).
+
+**Make the options choose.** A list of things that could belong opens an area. After it, ask questions whose options exclude each other: an order, a trade-off, or a cut. An option that adds something says what it costs, in plain words, for example "every staff role is a person: about fifty people per club, a slower start to a new save, and longer staff screens". *Why:* when every option can be taken, the person takes every option, and the board grows with no choice in it. *Weak:* four "which of these belong?" questions in a row on one area. *Better:* one "which of these belong?" question, then "which two matter most?" and "which would you drop first?".
+
+**Be the counterweight.** When the person sets a risk aside, or takes the costliest option, state the consequence once, in one sentence, in the next question text. Record the choice as a decision with that consequence as its `accepted-risk`, not as a closed question. When you think a choice is a mistake, say so once, with your reason. *Why:* a partner who agrees with everything adds cost and no judgement; the person still decides. *Weak:* "not worried" about a data licence closes the licence question in one batch. *Better:* "Then the test ships bands measured on data that a commercial game may not use, and a complaint means measuring them again before release. I record that as a risk you accept."
 
 **Explain, then ask.** Open every question with two or three plain sentences: what we know, and why it matters now. Headers are plain words, for example "Club style". Every question follows [_question-craft.md](../_question-craft.md) rules 2 and 3 and [_ste-procedural.md](../_ste-procedural.md) section 1. A brainstorm question has no right answer, so mark no option `(Recommended)`. Offer no "explain this more" option, because the explanation comes first and a free-text reply can still ask for more.
 
 # The board
 The board is two files with one truth. [brainstorm/_artifact.md](brainstorm/_artifact.md) holds both templates.
-- **`01-brainstorm.md` is the person's document.** It is plain prose with no keys: what we believe now, the map, the decisions, the open ideas, the findings, the assumptions, the tensions, and the questions for the plan. The view renders it as the brainstorm page.
-- **`brainstorm-board.json` is your working board.** It holds the areas, the threads, every item with its kind and source, the scope answers, the pieces of work, and the log of every question and answer. The write hook validates it on every write.
+- **`01-brainstorm.md` is the person's document.** It is plain prose with no keys. It opens with a short front: what we believe now, the map with a brief of five lines or fewer per area, and what is open now (the open tensions, the accepted risks, and the open questions). The full record follows the front: the decisions, the open ideas, the findings, the assumptions, the tensions, and the questions for the plan.
+- **`brainstorm-board.json` is your working board.** It holds the areas with their briefs, the threads, every item with its kind and source, the scope answers, the pieces of work, and the log of every question and answer. The write hook validates it on every write.
+- **The page** is a published page that presents the board to the person, when the host offers one (2.9). It never replaces the two files.
 
 Every item has a **readable key**, for example `club-style` or `referee-home-bias`. A key is stable once written, and the keys link items to threads, to pieces of work, and to successors. Keys stay in the JSON. The person's document names things in words.
 
@@ -87,7 +92,7 @@ An item has one of six kinds:
 
 # Step 0 — Orient
 1. **Resolve the shape** from the instructions:
-   - First token matches an existing `workflow-type: brainstorm` slug → **resume**. Read `00-index.md`, `01-brainstorm.md`, and `brainstorm-board.json`. When the board has no JSON file and its frontmatter carries `claims:`, it is a legacy board: convert it first, per the conversion section of [brainstorm/_artifact.md](brainstorm/_artifact.md). Snapshot both files to `history/` and add a `revisions:` entry (`trigger: resume`) per [_additive-write.md](../_additive-write.md). Bump `sessions`. Reopen a distilled board (`status: open`, `progress.brainstorm: in-progress`, the pieces of work kept as they are). Then run Step 0.3, show where we are (2.6), and go to Step 2. Skip Step 1.
+   - First token matches an existing `workflow-type: brainstorm` slug → **resume**. Read `00-index.md`, `01-brainstorm.md`, and `brainstorm-board.json`. When the board has no JSON file and its frontmatter carries `claims:`, it is a legacy board: convert it first, per the conversion section of [brainstorm/_artifact.md](brainstorm/_artifact.md). Snapshot both files to `history/` and add a `revisions:` entry (`trigger: resume`) per [_additive-write.md](../_additive-write.md). Bump `sessions`. Reopen a distilled board (`status: open`, `progress.brainstorm: in-progress`, the pieces of work kept as they are). Write a `brief` for each area that has none. Then run Step 0.3, show where we are (2.6), and go to Step 2. Skip Step 1.
    - Otherwise the tokens are the **topic**. Derive the slug `brainstorm-<topic-slug>-<YYYYMMDD>` (the topic in kebab form, the date from the date-only row of [_timestamp.md](../_timestamp.md), dashes removed). If that slug exists, append `-2`, `-3`.
 2. **Read recorded history** for the topic, as cheap reads, skipping whatever is absent: retro action items (`.ai/workflows/*/10-retro.md`), `.ai/solutions/INDEX.md`, deferred review findings, and `sdlc-debt:` markers. A recorded item that touches the topic becomes a finding on the first thread, with its source.
 3. **Map the space.** List the areas the topic touches, on the problem side (what feels wrong, where, and for whom) and on the solution side (the kinds of change that could answer it). Cover the whole topic before any area goes deep. On a resume, start from the board's areas and add the areas the earlier sessions missed. Mark each area `open`, `touched`, or `explored`.
@@ -126,7 +131,8 @@ Compose **one to four questions**, guided by the Craft section. A batch has one 
 - a **reflection** — "I heard: …", with two to four readings of the person's last thought;
 - a **probe** — one assumption or one gap, with your best guesses as options;
 - a **fork** — directions the thought can take next (multi-select allowed);
-- a **widen** — a direction the person has not raised, with your own ideas as options (multi-select allowed).
+- a **widen** — a direction the person has not raised, with your own ideas as options (multi-select allowed);
+- a **choice** — options that exclude each other: an order, a trade-off, or a cut, each option with its cost (single-select).
 
 Deliver the batch through rung 1 of [_gate-question.md](../_gate-question.md), under its batch clause. Between two batches, say in one plain sentence what changed and where the next batch goes.
 
@@ -147,20 +153,38 @@ A free-text answer whose first token is a control word is a command (2.3), not a
 A control word that names no known thread gets the thread names back and changes nothing.
 
 ## 2.4 Update the board
-After every batch, update `brainstorm-board.json`: the new items, the changed states, the area states, one log entry per question, `batches` incremented, and `updated-at` refreshed. Then rewrite the affected sections of `01-brainstorm.md` in plain words, and its frontmatter counts and `updated-at`. Add no `revisions:` entry per batch and no snapshot per batch — one per resumed session and one at `done`.
+After every batch, update `brainstorm-board.json`: the new items, the changed states, the area states, one log entry per question, `batches` incremented, and `updated-at` refreshed. Then rewrite the affected sections of `01-brainstorm.md` in plain words, and its frontmatter counts and `updated-at`. Add no `revisions:` entry per batch and no snapshot per batch — one per resumed session and one at `done`. Republish the page (2.9) at a check-in, an area close, `board`, and `done`, not after every batch.
 
 ## 2.5 Check in and sum up
-Check in at a natural moment, not on a schedule: when a thread feels settled, when the answers get short, after a large change of direction, or when you believe the thinking is complete. A check-in has two parts:
-1. **Sum up.** Rewrite the document's `## The Brainstorm` section: what we believe now, in a few plain sentences. Show it in chat.
+Check in at a natural moment, not on a schedule: when a thread feels settled, when the answers get short, after a large change of direction, or when you believe the thinking is complete. The question text carries everything the person needs to answer it, per [_gate-question.md](../_gate-question.md): the host can hide the chat text before a question. A check-in has three parts:
+1. **Sum up.** Rewrite the document's `## The Brainstorm` section: what we believe now, in a few plain sentences. Put the summary in the question text.
 2. **Ask** whether the summary is right, and where to go next: go deeper here; open a new area (name the unexplored areas); zoom out and look for what is missing; show where we are. Say that `done` ends the session.
+3. **Close the area** (2.8) when the check-in follows an area that feels explored.
 
 A correction to the summary is a decision. Record it, and rewrite the summary.
 
 ## 2.6 Show where we are
-In plain words, with no key: the summary, then the map with one line per area and its state, then one line per live thread with what we know and what is still open, then the open tensions. Give the parked and dropped threads as names only. Point the person to `01-brainstorm.md` for the full document.
+In plain words, with no key: the summary, then the map with each area's brief and state, then one line per live thread with what we know and what is still open, then the open tensions and the accepted risks. Give the parked and dropped threads as names only. Put it in the text of the next question, or in chat when no question follows. Republish the page (2.9) and give its link; where the host has no page, point the person to `01-brainstorm.md`.
 
 ## 2.7 Second opinion
 > **Auto second opinion (objective triggers).** Auto-invoke `/consult codex <read these threads and name the assumptions and tensions this thinking missed>` (pinning `codex`/`claude` keeps it free) when ANY of: `thread-contested` (at `done`, a live thread is party to an open tension); `claim-contradicted` (a bounded read contradicted a statement and the person kept the thread live); `touches-auth`, `touches-billing`, `touches-security`, or `touches-migration` (a live thread touches that surface); `user-invoked` (the `second opinion` control word). The names are rows of [_consult-triggers.md](../_consult-triggers.md); record each run in `consult-runs`. Fold the panel's distinct additions in as findings with `source: consult`, never as pieces of work.
+
+## 2.8 Close an area
+An area is explored when its threads stop producing new ground. Closing it is part of a check-in, and the person can answer "not yet". Closing it scopes the area now, so `done` does not have to walk the whole board.
+1. Write the area's `brief` in the board and in the document's map: five plain lines or fewer — what we decided, what is core, what is still open, and the scope.
+2. In the question text, give the brief and the area's decisions and open ideas, one plain line each. When the area holds more than about twelve, give the likely core items and point to the page or to the document for the rest.
+3. Ask in one batch: which decisions are core (multi-select); what happens to the area — keep all of it, go through it one by one, cut all of it, or leave it for later; and whether the area changes a piece of work that already exists (name each piece in words).
+4. Record `core: true` on each core item, `scope` on each item as in 3.2, and the area's `scope`. An area gone through one by one continues in the next batches, per 3.2 step 3.
+5. When the area changes an existing piece of work, set `stale: true` and `stale-because` on that piece. Step 3.3 proposes the piece that brings it up to date.
+6. When a newer decision replaces an older one, set `replaced-by` on the older item. The document lists only the newer decision, and says what it replaced.
+
+## 2.9 The page
+When the host offers a published page ([_host-invocation.md](../_host-invocation.md), row "Published page"), present the board to the person as one page, and keep it current:
+1. Build `brainstorm-page.html` beside the board from the two files, in plain words and with no key: the summary; the areas with their briefs and scope; the decisions by area, core first; the open ideas; the findings with their sources; the open tensions and the accepted risks; the pieces of work, with the stale ones marked.
+2. Publish it the first time the person needs to see the board: the first check-in, `board`, or a resume. Record its link as `page` in the board and in the document frontmatter, and give the link in the question text.
+3. Republish it to the same link at each check-in, each area close, each `board`, and at `done`.
+4. The page presents the board and never replaces it. Write every change to the two files first.
+5. Where the host has no published page, the person reads `01-brainstorm.md`, and the question text carries what the person needs.
 
 # Step 3 — `done`: scope the work together
 Enter this step only when the person's reply is the control word `done`.
@@ -169,15 +193,15 @@ The person decides what goes into work, and decides it with you. You recap, expl
 
 ## 3.1 Choose what happens now
 1. Snapshot both board files to `history/` and add a `revisions:` entry (`trigger: manual`, `because: done`).
-2. Show the summary (2.5), and say in plain words how many decisions and open ideas each area holds. Print no entry command.
+2. In the question text, give the summary (2.5), and say in plain words how many decisions and open ideas each area holds. Print no entry command.
 3. Ask one question per [_gate-question.md](../_gate-question.md), with these options: go through the discussion together and scope the work; keep the board and think more later; take a second opinion first. Free text carries every other answer. An answer that asks for more thinking returns to Step 2.
    - **Keep the board.** Change the timestamps only. `status` stays `open`.
    - **Second opinion.** Run 2.7, then ask this question again.
    - **Scope the work.** Go to 3.2.
 
 ## 3.2 Walk through the discussion
-Go through the map one area at a time, in the order the areas were explored. The walk covers the **decisions and the open ideas**. A finding appears only as the reason behind a decision.
-1. Before each question, list the area's decisions and ideas in chat, one plain sentence each, with the reason given for it.
+Go through the map one area at a time, in the order the areas were explored. The walk covers the **decisions and the open ideas**. A finding appears only as the reason behind a decision. An area closed with a scope (2.8) is not walked again: give each such area in one line, and ask whether any has changed.
+1. In each question's text, list the area's decisions and ideas, one plain sentence each, with the reason given for it. For a long area, list the core items and point to the page or to the document for the rest.
 2. Ask what happens to the area: keep all of it; go through it one by one; cut all of it; leave it for later. Ask about up to four areas per batch.
 3. For an area the person goes through one by one, ask one question per item: keep; cut; later; change it (free text says how). Ask about up to four items per batch. When you have a view, give it and its reason in the question text. The person decides.
 4. Record each answer on the item as `scope: keep`, `scope: cut`, or `scope: later`. Rewrite a changed item, then record it as kept. Record the person's reason for a cut when the person gives one.
@@ -189,13 +213,14 @@ When every area has an answer, talk through how the kept items become work. Ask 
 - What comes first: the smallest piece that shows the thinking is right.
 - How the kept items group into pieces of work, the order of the pieces, and the dependencies between them, in plain words.
 - The size of each piece, and whether a piece is too large to start.
+- A stale piece of work (2.8): propose the piece that brings it up to date, for example a `task` that revises its design document.
 - The form of each piece: a feature to build (`intake`), a problem to investigate first (`investigate`), a yes-or-no question to check (`discover`), a small correction (`fix`), a document or other deliverable that is not code (`task`), or new scope on a workflow that exists (`extension`, `/wf intake <existing-slug> <scope>`).
 
 Propose a first split, then change it as the person directs. Continue until the person says that the split holds.
 
 ## 3.4 Confirm and record
-1. Print the agreed scope in plain words: each piece of work in order, with its kept items; then the items left for later; then the cut items with their reasons.
-2. Ask the person to confirm the scope or to change it. A change returns to 3.2 or 3.3.
+1. Write the agreed scope in plain words: each piece of work in order, with its kept items; then the items left for later; then the cut items with their reasons.
+2. Put that scope in the text of a question that asks the person to confirm it or to change it. A change returns to 3.2 or 3.3.
 3. After the person confirms, write one piece of work per agreed piece into the board's `work` list (the template's entry, with its kept items). Mark them `selected`, and print each entry command in order. Run no command. The `entry` carries `from <slug>` for the new-workflow forms.
 4. A thread with no kept item becomes `parked` when any of its items is `later`, and `dropped` with the person's reason when all are `cut`.
 5. Write the agreed scope to the document's `## Scope` and `## Work` sections. Set `status: distilled` and `progress.brainstorm: complete`. Leave the index `status: ready` and `next-invocation` as the resume command; when no thread is live, set `next-invocation: "/wf close <slug>"`. Update the slug's row in `.ai/workflows/INDEX.md` (`updated-at` only).
@@ -220,5 +245,6 @@ After writing files, return per [_chat-return.md](../_chat-return.md) — narrat
 - `threads: <live> live · <parked> parked · <routed> routed · <dropped> dropped`
 - `batches: <N> this session · <sessions> sessions`
 - `scope:` — `<kept> kept · <later> later · <cut> cut` after `done`, or `not scoped yet`
-- `work:` — one line per piece of work with its entry command (after `done`), or `none yet`
+- `work:` — one line per piece of work with its entry command (after `done`), or `none yet`; a stale piece is marked `stale`
+- `page:` — the page link, or `none` where the host has no published page
 - `Next: /wf intake brainstorm <slug>` (resume), or the selected entry commands, or `/wf close <slug>` when no thread is live

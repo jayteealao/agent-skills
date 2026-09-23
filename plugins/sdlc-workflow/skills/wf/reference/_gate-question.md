@@ -35,6 +35,10 @@ question tool.
   `multiSelect`. Under Claude Code or pi, pass the spec to the tool as written. Under
   Codex, render the spec as rung 1's plain-language description or as rung 2's
   numbered list. The spec never names a tool.
+- **A question carries its own context.** The host's question dialog can
+  hide the chat text before it. Put everything the person needs to answer in
+  the question text itself: the summary to confirm, the finding, the list to
+  walk. Keep chat text before a question to one line.
 - **Never require structured input to proceed.** A gate must always be
   resolvable by rung 2 (free-text reply mapped to the closest option) or
   rung 3 (policy default). Rung 1 is an affordance, not a dependency.
