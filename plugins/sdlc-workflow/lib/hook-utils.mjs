@@ -131,6 +131,14 @@ export function isShipPlanAuditPath(filePath) {
   return /(?:^|\/)\.ai\/ship-plan-audit\.md$/.test(normalized);
 }
 
+// A brainstorm's agent board (brainstorm-board.json, or brainstorm-board-<descriptor>.json
+// beside a compressed brainstorm slice) is JSON, not a frontmatter artifact. It has its own
+// write-time validation in post-write-verify (validateBrainstormBoards).
+export function isBrainstormBoardPath(filePath) {
+  const normalized = normalizePathForMatch(filePath);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/brainstorm-board(?:-[a-z0-9-]+)?\.json$/.test(normalized);
+}
+
 export function isDocsIndexMarkdownPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
   return /(?:^|\/)\.ai\/docs\/[^/]+\/08b-docs-index\.md$/.test(normalized);

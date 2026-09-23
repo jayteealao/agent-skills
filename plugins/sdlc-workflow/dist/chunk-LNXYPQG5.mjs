@@ -3,13 +3,13 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   isEntry,
   runStandalone
-} from "./chunk-5XCFZVDJ.mjs";
+} from "./chunk-2K4NI6FA.mjs";
 import {
   collectToolInputPaths,
   gitAdd,
   isInsideWorkflowArtifacts,
   projectRootFromInput
-} from "./chunk-Z76NJHKM.mjs";
+} from "./chunk-P23TDRBT.mjs";
 import {
   loadConfig
 } from "./chunk-XLUSO7MY.mjs";

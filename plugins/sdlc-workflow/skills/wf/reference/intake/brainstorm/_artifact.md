@@ -1,8 +1,61 @@
-# Brainstorm board template (Step 1 of `intake/brainstorm.md`)
+# Brainstorm board templates (Step 1 of `intake/brainstorm.md`)
 
-`intake/brainstorm.md` holds the `00-index.md` template. This file holds `01-brainstorm.md`, the board. The board is rewritten to current truth after every batch; the roster arrays are what the renderer, the provenance contract, and a resumed session read, so keep every id stable once written.
+`intake/brainstorm.md` holds the `00-index.md` template. This file holds the two board files and the conversion of a legacy board. The two files hold one truth: `brainstorm-board.json` is the agent's working board, and `01-brainstorm.md` is the same content written for the person, in plain words and with no keys.
 
-**`01-brainstorm.md` — `type: brainstorm`**
+## `brainstorm-board.json` — the agent's board
+
+The write hook validates this file against `$defs.brainstormBoard` in `tests/frontmatter.schema.json` on every write.
+
+```json
+{
+  "schema": "sdlc/v1",
+  "artifact": "brainstorm-board",
+  "slug": "<slug>",
+  "topic": "<topic as given>",
+  "updated-at": "<ISO 8601>",
+  "sessions": 1,
+  "batches": 0,
+  "areas": [
+    { "key": "seeing-the-cost", "name": "Seeing what a project costs", "side": "problem", "state": "open" }
+  ],
+  "threads": [
+    { "key": "limit-per-project", "name": "A spending limit per project", "area": "seeing-the-cost", "state": "live", "routed-to": null }
+  ],
+  "items": [
+    { "key": "limit-warns-only", "kind": "decision", "thread": "limit-per-project", "text": "A limit warns and never blocks work.", "why": "A blocked run loses work the person already paid for.", "source": "person", "scope": null },
+    { "key": "cost-rows-per-run", "kind": "finding", "thread": "limit-per-project", "text": "The cost ledger records one row per run.", "source": "code", "evidence": "lib/cost-ledger.mjs:12", "check": "verified" },
+    { "key": "limit-is-one-number", "kind": "assumption", "thread": "limit-per-project", "text": "A limit is one number per project.", "source": "agent", "state": "named" },
+    { "key": "one-number-vs-warn-only", "kind": "tension", "thread": "limit-per-project", "text": "One number per project pulls against warnings that must fit each kind of run.", "between": ["limit-is-one-number", "limit-warns-only"], "source": "agent", "state": "open" },
+    { "key": "ledger-format", "kind": "question", "thread": "limit-per-project", "text": "Which format does the ledger export use?", "source": "agent", "state": "for-plan" }
+  ],
+  "work": [],
+  "selected": [],
+  "log": [
+    { "session": 1, "batch": 1, "thread": "limit-per-project", "kind": "fork", "asked": "<question in ten words>", "answer": "<answer in ten words>" }
+  ],
+  "consult-runs": []
+}
+```
+
+- **Keys** are kebab-case words (`^[a-z0-9]+(-[a-z0-9]+)*$`), stable once written, and unique across areas, threads, items, and work. A key names the thing, so a key that leaks into chat still means something.
+- **`areas[].side`** is `problem`, `solution`, or `both`. **`areas[].state`** is `open`, `touched`, or `explored`.
+- **`threads[].state`** is `live`, `parked`, `routed`, or `dropped`. A dropped thread carries `reason`.
+- **`items[].kind`** is `decision`, `idea`, `finding`, `question`, `assumption`, or `tension`.
+  - `source` is `person`, `agent`, `code`, `data`, `research`, `consult`, or `history`.
+  - A finding carries `evidence` (a `file:line`, a dataset, or a link) and `check` (`verified`, `contradicted`, or `unverified`).
+  - `state` is `named`, `confirmed`, or `rejected` for an assumption; `open` or `resolved` for a tension; `open`, `answered`, or `for-plan` for a question. A commitment is a question with `state: for-plan`.
+  - `scope` is `keep`, `cut`, `later`, or `null`, and is set only at `done`. A cut carries the person's `reason` when the person gives one.
+  - `was` holds a legacy id after a conversion.
+- **`log[].kind`** is `reflection`, `probe`, `fork`, `widen`, `check-in`, `control`, or `walk`.
+
+A **piece of work** (one per agreed piece at `done`, in order):
+```json
+{ "key": "spending-limit", "order": 1, "title": "Add a warning-only spending limit per project", "shape": "intake", "threads": ["limit-per-project"], "items": ["limit-warns-only", "cost-rows-per-run"], "entry": "/wf intake spending-limit from <slug>", "state": "proposed", "routed-to": null }
+```
+`shape` is `intake`, `investigate`, `fix`, `discover`, `task`, or `extension`. `state` is `proposed` or `routed`.
+
+## `01-brainstorm.md` — the person's document
+
 ```yaml
 ---
 schema: sdlc/v1
@@ -10,86 +63,69 @@ type: brainstorm
 slug: <slug>
 topic: "<topic as given>"
 status: open                 # open | distilled
+board: brainstorm-board.json
 created-at: "<ISO 8601>"
 updated-at: "<ISO 8601>"
 sessions: 1
 batches: 0
-threads:
-  - id: T-01
-    label: "<short noun phrase>"
-    state: live              # live | parked | routed | dropped
-    routed-to: null          # the successor slug once routed
-claims:
-  - id: C-01
-    thread: T-01
-    text: "<the claim, one sentence>"
-    evidence: unverified     # unverified | verified <file:line> | contradicted <file:line> | consult
-    scope: null              # set at done: keep | cut | later
-assumptions:
-  - id: A-01
-    thread: T-01
-    text: "<the assumption the claim rests on>"
-    state: named             # named | confirmed | rejected
-contradictions:
-  - id: X-01
-    threads: [T-01, T-02]
-    text: "<what conflicts, one sentence>"
-    state: open              # open | resolved
-candidates: []               # written when the person starts work; see the card below
-selected: []                 # candidate ids the person chose to act on
 consult-runs: []
 revisions: []
 ---
 ```
 
-A candidate card (one per piece of work the person agreed at `done`):
-```yaml
-candidates:
-  - id: B-01
-    thread: T-01             # the main thread; threads lists every thread it draws on
-    threads: [T-01]
-    claims: [C-01]           # the kept decisions this piece of work carries
-    title: "<verb phrase>"
-    shape: intake            # intake | investigate | fix | discover | task | extension
-    entry: "/wf intake <slug-suggestion> from <slug>"
-    state: proposed          # proposed | routed
-    routed-to: null
-```
+The body names everything in words. It carries no key, no internal number, and no mode mechanics.
 
+```markdown
 # Brainstorm: <topic>
 
 ## The Brainstorm
-<!-- STORY SECTION — first, and self-sufficient. Must follow `../../_story-arc.md`: three beats in order — the thought the person brought and what the recorded history already said, the threads that opened and the assumptions that fell with reasons and counts, then the candidates this board enables plus the top open contradiction. Language must follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs, rewritten at every batch to current truth. -->
-
-*Sessions: <N> | Batches: <N> | Threads: <live> live · <parked> parked · <routed> routed · <dropped> dropped*
+<!-- STORY SECTION — first, and self-sufficient. It is the summary of what we believe now, rewritten at every check-in. Follow `../../_story-arc.md`: the thought we started from; what we now believe, with the reasons; what is still open and the sharpest tension. Language follows `../../_ste-procedural.md` sections 1 and 3. 1–3 short paragraphs. -->
 
 ## Map
+<One line per area: the area in words — problem side or solution side — open, touched, or explored.>
 
-<The areas the topic touches, from Step 0.3 of `intake/brainstorm.md`, in plain words. One line per area: `<area> · problem|solution · open|touched|explored · <the threads that cover it>`. Rewrite it after every batch. An area the person adds in free text joins the map.>
+## Decisions
+### <area in words>
+- <The decision, one sentence.> Why: <the reason given.>
 
-## Threads
+## Ideas still open
+- <The idea, one sentence, and who raised it: you or the agent.>
 
-### T-01 — <label>
-**State:** <state>
+## What we found
+- <The finding, one sentence.> Source: <file:line, dataset, or link>.
 
-<One paragraph in prose: the claims on this thread and their evidence, the assumptions named and which fell, the contradictions it is party to. Rewrite it to current truth; do not append.>
+## What we are assuming
+- <The assumption, and whether it is still open, confirmed, or rejected.>
 
-### T-02 — ...
+## Tensions
+- <What pulls against what, and whether it is still open.>
 
-## Turn log
-
-<One line per question, in order: `batch N · T-NN · reflection|probe|fork|widen|steer · <question in ten words> → <answer in ten words>`. The ids in this file are bookkeeping: the person never sees them (see the Plain words section of `intake/brainstorm.md`). A control word gets its own line: `batch N · control · <word> → <effect>`.>
-
-## Candidates
-
-<Empty until the person confirms the scope at `done`. Then one card per piece of work, in order: title, the threads it draws on, the shape, the entry command, and the kept decisions and assumptions the successor inherits.>
+## Questions for the plan
+- <A commitment this brainstorm does not make, one sentence.>
 
 ## Scope
+<Empty until `done`. Then the agreed scope: the kept items by piece of work, the items left for later, and the cut items with the person's reasons.>
 
-<Empty until `done`. Then the agreed scope in plain words: each piece of work in order with its kept decisions, the decisions left for later, and the cut decisions with the person's reasons.>
+## Work
+<Empty until `done`. Then each piece of work in order: its title, what it carries, its form, and its entry command.>
 
 ## How to continue
-
 - Resume: `/wf intake brainstorm <slug>`
 - Control words: `park <thread>` · `pull <thread>` · `drop <thread>` · `board` · `look it up` · `second opinion` · `done`
 - Retire when no thread is live: `/wf close <slug>`
+```
+
+## Converting a legacy board
+
+A legacy board is a `01-brainstorm.md` whose frontmatter carries `threads:` and `claims:` and which has no `brainstorm-board.json`. Convert it once, at the start of the first resume:
+1. Copy the legacy `01-brainstorm.md` to `history/` unchanged.
+2. Give every thread, claim, assumption, contradiction, and candidate a readable key, and keep its old id in `was`.
+3. Map the kinds:
+   - A claim with `evidence: verified …`, `contradicted …`, or `consult` becomes a finding. Its `check` comes from the evidence.
+   - Any other claim becomes a decision when the turn log shows that the person chose it, and an idea otherwise.
+   - An assumption stays an assumption, and a contradiction becomes a tension.
+   - A candidate becomes a piece of work, with its `state` and `routed-to` kept.
+4. Make each thread an area unless the board has a `## Map`.
+5. Write `brainstorm-board.json`. Rewrite the body of `01-brainstorm.md` per the template above: the summary first, then every section in plain words. Keep the legacy turn log in the JSON `log`.
+6. Remove `threads`, `claims`, `assumptions`, `contradictions`, `candidates`, and `selected` from the frontmatter, and add `board: brainstorm-board.json`.
+7. Show the new summary to the person at the first check-in, and ask whether it is right.

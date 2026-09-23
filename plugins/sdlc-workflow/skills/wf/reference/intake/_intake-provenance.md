@@ -21,8 +21,8 @@ Provenance is explicit or inferred — explicit always wins:
    `workflow-type: investigate`, `workflow-type: ideate`, and `workflow-type: brainstorm`
    rows whose `updated-at` is within the last **30 days** (older sources require the
    explicit `from <slug>` token). For each candidate, read the option labels
-   (investigate), the idea labels (ideate), or the candidate titles (brainstorm,
-   `candidates[].title`) from its lead artifact. Attach only on an
+   (investigate), the idea labels (ideate), or the piece-of-work titles (brainstorm,
+   `work[].title` in `brainstorm-board.json`) from its lead artifact. Attach only on an
    **exact label match** — the description contains a label exactly (case-insensitive).
    A partial or fuzzy resemblance is NOT a match. If exactly one workflow matches, ask ONE
    confirmation question ("This description matches `<id> — <label>` from `<type>` workflow
@@ -44,7 +44,7 @@ targets the research, it does not replace it.
 | `rca` | `01-rca.md` | Section 4 (root cause) seeds the restated request — the fix targets the named mechanism, not the symptom. Section 6 (blast radius, same-pattern-elsewhere) seeds scope and the risk inventory. Section 5 (contributing factors) seeds known unknowns / follow-up scope decisions. Section 8 (verification) seeds the acceptance criteria unchanged — it was written to be them. |
 | `discover` | `01-discover.md` | The verdict and its evidence seed the restated request's factual ground. The ranked counter-hypotheses seed the diagnosis candidates (they are literally candidate root causes when the successor is an rca). Recorded contradictions seed the risk inventory. |
 | `ideate` | `01-ideate.md`, the **chosen idea's card** | The idea's description + `evidence:` (`file:line` anchors) seed the restated request and research targeting. The rationale that culled its sibling ideas seeds the out-of-scope list — what was considered and rejected, so the successor does not re-widen. |
-| `brainstorm` | `01-brainstorm.md`, the **routed candidate's** kept decisions (`claims:`), its threads' assumptions and contradictions, plus its candidate card | The candidate title and its kept decisions seed the restated request; a `scope: cut` claim never seeds it, and a `scope: later` claim joins the out-of-scope list. The `named` and `confirmed` assumptions seed the risk inventory. The `contradicted` claims seed known unknowns. The `dropped` and `parked` threads seed the out-of-scope list, so the successor does not re-widen. |
+| `brainstorm` | `brainstorm-board.json`, the **routed piece of work** (`work[]`): its kept items (`items:`), its threads' assumptions and tensions, and its title. A legacy board without the JSON file: the routed candidate in the `01-brainstorm.md` frontmatter | The title and the kept decisions and findings seed the restated request; a `scope: cut` item never seeds it, and a `scope: later` item joins the out-of-scope list. The named and confirmed assumptions seed the risk inventory. A contradicted finding and each open tension seed known unknowns. The parked and dropped threads join the out-of-scope list, so the successor does not re-widen. |
 | `update-deps` (a prior run) | The prior run's `02-shape.md` Hold tier + `05-implement.md` Blocked list | Hold/Blocked packages, their reasons, revisit conditions, and `changelog-source:` citations seed this run's research — re-check the revisit condition instead of cold-rescanning last month's findings. A citation is re-used only after confirming the target version is unchanged. |
 | an **escalated change-mode** (`fix`/`hotfix`/`refactor`/`update-deps` closed with `close-reason: superseded`) | Its `01-<mode>.md` and `02-shape.md` | The brief, diagnosis/baseline, and recorded tripwire breaches seed the successor's intake — the reason the mode escalated is the first risk entry. |
 
@@ -63,8 +63,8 @@ entry itself (id, files, rationale, severity) travels in the invocation text per
    index is additive and safe. A `discover` source is not superseded — its verdict stands
    on its own; the `origin-discover` key alone records the lineage. A `brainstorm`
    source is not decision-shaped as a whole and is never superseded: the successor sets
-   the routed thread's `state: routed` and `routed-to: <new-slug>` and the matching
-   candidate's `state: routed` in `01-brainstorm.md`. Updating those fields on an open
+   the piece of work's `state: routed` and `routed-to: <new-slug>` in `brainstorm-board.json`, and
+   each of its threads to `routed` when no other piece of work draws on the thread. Updating those fields on an open
    board is additive; the board stays open until `/wf close <slug>`.
 3. If a decision-shaped source is still **open** (the user routed without recording the
    pick/route), this IS the implicit decision: apply the source mode's decision-closure

@@ -90,6 +90,10 @@ function isShipPlanAuditPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
   return /(?:^|\/)\.ai\/ship-plan-audit\.md$/.test(normalized);
 }
+function isBrainstormBoardPath(filePath) {
+  const normalized = normalizePathForMatch(filePath);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/brainstorm-board(?:-[a-z0-9-]+)?\.json$/.test(normalized);
+}
 function projectContextPathInfo(filePath) {
   const normalized = normalizePathForMatch(filePath);
   if (/(?:^|\/)PRODUCT\.md$/.test(normalized)) {
@@ -199,6 +203,7 @@ export {
   isProbeEvidencePath,
   isProjectContextMarkdownPath,
   isShipPlanAuditPath,
+  isBrainstormBoardPath,
   projectContextPathInfo,
   isManagedArtifactMarkdownPath,
   isInsideWorkflowArtifacts,

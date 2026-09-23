@@ -1682,13 +1682,117 @@
       }
     },
 
+    "brainstormBoard": {
+      "type": "object",
+      "description": "brainstorm-board.json — the agent's working board of a brainstorm (/wf intake brainstorm). Validated on every write by post-write-verify. 01-brainstorm.md is the same content written for the person, in plain words and with no keys.",
+      "required": ["schema", "artifact", "slug", "areas", "threads", "items"],
+      "properties": {
+        "schema": { "const": "sdlc/v1" },
+        "artifact": { "const": "brainstorm-board" },
+        "slug": { "type": "string" },
+        "topic": { "type": "string" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "sessions": { "type": "integer", "minimum": 1 },
+        "batches": { "type": "integer", "minimum": 0 },
+        "areas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "name", "state"],
+            "properties": {
+              "key": { "$ref": "#/$defs/brainstormKey" },
+              "name": { "type": "string" },
+              "side": { "enum": ["problem", "solution", "both"] },
+              "state": { "enum": ["open", "touched", "explored"] },
+              "was": { "type": "string" }
+            }
+          }
+        },
+        "threads": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "name", "state"],
+            "properties": {
+              "key": { "$ref": "#/$defs/brainstormKey" },
+              "name": { "type": "string" },
+              "area": { "type": "string" },
+              "state": { "enum": ["live", "parked", "routed", "dropped"] },
+              "routed-to": { "type": ["string", "null"] },
+              "reason": { "type": "string" },
+              "was": { "type": "string" }
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "kind", "thread", "text"],
+            "properties": {
+              "key": { "$ref": "#/$defs/brainstormKey" },
+              "kind": { "enum": ["decision", "idea", "finding", "question", "assumption", "tension"] },
+              "thread": { "type": "string" },
+              "text": { "type": "string" },
+              "why": { "type": "string" },
+              "source": { "enum": ["person", "agent", "code", "data", "research", "consult", "history"] },
+              "evidence": { "type": ["string", "null"] },
+              "check": { "enum": ["verified", "contradicted", "unverified", null] },
+              "state": { "enum": ["named", "confirmed", "rejected", "open", "resolved", "answered", "for-plan", null] },
+              "between": { "$ref": "#/$defs/stringArray" },
+              "scope": { "enum": ["keep", "cut", "later", null] },
+              "reason": { "type": "string" },
+              "was": { "type": "string" }
+            }
+          }
+        },
+        "work": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "title", "shape", "entry", "state"],
+            "properties": {
+              "key": { "$ref": "#/$defs/brainstormKey" },
+              "order": { "type": "integer", "minimum": 1 },
+              "title": { "type": "string" },
+              "shape": { "enum": ["intake", "investigate", "fix", "discover", "task", "extension"] },
+              "threads": { "$ref": "#/$defs/stringArray" },
+              "items": { "$ref": "#/$defs/stringArray" },
+              "entry": { "type": "string" },
+              "state": { "enum": ["proposed", "routed"] },
+              "routed-to": { "type": ["string", "null"] },
+              "was": { "type": "string" }
+            }
+          }
+        },
+        "selected": { "$ref": "#/$defs/stringArray" },
+        "log": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": {
+              "session": { "type": "integer", "minimum": 1 },
+              "batch": { "type": "integer", "minimum": 0 },
+              "thread": { "type": ["string", "null"] },
+              "kind": { "enum": ["reflection", "probe", "fork", "widen", "check-in", "control", "walk", "steer", "legacy"] },
+              "asked": { "type": "string" },
+              "answer": { "type": "string" }
+            }
+          }
+        },
+        "consult-runs": { "$ref": "#/$defs/consultRuns" }
+      }
+    },
+    "brainstormKey": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
     "brainstormFrontmatter": {
       "type": "object",
-      "description": "01-brainstorm.md — the board of a thinking-partner brainstorm (/wf intake brainstorm). Rooted in a type:workflow-index slug workflow with workflow-type brainstorm. Rewritten after every question batch; threads carry claims, assumptions, and contradictions; at `done` the person marks each decision keep, cut, or later, and candidates are the agreed pieces of work. The workflow stays open until /wf close.",
+      "description": "01-brainstorm.md — the board of a thinking-partner brainstorm (/wf intake brainstorm). Rooted in a type:workflow-index slug workflow with workflow-type brainstorm. The person's document; the agent's board is the sibling brainstorm-board.json (see $defs.brainstormBoard). A legacy board carries threads, claims, assumptions, contradictions, and candidates in this frontmatter instead, and stays valid until its first resume converts it. The workflow stays open until /wf close.",
       "required": ["schema", "type", "slug", "topic", "status", "created-at"],
       "properties": {
         "type": { "const": "brainstorm" },
         "topic": { "type": "string" },
+        "board": { "const": "brainstorm-board.json" },
         "status": { "enum": ["open", "distilled"] },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },

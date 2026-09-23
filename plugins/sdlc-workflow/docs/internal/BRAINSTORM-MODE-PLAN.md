@@ -23,7 +23,9 @@ instruction to reopen it. Sessions 2 and 3 ran on the same board (129
 questions in total) and found two more defects, fixed in **v9.162.0**
 (§18): the agent interviewed rather than explored, and every question
 carried board ids the person could not remember. The person then asked for `done` to be a scoping
-conversation; that shipped in **v9.163.0** (§19). **Still open:** probes P-B1, P-B2, and P-B3, and
+conversation; that shipped in **v9.163.0** (§19). A high-level critique then found that the mode steered
+the conversation with quotas, kept its bookkeeping for the agent, and gave
+the agent a contradictory role; **v9.164.0** fixes all three (§20). **Still open:** probes P-B1, P-B2, and P-B3, and
 the `artifacts.html` row. Every line reference below was read from the
 working tree at v9.158.0.
 
@@ -800,4 +802,65 @@ A cut decision never seeds a successor (`_intake-provenance.md`); a `later`
 decision joins its out-of-scope list. Schema: optional `scope` and `reason`
 on claims, optional `threads` and `claims` on candidates. Three guard tests
 and two schema round-trips pin it.
+
+## 20. Principles, a board for the person, and one clear role
+
+A high-level critique after v9.163.1 named seven problems. The person chose
+three to fix.
+
+**Quotas steered the conversation.** "At most one contradiction question per
+batch", "every batch holds a fork or widen question", and "a steer question
+every fourth batch" regulated the conversation with counters, and counters
+produce the mechanical behaviour they were added to prevent. **Fix:** the
+reference now has three layers. *Your role* says what the agent is for.
+*Invariants* hold the few hard rules that protect the person: only the person
+ends the loop, plain words, no commitments and no code, nothing becomes work
+until the person confirms, the board is the memory, and evidence is bounded.
+*Craft* holds seven principles, each with its reason and a weak and a better
+example: follow the person, go wide before deep, bring your own ideas, start
+from the problem, raise a tension when it matters now, read the signals, and
+explain then ask. The steer question became a **check-in at a natural moment**.
+
+**The bookkeeping was built for the agent.** The board was one YAML
+frontmatter with 213 numbered claims that the person never read, and the ids
+leaked into the questions. **Fix:** the board is two files with one truth.
+`01-brainstorm.md` is the person's document, in plain prose with no keys: the
+summary (`## The Brainstorm`, rewritten at every check-in), the map, the
+decisions with their reasons, the open ideas, the findings with their sources,
+the assumptions, the tensions, the questions for the plan, and, after `done`,
+the scope and the work. `brainstorm-board.json` is the agent's board: areas,
+threads, and items with **readable keys** (`club-style`, not `C-128`) and six
+kinds (decision, idea, finding, question, assumption, tension), the scope
+answers, the pieces of work, and the log. `$defs.brainstormBoard` in the
+frontmatter schema defines it, and `post-write-verify` validates it on every
+write (`isBrainstormBoardPath`, `validateBrainstormBoardFile`; opt-out
+`hooks.validateBrainstormBoard: false`). Each **check-in** rewrites the
+summary and asks the person to correct it, so the board consolidates as it
+grows. A legacy board converts on its first resume (`_artifact.md`,
+"Converting a legacy board"), and stays schema-valid until then.
+
+**The agent's role contradicted itself.** "Bring directions of your own" sat
+beside "you do not design" and "no option is a solution". **Fix:** one line
+with its reason — *ideas are welcome; commitments are not.* An idea is
+something the person could drop tomorrow at no cost; a commitment is
+something other work would build on, and it is recorded as a question for the
+plan. The agent may propose ideas including concrete solutions, compare them,
+bring outside knowledge, disagree with a reason, and give its view. It may not
+decide for the person, commit to a design, or write a plan or code. Options
+asked for in the loop are given in the conversation; only a formal comparison
+with evidence becomes an `investigate` piece of work.
+
+**Other contracts.** `_intake-provenance.md` reads the routed piece of work
+from the JSON board (a legacy board still works). `_consult-triggers.md`
+words its two brainstorm rows as tension and contradicted statement; the
+trigger names are unchanged. The eval case asserts the `board` field and the
+JSON file. The `SoccerManager` board was converted by hand on release day
+with the same rules the conversion section states.
+
+Guard tests pin every invariant, every principle and its reason, the absence
+of the three quotas and of the contradictory role sentences, the two-file
+board, the six kinds, the synthesis beat, and the legacy conversion; each
+fails against the v9.163.1 text. Schema round-trips cover the document, a
+legacy board, a valid JSON board, and three invalid JSON boards, and a hook
+test proves a broken or unparseable board blocks the write.
 

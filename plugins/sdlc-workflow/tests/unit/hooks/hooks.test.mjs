@@ -422,6 +422,14 @@ test('post-write-verify validates written workflow artifacts with Ajv', () => {
   }
 });
 
+const brainstormBoard = () => ({
+  schema: 'sdlc/v1', artifact: 'brainstorm-board', slug: 'brainstorm-cost-budget-20260922',
+  topic: 'a per-slug cost budget', sessions: 1, batches: 0,
+  areas: [{ key: 'seeing-the-cost', name: 'Seeing what a project costs', side: 'problem', state: 'open' }],
+  threads: [{ key: 'limit-per-project', name: 'A spending limit per project', area: 'seeing-the-cost', state: 'live', 'routed-to': null }],
+  items: [], work: [], selected: [], log: [], 'consult-runs': [],
+});
+
 // BRAINSTORM-MODE-PLAN P-B4 — the write hook accepts a brainstorm board and its
 // workflow-index, and demands no sibling fragment (brainstorm is not rich-tier).
 test('post-write-verify accepts a brainstorm board and its workflow-index', () => {
@@ -437,12 +445,11 @@ test('post-write-verify accepts a brainstorm board and its workflow-index', () =
     }));
     writeFile(join(dir, '01-brainstorm.md'), md({
       schema: 'sdlc/v1', type: 'brainstorm', slug: 'brainstorm-cost-budget-20260922',
-      topic: 'a per-slug cost budget', status: 'open', 'created-at': '2026-09-22T10:00:00Z',
-      'updated-at': '2026-09-22T10:00:00Z', sessions: 1, batches: 0,
-      threads: [{ id: 'T-01', label: 'budget per slug', state: 'live', 'routed-to': null }],
-      claims: [], assumptions: [], contradictions: [], candidates: [], selected: [], revisions: [],
+      topic: 'a per-slug cost budget', status: 'open', board: 'brainstorm-board.json',
+      'created-at': '2026-09-22T10:00:00Z', 'updated-at': '2026-09-22T10:00:00Z', sessions: 1, batches: 0, revisions: [],
     }));
-    for (const file of ['00-index.md', '01-brainstorm.md']) {
+    writeFile(join(dir, 'brainstorm-board.json'), JSON.stringify(brainstormBoard()));
+    for (const file of ['00-index.md', '01-brainstorm.md', 'brainstorm-board.json']) {
       const result = runHook(HOOKS.postWriteVerify, {
         cwd: tmp,
         tool_input: { file_path: `.ai/workflows/brainstorm-cost-budget-20260922/${file}` },
@@ -450,6 +457,27 @@ test('post-write-verify accepts a brainstorm board and its workflow-index', () =
       equal(result.status, 0, `${file}: ${result.stderr}`);
       equal(result.stderr, '', `${file}: the hook demanded something of a brainstorm artifact`);
     }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+// BRAINSTORM-MODE-PLAN §20 — the agent's JSON board is validated on every write.
+test('post-write-verify blocks a brainstorm board that breaks the schema or does not parse', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/brainstorm-cost-budget-20260922/brainstorm-board.json';
+    const bad = brainstormBoard();
+    bad.items.push({ key: 'C-01', kind: 'claim', thread: 'limit-per-project', text: 'a numbered claim' });
+    writeFile(join(tmp, rel), JSON.stringify(bad));
+    const blocked = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(blocked.status, 2, blocked.stderr);
+    match(blocked.stderr, /brainstorm board validation FAILED/);
+
+    writeFile(join(tmp, rel), '{ "schema": "sdlc/v1", ');
+    const unparsed = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(unparsed.status, 2, unparsed.stderr);
+    match(unparsed.stderr, /brainstorm board validation FAILED/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

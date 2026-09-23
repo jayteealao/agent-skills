@@ -3,14 +3,15 @@
 // have no other automated guard: a mode that exists on disk but is missing
 // from a dispatch table is invisible to users. The contract guards pin the
 // operator's decisions: question batches through the ladder (never a named
-// tool), the seven control words, and the stays-open terminus.
+// tool), the seven control words, the stays-open terminus, principles over
+// quotas, a person-readable document beside a JSON board, and one clear role.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { validateFrontmatter } from '../../../lib/schema-validator.mjs';
+import { validateBrainstormBoard, validateFrontmatter } from '../../../lib/schema-validator.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const SCHEMA_PATH = path.join(pluginRoot, 'tests', 'frontmatter.schema.json');
@@ -73,12 +74,12 @@ test('only the person ends the loop', () => {
   assert.match(src, /\*\*WARNING: you never end this loop\.\*\*/, 'brainstorm.md lost the loop-ownership warning');
   assert.match(src, /Only the person's `done` reaches Step 3/, 'brainstorm.md lost the person-only exit');
   assert.match(src, /Enter this step only when the person's reply is the control word `done`/, 'Step 3 lost its entry gate');
-  assert.match(src, /Never decide that the thinking is complete/, 'the discipline list lost the no-self-closure rule');
+  assert.match(src, /\*\*Only the person ends the loop\.\*\* Never decide that the thinking is complete/, 'the invariants lost the no-self-closure rule');
 });
 
 test('a resumed session reopens a distilled board', () => {
   const src = read('reference', 'intake', 'brainstorm.md');
-  assert.match(src, /reopen a distilled board \(`status: open`, `progress\.brainstorm: in-progress`/, 'Step 0 resume does not reopen a distilled board');
+  assert.match(src, /Reopen a distilled board \(`status: open`, `progress\.brainstorm: in-progress`/, 'Step 0 resume does not reopen a distilled board');
 });
 
 test('done scopes the work with the person', () => {
@@ -89,60 +90,88 @@ test('done scopes the work with the person', () => {
   assert.match(src, /Print no entry command/, '3.1 prints entry commands before the scope is agreed');
 });
 
-test('the walk decides keep, cut, or later for every decision', () => {
+test('the walk decides keep, cut, or later for every decision and idea', () => {
   const src = read('reference', 'intake', 'brainstorm.md');
   assert.match(src, /## 3\.2 Walk through the discussion/, 'Step 3 lost the walk through the discussion');
   assert.match(src, /keep all of it; go through it one by one; cut all of it; leave it for later/, 'the walk lost the area-level choices');
-  assert.match(src, /ask one question per decision: keep; cut; later; change it/, 'the walk lost the per-decision choices');
-  assert.match(src, /`scope: keep`, `scope: cut`, or `scope: later`/, 'the walk no longer records scope on the claim');
-  assert.match(src, /When a kept decision needs a decision that is cut or left for later/, 'the walk lost the dependency check');
+  assert.match(src, /ask one question per item: keep; cut; later; change it/, 'the walk lost the per-item choices');
+  assert.match(src, /`scope: keep`, `scope: cut`, or `scope: later`/, 'the walk no longer records scope on the item');
+  assert.match(src, /When a kept item needs an item that is cut or left for later/, 'the walk lost the dependency check');
   assert.match(src, /a resume continues the walk at the first area with no answer/, 'an interrupted walk can no longer resume');
-  assert.match(src, /every decision with no `scope` value/, 'a second done can skip decisions that were never scoped');
+  assert.match(src, /every decision or idea with no `scope` value/, 'a second done can skip items that were never scoped');
 });
 
-test('the work is shaped and confirmed before any candidate is written', () => {
+test('the work is shaped and confirmed before any piece of work is written', () => {
   const src = read('reference', 'intake', 'brainstorm.md');
   assert.match(src, /## 3\.3 Shape the work/, 'Step 3 lost the shaping conversation');
   assert.match(src, /Propose a first split, then change it as the person directs\. Continue until the person says that the split holds/, 'the split is no longer agreed with the person');
   assert.match(src, /## 3\.4 Confirm and record/, 'Step 3 lost the confirm step');
-  assert.match(src, /After the person confirms, write one candidate per piece of work/, 'candidates are written before the person confirms');
+  assert.match(src, /After the person confirms, write one piece of work per agreed piece/, 'pieces of work are written before the person confirms');
   assert.match(src, /Run no command/, 'Step 3 runs a command');
-  assert.match(src, /A decision with `scope: cut` never seeds a successor/, 'a cut decision can seed a successor');
-  assert.match(read('reference', 'intake', 'brainstorm', '_artifact.md'), /^## Scope$/m, 'the board template lost the Scope section');
-  assert.match(read('reference', 'intake', '_intake-provenance.md'), /a `scope: cut` claim never seeds it/, 'the provenance contract lets a cut decision through');
+  assert.match(src, /An item with `scope: cut` never seeds a successor/, 'a cut item can seed a successor');
+  const artifact = read('reference', 'intake', 'brainstorm', '_artifact.md');
+  assert.match(artifact, /^## Scope$/m, 'the document template lost the Scope section');
+  assert.match(artifact, /^## Work$/m, 'the document template lost the Work section');
+  assert.match(read('reference', 'intake', '_intake-provenance.md'), /a `scope: cut` item never seeds it/, 'the provenance contract lets a cut item through');
 });
 
-test('the person reads plain words, never a board id', () => {
+// Fix 2 (BRAINSTORM-MODE-PLAN §20): principles replace quotas.
+test('the loop is guided by principles, not quotas', () => {
   const src = read('reference', 'intake', 'brainstorm.md');
-  assert.ok(!/Name the board id/.test(src), 'brainstorm.md again tells the agent to put board ids in the question text');
-  assert.match(src, /^# Plain words$/m, 'brainstorm.md lost the Plain words section');
-  assert.match(src, /Write no board id in any text the person reads/, 'the Plain words section lost the no-id rule');
-  assert.match(src, /Write no mode mechanics in that text/, 'the Plain words section lost the no-mechanics rule');
-  assert.match(src, /Open every question with two or three plain sentences/, 'questions no longer explain before they ask');
-  assert.match(src, /offer no "explain this more" option/, 'the explain-this-more option is back');
-  assert.match(src, /## 2\.6 Show where we are\nIn plain words, with no board id/, 'the board print shows ids again');
-});
-
-test('the loop explores before it converges', () => {
-  const src = read('reference', 'intake', 'brainstorm.md');
-  assert.match(src, /\*\*Map the space\.\*\*/, 'Step 0 lost the map of the space');
-  assert.match(src, /When the topic names a family of things, list every member/, 'the map no longer covers a whole family');
-  assert.match(src, /\*\*Widen\.\*\* A direction the person has not raised/, 'Step 2.2 lost the widen question');
-  assert.match(src, /Every batch holds at least one fork or widen question/, 'a batch can again be all convergent');
-  assert.match(src, /ask about the problem first/, 'Step 2.2 lost problem-before-solution');
+  assert.match(src, /^# Invariants$/m, 'brainstorm.md lost the invariants section');
+  assert.match(src, /^# Craft$/m, 'brainstorm.md lost the craft section');
+  assert.match(src, /These are principles, not quotas/, 'the craft section no longer says it holds principles');
+  for (const principle of ['Follow the person.', 'Go wide before deep.', 'Bring your own ideas.', 'Start from the problem.', 'Raise a tension when it matters now.', 'Read the signals.', 'Explain, then ask.']) {
+    assert.ok(src.includes(`**${principle}**`), `the craft section lost the principle "${principle}"`);
+  }
+  assert.ok((src.match(/\*Why:\*/g) ?? []).length >= 5, 'the principles lost their reasons');
+  for (const quota of [/At most one question per batch/, /Every batch holds at least one/, /Every fourth batch/, /every fourth batch/]) {
+    assert.ok(!quota.test(src), `a quota is back: ${quota}`);
+  }
+  assert.match(src, /Check in at a natural moment, not on a schedule/, 'the check-in is on a schedule again');
+  assert.match(src, /zoom out and look for what is missing/, 'the check-in lost the zoom-out option');
+  assert.match(src, /When the topic names a family of things, list every member of that family yourself/, 'the map no longer covers a whole family');
   assert.match(src, /mark no option `\(Recommended\)`/, 'brainstorm options can again carry a recommendation');
+  assert.match(src, /offer no "explain this more" option/i, 'the explain-this-more option is back');
   assert.ok(!/_question-craft\.md\]\(\.\.\/_question-craft\.md\) in full/.test(src), 'brainstorm.md loads the decision-interview contract in full again');
 });
 
-test('the person sets the agenda', () => {
+test('the person reads plain words, never a key or a number', () => {
   const src = read('reference', 'intake', 'brainstorm.md');
-  assert.match(src, /\*\*The person sets the agenda\.\*\*/, 'the discipline list lost the agenda rule');
-  assert.match(src, /At most one question per batch resolves a contradiction/, 'contradictions can again drive the whole batch');
-  assert.match(src, /the options were too narrow: the next batch widens before it deepens/, 'the loop no longer reads the widen signals');
-  assert.match(src, /is not a brainstorm question\. Record it on the thread as a question for the plan/, 'technical design choices are asked in the loop again');
-  assert.ok(!/Continue \/ Park a thread \/ Show the board \/ Done/.test(src), 'the mechanical steer question is back');
-  assert.match(src, /zoom out and look for what is missing/, 'the steer question lost the zoom-out option');
-  assert.match(read('reference', 'intake', 'brainstorm', '_artifact.md'), /^## Map$/m, 'the board template lost the Map section');
+  assert.ok(!/Name the board id/.test(src), 'brainstorm.md again tells the agent to put ids in the question text');
+  assert.match(src, /\*\*Plain words\.\*\* The person reads every question, option, header, and chat line\. Write no board key, no internal number, and no mode mechanics/, 'the plain-words invariant lost its rule');
+  assert.match(src, /## 2\.6 Show where we are\nIn plain words, with no key/, 'showing the board uses keys again');
+  assert.match(read('reference', 'intake', 'brainstorm', '_artifact.md'), /The body names everything in words\. It carries no key/, 'the document template allows keys');
+});
+
+// Fix 3 (BRAINSTORM-MODE-PLAN §20): the board is built for the person.
+test('the board is a document for the person and a JSON board for the agent', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  const artifact = read('reference', 'intake', 'brainstorm', '_artifact.md');
+  assert.match(src, /\*\*`01-brainstorm\.md` is the person's document\.\*\*/, 'brainstorm.md lost the person-document rule');
+  assert.match(src, /\*\*`brainstorm-board\.json` is your working board\.\*\*/, 'brainstorm.md lost the JSON board');
+  assert.match(src, /Every item has a \*\*readable key\*\*/, 'items lost their readable keys');
+  for (const kind of ['decision', 'idea', 'finding', 'question', 'assumption', 'tension']) {
+    assert.match(src, new RegExp(`an? \\*\\*${kind}\\*\\*`), `brainstorm.md lost the ${kind} kind`);
+  }
+  assert.match(src, /1\. \*\*Sum up\.\*\* Rewrite the document's `## The Brainstorm` section: what we believe now/, 'the check-in lost the synthesis beat');
+  for (const heading of ['## Map', '## Decisions', '## Ideas still open', '## What we found', '## What we are assuming', '## Tensions', '## Questions for the plan']) {
+    assert.ok(artifact.includes(`\n${heading}\n`), `the document template lost ${heading}`);
+  }
+  assert.match(artifact, /^## Converting a legacy board$/m, 'the template lost the legacy conversion');
+  assert.match(src, /it is a legacy board: convert it first/, 'a resume no longer converts a legacy board');
+});
+
+// Fix 5 (BRAINSTORM-MODE-PLAN §20): one clear role.
+test('the agent has one clear role: ideas welcome, commitments not', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.match(src, /^# Your role$/m, 'brainstorm.md lost the role section');
+  assert.match(src, /\*\*Ideas are welcome; commitments are not\.\*\*/, 'the role lost its one-line rule');
+  assert.match(src, /Bring ideas freely, including concrete solutions/, 'the agent can no longer bring solutions as ideas');
+  assert.match(src, /Record a commitment on the board as a question for the plan/, 'commitments are no longer recorded for the plan');
+  for (const contradiction of [/You do not decide and you do not design/, /No option is a solution/, /you do not solve/i, /If you catch yourself solving/]) {
+    assert.ok(!contradiction.test(src), `the contradictory rule is back: ${contradiction}`);
+  }
 });
 
 test('the provenance contract consumes a brainstorm source', () => {
@@ -150,6 +179,7 @@ test('the provenance contract consumes a brainstorm source', () => {
   assert.match(src, /^\| `brainstorm` \|/m, '_intake-provenance.md lost the brainstorm Consume row');
   assert.match(src, /`origin-brainstorm`/, '_intake-provenance.md lost the origin-brainstorm key');
   assert.match(src, /workflow-type: brainstorm/, '_intake-provenance.md does not infer from brainstorm sources');
+  assert.match(src, /brainstorm-board\.json/, '_intake-provenance.md does not read the JSON board');
 });
 
 test('the consult block cites only recorded triggers', () => {
@@ -159,55 +189,79 @@ test('the consult block cites only recorded triggers', () => {
   }
 });
 
-const board = () => ({
+const doc = () => ({
   schema: 'sdlc/v1',
   type: 'brainstorm',
   slug: 'brainstorm-cost-budget-20260922',
   topic: 'a per-slug cost budget',
   status: 'open',
+  board: 'brainstorm-board.json',
   'created-at': '2026-09-22T10:00:00Z',
   'updated-at': '2026-09-22T10:30:00Z',
   sessions: 1,
   batches: 3,
-  threads: [{ id: 'T-01', label: 'budget per slug', state: 'live', 'routed-to': null }],
-  claims: [{ id: 'C-01', thread: 'T-01', text: 'cost rows exist per slug', evidence: 'verified lib/cost-ledger.mjs:12' }],
-  assumptions: [{ id: 'A-01', thread: 'T-01', text: 'a budget is a number', state: 'named' }],
-  contradictions: [{ id: 'X-01', threads: ['T-01'], text: 'a budget per slice conflicts with a budget per slug', state: 'open' }],
-  candidates: [{ id: 'B-01', thread: 'T-01', title: 'Add a per-slug cost budget', shape: 'intake', entry: '/wf intake cost-budget from brainstorm-cost-budget-20260922', state: 'proposed', 'routed-to': null }],
-  selected: [],
   revisions: [],
 });
 
-test('a populated board validates against the brainstorm branch', () => {
-  const result = validateFrontmatter(board(), { schemaPath: SCHEMA_PATH });
+const jsonBoard = () => ({
+  schema: 'sdlc/v1',
+  artifact: 'brainstorm-board',
+  slug: 'brainstorm-cost-budget-20260922',
+  topic: 'a per-slug cost budget',
+  'updated-at': '2026-09-22T10:30:00Z',
+  sessions: 1,
+  batches: 3,
+  areas: [{ key: 'seeing-the-cost', name: 'Seeing what a project costs', side: 'problem', state: 'touched' }],
+  threads: [{ key: 'limit-per-project', name: 'A spending limit per project', area: 'seeing-the-cost', state: 'live', 'routed-to': null }],
+  items: [
+    { key: 'limit-warns-only', kind: 'decision', thread: 'limit-per-project', text: 'A limit warns and never blocks.', why: 'A blocked run loses paid work.', source: 'person', scope: 'keep' },
+    { key: 'cost-rows-per-run', kind: 'finding', thread: 'limit-per-project', text: 'The ledger records one row per run.', source: 'code', evidence: 'lib/cost-ledger.mjs:12', check: 'verified' },
+    { key: 'limit-per-step', kind: 'idea', thread: 'limit-per-project', text: 'A limit per step.', source: 'agent', scope: 'cut', reason: 'too fine-grained' },
+    { key: 'ledger-format', kind: 'question', thread: 'limit-per-project', text: 'Which export format?', source: 'agent', state: 'for-plan' },
+  ],
+  work: [{ key: 'spending-limit', order: 1, title: 'Add a warning-only spending limit', shape: 'intake', threads: ['limit-per-project'], items: ['limit-warns-only', 'cost-rows-per-run'], entry: '/wf intake spending-limit from brainstorm-cost-budget-20260922', state: 'proposed', 'routed-to': null }],
+  selected: ['spending-limit'],
+  log: [{ session: 1, batch: 1, thread: 'limit-per-project', kind: 'fork', asked: 'where does the limit act', answer: 'warn only' }],
+  'consult-runs': [],
+});
+
+test('the person document validates against the brainstorm branch', () => {
+  const result = validateFrontmatter(doc(), { schemaPath: SCHEMA_PATH });
   assert.equal(result.type, 'brainstorm');
   assert.deepEqual(result.errors, []);
   assert.ok(result.valid);
 });
 
-test('an unknown thread state fails validation', () => {
-  const bad = board();
-  bad.threads[0].state = 'pending';
-  const result = validateFrontmatter(bad, { schemaPath: SCHEMA_PATH });
-  assert.ok(!result.valid, 'a thread state outside live|parked|routed|dropped validated');
-});
-
-test('a scoped board with a multi-thread piece of work validates', () => {
-  const scoped = board();
-  scoped.claims[0].scope = 'keep';
-  scoped.claims.push({ id: 'C-02', thread: 'T-01', text: 'a budget per slice', evidence: 'unverified', scope: 'cut', reason: 'too fine-grained' });
-  scoped.candidates[0].threads = ['T-01'];
-  scoped.candidates[0].claims = ['C-01'];
-  const result = validateFrontmatter(scoped, { schemaPath: SCHEMA_PATH });
+test('a legacy board still validates until its first resume converts it', () => {
+  const legacy = {
+    ...doc(),
+    board: undefined,
+    threads: [{ id: 'T-01', label: 'budget per slug', state: 'live', 'routed-to': null }],
+    claims: [{ id: 'C-01', thread: 'T-01', text: 'cost rows exist per slug', evidence: 'verified lib/cost-ledger.mjs:12', scope: 'keep' }],
+    candidates: [{ id: 'B-01', thread: 'T-01', title: 'Add a per-slug cost budget', shape: 'intake', entry: '/wf intake cost-budget from brainstorm-cost-budget-20260922', state: 'proposed', 'routed-to': null }],
+  };
+  delete legacy.board;
+  const result = validateFrontmatter(legacy, { schemaPath: SCHEMA_PATH });
   assert.deepEqual(result.errors, []);
   assert.ok(result.valid);
 });
 
-test('an unknown scope value fails validation', () => {
-  const bad = board();
-  bad.claims[0].scope = 'maybe';
-  const result = validateFrontmatter(bad, { schemaPath: SCHEMA_PATH });
-  assert.ok(!result.valid, 'a claim scope outside keep|cut|later validated');
+test('a JSON board validates against $defs.brainstormBoard', () => {
+  const result = validateBrainstormBoard(jsonBoard(), { schemaPath: SCHEMA_PATH });
+  assert.deepEqual(result.errors, []);
+  assert.ok(result.valid);
+});
+
+test('a JSON board with a numbered key, an unknown kind, or an unknown scope fails', () => {
+  const numbered = jsonBoard();
+  numbered.items[0].key = 'C-01';
+  assert.ok(!validateBrainstormBoard(numbered, { schemaPath: SCHEMA_PATH }).valid, 'a numbered id validated as a readable key');
+  const kind = jsonBoard();
+  kind.items[0].kind = 'claim';
+  assert.ok(!validateBrainstormBoard(kind, { schemaPath: SCHEMA_PATH }).valid, 'an item kind outside the six validated');
+  const scope = jsonBoard();
+  scope.items[0].scope = 'maybe';
+  assert.ok(!validateBrainstormBoard(scope, { schemaPath: SCHEMA_PATH }).valid, 'a scope outside keep|cut|later validated');
 });
 
 test('a workflow-index for a brainstorm validates', () => {

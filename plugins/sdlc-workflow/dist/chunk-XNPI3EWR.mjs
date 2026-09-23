@@ -4,10 +4,11 @@ import {
   blockToolCall,
   isEntry,
   runStandalone
-} from "./chunk-5XCFZVDJ.mjs";
+} from "./chunk-2K4NI6FA.mjs";
 import {
   collectToolInputPaths,
   hasFrontmatterFence,
+  isBrainstormBoardPath,
   isManagedArtifactMarkdownPath,
   isProbeEvidencePath,
   isProjectContextMarkdownPath,
@@ -17,7 +18,7 @@ import {
   projectRootFromInput,
   readTextIfExists,
   resolveProjectPath
-} from "./chunk-Z76NJHKM.mjs";
+} from "./chunk-P23TDRBT.mjs";
 import {
   loadConfig
 } from "./chunk-XLUSO7MY.mjs";
@@ -114,6 +115,9 @@ function compileValidator({ schemaPath = DEFAULT_SCHEMA_PATH, kind = "frontmatte
   } else if (kind === "sibling-yaml") {
     const branch = rootSchema.siblingYamlSchemas?.[name];
     schema = branch ? schemaWithDefs(rootSchema, branch) : null;
+  } else if (kind === "def") {
+    const branch = rootSchema.$defs?.[name];
+    schema = branch ? schemaWithDefs(rootSchema, branch) : null;
   } else {
     schema = rootSchema;
   }
@@ -186,6 +190,23 @@ async function validateSiblingYamlFile(filePath, { schemaPath = DEFAULT_SCHEMA_P
   }
   const result = validateSiblingYaml(data, { artifact: artifact ?? data?.artifact, schemaPath });
   return { path: filePath, ...result };
+}
+function validateBrainstormBoard(data, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return { valid: false, errors: [{ path: "/", message: "the brainstorm board is not a JSON object", keyword: "type" }] };
+  }
+  const validate = compileValidator({ schemaPath, kind: "def", name: "brainstormBoard" });
+  const valid = validate(data);
+  return { valid, errors: valid ? [] : normalizeAjvErrors(validate.errors) };
+}
+async function validateBrainstormBoardFile(filePath, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
+  let data;
+  try {
+    data = JSON.parse(await readFile(filePath, "utf-8"));
+  } catch (err) {
+    return { path: filePath, valid: false, errors: [{ path: "/", message: err.message ?? "JSON parse error", keyword: "parse" }] };
+  }
+  return { path: filePath, ...validateBrainstormBoard(data, { schemaPath }) };
 }
 async function validateFrontmatterFile(filePath, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
   const loaded = await safeLoadFrontmatterFile(filePath);
@@ -611,6 +632,27 @@ lasts one run. Opt out with hooks.shipPlanAuditTriageGate: false.
     blockToolCall();
   }
 }
+async function validateBrainstormBoards(paths, config, schemaPath) {
+  if (config.hooks?.validateBrainstormBoard === false) return;
+  const failures = [];
+  for (const path of paths) {
+    const result = await validateBrainstormBoardFile(path.absolute, { schemaPath });
+    if (!result.valid) failures.push({ path, result });
+  }
+  if (!failures.length) return;
+  for (const f of failures) {
+    process.stderr.write(`wf-postwrite-verify: brainstorm board validation FAILED for ${f.path.original}
+
+`);
+    process.stderr.write(`${formatValidationErrors(f.result.errors)}
+
+`);
+  }
+  process.stderr.write("The board does not conform to $defs.brainstormBoard\n");
+  process.stderr.write("(see plugins/sdlc-workflow/tests/frontmatter.schema.json and\n");
+  process.stderr.write("skills/wf/reference/intake/brainstorm/_artifact.md). Fix the board, then continue.\n");
+  blockToolCall();
+}
 var PLUGIN_ROOT = fileURLToPath2(new URL("..", import.meta.url));
 async function run(input) {
   const projectRoot = projectRootFromInput(input);
@@ -621,6 +663,8 @@ async function run(input) {
   enforceCodeFileLints(input, config, paths);
   const auditPaths = collectToolInputPaths(input).filter((path) => isShipPlanAuditPath(path)).map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) })).filter(({ absolute }) => absolute && existsSync(absolute));
   if (auditPaths.length) await enforceShipPlanAuditTriage(auditPaths, config);
+  const boardPaths = collectToolInputPaths(input).filter((path) => isBrainstormBoardPath(path)).map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) })).filter(({ absolute }) => absolute && existsSync(absolute));
+  if (boardPaths.length) await validateBrainstormBoards(boardPaths, config, schemaPath);
   if (!paths.length) return;
   const failures = [];
   for (const path of paths) {

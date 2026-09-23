@@ -18,7 +18,7 @@ import {
 import {
   projectRootFromInput,
   readStdinJson
-} from "./chunk-Z76NJHKM.mjs";
+} from "./chunk-P23TDRBT.mjs";
 import {
   logError
 } from "./chunk-AOYZAFVW.mjs";

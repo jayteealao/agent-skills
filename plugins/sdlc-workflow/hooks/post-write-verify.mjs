@@ -22,11 +22,12 @@ import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../lib/config.mjs';
 import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
-import { validateFrontmatterFile, validateSiblingYamlFile, formatValidationErrors } from '../lib/schema-validator.mjs';
+import { validateBrainstormBoardFile, validateFrontmatterFile, validateSiblingYamlFile, formatValidationErrors } from '../lib/schema-validator.mjs';
 import { findUncitedLimitationClaims, findUnmarkedSuppressions, findUnownedMechanisms } from '../lib/limitation-lexicon.mjs';
 import {
   collectToolInputPaths,
   hasFrontmatterFence,
+  isBrainstormBoardPath,
   isManagedArtifactMarkdownPath,
   isProjectContextMarkdownPath,
   isProbeEvidencePath,
@@ -549,6 +550,30 @@ async function enforceShipPlanAuditTriage(paths, config) {
   }
 }
 
+/**
+ * Write-time validation of a brainstorm's agent board (brainstorm-board.json).
+ * The board is the agent's memory across sessions and compaction, so a file that
+ * does not parse or does not match $defs.brainstormBoard BLOCKS (exit 2) while
+ * the author is still in context. Opt out with hooks.validateBrainstormBoard: false.
+ */
+async function validateBrainstormBoards(paths, config, schemaPath) {
+  if (config.hooks?.validateBrainstormBoard === false) return;
+  const failures = [];
+  for (const path of paths) {
+    const result = await validateBrainstormBoardFile(path.absolute, { schemaPath });
+    if (!result.valid) failures.push({ path, result });
+  }
+  if (!failures.length) return;
+  for (const f of failures) {
+    process.stderr.write(`wf-postwrite-verify: brainstorm board validation FAILED for ${f.path.original}\n\n`);
+    process.stderr.write(`${formatValidationErrors(f.result.errors)}\n\n`);
+  }
+  process.stderr.write('The board does not conform to $defs.brainstormBoard\n');
+  process.stderr.write('(see plugins/sdlc-workflow/tests/frontmatter.schema.json and\n');
+  process.stderr.write('skills/wf/reference/intake/brainstorm/_artifact.md). Fix the board, then continue.\n');
+  blockToolCall();
+}
+
 const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 export async function run(input) {
@@ -576,6 +601,12 @@ export async function run(input) {
     .map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) }))
     .filter(({ absolute }) => absolute && existsSync(absolute));
   if (auditPaths.length) await enforceShipPlanAuditTriage(auditPaths, config);
+
+  const boardPaths = collectToolInputPaths(input)
+    .filter((path) => isBrainstormBoardPath(path))
+    .map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) }))
+    .filter(({ absolute }) => absolute && existsSync(absolute));
+  if (boardPaths.length) await validateBrainstormBoards(boardPaths, config, schemaPath);
 
   if (!paths.length) return;
 

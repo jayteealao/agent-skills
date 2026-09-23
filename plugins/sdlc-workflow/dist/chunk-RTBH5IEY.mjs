@@ -16,7 +16,7 @@ import {
 import {
   isEntry,
   runStandalone
-} from "./chunk-5XCFZVDJ.mjs";
+} from "./chunk-2K4NI6FA.mjs";
 import {
   resolveProjectRoot
 } from "./chunk-DOKC4AFB.mjs";

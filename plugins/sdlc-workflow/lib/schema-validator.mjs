@@ -96,6 +96,9 @@ function compileValidator({ schemaPath = DEFAULT_SCHEMA_PATH, kind = 'frontmatte
   } else if (kind === 'sibling-yaml') {
     const branch = rootSchema.siblingYamlSchemas?.[name];
     schema = branch ? schemaWithDefs(rootSchema, branch) : null;
+  } else if (kind === 'def') {
+    const branch = rootSchema.$defs?.[name];
+    schema = branch ? schemaWithDefs(rootSchema, branch) : null;
   } else {
     schema = rootSchema;
   }
@@ -180,6 +183,30 @@ export async function validateSiblingYamlFile(filePath, { schemaPath = DEFAULT_S
   }
   const result = validateSiblingYaml(data, { artifact: artifact ?? data?.artifact, schemaPath });
   return { path: filePath, ...result };
+}
+
+/**
+ * Validate a brainstorm's agent board (brainstorm-board.json) against
+ * $defs.brainstormBoard. The board is JSON, not frontmatter, so it has its own
+ * entry point; post-write-verify calls it on every write of the file.
+ */
+export function validateBrainstormBoard(data, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { valid: false, errors: [{ path: '/', message: 'the brainstorm board is not a JSON object', keyword: 'type' }] };
+  }
+  const validate = compileValidator({ schemaPath, kind: 'def', name: 'brainstormBoard' });
+  const valid = validate(data);
+  return { valid, errors: valid ? [] : normalizeAjvErrors(validate.errors) };
+}
+
+export async function validateBrainstormBoardFile(filePath, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
+  let data;
+  try {
+    data = JSON.parse(await readFile(filePath, 'utf-8'));
+  } catch (err) {
+    return { path: filePath, valid: false, errors: [{ path: '/', message: err.message ?? 'JSON parse error', keyword: 'parse' }] };
+  }
+  return { path: filePath, ...validateBrainstormBoard(data, { schemaPath }) };
 }
 
 export async function validateFrontmatterFile(filePath, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
