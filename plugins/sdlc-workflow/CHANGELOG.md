@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.163.0] - 2026-09-23
+
+### Changed
+
+- **A brainstorm's `done` is a scoping conversation with the person** (BRAINSTORM-MODE-PLAN.md §19). It used to print the threads, ask one disposition question, and write one candidate per chosen thread, so every decision from the session went into work as it stood. Now the person first chooses to scope the work, keep the board, or take a second opinion. Scoping walks back through the discussion one map area at a time: the area's decisions are listed in plain words with their reasons, and the person keeps, cuts, or leaves for later each area or each decision, or changes a decision. The agent gives its view with a reason and raises any kept decision that needs a cut one. The two then talk through how the kept decisions become work (what comes first, grouping, order, size, and form); the agent proposes a split and changes it until the person says it holds. Only after the person confirms the scope does the board get one candidate per piece of work, a `## Scope` section, and printed entry commands; nothing runs. Each answer is stored on the claim (`scope: keep | cut | later`), so an interrupted walk resumes where it stopped, and a cut decision never seeds a successor.
+
 ## [9.162.0] - 2026-09-23
 
 ### Changed
