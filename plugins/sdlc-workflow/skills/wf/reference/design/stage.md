@@ -7,7 +7,7 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
 | Requires | `02-shape.md` with `status: complete`; `02b-design.md` (this stage writes it when it is missing) |
 | Reads | The design record ([record.md](record.md)), `02b-design.md`, `po-answers.md`, the move reference when the person names a move |
 | Produces | `02c-craft.md` (type `design-contract`) with its sibling `.yaml` and `.html.fragment`; `00-index.md` updates |
-| Next | `/wf slice <slug>` — or `/wf auto <slug>` / `/wf yolo <slug>`, which may start now |
+| Next | `/wf slice <slug>` (`/wf plan <slug>` for an `rca` workflow, which has no slice stage; `/wf plan <slug> <first-new-slice>` after an extension) — or `/wf auto <slug>` / `/wf yolo <slug>`, which may start now |
 
 ## Step 0 — Orient
 
@@ -15,7 +15,7 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
 2. When a driver (`auto` or `yolo`) invoked this stage, STOP. Route the person to `/wf design <slug>`. A driver never resolves a design direction.
 3. When `02-shape.md` is missing or not complete, STOP and route to `/wf shape <slug>`.
 4. When `ux-impact: none`, ask one gate question per [_gate-question.md](../_gate-question.md): change `ux-impact` to `visual`, `flow`, or `new-surface` and continue, or keep `none` and write the skip record. On `none`, write `progress.design: skipped` and `design-skip-reason:`, then STOP with the next step `/wf slice <slug>`.
-5. When `02c-craft.md` already carries `direction-confirmed-by:` and the invocation is not `amend` and names no move, report the confirmed design and STOP. Next: `/wf slice <slug>`.
+5. When `progress.design: in-progress`, the design is reopened per [_lane.md](_lane.md): run Amend. Otherwise, when `02c-craft.md` already carries `direction-confirmed-by:` and the invocation is not `amend` and names no move, report the confirmed design and STOP. Next: `/wf slice <slug>`.
 
 ## Step 1 — Load the design record
 
@@ -63,14 +63,14 @@ surfaces: [<every surface drawn>]
 move: <move name, or omit>
 ```
 
-Then update `00-index.md`: `current-stage: design`, `progress.design: complete`, `next-invocation: "/wf slice <slug>"`. Record each new open design question under `## Open decisions` in `.ai/design/direction.md` only when the person agrees to keep it.
+Then update `00-index.md`: `current-stage: design`, `progress.design: complete`, and `next-invocation` per the Next row above. Record each new open design question under `## Open decisions` in `.ai/design/direction.md` only when the person agrees to keep it.
 
 ## Amend
 
 `/wf design <slug> amend [instructions]` reopens a confirmed design, because a later stage found that it cannot be built as drawn, or because the person changed their mind.
 
-1. Read the stop reason from `00-index.md` and the stage artifact that raised it.
-2. Change only the surfaces the reason names. Run Steps 4–6 for those surfaces.
+1. Read the stop reason from `00-index.md` and the stage artifact that raised it. For an extension, the reason is the new slices in `03-slice.md` and the surfaces they add.
+2. Change or add only the surfaces the reason names. Run Steps 4–6 for those surfaces. Step 6 adds new surfaces to `surfaces:`.
 3. Snapshot the prior contract per [_additive-write.md](../_additive-write.md), then write the new one.
 4. Name every plan that cites a changed surface. Route to `/wf plan <slug> <slice>` for each.
 

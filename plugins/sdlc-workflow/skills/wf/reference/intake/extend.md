@@ -20,7 +20,7 @@ Extension is a **utility flow**, not a pipeline stage. It adds net-new slices; i
 | Requires | `00-index.md`, `03-slice.md` (master index) |
 | Produces | New `03-slice-<new-slug>.md` files + updated `03-slice.md` (non-destructive append) |
 | Does NOT modify | Any `03-slice-<slug>.md` file with `status: complete` or `status: in-progress` |
-| Next | `/wf plan <slug> <new-slice-slug>` for each new slice |
+| Next | `/wf plan <slug> <new-slice-slug>` for each new slice; `/wf design <slug> amend` first on a design delta (Step 3c) |
 
 > **Not a compressed slice.** Extension writes **full** `03-slice-<new-slug>.md` files — the
 > `_compressed-slice.md` override does **not** apply here (it governs the *mode-keyword* slug-mode
@@ -124,7 +124,7 @@ Rules:
 
 # Step 3 — Confirm New Slices (one confirmation)
 
-Extension is additive by contract — it never modifies existing slices — so one confirmation is enough. In the final interview round, present the proposed slices in one message: each slug, goal, complexity, and depends-on, plus the sentence "Existing slices are not modified." Ask the user to confirm. When the user requests changes, apply them and confirm the changed slices in the same exchange. When the user declines, STOP.
+Extension is additive by contract — it never modifies existing slices — so one confirmation is enough. In the final interview round, present the proposed slices in one message: each slug, goal, complexity, and depends-on, plus the sentence "Existing slices are not modified." Include the UX impact of the new scope (Step 3c) in the same message. Ask the user to confirm. When the user requests changes, apply them and confirm the changed slices in the same exchange. When the user declines, STOP.
 
 ---
 
@@ -137,6 +137,10 @@ This step **computes** the deltas and holds them; **Step 6 is the single index w
 1. **RIM delta.** For the confirmed new slices, ask: *what are the most likely ways this new scope could be misread?* (the same misreading pass `intake/default.md` Step 6a runs). Each distinct risk becomes a drafted `intent-risks` entry — extension has no downstream shape run to adjudicate, so author each entry **adjudicated in place**: the Step 2 interview IS the adjudication forum (`status: adjudicated`, `decision:` from the interview answer, `adjudicated-by: 03-slice-<new-slug>.md#risks`, `po-ratified: true` citing the `po-answers.md` entry). Leave an entry `open` ONLY when the interview genuinely could not resolve it — it must then appear in the new slice's `## Risks` and the drafted `open-questions` addition, and it will correctly hard-block handoff/ship until cleared.
 2. **Charter delta.** If the new scope adds a load-bearing commitment the existing charter does not cover, draft the ledger addition (`C<next>`, `source:` the new slice file, `po-ratified: true` — the Step 3 confirm gate is the ratification). Do not rewrite or renumber existing commitments.
 3. **Zero-delta escape.** If the new scope genuinely adds no misreading risk and no new commitment (a purely mechanical extension), state that in one line in the Extension Round section of `03-slice.md` — an explicit declaration, never a silent skip.
+
+# Step 3c — Design delta
+
+Classify the UX impact of the new scope per `design/_lane.md`. A design delta exists when design is needed and a new slice touches a surface or state that `02c-craft.md` does not list in `surfaces:`. Hold the result for Step 6.
 
 # Step 4 — Write New Slice Files
 
@@ -170,7 +174,7 @@ This is the ONE step that writes `00-index.md` — everything earlier only compu
 1. `updated-at` → current ISO 8601 timestamp.
 2. Append all new `03-slice-<new-slug>.md` files to `workflow-files`.
 3. Append the Step 3b **RIM delta** entries to `intent-risks` and the **charter delta** entries to the `charter` ledger (never rewrite or renumber existing entries); append any `open` risk to `open-questions`.
-4. **Re-point the forward pointers at the new work:** set `next-command: wf-plan` and `next-invocation: "/wf plan <slug> <first-new-slice-slug>"`; if `03-slice.md` carries `best-first-slice` and every prior slice is complete/skipped, set it to the first new slice. Without this, `/wf status` and resume point at an already-done slice.
+4. **Re-point the forward pointers at the new work:** set `next-command: wf-plan` and `next-invocation: "/wf plan <slug> <first-new-slice-slug>"`. On a Step 3c design delta, instead raise `ux-impact`, set `next-command: wf-design`, `next-invocation: "/wf design <slug> amend"`, and `progress.design: in-progress` (with no `02c-craft.md`: `"/wf design <slug>"`, and leave `progress.design`); if `03-slice.md` carries `best-first-slice` and every prior slice is complete/skipped, set it to the first new slice. Without this, `/wf status` and resume point at an already-done slice.
 5. **Revive a complete/closed parent:** extension means the workflow has live work again. If `status` is `complete` or `closed`, set `status: active` and `current-stage: slice` (leave `close-reason`/`closed-at` in place as history — the revival is visible, not erased).
 6. **Registry row:** update the slug's row in `.ai/workflows/INDEX.md` (`status`, `updated-at`) to match.
 
@@ -185,7 +189,8 @@ Return per [_chat-return.md](../_chat-return.md) — narrative lead (what this e
 - `new-slices:` list of new slice slugs with one-line goals
 - `extension-source:` from-review | from-retro | user request
 - `options:`
-  - `/wf plan <slug> <first-new-slice-slug>` — plan the first new slice (default)
+  - `/wf design <slug> amend` — draw the new surfaces first (default on a Step 3c design delta)
+  - `/wf plan <slug> <first-new-slice-slug>` — plan the first new slice (default otherwise)
   - `/wf plan <slug> all` — if you want to plan all new slices in parallel
   - `/wf status <slug>` — see full workflow state including all slices
 - ≤2 bullets noting dependency ordering if new slices depend on existing in-progress work

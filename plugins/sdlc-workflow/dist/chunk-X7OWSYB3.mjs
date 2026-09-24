@@ -45,7 +45,12 @@ function imageGateResolved(value) {
   if (v === "pass") return true;
   return /^skipped:\s*\S/.test(v);
 }
+function designReopened(index) {
+  const progress = index?.progress;
+  return Boolean(progress && typeof progress === "object" && progress.design === "in-progress");
+}
 function designSettled(index, contract) {
+  if (designReopened(index)) return false;
   const progress = index?.progress;
   if (progress && typeof progress === "object" && progress.design === "skipped" && String(index?.["design-skip-reason"] ?? "").trim()) {
     return true;
@@ -60,8 +65,10 @@ function designGateRefusal({ index, hasBrief, contract, slug }) {
   if (!index) return null;
   if (!designNeeded(index, hasBrief)) return null;
   if (designSettled(index, contract)) return null;
-  const why = contract ? "02c-craft.md exists but carries no resolved image-gate or no direction-confirmed-by" : "02c-craft.md is missing";
-  return `Design is needed for '${slug}' (ux-impact: ${index["ux-impact"] ?? "unset; 02b-design.md exists"}) but not settled: ${why}. A person confirms the design before planning. Run /wf design ${slug}. (Opt out: hooks.designDirectionGate: false.)`;
+  const reopened = designReopened(index) && contract;
+  const why = reopened ? "the design is reopened (progress.design: in-progress)" : contract ? "02c-craft.md exists but carries no resolved image-gate or no direction-confirmed-by" : "02c-craft.md is missing";
+  const route = reopened ? `/wf design ${slug} amend` : `/wf design ${slug}`;
+  return `Design is needed for '${slug}' (ux-impact: ${index["ux-impact"] ?? "unset; 02b-design.md exists"}) but not settled: ${why}. A person confirms the design before planning. Run ${route}. (Opt out: hooks.designDirectionGate: false.)`;
 }
 
 // hooks/pre-write-validate.mjs

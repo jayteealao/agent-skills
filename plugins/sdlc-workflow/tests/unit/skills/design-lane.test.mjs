@@ -47,6 +47,8 @@ test('designSettled: a confirmed contract, or a skip with a reason', () => {
   equal(designSettled(idx, { 'image-gate': 'skipped: flow-only change, no new visual surface', 'direction-confirmed-by': 'in-session' }), true);
   equal(designSettled({ progress: { design: 'skipped' } }, null), false, 'a skip needs a reason');
   equal(designSettled({ progress: { design: 'skipped' }, 'design-skip-reason': 'backend only' }, null), true);
+  equal(designSettled({ ...idx, progress: { design: 'in-progress' } }, CONFIRMED), false, 'a reopened design is not settled');
+  equal(designSettled({ ...idx, progress: { design: 'complete' } }, CONFIRMED), true);
 });
 
 test('imageGateResolved and isPlanArtifact', () => {
@@ -66,6 +68,9 @@ test('designGateRefusal names the route to the design stage', () => {
   match(msg, /02c-craft\.md is missing/);
   equal(designGateRefusal({ index: { 'ux-impact': 'new-surface' }, hasBrief: true, contract: CONFIRMED, slug: 'demo' }), null);
   equal(designGateRefusal({ index: null, hasBrief: false, contract: null, slug: 'demo' }), null);
+  const reopened = designGateRefusal({ index: { 'ux-impact': 'visual', progress: { design: 'in-progress' } }, hasBrief: true, contract: CONFIRMED, slug: 'demo' });
+  match(reopened, /\/wf design demo amend/);
+  match(reopened, /reopened/);
 });
 
 // ── the pre-write hook ────────────────────────────────────────────────────────
@@ -117,6 +122,15 @@ test('hook: allows a plan once the person confirmed the design', () => {
     '02c-craft.md': fm({ schema: 'sdlc/v1', type: 'design-contract', slug: 'demo', 'image-gate': 'pass', 'direction-confirmed-by': 'in-session' }),
   });
   equal(r.status, 0, r.stderr);
+});
+
+test('hook: refuses a plan while a confirmed design is reopened', () => {
+  const r = runPlanWrite({
+    '00-index.md': INDEX({ 'ux-impact': 'visual', progress: { design: 'in-progress' } }),
+    '02c-craft.md': fm({ schema: 'sdlc/v1', type: 'design-contract', slug: 'demo', 'image-gate': 'pass', 'direction-confirmed-by': 'in-session' }),
+  });
+  equal(r.status, 2, r.stderr);
+  match(r.stderr, /\/wf design demo amend/);
 });
 
 test('hook: allows a plan when ux-impact is none, and when the gate is off', () => {
@@ -178,4 +192,27 @@ test('prose: the brief procedure cites the right shape step', () => {
   const brief = read('skills/wf/reference/design/shape.md');
   ok(!/Step 5b/.test(brief), 'the brief is shape Step 5a');
   match(read('skills/wf/reference/shape.md'), /# Step 5a — Author the design brief/);
+});
+
+test('prose: every intake route into slice or plan passes the design lane', () => {
+  const intake = (f) => read(`skills/wf/reference/intake/${f}`);
+  const oldNote = /`plan` authors the visual contract|no separate design command/;
+  ok(!oldNote.test(intake('default.md')), 'default intake no longer describes plan as the design author');
+  match(intake('default.md'), /the human-only design stage \(`\/wf design <slug>`\)/);
+  const rca = intake('rca.md');
+  match(rca, /ux-impact: <none\|visual\|flow\|new-surface>/);
+  match(rca, /next-invocation: "\/wf design <slug>"/);
+  const extend = intake('extend.md');
+  match(extend, /# Step 3c — Design delta/);
+  match(extend, /progress\.design: in-progress/);
+  match(extend, /\/wf design <slug> amend/);
+  match(intake('update-deps.md'), /Write `ux-impact: none`/);
+  match(read('skills/wf/reference/review/_select.md'), /`update-deps` run that upgrades a major version of a UI/);
+});
+
+test('prose: the reopened design is part of the rule in the lane, the stage, and yolo', () => {
+  match(read('skills/wf/reference/design/_lane.md'), /The design is \*\*reopened\*\*/);
+  match(read('skills/wf/reference/design/stage.md'), /When `progress\.design: in-progress`, the design is reopened/);
+  match(read('skills/wf/workflows/yolo.js'), /progress\.design: in-progress \(reopened/);
+  ok(!/stack\.ui ≠ ∅/.test(read('skills/wf/reference/implement.md')), 'implement triggers on the slice building UI');
 });

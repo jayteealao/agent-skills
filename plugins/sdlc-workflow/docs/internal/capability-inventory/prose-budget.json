@@ -58,7 +58,7 @@
           "when a driver ( auto or yolo )": "DESIGN-LANE-PLAN (9.167.0) human rule: a terminal condition of the new human-only design stage, added after the W0 baseline",
           "when 02-shape.md is missing or not complete, stop": "DESIGN-LANE-PLAN (9.167.0) human rule: a terminal condition of the new human-only design stage, added after the W0 baseline",
           "on none , write progress.design: skipped and design-skip-reason:": "DESIGN-LANE-PLAN (9.167.0) human rule: a terminal condition of the new human-only design stage, added after the W0 baseline",
-          "when 02c-craft.md already carries direction-confirmed-by: and the invocation": "DESIGN-LANE-PLAN (9.167.0) human rule: a terminal condition of the new human-only design stage, added after the W0 baseline",
+          "otherwise, when 02c-craft.md already carries direction-confirmed-by: and the": "DESIGN-LANE-PLAN (9.167.0) human rule: a terminal condition of the new human-only design stage, added after the W0 baseline",
           "when status: closed , stop: \"workflow <slug is": "DESIGN-LANE-PLAN (9.167.0): the closed-workflow stop moved here from design.md with the design stage"
         },
         "skills/wf/reference/implement.md": {

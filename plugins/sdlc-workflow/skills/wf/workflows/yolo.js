@@ -613,8 +613,10 @@ async function orient() {
     `Read ux-impact from 00-index.md. Design is NEEDED when ux-impact ∈ {visual, flow, new-surface}, or when ` +
     `ux-impact is absent and 02b-design.md exists. Design is SETTLED when 02c-craft.md exists with a resolved ` +
     `image-gate (pass or skipped:<reason>) AND a direction-confirmed-by field, or when 00-index.md ` +
-    `progress.design is 'skipped' with a design-skip-reason. When design is needed and not settled, set ok=false, ` +
-    `blockReason='design not confirmed by a person (design stage pending)', route='/wf design ${slug}'.\n` +
+    `progress.design is 'skipped' with a design-skip-reason. The design is NOT settled while 00-index.md records ` +
+    `progress.design: in-progress (reopened by an extension or an amend stop). When design is needed and not settled, ` +
+    `set ok=false, blockReason='design not confirmed by a person (design stage pending)', route='/wf design ${slug}' ` +
+    `('/wf design ${slug} amend' when the design is reopened).\n` +
     `6. For ALL roster slices (in roster order — the COMPLETE list, both modes; the full roster is needed so ` +
     `slice-mode can route to the next slice), check on disk which of plan/implement/verify/review already exist ` +
     `AND are terminal-clean, marking each 'done' | 'todo':\n` +

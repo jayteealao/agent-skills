@@ -31,9 +31,11 @@ A person confirms the design before any stage that a driver can run. The `design
 - `02c-craft.md` exists, carries a resolved `image-gate` (`pass` or `skipped:<reason>`), and carries `direction-confirmed-by:`.
 - `00-index.md` records `progress.design: skipped` and a `design-skip-reason:`.
 
+The design is **reopened**, and not settled, while `00-index.md` records `progress.design: in-progress`. An extension that adds surfaces sets it, and so does rule 2 below. Step 6 of the design stage sets `progress.design: complete` again.
+
 Rules for every stage after `design`:
 1. When design is needed and not settled, STOP. Set `status: awaiting-input` and route to `/wf design <slug>`. Under an autonomous run, this is a stop condition.
-2. When the confirmed design cannot be built as drawn, STOP. Set `status: awaiting-input` and route to `/wf design <slug> amend`. Do not redraw the design inside the stage.
+2. When the confirmed design cannot be built as drawn, STOP. Set `status: awaiting-input` and `progress.design: in-progress`, and route to `/wf design <slug> amend`. Do not redraw the design inside the stage.
 3. Consume the confirmed design. Do not change its direction.
 
 The pre-write hook refuses a `04-plan*.md` write while design is needed and not settled. Opt out with `hooks.designDirectionGate: false`.
@@ -57,7 +59,7 @@ Each duty applies only when design is needed, except the `intake` and `shape` du
 
 | Stage | Design duty |
 |---|---|
-| `intake` | Set `ux-impact` from the request and the files in scope. Ask the person to confirm it with the stack confirmation. |
+| `intake` | Set `ux-impact` from the request and the files in scope. Ask the person to confirm it with the stack confirmation. Every mode that can route to `slice` or `plan` sets it: `rca` from the suggested fix, `update-deps` as `none`, and `extend` for the new slices. |
 | `shape` | When design is needed, write the brief `02b-design.md` per [shape.md](shape.md), including `## UX intent`, against the Identity, Current design, and Direction parts. When `ux-impact: none`, write `progress.design: skipped` and a one-line `design-skip-reason:`. |
 | `design` | Run [stage.md](stage.md) with the person: draw every changed surface, get the person's confirmation, write `02c-craft.md`. |
 | `slice` | Map every slice to the surfaces in `02c-craft.md`. A surface with its own acceptance criteria gets its own slice, or one sentence in `## Slice Strategy` justifies the grouping. |

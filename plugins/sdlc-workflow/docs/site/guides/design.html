@@ -33,6 +33,7 @@
 <p>The next step is <code>/wf slice &lt;slug&gt;</code>. You can also start <code>/wf auto &lt;slug&gt;</code> or <code>/wf yolo &lt;slug&gt;</code> now, because the design is settled.</p>
 
 <p><strong>Design is settled</strong> when <code>02c-craft.md</code> carries a resolved image gate and <code>direction-confirmed-by:</code>, or when <code>00-index.md</code> records <code>progress.design: skipped</code> with a reason.</p>
+<p>A confirmed design is <strong>reopened</strong>, and no longer settled, while <code>00-index.md</code> records <code>progress.design: in-progress</code>. Two events reopen it: an extension adds slices with surfaces that nobody drew, or a later stage finds that it cannot build the design as drawn. <code>/wf design &lt;slug&gt; amend</code> draws the changed surfaces, asks the person again, and settles the design.</p>
 
 <h3 id="after">What later stages do with the design</h3>
 

@@ -4,7 +4,7 @@ Shared guidance for when the thing being built is a **reusable component** — a
 primitive, a library, a widget other engineers will adopt — rather than a one-off screen.
 Loaded by `implement` (at its build step, when the deliverable is a reusable component) and
 offered by `extract` (when systematizing an existing UI into a component set). The question here
-is not *"how should this look or move"* — that is the design transforms — but *"how do you ship a
+is not *"how should this look or move"* — that is the design moves — but *"how do you ship a
 component people love using."*
 
 > Load with: `design/_component-craft.md`

@@ -263,3 +263,10 @@ verify:versions`, push to `origin/master`.
   (the measure-load test caps it below 60 files; `intake` reached 63).
 - Change-modes write `04-plan.md` at intake, so they run a compressed design
   stage inside intake before `03-slice.md`; the plan-write gate enforces it.
+- **9.167.1 cohesion fixes.** A sweep after the release found routes into
+  plan that skipped the design lane: `rca` (no `ux-impact`, straight to
+  plan), `extend` (new slices could add undrawn surfaces), and `update-deps`
+  (no explicit value). Default intake still described plan as the contract
+  author. The fix adds the reopened state, `progress.design: in-progress`:
+  `designSettled()` returns false while it is set, the hook names `amend`,
+  and the design stage clears it in Step 6.

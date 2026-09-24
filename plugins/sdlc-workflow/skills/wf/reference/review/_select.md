@@ -17,7 +17,7 @@ Each rubric maps to `review/<name>.md` — **except** the two design dimensions 
 - `docs` (focus ux-copy)
 
 ### Include when the change involves design work — `review` is the design consumer that *judges it*
-(any `design-*` entry in `00-index.md` `augmentations:`, a `02c-craft.md` visual contract present, design needed per `design/_lane.md`, or substantive UI changes when `stack.ui ≠ ∅`). Both dimensions judge drift from `DESIGN.md` and from the goals in `.ai/design/direction.md`.
+(any `design-*` entry in `00-index.md` `augmentations:`, a `02c-craft.md` visual contract present, design needed per `design/_lane.md`, substantive UI changes when `stack.ui ≠ ∅`, or an `update-deps` run that upgrades a major version of a UI framework, component, or styling package). Both dimensions judge drift from `DESIGN.md` and from the goals in `.ai/design/direction.md`.
 - `design-audit` — theming / responsive / anti-pattern judgment + 0–4 scoring. **Consumes the a11y / perf / web-vitals already measured in `06-verify-*.md` rather than re-running axe-core** (if no verify ran, it measures itself). Checks the `02c-craft.md` anti-goals were honored. Emits `07-design-audit.md`. Maps to `skills/wf/reference/design/audit.md`. Its absolute-ban checklist is single-sourced from `skills/wf/reference/design/_design-context.md` (Absolute bans) — load it when `stack.ui ≠ ∅` even if no `02b`/`02c` exists, so audit judges against the same canon design authored to.
 - `design-critique` — register-forked prescriptive critique (brand = distinctiveness, product = earned-familiarity); preserves the stance rules + font reflex-reject. Emits `07-design-critique.md`. Maps to `skills/wf/reference/design/critique.md`.
 

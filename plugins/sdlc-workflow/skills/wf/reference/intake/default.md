@@ -143,7 +143,7 @@ Use when: The task is a well-understood, single-scope fix (for example "bump ver
 **Option C: Blocked — re-run intake** → `/wf intake <slug>`
 Use when: Required PO answers are still missing. Mark `Status: Awaiting input`.
 
-**UI-aware path note:** If the Step 0.5 `stack:` fingerprint shows a UI/frontend layer (`stack.ui ≠ ∅`) and the task has visual surface, note in `## Recommended Next Stage` that design is woven into the normal path: `shape` authors the design brief (`02b-design.md`), `plan` authors the visual contract (`02c-craft.md`) and resolves the direction gates, and `implement` builds against it. There is no separate design command in the critical path (the standalone `/wf design <slug> <transform>` operators are for focused, ad-hoc moves). Keep `shape` as the immediate next command: it owns feature discovery, including the visual-surface questions and the design brief. This is a path heads-up only, consistent with intake staying descriptive.
+**Design path note:** When `ux-impact` is `visual`, `flow`, or `new-surface`, note in `## Recommended Next Stage` the design path per `design/_lane.md`: `shape` writes the design brief (`02b-design.md`), the human-only design stage (`/wf design <slug>`) draws the changed surfaces and writes `02c-craft.md` after the person confirms, and only then can `slice`, `plan`, `/wf auto`, or `/wf yolo` run. Keep `shape` as the immediate next command. This is a path heads-up only, consistent with intake staying descriptive.
 
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
 
