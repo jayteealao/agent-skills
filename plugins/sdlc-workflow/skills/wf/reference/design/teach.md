@@ -1,4 +1,4 @@
-Help the user write or improve PRODUCT.md and DESIGN.md — the context anchors that every /wf design command reads before doing work.
+Help the user write or improve the design record — PRODUCT.md, DESIGN.md, `.ai/design/current.md`, and `.ai/design/direction.md` ([record.md](record.md)) — the context anchors that the design stage and every design duty read before doing work.
 
 **The difference from `setup`**: `setup` runs a discovery interview for a fresh project. `teach` is for projects where partial context exists — when PRODUCT.md is outdated, missing key sections, or uses `[TODO]` placeholders.
 
@@ -7,12 +7,13 @@ Run `teach` when:
 - The user wants to add design principles or anti-references to an existing document
 - DESIGN.md needs to be created from an existing product's actual visual system
 - The brand or product direction has changed and context needs updating
+- The design goals or the future direction in `.ai/design/direction.md` are missing or out of date
 
 ---
 
 ## Step 1: Read existing context
 
-Read PRODUCT.md and DESIGN.md (if they exist). Identify:
+Read PRODUCT.md, DESIGN.md, and the two `.ai/design/` files (if they exist). Identify:
 - Which sections are complete
 - Which sections have `[TODO]` markers or are missing
 - Which sections feel generic or non-specific to this project
@@ -42,12 +43,15 @@ For missing brand voice words:
 For missing user description:
 > "Who are the primary users? What's their role, their context when they use this, and their expertise level?"
 
+For missing goals or direction:
+> "What should the design achieve in the next few releases, and where do you expect it to go after that?"
+
 For stale content:
 > "Has anything changed about the product's direction, audience, or design principles since this was written?"
 
 ## Step 3: Update the files
 
-Update or create PRODUCT.md and DESIGN.md based on answers. Preserve all existing content; only add to or replace sections that were discussed.
+Update or create PRODUCT.md, DESIGN.md, and the `.ai/design/` files based on answers. Preserve all existing content; only add to or replace sections that were discussed. The `.ai/design/` templates are in [record.md](record.md).
 
 **PRODUCT.md sections**:
 ```markdown
@@ -103,7 +107,7 @@ brand | product
 Present the updated files. List each pre-filled answer with its source in the same message:
 > "Here's the updated context. Does this accurately represent the project? Anything to correct?"
 
-After confirmation, these files are the anchors for all future /wf design commands in this project.
+After confirmation, set `confirmed-by: teach` in `direction.md` when it changed. These files are the anchors for every later design stage in this project.
 
 ## Notes
 

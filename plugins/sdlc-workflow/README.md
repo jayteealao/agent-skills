@@ -45,6 +45,7 @@ Follow [start/your-first-workflow.html](docs/site/start/your-first-workflow.html
 |---|---|
 | `intake` | Entry dispatcher. A description starts stage 1; a mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `amend`, `modernize`) runs a compressed or maintenance flow. |
 | `shape` | Product-owner discovery: acceptance criteria, documentation plan, augmentations. |
+| `design` | Human-only design stage between shape and slice: the person confirms the drawings before any driver runs. Also keeps the project's design record (`setup`, `teach`, `extract`, `direction`, `sync`). |
 | `slice` | Decomposes the shape into shippable slices. |
 | `plan` | Per-slice plan with a reuse scan. |
 | `implement` | Codes the slice. `reviews` runs the fix-blockers mode. |
@@ -53,7 +54,6 @@ Follow [start/your-first-workflow.html](docs/site/start/your-first-workflow.html
 | `handoff` | Aggregates completed slices into a PR. Batch mode over `pr#N` or a branch. |
 | `ship` | Release via `.ai/ship-plan.md`; `announce`, `rollback`. |
 | `retro` | Post-mortem, per slug or per branch. |
-| `design` | Compressed design workflow; 20 design commands are its arguments. |
 | `probe` | Runtime-truth verification of built work; `sweep` enumerates the user surface. |
 | `simplify` | Three read-only reviewers over a branch, a commit range, a plan, or a path. |
 | `auto` | Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff. |

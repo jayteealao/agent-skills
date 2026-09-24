@@ -22,6 +22,7 @@ import {
 var STAGES = [
   "intake",
   "shape",
+  "design",
   "slice",
   "plan",
   "implement",

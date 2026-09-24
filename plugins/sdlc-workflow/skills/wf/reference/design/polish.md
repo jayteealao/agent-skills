@@ -29,7 +29,7 @@ Polish is not a single category of change — it is attention to the full surfac
 - Icon/label alignment: icons should align to the text cap-height, not the line-height box
 
 ### Color refinement
-- Remove any remaining `#000` or `#fff` — tint toward the brand hue
+- Remove any remaining `#000` or `#fff` from text and large areas — tint toward the brand hue. Image outlines keep their pure-black/white tokens (see Image outlines)
 - Check neutral colors: pure gray reads as clinical; a chroma of 0.005–0.01 adds warmth
 - Ensure dark-mode variants use the same token system, not separate hard-coded values
 
@@ -45,10 +45,10 @@ Every interactive element needs all its states. Audit the following for each int
 - Error (for inputs)
 
 ### Transition quality
-- All state changes should be animated — no instant property switches (except `display`)
+- Animate only the state changes that pass the frequency gate in `animate.md` — no instant property switches on those (except `display`)
 - Transition property should be specific, not `all` (avoid accidental transitions)
 - `ease-out` for entering elements, `ease-in` for leaving elements
-- Duration: 150–250ms for micro-interactions, 200–350ms for component transitions
+- Duration: use the timing table in `animate.md`
 - For the motion mechanics behind these — custom easing curves, interruptibility, icon/enter-exit choreography, gesture physics — see `animate.md` (this directory)
 
 Implement `@media (prefers-reduced-motion: reduce)` for all animations — but design for motion first.
@@ -94,7 +94,7 @@ Give images a subtle `1px` inset outline for consistent depth — but the color 
 ```
 
 ### Minimum hit area
-Interactive elements need ~40×40px (WCAG target 44×44px). When the visible control is smaller (a 20px checkbox, a small icon button), extend the hit area with a centered pseudo-element — but never let two interactive elements' hit areas overlap.
+Touch targets need at least 44×44px. A pointer-only desktop control may be 32×32px. When the visible control is smaller (a 20px checkbox, a small icon button), extend the hit area with a centered pseudo-element — but never let two interactive elements' hit areas overlap.
 
 ```tsx
 <button className="relative size-5 after:absolute after:top-1/2 after:left-1/2 after:size-10 after:-translate-1/2">
@@ -105,11 +105,11 @@ Interactive elements need ~40×40px (WCAG target 44×44px). When the visible con
 Run through the surface looking for:
 - Any state that's missing from an interactive element
 - Any spacing value that doesn't fit the system
-- Any color that's `#000` or `#fff`
+- Any text or large area that's `#000` or `#fff`
 - Any transition that's instant where it should be animated
 - Any nested rounded surface where the radii aren't concentric
 - Any image with a tinted (non-pure-black/white) outline
-- Any interactive control under ~40×40px without an extended hit area
+- Any touch target under 44×44px (pointer-only desktop control under 32×32px) without an extended hit area
 - Anything that doesn't match across similar components
 
 ## Never
@@ -119,6 +119,10 @@ Apply the ban list in [_design-context.md](_design-context.md).
 - Micro-polish without macro-structure (fixing hover states on a broken layout)
 - Adding decorative detail to elements that should be invisible (scrollbars, dividers, container borders)
 - Polishing for visual complexity rather than functional completeness
+
+## In the workflow
+
+This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.
 
 ---
 

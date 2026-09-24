@@ -14,11 +14,11 @@ You are running `/wf shape`, **stage 2 of 10**: 1·intake → `2·shape` → 3·
 | | Detail |
 |---|---|
 | Requires | `01-intake.md` |
-| Produces | `02-shape.md` + (when `stack.ui ≠ ∅` and the work has visual surface) `02b-design.md`, the **design brief** |
+| Produces | `02-shape.md` + (when design is needed per [design/_lane.md](design/_lane.md)) `02b-design.md`, the **design brief** |
 | Next | `/wf slice <slug>` (default) |
 | Skip-to | `/wf plan <slug>` if the shaped spec is a single coherent unit that does not benefit from slicing |
 
-**Design brief ownership.** When the work has UI surface, shape authors `02b-design.md` (Step 5a). `plan` later resolves the visual-direction gates and authors `02c-craft.md`; `implement` builds against it.
+**Design brief ownership.** When design is needed, shape authors `02b-design.md` (Step 5a). The human-only design stage then confirms the design and authors `02c-craft.md`.
 
 **Auto second opinion.** Once the mini-spec is drafted and before writing `02-shape.md`, **auto-invoke** `/consult codex <critique these acceptance criteria, edge cases, and scope>` (pinning `codex`/`claude` keeps it free) when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `new-capability`, `multi-slice`, or `intent-risk-carried`. Fire it rather than offering it in next-steps; a single-slice, internal, low-risk tweak adds no consult.
 
@@ -96,7 +96,7 @@ The inventory is the interview's coverage instrument and a living list: add entr
 - **Round 1 — What does the feature do?** Core interaction: the action the user takes, the input they provide, what they get back, what triggers use.
 - **Round 2 — How does the feature behave?** Dynamics: what happens after the main action, reversibility, timing model (sync/async/real-time), connections to other parts of the product.
 - **Round 3 — What does the feature look like?** Surface area: where it lives (page, modal, inline, CLI), data volume, the distinct states the user sees (empty, loading, error, success), whether it follows or breaks existing patterns.
-- **Round 3b — Visual direction (CONDITIONAL — only when `stack.ui ≠ ∅` AND the work has visual surface).** 4 questions: **register** (utilitarian / expressive / editorial), **color strategy** (inherit the palette, or a distinct treatment?), **reference points and anti-goals** (what is this like, and what must it NOT look like?), and **state inventory** (which of empty / loading / error / first-run carry design weight?). These are the inputs `02b-design.md` needs (Step 5a); they ride ON TOP of the 20-question floor so design never eats the general budget. Skip entirely for non-UI work.
+- **Round 3b — Visual direction (CONDITIONAL — only when design is needed per [design/_lane.md](design/_lane.md)).** 4 questions: **register** (utilitarian / expressive / editorial), **color strategy** (inherit the palette, or a distinct treatment?), **reference points and anti-goals** (what is this like, and what must it NOT look like?), and **state inventory** (which of empty / loading / error / first-run carry design weight?). These are the inputs `02b-design.md` needs (Step 5a); they ride ON TOP of the 20-question floor so design never eats the general budget. Skip entirely for non-UI work.
 - **Round 4 — What can go wrong?** Failure modes: worst-case impact of bugs, invalid-input handling, dependency failures, access and permissions.
 - **Round 5 — Where are the boundaries?** Lead with scope restraint: which parts of the brief v1 *actually* needs versus speculative generality, gold-plating, or "while we're here" scope. Present these as trim options the PO chooses, never a unilateral cut ("do you actually need X, or does Y cover it?"). Then: explicit out-of-scope, the transition from old to new behavior, existing code and data touched. Never trim what the user explicitly asked for, and never trade away a non-functional requirement (security, accessibility, data integrity) for a smaller scope.
 
@@ -120,8 +120,8 @@ An inventory item in none of those states is ILLEGAL; the interview may not end 
 # Step 4 — Synthesize the mini-spec
 Synthesize the discovery answers into a behavior-focused mini-spec (the artifact body sections below).
 
-# Step 5a — Author the design brief (when `stack.ui ≠ ∅` and the work has visual surface)
-If `00-index.md` shows a UI/frontend layer **and** this work introduces meaningful visual surface (new screens, components, states, or a redesign), author `02b-design.md` now per [design/shape.md](design/shape.md). Round 3b gathered the inputs (register, color strategy, references/anti-goals, state inventory); fold them in and ask only what Round 3b did not cover. Write it as plain discovery: register, color strategy, scene sentence, anti-goals, state inventory, recommended references. Do not generate image probes and do not run a visual-direction confirm gate here; those belong to `plan`, which resolves the image gate and authors `02c-craft.md`. Leave `image-gate` unset in `02b-design.md` (the field accepts only `pass`/`skipped:*`); unset marks the gate unresolved for `plan`. If `stack.ui` is empty or there is no visual surface, skip this step. See `design/_design-context.md` for register determination and shared design laws.
+# Step 5a — Author the design brief (when design is needed)
+When `ux-impact` is `visual`, `flow`, or `new-surface` ([design/_lane.md](design/_lane.md)), author `02b-design.md` now per [design/shape.md](design/shape.md), including `## UX intent`. Fold in the Round 3b answers and ask only what Round 3b did not cover. Do not draw surfaces and do not run a confirm gate here; the design stage does both with the person. Leave `image-gate` unset. When `ux-impact: none`, write `progress.design: skipped` and a one-line `design-skip-reason:` in `00-index.md` instead.
 
 # Step 5b — Author the Charter Scenario (when the work has a core interaction loop)
 If the work has a **core interaction loop** — numbered in the intake's Restated Request, **or derivable from its prose** (an unnumbered loop does not exempt shape: derive it) — author `## Charter Scenario`: the loop as ONE scripted end-to-end scenario, each step carrying an **observable checkpoint** a human or tool could confirm ("goal entered → probe question shown that references the stated goal → answer captured → …").
@@ -184,7 +184,7 @@ Do not blindly recommend `/wf slice`. Present ALL viable options and write them 
 - **Option B: Skip to Plan** → `/wf plan <slug>`. A single coherent unit: one scope, one acceptance path, ≤5 files likely touched, no meaningful split. `review-scope` confirmation normally happens at slice; on this path `plan` asks it.
 - **Option C: Revisit Intake** → `/wf intake <slug>`. Shaping revealed the brief is wrong, misses key constraints, or misunderstands the problem.
 - **Option D: Blocked — re-run shape** → `/wf shape <slug>`. Required PO answers are still missing.
-- **Option E: design is already in the pipeline.** When `stack.ui ≠ ∅` and the work has visual surface, shape has already authored `02b-design.md`; `plan` authors `02c-craft.md` and resolves the direction gates; `implement` builds against them. Option A or B carries design forward; there is no `/wf design <slug> craft` hand-off. Standalone transforms (`colorize`, `typeset`, `animate`, …) remain available ad-hoc via `/wf design <slug> <transform>`.
+- **Option E (default when design is needed): Design** → `/wf design <slug>`. Shape authored `02b-design.md`; the person confirms the design at the design stage before slice, plan, or any driver runs. Options A and B follow it.
 
 # Artifacts
 Write `02-shape.md` with this frontmatter:
@@ -207,8 +207,8 @@ refs:
   index: 00-index.md
   intake: 01-intake.md
   next: 03-slice.md
-next-command: wf-slice
-next-invocation: "/wf slice <slug>"
+next-command: wf-slice              # wf-design when design is needed
+next-invocation: "/wf slice <slug>" # "/wf design <slug>" when design is needed
 ---
 ```
 

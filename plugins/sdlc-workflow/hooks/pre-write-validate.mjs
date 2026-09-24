@@ -10,6 +10,8 @@
  * - Require frontmatter slug to match .ai/workflows/<slug>/.
  * - Exempt the po-answers.md prose log (see isProseLogPath).
  * - Warn, do not block, when .ai/workflows/INDEX.md is missing or lacks the slug row.
+ * - Refuse a 04-plan*.md write while a needed design is unsettled (design lane human
+ *   rule, lib/design-lane.mjs; opt out with hooks.designDirectionGate: false).
  * - Block with exit 2 + stderr on validation errors.
  *
  * Exports `run(input)` for the folded `pre-tool-use-all` entry (WIDE-VIEW
@@ -17,8 +19,9 @@
  */
 
 import { existsSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { loadConfig } from '../lib/config.mjs';
+import { designGateRefusal, isPlanArtifact } from '../lib/design-lane.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import {
@@ -136,6 +139,11 @@ export async function run(input) {
     }
   }
 
+  if (errors.length === 0 && config.hooks.designDirectionGate !== false && isPlanArtifact(info.storageRel)) {
+    const refusal = await designGate({ projectRoot, filePath, slug: info.slug });
+    if (refusal) errors.push(refusal);
+  }
+
   if (errors.length > 0) {
     process.stderr.write(`wf-validate: blocked write to ${filename} in workflow '${info.slug}'. Errors:\n${formatList(errors)}\n\nFix these issues and retry the write.\n`);
     blockToolCall();
@@ -149,6 +157,26 @@ export async function run(input) {
   });
   if (warnings.length > 0) {
     outputSystemMessage(`wf-validate: write to ${filename} allowed. Advisory: ${warnings.join(' ')}`);
+  }
+}
+
+// Design lane human rule: read the slug's 00-index.md, 02b-design.md presence, and
+// 02c-craft.md frontmatter beside the plan being written. Fail open on any read
+// or parse problem — this gate guards a decision, not the file format.
+async function designGate({ projectRoot, filePath, slug }) {
+  try {
+    const dir = dirname(resolveProjectPath(projectRoot, filePath));
+    const indexText = await readTextIfExists(join(dir, '00-index.md'));
+    if (indexText === null) return null;
+    const index = safeParseFrontmatter(indexText, { filePath: join(dir, '00-index.md') }).data ?? null;
+    const contractText = await readTextIfExists(join(dir, '02c-craft.md'));
+    const contract = contractText === null
+      ? null
+      : (safeParseFrontmatter(contractText, { filePath: join(dir, '02c-craft.md') }).data ?? {});
+    const hasBrief = existsSync(join(dir, '02b-design.md'));
+    return designGateRefusal({ index, hasBrief, contract, slug });
+  } catch {
+    return null;
   }
 }
 

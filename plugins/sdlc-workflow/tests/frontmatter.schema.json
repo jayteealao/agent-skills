@@ -203,6 +203,13 @@
             "enum": ["not-started", "in-progress", "complete", "skipped"]
           }
         },
+        "ux-impact": {
+          "enum": ["none", "visual", "flow", "new-surface"],
+          "description": "How far the change reaches into what a person sees and does (design/_lane.md). Set at intake; visual, flow, and new-surface need the human-only design stage before slice."
+        },
+        "ux-impact-confirmed": { "type": "boolean" },
+        "design-skip-reason": { "type": "string", "description": "Why the design stage was skipped (progress.design: skipped) — required with the skip for the design to count as settled." },
+        "design-move": { "type": "string", "description": "The move a `/wf design <move> <instructions>` run seeded; the design stage focuses on it." },
         "workflow-type": {
           "enum": [
             "feature", "fix", "quick", "rca", "investigate",
@@ -469,7 +476,7 @@
 
     "designContractFrontmatter": {
       "type": "object",
-      "description": "02c-craft.md — written by /wf design craft as the implementation-facing visual contract.",
+      "description": "02c-craft.md — written by the human-only design stage (/wf design <slug>, design/stage.md) as the implementation-facing visual contract the person confirmed.",
       "required": [
         "schema", "type", "slug", "title", "status", "created-at",
         "updated-at", "component", "based-on", "tokens", "states",
@@ -497,7 +504,11 @@
         },
         "north-star-mock": { "type": ["string", "null"] },
         "references-loaded": { "$ref": "#/$defs/stringArray" },
-        "pen-doc": { "type": ["string", "null"] },
+        "canvas": { "type": ["string", "null"], "description": "Link to the design-canvas artifact that holds one artboard per surface and state, or \"none\" when the host has no canvas (design/stage.md Step 4)." },
+        "direction-confirmed-by": { "enum": ["in-session", "product-md", "teach"], "description": "Which person-backed source confirmed the direction at the human-only design stage. Required with a resolved image-gate for the design to be settled (design/_lane.md)." },
+        "confirmed-at": { "$ref": "#/$defs/iso8601" },
+        "surfaces": { "$ref": "#/$defs/stringArray" },
+        "move": { "type": "string", "description": "The move (design/<move>.md) the design stage focused on, when the person named one." },
         "regenerable": { "type": "boolean" }
       }
     },

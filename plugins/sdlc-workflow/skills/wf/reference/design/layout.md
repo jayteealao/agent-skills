@@ -47,7 +47,7 @@ Spacing between related elements should be smaller than spacing between unrelate
 
 ## Content width
 
-**Body text**: 60–75 characters per line. Use `max-width: 65ch` on prose containers.
+**Body text**: 65–75ch per line. Use `max-width: 65ch` on prose containers.
 **Data tables**: can run 120ch+ when the content demands it.
 **UI labels**: no max-width constraint; follow the component size.
 
@@ -92,3 +92,7 @@ Apply the ban list in [_design-context.md](_design-context.md).
 - Fixed pixel widths on containers that need to respond to the viewport
 - Mixing font-size and spacing systems (using `px` values that don't relate to each other)
 - Layout changes that only move elements without resolving the underlying grid problem
+
+## In the workflow
+
+This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.

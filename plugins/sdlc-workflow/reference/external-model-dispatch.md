@@ -8,8 +8,8 @@ and `uiproto` remain opt-in behind the machine-wide consent flag below. Full des
 | Skill | Invoke | Providers (bare = fan out to all available) | Role |
 |-------|--------|---------------------------------------------|------|
 | `consult` | `/consult [provider] <question>` (model-invocable, auto at `/wf` gates) | `codex`, `claude` (subscription CLIs, repo-aware), `gemini`, `openai`, `<provider>/<model>` (REST, prompt-only) | Read-only oracle panel — plan critique, code review, diagnosis, second opinion. Auto-runs at plan/design/review/diagnosis (pins a free CLI); never edits. |
-| `imagery` | internal to `/wf design` | `image_gen` (built-in, no egress), `openai` (gpt-image-2), `gemini` (nano-banana), `openai-sub` (gpt-image-2 via codex subscription, explicit-only) | Image generation → variant set. Supersedes `imagegen` (D14). |
-| `uiproto` | internal to `/wf design` | `stitch` (Google Stitch), `llm` (self-contained HTML) | UI component/screen prototype → sandboxed `<iframe srcdoc>`. |
+| `imagery` | internal to `/wf design` — the design stage's fallback when the host has no design canvas | `image_gen` (built-in, no egress), `openai` (gpt-image-2), `gemini` (nano-banana), `openai-sub` (gpt-image-2 via codex subscription, explicit-only) | Image generation → variant set. Supersedes `imagegen` (D14). |
+| `uiproto` | internal to `/wf design` — the design stage's interactive-prototype fallback when the host has no design canvas | `stitch` (Google Stitch), `llm` (self-contained HTML) | UI component/screen prototype → sandboxed `<iframe srcdoc>`. |
 
 ## Consent — one machine-wide flag (`imagery` / `uiproto`)
 

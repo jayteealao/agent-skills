@@ -6,7 +6,7 @@ Improve typography quality — font selection, scale, hierarchy, spacing, and re
 
 ## Register
 
-Brand: expressive display typography is available and expected. Wide scale ratios (1.5×+), large size contrasts, display fonts with strong personality, mixed weights for editorial effect. Typography can be the dominant visual element.
+Brand: expressive display typography is available and expected. Wide scale ratios (≥1.25 between steps), large size contrasts, display fonts with strong personality, mixed weights for editorial effect. Typography can be the dominant visual element.
 
 Product: functional type scale for dense information. Tighter ratios (1.125–1.2×), one or two weights, system fonts are legitimate. The type scale serves the information architecture, not the brand voice.
 
@@ -119,9 +119,13 @@ Apply the ban list in [_design-context.md](_design-context.md).
 
 - Font sizes below 12px (captions) or 16px (body text)
 - Line height below 1.4 for body text
-- Lines longer than 80 characters for prose
+- Prose lines outside 65–75ch
 - Justified alignment in body text (uneven word spacing)
 - `font-weight: 100` (Thin) at small sizes — unreadable at normal viewport resolutions
+
+## In the workflow
+
+This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.
 
 ---
 

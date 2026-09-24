@@ -21,14 +21,50 @@ import {
 } from "./chunk-P23TDRBT.mjs";
 import {
   loadConfig
-} from "./chunk-XLUSO7MY.mjs";
+} from "./chunk-KYXH2XZE.mjs";
 import {
   safeParseFrontmatter
 } from "./chunk-5LBIJZHF.mjs";
 
 // hooks/pre-write-validate.mjs
 import { existsSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
+
+// lib/design-lane.mjs
+var UX_IMPACT_VALUES = Object.freeze(["none", "visual", "flow", "new-surface"]);
+var NEEDS_DESIGN = /* @__PURE__ */ new Set(["visual", "flow", "new-surface"]);
+function designNeeded(index, hasBrief) {
+  const impact = index?.["ux-impact"];
+  if (impact !== void 0 && impact !== null && impact !== "") {
+    return NEEDS_DESIGN.has(String(impact).trim());
+  }
+  return Boolean(hasBrief);
+}
+function imageGateResolved(value) {
+  const v = String(value ?? "").trim();
+  if (v === "pass") return true;
+  return /^skipped:\s*\S/.test(v);
+}
+function designSettled(index, contract) {
+  const progress = index?.progress;
+  if (progress && typeof progress === "object" && progress.design === "skipped" && String(index?.["design-skip-reason"] ?? "").trim()) {
+    return true;
+  }
+  if (!contract) return false;
+  return imageGateResolved(contract["image-gate"]) && String(contract["direction-confirmed-by"] ?? "").trim() !== "";
+}
+function isPlanArtifact(storageRel) {
+  return /^04-plan(?:-[^/]+)?\.md$/.test(String(storageRel ?? ""));
+}
+function designGateRefusal({ index, hasBrief, contract, slug }) {
+  if (!index) return null;
+  if (!designNeeded(index, hasBrief)) return null;
+  if (designSettled(index, contract)) return null;
+  const why = contract ? "02c-craft.md exists but carries no resolved image-gate or no direction-confirmed-by" : "02c-craft.md is missing";
+  return `Design is needed for '${slug}' (ux-impact: ${index["ux-impact"] ?? "unset; 02b-design.md exists"}) but not settled: ${why}. A person confirms the design before planning. Run /wf design ${slug}. (Opt out: hooks.designDirectionGate: false.)`;
+}
+
+// hooks/pre-write-validate.mjs
 function validateFilename(filename) {
   if (/^\d{2}[a-z]?-.+\.md$/.test(filename)) return null;
   if (["risk-register.md", "estimate.md", "announce.md"].includes(filename)) return null;
@@ -103,6 +139,10 @@ async function run(input) {
       }
     }
   }
+  if (errors.length === 0 && config.hooks.designDirectionGate !== false && isPlanArtifact(info.storageRel)) {
+    const refusal = await designGate({ projectRoot, filePath, slug: info.slug });
+    if (refusal) errors.push(refusal);
+  }
   if (errors.length > 0) {
     process.stderr.write(`wf-validate: blocked write to ${filename} in workflow '${info.slug}'. Errors:
 ${formatList(errors)}
@@ -119,6 +159,20 @@ Fix these issues and retry the write.
   });
   if (warnings.length > 0) {
     outputSystemMessage(`wf-validate: write to ${filename} allowed. Advisory: ${warnings.join(" ")}`);
+  }
+}
+async function designGate({ projectRoot, filePath, slug }) {
+  try {
+    const dir = dirname(resolveProjectPath(projectRoot, filePath));
+    const indexText = await readTextIfExists(join(dir, "00-index.md"));
+    if (indexText === null) return null;
+    const index = safeParseFrontmatter(indexText, { filePath: join(dir, "00-index.md") }).data ?? null;
+    const contractText = await readTextIfExists(join(dir, "02c-craft.md"));
+    const contract = contractText === null ? null : safeParseFrontmatter(contractText, { filePath: join(dir, "02c-craft.md") }).data ?? {};
+    const hasBrief = existsSync(join(dir, "02b-design.md"));
+    return designGateRefusal({ index, hasBrief, contract, slug });
+  } catch {
+    return null;
   }
 }
 function validateProjectContextWrite({ filePath, content }) {

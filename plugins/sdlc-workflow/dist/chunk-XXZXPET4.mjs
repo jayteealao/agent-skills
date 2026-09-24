@@ -17,7 +17,7 @@ import {
 } from "./chunk-P23TDRBT.mjs";
 import {
   loadConfig
-} from "./chunk-XLUSO7MY.mjs";
+} from "./chunk-KYXH2XZE.mjs";
 
 // hooks/leak-guard-write.mjs
 function isPublicDocPath(filePath, roots) {

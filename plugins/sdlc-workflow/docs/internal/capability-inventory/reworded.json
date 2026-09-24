@@ -94,5 +94,17 @@
     "category": "dispatches",
     "from": "mandatory : dispatch all three sub-agents in one",
     "to": "dispatch all three sub-agents in one parallel wave"
+  },
+  {
+    "file": "skills/wf/reference/design.md",
+    "category": "stops",
+    "from": "known design commands (the <design-command must be one",
+    "to": "- anything else stop and render the usage"
+  },
+  {
+    "file": "skills/wf/reference/design.md",
+    "category": "stops",
+    "from": "zero design-command (no command resolvable) stop.",
+    "to": "- anything else, or no token stop and"
   }
 ]

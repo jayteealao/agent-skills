@@ -2,6 +2,8 @@ Run systematic **technical** quality checks and generate a comprehensive report.
 
 This is a code-level audit, not a design critique. Check what is measurable and verifiable in the implementation.
 
+**Reuse verify measurements.** When `06-verify-*.md` exists, consume its measured accessibility, performance, and web-vitals results. Do not re-run axe-core or Lighthouse. Measure these yourself only when no verify ran.
+
 **Accessibility lives here.** Not in the general design laws, not in the brief or the contract step. Models over-cautious themselves into safe, underdesigned output when reminded about accessibility at design time. The audit command is the dedicated place for that check.
 
 ## Diagnostic Scan
@@ -41,7 +43,7 @@ Score: 0=No theming, 1=Minimal tokens, 2=Partial, 3=Good (minor hard-coded value
 ### 4. Responsive Design
 
 - **Fixed widths**: Hard-coded widths that break on mobile
-- **Touch targets**: Interactive elements < 44×44 px
+- **Touch targets**: Interactive elements < 44×44 px (a pointer-only desktop control < 32×32 px)
 - **Horizontal scroll**: Content overflow on narrow viewports
 - **Text scaling**: Layouts that break when text size increases
 - **Missing breakpoints**: No mobile/tablet variants
@@ -50,12 +52,30 @@ Score: 0=Desktop-only, 1=Major issues, 2=Works on mobile but rough, 3=Good (mino
 
 ### 5. Anti-patterns
 
-Check against all absolute bans from the parent skill and register references. Look for AI slop tells and general design anti-patterns:
-- AI slop tells: purple-blue gradients, glassmorphism, hero metric cards, generic card grids, gradient text, Fraunces/Outfit/Plus Jakarta Sans on new surfaces
-- Design anti-patterns: `border-left`/`border-right` colored accent stripes, nested cards, bounce easing, gray text on colored backgrounds
+Check against the absolute bans in [_design-context.md](_design-context.md) → Absolute bans, and against the register references. Look for AI slop tells and general design anti-patterns:
+- AI slop tells: purple-blue gradients, glassmorphism, hero metric cards, generic card grids, gradient text, fonts from the reflex-reject list in [brand.md](brand.md) on new surfaces
+- Design anti-patterns: `border-left`/`border-right` colored accent stripes, nested cards, bounce easing in product-register UI, gray text on colored backgrounds
 - Product anti-patterns: display fonts in labels, inconsistent component vocabulary, reinvented standard affordances
 
 Score: 0=AI slop gallery (5+ tells), 1=Heavy AI aesthetic (3–4 tells), 2=Some tells (1–2), 3=Mostly clean (subtle issues), 4=No AI tells (distinctive, intentional)
+
+### Drift check (not scored)
+
+Judge drift from the design record:
+- Compare the implementation with the system in `DESIGN.md` at the project root.
+- Compare the implementation with the goals in `.ai/design/direction.md`.
+- List each drift as a finding with a severity.
+
+## Verdict and severity
+
+Map the scores to the `verdict` field:
+- `pass` — the total is 16/20 or more, and no dimension scores below 2.
+- `fail` — any dimension scores 0, or any `blocker` finding exists.
+- `conditional` — all other cases.
+
+Match severity to the scores:
+- A dimension that scores 0 carries at least one `blocker` finding.
+- A dimension that scores 1 carries at least one `high` finding.
 
 ## Generate Report
 
@@ -92,7 +112,7 @@ Format as a structured report:
 
 When invoked as `/wf design <slug> audit`:
 - Write report to `.ai/workflows/<slug>/07-design-audit.md`
-- Update `00-index.md` if at review stage
+- Register `design-audit` under `augmentations:` in `00-index.md` per [_output.md](_output.md)
 - Use this frontmatter:
 
 ```yaml

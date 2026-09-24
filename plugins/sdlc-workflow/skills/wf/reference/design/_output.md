@@ -4,7 +4,7 @@ Load this file from `design.md` Step 5 (registration and the transformation arti
 
 ## Step 5 — registration and the transformation artifact
 
-**Augmentation registration** (transformations, audit, critique) — create `augmentations:` in
+**Augmentation registration** (a move that `implement` applies, audit, critique) — create `augmentations:` in
 `00-index.md` if absent:
 
 ```yaml
@@ -42,9 +42,9 @@ artifact lets `/wf review` and `/wf handoff` see exactly what design augmentatio
   slug; truly standalone runs use `"freestanding"`.
 - **Narrative — the heart of the summary, REQUIRED for any command that produces an artifact.**
   Write a short **prose paragraph** (2–5 sentences, no bullets, no field labels) that *tells the
-  user what happened*: for a build command, what was designed AND built and how far the
-  compressed flow ran; for `audit`/`critique`, the verdict and top findings; for `extract`, what
-  was reverse-engineered; for `setup`/`teach`, what context was established. Weave in the
+  user what happened*: for the design stage, what the person confirmed and how many surfaces
+  were drawn; for `audit`/`critique`, the verdict and top findings; for `extract`, what
+  was reverse-engineered; for the other upkeep commands, what the design record now says. Weave in the
   load-bearing counts, decisions, and the top risk. Write it like you're telling a colleague, not
   filling a form. Omit only for genuinely read-only runs with nothing to narrate.
 - **Register** is `brand` or `product` — always emit; it is the load-bearing design-mode signal.
@@ -52,9 +52,8 @@ artifact lets `/wf review` and `/wf handoff` see exactly what design augmentatio
   commands that don't run it.
 - **Artifacts.** Comma-separate the `.ai/workflows/<slug>/` paths written (build runs list the
   whole span). No-slug standalone reports may write `"none"` if nothing persisted.
-- **Next** is a concrete invocation, or `Done`. A completed in-workflow build typically routes to
-  `/wf review <slug>`; `audit`/`critique` route to `/wf review <slug>`; standalone runs usually
-  `Done`.
+- **Next** is a concrete invocation, or `Done`. The design stage routes to `/wf slice <slug>`;
+  `audit`/`critique` route to `/wf review <slug>`; upkeep runs usually `Done`.
 - If the command reference defines its own "Chat return contract", treat that as the *content*
   spec — pick the load-bearing fields and keep it compact.
 - Framing rules — narrative definition, "return only" caveat, internal audience, always-emit — are single-sourced in [_chat-return.md](../_chat-return.md); apply them here.

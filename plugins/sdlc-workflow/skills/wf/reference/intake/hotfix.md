@@ -40,7 +40,7 @@ You are a **hotfix orchestrator**. This is not a feature workflow.
    - Otherwise → **new hotfix**. Derive a slug: `hotfix-<short-description>` (kebab-case, max 5 words, e.g., `hotfix-auth-token-expiry`).
 2. **Collision check:** apply the collision check in `_change-mode-tail.md`.
 3. **Provenance check:** apply `_intake-provenance.md` — an rca frequently routes its critical cases here. On an explicit `from <rca-slug>` token, consume the rca Consume-table row (root cause seeds `## Diagnosis`, section 8 verification seeds the acceptance criteria, blast radius seeds scope — Step 2's sub-agents then re-verify instead of re-deriving) and link back. No match → continue.
-4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, write the block with `user-confirmed: false`, and spend no question on it (verify's caveat path carries it).
+4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, write the block with `user-confirmed: false`, and spend no question on it (verify's caveat path carries it). Then set `ux-impact` per `_change-mode-tail.md` → UX impact and the design stage.
 5. **Branch check:**
    - Check current branch: `git branch --show-current`.
    - Identify the production/default branch **offline first**: `git symbolic-ref refs/remotes/origin/HEAD` (no network — mid-incident the network may be part of the incident). If unset, fall back to `git remote show origin | grep 'HEAD branch'`, then to `main`/`master` whichever exists locally.

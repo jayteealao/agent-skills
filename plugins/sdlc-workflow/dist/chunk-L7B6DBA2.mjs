@@ -21,7 +21,7 @@ import {
 } from "./chunk-P23TDRBT.mjs";
 import {
   loadConfig
-} from "./chunk-XLUSO7MY.mjs";
+} from "./chunk-KYXH2XZE.mjs";
 import {
   safeLoadFrontmatterFile,
   safeParseFrontmatter

@@ -53,7 +53,7 @@ Improve the accessibility and robustness of a UI — ensuring it works for users
 
 - Minimum 44×44 px (CSS pixels) for all interactive elements
 - Minimum 8px spacing between adjacent touch targets
-- On desktop: 32×32 px is acceptable where space is constrained
+- A pointer-only desktop control may be 32×32 px
 - When the *visible* control is smaller than the target (a 20px checkbox, a small icon button), extend the hit area with a centered pseudo-element rather than padding the layout — and never let two interactive elements' hit areas overlap (shrink the pseudo-element to the largest size that doesn't collide)
 
 ### 8. Text and readability
@@ -97,7 +97,14 @@ Improve the accessibility and robustness of a UI — ensuring it works for users
 ```
 
 ## Never
+
+Apply the ban list in [_design-context.md](_design-context.md).
+
 - `outline: none` without replacement
 - Color as the only indicator for any state
 - Custom interactive elements without ARIA keyboard patterns
 - Images with no alt attribute (must be `alt=""` for decorative, descriptive text for informative)
+
+## In the workflow
+
+This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.

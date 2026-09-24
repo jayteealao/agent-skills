@@ -23,8 +23,8 @@
   <li><strong>Chat summary.</strong> Every run ends with a compact summary: a verb-first status line, a short narrative paragraph, an <code>Artifacts:</code> line that lists the paths written (or <code>none</code>), and a concrete <code>Next:</code> command.</li>
 </ul>
 
-<h2 id="stages">The ten lifecycle stages</h2>
-<p>In lifecycle order: intake → shape → slice → plan → implement → verify → review → handoff → ship → retro. All ten write artifacts into <code>.ai/workflows/&lt;slug&gt;/</code>.</p>
+<h2 id="stages">The lifecycle stages</h2>
+<p>In lifecycle order: intake → shape → slice → plan → implement → verify → review → handoff → ship → retro. When the work needs design, the human-only <code>design</code> stage runs between shape and slice. All of these stages write artifacts into <code>.ai/workflows/&lt;slug&gt;/</code>.</p>
 
 <h3 id="intake"><code>/wf intake</code></h3>
 <pre><code>/wf intake [slug] [mode] &lt;description&gt;</code></pre>
@@ -33,18 +33,27 @@
 
 <h3 id="shape"><code>/wf shape</code></h3>
 <pre><code>/wf shape &lt;slug&gt; [focus area]</code></pre>
-<p>Shape turns the intake brief into a compact, implementable mini-spec through product-owner questions. The spec records explicit acceptance criteria, edge cases, and the decisions that downstream stages honor. Shape authors the Documentation Plan and the <code>augmentations-needed</code> decision, which <code>plan</code>, <code>implement</code>, and <code>verify</code> later apply. Shape also adjudicates open entries in the intent-risk (RIM) ledger. When the work has a visual surface, a budgeted design round also produces a design brief.</p>
-<p><strong>Writes:</strong> <code>02-shape.md</code>, plus <code>02b-design.md</code> (the design brief) when the work has UI surface.</p>
+<p>Shape turns the intake brief into a compact, implementable mini-spec through product-owner questions. The spec records explicit acceptance criteria, edge cases, and the decisions that downstream stages honor. Shape authors the Documentation Plan and the <code>augmentations-needed</code> decision, which <code>plan</code>, <code>implement</code>, and <code>verify</code> later apply. Shape also adjudicates open entries in the intent-risk (RIM) ledger. When <code>ux-impact</code> is not <code>none</code>, a budgeted design round also produces a design brief with a UX intent section.</p>
+<p><strong>Writes:</strong> <code>02-shape.md</code>, plus <code>02b-design.md</code> (the design brief) when <code>ux-impact</code> is not <code>none</code>.</p>
+
+<h3 id="design"><code>/wf design</code></h3>
+<pre><code>/wf design &lt;slug&gt; [move] [instructions]
+/wf design &lt;slug&gt; amend [instructions]
+/wf design [slug] audit|critique
+/wf design &lt;move&gt; &lt;instructions&gt;
+/wf design setup|teach|extract|direction|sync [instructions]</code></pre>
+<p>Design is the human-only stage between <code>shape</code> and <code>slice</code>. It runs when intake recorded a <code>ux-impact</code> other than <code>none</code>. With a slug, it draws every changed surface of the feature, asks the person to approve, adjust, or stop, and on approve writes the visual contract. <code>/wf auto</code> pauses at this stage and <code>/wf yolo</code> refuses to start until the design is settled; neither runs it. A slug plus one of the 15 moves (<code>adapt</code>, <code>animate</code>, <code>bolder</code>, <code>clarify</code>, <code>colorize</code>, <code>delight</code>, <code>distill</code>, <code>harden</code>, <code>layout</code>, <code>onboard</code>, <code>optimize</code>, <code>overdrive</code>, <code>polish</code>, <code>quieter</code>, <code>typeset</code>) focuses the stage on that move. <code>amend</code> reopens a confirmed design when a later stage cannot build it as drawn. A move without a slug starts a new workflow through intake with the move recorded. <code>audit</code> and <code>critique</code> run the design review dimensions on demand. <code>setup</code>, <code>teach</code>, <code>extract</code>, <code>direction</code>, and <code>sync</code> maintain the project's design record. Slug resolution is exact-match only. See <a href="../guides/design.html">Design</a>.</p>
+<p><strong>Writes:</strong> the stage writes <code>02c-craft.md</code> (with <code>canvas</code>, <code>direction-confirmed-by</code>, <code>confirmed-at</code>, and <code>surfaces</code>); <code>audit</code>/<code>critique</code> with a slug write <code>07-design-audit.md</code>/<code>07-design-critique.md</code>; the upkeep commands write <code>PRODUCT.md</code> and <code>DESIGN.md</code> at the project root and <code>.ai/design/current.md</code> and <code>.ai/design/direction.md</code>.</p>
 
 <h3 id="slice"><code>/wf slice</code></h3>
 <pre><code>/wf slice &lt;slug&gt;</code></pre>
-<p>Slice decomposes the shaped spec into thin, independently verifiable vertical slices. When a design brief or a visual contract exists, slice boundaries must reflect its states and surfaces, or the master index must justify the grouping. This stage also confirms the workflow's review scope, per-slice or slug-wide, one time, so <code>review</code> does not ask again.</p>
+<p>Slice decomposes the shaped spec into thin, independently verifiable vertical slices. When the work needs design, slice maps every slice to the surfaces in the visual contract, or the master index justifies the grouping. This stage also confirms the workflow's review scope, per-slice or slug-wide, one time, so <code>review</code> does not ask again.</p>
 <p><strong>Writes:</strong> <code>03-slice.md</code> (master index) plus one <code>03-slice-&lt;slice-slug&gt;.md</code> per slice.</p>
 
 <h3 id="plan"><code>/wf plan</code></h3>
 <pre><code>/wf plan &lt;slug&gt; [slice-slug|all] [review/fix instructions]</code></pre>
-<p>Plan creates the per-slice implementation plan with a parallel reuse scan. When you re-invoke plan on an existing plan, the run switches to review-and-fix. With no extra text, the run reviews the plan against the current codebase. With explicit feedback, the run applies a directed fix. With <code>all</code>, the run reviews every existing plan in parallel. Plan also applies shape's augmentation decisions and authors the corresponding add-on artifacts. When a design brief exists without a visual contract, plan authors the visual contract.</p>
-<p><strong>Writes:</strong> <code>04-plan.md</code> (master) plus <code>04-plan-&lt;slice-slug&gt;.md</code> per planned slice; conditionally <code>02c-craft.md</code> (visual contract), <code>04b-instrument.md</code>, <code>04c-experiment.md</code>, <code>05c-benchmark.md</code>.</p>
+<p>Plan creates the per-slice implementation plan with a parallel reuse scan. When you re-invoke plan on an existing plan, the run switches to review-and-fix. With no extra text, the run reviews the plan against the current codebase. With explicit feedback, the run applies a directed fix. With <code>all</code>, the run reviews every existing plan in parallel. Plan also applies shape's augmentation decisions and authors the corresponding add-on artifacts. Plan does not write the visual contract. When the work needs design, plan consumes <code>02c-craft.md</code> and writes <code>## Design Components</code>. A write-time hook refuses the plan while a needed design is not settled.</p>
+<p><strong>Writes:</strong> <code>04-plan.md</code> (master) plus <code>04-plan-&lt;slice-slug&gt;.md</code> per planned slice; conditionally <code>04b-instrument.md</code>, <code>04c-experiment.md</code>, <code>05c-benchmark.md</code>.</p>
 
 <h3 id="implement"><code>/wf implement</code></h3>
 <pre><code>/wf implement &lt;slug&gt; [slice-slug|reviews]</code></pre>
@@ -78,23 +87,18 @@
 <p>Retro is the post-mortem stage. It extracts reusable lessons and turns them into concrete improvements to prompts, hooks, repo instructions, tests, and automation. Batch mode retrospects every slug on the branch, one retro each, and skips slugs with nothing to retro. Batch mode also synthesizes the cross-slug lessons that span the whole branch.</p>
 <p><strong>Writes:</strong> <code>10-retro.md</code> (one per slug in batch mode).</p>
 
-<h2 id="other">The other twelve keys</h2>
+<h2 id="other">The other eleven keys</h2>
 <p>The keys below are in alphabetical order. They are standalone commands, drivers, navigation, lifecycle control, and routers.</p>
 
 <h3 id="auto"><code>/wf auto</code></h3>
 <pre><code>/wf auto &lt;slug&gt; [&lt;slice&gt;]</code></pre>
-<p>Auto is the human-gated end-to-end driver. It runs each stage of an already-started workflow in-process. It proceeds on clean terminal states and pauses whenever a stage's own gate fires: an unmet acceptance criterion, an unresolved review blocker, or a pending question. With a slice, auto drives that slice to its end. Without a slice, auto drives every slice and the final review. Auto always stops before handoff. Auto never opens a PR and never fixes CI.</p>
+<p>Auto is the human-gated end-to-end driver. It runs each stage of an already-started workflow in-process. It proceeds on clean terminal states and pauses whenever a stage's own gate fires: an unmet acceptance criterion, an unresolved review blocker, a design that the person has not confirmed, or a pending question. With a slice, auto drives that slice to its end. Without a slice, auto drives every slice and the final review. Auto always stops before handoff. Auto never opens a PR and never fixes CI.</p>
 <p><strong>Writes:</strong> nothing of its own. The stages it drives write their normal artifacts.</p>
 
 <h3 id="close"><code>/wf close</code></h3>
 <pre><code>/wf close &lt;slug&gt; [&lt;slice&gt; | reason]</code></pre>
 <p>Close terminates a lifecycle. With a reason, or with nothing, close archives the whole workflow at whatever stage the workflow reached and sets status <code>closed</code>. With a slice slug, close closes only that slice, so downstream prerequisites are satisfied. Close never deletes artifacts, PRs, or branches. Close never edits application code.</p>
 <p><strong>Writes:</strong> <code>99-close.md</code> for a workflow close; <code>skip-slice-&lt;slice&gt;.md</code> for a slice close.</p>
-
-<h3 id="design"><code>/wf design</code></h3>
-<pre><code>/wf design [slug] &lt;command&gt; [instructions]</code></pre>
-<p>Design is the design surface. Its 20 commands are arguments, never keys of their own. Fifteen transformation verbs (<code>animate</code>, <code>bolder</code>, <code>clarify</code>, <code>colorize</code>, <code>delight</code>, <code>distill</code>, <code>harden</code>, <code>layout</code>, <code>onboard</code>, <code>optimize</code>, <code>overdrive</code>, <code>polish</code>, <code>quieter</code>, <code>typeset</code>, <code>adapt</code>) author a focused visual contract and then drive slice → plan → implement → verify themselves. <code>audit</code> and <code>critique</code> write a one-shot design review. <code>extract</code> is a read-only token and style extraction. <code>setup</code> and <code>teach</code> author the project-root context files. Slug resolution is exact-match only. Every design run reports a register (brand or product) and an image-gate line.</p>
-<p><strong>Writes:</strong> transforms write a focused <code>02c-craft.md</code>, the build-span artifacts, and a <code>design-notes/&lt;command&gt;-&lt;timestamp&gt;.md</code> change record; <code>audit</code>/<code>critique</code> write <code>07-design-audit.md</code>/<code>07-design-critique.md</code>; <code>extract</code> writes <code>design-notes/extract-&lt;timestamp&gt;.md</code> + <code>design-notes/tokens-extracted.css</code>; <code>setup</code>/<code>teach</code> write <code>PRODUCT.md</code>/<code>DESIGN.md</code> at the project root.</p>
 
 <h3 id="docs"><code>/wf docs</code></h3>
 <pre><code>/wf docs [&lt;primitive&gt; | &lt;slug&gt; | --audit-only | &lt;path&gt;]</code></pre>
@@ -140,7 +144,7 @@
 
 <h3 id="yolo"><code>/wf yolo</code></h3>
 <pre><code>/wf yolo &lt;slug&gt; [&lt;slice&gt;]</code></pre>
-<p>Yolo is the autonomous sibling of <code>auto</code> (Claude Code only; unavailable under Codex — see <a href="hosts.html">Hosts</a>). Where <code>auto</code> pauses at gates, yolo resolves each gate by a written decision policy and records every decision in the artifact trail. Each decision is classified as implementation-detail or intent-bearing. By policy, an intent-bearing auto-resolution is an escape that should have been a stop, and the closing decision digest names each one explicitly for audit. Sub-agents append heartbeats to <code>.driver-journal.jsonl</code>, so a dead driver is distinguishable from a slow driver. Yolo drives plan → implement → verify → review, stops before handoff, and refuses terminal-analysis workflows (including audits) and task workflows — a task's authorization gate is a human gate no written policy may resolve.</p>
+<p>Yolo is the autonomous sibling of <code>auto</code> (Claude Code only; unavailable under Codex — see <a href="hosts.html">Hosts</a>). Where <code>auto</code> pauses at gates, yolo resolves each gate by a written decision policy and records every decision in the artifact trail. Each decision is classified as implementation-detail or intent-bearing. By policy, an intent-bearing auto-resolution is an escape that should have been a stop, and the closing decision digest names each one explicitly for audit. Sub-agents append heartbeats to <code>.driver-journal.jsonl</code>, so a dead driver is distinguishable from a slow driver. Yolo drives plan → implement → verify → review, refuses to start while a needed design is not settled, stops before handoff, and refuses terminal-analysis workflows (including audits) and task workflows — a task's authorization gate is a human gate no written policy may resolve.</p>
 <p><strong>Writes:</strong> nothing of its own. The stages it drives write their artifacts; heartbeats go to <code>.ai/workflows/&lt;slug&gt;/.driver-journal.jsonl</code>.</p>
 
 <div class="related">

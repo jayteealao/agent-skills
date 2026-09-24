@@ -21,6 +21,8 @@ More color ≠ better. Strategic color beats rainbow vomit every time. Every col
 
 ## Plan Color Strategy
 
+Use the 60/30/10 split below for the Committed strategy or higher, the brand default. Product stays Restrained: tinted neutrals and one accent at 10% or less (see [product.md](product.md)).
+
 - **Dominant color** (60%): Primary brand color or most-used accent
 - **Secondary color** (30%): Supporting color for variety
 - **Accent color** (10%): High contrast for key moments
@@ -70,7 +72,7 @@ Apply the ban list in [_design-context.md](_design-context.md).
 ## Balance and Refinement
 
 ### Maintain Hierarchy
-- Dominant 60 / Secondary 30 / Accent 10 ratio
+- Dominant 60 / Secondary 30 / Accent 10 ratio for Committed or higher; accent ≤10% for Restrained
 - Same color meanings throughout the surface
 
 ### Accessibility
@@ -89,3 +91,7 @@ Apply the ban list in [_design-context.md](_design-context.md).
 - Gray text on colored backgrounds (use a darker shade or transparent overlay instead)
 - WCAG contrast violations
 - Color as the only state indicator (pair with shape, label, or icon)
+
+## In the workflow
+
+This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.

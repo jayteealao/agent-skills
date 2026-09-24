@@ -16,7 +16,7 @@ import {
 } from "./chunk-P23TDRBT.mjs";
 import {
   loadConfig
-} from "./chunk-XLUSO7MY.mjs";
+} from "./chunk-KYXH2XZE.mjs";
 
 // hooks/leak-guard-bash.mjs
 var PUBLISH_COMMANDS = /\bgit\s+commit\b|\bgit\s+tag\b|\bgh\s+pr\s+create\b|\bgh\s+release\s+(?:create|edit)\b/;

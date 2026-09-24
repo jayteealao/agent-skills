@@ -51,6 +51,8 @@ background:
 }
 ```
 
+Gradient text and glassmorphism read as AI slop by default, and `audit` and `critique` flag them. Use them only when the brand direction names them.
+
 ### Scroll-driven animation (CSS-native, no JS)
 ```css
 @keyframes reveal {
@@ -92,7 +94,7 @@ Test on actual target hardware, not just a fast developer machine. Provide a fal
 
 ## Motion discipline still applies
 
-Overdrive relaxes the *taste* ceiling, not the *craft* floor. The signature effect can be theatrical, and — uniquely here — a real spring with `bounce` or an overshoot is on the table (the no-`bounce` rule is a *product* rule). But the motion must still be **interruptible** (a spring or transition that retargets, not a keyframe that restarts mid-gesture), animate **`transform`/`opacity`** off the main thread, and cohere with the surface's personality. An expensive effect that drops frames, or fires on a high-frequency action, isn't ambitious — it's broken. See `animate.md` for interruptibility, the GPU rules, and cohesion.
+Overdrive relaxes the *taste* ceiling, not the *craft* floor. The signature effect can be theatrical, and — uniquely here — a real spring with `bounce` 0.1–0.3 or an overshoot is on the table when the brand direction calls for play (the bounce ban in [_design-context.md](_design-context.md) covers product-register UI). But the motion must still be **interruptible** (a spring or transition that retargets, not a keyframe that restarts mid-gesture), animate **`transform`/`opacity`** off the main thread, and cohere with the surface's personality. An expensive effect that drops frames, or fires on a high-frequency action, isn't ambitious — it's broken. See `animate.md` for interruptibility, the GPU rules, and cohesion.
 
 ## The one extraordinary thing
 
@@ -116,3 +118,9 @@ After pushing to overdrive:
 - `backdrop-filter` on repeated elements in a list (one per list item = severe performance hit)
 - Overdrive effects that block or delay user interaction
 - Visual effects without a purpose beyond technical demonstration
+
+Apply the ban list in [_design-context.md](_design-context.md).
+
+## In the workflow
+
+This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.

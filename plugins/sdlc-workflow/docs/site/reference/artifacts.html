@@ -35,8 +35,8 @@ filename never lands. The numbers run in lifecycle order:</p>
 <tr><td><code>00-index.md</code></td><td>intake; updated by every stage</td><td>The control file. Its frontmatter is the workflow's machine-readable state. See the next section.</td></tr>
 <tr><td><code>01-intake.md</code> / <code>01-&lt;mode&gt;.md</code></td><td>intake</td><td>The entry record. Default mode writes <code>01-intake.md</code>. Other modes write their own variant: <code>01-fix.md</code>, <code>01-hotfix.md</code>, <code>01-refactor.md</code>, <code>01-update-deps.md</code>, <code>01-rca.md</code>, <code>01-investigate.md</code>, <code>01-discover.md</code>, <code>01-ideate.md</code>, <code>01-audit.md</code> (the audit brief: surface, exclusions, lenses, not-observable set). <code>/wf task</code> writes <code>01-task.md</code> (the task brief: steps, blast radius, rollback lines, observable acceptance criteria).</td></tr>
 <tr><td><code>02-shape.md</code></td><td>shape (synthesized by rca)</td><td>Discovery: goals, acceptance criteria, the Documentation Plan, the add-on plan.</td></tr>
-<tr><td><code>02b-design.md</code></td><td>shape</td><td>The design brief, written when the work has a visual surface.</td></tr>
-<tr><td><code>02c-craft.md</code></td><td>plan (or <code>/wf design</code>)</td><td>The visual contract the implementation builds against.</td></tr>
+<tr><td><code>02b-design.md</code></td><td>shape</td><td>The design brief, with a UX intent section. Shape writes it when <code>ux-impact</code> is not <code>none</code>.</td></tr>
+<tr><td><code>02c-craft.md</code></td><td>the human-only design stage (<code>/wf design</code>)</td><td>The visual contract that the person confirmed. It records <code>canvas</code>, <code>direction-confirmed-by</code>, <code>confirmed-at</code>, and <code>surfaces</code>. Plan reads it and does not write it.</td></tr>
 <tr><td><code>03-slice.md</code> + <code>03-slice-&lt;slice&gt;.md</code></td><td>slice</td><td>The slice index plus one detailed file per slice. Quick-lane entries and <code>/wf probe</code> also append slices here (<code>03-slice-probe-&lt;descriptor&gt;.md</code>).</td></tr>
 <tr><td><code>04-plan.md</code> + <code>04-plan-&lt;slice&gt;.md</code></td><td>plan</td><td>Per-slice implementation plans plus the master.</td></tr>
 <tr><td><code>04b-instrument.md</code>, <code>04c-experiment.md</code></td><td>plan</td><td>Add-on plans (telemetry instrumentation, experiment design), written only when shape decided the work needs them.</td></tr>
@@ -63,10 +63,10 @@ received.</li>
 Stages read it and never write it.</li>
 <li><code>skip-slice-&lt;slice&gt;.md</code> — written by <code>/wf close</code> when you
 close a single slice rather than the whole workflow.</li>
-<li><code>design-notes/</code> — per-run artifacts from <code>/wf design</code> transformation
-commands and read-only extraction (for example <code>extract.md</code>,
-<code>animate-&lt;ts&gt;.md</code>). These files are named by operation, not by stage
-number.</li>
+<li><code>design-notes/</code> — one record for each design move that implement
+applies (for example <code>animate-&lt;ts&gt;.md</code>), and the report that
+<code>/wf design &lt;slug&gt; extract</code> writes. These files are named by operation,
+not by stage number.</li>
 </ul>
 
 <h2>The control file: <code>00-index.md</code></h2>

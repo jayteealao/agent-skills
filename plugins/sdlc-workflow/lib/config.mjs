@@ -93,6 +93,13 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
     // Step 5; the awaiting escape lasts one run). Under Codex the Stop hook
     // re-checks the same gate, so a turn cannot end on an untriaged ledger.
     shipPlanAuditTriageGate: true,
+    // When true, pre-write-validate REFUSES a `04-plan*.md` write while the
+    // workflow needs design (`ux-impact` visual/flow/new-surface, or a legacy
+    // `02b-design.md`) and the design is not settled: no `02c-craft.md` with a
+    // resolved `image-gate` and `direction-confirmed-by`, and no
+    // `progress.design: skipped` + `design-skip-reason`. The design lane's human
+    // rule (skills/wf/reference/design/_lane.md; lib/design-lane.mjs).
+    designDirectionGate: true,
     // When true, post-write-verify WARNS (non-blocking) on shadow-deferral
     // vocabulary in a `verify` body that co-occurs with `result: pass`
     // ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified

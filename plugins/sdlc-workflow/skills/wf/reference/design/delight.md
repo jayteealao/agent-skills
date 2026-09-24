@@ -21,7 +21,7 @@ The second source is surprise — moments where the design reveals it was made b
 ## Identify delight opportunities
 
 Not every interaction should be delightful. Target:
-- **High-frequency interactions**: actions the user does many times per session (keyboard shortcuts, recurring tasks, navigation)
+- **High-frequency interactions**: do not add animated delight to actions the user does many times per session (keyboard shortcuts, recurring tasks, navigation). They fail the frequency gate in `animate.md`. Their delight is speed alone.
 - **Emotional moments**: task completion, onboarding completion, first success, empty state
 - **Brand expression moments**: landing page hero, welcome screen, key feature reveals
 - **Waiting moments**: loading states, empty states, processing feedback
@@ -32,7 +32,7 @@ Not every interaction should be delightful. Target:
 Small, fast, precise. The user doesn't consciously notice but feels the quality:
 - Button press with exact-right timing (≈150ms, `scale(0.96–0.97)` settling back to `1` — a `1.02` overshoot is a brand/playful license, not a product default)
 - Checkbox check with a satisfying spring animation (not bounce — spring, with correct physics)
-- Toggle with momentum (the thumb overshoots slightly, snaps back)
+- Toggle with momentum (the thumb overshoots slightly, snaps back) — brand register only; in product the thumb settles with `bounce: 0`
 - Validation success with a green check that draws in from left to right
 
 ### Personality moments
@@ -70,7 +70,7 @@ button { transition: transform 150ms ease-out; }
 button:active { transform: scale(0.96); }
 ```
 
-A subtle **overshoot** (passing `1`, then settling) is a *brand/playful* license only — and when you want it, use a real spring with `bounce: 0.1–0.3` (or `useSpring`), never a `cubic-bezier(…, 1.56, …)` overshoot curve masquerading as spring physics in product UI. For icon-swap delight (a like that pops, a check that draws in), use the exact `scale 0.25 → 1` / `blur 4px → 0` / `bounce: 0` recipe in `animate.md`.
+A subtle **overshoot** (passing `1`, then settling) is a *brand/playful* license only, when the brand direction calls for play — and when you want it, use a real spring with `bounce: 0.1–0.3` (or `useSpring`), never a `cubic-bezier(…, 1.56, …)` overshoot curve masquerading as spring physics in product UI. For icon-swap delight (a like that pops, a check that draws in), use the exact `scale 0.25 → 1` / `blur 4px → 0` / `bounce: 0` recipe in `animate.md`.
 
 ### Staggered reveals
 ```css
@@ -101,11 +101,18 @@ try {
 - Would a user notice if the delight was removed? (If yes, it's adding value. If no, it's noise.)
 
 ## Never
+
+Apply the ban list in [_design-context.md](_design-context.md).
+
 - Delight that delays the user's task (a success animation that plays for 2 seconds before the UI proceeds)
 - Mandatory animations the user can't skip
 - Delight on error or failure states (this is not the time for playfulness)
 - Gratuitous animation that exists to demonstrate capability rather than serve the user
 - Bounce or elastic easing masquerading as "spring physics"
+
+## In the workflow
+
+This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.
 
 ---
 

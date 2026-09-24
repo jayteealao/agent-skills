@@ -49,7 +49,7 @@ You are a **workflow orchestrator**, not a problem solver.
    - At minimum, `05-implement.md` should exist (there must be something to retro on). If nothing exists beyond intake → STOP. Tell the user: "Not enough completed work to retrospect. Run more stages first."
    - `09-ship.md` is strongly recommended but not blocking — a retro can run after a cancelled or abandoned effort.
    - If `current-stage` in the index shows the workflow is already complete → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
-4. **Read the full workflow trail** — every stage file that exists, plus `po-answers.md`. This includes design artifacts: `02b-design.md`, `02c-craft.md`, `design-notes/*`, `07-design-audit.md`, `07-design-critique.md`. Retro reflects on design decisions and augmentation outcomes, not only engineering ones.
+4. **Read the full workflow trail** — every stage file that exists, plus `po-answers.md`. This includes design artifacts: `02b-design.md`, `02c-craft.md`, `design-notes/*`, `07-design-audit.md`, `07-design-critique.md`. Retro reflects on design decisions and augmentation outcomes, not only engineering ones. When design was needed, write back to the design record per [design/record.md](design/record.md) → Retro write-back: update `.ai/design/current.md`, and ask the person before any change to `.ai/design/direction.md`.
 5. **Carry forward** `open-questions` from the index.
 
 # Batch retro (`pr#N` / branch)

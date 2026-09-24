@@ -400,5 +400,11 @@
     "to": "skills/wf/reference/_workflow-rules.md",
     "category": "gates",
     "entry": "workflow rules - store artifacts under .ai/workflows/<slug /"
+  },
+  {
+    "from": "skills/wf/reference/design.md",
+    "to": "skills/wf/reference/design/stage.md",
+    "category": "artifacts",
+    "entry": "02b-design.md"
   }
 ]

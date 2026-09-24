@@ -37,7 +37,7 @@ Does the eye travel correctly?
 - Does the type scale communicate the content hierarchy?
 - Are font choices aligned with the register and brief?
 - Are there line length, line height, or tracking issues?
-- Check against the font reflex-reject list (brand register): Fraunces, Cormorant, Outlet, Plus Jakarta Sans on new surfaces without a reason.
+- Check against the font reflex-reject list in [brand.md](brand.md) (brand register). Flag a listed font on a new surface without a reason.
 
 ### 4. Color execution
 
@@ -61,18 +61,25 @@ Does the eye travel correctly?
 ### 7. Slop check
 
 Would someone say "AI made this"?
-- Purple-blue gradients, glassmorphism, hero metric cards, Fraunces + IBM Plex combinations, generic card grids, gradient text — name them explicitly if present.
+- Purple-blue gradients, glassmorphism, hero metric cards, fonts from the reflex-reject list in [brand.md](brand.md), generic card grids, gradient text — name them explicitly if present.
 - Brand register: does it have a POV? Can you name the aesthetic lane?
 
 ### 8. Motion & interaction feel
 
 When the surface has motion in scope:
 - Does each animation earn its place? Frequently-seen and keyboard-triggered actions shouldn't animate; occasional and first-time moments can.
-- Does it *feel* responsive — `ease-out` or strong custom curves on entrances (never `ease-in`), under ~300ms for product UI, popovers scaling from their trigger not center, nothing appearing from `scale(0)`?
+- Does it *feel* responsive — `ease-out` or strong custom curves on entrances (never `ease-in`), inside the product durations in the `animate.md` timing table, popovers scaling from their trigger not center, nothing appearing from `scale(0)`?
 - Is rapidly-triggered or gesture motion interruptible (transitions/springs, not keyframes that restart)?
 - Does the motion cohere with the component's personality, or does it feel borrowed?
 
 Motion bugs hide at full speed — review animations in slow motion or frame-by-frame, and with fresh eyes the next day, before judging them. The full rubric is `animate.md` (and the `motion` review dimension).
+
+### 9. Identity and direction
+
+Judge the work against the design record:
+- Compare it with the identity in `PRODUCT.md` at the project root.
+- Compare it with the goals in `.ai/design/direction.md`.
+- Give a finding that moves away from a stated goal a severity of `medium` or higher.
 
 ## Output Format
 

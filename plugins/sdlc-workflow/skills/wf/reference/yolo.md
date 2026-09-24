@@ -40,7 +40,7 @@ It is diagnostic, never a gate: a failed append never changes what a stage does.
 
 # Slug-mode contract
 
-`yolo` drives from **plan onward** — never `intake` or `shape`, which own the product-owner alignment. If the user gave a description instead of a slug, STOP and tell them to run `/wf intake <description>` first, then `/wf yolo <slug>`.
+`yolo` drives from **plan onward** — never `intake`, `shape`, or `design`, which own the product-owner alignment. If the user gave a description instead of a slug, STOP and tell them to run `/wf intake <description>` first, then `/wf yolo <slug>`.
 
 **Intake modes — what `yolo` drives.** Orientation classifies the slug by `00-index.md`'s `workflow-type`. Five classes:
 
@@ -95,7 +95,7 @@ Every gate `auto` defers to the user, `yolo` resolves by this rule. Two tiers: *
 | `update-deps` scope gate (Step 6) | **Proceed with the full plan** — P0 security + P1 major+migration (one at a time, only the API-forced app-code changes) + P2 safe batch. A package that fails its test/build is marked `blocked` and the run continues (`result: partial`); its `06-verify.md` deferrals reuse the runtime-evidence hatch. Never audit-only, never hand-edit lockfiles, never mix a security update with a major migration in one commit. | A substantive `06-verify.md` failure unresolved (same rule as `verify`), or a slug-wide review that returns `dont-ship` / an unfixable security blocker. |
 | branch posture (`dedicated` only) | Land the tree on the slug branch **before any stage runs**: switch to it if it exists, else **create it from `base-branch`**. `shared`/`none` never switch. | A switch or create that would clobber uncommitted work (never stash/force), or a missing `base-branch` that blocks the create. |
 | intent-bearing decision (per [_decision-classes.md](_decision-classes.md)) | Never autonomous. | STOP: record the pending decision in the artifact + `po-answers.md` as awaiting-input, surface in the run report. |
-| `intake` / `shape` (PO alignment) | **Never autonomous.** | Missing or `awaiting-input` → stop, route to `/wf intake` / `/wf shape`. |
+| `intake` / `shape` / `design` (PO alignment) | **Never autonomous.** | Missing, `awaiting-input`, or unsettled ([design/_lane.md](design/_lane.md)) → stop, route to that key. |
 | standing steering (`steer.md`) | A preference tilts an auto-resolve; a satisfiable constraint is obeyed and logged in the stage's `steering-honored`. | A steering **veto** an otherwise-lawful autonomous action would cross. A veto outranks every auto-resolve above. |
 
 Fix posture: the default action on any finding is **fix**. LOW/NITs keep a recorded defer only when the fix would reach outside the slice's diff, be non-localized, or risk a convention conflict. An unfixable finding is recorded `could-not-fix`, and only escalates to a HARD-STOP if it is a security/data-loss BLOCKER or the verdict is `dont-ship`.
@@ -213,4 +213,4 @@ Rules:
 - **Not a PR opener or releaser** — `handoff`, `ship`, and `retro` are separate commands.
 - **Not a CI auto-fixer** — CI is never in its scope.
 - **Not a gate remover** — every quality gate still runs; `yolo` supplies the answer by policy and records it.
-- **Consults at the designated gates (free only, by objective trigger)** — `yolo` auto-invokes `consult` whenever a plan/review/diagnosis gate's objective trigger fires, pinned to a free subscription CLI (`codex`/`claude`). It never spends on the paid REST oracles.
+- **Consults at the designated gates (free only, by objective trigger)** — `yolo` auto-invokes `consult` when a plan/review/diagnosis gate's objective trigger fires, pinned to a free subscription CLI (`codex`/`claude`), never a paid REST oracle.

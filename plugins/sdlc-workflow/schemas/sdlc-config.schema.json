@@ -137,6 +137,11 @@
           "default": true,
           "description": "When true (default), the post-write-verify hook HARD-BLOCKS (exit 2) a write of `.ai/ship-plan-audit.md` that finalizes the ledger without triage: an open BLOCKER/HIGH finding while `triage-status` is neither `complete` nor `awaiting-user`, or `complete` while such a finding has no `triage: accept` (reference/ship-plan/audit.md Step 5). The end-of-turn re-check, where the host wires one, re-runs the same gate. Set false to disable."
         },
+        "designDirectionGate": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the pre-write-validate hook refuses a `04-plan*.md` write while the workflow needs design (`ux-impact` is visual, flow, or new-surface, or a legacy `02b-design.md` exists) and the design is not settled: no `02c-craft.md` carrying a resolved `image-gate` and `direction-confirmed-by`, and no `progress.design: skipped` with a `design-skip-reason` (skills/wf/reference/design/_lane.md). A person confirms the design at `/wf design <slug>` before planning. Set false to disable."
+        },
         "verifyDeferralLint": {
           "type": "boolean",
           "default": true,

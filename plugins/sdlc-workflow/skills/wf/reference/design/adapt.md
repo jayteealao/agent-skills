@@ -67,3 +67,7 @@ After adaptation:
 - Are all interactive elements reachable without hover?
 - Does the information hierarchy work in the new layout?
 - Is it tested at the actual target viewport/device?
+
+## In the workflow
+
+This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.

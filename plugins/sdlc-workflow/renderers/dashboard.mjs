@@ -7,7 +7,8 @@
 // shape in-memory from the cross-slug index, then dispatches here.
 //
 // Figure 1 of the design handoff: workflow swimlanes — rows = projects,
-// columns = the 10-stage lifecycle (intake → retro; D3.1 keeps slice+handoff),
+// columns = the lifecycle stages (intake → retro, with the human-only design
+// stage after shape; D3.1 keeps slice+handoff),
 // a solid ink overlay marks done-through-current, dashed queued circles mark
 // not-yet-reached, a SHIPPED rule separates active from recently-shipped rows.
 // Blocked current dot = --blocker.
@@ -20,7 +21,7 @@ import { pageHref } from './_paths.mjs';
 import { costDashboardHtml } from './_cost.mjs';
 
 const STAGES = [
-  'intake', 'shape', 'slice', 'plan', 'implement',
+  'intake', 'shape', 'design', 'slice', 'plan', 'implement',
   'verify', 'review', 'handoff', 'ship', 'retro',
 ];
 

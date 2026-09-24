@@ -137,6 +137,13 @@ stderr). The hook enforces:</p>
 and <code>schema: sdlc/v1</code> exactly.</li>
 <li>That the frontmatter <code>slug</code> matches the
 <code>.ai/workflows/&lt;slug&gt;/</code> directory that receives the file.</li>
+<li><strong>The design direction gate</strong> (<code>hooks.designDirectionGate</code>):
+a <code>04-plan*.md</code> write blocks while the workflow needs design and the design is not
+settled. Design is needed when <code>ux-impact</code> is <code>visual</code>, <code>flow</code>,
+or <code>new-surface</code>. Design is settled when <code>02c-craft.md</code> carries a resolved
+<code>image-gate</code> and <code>direction-confirmed-by</code>, or when <code>00-index.md</code>
+records <code>progress.design: skipped</code> with a <code>design-skip-reason</code>. Run
+<code>/wf design &lt;slug&gt;</code> to settle the design.</li>
 </ul>
 
 <p>The free-form <code>po-answers.md</code> decision log is exempt. That log is prose, not a

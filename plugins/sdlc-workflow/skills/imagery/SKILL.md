@@ -1,6 +1,6 @@
 ---
 name: imagery
-description: Generate images from a text prompt. Fans out to all available providers by default (built-in image_gen, gpt-image-2, nano-banana) → a variant set; a provider keyword yields one. Internal to `/wf design`; invoke it through that key.
+description: Generate images from a text prompt. Fans out to all available providers by default (built-in image_gen, gpt-image-2, nano-banana) → a variant set; a provider keyword yields one. The design stage's fallback for hosts without a design canvas; internal to `/wf design`, invoke it through that key.
 version: 1.0.0
 user-invocable: false
 argument-hint: "[image_gen|openai|gemini|openai-sub] <prompt> [skip <reason>]"
@@ -68,8 +68,8 @@ next to its design artifact.
 
 ## Output Format — must stay `IMAGEGEN_RESULT` (contract, A2)
 
-The visual-contract step (`plan`, following `design/contract.md`) and standalone
-design transforms branch on `method=text-only` and consume `scene_sentence`, and the
+The visual-contract step (the design stage, following `design/stage.md` and
+`design/contract.md`) branches on `method=text-only` and consumes `scene_sentence`, and the
 caller sets `image_gate` from this block. So keep the block name and fields exactly —
 `method` carries the provider id:
 

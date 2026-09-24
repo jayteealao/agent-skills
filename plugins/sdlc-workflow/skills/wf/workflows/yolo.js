@@ -609,6 +609,12 @@ async function orient() {
     `the resolved intake lead, 02-shape.md, or (when required) 03-slice.md is missing or awaiting-input, set ok=false ` +
     `with blockReason and route='/wf intake <description>' (or '/wf shape ${slug}' / '/wf slice ${slug}' for the ` +
     `specific gap).\n` +
+    `   5e. DESIGN GATE (applies to 5b and 5d; a person confirms the design — yolo NEVER runs the design stage). ` +
+    `Read ux-impact from 00-index.md. Design is NEEDED when ux-impact ∈ {visual, flow, new-surface}, or when ` +
+    `ux-impact is absent and 02b-design.md exists. Design is SETTLED when 02c-craft.md exists with a resolved ` +
+    `image-gate (pass or skipped:<reason>) AND a direction-confirmed-by field, or when 00-index.md ` +
+    `progress.design is 'skipped' with a design-skip-reason. When design is needed and not settled, set ok=false, ` +
+    `blockReason='design not confirmed by a person (design stage pending)', route='/wf design ${slug}'.\n` +
     `6. For ALL roster slices (in roster order — the COMPLETE list, both modes; the full roster is needed so ` +
     `slice-mode can route to the next slice), check on disk which of plan/implement/verify/review already exist ` +
     `AND are terminal-clean, marking each 'done' | 'todo':\n` +
@@ -1699,7 +1705,7 @@ if (priorDriver && priorDriver.presumedDead === true) {
   log(`prior driver for this slug completed at ${priorDriver.lastEntryAt} — resuming from its recorded state`)
 }
 if (!idx.ok) {
-  return { ok: false, stopped: true, mode: idx.mode, reason: idx.blockReason || 'workflow not ready (intake/shape/slice/plan incomplete, or a terminal-analysis type with no decided build)', route: idx.route, ...(priorDriver ? { priorDriver } : {}) }
+  return { ok: false, stopped: true, mode: idx.mode, reason: idx.blockReason || 'workflow not ready (intake/shape/design/slice/plan incomplete, or a terminal-analysis type with no decided build)', route: idx.route, ...(priorDriver ? { priorDriver } : {}) }
 }
 // Branch posture — DEDICATED only. Land the tree on the slug branch (create it from
 // base-branch if it does not exist yet) BEFORE driving any stage, so the whole run —

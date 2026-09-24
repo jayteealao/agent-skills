@@ -1,6 +1,6 @@
 ---
 name: wf
-description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro), the drivers (design, probe, simplify, auto, yolo), the minimal lifecycle (task), navigation (status, recap), lifecycle control (close), and the routers (ship-plan, docs, observability) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also dispatches the compressed entry modes and extension; `review` is the whole review surface.
+description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) plus design, the drivers (probe, simplify, auto, yolo), the minimal lifecycle (task), navigation (status, recap), lifecycle control (close), and the routers (ship-plan, docs, observability) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also dispatches the compressed entry modes and extension; `review` is the whole review surface.
 disable-model-invocation: true
 argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|probe|simplify|auto|yolo|task|status|recap|close|ship-plan|docs|observability> [args...]"
 ---
@@ -30,6 +30,7 @@ Run this check before any read or write. Its result is your first visible output
 |---|---|---|---|
 | `intake` | `[slug] [mode] <description>` | Entry dispatcher. A description starts stage 1. A mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`) runs a compressed entry flow. An existing slug plus a mode attaches a compressed slice; a slug plus free scope extends the workflow. `amend` and `modernize` edit a workflow's recorded config. | per mode |
 | `shape` | `[slug] [hint]` | Product-owner discovery. Authors the documentation plan and `augmentations-needed`. | `02-shape.md` |
+| `design` | `[slug] [move\|amend\|audit\|critique]` · `setup\|teach\|extract\|direction\|sync` | Human-only: the person confirms the design before drivers run. | `02c-craft.md` |
 | `slice` | `<slug>` | Decompose the shape into shippable slices. | `03-slice.md`, `03-slice-<slug>.md` |
 | `plan` | `<slug> [slice]` | Per-slice plan with a reuse scan. Applies the augmentation plan via `reference/augment/<type>.md`. | `04-plan-<slice>.md` |
 | `implement` | `<slug> [slice\|reviews]` | Code the slice. `reviews` runs fix-blockers mode. | `05-implement-<slice>.md` |
@@ -43,7 +44,6 @@ Run this check before any read or write. Its result is your first visible output
 
 | Key | Arguments | Does | Writes |
 |---|---|---|---|
-| `design` | `[slug] <command> [instr]` | Compressed design workflow. The 20 design commands are arguments, never keys. | per command |
 | `probe` | `<slug> [target\|sweep]` · `sweep [path]` | Runtime-truth verification of built work. Target mode compares to AC text. `sweep` enumerates the user surface against AC, charter, and `reference/_surface-defects.md`; as the first token it runs slug-less. Writes no code. | a compressed slice, or `.ai/surface-sweep-<date>.md` |
 | `simplify` | `branch [<base>] \| commit <range> \| plan <slug> <slice> \| codebase [<path>]` | Three parallel sub-agents review one scope, classify findings, and route them. Writes no code. | none |
 | `auto` | `<slug> [<slice>]` | Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff. | none |

@@ -1,11 +1,12 @@
-Gather and document the design context for a project. Creates or updates PRODUCT.md and DESIGN.md — the context anchors that every /wf design sub-command reads before doing work.
+Gather and document the design context for a project. Creates or updates PRODUCT.md and DESIGN.md, and the `.ai/design/` record ([record.md](record.md)) — the context anchors that the design stage and every design duty read before doing work.
 
-**Run this once per project before any other /wf design command.** Running other commands without context produces generic output that ignores the project.
+**Run this once per project before the first design stage.** The design stage runs it for you when PRODUCT.md is missing. `extract` needs no prior context. Running the design stage without context produces generic output that ignores the project.
 
 ## What gets created
 
 **PRODUCT.md** (required): Users, brand, tone, anti-references, strategic principles, register.
 **DESIGN.md** (optional, strongly recommended): Colors, typography, elevation, components, design tokens.
+**`.ai/design/current.md` and `.ai/design/direction.md`**: the current design and the design goals, per [record.md](record.md).
 
 ## Step 1: Discovery interview
 
@@ -35,6 +36,11 @@ Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Bef
 - Any technical constraints? (Must use Tailwind? Specific component library? CSS-in-JS?)
 - Any existing design documentation? (Figma file, brand guidelines PDF, design tokens?)
 - Anything else that's off-limits or important to know?
+
+### Group 5: Goals and direction
+- What should the design achieve in the next few releases? Name two or three goals.
+- Where do you expect the design to go after that? (New surfaces, a new audience, a rebrand, a design system?)
+- Which parts of the current design do you already know are wrong or out of date?
 
 ## Step 2: Write PRODUCT.md
 
@@ -82,8 +88,11 @@ Write to `DESIGN.md` in the project root:
 ## Components
 [Existing component library if any — shadcn, Radix, MUI, Tailwind UI, etc.]
 
-## Tokens
+## Design Tokens
 [Token file location if one exists]
+
+## Elevation and Shadows
+[Shadow levels or elevation system if used]
 
 ## Notes
 [Anything else relevant — dark mode support, icon library, illustration style]
@@ -91,15 +100,19 @@ Write to `DESIGN.md` in the project root:
 
 If no design information is available yet, create DESIGN.md with placeholder sections and a note to fill in when known.
 
+## Step 3b: Write the `.ai/design/` record
+
+Write `.ai/design/current.md` and `.ai/design/direction.md` from the templates in [record.md](record.md). Group 5 fills `## Goals` and `## Future direction`. List the surfaces the codebase inspection found under `## Surfaces`. Put the known problems from Group 5 under `## Design debt`.
+
 ## Step 4: Confirm
 
 Present both files to the user for review. List each pre-filled answer with its source in the same message:
-> "I've created PRODUCT.md and DESIGN.md. Please review and confirm — or tell me what to update."
+> "I've created PRODUCT.md, DESIGN.md, and the `.ai/design/` record. Please review and confirm — or tell me what to update."
 
-Wait for confirmation. After confirmation, these files are the context anchors for all future /wf design commands.
+Wait for confirmation. After confirmation, set `confirmed-by: setup` in `direction.md`. These files are the context anchors for every later design stage.
 
 ## Notes
 
 - If PRODUCT.md already exists: read it first. Update rather than overwrite. Preserve any sections not covered by the interview.
-- If the user skips questions: write placeholder sections with `[TODO]` markers and note that the command will ask again when context is missing.
+- If the user skips questions: write placeholder sections with `[TODO]` markers and note that the design stage asks again when it finds a `[TODO]` marker.
 - These files are project-level and should be committed to the repository.

@@ -94,13 +94,13 @@
 
 <h2 id="internal">The two internal skills</h2>
 
-<p>Two more skills ship with the plugin but are not user-invocable. You will see them named in <code>/wf design</code> output, and that is the only place they run:</p>
+<p>Two more skills ship with the plugin but are not user-invocable. They are the fallback of the <code>/wf design</code> stage. When the host has a design canvas, the design stage draws there and does not need them. When the host has no design canvas, the design stage uses <code>imagery</code> for the drawings and offers <code>uiproto</code> for an interactive prototype. <code>/wf design</code> is the only place they run:</p>
 
 <dl class="cmd-grid">
 <dt><code>imagery</code></dt>
-<dd>Generates images from a text prompt. It fans out to the available providers (the built-in <code>image_gen</code> tool, gpt-image-2, nano-banana) to produce a variant set, or produces a single image when a provider is pinned. Generated images land in <code>.ai/design-probes/</code> and are embedded as data-URI fragments beside the design artifact. <code>/wf design</code> uses imagery for visual-contract mocks. The imagery result sets the image-gate line that every design run reports.</dd>
+<dd>Generates images from a text prompt. It fans out to the available providers (the built-in <code>image_gen</code> tool, gpt-image-2, nano-banana) to produce a variant set, or produces a single image when a provider is pinned. Generated images land in <code>.ai/design-probes/</code> and are embedded as data-URI fragments beside the design artifact. When the host has no design canvas, the design stage uses imagery for the north-star comps of the visual contract. The result helps resolve the image gate that the design stage reports.</dd>
 <dt><code>uiproto</code></dt>
-<dd>Prototypes a UI component or screen from a prompt. It fans out to Google Stitch and an LLM HTML generator side by side, or to one of the two when a provider is pinned. The result is a self-contained HTML fragment embedded in a sandboxed <code>&lt;iframe srcdoc&gt;</code> next to the design artifact, so a full generated screen's CSS cannot leak into the page. The Stitch engine needs <code>STITCH_API_KEY</code> and <code>STITCH_PROJECT_ID</code> in the environment.</dd>
+<dd>Prototypes a UI component or screen from a prompt. It fans out to Google Stitch and an LLM HTML generator side by side, or to one of the two when a provider is pinned. The result is a self-contained HTML fragment embedded in a sandboxed <code>&lt;iframe srcdoc&gt;</code> next to the design artifact, so a full generated screen's CSS cannot leak into the page. The design stage offers uiproto when you want an interactive prototype of the approved direction, and never runs it automatically. The Stitch engine needs <code>STITCH_API_KEY</code> and <code>STITCH_PROJECT_ID</code> in the environment.</dd>
 </dl>
 
 <h3 id="external-dispatch">The consent gate: <code>externalDispatch.enabled</code></h3>
@@ -114,7 +114,7 @@
   <ul>
     <li><a href="../reference/commands.html">Commands</a> — the full <code>/wf</code> key reference, including <code>/wf docs</code> and <code>/wf design</code>.</li>
     <li><a href="../reference/configuration.html">Configuration</a> — where <code>externalDispatch.enabled</code> lives, and every other knob.</li>
-    <li><a href="../guides/design.html">Design</a> — how <code>/wf design</code> uses imagery and uiproto in practice.</li>
+    <li><a href="../guides/design.html">Design</a> — how the design stage uses the design canvas, and imagery and uiproto as its fallback.</li>
     <li><a href="../concepts/evidence-and-gates.html">Evidence and gates</a> — the judgment points where consult auto-invocation fires.</li>
   </ul>
 </div>

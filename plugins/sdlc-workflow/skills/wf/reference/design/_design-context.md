@@ -2,9 +2,9 @@
 
 The single source of truth for design **register**, the **shared design laws**, the
 **absolute bans**, the **preflight gates**, and the **image gate**. Loaded by the
-`/wf design` dispatcher (`reference/design.md`) *and* by the lifecycle stages that consume
+design stage (`design/stage.md`) *and* by the lifecycle stages that consume
 design knowledge — `slice`, `plan`, `implement`, `verify`, `review` — each pulling only the
-slice relevant to its job, gated behind `stack.ui ≠ ∅`. Edit the laws, bans, and register
+slice relevant to its job, when the design lane says design is needed (`design/_lane.md`). Edit the laws, bans, and register
 rules in exactly one place: here.
 
 **Consumer contract** — each lifecycle stage loads only its slice; this asymmetry is intentional, not drift:
@@ -13,7 +13,7 @@ rules in exactly one place: here.
 - `verify` — Accessibility law + Absolute bans (measures the floor).
 - `review` — Absolute bans (audits against the same canon).
 
-The `/wf design` dispatcher loads the whole file (preflight, image gate, mutation lock included); lifecycle stages never touch those command-only sections.
+The design stage loads the whole file (preflight, image gate, mutation lock included); the other lifecycle stages never touch those stage-only sections.
 
 > Load with: `design/_design-context.md`
 
@@ -42,6 +42,9 @@ Two files, case-insensitive. Search project root first, then `.agents/context/`,
 
 - **PRODUCT.md** — required. Users, brand, tone, anti-references, strategic principles, register.
 - **DESIGN.md** — optional, strongly recommended. Colors, typography, elevation, components, tokens.
+
+The design record adds two more files, `.ai/design/current.md` and `.ai/design/direction.md`
+(`design/record.md`). The design stage, `review`, and `retro` read them.
 
 If PRODUCT.md is missing, empty, or has `[TODO]` markers: run `/wf design setup` and resume
 after context is established. If DESIGN.md is missing: nudge once per session (*"Run
@@ -91,7 +94,7 @@ Never converge on the same choices across projects. Vary.
 - Purple-blue generic gradients.
 - Generic hero metric cards ("10x faster", "500+ customers") without real product proof.
 - Nested card-inside-card layouts.
-- Bounce or elastic easing in production UI. It reads as cheap and unpolished.
+- Bounce or elastic easing in product-register UI. It reads as cheap and unpolished. A brand surface may use a spring with bounce 0.1–0.3 when the brand direction calls for play; see `animate.md`.
 - Pure `#000` or `#fff` for text or large areas.
 - Fraunces or Cormorant as the primary display face on a new brand surface.
 
@@ -102,14 +105,14 @@ Never converge on the same choices across projects. Vary.
 `image_gate` is the lock that prevents code mutation before visual direction is confirmed.
 It lives in the design artifact frontmatter as `image-gate` (values `pass` or `skipped:<reason>`
 only — an *unwritten* gate is the "pending" state; there is no `pending` value). `shape` authors
-the brief (`02b-design.md`) leaving `image-gate` unset; **`plan` resolves it** when it authors the
-visual contract (`02c-craft.md`, following `design/contract.md`) — generating the north-star probes
-and confirming direction, then writing the resolved `image-gate`. A standalone transform resolves
-it in its own focused-contract step.
+the brief (`02b-design.md`) leaving `image-gate` unset; **the design stage resolves it** with the
+person when it authors the visual contract (`02c-craft.md`, following `design/stage.md` and
+`design/contract.md`) — drawing every changed surface, confirming direction, then writing the
+resolved `image-gate`. No driven stage resolves it.
 
 - `image_gate=pending` — **blocks all code mutation.** Visual direction is not yet confirmed.
-- `image_gate=pass` — required visual probes were generated via the `imagery` skill; visual
-  direction is confirmed and code mutation may open.
+- `image_gate=pass` — the surfaces were drawn on the design canvas, or the visual probes were
+  generated via the `imagery` skill; visual direction is confirmed and code mutation may open.
 - `image_gate=skipped:<reason>` — direction confirmed without an image probe, with a recorded
   reason. An empty or generic reason is **INVALID** — name *why* no probe was needed (e.g.
   "text-only fallback: no image backend available", "token-only transform, no new surface").
@@ -129,16 +132,16 @@ Skipping these produces generic output that ignores the project.
 | Context | PRODUCT.md exists and is valid (≥200 chars, no `[TODO]` markers) | If the command is `setup` or `teach` → proceed (these create/update PRODUCT.md). Otherwise STOP: *"Design context is missing. Run `/wf design setup` to create PRODUCT.md first."* |
 | Register | `brand` or `product` is determined for this task | Read PRODUCT.md `## Register`; infer from task cue if missing. Suggest `/wf design teach` to add it explicitly. |
 | Codebase | Codebase inspection sub-agents have run | Run the 4 parallel inspection sub-agents (below). Skip if their output is already in this session, or reuse the `stack` fingerprint from `00-index.md` where possible. |
-| Brief | Design brief `02b-design.md` authored (at `shape`, following `design/shape.md`) and its direction backed by a recorded user source at contract time (an in-session confirmation, a user-confirmed PRODUCT.md, or a prior `teach` answer) | The brief is authored by the `shape` lifecycle stage; `plan` confirms its direction (`shape=pass`) before writing the contract (`design/contract.md`). A standalone transform, having no full brief, confirms only its focused contract's direction. |
-| Image gate | Required visual probes generated, or skipped with a recorded reason | Resolve at the contract step (`plan`, or a transform's focused contract) before proceeding to code. |
+| Brief | Design brief `02b-design.md` authored (at `shape`, following `design/shape.md`) and its direction backed by a recorded user source at contract time (an in-session confirmation, a user-confirmed PRODUCT.md, or a prior `teach` answer) | The brief is authored by the `shape` lifecycle stage; the design stage confirms its direction (`shape=pass`) with the person before writing the contract (`design/contract.md`). When the brief is missing, the design stage writes it first. |
+| Image gate | Surfaces drawn or probes generated, or skipped with a recorded reason | Resolve at the design stage before any stage plans or builds. |
 | Mutation | All gates above pass; mutation type matches the command | Do not edit project files until mutation is open. |
 
-**Codebase gate is relaxed for**: `audit`, `critique`, `extract`, `setup`, `teach` — these are read-only or context-authoring.
+**Codebase gate is relaxed for**: `audit`, `critique`, `extract`, `setup`, `teach`, `direction`, `sync` — these are read-only or record-authoring.
 
 ### Codebase inspection sub-agents (4, parallel)
 
-Run before any design command that edits files (skip for `audit`, `critique`, `extract`,
-`setup`, `teach`). If output is already in session history, don't re-run. Reuse the `stack`
+Run in the design stage (skip for `audit`, `critique`, `extract`,
+`setup`, `teach`, `direction`, `sync`). If output is already in session history, don't re-run. Reuse the `stack`
 fingerprint from `00-index.md` for framework/library facts where it already answers the question.
 
 1. **Token scanner.** Find design tokens: CSS custom properties (`--color-*`, `--spacing-*`, `--font-*`, `--radius-*`), Tailwind config `theme.extend`, `tokens.json`, Style Dictionary source files. Return the extracted token table.
@@ -148,9 +151,9 @@ fingerprint from `00-index.md` for framework/library facts where it already answ
 
 ## Mutation types
 
-- **Code** — transformation commands + the lifecycle build span (`implement`). Requires `image_gate` resolved AND the stage's build gate.
-- **Artifact** — contract authoring at `plan` (writes `02c-craft.md`) or a transform's focused contract, plus `audit`, `critique`. No code touched.
-- **Context** — `setup`, `teach`. PRODUCT.md / DESIGN.md only; allowed unconditionally.
+- **Code** — the lifecycle build span (`implement`), which also applies the moves. Requires `image_gate` resolved AND the stage's build gate.
+- **Artifact** — contract authoring at the design stage (writes `02c-craft.md`), plus `audit`, `critique`. No code touched.
+- **Context** — `setup`, `teach`, `direction`, `sync`. The design record only (PRODUCT.md, DESIGN.md, `.ai/design/`); allowed unconditionally.
 - **Read-only** — `extract`. Produces a report; no project files modified.
 
 Do not edit any file until the appropriate mutation gate is open.

@@ -28,6 +28,7 @@ export type CatalogEntry = {
 export const CATALOG: readonly CatalogEntry[] = [
   { key: 'intake', description: 'Start, extend, adopt, or maintain workflow scope.', argumentHint: '[slug] [mode] <description>', need: 'slug-optional' },
   { key: 'shape', description: 'Shape product intent and acceptance criteria.', argumentHint: '[slug] [hint]', need: 'slug-optional' },
+  { key: 'design', description: 'Confirm the design with the person before the build.', argumentHint: '[slug] [move|amend|audit|critique] [instructions] | <setup|teach|extract|direction|sync>', need: 'slug-optional' },
   { key: 'slice', description: 'Decompose shaped scope into deliverable slices.', argumentHint: '<slug>', need: 'slug' },
   { key: 'plan', description: 'Plan one or more workflow slices.', argumentHint: '<slug> [slice|all] [feedback]', need: 'slug-slice-or-all' },
   { key: 'implement', description: 'Implement an approved slice plan.', argumentHint: '<slug> [slice|reviews]', need: 'slug-slice-optional' },
@@ -36,7 +37,6 @@ export const CATALOG: readonly CatalogEntry[] = [
   { key: 'handoff', description: 'Prepare a pull-request handoff.', argumentHint: '<slug|pr#N|#N|N|branch> [slice]', need: 'slug-slice-optional' },
   { key: 'ship', description: 'Execute an approved ship plan.', argumentHint: '<slug|pr#N|#N|N|branch> [environment|announce|rollback] [run-id]', need: 'slug' },
   { key: 'retro', description: 'Record workflow lessons and outcomes.', argumentHint: '<slug|pr#N|#N|N|branch> [deep]', need: 'slug' },
-  { key: 'design', description: 'Route a design operation.', argumentHint: '[slug] <command> [instructions]', need: 'slug-optional' },
   { key: 'probe', description: 'Collect runtime evidence without source mutation.', argumentHint: '<slug> [target|sweep] | sweep [path]', need: 'slug' },
   { key: 'simplify', description: 'Review a bounded scope for simplification.', argumentHint: '[branch [base]|commit range|plan slug slice|codebase [path]]', need: 'none' },
   { key: 'auto', description: 'Drive stages until the pre-handoff boundary.', argumentHint: '<slug> [slice]', need: 'slug-slice-optional' },

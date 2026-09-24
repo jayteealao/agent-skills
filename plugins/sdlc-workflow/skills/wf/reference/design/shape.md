@@ -1,8 +1,8 @@
 # Brief (design-brief authoring procedure)
 
-Author the **design brief**: a structured artifact that guides UI implementation through discovery, not guesswork. This is **not a standalone command** — it is the brief-authoring procedure that the **`shape` lifecycle stage** runs (`../shape.md` Step 5b) when the work has UI surface (`stack.ui ≠ ∅`). It produces `02b-design.md`.
+Author the **design brief**: a structured artifact that guides UI implementation through discovery, not guesswork. This is **not a standalone command** — it is the brief-authoring procedure that the **`shape` lifecycle stage** runs (`../shape.md` Step 5a) when design is needed ([_lane.md](_lane.md)). The design stage runs it too when the brief is missing ([stage.md](stage.md) Step 2). It produces `02b-design.md`.
 
-**Scope**: Design planning only. This procedure does NOT write code, does NOT generate image probes, and does NOT confirm visual direction. It produces the thinking that makes code good. The visual-direction gates (image probes + confirm) and the visual contract `02c-craft.md` are authored downstream by **`plan`** (see [contract.md](contract.md)); this procedure leaves the image gate **unresolved** — it writes no resolved `image-gate` to `02b-design.md` — for `plan` to resolve.
+**Scope**: Design planning only. This procedure does NOT write code, does NOT generate image probes, and does NOT confirm visual direction. It produces the thinking that makes code good. The visual-direction gates (image probes + confirm) and the visual contract `02c-craft.md` are authored downstream by the **design stage** with the person (see [stage.md](stage.md) and [contract.md](contract.md)); this procedure leaves the image gate **unresolved** — it writes no resolved `image-gate` to `02b-design.md` — for the design stage to resolve.
 
 ## Philosophy
 
@@ -16,7 +16,7 @@ Do not write any code or make any design decisions during this phase. Your only 
 
 Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Before you ask any question, pre-fill the answers:
 
-1. For each question in the rounds below, search the user prompt, PRODUCT.md, DESIGN.md, and the codebase for an answer.
+1. For each question in the rounds below, search the user prompt, PRODUCT.md, DESIGN.md, `.ai/design/current.md`, `.ai/design/direction.md`, and the codebase for an answer.
 2. When a source answers a question, record the answer and the source in the brief. Do not ask that question.
 3. Ask the unanswered questions in ONE batched round. Then stop and wait for the answers.
 4. When no unanswered questions remain, skip the round and continue to Phase 2.
@@ -52,6 +52,12 @@ Specific user description, their task context, their emotional state at arrival.
 ### 3. Content inventory
 List of content elements, edge cases, and state variants (empty, error, loading, first-run).
 
+### 3b. UX intent
+- The flows this change adds or alters, as numbered steps a person takes
+- The states each step can reach (empty, loading, error, success, first-run) and what the person reads in each
+- The user-facing text that changes
+- How the change fits the current design (`.ai/design/current.md`) and which design goal in `.ai/design/direction.md` it serves; name any goal it strains
+
 ### 4. Visual direction
 - Color strategy chosen (and why it fits this surface)
 - Scene sentence (confirmed by user or inferred)
@@ -84,31 +90,32 @@ Names omit the `.md` extension. `/wf implement` reads each as `skills/wf/referen
 
 The design brief records the **intended** visual direction — color strategy, scene
 sentence, named anchor references, anti-goals — from the discovery interview. It does
-**NOT** generate image probes and does **NOT** run a confirm gate. Those two moves belong
-to `plan`:
+**NOT** draw surfaces or generate image probes, and does **NOT** run a confirm gate. Those two moves belong
+to the design stage, which a person runs:
 
-- **Image probes + north-star mock** — `plan` invokes the `imagery` skill when it authors
+- **Drawings + north-star mock** — the design stage draws every changed surface when it authors
   the visual contract (see [contract.md](contract.md) → *Land the visual direction*). Do
-  not run `imagery` here.
-- **Confirm gate** — `plan` presents the resolved direction and gets the user's approval
+  not run the design canvas or `imagery` here.
+- **Confirm gate** — the design stage presents the resolved direction and gets the person's approval
   (`shape=pass`) before writing `02c-craft.md`. The brief is revisable discovery output, not
   a locked contract.
 
 Do **not** write a resolved `image-gate` to `02b-design.md` — its *absence* is the unresolved
-state. `plan` writes the resolved `image-gate` (`pass`, or a reasoned `skipped:<reason>`) to
+state. The design stage writes the resolved `image-gate` (`pass`, or a reasoned `skipped:<reason>`) to
 `02c-craft.md` when it lands the direction. (`image-gate` is a schema-validated frontmatter field
 whose only values are `pass` and `skipped:*` — there is no `pending` value to write; "pending" is
 just the conceptual state of an unwritten gate.)
 
 ## Output
 
-When `shape` runs this procedure (`../shape.md` Step 5b):
+When `shape` runs this procedure (`../shape.md` Step 5a):
 - Write the brief to `.ai/workflows/<slug>/02b-design.md` (type `design`), with
-  `recommended-references:` populated and **no** resolved `image-gate` (it stays unresolved for `plan`).
+  `recommended-references:` populated and **no** resolved `image-gate` (it stays unresolved for the design stage).
 - Write the sibling `02b-design.yaml` + `02b-design.html.fragment` (see below).
 - Leave `00-index.md` `current-stage: shape` (the brief is part of shape).
-- Continue the normal shape flow (documentation plan, routing). `plan` will read `02b-design.md`,
-  resolve the direction gates, and author the visual contract `02c-craft.md`.
+- Continue the normal shape flow (documentation plan, routing). Shape routes to `/wf design <slug>`;
+  the design stage reads `02b-design.md`, resolves the direction gates with the person, and authors
+  the visual contract `02c-craft.md`.
 
 ## Step — Write the rich `.yaml` + fragment for `02b-design.md` (do not skip)
 

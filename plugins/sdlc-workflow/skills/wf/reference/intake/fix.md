@@ -21,7 +21,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 |---|---|
 | Requires | Nothing — starts fresh. Pass a description or an existing slug to resume. |
 | Produces (this command) | `01-fix.md` (`type: intake`), `02-shape.md`, `03-slice.md` (`type: slice-index`, one slice), `04-plan.md`, and a conformant `00-index.md` (`type: index`). |
-| Compression | Each planning stage is single-pass/lightweight — **no stage is skipped**. One slice, written as a real `03-slice.md`. Design is **never auto-included**; the user opts in by ending the invocation with the trailing token `design`. |
+| Compression | Each planning stage is single-pass/lightweight — **no stage is skipped**. One slice, written as a real `03-slice.md`. Design runs when `ux-impact` is not `none` (`_change-mode-tail.md` → UX impact and the design stage); the trailing token `design` forces it. |
 | Gate | Stop-and-prompt before `05-implement` (see `_intake-context.md` → the gate; Adjust/Escalate handling per `_change-mode-tail.md`). May run end-to-end if the change is judged low-risk. |
 | Next | `/wf implement <slug>` — the standard execution chain takes over from stage 5. |
 | Escalate | If during planning the work no longer fits the fix envelope, **warn and continue** — record the breach per `_change-mode-tail.md` and offer the gate's "Escalate" option, which closes this slug and restarts as `/wf intake "<description>" from <slug>`. Do not refuse. |
@@ -30,7 +30,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 You are a **compressed-planning orchestrator**, not an incident responder and not a feature shaper.
 - This command skips *ceremony*, not *stages* and not *thinking*. Every stage artifact must be real and schema-conformant.
 - Ask at most **2 questions** in chat for planning. No separate `po-answers.md` — answers go inline into `01-fix.md`.
-- Do not auto-include design. If the change visibly touches UI and the trailing `design` token was not passed, note in `02-shape.md` a one-line recommendation to author a design brief (`02b-design.md`) at shape and a visual contract at plan — or run a focused `/wf design <slug> <transform>` — as a follow-up. Do not block.
+- Set `ux-impact` and confirm it with the stack question. When design is needed, run the compressed design stage per `_change-mode-tail.md` before `03-slice.md`; the person confirms the drawing in this same run.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely. The compression happens *within* a step, not by removing steps.
 
 # Step 0 — Orient
@@ -39,7 +39,7 @@ You are a **compressed-planning orchestrator**, not an incident responder and no
    - Otherwise → **new `/wf intake fix` workflow**. Derive a slug: `fix-<short-description>` (kebab-case, max 5 words, e.g., `fix-checkout-button-spacing`).
 2. **Collision check:** apply the collision check in `_change-mode-tail.md` (legacy alias for fix: `quick`).
 3. **Provenance check:** apply `_intake-provenance.md` — detect an inherited analysis decision (an explicit trailing `from <source-slug>` token, or an exact label match for `investigate`/`ideate` sources), consume the matching Consume-table row (an `investigate` option card, an `rca` diagnosis, or an `ideate` idea card seeds `01-fix.md` and the Step 1 sub-agent prompts), and link back (record `origin-<type>` here, set `superseded-by` on the source index, and apply the implicit pick/route if the source is still open). No match → continue; that is the common case.
-4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, then spend one of the two permitted questions on the one-line confirm and set `stack.user-confirmed: true`.
+4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, then spend one of the two permitted questions on the one-line confirm and set `stack.user-confirmed: true`. In the same question, confirm `ux-impact` per `_change-mode-tail.md` → UX impact and the design stage.
 5. **Branch check:**
    - Default `branch-strategy: dedicated`, branch `fix/<slug>`. Create off the current base if absent: `git checkout -b fix/<slug>`.
    - If the user passed `branch-strategy: none` or is mid-task on a branch they want to keep → record `branch-strategy: none`; do not switch branches.
@@ -111,7 +111,7 @@ next-command: wf-slice
 next-invocation: "/wf slice <slug>"
 ---
 ```
-Body (tight): `## In Scope` (1-3 bullets), `## Out of Scope` (1-3), `## Known Unknowns` (0-2). If the change touches UI surface and the trailing `design` token was not passed, add one line: "**UI touched — design skipped:** consider a design brief at shape + contract at plan, or a focused `/wf design <slug> <transform>`, as follow-up." If the `design` token was passed, add 3-5 design-note bullets here instead.
+Body (tight): `## In Scope` (1-3 bullets), `## Out of Scope` (1-3), `## Known Unknowns` (0-2). When design is needed, add 3-5 design-note bullets here and point to `02b-design.md` and `02c-craft.md`, which the compressed design stage writes before `03-slice.md`.
 
 **`03-slice.md` — `type: slice-index` (one slice — the lifecycle never skips slicing):**
 ```yaml

@@ -37,6 +37,8 @@ stack:                                  # Step 0.5 fingerprint. Observation only
   available-skills: []                  # [{name, hint}] — session-visible skills
   available-mcp: []                     # [{name, hint}] — session-visible MCP servers
   user-confirmed: false                 # flipped to true after Batch B
+ux-impact: <none|visual|flow|new-surface>   # Step 0.5; design/_lane.md. Drives the design stage.
+ux-impact-confirmed: false            # flipped to true after Batch B
 next-command: wf-shape
 next-invocation: "/wf shape <slug>"
 workflow-files:
@@ -46,6 +48,7 @@ workflow-files:
 progress:
   intake: in-progress
   shape: not-started
+  design: not-started                   # skipped when ux-impact: none (shape writes design-skip-reason)
   slice: not-started
   plan: not-started
   implement: not-started

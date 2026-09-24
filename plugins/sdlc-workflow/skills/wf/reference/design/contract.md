@@ -2,9 +2,9 @@
 
 Author the **visual contract** `02c-craft.md`: the concrete spec `implement` builds against — a resolved visual direction + north-star mock + mock fidelity inventory + implementation contract.
 
-This is **not a standalone command** — it is the contract-authoring procedure that the **`plan` stage** runs (`reference/plan.md`) when a design brief `02b-design.md` exists for the slice and no `02c-craft.md` has been written yet. It is also the procedure the standalone design **transforms** run to author their focused contract (`reference/design.md` Step 4A). It produces `02c-craft.md` (type `design-contract`).
+This is **not a standalone command** — it is the contract-authoring procedure that the **design stage** runs ([stage.md](stage.md)) with the person, between `shape` and `slice`. It covers every surface the feature changes, not one slice. It produces `02c-craft.md` (type `design-contract`).
 
-**`plan` owns both design gates.** The brief (`02b-design.md`) is authored upstream at `shape` as plain discovery with the image gate left **unresolved** (no `image-gate` field written). This procedure resolves the two gates the brief deferred:
+**The design stage owns both design gates.** No driven stage resolves them. The brief (`02b-design.md`) is authored upstream at `shape` as plain discovery with the image gate left **unresolved** (no `image-gate` field written). This procedure resolves the two gates the brief deferred:
 
 1. **Image gate** — generate the north-star mock/probes via the `imagery` skill, or record a reasoned skip. Writes the resolved `image-gate` — `pass` or `skipped:<reason>` — to `02c` (there is no `pending` value; the brief simply left it unset).
 2. **Brief-confirm gate** — resolve `shape=pass` from a recorded user-backed direction source before writing the contract: an in-session user response, a user-confirmed PRODUCT.md, or a prior `teach` answer. When no recorded source exists, present the resolved visual direction and get the user's approval.
@@ -15,8 +15,8 @@ This is **not a standalone command** — it is the contract-authoring procedure 
 
 The visual contract requires a **confirmed visual direction** and a resolved image gate. Cannot write `02c-craft.md` until all of these are true:
 
-1. PRODUCT context loaded (PRODUCT.md valid, ≥200 chars, no `[TODO]` markers).
-2. **Direction source.** *Plan path:* `02b-design.md` exists (authored at `shape`) and its direction is **confirmed** by one of the `shape=pass` sources below. *Transform path (`/wf design <slug> <transform>`, no brief):* there is **no `02b` to require** — the transform's own reference (e.g. `colorize.md`) plus `PRODUCT.md`/`DESIGN.md` are the direction source; confirm the transform's focused direction instead.
+1. PRODUCT context loaded (PRODUCT.md valid, ≥200 chars, no `[TODO]` markers). When it is not, the design stage runs `/wf design setup` with the person first; it does not stop the workflow.
+2. **Direction source.** `02b-design.md` exists (authored at `shape`, or by the design stage when it was missing) and its direction is **confirmed** by one of the `shape=pass` sources below. When the person named a move, the move's reference focuses the direction; it does not replace the brief.
 3. Visual-direction decision recorded: probes generated and the user chose a direction, OR skipped with a stated reason.
 4. North-star mock decision recorded (Step 3 below).
 
@@ -28,14 +28,16 @@ Invalid image-skip reasons: "the implementation will be semantic HTML/CSS/SVG", 
 
 ## Step 1: Load the direction source
 
-**Transform path (no `02b`):** there is no brief to read — take the direction from the transform's own reference (e.g. `colorize.md`, `typeset.md`) plus `PRODUCT.md`/`DESIGN.md`, then skip to Step 2. **Plan path:** read `02b-design.md` and extract:
+Read `02b-design.md` and the design record (`.ai/design/current.md`, `.ai/design/direction.md`), and extract:
 - Feature summary and user context
 - Color strategy and scene sentence
 - Register (brand / product) — load `brand.md` or `product.md` (this directory)
 - Visual direction and anti-goals
 - Recommended references (`recommended-references:` frontmatter array)
+- The UX intent (flows, states, user-facing text)
+- The design goals and future direction the surfaces must serve
 
-Load the recommended references from the brief. At minimum:
+Load the recommended references from the brief, plus the move the person named. At minimum:
 - `typeset.md` for type hierarchy
 - The register reference (brand.md or product.md)
 
@@ -48,7 +50,7 @@ Add based on brief needs:
 
 ## Step 2: Load codebase context
 
-Read codebase inspection results from prior sub-agents (plan's parallel research, or the `/wf design` preflight inspectors). Extract:
+Read codebase inspection results from the design stage's preflight inspectors. Extract:
 - Design tokens found (colors, spacing, fonts)
 - Framework and component library
 - Existing component patterns to follow or extend
@@ -58,40 +60,38 @@ If codebase context is unavailable: run a quick scan to identify `package.json` 
 
 ## Step 3: Land the visual direction (resolve the image gate + confirm)
 
-Generate a high-fidelity north-star mock when:
+Draw the direction when:
 - Work is net-new or visually open-ended
 - Brief scope is mid-fi, high-fi, or production-ready
-- Image generation is available
+- The design canvas or image generation is available
 
 When conditions are met, this step is mandatory for both brand and product work.
 
-Generate 1–3 high-fidelity comps:
 - For brand: push visual identity, composition, and mood aggressively
 - For product: push hierarchy, topology, and density while staying grounded in realistic product structure
 
-Generate the north-star comp at **2K** fidelity via the `imagery` skill (it infers
+**First choice — the design canvas.** When the host offers one (`_host-invocation.md`, row "Design canvas"), draw one artboard per surface and state, using the tokens and components in `DESIGN.md`. Record the canvas link as `canvas:` and name the north-star artboard in `north-star-mock:`.
+
+**Fallback — generated comps.** When the host has no design canvas, generate 1–3 north-star comps at **2K** fidelity via the `imagery` skill (it infers
 the 2K tier from this north-star context and the output path, and reports the file
 back — no flags):
 ```
 /imagery "<resolved brief prompt>"
 ```
 (Bare `/imagery` fans out to every available backend; pin one — e.g.
-`/imagery gemini "<resolved brief prompt>"` — for a single 2K comp.)
+`/imagery gemini "<resolved brief prompt>"` — for a single 2K comp.) When the person wants an
+interactive prototype of the approved direction, offer `/uiproto <component description>` (or
+`/uiproto stitch|llm …`). It writes a sandboxed `<iframe srcdoc>` fragment next to the contract,
+sends the prompt to external engines, and is gated by `externalDispatch.enabled`. Offer it; never
+run it automatically.
 
-Present the mock and ask: "Does this match your visual direction? (yes to proceed / adjustments needed)"
+Present the drawings and ask: "Does this match your visual direction? (yes to proceed / adjustments needed)"
 
-If every provider in `/imagery`'s table is unavailable (no built-in tool on this host, no key for a scripted provider, egress consent off): state in one line that the step is skipped and why. Then proceed.
+If no canvas and no provider in `/imagery`'s table is available (no built-in tool on this host, no key for a scripted provider, egress consent off): state in one line that the step is skipped and why. Then proceed with a text direction.
 
 Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after confirmation, or `skipped:<reason>`. (`02c` is authoritative; the `02b` brief left the gate unset — you may mirror the resolved value onto `02b` too, but it is not required.)
 
 **Confirm gate.** `shape=pass` is satisfied by the "yes to proceed" answer above, or by a recorded user-backed direction source (a user-confirmed PRODUCT.md, or a prior `teach` answer) — record which source satisfied the gate. Do not write the contract while no user-backed source exists, and never leave the mock neither confirmed nor explicitly skipped with a reason.
-
-> **Optional live prototype (beside the static mock).** For an interactive HTML
-> prototype of the approved direction — not just a static comp — you may run
-> `/uiproto <component description>` (or `/uiproto stitch|llm …`). It writes a
-> sandboxed `<iframe srcdoc>` fragment next to the contract artifact. Opt-in, sends the
-> prompt to external engines (Stitch / an LLM), gated by `externalDispatch.enabled`
-> — offer it, never run it automatically.
 
 > **Auto second opinion.** When the direction chose among competing options, introduces
 > a new interaction pattern or primary surface, or the brief left a visual-direction
@@ -139,7 +139,11 @@ refs:
   design: 02b-design.md
 register: <brand|product>
 image-gate: <pass|skipped:<reason>>
-north-star-mock: <path or "none">
+north-star-mock: <path, artboard name, or "none">
+canvas: <design canvas link, or "none">
+direction-confirmed-by: <in-session|product-md|teach>
+confirmed-at: <timestamp>
+surfaces: [every surface drawn]
 references-loaded: [union of the brief's recommended-references + any references loaded while authoring the contract — authoritative; wf-plan and wf-implement re-read this]
 ---
 ```
@@ -182,8 +186,8 @@ Which reference docs `/wf implement` should consult (typeset.md, animate.md, har
 
 Record this list authoritatively in the `references-loaded:` frontmatter array above as the **union** of (a) the brief's `recommended-references:` (from `02b-design.md`) and (b) any references you loaded or added while authoring the contract. Names omit the `.md` extension and resolve to `skills/wf/reference/design/<name>.md`. This is the field `/wf implement` re-reads — together with `02b`'s `recommended-references:` — to load design rationale. A reference that appears only in this prose section but **not** in `references-loaded:` will NOT be loaded by implementation, so keep the two in sync.
 
-### 7. Carry the contract into the plan
-The contract is a `plan`-stage artifact. Reflect its obligations in the `04-plan-<slice>.md` steps: every `## Mock fidelity inventory` item becomes a concrete plan step, and the `## Implementation contract` token/component/motion decisions become plan-step pointers so `implement` applies them. Update `00-index.md` `current-stage: plan` (the contract is part of the plan stage). There is no hand-back to a separate design command.
+### 7. How the later stages carry the contract
+The contract is a design-stage artifact. `slice` maps its surfaces to slices; `plan` turns every `## Mock fidelity inventory` item into a concrete plan step and every `## Implementation contract` token/component/motion decision into a plan-step pointer; `implement` applies them ([_lane.md](_lane.md) → One duty per stage). Update `00-index.md` per [stage.md](stage.md) Step 6. A later stage that cannot build the contract as drawn routes to `/wf design <slug> amend`; it never edits the contract itself.
 
 ---
 

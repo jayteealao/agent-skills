@@ -133,6 +133,10 @@ elements.forEach((el, i) => { el.style.height = heights[i] + 'px'; });
 [Lower-priority items for future optimization]
 ```
 
+## In the workflow
+
+This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.
+
 ---
 
 > *The animation-performance guidance here — GPU-composited properties, `will-change` discipline, transition specificity, and the main-thread rules pointed to above — is adapted from Emil Kowalski's design-engineering philosophy ([animations.dev](https://animations.dev/)) and Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)); the full craft lives in `animate.md` / `polish.md`. Used under MIT license.*

@@ -256,5 +256,40 @@
     "reason": "dangling example link inside a code fence of dx.md, deleted in the W4 §7.1 merge",
     "release": "9.154.0",
     "category": "citations"
+  },
+  {
+    "entry": "04-plan-<X>.md",
+    "reason": "DESIGN-LANE-PLAN: /wf design no longer drives slice→plan→implement→verify itself; the design stage ends at the confirmed 02c-craft.md and the lifecycle stages own their own artifacts",
+    "release": "9.167.0",
+    "file": "skills/wf/reference/design.md",
+    "category": "artifacts"
+  },
+  {
+    "entry": "05-implement-<X>.md",
+    "reason": "DESIGN-LANE-PLAN: /wf design no longer drives slice→plan→implement→verify itself; the design stage ends at the confirmed 02c-craft.md and the lifecycle stages own their own artifacts",
+    "release": "9.167.0",
+    "file": "skills/wf/reference/design.md",
+    "category": "artifacts"
+  },
+  {
+    "entry": "06-verify-<X>.md",
+    "reason": "DESIGN-LANE-PLAN: /wf design no longer drives slice→plan→implement→verify itself; the design stage ends at the confirmed 02c-craft.md and the lifecycle stages own their own artifacts",
+    "release": "9.167.0",
+    "file": "skills/wf/reference/design.md",
+    "category": "artifacts"
+  },
+  {
+    "entry": "04-plan-<X>.md",
+    "reason": "DESIGN-LANE-PLAN: the contract procedure runs at the human-only design stage and no longer writes plan steps; plan.md carries the inventory into 04-plan per design/_lane.md",
+    "release": "9.167.0",
+    "file": "skills/wf/reference/design/contract.md",
+    "category": "artifacts"
+  },
+  {
+    "entry": "status: closed stop ( \"workflow <slug is closed.",
+    "reason": "DESIGN-LANE-PLAN: the closed-workflow stop now lives in design/stage.md Step 0 (the design stage), recorded under tokens.STOP.allowedSentences",
+    "release": "9.167.0",
+    "file": "skills/wf/reference/design.md",
+    "category": "stops"
   }
 ]

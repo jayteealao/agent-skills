@@ -30,7 +30,7 @@ const SLICES = [
 
 test('the catalog holds the 22 keys, each with a wf-<key> command name', () => {
   assert.equal(CATALOG.length, 22);
-  assert.deepEqual(CATALOG.slice(0, 10).map((e) => e.key), ['intake', 'shape', 'slice', 'plan', 'implement', 'verify', 'review', 'handoff', 'ship', 'retro']);
+  assert.deepEqual(CATALOG.slice(0, 11).map((e) => e.key), ['intake', 'shape', 'design', 'slice', 'plan', 'implement', 'verify', 'review', 'handoff', 'ship', 'retro']);
   assert.equal(commandNameOf('plan'), 'wf-plan');
   assert.equal(keyOfCommand('wf-plan'), 'plan');
   assert.equal(keyOfCommand('sdlc-workflow:wf-plan'), 'plan');
@@ -56,7 +56,7 @@ test('stepFor: complete arguments, no-argument keys, and unknown keys open nothi
 
 test('the option lists carry the status, stage, and slice information', () => {
   assert.equal(keyOptions().length, 22);
-  assert.equal(keyOptions()[3].label, 'plan  Plan one or more workflow slices.');
+  assert.equal(keyOptions()[4].label, 'plan  Plan one or more workflow slices.');
 
   const slugs = slugOptions({ kind: 'slug', key: 'plan' }, WORKFLOWS);
   assert.deepEqual(slugs.map((o) => o.value), ['alpha', 'gamma', 'beta']);

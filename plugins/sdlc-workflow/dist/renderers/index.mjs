@@ -35,6 +35,7 @@ import "../chunk-SGA7NFMW.mjs";
 var STAGES = [
   "intake",
   "shape",
+  "design",
   "slice",
   "plan",
   "implement",
@@ -46,7 +47,10 @@ var STAGES = [
 ];
 var STAGE_NAV = {
   intake: { types: ["intake"], dir: "intake" },
-  shape: { types: ["shape", "design", "design-contract", "design-brief"], dir: "shape" },
+  shape: { types: ["shape", "design", "design-brief"], dir: "shape" },
+  // The human-only design stage (design/_lane.md): its artifact is the visual
+  // contract 02c-craft.md (type design-contract), placed under design-brief/.
+  design: { types: ["design-contract"], dir: "design-brief" },
   slice: { types: ["slice-index", "slice"], dir: "slice" },
   plan: { types: ["plan-index", "plan"], dir: "plan" },
   implement: { types: ["implement-index", "implement"], dir: "implement" },

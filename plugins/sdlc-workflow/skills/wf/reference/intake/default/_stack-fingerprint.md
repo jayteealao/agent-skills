@@ -34,4 +34,6 @@ Goal: cheaply observe what the repo *already uses* and what *tooling is availabl
    ```
    `user-confirmed: false` means "auto-detected, awaiting Batch B confirmation." Batch B flips it to `true` after the PO has had a chance to correct.
 
-4. **Recommend nothing yet.** No "you should use X." That happens in shape, after the user has confirmed or corrected the fingerprint. This step's only output is observation written to disk.
+4. **Classify the UX impact.** Set `ux-impact` from the request and the files in scope, per the table in `design/_lane.md` (read it now). Write it beside the `stack:` block with `ux-impact-confirmed: false`. It decides whether the human-only design stage runs.
+
+5. **Recommend nothing yet.** No "you should use X." That happens in shape, after the user has confirmed or corrected the fingerprint. This step's only output is observation written to disk.

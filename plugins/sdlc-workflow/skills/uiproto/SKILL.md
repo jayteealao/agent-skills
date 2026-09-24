@@ -1,6 +1,6 @@
 ---
 name: uiproto
-description: Prototype a UI component/screen from a prompt. Fans out to Stitch + an LLM by default (side-by-side); a provider keyword yields one. Writes a self-contained, sandboxed HTML fragment. Internal to `/wf design`; invoke it through that key.
+description: Prototype a UI component/screen from a prompt. Fans out to Stitch + an LLM by default (side-by-side); a provider keyword yields one. Writes a self-contained, sandboxed HTML fragment. The design stage's fallback for hosts without a design canvas; internal to `/wf design`, invoke it through that key.
 version: 1.0.0
 user-invocable: false
 argument-hint: "[stitch|llm] <prompt>"

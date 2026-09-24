@@ -79,6 +79,7 @@ Gate on **artifact existence + the artifact's terminal status**, not the `progre
 
 **Pre-slice band (both modes, only if not yet done):**
 - `02-shape.md` missing → `shape`.
+- Else design needed and not settled ([design/_lane.md](design/_lane.md)) → PAUSE and route to `/wf design <slug>`. `auto` never runs the design stage: a person confirms the design.
 - Else `03-slice.md` missing → `slice`.
 - `intake` is assumed complete — `auto` is started after intake. If `01-intake.md` is missing or `status: awaiting-input`, PAUSE and route to `/wf intake`.
 
@@ -109,6 +110,7 @@ After each stage, read the named keys from the just-written artifact (or `00-ind
 | Stage | Artifact | PROCEED when | PAUSE when |
 |---|---|---|---|
 | `shape` | `02-shape.md` | `status: complete` | `status: awaiting-input` |
+| `design` | `02c-craft.md` | never driven | design needed and not settled — always PAUSE |
 | `slice` | `03-slice.md` | roster written | the stage STOPped with an error |
 | `plan` | `04-plan[-<slice>].md` | `status: complete` | `status: awaiting-input` (a scope/decision fork the stage surfaced) |
 | `implement` | `05-implement[-<slice>].md` | `status: complete`, code committed | `status: awaiting-input` (plan drift, blocking ambiguity) |

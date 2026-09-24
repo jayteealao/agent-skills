@@ -10,31 +10,33 @@ Use `extract` to:
 
 ## Step 1: Scan for design values
 
+Choose the search roots first. Use the source directories that the framework detector in [_design-context.md](_design-context.md) found. If the detector found none, search the repo root. Always exclude `node_modules/`, `dist/`, `build/`, and `.ai/`. In the commands below, `<roots>` is the chosen roots and `<excludes>` is `--exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build --exclude-dir=.ai`.
+
 Search the codebase for:
 
 **Colors** (Grep for hex, rgb, hsl, oklch, named colors):
 ```
-grep -r "#[0-9a-fA-F]\{3,8\}\|rgb(\|hsl(\|oklch(" src/ --include="*.css" --include="*.tsx" --include="*.jsx"
+grep -r <excludes> "#[0-9a-fA-F]\{3,8\}\|rgb(\|hsl(\|oklch(" <roots> --include="*.css" --include="*.tsx" --include="*.jsx"
 ```
 
 **Spacing values** (px, rem, em in CSS):
 ```
-grep -r "padding:\|margin:\|gap:\|space-[xy]" src/ --include="*.css"
+grep -r <excludes> "padding:\|margin:\|gap:\|space-[xy]" <roots> --include="*.css"
 ```
 
 **Typography** (font families, font sizes, font weights):
 ```
-grep -r "font-family:\|font-size:\|font-weight:\|fontSize\|fontWeight" src/
+grep -r <excludes> "font-family:\|font-size:\|font-weight:\|fontSize\|fontWeight" <roots>
 ```
 
 **Border radii**:
 ```
-grep -r "border-radius:\|rounded-" src/
+grep -r <excludes> "border-radius:\|rounded-" <roots>
 ```
 
 **Shadows**:
 ```
-grep -r "box-shadow:\|drop-shadow\|shadow-" src/
+grep -r <excludes> "box-shadow:\|drop-shadow\|shadow-" <roots>
 ```
 
 ## Step 2: Identify the implicit system
@@ -125,5 +127,13 @@ Document each with its implicit design decisions. When these patterns will be sy
 ## Output in SDLC context
 
 When invoked as `/wf design <slug> extract`:
-- Write extraction report to `.ai/workflows/<slug>/design-notes/extract.md`
+- Write extraction report to `.ai/workflows/<slug>/design-notes/extract-<timestamp>.md`. Get `<timestamp>` from [../_timestamp.md](../_timestamp.md) in the compact run-id form.
 - Write suggested token file to `.ai/workflows/<slug>/design-notes/tokens-extracted.css`
+
+When invoked as `/wf design extract` with no slug:
+- Write the extraction report to `.ai/design/extract-<timestamp>.md`.
+- Write the suggested token file to `.ai/design/tokens-extracted.css`.
+
+In both cases, update the design record:
+- Summarize the extracted tokens and the component patterns into the `## System in code` section of `.ai/design/current.md`.
+- Follow the format in [record.md](record.md).

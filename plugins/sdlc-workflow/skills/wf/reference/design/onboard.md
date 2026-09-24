@@ -85,3 +85,7 @@ A first-run or empty state is a *rare* moment — the frequency tier where a des
 - Does the empty state explain what will appear and how to get there?
 - Are all onboarding steps skippable?
 - Is the first-run experience showing value or demanding commitment?
+
+## In the workflow
+
+This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.

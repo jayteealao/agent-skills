@@ -45,9 +45,12 @@ exception; its section below explains the difference.</p>
 questions and grounds itself with a targeted read of the files likely in scope. It writes a
 plan of at most five steps; each step names the files it touches and states how to verify the
 step. The lane works on a dedicated <code>fix/&lt;slug&gt;</code> branch by default (you can
-decline and stay on your current branch). Design work is never auto-included; end the invocation with the trailing token
-<code>design</code> to opt in. If the change touches UI without it, the shape notes a
-follow-up recommendation instead of a block.</p>
+decline and stay on your current branch). The lane also sets <code>ux-impact</code>, and you
+confirm it in the same question as the stack. When the change needs design, you are present, so
+the lane runs a compressed design stage before it writes <code>03-slice.md</code>: a short
+brief, one drawing per changed surface, and one confirmation. The trailing token
+<code>design</code> forces design on. <code>refactor</code> and <code>hotfix</code> follow the
+same rule; <code>hotfix</code> records <code>ux-impact</code> without a question.</p>
 
 <p>The fix lane watches its own envelope with tripwires: more than 3 files, more than 5 steps,
 a new external dependency, an architectural change, or too many unanswerable questions. A

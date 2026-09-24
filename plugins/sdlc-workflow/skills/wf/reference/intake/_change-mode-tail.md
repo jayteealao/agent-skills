@@ -42,6 +42,12 @@ row:
   existing unconfirmed-stack caveat path carries it. The verify STOP fires only when
   `stack:` is absent, which this policy eliminates.
 
+## UX impact and the design stage (Step 0 — every change-mode)
+
+Set `ux-impact` per `design/_lane.md` (read it now). `fix` and `refactor` confirm it in the same question as the stack. `hotfix` records it unconfirmed. `update-deps` writes `none`. A trailing `design` token sets it to at least `visual`.
+
+When design is needed, the person is present, so run the design stage (`design/stage.md`) in compressed form after `02-shape.md` and before `03-slice.md`: a short brief, one drawing per changed surface, one confirmation, then `02c-craft.md`. `04-plan.md` is written only after the design is settled; the pre-write hook refuses it before. When `ux-impact: none`, write `progress.design: skipped` and `design-skip-reason:`.
+
 ## Index template (`00-index.md`, `type: index`)
 
 Every change-mode writes the **full `type: index`** overview — the same heavy index a
@@ -84,6 +90,8 @@ stack:                      # Step 0 fingerprint per the stack policy above
   available-skills: []
   available-mcp: []
   user-confirmed: <true|false per the stack policy>
+ux-impact: <none|visual|flow|new-surface>   # per the UX impact rule above; update-deps writes none
+ux-impact-confirmed: <true|false>
 origin-investigate: <source-slug>   # only when provenance attached (any origin-<type> key); omit otherwise
 next-command: <next-command>
 next-invocation: "<next-invocation>"
@@ -100,6 +108,7 @@ slices:
 progress:
   intake: complete
   shape: complete
+  design: <complete|skipped>
   slice: complete
   plan: complete
   implement: not-started

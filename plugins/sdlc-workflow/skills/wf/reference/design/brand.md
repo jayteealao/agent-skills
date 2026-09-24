@@ -45,7 +45,7 @@ Committed, Full palette, and Drenched deliberately exceed the ≤10% rule. Unexp
 
 Orchestrated page-load sequences are available. Staggered reveals, scroll-driven animation, cinematic hero entrances — all legitimate brand tools when they serve the emotional contract of the page. One well-rehearsed entrance beats scattered micro-interactions.
 
-Motion is part of the brand voice, so match it to personality: a playful brand can carry real spring `bounce` and overshoot that product UI never would; an austere editorial brand stays restrained and slow. The values should cohere with the type, color, and name — the way Sonner's slightly-slower `ease` reads as elegant. Even at full theatrical ambition, motion stays interruptible and GPU-composited — cinematic is no excuse for dropped frames. See `animate.md` for the mechanics.
+Motion is part of the brand voice, so match it to personality: a playful brand can carry a spring with `bounce` 0.1–0.3 and overshoot when the brand direction calls for play, which product UI never does; an austere editorial brand stays restrained and slow. The values should cohere with the type, color, and name — the way Sonner's slightly-slower `ease` reads as elegant. Even at full theatrical ambition, motion stays interruptible and GPU-composited — cinematic is no excuse for dropped frames. See `animate.md` for the mechanics.
 
 ## Bans
 

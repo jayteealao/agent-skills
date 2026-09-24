@@ -20,6 +20,11 @@ where its gate can stop you.</p>
 
 <pre><code>intake → shape → slice → plan → implement → verify → review → handoff → ship → retro</code></pre>
 
+<p>When the work changes what a person sees or does, one more stage runs between shape and
+slice: the human-only <strong>design</strong> stage. You run it yourself, and no driver runs it:</p>
+
+<pre><code>intake → shape → design → slice → plan → …</code></pre>
+
 <p>Every stage writes its result as a numbered artifact under
 <code>.ai/workflows/&lt;slug&gt;/</code> before it says anything in chat. The file is the
 record; the chat summary is the courtesy copy. Stages build strictly on their predecessors:
@@ -46,7 +51,9 @@ repetition.</p>
 work is for, what is out of scope, and how big your appetite is. It also fingerprints the
 repository's stack (languages, platforms, tooling) and asks you to confirm the fingerprint,
 because later stages make tooling decisions from the fingerprint rather than re-detect the
-stack. Intake writes two files: the control file <code>00-index.md</code>, which every later
+stack. In the same question, you confirm the <strong>UX impact</strong> (<code>ux-impact</code>):
+<code>none</code>, <code>visual</code>, <code>flow</code>, or <code>new-surface</code>. Any value
+other than <code>none</code> means that the work needs design. Intake writes two files: the control file <code>00-index.md</code>, which every later
 stage reads first, and <code>01-intake.md</code>, the brief. Intake also starts the intent-risk
 ledger, a record of load-bearing ambiguities in what you asked for. Shape must resolve each
 recorded ambiguity, and handoff and ship refuse to ignore an open one.</p>
@@ -66,10 +73,11 @@ PO questions for decisions such as risk tolerance and appetite, and freeform que
 behavior, acceptance criteria, and non-goals. Shape also adjudicates the intent-risk ledger:
 you must resolve every open ambiguity that intake recorded, or consciously carry the ambiguity
 to a named later stage. Shape writes <code>02-shape.md</code>.</p>
-<p>Two kinds of optional work attach at shape. First, when the feature has a visual surface,
-shape authors the <strong>design brief</strong>, <code>02b-design.md</code>: content inventory,
-states (empty, error, loading, first-run), and visual direction. Slice and plan then treat the
-design brief as mandatory input. Second, shape decides which <strong>add-ons</strong> the work
+<p>Two kinds of optional work attach at shape. First, when <code>ux-impact</code> is not
+<code>none</code>, shape authors the <strong>design brief</strong>, <code>02b-design.md</code>:
+content inventory, states (empty, error, loading, first-run), visual direction, and a UX intent
+section. The design stage draws from the brief. When <code>ux-impact</code> is
+<code>none</code>, shape records that design is skipped. Second, shape decides which <strong>add-ons</strong> the work
 needs (instrumentation, an experiment, a performance benchmark) and records the decision in the
 shape artifact's <code>augmentations-needed</code> frontmatter. Shape decides; plan authors.
 You never invoke the add-ons directly.</p>
@@ -77,15 +85,29 @@ You never invoke the add-ons directly.</p>
 intent-risk. In those cases, shape automatically gets a second opinion on its draft acceptance
 criteria from an external model before it writes the file.</p>
 
+<h2>Between shape and slice — design</h2>
+<p>When the work needs design, you run the design stage yourself:</p>
+<pre><code>/wf design &lt;slug&gt;</code></pre>
+<p>The design stage draws every changed surface of the feature, in every state that the brief
+names. It draws on the design canvas of the host when one is available, and otherwise it
+generates comps. It then asks you to approve, adjust, or stop. On approve, it writes the
+<strong>visual contract</strong>, <code>02c-craft.md</code>: the mock fidelity inventory and the
+implementation contract that implement builds against and verify re-checks. The contract also
+records who confirmed the direction and when.</p>
+<p>Only a person runs this stage. <code>/wf auto</code> pauses here, and <code>/wf yolo</code>
+refuses to start until the design is settled. A later stage that cannot build the design as
+drawn stops and routes you to <code>/wf design &lt;slug&gt; amend</code>. See
+<a href="design.html">Design</a>.</p>
+
 <h2>Stage 3 — slice</h2>
 <p>Slice decomposes the shaped spec into thin, independently verifiable vertical slices:</p>
 <pre><code>/wf slice &lt;slug&gt;</code></pre>
 <p>Before slice cuts, it interviews you briefly about decomposition strategy: genuinely
 different ways to split the work. Each way is described by what you experience, for example
-more PRs and faster feedback versus fewer review passes, not by mechanism. If a design brief
-exists, its states and surfaces must inform the slice boundaries. A distinct state or visual
-surface either gets its own slice, or the master index justifies the grouping in one
-sentence.</p>
+more PRs and faster feedback versus fewer review passes, not by mechanism. When the work
+needs design, slice maps every slice to the surfaces in <code>02c-craft.md</code>. A surface
+with its own acceptance criteria either gets its own slice, or the master index justifies the
+grouping in one sentence.</p>
 <p>Slice is also where you answer the <strong>review-scope question</strong>, exactly once per
 workflow: review each slice separately (one review artifact per slice), or review the whole
 slug against its cumulative diff (one artifact). Slice records the answer in
@@ -102,10 +124,11 @@ strategy per acceptance criterion. When a criterion needs a special environment 
 a device, an external service), the plan states explicitly how that evidence will be produced.
 That forethought matters later: verify refuses to quietly pass a criterion whose evidence path
 was never engineered.</p>
-<p>Plan is where the optional layers become concrete. If a design brief exists but no
-<strong>visual contract</strong> exists yet, plan authors <code>02c-craft.md</code>: the mock
-fidelity inventory and the implementation contract that implement builds against and verify
-re-checks. For each add-on that shape decided, plan authors the matching artifact:
+<p>Plan is where the optional layers become concrete. Plan does not write the visual contract.
+When the work needs design, plan reads <code>02c-craft.md</code>, turns every mock fidelity
+inventory item into a plan step, and writes <code>## Design Components</code>: the system
+components that the slice uses and the new or changed components. A write-time hook refuses a
+plan while a needed design is not settled. For each add-on that shape decided, plan authors the matching artifact:
 <code>04b-instrument.md</code> (signal design), <code>04c-experiment.md</code> (flag, cohorts,
 metrics), or <code>05c-benchmark.md</code> (baseline numbers). Plan records each add-on in the
 <code>augmentations:</code> list in <code>00-index.md</code>, so implement and verify consume
@@ -212,8 +235,9 @@ workflows. It writes <code>10-retro.md</code>, and the workflow is complete.</p>
 <tbody>
 <tr><td>intake</td><td><code>00-index.md</code>, <code>01-intake.md</code></td><td>Unanswered PO questions (status: awaiting-input)</td></tr>
 <tr><td>shape</td><td><code>02-shape.md</code> (+ <code>02b-design.md</code>)</td><td>Missing intake; open shape questions</td></tr>
-<tr><td>slice</td><td><code>03-slice.md</code> + per-slice files</td><td>Missing or unconfirmed stack fingerprint</td></tr>
-<tr><td>plan</td><td><code>04-plan*.md</code> (+ <code>02c-craft.md</code>, <code>04b</code>/<code>04c</code>/<code>05c</code>)</td><td>Missing shape; unconfirmed stack</td></tr>
+<tr><td>design (human only, when needed)</td><td><code>02c-craft.md</code></td><td>Missing shape; the person has not approved the drawings</td></tr>
+<tr><td>slice</td><td><code>03-slice.md</code> + per-slice files</td><td>Missing or unconfirmed stack fingerprint; needed design not settled</td></tr>
+<tr><td>plan</td><td><code>04-plan*.md</code> (+ <code>04b</code>/<code>04c</code>/<code>05c</code>)</td><td>Missing shape; unconfirmed stack; needed design not settled</td></tr>
 <tr><td>implement</td><td><code>05-implement-&lt;slice&gt;.md</code></td><td>Missing plan</td></tr>
 <tr><td>verify</td><td><code>06-verify-&lt;slice&gt;.md</code></td><td>Unmet acceptance criteria; one fix round, then escalate</td></tr>
 <tr><td>review</td><td><code>07-review*.md</code> ledger</td><td>Open blockers → <code>dont-ship</code> verdict</td></tr>
@@ -224,7 +248,8 @@ workflows. It writes <code>10-retro.md</code>, and the workflow is complete.</p>
 </table>
 
 <p>If ten commands by hand feel heavy, <code>/wf auto</code> drives the same stages end to end
-and pauses at each stage's own gate: same lifecycle, one driver. See
+and pauses at each stage's own gate: same lifecycle, one driver. It never runs the design
+stage; it pauses there until you confirm the design. See
 <a href="autonomous-drivers.html">Autonomous drivers</a>.</p>
 
 <div class="related">

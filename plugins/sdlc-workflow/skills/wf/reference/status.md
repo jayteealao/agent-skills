@@ -114,7 +114,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 
 **Classify each workflow:**
 1. **Active** — `status` is `in-progress`, `planning`, `implementing`, or any non-terminal, non-blocked status.
-2. **Blocked** — `status` is `awaiting-input`, OR `open-questions` non-empty, OR a prerequisite stage awaiting-input.
+2. **Blocked** — `status` is `awaiting-input`, OR `open-questions` non-empty, OR a prerequisite stage awaiting-input, OR design unsettled per `design/_lane.md` (next: `/wf design <slug>`).
 3. **Completed** — `status` is `complete`, `shipped`, `closed`, or `abandoned`.
 
 **Staleness:** if `updated-at` is >7 days ago, append `(stale)` to the status (epoch seconds per [_timestamp.md](_timestamp.md) vs parsed `updated-at`).

@@ -30,7 +30,7 @@ Typography is the single highest-leverage change for making a design bolder.
 - Tighten heading tracking (−0.02 to −0.05 em for display sizes)
 - Increase line height in body text: 1.6–1.75 for comfortable reading
 - Use font variation axes (optical size, weight) if the font supports it
-- Check the font reflex-reject list (brand register) — if using Fraunces or Plus Jakarta Sans, consider replacing with something less common
+- Check the font reflex-reject list in [brand.md](brand.md) (brand register) — if the font is on the list, consider replacing it with something less common
 
 ## Commit to the color strategy
 
@@ -67,7 +67,14 @@ After changes:
 - Can you name the aesthetic lane?
 
 ## Never
+
+Apply the ban list in [_design-context.md](_design-context.md).
+
 - Multiple large-scale dominant choices competing for attention
 - Bold for bold's sake — every increase in visual weight should serve hierarchy
 - Decorating rather than composing (adding elements vs. making structural changes)
 - Aggressive typography with poor color contrast (bold weight does not substitute for contrast ratio)
+
+## In the workflow
+
+This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.

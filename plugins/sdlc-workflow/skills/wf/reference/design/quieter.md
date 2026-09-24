@@ -58,7 +58,7 @@ If the design currently uses multiple typefaces: consider whether the secondary 
 
 Reduce, don't eliminate. The goal is background processes becoming truly background:
 - Remove transitions on elements that change frequently (live data cells, updating numbers)
-- Reduce duration: 100–150ms for most micro-interactions
+- Reduce duration: use the low end of the micro range in `animate.md` for most micro-interactions
 - Remove entrance animations on elements that are always visible (persistent sidebars, fixed headers)
 - Keep transitions on user-triggered state changes (expanding, collapsing, navigating)
 
@@ -78,7 +78,14 @@ After quieting:
 - Is the hierarchy stronger (not weaker) than before?
 
 ## Never
+
+Apply the ban list in [_design-context.md](_design-context.md).
+
 - Removing functional information in the name of cleanliness
 - Making everything the same weight (calm ≠ flat)
 - Using whitespace as the only structural device without typography or color to support hierarchy
 - Quieting color without maintaining semantic distinctions (error, success, warning)
+
+## In the workflow
+
+This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.

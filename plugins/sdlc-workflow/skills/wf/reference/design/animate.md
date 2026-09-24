@@ -137,7 +137,7 @@ Springs simulate physics and have no fixed duration — they settle on their par
 { type: "spring", mass: 1, stiffness: 100, damping: 10 }  // traditional physics — more control
 ```
 
-Keep `bounce: 0` for product UI — that is the spring equivalent of the no-`bounce`/`elastic`-easing rule. A subtle `0.1–0.3` is reserved for playful brand interactions and drag-to-dismiss, never dashboards or data UI.
+Keep `bounce: 0` for product UI — that is the spring equivalent of the no-`bounce`/`elastic`-easing ban in [_design-context.md](_design-context.md). A subtle `0.1–0.3` is reserved for brand surfaces when the brand direction calls for play, including brand drag-to-dismiss. Never use it in dashboards or data UI.
 
 **Decorative mouse-tracking.** For an element that responds to the cursor — a card that tilts toward the pointer, a glow that trails it — don't bind the transform directly to mouse position; it feels artificial because it has no momentum. Interpolate the value through a spring (Motion's `useSpring`) so it lags and settles like a physical thing. Reserve this for genuinely *decorative* motion on an "alive" element; on a functional control or a data chart, no motion beats decorative motion.
 
@@ -220,7 +220,7 @@ Apply the ban list in [_design-context.md](_design-context.md).
 
 ## Cohesion
 
-Motion should match the personality of the thing it animates and the rest of the product. A playful component can be bouncier; a professional dashboard stays crisp and fast. Sonner (13M weekly downloads) feels right partly because its easing, duration, visual design — even its name — are in harmony: slightly slower than typical UI, `ease` rather than `ease-out`, to read as elegant. Choose animation values for the component's mood, not by reflex. And when you genuinely can't tell whether a motion improves the experience, the strongest move is usually to **delete it**.
+Motion should match the personality of the thing it animates and the rest of the product. A playful brand component can be bouncier (`bounce` 0.1–0.3 when the brand direction calls for play); a professional dashboard stays crisp and fast. Sonner (13M weekly downloads) feels right partly because its easing, duration, visual design — even its name — are in harmony: slightly slower than typical UI, `ease` rather than `ease-out`, to read as elegant. Choose animation values for the component's mood, not by reflex. And when you genuinely can't tell whether a motion improves the experience, the strongest move is usually to **delete it**.
 
 ## Reviewing motion before you ship
 
@@ -229,6 +229,10 @@ Motion bugs hide at full speed. Before calling an animation done:
 - **Step frame-by-frame** (Chrome DevTools → Animations) to catch timing drift between coordinated properties.
 - **Test gestures on a real device**, not just a desktop pointer — connect a phone to the dev server and feel the drag.
 - **Look again the next day with fresh eyes** — imperfections invisible during development surface later.
+
+## In the workflow
+
+This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.
 
 ---
 

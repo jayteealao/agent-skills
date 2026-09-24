@@ -67,6 +67,13 @@ After changes:
 - Is there a clear hierarchy of attention?
 
 ## Never
+
+Apply the ban list in [_design-context.md](_design-context.md).
+
 - Removing elements for visual cleanliness at the cost of usability
 - Hiding information that users will need in rare but important cases
 - Clarity-through-whitespace without hierarchy (spacious + flat is still flat)
+
+## In the workflow
+
+This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.

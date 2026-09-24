@@ -13,7 +13,7 @@ import { pageHref } from './_paths.mjs';
 import { costRowsFor, costSectionHtml } from './_cost.mjs';
 
 const STAGES = [
-  'intake', 'shape', 'slice', 'plan', 'implement',
+  'intake', 'shape', 'design', 'slice', 'plan', 'implement',
   'verify', 'review', 'handoff', 'ship', 'retro',
 ];
 
@@ -22,7 +22,10 @@ const STAGES = [
 // href emitted by the stages-grid cards on the slug overview).
 const STAGE_NAV = {
   intake:    { types: ['intake'],                                       dir: 'intake' },
-  shape:     { types: ['shape', 'design', 'design-contract', 'design-brief'], dir: 'shape' },
+  shape:     { types: ['shape', 'design', 'design-brief'],             dir: 'shape' },
+  // The human-only design stage (design/_lane.md): its artifact is the visual
+  // contract 02c-craft.md (type design-contract), placed under design-brief/.
+  design:    { types: ['design-contract'],                              dir: 'design-brief' },
   slice:     { types: ['slice-index', 'slice'],                         dir: 'slice' },
   plan:      { types: ['plan-index', 'plan'],                           dir: 'plan' },
   implement: { types: ['implement-index', 'implement'],                 dir: 'implement' },
