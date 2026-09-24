@@ -5,6 +5,15 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.167.1] - 2026-09-24
+
+### Fixed
+
+- **Every intake route into slice or plan now passes the design lane.** `rca` records `ux-impact` from the suggested fix; when design is needed, its `plan` route goes through `/wf design <slug>` first, and the design stage then routes to `/wf plan <slug>`, because an rca has no slice stage. `update-deps` writes `ux-impact: none` with a skip reason, and review adds `design-audit` when the run upgrades a major version of a UI framework, component, or styling package.
+- **An extension can no longer plan a surface that nobody drew.** `extend` has a new Step 3c, Design delta. When the new slices add surfaces or states that `02c-craft.md` does not list, it raises `ux-impact`, reopens the design, and routes to `/wf design <slug> amend`.
+- **A reopened design is not settled.** `progress.design: in-progress` now means that the design is reopened, by an extension or by a stage that cannot build the design as drawn. The plan-write hook refuses a plan and names `amend`, yolo's readiness check blocks, and the design stage runs Amend. Step 6 of the design stage sets `complete` again.
+- **Default intake no longer describes the old path.** Its design note said that plan writes `02c-craft.md` and that design has no separate stage. It now names the human-only design stage. `implement` loads the baseline design rules when the slice builds UI, not on the stack flag.
+
 ## [9.167.0] - 2026-09-24
 
 ### Changed
