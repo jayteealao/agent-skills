@@ -5,6 +5,26 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.167.0] - 2026-09-24
+
+### Changed
+
+- **Design is a human-only stage between shape and slice** (DESIGN-LANE-PLAN.md). A person confirms the design before any stage a driver can run. `/wf design <slug>` loads the design record, draws every surface the feature changes, asks the person to approve, adjust, or stop, and writes the visual contract `02c-craft.md` with `canvas:`, `direction-confirmed-by:`, `confirmed-at:`, and `surfaces:`. `plan` no longer writes the contract; it consumes it and writes `## Design Components` (the system components used and the component delta). `/wf auto` pauses at the design stage, and `/wf yolo` refuses to start until the design is settled; neither runs it. A stage that cannot build the design as drawn stops and routes to `/wf design <slug> amend`.
+- **UX impact, not the stack flag, turns design on.** Intake records `ux-impact` (`none`, `visual`, `flow`, `new-surface`) from the request and the files in scope, and the person confirms it with the stack question. A flow or copy change with no new screen now gets design; a backend-only change in a UI repo does not. `fix`, `refactor`, and `hotfix` set it too, and run a compressed design stage inside intake before `03-slice.md` when design is needed. A workflow from an earlier release keeps the old triggers.
+- **Each stage has one design duty** (`design/_lane.md`): shape writes the brief with a new `## UX intent` section, slice maps slices to surfaces, verify places each built surface next to its drawing in `## Design Comparison`, review judges drift from `DESIGN.md` and the design direction, and retro writes back to the design record.
+- **The design canvas is the first choice for drawings.** A new host-contract row, "Design canvas", draws one artboard per surface and state on the host's design canvas. `/imagery` and `/uiproto` are the fallback on a host without one. A second row, "Design system sync", backs `/wf design sync`.
+- **The 15 transforms are moves.** `/wf design <slug> <move>` focuses the design stage on a move, `plan` cites moves as step pointers, and `implement` applies them. `/wf design <move> <instructions>` without a slug starts a new workflow through intake. `design` moves into the stages table after `shape`, in the dispatcher and in the picker.
+- **The design files agree with each other.** The brief procedure cites shape Step 5a. Bounce is banned in the product register only. Touch targets are 44×44 px (32×32 px for a pointer-only desktop control), prose lines are 65–75ch, and durations cite `animate.md`. `audit` consumes the `06-verify` measurements and maps its score to a verdict. `extract` writes `extract-<timestamp>.md` and no longer assumes `src/`. Every move points to the absolute bans and says where it sits in the workflow.
+
+### Added
+
+- **The design record.** `.ai/design/current.md` (surfaces, drift, design debt) and `.ai/design/direction.md` (goals, future direction, open decisions) join `PRODUCT.md` and `DESIGN.md`. `/wf design setup`, `teach`, `extract`, `direction`, and `sync` maintain it. Retro updates `current.md` and asks the person before it changes `direction.md`.
+- **A design gate in code.** The pre-write hook refuses a `04-plan*.md` write while the workflow needs design and the design is not settled (`lib/design-lane.mjs`). Opt out with `hooks.designDirectionGate: false`.
+
+### Removed
+
+- The unused `pen-doc` field of the visual contract.
+
 ## [9.166.0] - 2026-09-24
 
 ### Changed
