@@ -52,6 +52,7 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
 - **Keys** are kebab-case words (`^[a-z0-9]+(-[a-z0-9]+)*$`), stable once written, and unique across areas, threads, items, and work. A key names the thing, so a key that leaks into chat still means something.
 - **`areas[].side`** is `problem`, `solution`, or `both`. **`areas[].state`** is `open`, `touched`, or `explored`. **`areas[].brief`** is five plain lines or fewer: what we decided, what is core, what is still open, and the scope. **`areas[].scope`** is `keep`, `cut`, `later`, `mixed`, or `null`, and is set when the area closes or at `done`.
 - **`page`** is the link of the published page, or `null` where the host has none.
+- **`focus`** is `general` or `design`; absent means `general`. **`sketches[]`** holds each sketch of a design focus ([_design.md](_design.md)): `key`, `thread`, the keys of the `items` it shows, `link` (or `null`), a plain `caption`, and `state` (`idea`, `carried`, or `dropped`).
 - **`budgets[]`** holds each limit the person decided, with the key of the deciding item in `decision` ([_cohere.md](_cohere.md)).
 - **`briefs[]`** holds each brief the person brought ([_brief.md](_brief.md)). `source` is `pasted` or a file path. Each criterion has a `part` (`good`, `failure`, `check`, or `other`), a `status` (`covered`, `partial`, `open`, or `out-of-scope`, with `reason`), and the keys of the items that answer it.
 - **`threads[].state`** is `live`, `parked`, `routed`, or `dropped`. A dropped thread carries `reason`.
@@ -64,6 +65,7 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
   - `top-risk: true` marks the accepted risk that worries the person most in its area.
   - `accepted-risk` is the consequence the person accepted with a decision, in one plain sentence.
   - `replaced-by` is the key of the newer decision that replaced this one.
+  - `design: true` marks an item about how the idea looks or behaves. These items travel to the design stage.
   - `was` holds a legacy id after a conversion.
 - **`log[].kind`** is `reflection`, `probe`, `fork`, `widen`, `choice`, `check-in`, `close`, `cohere`, `brief`, `control`, or `walk`.
 
@@ -71,7 +73,7 @@ A **piece of work** (one per agreed piece at `done`, in order):
 ```json
 { "key": "spending-limit", "order": 1, "title": "Add a warning-only spending limit per project", "shape": "intake", "threads": ["limit-per-project"], "items": ["limit-warns-only", "cost-rows-per-run"], "entry": "/wf intake spending-limit from <slug>", "state": "proposed", "routed-to": null, "stale": false }
 ```
-`shape` is `intake`, `investigate`, `fix`, `discover`, `task`, or `extension`. `state` is `proposed` or `routed`. `stale: true` with `stale-because` marks a piece of work that a later area changed.
+`shape` is `intake`, `investigate`, `fix`, `discover`, `task`, `extension`, `design`, or `design-direction`. A piece of work that carries design items also records `ux-impact` (the proposed value) and `sketches` (the keys of its carried sketches). `state` is `proposed` or `routed`. `stale: true` with `stale-because` marks a piece of work that a later area changed.
 
 ## `01-brainstorm.md` — the person's document
 

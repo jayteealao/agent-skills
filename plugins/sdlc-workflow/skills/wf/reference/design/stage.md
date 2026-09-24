@@ -5,7 +5,7 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
 | | Detail |
 |---|---|
 | Requires | `02-shape.md` with `status: complete`; `02b-design.md` (this stage writes it when it is missing) |
-| Reads | The design record ([record.md](record.md)), `02b-design.md`, `po-answers.md`, the move reference when the person names a move |
+| Reads | The design record ([record.md](record.md)), `02b-design.md`, `po-answers.md`, the move reference when the person names a move, the carried design thoughts ([_carried.md](_carried.md)) |
 | Produces | `02c-craft.md` (type `design-contract`) with its sibling `.yaml` and `.html.fragment`; `00-index.md` updates |
 | Next | `/wf slice <slug>` (`/wf plan <slug>` for an `rca` workflow, which has no slice stage; `/wf plan <slug> <first-new-slice>` after an extension) — or `/wf auto <slug>` / `/wf yolo <slug>`, which may start now |
 
@@ -23,6 +23,10 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
 2. Read `PRODUCT.md`. When it is missing, empty, or carries `[TODO]` markers, run `/wf design setup` now with the person, then continue.
 3. Read `DESIGN.md`, `.ai/design/current.md`, and `.ai/design/direction.md`. When a `.ai/design/` file is missing, create it from the [record.md](record.md) template with `[TODO]` sections and tell the person. Do not stop.
 4. When the person named a move, read `design/<move>.md`. The move focuses the contract; it does not widen the scope of `02-shape.md`.
+
+## Step 1b — Present the carried design thoughts
+
+When a design brainstorm left thoughts for this workflow, follow [_carried.md](_carried.md) → At the design stage: present them, walk them with the person, and ask their open questions. The kept set is the starting direction for Step 4. When nothing is carried, continue.
 
 ## Step 2 — Make sure the brief exists
 
@@ -61,6 +65,7 @@ direction-confirmed-by: <in-session | product-md | teach>
 confirmed-at: "<iso-8601>"
 surfaces: [<every surface drawn>]
 move: <move name, or omit>
+carried-from: [<board path>#<piece-of-work key>]   # omit when nothing was carried
 ```
 
 Then update `00-index.md`: `current-stage: design`, `progress.design: complete`, and `next-invocation` per the Next row above. Record each new open design question under `## Open decisions` in `.ai/design/direction.md` only when the person agrees to keep it.
@@ -69,7 +74,7 @@ Then update `00-index.md`: `current-stage: design`, `progress.design: complete`,
 
 `/wf design <slug> amend [instructions]` reopens a confirmed design, because a later stage found that it cannot be built as drawn, or because the person changed their mind.
 
-1. Read the stop reason from `00-index.md` and the stage artifact that raised it. For an extension, the reason is the new slices in `03-slice.md` and the surfaces they add.
+1. Read the stop reason from `00-index.md` and the stage artifact that raised it. For an extension, the reason is the new slices in `03-slice.md` and the surfaces they add. For a design brainstorm, the reason is the carried thoughts: run Step 1b first.
 2. Change or add only the surfaces the reason names. Run Steps 4–6 for those surfaces. Step 6 adds new surfaces to `surfaces:`.
 3. Snapshot the prior contract per [_additive-write.md](../_additive-write.md), then write the new one.
 4. Name every plan that cites a changed surface. Route to `/wf plan <slug> <slice>` for each.

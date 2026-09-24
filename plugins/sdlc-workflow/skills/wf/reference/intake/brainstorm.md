@@ -12,7 +12,7 @@ You are running `/wf intake brainstorm`, a **person-led thinking loop**. It exis
 
 If the dispatcher selected **slug-mode** (the first token after `intake` matched a non-closed slug whose `workflow-type` is NOT `brainstorm`), follow `../_compressed-slice.md` — it OVERRIDES the standalone instructions below. Write one `.ai/workflows/<slug>/03-slice-brainstorm-<descriptor>.md` (`type: slice`, `slice-type: brainstorm`, `compressed: true`, `origin: intake/brainstorm`) and its board `.ai/workflows/<slug>/brainstorm-board-<descriptor>.json`. The loop (Step 2) and `done` (Step 3) are the same; the slice body is the person's document, and the agreed pieces of work are written into the slice for a later `/wf intake <slug> <scope>` extension. No new workflow, no branch, no standalone artifact, additive index updates only. Chat return: `brainstorm → compressed slice <slice-slug> on <slug>`.
 
-If the first token matched an existing slug whose `workflow-type` IS `brainstorm`, that is a **resume** of the standalone flow below (Step 0), not slug-mode.
+If the first token matched an existing slug whose `workflow-type` IS `brainstorm`, that is a **resume** of the standalone flow below (Step 0), not slug-mode. **Design focus.** When the topic's first token is `design`, or `/wf brainstorm` resolved a design focus, the board's `focus` is `design`: load `brainstorm/_design.md` in full now. On a non-brainstorm slug, `design` as the first topic token is not slug-mode: it brainstorms that workflow's design, per that file's section "On a feature workflow". `/wf brainstorm` is the same loop under its own key.
 
 If neither applies, proceed standalone below.
 
@@ -214,7 +214,7 @@ When every area has an answer, talk through how the kept items become work. Ask 
 - How the kept items group into pieces of work, the order of the pieces, and the dependencies between them, in plain words.
 - The size of each piece, and whether a piece is too large to start.
 - A stale piece of work (2.8): propose the piece that brings it up to date, for example a `task` that revises its design document.
-- The form of each piece: a feature to build (`intake`), a problem to investigate first (`investigate`), a yes-or-no question to check (`discover`), a small correction (`fix`), a document or other deliverable that is not code (`task`), or new scope on a workflow that exists (`extension`, `/wf intake <existing-slug> <scope>`).
+- The form of each piece: a feature to build (`intake`), a problem to investigate first (`investigate`), a yes-or-no question to check (`discover`), a small correction (`fix`), a document or other deliverable that is not code (`task`), or new scope on a workflow that exists (`extension`, `/wf intake <existing-slug> <scope>`). A design focus adds `design` and `design-direction` (`brainstorm/_design.md`).
 
 Propose a first split, then change it as the person directs. Continue until the person says that the split holds.
 

@@ -61,7 +61,7 @@ Each duty applies only when design is needed, except the `intake` and `shape` du
 |---|---|
 | `intake` | Set `ux-impact` from the request and the files in scope. Ask the person to confirm it with the stack confirmation. Every mode that can route to `slice` or `plan` sets it: `rca` from the suggested fix, `update-deps` as `none`, and `extend` for the new slices. |
 | `shape` | When design is needed, write the brief `02b-design.md` per [shape.md](shape.md), including `## UX intent`, against the Identity, Current design, and Direction parts. When `ux-impact: none`, write `progress.design: skipped` and a one-line `design-skip-reason:`. |
-| `design` | Run [stage.md](stage.md) with the person: draw every changed surface, get the person's confirmation, write `02c-craft.md`. |
+| `design` | Run [stage.md](stage.md) with the person: present the thoughts a design brainstorm carried ([_carried.md](_carried.md)), draw every changed surface, get the person's confirmation, write `02c-craft.md`. |
 | `slice` | Map every slice to the surfaces in `02c-craft.md`. A surface with its own acceptance criteria gets its own slice, or one sentence in `## Slice Strategy` justifies the grouping. |
 | `plan` | Check the human rule. Turn every mock fidelity inventory item into a plan step. Cite the moves in `references-loaded:` as step pointers. Write `## Design Components`: the system components the slice uses, and the component delta (new or changed components). |
 | `implement` | Build from the tokens and components in `DESIGN.md`. Run the contract-check pass. Record the result in `## Visual Contract Honored`. |

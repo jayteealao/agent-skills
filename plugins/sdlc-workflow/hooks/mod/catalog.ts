@@ -1,5 +1,5 @@
 /**
- * The 22 `/wf` keys as the picker offers them: the command each key gets in
+ * The 23 `/wf` keys as the picker offers them: the command each key gets in
  * the typeahead (`/wf-<key>`), the one-line description the typeahead shows,
  * the dim argument hint, and what the picker has to ask for before the
  * command is complete.
@@ -37,6 +37,7 @@ export const CATALOG: readonly CatalogEntry[] = [
   { key: 'handoff', description: 'Prepare a pull-request handoff.', argumentHint: '<slug|pr#N|#N|N|branch> [slice]', need: 'slug-slice-optional' },
   { key: 'ship', description: 'Execute an approved ship plan.', argumentHint: '<slug|pr#N|#N|N|branch> [environment|announce|rollback] [run-id]', need: 'slug' },
   { key: 'retro', description: 'Record workflow lessons and outcomes.', argumentHint: '<slug|pr#N|#N|N|branch> [deep]', need: 'slug' },
+  { key: 'brainstorm', description: 'Think an idea through; design adds sketches.', argumentHint: '[slug] [design] [idea]', need: 'slug-optional' },
   { key: 'probe', description: 'Collect runtime evidence without source mutation.', argumentHint: '<slug> [target|sweep] | sweep [path]', need: 'slug' },
   { key: 'simplify', description: 'Review a bounded scope for simplification.', argumentHint: '[branch [base]|commit range|plan slug slice|codebase [path]]', need: 'none' },
   { key: 'auto', description: 'Drive stages until the pre-handoff boundary.', argumentHint: '<slug> [slice]', need: 'slug-slice-optional' },

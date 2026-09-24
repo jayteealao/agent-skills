@@ -23,11 +23,12 @@
 
 <ol>
   <li>It loads the project's design record (see <a href="#record">The design record</a>). When <code>PRODUCT.md</code> is missing, it runs <code>/wf design setup</code> with the person first.</li>
+  <li>When a design brainstorm left thoughts for this workflow, it presents them again as the starting direction (see <a href="#carried">How the carried thoughts come back</a>).</li>
   <li>It makes sure that the brief <code>02b-design.md</code> exists. Shape usually writes it. When it is missing, the stage writes it now.</li>
   <li>It inspects the code: the existing surfaces, tokens, and components that the brief touches.</li>
   <li>It draws every changed surface of the whole feature, not one slice. Every surface in the brief gets a drawing, in every state that the brief names. For a flow change, it draws the flow as a sequence of states.</li>
   <li>It asks the person one question: approve, adjust, or stop. On adjust, it changes the drawings and asks again. On stop, it writes no contract.</li>
-  <li>On approve, it writes the visual contract <code>02c-craft.md</code>. The contract records the canvas link (<code>canvas:</code>), who confirmed the direction (<code>direction-confirmed-by:</code>), when (<code>confirmed-at:</code>), and every surface drawn (<code>surfaces:</code>).</li>
+  <li>On approve, it writes the visual contract <code>02c-craft.md</code>. The contract records the canvas link (<code>canvas:</code>), who confirmed the direction (<code>direction-confirmed-by:</code>), when (<code>confirmed-at:</code>), and every surface drawn (<code>surfaces:</code>). When a brainstorm carried design thoughts, the contract also records <code>carried-from:</code> and a <code>## Carried design thoughts</code> section.</li>
 </ol>
 
 <p>The next step is <code>/wf slice &lt;slug&gt;</code>. You can also start <code>/wf auto &lt;slug&gt;</code> or <code>/wf yolo &lt;slug&gt;</code> now, because the design is settled.</p>
@@ -85,6 +86,54 @@
 
 <p><strong>amend</strong> reopens a confirmed design. Use it when a later stage found that it cannot build the design as drawn, or when you changed your mind. Amend changes only the surfaces that the reason names, asks for your confirmation again, keeps a snapshot of the prior contract, and names every plan that cites a changed surface. Run <code>/wf plan &lt;slug&gt; &lt;slice&gt;</code> again for each of those plans.</p>
 
+<h2 id="brainstorm">Brainstorm a design</h2>
+
+<p>The design stage confirms a design. It does not explore one. To think through how an idea looks and behaves before you confirm anything, run a design brainstorm:</p>
+
+<pre><code>/wf brainstorm design &lt;idea&gt;                Think through a new idea on a new board.
+/wf brainstorm &lt;brainstorm-slug&gt; design      Resume a board and switch its focus to design.
+/wf brainstorm &lt;feature-slug&gt; design [idea] Brainstorm the design of a workflow that exists.</code></pre>
+
+<p><code>/wf brainstorm</code> runs the same loop as <code>/wf intake brainstorm</code>: question batches on a board that stays open until you say <code>done</code>. The <code>design</code> focus adds to the loop and replaces nothing. It does these things:</p>
+
+<ul>
+  <li>It reads the design record at the start. On a feature workflow, it also reads <code>02-shape.md</code>, <code>02b-design.md</code>, and <code>02c-craft.md</code> when they exist. A missing file is a gap to name, not a stop.</li>
+  <li>It maps the design space: the surfaces, what a person does on each, layout and hierarchy, register, color, and type, motion and feedback, the states (empty, loading, error, first use), content and voice, and the fit with the design record.</li>
+  <li>It draws a rough sketch when a picture decides faster than words. It uses the design canvas, else <code>imagery</code>, else a one-sentence scene in the question text. When an area closes, you say which sketches carry forward.</li>
+  <li>It raises a tension when an idea pulls against <code>PRODUCT.md</code> or against a goal in <code>direction.md</code>.</li>
+</ul>
+
+<p><strong>A sketch is an idea, not a decision.</strong> You confirm a design only at the design stage. The brainstorm never writes <code>02c-craft.md</code>, never resolves the image gate, and never records <code>direction-confirmed-by</code>. It also never writes <code>PRODUCT.md</code>, <code>DESIGN.md</code>, or a file in <code>.ai/design/</code>.</p>
+
+<h3 id="brainstorm-done">What happens at done</h3>
+
+<p>On a standalone board, you and the agent walk the decisions and agree on pieces of work, as in any brainstorm. A piece of work that holds design items also records a proposed <code>ux-impact</code> and its sketches. Two forms of work are for design:</p>
+
+<ul>
+  <li><code>design</code> is the design stage of a feature workflow.</li>
+  <li><code>design-direction</code> is a change to the project's design direction. Its entry is <code>/wf design direction from &lt;board-slug&gt;</code>.</li>
+</ul>
+
+<p>A piece of work that starts a new workflow carries the thoughts forward. Intake proposes the carried <code>ux-impact</code>, and you confirm it. Shape pre-fills the brief from the carried decisions and does not ask again what you decided.</p>
+
+<p>On a feature workflow, the board is <code>brainstorm-board-design.json</code> and your document is <code>design-notes/brainstorm-design.md</code>, beside the other artifacts. A second run resumes the same two files. At <code>done</code>, the kept design items become one piece of work for that workflow. The entry is <code>/wf design &lt;slug&gt;</code>. When the design is already confirmed, the entry is <code>/wf design &lt;slug&gt; amend</code>, and the index records <code>progress.design: in-progress</code>, so the design is reopened.</p>
+
+<h3 id="carried">How the carried thoughts come back</h3>
+
+<p>The design stage looks for carried thoughts in two places. First, it reads the origin board that <code>00-index.md</code> names in <code>origin-brainstorm</code>, and takes the piece of work routed to this workflow. Second, it reads this workflow's own <code>brainstorm-board-design.json</code>. The carried set is the kept design items, the open questions and tensions on design threads, and the carried sketches. A cut item or a later item does not travel.</p>
+
+<p>When the set is not empty, the stage presents it again before it draws (Step 1b):</p>
+
+<ol>
+  <li>It summarizes what the brainstorm decided about how the idea looks and behaves, with the reason for each decision, and gives the link and caption of each sketch.</li>
+  <li>It asks about each carried decision and idea: keep, change, or drop. It asks about up to four items in each batch.</li>
+  <li>It asks the carried open questions and tensions in the same batches.</li>
+  <li>It draws from the kept and changed items first. A drawing that departs from a kept item says why in its caption.</li>
+  <li>It records the result in <code>02c-craft.md</code>: <code>carried-from:</code> names each source, and <code>## Carried design thoughts</code> lists each item with your decision and the reason.</li>
+</ol>
+
+<p>On <code>amend</code>, the stage presents only the carried items that touch the surfaces the amend changes.</p>
+
 <h2 id="record">The design record</h2>
 
 <p>The project keeps one design record across all workflows. Every workflow that needs design reads it, and the record outlives every workflow.</p>
@@ -106,6 +155,7 @@
   <li><code>teach</code> asks you questions and updates any of the four parts that your answers touch.</li>
   <li><code>extract</code> reads the tokens and component patterns that the code already uses and writes them into <code>current.md</code>. It changes no code. It is a good first command on a codebase whose visual language was never written down. With a slug, it also writes its report under the <code>design-notes/</code> folder of that workflow.</li>
   <li><code>direction</code> shows you the goals, the future direction, and the open decisions, asks what changed, and writes only what you confirm.</li>
+  <li><code>direction from &lt;board-slug&gt;</code> reads a change of direction that a design brainstorm carried. It shows each kept design item as a proposed change, with its reason, and writes only what you confirm.</li>
   <li><code>sync</code> keeps <code>DESIGN.md</code> and the design system of the host in step, one component at a time, after you approve the plan. When the host has no sync surface, it reports that and stops.</li>
 </ul>
 
@@ -199,7 +249,7 @@
     <li><a href="../guides/the-standard-lifecycle.html">The standard lifecycle</a> — where the design stage sits between shape and slice.</li>
     <li><a href="../guides/autonomous-drivers.html">Autonomous drivers</a> — how <code>auto</code> and <code>yolo</code> stop at an unsettled design.</li>
     <li><a href="../reference/review-dimensions.html">Review dimensions</a> — audit and critique also run as dimensions inside <code>/wf review</code>.</li>
-    <li><a href="../reference/commands.html">Commands</a> — the full <code>/wf</code> key list and the <code>design</code> arguments.</li>
+    <li><a href="../reference/commands.html">Commands</a> — the full <code>/wf</code> key list, and the <code>design</code> and <code>brainstorm</code> arguments.</li>
     <li><a href="../reference/artifacts.html">Artifacts</a> — <code>02b-design.md</code>, <code>02c-craft.md</code>, and what lives in <code>design-notes/</code>.</li>
   </ul>
 </div>

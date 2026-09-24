@@ -12,7 +12,7 @@ from the tree and fails when a count exceeds its pin.
 
 | Pin | Counted from | 2026-09-07 |
 |---|---|---|
-| `keys` | rows of the four key tables in `skills/wf/SKILL.md` | 22 |
+| `keys` | rows of the four key tables in `skills/wf/SKILL.md` | 22 → 23 (2026-09-24, `brainstorm`; earn rule in BRAINSTORM-DESIGN-PLAN.md §7) |
 | `intakeModes` | the mode keyword set that `reference/intake.md` names | 12 → 13 (2026-09-22, `brainstorm`) |
 | `reviewRubrics` | `reference/review/<rubric>.md`, underscore files excluded | 11 |
 | `aggregates` | rows of the aggregate table in `reference/review.md` | 7 |

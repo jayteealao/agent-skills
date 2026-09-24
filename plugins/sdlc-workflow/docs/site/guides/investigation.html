@@ -73,7 +73,9 @@
 <p>The board is two files. <code>01-brainstorm.md</code> is your document: the summary, the map, the decisions with their reasons, the open ideas, the findings with their sources, the assumptions, the tensions, and the questions for the plan. <code>brainstorm-board.json</code> is the agent's working board, validated on every write. Both are rewritten after every batch, so a session that dies loses at most one batch. When you state something about the codebase that one read can check, the agent runs that one read and records the finding with a file and line. It sends a research sub-agent only when you say <code>look it up</code>. It writes no plan and no code. On <code>done</code>, you and the agent walk back through the discussion one area at a time: you keep, cut, or leave for later each area or each item. Then you agree how the kept items become work, and nothing is written until you confirm. The successor inherits only what you kept, and the items you left for later as what it must not re-widen.</p>
 
 <pre><code>/wf intake brainstorm a per-slug cost budget
-/wf intake brainstorm brainstorm-a-per-slug-cost-budget-20260922   # resume</code></pre>
+/wf intake brainstorm brainstorm-a-per-slug-cost-budget-20260922   # resume
+/wf brainstorm a per-slug cost budget                              # the same loop under its own key</code></pre>
+<p>To think through how an idea looks and behaves, add <code>design</code>: <code>/wf brainstorm design &lt;idea&gt;</code>. See <a href="design.html#brainstorm">Design</a>.</p>
 
 <h2 id="audit">audit — hunt the defects nobody has named yet</h2>
 

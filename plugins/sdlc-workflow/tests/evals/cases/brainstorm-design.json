@@ -1,0 +1,42 @@
+{
+  "name": "brainstorm-design",
+  "order": 116,
+  "fixture": "docs-repo",
+  "prompt": "/wf brainstorm design a reading-progress bar at the top of each page",
+  "maxTurns": 40,
+  "assertions": [
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/brainstorm-*/01-brainstorm.md",
+      "min": 1,
+      "max": 1
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/brainstorm-*/01-brainstorm.md"
+    },
+    {
+      "type": "frontmatter-has",
+      "glob": ".ai/workflows/brainstorm-*/01-brainstorm.md",
+      "field": "focus"
+    },
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/brainstorm-*/brainstorm-board.json",
+      "min": 1,
+      "max": 1
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/brainstorm-*/00-index.md"
+    },
+    {
+      "type": "absent",
+      "glob": ".ai/workflows/brainstorm-*/02c-craft.md"
+    },
+    {
+      "type": "absent",
+      "glob": ".ai/workflows/brainstorm-*/0[2-9]-*.md"
+    }
+  ]
+}

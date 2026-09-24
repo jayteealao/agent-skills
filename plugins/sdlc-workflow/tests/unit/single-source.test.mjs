@@ -140,7 +140,7 @@ function claudeOnlyKeys() {
 
 test('dispatch table ↔ host-invocation ↔ reference files agree on host availability', () => {
   const keys = rosterKeys();
-  assert.equal(keys.size, 22, `expected 22 keys, got ${[...keys].join(', ')}`);
+  assert.equal(keys.size, 23, `expected 23 keys, got ${[...keys].join(', ')}`);
   const claudeOnly = claudeOnlyKeys();
   assert.deepEqual([...claudeOnly], ['yolo']);
   for (const k of claudeOnly) {
@@ -150,7 +150,7 @@ test('dispatch table ↔ host-invocation ↔ reference files agree on host avail
     assert.match(head, /Claude Code only/, `${k}.md must open with its host restriction`);
   }
   const codexKeys = [...keys].filter((k) => !claudeOnly.has(k));
-  assert.equal(codexKeys.length, 21);
+  assert.equal(codexKeys.length, 22);
   assert.ok(!codexKeys.includes('yolo'));
   // The dispatch table's own availability line names the same exception.
   const skill = read(pluginRoot, 'skills', 'wf', 'SKILL.md');

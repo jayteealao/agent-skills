@@ -69,6 +69,11 @@
         },
         "skills/wf/reference/slice.md": {
           "when design is needed and not settled, stop": "DESIGN-LANE-PLAN (9.167.0) human rule: a terminal condition of the new human-only design stage, added after the W0 baseline"
+        },
+        "skills/wf/reference/brainstorm.md": {
+          "- status: closed stop: \"workflow <slug is closed.": "BRAINSTORM-DESIGN-PLAN (9.168.0): a terminal condition of the new /wf brainstorm key router, added after the W0 baseline",
+          "with no idea, stop and render the usage": "BRAINSTORM-DESIGN-PLAN (9.168.0): a terminal condition of the new /wf brainstorm key router, added after the W0 baseline",
+          "with no token, stop and render the usage": "BRAINSTORM-DESIGN-PLAN (9.168.0): a terminal condition of the new /wf brainstorm key router, added after the W0 baseline"
         }
       }
     },
@@ -92,7 +97,7 @@
   "rubricFenceExceptions": {},
   "wordBudgets": {
     "skills/wf/SKILL.md": {
-      "words": 1718,
+      "words": 1716,
       "reason": "The 22-key tables (Arguments / Does / Writes cells) and the Step 0, 0.5, 0.7 STOP rules are the dispatcher's capability surface; 120 lines at 14 words per line. Cutting to 1,320 words would delete table cells that name invocations and artifacts."
     },
     "skills/wf/reference/handoff.md": {

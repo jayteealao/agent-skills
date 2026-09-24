@@ -509,6 +509,7 @@
         "confirmed-at": { "$ref": "#/$defs/iso8601" },
         "surfaces": { "$ref": "#/$defs/stringArray" },
         "move": { "type": "string", "description": "The move (design/<move>.md) the design stage focused on, when the person named one." },
+        "carried-from": { "$ref": "#/$defs/stringArray", "description": "The brainstorm boards whose design thoughts the design stage presented as its starting direction, as `<board path>#<piece-of-work key>` (design/_carried.md)." },
         "regenerable": { "type": "boolean" }
       }
     },
@@ -1706,6 +1707,22 @@
         "sessions": { "type": "integer", "minimum": 1 },
         "batches": { "type": "integer", "minimum": 0 },
         "page": { "type": ["string", "null"] },
+        "focus": { "enum": ["general", "design"], "description": "design: the board concentrates on how the idea looks and behaves (intake/brainstorm/_design.md). Absent means general." },
+        "sketches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "thread", "caption", "state"],
+            "properties": {
+              "key": { "$ref": "#/$defs/brainstormKey" },
+              "thread": { "type": "string" },
+              "items": { "$ref": "#/$defs/stringArray" },
+              "link": { "type": ["string", "null"] },
+              "caption": { "type": "string" },
+              "state": { "enum": ["idea", "carried", "dropped"] }
+            }
+          }
+        },
         "budgets": {
           "type": "array",
           "items": {
@@ -1800,6 +1817,7 @@
               "top-risk": { "type": "boolean" },
               "accepted-risk": { "type": "string" },
               "replaced-by": { "$ref": "#/$defs/brainstormKey" },
+              "design": { "type": "boolean" },
               "was": { "type": "string" }
             }
           }
@@ -1813,7 +1831,9 @@
               "key": { "$ref": "#/$defs/brainstormKey" },
               "order": { "type": "integer", "minimum": 1 },
               "title": { "type": "string" },
-              "shape": { "enum": ["intake", "investigate", "fix", "discover", "task", "extension"] },
+              "shape": { "enum": ["intake", "investigate", "fix", "discover", "task", "extension", "design", "design-direction"] },
+              "ux-impact": { "enum": ["none", "visual", "flow", "new-surface"] },
+              "sketches": { "$ref": "#/$defs/stringArray" },
               "threads": { "$ref": "#/$defs/stringArray" },
               "items": { "$ref": "#/$defs/stringArray" },
               "entry": { "type": "string" },
@@ -1852,7 +1872,8 @@
       "properties": {
         "type": { "const": "brainstorm" },
         "topic": { "type": "string" },
-        "board": { "const": "brainstorm-board.json" },
+        "board": { "type": "string", "pattern": "^brainstorm-board(-[a-z0-9-]+)?[.]json$" },
+        "focus": { "enum": ["general", "design"], "description": "design: a design brainstorm (intake/brainstorm/_design.md)." },
         "page": { "type": ["string", "null"] },
         "status": { "enum": ["open", "distilled"] },
         "created-at": { "$ref": "#/$defs/iso8601" },

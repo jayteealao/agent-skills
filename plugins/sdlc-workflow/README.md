@@ -39,13 +39,14 @@ Follow [start/your-first-workflow.html](docs/site/start/your-first-workflow.html
 
 `/wf status` shows every workflow and the next command for each. `/wf auto <slug>` drives the lifecycle and pauses only at a stage's own gate. For small work, `/wf intake fix <description>` runs a compressed entry; [start/everyday-fixes.html](docs/site/start/everyday-fixes.html) lists the lanes.
 
-## The 22 keys
+## The 23 keys
 
 | Key | Does |
 |---|---|
 | `intake` | Entry dispatcher. A description starts stage 1; a mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `amend`, `modernize`) runs a compressed or maintenance flow. |
 | `shape` | Product-owner discovery: acceptance criteria, documentation plan, augmentations. |
 | `design` | Human-only design stage between shape and slice: the person confirms the drawings before any driver runs. Also keeps the project's design record (`setup`, `teach`, `extract`, `direction`, `sync`). |
+| `brainstorm` | Think an idea through with you until you say `done`. `/wf brainstorm design <idea>` concentrates on how the idea looks and behaves, with rough sketches, and carries the design thoughts to the design stage. |
 | `slice` | Decomposes the shape into shippable slices. |
 | `plan` | Per-slice plan with a reuse scan. |
 | `implement` | Codes the slice. `reviews` runs the fix-blockers mode. |

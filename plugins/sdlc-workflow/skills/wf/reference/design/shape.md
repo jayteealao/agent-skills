@@ -16,7 +16,7 @@ Do not write any code or make any design decisions during this phase. Your only 
 
 Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Before you ask any question, pre-fill the answers:
 
-1. For each question in the rounds below, search the user prompt, PRODUCT.md, DESIGN.md, `.ai/design/current.md`, `.ai/design/direction.md`, and the codebase for an answer.
+1. For each question in the rounds below, search the user prompt, the carried design thoughts ([_carried.md](_carried.md) → In the brief), PRODUCT.md, DESIGN.md, `.ai/design/current.md`, `.ai/design/direction.md`, and the codebase for an answer.
 2. When a source answers a question, record the answer and the source in the brief. Do not ask that question.
 3. Ask the unanswered questions in ONE batched round. Then stop and wait for the answers.
 4. When no unanswered questions remain, skip the round and continue to Phase 2.

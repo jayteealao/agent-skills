@@ -18,7 +18,7 @@
 alternative ways a piece of work comes in. You do not need to memorize the modes, because the
 plain form works everywhere. Describe the task, and intake either runs the default flow or
 proposes a better mode and asks before it switches. The situations below save you a round-trip.
-A few kinds of work (visual polish, runtime checks, cleanup triage) have their own keys.</p>
+A few kinds of work (visual polish, brainstorming, runtime checks, cleanup triage) have their own keys.</p>
 
 <h2>You are building something new</h2>
 
@@ -102,7 +102,7 @@ all four quick lanes are in <a href="quick-lanes.html">Quick lanes</a>.</p>
 
 <h2>You have a question, not a task</h2>
 
-<p>Four analysis modes are available. All four are terminal: they end in an artifact and a
+<p>Five analysis modes are available. All five are terminal: they end in an artifact and a
 recommendation, never in code:</p>
 
 <dl class="cmd-grid">
@@ -123,7 +123,10 @@ aloud, for example "help me think through a per-slug cost budget". The agent is 
 partner: it maps the areas the topic touches, asks question batches in plain words, brings
 ideas of its own, names the assumptions inside your thought, and keeps a plain document of the
 thinking beside its own board. Only you end the session, with <code>done</code>. Then you walk back through the discussion together,
-keep or cut each item, and agree how the kept items split into pieces of work.</dd>
+keep or cut each item, and agree how the kept items split into pieces of work.
+<code>/wf brainstorm &lt;topic&gt;</code> runs the same loop under its own key. Add <code>design</code>,
+as in <code>/wf brainstorm design &lt;idea&gt;</code>, to think through how an idea looks and behaves,
+with rough sketches that travel to the design stage.</dd>
 <dt><code>/wf intake audit &lt;concern&gt; [paths…]</code></dt>
 <dd>Use this mode to hunt <em>unknown</em> defects across a named subsystem, for example "audit
 the paint-ordering code for bugs and wrong assumptions". No symptom, no hypothesis, no diff —

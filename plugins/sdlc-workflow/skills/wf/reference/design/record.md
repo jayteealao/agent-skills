@@ -66,6 +66,8 @@ Work with the person on `direction.md`:
 3. Ask what changed, in one batched round per [_gate-question.md](../_gate-question.md).
 4. Write only what the person confirms. Move each answered open decision to `## Decided`.
 
+When the instructions are `from <board-slug>`, a design brainstorm carried a change of direction. Read that board's piece of work with `shape: design-direction`, and present its kept items with `design: true` as proposed changes in step 2, each with its reason. After the person answers, set the piece's `state: routed` and `routed-to: direction`.
+
 ### `/wf design sync`
 Keep `DESIGN.md` and the canvas design system in step, per `_host-invocation.md`, row "Design system sync". When the host has no sync surface, report that and stop. Record the design-system link in `current.md` frontmatter. Change one component at a time, and show the person the plan before any write.
 

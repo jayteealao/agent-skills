@@ -65,6 +65,81 @@
         "instructed": 12000
       }
     },
+    "brainstorm": {
+      "core": {
+        "files": 2,
+        "words": 2152,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/brainstorm.md"
+        ]
+      },
+      "instructed": {
+        "files": 12,
+        "words": 13899,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_compressed-slice.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_question-craft.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/brainstorm.md",
+          "skills/wf/reference/intake/_intake-context.md",
+          "skills/wf/reference/intake/_intake-provenance.md",
+          "skills/wf/reference/intake/brainstorm.md",
+          "skills/wf/reference/intake/brainstorm/_design.md"
+        ],
+        "branches": [],
+        "allFiles": 12
+      },
+      "referenced": {
+        "files": 35,
+        "words": 33739,
+        "fileList": [
+          "reference/fragment-author-contract.md",
+          "reference/narrative-fragments.md",
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_compressed-slice.md",
+          "skills/wf/reference/_consult-triggers.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_fragment-authoring.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_question-craft.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_story-arc.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/_workflow-rules.md",
+          "skills/wf/reference/brainstorm.md",
+          "skills/wf/reference/intake/_intake-context.md",
+          "skills/wf/reference/intake/_intake-provenance.md",
+          "skills/wf/reference/intake/brainstorm.md",
+          "skills/wf/reference/intake/brainstorm/_artifact.md",
+          "skills/wf/reference/intake/brainstorm/_brief.md",
+          "skills/wf/reference/intake/brainstorm/_cohere.md",
+          "skills/wf/reference/intake/brainstorm/_design.md",
+          "skills/wf/reference/intake/default/_artifact.md",
+          "skills/wf/reference/intake/default/_questions.md",
+          "skills/wf/reference/intake/default/_stack-fingerprint.md",
+          "skills/wf/reference/status.md",
+          "skills/wf/reference/status/_advise.md",
+          "skills/wf/reference/status/_deep.md",
+          "skills/wf/reference/status/_renders.md"
+        ]
+      },
+      "target": {
+        "core": 4500,
+        "instructed": 22400
+      }
+    },
     "close": {
       "core": {
         "files": 2,

@@ -1,8 +1,8 @@
 ---
 name: wf
-description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) plus design, the drivers (probe, simplify, auto, yolo), the minimal lifecycle (task), navigation (status, recap), lifecycle control (close), and the routers (ship-plan, docs, observability) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also dispatches the compressed entry modes and extension; `review` is the whole review surface.
+description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) plus design, brainstorm, the drivers (probe, simplify, auto, yolo), the minimal lifecycle (task), navigation (status, recap), lifecycle control (close), and the routers (ship-plan, docs, observability) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also dispatches the compressed entry modes and extension; `review` is the whole review surface.
 disable-model-invocation: true
-argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|probe|simplify|auto|yolo|task|status|recap|close|ship-plan|docs|observability> [args...]"
+argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|brainstorm|probe|simplify|auto|yolo|task|status|recap|close|ship-plan|docs|observability> [args...]"
 ---
 
 # Role
@@ -20,7 +20,7 @@ Run this check before any read or write. Its result is your first visible output
 
 1. Split `$ARGUMENTS` on whitespace. The first token is the key candidate. The remaining tokens are the key's `$ARGUMENTS`, unchanged.
 2. If `$ARGUMENTS` is empty, render the key tables and ask which key the user wants. STOP.
-3. If the key candidate is not one of the 22 keys, STOP. Tell the user: *"`<token>` is not a known wf key. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, probe, simplify, auto, yolo, task, status, recap, close, ship-plan, docs, observability."* Do not treat the token as a slug or as an intake mode. Do not pick a slug for the user. Do not load a reference.
+3. If the key candidate is not one of the 23 keys, STOP. Tell the user: *"`<token>` is not a known wf key. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, brainstorm, probe, simplify, auto, yolo, task, status, recap, close, ship-plan, docs, observability."* Do not treat the token as a slug or as an intake mode. Do not pick a slug for the user. Do not load a reference.
 4. If the key candidate is `yolo` under Codex or pi, answer with the host redirect. STOP.
 5. State the dispatch on one line, then continue: `wf dispatch: key=<key> · args=<remaining tokens, or (none)> · reference=reference/<key>.md`
 
@@ -44,6 +44,7 @@ Run this check before any read or write. Its result is your first visible output
 
 | Key | Arguments | Does | Writes |
 |---|---|---|---|
+| `brainstorm` | `[slug] [design] [idea]` | Think an idea through until `done`. `design` adds sketches that travel to the design stage. | a board |
 | `probe` | `<slug> [target\|sweep]` · `sweep [path]` | Runtime-truth verification of built work. Target mode compares to AC text. `sweep` enumerates the user surface against AC, charter, and `reference/_surface-defects.md`; as the first token it runs slug-less. Writes no code. | a compressed slice, or `.ai/surface-sweep-<date>.md` |
 | `simplify` | `branch [<base>] \| commit <range> \| plan <slug> <slice> \| codebase [<path>]` | Three parallel sub-agents review one scope, classify findings, and route them. Writes no code. | none |
 | `auto` | `<slug> [<slice>]` | Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff. | none |
@@ -66,7 +67,7 @@ Run this check before any read or write. Its result is your first visible output
 | `docs` | `[<primitive> \| <slug> \| --audit-only \| <path>]` | Documentation router: the orchestrator pipeline, or one Diátaxis primitive. | per primitive |
 | `observability` | `<init\|build\|audit> [args]` | Observability router: author, realize, or audit `.ai/observability.md`. | `.ai/observability.md`, `.ai/observability-audit.md` |
 
-Every key runs under every host except `yolo`, which is Claude Code only. For `design`, `intake`, `probe`, `auto`, `yolo`, `task`, `status`, `recap`, `retro`, `close`, `review`, `ship-plan`, `docs`, and `observability`, the reference resolves the first remaining token itself, in its own Step 0.
+Every key runs under every host except `yolo`, which is Claude Code only.
 
 # Step 0.5 — Unknown-slug suggestion
 
@@ -96,9 +97,8 @@ When the work turns on how a dependency actually behaves (a signature, an edge c
 
 # Step 1 — Execute
 
-1. Read `reference/<key>.md` in full and follow it verbatim. Do not summarize, paraphrase, or skip. Honor every conditional input and every artifact write it describes.
-2. Router keys (`design`, `ship-plan`, `docs`, `observability`) resolve a sub-key and load a further reference. Follow that chain.
-3. Pass the remaining `$ARGUMENTS` through unchanged.
+1. Read `reference/<key>.md` in full and follow it verbatim, with the remaining `$ARGUMENTS` unchanged. Do not summarize, paraphrase, or skip. Honor every conditional input and every artifact write it describes.
+2. Router keys (`design`, `brainstorm`, `ship-plan`, `docs`, `observability`) resolve a sub-key and load a further reference. Follow that chain.
 
 # Step 2 — Final summary
 
