@@ -5,6 +5,20 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.168.0] - 2026-09-24
+
+### Added
+
+- **`/wf brainstorm` is a key** (BRAINSTORM-DESIGN-PLAN.md). `/wf brainstorm [slug] [design] [idea]` runs the same loop as `/wf intake brainstorm`, which stays valid. A brainstorm slug resumes that board; a feature workflow's slug with a topic runs the compressed slug-mode brainstorm. The `keys` surface pin rises from 22 to 23.
+- **A design focus for the brainstorm.** `/wf brainstorm design <idea>` thinks through how an idea looks and behaves (`intake/brainstorm/_design.md`). It reads the design record first, maps the design space (surfaces, flow, layout, register, motion, states, voice, and the fit with the identity and the direction), and draws rough sketches on the design canvas, with `/imagery` as the fallback. Sketches are ideas: the brainstorm never writes `02c-craft.md`, an image gate, or `direction-confirmed-by`. Design items carry `design: true`, and each area close asks which sketches carry forward.
+- **A design brainstorm on a feature workflow.** `/wf brainstorm <feature-slug> design` writes `brainstorm-board-design.json` and `design-notes/brainstorm-design.md` in that workflow. At `done`, the kept design items route to `/wf design <slug>`, or to `amend` when the design is already confirmed (which reopens it).
+- **The design thoughts travel to the design stage.** At `done`, a piece of work records its proposed `ux-impact` and its carried sketches; `design` and `design-direction` (`/wf design direction from <slug>`) join the forms of work. Intake proposes the carried `ux-impact`, shape's brief takes the carried decisions as answers already given, and the design stage's new Step 1b (`design/_carried.md`) presents the carried thoughts again: keep, change, or drop each one, then the carried open questions. The kept set is the starting direction for the drawings. `02c-craft.md` records `carried-from:` and a `## Carried design thoughts` section.
+
+### Changed
+
+- The board schema admits `focus`, `sketches[]`, `design` on items, and `ux-impact` and `sketches` on work; the brainstorm document's `board` field accepts `brainstorm-board-<descriptor>.json`.
+- `SKILL.md` no longer repeats the list of keys that resolve their own first token; Step 0.5 already states the rule, and the list was out of date.
+
 ## [9.167.1] - 2026-09-24
 
 ### Fixed
