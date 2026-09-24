@@ -27,7 +27,10 @@ conversation; that shipped in **v9.163.0** (§19). A high-level critique then fo
 the conversation with quotas, kept its bookkeeping for the agent, and gave
 the agent a contradictory role; **v9.164.0** fixes all three (§20). The first live session on v9.164.0 then showed that
 the mode drew out intent well but never asked the person to choose; **v9.165.0**
-puts choosing into the conversation (§21). **Still open:** probes P-B1, P-B2, and P-B3, and
+puts choosing into the conversation (§21). Two live sessions on v9.165.0 then showed that
+choosing was still not cutting, that coherence ran only on request, and that a
+brief the person brought had no procedure; **v9.166.0** adds the first version,
+the coherence pass, and the brief map (§22). **Still open:** probes P-B1, P-B2, and P-B3, and
 the `artifacts.html` row. Every line reference below was read from the
 working tree at v9.158.0.
 
@@ -933,4 +936,75 @@ the gate ladder and at every brainstorm question, the short front, and the page
 with its host-contract row and no tool name in the mode. A schema round-trip
 covers every new field and rejects an unknown area scope and a numbered
 `replaced-by`.
+
+## 22. A first version, a coherence pass, and briefs
+
+Two sessions ran on v9.165.0 on 2026-09-23 and 2026-09-24: the realism board
+(session 7, eight hours, 235 questions, 423 new items) and a new board on app
+packaging (65 minutes, one agreed piece of work). The v9.165.0 fixes held:
+single-choice questions rose from 52 to 87 percent of the realism questions,
+every question carried its context, every area got a brief, and all twelve
+routed pieces were marked stale with reasons. Three weaknesses remained, and
+the person chose to fix all three.
+
+**Choosing was not cutting.** All 24 area closes on both boards kept
+everything. The person still answered "mix of" 43 times, and the agent then
+composed the blend itself ("Then the decision was really mine"). The
+counterweight recorded 104 accepted risks, "most of them in one click".
+**Fix:** the area close gives the area's price (its rough size and what it adds
+to each budget), asks which decisions belong in the **first version** — every
+decision left out gets `scope: later`, and nothing is cut unless the person
+says so — and asks which accepted risk worries the person most (`top-risk`).
+Only a top risk reaches the document's front. *Make the options choose* now
+says that a mixed answer comes back as one concrete blend for the person to
+confirm or change. *Be the counterweight* fires only on a material
+consequence: one that cannot be undone, breaks a budget, or contradicts an
+earlier decision.
+
+**Coherence ran only on request.** "Bring the board into a reasonable
+cohesion" started the session's most valuable pass: a sub-agent found 18
+conflicts between the day's decisions and the three design documents, and the
+harness load (about 1.5 million matches per release run) came back to an
+overnight run. **Fix:** `brainstorm/_cohere.md`, a coherence pass that runs
+after an area close, when a brief closes, before the `done` walk, and on the
+new control word `cohere`, never after every batch. It collects the decisions
+since the last pass, dispatches one read-only sub-agent to read the documents
+of routed work (each decision marked `new`, `repeat`, or `contradiction` with
+`file:line`), checks the board against itself, adds up the cost against the
+board's `budgets`, brings each real conflict as a choice with costs, merges
+repeats with `replaced-by`, marks contradicted work `stale`, rewrites the
+summary, and logs a `cohere` entry. The bounded-evidence invariant names the
+pass and the brief map as the two sub-agent exceptions besides `look it up`.
+
+**A brief had no procedure.** The person pasted ten briefs from outside ("Have
+we fully explored…", "Go deep on this brief"); depth fell from 68 exchanges on
+the first to 14 on the later ones, and the agent never read the design
+documents. **Fix:** `brainstorm/_brief.md`. A reply that carries a brief,
+pasted or as a file path, records it in `briefs`, splits it into criteria
+(`good`, `failure`, `check`, `other`), maps each as `covered`, `partial`, or
+`open` against the board, the code, and the routed documents, shows the map in
+the question text and on the page, walks the gaps in the person's order with
+equal depth (a criterion is covered only with a decision, its cost, and its
+check), lets the person mark `out-of-scope`, and closes at a check-in followed
+by a coherence pass. The board view and the page show each brief's coverage.
+
+**Write cost.** At 954 items and a 692 KB board, rewriting both files after
+every batch was the loop's largest cost. The invariant now writes the changed
+items after every batch; the document's front is rewritten at a check-in, and
+its full record at an area close and at `done`. A lost session still loses at
+most one batch.
+
+**Schema.** `$defs.brainstormBoard` gains `budgets[]` (`key`, `name`,
+`decision`), `briefs[]` (`key`, `name`, `source`, `criteria[]` with `key`,
+`part`, `text`, `status`, `items`, `reason`), item `first-version` and
+`top-risk`, and the log kinds `cohere` and `brief`. The document template
+gains a `## Briefs` front section. `brainstorm.md` stays at its 250-line
+budget; the two procedures live in their own files.
+
+Guard tests pin the first-version question, the price, the top risk, the blend
+confirmation, the material-only counterweight, the coherence pass and its
+triggers, the brief map with equal depth, and the incremental writes; each
+fails against the v9.165.0 text. A schema round-trip covers budgets, briefs,
+first-version items, top risks, and the new log kinds, and rejects an unknown
+criterion status.
 

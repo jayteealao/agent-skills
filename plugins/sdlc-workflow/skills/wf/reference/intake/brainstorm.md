@@ -50,8 +50,8 @@ These rules protect the person. They have no exceptions.
 - **Plain words.** The person reads every question, option, header, and chat line. Write no board key, no internal number, and no mode mechanics in that text: no batch number, no turn count, no "check-in", no item count. Name every thread, decision, finding, and tension in words, for example "the finding that real players move pass completion by only about 3.6 points".
 - **No commitments and no code.** See Your role.
 - **Nothing becomes work until the person confirms it** (Step 3).
-- **The board is the memory.** Rewrite both files after every batch, so a lost session loses at most one batch.
-- **Evidence is bounded.** When a statement is checkable against the codebase, run one bounded read and cite `file:line`. Run a sub-agent only when the person says `look it up`.
+- **The board is the memory.** Write the changed items to both files after every batch, so a lost session loses at most one batch.
+- **Evidence is bounded.** When a statement is checkable against the codebase, run one bounded read and cite `file:line`. Run a sub-agent only when the person says `look it up`, or for a coherence pass or a brief map ([brainstorm/_cohere.md](brainstorm/_cohere.md), [brainstorm/_brief.md](brainstorm/_brief.md)).
 
 # Craft
 These are principles, not quotas. Before each batch, judge it against them.
@@ -68,9 +68,9 @@ These are principles, not quotas. Before each batch, judge it against them.
 
 **Read the signals.** When the person picks every option of a list, the list asked nothing: the next question on that thread is a choice (2.1). When the person writes "more", or adds an idea of their own, your options were too narrow: widen the next batch. When the answers get short, or the same thread comes back without new ground, check in (2.5).
 
-**Make the options choose.** A list of things that could belong opens an area. After it, ask questions whose options exclude each other: an order, a trade-off, or a cut. An option that adds something says what it costs, in plain words, for example "every staff role is a person: about fifty people per club, a slower start to a new save, and longer staff screens". *Why:* when every option can be taken, the person takes every option, and the board grows with no choice in it. *Weak:* four "which of these belong?" questions in a row on one area. *Better:* one "which of these belong?" question, then "which two matter most?" and "which would you drop first?".
+**Make the options choose.** A list of things that could belong opens an area. After it, ask questions whose options exclude each other: an order, a trade-off, or a cut. An option that adds something says what it costs, in plain words, for example "every staff role is a person: about fifty people per club, a slower start to a new save, and longer staff screens". *Why:* when every option can be taken, the person takes every option, and the board grows with no choice in it. *Weak:* four "which of these belong?" questions in a row on one area. *Better:* one "which of these belong?" question, then "which two matter most?" and "which would you drop first?". When the person answers with a mix, write the blend as one concrete sentence, and ask the person to confirm it or change it: a blend you compose is not yet the person's decision.
 
-**Be the counterweight.** When the person sets a risk aside, or takes the costliest option, state the consequence once, in one sentence, in the next question text. Record the choice as a decision with that consequence as its `accepted-risk`, not as a closed question. When you think a choice is a mistake, say so once, with your reason. *Why:* a partner who agrees with everything adds cost and no judgement; the person still decides. *Weak:* "not worried" about a data licence closes the licence question in one batch. *Better:* "Then the test ships bands measured on data that a commercial game may not use, and a complaint means measuring them again before release. I record that as a risk you accept."
+**Be the counterweight.** When the person sets a risk aside, or takes the costliest option, and the consequence is material — it cannot be undone, it breaks a budget on the board, or it contradicts an earlier decision — state the consequence once, in one sentence, in the next question text. A smaller cost stays in the option text. Record the choice as a decision with that consequence as its `accepted-risk`, not as a closed question. When you think a choice is a mistake, say so once, with your reason. *Why:* a partner who agrees with everything adds cost and no judgement; the person still decides. *Weak:* "not worried" about a data licence closes the licence question in one batch. *Better:* "Then the test ships bands measured on data that a commercial game may not use, and a complaint means measuring them again before release. I record that as a risk you accept."
 
 **Explain, then ask.** Open every question with two or three plain sentences: what we know, and why it matters now. Headers are plain words, for example "Club style". Every question follows [_question-craft.md](../_question-craft.md) rules 2 and 3 and [_ste-procedural.md](../_ste-procedural.md) section 1. A brainstorm question has no right answer, so mark no option `(Recommended)`. Offer no "explain this more" option, because the explanation comes first and a free-text reply can still ask for more.
 
@@ -137,7 +137,7 @@ Compose **one to four questions**, guided by the Craft section. A batch has one 
 Deliver the batch through rung 1 of [_gate-question.md](../_gate-question.md), under its batch clause. Between two batches, say in one plain sentence what changed and where the next batch goes.
 
 ## 2.2 Read the answers
-A free-text answer whose first token is a control word is a command (2.3), not an answer. Every other answer becomes board content: a chosen reading or a choice is a decision, a new direction is an idea or a new thread, a rejected premise changes an assumption's state, and a checkable statement gets its bounded read.
+A free-text answer whose first token is a control word is a command (2.3), not an answer. A reply that carries a brief, pasted or as a file path, runs [brainstorm/_brief.md](brainstorm/_brief.md). Every other answer becomes board content: a chosen reading or a choice is a decision, a new direction is an idea or a new thread, a rejected premise changes an assumption's state, and a checkable statement gets its bounded read.
 
 ## 2.3 Control words
 | Word | Effect |
@@ -148,12 +148,13 @@ A free-text answer whose first token is a control word is a command (2.3), not a
 | `board` | Show where we are (2.6). No question this batch. |
 | `look it up` | Dispatch one research sub-agent per [_subagents.md](../_subagents.md) on the last unverified statement, record the result as a finding, then continue. |
 | `second opinion` | Run `/consult` with the live threads and open tensions as the brief (2.7). |
+| `cohere` | Run a coherence pass ([brainstorm/_cohere.md](brainstorm/_cohere.md)). |
 | `done` | Go to Step 3. |
 
 A control word that names no known thread gets the thread names back and changes nothing.
 
 ## 2.4 Update the board
-After every batch, update `brainstorm-board.json`: the new items, the changed states, the area states, one log entry per question, `batches` incremented, and `updated-at` refreshed. Then rewrite the affected sections of `01-brainstorm.md` in plain words, and its frontmatter counts and `updated-at`. Add no `revisions:` entry per batch and no snapshot per batch — one per resumed session and one at `done`. Republish the page (2.9) at a check-in, an area close, `board`, and `done`, not after every batch.
+After every batch, write only what changed to `brainstorm-board.json`: the new and changed items, the area states, one log entry per question, `batches`, and `updated-at`. Add the new items to `01-brainstorm.md` and refresh its frontmatter. Rewrite the document's front at a check-in, and its full record at an area close and at `done`. Add no `revisions:` entry per batch and no snapshot per batch — one per resumed session and one at `done`. Republish the page (2.9) at a check-in, an area close, `board`, and `done`, not after every batch.
 
 ## 2.5 Check in and sum up
 Check in at a natural moment, not on a schedule: when a thread feels settled, when the answers get short, after a large change of direction, or when you believe the thinking is complete. The question text carries everything the person needs to answer it, per [_gate-question.md](../_gate-question.md): the host can hide the chat text before a question. A check-in has three parts:
@@ -164,7 +165,7 @@ Check in at a natural moment, not on a schedule: when a thread feels settled, wh
 A correction to the summary is a decision. Record it, and rewrite the summary.
 
 ## 2.6 Show where we are
-In plain words, with no key: the summary, then the map with each area's brief and state, then one line per live thread with what we know and what is still open, then the open tensions and the accepted risks. Give the parked and dropped threads as names only. Put it in the text of the next question, or in chat when no question follows. Republish the page (2.9) and give its link; where the host has no page, point the person to `01-brainstorm.md`.
+In plain words, with no key: the summary, then the map with each area's brief and state, then one line per live thread with what we know and what is still open, then the coverage of each open brief, then the open tensions and the top risks. Give the parked and dropped threads as names only. Put it in the text of the next question, or in chat when no question follows. Republish the page (2.9) and give its link; where the host has no page, point the person to `01-brainstorm.md`.
 
 ## 2.7 Second opinion
 > **Auto second opinion (objective triggers).** Auto-invoke `/consult codex <read these threads and name the assumptions and tensions this thinking missed>` (pinning `codex`/`claude` keeps it free) when ANY of: `thread-contested` (at `done`, a live thread is party to an open tension); `claim-contradicted` (a bounded read contradicted a statement and the person kept the thread live); `touches-auth`, `touches-billing`, `touches-security`, or `touches-migration` (a live thread touches that surface); `user-invoked` (the `second opinion` control word). The names are rows of [_consult-triggers.md](../_consult-triggers.md); record each run in `consult-runs`. Fold the panel's distinct additions in as findings with `source: consult`, never as pieces of work.
@@ -173,18 +174,17 @@ In plain words, with no key: the summary, then the map with each area's brief an
 An area is explored when its threads stop producing new ground. Closing it is part of a check-in, and the person can answer "not yet". Closing it scopes the area now, so `done` does not have to walk the whole board.
 1. Write the area's `brief` in the board and in the document's map: five plain lines or fewer — what we decided, what is core, what is still open, and the scope.
 2. In the question text, give the brief and the area's decisions and open ideas, one plain line each. When the area holds more than about twelve, give the likely core items and point to the page or to the document for the rest.
-3. Ask in one batch: which decisions are core (multi-select); what happens to the area — keep all of it, go through it one by one, cut all of it, or leave it for later; and whether the area changes a piece of work that already exists (name each piece in words).
-4. Record `core: true` on each core item, `scope` on each item as in 3.2, and the area's `scope`. An area gone through one by one continues in the next batches, per 3.2 step 3.
-5. When the area changes an existing piece of work, set `stale: true` and `stale-because` on that piece. Step 3.3 proposes the piece that brings it up to date.
-6. When a newer decision replaces an older one, set `replaced-by` on the older item. The document lists only the newer decision, and says what it replaced.
+3. Give the area's price in the question text: its rough size, and what it adds to each budget on the board ([brainstorm/_cohere.md](brainstorm/_cohere.md)). List its accepted risks.
+4. Ask in one batch: which decisions are core (multi-select); which decisions belong in the first version — each decision left out gets `scope: later`, and nothing is cut unless the person says so; which risk worries the person most; and whether the area changes a piece of work that already exists (name each piece in words).
+5. Record `core: true` on each core item, `first-version: true` and `scope: keep` on each first-version item, `scope: later` on the rest, `top-risk: true` on the chosen risk, and the area's `scope`. Only a top risk appears in the document's front. Then run a coherence pass.
+6. When the area changes an existing piece of work, set `stale: true` and `stale-because` on that piece; step 3.3 proposes the piece that brings it up to date. When a newer decision replaces an older one, set `replaced-by` on the older item; the document lists only the newer decision, and says what it replaced.
 
 ## 2.9 The page
 When the host offers a published page ([_host-invocation.md](../_host-invocation.md), row "Published page"), present the board to the person as one page, and keep it current:
 1. Build `brainstorm-page.html` beside the board from the two files, in plain words and with no key: the summary; the areas with their briefs and scope; the decisions by area, core first; the open ideas; the findings with their sources; the open tensions and the accepted risks; the pieces of work, with the stale ones marked.
 2. Publish it the first time the person needs to see the board: the first check-in, `board`, or a resume. Record its link as `page` in the board and in the document frontmatter, and give the link in the question text.
 3. Republish it to the same link at each check-in, each area close, each `board`, and at `done`.
-4. The page presents the board and never replaces it. Write every change to the two files first.
-5. Where the host has no published page, the person reads `01-brainstorm.md`, and the question text carries what the person needs.
+4. The page presents the board and never replaces it. Write every change to the two files first. Where the host has no published page, the person reads `01-brainstorm.md`, and the question text carries what the person needs.
 
 # Step 3 — `done`: scope the work together
 Enter this step only when the person's reply is the control word `done`.
@@ -192,7 +192,7 @@ Enter this step only when the person's reply is the control word `done`.
 The person decides what goes into work, and decides it with you. You recap, explain, and propose; the person keeps, cuts, and shapes. Every text in this step follows the Plain words invariant.
 
 ## 3.1 Choose what happens now
-1. Snapshot both board files to `history/` and add a `revisions:` entry (`trigger: manual`, `because: done`).
+1. Snapshot both board files to `history/` and add a `revisions:` entry (`trigger: manual`, `because: done`). Run a coherence pass unless one ran after the last change.
 2. In the question text, give the summary (2.5), and say in plain words how many decisions and open ideas each area holds. Print no entry command.
 3. Ask one question per [_gate-question.md](../_gate-question.md), with these options: go through the discussion together and scope the work; keep the board and think more later; take a second opinion first. Free text carries every other answer. An answer that asks for more thinking returns to Step 2.
    - **Keep the board.** Change the timestamps only. `status` stays `open`.
@@ -200,7 +200,7 @@ The person decides what goes into work, and decides it with you. You recap, expl
    - **Scope the work.** Go to 3.2.
 
 ## 3.2 Walk through the discussion
-Go through the map one area at a time, in the order the areas were explored. The walk covers the **decisions and the open ideas**. A finding appears only as the reason behind a decision. An area closed with a scope (2.8) is not walked again: give each such area in one line, and ask whether any has changed.
+Go through the map one area at a time, in the order the areas were explored. The walk covers the **decisions and the open ideas**. A finding appears only as the reason behind a decision. An area closed with a scope (2.8) is not walked again: give each such area and its first version in one line, and ask whether any has changed.
 1. In each question's text, list the area's decisions and ideas, one plain sentence each, with the reason given for it. For a long area, list the core items and point to the page or to the document for the rest.
 2. Ask what happens to the area: keep all of it; go through it one by one; cut all of it; leave it for later. Ask about up to four areas per batch.
 3. For an area the person goes through one by one, ask one question per item: keep; cut; later; change it (free text says how). Ask about up to four items per batch. When you have a view, give it and its reason in the question text. The person decides.

@@ -16,6 +16,15 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
   "sessions": 1,
   "batches": 0,
   "page": null,
+  "budgets": [
+    { "key": "monthly-spend-cap", "name": "Spending stays under the monthly cap", "decision": "limit-warns-only" }
+  ],
+  "briefs": [
+    { "key": "cost-visibility-brief", "name": "Cost visibility", "source": "pasted", "criteria": [
+      { "key": "cost-shown-per-run", "part": "good", "text": "Every run shows what it cost.", "status": "covered", "items": ["cost-rows-per-run"] },
+      { "key": "surprise-bill", "part": "failure", "text": "A bill arrives with no warning.", "status": "partial", "items": ["limit-warns-only"] }
+    ] }
+  ],
   "areas": [
     { "key": "seeing-the-cost", "name": "Seeing what a project costs", "side": "problem", "state": "explored", "brief": "A limit per project warns and never blocks. Core: the warning. Open: the ledger format. Scope: kept.", "scope": "keep" }
   ],
@@ -23,9 +32,9 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
     { "key": "limit-per-project", "name": "A spending limit per project", "area": "seeing-the-cost", "state": "live", "routed-to": null }
   ],
   "items": [
-    { "key": "limit-warns-only", "kind": "decision", "thread": "limit-per-project", "text": "A limit warns and never blocks work.", "why": "A blocked run loses work the person already paid for.", "source": "person", "core": true, "scope": "keep" },
+    { "key": "limit-warns-only", "kind": "decision", "thread": "limit-per-project", "text": "A limit warns and never blocks work.", "why": "A blocked run loses work the person already paid for.", "source": "person", "core": true, "first-version": true, "scope": "keep" },
     { "key": "limit-blocks-runs", "kind": "decision", "thread": "limit-per-project", "text": "A limit stops a run when it is reached.", "source": "person", "replaced-by": "limit-warns-only", "scope": null },
-    { "key": "no-limit-on-research", "kind": "decision", "thread": "limit-per-project", "text": "Research runs have no limit.", "source": "person", "accepted-risk": "One long research run can spend a month's budget in a day.", "scope": "keep" },
+    { "key": "no-limit-on-research", "kind": "decision", "thread": "limit-per-project", "text": "Research runs have no limit.", "source": "person", "accepted-risk": "One long research run can spend a month's budget in a day.", "top-risk": true, "scope": "later" },
     { "key": "cost-rows-per-run", "kind": "finding", "thread": "limit-per-project", "text": "The cost ledger records one row per run.", "source": "code", "evidence": "lib/cost-ledger.mjs:12", "check": "verified" },
     { "key": "limit-is-one-number", "kind": "assumption", "thread": "limit-per-project", "text": "A limit is one number per project.", "source": "agent", "state": "named" },
     { "key": "one-number-vs-warn-only", "kind": "tension", "thread": "limit-per-project", "text": "One number per project pulls against warnings that must fit each kind of run.", "between": ["limit-is-one-number", "limit-warns-only"], "source": "agent", "state": "open" },
@@ -43,17 +52,20 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
 - **Keys** are kebab-case words (`^[a-z0-9]+(-[a-z0-9]+)*$`), stable once written, and unique across areas, threads, items, and work. A key names the thing, so a key that leaks into chat still means something.
 - **`areas[].side`** is `problem`, `solution`, or `both`. **`areas[].state`** is `open`, `touched`, or `explored`. **`areas[].brief`** is five plain lines or fewer: what we decided, what is core, what is still open, and the scope. **`areas[].scope`** is `keep`, `cut`, `later`, `mixed`, or `null`, and is set when the area closes or at `done`.
 - **`page`** is the link of the published page, or `null` where the host has none.
+- **`budgets[]`** holds each limit the person decided, with the key of the deciding item in `decision` ([_cohere.md](_cohere.md)).
+- **`briefs[]`** holds each brief the person brought ([_brief.md](_brief.md)). `source` is `pasted` or a file path. Each criterion has a `part` (`good`, `failure`, `check`, or `other`), a `status` (`covered`, `partial`, `open`, or `out-of-scope`, with `reason`), and the keys of the items that answer it.
 - **`threads[].state`** is `live`, `parked`, `routed`, or `dropped`. A dropped thread carries `reason`.
 - **`items[].kind`** is `decision`, `idea`, `finding`, `question`, `assumption`, or `tension`.
   - `source` is `person`, `agent`, `code`, `data`, `research`, `consult`, or `history`.
   - A finding carries `evidence` (a `file:line`, a dataset, or a link) and `check` (`verified`, `contradicted`, or `unverified`).
   - `state` is `named`, `confirmed`, or `rejected` for an assumption; `open` or `resolved` for a tension; `open`, `answered`, or `for-plan` for a question. A commitment is a question with `state: for-plan`.
   - `scope` is `keep`, `cut`, `later`, or `null`, and is set when the item's area closes or at `done`. A cut carries the person's `reason` when the person gives one.
-  - `core: true` marks a decision the person named as core when the area closed.
+  - `core: true` marks a decision the person named as core when the area closed; `first-version: true` marks a decision in the area's first version.
+  - `top-risk: true` marks the accepted risk that worries the person most in its area.
   - `accepted-risk` is the consequence the person accepted with a decision, in one plain sentence.
   - `replaced-by` is the key of the newer decision that replaced this one.
   - `was` holds a legacy id after a conversion.
-- **`log[].kind`** is `reflection`, `probe`, `fork`, `widen`, `choice`, `check-in`, `close`, `control`, or `walk`.
+- **`log[].kind`** is `reflection`, `probe`, `fork`, `widen`, `choice`, `check-in`, `close`, `cohere`, `brief`, `control`, or `walk`.
 
 A **piece of work** (one per agreed piece at `done`, in order):
 ```json
@@ -94,7 +106,10 @@ The body names everything in words. It carries no key, no internal number, and n
 <The brief: five plain lines or fewer — what we decided, what is core, what is still open, and the scope.>
 
 ## Open now
-- <Each open tension, each accepted risk with the decision it belongs to, and each open question, one plain line each.>
+- <Each open tension, each top risk with the decision it belongs to, and each open question, one plain line each.>
+
+## Briefs
+- <One line per brief: its name, how many criteria are covered, partial, open, and out of scope, and the open gaps in words. "None." when no brief was brought.>
 
 <!-- The front ends here. The record follows. -->
 

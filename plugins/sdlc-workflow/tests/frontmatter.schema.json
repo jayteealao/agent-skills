@@ -1695,6 +1695,45 @@
         "sessions": { "type": "integer", "minimum": 1 },
         "batches": { "type": "integer", "minimum": 0 },
         "page": { "type": ["string", "null"] },
+        "budgets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "name"],
+            "properties": {
+              "key": { "$ref": "#/$defs/brainstormKey" },
+              "name": { "type": "string" },
+              "decision": { "$ref": "#/$defs/brainstormKey" }
+            }
+          }
+        },
+        "briefs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "name", "criteria"],
+            "properties": {
+              "key": { "$ref": "#/$defs/brainstormKey" },
+              "name": { "type": "string" },
+              "source": { "type": "string" },
+              "criteria": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["key", "text", "status"],
+                  "properties": {
+                    "key": { "$ref": "#/$defs/brainstormKey" },
+                    "part": { "enum": ["good", "failure", "check", "other"] },
+                    "text": { "type": "string" },
+                    "status": { "enum": ["covered", "partial", "open", "out-of-scope"] },
+                    "items": { "$ref": "#/$defs/stringArray" },
+                    "reason": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
         "areas": {
           "type": "array",
           "items": {
@@ -1746,6 +1785,8 @@
               "scope": { "enum": ["keep", "cut", "later", null] },
               "reason": { "type": "string" },
               "core": { "type": "boolean" },
+              "first-version": { "type": "boolean" },
+              "top-risk": { "type": "boolean" },
               "accepted-risk": { "type": "string" },
               "replaced-by": { "$ref": "#/$defs/brainstormKey" },
               "was": { "type": "string" }
@@ -1783,7 +1824,7 @@
               "session": { "type": "integer", "minimum": 1 },
               "batch": { "type": "integer", "minimum": 0 },
               "thread": { "type": ["string", "null"] },
-              "kind": { "enum": ["reflection", "probe", "fork", "widen", "choice", "check-in", "close", "control", "walk", "steer", "legacy"] },
+              "kind": { "enum": ["reflection", "probe", "fork", "widen", "choice", "check-in", "close", "cohere", "brief", "control", "walk", "steer", "legacy"] },
               "asked": { "type": "string" },
               "answer": { "type": "string" }
             }

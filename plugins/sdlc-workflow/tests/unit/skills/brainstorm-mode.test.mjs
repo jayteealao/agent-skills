@@ -363,3 +363,71 @@ test('a board with briefs, core items, accepted risks, replaced items, stale wor
   assert.ok(!validateBrainstormBoard(badReplaced, { schemaPath: SCHEMA_PATH }).valid, 'replaced-by accepted a numbered id');
   assert.deepEqual(validateFrontmatter({ ...doc(), page: 'https://claude.ai/artifact/example' }, { schemaPath: SCHEMA_PATH }).errors, []);
 });
+
+// BRAINSTORM-MODE-PLAN §22 — cutting, coherence, and briefs. On v9.165.0 every
+// one of 24 area closes kept everything, 104 accepted risks piled up, the
+// cross-area check ran only when the person asked, and ten pasted briefs got
+// falling depth (68 exchanges on the first, 14 on the later ones).
+
+test('an area close asks for a first version, a price, and one top risk', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.match(src, /which decisions belong in the first version — each decision left out gets `scope: later`, and nothing is cut unless the person says so/, 'the area close lost the first-version question');
+  assert.match(src, /Give the area's price in the question text: its rough size, and what it adds to each budget on the board/, 'the area close no longer shows its price');
+  assert.match(src, /which risk worries the person most/, 'the area close no longer picks a top risk');
+  assert.match(src, /Only a top risk appears in the document's front/, 'every accepted risk reaches the front again');
+  assert.match(src, /When the person answers with a mix, write the blend as one concrete sentence, and ask the person to confirm it or change it/, 'a mixed answer becomes the agent\'s decision again');
+  assert.match(src, /and the consequence is material — it cannot be undone, it breaks a budget on the board, or it contradicts an earlier decision/, 'the counterweight fires on every cost again');
+  assert.ok(!/When the person sets a risk aside, or takes the costliest option, state the consequence once/.test(src), 'the unconditional counterweight is back');
+});
+
+test('a coherence pass holds the board against itself, the routed work, and the budgets', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.ok(existsSync(refPath('intake', 'brainstorm', '_cohere.md')), 'missing brainstorm/_cohere.md');
+  const cohere = read('reference', 'intake', 'brainstorm', '_cohere.md');
+  assert.match(src, /^\| `cohere` \| Run a coherence pass/m, 'the loop lost the cohere control word');
+  assert.match(src, /Then run a coherence pass\./, 'an area close no longer runs a coherence pass');
+  assert.match(src, /Run a coherence pass unless one ran after the last change/, 'done scopes an incoherent board');
+  assert.match(cohere, /Do not run it after every batch/, 'the coherence pass runs on every batch');
+  assert.match(cohere, /Dispatch one read-only research sub-agent/, 'the pass no longer reads the routed work');
+  assert.match(cohere, /marked `new`, `repeat`, or `contradiction`, with `file:line`/, 'the pass lost its per-decision verdict');
+  assert.match(cohere, /A budget the decisions no longer fit is a conflict/, 'the pass no longer adds up the budgets');
+  assert.match(cohere, /marks that piece `stale: true`/, 'a contradicted design document no longer marks its work stale');
+  assert.match(cohere, /Log\*\* one entry with kind `cohere`/, 'the pass is not logged');
+});
+
+test('a brief the person brings becomes a coverage map with equal depth', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.ok(existsSync(refPath('intake', 'brainstorm', '_brief.md')), 'missing brainstorm/_brief.md');
+  const brief = read('reference', 'intake', 'brainstorm', '_brief.md');
+  assert.match(src, /A reply that carries a brief, pasted or as a file path, runs \[brainstorm\/_brief\.md\]/, 'a pasted brief no longer starts the brief procedure');
+  assert.match(src, /then the coverage of each open brief/, 'showing the board omits brief coverage');
+  for (const status of ['`covered`', '`partial`', '`open`', '`out-of-scope`']) {
+    assert.ok(brief.includes(status), `the brief procedure lost the ${status} status`);
+  }
+  assert.match(brief, /A later criterion gets no less depth than the first one/, 'the brief walk lost its equal-depth rule');
+  assert.match(brief, /a criterion becomes `covered` only when it has a decision, its cost, and its check/, 'a criterion can be covered without a check');
+  assert.match(brief, /Then run a coherence pass/, 'a closed brief skips the coherence pass');
+});
+
+test('the loop writes only what changed after each batch', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.match(src, /\*\*The board is the memory\.\*\* Write the changed items to both files after every batch/, 'the invariant lost incremental writes');
+  assert.ok(!/Rewrite both files after every batch/.test(src), 'the loop rewrites the whole board every batch again');
+  assert.match(src, /Rewrite the document's front at a check-in, and its full record at an area close and at `done`/, 'the document rewrite cadence is gone');
+});
+
+test('a board with budgets, briefs, first-version items, and top risks validates', () => {
+  const board = jsonBoard();
+  board.budgets = [{ key: 'monthly-spend-cap', name: 'Spend stays under the cap', decision: 'limit-warns-only' }];
+  board.briefs = [{ key: 'cost-brief', name: 'Cost visibility', source: 'pasted', criteria: [
+    { key: 'cost-per-run', part: 'good', text: 'Every run shows its cost.', status: 'covered', items: ['cost-rows-per-run'] },
+    { key: 'no-surprise-bill', part: 'failure', text: 'No surprise bill.', status: 'out-of-scope', reason: 'billing is not ours' },
+  ] }];
+  Object.assign(board.items[0], { 'first-version': true, 'top-risk': true });
+  board.log.push({ session: 1, batch: 4, thread: null, kind: 'cohere', asked: 'coherence pass', answer: '2 conflicts, 3 merges' });
+  board.log.push({ session: 1, batch: 5, thread: null, kind: 'brief', asked: 'cost brief', answer: '1 covered, 1 out of scope' });
+  assert.deepEqual(validateBrainstormBoard(board, { schemaPath: SCHEMA_PATH }).errors, []);
+  const bad = jsonBoard();
+  bad.briefs = [{ key: 'cost-brief', name: 'Cost', criteria: [{ key: 'x', text: 'x', status: 'done' }] }];
+  assert.ok(!validateBrainstormBoard(bad, { schemaPath: SCHEMA_PATH }).valid, 'a criterion status outside the four validated');
+});
