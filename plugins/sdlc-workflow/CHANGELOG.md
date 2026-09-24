@@ -5,6 +5,20 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.166.0] - 2026-09-24
+
+### Changed
+
+- **An area close asks for a first version** (BRAINSTORM-MODE-PLAN.md §22). The close shows the area's price against the budgets the person set, asks which decisions belong in the first version (the rest become *later*, and nothing is cut unless the person says so), and asks which accepted risk worries the person most. Only that risk reaches the front of the document.
+- **A mixed answer comes back as one blend to confirm.** When the person answers "a mix", the agent writes the blend as one sentence and asks the person to confirm or change it.
+- **The counterweight fires only on a material consequence**: one that cannot be undone, breaks a budget, or contradicts an earlier decision.
+- **The loop writes only what changed after each batch.** The document's front is rewritten at a check-in, and its full record at an area close and at `done`.
+
+### Added
+
+- **A coherence pass** (`cohere`). After an area close, when a brief closes, before the `done` walk, and on request, the agent checks the board against itself, against the documents of work it already routed (one read-only sub-agent), and against the person's budgets. It brings each real conflict to the person as a choice, merges repeats, and marks contradicted work stale.
+- **Working against a brief.** A pasted brief or a named file becomes a coverage map: each criterion is covered, partial, or open against the board, the code, and the routed documents. The agent walks the gaps with the same depth for each, and the person can mark a criterion out of scope.
+
 ## [9.165.0] - 2026-09-23
 
 ### Changed
