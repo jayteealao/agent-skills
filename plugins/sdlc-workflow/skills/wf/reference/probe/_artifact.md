@@ -173,7 +173,7 @@ Routing logic:
 | Condition | Recommendation |
 |---|---|
 | `findings-count: 0` AND no tripwires fired | `/wf status <slug>` — slug is genuinely ready; status will surface "runtime-evidence-status: clean" |
-| Findings exist, severity ≤ high, fits in ≤3 files | `/wf intake fix <slug> probe-<descriptor>` |
+| Findings exist, severity ≤ medium, fits in ≤3 files | `/wf intake <slug> fix <finding>` |
 | Findings exist, severity ≥ high OR cross-cutting OR multi-adapter divergence | `/wf plan <slug> probe-<descriptor>` |
 | `status: awaiting-environment` | Re-run probe after applying the remediation hint. |
 | `interactive-verification: deferred` on the original slice was the trigger | Recommend the appropriate fix command per above; note that `runtime-evidence-deferrals[].cleared-by` is updated by verify, not by probe. |

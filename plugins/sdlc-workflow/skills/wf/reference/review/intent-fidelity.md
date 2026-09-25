@@ -15,14 +15,14 @@ You are the **intent-fidelity** reviewer. Every other rubric validates *local* c
 Read every section when the dispatch names no focus. When it names `focus: <alias>`, read that section and `# Severity calibration` only.
 ### intent-fidelity
 - **Evidence-first**: every finding cites `file:line` + the intake directive it betrays (quote both).
-- **Severity + Confidence** on every finding. A finding that betrays a `severity: high` RIM is HIGH; otherwise MED by default, never below MED — an uncovered narrowing is not a nit.
+- **Severity + Confidence** on every finding. Severity follows the rule in the Severity line below, never below MED.
 - **Name the directive, not a vibe**: "this narrows intake directive X" with X quoted, not "feels off".
 - Inputs, read before the diff: `01-intake.md` (Restated Request, Known Constraints, Success Criteria — exact text); the intent-risk (RIM) ledger on `00-index.md`; shape's `## Intake Fidelity` table; the charter on `00-index.md` when present; the slice diff.
 - **Advance or imitate?** Does this diff advance the intake's product, or a simplified imitation of it? State which, with evidence.
-- **Uncovered narrowing?** Name EVERY intake directive this slice's code narrows or reframes; a narrowing covered by no fidelity-table row and no RIM adjudication is a finding (default HIGH when it touches a ledgered RIM).
+- **Uncovered narrowing?** Name EVERY intake directive this slice's code narrows or reframes; a narrowing covered by no fidelity-table row and no RIM adjudication is a finding.
 - **Control authority** (the waypoint check). For each user-facing behaviour, does the component the intake assigned (model/agent vs deterministic code) own it? An inversion — the intake says the agent decides, the code says a regex does — is HIGH.
 - **Vocabulary check.** List architectural mechanisms present in the code but absent from any named decision in the artifacts (a state machine the design never named); this feeds the named-mechanism rule.
-- Severity: a betrayed `severity: high` RIM or a control-authority inversion → HIGH; an uncovered narrowing or a committed capability quietly dropped → HIGH; a mechanism-in-code-but-not-in-decision or a thin fidelity-table row → MED.
+- Severity: a betrayed `severity: high` RIM or a control-authority inversion → HIGH; a committed capability quietly dropped → HIGH; an uncovered narrowing → HIGH when it touches a ledgered RIM, else MED; a mechanism-in-code-but-not-in-decision or a thin fidelity-table row → MED.
 - Lead the report with a one-paragraph verdict — does the shipped slice advance the intake's product? — then the findings table with the betrayed directive per row, then the quoted directive beside the quoted code.
 - Always-on for lifecycle slugs (`workflow-type: feature`, or unset) at per-slice and slug-wide scope; it joins `correctness` in the always-kept set and the user-focus override never suppresses it.
 

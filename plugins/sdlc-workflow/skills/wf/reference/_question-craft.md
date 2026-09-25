@@ -44,7 +44,7 @@ quantities instead of abstract statements.
    answering a question about the question costs one round, guessing wrong
    costs a rebuild.
 7. **Intent-bearing decisions state the runtime consequence, not the design
-   label (INTENT-FIDELITY W10.2).** For any decision that classes as
+   label.** For any decision that classes as
    intent-bearing per [_decision-classes.md](_decision-classes.md) — one that
    assigns *control authority* or reframes what the product fundamentally *is* —
    each option must say, in one sentence, what the user or learner **experiences
@@ -55,7 +55,7 @@ quantities instead of abstract statements.
    the lived consequence is what lets a non-technical PO catch it before it
    ships.
 
-**Scope of authority — a PO answer decides only the question it was asked (INTENT-FIDELITY W2.1).**
+**Scope of authority — a PO answer decides only the question it was asked.**
 When an answer forecloses an *approach* (kills a vendor, a library, a budget), the *requirement*
 that approach served does NOT silently degrade into being dropped. The stage must either (a) show
 the requirement is still met another way, or (b) ask the PO a follow-up question about the
@@ -72,7 +72,6 @@ If not, rewrite the framing. The fix is more context, not a simpler decision.
 
 **Where the words go:** the `question` field carries the plain-language
 framing (it can be 2–3 sentences); option `label`s stay short; option
-`description`s carry the consequence text and glosses. When a round needs more setup than
-the fields comfortably hold, put a 1–2 line lead-in in chat before the question
-saying what the round decides and why it matters.
+`description`s carry the consequence text and glosses. When a round needs more setup, put it in the `question`
+field itself; the question dialog can hide chat text (see [_gate-question.md](_gate-question.md)).
 Freeform chat questions follow the same seven requirements in prose.

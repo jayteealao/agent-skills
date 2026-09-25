@@ -420,8 +420,8 @@ function blockVerifyResultGate(rel, message) {
 
 ${message}
 
-This gate (AC-VERIFIABILITY recommendations R7) makes the "verified but actually
-broken" pass mechanically impossible. Re-Edit the frontmatter to reconcile result
+This gate blocks a pass that the acceptance evidence does not support.
+Re-Edit the frontmatter to reconcile result
 with the acceptance evidence, then continue. Opt out with hooks.verifyResultGate: false.
 `
   );

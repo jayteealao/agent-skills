@@ -30,7 +30,7 @@ routing-assignments:
 
 ### Plan scope — the proposed-deltas block
 
-For `plan` scope: every accepted finding gets `route: route-amend-plan` AND records a `proposed-delta` block (the textual change the user applies via amend).
+For `plan` scope: every accepted finding gets `route: route-amend-plan` AND records a `proposed-delta` block (the textual change the user applies as a directed plan fix).
 
 ```yaml
 proposed-deltas:

@@ -9,7 +9,7 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `wf-experiment`, an **experiment design augmentation** that designs a controlled rollout for an existing workflow's change.
 
-> **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf experiment` key anymore. Run only the mode the calling stage requests.
+> **Loaded as a sub-procedure (not a standalone key).** Shape decides augmentation (`augmentations-needed` in `02-shape.md`): `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. Run only the mode the calling stage requests.
 
 # Shape
 This is an **augmentation**, not an entry point. It writes into an existing workflow directory.

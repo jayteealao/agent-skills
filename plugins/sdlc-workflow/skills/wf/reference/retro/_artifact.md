@@ -96,7 +96,7 @@ slug that already has one, follow the shared additive-write contract in
 - Snapshot: `.ai/workflows/<slug>/history/10-retro-<rev>.md`.
 - **Rewrite the body** so the retro reads as current truth — fold the revisit's
   findings into the relevant sections rather than appending a `## Revision N`
-  block. The `## The Retrospective` story section carries the arc (what we said
+  block. The `## The Retro` story section carries the arc (what we said
   at close vs. what actually happened 30 days later).
 - **Ledger entry**: append one `revisions:` entry with `trigger: manual` (or
   `scope-change` for an incident-driven revisit), `because:` naming the revisit

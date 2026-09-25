@@ -37,7 +37,7 @@ Run the three groups in the signals file: Group 1, version sources, secrets, and
 
 ## `clears-on` — what actually ends a finding
 
-**A remedy that cannot clear a finding is not a remedy.** Every signal carries a `clears-on` tag naming the one action that ends it, and the R3 gate offers remedies keyed to that tag. The field exists because the gate once did the opposite: a branch answered *Amend the plan*, amended block C exactly as instructed, and got the identical question back twelve minutes later, because the surviving finding was one that only merging can clear.
+**A remedy that cannot clear a finding is not a remedy.** Every signal carries a `clears-on` tag naming the one action that ends it, and the R3 gate offers remedies keyed to that tag.
 
 | `clears-on` | Meaning | Signals |
 |---|---|---|

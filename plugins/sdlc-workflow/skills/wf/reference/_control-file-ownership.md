@@ -5,7 +5,7 @@ Two files are written by nearly every `/wf` stage and by every driver:
 - `.ai/workflows/<slug>/00-index.md` — the workflow's own control file (status, roster, progress, deferral ledger, RIM ledger, charter).
 - `.ai/workflows/INDEX.md` — the global registry.
 
-They are the only files in the system with **many concurrent writers**, and until this contract existed they were written blind. A background `/wf yolo` driver and a foreground session would both hold reads taken minutes apart, and the second writer's edit would be rejected as *"File has been modified since read"* — repeatedly, in clusters, with no rule to fall back on. Worse, a **dead** driver's final write once ambushed a foreground session two hours later, because nothing said the driver had stopped and nothing said its last write might be half-finished.
+They are the only files in the system with **many concurrent writers**, and until this contract existed they were written blind. A background `/wf yolo` driver and a foreground session would both hold reads taken minutes apart, and the second writer's edit would be rejected as *"File has been modified since read"* — repeatedly, in clusters, with no rule to fall back on. A **dead** driver's last write can also be half-finished, and nothing else says the driver stopped.
 
 This file is the shared rule. `yolo.md`, `auto.md`, and the write-bearing stage references cite it rather than restating it.
 
@@ -39,7 +39,7 @@ Three states, and only three:
 
 No journal at all → *"no driver journal — I can't tell whether one ran."* That is the honest answer, and it is not the same as "nothing is running".
 
-Why this is written down at all: a background driver died 17 minutes into a run, the harness task registry lost the task entirely (its lookup answered "Task not found"), and the artifact trail simply stopped. The next session then told the user the driver was "currently re-verifying older slices" — reasoning purely from the trail *existing* — and the user made a stop-or-continue decision on that fiction. Existence is not liveness. The same discipline applies to any claim about work you did not watch, including another session's (see [_chat-return.md](_chat-return.md)).
+Existence is not liveness: an artifact trail outlives the driver that wrote it, and the harness task registry can lose a task entirely. The same discipline applies to any claim about work you did not watch, including another session's (see [_chat-return.md](_chat-return.md)).
 
 ## What this is not
 

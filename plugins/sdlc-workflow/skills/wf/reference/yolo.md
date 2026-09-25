@@ -102,7 +102,7 @@ Fix posture: the default action on any finding is **fix**. LOW/NITs keep a recor
 
 Branch posture: under `branch-strategy: dedicated`, orientation switches to the slug branch if it exists, else creates it from `base-branch`. It never stashes or force-switches: a switch or create that git refuses because uncommitted work would be lost is a HARD-STOP. A created or switched branch is reported in `outcome.branch`.
 
-Standing steering: orientation reads `steer.md` and injects the relevant entries into each stage subagent's prompt, because subagents never re-read the workflow directory. A steering entry `yolo` cannot honor without crossing a mandatory gate or a HARD-STOP is surfaced, never obeyed into a broken state. Steering cannot authorize shipping with an open deferral or waive a `dont-ship` verdict.
+Standing steering: stage subagents read `steer.md` through their stage references; the driver's scouts, refuters, and checkpoints do not. A steering entry `yolo` cannot honor without crossing a mandatory gate or a HARD-STOP is surfaced, never obeyed into a broken state. Steering cannot authorize shipping with an open deferral or waive a `dont-ship` verdict.
 
 Deferrals: the `verify` row above is the single normative statement of `yolo`'s deferral posture; verify.md's deferral law is the underlying law. Open deferrals from earlier runs are re-challenged fresh at orientation, and the standing pile is surfaced as `outcome.deferralPressure` (open count, oldest wall, repeat-of clusters). `/wf ship` HARD-BLOCKS until every deferral is cleared.
 

@@ -1,6 +1,6 @@
 ---
-description: Performance benchmarking wrapper for an existing workflow. Runs in two modes: baseline (before implement — measures current performance) and compare (after implement — measures delta and flags regressions). Auto-detects which mode is needed based on whether a baseline already exists. Pass an explicit mode arg to override. Writes or updates 05c-benchmark.md in the existing workflow directory.
-argument-hint: <slug> [baseline|compare]
+description: Performance benchmarking wrapper for an existing workflow. Runs in two modes: baseline (before implement — measures current performance) and compare (after implement — measures delta and flags regressions). The calling stage names the mode; with no named mode, it detects the mode from whether a baseline already exists. Writes or updates 05c-benchmark.md in the existing workflow directory.
+argument-hint: <slug>
 ---
 
 # External Output Boundary
@@ -9,7 +9,7 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `wf-benchmark`, a **performance benchmarking wrapper** that runs twice in the lifecycle — once before implement to record a baseline, and once after to measure the delta.
 
-> **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf benchmark` key anymore. Run only the mode the calling stage requests.
+> **Loaded as a sub-procedure (not a standalone key).** Shape decides augmentation (`augmentations-needed` in `02-shape.md`): `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. Run only the mode the calling stage requests.
 
 # Shape
 This is a **wrapper**, not an entry point and not a standalone workflow. It writes `05c-benchmark.md` into an existing workflow directory.
@@ -65,12 +65,11 @@ You are a **performance analyst**, not an optimizer.
    - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found."
    - If `02-shape.md` does not exist → STOP: "No shape found for `<slug>`. Run `/wf shape <slug>` first."
 2. **Resolve mode:**
-   - If second argument is `baseline` → force baseline mode.
-   - If second argument is `compare` → force compare mode.
-   - If no second argument → auto-detect:
+   - If the calling stage names a mode, use it: `plan` names `baseline`, `verify` names `compare`.
+   - If no mode is named → auto-detect:
      - No `05c-benchmark.md` → baseline mode.
      - `05c-benchmark.md` exists with `mode: baseline` and no `comparison:` block → compare mode.
-     - `05c-benchmark.md` exists with both baseline and comparison → WARN: "Benchmark already has baseline AND comparison data. Pass `baseline` to re-baseline or `compare` to re-compare. Stopping." Stop.
+     - `05c-benchmark.md` exists with both baseline and comparison → WARN: "Benchmark already has baseline AND comparison data; the calling stage must name `baseline` or `compare`. Stopping." Stop.
 3. **Read the workflow context:**
    - Read `02-shape.md` — identifies the performance-sensitive areas in scope.
    - Read any `04-plan-*.md` — identifies which files and functions are being modified.

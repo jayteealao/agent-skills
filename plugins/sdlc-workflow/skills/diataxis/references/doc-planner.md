@@ -35,7 +35,7 @@ Use this skill when:
 - the correct doc type is uncertain
 - a large docs set needs to be reorganised
 
-Do not use this skill when the target format is already obvious and the user wants the content written immediately. In that case route directly to the specific writing skill.
+Do not use this skill when the target format is already obvious and the user wants the content written immediately. In that case load that mode's reference from the routing table in SKILL.md instead.
 
 ## Inputs to gather
 

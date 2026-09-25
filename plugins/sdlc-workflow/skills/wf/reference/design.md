@@ -76,7 +76,7 @@ Emit the summary last, per [design/_output.md](design/_output.md) Step 6:
 ```
 wf design <job> complete: <slug-or-"freestanding">
 
-<Narrative — 2–5 sentences of prose: what the person confirmed or what the run produced, the counts that matter, and the top design risk.>
+<Narrative — a short prose paragraph: what the person confirmed or what the run produced, the counts that matter, and the top design risk.>
 
 Register: <brand|product>
 Image gate: <pass | skipped:<reason> | n/a>

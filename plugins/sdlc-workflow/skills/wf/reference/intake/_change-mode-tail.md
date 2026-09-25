@@ -1,7 +1,7 @@
 # Change-mode shared tail — collision, stack, index, tripwires, gate, rules
 
 The single source for the blocks the four change-modes (`fix`, `hotfix`, `refactor`,
-`update-deps`) previously carried as four drifting copies. Each mode reference cites the
+`update-deps`) share. Each mode reference cites the
 section it needs and fills the per-mode slots from the value table below. `adopt` keeps its
 own index template (its reverse-entry values differ structurally) but follows the stack
 policy, the tripwire mechanism, and the closure rule here.
@@ -138,8 +138,7 @@ mechanism is uniform and **warn-and-continue — never refuse**:
    workflow."
 
 A tripwire is never a hard cap: a plan that breaches is still written, recorded, and
-gated. (This replaces any per-mode hard constraint that made Escalate reachable only
-through an artifact the schema forbids.)
+gated.
 
 ## The gate, Adjust, and Escalate closure
 

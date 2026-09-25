@@ -1,6 +1,6 @@
 # Ship-plan build — code-quality gates, commit conventions, git hooks, developer-experience files (`ship-plan/build.md` Steps 8–11)
 
-Load this file from `build.md` Steps 3–16 when audit K, L, M, or N is Missing or Non-compliant (or the user selected it). Step 8, 9, 10, or 11. The Idempotency rule for Steps 8–12 is in `build.md`.
+Load this file from `build.md` Steps 3–16 when audit K, L, M, or N is Missing or Non-compliant (or the user selected it). Step 8, 9, 10, or 11. The Idempotency rule for Steps 8–12 is in `build.md`. Action versions (`@vN`) and runtime versions in the YAML below are illustrative; resolve them per the pinning rule in `build.md`.
 
 # Step 8 — Implement: code-quality CI gates (Audit K)
 

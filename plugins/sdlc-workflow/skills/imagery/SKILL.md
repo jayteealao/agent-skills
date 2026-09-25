@@ -21,9 +21,9 @@ embed it. This skill calls the image APIs directly, and it is fan-out-capable. I
    (Method T) with `method=skipped`.
 3. **Output path.** Default `.ai/design-probes/<unix-ts>[-<provider>].<ext>` —
    `<ext>` is **set from the actual bytes** by the generators (PNG for gpt-image-2,
-   JPEG for Gemini — A3), so pass a base path; the result reports the real path.
+   JPEG for Gemini), so pass a base path; the result reports the real path.
    Create `.ai/design-probes/` if needed.
-4. **Resolution tier (no `--resolution` flag, D15).** Infer from the prompt prose
+4. **Resolution tier (no `--resolution` flag).** Infer from the prompt prose
    **or the invoking context**: a **north-star / hi-res / high-res / 2K** cue → the
    **2K** tier; else **1K**. Pass the tier as the generator's positional `<tier>`
    argument (`1K` or `2K`; it never enters the image prompt). The contract north-star
@@ -51,7 +51,7 @@ to the sniffed bytes).
 ## Step 2 — Fan-out (the default) vs pin
 
 - **Pinned** (a provider keyword): run that one provider; on failure fall through
-  `image_gen → openai/openai-sub → gemini → text` (the legacy waterfall, single best).
+  `image_gen → openai/openai-sub → gemini → text` (first success wins).
 - **Bare** (no keyword): run every available **distinct-model** provider in
   parallel → a variant set. **Exclude `openai-sub` from the bare fan-out** — it is
   the *same model* (gpt-image-2) as `openai` on a different billing path, so
@@ -66,7 +66,7 @@ Embed each generated image as a data-URI fragment (MIME sniffed from the bytes):
 figure per provider). The caller (`/wf design`) decides where the fragment lives
 next to its design artifact.
 
-## Output Format — must stay `IMAGEGEN_RESULT` (contract, A2)
+## Output Format — must stay `IMAGEGEN_RESULT` (contract)
 
 The visual-contract step (the design stage, following `design/stage.md` and
 `design/contract.md`) branches on `method=text-only` and consumes `scene_sentence`, and the

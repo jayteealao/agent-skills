@@ -62,7 +62,7 @@ Pick one. Execute it fully. Don't add three half-committed moves.
 
 After changes:
 - Does the design have a point of view?
-- Would you recognize it as distinct from a generic AI-generated design?
+- Does it avoid every pattern on the Absolute bans in `_design-context.md` and the reflex-reject list in `brand.md`?
 - Is the visual hierarchy immediately obvious?
 - Can you name the aesthetic lane?
 

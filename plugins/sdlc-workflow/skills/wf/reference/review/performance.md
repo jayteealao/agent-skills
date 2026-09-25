@@ -25,21 +25,21 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - **What's the concurrency?** (Single user, 1000 concurrent users)
 - Check algorithmic complexity, query shape, memory, serial I/O, caching, thread-pool exhaustion, payload size, and whether a measurement backs each optimization.
 ### frontend-performance
-- **Bundle size increase >50KB is BLOCKER**: New dependencies or code significantly inflating bundle
+- **Bundle size**: judge from `metric-bundle-size-delta-pct` in `06-verify-*.md` (≥20% in any chunk is HIGH, per verify); apply that threshold here only when verify did not run
 - **Blocking main thread >50ms is HIGH**: Long-running synchronous operations causing jank
 - **Excessive re-renders are HIGH**: Components re-rendering unnecessarily (>10x per interaction)
 - **Missing code-splitting for routes is HIGH**: All routes bundled together instead of lazy-loaded
 - **Unoptimized images are MED**: Large images without compression, modern formats (WebP/AVIF), responsive sizes
 - **Missing memoization in loops is MED**: Expensive computations repeated unnecessarily
-- **What are the performance budgets?** (Bundle size limits, LCP < 2.5s, FID < 100ms)
+- **What are the performance budgets?** (Bundle size limits, LCP < 2.5s, INP < 200ms, CLS < 0.1)
 - **What framework is used?** (React, Vue, Angular, Svelte — affects optimization strategies)
 - **What build tool?** (Webpack, Vite, Rollup, Parcel — affects bundle analysis)
 - **What are target devices?** (Mobile-first, desktop, both — affects performance thresholds)
-- **What are current metrics?** (Baseline LCP, FID, CLS, bundle sizes)
+- **What are current metrics?** (Baseline LCP, INP, CLS, bundle sizes)
 - **Is there performance monitoring?** (Real User Monitoring, Lighthouse CI, WebPageTest)
 - Check Core Web Vitals, JavaScript execution, network waterfalls, CSS cost, state-management churn, third-party scripts, and mobile devices.
 ### scalability
-- **O(n²) or worse in user-facing paths is BLOCKER**: Quadratic/exponential complexity on user operations
+- **Unbounded growth with data size in user-facing paths is BLOCKER**: Quadratic/exponential complexity on user operations
 - **Unbounded loops/queries are BLOCKER**: `SELECT * FROM huge_table`, loops without pagination, no result limits
 - **Missing indexes on high-traffic queries are HIGH**: Table scans on large tables in hot paths
 - **Missing caching for expensive operations is HIGH**: Repeated heavy computations without memoization

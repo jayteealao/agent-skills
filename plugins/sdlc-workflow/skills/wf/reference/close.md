@@ -97,7 +97,7 @@ closed-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
-Body sections: **1. Closure summary** (≤5 sentences for a future reader), **2. Work completed** (one
+Body sections: **1. Closure summary** (a short summary for a future reader), **2. Work completed** (one
 bullet per completed/skipped stage), **3. Work not completed** (last known state of each incomplete
 stage), **4. Reason & context** (expanded; name what superseded/absorbed it; revival triggers if
 deferred), **5. Branch & PR status** (a resource/state/action table), **6. Revival instructions** (only

@@ -1,6 +1,6 @@
 # Ship-plan build — release workflow (`ship-plan/build.md` Step 4)
 
-Load this file from `build.md` Steps 3–16 when audit B, C, E, F, or G is Missing or Non-compliant (or the user selected it). Step 4.
+Load this file from `build.md` Steps 3–16 when audit B, C, E, F, or G is Missing or Non-compliant (or the user selected it). Step 4. Action versions (`@vN`) and runtime versions in the YAML below are illustrative; resolve them per the pinning rule in `build.md`.
 
 # Step 4 — Implement: release workflow (Audits B + C + E + F + G)
 

@@ -118,7 +118,7 @@ Apply `-webkit-font-smoothing: antialiased` (Tailwind `antialiased`) once at the
 Apply the ban list in [_design-context.md](_design-context.md).
 
 - Font sizes below 12px (captions) or 16px (body text)
-- Line height below 1.4 for body text
+- Line height below 1.5 for body text (1.4 only for dense UI, per polish.md)
 - Prose lines outside 65–75ch
 - Justified alignment in body text (uneven word spacing)
 - `font-weight: 100` (Thin) at small sizes — unreadable at normal viewport resolutions

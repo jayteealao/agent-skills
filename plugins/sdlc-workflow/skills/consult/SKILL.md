@@ -22,13 +22,10 @@ implementation review, a design trade-off analysis, a diagnosis, a second
 opinion. It is **advisory only**: the oracles can read and search the repo but
 **cannot edit, write, or run commands**. It writes no code and proposes no patch.
 
-The model **auto-invokes** this skill at the judgment points the `/wf` stages call
-out (plan, shape, design, review, verify/diagnosis, handoff) — not rarely, but
-whenever those stages' **objective** triggers fire. It is still never triggered by a
-hook or by serving — only by a deliberate model or user decision. The cost caution
-applies to *provider choice, not frequency*: a self-initiated run pins a **free**
-subscription CLI (`codex`/`claude`), which costs nothing per call, so fire it freely
-at the designated gates. "Sparing" governs only the **paid** REST oracles (`gemini`,
+Inside a `/wf` stage, the model runs this skill when a trigger in
+[_consult-triggers.md](../wf/reference/_consult-triggers.md) holds; the user may run it at any
+time. A hook or the server never starts it. Cost depends on the provider, not on how
+often it runs: a self-initiated run pins a **free** subscription CLI (`codex`/`claude`). "Sparing" governs only the **paid** REST oracles (`gemini`,
 `openai`, gateway models) — never fan those out unattended (see Step 0).
 
 # Step 0 — Resolve the request
@@ -44,14 +41,14 @@ at the designated gates. "Sparing" governs only the **paid** REST oracles (`gemi
    `$ARGUMENTS`:
    - If it is a **provider keyword** (`codex`, `claude`, `gemini`, `openai`) or a
      `"<provider>/<model>"` token (contains `/`, routed through the Vercel AI
-     Gateway, e.g. `anthropic/claude-opus-4-8`, `openai/gpt-5.5`), **pin** that
+     Gateway, e.g. `anthropic/<model-id>`, `openai/<model-id>`), **pin** that
      provider; the rest is the question.
    - Otherwise the whole of `$ARGUMENTS` is the question → **fan out** to all
      available providers (the default).
    Pass the resolved provider(s), if any, straight through to the runner; do not
    pre-filter on availability yourself — the runner reports which it skipped.
 
-3. **Infer intent and target from the prose** (no flags, D15). From the question
+3. **Infer intent and target from the prose** (no flags). From the question
    and the artifact in context, decide:
    - **intent**: review / critique / diagnose / compare / second-opinion — this
      shapes the prompt preamble, it is not a keyword.

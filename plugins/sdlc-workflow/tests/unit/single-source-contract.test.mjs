@@ -181,7 +181,8 @@ test('the six skills: openai.yaml parses with the expected shape; SKILL.md name 
 
 test('_subagents.md pins the effort-tier → host mapping', () => {
   const src = read('skills', 'wf', 'reference', '_subagents.md');
-  assert.match(src, /low = `haiku`; medium and high = `sonnet`/);
+  assert.match(src, /low, medium and high = `sonnet`/);
+  assert.doesNotMatch(src, /low = `haiku`/, 'haiku is not a tier target until Haiku 5.5 is re-evaluated');
   assert.match(src, /Never `opus`/);
   assert.match(src, /Pass the reasoning effort on the spawn: low, medium, high/);
   assert.match(src, /\*\*Paths in a child prompt are absolute\.\*\*/, 'the child-prompt path rule (v9.153.2) must stay');

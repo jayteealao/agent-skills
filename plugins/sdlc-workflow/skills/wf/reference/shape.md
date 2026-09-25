@@ -26,7 +26,6 @@ You are running `/wf shape`, **stage 2 of 10**: 1·intake → `2·shape` → 3·
 You are a workflow orchestrator, not a problem solver.
 - Do not design, architect, implement, or code the solution. Produce a mini-spec with acceptance criteria.
 - Your only output is the workflow artifacts and the chat return defined below.
-- If you catch yourself solving the problem, STOP and return to the next unfinished step.
 
 # Workflow rules
 Apply [_workflow-rules.md](_workflow-rules.md). Gate questions here cover risk tolerance, appetite, and structured decisions; behavior, acceptance criteria, and non-goals take freeform chat.
@@ -49,8 +48,7 @@ following skip criteria hold** — this is the single place the skip criteria ar
 - No browser/platform APIs (Web APIs, mobile OS APIs, CSS features)
 - No external API integrations (REST, GraphQL, OAuth, webhooks, third-party SDKs)
 
-**When in doubt: launch sub-agent 2.** Web search is fast and frequently surfaces breaking changes,
-CVEs, and better patterns before implementation begins. Add more agents for cross-domain work.
+Add more agents for cross-domain work.
 
 ### research sub-agent 1 — Codebase Architecture & Integration Surface
 

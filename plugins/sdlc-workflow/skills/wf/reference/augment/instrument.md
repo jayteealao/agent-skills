@@ -9,7 +9,7 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `wf-instrument`, an **observability augmentation** that adds an instrumentation plan to an existing workflow.
 
-> **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf instrument` key anymore. Run only the mode the calling stage requests.
+> **Loaded as a sub-procedure (not a standalone key).** Shape decides augmentation (`augmentations-needed` in `02-shape.md`): `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. Run only the mode the calling stage requests.
 
 > **Deep reference — wide-event observability.** For the canonical wide-event / structured-logging patterns (tail sampling, canonical log lines, context-rich queryable events) this augmentation designs against, load [wide-event-observability.md](wide-event-observability.md). It holds this augmentation's knowledge base.
 

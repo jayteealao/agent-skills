@@ -19,13 +19,13 @@ content spec.
   a receipt means only those receipt *fields* — the substance narrative above
   them is still mandatory. Always surface what the artifact says (key decisions,
   counts, verdict, top risk), not merely the paths it wrote.
-- **Lead the receipt with a `Deltas` line (INTENT-FIDELITY W10.1).** A stage that
+- **Lead the receipt with a `Deltas` line.** A stage that
   changed the product's shape must surface it at the one altitude the PO reliably
   reads — the chat return, not a 300-line artifact. Immediately below the narrative,
   before the other receipt fields, emit a `Deltas:` line naming: intake directives
   **narrowed** (from shape's Intake Fidelity table), architectural **mechanisms
   introduced** (from the named-mechanism decisions), and intent-bearing decisions
-  **pending or auto-resolved** (from the decision-class stamps, once those exist).
+  **pending or auto-resolved** (from the `class:` stamps per [_decision-classes.md](_decision-classes.md)).
   Nothing new is computed — the line only surfaces what shape/verify already recorded.
   When there is nothing to report, the line reads `Deltas: none` (one word). A stage
   with no fidelity/mechanism/decision surface (e.g. a pure status read) omits the line.
@@ -46,25 +46,18 @@ content spec.
 ## Claims about work you did not watch
 
 A chat return often has to say something about work happening *elsewhere* — a
-background driver, another session, a spawned task. Two rules, because both have
-already misled a user badly.
+background driver, another session, a spawned task. Two rules apply.
 
 - **Liveness is judged by recency, never by existence.** Before saying a driver or
   background run is "still running", apply the staleness rule single-sourced in
   [_control-file-ownership.md](_control-file-ownership.md): compare when its
-  heartbeat journal was last written against the run's own observed cadence. A
-  session once told the user a driver was "currently re-verifying older slices"
-  purely because its trail existed — the driver had been dead for two hours, and
-  the user made a stop-or-continue decision on the fiction.
+  heartbeat journal was last written against the run's own observed cadence.
 
 - **Cross-session activity claims require repo evidence.** A system-reminder saying
   a spawned task is "running independently" is a statement about a **chip**, not
   about work occurring. Before asserting that another session is doing, or has
   done, something — and *especially* before predicting a conflict with it — check
   the repo: the branch, recent commits, the target files. If the repo shows
-  nothing, say *"a task chip exists; I can't see whether it ran."* One session
-  escalated a chip reminder into "a background session is **already implementing
-  this exact fix** … guaranteeing a conflict"; two words from the user ("what bg
-  task") deflated it, because nothing existed. Confident narration about invisible
+  nothing, say *"a task chip exists; I can't see whether it ran."* Confident narration about invisible
   work is worse than silence: it is unfalsifiable until the user does your checking
   for you.

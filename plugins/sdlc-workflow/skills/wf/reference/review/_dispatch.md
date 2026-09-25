@@ -34,7 +34,7 @@ its rules 2–5 to this dimension's file (re-surfaced findings keep prior id/sur
 net-new get max+1; resolve-sweep what you did not re-surface; triaged statuses persist).
 Get `now` from the real UTC timestamp per `<skill-dir>/reference/_timestamp.md`. Emit the FULL merged set (open AND resolved), not just this run's deltas.
 
-IMPORTANT: Write your complete review findings to the file:
+Write your complete review findings to the file:
   - Per-slice: `.ai/workflows/{slug}/07-review-{slice-slug}-{command-name}.md`
   - Slug-wide: `.ai/workflows/{slug}/07-review-{command-name}.md`
 

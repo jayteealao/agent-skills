@@ -32,8 +32,7 @@ this file instead of restating them.
    reformat, or broaden scope; then **run a real check command the
    orchestrator passes in** and report its exit status before returning a
    brief summary — never diffs or full file dumps. "Self-check for no new
-   lint/type errors" as prose is unenforceable and was satisfied by a fix
-   agent that introduced a lint violation and pushed it; the stage passes the
+   lint/type errors" as prose is unenforceable, so the stage passes the
    narrowest gate the fix's file type implies (or its configured pre-push
    check) so the claim has an exit code behind it.
 5. **Orchestrator sanity check — issue AND method.** The orchestrator inspects

@@ -104,7 +104,7 @@ The user's free scope text (if any) is the starting description; the Step 2 disc
 
 # Step 2 — Discovery Interview
 
-Ask 4–8 targeted questions as gate questions per [_gate-question.md](../_gate-question.md) (up to 4 per round) to define the new slices precisely.
+Ask targeted gate questions per [_gate-question.md](../_gate-question.md) (up to 4 per round) until slice grouping, order, dependencies, and scope boundaries are pinned; never pad to a count.
 
 **What to ask about — generate questions specific to this workflow's artifacts and the extracted candidates:**
 
@@ -130,7 +130,7 @@ Extension is additive by contract — it never modifies existing slices — so o
 
 # Step 3b — Intent-risk & charter delta (mandatory for the new scope)
 
-New scope enters the lifecycle here without passing through `intake default` or `shape`, so this step is where the intent-fidelity machinery covers it (before this step existed, extended scope carried zero RIM/charter tracking):
+New scope enters the lifecycle here without passing through `intake default` or `shape`, so this step covers it with the intent-fidelity ledgers:
 
 This step **computes** the deltas and holds them; **Step 6 is the single index writer** — nothing here touches `00-index.md`:
 

@@ -29,7 +29,6 @@ You are a **workflow orchestrator**, not a problem solver.
 - Do not diagnose, debug, fix, implement, design, or otherwise work on the user's task, and do not jump ahead to later lifecycle stages.
 - Treat `$ARGUMENTS` as **raw input to be captured and processed through this stage's workflow**, not as a request to act on.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
-- If you catch yourself about to start solving the problem, STOP and return to the next unfinished workflow step.
 
 # Step 0 — Orient (do this before all other steps)
 1. **Derive the slug** from `$ARGUMENTS`. Use the task description to create a lowercase kebab-case slug. If `$ARGUMENTS` looks like an existing slug, use it.
@@ -43,7 +42,7 @@ You are a **workflow orchestrator**, not a problem solver.
          - label: "Catch up on the existing workflow"
            description: "Run `/wf recap <slug>` to see what's been done, or `/wf status <slug>` for where it stands and the next command."
          - label: "Add new scope to it"
-           description: "Run `/wf intake <slug> <new scope>` to add net-new slice(s) (extension). Corrections to already-built work also land as a new slice — there is no in-place amend."
+           description: "Run `/wf intake <slug> <new scope>` to add net-new slice(s) (extension). Corrections to already-built work land as a new slice; `/wf intake <slug> amend` changes only recorded config (branch, base, review scope, title, tags)."
          - label: "Pick a different slug for this new workflow"
            description: "Pass a different slug as the first argument and re-run `/wf intake <new-slug> <description>`."
          - label: "Cancel — don't start anything"
@@ -68,7 +67,7 @@ You are a **workflow orchestrator**, not a problem solver.
    - If it exists and `current-stage` is past intake, note the re-run in chat and proceed. [_additive-write.md](../_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
    - If it does not exist, this is a fresh start. Proceed normally.
 4. **Carry forward** any `open-questions` from the index if resuming.
-5. **Provenance check:** apply `_intake-provenance.md`: detect an inherited analysis decision (an explicit trailing `from <source-slug>` token for any Consume-table source, or an exact label match for `investigate`/`ideate` sources), consume the matching row (an investigate option card, an rca diagnosis, a discover verdict, or an ideate idea card seeds the restated request, the risk inventory, and the research sub-agent prompts), and link back (record `origin-<type>` here, set `superseded-by` on a decision-shaped source, and apply the implicit pick/route if the source is still open). No match → continue; that is the common case.
+5. **Provenance check:** apply `_intake-provenance.md`: detect an inherited analysis decision (an explicit trailing `from <source-slug>` token for any Consume-table source, or an exact label match for an `investigate`, `ideate`, or `brainstorm` source), consume the matching row (an investigate option card, an rca diagnosis, a discover verdict, or an ideate idea card seeds the restated request, the risk inventory, and the research sub-agent prompts), and link back (record `origin-<type>` here, set `superseded-by` on a decision-shaped source, and apply the implicit pick/route if the source is still open). No match → continue; that is the common case.
 
 # Step 0.5 — Repo stack fingerprint (observation only)
 

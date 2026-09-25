@@ -50,6 +50,17 @@ function render(artifact, ctx) {
     children: []
   };
 }
+var IMPACT = { critical: 4, high: 3, medium: 2, low: 1 };
+var EFFORT = { xs: 1, s: 2, m: 3, l: 4, xl: 5 };
+var FEASIBILITY = { clear: 1, "needs-design": 0.7, external: 0.5 };
+function ideaScore(idea) {
+  if (idea.score != null) return idea.score;
+  const impact = IMPACT[idea.impact];
+  const effort = EFFORT[idea.effort];
+  if (!impact || !effort) return "";
+  const feasibility = FEASIBILITY[idea.feasibility] ?? 1;
+  return Math.round(impact * feasibility / effort * 100) / 100;
+}
 function ideaRow(idea) {
   return `<tr>
     <td><code>${escapeHtml(idea.id ?? "")}</code></td>
@@ -57,12 +68,13 @@ function ideaRow(idea) {
     <td>${escapeHtml(idea.category ?? "")}</td>
     <td>${escapeHtml(idea.impact ?? "")}</td>
     <td>${escapeHtml(idea.effort ?? "")}</td>
-    <td>${escapeHtml(String(idea.score ?? ""))}</td>
+    <td>${escapeHtml(String(ideaScore(idea)))}</td>
   </tr>`;
 }
 function culledItem(c) {
   return `<li><code>${escapeHtml(c.id ?? "")}</code> ${escapeHtml(c.title ?? "")}${c.reason ? ` \u2014 ${escapeHtml(c.reason)}` : ""}</li>`;
 }
 export {
+  ideaScore,
   render
 };

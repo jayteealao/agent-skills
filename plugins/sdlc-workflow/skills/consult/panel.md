@@ -16,15 +16,13 @@ Load this file from `SKILL.md` Step 3 after the runner returns.
 
    This matters because the whole value of a panel is independent judgment: a
    silently single-generator "panel" reads with the confidence of agreement it
-   never earned. Every plan critique and pre-mortem on one host ran
-   single-generator for weeks because the degradation surfaced, at best, as a
-   residual note.
+   never earned.
 
    Each failed result carries `errorKind` (`auth` | `sandbox` | `not-found` |
    `unknown`) and, for `auth`, a `remedy` — **print the remedy**. An `auth`
    failure is fixed by one command and will otherwise recur on every future
    consult on that host. Do not describe an `auth` failure as an environmental
-   wall to plan around: it is a login, and the dispatcher now says which one.
+   wall to plan around: it is a login, and the dispatcher names it.
 
 2. **Consensus / divergence — weighted by evidence (the asymmetry caveat).** Add
    one line summarizing where the oracles agree and where they diverge. **A

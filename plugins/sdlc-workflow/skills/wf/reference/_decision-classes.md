@@ -1,6 +1,6 @@
 # Decision classes — the taxonomy for autonomous resolution (single source)
 
-INTENT-FIDELITY W4. Every workflow decision is one of two classes. The class decides *who*
+Every workflow decision is one of two classes. The class decides *who*
 may resolve it: an **implementation-detail** decision may be settled by an autonomous policy
 (and recorded); an **intent-bearing** decision may NOT — it is asked of the product owner in a
 human-gated run, or is a stop condition in an autonomous run. This file is the single source;
@@ -42,7 +42,7 @@ scaffolding, error-message wording, and library idioms *within* an already-commi
 ## The rule
 
 - **Human-gated run** (plan/implement/verify with a PO present): an intent-bearing decision is
-  ASKED — a question asked per [_gate-question.md](_gate-question.md), constructed per `_question-craft.md` (consequence-framed per W10.2).
+  ASKED — a question asked per [_gate-question.md](_gate-question.md), constructed per `_question-craft.md` (consequence-framed).
 - **Autonomous run** (`/wf yolo`, or `/wf auto` at a gate): an intent-bearing decision is a
   **STOP** — record the pending decision in the artifact + `po-answers.md` as awaiting-input,
   surface it in the run report, and halt rather than settle it.

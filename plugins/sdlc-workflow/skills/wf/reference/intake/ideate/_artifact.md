@@ -21,7 +21,8 @@ ideas:
     category: <quality|performance|security|dx|feature|architecture>
     impact: <critical|high|medium|low>
     effort: <xs|s|m|l|xl>
-    score: <float>
+    feasibility: <clear|needs-design|external>
+    rank-reason: "<one line: why this rank>"
     evidence: ["<file:line>", "..."]   # the lens findings this idea is grounded in
     entry: "<the entry invocation — new-workflow or extension form>"
   - ...
@@ -43,7 +44,8 @@ culled:
 ## Ranked Ideas
 
 ### #1 — <Title>
-**Category:** <category> | **Impact:** <level> | **Effort:** <level> | **Score:** <N>
+**Category:** <category> | **Impact:** <level> | **Effort:** <level> | **Feasibility:** <level>
+**Why this rank:** <rank-reason>
 
 **Evidence:** `<file:line>`
 

@@ -291,5 +291,142 @@
     "release": "9.167.0",
     "file": "skills/wf/reference/design.md",
     "category": "stops"
+  },
+  {
+    "file": "skills/wf/reference/handoff.md",
+    "category": "stops",
+    "entry": "- if you catch yourself about to start",
+    "reason": "Prompt audit 2026-09-25 (1a pressure language): the \"If you catch yourself ... STOP\" booster restated the boundary the Role bullets directly above it already state; the boundary itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/implement.md",
+    "category": "stops",
+    "entry": "- if you catch yourself about to skip",
+    "reason": "Prompt audit 2026-09-25 (1a pressure language): the \"If you catch yourself ... STOP\" booster restated the boundary the Role bullets directly above it already state; the boundary itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/intake/default.md",
+    "category": "stops",
+    "entry": "- if you catch yourself about to start",
+    "reason": "Prompt audit 2026-09-25 (1a pressure language): the \"If you catch yourself ... STOP\" booster restated the boundary the Role bullets directly above it already state; the boundary itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/intake/ideate.md",
+    "category": "stops",
+    "entry": "- if you catch yourself starting to implement",
+    "reason": "Prompt audit 2026-09-25 (1a pressure language): the \"If you catch yourself ... STOP\" booster restated the boundary the Role bullets directly above it already state; the boundary itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/plan.md",
+    "category": "stops",
+    "entry": "- if you catch yourself implementing, stop and",
+    "reason": "Prompt audit 2026-09-25 (1a pressure language): the \"If you catch yourself ... STOP\" booster restated the boundary the Role bullets directly above it already state; the boundary itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/retro.md",
+    "category": "stops",
+    "entry": "- if you catch yourself about to start",
+    "reason": "Prompt audit 2026-09-25 (1a pressure language): the \"If you catch yourself ... STOP\" booster restated the boundary the Role bullets directly above it already state; the boundary itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/review/_stage.md",
+    "category": "stops",
+    "entry": "- if you catch yourself reviewing code directly,",
+    "reason": "Prompt audit 2026-09-25 (1a pressure language): the \"If you catch yourself ... STOP\" booster restated the boundary the Role bullets directly above it already state; the boundary itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/review/_stage.md",
+    "category": "stops",
+    "entry": "if you catch yourself fixing code outside step",
+    "reason": "Prompt audit 2026-09-25 (1a pressure language): the \"If you catch yourself ... STOP\" booster restated the boundary the Role bullets directly above it already state; the boundary itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/shape.md",
+    "category": "stops",
+    "entry": "- if you catch yourself solving the problem,",
+    "reason": "Prompt audit 2026-09-25 (1a pressure language): the \"If you catch yourself ... STOP\" booster restated the boundary the Role bullets directly above it already state; the boundary itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/ship/announce.md",
+    "category": "stops",
+    "entry": "- if you catch yourself about to fix",
+    "reason": "Prompt audit 2026-09-25 (1a pressure language): the \"If you catch yourself ... STOP\" booster restated the boundary the Role bullets directly above it already state; the boundary itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/simplify.md",
+    "category": "stops",
+    "entry": "- if you catch yourself about to make",
+    "reason": "Prompt audit 2026-09-25 (1a pressure language): the \"If you catch yourself ... STOP\" booster restated the boundary the Role bullets directly above it already state; the boundary itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/slice.md",
+    "category": "stops",
+    "entry": "- if you catch yourself about to start",
+    "reason": "Prompt audit 2026-09-25 (1a pressure language): the \"If you catch yourself ... STOP\" booster restated the boundary the Role bullets directly above it already state; the boundary itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/status.md",
+    "category": "stops",
+    "entry": "- if you catch yourself about to modify",
+    "reason": "Prompt audit 2026-09-25 (1a pressure language): the \"If you catch yourself ... STOP\" booster restated the boundary the Role bullets directly above it already state; the boundary itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/verify.md",
+    "category": "stops",
+    "entry": "- if you catch yourself about to start",
+    "reason": "Prompt audit 2026-09-25 (1a pressure language): the \"If you catch yourself ... STOP\" booster restated the boundary the Role bullets directly above it already state; the boundary itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/shape.md",
+    "category": "dispatches",
+    "entry": "when in doubt: launch sub-agent 2. web search",
+    "reason": "Prompt audit 2026-09-25 (1a \"if in doubt, use X\" booster): the skip criteria directly above are the single source for when sub-agent 2 runs; the dispatch itself is unchanged.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/review/frontend-performance.md",
+    "category": "rubric-checks",
+    "entry": "bundle size increase 50kb is blocker",
+    "reason": "Prompt audit 2026-09-25 (rules that disagree): performance.md now judges bundle size from verify's metric-bundle-size-delta-pct (>=20% in any chunk is HIGH), matching verify; the fixed 50KB BLOCKER contradicted it.",
+    "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/review/scalability.md",
+    "category": "rubric-checks",
+    "entry": "o(n²) or worse in user-facing paths",
+    "reason": "Prompt audit 2026-09-25 (rules that disagree): O(n²) had two severities in performance.md; the PO chose HIGH (the hot-path check stays), and BLOCKER now covers unbounded growth with data size in user-facing paths.",
+    "release": "9.170.0"
+  },
+  {
+    "category": "invocations",
+    "entry": "/wf benchmark",
+    "reason": "Prompt audit 2026-09-25 (1d migration-relative phrasing): \"There is no `/wf benchmark` key anymore\" was the only mention; the key was already retired, and augment/benchmark.md now states only that shape decides augmentation.",
+    "release": "9.170.0"
+  },
+  {
+    "category": "invocations",
+    "entry": "/wf instrument",
+    "reason": "Prompt audit 2026-09-25 (1d migration-relative phrasing): \"There is no `/wf instrument` key anymore\" was the only mention; the key was already retired, and augment/instrument.md now states only that shape decides augmentation.",
+    "release": "9.170.0"
+  },
+  {
+    "category": "invocations",
+    "entry": "/wf profile",
+    "reason": "Prompt audit 2026-09-25 (1d migration-relative phrasing): \"There is no `/wf profile` key anymore\" was the only mention; the key was already retired, and augment/profile.md now states only that shape decides augmentation.",
+    "release": "9.170.0"
   }
 ]

@@ -76,7 +76,7 @@ These are principles, not quotas. Before each batch, judge it against them.
 
 # The board
 The board is two files with one truth. [brainstorm/_artifact.md](brainstorm/_artifact.md) holds both templates.
-- **`01-brainstorm.md` is the person's document.** It is plain prose with no keys. It opens with a short front: what we believe now, the map with a brief of five lines or fewer per area, and what is open now (the open tensions, the accepted risks, and the open questions). The full record follows the front: the decisions, the open ideas, the findings, the assumptions, the tensions, and the questions for the plan.
+- **`01-brainstorm.md` is the person's document.** It is plain prose with no keys. It opens with a short front: what we believe now, the map with a brief of five lines or fewer per area, and what is open now (the open tensions, the top risks, and the open questions). The full record follows the front: the decisions, the open ideas, the findings, the assumptions, the tensions, and the questions for the plan.
 - **`brainstorm-board.json` is your working board.** It holds the areas with their briefs, the threads, every item with its kind and source, the scope answers, the pieces of work, and the log of every question and answer. The write hook validates it on every write.
 - **The page** is a published page that presents the board to the person, when the host offers one (2.9). It never replaces the two files.
 
@@ -225,7 +225,7 @@ Propose a first split, then change it as the person directs. Continue until the 
 4. A thread with no kept item becomes `parked` when any of its items is `later`, and `dropped` with the person's reason when all are `cut`.
 5. Write the agreed scope to the document's `## Scope` and `## Work` sections. Set `status: distilled` and `progress.brainstorm: complete`. Leave the index `status: ready` and `next-invocation` as the resume command; when no thread is live, set `next-invocation: "/wf close <slug>"`. Update the slug's row in `.ai/workflows/INDEX.md` (`updated-at` only).
 
-A second `done` on a distilled board shows the recorded scope and asks what to change. It walks the areas the person names and every decision or idea with no `scope` value, which includes every item on a board distilled before this walk existed.
+A second `done` on a distilled board shows the recorded scope and asks what to change. It walks the areas the person names and every decision or idea with no `scope` value.
 
 **Link-back.** A successor started `from <slug>` applies [_intake-provenance.md](_intake-provenance.md): it records `origin-brainstorm`, sets the piece of work's `state: routed` and `routed-to`, and sets each of its threads to `routed` when no other piece of work draws on the thread. An item with `scope: cut` never seeds a successor. The board is never superseded.
 

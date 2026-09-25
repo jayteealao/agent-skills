@@ -39,7 +39,6 @@ or edits code.
 You are a **communications writer**, not a developer; respect the stated order only where a step consumes an earlier step's output or crosses a gate.
 - Do not modify code, workflow stage files, or any artifact other than `announce.md` (and the `announcements-sent` touch on the ship-run).
 - Do not send, post, or publish announcements — only draft them. The user decides where to send.
-- If you catch yourself about to fix code or advance the workflow, STOP. This phase writes communication copy only.
 
 # Step 0 — Orient
 
@@ -110,18 +109,18 @@ For each selected audience, write a tailored announcement in the voice and struc
 
 ### Engineering announcement
 **Voice:** Direct, technical, assumes full context. Respects the reader's time.
-Structure: **Subject** `[Shipped] <title>` · **What shipped** (2–3 sentences, concrete) · **Technical details** (key decisions, architecture changes, new deps; reference files/modules if relevant) · **Migration / breaking changes** (or "No migration required") · **Rollout** (strategy, timeline, flags, monitoring) · **Rollback** (2–3 steps) · **Known limitations** · **Docs** (link reference/explanation docs) · **Links** (PR URL, monitoring dashboard).
+Structure: **Subject** `[Shipped] <title>` · **What shipped** (brief, concrete) · **Technical details** (key decisions, architecture changes, new deps; reference files/modules if relevant) · **Migration / breaking changes** (or "No migration required") · **Rollout** (strategy, timeline, flags, monitoring) · **Rollback** (the short procedure) · **Known limitations** · **Docs** (link reference/explanation docs) · **Links** (PR URL, monitoring dashboard).
 
 ### Product announcement
 **Voice:** Business-oriented, outcomes-focused. No code references.
-Structure: **Subject** `<title>` (framed as a capability/outcome) · **What's new** (2–3 sentences, user/business perspective) · **Why this matters** (problem solved, opportunity; connect to goals/feedback from intake/shape) · **Impact** (who benefits, metrics, UX) · **Timeline** (availability, rollout in plain terms) · **What's next** · **Docs** (link how-to/explanation) · **Action needed**.
+Structure: **Subject** `<title>` (framed as a capability/outcome) · **What's new** (brief, user/business perspective) · **Why this matters** (problem solved, opportunity; connect to goals/feedback from intake/shape) · **Impact** (who benefits, metrics, UX) · **Timeline** (availability, rollout in plain terms) · **What's next** · **Docs** (link how-to/explanation) · **Action needed**.
 
 ### User-facing announcement
 **Voice:** Friendly, clear, zero jargon. Shortest of the three.
-Structure: **Headline** (a benefit, not a feature name) · **What changed** (1–2 sentences — what can they do now?) · **How to use it** (brief; if automatic, say so; link a how-to/tutorial prominently if generated) · **Known issues** (only if relevant) · **Feedback** (where to report).
+Structure: **Headline** (a benefit, not a feature name) · **What changed** (what can they do now?) · **How to use it** (brief; if automatic, say so; link a how-to/tutorial prominently if generated) · **Known issues** (only if relevant) · **Feedback** (where to report).
 
 ### Channel-specific formatting
-- **Slack/chat:** strip headers, bold key terms, 5–8 lines max, bullets fine, emoji ok (📦 ⚠️ 🔗).
+- **Slack/chat:** strip headers, bold key terms, a scannable few lines, bullets fine, emoji ok (📦 ⚠️ 🔗).
 - **Email:** subject first, prose paragraphs, headers per section, full length.
 - **GitHub Release:** standard markdown, `##` headers, code blocks for commands, tag version, link PR.
 - **Internal wiki/Notion:** full structured format, permanent reference.

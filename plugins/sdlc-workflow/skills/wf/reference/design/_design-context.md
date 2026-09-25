@@ -54,7 +54,7 @@ after context is established. If DESIGN.md is missing: nudge once per session (*
 
 ## Shared design laws (apply to every design, both registers)
 
-Never converge on the same choices across projects. Vary.
+Check each result against the Absolute bans below and the reflex-reject list in `brand.md`; replace any match with a choice the brief justifies.
 
 ### Color
 - Use OKLCH. Reduce chroma as lightness approaches 0 or 100.
@@ -85,7 +85,7 @@ Never converge on the same choices across projects. Vary.
 ### Motion & interface detail
 - Motion craft lives in `animate.md`: the frequency framework (match motion to how often it's seen; never animate keyboard / 100+-per-day actions), strong custom easing (never `ease-in` on an entrance), sub-300ms product UI, origin-aware popovers, never `scale(0)`, interruptible transitions/springs, GPU-only (`transform`/`opacity`), `bounce: 0` for product.
 - Interface-detail craft lives in `polish.md`: concentric radius (`outer = inner + padding`), optical alignment, shadows-over-borders for elevation, pure-black/white image outlines, ≥40–44px hit areas.
-- These two files are the single source of truth for craft — the summary above is a pointer, not the canon itself. `plan`, `implement`, and every design transform that touches motion or component detail must load the relevant home (`animate.md` / `polish.md`) for the full rules before deciding; the visual contract (`02c-craft.md`, authored at `plan`) draws from them too.
+- These two files are the single source of truth for craft — the summary above is a pointer, not the canon itself. `plan`, `implement`, and every design transform that touches motion or component detail must load the relevant home (`animate.md` / `polish.md`) for the full rules before deciding; the visual contract (`02c-craft.md`, written at the design stage) draws from them too.
 - Building a *reusable* component (a design-system primitive or library, not a one-off screen)? See `_component-craft.md` — DX-first API, excellent defaults, memorable naming, a touchable example.
 
 ## Absolute bans (both registers)
@@ -97,6 +97,7 @@ Never converge on the same choices across projects. Vary.
 - Bounce or elastic easing in product-register UI. It reads as cheap and unpolished. A brand surface may use a spring with bounce 0.1–0.3 when the brand direction calls for play; see `animate.md`.
 - Pure `#000` or `#fff` for text or large areas.
 - Fraunces or Cormorant as the primary display face on a new brand surface.
+- Unless the brief names them: a cream or off-white default background, italic accent words in headlines, numbered "01/02/03" section labels, monospace eyebrow labels, and pill-shaped buttons as the default button shape.
 
 ---
 

@@ -1,6 +1,6 @@
 # Ship-plan build — post-publish verification, rollback workflow, runbook stubs (`ship-plan/build.md` Steps 5–7)
 
-Load this file from `build.md` Steps 3–16 when audit H, I, or J is Missing or Non-compliant (or the user selected it). Step 5, 6, or 7.
+Load this file from `build.md` Steps 3–16 when audit H, I, or J is Missing or Non-compliant (or the user selected it). Step 5, 6, or 7. Action versions (`@vN`) and runtime versions in the YAML below are illustrative; resolve them per the pinning rule in `build.md`.
 
 # Step 5 — Implement: post-publish verification (Audit H)
 

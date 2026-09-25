@@ -4,7 +4,7 @@ This file carries the GitHub-conditional machinery of `/wf handoff`: the CI watc
 
 # CI watch procedure (shared by T5.0 and T5.3)
 
-A **bounded poll loop** that drives the PR's checks to a terminal state. It is the piece the old one-shot `gh pr view` lacked. Idempotent and resumable: re-invoking handoff re-enters the loop against whatever the current check state is.
+A **bounded poll loop** that drives the PR's checks to a terminal state. Idempotent and resumable: re-invoking handoff re-enters the loop against whatever the current check state is.
 
 Inputs: `pr-number`; `ci-watch.poll-interval-seconds` (default 30); `ci-watch.max-wait-minutes` (default 30). The wall-clock bound is the user's hard ceiling; never exceed it silently.
 
@@ -62,7 +62,7 @@ Every code fix in handoff is delegated to a subagent so the orchestrator context
   Paste no diffs or full file contents back.
   ```
 
-**Self-check is a command, not a promise.** "No new lint/type errors" is unenforceable as prose; a fix agent once introduced a detekt `ReturnCount` violation while satisfying it, and the violation went out in the push. So the orchestrator passes a real command:
+**Self-check is a command, not a promise.** "No new lint/type errors" is unenforceable as prose, so the orchestrator passes a real command:
 - When `pre-push-checks:` is configured (`handoff.md` `## Project-level handoff config`), pass the check(s) whose scope covers the fix's files.
 - Absent that config, pass the narrowest gate the fix's own file type implies: the repo's formatter for a formatting fix, its linter for the language of the edited file, the single test file for a test fix.
 - If nothing narrow exists, say so explicitly in the prompt (`Self-check: none available — state what you verified by hand`) rather than leaving the line to be answered decoratively.

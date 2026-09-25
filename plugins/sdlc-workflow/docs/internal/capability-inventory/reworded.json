@@ -106,5 +106,17 @@
     "category": "stops",
     "from": "zero design-command (no command resolvable) stop.",
     "to": "- anything else, or no token stop and"
+  },
+  {
+    "file": "skills/wf/reference/intake/_intake-context.md",
+    "category": "gates",
+    "from": "the gate (d4) stop-and-prompt before 05-implement . after",
+    "to": "the gate stop-and-prompt before 05-implement . after 04-plan"
+  },
+  {
+    "file": "skills/wf/reference/intake/extend.md",
+    "category": "gates",
+    "from": "ask 4 8 targeted questions as gate questions",
+    "to": "ask targeted gate questions per _gate-question.md (up to"
   }
 ]

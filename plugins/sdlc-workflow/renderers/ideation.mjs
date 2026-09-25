@@ -53,6 +53,21 @@ export function render(artifact, ctx) {
   };
 }
 
+// score = (impact × feasibility) / effort, computed here so the model never does the arithmetic.
+// A lead written before the enums existed carries its own `score`; show that one unchanged.
+const IMPACT = { critical: 4, high: 3, medium: 2, low: 1 };
+const EFFORT = { xs: 1, s: 2, m: 3, l: 4, xl: 5 };
+const FEASIBILITY = { clear: 1, 'needs-design': 0.7, external: 0.5 };
+
+export function ideaScore(idea) {
+  if (idea.score != null) return idea.score;
+  const impact = IMPACT[idea.impact];
+  const effort = EFFORT[idea.effort];
+  if (!impact || !effort) return '';
+  const feasibility = FEASIBILITY[idea.feasibility] ?? 1;
+  return Math.round((impact * feasibility / effort) * 100) / 100;
+}
+
 function ideaRow(idea) {
   return `<tr>
     <td><code>${escapeHtml(idea.id ?? '')}</code></td>
@@ -60,7 +75,7 @@ function ideaRow(idea) {
     <td>${escapeHtml(idea.category ?? '')}</td>
     <td>${escapeHtml(idea.impact ?? '')}</td>
     <td>${escapeHtml(idea.effort ?? '')}</td>
-    <td>${escapeHtml(String(idea.score ?? ''))}</td>
+    <td>${escapeHtml(String(ideaScore(idea)))}</td>
   </tr>`;
 }
 

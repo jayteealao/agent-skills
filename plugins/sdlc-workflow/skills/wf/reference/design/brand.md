@@ -6,7 +6,7 @@ The register spans every genre: tech brands, luxury, consumer products, creative
 
 ## The brand slop test
 
-If someone could look at this and say "AI made that" without hesitation, it has failed. The bar is distinctiveness — a visitor should ask "how was this made?", not "which AI made this?"
+If the result uses a pattern on the Absolute bans in `_design-context.md` or the reflex-reject list below without a brief-stated reason, it has failed. The bar is distinctiveness — a visitor should ask "how was this made?", not "which AI made this?"
 
 Brand isn't a neutral register. Average is no longer findable. Restraint without intent reads as mediocre, not refined. Brand surfaces need a POV, a specific audience, a willingness to risk strangeness.
 

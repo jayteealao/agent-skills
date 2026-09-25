@@ -125,6 +125,44 @@ const CONTROL_FILE_RULE =
   `against the NEW content, and retry ONCE. Never force a stale string through, and never rewrite the whole file ` +
   `to dodge the conflict.`
 
+// Liveness of the PREVIOUS driver, judged in code from the journal entries orient reports.
+// The yardstick is the run's own cadence: past its longest inter-entry gap (and a 20-minute
+// floor, so a run with one slow first agent is not called dead), a newest entry that is an
+// agent-start means that agent never returned and its writes may be half-finished
+// (presumedDead); a newest agent-end means every agent returned (stoppedCleanly). Entries
+// of THIS run (ownRunId) are excluded: orient writes its own heartbeat before it reads.
+// An unparseable clock yields neither verdict — a journal that exists proves nothing.
+function judgeLiveness(journal, ownRunId) {
+  if (!journal || journal.present !== true || !Array.isArray(journal.entries)) return { present: false }
+  const all = journal.entries
+    .filter(e => e && typeof e.at === 'string' && !Number.isNaN(Date.parse(e.at)) && (!ownRunId || e.run !== ownRunId))
+    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+  if (!all.length) return { present: false }
+  const newest = all[all.length - 1]
+  const entries = newest.run ? all.filter(e => e.run === newest.run) : all
+  let longestGapMinutes = 0
+  for (let i = 1; i < entries.length; i++) {
+    longestGapMinutes = Math.max(longestGapMinutes, (Date.parse(entries[i].at) - Date.parse(entries[i - 1].at)) / 60000)
+  }
+  const now = Date.parse(journal.nowAt || '')
+  const minutesSinceLastEntry = Number.isNaN(now) ? 0 : Math.max(0, (now - Date.parse(newest.at)) / 60000)
+  const quiet = !Number.isNaN(now) && minutesSinceLastEntry > Math.max(longestGapMinutes, 20)
+  const out = {
+    present: true,
+    runId: newest.run || journal.runId || '',
+    lastEntryAt: newest.at,
+    lastEvent: newest.event || '',
+    lastStage: newest.stage || '',
+    lastSlice: newest.slice || '',
+    minutesSinceLastEntry,
+    longestGapMinutes,
+    presumedDead: quiet && newest.event === 'agent-start',
+    stoppedCleanly: quiet && newest.event === 'agent-end',
+  }
+  if (newest.event === 'agent-end' && newest.status) out.lastStatus = newest.status
+  return out
+}
+
 function deadDriverClause(priorRun) {
   if (!priorRun || priorRun.presumedDead !== true) return ''
   return `\n\nDEAD-DRIVER RECONCILIATION. A previous driver for this slug is PRESUMED DEAD (its journal went ` +
@@ -159,7 +197,7 @@ const DECISION_CONTRACT =
   `classification as canonical — it will not re-derive a different one behind your back.\n` +
   `- Report \`errors\`: [{ what, recovered }] for every tool error, rejected write, or schema retry you hit ` +
   `and recovered from this stage (empty list if none). A recovered error is not a failure and will not stop ` +
-  `the run — but a run that reports "0 errors" while its agents were quietly retrying is lying to the user.`
+  `the run. The run report counts them.`
 
 // ---------------------------------------------------------------------------
 // The Autonomous Decision Policy, per stage. This is the override that replaces
@@ -204,21 +242,19 @@ const POLICY = {
     `blocked-runtime-evidence-missing) and is NOT a substantive residual — the slice PROCEEDS. The deferral does ` +
     `not block review or handoff, but /wf ship HARD-BLOCKS until a later /wf probe or a re-verify in a capable ` +
     `environment clears it.\n\n` +
-    `The boundary is STRICT: defer ONLY genuine probed impossibility, never to dodge verification you could ` +
-    `actually run, and never a SUBSTANTIVE failure. If you DID drive the AC and the behavior is wrong, that is ` +
-    `result: fail (substantive) — never a deferral. A user-observable AC left with neither evidence NOR a lawful ` +
-    `deferral is result: blocked-runtime-evidence-missing and is NOT acceptable to proceed on. Reserve ` +
-    `convergence: escalated for SUBSTANTIVE unresolved issues — a slice whose only residual is deferred-evidence ` +
-    `AC (all checks pass, all code-only AC met, all producible user-observable AC evidenced) is ` +
-    `convergence: converged (or not-needed if no fix was required), NOT escalated.\n\n` +
+    `Defer only a probed impossibility. Never defer to avoid verification you could run, and never defer a ` +
+    `substantive failure: if you drove an AC and the behavior was wrong, that AC is result: fail (substantive). ` +
+    `Record it as a failure, never in deferrals[] and never in the index's runtime-evidence-deferrals. The ` +
+    `driver reports your fail/deferral split verbatim and never relabels either side downstream. A ` +
+    `user-observable AC with neither evidence nor a lawful deferral is result: blocked-runtime-evidence-missing, ` +
+    `and the run does not proceed on it. Reserve convergence: escalated for substantive unresolved issues. A ` +
+    `slice whose only residual is deferred-evidence AC (all checks pass, all code-only AC met, all producible ` +
+    `user-observable AC evidenced) is convergence: converged (or not-needed if no fix was required), not ` +
+    `escalated.\n\n` +
     `ONE WRITER PER FACT (deferral emission). A deferral is recorded EXACTLY ONCE, in terminal.deferrals[], ` +
     `complete with its probe receipt. Do NOT also copy it into residual[] — residual[] carries only what is ` +
     `NOT a deferral (could-not-fix notes, out-of-scope observations). If you are unsure whether an entry is a ` +
     `deferral, it belongs in deferrals[] with a probe or it is not a deferral at all.\n\n` +
-    `FAIL IS NOT A DEFERRAL, AND SURVIVES INTO THE RUN REPORT. If you drove an AC and the behavior was wrong, ` +
-    `that AC is result: fail (substantive) — record it as a FAILURE, never in deferrals[], never in the index's ` +
-    `runtime-evidence-deferrals. The driver reports your recorded fail/deferral split verbatim; an AC you call a ` +
-    `fail will never be re-labeled a deferral downstream, and the reverse must be equally true.\n\n` +
     `Set the terminal state HONESTLY: convergence: not-needed | converged | escalated; result: pass | fail | ` +
     `partial | blocked-runtime-evidence-missing. Report deferrals: [{ac, reason, probe}, ...] for EVERY AC you ` +
     `deferred (empty list if none) — where 'probe' is the literal capability-probe command + one-line output ` +
@@ -287,25 +323,23 @@ const ORIENT_RESULT = {
     // script does not. Every later heartbeat carries it, so one run's journal entries
     // stay separable from a prior run's in the same append-only file.
     runId: { type: 'string' },
-    // W1.2/W1.3 — what the journal says about the PREVIOUS driver for this slug.
-    // Liveness is judged against the run's OWN observed cadence, never against file
-    // existence. Past its longest inter-agent gap, a journal whose newest entry is an
-    // agent-start is presumed dead (that agent never returned, so its partial writes
-    // are suspect); one whose newest entry is an agent-end stopped cleanly.
-    priorRun: {
+    // W1.2/W1.3 — the PREVIOUS driver's journal, reported raw. orient() turns it into
+    // idx.priorRun with judgeLiveness(): the verdict is arithmetic, so code owns it.
+    priorJournal: {
       type: 'object',
       properties: {
-        present: { type: 'boolean' },          // a journal exists with at least one parseable entry
-        runId: { type: 'string' },
-        lastEntryAt: { type: 'string' },       // iso-8601 of the newest entry
-        lastEvent: { type: 'string' },         // agent-start | agent-end
-        lastStage: { type: 'string' },
-        lastSlice: { type: 'string' },
-        minutesSinceLastEntry: { type: 'number' },
-        longestGapMinutes: { type: 'number' }, // the run's own cadence — the yardstick
-        lastStatus: { type: 'string' },        // the newest agent-end's status (hard-stop, complete, ok)
-        presumedDead: { type: 'boolean' },     // newest entry is an agent-start: an agent never returned
-        stoppedCleanly: { type: 'boolean' },   // newest entry is an agent-end: every agent returned
+        present: { type: 'boolean' },
+        nowAt: { type: 'string' },
+        entries: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              at: { type: 'string' }, run: { type: 'string' }, event: { type: 'string' },
+              status: { type: 'string' }, stage: { type: 'string' }, slice: { type: 'string' },
+            },
+          },
+        },
       },
     },
     // F3 — open runtime-evidence-deferrals read verbatim from 00-index.md (cleared-by: null only).
@@ -500,6 +534,26 @@ const FINDINGS_SCHEMA = {
   },
 }
 
+const RUBRIC_SELECTION = {
+  type: 'object',
+  required: ['rubrics'],
+  properties: {
+    rubrics: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['rubric', 'file'],
+        properties: {
+          rubric: { type: 'string' },
+          file: { type: 'string' },   // relative to the reference root: review/<name>.md or design/<audit|critique>.md
+          focus: { type: 'string' },  // alias section to read; empty = the whole rubric
+          reason: { type: 'string' },
+        },
+      },
+    },
+  },
+}
+
 const VERDICT_SCHEMA = {
   type: 'object',
   required: ['refuted'],
@@ -512,7 +566,7 @@ const VERDICT_SCHEMA = {
 // are already terminal-clean on disk, so a killed run resumes for free).
 // ---------------------------------------------------------------------------
 async function orient() {
-  return await agent(
+  const res = await agent(
     `You are the ORIENT step of an autonomous SDLC driver. READ-ONLY — do not write, edit, commit, or switch ` +
     `anything; just report. The project root is ${projectRoot} (absolute) — resolve every path under it and run ` +
     `git as \`git -C ${projectRoot} …\`.\n\n` +
@@ -528,25 +582,20 @@ async function orient() {
     `Omit already-cleared entries. Empty/absent list → priorDeferrals: [].\n` +
     `   ALSO parse the \`charter\` list (if present) into charter as { id, commitment (verbatim), status }. ` +
     `Empty/absent (e.g. a compressed lifecycle) → charter: [].\n` +
-    `1b. DRIVER LIVENESS — read the tail of ${JOURNAL_PATH} if it exists (append-only JSONL; each line is one ` +
-    `heartbeat: at, run, seq, event, agent, phase, stage, slice). Report priorRun:\n` +
+    `1b. DRIVER JOURNAL — read ${JOURNAL_PATH} if it exists (append-only JSONL; each line is one heartbeat: ` +
+    `at, run, seq, event, agent, phase, stage, slice, status). Report priorJournal:
+` +
     `   - present: true iff the file exists with at least one parseable line (absent/empty → ` +
-    `{ present: false } and nothing else).\n` +
-    `   - runId, lastEntryAt, lastEvent, lastStage, lastSlice from the NEWEST entry.\n` +
-    `   - longestGapMinutes: over the entries of that newest run only, the LARGEST gap in minutes between ` +
-    `consecutive \`at\` timestamps (0 when there is only one entry). This is the run's own observed cadence.\n` +
-    `   - minutesSinceLastEntry: system-clock now minus lastEntryAt, in minutes.\n` +
-    `   - lastStatus: the status field of the newest entry when it is an agent-end (for example hard-stop, ` +
-    `complete, ok); omit it otherwise.\n` +
-    `   - stoppedCleanly: true iff the newest entry is an agent-end AND minutesSinceLastEntry exceeds BOTH ` +
-    `longestGapMinutes and a 20-minute floor. Every agent returned, so the run ended: at a hard-stop, at its ` +
-    `endpoint, or between two agents. No agent was writing, so no write is half-finished.\n` +
-    `   - presumedDead: true iff the newest entry is an agent-start AND minutesSinceLastEntry exceeds BOTH ` +
-    `longestGapMinutes and a 20-minute floor (the floor keeps a run with one slow first agent from being called ` +
-    `dead). That agent never returned, so its writes may be half-finished. NEVER infer ` +
-    `"still running" from the file merely EXISTING — a resuming session once told the user a dead driver was ` +
-    `"currently re-verifying older slices" on exactly that reasoning, and the user made a stop/continue ` +
-    `decision on the fiction.\n` +
+    `{ present: false } and nothing else).
+` +
+    `   - entries: every entry of the newest run OTHER than this run (skip lines whose run is the runId you ` +
+    `mint in step 1c), oldest first, each as { at, run, event, status, stage, slice } copied verbatim; omit a ` +
+    `field the line lacks.
+` +
+    `   - nowAt: the current UTC time as ISO-8601, from the same clock you use in step 1c.
+` +
+    `   Report the entries only. The driver computes the liveness verdict from them in code.
+` +
     `1c. Mint runId for THIS run: the current UTC timestamp in ISO-8601 basic form plus the slug — e.g. ` +
     `'20260726T143005Z-${slug}'. Report it as runId. (This script has no clock; you are the only step that does.)\n` +
     `2. Read ${projectRoot}/.ai/workflows/${slug}/03-slice.md (the roster). Capture EVERY slice slug in roster ` +
@@ -653,7 +702,7 @@ async function orient() {
     `(\`git -C ${projectRoot} rev-parse --verify --quiet refs/heads/<target>\`) OR an already-fetched ` +
     `remote-tracking ref (refs/remotes/origin/<target>); do NOT run \`git fetch\` or \`git ls-remote\` (no network). ` +
     `For strategy shared/none, or an empty target, set exists=false — yolo will not switch in those modes.\n` +
-    `8. CLEARING-EVENT TRIPWIRE (W4). For every open entry in priorDeferrals that carries a \`clearing-probe\`, ` +
+    `8. CLEARING-EVENT TRIPWIRE. For every open entry in priorDeferrals that carries a \`clearing-probe\`, ` +
     `EXECUTE that one command now (they are contracted to be single, side-effect-free, and fast — e.g. ` +
     `\`adb devices\`, \`curl -sf localhost:8080/health\`). Give each a short timeout and never run more than the ` +
     `one recorded command. Set that entry's clearingProbeHit to true when the command's exit status/output says ` +
@@ -672,6 +721,8 @@ async function orient() {
     `dead one; an append failure never changes what you do.`,
     { schema: ORIENT_RESULT, label: 'orient', phase: 'Orient' }
   )
+  if (res) res.priorRun = judgeLiveness(res.priorJournal, res.runId)
+  return res
 }
 
 // ensureBranch() — DEDICATED strategy only (the control flow gates on it). Mirrors
@@ -724,7 +775,7 @@ async function ensureBranch(idx) {
           reason: { type: 'string' },
         },
       },
-      label: 'branch', phase: 'Orient',
+      label: 'branch', phase: 'Orient', model: 'sonnet', // mechanical git; pinned per _subagents.md
     }
   )
 }
@@ -880,7 +931,7 @@ async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
           note: { type: 'string' },
         },
       },
-      label: `writeback:${sliceArg}`, phase: 'Drive',
+      label: `writeback:${sliceArg}`, phase: 'Drive', model: 'sonnet', // mechanical index edit; pinned per _subagents.md
     }
   )
 }
@@ -1167,23 +1218,42 @@ async function driveReview(sliceArg, idx) {
   phase('Review')
   const base = idx.branch.base || '<base>'
   const diffRange = sliceArg ? 'HEAD' : `${base}...HEAD`
-  // An RCA-forwarded workflow carries a recommended rubric (idx.reviewDimension) —
-  // honor it in the fan-out exactly as runStage's dimensionHint does on the wrapped path.
-  const dims = [...new Set([
-    ...(idx.reviewDimension ? [idx.reviewDimension] : []),
-    'correctness', 'security', 'tests', 'performance', 'maintainability',
-  ])]
+  // 0. Select the rubrics the way the wrapped review stage does (review/_stage.md Step 2 +
+  //    review/_select.md), so the fan-out reviews the same dimensions a manual review would.
+  //    An RCA-forwarded workflow carries a recommended rubric (idx.reviewDimension) — it is
+  //    always selected, exactly as runStage's dimensionHint does on the wrapped path.
+  const selection = await agent(
+    `SELECT REVIEW RUBRICS for slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''}. READ-ONLY — write nothing.\n\n` +
+    `Read ${referenceRoot}/review/_stage.md "# Step 2: Select Review Commands" and ${referenceRoot}/review/_select.md, ` +
+    `then apply them to this change: read ${projectRoot}/.ai/workflows/${slug}/00-index.md (workflow-type), the ` +
+    `shape and slice artifacts, and \`git -C ${projectRoot} diff --stat ${diffRange}\` plus the diff itself. Honor ` +
+    `the core set, the signal-driven rules, and the selection constraints (minimum and maximum).` +
+    `${idx.reviewDimension ? ` Always include '${idx.reviewDimension}' (the forwarded RCA's recommended rubric).` : ''}\n\n` +
+    `Return rubrics: one entry per selected rubric as { rubric, file, focus, reason }, where file is the rubric's ` +
+    `path relative to ${referenceRoot} (review/<name>.md, or design/audit.md / design/critique.md for the two ` +
+    `design dimensions) and focus is the alias section to read, or empty for the whole rubric.`,
+    { schema: RUBRIC_SELECTION, label: 'select-rubrics', phase: 'Review' }
+  )
+  const rubrics = (selection && Array.isArray(selection.rubrics) && selection.rubrics.length)
+    ? selection.rubrics.filter(r => r && r.rubric && r.file)
+    : [...new Set([idx.reviewDimension, 'correctness', 'security', 'architecture'].filter(Boolean))]
+        .map(r => ({ rubric: r, file: `review/${r}.md`, focus: '' }))
+  if (!selection) log('review fan-out: rubric selection did not return — scouting the core set (correctness, security, architecture)')
   const fanoutDimensionHint = idx.reviewDimension
     ? ` Default review rubric: '${idx.reviewDimension}' — the forwarded RCA recommended a build flavor whose ` +
       `default dimension is '${idx.reviewDimension}'; honor it in the artifact (the review reference does not ` +
       `auto-apply it for workflow-type: rca), widening to additional dimensions only if the diff warrants.`
     : ''
   // 1. Parallel read-only dimension scouts.
-  const scouts = await parallel(dims.map(dim => () => agent(
-    `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the '${dim}' dimension ONLY. ` +
-    `Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Surface real findings only. Return each as ` +
-    `{ id, severity (BLOCKER|HIGH|MED|LOW|NIT), file, line, issue, confidence }. Write NOTHING.`,
-    { schema: FINDINGS_SCHEMA, label: `scout:${dim}`, phase: 'Review' }
+  //    Scouts pin sonnet per _subagents.md (rubric-driven review dimensions are not the session model's job).
+  const scouts = await parallel(rubrics.map(r => () => agent(
+    `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the '${r.rubric}' rubric ONLY` +
+    `${r.focus ? ` (focus: ${r.focus})` : ''}. Read ${referenceRoot}/${r.file}` +
+    `${r.focus ? ` — the '${r.focus}' section and '# Severity calibration'` : ' in full'}, and apply it as the ` +
+    `rubric's own severity scale. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Report only ` +
+    `findings the diff supports. Return each as { id, severity (BLOCKER|HIGH|MED|LOW|NIT), file, line, issue, ` +
+    `confidence }. Write nothing.\n\n${EOB}`,
+    { schema: FINDINGS_SCHEMA, label: `scout:${r.rubric}${r.focus ? ':' + r.focus : ''}`, phase: 'Review', model: 'sonnet' }
   )))
   const raw = scouts.filter(Boolean).flatMap(s => s.findings || [])
   // 2. Adversarial verify — refute each finding; keep only survivors. Higher
@@ -1661,7 +1731,7 @@ const CHECKPOINT_RESULT = {
 async function charterCheckpoint(idx, throughSlice) {
   const charterList = (idx.charter || []).map(c => `${c.id}: ${c.commitment}`).join('\n    ')
   return await agent(
-    `CHARTER FIDELITY CHECKPOINT (W11) for slug '${slug}', after slice '${throughSlice}'. READ-ONLY — do not ` +
+    `CHARTER FIDELITY CHECKPOINT for slug '${slug}', after slice '${throughSlice}'. READ-ONLY — do not ` +
     `write, edit, or commit. Project root ${projectRoot} is ABSOLUTE; run git as \`git -C ${projectRoot} …\`.\n\n` +
     `The intake committed to these charter commitments:\n    ${charterList}\n\n` +
     `Read the last few implement artifacts under ${projectRoot}/.ai/workflows/${slug}/ and inspect the built ` +
@@ -1791,7 +1861,7 @@ if (idx.workflowType === 'update-deps') {
           CONTROL_FILE_RULE +
           `\n\nReturn { ok, wrote: [<files changed>], note }.` +
           heartbeatClause('plan-index-writeback', 'Drive', 'plan', null),
-          { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-index-writeback', phase: 'Drive' }
+          { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-index-writeback', phase: 'Drive', model: 'sonnet' }
         )
       }
       idx = await orient()                          // re-snapshot so driveChain sees the new plans as done

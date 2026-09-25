@@ -201,7 +201,7 @@ If `status: awaiting-environment`, replace the body with `wf probe blocked: <slu
 # Routing notes (read carefully)
 
 - **`/wf plan <slug> probe-<descriptor>`** is the default downstream path for non-trivial findings. The probe slice is the input artifact for planning, exactly as an `rca` slice is.
-- **`/wf intake fix <slug> probe-<descriptor>`** for small fixes that fit ≤3 files.
+- **`/wf intake <slug> fix <finding>`** for small fixes that fit ≤3 files.
 - **Deferral clearing** happens at verify time (verify reads evidence and updates `cleared-by`), except for Step 7 where probe directly clears a deferral whose matched AC was successfully observed.
 - **No auto-fix.** Probe reports; downstream commands fix.
 

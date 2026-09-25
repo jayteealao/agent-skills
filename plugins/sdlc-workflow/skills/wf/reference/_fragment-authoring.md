@@ -34,7 +34,7 @@ A fragment is **additive**: a detail block the renderer appends *below* the page
 
 - **Emit no page heading and no `metric-row` inside the fragment.** The page already renders them; a copy in the fragment double-renders (two titles, two metric strips). Start the fragment at its interactive content.
 - The fragment owns the **interactive detail layer** the static renderer cannot produce: collapsible diff rows, clickable check cells + log panels, live swatches + copy controls, severity filters, sortable findings lists, `:target` timelines.
-- For a section the renderer *also* draws from the YAML (a hero figure or a structured table), the fragment owns the **interactive** version and the renderer suppresses its static copy; never ship both (Decision 3, precedence). Include no second, static duplicate of the hero figure in the fragment.
+- For a section the renderer *also* draws from the YAML (a hero figure or a structured table), the fragment owns the **interactive** version and the renderer suppresses its static copy; never ship both. Include no second, static duplicate of the hero figure in the fragment.
 - Consequence: the `metric-row` and `verdict` snippets below are **page chrome**. Only `@include` them in a fragment whose renderer does *not* already emit them (the rich-tier review/plan/design/ship-run pages all do, so omit them there).
 
 ## Shared snippets

@@ -117,7 +117,7 @@ next-invocation: "/wf shape <slug>"
 - ...
 
 ## Risks if Misunderstood
-<!-- Each risk here is ALSO a tracked ledger entry (INTENT-FIDELITY W1). Give each a stable id RIM-1..n and a severity; the prose stays, the ids are additive. The ledger is what forces shape to adjudicate each one in writing instead of letting it evaporate. Never silently absent in default mode (Step 6a): zero entries requires the explicit declaration `intent-risks: none-declared` in 00-index.md frontmatter plus a one-line reason here. Record the Step 6a misreading pass in this section too: each dismissed candidate as "considered: <misreading> — dismissed because <reason>". -->
+<!-- Each risk here is ALSO a tracked ledger entry. Give each a stable id RIM-1..n and a severity; the prose stays, the ids are additive. The ledger is what forces shape to adjudicate each one in writing instead of letting it evaporate. Never silently absent in default mode (Step 6a): zero entries requires the explicit declaration `intent-risks: none-declared` in 00-index.md frontmatter plus a one-line reason here. Record the Step 6a misreading pass in this section too: each dismissed candidate as "considered: <misreading> — dismissed because <reason>". -->
 - **RIM-1** (severity: high|medium|low) — <one-line risk statement>
 - ...
 

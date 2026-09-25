@@ -51,7 +51,7 @@ full SDLC stage sequence — **no stage is skipped**, every stage is single-pass
 `type: index` overview. The four modes share the contract below; each mode reference fills in the
 per-mode body (what `01-<mode>`/`02-shape`/etc. carry).
 
-**The model (D1–D3, D7):**
+**The model:**
 - **Lead = `01-<mode>.md` with `type: intake`** (`01-fix.md`, `01-hotfix.md`, `01-refactor.md`,
   `01-update-deps.md`). The filename carries the mode; the renderer dispatches on `type: intake`
   (→ `intake.mjs`) and the view-path lands at `intake/` (filename-mapped in `_paths.mjs`). The lead
@@ -72,7 +72,7 @@ per-mode body (what `01-<mode>`/`02-shape`/etc. carry).
   — never bespoke names like `diagnose`/`baseline`/`scan`. Put descriptive labels in free-form body
   prose, not in `current-stage`.
 
-**Authorship split (D7) — the mode authors planning; the standard commands author execution.**
+**Authorship split — the mode authors planning; the standard commands author execution.**
 The mode skill writes **only** `01-<mode>`(intake) → `02-shape` → `03-slice` → `04-plan`, then
 **gates** (below). On *proceed* it routes into the standard execution chain, each its own command:
 `/wf implement <slug>` (→`05`) → `/wf verify <slug>` (→`06`) → `/wf review <slug>` (→`07`) →
@@ -82,7 +82,7 @@ pipeline (rather than re-implementing it per mode) and is what makes the workflo
 **Exception — `update-deps`** self-authors `05-implement`/`06-verify` (its tier-ordered execution is
 specialized), then routes to `/wf review`; it never invokes `/wf implement` or `/wf verify`.
 
-**The gate (D4) — stop-and-prompt before `05-implement`.** After `04-plan` is written and before any
+**The gate — stop-and-prompt before `05-implement`.** After `04-plan` is written and before any
 execution, the mode pauses for the human per the gate-question ladder ([_gate-question.md](../_gate-question.md)):
 
 ```

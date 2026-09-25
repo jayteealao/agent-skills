@@ -19,10 +19,6 @@ every newer stage that reads those fields quietly gets nothing. Nothing *breaks*
 working silently, which is worse, because the gate that would have caught a problem simply never
 fires.
 
-The old path was an escape hatch: the user answered "didn't mean to extend" to the extension prompt
-and the model improvised a backfill from scratch. That improvisation happened at least twice. Doing
-it the same way each time is the entire point of making it a mode.
-
 # The cardinal rule: additive only
 
 Modernize **fills absent fields from what the artifacts already say.** It never:
@@ -85,7 +81,7 @@ gate question per [_gate-question.md](../_gate-question.md) and proceed.
    ambiguity is exactly what the evidence-schema contract exists to eliminate.
 5. **Stamp the run** on `00-index.md`: `schema-modernized-at: <timestamp>` and
    `schema-absent-fields: [<the fields left absent on purpose>]`. The stamp is what makes the run
-   idempotent — the dispatcher's schema-era check (intake.md W7.2) suppresses its nag for any field
+   idempotent — the dispatcher's schema-era check in `intake.md` suppresses its nag for any field
    listed in `schema-absent-fields`, so an honestly-unanswerable field stops re-firing the offer on
    every extension forever. A LATER plugin era's new markers still fire (they will not be in the
    stamped list).

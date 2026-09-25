@@ -85,7 +85,7 @@ interactive prototype of the approved direction, offer `/uiproto <component desc
 sends the prompt to external engines, and is gated by `externalDispatch.enabled`. Offer it; never
 run it automatically.
 
-Present the drawings and ask: "Does this match your visual direction? (yes to proceed / adjustments needed)"
+Present the drawings. The approval question is asked by `stage.md` Step 5 (approve / adjust / stop).
 
 If no canvas and no provider in `/imagery`'s table is available (no built-in tool on this host, no key for a scripted provider, egress consent off): state in one line that the step is skipped and why. Then proceed with a text direction.
 

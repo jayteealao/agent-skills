@@ -251,8 +251,8 @@ const SHADOW_DEFERRAL_RE = /(deferred to (?:the )?(?:user|manual|operator)\b|def
 function blockVerifyResultGate(rel, message) {
   process.stderr.write(
     `wf-postwrite-verify: verify result gate BLOCKED ${rel}\n\n${message}\n\n` +
-    'This gate (AC-VERIFIABILITY recommendations R7) makes the "verified but actually\n' +
-    'broken" pass mechanically impossible. Re-Edit the frontmatter to reconcile result\n' +
+    'This gate blocks a pass that the acceptance evidence does not support.\n' +
+    'Re-Edit the frontmatter to reconcile result\n' +
     'with the acceptance evidence, then continue. Opt out with hooks.verifyResultGate: false.\n',
   );
   blockToolCall();

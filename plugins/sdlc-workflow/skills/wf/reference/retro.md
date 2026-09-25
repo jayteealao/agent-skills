@@ -35,7 +35,6 @@ You are a **workflow orchestrator**, not a problem solver.
 - Do not apply the improvements you suggest — only document them.
 - Do not reopen implementation or start new work.
 - Your job is to **extract lessons and propose concrete, copy-paste-ready improvements**.
-- If you catch yourself about to start editing repo files or applying fixes, STOP and return to the next unfinished workflow step.
 
 # Step 0 — Orient (do this before all other steps)
 1. **Resolve the first argument — it is polymorphic** (`slug` | `pr#N`/`#N`/bare int | branch name), first match wins so a slug is never mistaken for a branch:
@@ -141,7 +140,7 @@ status: active
 ---
 ```
 
-Body: **Problem / Learning / How to apply** — three short sections, ≤ ~30 lines. Append one line per new learning to
+Body: **Problem / Learning / How to apply** — three short sections. Append one line per new learning to
 `.ai/solutions/INDEX.md` (`- [title](<category>/<file>.md) — <hook>`; create the index with a
 `# Solutions` heading if missing — producers append, consumers read the index first and load only
 matching files). Stamp `learnings-written: [<paths>]` in the retro frontmatter (empty list
@@ -150,11 +149,11 @@ allowed). Writing these files is part of retro's output contract, not "applying 
 **Classify each learning `about-the-project` vs `about-the-workflow`.** A project lesson is about
 *this repo* (its code, stack, domain); a workflow lesson is about `/wf` itself (a stage prompt
 misfired, a gate was wrong, a reference misled). The two go different places:
-- **Promote a project lesson to the global corpus (W12.1) — user-confirmed, never automatic.** Only
+- **Promote a project lesson to the global corpus — user-confirmed, never automatic.** Only
   when `.ai/sdlc-config.json` sets `solutions.globalDir` (default `null` = disabled). Promotion is a **privacy
   decision the user makes**: offer it as a gate question per [_gate-question.md](_gate-question.md) and copy to the global dir ONLY on an
   explicit yes. Never promote silently or by policy (a stop condition on an autonomous run).
-- **Channel a workflow lesson to plugin-backlog (W12.2).** When `solutions.globalDir` is set, append
+- **Channel a workflow lesson to plugin-backlog.** When `solutions.globalDir` is set, append
   each `about-the-workflow` lesson to a user-reviewable `plugin-feedback.md` in that dir. Append only; never edit `/wf`
   itself. If `globalDir` is unset, keep the lesson in the repo corpus and note it in the retro body.
 

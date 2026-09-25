@@ -27,13 +27,12 @@ You are running `/wf review`, **stage 7 of 10** in the SDLC lifecycle.
 # Step 00 — Resolve scope: workflow stage vs ad-hoc (mandatory, before everything)
 
 `/wf review` is the single review surface — it spans the **workflow stage** (a slug) and **ad-hoc**
-review (a dimension or a sweep, no slug), the way `/wf simplify` unifies its scopes. This absorbed the
-former standalone `review` skill. Resolve the first token BEFORE any stage logic:
+review (a dimension or a sweep, no slug), the way `/wf simplify` unifies its scopes. Resolve the first token BEFORE any stage logic:
 
 1. **Exact slug match** — `.ai/workflows/<token>/00-index.md` exists → **stage mode**. **Read
    `review/_stage.md` in full now and follow it exactly** —
    it carries the whole stage body (preamble table, TRIAGE MODE, Step 0 orient, the accumulating-ledger
-   dispatch, fix loop, artifact templates). The optional second token is `<slice>` or `triage`, exactly as before.
+   dispatch, fix loop, artifact templates). The optional second token is `<slice>` or `triage`.
 2. **`sweep` or a known rubric/alias/aggregate key** (no slug matched) → **ad-hoc mode**. Jump to the
    `# Ad-hoc review (no slug)` section below. Rubric keys, alias keys, and aggregate keys are listed there.
    Ad-hoc never loads the stage body.
@@ -66,7 +65,7 @@ Reached from Step 00 branch 2. Two modes over one of five scopes (`pr` / `worktr
 | `infra` | `/wf review infra` | infra, ci, release, dx |
 | `intent-fidelity` | `/wf review intent-fidelity` | intent-fidelity |
 
-**Alias keys** — every former dimension name stays valid. An alias resolves to its rubric with `focus: <alias>`: the reviewer reads that section plus `# Severity calibration`, so `/wf review logging` stays as narrow as before. The 24 aliases: `/wf review testing`, `/wf review data-integrity`, `/wf review backend-concurrency`, `/wf review reliability`, `/wf review infra-security`, `/wf review supply-chain`, `/wf review privacy`, `/wf review frontend-performance`, `/wf review scalability`, `/wf review cost`, `/wf review maintainability`, `/wf review overengineering`, `/wf review code-simplification`, `/wf review style-consistency`, `/wf review refactor-safety`, `/wf review migrations`, `/wf review frontend-accessibility`, `/wf review motion`, `/wf review ux-copy`, `/wf review ste-compliance`, `/wf review logging`, `/wf review ci`, `/wf review release`, `/wf review dx`.
+**Alias keys** — each alias below is a valid dimension name. An alias resolves to its rubric with `focus: <alias>`: the reviewer reads that section plus `# Severity calibration`, so `/wf review logging` reviews only that section. The 24 aliases: `/wf review testing`, `/wf review data-integrity`, `/wf review backend-concurrency`, `/wf review reliability`, `/wf review infra-security`, `/wf review supply-chain`, `/wf review privacy`, `/wf review frontend-performance`, `/wf review scalability`, `/wf review cost`, `/wf review maintainability`, `/wf review overengineering`, `/wf review code-simplification`, `/wf review style-consistency`, `/wf review refactor-safety`, `/wf review migrations`, `/wf review frontend-accessibility`, `/wf review motion`, `/wf review ux-copy`, `/wf review ste-compliance`, `/wf review logging`, `/wf review ci`, `/wf review release`, `/wf review dx`.
 
 **Aggregate keys** (reached via `/wf review sweep <aggregate>`) — each dispatches one reviewer sub-agent per rubric in its composition:
 

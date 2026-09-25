@@ -2,7 +2,7 @@
 
 Revisable artifacts (`01-intake.md`, `02-shape.md`, `03-slice*` files, `04-plan*` files, `08-handoff.md`, `10-retro.md`) are never *silently* overwritten on re-invocation, but they are **living documents**: the body always reads as the current truth, and the *history* of how it got there lives in two machine-readable places, not stacked inside the prose.
 
-This replaces the old `## Revision N` append pattern. Append no `## Revision N` sections to the body: a document that stacks diffs forces every reader to replay the log to learn the current state, and buries the newest content at the bottom. State wants a document; history wants a log. Keep them apart.
+Append no `## Revision N` sections to the body: a document that stacks diffs forces every reader to replay the log to learn the current state, and buries the newest content at the bottom. State wants a document; history wants a log. Keep them apart.
 
 ## On re-invocation of a stage whose artifact already exists
 
@@ -40,7 +40,7 @@ The two are complementary: the ledger says *why each revision happened* in one l
 
 ## Control files are a different question
 
-This contract governs how a **revisable artifact** is rewritten. It says nothing about *who may write* the shared **control files** (`00-index.md`, the global `INDEX.md`) or what to do when two writers collide there: a background driver and a foreground session mutating the same index produced repeated "File has been modified since read" clusters, and once a *dead* driver's last write ambushed a session two hours later. That rule lives in [_control-file-ownership.md](_control-file-ownership.md): re-read immediately before every edit, treat a rejection as "the other writer moved" (re-read, re-derive, retry once), and treat a presumed-dead driver's writes as suspect until reconciled. Apply both: this file for the artifact body, that one for the index.
+This contract governs how a **revisable artifact** is rewritten. It says nothing about *who may write* the shared **control files** (`00-index.md`, the global `INDEX.md`) or what to do when two writers collide there. That rule lives in [_control-file-ownership.md](_control-file-ownership.md): re-read immediately before every edit, treat a rejection as "the other writer moved" (re-read, re-derive, retry once), and treat a presumed-dead driver's writes as suspect until reconciled. Apply both: this file for the artifact body, that one for the index.
 
 ## cost.jsonl is hook-owned
 

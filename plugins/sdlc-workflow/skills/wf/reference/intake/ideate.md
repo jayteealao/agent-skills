@@ -1,5 +1,5 @@
 ---
-description: Proactive codebase ideation. Scans the codebase with parallel sub-agents across six lenses (quality, performance, security, DX, feature gaps, architecture), generates 30+ improvement candidates, applies adversarial filtering to cull weak or speculative ideas (with explanations), ranks survivors by impact/effort, and roots a type:workflow-index slug workflow with an 01-ideate lead ready to feed into wf-intake. Inverts the normal pattern — surfaces what you might not have thought to ask about.
+description: Proactive codebase ideation. Scans the codebase with parallel sub-agents across six lenses (quality, performance, security, DX, feature gaps, architecture), generates a broad set of improvement candidates, applies adversarial filtering to cull weak or speculative ideas (with explanations), ranks survivors by impact/effort, and roots a type:workflow-index slug workflow with an 01-ideate lead ready to feed into wf-intake. Inverts the normal pattern — surfaces what you might not have thought to ask about.
 argument-hint: "[focus-area] [count]"
 ---
 
@@ -34,7 +34,6 @@ You are an **opportunity discoverer and adversarial filter**, not a problem solv
 - Do not start implementing, planning, or designing anything, and do not make code changes.
 - This is a **terminal analysis mode**, not a build lifecycle: it roots a lightweight `type: workflow-index` slug workflow whose **only** artifact is the `01-ideate.md` lead. Do not author build stage files (`02-shape.md`, `03-slice.md`, `04-plan.md`, `05-implement.md`, …) — ideation is not a build lifecycle.
 - Your job is: **scan → generate candidates → challenge them → rank survivors → present → write artifact**.
-- If you catch yourself starting to implement an idea, STOP. This command discovers work; it does not do it.
 
 ---
 
@@ -66,7 +65,7 @@ The six lens charters, the shared evidence rule, and the effort tier are in [int
 
 # Step 2 — Generate Raw Idea Candidates
 
-After all sub-agents complete, synthesise their findings into **raw idea candidates**. Target 30+ candidates before filtering. Each candidate must:
+After all sub-agents complete, synthesise their findings into **raw idea candidates**. Generate every grounded candidate the lens findings support; do not pad to a count. Each candidate must:
 
 - Be grounded in at least one specific finding from the sub-agents (file path, evidence)
 - Be a concrete, actionable piece of work (not "improve test coverage" but "add integration tests for the auth flow in `src/auth/login.ts`")
@@ -113,17 +112,7 @@ Some findings reveal symptoms rather than root causes. If two candidates are bot
 
 # Step 4 — Rank Survivors
 
-Score each surviving candidate:
-
-```
-score = (impact_value × feasibility) / effort_value
-
-impact_value:  critical=4, high=3, medium=2, low=1
-effort_value:  xs=1, s=2, m=3, l=4, xl=5
-feasibility:   1.0 (no blockers), 0.7 (needs design decision first), 0.5 (depends on external team/system)
-```
-
-Sort by score descending. Cap the list at the user's requested count (default 10). Group ties by category — prefer security and critical-impact items.
+For each survivor, record `impact`, `effort`, and `feasibility`: `clear` (no blockers), `needs-design` (needs a design decision first), or `external` (depends on an external team or system). Rank the survivors by judgment: weigh impact against effort, and rank an idea lower when it waits on a design decision or an external team. Record a one-line `rank-reason` for each idea. The renderer computes the `score` column from the three enums; do not compute it. Cap the list at the user's requested count (default 10). When two ideas rank equal, put security and critical-impact items first.
 
 ---
 

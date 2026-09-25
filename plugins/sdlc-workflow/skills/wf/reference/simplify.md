@@ -16,9 +16,9 @@ You are running `/wf simplify`, a **review-and-route triage utility**. Three par
 
 If the `/wf` dispatcher selected **slug-mode** (first argument matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `_compressed-slice.md` for the exact slice frontmatter and index bookkeeping. Substantively:
 
-- **One artifact, in the existing workflow** — *not* the standalone `.ai/simplify/<run-id>.md` location. Write `.ai/workflows/<slug>/03-slice-simplify-<descriptor>.md` (collision suffix `-2`, `-3` if needed; descriptor defaults to scope — e.g., `simplify-branch-2026-05-13` or `simplify-codebase-auth`). Frontmatter: `type: slice`, `slice-slug: simplify-<descriptor>`, `slice-type: simplify`, `compressed: true`, `origin: simplify`, `stage-number: 3`, `status: defined`, `complexity: xs`. Do not also write `.ai/simplify/<run-id>.md` — the compressed slice is the single output.
+- **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-simplify-<descriptor>.md` (collision suffix `-2`, `-3` if needed; descriptor defaults to scope — e.g., `simplify-branch-2026-05-13` or `simplify-codebase-auth`). Frontmatter: `type: slice`, `slice-slug: simplify-<descriptor>`, `slice-type: simplify`, `compressed: true`, `origin: simplify`, `stage-number: 3`, `status: defined`, `complexity: xs`. The compressed slice is the single output.
 - **Same content, different home.** Body carries the same sections the standalone simplify would write (three-agent findings, per-finding classification, routing summary, routing assignments, proposed deltas), under a `# Compressed Slice: simplify` heading with a one-line provenance preamble. The `simplify-run` frontmatter fields (`findings-total`, `findings-reuse`, etc.) do not carry over — they belong to the standalone type. Report the same numbers in the body instead.
-- **No new workflow, no new branch, no `01-simplify.md`, no `.ai/simplify/<run-id>.md`, no new top-level `00-index.md`.** The slug already owns the workflow context.
+- **No new workflow, no new branch, no `01-simplify.md`, no new top-level `00-index.md`.** The slug already owns the workflow context.
 - **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: simplify-<descriptor>, slice-type: simplify, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: simplify, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`. Also rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` (see SKILL.md Step 1 step 6).
 - **Chat return:** one line — `wf simplify → compressed slice simplify-<descriptor> on <slug>` — plus the routing summary (counts per downstream command) and the top routing assignments, each scoped with `<slug>` as the first positional argument (e.g., `/wf intake refactor <slug> <target>`, `/wf plan <slug> <slice>`). Positional-slug form only — no `--slug` flag.
 
@@ -30,7 +30,7 @@ If slug-mode was not selected, ignore this section and proceed standalone.
 | | Detail |
 |---|---|
 | Requires | Nothing for `branch` / `commit` / `codebase`. For `plan` scope: `.ai/workflows/<slug>/04-plan-<slice>.md` (or `04-plan.md` for compressed workflows) must exist. |
-| Produces | `.ai/workflows/<slug>/01-simplify.md` (`type: simplify-run` — findings + routing assignments) + lightweight `00-index.md` in a `type: workflow-index` slug workflow. (Legacy off-pipeline `.ai/simplify/<run-id>.md` runs still render.) |
+| Produces | `.ai/workflows/<slug>/01-simplify.md` (`type: simplify-run` — findings + routing assignments) + lightweight `00-index.md` in a `type: workflow-index` slug workflow. |
 | Next | One or more downstream commands the user runs based on the routing assignments (routing matrix in Step 4). |
 | Does NOT | Write code, edit files outside its own artifact, commit, push, or open PRs. |
 | Idempotent | Re-running the same scope+target on an already-cleaned input is safe — agents report "no findings" and the artifact records that. |
@@ -42,7 +42,6 @@ You are a **router**, not a problem-solver: resolve the scope before dispatch, c
 - Do not write code — not one line, not even a trivial typo fix — and do not commit, stage, push, or open PRs.
 - Do not mutate any artifact file other than the ones you're authoring (`.ai/workflows/<slug>/01-simplify.md` + its `00-index.md`); do not edit the workflow plan (plan scope) — write proposed deltas to your run artifact only.
 - Do not read files outside the scope's diff/path set (branch = branch diff, commit = commit diff, plan = the named plan file only, codebase = the named path subtree only).
-- If you catch yourself about to make a code edit, STOP. Route the finding; do not execute it yourself.
 
 ---
 
@@ -153,12 +152,12 @@ Tie-breakers:
 - Mechanical AND ≤1 file → `route-fix`.
 - Spans multiple files AND behaviour-preserving → `route-refactor`.
 - Could break behaviour or change a public API → `route-intake` (full shape + plan + review).
-- Plan-scope → `route-amend-plan` only (plans versioned via amend, never direct edit).
+- Plan-scope → `route-amend-plan` only: a directed plan fix (`/wf plan <slug> <slice> <correction>`), never a direct edit.
 - "This code needs a test" → `route-add-test` (straightforward) or `route-verify` (deeper gap).
 
 ## What to record per accepted finding
 
-Record one `routing-assignments` entry per accepted finding: `finding-id`, `route`, `suggested-invocation`, `rationale`. For `plan` scope, every accepted finding gets `route: route-amend-plan` AND a `proposed-delta` block (plan-section, current, proposed, rationale) that the user applies via amend. Both block shapes are in [simplify/_artifact.md](simplify/_artifact.md).
+Record one `routing-assignments` entry per accepted finding: `finding-id`, `route`, `suggested-invocation`, `rationale`. For `plan` scope, every accepted finding gets `route: route-amend-plan` AND a `proposed-delta` block (plan-section, current, proposed, rationale) that the user applies as a directed plan fix. Both block shapes are in [simplify/_artifact.md](simplify/_artifact.md).
 
 ## What you do NOT do
 
@@ -171,7 +170,7 @@ Record one `routing-assignments` entry per accepted finding: `finding-id`, `rout
 
 # Step 5 — Write the run artifact + print routing suggestions
 
-Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Derive `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), write **two** files under `.ai/workflows/<slug>/`, and register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](intake/default.md) Step 10. (Legacy off-pipeline `.ai/simplify/<run-id>.md` runs still render.)
+Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Derive `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), write **two** files under `.ai/workflows/<slug>/`, and register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](intake/default.md) Step 10.
 
 1. Write `00-index.md` (`type: workflow-index`, lightweight) from the template in [simplify/_artifact.md](simplify/_artifact.md).
 2. Write `01-simplify.md` (`type: simplify-run`) from the template in the same file: frontmatter counts, `routing-summary`, `routing-assignments`, `proposed-deltas`, then the body sections from **The Triage** to **Recommended next commands**.

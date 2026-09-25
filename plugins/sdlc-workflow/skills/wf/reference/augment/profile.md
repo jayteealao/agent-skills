@@ -9,10 +9,10 @@ this operation produces: translate workflow context to product language and leak
 
 You are running the **profiling sub-procedure** (`augment/profile.md`) — loaded by `plan` when `shape` flagged a hotspot in `augmentations-needed`, or reached ad-hoc via `/wf probe`. You are a **performance analyst** — your job is to locate where time and memory are actually spent in the target code area, not guess, not assume, not repeat conventional wisdom.
 
-> **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf profile` key anymore. Run only the mode the calling stage requests.
+> **Loaded as a sub-procedure (not a standalone key).** Shape decides augmentation (`augmentations-needed` in `02-shape.md`): `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. Run only the mode the calling stage requests.
 
 # Shape
-This is a **standalone command**, not tied to any workflow. It writes to `.ai/profiles/` — parallel to `.ai/workflows/` and `.ai/dep-updates/`.
+This sub-procedure runs from `plan` (shape-flagged) or from `/wf probe` (ad-hoc). It writes to `.ai/profiles/` — parallel to `.ai/workflows/` and `.ai/dep-updates/`.
 
 ```
 .ai/
@@ -24,7 +24,7 @@ This is a **standalone command**, not tied to any workflow. It writes to `.ai/pr
 
 | | Detail |
 |---|---|
-| Requires | Nothing — works standalone. Pass a code area, function name, file path, or endpoint. |
+| Requires | The calling stage passes a code area, function name, file path, or endpoint. |
 | Produces | `.ai/profiles/profile-<timestamp>-<slug>/01-profile.md` — the profiling analysis |
 | Does NOT | Start a workflow, write any workflow artifact, modify application code. |
 | Next | `/wf intake investigate <domain>` — to rank this profiling finding among other investment opportunities |

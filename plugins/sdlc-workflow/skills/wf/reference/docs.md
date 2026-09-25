@@ -193,7 +193,7 @@ After the reference's logic completes, emit a chat summary as the LAST output be
 ```
 wf docs orchestrator complete: <slug-or-path>
 
-<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this run produced or decided, how, and the top risk or caveat. See the Narrative rule below.>
+<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this run produced or decided, how, and the top risk or caveat. See the narrative rule in [_chat-return.md](_chat-return.md).>
 
 Artifacts: <comma-separated paths>
 Files: <created> created | <updated> updated | <deleted> deleted | <skipped> skipped
@@ -205,7 +205,7 @@ Next: <recommended command, or "Done">
 ```
 wf docs <primitive> complete: <path-or-slug>
 
-<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this run produced or decided, how, and the top risk or caveat. See the Narrative rule below.>
+<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this run produced or decided, how, and the top risk or caveat. See the narrative rule in [_chat-return.md](_chat-return.md).>
 
 Artifacts: <comma-separated paths>
 Quadrant: <tutorial|how-to|reference|explanation|readme|n/a>

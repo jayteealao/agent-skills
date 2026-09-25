@@ -13,14 +13,8 @@ configuration* when the config itself was set wrong or has to change mid-flight.
 
 # Why this mode exists
 
-`/wf intake <slug> <free text>` claims all free text for **extension** mode — an existing slug plus
-new scope means new slices. That is right for scope, and it was wrong for *config*: a branch-strategy
-amendment had no lawful home anywhere in the router, so the model had to **refuse its own routing**
-and hand-edit `00-index.md`. A command surface that forces the model to defy it in order to do a
-legitimate, three-field, entirely-in-scope edit is a missing verb, not a discipline.
-
-So amend exists — and its whole design is the **whitelist**. Everything that made "there is no amend"
-the right rule for years is still true: *already-built work is never re-specified in place.* Amend
+`/wf intake <slug> <free text>` sends new scope to **extension** mode. Amend handles config: its whole
+design is the **whitelist**. *Already-built work is never re-specified in place.* Amend
 does not touch a slice, a plan, an acceptance criterion, or a line of code. It edits the handful of
 fields that describe *how this workflow runs*, and it refuses everything else out loud.
 

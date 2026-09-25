@@ -50,7 +50,7 @@ const {
   decisionDigest, acKey,
   // YOLO-DRIVER-LIFECYCLE W3/W4 — the aggregation-truth and tripwire rollups.
   classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals,
-  collectSubstantiveFailures, collectSubagentErrors, clearingTripwire,
+  collectSubstantiveFailures, collectSubagentErrors, clearingTripwire, judgeLiveness,
 } = new Function(
   [
     extractFn(yoloSrc, 'acKey'),
@@ -67,7 +67,8 @@ const {
     extractFn(yoloSrc, 'collectSubstantiveFailures'),
     extractFn(yoloSrc, 'collectSubagentErrors'),
     extractFn(yoloSrc, 'clearingTripwire'),
-    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure, decisionDigest, acKey, classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals, collectSubstantiveFailures, collectSubagentErrors, clearingTripwire };',
+    extractFn(yoloSrc, 'judgeLiveness'),
+    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure, decisionDigest, acKey, classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals, collectSubstantiveFailures, collectSubagentErrors, clearingTripwire, judgeLiveness };',
   ].join('\n')
 )();
 
@@ -630,10 +631,60 @@ test('clearingTripwire: a PO-authorized deferral is settled — no tripwire nois
 // die mid-write?", and only an unmatched agent-start answers yes.
 // ---------------------------------------------------------------------------
 
-test('liveness: presumedDead keys on an open agent-start, never on a named terminal step', () => {
-  assert.match(yoloSrc, /presumedDead: true iff the newest entry is an agent-start/);
-  assert.match(yoloSrc, /stoppedCleanly: true iff the newest entry is an agent-end/);
-  assert.doesNotMatch(yoloSrc, /whose agent was a terminal step/);
+// The verdict is arithmetic, so judgeLiveness() owns it in code; orient reports raw entries.
+const J = (entries, nowAt) => ({ present: true, nowAt, entries });
+const E = (at, event, extra = {}) => ({ at, run: 'r1', event, ...extra });
+
+test('liveness: an open agent-start past the cadence and the floor is presumed dead', () => {
+  const r = judgeLiveness(J([
+    E('2026-09-25T10:00:00Z', 'agent-start'), E('2026-09-25T10:05:00Z', 'agent-end'),
+    E('2026-09-25T10:06:00Z', 'agent-start', { stage: 'verify', slice: 'nav' }),
+  ], '2026-09-25T11:00:00Z'), 'r2');
+  assert.equal(r.presumedDead, true);
+  assert.equal(r.stoppedCleanly, false);
+  assert.equal(r.longestGapMinutes, 5);
+  assert.equal(r.minutesSinceLastEntry, 54);
+  assert.equal(r.lastStage, 'verify');
+  assert.equal(r.lastSlice, 'nav');
+});
+
+test('liveness: a closing agent-end past the floor stopped cleanly, with its status', () => {
+  const r = judgeLiveness(J([
+    E('2026-09-25T10:00:00Z', 'agent-start'), E('2026-09-25T10:04:00Z', 'agent-end', { status: 'hard-stop' }),
+  ], '2026-09-25T10:40:00Z'));
+  assert.equal(r.stoppedCleanly, true);
+  assert.equal(r.presumedDead, false);
+  assert.equal(r.lastStatus, 'hard-stop');
+});
+
+test('liveness: inside the 20-minute floor or the run cadence, no verdict is claimed', () => {
+  const quiet = judgeLiveness(J([E('2026-09-25T10:00:00Z', 'agent-start')], '2026-09-25T10:15:00Z'));
+  assert.equal(quiet.presumedDead, false);
+  const slowCadence = judgeLiveness(J([
+    E('2026-09-25T09:00:00Z', 'agent-start'), E('2026-09-25T10:00:00Z', 'agent-start'),
+  ], '2026-09-25T10:30:00Z'));
+  assert.equal(slowCadence.longestGapMinutes, 60);
+  assert.equal(slowCadence.presumedDead, false);
+});
+
+test('liveness: own-run heartbeats and an unreadable clock never produce a verdict', () => {
+  const own = judgeLiveness(J([{ at: '2026-09-25T10:00:00Z', run: 'me', event: 'agent-start' }], '2026-09-25T12:00:00Z'), 'me');
+  assert.deepEqual(own, { present: false });
+  const noClock = judgeLiveness(J([E('2026-09-25T10:00:00Z', 'agent-start')], 'not a time'));
+  assert.equal(noClock.presumedDead, false);
+  assert.equal(noClock.stoppedCleanly, false);
+  assert.deepEqual(judgeLiveness({ present: false }), { present: false });
+});
+
+test('liveness: only the newest prior run is judged, and orient owns no arithmetic', () => {
+  const r = judgeLiveness(J([
+    { at: '2026-09-24T08:00:00Z', run: 'old', event: 'agent-start' },
+    E('2026-09-25T10:00:00Z', 'agent-start'), E('2026-09-25T10:02:00Z', 'agent-end'),
+  ], '2026-09-25T11:00:00Z'));
+  assert.equal(r.runId, 'r1');
+  assert.equal(r.longestGapMinutes, 2);
+  assert.match(yoloSrc, /res\.priorRun = judgeLiveness\(res\.priorJournal, res\.runId\)/);
+  assert.doesNotMatch(yoloSrc, /minutesSinceLastEntry: system-clock now minus/);
   assert.match(yoloSrc, /prior driver stopped cleanly at/);
 });
 

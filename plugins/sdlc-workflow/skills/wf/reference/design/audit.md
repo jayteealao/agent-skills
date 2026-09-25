@@ -4,7 +4,7 @@ This is a code-level audit, not a design critique. Check what is measurable and 
 
 **Reuse verify measurements.** When `06-verify-*.md` exists, consume its measured accessibility, performance, and web-vitals results. Do not re-run axe-core or Lighthouse. Measure these yourself only when no verify ran.
 
-**Accessibility lives here.** Not in the general design laws, not in the brief or the contract step. Models over-cautious themselves into safe, underdesigned output when reminded about accessibility at design time. The audit command is the dedicated place for that check.
+**The audit scores accessibility** against the shared Accessibility law in `_design-context.md`.
 
 ## Diagnostic Scan
 
