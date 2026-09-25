@@ -5,6 +5,19 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.171.0] - 2026-09-25
+
+The brainstorm agent explains in chat as well as asks, and each sitting ends with a story (BRAINSTORM-MODE-PLAN.md §23).
+
+### Added
+
+- **Talk turns.** When research returns something new, when the person asks a question or asks to go deeper, when a new area needs specialist knowledge, or when the answers show that the ground is new, the agent explains in chat before the next questions: what the thing is, one example, what the evidence showed, what it changes, and the agent's own view. The turn ends with an invitation to reply, not with a question form, so the host never hides it. Question batches stay the usual move.
+- **Session stories.** `pause`, or "stop for now" at a check-in, tells the story of the sitting: what we set out to explore, what we learned, what we decided and why, what is still open, and where we start next. A resume opens with the last story, and the document and the page keep every story, newest first.
+
+### Changed
+
+- A check-in says in one line what we learned since the last one. The chat return leads with the session story, in plain words with no counts and no mechanism names.
+
 ## [9.170.0] - 2026-09-25
 
 A prompt audit of the whole prompt surface against Claude Opus 5.5 (94 findings). The Claude 5 repair of v9.152.0 still holds; this release removes what grew back and fixes the rules that disagreed.
