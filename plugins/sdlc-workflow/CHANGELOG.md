@@ -5,6 +5,29 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.170.0] - 2026-09-25
+
+A prompt audit of the whole prompt surface against Claude Opus 5.5 (94 findings). The Claude 5 repair of v9.152.0 still holds; this release removes what grew back and fixes the rules that disagreed.
+
+### Changed
+
+- **Sub-agents never run on haiku.** `_subagents.md` maps every effort tier to `sonnet` on Claude Code and pi (re-evaluated when Haiku 5.5 ships). A transcript sweep found haiku on about 10% of `/wf` sub-agents, including adversarial refuters. The contract test fails if a `low = haiku` mapping returns.
+- **yolo review scouts select and read the real rubrics.** The fan-out first selects rubrics the way `/wf review` does (`review/_stage.md` Step 2 and `review/_select.md`), then each scout reads its `review/<rubric>.md` (focus section plus severity calibration). It no longer scouts a fixed list of five dimensions with no rubric. Scouts and the three git or index write-back agents pin `sonnet`; every other yolo agent keeps the session model.
+- **yolo judges driver liveness in code.** Orient reports the raw journal entries and the clock; the new `judgeLiveness()` computes the cadence, the gap, and the presumed-dead or stopped-cleanly verdict, with unit tests.
+- **Ideate ranks by judgment.** Each idea records `impact`, `effort`, `feasibility` (`clear`, `needs-design`, `external`) and a `rank-reason`; the renderer computes the `score` column. A lead that already carries a `score` shows it unchanged.
+- **The TypeScript wide-event adapters load only on a matching stack.** The Express and React adapters moved to `augment/wide-event-observability/_adapter-express.md` and `_adapter-react.md`; the weekly migration plan is removed. The main file falls from 918 to 456 lines.
+- **Generated CI pins the current action major.** `ship-plan/build.md` takes the major from the repo's existing workflows or `gh api …/releases/latest`; template versions are marked illustrative.
+- **A benchmark's mode comes from the calling stage** (`plan` → baseline, `verify` → compare), with auto-detect as the fallback.
+- Numeric output caps and question quotas became need-driven or qualitative (plan interview, extend, ideate, design and close narratives, status, retro, announcements).
+- Incident stories, build-plan ids, and "no longer" phrasing were removed from instruction text and yolo prompts; every rule and its reason stays. The repeated "If you catch yourself … STOP" booster left 13 Role blocks, which already state the boundary.
+- The design ban list adds the default styles to avoid unless the brief names them: a cream or off-white background, italic accent words in headlines, "01/02/03" section labels, monospace eyebrow labels, and pill buttons as the default shape.
+
+### Fixed
+
+- **Rules that disagreed between files.** A closed brainstorm pointed at the read-only `/wf recap` to reopen; it now names the `/wf close` revival path. Probe routed to `/wf intake fix <slug> …`, which the dispatcher parsed as a standalone fix; it now routes `/wf intake <slug> fix <finding>`. Simplify sent plan fixes "via amend", which refuses plan edits. `02c-craft.md` was said to be written at `plan`. yolo.md claimed the driver injects `steer.md`.
+- **Review severities.** O(n²) on a user-facing path is HIGH (BLOCKER is unbounded growth with data size); an uncovered narrowing is HIGH on a ledgered RIM, else MED; bundle size is judged from verify's measured delta; the web vitals are LCP, INP, and CLS (FID is gone).
+- Smaller drift: a stale narrative pointer in `docs.md`, the retro story heading, the consult trigger list, the question lead-in rule, a diataxis pointer to a skill that does not exist, and a plan id in the verify result-gate message.
+
 ## [9.169.0] - 2026-09-25
 
 ### Added
