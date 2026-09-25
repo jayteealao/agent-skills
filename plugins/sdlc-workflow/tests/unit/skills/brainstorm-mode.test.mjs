@@ -431,3 +431,54 @@ test('a board with budgets, briefs, first-version items, and top risks validates
   bad.briefs = [{ key: 'cost-brief', name: 'Cost', criteria: [{ key: 'x', text: 'x', status: 'done' }] }];
   assert.ok(!validateBrainstormBoard(bad, { schemaPath: SCHEMA_PATH }).valid, 'a criterion status outside the four validated');
 });
+
+// BRAINSTORM-MODE-PLAN §23 — talk turns and session stories. On v9.166–v9.170
+// the agent's voice lived in question forms: a 14-hour session held 5,329 words
+// of chat against 25,955 words of question and option text, research went to
+// the page "so the questions can stay short", and "delve deeper" got a question
+// batch. The person said: "I haven't learnt anything, the agent hasn't spoken to
+// me, and I don't know what we did."
+
+test('new ground gets a talk turn in chat before the next batch', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.ok(existsSync(refPath('intake', 'brainstorm', '_talk.md')), 'missing brainstorm/_talk.md');
+  const talk = read('reference', 'intake', 'brainstorm', '_talk.md');
+  assert.match(src, /or when the person asks a question or asks you to go deeper, take a talk turn before the next batch/, 'explain-then-ask lost the talk turn');
+  assert.match(src, /A talk turn \(\[brainstorm\/_talk\.md\]\(brainstorm\/_talk\.md\)\) takes the place of a batch, and ends with no question/, 'the loop lost the talk turn as a move');
+  assert.match(src, /An answer that asks a question, or asks you to explain or go deeper, gets a talk turn/, 'a question in an answer gets a question batch again');
+  assert.match(src, /on ground that is new to the person, or when two answers contradict each other, take a talk turn first/, 'picking every option on new ground no longer starts a talk turn');
+  assert.match(talk, /it stays the usual move/, 'the talk turn replaced the question batch as the usual move');
+  assert.match(talk, /Ask no question form in the same turn\. The host can hide the chat text before a question form/, 'a talk turn can end in a question form that hides it');
+  assert.match(talk, /your own view, and your reason/, 'a talk turn no longer gives the agent\'s view');
+  assert.match(talk, /Take no two talk turns in a row unless the person asks for more/, 'talk turns can crowd out the questions');
+  assert.match(talk, /log one entry with kind `talk`/, 'a talk turn is not logged');
+});
+
+test('each sitting ends with a story, and a resume opens with it', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  const talk = read('reference', 'intake', 'brainstorm', '_talk.md');
+  const artifact = read('reference', 'intake', 'brainstorm', '_artifact.md');
+  assert.match(src, /^\| `pause` \| Tell the story of this sitting/m, 'the loop lost the pause control word');
+  assert.match(src, /stop for now \(the story of this sitting, as `pause`\)/, 'the check-in no longer offers to stop with a story');
+  assert.match(src, /tell the story of the last session in chat/, 'a resume no longer opens with the story');
+  assert.match(src, /narrative lead is the story of this sitting/, 'the chat return lost the story');
+  assert.match(src, /with one line on what we learned since the last check-in/, 'the check-in no longer says what we learned');
+  for (const part of ['What we set out to explore', 'What we learned', 'What we decided, and why', 'What is still open', 'Where the next sitting starts']) {
+    assert.ok(talk.includes(part), `the story lost the part "${part}"`);
+  }
+  assert.match(talk, /When that session has no story, because the person left without a pause, write it from that session's log entries first/, 'a session left without a pause gets no story');
+  assert.match(talk, /Write no count of items, questions, or areas, and name no mode mechanism/, 'the story can recite counts and mechanics');
+  assert.ok(artifact.includes('\n## Sessions\n'), 'the document template lost the Sessions section');
+  assert.match(src, /the session stories, newest first/, 'the page no longer shows the stories');
+});
+
+test('a board with stories and talk entries validates', () => {
+  const board = jsonBoard();
+  board.stories = [{ session: 1, text: 'We set out to see what a project costs, and learned that the ledger already records every run.' }];
+  board.log.push({ session: 1, batch: 2, thread: null, kind: 'talk', asked: 'how the ledger works', answer: 'go on' });
+  board.log.push({ session: 1, batch: 3, thread: null, kind: 'story', asked: 'pause', answer: 'story told' });
+  assert.deepEqual(validateBrainstormBoard(board, { schemaPath: SCHEMA_PATH }).errors, []);
+  const bad = jsonBoard();
+  bad.stories = [{ session: 1 }];
+  assert.ok(!validateBrainstormBoard(bad, { schemaPath: SCHEMA_PATH }).valid, 'a story with no text validated');
+});

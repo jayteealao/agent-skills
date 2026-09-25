@@ -16,6 +16,9 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
   "sessions": 1,
   "batches": 0,
   "page": null,
+  "stories": [
+    { "session": 1, "text": "We set out to see what a project costs. We learned that the ledger already records every run, so the gap is showing the cost, not measuring it. You chose a limit that warns and never blocks, because a blocked run loses work already paid for. The ledger format is still open. Next time we start with research runs." }
+  ],
   "budgets": [
     { "key": "monthly-spend-cap", "name": "Spending stays under the monthly cap", "decision": "limit-warns-only" }
   ],
@@ -43,7 +46,8 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
   "work": [],
   "selected": [],
   "log": [
-    { "session": 1, "batch": 1, "thread": "limit-per-project", "kind": "fork", "asked": "<question in ten words>", "answer": "<answer in ten words>" }
+    { "session": 1, "batch": 1, "thread": "limit-per-project", "kind": "fork", "asked": "<question in ten words>", "answer": "<answer in ten words>" },
+    { "session": 1, "batch": 2, "thread": "limit-per-project", "kind": "talk", "asked": "<what the talk explained, in ten words>", "answer": "<the reply in ten words>" }
   ],
   "consult-runs": []
 }
@@ -52,6 +56,7 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
 - **Keys** are kebab-case words (`^[a-z0-9]+(-[a-z0-9]+)*$`), stable once written, and unique across areas, threads, items, and work. A key names the thing, so a key that leaks into chat still means something.
 - **`areas[].side`** is `problem`, `solution`, or `both`. **`areas[].state`** is `open`, `touched`, or `explored`. **`areas[].brief`** is five plain lines or fewer: what we decided, what is core, what is still open, and the scope. **`areas[].scope`** is `keep`, `cut`, `later`, `mixed`, or `null`, and is set when the area closes or at `done`.
 - **`page`** is the link of the published page, or `null` where the host has none.
+- **`stories[]`** holds the story of each session ([_talk.md](_talk.md)): its `session` number and its plain `text`.
 - **`focus`** is `general` or `design`; absent means `general`. **`sketches[]`** holds each sketch of a design focus ([_design.md](_design.md)): `key`, `thread`, the keys of the `items` it shows, `link` (or `null`), a plain `caption`, and `state` (`idea`, `carried`, or `dropped`).
 - **`budgets[]`** holds each limit the person decided, with the key of the deciding item in `decision` ([_cohere.md](_cohere.md)).
 - **`briefs[]`** holds each brief the person brought ([_brief.md](_brief.md)). `source` is `pasted` or a file path. Each criterion has a `part` (`good`, `failure`, `check`, or `other`), a `status` (`covered`, `partial`, `open`, or `out-of-scope`, with `reason`), and the keys of the items that answer it.
@@ -67,7 +72,7 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
   - `replaced-by` is the key of the newer decision that replaced this one.
   - `design: true` marks an item about how the idea looks or behaves. These items travel to the design stage.
   - `was` holds a legacy id after a conversion.
-- **`log[].kind`** is `reflection`, `probe`, `fork`, `widen`, `choice`, `check-in`, `close`, `cohere`, `brief`, `control`, or `walk`.
+- **`log[].kind`** is `reflection`, `probe`, `fork`, `widen`, `choice`, `talk`, `story`, `check-in`, `close`, `cohere`, `brief`, `control`, or `walk`.
 
 A **piece of work** (one per agreed piece at `done`, in order):
 ```json
@@ -95,7 +100,7 @@ revisions: []
 ---
 ```
 
-The body names everything in words. It carries no key, no internal number, and no mode mechanics. It opens with a short front — the summary, the map with the area briefs, and what is open now — and the full record follows it. A replaced decision appears only under the decision that replaced it.
+The body names everything in words. It carries no key, no internal number, and no mode mechanics. It opens with a short front — the summary, the map with the area briefs, and what is open now — then the story of each session, newest first, and the full record follows. A replaced decision appears only under the decision that replaced it.
 
 ```markdown
 # Brainstorm: <topic>
@@ -114,6 +119,10 @@ The body names everything in words. It carries no key, no internal number, and n
 - <One line per brief: its name, how many criteria are covered, partial, open, and out of scope, and the open gaps in words. "None." when no brief was brought.>
 
 <!-- The front ends here. The record follows. -->
+
+## Sessions
+### Session <N> — <YYYY-MM-DD>
+<The story of the session: what we set out to explore, what we learned, what we decided and why, what is still open, and where the next sitting starts. Plain prose, about 100 to 200 words, newest session first.>
 
 ## Decisions
 ### <area in words>
@@ -142,7 +151,7 @@ The body names everything in words. It carries no key, no internal number, and n
 
 ## How to continue
 - Resume: `/wf intake brainstorm <slug>`
-- Control words: `park <thread>` · `pull <thread>` · `drop <thread>` · `board` · `look it up` · `second opinion` · `done`
+- Control words: `park <thread>` · `pull <thread>` · `drop <thread>` · `board` · `look it up` · `second opinion` · `cohere` · `pause` · `done`
 - Retire when no thread is live: `/wf close <slug>`
 ```
 

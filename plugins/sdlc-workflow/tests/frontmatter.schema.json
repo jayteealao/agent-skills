@@ -1711,6 +1711,18 @@
         "sessions": { "type": "integer", "minimum": 1 },
         "batches": { "type": "integer", "minimum": 0 },
         "page": { "type": ["string", "null"] },
+        "stories": {
+          "type": "array",
+          "description": "The story of each session, told to the person at a pause, in the chat return, and on the next resume (intake/brainstorm/_talk.md).",
+          "items": {
+            "type": "object",
+            "required": ["session", "text"],
+            "properties": {
+              "session": { "type": "integer", "minimum": 1 },
+              "text": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
         "focus": { "enum": ["general", "design"], "description": "design: the board concentrates on how the idea looks and behaves (intake/brainstorm/_design.md). Absent means general." },
         "sketches": {
           "type": "array",
@@ -1859,7 +1871,7 @@
               "session": { "type": "integer", "minimum": 1 },
               "batch": { "type": "integer", "minimum": 0 },
               "thread": { "type": ["string", "null"] },
-              "kind": { "enum": ["reflection", "probe", "fork", "widen", "choice", "check-in", "close", "cohere", "brief", "control", "walk", "steer", "legacy"] },
+              "kind": { "enum": ["reflection", "probe", "fork", "widen", "choice", "talk", "story", "check-in", "close", "cohere", "brief", "control", "walk", "steer", "legacy"] },
               "asked": { "type": "string" },
               "answer": { "type": "string" }
             }

@@ -30,7 +30,9 @@ the mode drew out intent well but never asked the person to choose; **v9.165.0**
 puts choosing into the conversation (§21). Two live sessions on v9.165.0 then showed that
 choosing was still not cutting, that coherence ran only on request, and that a
 brief the person brought had no procedure; **v9.166.0** adds the first version,
-the coherence pass, and the brief map (§22). **Still open:** probes P-B1, P-B2, and P-B3, and
+the coherence pass, and the brief map (§22). Three later sessions showed that
+the agent's voice had moved into question forms; **v9.171.0** adds talk turns and
+session stories (§23). **Still open:** probes P-B1, P-B2, and P-B3, and
 the `artifacts.html` row. Every line reference below was read from the
 working tree at v9.158.0.
 
@@ -1008,3 +1010,63 @@ fails against the v9.165.0 text. A schema round-trip covers budgets, briefs,
 first-version items, top risks, and the new log kinds, and rejects an unknown
 criterion status.
 
+## 23. Talk turns and session stories
+
+Three sessions ran on v9.166.0 to v9.170.0 on 2026-09-24 and 2026-09-25: the
+realism board for 14 hours, the packaging board for 1.8 hours, and the realism
+board again for 44 minutes. The person then said: "after brainstorm sessions I
+haven't learnt anything, the agent hasn't spoken to me and I don't know what we
+did."
+
+**The voice had moved into the question form.** In the 14-hour session the
+agent wrote 5,329 words of chat and 25,955 words of question and option text.
+The 44-minute session held 605 words of chat. The v9.165.0 rule "the host can
+hide the chat text before a question" was correct, and its answer put every
+explanation into the question text or onto the page. The chat kept status lines.
+
+**The person was asked to decide before understanding.** The person opened the
+last session with "talk to me about the harness, bands, tests … talk to me about
+the statistical model". Six research agents ran, the agent wrote the explanation
+to the page "so the questions can stay short", and within twenty minutes the
+person chose a statistical pass rule, a margin rule, and a gating rule. Two of
+those answers contradicted each other. "Delve deeper on that" got a question
+batch. The one real explanation in the 14-hour session was followed seven
+seconds later by "which join?", and the person picked all ten. The person used
+the free text of 68 of 225 answers to ask or to discuss.
+
+**Nothing ended a sitting.** Only the person ends the brainstorm, but no step
+closed one sitting. The last session ended at an unanswered check-in. The first
+story of the 14-hour session came when the person asked for "a shareable page
+detailing fully the plans", and it opened with "39 areas explored and 593
+decisions". Closing summaries named mechanics ("a coherence pass settled two
+conflicts").
+
+**Fix — a middle ground.** A first proposal made the conversation turn the unit
+of the loop. The person asked for a middle ground: question batches stay the
+usual move, and a **talk turn** joins them (`brainstorm/_talk.md`). A talk turn
+takes the place of a batch when research or a pass returns something the person
+has not seen, when the person asks a question or asks to go deeper (also in an
+answer's free text), when a new area turns on specialist knowledge, or when the
+person picks every option on new ground or two answers contradict each other. It
+explains in chat, in about 150 to 350 words: what the thing is, with one example
+from the product; what the evidence showed; what it changes on the board; and
+the agent's view. It ends with an invitation to reply and no question form, so
+no host hides it. No two talk turns come in a row unless the person asks. The
+first batch after it names the talk in one line, and each choice gives the
+agent's view in its question text.
+
+**A session story.** The new control word `pause`, and a "stop for now" option
+at each check-in, tell the story of the sitting: what we set out to explore,
+what we learned, what we decided and why, what is still open, and where the
+next sitting starts, in about 100 to 200 words with no counts and no mechanism
+names. The story is the chat return's narrative lead, it opens every resume
+(written from the log when the person left without a pause), and it is kept in
+the board's `stories`, in the document's `## Sessions` section, and at the top
+of the page. The check-in adds one line on what we learned since the last one.
+
+**Schema.** `$defs.brainstormBoard` gains `stories[]` (`session`, `text`) and
+the log kinds `talk` and `story`. `brainstorm.md` stays at 250 lines: the
+`park` and `pull` rows merged, and the procedure lives in its own file.
+
+Three guard tests pin the talk turn, the session story, and the schema
+round-trip; each fails against the v9.170.0 text.
