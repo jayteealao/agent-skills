@@ -306,8 +306,23 @@ test('the driver status reads the newest run and presumes death past the longest
   const beats = beatsOf(journal);
   assert.equal(beats.length, 3);
   assert.equal(driverStatusOf('yolo', beats, 2_360_000), 'yolo · run r2 · implement auth · agent a1 · 6 min · last beat 1 min ago');
-  assert.match(driverStatusOf('yolo', beats, 2_300_000 + 21 * 60_000), /^yolo · presumed dead since \d\d:\d\d · last: implement auth$/);
+  // The newest row is a finish: every agent returned, so the run stopped. It did not die.
+  assert.match(driverStatusOf('yolo', beats, 2_300_000 + 21 * 60_000), /^yolo · stopped at \d\d:\d\d · last: implement auth$/);
   assert.equal(driverStatusOf('auto', [], 0), 'auto · no driver journal');
+});
+
+test('the driver status presumes death only when the newest row is an agent that never returned', () => {
+  const at = ms => new Date(ms).toISOString();
+  const journal = [
+    { at: at(2_000_000), run: 'r2', seq: 1, event: 'agent-start', agent: 'a1', stage: 'implement', slice: 'auth' },
+    { at: at(2_300_000), run: 'r2', seq: 1, event: 'agent-end', agent: 'a1', stage: 'implement', slice: 'auth', status: 'hard-stop' },
+  ];
+  const later = 2_300_000 + 21 * 60_000;
+  const stopped = beatsOf(journal.map(row => JSON.stringify(row)).join('\n'));
+  assert.match(driverStatusOf('yolo', stopped, later), /^yolo · stopped at \d\d:\d\d · last: implement auth \(hard-stop\)$/);
+  const open = [...journal, { at: at(2_310_000), run: 'r2', seq: 2, event: 'agent-start', agent: 'a2', stage: 'verify', slice: 'auth' }];
+  const dead = beatsOf(open.map(row => JSON.stringify(row)).join('\n'));
+  assert.match(driverStatusOf('yolo', dead, later + 10_000), /^yolo · presumed dead since \d\d:\d\d · last: verify auth$/);
 });
 
 test('the hub notice reads the health answer', () => {

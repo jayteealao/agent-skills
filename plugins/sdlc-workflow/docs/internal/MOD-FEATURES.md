@@ -151,14 +151,15 @@ is a RegExp.)
 From a `/wf auto <slug>` or `/wf yolo <slug>` turn on, a five-second timer
 reads `.ai/workflows/<slug>/.driver-journal.jsonl` into the status line:
 `yolo · run r3 · implement auth · agent a4 · 14 min · last beat 2 min ago`.
-The rule is `_control-file-ownership.md`'s: silence longer than the run's
-own longest gap, with a 20-minute floor, is `presumed dead since HH:MM ·
-last: <stage> <slice>`. The driver runs in the background past its own turn,
-so the watch outlives the turn; at the first presumed-dead reading it toasts
-once and stops, and the next turn hands the status line back to the strip.
-An `agent-end` row without a stage takes the run's last named stage. The
-journal has no terminal hand-back row, so a run that finished normally also
-reads presumed dead twenty minutes later.
+The rule is `_control-file-ownership.md`'s: past silence longer than the
+run's own longest gap, with a 20-minute floor, a newest `agent-end` row reads
+`stopped at HH:MM · last: <stage> <slice> (<status>)`, and a newest
+`agent-start` row reads `presumed dead since HH:MM · last: <stage> <slice>`.
+The driver runs in the background past its own turn, so the watch outlives
+the turn. It stops at the first stopped reading, silently, or at the first
+presumed-dead reading, with one toast. The next turn hands the status line
+back to the strip. An `agent-end` row without a stage takes the run's last
+named stage.
 
 ### 3.8 The spinner verb (`spinnerVerb`)
 

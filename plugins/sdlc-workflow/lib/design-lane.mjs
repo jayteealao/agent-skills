@@ -65,13 +65,30 @@ export function isPlanArtifact(storageRel) {
   return /^04-plan(?:-[^/]+)?\.md$/.test(String(storageRel ?? ''));
 }
 
+/** The slice a per-slice plan file names (`04-plan-<slice>.md`), or null for `04-plan.md`. */
+export function planSliceOf(storageRel) {
+  const m = /^04-plan-([^/]+)\.md$/.exec(String(storageRel ?? ''));
+  return m ? m[1] : null;
+}
+
+/**
+ * Does this slice declare that it changes nothing a person sees? Only an
+ * explicit `ux-impact: none` in `03-slice-<slice>.md` counts. A slice without
+ * the field (one from before the per-slice value) keeps the slug rule.
+ * @param {object|null} slice - `03-slice-<slice>.md` frontmatter, or null
+ */
+export function sliceHasNoUx(slice) {
+  return String(slice?.['ux-impact'] ?? '').trim() === 'none';
+}
+
 /**
  * The refusal message for a plan write, or null when the write may proceed.
- * @param {{index: object|null, hasBrief: boolean, contract: object|null, slug: string}} args
+ * @param {{index: object|null, hasBrief: boolean, contract: object|null, slug: string, slice?: object|null, sliceSlug?: string|null}} args
  */
-export function designGateRefusal({ index, hasBrief, contract, slug }) {
+export function designGateRefusal({ index, hasBrief, contract, slug, slice = null, sliceSlug = null }) {
   if (!index) return null;
   if (!designNeeded(index, hasBrief)) return null;
+  if (sliceHasNoUx(slice)) return null;
   if (designSettled(index, contract)) return null;
   const reopened = designReopened(index) && contract;
   const why = reopened
@@ -80,5 +97,8 @@ export function designGateRefusal({ index, hasBrief, contract, slug }) {
       ? '02c-craft.md exists but carries no resolved image-gate or no direction-confirmed-by'
       : '02c-craft.md is missing';
   const route = reopened ? `/wf design ${slug} amend` : `/wf design ${slug}`;
-  return `Design is needed for '${slug}' (ux-impact: ${index['ux-impact'] ?? 'unset; 02b-design.md exists'}) but not settled: ${why}. A person confirms the design before planning. Run ${route}. (Opt out: hooks.designDirectionGate: false.)`;
+  const sliceHint = sliceSlug
+    ? ` When slice '${sliceSlug}' changes nothing a person sees, set \`ux-impact: none\` in 03-slice-${sliceSlug}.md instead.`
+    : '';
+  return `Design is needed for '${slug}' (ux-impact: ${index['ux-impact'] ?? 'unset; 02b-design.md exists'}) but not settled: ${why}. A person confirms the design before planning. Run ${route}.${sliceHint} (Opt out: hooks.designDirectionGate: false.)`;
 }

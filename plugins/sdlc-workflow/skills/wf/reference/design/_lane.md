@@ -23,6 +23,8 @@ Rules:
 
 **Design is needed** when `ux-impact` is `visual`, `flow`, or `new-surface`.
 
+**A slice records its own `ux-impact`.** `slice` and `extend` write the field into each `03-slice-<slice>.md`. A slice that changes nothing a person sees, such as an engine or data slice, records `none`. The plan for a slice with `none` does not wait for the design stage. A slice without the field keeps the slug rule.
+
 ## The human rule
 
 A person confirms the design before any stage that a driver can run. The `design` stage sits between `shape` and `slice`, and only a person runs it. Neither `/wf auto` nor `/wf yolo` runs it.
@@ -62,7 +64,7 @@ Each duty applies only when design is needed, except the `intake` and `shape` du
 | `intake` | Set `ux-impact` from the request and the files in scope. Ask the person to confirm it with the stack confirmation. Every mode that can route to `slice` or `plan` sets it: `rca` from the suggested fix, `update-deps` as `none`, and `extend` for the new slices. |
 | `shape` | When design is needed, write the brief `02b-design.md` per [shape.md](shape.md), including `## UX intent`, against the Identity, Current design, and Direction parts. When `ux-impact: none`, write `progress.design: skipped` and a one-line `design-skip-reason:`. |
 | `design` | Run [stage.md](stage.md) with the person: present the thoughts a design brainstorm carried ([_carried.md](_carried.md)), draw every changed surface, get the person's confirmation, write `02c-craft.md`. |
-| `slice` | Map every slice to the surfaces in `02c-craft.md`. A surface with its own acceptance criteria gets its own slice, or one sentence in `## Slice Strategy` justifies the grouping. |
+| `slice` | Map every slice to the surfaces in `02c-craft.md`. A surface with its own acceptance criteria gets its own slice, or one sentence in `## Slice Strategy` justifies the grouping. Write `ux-impact` into each slice file: `none` for a slice that maps to no surface. |
 | `plan` | Check the human rule. Turn every mock fidelity inventory item into a plan step. Cite the moves in `references-loaded:` as step pointers. Write `## Design Components`: the system components the slice uses, and the component delta (new or changed components). |
 | `implement` | Build from the tokens and components in `DESIGN.md`. Run the contract-check pass. Record the result in `## Visual Contract Honored`. |
 | `verify` | Measure the design floor. When the stack can capture the running surface, capture each built surface and place it next to its drawing in `## Design Comparison`. The difference list is evidence, not a pass rule. |

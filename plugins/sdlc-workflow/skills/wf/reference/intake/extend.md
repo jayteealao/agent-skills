@@ -140,7 +140,7 @@ This step **computes** the deltas and holds them; **Step 6 is the single index w
 
 # Step 3c — Design delta
 
-Classify the UX impact of the new scope per `design/_lane.md`. A design delta exists when design is needed and a new slice touches a surface or state that `02c-craft.md` does not list in `surfaces:`. Hold the result for Step 6.
+Classify the UX impact of the new scope per `design/_lane.md`, and record each new slice's own value as `ux-impact` in its slice file. A design delta exists when design is needed and a new slice touches a surface or state that `02c-craft.md` does not list in `surfaces:`. Hold the result for Step 6.
 
 # Step 4 — Write New Slice Files
 

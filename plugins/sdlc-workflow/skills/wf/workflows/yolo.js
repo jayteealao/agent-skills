@@ -82,7 +82,8 @@ const EOB =
 // a per-slug append-only journal. That gives any later reader two things nothing
 // else provides: a real timestamp, and an observable CADENCE (the gaps between
 // entries) to judge silence against. A driver between agents is a driver making
-// progress; a driver silent for longer than its own longest gap is presumed dead.
+// progress. Silent for longer than its own longest gap, a driver whose newest entry
+// is an agent-start is presumed dead; one whose newest entry is an agent-end stopped.
 //
 // Diagnostic, never a gate: a failed append never fails a stage.
 // ---------------------------------------------------------------------------
@@ -288,8 +289,9 @@ const ORIENT_RESULT = {
     runId: { type: 'string' },
     // W1.2/W1.3 — what the journal says about the PREVIOUS driver for this slug.
     // Liveness is judged against the run's OWN observed cadence, never against file
-    // existence: a journal silent for longer than its longest inter-agent gap is
-    // presumed dead, and its partial writes are treated as suspect from there on.
+    // existence. Past its longest inter-agent gap, a journal whose newest entry is an
+    // agent-start is presumed dead (that agent never returned, so its partial writes
+    // are suspect); one whose newest entry is an agent-end stopped cleanly.
     priorRun: {
       type: 'object',
       properties: {
@@ -301,8 +303,9 @@ const ORIENT_RESULT = {
         lastSlice: { type: 'string' },
         minutesSinceLastEntry: { type: 'number' },
         longestGapMinutes: { type: 'number' }, // the run's own cadence — the yardstick
-        presumedDead: { type: 'boolean' },
-        completed: { type: 'boolean' },        // the prior run reached a terminal hand-back (not dead — done)
+        lastStatus: { type: 'string' },        // the newest agent-end's status (hard-stop, complete, ok)
+        presumedDead: { type: 'boolean' },     // newest entry is an agent-start: an agent never returned
+        stoppedCleanly: { type: 'boolean' },   // newest entry is an agent-end: every agent returned
       },
     },
     // F3 — open runtime-evidence-deferrals read verbatim from 00-index.md (cleared-by: null only).
@@ -533,10 +536,14 @@ async function orient() {
     `   - longestGapMinutes: over the entries of that newest run only, the LARGEST gap in minutes between ` +
     `consecutive \`at\` timestamps (0 when there is only one entry). This is the run's own observed cadence.\n` +
     `   - minutesSinceLastEntry: system-clock now minus lastEntryAt, in minutes.\n` +
-    `   - completed: true iff the newest entry is an agent-end whose agent was a terminal step (the slug-wide ` +
-    `review, or the last stage of the last roster slice) — that run finished, it did not die.\n` +
-    `   - presumedDead: true iff NOT completed AND minutesSinceLastEntry exceeds BOTH longestGapMinutes and a ` +
-    `20-minute floor (the floor keeps a run with one slow first agent from being called dead). NEVER infer ` +
+    `   - lastStatus: the status field of the newest entry when it is an agent-end (for example hard-stop, ` +
+    `complete, ok); omit it otherwise.\n` +
+    `   - stoppedCleanly: true iff the newest entry is an agent-end AND minutesSinceLastEntry exceeds BOTH ` +
+    `longestGapMinutes and a 20-minute floor. Every agent returned, so the run ended: at a hard-stop, at its ` +
+    `endpoint, or between two agents. No agent was writing, so no write is half-finished.\n` +
+    `   - presumedDead: true iff the newest entry is an agent-start AND minutesSinceLastEntry exceeds BOTH ` +
+    `longestGapMinutes and a 20-minute floor (the floor keeps a run with one slow first agent from being called ` +
+    `dead). That agent never returned, so its writes may be half-finished. NEVER infer ` +
     `"still running" from the file merely EXISTING — a resuming session once told the user a dead driver was ` +
     `"currently re-verifying older slices" on exactly that reasoning, and the user made a stop/continue ` +
     `decision on the fiction.\n` +
@@ -614,9 +621,12 @@ async function orient() {
     `ux-impact is absent and 02b-design.md exists. Design is SETTLED when 02c-craft.md exists with a resolved ` +
     `image-gate (pass or skipped:<reason>) AND a direction-confirmed-by field, or when 00-index.md ` +
     `progress.design is 'skipped' with a design-skip-reason. The design is NOT settled while 00-index.md records ` +
-    `progress.design: in-progress (reopened by an extension or an amend stop). When design is needed and not settled, ` +
-    `set ok=false, blockReason='design not confirmed by a person (design stage pending)', route='/wf design ${slug}' ` +
-    `('/wf design ${slug} amend' when the design is reopened).\n` +
+    `progress.design: in-progress (reopened by an extension or an amend stop). A slice whose 03-slice-<slice>.md ` +
+    `carries ux-impact: none changes nothing a person sees, so its plan does not wait for the design; a slice ` +
+    `WITHOUT the field keeps the slug rule. When design is needed and not settled, and at least one roster slice ` +
+    `whose plan is not yet complete lacks ux-impact: none, set ok=false, blockReason='design not confirmed by a ` +
+    `person (design stage pending)', route='/wf design ${slug}' ('/wf design ${slug} amend' when the design is ` +
+    `reopened). When every such slice carries ux-impact: none, the run proceeds.\n` +
     `6. For ALL roster slices (in roster order — the COMPLETE list, both modes; the full roster is needed so ` +
     `slice-mode can route to the next slice), check on disk which of plan/implement/verify/review already exist ` +
     `AND are terminal-clean, marking each 'done' | 'todo':\n` +
@@ -1703,8 +1713,8 @@ RUN_ID = (idx.runId && String(idx.runId).trim()) || `run-${slug}`
 const priorDriver = idx.priorRun && idx.priorRun.present === true ? idx.priorRun : null
 if (priorDriver && priorDriver.presumedDead === true) {
   log(`prior driver PRESUMED DEAD — journal silent since ${priorDriver.lastEntryAt} (${Math.round(priorDriver.minutesSinceLastEntry || 0)} min; its own longest gap was ${Math.round(priorDriver.longestGapMinutes || 0)} min), last seen at ${priorDriver.lastStage || 'an unknown stage'}${priorDriver.lastSlice ? ` on '${priorDriver.lastSlice}'` : ''}. Its partial writes are treated as suspect: every stage re-reads control files fresh before editing.`)
-} else if (priorDriver && priorDriver.completed === true) {
-  log(`prior driver for this slug completed at ${priorDriver.lastEntryAt} — resuming from its recorded state`)
+} else if (priorDriver && priorDriver.stoppedCleanly === true) {
+  log(`prior driver stopped cleanly at ${priorDriver.lastStage || 'an unknown stage'}${priorDriver.lastSlice ? ` on '${priorDriver.lastSlice}'` : ''} (${priorDriver.lastStatus || 'no status'}, ${priorDriver.lastEntryAt}) — resuming from its recorded state`)
 }
 if (!idx.ok) {
   return { ok: false, stopped: true, mode: idx.mode, reason: idx.blockReason || 'workflow not ready (intake/shape/design/slice/plan incomplete, or a terminal-analysis type with no decided build)', route: idx.route, ...(priorDriver ? { priorDriver } : {}) }
@@ -1817,6 +1827,9 @@ if (idx.workflowType === 'update-deps') {
   // driveRoster() — walk one partition. Returns a stop-outcome, or null when the
   // whole list cleared. `bounded` marks the re-challenge sweep (W2.2).
   async function driveRoster(list, bounded) {
+    // A checkpoint window in which no stage ran cannot drift the charter, so it is
+    // not re-checked: a resumed run otherwise re-checks every finished slice first.
+    let workSinceCheckpoint = false
     for (let si = 0; si < list.length; si++) {
       const s = list[si]
       // An already-skipped roster entry (00-index slices[].status: skipped, with its
@@ -1829,6 +1842,7 @@ if (idx.workflowType === 'update-deps') {
       }
       const chain = await driveChain(perSliceStages, s.slice, idx, { bounded })
       results.push(chain)
+      if (chain.ran.length) workSinceCheckpoint = true
       if (chain.stopped) {
         return { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: chain.at, stoppedSlice: s.slice, reason: chain.reason, results, route: `address the gate at '${chain.at}' on slice '${s.slice}', then re-run /wf yolo ${slug}` }
       }
@@ -1836,7 +1850,11 @@ if (idx.workflowType === 'update-deps') {
       // slug-wide review + final scenario cover). A `broken` commitment stops the run.
       // Only on the primary pass: the sweep builds nothing, so it cannot drift a charter.
       const isLast = si === list.length - 1
-      if (!bounded && (idx.charter || []).length && !isLast && (si + 1) % CHECKPOINT_EVERY === 0) {
+      const checkpointDue = !bounded && (idx.charter || []).length && !isLast && (si + 1) % CHECKPOINT_EVERY === 0
+      if (checkpointDue && !workSinceCheckpoint) {
+        log(`charter checkpoint after '${s.slice}' skipped — no stage ran since the last checkpoint`)
+      } else if (checkpointDue) {
+        workSinceCheckpoint = false
         const cp = await charterCheckpoint(idx, s.slice)
         if (cp) {
           charterCheckpoints.push({ throughSlice: s.slice, ...cp })

@@ -61,14 +61,23 @@ function designSettled(index, contract) {
 function isPlanArtifact(storageRel) {
   return /^04-plan(?:-[^/]+)?\.md$/.test(String(storageRel ?? ""));
 }
-function designGateRefusal({ index, hasBrief, contract, slug }) {
+function planSliceOf(storageRel) {
+  const m = /^04-plan-([^/]+)\.md$/.exec(String(storageRel ?? ""));
+  return m ? m[1] : null;
+}
+function sliceHasNoUx(slice) {
+  return String(slice?.["ux-impact"] ?? "").trim() === "none";
+}
+function designGateRefusal({ index, hasBrief, contract, slug, slice = null, sliceSlug = null }) {
   if (!index) return null;
   if (!designNeeded(index, hasBrief)) return null;
+  if (sliceHasNoUx(slice)) return null;
   if (designSettled(index, contract)) return null;
   const reopened = designReopened(index) && contract;
   const why = reopened ? "the design is reopened (progress.design: in-progress)" : contract ? "02c-craft.md exists but carries no resolved image-gate or no direction-confirmed-by" : "02c-craft.md is missing";
   const route = reopened ? `/wf design ${slug} amend` : `/wf design ${slug}`;
-  return `Design is needed for '${slug}' (ux-impact: ${index["ux-impact"] ?? "unset; 02b-design.md exists"}) but not settled: ${why}. A person confirms the design before planning. Run ${route}. (Opt out: hooks.designDirectionGate: false.)`;
+  const sliceHint = sliceSlug ? ` When slice '${sliceSlug}' changes nothing a person sees, set \`ux-impact: none\` in 03-slice-${sliceSlug}.md instead.` : "";
+  return `Design is needed for '${slug}' (ux-impact: ${index["ux-impact"] ?? "unset; 02b-design.md exists"}) but not settled: ${why}. A person confirms the design before planning. Run ${route}.${sliceHint} (Opt out: hooks.designDirectionGate: false.)`;
 }
 
 // hooks/pre-write-validate.mjs
@@ -147,7 +156,7 @@ async function run(input) {
     }
   }
   if (errors.length === 0 && config.hooks.designDirectionGate !== false && isPlanArtifact(info.storageRel)) {
-    const refusal = await designGate({ projectRoot, filePath, slug: info.slug });
+    const refusal = await designGate({ projectRoot, filePath, slug: info.slug, storageRel: info.storageRel });
     if (refusal) errors.push(refusal);
   }
   if (errors.length > 0) {
@@ -168,7 +177,7 @@ Fix these issues and retry the write.
     outputSystemMessage(`wf-validate: write to ${filename} allowed. Advisory: ${warnings.join(" ")}`);
   }
 }
-async function designGate({ projectRoot, filePath, slug }) {
+async function designGate({ projectRoot, filePath, slug, storageRel }) {
   try {
     const dir = dirname(resolveProjectPath(projectRoot, filePath));
     const indexText = await readTextIfExists(join(dir, "00-index.md"));
@@ -177,7 +186,10 @@ async function designGate({ projectRoot, filePath, slug }) {
     const contractText = await readTextIfExists(join(dir, "02c-craft.md"));
     const contract = contractText === null ? null : safeParseFrontmatter(contractText, { filePath: join(dir, "02c-craft.md") }).data ?? {};
     const hasBrief = existsSync(join(dir, "02b-design.md"));
-    return designGateRefusal({ index, hasBrief, contract, slug });
+    const sliceSlug = planSliceOf(storageRel);
+    const sliceText = sliceSlug === null ? null : await readTextIfExists(join(dir, `03-slice-${sliceSlug}.md`));
+    const slice = sliceText === null ? null : safeParseFrontmatter(sliceText, { filePath: join(dir, `03-slice-${sliceSlug}.md`) }).data ?? null;
+    return designGateRefusal({ index, hasBrief, contract, slug, slice, sliceSlug });
   } catch {
     return null;
   }

@@ -953,8 +953,8 @@ export function register(on: On, options: PluginOptions = {}) {
   /**
    * One read of the driver journal into the status line. The driver runs in
    * the background past its own turn, so the watch outlives the turn; it stops
-   * at the first presumed-dead reading, with one toast, and the line stays
-   * until the next turn starts.
+   * at the first stopped reading, silently, or at the first presumed-dead
+   * reading, with one toast. The line stays until the next turn starts.
    */
   async function driverTick(engine: Host, key: string, slug: string): Promise<void> {
     if (model.root === null) return
@@ -968,6 +968,8 @@ export function register(on: On, options: PluginOptions = {}) {
         deadToastedRun = run
         engine.toast(`wf ${key} ${slug}: driver ${driverText.slice(driverText.indexOf('presumed dead'))}`)
       }
+      stopDriver()
+    } else if (driverText.includes(' · stopped at ')) {
       stopDriver()
     }
   }

@@ -86,7 +86,7 @@ If any slug has a `cost.jsonl`, add the cost table (one row per slug with a ledg
 - <omit the whole section when no .driver-journal.jsonl exists>
 - Driver: running — last seen at <stage>/<slice>, <n> min ago (cadence: <longest gap> min)
         | **presumed dead** at <stage>/<slice> since <timestamp> — its partial writes are suspect
-        | completed at <timestamp>
+        | stopped at <stage>/<slice> (<status>) at <timestamp>
 
 ## Open Deferrals (when any are open)
 - <slice>/<ac> — <reason> · clearing event: <clearing-event>

@@ -164,6 +164,7 @@ updated-at: "<iso-8601>"
 complexity: <xs|s|m|l|xl>
 depends-on: [<other-slice-slugs>]
 tags: []
+ux-impact: <none|visual|flow|new-surface>  # this slice's own value (design/_lane.md)
 refs:
   index: 00-index.md
   slice-index: 03-slice.md

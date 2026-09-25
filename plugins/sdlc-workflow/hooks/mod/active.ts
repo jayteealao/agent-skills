@@ -356,7 +356,7 @@ export function costTextOf(stageUsd: number | null, ledgerTokens: number | null)
 }
 
 /** One heartbeat line of `.driver-journal.jsonl`. */
-export type Beat = { at: number; run: string; event: string; agent: string | null; phase: string | null; stage: string | null; slice: string | null }
+export type Beat = { at: number; run: string; event: string; agent: string | null; phase: string | null; stage: string | null; slice: string | null; status: string | null }
 
 export function beatsOf(text: string): Beat[] {
   const beats: Beat[] = []
@@ -373,7 +373,7 @@ export function beatsOf(text: string): Beat[] {
     const at = typeof r['at'] === 'string' ? Date.parse(r['at']) : typeof r['at'] === 'number' ? r['at'] : NaN
     if (!Number.isFinite(at)) continue
     const str = (v: unknown) => (typeof v === 'string' ? v : null)
-    beats.push({ at, run: str(r['run']) ?? '', event: str(r['event']) ?? '', agent: str(r['agent']), phase: str(r['phase']), stage: str(r['stage']), slice: str(r['slice']) })
+    beats.push({ at, run: str(r['run']) ?? '', event: str(r['event']) ?? '', agent: str(r['agent']), phase: str(r['phase']), stage: str(r['stage']), slice: str(r['slice']), status: str(r['status']) })
   }
   return beats
 }
@@ -381,10 +381,15 @@ export function beatsOf(text: string): Beat[] {
 /** The presumed-dead floor: a single slow first agent is never called dead. */
 export const DEAD_FLOOR_MS = 20 * 60 * 1000
 
+/** The rows an agent writes when it returns. Any other newest row is an agent still out. */
+const END_EVENTS = new Set(['agent-end', 'end', 'finish'])
+
 /**
  * The driver status line from the newest run's beats: running with its
- * elapsed time and last beat, or presumed dead when the silence exceeds the
- * run's own longest gap (20-minute floor), the rule of `_control-file-ownership.md`.
+ * elapsed time and last beat, or no longer running when the silence exceeds
+ * the run's own longest gap (20-minute floor), the rule of
+ * `_control-file-ownership.md`. Past that point, a newest row where the agent
+ * returned is a stop; a newest row where it never returned is a presumed death.
  */
 export function driverStatusOf(key: string, beats: readonly Beat[], now: number): string {
   if (beats.length === 0) return `${key} · no driver journal`
@@ -398,6 +403,9 @@ export function driverStatusOf(key: string, beats: readonly Beat[], now: number)
   const placed = [...run].reverse().find(beat => beat.stage !== null) ?? last
   const where = [placed.stage, placed.slice].filter(Boolean).join(' ')
   if (silence > Math.max(longestGap, DEAD_FLOOR_MS)) {
+    if (END_EVENTS.has(last.event)) {
+      return `${key} · stopped at ${clockText(last.at)} · last: ${where || last.event}${last.status ? ` (${last.status})` : ''}`
+    }
     return `${key} · presumed dead since ${clockText(last.at)} · last: ${where || last.event}`
   }
   const parts = [key, `run ${last.run}`]

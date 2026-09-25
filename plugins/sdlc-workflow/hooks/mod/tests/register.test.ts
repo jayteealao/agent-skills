@@ -908,7 +908,7 @@ describe('register', () => {
     expect(world.statuses.at(-1)).toBe('yolo · no driver journal')
     const at = (ms: number) => new Date(ms).toISOString()
     tree['/work/.ai/workflows/alpha-flow/.driver-journal.jsonl'] =
-      `{"at":"${at(clock.now() - 600_000)}","run":"r3","seq":1,"event":"start","agent":"a1","phase":"stage","stage":"implement","slice":"auth"}\n{"at":"${at(clock.now() - 120_000)}","run":"r3","seq":2,"event":"finish","agent":"a1","phase":"stage","stage":"implement","slice":"auth"}\n`
+      `{"at":"${at(clock.now() - 600_000)}","run":"r3","seq":1,"event":"finish","agent":"a0","phase":"stage","stage":"plan","slice":"auth"}\n{"at":"${at(clock.now() - 120_000)}","run":"r3","seq":2,"event":"start","agent":"a1","phase":"stage","stage":"implement","slice":"auth"}\n`
     await clock.advance(5_000)
     expect(world.statuses.at(-1)).toMatch(/^yolo · run r3 · implement auth · agent a1 · \d+ min · last beat 2 min ago$/u)
     // The driver runs in the background: the watch outlives the turn, and a write's refresh keeps the driver line.
@@ -928,6 +928,25 @@ describe('register', () => {
     // The next turn hands the status line back to the strip.
     await $.turn.start({ text: 'hello', turnId: 't4' })
     expect(world.statuses.at(-1)).toBe('next /wf verify alpha-flow auth · $0.00 stage · hub 9.157.0')
+  })
+
+  test('a driver whose last agent returned reads stopped, with no toast', async ($, on) => {
+    const tree: Record<string, string> = { ...TREE, ...HUB_CONFIG }
+    const world = seat(on, tree)
+    const clock = world.clock
+    await clock.set(10_000_000)
+    await $.session.start(SESSION)
+    const at = (ms: number) => new Date(ms).toISOString()
+    tree['/work/.ai/workflows/alpha-flow/.driver-journal.jsonl'] =
+      `{"at":"${at(clock.now() - 600_000)}","run":"r5","seq":1,"event":"agent-start","agent":"implement:auth","stage":"implement","slice":"auth"}\n{"at":"${at(clock.now() - 120_000)}","run":"r5","seq":1,"event":"agent-end","agent":"implement:auth","stage":"implement","slice":"auth","status":"hard-stop"}\n`
+    await $.turn.start({ text: '/wf yolo alpha-flow', turnId: 't5' })
+    expect(world.statuses.at(-1)).toMatch(/^yolo · run r5 · implement auth/u)
+    await clock.advance(20 * 60_000)
+    expect(world.statuses.at(-1)).toMatch(/^yolo · stopped at \d\d:\d\d · last: implement auth \(hard-stop\)$/u)
+    expect(world.toasts).toEqual([])
+    const after = world.statuses.length
+    await clock.advance(60_000)
+    expect(world.statuses.length).toBe(after)
   })
 
   test('the hub line draws under the logo, and a state change is one toast', async ($, on) => {

@@ -21,7 +21,7 @@
 import { existsSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { loadConfig } from '../lib/config.mjs';
-import { designGateRefusal, isPlanArtifact } from '../lib/design-lane.mjs';
+import { designGateRefusal, isPlanArtifact, planSliceOf } from '../lib/design-lane.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import {
@@ -140,7 +140,7 @@ export async function run(input) {
   }
 
   if (errors.length === 0 && config.hooks.designDirectionGate !== false && isPlanArtifact(info.storageRel)) {
-    const refusal = await designGate({ projectRoot, filePath, slug: info.slug });
+    const refusal = await designGate({ projectRoot, filePath, slug: info.slug, storageRel: info.storageRel });
     if (refusal) errors.push(refusal);
   }
 
@@ -161,9 +161,10 @@ export async function run(input) {
 }
 
 // Design lane human rule: read the slug's 00-index.md, 02b-design.md presence, and
-// 02c-craft.md frontmatter beside the plan being written. Fail open on any read
-// or parse problem — this gate guards a decision, not the file format.
-async function designGate({ projectRoot, filePath, slug }) {
+// 02c-craft.md frontmatter beside the plan being written. A per-slice plan also
+// reads 03-slice-<slice>.md: a slice with `ux-impact: none` needs no design. Fail
+// open on any read or parse problem — this gate guards a decision, not the file format.
+async function designGate({ projectRoot, filePath, slug, storageRel }) {
   try {
     const dir = dirname(resolveProjectPath(projectRoot, filePath));
     const indexText = await readTextIfExists(join(dir, '00-index.md'));
@@ -174,7 +175,12 @@ async function designGate({ projectRoot, filePath, slug }) {
       ? null
       : (safeParseFrontmatter(contractText, { filePath: join(dir, '02c-craft.md') }).data ?? {});
     const hasBrief = existsSync(join(dir, '02b-design.md'));
-    return designGateRefusal({ index, hasBrief, contract, slug });
+    const sliceSlug = planSliceOf(storageRel);
+    const sliceText = sliceSlug === null ? null : await readTextIfExists(join(dir, `03-slice-${sliceSlug}.md`));
+    const slice = sliceText === null
+      ? null
+      : (safeParseFrontmatter(sliceText, { filePath: join(dir, `03-slice-${sliceSlug}.md`) }).data ?? null);
+    return designGateRefusal({ index, hasBrief, contract, slug, slice, sliceSlug });
   } catch {
     return null;
   }

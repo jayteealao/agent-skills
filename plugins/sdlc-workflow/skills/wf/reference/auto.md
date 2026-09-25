@@ -79,7 +79,7 @@ Gate on **artifact existence + the artifact's terminal status**, not the `progre
 
 **Pre-slice band (both modes, only if not yet done):**
 - `02-shape.md` missing → `shape`.
-- Else design needed and not settled ([design/_lane.md](design/_lane.md)) → PAUSE and route to `/wf design <slug>`. `auto` never runs the design stage: a person confirms the design.
+- Else design needed and not settled ([design/_lane.md](design/_lane.md)) → PAUSE and route to `/wf design <slug>`. `auto` never runs the design stage: a person confirms the design. A slice whose file records `ux-impact: none` does not wait for the design.
 - Else `03-slice.md` missing → `slice`.
 - `intake` is assumed complete — `auto` is started after intake. If `01-intake.md` is missing or `status: awaiting-input`, PAUSE and route to `/wf intake`.
 

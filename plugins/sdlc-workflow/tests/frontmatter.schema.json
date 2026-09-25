@@ -567,6 +567,10 @@
         "depends-on": { "$ref": "#/$defs/stringArray" },
         "revisions": { "$ref": "#/$defs/revisionLedger" },
         "tags": { "$ref": "#/$defs/stringArray" },
+        "ux-impact": {
+          "enum": ["none", "visual", "flow", "new-surface"],
+          "description": "How far this slice reaches into what a person sees and does (design/_lane.md). A slice with none is planned without the design stage; a slice without the field keeps the slug rule."
+        },
         "refs": { "$ref": "#/$defs/refs" }
       }
     },

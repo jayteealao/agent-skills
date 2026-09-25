@@ -25,7 +25,7 @@ This file is the shared rule. `yolo.md`, `auto.md`, and the write-bearing stage 
 
 Rules 3 and 4 both turn on one question: *is a driver actually running right now?* Answer it from **recency**, never from existence.
 
-> **A journal silent for longer than its own longest observed inter-agent gap is presumed dead. Say "presumed dead since `<last entry>`", never "still running".**
+> **A journal silent for longer than its own longest observed inter-agent gap is no longer running. When its newest entry is an `agent-start`, that agent never returned: say "presumed dead since `<last entry>`", never "still running". When its newest entry is an `agent-end`, every agent returned: say "stopped at `<stage>`".**
 
 The evidence is the driver's heartbeat journal, `.ai/workflows/<slug>/.driver-journal.jsonl` — an append-only JSONL file to which every agent a driver dispatches writes one line when it starts and one when it finishes (`at`, `run`, `seq`, `event`, `agent`, `phase`, `stage`, `slice`). The yardstick is the run's **own cadence**, not a fixed timeout: a driver whose slices take 40 minutes is healthy at 35 minutes of silence, and one whose agents return every 3 minutes is not. Take the largest gap between consecutive entries of the newest run, and compare the elapsed time since the last entry against it, with a 20-minute floor so a single slow first agent is never called dead.
 
@@ -34,8 +34,8 @@ Three states, and only three:
 | What the journal shows | What you may say |
 |---|---|
 | Last entry inside the run's cadence | "running — last seen at `<stage>` `<n>` min ago" |
-| Silent beyond its own longest gap, no terminal entry | "**presumed dead** since `<timestamp>`, mid-`<stage>`" |
-| Last entry is the terminal hand-back | "completed at `<timestamp>`" |
+| Silent beyond its own longest gap, newest entry an `agent-start` | "**presumed dead** since `<timestamp>`, mid-`<stage>`" |
+| Silent beyond its own longest gap, newest entry an `agent-end` | "stopped at `<stage>` (`<status>`) at `<timestamp>`" |
 
 No journal at all → *"no driver journal — I can't tell whether one ran."* That is the honest answer, and it is not the same as "nothing is running".
 

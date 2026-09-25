@@ -20,6 +20,7 @@ source: <from-review | from-retro | from-probe | from-simplify | extension>
 source-ref: <07-review-<slice-slug>.md | 10-retro.md | "user description">
 extension-round: <N>  # 1 for the first extension on this workflow, 2 for the second, etc.
 tags: []
+ux-impact: <none|visual|flow|new-surface>  # this slice's own value, from Step 3c (design/_lane.md)
 refs:
   index: 00-index.md
   slice-index: 03-slice.md

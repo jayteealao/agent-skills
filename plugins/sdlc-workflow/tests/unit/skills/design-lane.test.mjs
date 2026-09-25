@@ -18,6 +18,7 @@ import {
   designSettled,
   imageGateResolved,
   isPlanArtifact,
+  planSliceOf,
 } from '../../../lib/design-lane.mjs';
 import { defaultFrontmatterSchemaPath, validateFrontmatter } from '../../../lib/schema-validator.mjs';
 
@@ -131,6 +132,32 @@ test('hook: refuses a plan while a confirmed design is reopened', () => {
   });
   equal(r.status, 2, r.stderr);
   match(r.stderr, /\/wf design demo amend/);
+});
+
+// A slice that changes nothing a person sees is planned without the design stage.
+// The plan file in runPlanWrite is 04-plan-checkout.md, so the slice is `checkout`.
+const SLICE = (extra = {}) => fm({ schema: 'sdlc/v1', type: 'slice', slug: 'demo', 'slice-slug': 'checkout', ...extra });
+
+test('hook: allows a slice plan when the slice carries ux-impact none', () => {
+  const r = runPlanWrite({ '00-index.md': INDEX({ 'ux-impact': 'visual' }), '03-slice-checkout.md': SLICE({ 'ux-impact': 'none' }) });
+  equal(r.status, 0, r.stderr);
+});
+
+test('hook: refuses a slice plan when the slice touches the UI or has no ux-impact', () => {
+  const ui = runPlanWrite({ '00-index.md': INDEX({ 'ux-impact': 'visual' }), '03-slice-checkout.md': SLICE({ 'ux-impact': 'visual' }) });
+  equal(ui.status, 2, ui.stderr);
+  const legacy = runPlanWrite({ '00-index.md': INDEX({ 'ux-impact': 'visual' }), '03-slice-checkout.md': SLICE() });
+  equal(legacy.status, 2, legacy.stderr);
+  match(legacy.stderr, /ux-impact: none` in 03-slice-checkout\.md/);
+});
+
+test('designGateRefusal: a slice with ux-impact none passes; the slug-wide plan keeps the slug rule', () => {
+  const index = { 'ux-impact': 'visual' };
+  equal(designGateRefusal({ index, hasBrief: true, contract: null, slug: 'demo', slice: { 'ux-impact': 'none' }, sliceSlug: 'engine' }), null);
+  ok(designGateRefusal({ index, hasBrief: true, contract: null, slug: 'demo', slice: { 'ux-impact': 'flow' }, sliceSlug: 'engine' }));
+  ok(designGateRefusal({ index, hasBrief: true, contract: null, slug: 'demo', slice: null, sliceSlug: null }));
+  equal(planSliceOf('04-plan-lone-forward.md'), 'lone-forward');
+  equal(planSliceOf('04-plan.md'), null);
 });
 
 test('hook: allows a plan when ux-impact is none, and when the gate is off', () => {

@@ -622,3 +622,28 @@ test('clearingTripwire: a satisfied clearing event is surfaced with what would c
 test('clearingTripwire: a PO-authorized deferral is settled — no tripwire noise for it', () => {
   assert.equal(clearingTripwire([{ slice: 's1', ac: 'AC1', clearingProbeHit: true, authorized: true }]), null);
 });
+
+// ---------------------------------------------------------------------------
+// Driver liveness. A run that ended on a hard-stop, or at its endpoint after a
+// wall probe, was reported "PRESUMED DEAD" by the next run: `completed` knew only
+// the review as a terminal step. The question the rule serves is "did an agent
+// die mid-write?", and only an unmatched agent-start answers yes.
+// ---------------------------------------------------------------------------
+
+test('liveness: presumedDead keys on an open agent-start, never on a named terminal step', () => {
+  assert.match(yoloSrc, /presumedDead: true iff the newest entry is an agent-start/);
+  assert.match(yoloSrc, /stoppedCleanly: true iff the newest entry is an agent-end/);
+  assert.doesNotMatch(yoloSrc, /whose agent was a terminal step/);
+  assert.match(yoloSrc, /prior driver stopped cleanly at/);
+});
+
+// ---------------------------------------------------------------------------
+// Charter checkpoints. A resumed run re-checked every finished slice before its
+// first real stage (53 agents, 3.8M tokens over one slug). A window in which no
+// stage ran cannot drift the charter.
+// ---------------------------------------------------------------------------
+
+test('checkpoint: skipped when no stage ran since the last checkpoint', () => {
+  assert.match(yoloSrc, /if \(chain\.ran\.length\) workSinceCheckpoint = true/);
+  assert.match(yoloSrc, /!workSinceCheckpoint\) \{\s*log\(`charter checkpoint after '\$\{s\.slice\}' skipped/);
+});
