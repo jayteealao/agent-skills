@@ -5,6 +5,17 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.169.0] - 2026-09-25
+
+### Added
+
+- **A slice records its own `ux-impact`.** `03-slice-<slice>.md` may carry `ux-impact` (`none`, `visual`, `flow`, `new-surface`). The pre-write hook reads it for a per-slice plan: a slice with `none` is planned while the slug's design is still unsettled, so an engine or data slice no longer waits for the design stage. A slice without the field keeps the slug rule. `slice` and `extend` write the field; yolo's orient step and `auto` state the same exception. The refusal message names the field as the way out for a slice with no UI.
+
+### Fixed
+
+- **A clean stop no longer reads as a dead driver.** The next yolo run reported "prior driver PRESUMED DEAD" after every hard-stop, and after a run that reached its endpoint through a wall probe, because only the review counted as a terminal step. Liveness now keys on the journal's newest entry: an `agent-start` past the run's cadence is presumed dead (that agent never returned, so its writes are suspect); an `agent-end` stopped cleanly and gets no reconciliation clause. `_control-file-ownership.md`, the `/wf status` render, and the mod status line use the same rule. The mod watch now stops silently at a clean stop (`stopped at HH:MM · last: <stage> <slice> (<status>)`) instead of showing "presumed dead" with a toast twenty minutes later.
+- **Charter checkpoints skip a window where nothing ran.** A resumed run re-checked every finished slice before its first real stage. On one slug that cost 53 agents and 3.8M of 26.8M tokens, more than every verify agent together. A checkpoint window in which no stage ran is now skipped with a log line.
+
 ## [9.168.0] - 2026-09-24
 
 ### Added
