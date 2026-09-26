@@ -310,7 +310,7 @@ describe('register', () => {
   test('session start registers one command per key', async ($, on) => {
     const world = seat(on)
     await $.session.start(SESSION)
-    expect(world.registered.slice(0, 22)).toEqual(CATALOG.map(entry => `wf-${entry.key}`))
+    expect(world.registered.slice(0, CATALOG.length)).toEqual(CATALOG.map(entry => `wf-${entry.key}`))
     expect(world.registered).toEqual([...CATALOG.map(entry => `wf-${entry.key}`), 'wf-dashboard', 'wf-active'])
   })
 
@@ -456,14 +456,14 @@ describe('register', () => {
     const first = textOf(await $.ui.render(BAND))
     expect(first).toContain('(page 1 of 3)')
     expect(first).toContain('intake  ')
-    expect(first).toContain('ship  ')
-    expect(first).not.toContain('retro  ')
+    expect(first).toContain('handoff  ')
+    expect(first).not.toContain('ship  ')
     expect(first).toContain('more')
 
     await $.ui.press({ plugin: PLUGIN_NAME, key: MORE_KEY })
     const second = textOf(await $.ui.render(BAND))
     expect(second).toContain('(page 2 of 3)')
-    expect(second).toContain('retro  ')
+    expect(second).toContain('ship  ')
     expect(second).not.toContain('intake  ')
 
     await $.ui.press({ plugin: PLUGIN_NAME, key: MORE_KEY })
@@ -552,17 +552,17 @@ describe('register', () => {
     await ringTo($, `${OPTION_KEY_PREFIX}shape`)
     expect(textOf(await $.ui.render(BAND))).toContain('(page 1 of 3)')
 
-    // From the last row (ship) a move onto a title control is Tab past the end.
-    await ringTo($, `${OPTION_KEY_PREFIX}ship`)
+    // From the last row (handoff) a move onto a title control is Tab past the end.
+    await ringTo($, `${OPTION_KEY_PREFIX}handoff`)
     world.focused.length = 0
     await ringTo($, MORE_KEY)
     expect(textOf(await $.ui.render(BAND))).toContain('(page 2 of 3)')
-    expect(world.focused).toEqual([`${OPTION_KEY_PREFIX}retro`])
+    expect(world.focused).toEqual([`${OPTION_KEY_PREFIX}ship`])
 
     // From the first row of page 2 a move onto the field is Shift+Tab before the start.
     await ringTo($, FILTER_KEY)
     expect(textOf(await $.ui.render(BAND))).toContain('(page 1 of 3)')
-    expect(world.focused).toEqual([`${OPTION_KEY_PREFIX}retro`, `${OPTION_KEY_PREFIX}ship`])
+    expect(world.focused).toEqual([`${OPTION_KEY_PREFIX}ship`, `${OPTION_KEY_PREFIX}handoff`])
 
     // On a one-page step the ring moves as the engine says.
     await $.ui.press({ plugin: PLUGIN_NAME, key: `${OPTION_KEY_PREFIX}plan` })
@@ -1049,7 +1049,7 @@ describe('register', () => {
     const load = probeRows(world)
     expect(load[0]).toMatchObject({ event: 'load', ok: true, host: 'cli', session: 'abcdef01' })
     expect(load[0]?.['detail']).toContain('root /work')
-    expect(load[1]).toMatchObject({ event: 'commands', ok: true, detail: '24/24' })
+    expect(load[1]).toMatchObject({ event: 'commands', ok: true, detail: '25/25' })
     await turn($, '/wf implement alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md'])
     await world.clock.advance(1)
     await settle()
