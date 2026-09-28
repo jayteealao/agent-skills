@@ -181,9 +181,19 @@ test('the six skills: openai.yaml parses with the expected shape; SKILL.md name 
 
 test('_subagents.md pins the effort-tier → host mapping', () => {
   const src = read('skills', 'wf', 'reference', '_subagents.md');
-  assert.match(src, /low, medium and high = `sonnet`/);
+  assert.match(src, /low and medium = `sonnet`, high = `opus`/);
+  assert.doesNotMatch(src, /(low|medium)( and (medium|high))? = `opus`/, 'opus is the high tier only');
+  assert.match(src, /to `claude-opus-5-5` at `medium` effort, and every other agent to `claude-sonnet-5-5` at `high` effort/);
+  const yolo = read('skills', 'wf', 'workflows', 'yolo.js');
+  assert.match(yolo, /const SONNET = \{ model: 'claude-sonnet-5-5', effort: 'high' \}/, 'yolo low/medium agents: Sonnet 5.5 at high effort');
+  assert.match(yolo, /const OPUS = \{ model: 'claude-opus-5-5', effort: 'medium' \}/, 'yolo other agents: Opus 5.5 at medium effort');
+  const calls = (yolo.match(/\bagent\(\s*\n/g) || []).length;
+  const spreads = (yolo.match(/\.\.\.(SONNET|OPUS)\b/g) || []).length;
+  assert.ok(calls > 0, 'yolo agent() calls were found');
+  assert.equal(spreads, calls, 'every yolo agent() call spreads SONNET or OPUS');
+  assert.equal((yolo.match(/model: '/g) || []).length, 2, 'yolo pins a model only in the SONNET and OPUS presets');
   assert.doesNotMatch(src, /low = `haiku`/, 'haiku is not a tier target until Haiku 5.5 is re-evaluated');
-  assert.match(src, /Never `opus`/);
+  assert.match(src, /Never use `opus` below high/);
   assert.match(src, /Pass the reasoning effort on the spawn: low, medium, high/);
   assert.match(src, /\*\*Paths in a child prompt are absolute\.\*\*/, 'the child-prompt path rule (v9.153.2) must stay');
   assert.match(src, /A \*\*research sub-agent\*\* is a read-only child/, 'the research sub-agent definition must stay');

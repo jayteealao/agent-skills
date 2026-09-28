@@ -56,6 +56,12 @@ for (const [k, v] of Object.entries({ projectRoot, referenceRoot, slug })) {
   }
 }
 
+// Model and reasoning effort for every agent() call. Explicit ids, because an alias
+// can lag a new release. OPUS: orient, the plan/implement/verify stages, the
+// review refuters, and update-deps exec. SONNET: every other agent.
+const SONNET = { model: 'claude-sonnet-5-5', effort: 'high' }
+const OPUS = { model: 'claude-opus-5-5', effort: 'medium' }
+
 // ---------------------------------------------------------------------------
 // External Output Boundary — re-asserted to every fresh-context subagent.
 // They do NOT inherit it from the dispatcher, so each stage prompt embeds it.
@@ -757,7 +763,7 @@ async function orient() {
     `— and one immediately before you return, the same shape with "event":"agent-end", "status":"<ok|blocked>" ` +
     `and "errors":<count of errors you recovered from>. This journal is how a human tells a live driver from a ` +
     `dead one; an append failure never changes what you do.`,
-    { schema: ORIENT_RESULT, label: 'orient', phase: 'Orient' }
+    { schema: ORIENT_RESULT, label: 'orient', phase: 'Orient', ...OPUS }
   )
   if (res) res.priorRun = judgeLiveness(res.priorJournal, res.runId)
   return res
@@ -813,7 +819,7 @@ async function ensureBranch(idx) {
           reason: { type: 'string' },
         },
       },
-      label: 'branch', phase: 'Orient', model: 'sonnet', // mechanical git; pinned per _subagents.md
+      label: 'branch', phase: 'Orient', ...SONNET, // mechanical git; pinned per _subagents.md
     }
   )
 }
@@ -953,7 +959,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `(= metric-findings-blocker, OPEN) — plus the class-stamped decisions you recorded, any residual ` +
     `(could-not-fix) notes, and your recovered-error list.` +
     heartbeatClause(`${stage}${sliceArg ? ':' + sliceArg : ''}`, 'Drive', stage, sliceArg),
-    { schema: STAGE_RESULT, label: `${stage}${sliceArg ? ':' + sliceArg : ''}`, phase: 'Drive' }
+    { schema: STAGE_RESULT, label: `${stage}${sliceArg ? ':' + sliceArg : ''}`, phase: 'Drive', ...OPUS }
   )
 }
 
@@ -1002,7 +1008,7 @@ async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
           note: { type: 'string' },
         },
       },
-      label: `writeback:${sliceArg}`, phase: 'Drive', model: 'sonnet', // mechanical index edit; pinned per _subagents.md
+      label: `writeback:${sliceArg}`, phase: 'Drive', ...SONNET, // mechanical index edit; pinned per _subagents.md
     }
   )
 }
@@ -1205,7 +1211,7 @@ async function driveWallProbe(sliceArg, idx) {
     `collected. Name it in one line; the driver records your reason as a decision so a later audit can see why ` +
     `the run chose bookkeeping over new work. If every wall still stands, leave escalateReason empty.` +
     heartbeatClause(`wall-probe:${sliceArg}`, 'Drive', 'wall-probe', sliceArg),
-    { schema: WALL_PROBE_RESULT, label: `wall-probe:${sliceArg}`, phase: 'Drive' }
+    { schema: WALL_PROBE_RESULT, label: `wall-probe:${sliceArg}`, phase: 'Drive', ...SONNET }
   )
 }
 
@@ -1258,7 +1264,7 @@ async function classifyDecisions(res, idx) {
           },
         },
       },
-      label: `classify:${res.stage}${res.slice ? ':' + res.slice : ''}`, phase: 'Drive',
+      label: `classify:${res.stage}${res.slice ? ':' + res.slice : ''}`, phase: 'Drive', ...SONNET,
     }
   )
   if (!out || !Array.isArray(out.classified)) return res
@@ -1303,7 +1309,7 @@ async function driveReview(sliceArg, idx) {
     `Return rubrics: one entry per selected rubric as { rubric, file, focus, reason }, where file is the rubric's ` +
     `path relative to ${referenceRoot} (review/<name>.md, or design/audit.md / design/critique.md for the two ` +
     `design dimensions) and focus is the alias section to read, or empty for the whole rubric.`,
-    { schema: RUBRIC_SELECTION, label: 'select-rubrics', phase: 'Review' }
+    { schema: RUBRIC_SELECTION, label: 'select-rubrics', phase: 'Review', ...SONNET }
   )
   const rubrics = (selection && Array.isArray(selection.rubrics) && selection.rubrics.length)
     ? selection.rubrics.filter(r => r && r.rubric && r.file)
@@ -1316,7 +1322,7 @@ async function driveReview(sliceArg, idx) {
       `auto-apply it for workflow-type: rca), widening to additional dimensions only if the diff warrants.`
     : ''
   // 1. Parallel read-only dimension scouts.
-  //    Scouts pin sonnet per _subagents.md (rubric-driven review dimensions are not the session model's job).
+  //    Scouts pin SONNET per _subagents.md (rubric-driven review dimensions are not the session model's job).
   const scouts = await parallel(rubrics.map(r => () => agent(
     `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the '${r.rubric}' rubric ONLY` +
     `${r.focus ? ` (focus: ${r.focus})` : ''}. Read ${referenceRoot}/${r.file}` +
@@ -1324,7 +1330,7 @@ async function driveReview(sliceArg, idx) {
     `rubric's own severity scale. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Report only ` +
     `findings the diff supports. Return each as { id, severity (BLOCKER|HIGH|MED|LOW|NIT), file, line, issue, ` +
     `confidence }. Write nothing.\n\n${EOB}`,
-    { schema: FINDINGS_SCHEMA, label: `scout:${r.rubric}${r.focus ? ':' + r.focus : ''}`, phase: 'Review', model: 'sonnet' }
+    { schema: FINDINGS_SCHEMA, label: `scout:${r.rubric}${r.focus ? ':' + r.focus : ''}`, phase: 'Review', ...SONNET }
   )))
   const raw = scouts.filter(Boolean).flatMap(s => s.findings || [])
   // 2. Adversarial verify — refute each finding; keep only survivors. Higher
@@ -1333,7 +1339,7 @@ async function driveReview(sliceArg, idx) {
     agent(
       `Adversarially REFUTE this code-review finding. Default to refuted=true if uncertain or unreproducible. ` +
       `Inspect ${projectRoot} (read-only) to check. Finding: ${JSON.stringify(f)}. Return { refuted, reason }.`,
-      { schema: VERDICT_SCHEMA, label: `refute:${f.id || '?'}`, phase: 'Review' }
+      { schema: VERDICT_SCHEMA, label: `refute:${f.id || '?'}`, phase: 'Review', ...OPUS }
     ).then(v => (v && v.refuted === false ? f : null))
   ))
   const verified = checked.filter(Boolean)
@@ -1360,7 +1366,7 @@ async function driveReview(sliceArg, idx) {
     ) +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + DECISION_CONTRACT +
     heartbeatClause(`review${sliceArg ? ':' + sliceArg : ''}`, 'Review', 'review', sliceArg),
-    { schema: STAGE_RESULT, label: `review${sliceArg ? ':' + sliceArg : ''}`, phase: 'Review' }
+    { schema: STAGE_RESULT, label: `review${sliceArg ? ':' + sliceArg : ''}`, phase: 'Review', ...SONNET }
   )
 }
 
@@ -1402,7 +1408,7 @@ async function runUpdateDepsExec(idx) {
     requiresClause(`${referenceRoot}/intake/update-deps.md`) +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + DECISION_CONTRACT +
     heartbeatClause('update-deps:exec', 'Drive', 'update-deps-exec', null),
-    { schema: STAGE_RESULT, label: 'update-deps:exec', phase: 'Drive' }
+    { schema: STAGE_RESULT, label: 'update-deps:exec', phase: 'Drive', ...OPUS }
   )
 }
 
@@ -1819,7 +1825,7 @@ async function charterCheckpoint(idx, throughSlice) {
     `now contradicts it — e.g. the intake said the model owns a decision and the code hard-codes it). Return ` +
     `{ commitments: [{id, status, note}], summary }. Judge against the CODE, not the artifacts' claims.` +
     heartbeatClause(`checkpoint:${throughSlice}`, 'Drive', 'charter-checkpoint', throughSlice),
-    { schema: CHECKPOINT_RESULT, label: `checkpoint:${throughSlice}`, phase: 'Drive' }
+    { schema: CHECKPOINT_RESULT, label: `checkpoint:${throughSlice}`, phase: 'Drive', ...SONNET }
   )
 }
 
@@ -1911,7 +1917,7 @@ async function reconcilePlans(idx) {
     `overlaps), files (shared files), edges (edges that cross), reason }. When two slices overlap, name the ` +
     `later one in roster order. Return overlaps: [] when no plans overlap.` +
     heartbeatClause('plan-reconcile', 'Drive', 'plan-reconcile', null),
-    { schema: RECONCILE_RESULT, label: 'plan-reconcile', phase: 'Drive', model: 'sonnet' } // read-only comparison; pinned per _subagents.md
+    { schema: RECONCILE_RESULT, label: 'plan-reconcile', phase: 'Drive', ...SONNET } // read-only comparison; pinned per _subagents.md
   )
   if (!r) {
     return { ok: false, stopped: true, reason: 'plan reconcile did not return — reconcile-pending stays set, so the next run retries it', overlaps: [], ran: [] }
@@ -1938,7 +1944,7 @@ async function reconcilePlans(idx) {
     CONTROL_FILE_RULE +
     `\n\nReturn { ok, wrote: [<files changed>], note }.` +
     heartbeatClause('plan-reconcile-clear', 'Drive', 'plan-reconcile', null),
-    { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-reconcile-clear', phase: 'Drive', model: 'sonnet' }
+    { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-reconcile-clear', phase: 'Drive', ...SONNET }
   )
   const markerCleared = !!(cleared && cleared.ok)
   if (!markerCleared) log(`plan reconcile: the reconcile-pending marker did not confirm cleared${cleared && cleared.note ? `: ${cleared.note}` : ''} — the next run repeats the (now clean) comparison`)
@@ -2008,7 +2014,7 @@ async function readLedgerReport(runStartAt) {
     `${runStartAt || 'the start of this run'}, copied verbatim, clean rows (empty missing and partial) included ` +
     `— the driver uses them to see whether a later write closed a gap. Omit a field the row lacks.` +
     heartbeatClause('read-check-report', 'Drive', 'read-check', null),
-    { schema: READ_LEDGER_RESULT, label: 'read-check-report', phase: 'Drive', model: 'sonnet' } // mechanical read; pinned per _subagents.md
+    { schema: READ_LEDGER_RESULT, label: 'read-check-report', phase: 'Drive', ...SONNET } // mechanical read; pinned per _subagents.md
   )
 }
 
@@ -2140,7 +2146,7 @@ if (reconcileStop) {
           CONTROL_FILE_RULE +
           `\n\nReturn { ok, wrote: [<files changed>], note }.` +
           heartbeatClause('plan-index-writeback', 'Drive', 'plan', null),
-          { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-index-writeback', phase: 'Drive', model: 'sonnet' }
+          { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-index-writeback', phase: 'Drive', ...SONNET }
         )
       }
       idx = await orient()                          // re-snapshot so driveChain sees the new plans as done

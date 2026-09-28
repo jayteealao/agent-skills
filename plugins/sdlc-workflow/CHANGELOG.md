@@ -5,6 +5,16 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.173.0] - 2026-09-28
+
+Yolo pins a model and a reasoning effort on every sub-agent, and the high effort tier maps to Opus.
+
+### Changed
+
+- **Yolo model and effort presets.** `yolo.js` has two presets, and each of its 16 `agent()` calls uses one. `OPUS` (`claude-opus-5-5`, effort `medium`) runs orient, the plan, implement and verify stage agents, the review refuters and update-deps exec. `SONNET` (`claude-sonnet-5-5`, effort `high`) runs every other agent: branch, the write-backs, wall-probe, classify, select-rubrics, the review scouts, the review writer, checkpoint, plan-reconcile and read-check. Before, the yolo pins used the `sonnet` alias, which still resolves to `claude-sonnet-5`, and the other agents used the session model and session effort.
+- **High tier = `opus`.** `_subagents.md` maps low and medium to `sonnet` and high to `opus` for Claude Code and pi. `opus` is never used below high. The Agent tool accepts only aliases, so only the yolo driver pins full model ids.
+- The contract test checks the tier mapping, checks that every yolo `agent()` call uses a preset, and checks that yolo pins a model only in the two presets.
+
 ## [9.172.0] - 2026-09-28
 
 Each workflow artifact splits into an agent file and a human page, and the mod checks that each stage reads its required inputs (ARTIFACT-SPLIT-PLAN.md, waves W0–W6).
