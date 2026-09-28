@@ -27,8 +27,13 @@ refs:
   source: <07-review-<slice-slug>.md | 10-retro.md | "">
   plan: 04-plan-<new-slug>.md
   implement: 05-implement-<new-slug>.md
+next-command: wf-plan
+next-invocation: "/wf plan <slug> <new-slug>"
+recommended-routes: [{invocation: "/wf plan <slug> <new-slug>", reason: "plan the new slice", default: true}]
 ---
 ```
+
+Write the explainer to `03-slice-<new-slug>.explainer.html.fragment` per [_story-arc.md](../../_story-arc.md). On a design delta, the default route is `/wf design <slug> amend`.
 
 # Slice: <slice-name>
 

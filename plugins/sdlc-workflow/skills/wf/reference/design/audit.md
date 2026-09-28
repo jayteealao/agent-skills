@@ -81,10 +81,9 @@ Match severity to the scores:
 
 Format as a structured report:
 
-```
-## The Design Audit
-<!-- STORY SECTION — first, and self-sufficient. must follow `../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+In SDLC context, write the explainer to `07-design-audit.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
+```
 ## Design Audit Report
 
 **Overall score**: X/20
@@ -135,6 +134,9 @@ severity-distribution:
 remediation-state: <none|in-progress|complete|deferred>
 refs:
   implementation: 05-implement.md
+next-command: wf-review
+next-invocation: "/wf review <slug>"
+recommended-routes: [{invocation: "/wf review <slug>", reason: "fold the findings into review", default: true}]
 ---
 ```
 

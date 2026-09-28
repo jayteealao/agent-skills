@@ -27,8 +27,8 @@ import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import {
   formatList,
   hasFrontmatterFence,
+  isEvidencePath,
   isProjectContextMarkdownPath,
-  isProbeEvidencePath,
   isProseLogPath,
   isWorkflowMarkdownPath,
   outputSystemMessage,
@@ -93,9 +93,9 @@ export async function run(input) {
   }
 
   const filename = basename(info.filename);
-  // probe-evidence/ evidence files are free-form (no filename convention, no
-  // frontmatter) — see isProbeEvidencePath in hook-utils.
-  if (isProbeEvidencePath(filePath)) return;
+  // probe-evidence/ and verify-evidence/ files are free-form (no filename
+  // convention, no frontmatter) — see isEvidencePath in hook-utils.
+  if (isEvidencePath(filePath)) return;
   const errors = [];
   // po-answers.md is the frontmatter-less product-owner prose log — exempt from
   // both the filename convention and the frontmatter requirement. See isProseLogPath.

@@ -4,7 +4,7 @@ argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake refactor`, a **behavior-preserving refactoring standard lifecycle**.
 
@@ -19,11 +19,32 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 
 | | Detail |
 |---|---|
-| Requires | Existing code to refactor (and ideally existing tests to baseline against). Pass a description or an existing slug to resume. |
+| Requires | See [## Requires](#requires). |
 | Produces (this command) | `01-refactor.md` (`type: intake` — brief), `02-shape.md` (**the baseline**: API surface + coverage map + gaps + frozen APIs + scope), `03-slice.md` (`type: slice-index`, one slice), `04-plan.md` (incremental green steps), conformant `00-index.md` (`type: index`). |
 | Compression | Each stage single-pass — **no stage is skipped**. The refactor is one slice; its units are the plan's atomic green steps. A refactor large enough to need real multi-slicing should take the gate's *Escalate* to a full `/wf intake`. |
 | Gate | Stop-and-prompt before `05-implement` (Proceed / Adjust / Escalate). |
 | Next | `/wf implement <slug>` — standard execution; `07-review` defaults to **`refactor-safety`**. |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| existing code to refactor, and its tests | artifact | always | |
+| `00-index.md` | artifact | on-resume | |
+| `01-refactor.md` | artifact | on-resume | |
+| `steer.md` | artifact | if-present | |
+| `intake/_intake-context.md` | procedure | always | |
+| `intake/_change-mode-tail.md` | procedure | always | |
+| `intake/_intake-provenance.md` | procedure | always | |
+| `design/_lane.md` | procedure | always | |
+| `design/stage.md` | procedure | mode:design | |
+| `_compressed-slice.md` | procedure | mode:slug | |
+| `01-refactor.md` | writes | | |
+| `02-shape.md` | writes | | |
+| `03-slice.md` | writes | | |
+| `04-plan.md` | writes | | |
 
 # Behavior preservation is the only acceptance criterion
 You are a **refactoring orchestrator**. The singular goal is identical external behavior before and after.
@@ -68,11 +89,12 @@ tags: [refactor]
 refs:
   index: 00-index.md
   next: 02-shape.md
-next-command: wf-shape
-next-invocation: "/wf shape <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
-Body: open with `## The Refactor` — the story section (must follow `../_story-arc.md`; 1–2 short paragraphs — the problem inherited, the decisions with reasons, the top open risk; no "This refactor implements…" opening) — then `## Target` (what), `## Why` (the structural problem), `## Frozen` (must-not-change APIs/behaviors), `## Target Structure`.
+Write the explainer to `01-refactor.explainer.html.fragment` per [_story-arc.md](../_story-arc.md). Body: `## Target` (what), `## Why` (the structural problem), `## Frozen` (must-not-change APIs/behaviors), `## Target Structure`.
 
 # Step 2 — Baseline → `02-shape.md` (the most important step)
 The baseline captures ground truth before any code change — it IS the shape. Launch parallel sub-agents.
@@ -102,8 +124,9 @@ refs:
   index: 00-index.md
   intake: 01-refactor.md
   next: 03-slice.md
-next-command: wf-slice
-next-invocation: "/wf slice <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
 Body (this is the baseline — preserve it richly): `## Public API Surface` (every exported name with signature, exactly as it currently exists — the verify acceptance contract), `## Test Coverage Map` (behavior → test file), `## Coverage Gaps` (uncovered behaviors = refactor risk), `## Baseline Command` (the exact test command sub-agent 2 ran — verify re-runs this literal command and diffs its counts), `## Baseline Test Result` (pass/fail/skip counts before any change), `## Callers` (count + key sites), `## In Scope` / `## Out of Scope` (the frozen surface), `## Coverage Decision` (written after the question below — which option the user chose and why).
@@ -131,8 +154,9 @@ refs:
   index: 00-index.md
   shape: 02-shape.md
   next: 04-plan.md
-next-command: wf-plan
-next-invocation: "/wf plan <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
 Body (one line): "Single-slice refactor — the units are the plan's atomic green steps."
@@ -160,8 +184,9 @@ refs:
   index: 00-index.md
   slice: 03-slice.md
   next: 05-implement.md
-next-command: wf-implement
-next-invocation: "/wf implement <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
 Body `## Steps` — each step: **What changes** (specific files), **What does NOT change** (preserved surface), **Verify green** (test command after this step), **Why before the next** (dependency or "independent"). Then `## Pattern` (the named refactoring pattern) and `## API Surface Delta` (must be `none` unless API simplification is the explicit goal).

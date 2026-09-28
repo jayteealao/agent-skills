@@ -68,7 +68,9 @@ export function render(artifact, ctx) {
   // Structured body sections (D5.7–D5.12, D5.15) projected from frontmatter +
   // sibling YAML. When an authored fragment is present it owns the rich body,
   // so the structured sections are suppressed to avoid duplication.
-  const structured = artifact.fragment ? '' : structuredSections(fm, sy);
+  // A generated fragment (renderers/_fragment-gen.mjs) carries no structured
+  // sections, so the static ones stay.
+  const structured = artifact.fragment && !artifact.fragmentGenerated ? '' : structuredSections(fm, sy);
 
   // v9.24.0: markdown body always rendered alongside fragment (if present).
   const fragmentBlock = artifact.fragment

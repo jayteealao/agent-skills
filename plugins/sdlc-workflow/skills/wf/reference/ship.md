@@ -13,11 +13,29 @@ You are running `/wf ship`, **stage 9 of 10**: 1·intake → 2·shape → 3·sli
 
 | | Detail |
 |---|---|
-| Requires | `.ai/ship-plan.md` (project-level; author it via `/wf ship-plan init` once per project) AND `08-handoff.md` with `readiness-verdict: ready` (single-slug) or `pr-readiness-verdict: ready` (batch, the branch-level AND). |
-| Conditional inputs (required when present) | `augmentations:` in `00-index.md` (union across the roster in batch mode): every entry gets a changelog entry in user language. A prior `09-ship-run-*.md` with `status: awaiting-input`: offer to resume rather than start fresh. |
+| Requires | See [## Requires](#requires). The gate needs `readiness-verdict: ready` (single-slug) or `pr-readiness-verdict: ready` (batch) in `08-handoff.md`. |
 | Produces | `09-ship-run-<run-id>.md` (per release, on the lead slug) with its sibling `09-ship-run-<run-id>.yaml` and `09-ship-run-<run-id>.html.fragment`, plus a refreshed `09-ship-runs.md` per roster slug (followers carry a `shipped-via` pointer). Legacy `09-ship.md` is read-only. Schemas: [ship/_run-artifact.md](ship/_run-artifact.md). |
-| Phases | `ship/announce.md` (post-publish comms), `ship/rollback.md` (user-gated reversal). |
 | Next | `/wf retro <slug>` (go) or `/wf implement <slug> <slice>` (blockers) |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `/.ai/ship-plan.md` | artifact | always | |
+| `00-index.md` | artifact | always | |
+| `08-handoff.md` | artifact | always | |
+| `07-review-*.yaml` | artifact | always | |
+| `po-answers.md` | artifact | if-present | |
+| `09-ship-run-*.md` | artifact | on-resume | |
+| `_ship-plan-readiness.md` | procedure | always | |
+| `ship/_run-artifact.md` | procedure | always | |
+| `ship/announce.md` | procedure | mode:announce | |
+| `ship/rollback.md` | procedure | mode:rollback | |
+| `09-ship-run-*.md` | writes | | |
+
+Read only the frontmatter of `08-handoff.md` and of each review master.
 
 **Auto second opinion (objective triggers).** At the Go/No-Go gate, before the irreversible merge, **auto-invoke** `/consult codex <risk-review this release: pre-flight, dry-run, freshness delta, and any deferred findings>` (pinning `codex`/`claude` keeps it free) when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `deferred-finding-rides-release`, `base-moved-since-verify`, or `preflight-warning-overridden`. Record each run in the ship-run artifact's `consult-runs:` frontmatter. When no trigger holds, add no consult.
 
@@ -26,7 +44,6 @@ You are running `/wf ship`, **stage 9 of 10**: 1·intake → 2·shape → 3·sli
 You are a **workflow orchestrator**, not a problem solver.
 - Do not fix code; when blockers require code changes, recommend `/wf implement <slug> <slice>`.
 - Do not modify `.ai/ship-plan.md`; to edit the plan, run `/wf ship-plan edit`. Runs follow the plan as a contract.
-- Your job: **read the plan, generate or resume a run, execute the 13 idempotent steps, write the run artifact**.
 - Each step is independently re-runnable. Re-running step N when N already completed is a no-op plus a note, not a duplicate side effect.
 
 # Workflow rules
@@ -35,23 +52,23 @@ Apply [_workflow-rules.md](_workflow-rules.md). Ship-specific rules:
 - Run artifacts live under `.ai/workflows/<slug>/`; `09-ship-runs.md` is the per-workflow run index. The ship plan lives at `.ai/ship-plan.md` (repo root), not under `.ai/workflows/`: project-scoped, shared across workflows.
 - If a step cannot finish, set `status: awaiting-input`, record what is blocking, and STOP. The next invocation resumes from there.
 - **Idempotency invariants per step.** Pre-flight is a no-op if the version is already applied. Merge is a no-op if the PR is merged. Tag is a no-op if the tag exists. Polling resumes from the last `pending` check.
-- **Backwards compatibility.** A legacy `09-ship.md` is read for context, never written; `/wf status` and `/wf recap` treat both shapes as valid. To migrate, author a plan via `/wf ship-plan init` and run `/wf ship <slug>` for the next release; the legacy file stays as historical record.
+- **Backwards compatibility.** A legacy `09-ship.md` is read-only history. The next release writes a `09-ship-run-<run-id>.md`.
 
 # Step 0 — Orient
 1. **Resolve the first positional**, polymorphic, in the same order as `/wf handoff` (first match wins): an **exact slug** (`.ai/workflows/<arg>/00-index.md` exists) → single-slug ship, `ship-scope: slug`; a **PR reference** `pr#N` / `#N` / bare integer → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName` → the branch path, `ship-scope: branch`; a **branch name** (matches a `branch:` in some `00-index.md`) → batch ship, `ship-scope: branch`; **absent** → infer the most recent active workflow, single-slug; if ambiguous, ask. **Build the roster** (`branch-slugs`): single-slug → `[<slug>]`; batch → every slug whose `00-index.md` `branch:` equals the resolved branch. **Elect the lead**: reuse the `handoff-lead:` recorded at handoff; if absent, the first roster slug alphabetically. The lead owns the single `09-ship-run-<run-id>.md`; followers get a `shipped-via` pointer. The second-positional shortcuts (`announce`, `rollback`) resolve against the lead slug's run in batch mode: one run per branch.
-1.5. **Announce re-run shortcut.** If the second positional is exactly `announce` (not a valid environment, so no collision with step 0.3): load `ship/announce.md`, run only the announce phase for `<slug>`, then STOP. Do not run the 13-step sequence.
-1.6. **Rollback shortcut.** If the second positional is exactly `rollback` (not a valid environment): load `ship/rollback.md`, run only that phase for `<slug>`, then STOP. Do not run the 13-step sequence. The optional third positional is `<run-id>`; the default is the most recent `status: complete` run in `09-ship-runs.md`. A paused (`awaiting-input`) run is refused; resume or fail it instead.
+1.5. **Announce re-run shortcut.** If the second positional is exactly `announce`: load `ship/announce.md`, run only the announce phase for `<slug>`, then STOP. Do not run the 13-step sequence.
+1.6. **Rollback shortcut.** If the second positional is exactly `rollback`: load `ship/rollback.md`, run only that phase for `<slug>`, then STOP. Do not run the 13-step sequence. The optional third positional is `<run-id>`; the default is the most recent `status: complete` run in `09-ship-runs.md`. A paused (`awaiting-input`) run is refused; resume or fail it instead.
 2. **Detect `--init-plan` flag.** If present, print and STOP: "The plan-author flow is `/wf ship-plan init`, not `/wf ship --init-plan`. Run: `/wf ship-plan init [--from-template <kind>]`."
 3. **Resolve the environment** (optional second positional, `staging` or `production`). It overrides the plan's default; otherwise use the first entry in `ship-plan.ship-environments[]`.
-4. **Read `.ai/ship-plan.md` and run the ship-plan readiness pre-check.** Load [_ship-plan-readiness.md](_ship-plan-readiness.md) and follow it exactly (caller = `ship`, commit range = the release HEAD). It resolves the **missing-plan** gate and the **plan-drift** gate before the run proceeds: a missing plan, unacknowledged drift, or a cancel all STOP here, before the 13-step sequence. Only `ok`, `acknowledged`, or `amended-inline` continue. Stamp the returned `ship-plan-readiness` into the run artifact (Step 13). On a continuing verdict, parse all blocks (A–G) into in-memory state; on `amended-inline`, parse the post-amendment plan (its `plan-version` was bumped by the scoped edit). Ship never authors the plan by hand; the gate offers an amendment only for findings an amendment can clear (`clears-on: amend`). A missing plan routes to `/wf ship-plan init --from-template <kotlin-maven-central | npm-public | pypi | container-image | server-deploy | library-internal>`.
+4. **Read `.ai/ship-plan.md` and run the ship-plan readiness pre-check.** Load [_ship-plan-readiness.md](_ship-plan-readiness.md) and follow it exactly (caller = `ship`, commit range = the release HEAD). It resolves the **missing-plan** gate and the **plan-drift** gate before the run proceeds: a missing plan, unacknowledged drift, or a cancel all STOP here, before the 13-step sequence. Only `ok`, `acknowledged`, or `amended-inline` continue. Stamp the returned `ship-plan-readiness` into the run artifact (Step 13). On a continuing verdict, parse blocks A–G into memory (on `amended-inline`, the post-amendment plan). Ship never authors the plan by hand; the gate offers an amendment only for findings an amendment can clear (`clears-on: amend`). A missing plan routes to `/wf ship-plan init --from-template <kotlin-maven-central | npm-public | pypi | container-image | server-deploy | library-internal>`.
 5. **Read `00-index.md`** for each roster slug: `current-stage`, `status`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `augmentations:`, `handoff-lead:`. In batch mode the PR/branch fields must agree across the roster (they share one branch/PR); if they disagree, STOP and report the inconsistency.
 6. **Readiness gate, all-or-nothing across the roster.** Ship is atomic per PR: every roster slug is shippable or none ship.
    - **Single-slug**: read `08-handoff.md`, parse `readiness-verdict`. If missing or `≠ ready`, STOP: "Handoff readiness-verdict is `<verdict>`. Ship requires `ready`. Run: `/wf handoff <slug>`."
    - **Batch**: read the lead's `08-handoff.md` and parse `pr-readiness-verdict` (the branch-level AND). If `≠ ready`, STOP and print the roster report (which slugs are ready and which are not, from the lead's `branch-slugs` and each slug's state): "Ship is all-or-nothing per PR. `pr-readiness-verdict` is `<verdict>` — bring every slug ready first: `/wf handoff pr#N`." Do not ship the ready subset.
    - Parse `pr-url`, `pr-number`, `branch`, `base-branch`, `has-deferred-comments` from the lead handoff. If `has-deferred-comments: true`, WARN before continuing.
-6.5. **Runtime-evidence deferral gate (hard block).** Parse `runtime-evidence-deferrals` from every roster slug's `00-index.md` (absent → empty). An entry is **open** when `cleared-by: null` and it carries no `ship-override-authorization`; one open entry on any roster slug blocks the whole atomic run. If any entry is still open, STOP with: "Ship is blocked: <N> open runtime-evidence deferral(s). The following slices passed verify only because runtime evidence was deferred; ship requires evidence: <slice-slug>: <reason> (deferred-at: <iso>) … Clear each deferral by (a) running `/wf probe <slug> <target-matching-the-deferred-AC>` to capture evidence, then re-running verify (sets `cleared-by` to the probe/evidence descriptor), (b) re-running `/wf verify <slug> <slice-slug>` in an environment that supports the interactive checks, or (c) recording an explicit PO risk-acceptance as `ship-override-authorization: {by, at, reason}` on the entry, for genuinely deploy-time-circular cases only." **`cleared-by` is for evidence, never risk-acceptance**: it holds a probe/evidence descriptor proving the AC was observed. PO risk-acceptance goes in the distinct `ship-override-authorization` field and is listed as an explicit override in the ship summary. A multi-AC deferral may log partial progress in `cleared-acs: [...]` while `cleared-by` stays null.
+6.5. **Runtime-evidence deferral gate (hard block).** Parse `runtime-evidence-deferrals` from every roster slug's `00-index.md` (absent → empty). An entry is **open** when `cleared-by: null` and it carries no `ship-override-authorization`; one open entry on any roster slug blocks the whole atomic run. If any entry is still open, STOP with: "Ship is blocked: <N> open runtime-evidence deferral(s). The following slices passed verify only because runtime evidence was deferred; ship requires evidence: <slice-slug>: <reason> (deferred-at: <iso>) … Clear each deferral by (a) running `/wf probe <slug> <target-matching-the-deferred-AC>` (probe sets `cleared-by` to its descriptor when the evidence matches), (b) re-running `/wf verify <slug> <slice-slug>` in an environment that supports the interactive checks, or (c) recording an explicit PO risk-acceptance as `ship-override-authorization: {by, at, reason}` on the entry, for genuinely deploy-time-circular cases only." **`cleared-by` is for evidence, never risk-acceptance**: it holds a probe/evidence descriptor proving the AC was observed. PO risk-acceptance goes in the distinct `ship-override-authorization` field and is listed as an explicit override in the ship summary. A multi-AC deferral may log partial progress in `cleared-acs: [...]` while `cleared-by` stays null.
 6.6. **Intent-risk (RIM) gate (hard block, mirrors 6.5).** Parse `intent-risks` from every roster slug's `00-index.md` (absent → empty). An entry is open when `status: open`; one open entry on any roster slug blocks the run. If any entry is still open, STOP with: "Ship is blocked: <N> open intent-risk(s) (RIM). Shape never resolved a load-bearing ambiguity for the following — ship requires each adjudicated: <RIM-id> (<severity>): <risk> … Adjudicate each by running `/wf shape <slug>`; shape sets every open entry to `adjudicated` or `carried`. Ship never adjudicates; it detects and routes." `carried` RIMs are legal and do not block, but list every `carried` entry distinctly in the ship summary.
-7. **Read every `07-review-*.md` and `po-answers.md`** for changelog and release-notes context, across all roster slugs in batch mode.
+7. **Release-notes inputs.** Take open findings from every `07-review-*.yaml`, and "what review fixed" from `metric-findings-fixed` in each review master's frontmatter. Give every `augmentations:` entry a changelog entry in user language.
 8. **Resume detection.** Search `.ai/workflows/<slug>/09-ship-run-*.md` for `status: awaiting-input`. For any hit, ask a gate question per [_gate-question.md](_gate-question.md) (header "Prior run"): `Resume <run-id> (Recommended)` (continue from the failed step), `Start fresh` (new run-id; the prior run stays paused), `Mark prior as failed and start fresh`. On resume, load that run's frontmatter and skip to the first step with an empty evidence field. On start fresh, leave the prior run untouched (or set `failed`) and generate a new `run-id`.
 9. **Batch the load-bearing questions; ask them HERE, before the sequence starts.** A ship run is atomic: once step 1 begins, the run holds open until it finishes or is explicitly paused. Ask these together, in one round, presenting the derived default and asking only for confirmation or override:
 
@@ -74,7 +91,7 @@ The 13-step sequence acts on the branch/PR, which is shared, so it runs exactly 
 
 # Chat return contract
 
-After writing files, return per [_chat-return.md](_chat-return.md): a narrative lead in the artifact's `## The Ship` voice, then this receipt:
+After writing files, return per [_chat-return.md](_chat-return.md). Quote the explainer's summary paragraph as the narrative lead, then give this receipt:
 - `slug: <slug>`
 - `run-id: <run-id>`
 - `wrote: <path>`
@@ -127,7 +144,7 @@ Skip if `go-nogo`, `rollout-strategy`, and `merge-strategy` are already set. 3.1
 
 ## Step 4 — Freshness pass, delta only
 
-Read-only; re-running is always safe. 4.1 Find the last successful run (`09-ship-run-*.md` with `status: complete`, most recent `created-at`) and read its `## Freshness Research`. 4.2 Diff the delta since that run and re-run web-research sub-agents only for areas that changed: **platform health** only on a deployment-target change or >30 days since the last run; **dependency security** only when `package.json`, `pyproject.toml`, `Cargo.toml`, or the equivalent changed since the last run's `head-sha-at-start`; **CI/CD config** only when `.github/workflows/*.yml` or related CI files changed. 4.3 With no prior successful run, run the full pass (all three). Merge findings into `## Freshness Research`.
+Read-only; re-running is always safe. 4.1 Find the last successful run (`09-ship-run-*.md` with `status: complete`, most recent `created-at`) and read its `## Freshness research delta`. 4.2 Diff the delta since that run and re-run web-research sub-agents only for areas that changed: **platform health** only on a deployment-target change or >30 days since the last run; **dependency security** only when `package.json`, `pyproject.toml`, `Cargo.toml`, or the equivalent changed since the last run's `head-sha-at-start`; **CI/CD config** only when `.github/workflows/*.yml` or related CI files changed. 4.3 With no prior successful run, run the full pass (all three). Merge findings into `## Freshness research delta`.
 
 ## Step 5 — Go/No-Go
 
@@ -163,13 +180,13 @@ Skip each `version-source-of-truth` file already at the post-release version. 10
 ## Steps 11–14 — Index, routing, artifact, announce
 
 11. **Update `09-ship-runs.md`** (schema in [ship/_run-artifact.md](ship/_run-artifact.md)). Batch mode: the lead slug's index gets the real run row; each follower's index gets a pointer row with `shipped-via: <lead>/09-ship-run-<run-id>.md` (same run-id, no duplicate artifact).
-12. **Adaptive routing.** Write ALL viable options into the run artifact's `## Recommended Next Stage` and update `00-index.md` (`current-stage`, `recommended-next-command`, `recommended-next-invocation`).
+12. **Adaptive routing.** Write ALL viable options into the run artifact's `recommended-routes` frontmatter and update `00-index.md` (`current-stage`, `recommended-next-command`, `recommended-next-invocation`).
 13. **Write `09-ship-run-<run-id>.md`** per [ship/_run-artifact.md](ship/_run-artifact.md), then its Step Z sibling `.yaml` and `.html.fragment` (managed-artifact enforcement blocks the `.md` write when the sibling `.yaml` is missing). A run paused before the Go/No-Go gate is representable; record it honestly: a ship at STOP after pre-flight or dry-run (awaiting a user decision, resumable) writes `status: awaiting-input` with `go-nogo: pending`, never `no-go`, which is a decision the gate never reached. `release-workflow-conclusion: ""` likewise means not-reached. In `00-index.md`, a paused ship is `progress.ship: in-progress`.
 14. **Announce.** Only when `go-nogo` is `go` or `conditional-go`. Load `ship/announce.md` and run it for `<slug>` (the lead in batch mode): it drafts audience- and channel-tailored announcements from the run artifact, writes `announce.md`, and stamps `announcements-sent` onto the run; in batch mode the announcement covers the whole branch. The phase is interactive; if the user declines or defers comms, note it and move on. To regenerate comms later without re-shipping, run `/wf ship <slug> announce` (the step 0.1.5 shortcut).
 
 # Adaptive routing
 
-Present ALL viable options and write them into `## Recommended Next Stage`:
+Present ALL viable options and write them into `recommended-routes`:
 - **Option A (default): Retro** → `/wf retro <slug>` when `status: complete` and `go-nogo` is `go` or `conditional-go`.
 - **Option B: Fix and re-implement** → `/wf implement <slug> <selected-slice>` when ship found blockers requiring code changes, the rebase had conflicts, or a recovery playbook required code-side fixes.
 - **Option C: Re-verify** → `/wf verify <slug> <selected-slice>` when the freshness delta surfaced new CVEs verify did not see.

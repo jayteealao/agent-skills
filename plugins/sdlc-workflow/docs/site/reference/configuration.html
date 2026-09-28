@@ -47,7 +47,7 @@ typo fails loudly instead of silently doing nothing.</p>
 <tr><td><code>view.bootstrap.renderMissing</code></td><td><code>true</code></td><td>When <code>true</code>, the bootstrap renders artifacts that have no rendered page yet.</td></tr>
 <tr><td><code>view.bootstrap.renderStale</code></td><td><code>true</code></td><td>When <code>true</code>, the bootstrap re-renders pages older than their source artifact.</td></tr>
 <tr><td><code>view.hub.enabled</code></td><td><code>true</code></td><td>When <code>true</code>, this repo participates in the machine-wide hub: the repo registers with the hub and is willing to start or use the hub. This is the <em>only</em> per-repo hub field. Every singleton hub setting lives in the machine-wide file. Set <code>false</code> to opt out.</td></tr>
-<tr><td><code>view.narrativeFragments</code></td><td><code>true</code></td><td>When <code>true</code>, free narrative fragments (<code>&lt;stem&gt;.&lt;label&gt;.html.fragment</code> siblings of raw HTML) are injected below a rendered page. Set <code>false</code> to suppress them repo-wide, for example while a fragment's CSS breaks a page.</td></tr>
+<tr><td><code>view.narrativeFragments</code></td><td><code>true</code></td><td>When <code>true</code>, free narrative fragments (<code>&lt;stem&gt;.&lt;label&gt;.html.fragment</code> siblings of raw HTML) are injected below a rendered page. Set <code>false</code> to suppress them repo-wide, for example while a fragment's CSS breaks a page. <code>false</code> also hides the explainer (<code>&lt;stem&gt;.explainer.html.fragment</code>) that otherwise opens each stage page; the page then shows the full agent file, as for an old artifact.</td></tr>
 <tr><td><code>view.scopeNarrativeCss</code></td><td><code>true</code></td><td>When <code>true</code>, each free fragment's <code>&lt;style&gt;</code> rules are wrapped in an <code>@scope</code> block, so a global selector cannot bleed into the page or a sibling fragment. Set <code>false</code> to inject styles verbatim.</td></tr>
 <tr><td><code>view.renderDispatch</code></td><td><code>"hub"</code></td><td>Where an artifact write gets rendered. <code>"hub"</code>: the write hook enqueues the change to a durable per-repo render queue (<code>.ai/_view/.render-queue/</code>), and the hub daemon drains and renders it. <code>"inline"</code>: the hook spawns the renderer itself after the debounce. <strong>The value <code>"inline"</code> is deprecated in 9.154.0 and is removed in the next release.</strong> A session that sets it logs one <code>deprecated-config</code> line in <code>~/.sdlc/lifecycle.log</code>.</td></tr>
 <tr><td><code>view.ensureHubOnWrite</code></td><td><code>true</code></td><td>When hub dispatch is active and no daemon answers, the write hook makes a best-effort detached attempt to start the hub. Set <code>false</code> to never auto-start a daemon from a write hook. Queued changes then wait for a daemon started another way.</td></tr>
@@ -78,7 +78,22 @@ blocks or warns. All keys default to <code>true</code>.</p>
 <tr><td><code>hooks.suppressionDebtLint</code></td><td><code>true</code></td><td>When <code>true</code>, the hook warns (non-blocking) when a new type/lint suppression (<code>as any</code>, <code>@ts-ignore</code>, <code>eslint-disable</code>, language equivalents) is added without an <code>sdlc-debt:</code> marker within two lines.</td></tr>
 <tr><td><code>hooks.namedMechanismLint</code></td><td><code>true</code></td><td>When <code>true</code>, the hook warns (non-blocking) when a mechanism-suggesting noun (state machine, scheduler, queue, cache, and so on) appears in a shape or slice acceptance criterion but in no decision section of the artifact. A test may not name a machine the design does not own.</td></tr>
 <tr><td><code>hooks.intakeLedgerLint</code></td><td><code>true</code></td><td>When <code>true</code>, the hook warns (non-blocking) when a default-mode intake artifact lands with neither intent-risk/charter ledger entries on the sibling <code>00-index.md</code> nor the explicit <code>none-declared</code> escapes.</td></tr>
+<tr><td><code>hooks.indexLint</code></td><td><code>true</code></td><td>When <code>true</code>, the hook warns (non-blocking) after a write to a workflow's <code>00-index.md</code> when the file is over 20&nbsp;KB, when its frontmatter carries a YAML comment line of prose (a <code>#</code> comment of more than 8 words), or when <code>current-stage</code> is not in the first 4,000 characters. The warning names <code>index-history.jsonl</code> as the place for history. See <a href="artifacts.html#index-history">the control file</a>.</td></tr>
 <tr><td><code>hooks.costLedger</code></td><td><code>true</code></td><td>When <code>true</code>, the Stop hook appends the turn's exact token usage, copied from the host transcript, to <code>.ai/workflows/&lt;slug&gt;/cost.jsonl</code>. Never blocks. See <a href="hooks.html#cost-ledger">cost-ledger</a>.</td></tr>
+</tbody>
+</table>
+
+<h3 id="mod-settings">Mod settings in <code>/config</code></h3>
+
+<p>The Claude Code mod has its own settings. They are not in <code>.ai/sdlc-config.json</code>:
+set them under <code>sdlc-workflow</code> in the engine's <code>/config</code> panel. The
+<a href="hooks.html#wf-picker">hooks reference</a> lists the switches for the session aids. One
+setting is not a switch:</p>
+
+<table>
+<thead><tr><th>Setting</th><th>Default</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>readCheck</code></td><td><code>"warn"</code></td><td>The read check. When an agent writes a stage artifact, the mod compares the files the agent read with the stage's Requires table. <code>"warn"</code>: the write lands, and the agent gets the list of missing and partial reads. <code>"block"</code>: the mod refuses the write unless the artifact frontmatter carries <code>read-waiver: "&lt;reason&gt;"</code>. <code>"off"</code>: no check. Each check appends one row to the workflow's <code>.read-ledger.jsonl</code>. See <a href="../guides/the-standard-lifecycle.html#reads-and-writes">What every stage reads and writes</a>.</td></tr>
 </tbody>
 </table>
 

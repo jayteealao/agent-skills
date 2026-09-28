@@ -12,14 +12,31 @@ Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every e
 
 You are running `/wf probe`: drive the running artifact, capture evidence, report findings. No fixes.
 
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | always | |
+| `03-slice.md` | artifact | if-present | |
+| `01-<mode>.md` | artifact | if-present | |
+| `03-slice-*.md` | artifact | mode:slug-wide | |
+| `probe/_artifact.md` | procedure | always | |
+| `probe/_target-resolution.md` | procedure | mode:target | |
+| `_compressed-slice.md` | procedure | always | |
+| `_surface-defects.md` | procedure | always | |
+| `runtime-adapters.md` | procedure | always | |
+| `runtime-adapters/_ladder.md` | procedure | always | |
+| `runtime-adapters/_protocols.md` | procedure | always | |
+| `03-slice-probe-*.md` | writes | | |
+
 # Slug-mode contract (read before proceeding)
 
-`probe` is **slug-mode only** — it always operates on an existing slug from `.ai/workflows/INDEX.md`. The `/wf` dispatcher routes `/wf probe`; **probe is slug-only, so a compressed slice is always the output** — follow `_compressed-slice.md` for exact slice frontmatter and index bookkeeping.
+With a slug, `probe` writes a compressed slice. `_compressed-slice.md` gives the slice frontmatter and the index bookkeeping.
 
 - **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-probe-<descriptor>.md` (collision suffix `-2`, `-3` if needed).
-- **Same content discipline** (research depth, evidence quality, recommendation logic) — only the output destination changes.
 - **No new workflow, no new branch, no `01-probe.md`, no new top-level `00-index.md`.** The slug already owns those.
-- **Index updates** follow the shared compressed-slice contract — see `_compressed-slice.md`.
 
 # Role
 You are a **runtime observer**, not a fixer.
@@ -51,10 +68,10 @@ No flags — probe takes a slug and an optional target string. It always surface
 
 # Step 0 — Orient
 
-1. **Read `.ai/workflows/<slug>/00-index.md`.** Parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), the **`charter:` block** (the PO-ratified constraints — see Step 5's comparison basis; constraints are durable and cross-slice, so a probe that reads only AC misses the contract), and the **`stack:` block** (written by `/wf intake` Step 0.5, confirmed in Batch B). When `user-confirmed: true`, it narrows adapter selection in Step 3 and tooling choice during drive/observe.
-2. **Read the slice index `03-slice.md`** (or `01-quick.md` for `workflow-type: quick`). Note every slice slug and source-mode (standard / compressed / forwarded / change-mode). Change-modes (`workflow-type: fix` / `hotfix` / `refactor` / `update-deps`) write a STANDARD `03-slice.md` (one slice), so this step is unchanged — but their lead is `01-<mode>.md`, not `01-quick.md`.
-3. **Read every per-slice file** referenced from the slice index. For compressed and forwarded modes, AC lives in the single source artifact (`01-quick.md`, `01-rca.md`). For change-mode, AC lives in the lead `01-<mode>.md` plus `03-slice.md` / `04-plan.md`. **Terminal analysis slugs** (`workflow-type: rca` / `discover` / `investigate` / `ideate`) have **no `03-slice.md`** — do not error on its absence: the probe target is the free-form target string their escalation ladders route here with, the comparison basis is that question plus the lead artifact's stated claim, and the finding lands as the standard compressed slice on that slug. (`investigate`/`ideate` have no build to probe in place — only their targeted question runs.)
-4. **Read `runtime-adapters.md`** (the registry), then `runtime-adapters/_ladder.md`, `runtime-adapters/_protocols.md`, and `runtime-adapters/<key>.md` for each matched adapter.
+1. **Parse `00-index.md`:** `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), the **`charter:` block** (the PO-ratified constraints — see Step 5's comparison basis; constraints are durable and cross-slice, so a probe that reads only AC misses the contract), and the **`stack:` block** (written by `/wf intake` Step 0.5, confirmed in Batch B). When `user-confirmed: true`, it narrows adapter selection in Step 3 and tooling choice during drive/observe.
+2. **From `03-slice.md`** (or the lead `01-<mode>.md`), note every slice slug and source-mode (standard / compressed / forwarded / change-mode). Change-modes write a standard one-slice `03-slice.md`.
+3. **Take the AC from every per-slice file** that the slice index names. For compressed and forwarded modes, AC lives in the lead artifact (`01-<mode>.md`, for example `01-rca.md`). For change-mode, AC lives in the lead `01-<mode>.md` plus `03-slice.md` / `04-plan.md`. **Terminal analysis slugs** (`workflow-type: rca` / `discover` / `investigate` / `ideate`) have **no `03-slice.md`** — do not error on its absence: the probe target is the free-form target string their escalation ladders route here with, the comparison basis is that question plus the lead artifact's stated claim, and the finding lands as the standard compressed slice on that slug. (`investigate`/`ideate` have no build to probe in place — only their targeted question runs.)
+4. **Use the adapter registry** `runtime-adapters.md`, the ladder and the protocols. Read `runtime-adapters/<key>.md` for each adapter that Step 3 matches.
 5. **Stack awareness (advisory).** Probe cannot refuse to run when `stack:` is missing, but must be honest about provenance:
    - **If `stack:` is missing entirely** → emit: *"`stack:` is not set on `<slug>`. Probe will run adapter detection cold; consider running `/wf intake <slug>` to capture stack so future runs respect PO intent."* Set `stack-source: probe-detected-from-repo`. Proceed.
    - **If `stack.user-confirmed: false`** → emit the same warning referencing unconfirmed-auto-detect; set `stack-source: unconfirmed-auto-detect`. Proceed.
@@ -62,7 +79,7 @@ No flags — probe takes a slug and an optional target string. It always surface
    - In all cases, record the `stack:` block under `## Stack context` in the probe slice body so a reader can reconcile what probe saw against what intake confirmed.
 6. **Capture the target** from `$ARGUMENTS` per the argument grammar above: `target` = the single positional target string, or `slug-wide` if none was given.
 7. **Run the clearing-event tripwire.** For every open deferral (`cleared-by: null`) carrying a `clearing-probe`, execute that **one** recorded side-effect-free command with a short timeout. A hit means the event this deferral is waiting on has *already happened* — say so up front and prioritise that deferral in this run. Never improvise a substitute command, never edit `00-index.md` here (Step 7 owns the clearing mutation), and treat a miss as ordinary state, not a finding. An entry with no recorded probe is simply un-watched — note it in `## Tripwires` so the next verify can add one.
-8. **Read `_surface-defects.md`.** mandatory in `sweep` mode, advisory in target mode (its classes are what Step 5.2 records incidentals against). It supplies the defect classes, the severity discipline, and the decidability boundary.
+8. **Use `_surface-defects.md`:** mandatory in `sweep` mode, advisory in target mode (its classes are what Step 5.2 records incidentals against). It supplies the defect classes, the severity discipline, and the decidability boundary.
 9. **Declare decidability BEFORE driving (mandatory in `sweep` mode).** Using the standing not-observable set in `_surface-defects.md`, state which classes of correctness this artifact makes observable and which it does not, and where each unobservable class routes. Record it as the `decidability:` frontmatter block. When the artifact's **primary** correctness class is not observable (a ranking/generative system, a long-horizon pipeline), say so FIRST — at the top of the artifact and in the chat return, before any finding — so a clean wrapper report never reads as a verdict on the thing the wrapper wraps.
 
 # Step 1 — Branch posture (mandatory before bootstrap)
@@ -144,9 +161,7 @@ Write `.ai/workflows/<slug>/03-slice-probe-<descriptor>.md` from the frontmatter
 
 **Descriptor derivation:** if `target` is a single short string (≤5 words after slugification), `<descriptor>` is the slugified target; if `target == slug-wide`, `<descriptor>` is `slug-wide-<utc-date>` (e.g., `slug-wide-2026-05-16`); on collision append `-2`, `-3`, … until unique.
 
-**Frontmatter** carries `probe-target`, the `target-resolution` block, `adapters-used` / `matched-adapters` / `partial-bootstrap-failures`, `probed-on-branch` (only after run-and-record), `evidence-dir`, `bootstrap-failure`, `comparison-basis`, `environment-class`, the `surface-coverage:` block (enumeration-method, enumerated — a FLOOR under `traversal` — driven, unreached with class blocked / out-of-authority / not-decidable), the `decidability:` block, `perturbations`, `retracted-findings`, `findings-count`, `findings-severity`, and `recommended-next`.
-
-**Body sections (in order):** The Probe (story section), 1. What was probed, 2. How the target was interpreted, 3. Adapters, 4. Observations, 5. Findings (severity, surface, defect, evidence, suggested fix shape; a zero-finding sweep renders the coverage table and one line per defect class — never "No findings" alone), 6. Tripwires (multi-adapter divergence, same-pattern-elsewhere, bootstrap partial-failure, ad-hoc-target-not-in-AC), 7. Recommended next command (the routing table).
+The template gives the frontmatter (with `recommended-routes` from its Routes table), the explainer line and the `##` body sections. A slug-less sweep writes `.ai/surface-sweep-<utc-date>.md` from the sweep template in the same file.
 
 ## Step — Write free narrative fragments
 
@@ -180,7 +195,7 @@ Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progres
 
 # Step 9 — Hand off to user
 
-Lead with a short **narrative** paragraph (prose, no bullets) telling what was found and what it means, then the structured anchors below. Emit a compact chat summary:
+Quote the explainer's summary paragraph as the narrative lead, then give the structured anchors below. Emit a compact chat summary:
 
 ```
 wf probe complete: <slug>
@@ -190,7 +205,7 @@ Coverage: <driven>/<enumerated> surfaces (<enumeration-method>) — unreached: <
 Findings: <findings-count> (critical: <N>, high: <N>, medium: <N>, low: <N>)
 Tripwires: <none | comma-separated list>
 Deferrals cleared: <N>
-Recommended next: <command> — <one-sentence justification>
+Recommended next: <next-invocation> — <reason of the default route>
 Probe slice: .ai/workflows/<slug>/03-slice-probe-<descriptor>.md
 ```
 
@@ -198,16 +213,13 @@ In `sweep` mode the chat return **leads with the coverage claim**, not the findi
 
 If `status: awaiting-environment`, replace the body with `wf probe blocked: <slug>`, then `Bootstrap failed at: <adapter>/<step>`, `Remediation: <hint>`, the probe slice path, and `Re-run after applying the remediation.`
 
-# Routing notes (read carefully)
+# Routing notes
 
-- **`/wf plan <slug> probe-<descriptor>`** is the default downstream path for non-trivial findings. The probe slice is the input artifact for planning, exactly as an `rca` slice is.
-- **`/wf intake <slug> fix <finding>`** for small fixes that fit ≤3 files.
-- **Deferral clearing** happens at verify time (verify reads evidence and updates `cleared-by`), except for Step 7 where probe directly clears a deferral whose matched AC was successfully observed.
+- The probe slice is the input artifact for `/wf plan <slug> probe-<descriptor>`, as an `rca` slice is. The template's Routes table picks the route.
+- **Deferral clearing** is probe's job: Step 7 sets `cleared-by` when the evidence matches the deferred AC. A verify re-run in a capable environment can also clear it.
 - **No auto-fix.** Probe reports; downstream commands fix.
 
 # What this command is NOT
 
-- **Not a fixer** — writes observations and findings, not patches.
 - **Not a static analyzer** — that's `rca` (siblings on different axes).
 - **Not a forward-path gate** — that's `/wf verify`'s interactive sub-agent 3. Probe is the backward re-entry counterpart for already-done slugs.
-- **Not platform-specific** — every platform-specific recipe lives under `runtime-adapters/`; probe stays platform-agnostic.

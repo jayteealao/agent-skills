@@ -74,5 +74,5 @@ five_whys:
 
 Authoring rules:
 - Each `answer` is one sentence: long enough to be a causal claim, short enough to read in the collapsed-detail panel without scrolling.
-- Set `root: true` on exactly one step (the final one). If multiple plausible roots survived investigation, pick the strongest and note the alternatives in Section 4 of `01-rca.md` instead.
-- The chain must end where Section 4 ("Root cause") points; if they disagree, fix Section 4 first.
+- Set `root: true` on exactly one step (the final one). If multiple plausible roots survived investigation, pick the strongest and note the alternatives in `01-rca.md` `## Root cause` instead.
+- The chain must end where `## Root cause` points; if they disagree, fix `## Root cause` first.

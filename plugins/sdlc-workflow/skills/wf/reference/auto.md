@@ -69,7 +69,7 @@ Repeat until the mode's endpoint is reached **or** a gate pauses the chain:
 
 1. **Select the next stage** (selection rule below).
 2. **Announce it** in one chat line: `auto → <stage> <slug> [<slice>]`.
-3. **Run the stage in-process.** Read `<stage>.md` in full and execute it exactly against `<slug>` (and the slice for per-slice stages), passing the same `$ARGUMENTS` the manual command would. The stage does its own work, writes its own artifact, and updates `00-index.md`. Do not summarize or shortcut it. Apply the grounded-progress rule in [_grounded-progress.md](_grounded-progress.md) to every progress claim the drive emits.
+3. **Run the stage in-process.** Read `<stage>.md` in full and execute it exactly against `<slug>` (and the slice for per-slice stages), passing the same `$ARGUMENTS` the manual command would. The stage does its own work, writes its own artifact, and updates `00-index.md`. Do not summarize or shortcut it. Its `## Requires` table is a checklist per [_requires.md](_requires.md): read each row before the stage writes. When the mod reports a missing read, read it and write again. A compaction between stages resets the read record. A compaction that `auto` starts in the middle of a stage keeps the record. Apply the grounded-progress rule in [_grounded-progress.md](_grounded-progress.md) to every progress claim the drive emits.
 4. **Evaluate the gate** by reading the artifact the stage just wrote (Gate table below). **PROCEED** → loop. **PAUSE** → stop the chain and run Step 2 (residual durability), then Step 3 (hand back).
 5. **Re-read `00-index.md`** at the top of each iteration so `current-stage`, `progress`, and `selected-slice` reflect what the last stage wrote.
 

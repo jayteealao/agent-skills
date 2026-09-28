@@ -4,6 +4,8 @@
  * the driver status, and the dashboard read. Nothing here touches the engine.
  */
 import { entryOf } from './catalog.ts'
+import { readCheckModeOf } from './readledger.ts'
+import type { ReadCheckMode } from './readledger.ts'
 import type { SliceEntry, WorkflowEntry } from './workflows.ts'
 
 /** The settings the manifest's `userConfig` declares, defaults filled in. */
@@ -18,9 +20,14 @@ export type Settings = {
   hubNotice: boolean
   stageCompact: boolean
   probeJournal: boolean
+  /** The read check (ARTIFACT-SPLIT-PLAN.md S6): `warn`, `block`, or `off`. */
+  readCheck: ReadCheckMode
 }
 
-export const SETTING_NAMES: ReadonlyArray<keyof Settings> = [
+/** The settings that are switches: every one but `readCheck`. */
+export type SwitchName = Exclude<keyof Settings, 'readCheck'>
+
+export const SETTING_NAMES: ReadonlyArray<SwitchName> = [
   'strip',
   'suggestNext',
   'stageCheck',
@@ -45,6 +52,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hubNotice: true,
   stageCompact: true,
   probeJournal: true,
+  readCheck: 'warn',
 }
 
 /** The settings from the plugin's options: a boolean field takes its value, anything else its default. */
@@ -54,15 +62,16 @@ export function settingsOf(options: Readonly<Record<string, unknown>>): Settings
     const value = options[name]
     if (typeof value === 'boolean') settings[name] = value
   }
+  settings.readCheck = readCheckModeOf(options['readCheck'])
   return settings
 }
 
 /** The setting a `config.set` key names (`sdlc-workflow.strip`), or null. */
-export function settingOfKey(pluginName: string, key: string): keyof Settings | null {
+export function settingOfKey(pluginName: string, key: string): SwitchName | null {
   const prefix = `${pluginName}.`
   if (!key.startsWith(prefix)) return null
   const name = key.slice(prefix.length)
-  return (SETTING_NAMES as readonly string[]).includes(name) ? (name as keyof Settings) : null
+  return (SETTING_NAMES as readonly string[]).includes(name) ? (name as SwitchName) : null
 }
 
 /** The `/wf` command a turn ran, parsed from the prompt text. */

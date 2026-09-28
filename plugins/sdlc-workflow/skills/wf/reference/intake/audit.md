@@ -4,7 +4,7 @@ argument-hint: <concern> [paths…] | <slug> (re-run) | lenses=<a>,<b> override
 ---
 
 # Output boundary & shared context
-Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake audit`, a **subsystem defect hunt**. It exists for the request every adjacent surface refuses: review existing code for bugs, wrong assumptions, and mistakes when there is no symptom (`rca` needs one), no stated hypothesis (`discover` needs one), no decided problem (`investigate` needs one), and no diff (the review stage needs one). The output is an **accumulating findings ledger** — the same `07-review*` family the review stage owns, governed by the same merge law.
 
@@ -21,11 +21,30 @@ If neither applies, proceed standalone below.
 
 | | Detail |
 |---|---|
-| Requires | Nothing — starts fresh. Pass a concern (plus optional paths), or an existing audit slug to re-run. |
+| Requires | See [## Requires](#requires). Pass a concern (plus optional paths), or an existing audit slug to re-run. |
 | Produces | `00-index.md` (`type: workflow-index`), `01-audit.md` (`type: intake`, the brief), `07-review.md` (master ledger, `type: review`), `07-review-<lens>.md` per lens (`type: review-command`) |
 | Skips | No `02-shape.md`, no `04-plan.md` — for an audit, scoping and briefing are one motion. No branch. |
 | Next | Terminal → each accepted finding routes to its own command (Step 6 table). The workflow **stays open** for accumulating re-runs; close it with `/wf close <slug>` when the concern is retired. |
 | Escalate | A finding that static reading cannot settle is recorded at `confidence: low` with `needs-runtime-evidence` and the exact experiment named → `/wf probe` (see Step 4). |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | on-resume | |
+| `01-audit.md` | artifact | on-resume | |
+| `07-review.md` | artifact | on-resume | |
+| `07-review-*.md` | artifact | on-resume | |
+| `steer.md` | artifact | if-present | |
+| `intake/_intake-context.md` | procedure | always | |
+| `_findings-ledger.md` | procedure | always | |
+| `_subagents.md` | procedure | always | |
+| `_compressed-slice.md` | procedure | mode:slug | |
+| `01-audit.md` | writes | | |
+| `07-review.md` | writes | | |
+| `07-review-*.md` | writes | | |
 
 # Audit discipline
 You are a **read-only defect hunter that owns an accumulating findings ledger**.
@@ -38,7 +57,7 @@ You are a **read-only defect hunter that owns an accumulating findings ledger**.
 
 # Step 0 — Orient
 1. **Resolve slug and mode** from the instructions:
-   - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: audit` → **re-run mode**. Read the index and the existing `07-review*` ledger now — this run MERGES into it. The concern and surface come from `01-audit.md`; new paths in the arguments extend the surface (recorded as a surface revision in `01-audit.md`).
+   - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: audit` → **re-run mode**. This run MERGES into the existing `07-review*` ledger. The concern and surface come from `01-audit.md`; new paths in the arguments extend the surface (recorded as a surface revision in `01-audit.md`).
    - Otherwise → **new audit**. Derive a slug: `audit-<short-concern>` (kebab-case, max 5 words, e.g. `audit-paint-ordering`).
 2. **Collision check:** if `.ai/workflows/<slug>/00-index.md` exists with a different `workflow-type` → WARN and stop, as `discover` does.
 3. **Branch posture:** read-only — do not create or switch branches. Record the current branch in the index.
@@ -97,11 +116,11 @@ Write the `07-review*` family under `.ai/workflows/<slug>/`, applying [_findings
 1. **Per-lens files** — `07-review-<lens>.md`, `type: review-command`, `review-scope: slug-wide`, the same frontmatter/metric shape the review stage's dimension files carry. Author the sibling `.yaml` (schema `siblingYamlSchemas.review-dimension`; OPEN findings only) and `.html.fragment` per [_fragment-authoring.md](../_fragment-authoring.md) — the managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) BLOCKS a `type: review-command` write without its sibling `.yaml`; a clean lens sets `fragment: none` instead.
 2. **Master ledger** — `07-review.md`, `type: review`, `review-scope: slug-wide`, with `## All Findings`, `## Findings (Detailed)`, `## Refuted` (this mode's addition — candidate, killing refutation, refuter lens), `## Triage Decisions` (routes recorded in Step 6), and a verdict line stating ledger state, not shippability: `N open / N resolved / N refuted across <lenses>`. Sibling `.yaml` + fragment per the review shape.
 3. **Edits are additive** per [_additive-write.md](../_additive-write.md) — a re-run edits in place and appends; it never rewrites history.
-4. **`01-audit.md`** (`type: intake`, satisfies the intake required set: `status: complete`, `stage-number: 1`, `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`) carries the brief inline: the exact concern, the resolved surface with counts, exclusions with reasons, selected lenses with reasons, the not-observable set (what static reading could not decide), and a surface-revision log for re-runs.
+4. **`01-audit.md`** (`type: intake`, satisfies the intake required set: `status: complete`, `stage-number: 1`, `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`, `recommended-routes` from Step 6) carries the brief under fixed headings: `## Concern` (exact), `## Surface` (with counts), `## Exclusions` (with reasons), `## Lenses` (with reasons), `## Not observable` (what static reading could not decide), and `## Surface revisions` (the re-run log).
 5. **`00-index.md`** (`type: workflow-index`) — `workflow-type: audit`, `status: active` (an audit stays open for accumulating re-runs), `current-stage: audit`, `review-scope: slug-wide`, `branch-strategy: none`, progress map `{audit: complete}`, `recommended-routes` from Step 6. Register the row in `.ai/workflows/INDEX.md` per `_intake-context.md`.
 
-## Story sections
-`01-audit.md` and `07-review.md` each open with a story section (`## The Audit` / `## The Review`) — first, and self-sufficient, per `../_story-arc.md`: the state inherited, the load-bearing decisions with reasons and counts, then what this enables next plus the top open risk. Language per `../_ste-procedural.md` sections 1 and 3.
+## Explainers
+Write the explainers to `01-audit.explainer.html.fragment` and `07-review.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 ## Step — Write free narrative fragments
 Author free narrative fragments for any artifact as described in the narrative-fragment tier of `_intake-context.md` — a surface map, a findings heatmap, a refutation flow — as many as the story needs.
@@ -130,7 +149,7 @@ Do not fix anything. Do not open a fix loop. Each accepted finding seeds its **o
 
 # Chat return
 
-Return per [_chat-return.md](../_chat-return.md) — narrative lead (what was hunted, what survived refutation, what it means), then:
+Return per [_chat-return.md](../_chat-return.md) — quote the `01-audit` explainer summary as the narrative lead, then:
 
 ```
 wf intake audit complete: <slug>
@@ -138,7 +157,7 @@ Concern: <one line>
 Surface: <N files confirmed, M excluded>
 Lenses: <lens (reason) · lens (reason) …>
 Findings: <O open / R resolved / X refuted>   (this run: A net-new, B re-confirmed, C cleared)
-Not observable statically: <N — see 01-audit.md>
+Not observable statically: <N — see 01-audit.md ## Not observable>
 Routes: <top routes, one per open BLOCKER/HIGH>
 Artifacts: .ai/workflows/<slug>/01-audit.md, 07-review.md, 07-review-<lens>.md …
 Next: <top route> | /wf intake audit <slug> (re-run) | /wf close <slug> (retire the concern)

@@ -13,11 +13,8 @@ plugin schema up to what the installed references now read.
 
 # Why this mode exists
 
-A long-lived workflow outlives several plugin releases. Its `00-index.md` was written before the
-charter block existed, before the intent-risk ledger, before deferrals carried `wall-ownership` — and
-every newer stage that reads those fields quietly gets nothing. Nothing *breaks*; things just stop
-working silently, which is worse, because the gate that would have caught a problem simply never
-fires.
+A long-lived workflow outlives several plugin releases. Every newer stage that reads a field the
+old index lacks quietly gets nothing, so the gate that would catch a problem never fires.
 
 # The cardinal rule: additive only
 
@@ -56,6 +53,7 @@ plugin wrote them, and marker presence is what the consuming references actually
 | the slug's row in `.ai/workflows/INDEX.md` | `/wf status` reconcile and the registry-driven modes never see the workflow | append the row from the index's own `slug`/`status`/`workflow-type`/`branch`/`updated-at` (additive bootstrap per `_intake-context.md`) |
 | `needed-by:` / `absorbed-by:` on open deferrals | the deferral never escalates when its due slice completes; inheritance breadth is untracked | the deferral's own recorded prose when it names a due slice or an inheriting slice; otherwise leave absent and list it |
 | decision-lifecycle fields on a terminal analysis index (`chosen-option`/`chosen-route`/`chosen-idea`, closure) — **report-only** | the workflow parks in Active forever with its decision unrecorded | **never backfilled** — a decision nobody recorded is exactly what modernize must not invent. Report the row and name the recording command: `/wf intake investigate <slug> <option>` / `/wf intake rca <slug> <route>` / `/wf intake ideate <slug> <idea-id>` (or `/wf close <slug> <reason>`) |
+| YAML comment prose (a `#` comment of more than 8 words) or old next-step commentary in `00-index.md` — **opt-in** | the index grows past 20 KB and hides its current state from the readers that parse it | move each item to `index-history.jsonl` per Step 2 item 6; never move the deferral list, `intent-risks`, `charter`, or `revisions:` |
 
 # Step 1 — Report before writing
 
@@ -67,7 +65,7 @@ Show the user, before touching anything:
 3. **Untouched** — say plainly that no decision, verdict, or criterion will change.
 
 `/wf intake <slug> modernize dry-run` stops here and writes nothing. Otherwise confirm once as a
-gate question per [_gate-question.md](../_gate-question.md) and proceed.
+gate question per [_gate-question.md](../_gate-question.md) and proceed. Offer the index-history move as a separate option; it runs only on a yes.
 
 # Step 2 — Write
 
@@ -80,11 +78,13 @@ gate question per [_gate-question.md](../_gate-question.md) and proceed.
    `n-a` — a junk value is indistinguishable from a real one to the gates that read it, and that
    ambiguity is exactly what the evidence-schema contract exists to eliminate.
 5. **Stamp the run** on `00-index.md`: `schema-modernized-at: <timestamp>` and
-   `schema-absent-fields: [<the fields left absent on purpose>]`. The stamp is what makes the run
-   idempotent — the dispatcher's schema-era check in `intake.md` suppresses its nag for any field
-   listed in `schema-absent-fields`, so an honestly-unanswerable field stops re-firing the offer on
-   every extension forever. A LATER plugin era's new markers still fire (they will not be in the
-   stamped list).
+   `schema-absent-fields: [<the fields left absent on purpose>]`. The stamp makes the run
+   idempotent: the schema-era check in `intake.md` suppresses its nag for any listed field. A later
+   era's new markers still fire.
+6. **Index history (opt-in).** For each confirmed item, append one line to `index-history.jsonl`:
+   `{"at":"<timestamp>","kind":"migrated","text":"<the moved text>","stage":"<stage or null>"}`.
+   Then delete the moved text from `00-index.md`. Keep `current-stage` near the top of the index.
+   Keep the deferral list (cleared entries too), `intent-risks`, `charter`, and `revisions:` in the index.
 
 # Step 3 — Chat return
 

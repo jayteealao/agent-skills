@@ -9,6 +9,15 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `/wf brainstorm`. It runs the brainstorm loop in [intake/brainstorm.md](intake/brainstorm.md), the same loop that `/wf intake brainstorm` runs. This file only resolves the invocation.
 
+## Requires
+
+Read every row before you run the loop. [_requires.md](_requires.md) defines the check. The `writes` rows are in the `intake/brainstorm.md` table.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `intake/brainstorm.md` | procedure | always | |
+| `intake/brainstorm/_design.md` | procedure | mode:design | |
+
 # Step 0 — Parse the invocation
 
 Resolve the first token by an exact existence check. Never fuzzy-match: a wrong guess opens the wrong board.
@@ -41,4 +50,4 @@ Follow [intake/brainstorm.md](intake/brainstorm.md) with the resolved shape, as 
 - **slug-mode** → the slug-mode section.
 - **design on a workflow** → the standalone flow, with the files and the `done` route in `intake/brainstorm/_design.md` → On a feature workflow.
 
-When the focus is `design`, also load `intake/brainstorm/_design.md` in full now. It adds to the loop and replaces nothing.
+When the focus is `design`, `intake/brainstorm/_design.md` adds to the loop and replaces nothing.

@@ -20,13 +20,18 @@ flag-framework: <e.g., "LaunchDarkly" | "env-var-fallback" | "none detected">
 requires-instrument: <true|false>
 status: ready
 created-at: <real UTC timestamp per _timestamp.md>
+next-command: wf-implement
+next-invocation: "/wf implement <slug>"
+recommended-routes:
+  - invocation: "/wf implement <slug>"
+    reason: "<one phrase>"
+    default: true
 ---
 ```
 
-**Body sections (in order):**
+Write the explainer to `04c-experiment.explainer.html.fragment` per [../../_story-arc.md](../../_story-arc.md).
 
-## The Experiment
-<!-- STORY SECTION — first, and self-sufficient. must follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+**Body sections (in order):**
 
 ## 1. Hypothesis
 
@@ -102,10 +107,8 @@ If all decisions are made: write "None — experiment design is complete."
 
 ## Step — Sibling YAML `experiment`
 
-After writing the experiment MD (`.ai/workflows/<slug>/04c-experiment.md`
-or, when invoked as an augmentation under a slug,
-`.ai/workflows/<slug>/augmentations/<exp-id>.md`), write a sibling
-`.yaml` next to it with `artifact: experiment`. The view-layer renderer
+After writing `.ai/workflows/<slug>/04c-experiment.md`, write the sibling
+`04c-experiment.yaml` next to it with `artifact: experiment`. The view-layer renderer
 projects this as an arm-allocation figure (horizontal bar split by
 `allocated_pct`) plus a guardrail-threshold table.
 
@@ -119,7 +122,7 @@ from the sibling YAML (same YAML → byte-identical HTML) and pass
 Shape:
 
 ```yaml
-# 04c-experiment.yaml — or augmentations/<exp-id>.yaml
+# 04c-experiment.yaml
 artifact:        experiment
 experiment_type: a-b-test          # feature-flag | a-b-test | canary | shadow
 flag:            "checkout.board-virtualization"

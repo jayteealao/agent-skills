@@ -17,28 +17,44 @@ selected-slice: ""
 branch-strategy: <dedicated|shared|none>
 branch: "<feat/slug or empty>"
 base-branch: "<main|master|develop>"
-review-scope: per-slice               # PROVISIONAL default — confirmed at slice (or plan on the skip-to-plan path), NOT asked at intake. Drives /wf review file layout and /wf handoff gating.
-review-scope-confirmed: false         # slice/plan flips to true after the PO answers with the roster known
-appetite: <small|medium|large>        # Batch A answer. Machine-read downstream: shape's pre-mortem horizon, slice's count expectations, plan's consult trigger.
+review-scope: per-slice
+review-scope-confirmed: false
+appetite: <small|medium|large>
 pr-url: ""
 pr-number: 0
 open-questions: []
 tags: []
-stack:                                  # Step 0.5 fingerprint. Observation only — user confirms in Batch B.
+stack:
   detected-at: "<iso-8601>"
-  platforms: []                         # e.g., [android], [web], [ios, web]
-  languages: []                         # e.g., [kotlin], [typescript]
-  ui: []                                # e.g., [compose], [react, tailwind]
-  build: []                             # e.g., [gradle], [vite]
-  package-managers: []                  # e.g., [gradle], [pnpm]
-  testing: []                           # e.g., [junit, maestro], [vitest, playwright]
-  observability: []                     # e.g., [lazylogcat], [sentry]
-  integrations: []                      # e.g., [hilt, room], [stripe, prisma]
-  available-skills: []                  # [{name, hint}] — session-visible skills
-  available-mcp: []                     # [{name, hint}] — session-visible MCP servers
-  user-confirmed: false                 # flipped to true after Batch B
-ux-impact: <none|visual|flow|new-surface>   # Step 0.5; design/_lane.md. Drives the design stage.
-ux-impact-confirmed: false            # flipped to true after Batch B
+  platforms: []
+  languages: []
+  ui: []
+  build: []
+  package-managers: []
+  testing: []
+  observability: []
+  integrations: []
+  available-skills: []
+  available-mcp: []
+  user-confirmed: false
+ux-impact: <none|visual|flow|new-surface>
+ux-impact-confirmed: false
+design-move: <move>
+design-skip-reason: "<one line>"
+intent-risks:
+  - id: RIM-1
+    risk: "<one-line risk statement>"
+    severity: <high|medium|low>
+    status: open
+    adjudicated-by: ""
+    decision: ""
+    po-ratified: null
+charter:
+  - id: C1
+    commitment: "<one positive commitment, falsifiable by code>"
+    source: "01-intake.md#<section>"
+    status: honored
+    po-ratified: <true|false>
 next-command: wf-shape
 next-invocation: "/wf shape <slug>"
 workflow-files:
@@ -48,7 +64,7 @@ workflow-files:
 progress:
   intake: in-progress
   shape: not-started
-  design: not-started                   # skipped when ux-impact: none (shape writes design-skip-reason)
+  design: not-started
   slice: not-started
   plan: not-started
   implement: not-started
@@ -60,7 +76,33 @@ progress:
 ---
 ```
 
-No markdown body is needed in the index; the frontmatter IS the content.
+The index has no markdown body. The frontmatter is the current state of the workflow. Apply these rules:
+
+- Write no YAML comments in the index.
+- Append history (old notes, old next-step commentary) to `index-history.jsonl`, one JSON object per line: `{"at","kind","text","stage"}`.
+- Keep the deferral list, `intent-risks`, `charter`, and `revisions:` in the index.
+- `review-scope: per-slice` is a provisional default. Slice (or plan on the skip-to-plan path) confirms it.
+- `stack` is the Step 0.5 fingerprint. Batch B confirms it. `design/_lane.md` defines the `ux-impact` values.
+- Write `design-move` only when `/wf design <move>` started the workflow. Otherwise omit the key.
+- When `ux-impact: none`, shape sets `progress.design: skipped` and writes `design-skip-reason`. Otherwise omit the key.
+
+**`intent-risks` (the RIM ledger).** Write one entry for each RIM from the Step 6a misreading pass. When there are zero entries, write `intent-risks: none-declared`. An absent key is illegal in default mode, and shape's Step 9a backfills it. Shape adjudicates every `open` entry (shape.md Step 9a). Handoff and ship block on any entry that stays `open`. Compressed intake modes (fix, hotfix, refactor, update-deps, adopt) write entries only when a risk exists. Terminal-analysis modes write no ledger.
+
+**`charter`.** Write the 3–7 load-bearing commitments from Step 6b. Keep them few: each commitment is falsifiable by code, not a mood. Distill them from the Restated Request, Intended Outcome, and Known Constraints. Set `po-ratified: true` when Step 6b confirms an entry. When there are zero commitments, write `charter: none-declared`. Compressed intake modes write no charter. Shape's RIM adjudications and the `## Intake Fidelity` rows can cite charter ids. The intent-fidelity review dimension checks each charter id.
+
+## `po-answers.md`
+
+The cumulative product-owner log. Every stage appends one entry for each answer:
+
+```markdown
+## <iso-8601> — <stage>
+
+**Q:** <the question, as asked>
+**A:** <the answer, exact>
+**AMB:** <AMB-n ids this answer closes or confirms, or "none">
+```
+
+Only shape writes the `**AMB:**` line. The line links each answer to the shape Ambiguity Inventory.
 
 ## `01-intake.md`
 
@@ -79,35 +121,34 @@ refs:
   next: 02-shape.md
 next-command: wf-shape
 next-invocation: "/wf shape <slug>"
+recommended-routes:
+  - invocation: "/wf shape <slug>"
+    reason: "<why shape is next>"
+    default: true
+  - invocation: "/wf plan <slug>"
+    reason: "<only when the task is trivially scoped>"
 ---
 ```
 
+Write the explainer to `01-intake.explainer.html.fragment` per [_story-arc.md](../../_story-arc.md).
+
 # Intake
 
-## The Intake
-<!-- STORY SECTION — first, and self-sufficient. must follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
-
 ## Restated Request
-<!-- If the request implies a sequence of user actions (a core loop — "user does A, gets B, then C"), state that loop as NUMBERED STEPS. The numbered loop is a deliberate artifact: shape derives the Charter Scenario (the executable end-to-end spine) from it. An unnumbered loop does not exempt shape (it derives one from prose), but numbering it here is the honest, cheap form. -->
+<!-- If the request implies a core loop ("user does A, gets B, then C"), state it as NUMBERED STEPS. Shape derives the Charter Scenario from it. -->
 
 ## Intended Outcome
 
 ## Primary User / Actor
 
 ## Affected Areas (preliminary)
-<!-- Step 0.7's bounded research findings — file paths, one-line existing behavior each, and any request-ambiguity the code already resolves. Omit the section only when Step 0.7's skip criteria held. Consumed twice downstream: Batch B questions reference it, and shape's research sub-agent 1 opens with it ("verify and deepen, do not re-derive"). -->
+<!-- Step 0.7 findings: file paths, the existing behavior in one line each, and each ambiguity the code already resolves. Omit the section only when the Step 0.7 skip criteria held. -->
 - ...
 
 ## Known Constraints
 - ...
 
 ## Assumptions
-- ...
-
-## Product Owner Questions Asked
-- ...
-
-## Product Owner Answers
 - ...
 
 ## Unknowns / Open Questions
@@ -117,18 +158,8 @@ next-invocation: "/wf shape <slug>"
 - ...
 
 ## Risks if Misunderstood
-<!-- Each risk here is ALSO a tracked ledger entry. Give each a stable id RIM-1..n and a severity; the prose stays, the ids are additive. The ledger is what forces shape to adjudicate each one in writing instead of letting it evaporate. Never silently absent in default mode (Step 6a): zero entries requires the explicit declaration `intent-risks: none-declared` in 00-index.md frontmatter plus a one-line reason here. Record the Step 6a misreading pass in this section too: each dismissed candidate as "considered: <misreading> — dismissed because <reason>". -->
-- **RIM-1** (severity: high|medium|low) — <one-line risk statement>
-- ...
-
-<!-- LEDGER AUTHORING: write these into 00-index.md frontmatter as `intent-risks` — one entry per RIM with `id`, `risk` (the one-line statement), `severity`, `status: open`, and empty `adjudicated-by` / `decision` / `po-ratified: null`. When the section legitimately has zero entries, write `intent-risks: none-declared` instead (an absent key is ILLEGAL in default mode — shape's Step 9a backfills it). Shape must adjudicate every `open` entry before it can complete (see shape.md Step 9a); handoff/ship HARD-BLOCK on any that stay `open`. This reuses the exact machinery `runtime-evidence-deferrals` already proves out. Compressed intake modes (fix/hotfix/refactor/update-deps/adopt): author entries ONLY if the risk section produces any — the ledger is optional there, and `none-declared` is not required. Terminal-analysis modes (investigate/discover/ideate): no ledger (no build follows). -->
-
-## Charter
-<!-- The 3–7 positive commitments this build must honor — deliberately FEW. A charter that restates the whole intake is boilerplate; keep only the load-bearing promises. Each commitment must be FALSIFIABLE BY CODE (a reader can point at a behavior that proves or breaks it), not a mood or an aspiration. Distilled from the Restated Request, Intended Outcome, and Known Constraints. Never silently absent in default mode: zero commitments requires `charter: none-declared` in 00-index.md frontmatter plus a one-line reason here. Ratified with the PO in Step 6b before writing. Compressed intake modes (fix/hotfix/refactor/update-deps/adopt): SKIP — no charter, no declaration needed. -->
-- **C1** — <one positive commitment, falsifiable by code> — source: `01-intake.md#<section>`
-- ...
-
-<!-- LEDGER AUTHORING: write these into 00-index.md frontmatter as `charter` — one entry per commitment with `id` (C1..), `commitment` (the one-line statement), `source` (the `01-intake.md#section` it distills), `status: honored`, and `po-ratified: true` once Step 6b's confirmation lands (false with an explicit PO-declined note otherwise). When zero commitments, write `charter: none-declared` instead. Additive cross-wiring downstream (ids only, no new machinery): shape's RIM adjudications (Step 9a) MAY name the charter ids they protect; the `## Intake Fidelity` table rows MAY reference charter ids; the intent-fidelity review dimension checks its question 1 per charter id. Compressed intake modes: skip (no charter). -->
+<!-- The RIM ledger is `intent-risks` in 00-index.md. Name each RIM id here in one line. Record each dismissed Step 6a candidate as "considered: <misreading> — dismissed because <reason>". With `none-declared`, write the one-line reason here. The charter is `charter` in 00-index.md; with `charter: none-declared`, write its one-line reason here too. -->
+- **RIM-1** — see `00-index.md` `intent-risks`
 
 ## Success Criteria
 - ...
@@ -141,9 +172,4 @@ next-invocation: "/wf shape <slug>"
   Why it matters:
   Takeaway:
 
-## Recommended Next Stage
-- **Option A (default):** `/wf shape <slug>` — [reason]
-- **Option B:** `/wf <other> <slug>` — [reason, if applicable]
-- **Option C:** Blocked — [what's missing]
-
-If required answers are still missing, set frontmatter `status: awaiting-input` and set `next-invocation` to rerun `/wf intake <same-slug>` after answers arrive.
+When required answers are still missing, set `status: awaiting-input`. Then set `next-invocation` to `/wf intake <same-slug>`.

@@ -7,7 +7,7 @@ import {
   md2html,
   renderHistoryBlock,
   renderRevisionLedger
-} from "../chunk-SCNOIKJL.mjs";
+} from "../chunk-M4L3PWUR.mjs";
 import {
   figureCanvas
 } from "../chunk-RFW2L66D.mjs";
@@ -16,7 +16,7 @@ import {
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-O2MCLXSW.mjs";
+} from "../chunk-U4XWDSQ3.mjs";
 import {
   escapeHtml
 } from "../chunk-3RXHOXIK.mjs";
@@ -64,7 +64,7 @@ function render(artifact, ctx) {
   } catch {
     figureHtml = figureCanvas({ figureNumber: 3, title: "File-change topology", svgInner: placeholderTopologySvg(), legend: PLAN_LEGEND });
   }
-  const structured = artifact.fragment ? "" : structuredSections(fm, sy);
+  const structured = artifact.fragment && !artifact.fragmentGenerated ? "" : structuredSections(fm, sy);
   const fragmentBlock = artifact.fragment ? `<div class="fragment">${artifact.fragment}</div>` : "";
   const proseBlock = artifact.body ? `<div class="prose">${md2html(artifact.body)}</div>` : "";
   const bodyHtml = `${figureHtml}${structured}${fragmentBlock}${proseBlock}`;

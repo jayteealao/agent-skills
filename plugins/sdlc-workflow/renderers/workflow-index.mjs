@@ -15,6 +15,7 @@ import { figureCanvas, evenX } from './_figure.mjs';
 import { escapeHtml } from './_validator.mjs';
 import { pageHref } from './_paths.mjs';
 import { costRowsFor, costSectionHtml } from './_cost.mjs';
+import { nextRoutes, storyLink } from './_page.mjs';
 
 export function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
@@ -52,6 +53,7 @@ export function render(artifact, ctx) {
   const proseHtml     = artifact.body ? md2html(artifact.body) : '';
 
   const bodyHtml = `
+    ${storyLink(ctx.allArtifacts)}
     ${figureHtml}
     ${metricsHtml}
     ${routesHtml}
@@ -75,19 +77,25 @@ export function render(artifact, ctx) {
 
 // Recommended next route(s). Quick workflows end by recommending a follow-up
 // command (operator action, /wf-quick fix, …) rather than advancing a stage.
+// Reads the `recommended-routes` list (S3: [{ invocation, reason, default }]),
+// then the old { primary, alternates } shape, then next-invocation/next-command
+// (renderers/_page.mjs#nextRoutes owns the fallback order).
 function routesSection(fm) {
-  const rr = (fm['recommended-routes'] && typeof fm['recommended-routes'] === 'object') ? fm['recommended-routes'] : {};
-  const primary    = rr.primary ?? fm['next-command'] ?? '';
-  const invocation = fm['next-invocation'] ?? '';
-  const alternates = Array.isArray(rr.alternates) ? rr.alternates : [];
-  if (!primary && !invocation && !alternates.length) return '';
+  const routes = nextRoutes(fm).filter((r) => r.invocation);
+  if (!routes.length) return '';
+  const primary = routes.find((r) => r.default) ?? routes[0];
+  const alternates = routes.filter((r) => r !== primary);
+  const reason = (r) => (r.reason ? ` <span class="meta">— ${escapeHtml(r.reason)}</span>` : '');
   const alts = alternates.length
-    ? `<ul class="route-alts">${alternates.map((a) => `<li><code>${escapeHtml(String(a))}</code></li>`).join('')}</ul>`
+    ? `<ul class="route-alts">${alternates.map((a) => `<li><code>${escapeHtml(a.invocation)}</code>${reason(a)}</li>`).join('')}</ul>`
     : '';
+  // The legacy page showed next-command and next-invocation on two lines.
+  const secondLine = fm['next-invocation'] && fm['next-invocation'] !== primary.invocation
+    ? `<p class="meta">${escapeHtml(String(fm['next-invocation']))}</p>` : '';
   return `<section class="next-route">
     <h2 class="sdlc-h2">recommended next</h2>
-    ${primary ? `<p class="route-primary"><code>${escapeHtml(String(primary))}</code></p>` : ''}
-    ${invocation ? `<p class="meta">${escapeHtml(String(invocation))}</p>` : ''}
+    <p class="route-primary"><code>${escapeHtml(primary.invocation)}</code>${reason(primary)}</p>
+    ${secondLine}
     ${alts}
   </section>`;
 }

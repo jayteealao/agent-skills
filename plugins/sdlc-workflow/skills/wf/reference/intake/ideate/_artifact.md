@@ -31,38 +31,25 @@ culled:
     title: "<title>"
     reason: "<adversarial filter reason, or needs-verification: <the named cheap check>>"
   - ...
+next-command: user-picks
+next-invocation: "/wf intake ideate <slug> <idea-id>"
+recommended-routes: [{invocation: "/wf intake ideate <slug> <idea-id>", reason: "record the pick", default: true}]
 ---
 ```
 
 # Ideation: <focus-area or "Codebase-Wide">
 
-## The Ideation
-<!-- STORY SECTION — first, and self-sufficient. must follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+Write the explainer to `01-ideate.explainer.html.fragment` per [_story-arc.md](../../_story-arc.md).
 
 *Generated: <date> | Lenses: <list> | Raw: <N> → Filtered: <N> → Showing: <N>*
 
 ## Ranked Ideas
 
-### #1 — <Title>
-**Category:** <category> | **Impact:** <level> | **Effort:** <level> | **Feasibility:** <level>
-**Why this rank:** <rank-reason>
+Build this list from the `ideas:` roster. The roster order is the rank. Write one entry for each roster entry. Do not copy the roster fields (category, impact, effort, feasibility, rank-reason, evidence, entry) into the body. The `culled:` roster is the adversarial filter log.
 
-**Evidence:** `<file:line>`
+### #1 — <Title> (IDEA-001)
 
 <Description>
-
-**To act on this:** `/wf intake <slug-suggestion>`
-
----
-
-### #2 — ...
-
----
-
-## Adversarial Filter Log
-
-<For each culled idea:>
-- **IDEA-NNN** — *<title>*: <reason>
 
 ---
 

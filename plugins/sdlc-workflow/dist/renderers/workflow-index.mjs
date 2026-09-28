@@ -1,9 +1,13 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  nextRoutes,
+  storyLink
+} from "../chunk-SWJT3BVF.mjs";
+import {
   md2html,
   renderHistoryBlock
-} from "../chunk-SCNOIKJL.mjs";
+} from "../chunk-M4L3PWUR.mjs";
 import {
   costRowsFor,
   costSectionHtml
@@ -18,7 +22,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-O2MCLXSW.mjs";
+} from "../chunk-U4XWDSQ3.mjs";
 import "../chunk-PNDGQNSP.mjs";
 import {
   escapeHtml
@@ -60,6 +64,7 @@ function render(artifact, ctx) {
   const tagsHtml = tagsSection(fm.tags);
   const proseHtml = artifact.body ? md2html(artifact.body) : "";
   const bodyHtml = `
+    ${storyLink(ctx.allArtifacts)}
     ${figureHtml}
     ${metricsHtml}
     ${routesHtml}
@@ -80,16 +85,17 @@ function render(artifact, ctx) {
   return { headerHtml, bodyHtml, links: [], children: [] };
 }
 function routesSection(fm) {
-  const rr = fm["recommended-routes"] && typeof fm["recommended-routes"] === "object" ? fm["recommended-routes"] : {};
-  const primary = rr.primary ?? fm["next-command"] ?? "";
-  const invocation = fm["next-invocation"] ?? "";
-  const alternates = Array.isArray(rr.alternates) ? rr.alternates : [];
-  if (!primary && !invocation && !alternates.length) return "";
-  const alts = alternates.length ? `<ul class="route-alts">${alternates.map((a) => `<li><code>${escapeHtml(String(a))}</code></li>`).join("")}</ul>` : "";
+  const routes = nextRoutes(fm).filter((r) => r.invocation);
+  if (!routes.length) return "";
+  const primary = routes.find((r) => r.default) ?? routes[0];
+  const alternates = routes.filter((r) => r !== primary);
+  const reason = (r) => r.reason ? ` <span class="meta">\u2014 ${escapeHtml(r.reason)}</span>` : "";
+  const alts = alternates.length ? `<ul class="route-alts">${alternates.map((a) => `<li><code>${escapeHtml(a.invocation)}</code>${reason(a)}</li>`).join("")}</ul>` : "";
+  const secondLine = fm["next-invocation"] && fm["next-invocation"] !== primary.invocation ? `<p class="meta">${escapeHtml(String(fm["next-invocation"]))}</p>` : "";
   return `<section class="next-route">
     <h2 class="sdlc-h2">recommended next</h2>
-    ${primary ? `<p class="route-primary"><code>${escapeHtml(String(primary))}</code></p>` : ""}
-    ${invocation ? `<p class="meta">${escapeHtml(String(invocation))}</p>` : ""}
+    <p class="route-primary"><code>${escapeHtml(primary.invocation)}</code>${reason(primary)}</p>
+    ${secondLine}
     ${alts}
   </section>`;
 }

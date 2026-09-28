@@ -3,6 +3,8 @@
 `intake/adopt.md` holds the `00-index.md` template (Step 4). This file holds the five reconstructed artifacts, each schema-conformant, each `provenance: adopted`.
 
 
+Every artifact carries the terminus `next-command: wf-verify`. `<routes>` is `[{invocation: "/wf verify <slug>", reason: "verify the adopted change", default: true}]`.
+
 Use real timestamps — get the current UTC time per [_timestamp.md](../../_timestamp.md). Write each artifact atomically (temp path → rename). **Every frontmatter block below includes `provenance: adopted`.**
 
 **`01-adopt.md` — `type: intake` (the adoption record, replaces standalone intake):**
@@ -21,11 +23,13 @@ tags: []
 refs:
   index: 00-index.md
   next: 02-shape.md
-next-command: wf-shape
-next-invocation: "/wf shape <slug>"
+next-command: wf-verify
+next-invocation: "/wf verify <slug>"
+recommended-routes: <routes>
+recommended-routes: <routes>
 ---
 ```
-Body (tight): open with `## The Adoption` — the story section (must follow `../../_story-arc.md`; 1–2 short paragraphs — the already-built change inherited and why it enters the pipeline now, the decisions taken, the top open risk; no "This adoption implements…" opening) — then `## Adopted Surface` (the changed-file roster with per-file +/- counts, the commit SHAs ahead of `<base>`, and the branch — the Step A0 evidence, exact), `## Restated Intent` (the inferred goal + any user correction from the gate), `## Acceptance Criteria` (each objectively verifiable; environment-dependent ACs carry their W2d resolution as an italic note), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
+Write the explainer to `01-adopt.explainer.html.fragment` per [_story-arc.md](../../_story-arc.md). Body (tight): `## Adopted Surface` (the changed-file roster with per-file +/- counts, the commit SHAs ahead of `<base>`, and the branch — the Step A0 evidence, exact), `## Restated Intent` (the inferred goal + any user correction from the gate), `## Acceptance Criteria` (each objectively verifiable; environment-dependent ACs carry their W2d resolution as an italic note), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
 
 **`02-shape.md` — `type: shape`:**
 ```yaml
@@ -45,8 +49,10 @@ refs:
   index: 00-index.md
   intake: 01-adopt.md
   next: 03-slice.md
-next-command: wf-slice
-next-invocation: "/wf slice <slug>"
+next-command: wf-verify
+next-invocation: "/wf verify <slug>"
+recommended-routes: <routes>
+recommended-routes: <routes>
 ---
 ```
 Body (tight): `## In Scope` (the changed surface, 1–3 bullets), `## Out of Scope` (explicit, 1–3), `## Known Unknowns` (0–2 — including any `implied_gaps` sub-agent 1 flagged: things the diff arguably should have changed but did not).
@@ -73,8 +79,10 @@ refs:
   index: 00-index.md
   shape: 02-shape.md
   next: 04-plan.md
-next-command: wf-plan
-next-invocation: "/wf plan <slug>"
+next-command: wf-verify
+next-invocation: "/wf verify <slug>"
+recommended-routes: <routes>
+recommended-routes: <routes>
 ---
 ```
 Body (one line): "Single-slice adoption — the whole adopted change is one slice." (Or, if separable concerns were confirmed at the gate: one `slices[]` entry per concern, each mapped to its file group, and `total-slices` / `best-first-slice` set accordingly. Slice status is `complete`, not `defined` — the code already exists; the schema enum has no `implemented` value, and the adoption fact is carried by `provenance: adopted` plus the index's `progress` map, never by inventing an enum value the write-hook rejects.)
@@ -100,8 +108,10 @@ refs:
   index: 00-index.md
   slice: 03-slice.md
   next: 05-implement.md
-next-command: wf-implement
-next-invocation: "/wf implement <slug>"
+next-command: wf-verify
+next-invocation: "/wf verify <slug>"
+recommended-routes: <routes>
+recommended-routes: <routes>
 ---
 ```
 Body:
@@ -134,6 +144,7 @@ refs:
   next: 06-verify.md
 next-command: wf-verify
 next-invocation: "/wf verify <slug>"
+recommended-routes: <routes>
 ---
 ```
 Body:

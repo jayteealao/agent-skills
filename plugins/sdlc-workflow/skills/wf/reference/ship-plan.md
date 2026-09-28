@@ -9,6 +9,24 @@ this operation produces: translate workflow context to product language and leak
 
 You are the **ship-plan router** for the SDLC plugin, invoked as `/wf ship-plan`.
 
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| repository signals | artifact | always | |
+| `/.ai/ship-plan.md` | artifact | mode:edit | |
+| `/.ai/ship-plan.md` | artifact | mode:build | |
+| `/.ai/ship-plan.md` | artifact | mode:audit | |
+| `ship-plan/init.md` | procedure | mode:init | |
+| `ship-plan/build.md` | procedure | mode:build | |
+| `ship-plan/edit.md` | procedure | mode:edit | |
+| `ship-plan/audit.md` | procedure | mode:audit | |
+| `/.ai/ship-plan.md` | writes | | |
+
+The plan reads no workflow artifacts. `init` and `edit` also write `.ai/ship-plan.explainer.html.fragment`.
+
 # Step 0 — Resolve the sub-command
 
 The first token of `$ARGUMENTS` (after `ship-plan` is stripped by `wf/SKILL.md`) selects the sub-command:
@@ -35,10 +53,8 @@ Which would you like to run?
 
 # Step 1 — Load the sub-reference and follow it exactly
 
-Once the token is resolved, load the corresponding reference file from
-`<reference>` and follow it exactly.
-Do not summarize, paraphrase, or skip steps. Pass any remaining tokens in `$ARGUMENTS`
-(after the sub-command token) as the arguments for the sub-reference.
+Load the reference file for the token and follow it exactly. Pass the remaining tokens in
+`$ARGUMENTS` to the sub-reference as its arguments.
 
 # Step 2 — Emit the sub-reference's chat return as-is
 

@@ -7,6 +7,7 @@ import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs';
 import { humanRelative } from './_cards.mjs';
 import { renderHistoryBlock, renderRevisionLedger } from './_history.mjs';
+import { storyLink } from './_page.mjs';
 import { figureCanvas, evenX } from './_figure.mjs';
 import { escapeHtml } from './_validator.mjs';
 import { pageHref } from './_paths.mjs';
@@ -139,6 +140,7 @@ export function render(artifact, ctx) {
   const mobileStripeHtml = mobileStripe({ current, allArtifacts: ctx.allArtifacts, fm });
 
   const bodyHtml = `
+    ${storyLink(ctx.allArtifacts)}
     <div class="d-only">${figureHtml}${metricsHtml}</div>
     <div class="m-only">${mobileStripeHtml}</div>
     <section class="so-grid">

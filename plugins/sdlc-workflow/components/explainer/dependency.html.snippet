@@ -1,0 +1,27 @@
+{{!--
+  explainer/dependency — a small node-and-edge graph (what depends on what).
+  Columns follow the longest path from a source node, so arrows point left to
+  right; an edge that closes a cycle is dashed and curves below. Inline SVG,
+  no script; colours are the view's theme tokens (set through style attributes).
+
+  <!-- @include explainer/dependency {"title": "Which module calls which",
+       "nodes": [
+         {"id": "ui", "label": "Checkout page"},
+         {"id": "api", "label": "Orders API"},
+         {"id": "db", "label": "Orders table", "tone": "warn", "note": "migration in slice 2"}
+       ],
+       "edges": [{"from": "ui", "to": "api", "label": "POST"}, ["api", "db"]]} -->
+
+  Parameters: title (optional), nodes[].id, nodes[].label, nodes[].tone
+  (optional), nodes[].note (optional; listed under the figure), edges[] as
+  {"from", "to", "label"?} or ["from", "to"].
+--}}
+<figure class="xpl xpl-dependency" style="margin:18px 0;padding:14px 16px;border:1px solid var(--rule);border-radius:var(--rad-md);background:var(--paper)">
+{{#each title_list}}<figcaption style="font-family:var(--sans);font-size:13px;font-weight:600;color:var(--ink-2);margin:0 0 6px">{{this}}</figcaption>{{/each}}
+<svg viewBox="0 0 {{width}} {{height}}" width="100%" style="max-width:{{width}}px;display:block" role="img" aria-label="{{title}}">
+<defs><marker id="{{id}}-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" style="fill:var(--ink-3)"/></marker></defs>
+{{#each edges}}<path d="{{this.d}}" marker-end="url(#{{id}}-arrow)" style="fill:none;stroke:var(--ink-3);stroke-width:1.5;stroke-dasharray:{{this.dash}}"/>{{#each this.label_list}}<text x="{{this.x}}" y="{{this.y}}" text-anchor="middle" style="fill:var(--ink-3);font-family:var(--mono);font-size:10.5px">{{this.t}}</text>{{/each}}
+{{/each}}{{#each nodes}}<g><rect x="{{this.rx}}" y="{{this.ry}}" width="{{this.w}}" height="{{this.h}}" rx="6" style="fill:var(--paper-2);stroke:{{this.stroke}};stroke-width:1.6"/><text text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:12px">{{#each this.lines}}<tspan x="{{this.x}}" y="{{this.y}}">{{this.t}}</tspan>{{/each}}</text></g>
+{{/each}}</svg>
+<ul style="margin:8px 0 0;padding-left:22px;color:var(--ink-2);font-size:14px">{{#each nodes}}{{#each this.note_list}}<li><b>{{this.label}}</b>: {{this.text}}</li>{{/each}}{{/each}}</ul>
+</figure>

@@ -24,11 +24,21 @@ This sub-procedure runs from `plan` (shape-flagged) or from `/wf probe` (ad-hoc)
 
 | | Detail |
 |---|---|
-| Requires | The calling stage passes a code area, function name, file path, or endpoint. |
+| Requires | See [## Requires](#requires). The calling stage also passes a code area, function name, file path, or endpoint. |
 | Produces | `.ai/profiles/profile-<timestamp>-<slug>/01-profile.md` — the profiling analysis |
 | Does NOT | Start a workflow, write any workflow artifact, modify application code. |
 | Next | `/wf intake investigate <domain>` — to rank this profiling finding among other investment opportunities |
 | Alt next | `/wf intake <description>` — if the profiling surfaced a clear high-value optimization |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `augment/profile/_artifact.md` | procedure | always | |
+| `_story-arc.md` | procedure | always | |
+| `/.ai/profiles/*/01-profile.md` | writes | | |
 
 > **Auto second opinion (objective triggers).** At the optimization-candidates synthesis,
 > **auto-invoke** `/consult codex <are these optimization candidates sound, and what architectural
@@ -148,11 +158,7 @@ for i in {1..10}; do time <command>; done
 
 Write `01-profile.md` with the frontmatter and the exact body structure in [profile/_artifact.md](profile/_artifact.md); downstream commands depend on that structure.
 
-Then add one additional section:
-
-## Recommended next steps
-
-Based on this profiling result, suggest one of:
+Then write the frontmatter `recommended-routes`. Pick the default from this table; list the other viable rows too:
 
 | Signal | Recommendation |
 |--------|----------------|
@@ -164,7 +170,7 @@ Based on this profiling result, suggest one of:
 
 # Step 5 — Hand off to user
 
-Return per [_chat-return.md](../_chat-return.md) — narrative lead (what was found, built, or measured, and what it means for the user), then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md) — a narrative lead that quotes the explainer's summary paragraph, then the structured anchors below.
 
 Emit a compact chat summary:
 

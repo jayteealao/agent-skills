@@ -88,6 +88,11 @@ const EOB =
 // Diagnostic, never a gate: a failed append never fails a stage.
 // ---------------------------------------------------------------------------
 const JOURNAL_PATH = `${projectRoot}/.ai/workflows/${slug}/.driver-journal.jsonl`
+// Y4 — the mod's read-check rows live in their OWN file. They never go to the driver
+// journal: liveness reads the journal's newest line as the driver's state, so a mod row
+// there would call a live run "presumed dead" (and the mod has no append, so it could
+// drop driver lines). This script only ever READS the ledger, through the report agent.
+const READ_LEDGER_PATH = `${projectRoot}/.ai/workflows/${slug}/.read-ledger.jsonl`
 
 // runId is minted by orient (the first subagent — it has the clock this script
 // lacks) and threaded into every later heartbeat so one run's entries are
@@ -124,6 +129,31 @@ const CONTROL_FILE_RULE =
   `edit is rejected as modified-since-read, that means the other writer moved: re-read, re-derive your change ` +
   `against the NEW content, and retry ONCE. Never force a stale string through, and never rewrite the whole file ` +
   `to dodge the conflict.`
+
+// Y6 — THE REQUIRES TABLE IS A CHECKLIST. Yolo stage agents read their own reference
+// almost always, then skipped what it points to: the shape in 8–18% of implement,
+// verify and review runs, procedure files in 3–58%. Nothing in the run noticed. The
+// stage reference's `## Requires` table now names every input, the mod checks the
+// writer's reads against it, and a missing read comes back as feedback in the write's
+// tool result (warn mode: the write lands). The prompt says so, so the agent reads
+// the table before it writes and acts on the feedback instead of ignoring it.
+function requiresClause(refPath) {
+  return `\n\nREQUIRED READS (CHECKED). The \`## Requires\` table in ${refPath} is a CHECKLIST, defined by ` +
+    `${referenceRoot}/_requires.md. Before you write the stage artifact, read every row whose When value applies ` +
+    `to this run — each whole-file input from its first line to its last, each named section in full — yourself, ` +
+    `with the file-read tool. A search hit, a shell read, a partial read, or a sub-agent's read does not count. ` +
+    `The mod checks your reads when you write the stage artifact: a missing or partial read comes back as ` +
+    `feedback (context) in that write's tool result. When it does, read each named input, then write the ` +
+    `artifact again in this same run. Keep reading ${refPath} in full as well.`
+}
+
+// S6 — a dispatch prompt that carries the full text of a Requires input names it, so the
+// read check counts it as read for the writer of the named output path.
+function promptFedLine(inputs, outputPath) {
+  const list = (inputs || []).filter(Boolean)
+  if (!list.length) return ''
+  return `\n\nPrompt-fed inputs: ${list.join(', ')}\nOutput artifact: ${outputPath}`
+}
 
 // Liveness of the PREVIOUS driver, judged in code from the journal entries orient reports.
 // The yardstick is the run's own cadence: past its longest inter-entry gap (and a 20-minute
@@ -391,6 +421,10 @@ const ORIENT_RESULT = {
         },
       },
     },
+    // Y7 — the durable plan-fan-out marker (00-index.md `reconcile-pending: true`). A run
+    // that stopped between the fan-out and the reconcile leaves every plan 'done', so
+    // without this flag a resumed run would skip reconcile for good.
+    reconcilePending: { type: 'boolean' },
     fileConvention: { enum: ['suffixed', 'unsuffixed'] },
     branch: {
       type: 'object',
@@ -571,9 +605,13 @@ async function orient() {
     `anything; just report. The project root is ${projectRoot} (absolute) — resolve every path under it and run ` +
     `git as \`git -C ${projectRoot} …\`.\n\n` +
     `Slug: ${slug}${slice ? `\nTarget slice: ${slice}  (slice mode)` : `\n(no slice given → slug mode)`}\n\n` +
-    `1. Read ${projectRoot}/.ai/workflows/${slug}/00-index.md. Parse: status, current-stage, review-scope ` +
+    `1. Read ${projectRoot}/.ai/workflows/${slug}/00-index.md. It is CURRENT STATE only: parse the keys this step ` +
+    `names and nothing else. Do NOT read index-history.jsonl or history/ — finished history (old next-step ` +
+    `commentary, finished sub-pass telemetry) is not state, and must not be mixed into the open deferrals or the ` +
+    `charter you report. Parse: status, current-stage, review-scope ` +
     `(default 'per-slice' if the field is absent), workflow-type, branch-strategy (default 'none' if absent), ` +
-    `branch, base-branch. ALSO parse the \`runtime-evidence-deferrals\` list (if present): capture every entry ` +
+    `branch, base-branch, and reconcile-pending (reconcilePending = true iff the key is literally true; absent → ` +
+    `false). ALSO parse the \`runtime-evidence-deferrals\` list (if present): capture every entry ` +
     `whose \`cleared-by\` is null/absent (STILL OPEN) into priorDeferrals as ` +
     `{ slice, reason (verbatim), deferredAt (= deferred-at), clearedBy (= cleared-by, null if open), repeatOf ` +
     `(= repeat-of, omit if absent), authorized (true iff the entry carries ship-override-authorization — the PO ` +
@@ -634,7 +672,7 @@ async function orient() {
     `   5b. RCA with a DECIDED build — workflow-type 'rca'. The diagnosis IS the intake and 02-shape.md is its ` +
     `synthesized shape, so intake+shape are already COMPLETE and yolo may drive plan→implement→verify→review over ` +
     `the single scope (the plan/implement/verify/review references all have a 'forwarded mode' path for this). Read ` +
-    `recommended-next from 01-rca.md frontmatter (fallback: 00-index.md recommended-routes.primary / next-invocation):\n` +
+    `recommended-next from 01-rca.md frontmatter (fallback: the 00-index.md recommended-routes entry with default: true — old slugs: recommended-routes.primary — / next-invocation):\n` +
     `      • human-triage — OR 01-rca.md shows root-cause-confidence: low AND blast-radius: high — is a genuine ` +
     `product STOP: set ok=false, blockReason='RCA recommends human triage (low confidence + high blast radius)', ` +
     `route='read .ai/workflows/${slug}/01-rca.md and choose the build route by hand, then /wf yolo ${slug}'.\n` +
@@ -839,6 +877,32 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     ? ` INDEX WRITES WITHHELD: do NOT edit 00-index.md or the global INDEX.md in this run — the driver records ` +
       `your stage completion itself (single-writer). Write only your own stage artifact(s).`
     : ''
+  // Y7 — plan fan-out. Concurrent plan agents raced on the master 04-plan.md and could not
+  // see each other's plans. Each now writes ONLY its own 04-plan-<slice>.md + .yaml; the
+  // bookkeeping agent writes the master's sibling table afterwards, and a reconcile agent
+  // compares the rows. The prompt carries the fan-out's sibling state, so it names the
+  // master on a Prompt-fed inputs line (S6): a table that is rebuilt after this run.
+  const fanoutClause = extra.fanout
+    ? ` PLAN FAN-OUT: you plan '${sliceArg}' CONCURRENTLY with ${extra.fanout.siblings.length ? `these sibling ` +
+      `slices: ${extra.fanout.siblings.join(', ')}` : 'no other slice'}. Do NOT create or edit the master ` +
+      `04-plan.md — not its body, not its \`## Sibling Plans\` table, not its frontmatter. Write only ` +
+      `04-plan-${sliceArg}.md and its sibling 04-plan-${sliceArg}.yaml, and put every file you touch in the .yaml ` +
+      `\`files\` list and every cross-slice dependency in \`edges\`, complete: the reconcile step compares those ` +
+      `rows across slices after the fan-out and re-plans any slice that overlaps. The master's sibling table for ` +
+      `this fan-out is this prompt: the concurrent siblings above have no plan on disk yet. Read the existing ` +
+      `04-plan-<other>.md of any slice NOT in that list as plan.md directs.` +
+      promptFedLine(['04-plan.md'], `${projectRoot}/.ai/workflows/${slug}/04-plan-${sliceArg}.md`)
+    : ''
+  // Y7 — reconcile re-plan: an overlapping slice is planned again in review-and-fix mode.
+  const reconcileClause = extra.reconcile
+    ? ` RECONCILE RE-PLAN: 04-plan-${sliceArg}.md already exists, and the fan-out reconcile found that it overlaps ` +
+      `${extra.reconcile.with.length ? extra.reconcile.with.join(', ') : 'a sibling plan'}` +
+      `${extra.reconcile.detail ? ` (${extra.reconcile.detail})` : ''}. Run plan.md's review mode on the existing ` +
+      `plan (review-and-fix, not a fresh plan): read each overlapping sibling plan IN FULL, then fix migration ` +
+      `order, shared fixtures, API changes across files and duplicated utilities so the plans agree. Rewrite per ` +
+      `${referenceRoot}/_additive-write.md with trigger scope-change, and keep the .yaml files and edges current. ` +
+      `Do NOT edit the sibling plans or the master 04-plan.md.`
+    : ''
   const dimensionHint =
     stage === 'review' && idx.reviewDimension
       ? ` Default review rubric: '${idx.reviewDimension}' — the forwarded RCA recommended a build flavor whose ` +
@@ -857,7 +921,9 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `Read ${referenceRoot}/${stage}.md IN FULL and follow it VERBATIM to do the stage's real work and write its ` +
     `artifact(s) under ${projectRoot}/.ai/workflows/${slug}/ — with ONE override: wherever the reference tells you ` +
     `to ask the user (AskUserQuestion) or pause for a human, DO NOT. Resolve it yourself by this policy:\n\n` +
-    `${POLICY[stage]}${roundClause}${probeClause}${reChallenge}${scopeHint}${noIndexClause}\n\n` +
+    `${POLICY[stage]}${roundClause}${probeClause}${reChallenge}${scopeHint}${noIndexClause}${fanoutClause}` +
+    `${reconcileClause}` +
+    requiresClause(`${referenceRoot}/${stage}.md`) + `\n\n` +
     `Operating rules:\n` +
     `- GROUNDED PROGRESS (${referenceRoot}/_grounded-progress.md): before reporting progress or terminal state, ` +
     `audit each claim against a tool result from THIS run. Report only work you can point to evidence for; if ` +
@@ -906,15 +972,20 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
 async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
   return await agent(
     `SLICE-COMPLETE BOOKKEEPING for slug '${slug}', slice '${sliceArg}'. The autonomous driver just drove this ` +
-    `slice through ${stagesRun.join(' → ')} and every gate cleared. Record that fact in the control files so the ` +
-    `index tells the truth without anyone re-deriving it from artifacts.\n\n` +
+    `slice through ${stagesRun.join(' → ')} and every gate cleared. Mirror the recorded outcome into the control ` +
+    `files so the index tells the truth without anyone re-deriving it from artifacts.\n\n` +
     `${EOB}\n\n` +
+    `ONE-WRITER RULE: /wf verify is the one writer of a roster \`status: complete\`. You only MIRROR it. Read ` +
+    `the frontmatter of this slice's verify artifact (06-verify-${sliceArg}.md, or 06-verify.md for an ` +
+    `un-suffixed change-mode workflow). Mirror \`complete\` ONLY when it records \`result: pass\`. Any other ` +
+    `result (a deferral-only \`partial\` included) is not complete: write nothing and say so in note.\n` +
     `1. In ${projectRoot}/.ai/workflows/${slug}/00-index.md, set this slice's entry in \`slices[]\` to ` +
     `status: complete, and refresh the \`progress\` block (completed/total counts) to match the roster's actual ` +
     `state. Refresh \`updated-at\`.\n` +
     `2. In the roster file (${projectRoot}/.ai/workflows/${slug}/03-slice.md, or the per-slice ` +
-    `03-slice-${sliceArg}.md when the workflow uses the suffixed convention), set this slice's ` +
-    `\`status:\` to complete. If the roster records no per-slice status field, leave it alone and say so.\n` +
+    `03-slice-${sliceArg}.md when the workflow uses the suffixed convention), when verify did not already set ` +
+    `this slice's \`status:\` to complete, set it to complete. If the roster records no per-slice status field, ` +
+    `leave it alone and say so. Never change an entry that close set to \`skipped\`.\n` +
     `3. Change NOTHING else. Do not touch stage artifacts, do not advance \`current-stage\` past this slice, do ` +
     `not edit another slice's entry, and never mark the WORKFLOW complete — the driver stops before handoff and ` +
     `the workflow is not done.` +
@@ -1280,6 +1351,13 @@ async function driveReview(sliceArg, idx) {
     `Apply the autonomous triage policy: ${POLICY.review}\n\n` +
     `Project root ${projectRoot} is ABSOLUTE; resolve paths under it and run \`git -C ${projectRoot} …\`. Write ` +
     `schema-complete frontmatter. Return the terminal state (verdict + blockerCount, decisions, residual).` +
+    requiresClause(`${referenceRoot}/review.md`) +
+    // S6 — the scouts read these rubrics and their verified findings ride in this prompt,
+    // so the rubrics count as read for the review writer.
+    promptFedLine(
+      [...new Set(rubrics.map(r => r.file))],
+      `${projectRoot}/.ai/workflows/${slug}/${sliceArg ? `07-review-${sliceArg}.md` : '07-review.md'}`
+    ) +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + DECISION_CONTRACT +
     heartbeatClause(`review${sliceArg ? ':' + sliceArg : ''}`, 'Review', 'review', sliceArg),
     { schema: STAGE_RESULT, label: `review${sliceArg ? ':' + sliceArg : ''}`, phase: 'Review' }
@@ -1321,6 +1399,7 @@ async function runUpdateDepsExec(idx) {
     `'hard-stop' when the policy stopped you), artifactPath = the 06-verify.md path, and terminal ` +
     `{ convergence, result, deferrals ([] if none), substantiveResidual } — plus the decisions you recorded and ` +
     `any residual (blocked / held packages).` +
+    requiresClause(`${referenceRoot}/intake/update-deps.md`) +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + DECISION_CONTRACT +
     heartbeatClause('update-deps:exec', 'Drive', 'update-deps-exec', null),
     { schema: STAGE_RESULT, label: 'update-deps:exec', phase: 'Drive' }
@@ -1762,6 +1841,177 @@ function clearingTripwire(priorDeferrals) {
   }))
 }
 
+// ---------------------------------------------------------------------------
+// Y7 — PLAN FAN-OUT RECONCILE. Parallel plan agents cannot see each other's plans,
+// so after a fan-out the bookkeeping agent writes the master 04-plan.md
+// `## Sibling Plans` table from each 04-plan-<slice>.yaml (`files`, `edges`) and sets
+// a DURABLE `reconcile-pending: true` marker in 00-index.md. A read-only reconcile
+// agent compares the rows; the driver re-plans each overlapping slice in
+// review-and-fix mode; the marker clears only after every re-plan completed.
+// The marker is what makes this survive a driver stop: after the fan-out every plan
+// is terminal-clean on disk, so a resumed orient would otherwise skip reconcile for good.
+// ---------------------------------------------------------------------------
+const RECONCILE_RESULT = {
+  type: 'object',
+  required: ['overlaps'],
+  properties: {
+    overlaps: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['slice'],
+        properties: {
+          slice: { type: 'string' },                                // the slice to re-plan
+          with: { type: 'array', items: { type: 'string' } },       // the sibling slice(s) it overlaps
+          files: { type: 'array', items: { type: 'string' } },      // shared files
+          edges: { type: 'array', items: { type: 'string' } },      // edges that cross
+          reason: { type: 'string' },
+        },
+      },
+    },
+    note: { type: 'string' },
+  },
+}
+
+// reconcileDue() — reconcile runs whenever the durable marker is set, on a fresh run
+// and on a resume alike. update-deps never fans out, so it never reconciles.
+function reconcileDue(idx) {
+  return !!idx && idx.reconcilePending === true && idx.workflowType !== 'update-deps'
+}
+
+// overlappingSlices() — normalize the reconcile agent's answer into the re-plan list:
+// one entry per slice, in roster order, skipped and unknown slices dropped, the
+// overlapping siblings and the shared files/edges merged into one detail line.
+function overlappingSlices(overlaps, roster) {
+  const want = new Map()
+  for (const o of overlaps || []) {
+    if (!o || !o.slice) continue
+    const cur = want.get(o.slice) || { with: new Set(), details: [] }
+    for (const w of o.with || []) if (w && w !== o.slice) cur.with.add(w)
+    for (const f of o.files || []) if (f) cur.details.push(`file ${f}`)
+    for (const e of o.edges || []) if (e) cur.details.push(`edge ${e}`)
+    if (o.reason) cur.details.push(String(o.reason))
+    want.set(o.slice, cur)
+  }
+  return (roster || [])
+    .filter(s => s && s.slice && s.status !== 'skipped' && want.has(s.slice))
+    .map(s => ({ slice: s.slice, with: [...want.get(s.slice).with], detail: [...new Set(want.get(s.slice).details)].join('; ') }))
+}
+
+async function reconcilePlans(idx) {
+  const r = await agent(
+    `PLAN RECONCILE for slug '${slug}'. READ-ONLY — do not write, edit, or commit anything. Parallel plan agents ` +
+    `planned slices without seeing each other's plans; find the plans that must be re-planned together.\n\n` +
+    `1. Read the \`## Sibling Plans\` table in ${projectRoot}/.ai/workflows/${slug}/04-plan.md, and read every ` +
+    `${projectRoot}/.ai/workflows/${slug}/04-plan-<slice>.yaml in full (\`files\` and \`edges\`). Where the table ` +
+    `and a .yaml disagree, the .yaml is the record.\n` +
+    `2. Two slices OVERLAP when they list the same file, when an edge of one names the other slice or one of its ` +
+    `files, or when both change one migration sequence, one shared fixture, or one public API.\n` +
+    `3. Return overlaps: one entry per slice that must be re-planned, as { slice, with (the sibling slices it ` +
+    `overlaps), files (shared files), edges (edges that cross), reason }. When two slices overlap, name the ` +
+    `later one in roster order. Return overlaps: [] when no plans overlap.` +
+    heartbeatClause('plan-reconcile', 'Drive', 'plan-reconcile', null),
+    { schema: RECONCILE_RESULT, label: 'plan-reconcile', phase: 'Drive', model: 'sonnet' } // read-only comparison; pinned per _subagents.md
+  )
+  if (!r) {
+    return { ok: false, stopped: true, reason: 'plan reconcile did not return — reconcile-pending stays set, so the next run retries it', overlaps: [], ran: [] }
+  }
+  const targets = overlappingSlices(r.overlaps, idx.slices)
+  const ran = []
+  for (const t of targets) {
+    log(`plan reconcile → re-plan '${t.slice}' in review-and-fix mode (overlaps ${t.with.join(', ') || 'a sibling'}${t.detail ? `: ${t.detail}` : ''})`)
+    let res = await runStage('plan', t.slice, idx, { reconcile: { with: t.with, detail: t.detail } })
+    if (res && Array.isArray(res.decisions) && res.decisions.length) res = await classifyDecisions(res, idx)
+    ran.push(res)
+    if (!res || res.status === 'hard-stop' || evaluateGate('plan', res) === 'hard-stop') {
+      // The marker stays set: the next run re-runs reconcile before it drives anything.
+      return { ok: false, stopped: true, stoppedSlice: t.slice, reason: (res && res.hardStopReason) || `reconcile re-plan of '${t.slice}' did not clear the plan gate`, overlaps: targets, ran }
+    }
+  }
+  const cleared = await agent(
+    `PLAN RECONCILE BOOKKEEPING for slug '${slug}'. The reconcile step finished: ` +
+    `${targets.length ? `the driver re-planned ${targets.map(t => `'${t.slice}'`).join(', ')}` : 'no sibling plans overlap'}.\n\n${EOB}\n\n` +
+    `1. ${targets.length ? `In ${projectRoot}/.ai/workflows/${slug}/04-plan.md, rewrite the \`## Sibling Plans\` ` +
+    `rows of the re-planned slices from their 04-plan-<slice>.yaml \`files\` and \`edges\`. Change no other row.` : 'Leave 04-plan.md unchanged.'}\n` +
+    `2. In ${projectRoot}/.ai/workflows/${slug}/00-index.md, DELETE the \`reconcile-pending\` key from the ` +
+    `frontmatter, and refresh \`updated-at\`. Change NOTHING else.` +
+    CONTROL_FILE_RULE +
+    `\n\nReturn { ok, wrote: [<files changed>], note }.` +
+    heartbeatClause('plan-reconcile-clear', 'Drive', 'plan-reconcile', null),
+    { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-reconcile-clear', phase: 'Drive', model: 'sonnet' }
+  )
+  const markerCleared = !!(cleared && cleared.ok)
+  if (!markerCleared) log(`plan reconcile: the reconcile-pending marker did not confirm cleared${cleared && cleared.note ? `: ${cleared.note}` : ''} — the next run repeats the (now clean) comparison`)
+  return { ok: true, stopped: false, overlaps: targets, ran, markerCleared }
+}
+
+// ---------------------------------------------------------------------------
+// Y4 — the run report shows reads. The mod appends one row per read check to
+// .read-ledger.jsonl. A read-only agent returns this run's rows; code (not the agent)
+// picks the rows that wrote with a missing or partial read, and marks a row resolved
+// when the same agent wrote the same artifact again later with a clean check.
+// ---------------------------------------------------------------------------
+const READ_LEDGER_RESULT = {
+  type: 'object',
+  required: ['present'],
+  properties: {
+    present: { type: 'boolean' },
+    rows: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          at: { type: 'string' }, agentId: { type: 'string' }, stage: { type: 'string' }, artifact: { type: 'string' },
+          missing: { type: 'array', items: { type: 'string' } },
+          partial: { type: 'array', items: { type: 'string' } },
+          waiver: { type: 'string' },
+        },
+      },
+    },
+  },
+}
+
+// runStartFromId() — orient mints the runId from the clock ('20260726T143005Z-<slug>');
+// its timestamp is the earliest moment a row of THIS run can carry.
+function runStartFromId(runId) {
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/.exec(String(runId || ''))
+  return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z` : null
+}
+
+function readCheckRows(rows, runStartAt) {
+  const start = runStartAt ? Date.parse(runStartAt) : NaN
+  const gap = r => (Array.isArray(r.missing) && r.missing.length > 0) || (Array.isArray(r.partial) && r.partial.length > 0)
+  const inRun = (rows || [])
+    .filter(r => r && typeof r.at === 'string' && !Number.isNaN(Date.parse(r.at)))
+    .filter(r => Number.isNaN(start) || Date.parse(r.at) >= start)
+    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+  const out = []
+  inRun.forEach((r, i) => {
+    if (!gap(r)) return
+    const resolved = inRun.slice(i + 1).some(l => l.artifact === r.artifact && l.agentId === r.agentId && !gap(l))
+    out.push({
+      at: r.at, stage: r.stage || '', artifact: r.artifact || '', agentId: r.agentId || '',
+      missing: r.missing || [], partial: r.partial || [], resolved,
+      ...(r.waiver ? { waiver: r.waiver } : {}),
+    })
+  })
+  return out
+}
+
+async function readLedgerReport(runStartAt) {
+  return await agent(
+    `READ-CHECK REPORT for slug '${slug}'. READ-ONLY — never write, edit, or truncate any file, and never write ` +
+    `to ${JOURNAL_PATH} except your own heartbeat lines.\n\n` +
+    `Read ${READ_LEDGER_PATH} if it exists. It is append-only JSONL that the mod writes: one row per read check, ` +
+    `{"at","agentId","stage","artifact","missing":[...],"partial":[...],"waiver"}. Report present: false when the ` +
+    `file is absent or empty. Otherwise report present: true and rows: every row whose \`at\` is at or after ` +
+    `${runStartAt || 'the start of this run'}, copied verbatim, clean rows (empty missing and partial) included ` +
+    `— the driver uses them to see whether a later write closed a gap. Omit a field the row lacks.` +
+    heartbeatClause('read-check-report', 'Drive', 'read-check', null),
+    { schema: READ_LEDGER_RESULT, label: 'read-check-report', phase: 'Drive', model: 'sonnet' } // mechanical read; pinned per _subagents.md
+  )
+}
+
 // ===========================================================================
 // Control flow
 // ===========================================================================
@@ -1809,7 +2059,24 @@ if (idx.branch.strategy === 'dedicated' && !idx.branch.match) {
 phase('Drive')
 let outcome
 
-if (idx.workflowType === 'update-deps') {
+// Y7 — reconcile runs whenever the durable marker is set: after this run's own fan-out,
+// and on a resume after a driver that stopped between the fan-out and the reconcile.
+let planReconcile = null
+async function runReconcileIfDue(current) {
+  if (!reconcileDue(current)) return null
+  log(`plan reconcile: reconcile-pending is set in 00-index.md — comparing sibling plans before any slice drives on`)
+  planReconcile = await reconcilePlans(current)
+  if (!planReconcile.stopped) {
+    current.reconcilePending = false   // done for this run; a later check in the same run must not repeat it
+    return null
+  }
+  return { ok: false, mode: current.mode, reviewScope: current.reviewScope, stopped: true, stoppedAt: 'plan-reconcile', stoppedSlice: planReconcile.stoppedSlice, reason: planReconcile.reason, ran: planReconcile.ran, route: `address the plan overlap${planReconcile.stoppedSlice ? ` on '${planReconcile.stoppedSlice}'` : ''}, then re-run /wf yolo ${slug}${slice ? ' ' + slice : ''} (reconcile-pending stays set, so the run reconciles first)` }
+}
+const reconcileStop = await runReconcileIfDue(idx)
+
+if (reconcileStop) {
+  outcome = reconcileStop
+} else if (idx.workflowType === 'update-deps') {
   // ---- Self-managed class — update-deps drives its own tier-ordered exec. --
   // Not a per-slice chain: one exec (self-authors 05/06) then slug-wide review.
   outcome = await driveUpdateDeps(idx)
@@ -1844,20 +2111,32 @@ if (idx.workflowType === 'update-deps') {
     const unplanned = idx.slices.filter(s => (s.stages || {}).plan !== 'done' && s.status !== 'skipped')
     if (unplanned.length > 1) {
       log(`plan fan-out: planning ${unplanned.length} un-planned slices concurrently (per-slice writes only; the driver is the single 00-index writer)`)
-      const planned = await parallel(unplanned.map(s => () => runStage('plan', s.slice, idx, { noIndexWrites: true })))
+      const fanSlices = unplanned.map(s => s.slice)
+      const planned = await parallel(unplanned.map(s => () => runStage('plan', s.slice, idx, {
+        noIndexWrites: true,
+        fanout: { siblings: fanSlices.filter(x => x !== s.slice) },
+      })))
       const done = planned
         .map((r, i) => (r && r.status === 'complete' ? (r.slice || unplanned[i].slice) : null))
         .filter(Boolean)
       if (done.length) {
         await agent(
           `PLAN FAN-OUT BOOKKEEPING for slug '${slug}'. The driver just planned these slices concurrently and ` +
-          `each plan subagent wrote ONLY its per-slice 04-plan artifact (index writes were withheld so this step ` +
-          `is the single writer). Do the index bookkeeping plan.md's own Step 7 would have done:\n\n${EOB}\n\n` +
-          `In ${projectRoot}/.ai/workflows/${slug}/00-index.md: (1) add each fan-out plan artifact — ` +
-          `${done.map(s => `04-plan-${s}.md`).join(', ')} — to \`workflow-files\` (skip any already listed); ` +
-          `(2) set \`current-stage\` to plan if it currently names an earlier stage (never move it backward); ` +
-          `(3) refresh \`updated-at\`. Do NOT add per-stage fields to slices[] entries (the roster schema has ` +
-          `none; the driver re-derives plan completion from the on-disk artifacts). Change NOTHING else.` +
+          `each plan subagent wrote ONLY its per-slice 04-plan artifact and .yaml (index writes and master ` +
+          `04-plan.md writes were withheld so this step is the single writer). Do the bookkeeping plan.md's own ` +
+          `Step 7 would have done:\n\n${EOB}\n\n` +
+          `A. The sibling table. Read ${referenceRoot}/plan.md for the master 04-plan.md contract and its ` +
+          `\`## Sibling Plans\` table. In ${projectRoot}/.ai/workflows/${slug}/04-plan.md (create it per that ` +
+          `contract, with schema-complete frontmatter, if it is absent), write the \`## Sibling Plans\` table with ` +
+          `one row for EVERY 04-plan-<slice>.yaml on disk (not only this fan-out), built from that .yaml's ` +
+          `\`files\` and \`edges\`. Read each .yaml in full; copy, do not summarize.\n` +
+          `B. In ${projectRoot}/.ai/workflows/${slug}/00-index.md: (1) add each fan-out plan artifact — ` +
+          `${done.map(s => `04-plan-${s}.md`).join(', ')} — and 04-plan.md to \`workflow-files\` (skip any already ` +
+          `listed); (2) set \`current-stage\` to plan if it currently names an earlier stage (never move it backward); ` +
+          `(3) set \`reconcile-pending: true\` in the frontmatter — the durable marker that makes the reconcile step ` +
+          `run, on this run or on a resume; (4) refresh \`updated-at\`. Do NOT add per-stage fields to slices[] ` +
+          `entries (the roster schema has none; the driver re-derives plan completion from the on-disk artifacts). ` +
+          `Change NOTHING else.` +
           CONTROL_FILE_RULE +
           `\n\nReturn { ok, wrote: [<files changed>], note }.` +
           heartbeatClause('plan-index-writeback', 'Drive', 'plan', null),
@@ -1866,8 +2145,12 @@ if (idx.workflowType === 'update-deps') {
       }
       idx = await orient()                          // re-snapshot so driveChain sees the new plans as done
       if (!idx || !idx.ok) return { ok: false, stopped: true, reason: (idx && idx.blockReason) || 're-orient after plan fan-out failed', route: idx && idx.route }
+      // The bookkeeping agent set the durable marker; reconcile this run's fan-out even if
+      // its marker write did not land (the marker is for a resume, not for this run).
+      if (done.length && !idx.reconcilePending) idx = { ...idx, reconcilePending: true }
     }
   }
+  const fanoutStop = await runReconcileIfDue(idx)
 
   const reviewPer = idx.reviewScope === 'per-slice'
   const perSliceStages = reviewPer ? ['plan', 'implement', 'verify', 'review'] : ['plan', 'implement', 'verify']
@@ -1940,7 +2223,7 @@ if (idx.workflowType === 'update-deps') {
     return null
   }
 
-  outcome = await driveRoster(primary, false)
+  outcome = fanoutStop || await driveRoster(primary, false)
   if (!outcome) {
     if (reviewPer) {
       // Endpoint: every per-slice review clean. Stop before handoff.
@@ -2018,6 +2301,24 @@ if (pressure && pressure.open > 0) {
   log(`deferral pressure: ${bits.join(', ')} — surfaced so the pile does not hide inside artifacts; plan's repeat-deferral tripwire governs retirement`)
 }
 if (branchAction) outcome.branch = branchAction   // surface the up-front create/switch in the hand-back
+// Y7 — the reconcile result rides on the hand-back ("Plan reconcile:" line).
+if (planReconcile) {
+  outcome.planReconcile = {
+    replanned: (planReconcile.overlaps || []).map(t => t.slice),
+    stopped: planReconcile.stopped === true,
+    markerCleared: planReconcile.markerCleared === true,
+  }
+}
+// Y4 — the run report shows reads: every stage that wrote with a missing or partial read.
+const ledger = await readLedgerReport(runStartFromId(RUN_ID))
+if (ledger && ledger.present === true) {
+  const readGaps = readCheckRows(ledger.rows, runStartFromId(RUN_ID))
+  outcome.readCheck = readGaps
+  const open = readGaps.filter(r => !r.resolved)
+  log(readGaps.length
+    ? `read check: ${readGaps.length} stage write(s) with a missing or partial read (${open.length} not closed by a later clean write): ${readGaps.map(r => `${r.stage || '?'} → ${r.artifact || '?'} missing [${r.missing.join(', ')}]${r.partial.length ? ` partial [${r.partial.join(', ')}]` : ''}${r.waiver ? ` waiver: ${r.waiver}` : ''}${r.resolved ? ' (resolved)' : ''}`).join('; ')}`
+    : `read check: every checked stage write this run read its required inputs`)
+}
 // W11.1 — decision digest: every autonomous decision this run recorded, grouped by W4 class,
 // so the human's post-run inspection is structured, not archaeological.
 const digest = decisionDigest(outcome)

@@ -1432,6 +1432,26 @@ test('workflow-index: surfaces routes, progress, and links every sibling artifac
   match(out.bodyHtml, /firebase/);
 });
 
+test('workflow-index: reads the S3 list form of recommended-routes (new slugs) with reasons and the default', () => {
+  const artifact = {
+    type: 'workflow-index',
+    path: '00-index.md',
+    frontmatter: {
+      type: 'workflow-index', slug: 'rca-list', 'workflow-type': 'rca',
+      title: 'List RCA', status: 'ready', 'current-stage': 'fix-routing',
+      'recommended-routes': [
+        { invocation: '/wf probe rca-list', reason: 'confirm at runtime' },
+        { invocation: '/wf intake fix rca-list', reason: 'root cause confirmed', default: true },
+      ],
+    },
+    body: '# RCA',
+    history: [], fragment: null,
+  };
+  const out = renderWorkflowIndex(artifact, { allArtifacts: {} });
+  match(out.bodyHtml, /class="route-primary"><code>\/wf intake fix rca-list<\/code>[^<]*<span class="meta">— root cause confirmed/);
+  match(out.bodyHtml, /class="route-alts"><li><code>\/wf probe rca-list<\/code>/);
+});
+
 /* ── End-to-end: render fixtures via orchestrator ──────────────────── */
 
 test('orchestrator renders fixture slug end-to-end', () => {

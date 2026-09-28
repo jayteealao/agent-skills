@@ -1,6 +1,6 @@
 # Verify artifact schemas
 
-`verify.md` steps 8 and 9 write these two files. Frontmatter carries every machine-readable field; the body is narrative.
+`verify.md` steps 8 and 9 write these two files. Frontmatter carries every machine-readable field; the body is the contract that review, handoff, and design audit read. Raw check output goes to `verify-evidence/<slice-slug>/report.md`.
 
 ## `06-verify.md` (master index)
 
@@ -21,10 +21,14 @@ refs:
   implement-index: 05-implement.md
 next-command: wf-review
 next-invocation: "/wf review <slug> <slice-slug>"
+recommended-routes:
+  - invocation: "/wf review <slug> <slice-slug>"
+    reason: "<one phrase>"
+    default: true
 ---
 ```
 
-Body: `# Verify Index`, then `## Recommended Next Stage`.
+Body: `# Verify Index`, then one line per slice: `<slice-slug>: <result> — 06-verify-<slice-slug>.md`.
 
 ## `06-verify-<slice-slug>.md` (per-slice verify)
 
@@ -65,6 +69,11 @@ security-scan-result: <pass | fail | skipped>  # BLOCKER if fail; skipped only w
 metric-a11y-violations-new: <N>                # new WCAG AA violations in slice-modified UI components
 a11y-result: <pass | fail | not-automatable>   # HIGH if fail; not-automatable surfaces as a gap
 cross-slice-regressions-found: <N>             # sibling slices that newly fail; 0 if first slice
+stack-source: <confirmed | unconfirmed-auto-detect>   # Step 0.5 stack gate; downstream stages may refuse unconfirmed-auto-detect
+skipped-gating-specs: []                       # [{spec, ac, precondition}] from sub-agent 2
+debt-markers-found: <N>                        # sdlc-debt: markers in this slice's diff (sub-agent 1)
+debt-markers-malformed: <N>                    # no ceiling or no upgrade path
+debt-markers-unrecorded: <N>                   # absent from the implement record
 metric-bundle-size-delta-pct: <N | "skipped">  # % change vs. base branch; HIGH if ≥ 20%
 ac-staleness-checked: <true | false>
 ac-stale-count: <N>
@@ -89,6 +98,10 @@ refs:
   adapters: runtime-adapters.md
 next-command: wf-review
 next-invocation: "/wf review <slug> <slice-slug>"
+recommended-routes:            # Adaptive routing options A–G, when applicable
+  - invocation: "/wf review <slug> <slice-slug>"
+    reason: "<one phrase>"
+    default: true
 ---
 ```
 
@@ -98,26 +111,26 @@ next-invocation: "/wf review <slug> <slice-slug>"
 
 ## Body sections, in order
 
-- `## The Verification` — first, and self-sufficient. Follow `_story-arc.md`: three beats in order (the state this stage inherited, the load-bearing decisions with reasons and counts, what this stage enables next plus the top open risk). Language follows `_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs.
+Write the explainer to `06-verify-<slice-slug>.explainer.html.fragment` per [../_story-arc.md](../_story-arc.md).
+
 - `## Verification Summary`
-- `## Automated Checks Run` — one line per check: `command/check: result (pass/fail, summary)`.
-- `## Interactive Verification Results` — per criterion: **Criterion**, **Platform & tool**, **Steps performed**, **Evidence** (`verify-evidence/<filename>`), **Observation**, **Result** (pass / fail / partial, with explanation). When none was needed: "Automated only — [reason]".
-- `## Acceptance Criteria Status` — per criterion: **criterion** (quoted text or id), **kind** (`code-only` | `user-observable`, from the partition rule), **status** (met / partially met / not met / unverified / runtime-evidence-missing), **verification method** (automated / interactive / manual), **evidence** (test output / screenshot path / response capture / "(none — runtime evidence missing)"), **evidence-rung** (the highest rung that produced the evidence: `live | headless | emulator-or-container | cited-mock | uncited-mock | static | n-a`; `n-a` for `code-only` ACs). Task workflows (`workflow-type: task`) add two rungs from the contract (`EVIDENCE-SCHEMA-CONTRACT.md` §7): `attested` (a named external party or human confirmed the outcome, recorded with a citation; below `live`, above the mock rungs) and `asserted` (a claim with no independent read-back; task-land's `uncited-mock`; cannot close an AC). Re-reading a real, non-runtime system of record after acting (an `ls`, a `curl`, an API query) is `live`. Close with a rollup line (`evidence: live 2 / headless 1 / cited-mock 3`); `00-index.md` gets an `evidence-quality:` slug rollup (counts by rung) plus `metric-acceptance-mock-rung` = the count of user-observable ACs whose `evidence-rung` is `cited-mock`, `uncited-mock`, `static`, or `asserted`. The `kind` column makes the gate auditable.
+- `## Automated Checks Run` — one line per check: `command/check: result (pass/fail, summary)`. The full output is in the evidence report.
+- `## Acceptance Criteria Status` — per criterion: **criterion** (quoted text or id), **kind** (`code-only` | `user-observable`, from the partition rule), **status** (met / partially met / not met / unverified / runtime-evidence-missing), **verification method** (automated / interactive / manual), **evidence** (test name / `verify-evidence/<slice-slug>/<file>` path / "(none — runtime evidence missing)"), **evidence-rung** (the highest rung that produced the evidence: `live | headless | emulator-or-container | cited-mock | uncited-mock | static | n-a`; `n-a` for `code-only` ACs). Task workflows (`workflow-type: task`) add two rungs from the contract (`EVIDENCE-SCHEMA-CONTRACT.md` §7): `attested` (a named external party or human confirmed the outcome, recorded with a citation; below `live`, above the mock rungs) and `asserted` (a claim with no independent read-back; task-land's `uncited-mock`; cannot close an AC). Re-reading a real, non-runtime system of record after acting (an `ls`, a `curl`, an API query) is `live`. Close with a rollup line (`evidence: live 2 / headless 1 / cited-mock 3`); `00-index.md` gets an `evidence-quality:` slug rollup (counts by rung) plus `metric-acceptance-mock-rung` = the count of user-observable ACs whose `evidence-rung` is `cited-mock`, `uncited-mock`, `static`, or `asserted`. The `kind` column makes the gate auditable.
 - `## Issues Found` — `severity: issue` per line.
 - `## Verify-Owned Fixes` — present when `fix-rounds-run > 0`. Table `| ID | Type | Triage | Sub-agent outcome | Regression test | Re-check result |` with values Fix / Skip / Escalate; Patched / Could not fix / N/A; `<path>` / `exempt: <reason>` / `n-a`; Pass / Still failing / Not re-run. Then `Commit: <SHA | "(no commit — branch-strategy: none)" | "(no files changed)">` and `Regression tests added: <N>`.
 - `## Augmentation Verification` — only when `02c-craft.md` or `augmentations:` is non-empty: mock fidelity items (honored / deviations / unhonored, each with `file:line` and evidence), one row per augmentation re-check, outstanding design findings from `07-design-audit.md` / `07-design-critique.md`, instrumentation signal coverage from `04b-instrument.md`, experiment wiring from `04c-experiment.md` (flag, cohort, metrics, rollback), benchmark compare-mode delta from `05c-benchmark.md`.
-- `## Security Scan` — CVE scan (tool, result, new critical/high count), secret detection (result, findings), SAST (result, new HIGH+ findings).
+- `## Design Comparison` — only when `02c-craft.md` carries drawings and the stack can capture the surface: each built surface next to its drawing, with the list of differences.
 - `## Accessibility Gate` — tool used, new WCAG AA violations, per violation `rule-id: element — description`.
-- `## Performance Gate` — bundle size delta (HIGH at ≥ +20%), build time delta, cold-start delta (service/CLI only).
-- `## Cross-Slice Regression` — sibling slices checked (or "none — first slice"), regressions found, per regression `sibling-slug — test-suite: failure summary`.
-- `## Longitudinal Delta` — per surface: baseline source (prior evidence run N | base branch screenshot | skipped), visual delta, interpretation (expected change | unexpected — flagged).
+- `## Performance Gate` — bundle size delta (HIGH at ≥ +20%), build time delta, cold-start delta (service/CLI only), and the web vitals (web only: LCP good < 2500 ms, CLS good < 0.1, INP good < 200 ms; HIGH above).
 - `## Friction Notes` — perceptual and product-convention observations; informational unless escalated.
 - `## Free Exploration Notes` — `<finding> — <informational | escalated to issue: <severity>>`.
 - `## Adversarial Tests` — table `| Test | Result | Finding |` over empty submission, max-length input, double-click / rapid repeat, mid-flow interruption, offline / network failure; result pass / fail / n-a.
-- `## Failure Mode Probes` — table `| Probe | Result | Finding |` over slow response (Fast 3G), concurrent session, session expiry mid-flow.
 - `## Cross-Browser Delta` (web only) — primary browser, secondary browser (Firefox | WebKit), divergences found.
-- `## Web Vitals` (web only, via Chrome DevTools Protocol) — LCP (good < 2500 ms), CLS (good < 0.1), INP (good < 200 ms; HIGH above).
+- `## Caveats` — stack provenance (`stack-source`), adapters excluded by the stack, and any other limit on the evidence.
 - `## Gaps / Unverified Areas`, `## Freshness Research`, `## Recommendation`.
-- `## Recommended Next Stage` — Option A `/wf review <slug> <slice-slug>` (converged or no issues), B `/wf verify <slug> <slice-slug>` (escalated; second round), C `/wf implement <slug> <slice-slug>` (escape hatch), D `/wf handoff <slug> <slice-slug>` (skip review), E `/wf plan <slug> <slice-slug>` (plan needs rethinking); each with its reason, listed only when applicable.
+
+## `verify-evidence/<slice-slug>/report.md` (evidence report)
+
+No frontmatter. No stage reads it; it is the audit record. Write, in order: the raw output of each automated check; per user-observable criterion, the platform, tool, steps performed, evidence paths, and observation; the security scan output (CVE, secret detection, SAST); the cross-slice regression runs; the longitudinal delta per surface; the failure mode probes (`| Probe | Result | Finding |` over slow response, concurrent session, session expiry). Put each finding from these checks in `## Issues Found` as well.
 
 Then author free narrative fragments for any beat the structured page cannot tell, per [../_fragment-authoring.md](../_fragment-authoring.md) **Step F2** (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

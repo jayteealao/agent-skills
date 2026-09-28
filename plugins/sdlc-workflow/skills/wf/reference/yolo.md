@@ -18,6 +18,7 @@ You are running `/wf yolo`, the **autonomous lifecycle driver**. It resolves eve
 # What `/wf yolo` is (and is not)
 
 - **A driver, not a stage.** Every artifact in `.ai/workflows/<slug>/` is written by a delegated stage subagent that follows the on-disk reference (`plan.md` / `implement.md` / `verify.md` / `review.md`) **exactly**, with one override: where the reference asks the user, the subagent resolves it by policy.
+- **Reads are checked.** Each stage prompt names the reference's `## Requires` table as a checklist per [_requires.md](_requires.md); the mod feeds back a missing read. The run report lists missing reads from `.read-ledger.jsonl`.
 - **It resolves gates; it does not remove them.** Each stage's quality gate still runs; `yolo` supplies the answer and records it. Where it cannot produce the runtime proof a criterion needs, it defers that criterion through verify's `interactive-verification: deferred` hatch — recorded, ship-blocking, visible.
 - **It stops before handoff — always.** It never opens a PR or runs `handoff`, `ship`, or `retro`. CI is never in its scope.
 - **Resume is free.** The durable record is the artifact trail (`00-index.md` + numbered files). A killed run resumes on re-invocation: orientation skips stages already terminal-clean. No separate state file.
@@ -72,6 +73,8 @@ While a driver is running for a slug — or is presumed-dead and not yet reconci
 The full contract is [_control-file-ownership.md](_control-file-ownership.md).
 
 **Slice-complete write-back.** When a slice clears every gate, the driver writes the roster entry's `status: complete` and the index `progress` block at drive time. The driver is one of the write-back's writers.
+
+**Plan fan-out (`planFanout: true`).** Fan-out plan agents write only their own plan files. A bookkeeping agent then writes the master `04-plan.md` sibling table from each `04-plan-<slice>.yaml` and sets `reconcile-pending: true` in `00-index.md`. A reconcile agent returns the overlapping slices; the driver re-plans them in review-and-fix mode, then clears the marker. While the marker is set, every run reconciles first.
 
 # Two modes
 
@@ -149,7 +152,7 @@ Workflow({
 })
 ```
 
-The workflow runs in the background and returns a task id; a notification arrives when it finishes. Do not start a second driver for the same slug while it runs.
+The workflow runs in the background. Do not start a second driver for the same slug while it runs.
 
 # Resuming — one sanctioned path
 
@@ -163,7 +166,7 @@ When the model resumes a `yolo` run, it relaunches this script through the Workf
 
 1. **Never patch the plugin cache.** A hot-patch to the installed copy is invisible to the dev tree and is erased by the next plugin update. Patch the staged copy instead; the next launch overwrites it.
 2. **Write the patch down** at `.ai/patches/<date>-<symbol>.md` in the repo being worked on: the diff, the symptom, and the file + symbol it targets.
-3. **Record it against the plugin dev tree** — a task, an issue, or a note the next plugin session will see.
+3. **Record it against the plugin dev tree** (a task, an issue, or a note).
 
 # Step 2 — Hand back to the user
 
@@ -188,6 +191,8 @@ Reconciled: <omit when absent | outcome.reconciled: N deferral classification(s)
 Clearing events satisfied: <omit when absent | outcome.clearingEventsSatisfied: N open deferral(s) whose clearing-probe reports the event HAS happened — run /wf probe <slug> to capture the evidence; nothing was cleared automatically>
 Subagent errors: <omit when absent | outcome.subagentErrors: N recovered, M fatal — recovered errors changed no verdict, but the run does not claim zero>
 Deferral pressure: <omit when absent | outcome.deferralPressure: N open, oldest since <date>, M repeat-of wall(s)>
+Read check: <omit when absent | outcome.readCheck: stage, artifact, missing inputs, waiver>
+Plan reconcile: <omit when absent | outcome.planReconcile.replanned, or "no overlap">
 Next: <outcome.route — the routing command>
 ```
 
@@ -201,16 +206,10 @@ Rules:
 - **Surface the autonomy.** Name the assumptions recorded and the findings fixed vs deferred. Point at the artifacts that hold the record.
 - **Surface charter drift and the decision digest.** Call out `intentBearing > 0` explicitly. When `decisionDigest.intentBearingGuarantee` is `suspect`, say so in the same sentence as the zero. If a high-severity RIM's milestone slice landed, emit the recommended `/wf discover` checkpoint.
 - **Flag ship-blocking deferrals.** If `outcome.runtimeEvidenceDeferrals` is non-empty, say that `/wf ship` will refuse until each is cleared.
-- **Internal audience.** `.ai/` paths are allowed in this chat block; the External Output Boundary governs every external surface.
 - **Honesty.** Report what ran. Do not imply the workflow is further along than the artifacts show.
 - **Never re-label an input.** A verify that recorded an AC as a substantive **fail** is reported under `Substantive failures:`, never moved into the deferral list. Where the driver's derivation disagrees with a recorded decision or the index ledger, the recorded classification wins and the disagreement is named on the `Reconciled:` line.
 - **State the previous driver's fate, do not infer it.** If `outcome.priorDriver` says presumed-dead, say presumed-dead and when.
 
-# What this command is NOT
+# Consults
 
-- **Not a stage** — it writes no artifact; the stages it drives do.
-- **Not a fresh-start** — it never runs `intake`/`shape` from a bare description.
-- **Not a PR opener or releaser** — `handoff`, `ship`, and `retro` are separate commands.
-- **Not a CI auto-fixer** — CI is never in its scope.
-- **Not a gate remover** — every quality gate still runs; `yolo` supplies the answer by policy and records it.
 - **Consults at the designated gates (free only, by objective trigger)** — `yolo` auto-invokes `consult` when a plan/review/diagnosis gate's objective trigger fires, pinned to a free subscription CLI (`codex`/`claude`), never a paid REST oracle.

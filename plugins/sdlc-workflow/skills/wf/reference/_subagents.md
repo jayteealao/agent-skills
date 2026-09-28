@@ -50,6 +50,13 @@ pass** is one wave of them.
 - **No sub-agents for trivial work.** Token cost scales linearly with
   fan-out. A single read or a one-file check is the coordinator's own job; so
   is any task cheaper to do than to delegate.
+- **Name the inputs a prompt carries.** When a child writes a stage artifact
+  and its prompt carries the full text of an input from that stage's
+  `## Requires` table, add one line to the prompt:
+  `Prompt-fed inputs: <input>, <input>`, and name the output artifact path in
+  the same prompt. The read check then counts those inputs as read for that
+  writer ([_requires.md](_requires.md)). Do not name an input that the prompt
+  only summarizes.
 - **Steering rows travel with the child.** Inject the relevant `steer.md`
   entries into every child prompt — see [_steering.md](_steering.md).
 

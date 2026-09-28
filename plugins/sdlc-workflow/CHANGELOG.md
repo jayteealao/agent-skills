@@ -5,6 +5,27 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Each workflow artifact splits into an agent file and a human page, and the mod checks that each stage reads its required inputs (ARTIFACT-SPLIT-PLAN.md, waves W0–W6).
+
+### Added
+
+- **Requires tables.** Every stage reference has one `## Requires` table: the artifacts and procedure files the stage reads, and the artifacts it writes. It replaces the prose read orders in Step 0. `_requires.md` defines the table and the check.
+- **Read check.** The mod records each workflow and procedure file each agent reads, with line ranges. When the stage writer writes its artifact with a required read missing or partial, the tool result names the missing files and the write succeeds. The setting `readCheck` is `warn` (default), `block` (needs frontmatter `read-waiver: "<reason>"`) or `off`. Each check writes one row to `.ai/workflows/<slug>/.read-ledger.jsonl`, and the yolo run report lists the misses. Hosts without the mod write `reads-checked: false`.
+- **Explainers.** The story section of each artifact becomes `<stem>.explainer.html.fragment`: a plain explainer with diagrams where the topic has structure. Four snippets (`explainer/sequence`, `comparison`, `cycle`, `dependency`) use the view's theme tokens. The page shows the explainer first, then what waits for the person, the contract as a table, and the evidence and history (collapsed). Brainstorm keeps `## The Brainstorm`. Old slugs keep their current view.
+- **Typed-fragment generator.** The renderer builds a rich-tier fragment from its sibling `.yaml` when the fragment is missing or older. Agents write the `.yaml`; the missing-`.yaml` block stays.
+- **`recommended-routes`.** Every stage artifact lists its next options in frontmatter; `/wf status` reads them. The `## Recommended Next Stage` body sections are gone.
+- **Index hygiene.** `index-history.jsonl` holds old index commentary. `hooks.indexLint` warns when `00-index.md` is over 20 KB, carries YAML comment prose, or has `current-stage` past its first 4,000 characters. `/wf intake modernize` moves old commentary on request.
+- **Evidence folders.** Raw verify output goes to `verify-evidence/<slice>/report.md`; the write hooks, the renderer walk and the stale check exempt it, as they exempt `probe-evidence/`.
+- **Meter.** `npm run measure:artifacts` measures read coverage, refused reads, index size and write mix; the baseline is in `docs/internal/capability-inventory/artifact-baseline.json`.
+
+### Changed
+
+- About 40 contract defects fixed, where a stage read a section or key that another stage did not write or wrote under another name. Two guard tests keep the contract graph and the Requires tables honest.
+- Plan fan-out agents no longer write the master `04-plan.md`. The master gets a `## Sibling Plans` table from the plan `.yaml` files, and a plan reads a sibling in full on an overlap or a dependency. Yolo sets a durable `reconcile-pending` marker and reconciles overlapping slices, also after a resume.
+- PO answers live only in `po-answers.md`, with an `AMB-n` link. Handoff readiness lives in frontmatter keys; the PR Readiness Block is gone. Ship reads every `07-review-*.yaml`. Retro keeps its full reads.
+
 ## [9.171.0] - 2026-09-25
 
 The brainstorm agent explains in chat as well as asks, and each sitting ends with a story (BRAINSTORM-MODE-PLAN.md §23).

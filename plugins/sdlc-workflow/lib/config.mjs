@@ -79,6 +79,10 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
     // (see SIBLING_YAML_VALIDATED_TYPES in hooks/post-write-verify.mjs). Set
     // false to disable while other type schemas are still being reconciled.
     validateSiblingYaml: true,
+    // When true, post-write-verify WARNS (never blocks) when 00-index.md is over
+    // 20 KB, carries YAML comment prose, or has current-stage past its first
+    // 4,000 characters. ARTIFACT-SPLIT-PLAN S4.
+    indexLint: true,
     // When true, post-write-verify HARD-BLOCKS a `verify` artifact whose
     // frontmatter contradicts a passing result: `result: pass` with
     // metric-acceptance-met < metric-acceptance-total, or `result: pass` with

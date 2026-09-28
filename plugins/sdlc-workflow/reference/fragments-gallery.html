@@ -2498,11 +2498,6 @@
   <span class="k">&lt;table</span> <span class="a">class</span>=<span class="s">"sr-checks"</span><span class="k">&gt;</span>…<span class="k">&lt;/table&gt;</span>
   <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"sr-log-panel"</span><span class="k">&gt;</span>…<span class="k">&lt;/div&gt;</span>
 
-  <span class="c">&lt;!-- 3. Rollback affordance (visual only) --&gt;</span>
-  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"sr-actions"</span><span class="k">&gt;</span>
-    <span class="k">&lt;button</span> <span class="a">class</span>=<span class="s">"btn btn-primary"</span><span class="k">&gt;</span>Promote to 100%<span class="k">&lt;/button&gt;</span>
-    <span class="k">&lt;button</span> <span class="a">class</span>=<span class="s">"btn btn-danger"</span><span class="k">&gt;</span>Roll back<span class="k">&lt;/button&gt;</span>
-  <span class="k">&lt;/div&gt;</span>
 <span class="k">&lt;/section&gt;</span></pre></div>
 
   <style>
@@ -2638,24 +2633,6 @@
       color: #7c7468; font-style: italic; font-size: 12px;
     }
 
-    /* Actions */
-    .fragment-shiprun .sr-actions {
-      display: flex; flex-wrap: wrap; gap: 12px;
-      padding: 18px 22px;
-      background: var(--paper-2);
-      border-radius: 8px;
-      margin: 14px 0 0;
-      align-items: center;
-    }
-    .fragment-shiprun .sr-actions .btn {
-      font-size: 14px; padding: 8px 16px;
-    }
-    .fragment-shiprun .sr-actions .btn-danger { font-weight: 600; }
-    .fragment-shiprun .sr-actions .sr-action-note {
-      font-size: 13px; color: var(--ink-3);
-      margin-left: auto;
-    }
-    .fragment-shiprun .sr-actions .sr-action-note b { color: var(--ink-2); }
   </style>
 
   <section class="fragment-shiprun" data-artifact="ship-run" data-release="v3.2.0">
@@ -2845,13 +2822,6 @@
 <span class="ts">09:41:01.115</span> <span class="ok">[visreg]</span> exit 0</pre>
     </div>
 
-    <div class="sr-actions" role="group" aria-label="Release actions (display only)">
-      <button type="button" class="btn btn-primary" disabled aria-disabled="true">Promote to 100% (done · 09:52Z)</button>
-      <button type="button" class="btn btn-danger">Roll back to v3.1.4</button>
-      <button type="button" class="btn">Pause monitor</button>
-      <span class="sr-action-note">Roll-back window closes at <b>10:52Z</b> (60m). Approver required: <b>release-managers</b>.</span>
-    </div>
-
     <script>
     (function () {
       var root = document.currentScript.closest('.fragment-shiprun');
@@ -2935,16 +2905,6 @@
           render(c.dataset.cell);
         });
       });
-
-      // Rollback button mockup: confirm dialog, but don't actually do anything
-      var rollback = root.querySelector('.btn-danger');
-      if (rollback) {
-        rollback.addEventListener('click', function (e) {
-          e.preventDefault();
-          var ok = window.confirm('Roll back v3.2.0 → v3.1.4?\nThis is a mock-up — no action will be taken.');
-          if (ok) rollback.textContent = 'Roll-back queued (mock)';
-        });
-      }
 
       window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', {
         detail: { name: 'ship-run', artifact: '09-ship-run', release: root.dataset.release, checks: cells.length }

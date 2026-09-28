@@ -15,6 +15,31 @@ You are running `/wf design`. It has three jobs:
 
 > **Narrative fragments.** Any artifact may ship free narrative fragments — a token swatch board, an annotated drawing, a live component preview. Rules: [_fragment-authoring.md](_fragment-authoring.md) Step F2.
 
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | always | |
+| `02-shape.md` | artifact | always | |
+| `02b-design.md` | artifact | if-present | |
+| `po-answers.md` | artifact | if-present | |
+| `brainstorm-board-design.json` | artifact | if-present | |
+| the origin brainstorm board named by origin-brainstorm | artifact | mode:stage | |
+| `06-verify-*.md` | artifact | mode:audit | Accessibility Gate; Performance Gate |
+| `design/_lane.md` | procedure | always | |
+| `design/_output.md` | procedure | always | |
+| `design/stage.md` | procedure | mode:stage | |
+| `design/contract.md` | procedure | mode:stage | |
+| `design/_carried.md` | procedure | mode:stage | |
+| `design/_design-context.md` | procedure | mode:stage | |
+| `design/audit.md` | procedure | mode:audit | |
+| `design/critique.md` | procedure | mode:critique | |
+| `02c-craft.md` | writes | | |
+| `07-design-audit.md` | writes | | |
+| `07-design-critique.md` | writes | | |
+
 # Step 0 — Parse the invocation
 
 Resolve the first token by an exact existence check. Never fuzzy-match: a wrong guess sends the work down the wrong path.
@@ -76,7 +101,7 @@ Emit the summary last, per [design/_output.md](design/_output.md) Step 6:
 ```
 wf design <job> complete: <slug-or-"freestanding">
 
-<Narrative — a short prose paragraph: what the person confirmed or what the run produced, the counts that matter, and the top design risk.>
+<Narrative — quote the explainer summary: what the person confirmed or what the run produced, the counts that matter, and the top design risk.>
 
 Register: <brand|product>
 Image gate: <pass | skipped:<reason> | n/a>

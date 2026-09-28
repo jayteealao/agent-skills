@@ -9,6 +9,12 @@
 //   {{name}}      → HTML-escaped substitution
 //   {{{name}}}    → raw substitution (snippet-author use only)
 //
+// Names and data:
+//   <!-- @include explainer/cycle {"title":"…","states":[…]} -->
+//   A name may carry a folder (components/explainer/*.html.snippet). The JSON
+//   after the name is the snippet's data; the explainer snippets document their
+//   parameters in a {{!-- … --}} comment at the top of each snippet file.
+//
 // Suppression:
 //   <!-- @include-skip <reason> -->  — author note to verifier Check 9 that
 //                                       an inline copy is intentional.
@@ -17,8 +23,30 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import {
+  prepareSequence, prepareComparison, prepareCycle, prepareDependency,
+} from './explainer/_prepare.mjs';
 
-const INCLUDE_RE = /<!--\s*@include\s+([a-z][a-z0-9-]*)\s+([\s\S]*?)\s*-->/g;
+// A snippet name is one segment (`callout`) or a folder path of segments
+// (`explainer/sequence` → components/explainer/sequence.html.snippet). Each
+// segment is [a-z][a-z0-9-]*, so a name can never climb out of components/.
+const INCLUDE_RE = /<!--\s*@include\s+([a-z][a-z0-9-]*(?:\/[a-z][a-z0-9-]*)*)\s+([\s\S]*?)\s*-->/g;
+
+// Snippets whose data needs computed values (bar widths, node coordinates) get
+// a data preparer. The template stays logic-free; the preparer is a pure
+// function of the payload, so the expansion stays deterministic.
+const PREPARERS = {
+  'explainer/sequence':   prepareSequence,
+  'explainer/comparison': prepareComparison,
+  'explainer/cycle':      prepareCycle,
+  'explainer/dependency': prepareDependency,
+};
+
+// `{{!-- … --}}` doc comments are removed before substitution, so a snippet
+// file can document its parameters without the doc reaching a page.
+function stripDocComments(text) {
+  return text.replace(/\{\{!--[\s\S]*?--\}\}\s*/g, '');
+}
 
 const snippetCache = new Map();
 
@@ -144,7 +172,10 @@ export function expand(html, ctx) {
         throw new Error(`@include ${name}: invalid JSON payload — ${err.message}`);
       }
       const snippet = loadSnippet(componentsRoot, name);
-      return renderSnippet(snippet, data);
+      if (PREPARERS[name]) {
+        return renderSnippet(stripDocComments(snippet), PREPARERS[name](data)).trim();
+      }
+      return renderSnippet(stripDocComments(snippet), data);
     });
   }
   return current;

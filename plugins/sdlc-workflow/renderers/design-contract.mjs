@@ -39,7 +39,7 @@ export function render(artifact, ctx) {
   // The interactive fragment owns the coverage grid; suppress the static matrix
   // when a fragment is present so the page never shows both. Without a fragment
   // (or sibling), the static matrix is the rich layer.
-  const matrixHtml = !artifact.fragment
+  const matrixHtml = (!artifact.fragment || artifact.fragmentGenerated)
     ? `<section class="design-contract-matrix">
         <h2 class="sdlc-h2">contract coverage</h2>
         ${listBlock('tokens', data.tokens)}

@@ -6,7 +6,10 @@
 // block, a shape with its augmentation plan and NFRs, one file per slice),
 // a cost ledger, a review ledger pair, a driver journal whose newest beat is
 // two minutes old, and a ship-plan audit with open and acknowledged
-// findings. Nothing here reaches the hub or any real project.
+// findings. Each stage artifact follows the split templates
+// (docs/internal/ARTIFACT-SPLIT-PLAN.md): route keys in frontmatter
+// (`recommended-routes`), and the story in a sibling
+// `<stem>.explainer.html.fragment` instead of a `## The <Stage>` section. Nothing here reaches the hub or any real project.
 //
 //   node scripts/mod-fixture.mjs <dir>        create or refresh <dir>
 //   node scripts/mod-fixture.mjs <dir> --dead  the same, with a driver journal
@@ -221,15 +224,13 @@ refs:
   next: 02-shape.md
 next-command: wf-shape
 next-invocation: "/wf shape alpha-flow"
+recommended-routes:
+  - invocation: "/wf shape alpha-flow"
+    reason: "the brief is complete"
+    default: true
 ---
 
 # Intake
-
-## The Intake
-
-The fixture repository has one module and one test. The PO wants a sign-in
-that stores a session token, and a small status view over the tokens. The
-stack is Node with the built-in test runner; the PO confirmed it.
 
 ## Problem
 
@@ -252,6 +253,7 @@ docs-needed: false
 docs-types: []
 augmentations-needed: []
 charter-scenario: "none — fixture"
+files-in-scope: [src/index.js, test/index.test.js]
 tags: []
 refs:
   index: 00-index.md
@@ -259,15 +261,15 @@ refs:
   next: 03-slice.md
 next-command: wf-slice
 next-invocation: "/wf slice alpha-flow"
+recommended-routes:
+  - invocation: "/wf slice alpha-flow"
+    reason: "two outcomes, two slices"
+    default: true
+  - invocation: "/wf plan alpha-flow"
+    reason: "one coherent unit"
 ---
 
 # Shape
-
-## The Shape
-
-Intake handed over one problem: nothing signs a user in. Shape keeps two
-outcomes, a sign-in function and a status view, and drops password storage
-per charter commitment C1. The next stage cuts the two outcomes into slices.
 
 ## Problem Statement
 
@@ -306,14 +308,6 @@ A developer of the fixture.
 
 - The status view reads the token store the auth slice lands.
 
-## Questions Asked This Stage
-
-- Round 1: where do tokens live? (closed AMB-1)
-
-## Answers Captured This Stage
-
-- In memory.
-
 ## Out of Scope
 
 - Password storage — charter C1.
@@ -343,10 +337,6 @@ None required — the fixture has no dark path and no perf budget. \`augmentatio
 ## Freshness Research
 
 - Source: node:test docs / Why it matters: the runner / Takeaway: \`node --test\` needs no dependency.
-
-## Recommended Next Stage
-
-- Option A (default): \`/wf slice alpha-flow\`.
 `);
 write(join(alpha, '03-slice.md'), `
 ---
@@ -374,14 +364,13 @@ refs:
   shape: 02-shape.md
 next-command: wf-plan
 next-invocation: "/wf plan alpha-flow auth"
+recommended-routes:
+  - invocation: "/wf plan alpha-flow auth"
+    reason: "auth lands the store ui reads"
+    default: true
 ---
 
 # Slice Index
-
-## The Slices
-
-Shape handed over two outcomes. Two slices carry them: auth first, because
-the status view reads the store auth lands. The next stage plans auth.
 
 ## Slice Strategy
 
@@ -407,10 +396,6 @@ None.
 ## Freshness Research
 
 None.
-
-## Recommended Next Stage
-
-- Option A (default): \`/wf plan alpha-flow auth\`.
 `);
 const sliceFile = (slice, status, complexity, dependsOn, goal, ac) => `
 ---
@@ -434,10 +419,6 @@ refs:
 ---
 
 # Slice: ${slice}
-
-## The Slice
-
-${goal}
 
 ## Goal
 
@@ -473,6 +454,23 @@ write(join(alpha, '03-slice-ui.md'), sliceFile('ui', 'defined', 'm', 'auth',
   `- Given two stored tokens, When the status view renders, Then both are listed.
   <!-- observable: true — a unit test renders to a string -->
   verify: { method: node --test, env: node 20+, fixture: two signIn calls, rung: 1 }`));
+// The explainers (S2): the human story of each stage, next to its agent file.
+const explainer = (summary, recap) => `<p>${summary}</p>\n<p>Recap: ${recap}</p>\n`;
+write(join(alpha, '01-intake.explainer.html.fragment'), explainer(
+  'The fixture repository has one module and one test. The PO wants a sign-in that stores a session token, and a small status view over the tokens.',
+  'the stack is Node with the built-in test runner, and the PO confirmed it.'));
+write(join(alpha, '02-shape.explainer.html.fragment'), explainer(
+  'Intake handed over one problem: nothing signs a user in. Shape keeps two outcomes, a sign-in function and a status view, and drops password storage per charter commitment C1.',
+  'the next stage cuts the two outcomes into slices.'));
+write(join(alpha, '03-slice.explainer.html.fragment'), explainer(
+  'Shape handed over two outcomes. Two slices carry them: auth first, because the status view reads the store auth lands.',
+  'the next stage plans auth.'));
+for (const [slice, goal] of [['auth', 'A sign-in function that returns a token and stores it.'], ['ui', 'A status view that lists the stored tokens.']]) {
+  write(join(alpha, `03-slice-${slice}.explainer.html.fragment`), explainer(goal, `slice ${slice} is one outcome from shape.`));
+}
+write(join(alpha, '04-plan-auth.explainer.html.fragment'), explainer(
+  'The plan adds the session store and the sign-in function, then the test.',
+  'two steps, two files.'));
 write(join(alpha, '04-plan-auth.md'), `
 ---
 schema: sdlc/v1
@@ -493,11 +491,15 @@ refs:
   slice: 03-slice-auth.md
 next-command: wf-implement
 next-invocation: "/wf implement alpha-flow auth"
+recommended-routes:
+  - invocation: "/wf implement alpha-flow auth"
+    reason: "the plan is complete"
+    default: true
 ---
 
 # Plan: auth
 
-## The Plan
+## Step-by-Step Plan
 
 1. Add \`sessions\` and \`signIn\` to src/index.js.
 2. Add the sign-in test.
@@ -524,6 +526,12 @@ refs:
   plan: 04-plan-auth.md
 next-command: wf-verify
 next-invocation: "/wf verify alpha-flow auth"
+recommended-routes:
+  - invocation: "/wf verify alpha-flow auth"
+    reason: "testable behavior changed"
+    default: true
+  - invocation: "/wf review alpha-flow auth"
+    reason: "skip verify"
 ---
 
 # Implement: auth
@@ -555,6 +563,10 @@ refs:
   implement: 05-implement-auth.md
 next-command: wf-review
 next-invocation: "/wf review alpha-flow auth"
+recommended-routes:
+  - invocation: "/wf review alpha-flow auth"
+    reason: "every criterion met"
+    default: true
 ---
 
 # Verify: auth
@@ -588,6 +600,12 @@ refs:
   verify: 06-verify-auth.md
 next-command: wf-implement
 next-invocation: "/wf implement alpha-flow reviews"
+recommended-routes:
+  - invocation: "/wf implement alpha-flow reviews"
+    reason: "one HIGH finding is open"
+    default: true
+  - invocation: "/wf handoff alpha-flow"
+    reason: "accept the caveats"
 ---
 
 # Review auth

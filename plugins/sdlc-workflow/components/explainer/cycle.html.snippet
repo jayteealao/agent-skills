@@ -1,0 +1,26 @@
+{{!--
+  explainer/cycle — a loop of states on a circle. Arrows run from each state to
+  the next; the last arrow returns to the first. Inline SVG, no script; colours
+  are the view's theme tokens (set through style attributes so var() applies).
+
+  <!-- @include explainer/cycle {"title": "The verify fix loop",
+       "states": [
+         {"label": "Run checks"},
+         {"label": "Read failures", "tone": "warn"},
+         {"label": "Fix the code", "note": "at most three rounds"},
+         {"label": "Run checks again", "tone": "ok"}
+       ]} -->
+
+  Parameters: title (optional), states[].label, states[].tone (optional:
+  accent | ok | warn | bad | risk | muted), states[].note (optional; listed
+  under the figure with the state's number).
+--}}
+<figure class="xpl xpl-cycle" style="margin:18px 0;padding:14px 16px;border:1px solid var(--rule);border-radius:var(--rad-md);background:var(--paper)">
+{{#each title_list}}<figcaption style="font-family:var(--sans);font-size:13px;font-weight:600;color:var(--ink-2);margin:0 0 6px">{{this}}</figcaption>{{/each}}
+<svg viewBox="0 0 {{width}} {{height}}" width="100%" style="max-width:{{width}}px;display:block;margin:0 auto" role="img" aria-label="{{title}}">
+<defs><marker id="{{id}}-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" style="fill:var(--ink-3)"/></marker></defs>
+{{#each arcs}}<path d="{{this.d}}" marker-end="url(#{{id}}-arrow)" style="fill:none;stroke:var(--ink-3);stroke-width:1.6"/>
+{{/each}}{{#each nodes}}<g><rect x="{{this.rx}}" y="{{this.ry}}" width="{{this.w}}" height="{{this.h}}" rx="8" style="fill:var(--paper-2);stroke:{{this.stroke}};stroke-width:1.6"/><text text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:12px">{{#each this.lines}}<tspan x="{{this.x}}" y="{{this.y}}">{{this.t}}</tspan>{{/each}}</text></g>
+{{/each}}</svg>
+<ol style="margin:8px 0 0;padding-left:22px;color:var(--ink-2);font-size:14px">{{#each nodes}}{{#each this.note_list}}<li value="{{this.n}}"><b>{{this.label}}</b>: {{this.text}}</li>{{/each}}{{/each}}</ol>
+</figure>

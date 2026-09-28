@@ -86,6 +86,13 @@
       "title": "Probe journal",
       "description": "Record which parts of the mod ran, on which host and surface, in ~/.sdlc/mod-probe.jsonl (at most 400 rows, no prompt text); `npm run mod:probe` in the plugin directory prints the verdict.",
       "default": true
+    },
+    "readCheck": {
+      "type": "string",
+      "title": "Read check",
+      "description": "When an agent writes a stage artifact, compare the files it read with the stage's ## Requires table. warn: the write lands and the agent gets the missing list. block: the write is refused unless the artifact carries read-waiver: \"<reason>\". off: no check. Each check is one row in the workflow's .read-ledger.jsonl.",
+      "options": ["warn", "block", "off"],
+      "default": "warn"
     }
   }
 }

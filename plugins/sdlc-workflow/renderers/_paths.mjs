@@ -139,6 +139,10 @@ export function resolveViewPath(storageRel, opts = {}) {
   const rel = storageRel.replace(/\\/g, '/').replace(/^\.\//, '');
   const kindHint = opts.kind ?? 'workflow';
 
+  // Evidence folders (probe-evidence/, verify-evidence/) never get a page of
+  // their own: the owning stage page links each file from part 4 (S5).
+  if (kindHint === 'workflow' && isEvidencePath(rel)) return null;
+
   // Off-pipeline kinds — keyed by orchestrator. The storageRel here is
   // relative to the off-pipeline root (.ai/simplify/ or .ai/profiles/),
   // not the slug root, so the regexes above don't apply.
@@ -180,18 +184,13 @@ export function resolveViewPath(storageRel, opts = {}) {
     };
   }
   if (kindHint === 'project') {
-    const stem = rel.replace(/^\.ai\//, '').replace(/\.md$/, '');
+    const stem = rel.replace(/^\/?\.ai\//, '').replace(/\.md$/, '');
     const file = stem.split('/').pop();
     // Typed project-root artifacts keep their artifact kind; everything else
     // (PRODUCT.md, DESIGN.md) is generic project context.
-    const kindByFile = {
-      'ship-plan': 'ship-plan',
-      'observability': 'observability-plan',
-      'observability-build': 'observability-build',
-    };
     return {
       viewRel: path.join('project', `${file}.html`),
-      kind: kindByFile[file] ?? 'project-context',
+      kind: projectArtifactType(rel) ?? 'project-context',
     };
   }
 
@@ -325,6 +324,33 @@ export function resolveViewPath(storageRel, opts = {}) {
 }
 
 /**
+ * Project-level artifacts: files under the project's `.ai/` (outside
+ * `.ai/workflows/`) and PRODUCT.md / DESIGN.md at the project root. Returns the
+ * artifact type for a project-relative `.md` path, or null when the path is
+ * not a rendered project artifact. `render-sunflower.mjs` discovers the same
+ * set. A leading `/` (the Requires-table form `/.ai/...`) is accepted.
+ */
+const PROJECT_TYPE_BY_FILE = Object.freeze({
+  '.ai/ship-plan.md': 'ship-plan',
+  '.ai/observability.md': 'observability-plan',
+  '.ai/observability-build.md': 'observability-build',
+  'PRODUCT.md': 'project-context',
+  'DESIGN.md': 'project-context',
+});
+export const SURFACE_SWEEP_RE = /^\.ai\/surface-sweep-[^/]+\.md$/;
+export function projectArtifactType(projectRel) {
+  const rel = normalizeRel(projectRel).replace(/^\/+/, '');
+  if (Object.prototype.hasOwnProperty.call(PROJECT_TYPE_BY_FILE, rel)) return PROJECT_TYPE_BY_FILE[rel];
+  if (SURFACE_SWEEP_RE.test(rel)) return 'surface-sweep';
+  return null;
+}
+
+/** True when a path names a project-level `.ai/` file (not a workflow file). */
+function isProjectLevelPath(rel) {
+  return rel.startsWith('.ai/') && !rel.startsWith('.ai/workflows/');
+}
+
+/**
  * Resolve sibling YAML / html.fragment paths for a given storage MD path.
  * Returns absolute-like POSIX paths relative to the slug root.
  *
@@ -340,6 +366,93 @@ export function siblingPaths(storageRel) {
     yaml:     `${stem}.yaml`,
     fragment: `${stem}.html.fragment`,
   };
+}
+
+/**
+ * The explainer fragment path (S2) for a storage MD path: a free fragment with
+ * the reserved label `explainer`, which the orchestrator renders at the TOP of
+ * the artifact's page (part 1) instead of the foot.
+ */
+export function explainerPath(storageRel) {
+  const stem = String(storageRel).replace(/\\/g, '/').replace(/\.md$/, '');
+  return `${stem}.${EXPLAINER_LABEL}.html.fragment`;
+}
+
+/** The reserved free-fragment label of the explainer fragment (S2). */
+export const EXPLAINER_LABEL = 'explainer';
+
+/**
+ * Folders under a workflow slug that hold raw evidence (S5). The renderer walk
+ * skips them (no page per evidence file) and the owning stage page links their
+ * files from part 4. `lib/hook-utils.mjs` holds the hook-side twin.
+ */
+export const EVIDENCE_DIRS = Object.freeze(['probe-evidence', 'verify-evidence']);
+
+/** True when a slug-relative storage path lies inside an evidence folder. */
+export function isEvidencePath(storageRel) {
+  const rel = normalizeRel(storageRel);
+  return EVIDENCE_DIRS.some((d) => rel === d || rel.startsWith(`${d}/`) || rel.includes(`/${d}/`));
+}
+
+/**
+ * Workflow files that render nothing (S4, S6): the index history and the read
+ * ledger. They are `.jsonl`, which the walk never yields; the names are listed
+ * here so the route table names every file an artifact folder can hold.
+ */
+export const IGNORED_STORAGE_FILES = Object.freeze(['index-history.jsonl', '.read-ledger.jsonl']);
+
+function normalizeRel(p) {
+  return String(p ?? '').replace(/\\/g, '/').replace(/^\.\//, '');
+}
+
+/**
+ * The route of every file name an artifact folder can hold. One place answers
+ * "what does the view do with this file", so a new file name cannot silently
+ * render nothing (W5 risk):
+ *
+ *   - `page`            — an artifact `.md` with a view page (resolveViewPath)
+ *   - `unrouted`        — an `.md` with no route (not rendered)
+ *   - `sibling-yaml`    — `<stem>.yaml`, rendered inside its artifact's page
+ *   - `typed-fragment`  — `<stem>.html.fragment`, inside its artifact's page
+ *   - `explainer`       — `<stem>.explainer.html.fragment`, top of its page
+ *   - `free-fragment`   — `<stem>.<label>.html.fragment`, foot of its page
+ *   - `evidence`        — under an evidence folder, linked from part 4
+ *   - `history`         — `history/<stem>-<rev>.md` snapshot page
+ *   - `ignored`         — renders nothing (IGNORED_STORAGE_FILES, other files)
+ *
+ * A project-level path (`.ai/ship-plan.md`, `.ai/surface-sweep-<date>.md`, or
+ * the Requires form `/.ai/...`) routes the same way against the project page:
+ * `.ai/ship-plan.explainer.html.fragment` is the `explainer` of
+ * `.ai/ship-plan.md`, rendered at the top of the ship-plan page.
+ *
+ * @param {string} storageRel — slug-relative POSIX path, or a project-level `.ai/` path
+ * @returns {{ route: string, parent?: string }}
+ */
+export function storageRoute(storageRel) {
+  const rel = normalizeRel(storageRel).replace(/^\/(?=\.ai\/)/, '');
+  const name = rel.split('/').pop();
+  if (isProjectLevelPath(rel) && name.endsWith('.md')) {
+    return projectArtifactType(rel) ? { route: 'page' } : { route: 'unrouted' };
+  }
+  if (isEvidencePath(rel)) return { route: 'evidence' };
+  if (IGNORED_STORAGE_FILES.includes(name)) return { route: 'ignored' };
+  const dir = rel.slice(0, rel.length - name.length);
+  if (name.endsWith(FRAGMENT_SUFFIX)) {
+    const head = name.slice(0, -FRAGMENT_SUFFIX.length);
+    const dot = head.indexOf('.');
+    if (dot === -1) return { route: 'typed-fragment', parent: `${dir}${head}.md` };
+    const label = head.slice(dot + 1);
+    return {
+      route: label === EXPLAINER_LABEL ? 'explainer' : 'free-fragment',
+      parent: `${dir}${head.slice(0, dot)}.md`,
+    };
+  }
+  if (name.endsWith('.yaml')) return { route: 'sibling-yaml', parent: `${dir}${name.slice(0, -'.yaml'.length)}.md` };
+  if (name.endsWith('.md')) {
+    if (HISTORY_RE.test(rel)) return { route: 'history' };
+    return resolveViewPath(rel) ? { route: 'page' } : { route: 'unrouted' };
+  }
+  return { route: 'ignored' };
 }
 
 const FRAGMENT_SUFFIX = '.html.fragment';
@@ -370,7 +483,11 @@ export function classifyFragmentName(name, stem) {
   if (!name.startsWith(prefix)) return null;
   const label = name.slice(prefix.length, name.length - FRAGMENT_SUFFIX.length);
   if (!label) return null;
-  return { tier: 'free', label };
+  // The explainer stays in the free tier (no envelope, no .yaml) but carries a
+  // flag: the orchestrator lifts it to the top of the page instead of the foot.
+  return label === EXPLAINER_LABEL
+    ? { tier: 'free', label, explainer: true }
+    : { tier: 'free', label };
 }
 
 /**

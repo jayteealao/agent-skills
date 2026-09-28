@@ -17,15 +17,20 @@ hotspots-found: <N>
 optimization-candidates: <N>
 confidence: <high|medium|low>
 created-at: <real UTC timestamp per _timestamp.md>
+next-command: wf-intake
+next-invocation: "/wf intake investigate <domain>"
+recommended-routes:            # from profile.md Step 4's table
+  - invocation: "/wf intake investigate <domain>"
+    reason: "<one phrase>"
+    default: true
 ---
 ```
+
+Write the explainer to `01-profile.explainer.html.fragment` per [../../_story-arc.md](../../_story-arc.md).
 
 **Body — use this exact structure** (downstream commands depend on it):
 
 ```
-## The Profile
-<!-- STORY SECTION — first, and self-sufficient. must follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
-
 ## Profile analysis: <area>
 
 ### Profiling method

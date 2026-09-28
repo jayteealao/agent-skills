@@ -2,14 +2,13 @@
 
 `intake/investigate.md` holds the `01-investigate.md` frontmatter and the synthesis rules (constraint cross-check, presentation cap). This file holds the body sections, in order.
 
-## The Investigation
-<!-- STORY SECTION — first, and self-sufficient. must follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+Write the explainer to `01-investigate.explainer.html.fragment` per [_story-arc.md](../../_story-arc.md). The section headings below are fixed anchors: do not number them.
 
-## 1. Problem & constraints
+## Problem & constraints
 
 The exact problem. Then 1–2 sentences of restatement that name the observable being solved for (latency? error rate? code clarity? capability gap?). Then the constraint list from Step 1 question 3, each as a bullet.
 
-## 2. Architecture map
+## Architecture map
 
 A condensed view of sub-agent 1's findings. Do not dump the whole report; extract the parts that matter for evaluating options:
 
@@ -19,7 +18,7 @@ A condensed view of sub-agent 1's findings. Do not dump the whole report; extrac
 - **Architectural constraints:** the 2–4 most load-bearing invariants any solution must respect, each with `file:line` evidence.
 - **Recent churn:** any file changed >3x in 90 days that an option would also touch, flagged because it suggests instability.
 
-## 3. Options
+## Options
 
 One subsection per **presented** option (the ≤3 full cards selected in Step 3). Use the labels from sub-agent 2, not "Option A/B/C" alone:
 
@@ -44,9 +43,9 @@ Repeat for Option B and Option C (if present).
 
 If the presentation cap demoted viable options (Step 3), open with a **Demoted by presentation cap** sub-list: `<label> — <mechanism, one phrase> — effort:<X> — <why demoted>`. These are viable options, not rejections; a reader may still pick one. Then the merit rejections from sub-agent 2's `options_considered_and_rejected`, transparency for the reader. Each line: `<label> — <one-line reason rejected>`.
 
-## 4. Side-by-side comparison
+## Side-by-side comparison
 
-A compact table. The leading **Status quo** column is the do-nothing baseline: mechanism "leave it as is", effort/blast radius/reversibility `—`, and its top-risk cell states the cost of the problem persisting (tie it to the observable from section 1). Every option's tradeoffs read relative to this column.
+A compact table. The leading **Status quo** column is the do-nothing baseline: mechanism "leave it as is", effort/blast radius/reversibility `—`, and its top-risk cell states the cost of the problem persisting (tie it to the observable from `## Problem & constraints`). Every option's tradeoffs read relative to this column.
 
 | | 0: Status quo | A: <label> | B: <label> | C: <label> |
 |---|---|---|---|---|
@@ -60,7 +59,7 @@ A compact table. The leading **Status quo** column is the do-nothing baseline: m
 
 Then 2 to 4 lines on cross-option observations (from sub-agent 3): patterns or shared bottlenecks visible across all options.
 
-## 5. Routing (user picks)
+## Routing
 
 This command does not pick a winner. Pick the option you want, record the pick, and route:
 
@@ -72,9 +71,9 @@ This command does not pick a winner. Pick the option you want, record the pick, 
 
 Routing directly (`… from <slug>`) without recording a pick also works: the downstream mode records the pick implicitly and closes this workflow (see `_intake-provenance.md`).
 
-## 6. Tripwire warnings (only if any fired)
+## Tripwire warnings
 
-Tripwires are **warn-and-continue**: record them, and still write the option set.
+Write this section only when a tripwire fired. Tripwires are **warn-and-continue**: record them, and still write the option set.
 
 - **single-viable-option:** Sub-agent 2 found only one genuinely distinct option. State it plainly: the user should know there is not a real choice here, and the next step is just to execute. Routing collapses to one entry.
 - **option-space-truncated:** More than 3 genuinely distinct viable options were found; the surplus was demoted to compressed entries by the presentation cap, not on merit. The full cards are a curated sample; check "Demoted by presentation cap" before concluding none of the demoted options fits better.

@@ -17,6 +17,7 @@ status: complete
 stage-number: 10
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
+revisions: []                      # reason-centric ledger (see ../_additive-write.md)
 workflow-outcome: <completed|abandoned|partial>
 learnings-written: []              # paths of .ai/solutions/ files this retro wrote/updated (empty list allowed)
 metric-improvement-count: <N>
@@ -25,15 +26,20 @@ metric-stages-skipped: <N>
 tags: []
 refs:
   index: 00-index.md
-next-command: ""
-next-invocation: ""
+next-command: recap                # Option A: the workflow is complete
+next-invocation: "/wf recap <slug>"   # the default route
+recommended-routes:                # every viable option from retro.md Adaptive routing; one default
+  - invocation: "/wf recap <slug>"
+    reason: "workflow complete"
+    default: true
+  - invocation: "/wf intake <follow-up>"
+    reason: "<one phrase, if applicable>"
 ---
 ```
 
 # Retro
 
-## The Retro
-<!-- STORY SECTION — first, and self-sufficient. must follow `_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+Write the explainer to `10-retro.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 ## What Went Well
 - ...
@@ -78,12 +84,6 @@ If the workflow introduced no shortcuts: "No deferred debt — no `sdlc-debt:` m
 <!-- One line per learning distilled into .ai/solutions/ (path + its index hook), or:
 "None — no finding passed the durability filter." Match the frontmatter learnings-written list. -->
 
-## Recommended Next Stage
-- **Option A (default):** Workflow complete
-- **Option B:** `/wf intake <follow-up>` — [reason, if applicable]
-- **Option C:** `/wf plan <slug> <next-slice>` — next slice [reason, if applicable]
-- **Option D:** Apply improvements — [list quick wins, if applicable]
-
 
 ## Additive-write contract
 
@@ -96,13 +96,13 @@ slug that already has one, follow the shared additive-write contract in
 - Snapshot: `.ai/workflows/<slug>/history/10-retro-<rev>.md`.
 - **Rewrite the body** so the retro reads as current truth — fold the revisit's
   findings into the relevant sections rather than appending a `## Revision N`
-  block. The `## The Retro` story section carries the arc (what we said
-  at close vs. what actually happened 30 days later).
+  block. Rewrite the explainer to carry the arc (what we said at close
+  vs. what actually happened 30 days later).
 - **Ledger entry**: append one `revisions:` entry with `trigger: manual` (or
   `scope-change` for an incident-driven revisit), `because:` naming the revisit
   ("30-day check-in", "post-incident follow-up", "quarterly review"), and
   `changed:` naming what moved.
 
 A retro's value is largely *historical* — the point of the revisit is to compare
-original intent against later reality. That comparison lives in the story
-section and in the exact history snapshots, not in a stack of body sections.
+original intent against later reality. That comparison lives in the explainer
+and in the exact history snapshots, not in a stack of body sections.

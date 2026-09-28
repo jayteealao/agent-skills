@@ -4,7 +4,7 @@ argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake hotfix`, an **accelerated incident-response standard lifecycle**.
 
@@ -19,12 +19,32 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 
 | | Detail |
 |---|---|
-| Requires | Nothing — starts fresh. Pass a description or an existing slug to resume. |
-| Produces (this command) | `01-hotfix.md` (`type: intake` — incident brief + acceptance criteria + diagnosis), `02-shape.md` (root cause + blast radius + scope), `03-slice.md` (`type: slice-index`, one slice), `04-plan.md` (minimal plan + rollback), conformant `00-index.md` (`type: index`). |
+| Requires | See [## Requires](#requires). |
+| Produces (this command) | `01-hotfix.md` (`type: intake` — incident brief + acceptance criteria), `02-shape.md` (root cause + blast radius + scope), `03-slice.md` (`type: slice-index`, one slice), `04-plan.md` (minimal plan + rollback), conformant `00-index.md` (`type: index`). |
 | Compression | Each stage single-pass — **no stage is skipped**, but the lifecycle is expedited under incident pressure. One slice. Handoff and retro stay in the chain: ship STOPs without a ready handoff verdict, and retro auto-triggers its incident consult exactly for hotfixes. |
 | Gate | Stop-and-prompt before `05-implement` (Proceed / Adjust / Escalate; family rules per `_change-mode-tail.md`). |
 | Next | `/wf implement <slug>` — standard execution; `07-review` defaults to **`security`**. |
 | Escalate | If the fix needs >3 files / >~50 lines / architectural change, the tripwire fires — record it per `_change-mode-tail.md` and offer the gate's *Escalate*, which closes this slug and restarts as `/wf intake "<description>" from <slug>`. |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | on-resume | |
+| `01-hotfix.md` | artifact | on-resume | |
+| `steer.md` | artifact | if-present | |
+| `intake/_intake-context.md` | procedure | always | |
+| `intake/_change-mode-tail.md` | procedure | always | |
+| `intake/_intake-provenance.md` | procedure | always | |
+| `design/_lane.md` | procedure | always | |
+| `design/stage.md` | procedure | mode:design | |
+| `_compressed-slice.md` | procedure | mode:slug | |
+| `01-hotfix.md` | writes | | |
+| `02-shape.md` | writes | | |
+| `03-slice.md` | writes | | |
+| `04-plan.md` | writes | | |
 
 # Scope lock
 You are a **hotfix orchestrator**. This is not a feature workflow.
@@ -39,7 +59,7 @@ You are a **hotfix orchestrator**. This is not a feature workflow.
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: hotfix` → **resume mode**. Read that index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `hf-*.md` files — re-author them as the standard set if continuing.)
    - Otherwise → **new hotfix**. Derive a slug: `hotfix-<short-description>` (kebab-case, max 5 words, e.g., `hotfix-auth-token-expiry`).
 2. **Collision check:** apply the collision check in `_change-mode-tail.md`.
-3. **Provenance check:** apply `_intake-provenance.md` — an rca frequently routes its critical cases here. On an explicit `from <rca-slug>` token, consume the rca Consume-table row (root cause seeds `## Diagnosis`, section 8 verification seeds the acceptance criteria, blast radius seeds scope — Step 2's sub-agents then re-verify instead of re-deriving) and link back. No match → continue.
+3. **Provenance check:** apply `_intake-provenance.md` — an rca frequently routes its critical cases here. On an explicit `from <rca-slug>` token, consume the rca Consume-table row (root cause seeds `02-shape.md` `## Root Cause`, section 8 verification seeds the acceptance criteria, blast radius seeds scope — Step 2's sub-agents then re-verify instead of re-deriving) and link back. No match → continue.
 4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, write the block with `user-confirmed: false`, and spend no question on it (verify's caveat path carries it). Then set `ux-impact` per `_change-mode-tail.md` → UX impact and the design stage.
 5. **Branch check:**
    - Check current branch: `git branch --show-current`.
@@ -68,11 +88,12 @@ tags: [incident]
 refs:
   index: 00-index.md
   next: 02-shape.md
-next-command: wf-shape
-next-invocation: "/wf shape <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
-Body: open with `## The Hotfix` — the story section (must follow `../_story-arc.md`; 1–2 short paragraphs — the problem inherited, the decisions with reasons, the top open risk; no "This hotfix implements…" opening) — then `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Acceptance Criteria` (≤2, each objectively verifiable; embed any inline question answers as italic notes — verify and review read the criteria from this lead, so a hotfix without them cannot pass its own quality tail; the incident is over when these are observably true, e.g. "checkout returns 200 for the repro request" + "no new occurrences of the error signature for 30 minutes"), `## Recent Changes` (or "none known"). The `## Diagnosis` section is appended after Step 2.
+Write the explainer to `01-hotfix.explainer.html.fragment` per [_story-arc.md](../_story-arc.md). Body: `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Acceptance Criteria` (≤2, each objectively verifiable; embed any inline question answers as italic notes — verify and review read the criteria from this lead, so a hotfix without them cannot pass its own quality tail; the incident is over when these are observably true, e.g. "checkout returns 200 for the repro request" + "no new occurrences of the error signature for 30 minutes"), `## Recent Changes` (or "none known").
 
 # Step 2 — Diagnose → `02-shape.md`
 Launch parallel sub-agents to identify root cause. Do not proceed until both complete.
@@ -85,7 +106,7 @@ Prompt with ALL of: read the areas most likely to contain the bug; `git log --on
 ### research sub-agent 2 — Impact & Scope
 Prompt with ALL of: find every caller/consumer/dependent of the broken path (grep imports/references); check whether related components share the bug via shared code; identify any data that may have been corrupted during the active period; check whether the bug is on the production branch or only unreleased code. Report the complete affected file/path/service list, data risk (none/possible/confirmed), blast-radius summary.
 
-Wait for both. If root-cause confidence is low, launch a focused third agent on the most likely hypothesis. **Confidence floor:** if confidence is still low after the third agent, do NOT write a guessed `## Root Cause` — climb the ladder instead: reproduce the symptom at runtime via `/wf probe <slug> "<the runtime question the diagnosis hinges on>"` (the finding lands as a compressed slice on this slug), or `/consult` a second model on the hypothesis, or hand to human triage. A hotfix built on a guess ships a second incident. Then **append `## Diagnosis`** (root cause + `file:line` evidence + scope) to `01-hotfix.md`, and write `02-shape.md` carrying the diagnosis-as-scope:
+Wait for both. If root-cause confidence is low, launch a focused third agent on the most likely hypothesis. **Confidence floor:** if confidence is still low after the third agent, do NOT write a guessed `## Root Cause` — climb the ladder instead: reproduce the symptom at runtime via `/wf probe <slug> "<the runtime question the diagnosis hinges on>"` (the finding lands as a compressed slice on this slug), or `/consult` a second model on the hypothesis, or hand to human triage. A hotfix built on a guess ships a second incident. Then write `02-shape.md` carrying the diagnosis-as-scope. `02-shape.md` is the only home of the root cause; `01-hotfix.md` does not copy it.
 ```yaml
 ---
 schema: sdlc/v1
@@ -102,8 +123,9 @@ refs:
   index: 00-index.md
   intake: 01-hotfix.md
   next: 03-slice.md
-next-command: wf-slice
-next-invocation: "/wf slice <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
 Body: `## Root Cause` (`file:line` + hypothesis + confidence), `## Blast Radius` (affected paths/services, data risk), `## In Scope` (the minimum change), `## Out of Scope` (everything else — the scope lock).
@@ -129,8 +151,9 @@ refs:
   index: 00-index.md
   shape: 02-shape.md
   next: 04-plan.md
-next-command: wf-plan
-next-invocation: "/wf plan <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
 Body (one line): "Single-slice incident fix."
@@ -156,8 +179,9 @@ refs:
   index: 00-index.md
   slice: 03-slice.md
   next: 05-implement.md
-next-command: wf-implement
-next-invocation: "/wf implement <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
 Body: `## Steps` (each names file(s)+change+verification), `## Rollback` (exact revert), `## Data remediation` (if needed), `## Verification` (reproduce the symptom; regression suite; adjacent-path spot-check), `## Tripwire breaches` (only if any fired — per `_change-mode-tail.md`).

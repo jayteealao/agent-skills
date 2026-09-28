@@ -97,6 +97,9 @@ sessions: 1
 batches: 0
 consult-runs: []
 revisions: []
+next-command: intake
+next-invocation: "/wf intake brainstorm <slug>"
+recommended-routes: [{invocation: "/wf intake brainstorm <slug>", reason: "resume the board", default: true}]
 ---
 ```
 

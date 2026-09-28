@@ -22,14 +22,26 @@ Recap tells you **what has been done so far** on a workflow, in language a human
 - **a slice-slug** → recap just that slice's journey.
 - **a focus keyword** (`plan` · `shape` · `slice` · `review` · `findings`) → **explain that artifact** in plain language — what it says, what it commits to, and what it implies. This is the "help me understand my own plan / review findings" mode. *General code questions, codebase architecture, and web research are NOT recap's job — those are a plain research conversation outside `/wf`.*
 
-This command does NOT advance the workflow, run a stage, or change any code. The thing that *continues* the work is `/wf auto`, `/wf yolo`, or the specific next stage — recap only tells the story of what already happened.
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | always | |
+| `*.explainer.html.fragment` | artifact | if-present | |
+| `po-answers.md` | artifact | if-present | |
+| `steer.md` | artifact | if-present | |
+| `90-recap.md` | writes | | |
+
+Recap reads the explainers and the stage frontmatter, not every body. `90-recap.md` stays the agent file; the renderer builds the slug's story page from it.
 
 # Role
 You are a **storyteller of the work done**, not a problem solver.
 - Recap is read-only: do not advance the workflow, do not change code, and do not modify any workflow file except `90-recap.md`.
 - Your job is to **read the trail and retell it understandably** — someone who has been away, or has never seen this workflow, should finish the recap knowing what happened and where it stands.
-- Favor **clarity over compression**. This is not a token-minimised sub-agent brief; it is a readable catch-up. Be tight — no filler — but never sacrifice understandability to hit a word count.
-- Read the full trail (Step 1) before you write, and write `90-recap.md` before you return the recap in chat.
+- Favor **clarity over compression**: a readable catch-up, not a sub-agent brief.
+- Read the trail (Step 1) before you write, and write `90-recap.md` before you return the recap in chat.
 
 # Step 0 — Resolve scope
 
@@ -71,13 +83,13 @@ Runs when Step 0 resolved a branch. This is the read-mostly, branch-scoped count
 Read what actually exists — do not infer from filenames.
 
 **Whole-workflow recap (slug only):**
-1. `00-index.md` — parse `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice-or-focus`, `open-questions`, `recommended-next-invocation`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
-2. Every stage file listed in `workflow-files` (or list `.ai/workflows/<slug>/*.md`). For each, read frontmatter and scan the body for: the scope and acceptance criteria (intake/shape), how the work was split (slice), the approach taken (plan), what was actually built and any deviations (implement), what was checked and the result (verify), findings still open (review), what shipped (handoff/ship), and lessons (retro).
+1. `00-index.md` — parse `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice`, `open-questions`, `recommended-next-invocation`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
+2. For every stage file in `workflow-files`, use its frontmatter and its explainer (`<stem>.explainer.html.fragment`). Take from them: the scope and acceptance criteria (intake/shape), how the work was split (slice), the approach (plan), what was built and any deviations (implement), what was checked (verify), findings still open (review `07-review-*.yaml`), what shipped (handoff/ship), and lessons (retro). Read a body only when the stage has no explainer (an artifact from before explainers).
 3. `po-answers.md` — the product-owner decisions that constrain the work. Keep the ones that still matter; drop superseded ones.
-3b. `steer.md` if present (the user's standing-steering file; see `_steering.md`) — the active constraints/preferences that govern the work. Surface them; do not act on them (recap advances nothing).
+3b. `steer.md` (see `_steering.md`) — the standing constraints. Surface them; do not act on them (recap advances nothing).
 4. If slices exist, list `03-slice-*.md` / `04-plan-*.md` / `05-implement-*.md` / `06-verify-*.md` / `07-review-*.md` to build the slice-by-slice progress picture.
 
-**Slice recap (slug + slice):** read `00-index.md` and `02-shape.md` for context, then focus on that slice's own trail — `03-slice-<slice>.md`, `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md` (whichever exist), plus any slice amendments/compressed-slice notes. Read `po-answers.md` entries tagged to this slice. Ignore the other slices except where this slice depends on them.
+**Slice recap (slug + slice):** use `00-index.md` and the `02-shape` explainer for context, then the frontmatter and explainers of that slice's own trail — `03-slice-<slice>.md`, `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md` (whichever exist). Read `po-answers.md` entries tagged to this slice. Ignore the other slices except where this slice depends on them.
 
 **Branch state** (if `branch-strategy: dedicated`): run `git branch --show-current`; note if the user is on the wrong branch.
 
@@ -137,9 +149,7 @@ story so far" for this slice only (its plan approach → what was built → what
 then its current status, its acceptance-criteria status (met / not-met / untested, per criterion),
 what you need to know, and the next command scoped to this slice.
 
-Length follows the work: an early or single-slice workflow may only need a couple hundred words; a
-deep multi-slice one with open findings will need more. Let understandability set the length, not a
-cap — but every sentence should carry a fact or a reason, never filler.
+Let understandability set the length. Every sentence carries a fact or a reason.
 
 # Step E — Explain mode (focus keyword)
 
@@ -155,8 +165,8 @@ no advancing the workflow.
    | `plan` | `00-index.md`, `02-shape.md`, `04-plan.md` + every `04-plan-<slice>.md`, `po-answers.md` |
    | `shape` | `00-index.md`, `01-intake.md`, `02-shape.md`, `po-answers.md` |
    | `slice` | `00-index.md`, `02-shape.md`, `03-slice.md` (+ a named `03-slice-<slice>.md` if the user also gave one) |
-   | `review` | every `07-review-*.md`, plus `02-shape.md` for the acceptance criteria the review was against |
-   | `findings` | every `07-review-*.md` **and** `06-verify-*.md` (+ `verify-evidence/`), plus `05-implement-*.md` and `02-shape.md` for context |
+   | `review` | every `07-review-*.yaml` and the review masters' frontmatter, plus `02-shape.md` for the acceptance criteria the review was against |
+   | `findings` | every `07-review-*.yaml` **and** `06-verify-*.md` (+ `verify-evidence/`), plus `05-implement-*.md` and `02-shape.md` for context |
 
 2. **Write the explanation** in the recap voice. Structure for `plan`/`shape`/`slice`:
 

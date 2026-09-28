@@ -406,5 +406,54 @@
     "to": "skills/wf/reference/design/stage.md",
     "category": "artifacts",
     "entry": "02b-design.md"
+  },
+  {
+    "from": "skills/wf/reference/review/_stage.md",
+    "to": "skills/wf/reference/review.md",
+    "category": "artifacts",
+    "entry": "02b-design.md",
+    "reason": "ARTIFACT-SPLIT-PLAN S1/R3: the review inputs moved from the review/_stage.md read order into the ## Requires table of review.md, the reference that owns the stage run."
+  },
+  {
+    "from": "skills/wf/reference/review/_stage.md",
+    "to": "skills/wf/reference/review.md",
+    "category": "artifacts",
+    "entry": "02c-craft.md",
+    "reason": "ARTIFACT-SPLIT-PLAN S1/R3: the review inputs moved from the review/_stage.md read order into the ## Requires table of review.md, the reference that owns the stage run."
+  },
+  {
+    "from": "skills/wf/reference/review/_stage.md",
+    "to": "skills/wf/reference/review.md",
+    "category": "artifacts",
+    "entry": "04b-instrument.md",
+    "reason": "ARTIFACT-SPLIT-PLAN S1/R3: the review inputs moved from the review/_stage.md read order into the ## Requires table of review.md, the reference that owns the stage run."
+  },
+  {
+    "from": "skills/wf/reference/review/_stage.md",
+    "to": "skills/wf/reference/review.md",
+    "category": "artifacts",
+    "entry": "04c-experiment.md",
+    "reason": "ARTIFACT-SPLIT-PLAN S1/R3: the review inputs moved from the review/_stage.md read order into the ## Requires table of review.md, the reference that owns the stage run."
+  },
+  {
+    "from": "skills/wf/reference/review/_stage.md",
+    "to": "skills/wf/reference/review.md",
+    "category": "artifacts",
+    "entry": "05c-benchmark.md",
+    "reason": "ARTIFACT-SPLIT-PLAN S1/R3: the review inputs moved from the review/_stage.md read order into the ## Requires table of review.md, the reference that owns the stage run."
+  },
+  {
+    "from": "skills/wf/reference/review/_stage.md",
+    "to": "skills/wf/reference/review.md",
+    "category": "artifacts",
+    "entry": "07-design-audit.md",
+    "reason": "ARTIFACT-SPLIT-PLAN S1/R3: the review inputs moved from the review/_stage.md read order into the ## Requires table of review.md, the reference that owns the stage run."
+  },
+  {
+    "from": "skills/wf/reference/review/_stage.md",
+    "to": "skills/wf/reference/review.md",
+    "category": "artifacts",
+    "entry": "07-design-critique.md",
+    "reason": "ARTIFACT-SPLIT-PLAN S1/R3: the review inputs moved from the review/_stage.md read order into the ## Requires table of review.md, the reference that owns the stage run."
   }
 ]

@@ -10,6 +10,7 @@ import { CATALOG, commandNameOf, keyOfCommand } from '../../../hooks/mod/catalog
 import { ALL, NONE, backOf, digitCommandOf, fillOf, filterOptions, filterTextOf, hotkeyOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from '../../../hooks/mod/picker.ts';
 import { findProjectRoot, frontmatterOf, joinPath, listSlices, listWorkflows, rosterOf } from '../../../hooks/mod/workflows.ts';
 import { PROBE_CAP, ProbeJournal, rowOf, rowsOf, sinceOf, surfaceAfterAttach, textOf, verdictOf } from '../../../hooks/mod/probe.ts';
+import { readHookCell, readProbeDetail, readProbeOf } from '../../../hooks/mod/probe.ts';
 import {
   COMPACT_KEYS, beatsOf, compactEligible, compactInstructionsOf, compactKeepSentenceOf, compactToastOf, costTextOf, driverStatusOf, expectedArtifactOf, hubHealthOf, hubNoticeTextOf, isWorkflowPath,
   ledgerTokensOf, modeLabelOf, openFindingsOf, settingOfKey, settingsOf, slugOfPath, spinnerWordOf, statusTextOf,
@@ -525,4 +526,37 @@ test('the journal serializes its writes, caps the file, and swallows a broken fi
 
   const broken = new ProbeJournal({ read: async () => { throw new Error('EACCES'); }, write: async () => {}, now: async () => 0 }, '/j.jsonl', IDENTITY);
   await broken.write({ event: 'load', ok: true });
+});
+
+test('a read row proves the Read hook fired, on the main loop or inside a sub-agent (ARTIFACT-SPLIT-PLAN W0)', async () => {
+  assert.equal(readProbeDetail('a1b2', '/r/.ai/workflows/x/02-shape.md'), 'agent a1b2 /r/.ai/workflows/x/02-shape.md');
+  assert.equal(readProbeDetail(undefined, 'p.md'), 'agent main p.md');
+  assert.equal(readProbeDetail('  ', 'p.md'), 'agent main p.md');
+  assert.deepEqual(readProbeOf('agent a1b2 /a b/c.md'), { agentId: 'a1b2', path: '/a b/c.md' });
+  assert.deepEqual(readProbeOf('agent main c.md'), { agentId: null, path: 'c.md' });
+  assert.equal(readProbeOf('something else'), null);
+
+  const row = (event, detail, ok = true) => JSON.stringify({ at: '2026-09-28T10:00:00Z', session: 's1', host: 'cli', surface: 'terminal', interactive: true, event, ok, detail });
+  const [cli] = verdictOf(rowsOf([
+    row('load', ''),
+    row('read', readProbeDetail(undefined, 'a.md')),
+    row('read', readProbeDetail('agent-1', 'b.md')),
+    row('read', readProbeDetail('agent-2', 'c.md')),
+    row('read', 'agent agent-3 d.md', false),
+  ].join(NL)));
+  assert.deepEqual(cli.reads, { main: 1, agent: 2 });
+  assert.equal(readHookCell(cli.reads), 'main 1 · agent 2');
+  assert.equal(readHookCell({ main: 0, agent: 0 }), '—');
+  assert.equal(readHookCell(undefined), '—');
+
+  // The journal writes one read row per loop per session.
+  const files = new Map();
+  const io = { read: async (p) => files.get(p) ?? null, write: async (p, t) => { files.set(p, t); }, now: async () => 0 };
+  const journal = new ProbeJournal(io, '/j.jsonl', IDENTITY);
+  journal.readFired(undefined, 'a.md');
+  journal.readFired(undefined, 'b.md');
+  journal.readFired('agent-1', 'c.md');
+  journal.readFired('agent-1', 'd.md');
+  await journal.settled();
+  assert.deepEqual(rowsOf(files.get('/j.jsonl')).map((r) => r.detail), ['agent main a.md', 'agent agent-1 c.md']);
 });

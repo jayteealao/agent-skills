@@ -44,6 +44,38 @@ viewport too" or "never touch the legacy auth module", applies at every stage wi
 repetition.</p>
 </div>
 
+<h2 id="reads-and-writes">What every stage reads and writes</h2>
+<p>Each stage reference opens with a <strong>Requires table</strong>: one row per input that
+the stage must read before it writes its artifact. A row names the file (an earlier artifact,
+such as <code>02-shape.md</code>, or a procedure file of the plugin), when the row applies
+(<code>always</code>, <code>if-present</code>, <code>on-resume</code>, or one intake mode), and
+the <code>##</code> sections to read when the stage needs only part of the file. A
+<code>writes</code> row names the artifact that the stage writes. The table replaces the old
+prose read orders, so the list of inputs is in one place and a test can check it. An
+<code>if-present</code> input is optional to exist and mandatory to read when it exists.</p>
+<p>On Claude Code with the <a href="../reference/hooks.html#wf-picker">mod</a> loaded, a
+<strong>read check</strong> compares the table with what the stage agent actually read. The mod
+records each read of a workflow file or a procedure file, with its line ranges, per agent. When
+the agent writes its stage artifact, the mod lists each <code>always</code> or
+<code>if-present</code> input that the agent did not read in full (or, for a row with named
+sections, did not read each named section). A search hit, a shell read, or a read by a research
+sub-agent does not count. In the default mode, <code>warn</code>, the write lands and the agent
+gets the missing list, reads the inputs, and writes the artifact again. The mode
+<code>block</code> refuses the write unless the artifact frontmatter carries
+<code>read-waiver: "&lt;reason&gt;"</code>. Each check appends one row to the workflow's
+<code>.read-ledger.jsonl</code>. The mod setting <code>readCheck</code> selects the mode. A host
+without the mod runs no check: the stage reads every row the same way and writes
+<code>reads-checked: false</code> in the artifact frontmatter.</p>
+<p>Each stage writes two files for two readers. The <strong>agent file</strong>
+(<code>NN-&lt;stage&gt;[-&lt;slice&gt;].md</code>) holds state in its frontmatter and the
+contract that later stages read in its body. The <strong>explainer</strong>
+(<code>&lt;stem&gt;.explainer.html.fragment</code>, next to the agent file) tells you what
+happened: a plain summary first, then text and small visuals in turn, then a recap. The rendered
+workflow view puts the explainer at the top of the stage's page, and the chat summary quotes its
+summary paragraph. Agents do not read explainers. The next step is in the agent file's
+frontmatter: <code>next-invocation</code> and a <code>recommended-routes</code> list with every
+option and its reason. See <a href="../reference/artifacts.html">Artifact files</a>.</p>
+
 <h2>Stage 1 — intake</h2>
 <p>Intake is the front door. Run it with a plain description of what you want:</p>
 <pre><code>/wf intake add offline support to the notes editor</code></pre>
@@ -166,7 +198,9 @@ every failure with you (fix, skip, or escalate), dispatches sub-agents to apply 
 patches you approved, re-runs only the affected checks once, and finalizes. There is one round
 only. If anything still fails after that round, the artifact records the escalation and routes
 you to re-run verify or to return to implement. Verify never loops silently until green. Verify
-writes <code>06-verify-&lt;slice&gt;.md</code> with the evidence, and a write-time hook
+writes <code>06-verify-&lt;slice&gt;.md</code> with the per-criterion results and puts the raw
+check output (test runner output, probe logs, scan output) in the evidence report
+<code>verify-evidence/&lt;slice&gt;/report.md</code>. A write-time hook
 hard-blocks any verify artifact that claims a pass while criteria are unmet. When evidence
 genuinely cannot be produced in this environment, verify records a deferral in
 <code>00-index.md</code>: a ship-blocking IOU, not a forgotten footnote.</p>
@@ -204,7 +238,8 @@ If the ship plan is missing or drifted from the repo, the run stops and routes t
 <code>/wf ship-plan</code> before any PR is declared ship-ready.</p>
 <p>Then handoff pushes the branch, opens the PR, and waits for CI to reach a terminal state; a
 pending snapshot is not an answer. It writes <code>08-handoff.md</code> with the result of the
-readiness check. When several workflows share one branch, <code>/wf handoff pr#N</code> covers
+readiness check in frontmatter keys (<code>readiness-verdict</code>,
+<code>pr-readiness-verdict</code>); the file has no separate readiness block. When several workflows share one branch, <code>/wf handoff pr#N</code> covers
 all of them in one batch run with a branch-level readiness check.</p>
 
 <h2>Stage 9 — ship</h2>
@@ -239,7 +274,7 @@ workflows. It writes <code>10-retro.md</code>, and the workflow is complete.</p>
 <tr><td>slice</td><td><code>03-slice.md</code> + per-slice files</td><td>Missing or unconfirmed stack fingerprint; needed design not settled</td></tr>
 <tr><td>plan</td><td><code>04-plan*.md</code> (+ <code>04b</code>/<code>04c</code>/<code>05c</code>)</td><td>Missing shape; unconfirmed stack; needed design not settled</td></tr>
 <tr><td>implement</td><td><code>05-implement-&lt;slice&gt;.md</code></td><td>Missing plan</td></tr>
-<tr><td>verify</td><td><code>06-verify-&lt;slice&gt;.md</code></td><td>Unmet acceptance criteria; one fix round, then escalate</td></tr>
+<tr><td>verify</td><td><code>06-verify-&lt;slice&gt;.md</code> + <code>verify-evidence/&lt;slice&gt;/report.md</code></td><td>Unmet acceptance criteria; one fix round, then escalate</td></tr>
 <tr><td>review</td><td><code>07-review*.md</code> ledger</td><td>Open blockers → <code>dont-ship</code> verdict</td></tr>
 <tr><td>handoff</td><td><code>08-handoff.md</code> + the PR</td><td>Readiness check; open intent-risk entries; missing/drifted ship plan</td></tr>
 <tr><td>ship</td><td><code>09-ship-run-&lt;run-id&gt;.md</code></td><td>Readiness ≠ ready; open deferrals or intent-risks</td></tr>

@@ -7,8 +7,7 @@ argument-hint: "<slug> [<slice> | cancelled|superseded|deferred|completed-extern
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
-> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> **Standing steering (steer.md).** Apply the contract in [_steering.md](_steering.md) to `steer.md`: honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf close`, the **lifecycle-termination utility** for the SDLC lifecycle. It has two
@@ -19,6 +18,19 @@ scopes, resolved by whether the second token names a slice:
 
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | always | |
+| `steer.md` | artifact | if-present | |
+| `03-slice.md` | artifact | mode:slice | |
+| `03-slice-<slice>.md` | artifact | mode:slice | |
+| `99-close.md` | writes | | |
+| `skip-slice-<slice>.md` | writes | | |
 
 # Scope discipline
 - Do not delete any workflow files. Do not run any stage. Do not edit application code.
@@ -59,7 +71,7 @@ files remain for audit or revival.
 | `merged-into` | This workflow's scope was absorbed into a larger workflow or PR. |
 
 ## Step W0 — Orient
-- Read `00-index.md` in full: `title`, `slug`, `status`, `current-stage`, `stage-number`, `progress`,
+- Parse `00-index.md`: `title`, `slug`, `status`, `current-stage`, `stage-number`, `progress`,
   `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `open-questions`, `workflow-type`.
 - If `status: closed` already → WARN: "Workflow `<slug>` is already closed (closed-at: `<closed-at>`).
   Running again overwrites the close record. Proceed? (yes to continue)"
@@ -94,13 +106,16 @@ had-open-pr: <true|false>
 pr-url: <url or "none">
 unmerged-commits: <N or 0>
 closed-at: <real UTC timestamp per _timestamp.md>
+next-command: none
+next-invocation: "none — workflow closed"
+recommended-routes: [{invocation: "/wf status <slug>", reason: "the revival route when deferred or superseded", default: true}]
 ---
 ```
 
-Body sections: **1. Closure summary** (a short summary for a future reader), **2. Work completed** (one
-bullet per completed/skipped stage), **3. Work not completed** (last known state of each incomplete
-stage), **4. Reason & context** (expanded; name what superseded/absorbed it; revival triggers if
-deferred), **5. Branch & PR status** (a resource/state/action table), **6. Revival instructions** (only
+Write the explainer to `99-close.explainer.html.fragment` per [_story-arc.md](_story-arc.md). Body sections, as fixed `##` headings: `## Work Completed` (one
+bullet per completed/skipped stage), `## Work Not Completed` (last known state of each incomplete
+stage), `## Reason & Context` (expanded; name what superseded/absorbed it; revival triggers if
+deferred), `## Branch & PR Status` (a resource/state/action table), `## Revival Instructions` (only
 if `deferred`/`superseded`: *"To resume, restore `status: in-progress` in `00-index.md` and run
 `/wf status <slug>` for the next command, or `/wf intake <slug> <scope>` to extend; all prior artifacts
 are intact at `.ai/workflows/<slug>/`"*; otherwise "Not applicable — closed permanently").
@@ -113,10 +128,10 @@ no contract, no sibling `.yaml`, ordered by an `NN-` prefix, injected raw-inline
 
 ## Step W4 — Update `00-index.md`
 Update `status: closed`, `close-reason`, `superseded-by`, `closed-at`, `next-command: none`,
-`next-invocation: none`, `updated-at`. Do not change `current-stage` — it reflects the last stage reached.
+`next-invocation: none`, `updated-at`. Append `99-close.md` to `workflow-files`. Do not change `current-stage` — it reflects the last stage reached.
 
 ## Step W5 — Hand off
-Lead with a short **narrative** paragraph (the closure story), then a compact receipt (reason, last
+Quote the explainer summary as the narrative lead, then a compact receipt (reason, last
 stage, stages completed, `99-close.md` path, "artifacts preserved"). Then a manual-actions checklist:
 close PR at `<pr-url>` (if open), delete branch `git branch -d <branch>` (if unneeded), cherry-pick
 `<N>` unmerged commits (if any). If `deferred`: *"To resume: `/wf status <slug>` or `/wf intake <slug>
@@ -131,9 +146,8 @@ ordering) treat it as resolved rather than pending. The **slice** is the unit th
 matters (see *What this is NOT*).
 
 ## Step S0 — Orient
-1. Read `00-index.md` (`current-stage`, `progress`, `branch-strategy`, `branch`, `selected-slice-or-focus`)
-   and `03-slice.md` (the roster). Locate the slice `<slice>` in the roster and read its
-   `03-slice-<slice>.md` file if present.
+1. Parse `00-index.md` (`current-stage`, `progress`, `branch-strategy`, `branch`, `selected-slice`)
+   and the `03-slice.md` roster. Locate the slice `<slice>` in the roster.
 2. If the slice is already `status: complete` → WARN: "Slice `<slice>` is already complete — closing it
    discards nothing built, but marks it terminated. Proceed? (yes)". If already `skipped`/`closed` →
    WARN it will overwrite the skip record.
@@ -179,7 +193,7 @@ The skip record may ship free narrative fragments — same contract as above.
 
 ## Step S4 — Update `00-index.md`
 Update `updated-at`; add `skip-slice-<slice>.md` (and any stub) to `workflow-files`. If `<slice>` was
-the `selected-slice-or-focus`, advance it to the next unresolved slice. Do not change `status` or
+the `selected-slice`, advance it to the next unresolved slice. Do not change `status` or
 `current-stage` — the workflow continues; only this slice is done.
 
 ## Step S5 — Hand off

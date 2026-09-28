@@ -1,0 +1,22 @@
+{{!--
+  explainer/comparison — labelled horizontal bars, one per option or quantity.
+  Pure HTML + CSS, no script; colours are the view's theme tokens.
+
+  <!-- @include explainer/comparison {"title": "p95 latency", "unit": "ms",
+       "bars": [
+         {"label": "Before", "value": 180, "tone": "bad"},
+         {"label": "After", "value": 95, "tone": "ok", "note": "cache hit path"}
+       ]} -->
+
+  Parameters: title (optional), unit (optional), max (optional; default the
+  largest value), bars[].label, bars[].value (a number), bars[].tone (optional:
+  accent | ok | warn | bad | risk | muted), bars[].note (optional).
+--}}
+<figure class="xpl xpl-comparison" style="margin:18px 0;padding:14px 16px;border:1px solid var(--rule);border-radius:var(--rad-md);background:var(--paper)">
+{{#each title_list}}<figcaption style="font-family:var(--sans);font-size:13px;font-weight:600;color:var(--ink-2);margin:0 0 10px">{{this}}</figcaption>{{/each}}
+<div style="display:grid;grid-template-columns:minmax(5em,max-content) minmax(0,1fr) max-content;gap:8px 12px;align-items:center">
+{{#each bars}}<span style="color:var(--ink);font-size:14.5px">{{this.label}}{{#each this.note_list}}<span style="display:block;color:var(--ink-3);font-size:12px">{{this}}</span>{{/each}}</span>
+<span role="img" aria-label="{{this.label}}: {{this.value_text}}" style="display:block;height:14px;border-radius:var(--rad-sm);background:var(--paper-2);overflow:hidden"><span style="display:block;height:100%;width:{{this.pct}}%;background:{{this.color}};border-radius:var(--rad-sm)"></span></span>
+<span style="font-family:var(--mono);font-size:13px;color:var(--ink-2)">{{this.value_text}}</span>
+{{/each}}</div>
+</figure>

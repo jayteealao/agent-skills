@@ -38,7 +38,7 @@ export function render(artifact, ctx) {
     ? verdictBlock(normalizeVerdict(verdict), verdict, auditedAgainst(sy ?? fm))
     : '';
 
-  const violationsHtml = sy?.violations?.length && !artifact.fragment
+  const violationsHtml = sy?.violations?.length && (!artifact.fragment || artifact.fragmentGenerated)
     ? `<section class="findings design-audit-violations">
         <h2 class="sdlc-h2">violations</h2>
         <ol class="finding-list">${sy.violations.map(violationItem).join('')}</ol>

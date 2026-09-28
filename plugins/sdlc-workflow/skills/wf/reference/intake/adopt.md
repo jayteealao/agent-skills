@@ -4,7 +4,7 @@ argument-hint: "[description]"
 ---
 
 # Output boundary & shared context
-Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake adopt`, the **reverse-entry** mode. Where `fix`/`hotfix`/`refactor` author a plan and then drive execution *forward*, adopt reconstructs the record *backward* from a diff that already exists, then hands the result to the standard verification chain.
 
@@ -20,12 +20,31 @@ You are running `/wf intake adopt`, the **reverse-entry** mode. Where `fix`/`hot
 
 | | Detail |
 |---|---|
-| Requires | Uncommitted changes and/or unpushed-unmerged commits against the base branch. Refuses on a clean, fully-published tree (Step A0). |
+| Requires | See [## Requires](#requires). Adopt refuses on a clean, fully-published tree (Step A0). |
 | Produces (this command) | `01-adopt.md` (`type: intake`), `02-shape.md`, `03-slice.md` (`type: slice-index`, one slice), `04-plan.md`, `05-implement.md`, and a conformant `00-index.md` (`type: index`) — all `provenance: adopted`. |
 | Reconstruction | `02`–`05` are inferred from the diff, not authored forward. `04-plan`'s ladder/reuse sections become *retrospective observations*; `04-plan`'s `## Verification Strategy` is authored *forward* — the real deliverable. |
 | Gate | Stop-and-confirm the inferred shape (goal / scope / slice split / ACs) **before any artifact is written** (Step 2). Inference from a diff can be wrong, and a wrong adopted shape poisons every downstream stage. |
 | Next | `/wf verify <slug>` — the standard verification chain takes over from stage 6. |
 | Branch | Adopt **records** the current branch in `00-index.md`; it never creates or switches branches. The work already lives somewhere. |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| uncommitted changes or unmerged commits against the base branch | artifact | always | |
+| `01-adopt.md` | artifact | on-resume | |
+| `steer.md` | artifact | if-present | |
+| `intake/_intake-context.md` | procedure | always | |
+| `intake/_change-mode-tail.md` | procedure | always | |
+| `intake/_intake-provenance.md` | procedure | always | |
+| `intake/adopt/_artifacts.md` | procedure | always | |
+| `01-adopt.md` | writes | | |
+| `02-shape.md` | writes | | |
+| `03-slice.md` | writes | | |
+| `04-plan.md` | writes | | |
+| `05-implement.md` | writes | | |
 
 # Scope discipline
 You are a **reconstruction orchestrator**, not a coder and not a shaper inventing new scope.
@@ -119,24 +138,24 @@ type: index
 slug: <slug>
 title: "<human-readable title>"
 provenance: adopted
-workflow-type: adopt          # the authoritative discriminator the standard commands + resume read
+workflow-type: adopt
 status: active
-current-stage: implement      # execution is done (reconstructed); the workflow enters at verify
+current-stage: implement
 stage-number: 5
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
 selected-slice: <slug>
-branch-strategy: none         # adopt never creates/switches a branch; it records the current one
+branch-strategy: none
 branch: "<current branch name>"
 base-branch: "<base>"
-review-scope: slug-wide       # single slice → one 07-review.md
-review-scope-confirmed: false # plan/verify read absence as already-asked; say false explicitly
-appetite: small               # adoption is small-appetite by construction
+review-scope: slug-wide
+review-scope-confirmed: false
+appetite: small
 pr-url: ""
 pr-number: 0
 open-questions: []
 tags: []
-stack:                        # Step 0 fingerprint per the _change-mode-tail.md stack policy
+stack:
   detected-at: "<iso-8601>"
   platforms: []
   languages: []
@@ -149,7 +168,7 @@ stack:                        # Step 0 fingerprint per the _change-mode-tail.md 
   available-skills: []
   available-mcp: []
   user-confirmed: false
-runtime-evidence-deferrals: []  # constraint-forethought proxy+deferral resolutions from 04-plan land here as real entries
+runtime-evidence-deferrals: []
 next-command: wf-verify
 next-invocation: "/wf verify <slug>"
 workflow-files:
@@ -178,6 +197,7 @@ progress:
 ```
 
 Notes:
+- Write no YAML comments in the index. `review-scope: slug-wide` gives one `07-review.md` for the single slice. `runtime-evidence-deferrals` receives the proxy and deferral resolutions from `04-plan`.
 - `current-stage: implement` with `implement: complete` in `progress` — the reconstructed execution is done; `verify` is the first *not-started* stage, and `next-invocation` points there. (Use the standard `current-stage` enum — `implement` — never a bespoke `adopted` value; the adoption fact lives in `provenance` and `workflow-type`, not in `current-stage`.)
 - `branch-strategy: none` is deliberate — adoption inherits whatever branch the work was done on.
 - Then **register the slug in `.ai/workflows/INDEX.md`** per [intake/default.md](default.md) Step 10 (create-if-absent / append-and-resort / never mutate other rows), with `workflow-type` column = `adopt`.

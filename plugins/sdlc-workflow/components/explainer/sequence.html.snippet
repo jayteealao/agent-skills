@@ -1,0 +1,24 @@
+{{!--
+  explainer/sequence — numbered steps, each with an optional lane (the actor or
+  system that does the step). Pure HTML + CSS, no script; colours are the
+  view's theme tokens, so the visual follows the page theme.
+
+  <!-- @include explainer/sequence {"title": "How a request reaches the database",
+       "steps": [
+         {"label": "Browser sends the form", "lane": "client", "text": "POST /orders with the cart."},
+         {"label": "API checks the session", "lane": "api"},
+         {"label": "API writes the order", "lane": "db", "text": "One transaction."}
+       ]} -->
+
+  Parameters: title (optional), steps[].label, steps[].text (optional),
+  steps[].lane (optional). A step may also be a plain string (the label).
+--}}
+<figure class="xpl xpl-sequence" style="margin:18px 0;padding:14px 16px;border:1px solid var(--rule);border-radius:var(--rad-md);background:var(--paper)">
+{{#each title_list}}<figcaption style="font-family:var(--sans);font-size:13px;font-weight:600;color:var(--ink-2);margin:0 0 10px">{{this}}</figcaption>{{/each}}
+<ol style="list-style:none;margin:0;padding:0;display:grid;gap:10px">
+{{#each steps}}<li style="display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start">
+<span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--paper);font-family:var(--mono);font-size:12px;font-weight:600">{{this.n}}</span>
+<div style="min-width:0"><span style="font-weight:600;color:var(--ink)">{{this.label}}</span>{{#each this.lane_list}} <span style="display:inline-block;margin-left:6px;padding:0 7px;border:1px solid var(--rule-2);border-radius:var(--rad-sm);font-family:var(--mono);font-size:11.5px;color:var(--ink-2);background:var(--paper-2)">{{this}}</span>{{/each}}{{#each this.text_list}}<div style="color:var(--ink-2);font-size:14.5px;margin-top:2px">{{this}}</div>{{/each}}</div>
+</li>
+{{/each}}</ol>
+</figure>

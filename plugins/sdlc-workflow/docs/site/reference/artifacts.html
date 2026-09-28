@@ -42,9 +42,9 @@ filename never lands. The numbers run in lifecycle order:</p>
 <tr><td><code>04b-instrument.md</code>, <code>04c-experiment.md</code></td><td>plan</td><td>Add-on plans (telemetry instrumentation, experiment design), written only when shape decided the work needs them.</td></tr>
 <tr><td><code>05-implement.md</code> + <code>05-implement-&lt;slice&gt;.md</code></td><td>implement</td><td>The implementation record per slice plus the master.</td></tr>
 <tr><td><code>05c-benchmark.md</code></td><td>implement</td><td>Benchmark add-on results, written when shape called for them.</td></tr>
-<tr><td><code>06-verify.md</code> + <code>06-verify-&lt;slice&gt;.md</code></td><td>verify (self-authored by update-deps and task)</td><td>Checks, the acceptance-criteria gate, and any runtime-evidence deferrals. Raw evidence lands in the free-form <code>verify-evidence/</code> and <code>probe-evidence/</code> subdirectories. A task workflow's verify records per-criterion evidence rungs, including the task rungs <code>attested</code> (a cited human or third-party confirmation) and <code>asserted</code> (a claim with no read-back — which cannot close a criterion).</td></tr>
+<tr><td><code>06-verify.md</code> + <code>06-verify-&lt;slice&gt;.md</code></td><td>verify (self-authored by update-deps and task)</td><td>Checks, the acceptance-criteria gate, and any runtime-evidence deferrals. The raw check output lands in the evidence report <code>verify-evidence/&lt;slice&gt;/report.md</code>; other raw evidence lands in the free-form <code>verify-evidence/</code> and <code>probe-evidence/</code> folders. A task workflow's verify records per-criterion evidence rungs, including the task rungs <code>attested</code> (a cited human or third-party confirmation) and <code>asserted</code> (a claim with no read-back — which cannot close a criterion).</td></tr>
 <tr><td><code>07-review.md</code> or <code>07-review-&lt;slice&gt;.md</code></td><td>review; also <code>/wf intake audit</code></td><td>The accumulating review ledger: one master file per workflow (slug-wide scope) or one per slice (per-slice scope), plus one <code>07-review[-&lt;slice&gt;]-&lt;dimension&gt;.md</code> file for each dimension run. An audit workflow reuses this exact family as its findings ledger (one file per lens, refuted candidates preserved). <code>/wf design audit</code> and <code>critique</code> write <code>07-design-audit.md</code> / <code>07-design-critique.md</code> in the same band.</td></tr>
-<tr><td><code>08-handoff.md</code></td><td>handoff</td><td>The PR package: what was aggregated, the readiness check, the PR link.</td></tr>
+<tr><td><code>08-handoff.md</code></td><td>handoff</td><td>The PR package: what was aggregated, the result of the readiness check (frontmatter keys such as <code>pr-readiness-verdict</code>; there is no readiness block in the body), the PR link.</td></tr>
 <tr><td><code>08b-docs-index.md</code></td><td>docs</td><td>The index of documentation produced for this workflow.</td></tr>
 <tr><td><code>09-ship-run-&lt;run-id&gt;.md</code> + <code>09-ship-runs.md</code></td><td>ship</td><td>One record per release attempt plus the run index. A rollback writes <code>09-rollback-&lt;run-id&gt;.md</code>.</td></tr>
 <tr><td><code>10-retro.md</code></td><td>retro</td><td>The post-mortem.</td></tr>
@@ -52,6 +52,36 @@ filename never lands. The numbers run in lifecycle order:</p>
 <tr><td><code>99-close.md</code></td><td>close</td><td>The archive record. Closing sets the workflow's status to closed and deletes nothing.</td></tr>
 </tbody>
 </table>
+
+<h3 id="four-kinds">Four kinds of file per artifact</h3>
+
+<p>Each numbered artifact above is the <strong>agent file</strong>: the file the next stages
+read. It keeps its <code>NN-&lt;stage&gt;[-&lt;slice&gt;].md</code> name. Three other kinds of
+file sit beside it, each for a different reader:</p>
+
+<table>
+<thead><tr><th>Kind</th><th>Path</th><th>Who reads it</th></tr></thead>
+<tbody>
+<tr><td>Agent file</td><td><code>04-plan-auth.md</code></td><td>Later stages and the drivers. Frontmatter holds the state; the body holds the contract and the working record under fixed <code>##</code> headings.</td></tr>
+<tr><td>Explainer</td><td><code>04-plan-auth.explainer.html.fragment</code></td><td>You. An HTML fragment that explains what the stage did: a plain summary first, text and small visuals in turn, a recap at the end. The rendered view puts it at the top of the artifact's page, and the chat summary quotes its summary paragraph. Agents do not read it, except recap and the same stage on a re-run.</td></tr>
+<tr><td>Evidence</td><td><code>verify-evidence/&lt;slice&gt;/report.md</code>, <code>probe-evidence/</code></td><td>Anyone who wants the raw proof: test runner output, probe logs, screenshots. These folders need no frontmatter and no numbered names, and the renderer and the stale check skip them.</td></tr>
+<tr><td>History</td><td><code>index-history.jsonl</code></td><td>Anyone who wants the past of the control file. See <a href="#index-history">the control file</a>.</td></tr>
+</tbody>
+</table>
+
+<p>The explainer replaces the story section (<code>## The Plan</code>, <code>## The Verify</code>,
+and so on) that artifacts used to open with. The agent file keeps no story section. Brainstorm
+is the one exception: <code>01-brainstorm.md</code> keeps <code>## The Brainstorm</code>, because
+the board is your document.</p>
+
+<div class="note">
+<p><strong>Old workflows keep their current view.</strong> An artifact written before the
+explainer existed has no explainer file. The renderer shows its page as before, with its story
+section and the full body. Nothing rewrites an old artifact. To move an old control file's
+comment prose and old next-step commentary to <code>index-history.jsonl</code>, run
+<code>/wf intake modernize &lt;slug&gt;</code> and accept the index-history option; the move
+runs only on a yes.</p>
+</div>
 
 <p>A few files in the directory deliberately sit outside the numbered convention:</p>
 
@@ -67,6 +97,16 @@ close a single slice rather than the whole workflow.</li>
 applies (for example <code>animate-&lt;ts&gt;.md</code>), and the report that
 <code>/wf design &lt;slug&gt; extract</code> writes. These files are named by operation,
 not by stage number.</li>
+<li><code>index-history.jsonl</code> — the history of the control file, one JSON object per
+line (<code>at</code>, <code>kind</code>, <code>text</code>, <code>stage</code>). It only
+grows.</li>
+<li><code>.read-ledger.jsonl</code> — one row for each read check that the mod ran when a stage
+wrote its artifact: the agent, the stage, the artifact, the inputs it did not read, and any
+waiver. The mod owns this file, and no stage writes it. See
+<a href="../guides/the-standard-lifecycle.html#reads-and-writes">What every stage reads and
+writes</a>.</li>
+<li><code>.driver-journal.jsonl</code> — the heartbeat journal of <code>/wf auto</code> and
+<code>/wf yolo</code>.</li>
 </ul>
 
 <h2>The control file: <code>00-index.md</code></h2>
@@ -76,6 +116,15 @@ reads the control file on entry and updates it on exit. The basic identity and p
 are <code>title</code>, <code>status</code>, <code>current-stage</code>, <code>branch</code>,
 and a per-stage <code>progress:</code> map. Beyond those, some frontmatter blocks carry durable
 state that later stages and the drivers depend on:</p>
+
+<p id="index-history">The control file holds current state only. Comment prose, old next-step
+commentary, and finished sub-pass notes move to <code>index-history.jsonl</code>, one JSON line
+per item. The deferral list (cleared entries too), the intent risks, the charter, and the
+<code>revisions:</code> ledger stay in the control file. <code>current-stage</code> stays in the
+first 4,000 characters, because the sub-agent start hook reads only that much. A lint
+(<code>hooks.indexLint</code>) warns when the file is over 20&nbsp;KB, when its frontmatter
+carries a YAML comment of prose, or when <code>current-stage</code> is further down. The lint
+never blocks.</p>
 
 <dl>
 <dt><code>workflow-type:</code></dt>
@@ -190,11 +239,30 @@ on).</li>
 for the life of the workflow.</li>
 </ul>
 
+<p>Each stage artifact also names its next step in frontmatter. <code>next-command</code> and
+<code>next-invocation</code> give the default. <code>recommended-routes</code> lists every
+option, each with an <code>invocation</code> and a <code>reason</code>; exactly one entry has
+<code>default: true</code>, and its invocation equals <code>next-invocation</code>.
+<code>/wf status</code> reads the options from this list. A stage artifact has no
+<code>## Recommended Next Stage</code> section. The control file keeps its own
+<code>recommended-next-stage</code>, <code>recommended-next-command</code>, and
+<code>recommended-next-invocation</code> keys.</p>
+
+<pre><code>next-command: implement
+next-invocation: "/wf implement auth-flow login"
+recommended-routes:
+  - invocation: "/wf implement auth-flow login"
+    reason: "the plan is complete"
+    default: true
+  - invocation: "/wf plan auth-flow login"
+    reason: "revise the plan first"</code></pre>
+
 <p>The same hook enforces the numbered-filename convention. The exemptions are deliberate and
 few: <code>po-answers.md</code> (a frontmatter-less prose log), files under
-<code>probe-evidence/</code> (free-form evidence), and <code>design-notes/</code>
-(operation-named files that carry the design add-on type instead). All machine-readable state
-belongs in frontmatter. The Markdown body is for human narrative.</p>
+<code>verify-evidence/</code> and <code>probe-evidence/</code> (free-form evidence), and
+<code>design-notes/</code> (operation-named files that carry the design add-on type instead).
+All machine-readable state belongs in frontmatter. The body of the agent file is the contract
+that later stages read. The explanation for you is in the explainer.</p>
 
 <h2>Sibling YAML and fragments</h2>
 
@@ -215,6 +283,12 @@ only. <em>Free narrative fragments</em>
 below the rendered page body in label order. Any artifact can carry any number of them. Use a
 free narrative fragment for a bespoke diagram or widget that the structured page cannot tell.
 The <code>NN-</code> prefix on the label controls the order.</p>
+
+<p>The explainer is the free fragment with the reserved label <code>explainer</code>. Every
+stage artifact has one. The renderer puts it at the top of the page, not at the foot. The page
+then shows what waits for you (open questions, gates, the verdict, the next step), the
+stage's contract as a table, and a collapsed part with the evidence, the prior revisions, and
+the full agent file.</p>
 
 <h2>Ledger discipline: additive only</h2>
 

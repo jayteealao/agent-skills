@@ -2,24 +2,34 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  composeStagePage,
+  evidenceDirFor,
+  splitStorySection,
+  stageKeyFor,
+  viewHref
+} from "./chunk-SWJT3BVF.mjs";
+import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-SCNOIKJL.mjs";
+} from "./chunk-M4L3PWUR.mjs";
 import {
+  EVIDENCE_DIRS,
   PLUGIN_VERSION,
+  SURFACE_SWEEP_RE,
   breadcrumbFromView,
   classifyFragmentName,
   hubAssetBase,
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-O2MCLXSW.mjs";
+} from "./chunk-U4XWDSQ3.mjs";
 import {
   aggregateCost,
   readCostRows
 } from "./chunk-PNDGQNSP.mjs";
 import {
+  escapeHtml,
   renderWarnBanner,
   validateFrontmatter
 } from "./chunk-3RXHOXIK.mjs";
@@ -27,14 +37,14 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-WL7BNFAE.mjs";
+} from "./chunk-AN7MIYZZ.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-SM2WOF6Z.mjs";
-import "./chunk-6A72YATQ.mjs";
+} from "./chunk-PQGW3NEN.mjs";
+import "./chunk-NQ3YKNZA.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -47,12 +57,9 @@ import {
   resolveEntrypoint
 } from "./chunk-KRRL2TSM.mjs";
 import {
-  resolveProjectRoot
-} from "./chunk-DOKC4AFB.mjs";
-import {
   configHash,
   loadConfigWithMeta
-} from "./chunk-KYXH2XZE.mjs";
+} from "./chunk-KNXRJRUP.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -63,11 +70,12 @@ import {
   pidFileStatus,
   readPidFile,
   removePidFile,
+  resolveProjectRoot,
   scanWorkflowIndexes,
   upsertRegistryEntry,
   viewMtimeForSlug,
   writePidFile
-} from "./chunk-5LBIJZHF.mjs";
+} from "./chunk-XQW7VILZ.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
@@ -87,6 +95,116 @@ import {
 import { spawn } from "node:child_process";
 import { dirname, resolve, join as join3, relative, basename } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+// renderers/_fragment-gen.mjs
+var RICH_TIER_TYPES = Object.freeze([
+  "review",
+  "plan",
+  "design",
+  "ship-run",
+  "rca",
+  "benchmark",
+  "experiment",
+  "instrument",
+  "profile",
+  "simplify-run",
+  "review-command",
+  "design-audit",
+  "design-critique",
+  "design-contract"
+]);
+var FRAGMENT_NAME = {
+  "review-command": "review-dimension"
+};
+function fragmentNameFor(type) {
+  return FRAGMENT_NAME[type] ?? type;
+}
+function shouldGenerateFragment({ type, yamlMtimeMs, fragmentMtimeMs }) {
+  if (!RICH_TIER_TYPES.includes(type)) return false;
+  if (yamlMtimeMs == null) return false;
+  if (fragmentMtimeMs == null) return true;
+  return fragmentMtimeMs < yamlMtimeMs;
+}
+var SEVERITY_ORDER = ["blocker", "high", "med", "medium", "low", "nit", "info"];
+var CLOSED_STATUS = /* @__PURE__ */ new Set(["fixed", "resolved", "closed", "dismissed", "wontfix", "won't-fix", "accepted", "done"]);
+function generateTypedFragment({ type, siblingYaml, artifact = "" }) {
+  const name = fragmentNameFor(type);
+  const sy = siblingYaml && typeof siblingYaml === "object" ? siblingYaml : {};
+  const parts = [];
+  const findings = Array.isArray(sy.findings) ? sy.findings : null;
+  if (type === "review" && findings?.length) {
+    parts.push(findingsList(findings));
+  }
+  parts.push(dataProjection(sy));
+  const detail = {
+    generated: true,
+    keys: Object.keys(sy).length,
+    ...findings ? { findings: findings.length } : {}
+  };
+  return [
+    `<section class="fragment-${escapeHtml(name)}" data-generated="yaml">`,
+    ...parts.filter(Boolean),
+    // Inline dispatch (the fragment-ready snippet shape), so the generated
+    // fragment also passes verify-fragment Check 4 if someone writes it out.
+    `<script>window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', { detail: ${jsonForScript({ ...detail, name, artifact })} }));</script>`,
+    "</section>"
+  ].join("\n");
+}
+function jsonForScript(value) {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+function isOpen(f) {
+  const s = String(f?.status ?? "open").toLowerCase();
+  return !CLOSED_STATUS.has(s);
+}
+function sevRank(s) {
+  const i = SEVERITY_ORDER.indexOf(String(s ?? "").toLowerCase());
+  return i === -1 ? SEVERITY_ORDER.length : i;
+}
+function findingsList(findings) {
+  const rows = findings.map((f, i) => ({ f, i })).sort((a, b) => Number(isOpen(b.f)) - Number(isOpen(a.f)) || sevRank(a.f?.severity) - sevRank(b.f?.severity) || a.i - b.i);
+  const items = rows.map(({ f }) => {
+    if (!f || typeof f !== "object") return `<li>${escapeHtml(String(f))}</li>`;
+    const sev = String(f.severity ?? "").toLowerCase();
+    const sevClass = sev === "medium" ? "med" : sev;
+    const chip = sev ? `<span class="sev severity-${escapeHtml(sevClass)}">${escapeHtml(sev)}</span> ` : "";
+    const id = f.id ? `<code>${escapeHtml(f.id)}</code> ` : "";
+    const title = escapeHtml(f.title ?? f.summary ?? f.finding ?? "");
+    const where = f.file ?? f.location ?? f.path;
+    const loc = where ? ` <span class="meta"><code>${escapeHtml(where)}${f.line != null ? `:${escapeHtml(f.line)}` : ""}</code></span>` : "";
+    const status = f.status ? ` <span class="meta">${escapeHtml(f.status)}</span>` : "";
+    return `<li class="${isOpen(f) ? "is-open" : "is-closed"}">${chip}${id}${title}${loc}${status}</li>`;
+  }).join("");
+  const open = findings.filter(isOpen).length;
+  return `<section class="gen-findings"><h3 class="sdlc-h3">Findings \xB7 ${open} open of ${findings.length}</h3><ul class="gen-findings-list">${items}</ul></section>`;
+}
+function dataProjection(sy) {
+  const keys = Object.keys(sy ?? {});
+  if (!keys.length) return "";
+  return `<details class="gen-data"><summary>Structured data \xB7 ${keys.length} key${keys.length === 1 ? "" : "s"}</summary>${projectValue(sy, 0)}</details>`;
+}
+function projectValue(v, depth) {
+  if (v == null) return '<span class="meta">\u2014</span>';
+  if (v instanceof Date) return escapeHtml(v.toISOString());
+  if (Array.isArray(v)) {
+    if (!v.length) return '<span class="meta">none</span>';
+    if (v.every((x) => x && typeof x === "object" && !Array.isArray(x)) && depth < 4) return objectTable(v, depth);
+    return `<ul>${v.map((x) => `<li>${projectValue(x, depth + 1)}</li>`).join("")}</ul>`;
+  }
+  if (typeof v === "object") {
+    if (depth >= 4) return `<code>${escapeHtml(JSON.stringify(v))}</code>`;
+    const rows = Object.entries(v).map(([k, x]) => `<div><dt>${escapeHtml(k)}</dt><dd>${projectValue(x, depth + 1)}</dd></div>`).join("");
+    return `<dl class="frontmatter-card">${rows}</dl>`;
+  }
+  return escapeHtml(String(v));
+}
+function objectTable(list, depth) {
+  const cols = [];
+  for (const row of list) for (const k of Object.keys(row)) if (!cols.includes(k)) cols.push(k);
+  const head = cols.map((c) => `<th>${escapeHtml(c)}</th>`).join("");
+  const body = list.map((row) => `<tr>${cols.map((c) => `<td>${row[c] === void 0 ? "" : projectValue(row[c], depth + 1)}</td>`).join("")}</tr>`).join("");
+  return `<table class="prose-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
 
 // renderers/_link-graph.mjs
 import { posix as path } from "node:path";
@@ -159,7 +277,265 @@ function globToRegex(glob) {
 // components/_components.mjs
 import { readFileSync, existsSync as existsSync2 } from "node:fs";
 import { join } from "node:path";
-var INCLUDE_RE = /<!--\s*@include\s+([a-z][a-z0-9-]*)\s+([\s\S]*?)\s*-->/g;
+
+// components/explainer/_prepare.mjs
+var TONES = {
+  accent: "var(--accent)",
+  ok: "var(--low)",
+  good: "var(--low)",
+  warn: "var(--med)",
+  bad: "var(--high)",
+  risk: "var(--blocker)",
+  muted: "var(--ink-3)"
+};
+function tone(t) {
+  return TONES[String(t ?? "").toLowerCase()] ?? TONES.accent;
+}
+function str(v) {
+  return v == null ? "" : String(v);
+}
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+function hashId(value) {
+  const text = JSON.stringify(value ?? null);
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h.toString(36);
+}
+function opt(v) {
+  return v == null || v === "" ? [] : [v];
+}
+function wrapLabel(label, width = 16, maxLines = 2) {
+  const words = str(label).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let cur = "";
+  for (const w of words) {
+    if (!cur) cur = w;
+    else if ((cur + " " + w).length <= width) cur += ` ${w}`;
+    else {
+      lines.push(cur);
+      cur = w;
+    }
+  }
+  if (cur) lines.push(cur);
+  if (lines.length > maxLines) {
+    const kept = lines.slice(0, maxLines);
+    kept[maxLines - 1] = `${kept[maxLines - 1].slice(0, width - 1)}\u2026`;
+    return kept;
+  }
+  return lines.length ? lines : [""];
+}
+function labelLines(label, x, y, width) {
+  const lines = wrapLabel(label, width);
+  const lineH = 14;
+  const first = y - (lines.length - 1) * lineH / 2 + 4;
+  return lines.map((t, i) => ({ t, x: round1(x), y: round1(first + i * lineH) }));
+}
+function prepareSequence(data = {}) {
+  const steps = Array.isArray(data.steps) ? data.steps : [];
+  return {
+    title: str(data.title),
+    title_list: opt(data.title),
+    steps: steps.map((s, i) => {
+      const o = typeof s === "object" && s ? s : { label: s };
+      return {
+        n: i + 1,
+        label: str(o.label),
+        text_list: opt(o.text),
+        lane_list: opt(o.lane)
+      };
+    })
+  };
+}
+function prepareComparison(data = {}) {
+  const bars = Array.isArray(data.bars) ? data.bars : [];
+  const values = bars.map((b) => Number(b?.value) || 0);
+  const max = Number(data.max) > 0 ? Number(data.max) : Math.max(0, ...values);
+  const unit = str(data.unit);
+  return {
+    title: str(data.title),
+    title_list: opt(data.title),
+    bars: bars.map((b, i) => {
+      const v = values[i];
+      const pct = max > 0 ? Math.max(0, Math.min(100, round1(v / max * 100))) : 0;
+      return {
+        label: str(b?.label),
+        pct,
+        color: tone(b?.tone),
+        value_text: `${str(b?.value ?? v)}${unit ? ` ${unit}` : ""}`,
+        note_list: opt(b?.note)
+      };
+    })
+  };
+}
+function prepareCycle(data = {}) {
+  const raw = Array.isArray(data.states) ? data.states : [];
+  const states = raw.map((s) => typeof s === "object" && s ? s : { label: s });
+  const n = states.length;
+  const R = Math.max(90, n * 26);
+  const nodeW = 120;
+  const nodeH = 40;
+  const W = 2 * R + nodeW + 40;
+  const H = 2 * R + nodeH + 40;
+  const cx = W / 2;
+  const cy = H / 2;
+  const angle = (i) => -Math.PI / 2 + 2 * Math.PI * i / Math.max(n, 1);
+  const nodes = states.map((s, i) => {
+    const a = angle(i);
+    const x = cx + R * Math.cos(a);
+    const y = cy + R * Math.sin(a);
+    return {
+      n: i + 1,
+      label: str(s.label),
+      rx: round1(x - nodeW / 2),
+      ry: round1(y - nodeH / 2),
+      w: nodeW,
+      h: nodeH,
+      stroke: tone(s.tone),
+      lines: labelLines(s.label, x, y, 15),
+      note_list: s.note ? [{ n: i + 1, label: str(s.label), text: str(s.note) }] : []
+    };
+  });
+  const trim = Math.min(2 * Math.PI / Math.max(n, 1) * 0.3, 70 / R);
+  const arcs = n < 2 ? [] : states.map((_, i) => {
+    const a0 = angle(i) + trim;
+    const a1 = angle(i + 1) - trim;
+    const x0 = round1(cx + R * Math.cos(a0));
+    const y0 = round1(cy + R * Math.sin(a0));
+    const x1 = round1(cx + R * Math.cos(a1));
+    const y1 = round1(cy + R * Math.sin(a1));
+    return { d: `M ${x0} ${y0} A ${R} ${R} 0 0 1 ${x1} ${y1}` };
+  });
+  return {
+    title: str(data.title),
+    title_list: opt(data.title),
+    id: `xpl-cyc-${hashId(data)}`,
+    width: round1(W),
+    height: round1(H),
+    nodes,
+    arcs
+  };
+}
+function prepareDependency(data = {}) {
+  const rawNodes = Array.isArray(data.nodes) ? data.nodes : [];
+  const nodes = rawNodes.map((n) => typeof n === "object" && n ? n : { id: n, label: n }).map((n) => ({ ...n, id: str(n.id ?? n.label), label: str(n.label ?? n.id) }));
+  const ids = new Set(nodes.map((n) => n.id));
+  const edges = (Array.isArray(data.edges) ? data.edges : []).map((e) => Array.isArray(e) ? { from: e[0], to: e[1] } : e).filter((e) => e && ids.has(str(e.from)) && ids.has(str(e.to)) && str(e.from) !== str(e.to)).map((e) => ({ from: str(e.from), to: str(e.to), label: str(e.label) }));
+  const order = new Map(nodes.map((n, i) => [n.id, i]));
+  const out = new Map(nodes.map((n) => [n.id, []]));
+  for (const e of edges) out.get(e.from).push(e.to);
+  const state = /* @__PURE__ */ new Map();
+  const back = /* @__PURE__ */ new Set();
+  const visit = (id) => {
+    state.set(id, 1);
+    for (const to of out.get(id)) {
+      if (state.get(to) === 1) back.add(`${id}->${to}`);
+      else if (!state.get(to)) visit(to);
+    }
+    state.set(id, 2);
+  };
+  for (const n of nodes) if (!state.get(n.id)) visit(n.id);
+  const layer = new Map(nodes.map((n) => [n.id, 0]));
+  for (let pass = 0; pass < nodes.length; pass++) {
+    let changed = false;
+    for (const e of edges) {
+      if (back.has(`${e.from}->${e.to}`)) continue;
+      const want = layer.get(e.from) + 1;
+      if (layer.get(e.to) < want) {
+        layer.set(e.to, want);
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  const columns = [];
+  for (const n of nodes) {
+    const l = layer.get(n.id);
+    (columns[l] ??= []).push(n.id);
+  }
+  for (const col of columns) col?.sort((a, b) => order.get(a) - order.get(b));
+  const nodeW = 140;
+  const nodeH = 44;
+  const gapX = 70;
+  const gapY = 22;
+  const pad = 20;
+  const rows = Math.max(1, ...columns.map((c) => c?.length ?? 0));
+  const cols = Math.max(1, columns.length);
+  const W = pad * 2 + cols * nodeW + (cols - 1) * gapX;
+  const hasBack = back.size > 0;
+  const H = pad * 2 + rows * nodeH + (rows - 1) * gapY + (hasBack ? 40 : 0);
+  const pos = /* @__PURE__ */ new Map();
+  columns.forEach((col, ci) => (col ?? []).forEach((id, ri) => {
+    pos.set(id, { x: pad + ci * (nodeW + gapX), y: pad + ri * (nodeH + gapY) });
+  }));
+  const outNodes = nodes.map((n) => {
+    const p = pos.get(n.id);
+    return {
+      id: n.id,
+      label: n.label,
+      rx: p.x,
+      ry: p.y,
+      w: nodeW,
+      h: nodeH,
+      stroke: tone(n.tone),
+      lines: labelLines(n.label, p.x + nodeW / 2, p.y + nodeH / 2, 18),
+      note_list: n.note ? [{ label: n.label, text: str(n.note) }] : []
+    };
+  });
+  const outEdges = edges.map((e) => {
+    const a = pos.get(e.from);
+    const b = pos.get(e.to);
+    const isBack = back.has(`${e.from}->${e.to}`) || b.x <= a.x;
+    let d;
+    let lx;
+    let ly;
+    if (!isBack) {
+      const x0 = a.x + nodeW;
+      const y0 = a.y + nodeH / 2;
+      const x1 = b.x - 4;
+      const y1 = b.y + nodeH / 2;
+      const mx = round1((x0 + x1) / 2);
+      d = `M ${x0} ${y0} C ${mx} ${y0} ${mx} ${y1} ${x1} ${y1}`;
+      lx = mx;
+      ly = round1((y0 + y1) / 2 - 6);
+    } else {
+      const x0 = a.x + nodeW / 2;
+      const y0 = a.y + nodeH;
+      const x1 = b.x + nodeW / 2;
+      const y1 = b.y + nodeH + 4;
+      const low = H - pad / 2;
+      d = `M ${x0} ${y0} C ${x0} ${low} ${x1} ${low} ${x1} ${y1}`;
+      lx = round1((x0 + x1) / 2);
+      ly = round1(low - 4);
+    }
+    return { d, label_list: e.label ? [{ t: e.label, x: lx, y: ly }] : [], dash: isBack ? "5 4" : "none" };
+  });
+  return {
+    title: str(data.title),
+    title_list: opt(data.title),
+    id: `xpl-dep-${hashId(data)}`,
+    width: W,
+    height: H,
+    nodes: outNodes,
+    edges: outEdges
+  };
+}
+
+// components/_components.mjs
+var INCLUDE_RE = /<!--\s*@include\s+([a-z][a-z0-9-]*(?:\/[a-z][a-z0-9-]*)*)\s+([\s\S]*?)\s*-->/g;
+var PREPARERS = {
+  "explainer/sequence": prepareSequence,
+  "explainer/comparison": prepareComparison,
+  "explainer/cycle": prepareCycle,
+  "explainer/dependency": prepareDependency
+};
+function stripDocComments(text) {
+  return text.replace(/\{\{!--[\s\S]*?--\}\}\s*/g, "");
+}
 var snippetCache = /* @__PURE__ */ new Map();
 function loadSnippet(componentsRoot, name) {
   const cacheKey = `${componentsRoot}::${name}`;
@@ -247,7 +623,10 @@ function expand(html, ctx) {
         throw new Error(`@include ${name}: invalid JSON payload \u2014 ${err.message}`);
       }
       const snippet = loadSnippet(componentsRoot, name);
-      return renderSnippet(snippet, data);
+      if (PREPARERS[name]) {
+        return renderSnippet(stripDocComments(snippet), PREPARERS[name](data)).trim();
+      }
+      return renderSnippet(stripDocComments(snippet), data);
     });
   }
   return current;
@@ -452,37 +831,6 @@ function displayHost(host) {
   return host === "0.0.0.0" ? "127.0.0.1" : host;
 }
 
-// renderers/_story.mjs
-var H2 = /^##\s+\S/;
-var STORY_H2 = /^##\s+The\s+.+$/;
-var H1_OR_H2 = /^#{1,2}\s+\S/;
-function splitStorySection(body) {
-  if (typeof body !== "string" || body === "") {
-    return { storyMarkdown: "", bodyRest: typeof body === "string" ? body : "" };
-  }
-  const lines = body.split(/\r?\n/);
-  let start = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (H2.test(lines[i])) {
-      start = i;
-      break;
-    }
-  }
-  if (start === -1 || !STORY_H2.test(lines[start])) {
-    return { storyMarkdown: "", bodyRest: body };
-  }
-  let end = lines.length;
-  for (let i = start + 1; i < lines.length; i++) {
-    if (H1_OR_H2.test(lines[i])) {
-      end = i;
-      break;
-    }
-  }
-  const storyMarkdown = lines.slice(start, end).join("\n").trim();
-  const bodyRest = [...lines.slice(0, start), ...lines.slice(end)].join("\n").replace(/\n{3,}/g, "\n\n").trim();
-  return { storyMarkdown, bodyRest };
-}
-
 // scripts/render-sunflower.mjs
 var __dirname = dirname(fileURLToPath(import.meta.url));
 var PLUGIN_ROOT_DEFAULT = resolve(__dirname, "..");
@@ -561,6 +909,7 @@ function* walkStorage(root) {
       if (e.isDirectory()) {
         if (e.name.startsWith(".") && e.name !== ".ai") continue;
         if (e.name === "node_modules") continue;
+        if (EVIDENCE_DIRS.includes(e.name)) continue;
         stack.push(abs);
       } else if (e.isFile()) {
         if (abs.endsWith(".md") || abs.endsWith(".yaml") || abs.endsWith(".html.fragment")) {
@@ -658,6 +1007,14 @@ function discoverProjectArtifacts({ projectRoot }) {
     { rel: ".ai/observability.md", type: "observability-plan", title: "Observability plan", siblingRoot: projectRoot },
     { rel: ".ai/observability-build.md", type: "observability-build", title: "Observability build", siblingRoot: projectRoot }
   ];
+  const aiDir = join3(projectRoot, ".ai");
+  if (existsSync3(aiDir)) {
+    for (const name of readdirSync(aiDir).sort()) {
+      const rel = `.ai/${name}`;
+      if (!SURFACE_SWEEP_RE.test(rel)) continue;
+      candidates.push({ rel, type: "surface-sweep", title: `Surface sweep ${name.slice("surface-sweep-".length, -".md".length)}`, siblingRoot: projectRoot });
+    }
+  }
   for (const candidate of candidates) {
     const mdAbs = join3(projectRoot, candidate.rel);
     if (!existsSync3(mdAbs)) continue;
@@ -798,6 +1155,34 @@ ${inner}
 ${blocks}
 </section>`;
 }
+function mtimeOrNull(abs) {
+  if (!abs) return null;
+  try {
+    return statSync2(abs).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+var EVIDENCE_LINK_CAP = 60;
+function listEvidenceFiles(dirAbs) {
+  const out = [];
+  const stack = [dirAbs];
+  while (stack.length && out.length < EVIDENCE_LINK_CAP * 4) {
+    const d = stack.pop();
+    let entries;
+    try {
+      entries = readdirSync(d, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of entries) {
+      const abs = join3(d, e.name);
+      if (e.isDirectory()) stack.push(abs);
+      else if (e.isFile()) out.push(abs);
+    }
+  }
+  return out.sort().slice(0, EVIDENCE_LINK_CAP);
+}
 function synthesizeProjectFrontmatter(artifact, frontmatter) {
   const fm = frontmatter && typeof frontmatter === "object" ? frontmatter : {};
   if (fm.schema && fm.type) return fm;
@@ -887,6 +1272,24 @@ async function renderMain(args) {
       loaded.frontmatter = synthesizeProjectFrontmatter(a, loaded.frontmatter);
     }
     let fragmentHtml = fragmentAbs && existsSync3(fragmentAbs) ? readFileSync2(fragmentAbs, "utf-8") : null;
+    let fragmentGenerated = false;
+    const fmType = loaded.frontmatter?.type;
+    if (loaded.siblingYaml && typeof loaded.siblingYaml === "object" && loaded.frontmatter?.fragment !== "none" && shouldGenerateFragment({
+      type: fmType,
+      yamlMtimeMs: mtimeOrNull(yamlAbs),
+      fragmentMtimeMs: fragmentHtml == null ? null : mtimeOrNull(fragmentAbs)
+    })) {
+      try {
+        fragmentHtml = generateTypedFragment({
+          type: fmType,
+          siblingYaml: loaded.siblingYaml,
+          artifact: basename(a.storageRel, ".md")
+        });
+        fragmentGenerated = true;
+      } catch (err) {
+        console.warn(`[fragment-gen] ${a.mdAbs}: ${err.message}`);
+      }
+    }
     if (fragmentHtml) {
       try {
         fragmentHtml = expand(fragmentHtml, {
@@ -897,17 +1300,29 @@ async function renderMain(args) {
         console.warn(`[expand] ${fragmentAbs}: ${err.message}`);
       }
     }
-    const narrativeFragments = loadFreeFragments(a.mdAbs, {
+    const allFree = loadFreeFragments(a.mdAbs, {
       componentsRoot: join3(args.pluginRoot, "components"),
       maxDepth: 4
     });
+    const explainer = fmType !== "brainstorm" ? allFree.find((f) => f.label === "explainer") ?? null : null;
+    const narrativeFragments = allFree.filter((f) => f !== explainer);
+    let evidenceFiles = [];
+    if (explainer && a.kind === "workflow") {
+      const stage = stageKeyFor({ type: fmType, frontmatter: loaded.frontmatter ?? {}, path: a.storageRel });
+      const dir = evidenceDirFor({ stage, frontmatter: loaded.frontmatter ?? {}, path: a.storageRel });
+      if (dir) evidenceFiles = listEvidenceFiles(join3(storageRoot, a.slug, dir));
+    }
     const history = loadHistory(a.mdAbs);
     parsed.push({
       ...a,
       ...loaded,
       fragment: fragmentHtml,
+      fragmentGenerated,
+      explainer,
+      evidenceFiles,
       narrativeFragments,
-      narrativeFragmentPaths: narrativeFragments.map((f) => f.abs),
+      // The explainer and evidence files join the dirty-check inputs.
+      narrativeFragmentPaths: [...allFree.map((f) => f.abs), ...evidenceFiles],
       history,
       siblingPaths: { yaml: yamlAbs, fragment: fragmentAbs }
     });
@@ -968,7 +1383,10 @@ async function renderMain(args) {
       pathMap: pathMaps.get(a.slug),
       mode: args.mode
     };
-    const { storyMarkdown, bodyRest } = splitStorySection(a.body);
+    const fourPart = Boolean(a.explainer) && config?.view?.narrativeFragments !== false;
+    const stage = fourPart ? stageKeyFor({ type, frontmatter: a.frontmatter ?? {}, path: a.storageRel }) : null;
+    const { storyMarkdown, bodyRest } = fourPart ? { storyMarkdown: "", bodyRest: a.body } : splitStorySection(a.body);
+    const recordHistory = fourPart && stage && stage !== "recap" ? [] : a.history;
     let result;
     try {
       const fn = renderer?.render ?? fallbackRender;
@@ -977,8 +1395,9 @@ async function renderMain(args) {
         frontmatter: a.frontmatter,
         body: bodyRest,
         siblingYaml: a.siblingYaml,
-        history: a.history,
+        history: recordHistory,
         fragment: a.fragment,
+        fragmentGenerated: a.fragmentGenerated,
         path: a.storageRel
       }, ctx);
     } catch (err) {
@@ -987,6 +1406,29 @@ async function renderMain(args) {
     }
     if (storyMarkdown) {
       result.bodyHtml = `<section class="story">${md2html(storyMarkdown)}</section>${result.bodyHtml ?? ""}`;
+    }
+    if (fourPart) {
+      const pageDir = dirname(a.viewAbs);
+      const evidence = (a.evidenceFiles ?? []).map((abs) => ({
+        label: relative(join3(storageRoot, a.slug), abs).replace(/\\/g, "/"),
+        href: relative(pageDir, abs).replace(/\\/g, "/")
+      }));
+      const stem = basename(a.storageRel, ".md");
+      const related = stage === "review" ? (slugArtifacts.get(a.slug) ?? []).filter((x) => x !== a && x.viewRel && x.frontmatter?.type === "review-command" && !/(?:^|\/)history\//.test(x.storageRel) && (stem === "07-review" || basename(x.storageRel, ".md").startsWith(`${stem}-`))).sort((x, y) => String(x.storageRel).localeCompare(String(y.storageRel))).map((x) => ({ label: x.frontmatter?.title ?? basename(x.storageRel, ".md"), href: viewHref(a.viewRel, x.viewRel) })) : [];
+      result.bodyHtml = composeStagePage({
+        stage,
+        frontmatter: a.frontmatter ?? {},
+        body: a.body ?? "",
+        siblingYaml: a.siblingYaml,
+        history: a.history,
+        explainerHtml: a.explainer.html,
+        recordHtml: result.bodyHtml ?? "",
+        evidence,
+        related,
+        allArtifacts: ctx.allArtifacts,
+        viewRel: a.viewRel,
+        scopeCss: config?.view?.scopeNarrativeCss !== false ? scopeFragmentCss : (h) => h
+      });
     }
     result.bodyHtml = rewriteBodyLinks(result.bodyHtml ?? "", {
       pathMap: pathMaps.get(a.slug),

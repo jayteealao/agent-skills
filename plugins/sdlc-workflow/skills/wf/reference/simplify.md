@@ -29,11 +29,28 @@ If slug-mode was not selected, ignore this section and proceed standalone.
 
 | | Detail |
 |---|---|
-| Requires | Nothing for `branch` / `commit` / `codebase`. For `plan` scope: `.ai/workflows/<slug>/04-plan-<slice>.md` (or `04-plan.md` for compressed workflows) must exist. |
+| Requires | See [## Requires](#requires). |
 | Produces | `.ai/workflows/<slug>/01-simplify.md` (`type: simplify-run` — findings + routing assignments) + lightweight `00-index.md` in a `type: workflow-index` slug workflow. |
 | Next | One or more downstream commands the user runs based on the routing assignments (routing matrix in Step 4). |
 | Does NOT | Write code, edit files outside its own artifact, commit, push, or open PRs. |
 | Idempotent | Re-running the same scope+target on an already-cleaned input is safe — agents report "no findings" and the artifact records that. |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `04-plan-<slice>.md` | artifact | mode:plan | |
+| `simplify/_research.md` | procedure | always | |
+| `simplify/_artifact.md` | procedure | always | |
+| `_compressed-slice.md` | procedure | mode:slug | |
+| `_fragment-authoring.md` | procedure | always | |
+| `_story-arc.md` | procedure | always | |
+| `01-simplify.md` | writes | | |
+| `03-slice-simplify-*.md` | writes | | |
+
+`mode:plan` is the `plan` scope; a compressed workflow reads `04-plan.md`. `mode:slug` is slug-mode, which writes the compressed slice instead of `01-simplify.md`.
 
 > **Auto second opinion (objective triggers).** After the routing matrix assigns each finding, **auto-invoke** `/consult codex <are any of these findings systematically misrouted — e.g. a route-fix that masks an architectural problem?>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) any architectural-smell finding was routed as a quick route-fix — the masking risk the panel exists to catch; (b) the matrix produced a judgment-call or tie routing; (c) findings touch security-adjacent code. Routing is otherwise deterministic from the matrix — skip when none of the triggers hold; the user may invoke it explicitly with any provider.
 
@@ -41,7 +58,7 @@ If slug-mode was not selected, ignore this section and proceed standalone.
 You are a **router**, not a problem-solver: resolve the scope before dispatch, complete triage before routing, and write the run artifact last.
 - Do not write code — not one line, not even a trivial typo fix — and do not commit, stage, push, or open PRs.
 - Do not mutate any artifact file other than the ones you're authoring (`.ai/workflows/<slug>/01-simplify.md` + its `00-index.md`); do not edit the workflow plan (plan scope) — write proposed deltas to your run artifact only.
-- Do not read files outside the scope's diff/path set (branch = branch diff, commit = commit diff, plan = the named plan file only, codebase = the named path subtree only).
+- Do not read files outside the scope's diff/path set (branch = branch diff, commit = commit diff, codebase = the named path subtree only). Plan scope reads the named plan file and no other workflow artifact. Its agents may search the repository read-only, to check the reuse candidates and code that the plan names.
 
 ---
 
@@ -173,26 +190,26 @@ Record one `routing-assignments` entry per accepted finding: `finding-id`, `rout
 Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Derive `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), write **two** files under `.ai/workflows/<slug>/`, and register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](intake/default.md) Step 10.
 
 1. Write `00-index.md` (`type: workflow-index`, lightweight) from the template in [simplify/_artifact.md](simplify/_artifact.md).
-2. Write `01-simplify.md` (`type: simplify-run`) from the template in the same file: frontmatter counts, `routing-summary`, `routing-assignments`, `proposed-deltas`, then the body sections from **The Triage** to **Recommended next commands**.
+2. Write `01-simplify.md` (`type: simplify-run`) from the template in the same file: frontmatter counts, `routing-summary`, `routing-assignments`, `proposed-deltas`, `recommended-routes`, then the body sections from **Input** to **Deferred**. Write the explainer fragment per the template.
 3. Follow the additive-write contract in the same file: never overwrite an existing slug, no `revision-count`, `regenerable: false`, cross-run links by `refs:`.
 4. Write the sibling `01-simplify.yaml` with `artifact: simplify-run` (shape and authoring rules in the same file). The renderer projects it as a finding-table page; without it the page falls back to a plain frontmatter card.
 5. Write the sibling `.html.fragment` for that YAML. Load `_fragment-authoring.md` and follow its wrapper, snippet, and verifier rules. The fragment must be deterministic from the YAML (same YAML → byte-identical HTML) and pass `scripts/verify-fragment.mjs` (Check 7).
 
 **Standalone-mode only.** In slug-mode the findings live in a compressed slice (`type: slice`), which renders via the slice template and does not consume a `simplify-run` sibling YAML.
 
-After writing, print the **Recommended next commands** list to chat.
+After writing, print the `recommended-routes` invocations to chat.
 
 ---
 
 # Resume semantics
 
-Re-running with the same arguments offers to resume the most recent matching run if its `status` is `awaiting-input`. Resume picks up from the first un-triaged finding. There is no "fixes-pending" state — simplify never applies fixes. The `recommended-next` list is the persistent queue; the user works through it across sessions. Simplify's work is done as soon as Step 5 writes. If a `route-amend-plan` delta has not yet been applied, the artifact reflects the *moment of triage*, not the current plan state. Re-run on the plan scope to refresh deltas — the new run gets a new `run-id`.
+Re-running with the same arguments offers to resume the most recent matching run if its `status` is `awaiting-input`. Resume picks up from the first un-triaged finding. There is no "fixes-pending" state — simplify never applies fixes. The `recommended-routes` list is the persistent queue; the user works through it across sessions. Simplify's work is done as soon as Step 5 writes. If a `route-amend-plan` delta has not yet been applied, the artifact reflects the *moment of triage*, not the current plan state. Re-run on the plan scope to refresh deltas — the new run gets a new `run-id`.
 
 ---
 
 # Chat return contract
 
-Return per [_chat-return.md](_chat-return.md) — narrative lead (what was produced, key decisions and counts, top risk), then this receipt:
+Return per [_chat-return.md](_chat-return.md) — a narrative lead that quotes the explainer's summary paragraph, then this receipt:
 - `scope: <scope>`
 - `target: <target>`
 - `run-id: <run-id>`

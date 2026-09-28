@@ -13,18 +13,49 @@ You are running `/wf verify`, **stage 6 of 10**: 1·intake → 2·shape → 3·s
 
 | | Detail |
 |---|---|
-| Requires | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md` |
-| Conditional inputs (required when present) | `02c-craft.md` (re-verify the mock fidelity inventory), `04b-instrument.md` (signals fire), `04c-experiment.md` (flag, cohort, and metrics work), `05c-benchmark.md` (compare-mode re-run), `augmentations:` in `00-index.md` (one type-specific re-check per entry) |
-| Produces | `06-verify-<slice-slug>.md`; updates the `06-verify.md` master |
+| Requires | See [## Requires](#requires). |
+| Produces | `06-verify-<slice-slug>.md` and the raw check output in `verify-evidence/<slice-slug>/report.md`; updates the `06-verify.md` master |
 | Charters | [verify/_sub-agents.md](verify/_sub-agents.md): the five sub-agent charters Step 4 dispatches |
 | Deferrals | [verify/_deferrals.md](verify/_deferrals.md): the `interactive-verification: deferred` escape hatch and the index ledger |
 | Schemas | [verify/_artifact.md](verify/_artifact.md): frontmatter and body sections of both verify files |
 | Next | `/wf review <slug> <selected-slice>` when `result: pass` and `convergence:` is `not-needed` or `converged`. When `convergence: escalated`, re-invoke `/wf verify <slug> <selected-slice>` for a second round or escalate to `/wf implement <slug> <selected-slice>`. |
 | Skip-to | `/wf handoff <slug> <slice>` when review is unnecessary (solo project, trivial change, external peer review); valid only when `result: pass`. |
 
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | always | |
+| `02-shape.md` | artifact | always | Acceptance Criteria; Non-Functional Requirements; Edge Cases / Failure Modes; Out of Scope |
+| `po-answers.md` | artifact | if-present | |
+| `03-slice-<slice>.md` | artifact | always | |
+| `04-plan-<slice>.md` | artifact | always | |
+| `05-implement-<slice>.md` | artifact | always | |
+| `01-<mode>.md` | artifact | mode:change | |
+| `04-plan.md` | artifact | mode:change | |
+| `05-implement.md` | artifact | mode:change | |
+| `01-rca.md` | artifact | mode:rca | |
+| `02b-design.md` | artifact | if-present | |
+| `02c-craft.md` | artifact | if-present | |
+| `04b-instrument.md` | artifact | if-present | |
+| `04c-experiment.md` | artifact | if-present | |
+| `05c-benchmark.md` | artifact | if-present | |
+| `verify/_artifact.md` | procedure | always | |
+| `verify/_sub-agents.md` | procedure | always | |
+| `verify/_deferrals.md` | procedure | always | |
+| `_fix-loop.md` | procedure | always | |
+| `runtime-adapters.md` | procedure | always | |
+| `runtime-adapters/_ladder.md` | procedure | always | |
+| `_story-arc.md` | procedure | always | |
+| `06-verify-<slice>.md` | writes | | |
+
+Change-mode and single-scope workflows use the un-suffixed names, for example `06-verify.md`. In `mode:rca`, `02-shape.md` is the synthesized forwarding contract.
+
 **Auto second opinion (diagnosis).** After the perceptual review pass, **auto-invoke** `/consult codex <do these screenshots and observations actually satisfy the user-observable AC, or is something off?>` (pinning `codex`/`claude` keeps it free) when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `ac-met-by-inference` or `ac-deferred`. Record each run in the verify artifact's `consult-runs:` frontmatter. When every AC is plainly met by direct observed evidence, add no consult.
 
-**Verify against the real contract, not the remembered one.** When a criterion turns on how a dependency, framework, or SDK actually behaves (a return shape, an error path, a thrown type, a version-specific change), invoke the `study-sources` skill to read its installed source (`node_modules`, `~/.m2`, the Go/Rust/NuGet caches, Android SDK `sources/`) before ruling the criterion met or unmet. Match the version the project resolved. Reads land in gitignored `.scratch/` and never enter the verify evidence or the diff.
+**Verify against the real contract, not the remembered one.** When a criterion turns on how a dependency, framework, or SDK actually behaves, invoke the `study-sources` skill to read its installed source (`node_modules`, `~/.m2`, the Go/Rust/NuGet caches, Android SDK `sources/`) before ruling the criterion met or unmet. Match the version the project resolved. Reads land in gitignored `.scratch/` and never enter the verify evidence or the diff.
 
 # Role
 
@@ -36,33 +67,32 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
 # Workflow rules
 
 Apply [_workflow-rules.md](_workflow-rules.md). Two verify-specific rules:
-- **Evidence versioning across re-invocations.** When `06-verify-<slice-slug>.md` already exists, do not overwrite the previous evidence directory. Move it to `.ai/workflows/<slug>/verify-evidence/<slice-slug>-run-<N>/` where `N` = `fix-rounds-run` + 1; new evidence goes into the fresh `<slice-slug>/` directory.
+- **Evidence versioning across re-invocations.** On a re-run, move the previous evidence directory to `.ai/workflows/<slug>/verify-evidence/<slice-slug>-run-<N>/` where `N` = `fix-rounds-run` + 1; never overwrite it.
 - **Re-verify writes back; the index never contradicts a slice.** When a re-invocation changes a per-slice outcome, update `06-verify-<slice-slug>.md` `result` and `updated-at` in place, then re-derive the master `06-verify.md` rollup. Change the slice file first, then the index; never the index alone.
 
 # Step 0 — Orient (do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument); the second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`: `current-stage`, `status`, `selected-slice`, `open-questions`.
-3. **Resolve the slice-slug**: the passed selector, else `selected-slice-or-focus` from the index, else ask the user.
+3. **Resolve the slice-slug**: the passed selector, else `selected-slice` from the index, else ask the user.
 4. **Determine the workflow source mode** from `workflow-type`:
-   - `quick` → **compressed mode**. Source: `01-quick.md` (acceptance criteria + plan in one doc) + `05-implement.md`. No per-slice files.
-   - `rca` → **forwarded mode**. Source: `01-rca.md` + the synthesized `02-shape.md` + `05-implement-<slice-slug>.md` if planning ran.
-   - `investigate` → **terminal analysis, not verified in place.** It produces option sketches, no `02-shape.md`, and no build; a chosen option is re-intaked via `/wf intake <option>` as a new workflow. A bare `investigate` slug has no implement record, so Step 0.5 already STOPs; direct the user to `/wf intake <option>`.
-   - `fix` / `hotfix` / `refactor` → **change-mode.** Source: the un-suffixed single-slice files (`03-slice.md`, `04-plan.md`, `05-implement.md`) + the lead `01-fix.md` / `01-hotfix.md` / `01-refactor.md`. Exactly one slice; `selected-slice` is its slug. Verify as standard mode with the un-suffixed filenames. Hotfix: reproduce the incident symptom and run the regression suite. Refactor: re-run the literal `## Baseline Command` from `02-shape.md`, diff its pass/fail/skip counts against `## Baseline Test Result`, confirm every `## Public API Surface` name keeps its signature and its callers work; any unplanned deviation is a FAIL.
-   - `update-deps` → **self-managed.** update-deps authors `06-verify.md` inside its own flow and does not use `/wf verify`. STOP and direct the user back to `/wf intake update-deps <slug>`.
-   - `feature` or unset → **standard mode**.
-5. **Check prerequisites by mode.** Compressed: `05-implement.md` (or `05-implement-<slice-slug>.md` if a slice was added) exists; the AC source is `01-quick.md`. Forwarded: `05-implement-<slice-slug>.md` (or `05-implement.md`) exists; the AC source is the synthesized `02-shape.md` plus `01-rca.md`. Change-mode: the un-suffixed `05-implement.md` exists; the AC source is `03-slice.md` + `01-<mode>.md` (refactor: also the `02-shape.md` baseline). Standard: `05-implement-<slice-slug>.md` exists.
+   - `quick` (legacy) → **compressed mode**. `01-quick.md` holds the acceptance criteria. No per-slice files exist.
+   - `rca` → **forwarded mode**. `01-rca.md` and the synthesized `02-shape.md` hold the acceptance criteria.
+   - `investigate` → **terminal analysis, not verified in place.** It has no build. Direct the user to `/wf intake <option>`.
+   - `fix` / `hotfix` / `refactor` → **change-mode.** Verify as standard mode with the un-suffixed files. The lead `01-<mode>.md` holds the acceptance criteria, not `03-slice.md`. Hotfix: reproduce the incident symptom and run the regression suite. Refactor: re-run the literal `## Baseline Command` from `02-shape.md`, diff its pass/fail/skip counts against `## Baseline Test Result`, confirm every `## Public API Surface` name keeps its signature and its callers work; any unplanned deviation is a FAIL.
+   - `update-deps` → **self-managed**; it authors its own `06-verify.md`. STOP and direct the user back to `/wf intake update-deps <slug>`.
+   - `feature` or unset → **standard mode**. The slice file holds the acceptance criteria.
+5. **Check prerequisites.** The mode's implement record must exist.
    - All modes: if implement record shows `Status: Awaiting input` → STOP.
    - If `06-verify-<slice-slug>.md` (or `06-verify.md` in compressed mode) already exists → note the re-run in chat and proceed; [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger.
    - **Stack gate (do not silently re-detect).** Inspect `stack:` in `00-index.md` and `stack-source` in `04-plan-<slice-slug>.md`.
-     - If `stack:` is **missing entirely** → STOP: "Stack fingerprint missing from `00-index.md`. Sub-agent 3 needs the PO-confirmed stack to pick adapters. Re-run `/wf intake <slug>` first." Verify does not re-detect.
+     - If `stack:` is **missing entirely** → STOP: "Stack fingerprint missing from `00-index.md`. Re-run `/wf intake <slug>` first." Verify does not re-detect.
      - If `stack.user-confirmed: false` → **hard gate.** Ask ONE gate question per [_gate-question.md](_gate-question.md): header `"Stack unconfirmed"`, question `"stack: was auto-detected but the PO never confirmed it. Adapter selection may be wrong. (1) Stop and re-run intake Batch B. (2) Proceed with unconfirmed stack — result stamped weak-provenance and review/ship may refuse it."`, options `Stop (recommended)` / `Proceed with unconfirmed stack`. Stop → STOP. Proceed → set `stack-source: unconfirmed-auto-detect` in the verify slice frontmatter and `## Caveats`. Never auto-proceed.
      - If `04-plan-<slice-slug>.md` carries `stack-source: unconfirmed-auto-detect` → propagate the same warning and frontmatter stamp.
      - If `stack.user-confirmed: true` and the plan agrees → proceed. Sub-agent 3 intersects matched adapters with `stack.platforms`; companion skills used for evidence come from `stack.available-skills`.
    - **Constraint-resolution gate (refuse inherited unresolved environment walls).** Read `## Verification Strategy` in the plan file. Every user-observable AC whose strategy names an environment dependency (credentials, device, external service, inbound callback, deploy target, missing infrastructure) carries a `constraint-resolution:` line authored at plan time (`prerequisite-slice: <slug>` | `proxy+deferral: <named clearing event>` | `po-accepted: <reason>`). If none of the three is present, record the criterion under `constraint-resolution-missing:` in the verify frontmatter and treat it as `blocked-runtime-evidence-missing` at Step 7.5; the deferral hatch is not available for it. Route to Option E (`/wf plan`), not Option F.
-6. **Read the source context by mode.** Compressed: `01-quick.md` + `05-implement.md`. Forwarded: `01-rca.md` + `02-shape.md` + `04-plan.md` (if it exists) + `05-implement-<slice-slug>.md`. Change-mode: `01-<mode>.md` + `03-slice.md` (acceptance criteria) + `04-plan.md` + `05-implement.md` (refactor also reads the `02-shape.md` baseline). Standard: `03-slice-<slice-slug>.md` (acceptance criteria), `04-plan-<slice-slug>.md` (the planned approach, to check deviations), `05-implement-<slice-slug>.md` (what was built), `02-shape.md` (spec context). All modes also read `po-answers.md` if it exists.
-7. **Read augmentation context.** `02c-craft.md`, when it exists, is required reading: extract `## Mock fidelity inventory`; each item is an additional AC, cross-referenced against `05-implement-<slice-slug>.md` `## Visual Contract Honored`. Read the `augmentations:` list in `00-index.md` and each referenced artifact (`design-notes/<sub>-<timestamp>.md`, `07-design-audit.md`, `07-design-critique.md`, `04b-instrument.md`, `04c-experiment.md`, `05c-benchmark.md`); sub-agent 4's table in [verify/_sub-agents.md](verify/_sub-agents.md) holds the type-specific re-checks. Also read `02b-design.md` when present.
-8. **Carry forward** `open-questions` from the index.
-9. **Branch check.** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy: dedicated`, confirm the branch via `git branch --show-current` and switch if needed. Verification runs against the implementation branch, not the base branch.
+6. **Use the augmentation context.** Each `02c-craft.md` `## Mock fidelity inventory` item is an additional AC; cross-reference it against `05-implement-<slice-slug>.md` `## Visual Contract Honored`. Each `00-index.md` `augmentations:` entry names an artifact (for example `07-design-audit.md`, `07-design-critique.md`). Sub-agent 4's table in [verify/_sub-agents.md](verify/_sub-agents.md) holds the type-specific re-checks.
+7. **Carry forward** `open-questions` from the index.
+8. **Branch check.** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy: dedicated`, confirm the branch via `git branch --show-current` and switch if needed.
 
 # Parallel verification (Step 4)
 
@@ -72,11 +102,11 @@ When verification spans multiple concerns, launch parallel sub-agents per [_suba
 - **Sub-agent 3, Interactive & Runtime-Truth Verification** (required when any AC is user-observable): drives each such AC through the runtime adapters, climbs the constraint-resolution ladder, records `evidence-rung`, `mock-provenance:`, `fixture-fidelity:`, and first-light status, and records incidental defects against the `_surface-defects.md` classes.
 - **Sub-agent 4, Augmentation Re-verification** (only when `02c-craft.md` exists or `augmentations:` is non-empty).
 - **Sub-agent 5, Freshness** (when any test failed, the plan is older than 14 days, or the slice touches an external API or schema).
-Merge all results. For each check, record the command, pass/fail, and the relevant output. Do not fix issues here; the fix loop runs in Step 7.6 after the AC gate has partitioned issues.
+Merge all results. For each check, record the command and pass/fail in the artifact. Write the raw output (test runner output, probe logs, scan output) to `verify-evidence/<slice-slug>/report.md`; the file needs no frontmatter. Do not fix issues here; the fix loop runs in Step 7.6 after the AC gate has partitioned issues.
 
 # Chat return contract
 
-Apply the early-stop guard in [_autonomy-guards.md](_autonomy-guards.md) before ending the turn. After writing files, return per [_chat-return.md](_chat-return.md): a narrative lead in the artifact's `## The Verification` voice, then this receipt:
+Apply the early-stop guard in [_autonomy-guards.md](_autonomy-guards.md) before ending the turn. After writing files, return per [_chat-return.md](_chat-return.md): a narrative lead that quotes the explainer's summary paragraph, then this receipt:
 - `slug: <slug>`
 - `wrote: <path>`
 - `result: <pass | fail | partial | blocked-runtime-evidence-missing>`
@@ -89,25 +119,25 @@ Do this in order:
 2. Determine the relevant verification commands from the repo.
 3. **Track the stage's units in a work-tracking checklist**: one item per check (lint, typecheck, tests, build, …), one per acceptance criterion from `03-slice-<slice-slug>.md`, plus the artifact write. Keep statuses truthful as results land.
 4. **Run checks** (parallel sub-agents when multi-concern): lint, typecheck, tests, build, smoke tests, manual checks. Record a failed check as `FAILED: <output summary>` on its item. Do not fix yet; the user-gated fix loop runs once in Step 7.6.
-5. **Verify acceptance criteria** against each criterion from `03-slice-<slice-slug>.md` and `02-shape.md`. Record an unmet criterion as `NOT MET: <reason>` on its item.
+5. **Verify acceptance criteria** against each criterion from `03-slice-<slice-slug>.md` and `02-shape.md` (other modes: the Step 0.4 source). Record an unmet criterion as `NOT MET: <reason>` on its item.
 6. If verification reveals gaps caused by external dependency behavior or standards drift, run a freshness pass and record it.
-7. **Evaluate adaptive routing** and write ALL viable options into `## Recommended Next Stage`.
+7. **Evaluate adaptive routing.** Write ALL viable options into frontmatter `recommended-routes`.
 7.5. **Apply the user-observable AC gate** (below). Partition AC into `code-only` and `user-observable`. Every `user-observable` AC needs a matching `interactive-verification-results` entry. If any has none and no `interactive-verification: deferred` annotation, write `result: blocked-runtime-evidence-missing` and list the AC in `## Issues Found`.
 7.6. **Single-round verify-owned fix loop** (below). Snapshot `metric-issues-found-initial`; auto-fix mechanical classes; triage each remaining failure as a gate question per [_gate-question.md](_gate-question.md); `Fix` choices spawn parallel write-isolated sub-agents; re-run only affected checks once. Record `fix-rounds-run`, `convergence`, `metric-issues-found-final`. ONE round only; if anything still fails, finalize with `convergence: escalated` and route to re-invoke verify or `/wf implement`.
 8. **Write `06-verify-<slice-slug>.md`** per [verify/_artifact.md](verify/_artifact.md).
 9. **Write or update `06-verify.md`** (the master index linking every per-slice verify file).
-10. Update `00-index.md` and add files to `workflow-files`. **Then promote the slice's roster status**: in `03-slice.md`'s `slices:` entry for this slice, `result: pass` sets `status: complete`; any other result (`fail`, `partial`, `blocked-runtime-evidence-missing`) leaves it at `status: in-progress`. A deferral-only `partial` is **not** complete; the AC still owes runtime evidence, and `/wf ship` blocks on it. Set only this slice's entry; do not touch siblings, do not renumber, and never move an entry that `close.md` set to `skipped`.
+10. Update `00-index.md` and add files to `workflow-files`. **Then promote the slice's roster status**: in `03-slice.md`'s `slices:` entry for this slice, `result: pass` sets `status: complete`; any other result (`fail`, `partial`, `blocked-runtime-evidence-missing`) leaves it at `status: in-progress`. A deferral-only `partial` is **not** complete; the AC still owes runtime evidence, and `/wf ship` blocks on it. Set only this slice's entry; do not touch siblings, do not renumber, and never move an entry that `close.md` set to `skipped`. Only verify writes `complete`; yolo mirrors a recorded `result: pass`.
 
 # Adaptive routing
 
-Routing is driven by `convergence:` plus the post-fix-loop `result:`. Present ALL viable options and write them into `## Recommended Next Stage`:
-- **Option A: Review** → `/wf review <slug> <selected-slice>` when `convergence:` is `not-needed` or `converged` and `result: pass`. **Compact recommended if verify was lengthy** — test output, fix sub-agent chatter, and debugging context is noise for review dispatch.
-- **Option B: Second verify round** → `/wf verify <slug> <selected-slice>` when `convergence: escalated` and the user wants another fix round. Each invocation has its own audit trail; state the unresolved issues first.
-- **Option C: Manual implement (escape hatch)** → `/wf implement <slug> <selected-slice>` when the remaining issues need a design rethink, multi-file restructuring, or input verify cannot supply.
-- **Option D: Skip review** → `/wf handoff <slug> <selected-slice>` for a solo project, an externally reviewed change, or a trivial fix; only with a clear reason and `result: pass`.
+Routing is driven by `convergence:` plus the post-fix-loop `result:`. Present ALL viable options. Write each option as one `recommended-routes` entry with its reason:
+- **Option A: Review** → `/wf review <slug> <selected-slice>` when `convergence:` is `not-needed` or `converged` and `result: pass`. **Compact recommended if verify was lengthy**; its output is noise for review.
+- **Option B: Second verify round** → `/wf verify <slug> <selected-slice>` when `convergence: escalated` and the user wants another fix round. State the unresolved issues first.
+- **Option C: Manual implement (escape hatch)** → `/wf implement <slug> <selected-slice>` when the remaining issues need a design rethink or input verify cannot supply.
+- **Option D: Skip review** → `/wf handoff <slug> <selected-slice>` for a solo project, an external review, or a trivial fix; only with `result: pass`.
 - **Option E: Revisit plan** → `/wf plan <slug> <selected-slice>` when verification revealed a wrong approach, not a wrong line of code. Dominates Option C.
 - **Option F: Re-verify in a capable environment, or defer** → re-run `/wf verify <slug> <selected-slice>`, or amend with `interactive-verification: deferred` per [verify/_deferrals.md](verify/_deferrals.md), when `result: blocked-runtime-evidence-missing` and the fix loop could not produce the evidence. Deferrals block ship but not review or handoff. A deferral is lawful only over a probed incapability and is unavailable for criteria in `constraint-resolution-missing:` (those route to Option E).
-- **Option G: Slug-wide runtime probe** → `/wf probe <slug>` when per-slice verify passed and a slug-wide runtime sweep is wanted (cross-slice integration breakage). Probe observes the whole artifact, not one slice.
+- **Option G: Slug-wide runtime probe** → `/wf probe <slug>` when per-slice verify passed and a slug-wide runtime sweep is wanted (cross-slice integration breakage).
 
 # User-observable AC gate (Step 7.5)
 

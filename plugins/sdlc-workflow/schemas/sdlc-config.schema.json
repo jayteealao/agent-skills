@@ -176,6 +176,11 @@
           "type": "boolean",
           "default": true,
           "description": "When true (default), the post-write-verify hook WARNS (non-blocking) when a default-mode intake artifact (01-intake.md, type: intake) lands with neither RIM/charter ledger entries on the sibling 00-index.md nor the explicit `intent-risks: none-declared` / `charter: none-declared` escape. INTAKE-SHAPE-HARDENING W2.1 — a default intake may not be silently ledger-less; shape's Step 9a backfill is the hard consequence. Set false to silence."
+        },
+        "indexLint": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook WARNS (non-blocking) after a write to a workflow's 00-index.md when the file is over 20 KB, when its frontmatter carries a YAML comment line of prose (a `#` comment of more than 8 words), or when `current-stage:` is not in the first 4000 characters (the subagent-start hook reads only that much). History commentary belongs in index-history.jsonl (ARTIFACT-SPLIT-PLAN S4). Never blocks. Set false to silence."
         }
       }
     },

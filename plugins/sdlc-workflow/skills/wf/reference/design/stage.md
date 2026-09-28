@@ -4,8 +4,7 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
 
 | | Detail |
 |---|---|
-| Requires | `02-shape.md` with `status: complete`; `02b-design.md` (this stage writes it when it is missing) |
-| Reads | The design record ([record.md](record.md)), `02b-design.md`, `po-answers.md`, the move reference when the person names a move, the carried design thoughts ([_carried.md](_carried.md)) |
+| Requires | See [design.md → ## Requires](../design.md#requires). |
 | Produces | `02c-craft.md` (type `design-contract`) with its sibling `.yaml` and `.html.fragment`; `00-index.md` updates |
 | Next | `/wf slice <slug>` (`/wf plan <slug>` for an `rca` workflow, which has no slice stage; `/wf plan <slug> <first-new-slice>` after an extension) — or `/wf auto <slug>` / `/wf yolo <slug>`, which may start now |
 

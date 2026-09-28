@@ -1,0 +1,257 @@
+{
+  "generatedAt": "2026-09-28T15:52:57.407Z",
+  "since": "2026-07-01",
+  "yolo": {
+    "plan": {
+      "n": 53,
+      "own": 100,
+      "ownPartial": 0,
+      "adjacent": 100,
+      "shape": 71.7,
+      "po": 52.8,
+      "template": null,
+      "procedures": {
+        "_story-arc.md": 0
+      },
+      "artifactTokensP50": 26967,
+      "artifactTokensP90": 43088
+    },
+    "implement": {
+      "n": 64,
+      "own": 100,
+      "ownPartial": 0,
+      "adjacent": 100,
+      "shape": 10.9,
+      "po": 21.9,
+      "template": 35.9,
+      "procedures": {
+        "implement/_research.md": 1.6
+      },
+      "artifactTokensP50": 21619,
+      "artifactTokensP90": 42339
+    },
+    "verify": {
+      "n": 71,
+      "own": 100,
+      "ownPartial": 44,
+      "adjacent": 94.4,
+      "shape": 12.7,
+      "po": 33.8,
+      "template": 28.2,
+      "procedures": {
+        "verify/_sub-agents.md": 7,
+        "verify/_deferrals.md": 21.1,
+        "_fix-loop.md": 0,
+        "runtime-adapters.md": 11.3
+      },
+      "artifactTokensP50": 21624,
+      "artifactTokensP90": 33086
+    },
+    "review": {
+      "n": 30,
+      "own": 100,
+      "ownPartial": 1,
+      "adjacent": 76.7,
+      "shape": 20,
+      "po": 6.7,
+      "template": 33.3,
+      "procedures": {
+        "review/_stage.md": 96.7,
+        "review/_context.md": 3.3,
+        "review/_dispatch.md": 10,
+        "_findings-ledger.md": 33.3
+      },
+      "artifactTokensP50": 23745,
+      "artifactTokensP90": 45026
+    },
+    "siblingPlans": {
+      "agents": 50,
+      "meanAvailable": 7.3,
+      "readAny": 43,
+      "readAll": 9,
+      "medianShareRead": 20
+    }
+  },
+  "reads": {
+    "sessionsScanned": 2486,
+    "readingSessions": 1148,
+    "subagentSessions": 918,
+    "codexSessions": 72,
+    "reads": 10970,
+    "readTokens": 17800477,
+    "repeatShare": 29.5,
+    "refused": 13,
+    "refusedByStem": {
+      "brainstorm": 2,
+      "index": 11
+    },
+    "spilled": 363,
+    "partial": 658,
+    "readTokensByStem": {
+      "persistent": 147,
+      "two": 319,
+      "other": 634546,
+      "index": 4364552,
+      "sibling-yaml": 538107,
+      "slice": 2039385,
+      "shape": 980911,
+      "verify": 1528892,
+      "plan": 2782011,
+      "fix": 31962,
+      "review": 609236,
+      "view": 510365,
+      "handoff": 58288,
+      "po-answers": 497951,
+      "ship": 36948,
+      "intake": 155208,
+      "investigate": 49350,
+      "implement": 1829982,
+      "design": 66111,
+      "sync": 859,
+      "craft": 146620,
+      "instrument": 97080,
+      "benchmark": 247344,
+      "experiment": 8976,
+      "recap": 2086,
+      "brainstorm": 561723,
+      "retro": 2886,
+      "event": 726,
+      "engine": 777,
+      "season": 726,
+      "spec": 342,
+      "docs": 288,
+      "task": 2462,
+      "update": 8086,
+      "audit": 268,
+      "envision": 535,
+      "rca": 859,
+      "ideate": 1913,
+      "adopt": 32,
+      "simplify": 20,
+      "profile": 57,
+      "explainer": 105,
+      "plugins": 1250,
+      "hotfix": 5,
+      "refactor": 3,
+      "discover": 60,
+      "quick": 119
+    }
+  },
+  "index": {
+    "slugs": 72,
+    "projects": 13,
+    "indexes": 72,
+    "p50KB": 3,
+    "p90KB": 44,
+    "maxKB": 176,
+    "over20KB": 12,
+    "frontmatterShare": 95.4,
+    "commentShare": 12,
+    "largest": [
+      {
+        "where": "Playster/editorial-reader-redesign",
+        "KB": 176
+      },
+      {
+        "where": "Isometric/voxoban-sample-app",
+        "KB": 154
+      },
+      {
+        "where": "Waypoint/cf-ai-gateway-analytics",
+        "KB": 107
+      },
+      {
+        "where": "Crumb/brutalist-redesign",
+        "KB": 101
+      },
+      {
+        "where": "Aperture/workspace-kanban-dashboard",
+        "KB": 75
+      }
+    ]
+  },
+  "writes": {
+    "stageMdTokens": 4225274,
+    "viewTokens": 1366233,
+    "explainerTokens": 0,
+    "otherTokens": 76473,
+    "viewShare": 24.1,
+    "explainerShare": 0,
+    "outputTokens": 35211402,
+    "artifactShareOfOutput": 16.1,
+    "byStem": {
+      "plan": 1194434,
+      "verify": 859557,
+      "view": 735129,
+      "sibling-yaml": 630738,
+      "review": 547623,
+      "implement": 517092,
+      "slice": 356593,
+      "shape": 191577,
+      "index": 159560,
+      "other": 108720,
+      "handoff": 59587,
+      "investigate": 42989,
+      "ship": 38229,
+      "brainstorm": 36568,
+      "intake": 35490,
+      "po-answers": 29218,
+      "benchmark": 25988,
+      "instrument": 25966,
+      "craft": 16836,
+      "retro": 16213,
+      "recap": 11431,
+      "design": 8609,
+      "discover": 5798,
+      "fix": 5003,
+      "experiment": 2520,
+      "sync": 2510,
+      "close": 1545,
+      "update": 1278,
+      "task": 1153,
+      "envision": 27
+    }
+  },
+  "ledger": {
+    "ledgerFiles": 0,
+    "checks": 0,
+    "completeShare": 0,
+    "stages": {}
+  },
+  "headline": {
+    "yolo.plan.n": 53,
+    "yolo.plan.own%": 100,
+    "yolo.plan.adjacent%": 100,
+    "yolo.plan.shape%": 71.7,
+    "yolo.plan.po%": 52.8,
+    "yolo.implement.n": 64,
+    "yolo.implement.own%": 100,
+    "yolo.implement.adjacent%": 100,
+    "yolo.implement.shape%": 10.9,
+    "yolo.implement.po%": 21.9,
+    "yolo.implement.template%": 35.9,
+    "yolo.verify.n": 71,
+    "yolo.verify.own%": 100,
+    "yolo.verify.adjacent%": 94.4,
+    "yolo.verify.shape%": 12.7,
+    "yolo.verify.po%": 33.8,
+    "yolo.verify.template%": 28.2,
+    "yolo.review.n": 30,
+    "yolo.review.own%": 100,
+    "yolo.review.adjacent%": 76.7,
+    "yolo.review.shape%": 20,
+    "yolo.review.po%": 6.7,
+    "yolo.review.template%": 33.3,
+    "reads.sessions": 1148,
+    "reads.refused": 13,
+    "reads.spilled": 363,
+    "reads.partial": 658,
+    "index.p50KB": 3,
+    "index.p90KB": 44,
+    "index.maxKB": 176,
+    "writes.view%": 24.1,
+    "writes.explainer%": 0,
+    "writes.artifactOfOutput%": 16.1,
+    "ledger.complete%": 0
+  }
+}

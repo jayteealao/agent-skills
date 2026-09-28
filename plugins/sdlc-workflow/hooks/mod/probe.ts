@@ -13,7 +13,26 @@
  */
 
 /** The events a row carries, in the order a session writes them. */
-export type ProbeEvent = 'load' | 'attach' | 'commands' | 'turn' | 'compact' | 'call'
+export type ProbeEvent = 'load' | 'attach' | 'commands' | 'turn' | 'compact' | 'call' | 'read'
+
+/**
+ * The `detail` of a `read` row: `agent <id|main> <path>`. A `tool.call` hook on
+ * `Read` writes one such row (ARTIFACT-SPLIT-PLAN W0), so the journal proves
+ * that the hook fired, and whether the call carried an `agentId`. `main`
+ * stands for a call on the main loop, which carries no `agentId`.
+ */
+export function readProbeDetail(agentId: string | undefined | null, path: string): string {
+  const id = typeof agentId === 'string' && agentId.trim() !== '' ? agentId.trim() : 'main'
+  return `agent ${id} ${path}`
+}
+
+/** The agent and the path a `read` row's detail names; null when the detail has another form. */
+export function readProbeOf(detail: string): { agentId: string | null; path: string } | null {
+  const match = /^agent (\S+) (.+)$/u.exec(detail)
+  if (match === null) return null
+  const [, id = 'main', path = ''] = match
+  return { agentId: id === 'main' ? null : id, path }
+}
 
 /** One line of the journal. */
 export type ProbeRow = {
@@ -112,6 +131,11 @@ export type ProbeVerdict = {
   actions: number
   /** Compactions by outcome, for example `done 3 · refused 1`; empty when none ran. */
   compactions: string
+  /**
+   * Proof that a `tool.call` hook on `Read` fired: the `read` rows on the main
+   * loop, and the rows inside a sub-agent (with an `agentId`).
+   */
+  reads: { main: number; agent: number }
   /** The capability calls that failed here, newest first, at most three. */
   failures: string[]
   /** `ok` when the module loaded here, `dead` when it did not. */
@@ -137,6 +161,7 @@ export function verdictOf(rows: readonly ProbeRow[]): ProbeVerdict[] {
       compactions.set(outcome, (compactions.get(outcome) ?? 0) + 1)
     }
     const turnRows = group.filter(row => row.event === 'turn')
+    const readRows = group.filter(row => row.event === 'read' && row.ok).map(row => readProbeOf(row.detail))
     const commandRow = group.filter(row => row.event === 'commands').at(-1)
     verdicts.push({
       host,
@@ -149,6 +174,10 @@ export function verdictOf(rows: readonly ProbeRow[]): ProbeVerdict[] {
       turns: turnRows.length,
       actions: turnRows.filter(row => row.ok).length,
       compactions: [...compactions].map(([name, count]) => `${name} ${count}`).join(' · '),
+      reads: {
+        main: readRows.filter(read => read !== null && read.agentId === null).length,
+        agent: readRows.filter(read => read !== null && read.agentId !== null).length,
+      },
       failures: group
         .filter(row => row.event === 'call' && !row.ok)
         .slice(-3)
@@ -158,6 +187,17 @@ export function verdictOf(rows: readonly ProbeRow[]): ProbeVerdict[] {
     })
   }
   return verdicts.sort((a, b) => b.lastAt.localeCompare(a.lastAt))
+}
+
+/**
+ * What the `read` rows prove about the `tool.call` hook on `Read`, as the
+ * probe table prints it: `main 3 · agent 2` when it fired in both loops, a
+ * dash when no `read` row was written. A row with an agent id is the proof
+ * that the hook fires inside a sub-agent (a yolo stage agent).
+ */
+export function readHookCell(reads: { main: number; agent: number } | undefined): string {
+  if (reads === undefined || reads.main + reads.agent === 0) return '—'
+  return [reads.main > 0 ? `main ${reads.main}` : '', reads.agent > 0 ? `agent ${reads.agent}` : ''].filter(Boolean).join(' · ')
 }
 
 /**
@@ -197,6 +237,8 @@ export class ProbeJournal {
   #queue: Promise<void> = Promise.resolve()
   /** The call kinds already recorded as failed, so one kind is one row per session. */
   #reported = new Set<string>()
+  /** The loops (`agent <id|main>`) whose first `Read` is already recorded. */
+  #readLoops = new Set<string>()
 
   constructor(io: ProbeIo, path: string, identity: ProbeIdentity) {
     this.#io = io
@@ -239,6 +281,17 @@ export class ProbeJournal {
     if (this.#reported.has(kind)) return
     this.#reported.add(kind)
     void this.write({ event: 'call', ok: false, detail: `${kind}: ${message}` })
+  }
+
+  /**
+   * Records that the `tool.call` hook on `Read` fired, once per loop (the main
+   * loop, or one sub-agent) per session, so reads do not flood the journal.
+   */
+  readFired(agentId: string | undefined | null, path: string): void {
+    const key = readProbeDetail(agentId, '').trimEnd()
+    if (this.#readLoops.has(key)) return
+    this.#readLoops.add(key)
+    void this.write({ event: 'read', ok: true, detail: readProbeDetail(agentId, path) })
   }
 
   /** Waits for every queued write; the tests use it. */

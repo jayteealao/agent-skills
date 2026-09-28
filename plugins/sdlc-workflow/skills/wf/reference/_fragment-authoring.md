@@ -1,25 +1,28 @@
 # Shared Fragment Authoring Contract
 
-Use this whenever a command writes a sibling `.html.fragment` next to its `.md` and `.yaml` artifacts.
+Use this whenever a command writes a sibling `.yaml` or `.html.fragment` next to its `.md` artifact.
 
-> **Two tiers.** This contract governs the **typed** fragment: `<stem>.html.fragment`, exactly one per artifact, contract-bound and projected from the sibling `.yaml`. An artifact may ALSO ship any number of **free narrative fragments** named `<stem>.<label>.html.fragment`: unrestricted raw HTML with **none** of the rules below, available to every artifact and every subcommand, injected raw-inline below the page body. The free tier is documented separately in [`reference/narrative-fragments.md`](../../../reference/narrative-fragments.md); the rules in THIS file do not apply to it.
+> **Two tiers.** This contract governs the **typed** fragment: `<stem>.html.fragment`, exactly one per artifact, contract-bound and generated from the sibling `.yaml` by the renderer. An artifact may ALSO ship any number of **free narrative fragments** named `<stem>.<label>.html.fragment`: unrestricted raw HTML with **none** of the rules below, available to every artifact and every subcommand, injected raw-inline below the page body. The free tier is documented separately in [`reference/narrative-fragments.md`](../../../reference/narrative-fragments.md); the rules in THIS file do not apply to it.
 
 ## Authoring steps (cite these from each subcommand)
 
 When a subcommand's reference reaches its "write the view fragments" step, it performs **one or both** of these, depending on the artifact:
 
-- **Step F1 — Fixed fragment** *(rich artifacts only: review, plan, design, ship-run, rca, simplify-run, profile, benchmark, experiment, instrument, review-command, design-audit, design-critique, design-contract)*. Required for these types:
-  1. Write the sibling `<stem>.yaml` (the structured data; the renderer gates the whole rich figure/table on it, and a missing `.yaml` hard-blocks at write time).
-  2. Write the sibling `<stem>.html.fragment`, the one contract-bound interactive layer, per **Required shape** below.
+- **Step F1 — Sibling YAML** *(rich artifacts only: review, plan, design, ship-run, rca, simplify-run, profile, benchmark, experiment, instrument, review-command, design-audit, design-critique, design-contract)*. Required for these types:
+  1. Write the sibling `<stem>.yaml` (the structured data). The renderer gates the whole rich figure and table on it, and a missing `.yaml` hard-blocks the `.md` write. That block stays.
+  2. Do not write the typed `<stem>.html.fragment`. The renderer's fragment generator builds it from the sibling `.yaml`, per **Required shape** below.
   A rich artifact with genuinely no structured data may opt out with `fragment: none` in its frontmatter.
 
 - **Step F2 — Free narrative fragments** *(available to ANY artifact, any subcommand)*. **Author as many as the story needs.** For each beat the structured page cannot tell (a bespoke architecture diagram, a before/after flow, a state machine, an annotated mock, an interactive widget), write a sibling `<stem>.<label>.html.fragment` of **unrestricted raw HTML** (no wrapper, no scoping, no sibling `.yaml`, no contract). Prefix the label with `NN-` (`01-`, `02-`, …) to control order; they inject raw-inline below the page body in label order. Full guidance: [`reference/narrative-fragments.md`](../../../reference/narrative-fragments.md).
+  One free fragment is required for every stage artifact: the explainer, `<stem>.explainer.html.fragment`, per [_story-arc.md](_story-arc.md). The renderer puts it at the top of the page.
 
-A non-rich artifact (intake, slice, implement, verify, handoff, retro, sync, amendments, …) skips Step F1 entirely and uses **only** Step F2 when a custom visual would help.
+A non-rich artifact (intake, slice, implement, verify, handoff, retro, sync, amendments, …) skips Step F1 entirely and uses **only** Step F2: the explainer, plus other free fragments when a custom visual would help.
 
 **Text copy in any fragment, either tier** (labels, captions, headings, legend entries, annotations, tooltip text) follows the word-discipline rules (section 1) in [_ste-procedural.md](_ste-procedural.md). In particular W1: a fragment uses the same term for a concept as the artifact body it sits under. Instructional copy inside a fragment also follows section 2.
 
 ## Required shape (typed fragment only)
+
+The generator emits this shape. A hand-written typed fragment, where one still exists, follows it too.
 
 - Write exactly one top-level `<section class="fragment-<name>">`.
 - Keep all selectors scoped to that fragment class or a fragment-specific prefix.
@@ -39,7 +42,7 @@ A fragment is **additive**: a detail block the renderer appends *below* the page
 
 ## Shared snippets
 
-Prefer snippets from `../../../components/` instead of hand-copying shared chrome: `metric-row`, `callout`, `verdict`, `severity-chip`, `fragment-ready`, `files-touched-row`, `diff-block`. Example:
+Prefer snippets from `../../../components/` instead of hand-copying shared chrome: `metric-row`, `callout`, `verdict`, `severity-chip`, `fragment-ready`, `files-touched-row`, `diff-block`. The explainer snippets (`explainer/sequence`, `explainer/comparison`, `explainer/cycle`, `explainer/dependency`) are listed in [_story-arc.md](_story-arc.md) rule A5. Example:
 
 ```html
 <!-- @include fragment-ready { "name": "plan", "artifact": "plan",

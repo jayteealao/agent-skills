@@ -24,15 +24,55 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `/wf review`, **stage 7 of 10** in the SDLC lifecycle.
 
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | always | |
+| `02-shape.md` | artifact | always | |
+| `po-answers.md` | artifact | if-present | |
+| `03-slice.md` | artifact | if-present | |
+| `03-slice-<slice>.md` | artifact | always | |
+| `04-plan-<slice>.md` | artifact | always | |
+| `05-implement-<slice>.md` | artifact | always | |
+| `06-verify-<slice>.md` | artifact | if-present | |
+| `01-intake.md` | artifact | mode:slug-wide | Success Criteria |
+| `04-plan-*.md` | artifact | mode:slug-wide | |
+| `05-implement-*.md` | artifact | mode:slug-wide | |
+| `06-verify-*.md` | artifact | mode:slug-wide | |
+| `01-<mode>.md` | artifact | mode:change | |
+| `04-plan.md` | artifact | mode:change | |
+| `05-implement.md` | artifact | mode:change | |
+| `06-verify.md` | artifact | mode:change | |
+| `02b-design.md` | artifact | if-present | |
+| `02c-craft.md` | artifact | if-present | |
+| `04b-instrument.md` | artifact | if-present | |
+| `04c-experiment.md` | artifact | if-present | |
+| `05c-benchmark.md` | artifact | if-present | |
+| `07-design-audit.md` | artifact | if-present | |
+| `07-design-critique.md` | artifact | if-present | |
+| `07-review-<slice>.md` | artifact | on-resume | |
+| `07-review-<slice>.yaml` | artifact | on-resume | |
+| `review/_stage.md` | procedure | always | |
+| `review/_context.md` | procedure | always | |
+| `review/_select.md` | procedure | always | |
+| `review/_dispatch.md` | procedure | always | |
+| `review/_artifact.md` | procedure | always | |
+| `_findings-ledger.md` | procedure | always | |
+| `07-review-<slice>.md` | writes | | |
+| `07-review.md` | writes | | |
+
+Stage mode only: ad-hoc review writes no stage artifact. In slug-wide mode, rows with `<slice>` do not apply, and a re-run reads `07-review.md` and its `.yaml`.
+
 # Step 00 — Resolve scope: workflow stage vs ad-hoc (mandatory, before everything)
 
 `/wf review` is the single review surface — it spans the **workflow stage** (a slug) and **ad-hoc**
 review (a dimension or a sweep, no slug), the way `/wf simplify` unifies its scopes. Resolve the first token BEFORE any stage logic:
 
-1. **Exact slug match** — `.ai/workflows/<token>/00-index.md` exists → **stage mode**. **Read
-   `review/_stage.md` in full now and follow it exactly** —
-   it carries the whole stage body (preamble table, TRIAGE MODE, Step 0 orient, the accumulating-ledger
-   dispatch, fix loop, artifact templates). The optional second token is `<slice>` or `triage`.
+1. **Exact slug match** — `.ai/workflows/<token>/00-index.md` exists → **stage mode**. Read
+   `review/_stage.md` in full and follow it exactly. The optional second token is `<slice>` or `triage`.
 2. **`sweep` or a known rubric/alias/aggregate key** (no slug matched) → **ad-hoc mode**. Jump to the
    `# Ad-hoc review (no slug)` section below. Rubric keys, alias keys, and aggregate keys are listed there.
    Ad-hoc never loads the stage body.

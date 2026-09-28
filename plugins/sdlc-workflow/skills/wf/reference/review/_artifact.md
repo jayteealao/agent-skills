@@ -27,6 +27,7 @@ metric-findings-med: <N>         # OPEN
 metric-findings-low: <N>         # OPEN
 metric-findings-nit: <N>         # OPEN
 metric-findings-resolved: <N>    # findings cleared by a re-run (status resolved)
+metric-findings-fixed: <N>       # findings with status fixed, cumulative; ship's release notes read it
 metric-findings-total-ever: <N>  # every finding ever recorded (open + closed) — ledger size
 runs:                            # compact per-invocation audit trail (frontmatter only; append one entry per run)
   - at: "<iso-8601>"
@@ -48,15 +49,20 @@ refs:
   implements: [05-implement-<slice-1>.md, 05-implement-<slice-2>.md, ...]
   verifies: [06-verify-<slice-1>.md, 06-verify-<slice-2>.md, ...]
   sub-reviews: [07-review-correctness.md, 07-review-security.md, ...]
-next-command: <wf-handoff|wf-implement>
-next-invocation: "<based on verdict>"
+next-command: <key of the default route>
+next-invocation: "/wf <key> <slug> [<slice>]"   # equals the default route's invocation
+recommended-routes:              # every viable option from _stage.md Adaptive routing; exactly one default
+  - invocation: "/wf handoff <slug>"
+    reason: "<one phrase>"
+    default: true
+  - invocation: "/wf review <slug> [<slice>]"
+    reason: "<one phrase>"
 ---
 ```
 
 # Review
 
-## The Review
-<!-- STORY SECTION — first, and self-sufficient. must follow `../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+Write the explainer to `07-review[-<slice-slug>].explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 ## Verdict
 
@@ -129,6 +135,10 @@ Present once any finding has been through the fix loop. **Accumulating per-findi
 {List each `could-not-fix` finding under `## Recommendations → Must Fix (remaining)` with the
 sub-agent's stated reason so the next stage knows what is still open.}
 
+## Soft Findings
+
+Informational observations that are not findings: each verify `## Friction Notes` and `## Free Exploration Notes` entry, with its source file. Write "None" when there are none.
+
 ## Recommendations
 
 ### Must Fix (triaged "fix")
@@ -145,15 +155,6 @@ sub-agent's stated reason so the next stage knows what is still open.}
 
 ### Consider (LOW/NIT — not triaged)
 {List}
-
-## Recommended Next Stage
-- **Option A:** `/wf handoff <slug>` — no OPEN blockers; all slices complete, ready for PR [reason]
-- **Option B:** `/wf review <slug> [<slice>]` — OPEN blockers or `could-not-fix` findings remain; re-invoke to re-check the fixed code and merge fresh findings into the ledger (it resolve-sweeps what the fixes cleared) [reason, only if applicable]
-- **Option C:** `/wf implement <slug> [<slice>] reviews` — escape hatch; remaining findings need stage-5 fix UI [reason, only if applicable]
-- **Option D:** `/wf plan <slug> <next-slice>` or `/wf implement <slug> <next-slice>` — more slices to implement before handoff [reason, if applicable]
-- **Option E:** `/wf ship <slug>` — skip handoff [reason, if applicable]
-- **Option F:** `/wf intake <slug> from-review` — add new slices from findings (extension) [reason, if applicable]
-- **Option G:** `/wf plan <slug> <slice> <correction>` — correct an *unbuilt* slice's plan directly (a built slice's correction is a new slice via Option F) [reason, if applicable]
 
 ---
 

@@ -428,5 +428,75 @@
     "entry": "/wf profile",
     "reason": "Prompt audit 2026-09-25 (1d migration-relative phrasing): \"There is no `/wf profile` key anymore\" was the only mention; the key was already retired, and augment/profile.md now states only that shape decides augmentation.",
     "release": "9.170.0"
+  },
+  {
+    "file": "skills/wf/reference/docs.md",
+    "category": "artifacts",
+    "entry": "03-slice.md",
+    "reason": "ARTIFACT-SPLIT-PLAN R8 (downstream reads the small form): docs in workflow mode reads 02-shape.md ## Documentation Plan and the 08-handoff.md frontmatter (its ## Requires table); the slice roster added nothing the docs run used.",
+    "release": "9.172.0"
+  },
+  {
+    "file": "skills/wf/reference/handoff.md",
+    "category": "artifacts",
+    "entry": "03-slice-<X>.md",
+    "reason": "ARTIFACT-SPLIT-PLAN R8: handoff reads frontmatter, every 07-review-*.yaml and named contract sections, not whole per-slice bodies. The roster 03-slice.md stays in its ## Requires table; per-slice slice files are no longer read.",
+    "release": "9.172.0"
+  },
+  {
+    "file": "skills/wf/reference/handoff.md",
+    "category": "artifacts",
+    "entry": "04-plan-<X>.md",
+    "reason": "ARTIFACT-SPLIT-PLAN R8: handoff reads frontmatter, every 07-review-*.yaml and named contract sections, not whole per-slice plan bodies; verify and review records already carry what the PR description needs.",
+    "release": "9.172.0"
+  },
+  {
+    "file": "skills/wf/reference/probe.md",
+    "category": "artifacts",
+    "entry": "01-quick.md",
+    "reason": "ARTIFACT-SPLIT-PLAN S1: the Step 0 prose read order was replaced by the ## Requires table, which names the lead as 01-<mode>.md; 01-quick.md is the legacy workflow-type quick lead (retired since the wf-quick subsume) and needs no row of its own.",
+    "release": "9.172.0"
+  },
+  {
+    "file": "skills/wf/reference/slice.md",
+    "category": "artifacts",
+    "entry": "03-slice-index.md",
+    "reason": "ARTIFACT-SPLIT-PLAN W1 (stale name): slice writes 03-slice.md (type slice-index); 03-slice-index.md was a stale name in the re-run paragraph, and the history snapshot name follows the real file (03-slice-<rev>.md).",
+    "release": "9.172.0"
+  },
+  {
+    "file": "skills/wf/reference/slice.md",
+    "category": "artifacts",
+    "entry": "03-slice-index-<X>.md",
+    "reason": "ARTIFACT-SPLIT-PLAN W1 (stale name): the history snapshot of the slice index is history/03-slice-<rev>.md, named after the real file 03-slice.md; 03-slice-index-<rev>.md named a file that is never written.",
+    "release": "9.172.0"
+  },
+  {
+    "file": "skills/wf/reference/verify.md",
+    "category": "artifacts",
+    "entry": "01-fix.md",
+    "reason": "ARTIFACT-SPLIT-PLAN (Every key: intake fix · hotfix · refactor; R5 one home per fact): the change-mode list of lead names collapsed to the `01-<mode>.md` placeholder, which the ## Requires row (`01-<mode>.md`, mode:change) also names; the lead is now the one home of the acceptance criteria.",
+    "release": "9.172.0"
+  },
+  {
+    "file": "skills/wf/reference/verify.md",
+    "category": "artifacts",
+    "entry": "01-hotfix.md",
+    "reason": "ARTIFACT-SPLIT-PLAN (Every key: intake fix · hotfix · refactor; R5 one home per fact): the change-mode list of lead names collapsed to the `01-<mode>.md` placeholder, which the ## Requires row (`01-<mode>.md`, mode:change) also names; the lead is now the one home of the acceptance criteria.",
+    "release": "9.172.0"
+  },
+  {
+    "file": "skills/wf/reference/verify.md",
+    "category": "artifacts",
+    "entry": "01-refactor.md",
+    "reason": "ARTIFACT-SPLIT-PLAN (Every key: intake fix · hotfix · refactor; R5 one home per fact): the change-mode list of lead names collapsed to the `01-<mode>.md` placeholder, which the ## Requires row (`01-<mode>.md`, mode:change) also names; the lead is now the one home of the acceptance criteria.",
+    "release": "9.172.0"
+  },
+  {
+    "file": "skills/wf/reference/verify.md",
+    "category": "dispatches",
+    "entry": "compact recommended if verify was lengthy test output,",
+    "reason": "ARTIFACT-SPLIT-PLAN prose budget: the Option A rationale clause (\"fix sub-agent chatter … is noise\") was shortened; it was never a dispatch, only a sentence that named sub-agents. The compact recommendation itself stays in Option A.",
+    "release": "9.172.0"
   }
 ]

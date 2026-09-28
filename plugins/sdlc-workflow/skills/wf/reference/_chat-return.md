@@ -8,13 +8,14 @@ governs the final shape: verb-first first line, narrative paragraph, then the
 A leaf's own section contributes ONLY its receipt fields and any stage-specific
 content spec.
 
-- **Substance first, then the receipt.** Lead with the **narrative** — a short
-  prose paragraph (2–5 sentences, no bullets, no field labels) that must
-  follow [_story-arc.md](_story-arc.md) rule A6: the same three
-  beats as the artifact's story section — the state inherited, the decisions
-  with reasons, then what comes next plus the top risk — never a "This <stage>
-  implements…" opening. The router leads the chat summary with this paragraph;
-  the receipt fields sit beneath it.
+- **Substance first, then the receipt.** Lead with the **narrative**: quote
+  the summary paragraph of the explainer this run wrote, as plain text (2–5
+  sentences, no bullets, no field labels), per [_story-arc.md](_story-arc.md)
+  rule A6. It carries the three beats: the state inherited, the decisions with
+  reasons, then what comes next plus the top risk. It never opens with "This
+  <stage> implements…". A run that wrote no explainer writes the same
+  paragraph for the chat only. The router leads the chat summary with this
+  paragraph; the receipt fields sit beneath it.
 - **"Return only" never waives the narrative.** A leaf that says to return ONLY
   a receipt means only those receipt *fields* — the substance narrative above
   them is still mandatory. Always surface what the artifact says (key decisions,

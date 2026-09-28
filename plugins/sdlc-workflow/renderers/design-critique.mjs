@@ -38,7 +38,7 @@ export function render(artifact, ctx) {
     ? `<p class="sdlc-lede">${escapeHtml(sy.summary)}</p>`
     : '';
 
-  const findingsHtml = sy?.findings?.length && !artifact.fragment
+  const findingsHtml = sy?.findings?.length && (!artifact.fragment || artifact.fragmentGenerated)
     ? `<section class="findings design-critique-findings">
         <h2 class="sdlc-h2">findings</h2>
         <ol class="finding-list">${sy.findings.map(findingItem).join('')}</ol>

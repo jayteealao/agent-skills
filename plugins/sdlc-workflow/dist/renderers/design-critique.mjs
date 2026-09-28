@@ -7,17 +7,17 @@ import {
 } from "../chunk-VQ7FT7IB.mjs";
 import {
   renderSimple
-} from "../chunk-U6S44KJS.mjs";
+} from "../chunk-YVS5HJJI.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-SCNOIKJL.mjs";
+} from "../chunk-M4L3PWUR.mjs";
 import {
   artifactHeader,
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-O2MCLXSW.mjs";
+} from "../chunk-U4XWDSQ3.mjs";
 import {
   escapeHtml
 } from "../chunk-3RXHOXIK.mjs";
@@ -52,7 +52,7 @@ function render(artifact, ctx) {
     { label: "nit", value: severity.nit ?? 0, sev: "nit" }
   ]);
   const summaryHtml = sy?.summary ? `<p class="sdlc-lede">${escapeHtml(sy.summary)}</p>` : "";
-  const findingsHtml = sy?.findings?.length && !artifact.fragment ? `<section class="findings design-critique-findings">
+  const findingsHtml = sy?.findings?.length && (!artifact.fragment || artifact.fragmentGenerated) ? `<section class="findings design-critique-findings">
         <h2 class="sdlc-h2">findings</h2>
         <ol class="finding-list">${sy.findings.map(findingItem).join("")}</ol>
        </section>` : "";

@@ -65,7 +65,10 @@ matters: if nothing listens right now, the job waits instead of getting lost.</l
 <li><strong>The hub drains the queue.</strong> The daemon picks up pending jobs and runs the
 render engine. The render engine walks <code>.ai/workflows/</code>, dispatches each artifact to a
 renderer for its <code>type</code>, and emits the HTML site under <code>.ai/_view/</code>. A
-review renders differently from a plan or a ship run. The default mode is additive: the render
+review renders differently from a plan or a ship run. When a stage artifact has an explainer
+fragment, its page opens with the explainer, then shows what waits for you, the stage's
+contract as a table, and a collapsed part with the evidence, the history, and the full agent
+file. An older artifact without an explainer keeps its earlier page. The default mode is additive: the render
 engine only re-renders an artifact whose sources are newer than its rendered counterpart.</li>
 <li><strong>The browser reloads.</strong> The SSE live-reload channel tells any open view to
 refresh.</li>

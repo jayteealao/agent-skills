@@ -4,7 +4,7 @@ argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake fix`, a **compressed standard lifecycle** for small intentional changes.
 
@@ -19,12 +19,32 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 
 | | Detail |
 |---|---|
-| Requires | Nothing — starts fresh. Pass a description or an existing slug to resume. |
+| Requires | See [## Requires](#requires). |
 | Produces (this command) | `01-fix.md` (`type: intake`), `02-shape.md`, `03-slice.md` (`type: slice-index`, one slice), `04-plan.md`, and a conformant `00-index.md` (`type: index`). |
 | Compression | Each planning stage is single-pass/lightweight — **no stage is skipped**. One slice, written as a real `03-slice.md`. Design runs when `ux-impact` is not `none` (`_change-mode-tail.md` → UX impact and the design stage); the trailing token `design` forces it. |
 | Gate | Stop-and-prompt before `05-implement` (see `_intake-context.md` → the gate; Adjust/Escalate handling per `_change-mode-tail.md`). May run end-to-end if the change is judged low-risk. |
 | Next | `/wf implement <slug>` — the standard execution chain takes over from stage 5. |
 | Escalate | If during planning the work no longer fits the fix envelope, **warn and continue** — record the breach per `_change-mode-tail.md` and offer the gate's "Escalate" option, which closes this slug and restarts as `/wf intake "<description>" from <slug>`. Do not refuse. |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | on-resume | |
+| `01-fix.md` | artifact | on-resume | |
+| `steer.md` | artifact | if-present | |
+| `intake/_intake-context.md` | procedure | always | |
+| `intake/_change-mode-tail.md` | procedure | always | |
+| `intake/_intake-provenance.md` | procedure | always | |
+| `design/_lane.md` | procedure | always | |
+| `design/stage.md` | procedure | mode:design | |
+| `_compressed-slice.md` | procedure | mode:slug | |
+| `01-fix.md` | writes | | |
+| `02-shape.md` | writes | | |
+| `03-slice.md` | writes | | |
+| `04-plan.md` | writes | | |
 
 # Scope discipline
 You are a **compressed-planning orchestrator**, not an incident responder and not a feature shaper.
@@ -84,11 +104,12 @@ tags: []
 refs:
   index: 00-index.md
   next: 02-shape.md
-next-command: wf-shape
-next-invocation: "/wf shape <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
-Body (tight): open with `## The Fix` — the story section (must follow `../_story-arc.md`; 1–2 short paragraphs — the problem inherited, the decisions with reasons, the top open risk; no "This fix implements…" opening) — then `## Restated Request` (what the user wants + why), `## Acceptance Criteria` (≤3, each objectively verifiable; embed any inline question answers as italic notes), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
+Write the explainer to `01-fix.explainer.html.fragment` per [_story-arc.md](../_story-arc.md). Body (tight): `## Restated Request` (what the user wants + why), `## Acceptance Criteria` (≤3, each objectively verifiable; embed any inline question answers as italic notes), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
 
 **`02-shape.md` — `type: shape`:**
 ```yaml
@@ -107,8 +128,9 @@ refs:
   index: 00-index.md
   intake: 01-fix.md
   next: 03-slice.md
-next-command: wf-slice
-next-invocation: "/wf slice <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
 Body (tight): `## In Scope` (1-3 bullets), `## Out of Scope` (1-3), `## Known Unknowns` (0-2). When design is needed, add 3-5 design-note bullets here and point to `02b-design.md` and `02c-craft.md`, which the compressed design stage writes before `03-slice.md`.
@@ -134,8 +156,9 @@ refs:
   index: 00-index.md
   shape: 02-shape.md
   next: 04-plan.md
-next-command: wf-plan
-next-invocation: "/wf plan <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
 Body (one line): "Single-slice lifecycle — the whole fix is one slice."
@@ -160,8 +183,9 @@ refs:
   index: 00-index.md
   slice: 03-slice.md
   next: 05-implement.md
-next-command: wf-implement
-next-invocation: "/wf implement <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
 Body: `## Steps` — a numbered list of **at most 5** implementation steps; each names the file(s) it touches, states the change in 1-2 lines, and lists its verification (lint? test? manual check? screenshot?). Then `## Verification` — **Tests to run** (specific commands) and **Manual checks** (specific URLs/flows/visual checks).

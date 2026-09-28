@@ -4,7 +4,7 @@ argument-hint: <hypothesis-or-slug>
 ---
 
 # Output boundary & shared context
-Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake discover`, a **hypothesis-test workflow** that adjudicates a code-level claim against the codebase and returns a verdict with cited evidence.
 
@@ -19,11 +19,25 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 
 | | Detail |
 |---|---|
-| Requires | Nothing — starts fresh. Pass a hypothesis string or an existing slug to resume. |
+| Requires | See [## Requires](#requires). Pass a hypothesis string or an existing slug to resume. |
 | Produces | `01-discover.md` (verdict + evidence + counter-hypotheses), `00-index.md` |
 | Skips | No fix, no plan, no implementation, no explanation of how code works (that is a plain research conversation outside `/wf`). |
 | Next | If `holds` → no required follow-up; act on the confirmed understanding however you originally intended. If `fails` or `inconclusive` → `/wf intake rca "<symptom>" from <slug>` (if the falsified hypothesis was about why something behaves badly — the counter-hypotheses travel with it) or a plain research conversation outside `/wf` (if you need to actually learn how the code works rather than test a theory). The workflow **closes at write time** — a verdict is terminal by construction; there is nothing left to pick. |
 | Escalate | If FOR and AGAINST evidence are roughly equal AND a definitive answer requires runtime data (not static code reading) → surface `needs-runtime-evidence` with the executable rungs: `/wf probe <slug> "<the runtime question>"` for a runtime observation, the `study-sources` skill for a dependency/framework fact. List exactly what would resolve it (a test run, a profile, a log line). |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | on-resume | |
+| `01-discover.md` | artifact | on-resume | |
+| `steer.md` | artifact | if-present | |
+| `intake/_intake-context.md` | procedure | always | |
+| `intake/discover/_research.md` | procedure | always | |
+| `_compressed-slice.md` | procedure | mode:slug | |
+| `01-discover.md` | writes | | |
 
 # Adjudication discipline
 You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
@@ -51,7 +65,7 @@ Ask at most **3 questions** — stop as soon as the hypothesis is testable:
 
 1. **What is the hypothesis?** — State as a falsifiable claim, not a question. Good: "the rate-limiter is implemented as a token bucket in `middleware/`". Bad: "how is the rate-limiter implemented?" (that is a plain research conversation outside `/wf`). Required if not clear from `$ARGUMENTS`.
 2. **Where to look?** — A starting file, directory, function, or area. Even "I'm not sure, somewhere in `src/auth`" is useful. If the user has no idea, the adjudication will be wider and confidence will likely be lower — note this.
-3. **What would change if it holds vs. fails?** — The decision riding on this verdict. It sizes the adjudication effort AND is recorded in the artifact (`## 0. What this decides`): if the user is sanity-checking before a 1-line edit, a quick pass is enough; if a major refactor or a plan depends on the answer, dig harder — and on `fails`, the record of *which plan lost its premise* is the most valuable line in the artifact.
+3. **What would change if it holds vs. fails?** — The decision riding on this verdict. It sizes the adjudication effort AND is recorded in the artifact (`## What this decides`): if the user is sanity-checking before a 1-line edit, a quick pass is enough; if a major refactor or a plan depends on the answer, dig harder — and on `fails`, the record of *which plan lost its premise* is the most valuable line in the artifact.
 
 If `$ARGUMENTS` contains enough to answer all three, skip to Step 2.
 
@@ -88,35 +102,37 @@ confidence: high | medium | low
 recommended-next: <command-if-any or "none">
 status: ready-for-routing
 created-at: <real UTC timestamp per _timestamp.md>
+next-command: none
+next-invocation: "none — verdict recorded"
+recommended-routes: [{invocation: "<the ## Routing route, with its from <slug> form>", reason: "<one phrase>", default: true}]
 ---
 ```
 
 **Body sections (in order):**
 
-## The Discovery
-<!-- STORY SECTION — first, and self-sufficient. must follow `../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+Write the explainer to `01-discover.explainer.html.fragment` per [_story-arc.md](../_story-arc.md). The section headings below are fixed anchors: do not number them.
 
-## 0. What this decides
+## What this decides
 
 The Step 1 question 3 answer, exact: the decision that rides on this verdict. On `fails`, name explicitly which plan, assumption, or in-flight work lost its premise — a falsified hypothesis with no record of what it falsified helps nobody. On `holds`, one line: what now proceeds on confirmed ground.
 
-## 1. Hypothesis
+## Hypothesis
 
 The exact hypothesis, as a falsifiable claim. Add 1–2 sentences of restatement that clarify what would have to be true for it to hold, and what would have to be true for it to fail.
 
-## 2. Evidence FOR
+## Evidence FOR
 
 List every piece of direct and indirect supporting evidence from sub-agent 1. Each item: `file:line` — one-line description — relevance (direct | indirect). Group direct evidence first.
 
-## 3. Evidence AGAINST
+## Evidence AGAINST
 
 List every piece of contradicting evidence from sub-agent 2. Each item: `file:line` — one-line description — severity (direct contradiction | partial contradiction | drift signal). If sub-agent 2 found nothing, say so explicitly: "No contradicting evidence found. Note: this is a meaningful signal only if sub-agent 2 actually searched — confirm it did before treating absence as confirmation."
 
-## 4. Counter-hypotheses
+## Counter-hypotheses
 
 List sub-agent 3's alternatives, ranked by plausibility. For each: the alternative statement, key supporting `file:line` references, and how it differs in observable behavior from the original. If `no_alternatives_found` was true, record that.
 
-## 5. Verdict
+## Verdict
 
 State the verdict plainly: **holds**, **partial**, **fails**, or **inconclusive**.
 
@@ -128,24 +144,24 @@ For `fails` verdicts, name the counter-hypothesis (if any) that is more plausibl
 
 For `inconclusive` verdicts, list exactly what runtime data or external information would resolve it.
 
-## 6. Routing
+## Routing
 
 | Verdict | Suggested next step |
 |---|---|
 | `holds` (any confidence) | None required. Your understanding is confirmed; proceed with whatever you intended to do. If acting on it requires code changes, the right next command depends on the size of the work (`/wf intake fix "<change>" from <slug>` for small, `/wf intake "<change>" from <slug>` for medium+ — the `from <slug>` token carries the verdict and evidence per `_intake-provenance.md`). |
 | `partial` | Refine the hypothesis using the "which part holds / which part fails" finding, then re-run `/wf intake discover <refined-hypothesis>` if precision matters. Otherwise, treat the partial verdict as the answer and proceed. |
-| `fails` | If the original hypothesis was an explanation for an observed bad behavior → `/wf intake rca "<symptom>" from <slug>` to find the actual cause — the ranked counter-hypotheses in section 4 are candidate root causes, and the `from <slug>` token hands them to the rca's sub-agents instead of discarding them. If it was a guess about how some feature works → a plain research conversation outside `/wf`, to actually learn the code rather than guess again. |
-| `inconclusive` | List the runtime signal needed. If it requires runtime observation, profiling, or a perf measurement → `/wf probe <slug> "<the runtime question section 5 named>"` (the finding lands as a compressed slice on this slug). If the unknown is a dependency/framework behavior → the `study-sources` skill against the installed source. If a repeatable perf baseline is warranted, flag it so `shape` records a benchmark augmentation. If it requires more code reading at wider scope → re-run `/wf intake discover` with a broader starting area. |
+| `fails` | If the original hypothesis was an explanation for an observed bad behavior → `/wf intake rca "<symptom>" from <slug>` to find the actual cause — the ranked counter-hypotheses in `## Counter-hypotheses` are candidate root causes, and the `from <slug>` token hands them to the rca's sub-agents instead of discarding them. If it was a guess about how some feature works → a plain research conversation outside `/wf`, to actually learn the code rather than guess again. |
+| `inconclusive` | List the runtime signal needed. If it requires runtime observation, profiling, or a perf measurement → `/wf probe <slug> "<the runtime question that ## Verdict named>"` (the finding lands as a compressed slice on this slug). If the unknown is a dependency/framework behavior → the `study-sources` skill against the installed source. If a repeatable perf baseline is warranted, flag it so `shape` records a benchmark augmentation. If it requires more code reading at wider scope → re-run `/wf intake discover` with a broader starting area. |
 
-## 7. Confidence & limits
+## Confidence & limits
 
 - **Confidence:** high | medium | low — one sentence justifying. High confidence requires direct evidence on the chosen verdict and weak counter-evidence.
 - **What this verdict assumes:** any unstated assumptions in the hypothesis (e.g., "assuming the default config", "assuming current main branch") — list them explicitly so a future reader knows what would invalidate the verdict.
 - **What was out of scope:** areas the sub-agents did not look at and why — so the user can ask for a follow-up if the scope was too narrow.
 
-## 8. Tripwire warnings (only if any fired)
+## Tripwire warnings
 
-Tripwires are **warn-and-continue** — record them, do NOT refuse to write the verdict.
+Write this section only when a tripwire fired. Tripwires are **warn-and-continue** — record them, do NOT refuse to write the verdict.
 
 - **evidence-thin:** Sub-agents collectively cited fewer than 3 file:line references. The verdict is likely undersupported regardless of which way it leans.
 - **counter-evidence-stronger-than-verdict:** The AGAINST agent found stronger evidence than the FOR agent but the verdict was still `holds`. Re-read sub-agent 2's findings — a `fails` or `partial` verdict may be more honest.
@@ -182,8 +198,8 @@ base-branch: <current-branch>
 next-command: none
 next-invocation: "none — verdict recorded; see recommended-routes"
 recommended-routes:
-  primary: "<the section 6 route for this verdict, with its from <slug> form>"
-  alternates: ["<other viable routes>"]
+  - {invocation: "<the ## Routing route for this verdict, with its from <slug> form>", reason: "<one phrase>", default: true}
+  - {invocation: "<another viable route>", reason: "<one phrase>"}
 verdict: <holds|partial|fails|inconclusive>
 confidence: <high|medium|low>
 open-questions: []
@@ -199,7 +215,7 @@ Register the slug's row in `.ai/workflows/INDEX.md` as `closed`. Body: one-line 
 
 # Step 5 — Hand off to user
 
-Return per [_chat-return.md](../_chat-return.md) — narrative lead (what was found, built, or measured, and what it means for the user), then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md) — quote the explainer summary as the narrative lead, then the structured anchors below.
 
 Emit a compact chat summary:
 
@@ -213,7 +229,7 @@ Direct contradicting evidence: <N file:line refs>
 Counter-hypotheses considered: <N>
 Tripwires: <none | comma-separated list>
 Workflow: closed (verdict-recorded)
-Next: <the section 6 route with its from <slug> form> | <"none — confirmed, proceed as you intended">
+Next: <the ## Routing route with its from <slug> form> | <"none — confirmed, proceed as you intended">
 Artifact: .ai/workflows/<slug>/01-discover.md
 ```
 

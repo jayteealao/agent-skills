@@ -10,9 +10,9 @@ argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|re
 You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per key. Identify the key, load `reference/<key>.md`, and follow it. Three contracts bind every key and every sub-agent you spawn:
 
 - Apply [_output-boundary.md](reference/_output-boundary.md) to every external-facing output.
-- Write every text per [_ste-procedural.md](reference/_ste-procedural.md). Write story sections and chat narratives per [_story-arc.md](reference/_story-arc.md). A reference's own writing spec adds to this contract and never replaces it.
+- Write every text per [_ste-procedural.md](reference/_ste-procedural.md). Write explainers and chat narratives per [_story-arc.md](reference/_story-arc.md). A reference's own writing spec adds to this contract and never replaces it.
 - Read [_host-invocation.md](reference/_host-invocation.md) first and apply its host contract to every reference you load. Under Codex or pi, `yolo` ends at Step 0 with the redirect to `/wf auto <slug>` that file prescribes; do not load `reference/yolo.md`.
-- Any artifact may ship narrative fragments (`<stem>.<label>.html.fragment` siblings) per [_fragment-authoring.md](reference/_fragment-authoring.md) Step F2.
+- Before a stage artifact write, read its `## Requires` inputs per [_requires.md](reference/_requires.md).
 
 # Step 0 — Dispatch check
 
@@ -97,7 +97,7 @@ When the work turns on how a dependency actually behaves (a signature, an edge c
 
 # Step 1 — Execute
 
-1. Read `reference/<key>.md` in full and follow it verbatim, with the remaining `$ARGUMENTS` unchanged. Do not summarize, paraphrase, or skip. Honor every conditional input and every artifact write it describes.
+1. Read `reference/<key>.md` in full and follow it verbatim, with the remaining `$ARGUMENTS` unchanged. Do not summarize, paraphrase, or skip. Honor its `## Requires` table and every artifact write it describes.
 2. Router keys (`design`, `brainstorm`, `ship-plan`, `docs`, `observability`) resolve a sub-key and load a further reference. Follow that chain.
 
 # Step 2 — Final summary

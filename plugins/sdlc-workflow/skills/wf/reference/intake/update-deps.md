@@ -4,7 +4,7 @@ argument-hint: "[package-name|--security-only|--audit-only|<existing-run-slug to
 ---
 
 # Output boundary & shared context
-Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake update-deps`, a **dependency maintenance standard lifecycle**.
 
@@ -19,7 +19,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 
 | | Detail |
 |---|---|
-| Requires | A project with a package manifest (`package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, `pom.xml`, `pubspec.yaml`, etc.). |
+| Requires | See [## Requires](#requires). |
 | Produces (this command) | In-slug standard artifacts under `.ai/workflows/<slug>/`: `01-update-deps.md` (`type: intake`, scan), `02-shape.md` (research + priority tiers), `03-slice.md` (`type: slice-index`), `04-plan.md` (tiered commands), and — because update-deps self-authors execution — `05-implement.md` + `06-verify.md`, plus a conformant `00-index.md` (`type: index`). |
 | Slug | `update-deps-<YYYYMMDD>` (e.g. `update-deps-20260619`). Keep a `run-id` field on the lead for continuity with legacy `.ai/dep-updates/` runs. |
 | No argument | Scan and update all dependencies. |
@@ -28,6 +28,30 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | `--security-only` | Prioritize and update only CVE-affected packages. |
 | `--audit-only` | Run scan + research + plan only — STOP at the gate after `04-plan`, do not implement. The lawful terminus is `/wf close <slug> deferred` (see Step 6). |
 | Exception | update-deps is the one change-mode that **self-authors `05`/`06`** (tier-ordered exec is specialized). `/wf implement` and `/wf verify` redirect it back here; only `/wf review` accepts it. |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| a package manifest | artifact | always | |
+| `00-index.md` | artifact | on-resume | |
+| `01-update-deps.md` | artifact | on-resume | |
+| `steer.md` | artifact | if-present | |
+| `intake/_intake-context.md` | procedure | always | |
+| `intake/_change-mode-tail.md` | procedure | always | |
+| `intake/_intake-provenance.md` | procedure | always | |
+| `design/_lane.md` | procedure | always | |
+| `design/stage.md` | procedure | mode:design | |
+| `_compressed-slice.md` | procedure | mode:slug | |
+| `intake/update-deps/_exec-artifacts.md` | procedure | always | |
+| `01-update-deps.md` | writes | | |
+| `02-shape.md` | writes | | |
+| `03-slice.md` | writes | | |
+| `04-plan.md` | writes | | |
+| `05-implement.md` | writes | | |
+| `06-verify.md` | writes | | |
 
 # Role
 You are a **dependency update orchestrator**; the lifecycle skips no *stage* (each is single-pass), and the stated order binds only where a step consumes an earlier step's output or crosses a gate.
@@ -63,11 +87,12 @@ tags: [deps]
 refs:
   index: 00-index.md
   next: 02-shape.md
-next-command: wf-shape
-next-invocation: "/wf shape <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
-Body: open with `## The Dependency Update` — the story section (must follow `../_story-arc.md`; 1–2 short paragraphs — the problem inherited, the decisions with reasons, the top open risk; no "This dependency update implements…" opening) — then `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (count only).
+Write the explainer to `01-update-deps.explainer.html.fragment` per [_story-arc.md](../_story-arc.md). Body: `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (count only).
 
 # Step 2 — Research + prioritize → `02-shape.md`
 For each package that needs updating, launch parallel web-research sub-agents in batches of 3–5.
@@ -99,8 +124,9 @@ refs:
   index: 00-index.md
   intake: 01-update-deps.md
   next: 03-slice.md
-next-command: wf-slice
-next-invocation: "/wf slice <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
 Body: one `## <package>` section each (current/latest, CVEs, breaking changes, migration steps, recommendation, reason, **`changelog-source:` URL(s) + `changelog-read-through:` the highest version whose notes were read, or `unverified`**), then `## Priority Groups` (the four tiers with their packages), then `## In Scope` / `## Out of Scope` (the Hold tier). **Every P1 (major+migration) package's migration steps must cite the changelog source they derive from** — an uncited P1 migration is not plan-ready and drops to `Hold: changelog unverified`.
@@ -126,8 +152,9 @@ refs:
   index: 00-index.md
   shape: 02-shape.md
   next: 04-plan.md
-next-command: wf-plan
-next-invocation: "/wf plan <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
 Body: "Single-slice dependency update — executed in P0 → P1 → P2 tier order (see `04-plan.md`)."
@@ -152,8 +179,9 @@ refs:
   index: 00-index.md
   slice: 03-slice.md
   next: 05-implement.md
-next-command: wf-review               # update-deps self-authors 05/06 next; resume a mid-run via /wf intake update-deps <slug>
-next-invocation: "/wf review <slug>"
+next-command: <next-command>
+next-invocation: "<next-invocation>"
+recommended-routes: <routes>
 ---
 ```
 Body: `## P0 — Security` / `## P1 — Major+migration` / `## P2 — Safe batch` / `## Hold` — each package with the exact update command, test command, what to verify, and rollback command (Hold: reason + revisit condition). Then `## Tripwire breaches` (only if any fired — per `_change-mode-tail.md`; the update-deps tripwires are: a P1 migration without a cited changelog · a Hold entry without a revisit condition · mixed tiers forced into one commit by tooling).
@@ -192,7 +220,7 @@ Body: `## Updated` (package@version per tier with commit SHA), `## Blocked` (pac
 
 # Step 8 — Self-author `06-verify.md`
 Run the full suite against the updated state: complete test suite (not just targeted), the build (`npm run build` / `go build ./...` / `cargo build`), integration/E2E if present; confirm no blocked package left an inconsistent lockfile. Write `06-verify.md` (un-suffixed) per [intake/update-deps/_exec-artifacts.md](update-deps/_exec-artifacts.md); it satisfies the **verify** required set (`next: 07-review.md`).
-Body: `## Test Result` (pass/fail/skip), `## Build`, `## Blocked packages` (remaining at old version + why **+ revisit condition**). `result: partial` is valid when some packages updated and some are blocked.
+Body: `## Test Result` (pass/fail/skip), `## Build`, `## Blocked packages` (remaining at old version + why **+ revisit condition**), `## Caveats` (the unconfirmed stack). Write the raw test and build output to `verify-evidence/<slug>/report.md`. `result: partial` is valid when some packages updated and some are blocked.
 
 **Then self-report to `00-index.md`** again: `current-stage: verify`, `stage-number: 6`, `progress.verify: complete`, append `06-verify.md` to `workflow-files`, refresh `updated-at`, `next-command: wf-review`, `next-invocation: "/wf review <slug>"`, and touch the registry row. Blocked packages also land on the index's `open-questions` as `"revisit <package>: <condition>"` so the next run's provenance seed finds them without re-reading stage bodies.
 

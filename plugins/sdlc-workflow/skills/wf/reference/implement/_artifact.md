@@ -1,6 +1,6 @@
 # Implement artifacts
 
-`implement.md` Steps 8 and 9 write these two files. Frontmatter is the machine-readable state; the body is narrative.
+`implement.md` Steps 8 and 9 write these two files. Frontmatter is the machine-readable state; the body is the contract and the working record.
 
 ## `05-implement.md` (master index)
 
@@ -24,10 +24,14 @@ refs:
   plan-index: 04-plan.md
 next-command: wf-verify
 next-invocation: "/wf verify <slug> <slice-slug>"
+recommended-routes:
+  - invocation: "/wf verify <slug> <slice-slug>"
+    reason: "<one phrase>"
+    default: true
 ---
 ```
 
-Body, as `# Implement Index`: `## Cross-Slice Integration Notes` (bullets) and `## Recommended Next Stage`.
+Body, as `# Implement Index`: `## Cross-Slice Integration Notes` (bullets).
 
 ## `05-implement-<slice-slug>.md` (per-slice implementation record)
 
@@ -47,6 +51,7 @@ metric-lines-removed: <N>
 metric-deviations-from-plan: <N>
 metric-review-fixes-applied: 0
 commit-sha: "<sha or empty if branch-strategy is none>"
+files-modified: [<path>, ...]   # every code path this slice changed; verify's cross-slice regression check reads it
 tags: []
 refs:
   index: 00-index.md
@@ -57,11 +62,16 @@ refs:
   verify: 06-verify-<slice-slug>.md
 next-command: wf-verify
 next-invocation: "/wf verify <slug> <slice-slug>"
+recommended-routes:            # Option A verify (default); Option B review, when applicable
+  - invocation: "/wf verify <slug> <slice-slug>"
+    reason: "<one phrase>"
+    default: true
 ---
 ```
 
+Write the explainer to `05-implement-<slice-slug>.explainer.html.fragment` per [../_story-arc.md](../_story-arc.md).
+
 Body, as `# Implement: <slice-name>`, in order:
-- `## The Implementation` — first, and self-sufficient. Follow `_story-arc.md`: three beats in order (the state this stage inherited, the load-bearing decisions with reasons and counts, what this stage enables next plus the top open risk). Language follows `_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs.
 - `## Summary of Changes` — bullets.
 - `## Files Changed` — `path: what changed and why`, one line per file.
 - `## Shared Files (also touched by sibling slices)` — bullets.
@@ -72,7 +82,7 @@ Body, as `# Implement: <slice-name>`, in order:
 - `## Anything Deferred` — capabilities deferred by shape's Round 5 restraint or the plan's ladder, plus any `sdlc-debt:` shortcut, each with its ceiling and upgrade path.
 - `## Known Risks / Caveats` — any `sdlc-debt:` shortcut whose ceiling is live in shipped code (global lock, O(n²) scan, naive heuristic, hard-coded value).
 - `## Freshness Research` — source, relevance, takeaway.
-- `## Recommended Next Stage` — **Option A (default):** `/wf verify <slug> <slice-slug>` with its reason; **Option B:** `/wf review <slug> <slice-slug>` (skip verify) with its reason, if applicable.
+- `## Review Fixes Applied` — reviews mode only: `<finding ID> — fixed | could-not-fix: <reason>`, one line per finding.
 
 ## Free narrative fragments
 

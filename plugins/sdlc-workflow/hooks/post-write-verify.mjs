@@ -4,7 +4,10 @@
  * - Skip when no artifact markdown path is present.
  * - Validate markdown under .ai/workflows/, .ai/simplify/, and .ai/profiles/.
  * - Skip paths that do not exist on disk.
- * - Exempt the po-answers.md prose log (see isProseLogPath).
+ * - Exempt the po-answers.md prose log (see isProseLogPath) and the
+ *   probe-evidence/ + verify-evidence/ folders (see isEvidencePath).
+ * - Lint 00-index.md (warn only, never blocks): over 20 KB, YAML comment prose
+ *   in the frontmatter, `current-stage:` outside the first 4000 characters.
  * - Run deep schema validation against tests/frontmatter.schema.json (native Ajv).
  * - Enforce sibling fragments: a rich-tier artifact `.md` written without its
  *   mandatory sibling `.yaml` BLOCKS (exit 2); see enforceSiblingFragments.
@@ -16,7 +19,7 @@
  * standalone entry below stays one release.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../lib/config.mjs';
@@ -29,10 +32,11 @@ import {
   hasFrontmatterFence,
   isBrainstormBoardPath,
   isManagedArtifactMarkdownPath,
+  isEvidencePath,
   isProjectContextMarkdownPath,
-  isProbeEvidencePath,
   isProseLogPath,
   isShipPlanAuditPath,
+  normalizePathForMatch,
   outputSystemMessage,
   projectRootFromInput,
   readTextIfExists,
@@ -574,6 +578,75 @@ async function validateBrainstormBoards(paths, config, schemaPath) {
   blockToolCall();
 }
 
+// Index lint (ARTIFACT-SPLIT-PLAN S4, D7). 00-index.md is read by every stage,
+// so history commentary there costs every reader. Warn only, never block.
+export const INDEX_SIZE_WARN_BYTES = 20480;
+// subagent-start (the Codex-only context hook) reads only this many characters
+// of 00-index.md to find `current-stage:`.
+export const INDEX_STAGE_HEAD_CHARS = 4000;
+// A frontmatter `#` comment with more words than this is prose, not a label.
+export const INDEX_COMMENT_PROSE_MAX_WORDS = 8;
+
+function isWorkflowIndexPath(filePath) {
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/00-index\.md$/.test(normalizePathForMatch(filePath));
+}
+
+/**
+ * Pure 00-index.md lint. Returns a list of warning strings (empty when clean).
+ * `byteSize` is the file size in bytes; it defaults to the UTF-8 length of text.
+ */
+export function indexLintWarnings(text, byteSize = Buffer.byteLength(String(text ?? ''), 'utf8')) {
+  const source = String(text ?? '');
+  const warnings = [];
+  if (byteSize > INDEX_SIZE_WARN_BYTES) {
+    warnings.push(
+      `00-index.md is ${byteSize} bytes, over the ${INDEX_SIZE_WARN_BYTES}-byte limit. Keep current state in the index; ` +
+      'move YAML comment prose, old next-step commentary and finished sub-pass notes to index-history.jsonl ' +
+      '(one JSON object per line: {"at","kind","text","stage"}). Keep the deferral list, intent risks, charter and revisions ledger in the index.',
+    );
+  }
+  const fence = /^---\r?\n([\s\S]*?)\r?\n---/.exec(source);
+  if (fence) {
+    const prose = [];
+    for (const line of fence[1].split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('#')) continue;
+      const words = trimmed.replace(/^#+/, '').trim().split(/\s+/).filter(Boolean);
+      if (words.length > INDEX_COMMENT_PROSE_MAX_WORDS) prose.push(trimmed.length > 80 ? `${trimmed.slice(0, 77)}...` : trimmed);
+    }
+    if (prose.length) {
+      warnings.push(
+        `00-index.md frontmatter carries ${prose.length} YAML comment line(s) of prose (a \`#\` comment of more than ` +
+        `${INDEX_COMMENT_PROSE_MAX_WORDS} words), e.g. "${prose[0]}". Move this commentary to index-history.jsonl ` +
+        '(kind: note or next-commentary) and keep only structured keys in the index.',
+      );
+    }
+  }
+  const stageRe = /^current-stage:\s*\S/m;
+  if (!stageRe.test(source.slice(0, INDEX_STAGE_HEAD_CHARS)) && stageRe.test(source)) {
+    warnings.push(
+      `\`current-stage:\` is not in the first ${INDEX_STAGE_HEAD_CHARS} characters of 00-index.md. The subagent-start ` +
+      'hook reads only that many characters, so it cannot see the stage. Move `current-stage:` near the top of the frontmatter.',
+    );
+  }
+  return warnings;
+}
+
+async function enforceIndexLint(paths, config) {
+  if (config.hooks?.indexLint === false) return;
+  const lines = [];
+  for (const path of paths) {
+    if (!isWorkflowIndexPath(path.original)) continue;
+    const text = await readTextIfExists(path.absolute);
+    if (text === null) continue;
+    let size;
+    try { size = statSync(path.absolute).size; } catch { size = undefined; }
+    for (const w of indexLintWarnings(text, size)) lines.push(`  - ${path.original}: ${w}`);
+  }
+  if (!lines.length) return;
+  outputSystemMessage(`wf: index lint (advisory):\n${lines.join('\n')}\nOpt out: hooks.indexLint: false.`);
+}
+
 const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 export async function run(input) {
@@ -584,9 +657,10 @@ export async function run(input) {
   const schemaPath = join(PLUGIN_ROOT, 'tests', 'frontmatter.schema.json');
   const paths = collectToolInputPaths(input)
     .filter((path) => isManagedArtifactMarkdownPath(path))
-    // probe-evidence/ is free-form runtime evidence — never schema-gated
-    // (mirrors the pre-write-validate carve-out; see isProbeEvidencePath).
-    .filter((path) => !isProbeEvidencePath(path))
+    // probe-evidence/ and verify-evidence/ are free-form evidence — never
+    // schema-gated or sibling-checked (mirrors the pre-write-validate carve-out;
+    // see isEvidencePath).
+    .filter((path) => !isEvidencePath(path))
     .map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) }))
     .filter(({ absolute }) => absolute && existsSync(absolute));
 
@@ -609,6 +683,10 @@ export async function run(input) {
   if (boardPaths.length) await validateBrainstormBoards(boardPaths, config, schemaPath);
 
   if (!paths.length) return;
+
+  // Index lint warns only; it runs before the schema pass so a warning is not
+  // lost when the schema check blocks.
+  await enforceIndexLint(paths, config);
 
   const failures = [];
   for (const path of paths) {

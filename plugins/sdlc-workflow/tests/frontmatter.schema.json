@@ -77,6 +77,8 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "recommendedRoutes": {"type":"array","description":"S3 (ARTIFACT-SPLIT-PLAN): every next-step option; exactly one entry has default: true and its invocation equals next-invocation.","items":{"type":"object","required":["invocation","reason"],"properties":{"invocation":{"type":"string"},"reason":{"type":"string"},"default":{"type":"boolean"}}}},
+    "recommendedRoutesAnyForm": {"description":"Index files: the S3 list form, or the old { primary, alternates } object that older workflow-index files carry.","oneOf":[{"$ref":"#/$defs/recommendedRoutes"},{"type":"object","properties":{"primary":{"type":"string"},"alternates":{"$ref":"#/$defs/stringArray"}}}]},
     "revisionLedger": {
       "type": "array",
       "description": "Reason-centric revision ledger written by the additive-write contract (single source: skills/wf/reference/_additive-write.md). One entry per re-invocation that actually changed the artifact; the body is a living document (rewritten in place), the ledger records WHY each revision happened. Distinct from the on-disk history/ snapshots, which hold verbatim prior wording. Replaced the old in-body `## Revision N` append pattern in v9.105.0.",
@@ -170,6 +172,8 @@
         "next-invocation", "workflow-files", "progress"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutesAnyForm"},
+        "reconcile-pending": {"type":"boolean","description":"S4 (ARTIFACT-SPLIT-PLAN): true while index-history.jsonl and the index disagree and a reconcile is due."},
         "schema": { "const": "sdlc/v1" },
         "type":   { "const": "index" },
         "slug":   { "$ref": "#/$defs/slug" },
@@ -241,6 +245,7 @@
             "type": "object",
             "required": ["type", "artifact"],
             "properties": {
+              "mode": { "enum": ["baseline", "compare", "complete"], "description": "benchmark mode (augment/benchmark.md)." },
               "type": { "type": "string" },
               "artifact": { "type": "string" },
               "status": { "type": "string" },
@@ -405,6 +410,9 @@
         "next-command", "next-invocation"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "type": { "const": "intake" },
         "status": { "enum": ["complete", "awaiting-input"] },
         "stage-number": { "const": 1 },
@@ -426,6 +434,10 @@
         "tags", "refs", "next-command", "next-invocation"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "files-in-scope": {"$ref":"#/$defs/stringArray","description":"From ## Affected Areas; the design stage reads it."},
         "type": { "const": "shape" },
         "status": { "enum": ["complete", "awaiting-input"] },
         "stage-number": { "const": 2 },
@@ -458,6 +470,9 @@
         "register", "recommended-references"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "type": { "const": "design" },
         "register": { "enum": ["brand", "product"] },
         "created-at": { "$ref": "#/$defs/iso8601" },
@@ -483,6 +498,11 @@
         "sizes", "themes", "refs"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "next-command": {"type":"string"},
+        "next-invocation": {"type":"string"},
         "type": { "const": "design-contract" },
         "title": { "type": "string" },
         "status": { "enum": ["draft", "ready", "frozen"] },
@@ -522,6 +542,9 @@
         "tags", "slices", "refs", "next-command", "next-invocation"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "type": { "const": "slice-index" },
         "status": { "enum": ["complete", "awaiting-input"] },
         "stage-number": { "const": 3 },
@@ -557,6 +580,11 @@
         "created-at", "updated-at", "complexity", "depends-on", "tags", "refs"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "next-command": {"type":"string"},
+        "next-invocation": {"type":"string"},
         "type": { "const": "slice" },
         "slice-slug": { "type": "string" },
         "status": { "enum": ["defined", "in-progress", "complete", "skipped"] },
@@ -584,6 +612,9 @@
         "tags", "refs", "next-command", "next-invocation"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "type": { "const": "plan-index" },
         "status": { "enum": ["complete", "awaiting-input"] },
         "stage-number": { "const": 4 },
@@ -608,6 +639,9 @@
         "tags", "refs", "next-command", "next-invocation"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "plan" },
         "slice-slug": { "type": "string" },
@@ -635,6 +669,9 @@
         "next-command", "next-invocation"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "type": { "const": "implement-index" },
         "status": { "enum": ["in-progress", "complete"] },
         "stage-number": { "const": 5 },
@@ -660,6 +697,10 @@
         "commit-sha", "tags", "refs", "next-command", "next-invocation"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "files-modified": {"$ref":"#/$defs/stringArray","description":"Files this slice changed; a sibling implement compares its plan against it."},
         "type": { "const": "implement" },
         "slice-slug": { "type": "string" },
         "status": { "enum": ["complete", "awaiting-input"] },
@@ -685,6 +726,9 @@
         "tags", "refs", "next-command", "next-invocation"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "type": { "const": "verify-index" },
         "status": { "enum": ["in-progress", "complete"] },
         "stage-number": { "const": 6 },
@@ -708,6 +752,13 @@
         "evidence-dir", "tags", "refs", "next-command", "next-invocation"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "stack-source": {"enum":["confirmed","unconfirmed-auto-detect"]},
+        "debt-markers-found": {"type":"integer","minimum":0},
+        "debt-markers-malformed": {"type":"integer","minimum":0},
+        "debt-markers-unrecorded": {"type":"integer","minimum":0},
         "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "verify" },
         "slice-slug": { "type": "string" },
@@ -776,6 +827,10 @@
         "next-command", "next-invocation"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "metric-findings-fixed": {"type":"integer","minimum":0},
         "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "review" },
         "review-scope": { "enum": ["per-slice", "slug-wide"] },
@@ -849,6 +904,14 @@
         "docs-generated", "tags", "refs", "next-command", "next-invocation"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "readiness-reason": {"type":"string"},
+        "pre-push-checks-skipped": {"type":"array","items":{"type":"object","required":["step","reason"],"properties":{"step":{"type":"string"},"reason":{"type":"string"}}}},
+        "live-checks-failing-nonrequired": {"$ref":"#/$defs/stringArray"},
+        "live-merge-state": {"type":"string"},
+        "live-mergeable": {"type":"string"},
         "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "handoff" },
         "slice-slugs": { "$ref": "#/$defs/stringArray" },
@@ -936,6 +999,9 @@
         "next-command", "next-invocation"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "ship-run" },
         "run-id": { "$ref": "#/$defs/runId" },
@@ -1047,6 +1113,9 @@
         "next-command", "next-invocation"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "type": { "const": "retro" },
         "status": { "const": "complete" },
         "stage-number": { "const": 10 },
@@ -1184,6 +1253,9 @@
         "routing-assignments", "proposed-deltas"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "type": { "const": "simplify-run" },
         "run-id": { "$ref": "#/$defs/runId" },
         "scope": { "enum": ["branch", "commit", "plan", "codebase"] },
@@ -1212,6 +1284,11 @@
         "slug", "parent-workflow"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "next-command": {"type":"string"},
+        "next-invocation": {"type":"string"},
         "type": { "const": "augmentation" },
         "augmentation-type": {
           "enum": ["benchmark", "experiment", "instrument", "rca"]
@@ -1284,6 +1361,11 @@
         "recommended-next", "status", "created-at"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "next-command": {"type":"string"},
+        "next-invocation": {"type":"string"},
         "type": { "const": "rca" },
         "workflow-type": { "const": "rca" },
         "symptom": { "type": "string" },
@@ -1307,6 +1389,11 @@
         "optimization-candidates", "confidence", "created-at"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "next-command": {"type":"string"},
+        "next-invocation": {"type":"string"},
         "type": { "const": "profile" },
         "run-id": { "type": "string" },
         "profiling-method": {
@@ -1361,6 +1448,11 @@
         "severity-distribution", "refs"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "next-command": {"type":"string"},
+        "next-invocation": {"type":"string"},
         "type": { "const": "design-critique" },
         "title": { "type": "string" },
         "status": { "enum": ["draft", "ready"] },
@@ -1384,6 +1476,11 @@
         "severity-distribution", "remediation-state", "refs"
       ],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "next-command": {"type":"string"},
+        "next-invocation": {"type":"string"},
         "type": { "const": "design-audit" },
         "title": { "type": "string" },
         "status": { "enum": ["draft", "ready"] },
@@ -1687,6 +1784,11 @@
       "description": "Idea-backlog artifact. New runs root a type:workflow-index slug workflow and write the lead to .ai/workflows/<slug>/01-ideate.md (carrying a slug extra field; focus stays the schema key). Legacy runs at .ai/ideation/<focus>-<ts>.md still validate + render via the retained off-pipeline discovery. Ranked candidate list.",
       "required": ["schema", "type", "focus", "created-at"],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "next-command": {"type":"string"},
+        "next-invocation": {"type":"string"},
         "type": { "const": "ideation" },
         "focus": { "type": "string" },
         "raw-candidates": { "type": "integer", "minimum": 0 },
@@ -1886,6 +1988,11 @@
       "description": "01-brainstorm.md — the board of a thinking-partner brainstorm (/wf intake brainstorm). Rooted in a type:workflow-index slug workflow with workflow-type brainstorm. The person's document; the agent's board is the sibling brainstorm-board.json (see $defs.brainstormBoard). A legacy board carries threads, claims, assumptions, contradictions, and candidates in this frontmatter instead, and stays valid until its first resume converts it. The workflow stays open until /wf close.",
       "required": ["schema", "type", "slug", "topic", "status", "created-at"],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "next-command": {"type":"string"},
+        "next-invocation": {"type":"string"},
         "type": { "const": "brainstorm" },
         "topic": { "type": "string" },
         "board": { "type": "string", "pattern": "^brainstorm-board(-[a-z0-9-]+)?[.]json$" },
@@ -2060,6 +2167,11 @@
       "description": "Lightweight intake-mode / wf-meta lane artifacts written under .ai/workflows/<slug>/ (e.g. 00-index.md with type workflow-index, 01-fix.md, hf-brief.md, 99-close.md, 90-next.md). Validated for a known type + schema/type/slug presence; richer per-lane fields are renderer-defensive and most fall through to the generic renderer. Registered in v9.35.0 after an audit found these lanes were silently blocked by the pre/post-write hooks. Each type stays uniquely discriminating, so the oneOf remains unambiguous. Tighten into per-type branches if/when their field contracts stabilize.",
       "required": ["schema", "type", "slug"],
       "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutesAnyForm"},
+        "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
+        "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
+        "next-command": {"type":"string"},
+        "next-invocation": {"type":"string"},
         "type": {
           "enum": [
             "workflow-index", "discover", "fix-plan", "investigate",

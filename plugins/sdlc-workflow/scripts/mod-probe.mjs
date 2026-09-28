@@ -4,7 +4,9 @@
 // Reads the mod's probe journal, `<SDLC_HOME|~/.sdlc>/mod-probe.jsonl`, and
 // prints one row per host and surface: whether the module bound its host
 // there, how many commands registered, how many `/wf` turns it saw, how the
-// post-stage compactions ended, and which capability calls failed.
+// post-stage compactions ended, which capability calls failed, and whether a
+// `tool.call` hook on `Read` fired on the main loop and inside a sub-agent
+// (`read` rows, ARTIFACT-SPLIT-PLAN W0).
 //
 // The journal is the only way to tell whether the mod runs on a host whose
 // transcript nobody reads — Claude Code Desktop above all, where the engine
@@ -25,7 +27,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-import { PROBE_FILE, rowsOf, sinceOf, verdictOf } from '../hooks/mod/probe.ts';
+import { PROBE_FILE, readHookCell, rowsOf, sinceOf, verdictOf } from '../hooks/mod/probe.ts';
 
 function parseArgs(argv) {
   const out = { json: false, rows: false, clear: false, path: false, sinceMs: null };
@@ -61,7 +63,7 @@ function pad(text, width) {
 }
 
 function formatTable(verdicts) {
-  const head = ['host', 'surface', 'status', 'sessions', 'commands', 'turns', 'compactions', 'last seen'];
+  const head = ['host', 'surface', 'status', 'sessions', 'commands', 'turns', 'compactions', 'read hook', 'last seen'];
   const body = verdicts.map((v) => [
     v.host,
     v.surface,
@@ -70,6 +72,7 @@ function formatTable(verdicts) {
     v.commands ?? '—',
     v.actions === v.turns ? String(v.turns) : `${v.actions}/${v.turns}`,
     v.compactions === '' ? '—' : v.compactions,
+    readHookCell(v.reads),
     v.lastAt.replace('T', ' ').replace('Z', ''),
   ]);
   const widths = head.map((_, i) => Math.max(head[i].length, ...body.map((row) => row[i].length)));

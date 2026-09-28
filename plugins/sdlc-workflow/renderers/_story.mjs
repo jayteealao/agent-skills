@@ -53,3 +53,32 @@ export function splitStorySection(body) {
 
   return { storyMarkdown, bodyRest };
 }
+
+/**
+ * Split a markdown body into its level-2 sections, using the same boundary
+ * rule as splitStorySection (a section runs until the next h1/h2). Returns
+ * `[{ heading, markdown }]` in body order: `heading` is the `##` text without
+ * the `## ` prefix, `markdown` is the section content without the heading line.
+ * Text before the first `##` is not returned. The four-part page
+ * (renderers/_page.mjs) reads contract sections through this helper.
+ */
+export function splitSections(body) {
+  if (typeof body !== 'string' || body === '') return [];
+  const lines = body.split(/\r?\n/);
+  const out = [];
+  let cur = null;
+  let inFence = false;
+  for (const line of lines) {
+    if (/^\s*(```|~~~)/.test(line)) inFence = !inFence;
+    if (!inFence && H1_OR_H2.test(line)) {
+      if (cur) out.push(cur);
+      cur = /^##\s/.test(line)
+        ? { heading: line.replace(/^##\s+/, '').trim(), lines: [] }
+        : null;   // an h1 closes the section and starts no new one
+      continue;
+    }
+    if (cur) cur.lines.push(line);
+  }
+  if (cur) out.push(cur);
+  return out.map((s) => ({ heading: s.heading, markdown: s.lines.join('\n').trim() }));
+}

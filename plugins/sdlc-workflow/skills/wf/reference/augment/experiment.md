@@ -24,12 +24,25 @@ existing-workflow/
 
 | | Detail |
 |---|---|
-| Requires | An existing workflow at `.ai/workflows/<slug>/` with `02-shape.md` present. |
+| Requires | See [## Requires](#requires). |
 | Produces | `04c-experiment.md` — experiment design with hypothesis, metrics, cohorts, and rollback criteria |
 | Updates | `00-index.md` — adds entry to `augmentations:` list |
 | Does NOT | Implement flag infrastructure, modify the plan, or advance the workflow stage. |
 | When to run | After `/wf shape` (which decides both augmentations) and ideally with the **instrument** augmentation authored first (observability is needed to measure outcomes). Before `/wf implement` so the flag scaffolding is planned before coding begins. |
 | Warning | If `04b-instrument.md` is NOT present, surface a warning — experiments are hard to evaluate without observable signals. Do not block. |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | always | |
+| `02-shape.md` | artifact | always | |
+| `04b-instrument.md` | artifact | if-present | |
+| `augment/experiment/_artifact.md` | procedure | always | |
+| `_story-arc.md` | procedure | always | |
+| `04c-experiment.md` | writes | | |
 
 > **Auto second opinion (objective triggers).** After the design sub-agent returns (before writing
 > `04c-experiment.md`), **auto-invoke** `/consult codex <critique this hypothesis and metric choice —
@@ -56,10 +69,7 @@ You are an **experiment designer**, not an implementer.
 3. **Check for instrumentation:**
    - If `04b-instrument.md` does NOT exist → surface this warning in the handoff: "No instrumentation plan found (`04b-instrument.md`). It is strongly recommended to include the **instrument** augmentation (shape adds it to `augmentations-needed`; `plan` authors `04b-instrument.md`) before or alongside this experiment — you need observable signals to measure experimental outcomes."
    - Do not block. Proceed regardless.
-4. **Read the workflow context:**
-   - Read `02-shape.md` in full — the hypothesis lives here.
-   - Read `04b-instrument.md` if present — this names the metrics available for the experiment.
-   - Read `00-index.md` frontmatter — check `current-stage`, `status`, existing `augmentations:`, and `tags`.
+4. **Use the workflow context.** `02-shape.md` holds the hypothesis. `04b-instrument.md` names the available metrics. The index shows `current-stage`, `status`, existing `augmentations:`, and `tags`.
 
 # Step 1 — Hypothesis extraction & experiment design
 Launch the sub-agent to design the experiment. Do not skip to writing the artifact before the sub-agent returns.
@@ -113,7 +123,7 @@ Read `00-index.md`, then add or update the `augmentations:` field in its YAML fr
 augmentations:
   - type: experiment
     artifact: 04c-experiment.md
-    status: complete
+    status: ready
     created-at: <timestamp>
 ```
 
@@ -123,7 +133,7 @@ Also update `updated-at` to the current timestamp.
 
 # Step 4 — Hand off to user
 
-Return per [_chat-return.md](../_chat-return.md) — narrative lead (what was found, built, or measured, and what it means for the user), then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md) — a narrative lead that quotes the explainer's summary paragraph, then the structured anchors below.
 
 Emit a compact chat summary:
 

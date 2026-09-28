@@ -11,6 +11,15 @@ Your job: parse the invocation, resolve the **mode** and the **shape** (maintena
 
 > Runtime-truth verification (`/wf probe`) and read-only triage (`/wf simplify`) are NOT intake modes — they are their own top-level `/wf` keys, because they act on already-built or existing code rather than entering the lifecycle. Do not route to them from here.
 
+## Requires
+
+Read every row before you run the mode reference. [_requires.md](_requires.md) defines the check. The mode reference owns its own table and its `writes` rows.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `intake/_intake-context.md` | procedure | always | |
+| `_compressed-slice.md` | procedure | mode:slug | |
+
 # Step 0 — Parse the invocation (mode + shape resolution)
 
 `$ARGUMENTS` reaches you with the leading `intake` key already stripped by `wf/SKILL.md`. Tokenize respecting shell quoting (`"two words"` is one token). The **mode keyword set** is: `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `amend`, `modernize`.
@@ -80,7 +89,7 @@ Propose **at most one** mode, **once**, as a gate question per [_gate-question.m
 
 # Step 1 — Load shared context
 
-Load `intake/_intake-context.md` in full and apply it: the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug semantics. Do not restate or fork its rules. If **slug-mode** (branch 1, a mode keyword on an existing slug), also load `_compressed-slice.md` — it governs the slice output and overrides any standalone "create workflow / branch / top-level index" step in the mode reference. **Extension mode (branch 2) does NOT load `_compressed-slice.md`** — it writes full slice files per `intake/extend.md`.
+Apply `intake/_intake-context.md`: the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug semantics. Do not restate or fork its rules. In **slug-mode** (branch 1), `_compressed-slice.md` governs the slice output and overrides any standalone "create workflow / branch / top-level index" step in the mode reference. **Extension mode (branch 2) does NOT use `_compressed-slice.md`** — it writes full slice files per `intake/extend.md`.
 
 # Step 2 — Resolve mode → flow span
 
@@ -106,7 +115,6 @@ The mode decides how far the flow travels. Run only the stages the mode needs. T
 
 Notes:
 - **The dispatcher is a pure router:** each mode reference owns its artifact writes. Build modes (`fix`/`hotfix`/`refactor`/`update-deps`) emit a full `type:index` overview; the terminal analysis modes (`ideate`, `brainstorm`, standalone `discover`) root a lightweight `type:workflow-index` lead.
-- **Slug-mode is uniform:** the compressed slice is the sole output, branch creation is suppressed, and off-pipeline companion dirs are not written — per `_compressed-slice.md`.
 
 # Step 3 — Load the mode reference
 
@@ -130,8 +138,6 @@ Load the resolved reference in full and follow it exactly. Do not summarize, par
 | `amend` *(maintenance — branch 0)* | `intake/amend.md` |
 | `modernize` *(maintenance — branch 0)* | `intake/modernize.md` |
 
-`extend` has no keyword — it is reached only via branch 2 (an existing slug followed by free scope).
-
 # Step 4 — Execute
 
 1. Run the loaded mode reference. In **standalone** shape, honor every artifact write, branch step, and routing rule it describes. In **slug-mode** (branch 1), the `_compressed-slice.md` contract overrides any instruction that would create a new workflow, branch, top-level `00-index.md`, standalone `01-<mode>.md` / `hf-*` / `rf-*` artifact, or off-pipeline companion — write only the one compressed slice plus the additive index updates. In **extension** (branch 2), follow `intake/extend.md` as written; the compressed-slice override does not apply. In **maintenance** (branch 0), follow `intake/amend.md` / `intake/modernize.md` as written.
@@ -146,9 +152,8 @@ After the mode's logic completes, emit a chat summary as the LAST output before 
 ```
 wf intake <mode> complete: <slug-or-scope>     (slug-mode: wf intake <mode> → compressed slice <slice-slug> on <slug>)
 
-<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this
-run produced or decided, how far the flow traveled, the load-bearing counts/decisions, and the
-top risk or caveat.>
+<Narrative — quote the explainer summary of the lead artifact: what this run produced or
+decided, how far the flow traveled, the load-bearing counts/decisions, and the top risk.>
 
 Artifacts: <comma-separated paths, or "none">
 Next: <recommended command, or "Done">

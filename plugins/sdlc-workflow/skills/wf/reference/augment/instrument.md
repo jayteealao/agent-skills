@@ -32,12 +32,26 @@ existing-workflow/
 
 | | Detail |
 |---|---|
-| Requires | An existing workflow at `.ai/workflows/<slug>/` with at least `02-shape.md` present. |
+| Requires | See [## Requires](#requires). |
 | Produces | `04b-instrument.md` — observability plan for the workflow scope |
 | Updates | `00-index.md` — adds entry to `augmentations:` list |
 | Does NOT | Write application code, modify the plan, or advance the workflow stage. |
 | When to run | After `/wf shape` and before or during `/wf implement`. Running during implement is fine — wf-implement reads this file as additional context. |
 | Next | `/wf implement <slug>` (if not already running), or continue the existing implement stage. |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | always | |
+| `02-shape.md` | artifact | always | |
+| `04-plan-*.md` | artifact | if-present | |
+| `/.ai/observability.md` | artifact | if-present | |
+| `augment/instrument/_artifact.md` | procedure | always | |
+| `_story-arc.md` | procedure | always | |
+| `04b-instrument.md` | writes | | |
 
 > **Auto second opinion (objective triggers).** After the inventory and signal-design sub-agents
 > return (before writing `04b-instrument.md`), **auto-invoke** `/consult codex <critique this signal
@@ -61,17 +75,10 @@ You are an **observability architect**, not an implementer.
 2. **Check for existing augmentation:**
    - If `04b-instrument.md` already exists → WARN: "An instrumentation plan already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
    - If confirmed to proceed, note this is a re-instrumentation run.
-3. **Read the workflow context:**
-   - Read `02-shape.md` in full — this defines what is in scope.
-   - Read any `04-plan-*.md` files present — these name specific files and steps.
-   - Read `00-index.md` frontmatter — check `current-stage`, `status`, and any existing `augmentations:` entries.
-   - **If `.ai/observability.md` exists at the repo root**, read its **Block A** (canonical wide-event schema) and
-     **Block E** (collection pipeline). The signals you design must use that schema's field vocabulary and target
-     that pipeline — not a fresh convention. This is how per-change instrumentation stays consistent with the
-     project foundation. If it does not exist, design against the shared doctrine and note that
-     `/wf observability init` would establish the project-wide contract.
+3. **Use the workflow context.** `02-shape.md` defines the scope. The plan files name specific files and steps. The index shows `current-stage`, `status`, and existing `augmentations:` entries.
+   - When `.ai/observability.md` exists, use its **Block A** schema field vocabulary and its **Block E** pipeline. Do not invent a new convention. When it does not exist, design against the shared doctrine. Note that `/wf observability init` establishes the project-wide contract.
 4. **Identify files in scope:**
-   - Extract the explicit file list from `02-shape.md` ("Scope in" or "Files in scope" section) and any plan files.
+   - Extract the file list from `02-shape.md` `## Affected Areas` and from the plan files' `## Likely Files / Areas to Touch`.
    - This is the set of files the instrumentation must cover.
 
 # Step 1 — Observability gap analysis
@@ -137,7 +144,7 @@ Read `00-index.md`, then add or update the `augmentations:` field in its YAML fr
 augmentations:
   - type: instrument
     artifact: 04b-instrument.md
-    status: complete
+    status: ready          # authored; implement wires it, verify re-checks it
     created-at: <timestamp>
 ```
 
@@ -147,7 +154,7 @@ Also update `updated-at` to the current timestamp.
 
 # Step 4 — Hand off to user
 
-Return per [_chat-return.md](../_chat-return.md) — narrative lead (what was found, built, or measured, and what it means for the user), then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md) — a narrative lead that quotes the explainer's summary paragraph, then the structured anchors below.
 
 Emit a compact chat summary:
 

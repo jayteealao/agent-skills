@@ -41,6 +41,14 @@
  * `e.surface === 'terminal'`; each prompt or notice call is attempted and its
  * failure recorded. `hooks/mod/probe.ts` keeps the journal that says which
  * parts ran, on which host, for `scripts/mod-probe.mjs` to judge.
+ *
+ * The read check (ARTIFACT-SPLIT-PLAN.md S6, `hooks/mod/readledger.ts`): a
+ * Read of a workflow artifact or a `/wf` procedure file goes into a ledger per
+ * agent, with its line ranges. When the agent writes a stage artifact a
+ * `## Requires` table names (`hooks/mod/requires.ts`), the mod compares the
+ * ledger with the table: `warn` adds the missing list to the tool result,
+ * `block` refuses the write without a `read-waiver:`. Each check is one row
+ * in the workflow's `.read-ledger.jsonl`. The switch is `readCheck`.
  */
 import type { On, PluginOptions, RenderElement } from 'claude-code'
 
@@ -97,6 +105,38 @@ import { PROBE_FILE, ProbeJournal, surfaceAfterAttach } from './probe.ts'
 import type { ProbeIdentity } from './probe.ts'
 import { findProjectRoot, joinPath, listSlices, listWorkflows } from './workflows.ts'
 import type { Reader, SliceEntry, WorkflowEntry } from './workflows.ts'
+import {
+  MAIN_AGENT,
+  READ_LEDGER_FILE,
+  SLICE_MASTER,
+  agentKeyOf,
+  appendedTextOf,
+  artifactIdOf,
+  checkReads,
+  classifyPath,
+  contextTextOf,
+  isClean,
+  isExcludedWrite,
+  ledgerLineOf,
+  matchWrite,
+  preferredStagesOf,
+  procedureIdOf,
+  promptFedOf,
+  readCheckModeOf,
+  recordRead,
+  requiredOf,
+  waiverOf,
+  writtenTextOf,
+} from './readledger.ts'
+import type { CheckResult, Io, ReadFact, ReadLedger, RequiresEntry, WriteMatch } from './readledger.ts'
+import { REQUIRES } from './requires.ts'
+
+/**
+ * The store key a test puts a fixture Requires table under; the engine loads
+ * its own copy of this module, so the store is the one place a test reaches.
+ * Nothing else writes the key, so a session reads the generated module.
+ */
+export const REQUIRES_STORE_KEY = 'readCheck:requires'
 
 /** Every `$.noun.event` the mod calls after `session.start`, bound once. */
 type Host = {
@@ -133,6 +173,12 @@ type Host = {
   storeSet: (key: string, value: unknown) => Promise<void>
   /** Writes the whole text of a file, making its directories; the probe journal alone uses it. */
   writeFile: (path: string, text: string) => Promise<void>
+  /**
+   * Adds text to the end of a file, making it and its directories: a read of
+   * the old text and one whole write, trimmed past a cap. The engine has no
+   * append, so the module runs every append through one queue.
+   */
+  appendFile: (path: string, text: string) => Promise<void>
   /** The session's id, or an empty string when the engine gives none. */
   sessionId: () => Promise<string>
   /** The host's own name, from `CLAUDE_CODE_ENTRYPOINT`. */
@@ -206,7 +252,15 @@ const QUESTION_FLOOR = 20
 /** The intake mode whose question batches carry no floor annotation. */
 const NO_FLOOR_INTAKE_MODE = 'brainstorm'
 const HUB_DEFAULT_PORT = 48173
-const WRITE_TOOLS = ['Write', 'Edit', 'NotebookEdit'] as const
+/** The write tools, as a pattern: `MultiEdit` is not a tool this build's types declare. */
+const WRITE_TOOL_PATTERN = /^(?:Write|Edit|MultiEdit|NotebookEdit)$/u
+/** The tools that dispatch a sub-agent with a prompt. */
+const AGENT_TOOL_PATTERN = /^(?:Agent|Task)$/u
+/** Past this many recorded dispatch prompts the oldest is dropped. */
+const FED_CAP = 200
+
+/** A write the read check runs on: who wrote which stage artifact, and the stage entry it matched. */
+type CheckTarget = { agent: string; slug: string; file: string; id: string; match: WriteMatch }
 const DRIVER_TICK_MS = 5_000
 /** How long a dispatcher run names the turn that follows it. */
 const LAST_RUN_WINDOW_MS = 10_000
@@ -238,6 +292,21 @@ export function register(on: On, options: PluginOptions = {}) {
   let ringMaxRows = 12
   /** The probe journal of this session, or null when the switch is off or no home was found. */
   let journal: ProbeJournal | null = null
+  /** Every agent's Reads of workflow and procedure files this session, by agent key. */
+  let reads: ReadLedger = new Map()
+  /** The inputs a dispatch prompt fed, by the artifact id of the output it named. */
+  let fedByOutput = new Map<string, string[]>()
+  /** True once the main loop read a tracked file after its last checked stage write: a stage is under way. */
+  let mainReadSinceCheck = false
+  /** The queue every ledger append runs through, so two appends never drop a row. */
+  let appendQueue: Promise<void> = Promise.resolve()
+  /** A fixture Requires table from the store, or null for the generated module. */
+  let requiresOverride: readonly RequiresEntry[] | null = null
+
+  /** The Requires tables the check reads. */
+  function requiresNow(): readonly RequiresEntry[] {
+    return requiresOverride ?? REQUIRES
+  }
 
   const commandNames: string[] = [...DISPATCHER_COMMANDS, ...CATALOG.map(entry => commandNameOf(entry.key))]
 
@@ -561,6 +630,10 @@ export function register(on: On, options: PluginOptions = {}) {
       storeGet: key => $.store.get(key),
       storeSet: (key, value) => $.store.set(key, value),
       writeFile: (path, text) => $.fs.write(path, text),
+      appendFile: async (path, text) => {
+        const prior = (await $.fs.exists(path)) ? await $.fs.read(path) : ''
+        await $.fs.write(path, appendedTextOf(prior, text))
+      },
       sessionId: async () => {
         try {
           return await $.session.id()
@@ -584,6 +657,16 @@ export function register(on: On, options: PluginOptions = {}) {
       },
     }
     bracket = null
+    reads = new Map()
+    fedByOutput = new Map()
+    mainReadSinceCheck = false
+    requiresOverride = null
+    try {
+      const stored = await engine.storeGet(REQUIRES_STORE_KEY)
+      if (Array.isArray(stored)) requiresOverride = stored as RequiresEntry[]
+    } catch {
+      // No store: the generated module.
+    }
     stopDriver()
     driverText = null
     deadToastedRun = null
@@ -677,6 +760,10 @@ export function register(on: On, options: PluginOptions = {}) {
 
   on('config.set', { key: /^sdlc-workflow\./u }, async ($, e, next) => {
     const result = await next(e)
+    if (e.key === `${PLUGIN_NAME}.readCheck` && result.deny === undefined) {
+      settings = { ...settings, readCheck: readCheckModeOf(result.value) }
+      return result
+    }
     const name = settingOfKey(PLUGIN_NAME, e.key)
     if (name !== null && result.deny === undefined && typeof result.value === 'boolean') {
       settings = { ...settings, [name]: result.value }
@@ -898,12 +985,37 @@ export function register(on: On, options: PluginOptions = {}) {
     return next(e)
   })
 
-  on('tool.call', { tool: [...WRITE_TOOLS] }, async ($, e, next) => {
-    const result = await next(e)
+  on('tool.call', { tool: WRITE_TOOL_PATTERN }, async ($, e, next) => {
     const engine = host
-    if (!engine || model.root === null || result.deny !== undefined || result.isError === true) return result
-    const path = 'file_path' in e && typeof e.file_path === 'string' ? e.file_path : 'notebook_path' in e && typeof e.notebook_path === 'string' ? e.notebook_path : null
-    if (path === null || !isWorkflowPath(model.root, path)) return result
+    const input = e as unknown as Record<string, unknown>
+    const path = typeof input['file_path'] === 'string' ? input['file_path'] : typeof input['notebook_path'] === 'string' ? input['notebook_path'] : null
+    const agent = agentKeyOf(e.agentId)
+    const mode = settings.readCheck
+    const target = engine && path !== null && mode !== 'off' ? await readCheckTarget(engine, path, agent) : null
+    if (engine && target !== null && mode === 'block') {
+      // A deny after the write would leave the file written and tell the agent
+      // it failed: the block runs before the write (Y3).
+      const outcome = await runReadCheck(engine, target)
+      const waiver = isClean(outcome) ? null : waiverOf(writtenTextOf(input))
+      await appendLedgerRow(engine, target, outcome, waiver)
+      if (!isClean(outcome) && waiver === null) return { deny: contextTextOf({ artifact: target.file, reference: target.match.entry.reference, result: outcome, mode: 'block' }) }
+    }
+    const result = await next(e)
+    if (engine) await afterWrite(engine, path, result.deny === undefined && result.isError !== true)
+    if (!engine || target === null || result.deny !== undefined || result.isError === true) return result
+    if (target.agent === MAIN_AGENT) mainReadSinceCheck = false
+    if (mode !== 'warn') return result
+    const outcome = await runReadCheck(engine, target)
+    await appendLedgerRow(engine, target, outcome, null)
+    if (isClean(outcome)) return result
+    const text = contextTextOf({ artifact: target.file, reference: target.match.entry.reference, result: outcome, mode: 'warn' })
+    return { ...result, context: [...(result.context ?? []), text] }
+  })
+
+  /** The write bookkeeping: the turn's writes, the active workflow, the strip. */
+  async function afterWrite(engine: Host, path: string | null, isWritten: boolean): Promise<void> {
+    if (model.root === null || !isWritten) return
+    if (path === null || !isWorkflowPath(model.root, path)) return
     if (bracket !== null) bracket.writes.push(path)
     const slug = slugOfPath(model.root, path)
     if (slug !== null && bracket?.command?.slug == null) {
@@ -911,7 +1023,108 @@ export function register(on: On, options: PluginOptions = {}) {
       await remember(engine)
     }
     await refreshActive(engine)
+  }
+
+  /**
+   * The stage artifact a write lands, when the read check runs on it: a file
+   * under a workflow that a `writes` row names, not an excluded file, and for
+   * the slice roster only the slice stage's own write.
+   */
+  async function readCheckTarget(engine: Host, path: string, agent: string): Promise<CheckTarget | null> {
+    if (model.root === null) return null
+    const where = classifyPath(path, model.root)
+    if (where === null || where.kind !== 'artifact' || isExcludedWrite(where.file)) return null
+    const requires = requiresNow()
+    if (matchWrite(requires, where.file) === null) return null
+    const agentReads = reads.get(agent)
+    // The stages the writer is running: the main loop's `/wf` command, and
+    // every stage whose reference the writer read (a yolo stage agent reads
+    // its own). They settle a file several stages write (`02-shape.md`).
+    const readStages = requires.filter(entry => agentReads?.has(procedureIdOf(entry.reference)) === true).map(entry => entry.stage)
+    const preferStages = [...preferredStagesOf(agent === MAIN_AGENT ? (bracket?.command ?? null) : null), ...readStages]
+    if (where.file.toLowerCase() === SLICE_MASTER) {
+      // Implement, verify and the driver write the roster back; only a stage
+      // that writes the roster (slice, a change-mode intake) is checked.
+      const writers = requires.filter(entry => entry.rows.some(row => row.kind === 'writes' && row.input.toLowerCase() === SLICE_MASTER)).map(entry => entry.stage)
+      if (!writers.some(stage => preferStages.includes(stage))) return null
+    }
+    const roster = (await readSlices(engine, where.slug)).map(slice => slice.slug.toLowerCase())
+    // A review dimension file (`07-review-auth-security.md`) is no slice `auth-security`.
+    const acceptSlice = (slice: string) => roster.includes(slice) || !roster.some(known => slice.startsWith(`${known}-`))
+    const match = matchWrite(requires, where.file, preferStages, acceptSlice)
+    if (match === null) return null
+    return { agent, slug: where.slug, file: where.file, id: where.id, match }
+  }
+
+  /** The check for one target: the writer's reads against the stage's rows. Never throws. */
+  async function runReadCheck(engine: Host, target: CheckTarget): Promise<CheckResult> {
+    if (model.root === null) return { missing: [], partial: [] }
+    const io: Io = {
+      exists: path => engine.reader.exists(path),
+      read: path => readIfPresent(engine, path),
+      list: async dir => (await engine.reader.list(dir)).filter(entry => entry.kind === 'file').map(entry => entry.name),
+    }
+    try {
+      const required = requiredOf(target.match, target.slug)
+      return await checkReads(required, { root: model.root, slug: target.slug, reads: reads.get(target.agent), fed: fedByOutput.get(target.id) ?? [] }, io)
+    } catch (error) {
+      engine.log(`wf read check: ${messageOf(error)}`)
+      return { missing: [], partial: [] }
+    }
+  }
+
+  /** One `.read-ledger.jsonl` row per check, through the append queue; a failure is one log line. */
+  async function appendLedgerRow(engine: Host, target: CheckTarget, outcome: CheckResult, waiver: string | null): Promise<void> {
+    if (model.root === null) return
+    const path = joinPath(model.root, '.ai', 'workflows', target.slug, READ_LEDGER_FILE)
+    let at: string
+    try {
+      at = new Date(await engine.now()).toISOString()
+    } catch {
+      at = new Date(0).toISOString()
+    }
+    const line = ledgerLineOf({ at, agentId: target.agent, stage: target.match.entry.stage, artifact: target.file, missing: outcome.missing, partial: outcome.partial, waiver })
+    appendQueue = appendQueue
+      .then(() => engine.appendFile(path, line))
+      .catch(error => engine.log(`wf read check: the ledger row was not written: ${messageOf(error)}`))
+    await appendQueue
+  }
+
+  on('tool.call', { tool: 'Read' }, async ($, e, next) => {
+    const result = await next(e)
+    if (result.deny !== undefined || result.isError === true) return result
+    const where = classifyPath(e.file_path, model.root)
+    if (where === null) return result
+    // The probe journal: one row per loop per session proves the hook fires, and whether it carries an agentId (W0).
+    journal?.readFired(e.agentId, e.file_path)
+    const agent = agentKeyOf(e.agentId)
+    recordRead(reads, agent, where.id, e.file_path, readFactOf(result.result))
+    if (agent === MAIN_AGENT) mainReadSinceCheck = true
     return result
+  })
+
+  on('tool.call', { tool: AGENT_TOOL_PATTERN }, async ($, e, next) => {
+    // Recorded before the call: a foreground agent writes its artifact before
+    // the Agent call returns.
+    const input = e as unknown as Record<string, unknown>
+    const prompt = input['prompt']
+    if (typeof prompt === 'string' && requiresNow().length > 0) {
+      const fed = promptFedOf(prompt)
+      if (fed !== null && fed.inputs.length > 0) {
+        for (const output of fed.outputs) {
+          if (matchWrite(requiresNow(), output.file) === null) continue
+          const id = artifactIdOf(output.slug, output.file)
+          fedByOutput.delete(id)
+          fedByOutput.set(id, fed.inputs)
+        }
+        while (fedByOutput.size > FED_CAP) {
+          const oldest = fedByOutput.keys().next().value
+          if (oldest === undefined) break
+          fedByOutput.delete(oldest)
+        }
+      }
+    }
+    return next(e)
   })
 
   on('tool.call', { tool: /^AskUserQuestion$/u }, async ($, e, next) => {
@@ -981,7 +1194,11 @@ export function register(on: On, options: PluginOptions = {}) {
     // its `agentId`. It is not the person's turn: it must not consume the
     // bracket, or the first sub-agent to finish ends the stage's bookkeeping
     // and the writes that follow it are counted against nothing.
-    if (e.agentId !== undefined) return result
+    if (e.agentId !== undefined) {
+      // A sub-agent's reads end with it.
+      reads.delete(e.agentId)
+      return result
+    }
     const turn = bracket
     bracket = null
     if (!engine || turn === null) return result
@@ -1093,6 +1310,13 @@ export function register(on: On, options: PluginOptions = {}) {
     // Every compaction of the main conversation, while a workflow is active,
     // keeps the workflow's position: one sentence ahead of the instructions.
     // A precompute installs nothing and passes through.
+    // The main loop's read ledger resets between stages, so the next stage
+    // reads its inputs again; a compaction in the middle of a stage (a stage
+    // turn open, reads since its last checked write) keeps it.
+    if (e.agentId === undefined && e.trigger !== 'precompute' && !(bracket !== null && mainReadSinceCheck)) {
+      reads.delete(MAIN_AGENT)
+      mainReadSinceCheck = false
+    }
     const workflow = activeWorkflow()
     if (!settings.stageCompact || e.agentId !== undefined || e.trigger === 'precompute' || workflow === null) return next(e)
     const sentence = compactKeepSentenceOf(workflow)
@@ -1173,6 +1397,16 @@ export function register(on: On, options: PluginOptions = {}) {
     if (host && model.step !== null) close(host)
     return next(e)
   })
+}
+
+/** A Read result's line facts; a result without them (an image, a notebook) counts as the whole file. */
+function readFactOf(result: unknown): ReadFact {
+  const file = result && typeof result === 'object' ? (result as { file?: unknown }).file : undefined
+  if (file && typeof file === 'object') {
+    const { startLine, numLines, totalLines } = file as { startLine?: unknown; numLines?: unknown; totalLines?: unknown }
+    if (typeof startLine === 'number' && typeof numLines === 'number' && typeof totalLines === 'number') return { startLine, numLines, totalLines }
+  }
+  return { startLine: 1, numLines: 0, totalLines: 0 }
 }
 
 function messageOf(error: unknown): string {

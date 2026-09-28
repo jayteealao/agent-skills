@@ -99,8 +99,8 @@ If any slug has a `cost.jsonl`, add the cost table (one row per slug with a ledg
 | **total** | | | | | | | |
 
 ## Next
-- **Default:** `<recommended-next-invocation>` — <one-line reason>
-- **Options:** (every option from the current stage file's `## Recommended Next Stage` — present ALL, do not pick silently)
+- **Default:** `<next-invocation>` — <the default route's reason>
+- **Options:** (every entry of the current stage file's `recommended-routes`, or of its legacy `## Recommended Next Stage` section — present ALL, do not pick silently)
 - If `Status: Awaiting input`: resolve the listed open questions first.
 - If the workflow is complete/closed: say so, and offer `/wf recap <slug>` or `/wf intake <slug> <new scope>` (extend).
 - If on the wrong branch: ⚠ You are on `<current>` — switch to `<branch>` before the next command.

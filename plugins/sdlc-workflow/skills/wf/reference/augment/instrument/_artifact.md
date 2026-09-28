@@ -18,13 +18,18 @@ signals-designed: <N>
 pii-warnings: <true|false>
 status: ready
 created-at: <real UTC timestamp per _timestamp.md>
+next-command: wf-implement
+next-invocation: "/wf implement <slug>"
+recommended-routes:
+  - invocation: "/wf implement <slug>"
+    reason: "<one phrase>"
+    default: true
 ---
 ```
 
-**Body sections (in order):**
+Write the explainer to `04b-instrument.explainer.html.fragment` per [../../_story-arc.md](../../_story-arc.md).
 
-## The Instrumentation
-<!-- STORY SECTION — first, and self-sufficient. must follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+**Body sections (in order):**
 
 ## 1. Current state
 
@@ -101,10 +106,8 @@ This section is **direction, not a plan** — do not enumerate full implementati
 
 ## Step — Sibling YAML `instrument`
 
-After writing the instrument MD (`.ai/workflows/<slug>/04b-instrument.md`
-or, when invoked as an augmentation under a slug,
-`.ai/workflows/<slug>/augmentations/<inst-id>.md`), write a sibling
-`.yaml` next to it with `artifact: instrument`. The view-layer renderer
+After writing `.ai/workflows/<slug>/04b-instrument.md`, write the sibling
+`04b-instrument.yaml` next to it with `artifact: instrument`. The view-layer renderer
 projects this as a signal table (kind-coloured chips per row) plus a
 dark-paths callout list and an optional PII-warning counter.
 
@@ -118,7 +121,7 @@ from the sibling YAML (same YAML → byte-identical HTML) and pass
 Shape:
 
 ```yaml
-# 04b-instrument.yaml — or augmentations/<inst-id>.yaml
+# 04b-instrument.yaml
 artifact:   instrument
 framework:  "opentelemetry"
 signals:

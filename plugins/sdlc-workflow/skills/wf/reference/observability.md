@@ -14,6 +14,23 @@ You are the **observability router** for the SDLC plugin, invoked as `/wf observ
 > plugs into. To add signals for **one change**, use the shape-decided `augment/instrument` augmentation, which
 > designs against *this* contract's schema when `.ai/observability.md` exists.
 
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| repository signals | artifact | always | |
+| `/.ai/ship-plan.md` | artifact | mode:init | |
+| `/.ai/observability.md` | artifact | mode:build | |
+| `/.ai/observability.md` | artifact | mode:audit | |
+| `observability/init.md` | procedure | mode:init | |
+| `observability/build.md` | procedure | mode:build | |
+| `observability/audit.md` | procedure | mode:audit | |
+| `/.ai/observability.md` | writes | | |
+
+The router reads no workflow artifacts.
+
 # Step 0 — Resolve the sub-command
 
 The first token of `$ARGUMENTS` (after `observability` is stripped by `wf/SKILL.md`) selects the sub-command:
@@ -36,14 +53,12 @@ Usage:
 Which would you like to run?
 ```
 
-There is no `edit` sub-command yet — amend `.ai/observability.md` by hand (it is a plain markdown contract, like `.ai/ship-plan.md`). If `audit` routing surfaces repeated contract friction, an `edit` sub-key is the sanctioned next addition.
+There is no `edit` sub-command yet. Amend `.ai/observability.md` by hand.
 
 # Step 1 — Load the sub-reference and follow it exactly
 
-Once the token is resolved, load the corresponding reference file from
-`<reference>` and follow it exactly.
-Do not summarize, paraphrase, or skip steps. Pass any remaining tokens in `$ARGUMENTS`
-(after the sub-command token) as the arguments for the sub-reference.
+Load the reference file for the token and follow it exactly. Pass the remaining tokens in
+`$ARGUMENTS` to the sub-reference as its arguments.
 
 # Step 2 — Emit the sub-reference's chat return as-is
 

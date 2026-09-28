@@ -5,7 +5,7 @@ Triggered when the second argument to `/wf implement` is literally `reviews`. Ex
 Reads findings from `07-review-<slice-slug>.md`, extracts all BLOCKER and HIGH findings (and MED if the user requests), then fixes them **in parallel** using write-isolated sub-agents (per [../_subagents.md](../_subagents.md)). The findings are independent by construction; only a patch-overlap conflict forces the conflicting pair back to serial.
 
 Do this in order for reviews mode:
-1. **Resolve the slice-slug.** If a slice-slug was passed as a third argument (for example `/wf implement my-slug auth-flow reviews`), use it. Otherwise use `selected-slice-or-focus` from `00-index.md`. If neither is set, ask the user.
+1. **Resolve the slice-slug.** If a slice-slug was passed as a third argument (for example `/wf implement my-slug auth-flow reviews`), use it. Otherwise use `selected-slice` from `00-index.md`. If neither is set, ask the user.
 2. **Read `07-review-<slice-slug>.md`** and all `07-review-<slice-slug>-<command>.md` for that slice. Other slices' review files are out of scope.
 3. **Extract the findings list.** Build an ordered list sorted by severity (BLOCKER first, then HIGH, then MED if requested). Each finding has: ID, severity, file:line, issue description, suggested fix.
 4. **Track the findings in a work-tracking checklist**: one item per finding plus the ledger update and the atomic commit; keep statuses truthful as fixes land.
@@ -51,7 +51,7 @@ Do this in order for reviews mode:
       ```
    d. Update `00-index.md`.
    e. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):** stage by explicit path, classified exactly as mainline Step 13 in `implement.md` (slice code by path, workflow artifacts by path, unknown dirty paths fail closed; `git add -A` and pathless `git add` are forbidden). Commit `fix(<slug>): review fixes for <slice-slug>`. Record the commit SHA. No push. If `branch-strategy` is `none`, skip the commit.
-8. **Evaluate adaptive routing** and present ALL viable options:
+8. **Evaluate adaptive routing.** Write ALL viable options into the record's `recommended-routes`:
    - **Option A (default): Re-verify** → `/wf verify <slug> <slice-slug>` when fixes were applied. Compact recommended: review-fix context is noise for re-verification.
    - **Option B: Re-review** → `/wf review <slug> <slice-slug>` when some findings could not be fixed and need re-assessment. Compact recommended: a fresh review needs clean context.
    - **Option C: Handoff** → `/wf handoff <slug> <slice-slug>` when all findings were fixed and the change was already verified.

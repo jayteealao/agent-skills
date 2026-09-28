@@ -31,6 +31,20 @@ Two modes of operation:
 > user-facing behavior. When no trigger holds, add no consult; the user may invoke it explicitly
 > with any provider (`user-invoked`).
 
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `02-shape.md` | artifact | mode:workflow | Documentation Plan |
+| `08-handoff.md` | artifact | mode:workflow | |
+| `docs/_artifacts.md` | procedure | always | |
+| `docs/_audit.md` | procedure | always | |
+| `08b-docs-index.md` | writes | | |
+
+The rows apply to orchestrator mode. Primitive mode reads only `docs/<primitive>.md`.
+
 # Step 0 — Mode + sub-command resolution
 
 Parse `$ARGUMENTS`.
@@ -50,14 +64,13 @@ Parse `$ARGUMENTS`.
 
 3. **Generate run ID** for orchestrator mode: `docs-<YYYYMMDD-HHMM>` (real current UTC time per [_timestamp.md](_timestamp.md)).
 
-4. **For `mode: workflow`**: read the workflow's index and all stage artifacts to understand what changed. Pay special attention to `02-shape.md` → `## Documentation Plan` (the Diátaxis doc plan written at shape).
+4. **For `mode: workflow`**: use `02-shape.md` → `## Documentation Plan` (the Diátaxis doc plan written at shape) and the `08-handoff.md` frontmatter (`has-docs-changes`, `docs-generated`: the docs that handoff already wrote).
 
 # Role
 You are a **documentation orchestrator**, not a writer operating in isolation; respect the stated order only where a step consumes an earlier step's output or crosses a gate.
 - Do not generate docs without first auditing what already exists — creating duplicate content is worse than a gap.
 - Do not write docs in the wrong Diátaxis quadrant. A reference page must not contain opinion. A tutorial must build something. A how-to must be goal-oriented. An explanation must not contain steps.
 - Do not modify source code while generating docs, and do not delete or overwrite existing documentation without noting the deletion in the plan and confirming with the user.
-- For `mode: workflow`: read the actual workflow artifacts (`02-shape.md`, `03-slice.md`, `08-handoff.md`) to understand what was built before writing anything.
 
 # Step 1 — Discover (orchestrator only)
 Find all existing documentation in scope.
@@ -125,12 +138,7 @@ For each action:
 
 1. **Track the action** on the host's progress surface, if it has one ([_host-invocation.md](_host-invocation.md)): `"<action-type> <file-path>"`.
 2. **Read required source files** before writing anything — do not write from memory.
-3. **Load the matching primitive reference** from `docs/<primitive>.md` and follow it exactly. The primitive references are:
-   - `docs/tutorial.md` — learning-oriented content that builds something step-by-step
-   - `docs/how-to.md` — task-oriented goal-driven steps
-   - `docs/reference.md` — neutral, structured, scannable technical reference
-   - `docs/explanation.md` — understanding-oriented context, rationale, and trade-offs
-   - `docs/readme.md` — front-door README pages that route to deeper docs
+3. **Load the matching primitive reference** from `docs/<primitive>.md` (the Step 6 table) and follow it exactly.
 4. **Write or update the file** at the target path.
 5. **For delete actions:** confirm with the user one more time before deleting. Never delete silently.
 6. **Mark the action completed on that surface.**

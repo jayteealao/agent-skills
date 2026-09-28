@@ -145,49 +145,24 @@ direction-confirmed-by: <in-session|product-md|teach>
 confirmed-at: <timestamp>
 surfaces: [every surface drawn]
 references-loaded: [union of the brief's recommended-references + any references loaded while authoring the contract — authoritative; wf-plan and wf-implement re-read this]
+next-command: wf-slice
+next-invocation: "/wf slice <slug>"
+recommended-routes: [{invocation: "/wf slice <slug>", reason: "the person confirmed the design", default: true}]
 ---
 ```
 
-Body sections:
+Write the explainer to `02c-craft.explainer.html.fragment` per [_story-arc.md](../_story-arc.md). Body sections, in order, under these exact `##` headings (later stages cite them):
 
-### 1. Visual direction confirmed
-One paragraph summarizing the approved direction. Include the chosen probe (if applicable) and any deviations from the original brief that emerged during this step.
+- `## Visual direction confirmed` — one paragraph on the approved direction: the chosen probe (if any) and each deviation from the brief.
+- `## North-star mock` — the mock image path (or "none — text-only direction"), the scene sentence (always), and 5–10 annotated callouts, each with a short description and an implementation note.
+- `## Mock fidelity inventory` — the non-negotiable visible ingredients, one numbered line each: `<ingredient> — <where in mock> — <why non-negotiable>`.
+- `## Implementation contract` — the decisions `/wf implement` follows: **token choices** (existing tokens, new tokens); **component decisions** (extend X or create Y); **layout structure** (grid, breakpoints); **type scale**; **color application**; **motion** (timing, easing, and for anything frequently seen, whether it animates at all; `animate.md` carries the rules); **finish & detail** (concentric radius, optical alignment, shadows versus borders, hit-area minimums; `polish.md`); **state coverage** per interactive element.
+- `## Anti-patterns to avoid` — from the brief's anti-goals plus the absolute bans in `_design-context.md`, specific to this feature.
+- `## Implementation references` — the reference docs `/wf implement` consults (`typeset.md`, `animate.md`, `harden.md`, and so on).
 
-### 2. North-star mock
-- Path to the generated mock image (or "none — text-only direction")
-- Scene sentence (always)
-- Annotated callouts: 5–10 specific visual elements in the mock, each with a short description and an implementation note
+Record the reference list authoritatively in the `references-loaded:` frontmatter array as the **union** of the brief's `recommended-references:` (from `02b-design.md`) and each reference you loaded while authoring the contract. Names omit `.md` and resolve to `skills/wf/reference/design/<name>.md`. `/wf implement` re-reads this field, not the prose: a reference only in `## Implementation references` is not loaded, so keep the two in sync.
 
-### 3. Mock fidelity inventory
-The non-negotiable visible ingredients. Each entry: what it is, where in the mock, why it matters.
-
-Format:
-```
-1. <ingredient> — <where in mock> — <why non-negotiable>
-2. ...
-```
-
-### 4. Implementation contract
-Specific decisions for `/wf implement` to follow:
-- **Token choices**: which existing tokens to use, which new tokens to add
-- **Component decisions**: extend existing component X / create new component Y
-- **Layout structure**: grid choice, breakpoint behavior
-- **Type scale**: which sizes/weights from the brief apply where
-- **Color application**: which elements carry which colors in the strategy
-- **Motion**: which interactions need transitions — with timing, easing, and (for anything frequently-seen) whether it should animate at all; `animate.md` carries the frequency / easing / interruptibility rules
-- **Finish & detail**: the interface-craft decisions that read as "off" when missed — concentric radius on nested surfaces, optical alignment, shadows-vs-borders for elevation, hit-area minimums (`polish.md`)
-- **State coverage**: required states for each interactive element
-
-### 5. Anti-patterns to avoid
-Pulled from anti-goals in the brief plus the absolute bans list (`_design-context.md`). Be specific to this feature.
-
-### 6. Implementation references
-Which reference docs `/wf implement` should consult (typeset.md, animate.md, harden.md, etc.).
-
-Record this list authoritatively in the `references-loaded:` frontmatter array above as the **union** of (a) the brief's `recommended-references:` (from `02b-design.md`) and (b) any references you loaded or added while authoring the contract. Names omit the `.md` extension and resolve to `skills/wf/reference/design/<name>.md`. This is the field `/wf implement` re-reads — together with `02b`'s `recommended-references:` — to load design rationale. A reference that appears only in this prose section but **not** in `references-loaded:` will NOT be loaded by implementation, so keep the two in sync.
-
-### 7. How the later stages carry the contract
-The contract is a design-stage artifact. `slice` maps its surfaces to slices; `plan` turns every `## Mock fidelity inventory` item into a concrete plan step and every `## Implementation contract` token/component/motion decision into a plan-step pointer; `implement` applies them ([_lane.md](_lane.md) → One duty per stage). Update `00-index.md` per [stage.md](stage.md) Step 6. A later stage that cannot build the contract as drawn routes to `/wf design <slug> amend`; it never edits the contract itself.
+**How the later stages carry the contract.** The contract is a design-stage artifact. `slice` maps its surfaces to slices; `plan` turns every `## Mock fidelity inventory` item into a concrete plan step and every `## Implementation contract` token/component/motion decision into a plan-step pointer; `implement` applies them ([_lane.md](_lane.md) → One duty per stage). Update `00-index.md` per [stage.md](stage.md) Step 6. A later stage that cannot build the contract as drawn routes to `/wf design <slug> amend`; it never edits the contract itself.
 
 ---
 

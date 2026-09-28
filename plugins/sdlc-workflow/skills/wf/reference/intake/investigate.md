@@ -4,7 +4,7 @@ argument-hint: <problem-statement-or-slug>
 ---
 
 # Output boundary & shared context
-Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake investigate`, a **solution-options sketcher** that proposes multiple engineering approaches to a stated problem and characterizes their tradeoffs — without picking a winner.
 
@@ -19,11 +19,26 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 
 | | Detail |
 |---|---|
-| Requires | Nothing — starts fresh. Pass a problem statement or an existing slug to resume; pass `<slug> <option>` to record a pick. |
+| Requires | See [## Requires](#requires). Pass a problem statement or an existing slug to resume; pass `<slug> <option>` to record a pick. |
 | Produces | `01-investigate.md` (problem + architecture map + every distinct option sketched with tradeoffs — ≤3 full cards, surplus as compressed entries — plus a status-quo baseline), `00-index.md`. **No `02-shape.md`** — the user chooses an option first; the downstream command (`/wf intake` or `/wf intake fix`) does the shape pass on the chosen option, seeded from this artifact via `_intake-provenance.md`. |
 | Skips | No fix, no plan, no implementation, no recommendation. The option set *is* the output. |
 | Next | User picks an option → record it (`/wf intake investigate <slug> <option> [reason]`), then `/wf intake fix "<option> — <one-line>" from <slug>` (`effort: small` per the effort rubric below) or `/wf intake "<option> — <one-line>" from <slug>` (medium+). |
 | Escalate | If sub-agents agree no viable option exists within the current architecture → surface `architecture-blocking` and recommend a design pass via `/wf intake` with the problem framed as an architecture question. |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | on-resume | |
+| `01-investigate.md` | artifact | on-resume | |
+| `steer.md` | artifact | if-present | |
+| `intake/_intake-context.md` | procedure | always | |
+| `intake/investigate/_research.md` | procedure | always | |
+| `intake/investigate/_artifact.md` | procedure | always | |
+| `_compressed-slice.md` | procedure | mode:slug | |
+| `01-investigate.md` | writes | | |
 
 > **Auto second opinion (objective triggers).** At the terminus, once the option set is
 > synthesized (after Step 3 has written `01-investigate.md` and before Step 4 writes the index —
@@ -91,7 +106,7 @@ Do not write the artifact yet. Hold answers in working memory and proceed.
 # Step 2 — Map and sketch (two waves)
 Three sub-agents, dispatched in two waves: the cartographer and the option generator are independent and launch **in parallel**; the tradeoff characterizer launches **after both return**, because it consumes their output — launched blind it can only produce an empty template. Each is a separate read-only sub-agent dispatch (per [_subagents.md](../_subagents.md)). Do not proceed to synthesis until all three complete.
 
-Charters, effort tier, and return shapes for the three sub-agents are in [intake/investigate/_research.md](investigate/_research.md).
+Charters, effort tier, and return shapes for the three sub-agents are in `intake/investigate/_research.md`.
 
 # Step 3 — Synthesize and write `01-investigate.md`
 
@@ -116,10 +131,13 @@ constraints: [<from-question-3>]
 recommended-next: user-picks   # this command never picks
 status: ready-for-routing
 created-at: <real UTC timestamp per _timestamp.md>
+next-command: user-picks
+next-invocation: "/wf intake investigate <slug> <option>"
+recommended-routes: [{invocation: "/wf intake investigate <slug> <option>", reason: "record the pick", default: true}]
 ---
 ```
 
-Write the body per [intake/investigate/_artifact.md](investigate/_artifact.md): the story section, then sections 1–6 (problem, architecture map, option cards, side-by-side comparison with the status-quo column, routing table, tripwires).
+Write the explainer and the body per `intake/investigate/_artifact.md`: `## Problem & constraints`, `## Architecture map`, `## Options`, `## Side-by-side comparison` with the status-quo column, `## Routing`, `## Tripwire warnings`.
 
 ## Step — Write free narrative fragments
 
@@ -140,7 +158,7 @@ branch-strategy: none
 branch: <current-branch>
 base-branch: <current-branch>
 next-command: user-picks
-next-invocation: "user-picks — record via /wf intake investigate <slug> <option>; see 01-investigate.md section 5"
+next-invocation: "user-picks — record via /wf intake investigate <slug> <option>; see 01-investigate.md ## Routing"
 option-count: <N: total distinct viable options found>
 presented-count: <min(N, 3)>
 option-labels: [<A label>, <B label>, <C label>]   # full-card options only
@@ -162,7 +180,7 @@ implicit pick in `_intake-provenance.md`) later flips this index to `closed` wit
 
 # Step 5 — Hand off to user
 
-Return per [_chat-return.md](../_chat-return.md) — narrative lead (what was found, built, or measured, and what it means for the user), then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md) — quote the explainer summary as the narrative lead, then the structured anchors below.
 
 Emit a compact chat summary:
 
@@ -174,10 +192,10 @@ Options found: <N> (<presented-count> full cards)
   B — <label> — effort:<X> radius:<Y> reversibility:<Z>
   C — <label> — effort:<X> radius:<Y> reversibility:<Z>   # if present
   Demoted by cap: <N−3> — see "Options considered and rejected"   # only if option-space-truncated fired
-Cross-option observation: <one line from section 4>
+Cross-option observation: <one line from ## Side-by-side comparison>
 Tripwires: <none | comma-separated list>
 Next: pick an option — record it via /wf intake investigate <slug> <option> [reason],
-      then route per section 5 (the routed invocation carries `from <slug>`)
+      then route per ## Routing (the routed invocation carries `from <slug>`)
 Artifact: .ai/workflows/<slug>/01-investigate.md
 ```
 
@@ -200,18 +218,18 @@ starts the successor — it prints the invocation and stops.
    `decision-note: <the trailing prose>` if the user supplied any (omit the key otherwise).
 2. **Append a `## Decision` section** to the artifact body: which option was picked; why (the
    user's reason exactly, else "user picked without a stated reason"); which tripwires were live
-   at pick time (from section 6, or "none").
+   at pick time (from `## Tripwire warnings`, or "none").
 3. **Close the workflow.** Update `00-index.md`: `status: closed`, `close-reason: option-picked`,
    `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`,
    `next-invocation: "none — decision recorded"`. Update the slug's row in `.ai/workflows/INDEX.md`
    to `closed`. `superseded-by: pending` is corrected to the successor slug by the downstream
    mode's link-back (`_intake-provenance.md`); updating that one field on a closed index is
    additive and safe.
-4. **Print the next invocation** with provenance, per the effort routing in artifact section 5 —
+4. **Print the next invocation** with provenance, per the effort routing in the artifact `## Routing` —
    `/wf intake fix "<label> — <one-line mechanism>" from <slug>` (small) or
    `/wf intake "<label> — <one-line mechanism>" from <slug>` (medium+) — and stop. Do not run it.
 
-A `discover` compressed slice landing on this slug (section 5's escalation ladder) is NOT a pick
+A `discover` compressed slice landing on this slug (the `## Routing` escalation ladder) is NOT a pick
 and re-opens nothing: it is drill-down on a still-open decision, and its answer stays in the
 slice — no option-card write-back.
 

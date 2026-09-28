@@ -41,6 +41,20 @@ No journal at all → *"no driver journal — I can't tell whether one ran."* Th
 
 Existence is not liveness: an artifact trail outlives the driver that wrote it, and the harness task registry can lose a task entirely. The same discipline applies to any claim about work you did not watch, including another session's (see [_chat-return.md](_chat-return.md)).
 
+## Append-only files beside the index
+
+Three JSONL files sit next to `00-index.md`. Each has one kind of writer and one kind of row. A `.jsonl` file triggers no render and no stale flag.
+
+| File | Writer | Row |
+|---|---|---|
+| `index-history.jsonl` | any stage or driver that removes history from the index | `{"at":"<ISO-8601>","kind":"note\|next-commentary\|subpass\|migrated","text":"<text>","stage":"<stage or null>"}` |
+| `.driver-journal.jsonl` | the agents a driver dispatches | heartbeat rows only (see the staleness rule above) |
+| `.read-ledger.jsonl` | the mod only | one read-check row per stage write ([_requires.md](_requires.md)) |
+
+- `index-history.jsonl` holds what the index no longer needs: YAML comment prose, old next-step commentary, and finished sub-pass telemetry. Append one row for each item you remove, then remove it from the index. The deferral list (cleared entries too), the intent risks, the charter and the `revisions:` ledger stay in the index.
+- Write only driver heartbeat rows to `.driver-journal.jsonl`. The liveness check reads its newest line as the driver's state, so any other row makes a live run look dead or a dead run look alive.
+- Do not write `.read-ledger.jsonl`. The mod owns it, and it is never `.driver-journal.jsonl`.
+
 ## What this is not
 
 Not a lock, not a lease, not a queue. There is no coordination primitive here and none is wanted — the cost of one lost race is a re-read, while the cost of a lock is a stuck workflow when the holder dies. This contract makes the losing case *designed and cheap* instead of surprising.

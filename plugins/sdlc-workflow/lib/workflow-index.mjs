@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { readdir, realpath, stat } from 'node:fs/promises';
 import { basename, join, relative } from 'node:path';
 import { safeLoadFrontmatterFile } from './frontmatter.mjs';
+import { EVIDENCE_DIRS } from './hook-utils.mjs';
 import { latestMtimeMs } from './render-state.mjs';
 
 // Wider than the schema's `status` enum (active/complete/closed) on purpose —
@@ -163,6 +164,13 @@ export function activeWorkflowIndexes(workflows) {
   return workflows.filter((workflow) => workflow.isActive && workflow.classification !== 'invalid');
 }
 
+// The stale check counts only artifact files. Evidence folders directly under
+// the workflow directory (probe-evidence/, verify-evidence/) are free-form and
+// written after the index, so they never mark a workflow stale
+// (ARTIFACT-SPLIT-PLAN S5). `.jsonl` files (index-history.jsonl,
+// .read-ledger.jsonl, cost.jsonl) are ignored by the extension filter below.
+const STALE_EXEMPT_DIRS = new Set(EVIDENCE_DIRS);
+
 async function walkWorkflowFiles(root) {
   const out = [];
   const stack = [root];
@@ -178,6 +186,7 @@ async function walkWorkflowFiles(root) {
       const abs = join(dir, entry.name);
       if (entry.isDirectory()) {
         if (entry.name === 'node_modules') continue;
+        if (dir === root && STALE_EXEMPT_DIRS.has(entry.name)) continue;
         stack.push(abs);
       } else if (
         entry.isFile() &&

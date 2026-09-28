@@ -13,11 +13,32 @@ You are running `/wf slice`, **stage 3 of 10**: 1·intake → 2·shape → `3·s
 
 | | Detail |
 |---|---|
-| Requires | `01-intake.md`, `02-shape.md` |
-| Conditional inputs (required when present) | `02b-design.md` (design brief: its states, edge cases, and surfaces inform slice boundaries); `02c-craft.md` (visual contract: distinct visual surfaces in the mock fidelity inventory are reflected in slice boundaries; Step 0.5 holds the per-surface justification escape hatch for intentional grouping) |
+| Requires | See [## Requires](#requires). |
 | Produces | `03-slice.md` (master index) + `03-slice-<slice-slug>.md` per slice |
 | Next | `/wf plan <slug> <best-first-slice>` (default) |
 | Alt | `/wf plan <slug> all` to plan all slices in parallel |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | always | |
+| `01-intake.md` | artifact | always | |
+| `02-shape.md` | artifact | always | |
+| `po-answers.md` | artifact | if-present | |
+| `02b-design.md` | artifact | if-present | |
+| `02c-craft.md` | artifact | if-present | |
+| `design/_lane.md` | procedure | always | |
+| `design/_design-context.md` | procedure | mode:design | |
+| `design/onboard.md` | procedure | mode:design | |
+| `design/polish.md` | procedure | mode:design | |
+| `_story-arc.md` | procedure | always | |
+| `03-slice-<slice>.md` | writes | | |
+| `03-slice.md` | writes | | |
+
+`mode:design` rows apply when design is needed per [design/_lane.md](design/_lane.md).
 
 **Auto second opinion (objective triggers).** Once `03-slice.md` is drafted (before adaptive routing), auto-invoke `/consult codex <critique this slice decomposition — independence, ordering, any risky slice buried mid-sequence>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) the roster has more than 3 slices or a dependency chain 3+ deep; (b) any slice carries the charter-scenario AC or a carried intent-risk (RIM); (c) distinct visual surfaces or states were grouped into one slice via the justified-grouping escape. Skip only when none of the triggers hold; the user may invoke it explicitly with any provider.
 
@@ -43,17 +64,16 @@ Apply [_workflow-rules.md](_workflow-rules.md).
      - If `stack.user-confirmed: false` → WARN: "`stack:` was auto-detected but the PO has not confirmed it. Slicing decisions that depend on tooling or platform (which surfaces ship together) may be wrong. Re-run intake's Batch B confirmation, or proceed and accept the risk?" Ask it as a gate question per [_gate-question.md](_gate-question.md). If the user proceeds, treat the unconfirmed stack as advisory only; it does not drive slice boundaries.
      - If `stack.user-confirmed: true` → proceed. The slice strategy may reference confirmed platforms and tooling to justify groupings, and introduces no tooling assumptions beyond `stack:`.
    - If `current-stage` is already past slice → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revisions and appends the `revisions:` ledger.
-4. **Read** `01-intake.md`, `02-shape.md`, and `po-answers.md`.
-5. **Read design artifacts (required when present).**
+4. **Use the design artifacts when present.**
    - `02b-design.md`: extract the content inventory, the state list (empty / error / loading / first-run), and the visual direction. State transitions (empty vs populated) and visual surface boundaries (main view vs settings drawer) inform slice boundaries: either each distinct state or surface gets its own slice, or the master `03-slice.md` `## Slice Strategy` justifies the grouping with one sentence per state or surface.
    - `02c-craft.md`: extract `## Mock fidelity inventory` and the per-surface notes. Distinct visual surfaces (card vs detail vs drawer) and signature interactions are reflected as slice boundaries under the same rule: own slice, or one justifying sentence per surface in `## Slice Strategy`. Do not re-decompose around token choices, motion specs, or implementation details; those belong to plan and implement. If `02c-craft.md` introduces surfaces or states absent from the shape or `02b-design.md`, record an open question on the master index rather than silently expanding scope.
-   - **State-completeness knowledge (when design is needed per [design/_lane.md](design/_lane.md)).** `slice` structures around the design: a state or visual surface that carries its own acceptance criteria usually earns its own thin slice. To recognize which states are substantive enough to slice, load `design/onboard.md` (empty / first-run states), `design/polish.md` (the 7-state completeness checklist), and `design/_design-context.md` (register and absolute bans; the design floor that holds even when no `02b`/`02c` exists). This is structuring, not redesigning; never re-do design work here. Map every slice to its surfaces in `02c-craft.md`. When design is not needed, skip the design-knowledge load. When design is needed and not settled, STOP per the lane's human rule and route to `/wf design <slug>`.
+   - **State-completeness knowledge (when design is needed per [design/_lane.md](design/_lane.md)).** `slice` structures around the design: a state or visual surface that carries its own acceptance criteria usually earns its own thin slice. Use the `mode:design` procedure rows to recognize substantive states: `onboard.md` gives empty and first-run states, `polish.md` gives the 7-state checklist, `_design-context.md` gives the design floor. This is structuring, not redesigning; never re-do design work here. Map every slice to its surfaces in `02c-craft.md`. When design is not needed, skip the design-knowledge load. When design is needed and not settled, STOP per the lane's human rule and route to `/wf design <slug>`.
    - If neither file exists, skip this step.
-6. **Carry forward** `selected-slice-or-focus` and `open-questions` from the index.
+5. **Carry forward** `selected-slice` and `open-questions` from the index.
 
 # Chat return contract
 
-After writing files, return per [_chat-return.md](_chat-return.md): a narrative lead in the artifact's `## The Slices` voice, then this receipt:
+After writing files, return per [_chat-return.md](_chat-return.md): a narrative lead that quotes the master explainer's summary paragraph, then this receipt:
 - `slug: <slug>`
 - `wrote: <paths>` (every slice file written)
 - `options:` (all viable next options per Adaptive routing)
@@ -80,12 +100,12 @@ Do this in order:
 6c. **Confirm review scope (the roster is now known; intake deliberately did not ask this).** `00-index.md` carries the provisional default `review-scope: per-slice` with `review-scope-confirmed: false`, because the PO cannot judge review layout before slicing exists. Ask ONE gate question per [_gate-question.md](_gate-question.md) with the recommendation informed by the roster: a 1-slice roster recommends `Slug-wide` ("One `07-review.md` against the cumulative branch diff"); a >1-slice roster recommends `Per slice (Recommended)` ("Each slice gets its own `07-review-<slice>.md`; handoff aggregates per-slice verdicts"). Offer both options either way, per [_question-craft.md](_question-craft.md). Record the answer in `po-answers.md` (`stage: slice`); set `review-scope:` to the choice and `review-scope-confirmed: true` in `00-index.md` (step 10 carries it). Skip ONLY if `review-scope-confirmed` is already `true` (a re-run, or an older workflow asked at intake).
 7. **Write one `03-slice-<slice-slug>.md` per slice** (template below).
 8. **Write the master `03-slice.md`** (template below) with links to every per-slice file.
-9. **Evaluate adaptive routing** and write ALL viable options into the master file's `## Recommended Next Stage`.
+9. **Evaluate adaptive routing.** Write ALL viable options into the master frontmatter `recommended-routes`.
 10. Update `00-index.md` with the recommended default option and add all slice files to `workflow-files`.
 
 # Adaptive routing
 
-Present ALL viable options and write them into `## Recommended Next Stage`:
+Present ALL viable options. Write each option as one `recommended-routes` entry with its reason:
 - **Option A (default): Plan the best-first slice** → `/wf plan <slug> <best-first-slice-slug>`. Standard flow: work through slices one at a time, starting with the highest-risk or highest-value slice.
 - **Option B: Plan all slices in parallel** → `/wf plan <slug> all` when the slices are independent enough that planning them all upfront is efficient.
 - **Option C: Revisit shape** → `/wf shape <slug>` when slicing revealed a spec too vague, contradictory, or incomplete to decompose.
@@ -137,16 +157,22 @@ refs:
   shape: 02-shape.md
 next-command: wf-plan
 next-invocation: "/wf plan <slug> <best-first-slice>"
+recommended-routes:            # Adaptive routing: Option A is the default
+  - invocation: "/wf plan <slug> <best-first-slice>"
+    reason: "<one phrase>"
+    default: true
+  - invocation: "/wf plan <slug> all"
+    reason: "<one phrase>"
 ---
 ```
 
+Write the explainer to `03-slice.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
+
 Body of `03-slice.md`, as `# Slice Index`, in order:
-- `## The Slices` — first, and self-sufficient. Follow `_story-arc.md`: three beats in order (the state this stage inherited, the load-bearing decisions with reasons and counts, what this stage enables next plus the top open risk). Language follows `_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs.
-- `## Slice Strategy` (including the one-sentence-per-surface grouping justifications from Step 0.5).
+- `## Slice Strategy` (including the one-sentence-per-surface grouping justifications from Step 0.4).
 - `## Recommended Order` — numbered `<slice-slug>` with a reason each.
 - `## Cross-Cutting Concerns`, `## Dependencies Between Slices`, `## Deferred / Optional Slices`.
 - `## Freshness Research` — Source / Why it matters / Takeaway per entry.
-- `## Recommended Next Stage` — Option A (default) `/wf plan <slug> <best-first-slice-slug>`; Option B `/wf plan <slug> all`; Option C `/wf shape <slug>`; each with its reason, when applicable.
 
 Write `03-slice-<slice-slug>.md` (per-slice file):
 
@@ -170,12 +196,22 @@ refs:
   siblings: [03-slice-<other>.md, ...]
   plan: 04-plan-<slice-slug>.md
   implement: 05-implement-<slice-slug>.md
+next-command: wf-plan
+next-invocation: "/wf plan <slug> <slice-slug>"
+recommended-routes:
+  - invocation: "/wf plan <slug> <slice-slug>"
+    reason: "<one phrase>"
+    default: true
 ---
 ```
 
+The producer writes every `refs:` link at creation. Later stages do not edit this file's links.
+
+Write the explainer to `03-slice-<slice-slug>.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
+
 Body of `03-slice-<slice-slug>.md`, as `# Slice: <slice-name>`, in order:
-- `## The Slice` — the story section, under the same rules as `## The Slices` above.
 - `## Goal`, `## Why This Slice Exists`, `## Scope` (what is in; what is out and which slice handles it).
+- `## Likely Files / Areas to Touch` — `path/or/module: why`, one line per entry. Plan research sub-agent 1 reads this list. Write "Unknown — plan research locates the files" when the shape names no area.
 - `## Acceptance Criteria` — each criterion authored WITH its verification path per the discipline above. `- Given ... When ... Then ...`, then `<!-- observable: true|false — one-line justification of the partition -->`, then, only for `observable: true`, `verify: { method: <tool/technique>, env: <target env / what must be installed or booted>, fixture: <seed data / deterministic state>, rung: <constraint-ladder rung> }`. The visible-milestone slice and the final slice also carry the standing charter-scenario AC (step 6b) when `02-shape.md` has a `## Charter Scenario`.
 - `## Dependencies on Other Slices` — `<other-slice-slug>`: what this slice needs from it.
 - `## Risks`.
@@ -184,8 +220,8 @@ Then author free narrative fragments for any beat the structured page cannot tel
 
 # Additive-write contract
 
-Both `03-slice-index.md` and the per-slice `03-slices/<slice-slug>.md` are revisable. When `/wf slice` is re-invoked on an existing slug, follow [_additive-write.md](_additive-write.md) for every file that will be rewritten: snapshot, **rewrite the body to current truth**, add one ledger entry.
-- Snapshots in `.ai/workflows/<slug>/history/`: `03-slice-index-<rev>.md` for the index; `slices/<slice-slug>/history/03-slice-<rev>.md` for per-slice files.
+Both `03-slice.md` and each per-slice `03-slice-<slice-slug>.md` are revisable. When `/wf slice` is re-invoked on an existing slug, follow [_additive-write.md](_additive-write.md) for every file that will be rewritten: snapshot, **rewrite the body to current truth**, add one ledger entry.
+- Snapshots in `.ai/workflows/<slug>/history/`: `03-slice-<rev>.md` for the index; `03-slice-<slice-slug>-<rev>.md` for per-slice files.
 - **Ledger entry** per rewritten file: `trigger: scope-change` (default) or `new-slice` when slices were added; `because:` names why the slicing changed; `changed:` names what moved.
 - **New slices added in this run** start fresh: no prior revision, no history snapshot, `revision-count` 1.
 - **Removed slices** stay in storage: mark the frontmatter `status: dropped` with a `dropped-reason:` field and append a final `## Dropped — <ISO>` section. Deleting a slice file from disk is reserved for explicit `/wf status` reconcile operations, which the renderer surfaces with a tombstone view.

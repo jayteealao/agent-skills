@@ -17,6 +17,24 @@ You are running `/wf status`, the **dashboard, detail view, and router** for all
 
 `status` does NOT advance any workflow. It reads state, renders it, tells you the exact next command, and keeps the global registry honest. Its **only** write is the low-risk, idempotent reconcile of `.ai/workflows/INDEX.md` in Step -1 (and, in `deep` mode, a `00-sync.md` drift report). It never touches a stage artifact or application code.
 
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check. Dashboard, detail and roster modes read frontmatter only. Status writes no stage artifact.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `/.ai/workflows/INDEX.md` | artifact | always | |
+| `00-index.md` | artifact | always | |
+| `08-handoff.md` | artifact | mode:roster | |
+| `.driver-journal.jsonl` | artifact | mode:detail | |
+| `cost.jsonl` | artifact | if-present | |
+| `status/_renders.md` | procedure | always | |
+| `status/_deep.md` | procedure | mode:deep | |
+| `02-shape.md` | artifact | mode:advise | |
+| `04-plan-*.md` | artifact | mode:advise | |
+| `status/_advise.md` | procedure | mode:advise | |
+| `_control-file-ownership.md` | procedure | mode:detail | |
+
 # Role
 You are a **dashboard + router + registry keeper**, not a problem solver.
 - Do not run stages, fix issues, or advance workflows.
@@ -53,7 +71,7 @@ Column semantics (all pulled from each workflow's `00-index.md` YAML frontmatter
 4. If it **does** exist → **refresh**: rewrite with the current sorted set. Report a one-line diff: *"Reconciled INDEX.md: A added, R removed (stale dirs), U status/branch updates."* If nothing changed, say nothing about the registry (it was already in sync).
 5. If a previous row references a slug whose `.ai/workflows/<slug>/00-index.md` is missing on disk → omit it from the rewritten file and flag *"Removed stale row: `<slug>` (directory missing)."*
 
-This step is fast (one frontmatter read per dir; no git ops, no network). The dashboard/detail render below runs *after* it, against the freshly reconciled set.
+The render below runs after this step, against the reconciled set.
 
 # Step 0 — Resolve mode
 1. Parse `$ARGUMENTS`. If the **last** token is `deep`, set deep-mode and strip it.
@@ -71,7 +89,7 @@ This is the read-only counterpart to batch `/wf handoff` / `/wf ship`: it answer
 
 1. From `.ai/workflows/INDEX.md` (just reconciled), collect every slug whose `branch` column equals the resolved branch — the roster. If none → "No
    workflows are on branch `<branch>`." STOP.
-2. For each roster slug, read `00-index.md` and (if present) `08-handoff.md`. Derive, per slug: `current-stage`, per-slug review verdict / open blockers, `readiness-verdict` (from its handoff, if any), `runtime-evidence-status` (same computation as dashboard mode), and `handoff-lead:`.
+2. For each roster slug, use the frontmatter of `00-index.md` and (if present) `08-handoff.md`. Derive, per slug: `current-stage`, per-slug review verdict / open blockers, `readiness-verdict` (from its handoff, if any), `runtime-evidence-status` (same computation as dashboard mode), and `handoff-lead:`.
 3. Read the lead slug's `08-handoff.md` for the branch-level `pr-readiness-verdict` (absent → not yet handed off as a batch).
 4. **Render the roster** and STOP:
 
@@ -94,8 +112,8 @@ This is the read-only counterpart to batch `/wf handoff` / `/wf ship`: it answer
 
 For each slug in the reconciled registry, read `.ai/workflows/<slug>/00-index.md`. Parse frontmatter for:
 - `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`
-- `selected-slice-or-focus`, `open-questions`
-- `recommended-next-command`, `recommended-next-invocation`
+- `selected-slice`, `open-questions`
+- `recommended-next-command`, `recommended-next-invocation` (fall back to `next-command`, `next-invocation`)
 - `branch-strategy`, `branch`, `pr-url`, `pr-number`
 - `progress` (e.g., `slices-implemented: 2, slices-total: 5`)
 - `runtime-evidence-deferrals` (list of `{slice, reason, deferred-at, cleared-by}`; may be absent)
@@ -129,9 +147,9 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 1. **Read `00-index.md`** for the slug. If not found → "Workflow `<slug>` not found. Run `/wf status`
    to list all workflows." STOP.
 2. Read the `workflow-files` list and check which files exist on disk.
-3. Read each existing stage file's frontmatter (`status`, `created-at`, `updated-at`, key metrics).
-4. Read the **current** stage file's `Status` and `## Recommended Next Stage` — these drive the `## Next` routing.
-5. **Render the detail view** from the detail render in [status/_renders.md](status/_renders.md): title line, `## Stage Progress` (one row per stage file from `01-intake.md` on), `## Slice Progress`, `## Key Metrics`, `## Open Questions`, `## Branch Info`, `## Driver`, `## Open Deferrals`, `## Cost`, and `## Next` (default invocation, every option from the current stage file's `## Recommended Next Stage` — present ALL, do not pick silently; the awaiting-input, complete/closed, and wrong-branch variants).
+3. Read each existing stage file's frontmatter (`status`, `created-at`, `updated-at`, key metrics). Never read the stage bodies, except for the fallback below.
+4. The **current** stage file's frontmatter drives the `## Next` routing: `status`, `next-invocation` and `recommended-routes` (every option, with its reason). Never take `recommended-next-*` from a stage file. Fallback: an artifact written before `recommended-routes` existed lists its options in a `## Recommended Next Stage` body section. Read that section instead.
+5. **Render the detail view** from the detail render in [status/_renders.md](status/_renders.md): title line, `## Stage Progress` (one row per stage file from `01-intake.md` on), `## Slice Progress`, `## Key Metrics`, `## Open Questions`, `## Branch Info`, `## Driver`, `## Open Deferrals`, `## Cost`, and `## Next` (default invocation, every option from the current stage file's `recommended-routes` — present ALL, do not pick silently; the awaiting-input, complete/closed, and wrong-branch variants).
 6. For the **slice progress matrix**, list `03-slice-*.md`, `04-plan-*.md`, `05-implement-*.md`, `06-verify-*.md`, `07-review-*.md` (the `07-review-<slice>.md` master per slice; exclude `07-review-<slice>-<command>.md` sub-reviews), `08-handoff.md`. Mark: `✓` complete · `→` in-progress/awaiting-input · `✗` failed · `·` pending.
 7. For **branch info**, `git branch --show-current` vs the workflow's `branch` field; warn if mismatched.
 8. **Driver liveness** — read the tail of `.ai/workflows/<slug>/.driver-journal.jsonl` if it exists (append-only JSONL heartbeats written by every autonomous-driver subagent) and apply the staleness rule single-sourced in [_control-file-ownership.md](_control-file-ownership.md), rendering the `## Driver` row from its three states. **Never report a driver as running because the journal exists**: the journal outlives the driver. No journal → omit the section; a missing journal does not prove that no driver ran.
@@ -140,7 +158,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 
 # Deep Mode (`/wf status <slug> deep`) — reality-drift check
 
-`deep` runs a reality reconciliation: it checks whether referenced code, tests, PRs, branches, and dependencies actually exist or have drifted, and writes a `00-sync.md` report (`type: sync-report`, `regenerable: true`, `health: <rating>`) plus the sibling `00-sync.yaml` (`artifact: sync`). Run it when a workflow has been idle mid-flight (stages 4–7) and you suspect the world moved underneath it. Plain `/wf status <slug>` (no `deep`) does **not** run this — it stays a read-only detail view.
+`deep` checks whether referenced code, tests, PRs, branches, and dependencies still exist or have drifted, and writes `00-sync.md` plus `00-sync.yaml`. Plain `/wf status <slug>` does **not** run it.
 
 Load [status/_deep.md](status/_deep.md) and run its seven steps: inventory references, check code reality, check git reality, check dependency reality, check steering reality (a contradiction between a stage artifact and a steering entry is a `⚠ steering-violation`; the file's presence is never a finding), check intent-risk reality (an `intent-risks` entry still `status: open` after shape is complete is a `⚠ intent-risk-open`), assess health (`in-sync` / `minor-drift` / `significant-drift` / `stale`), write `00-sync.md` + `00-sync.yaml` (overwrite freely), then the bookkeeping touch (`workflow-files`, `updated-at`; never `status`/`current-stage`).
 
@@ -148,7 +166,7 @@ Load [status/_deep.md](status/_deep.md) and run its seven steps: inventory refer
 
 Advise answers the question the dashboard **cannot**: given every open workflow, *what should I do next, in what order, and what should I stop doing.* It is the portfolio-level counterpart to `/wf status <slug>`'s `## Next` — that routes one slug; advise routes the whole set. It is **read-only and route-don't-act**: it recommends commands (including `/wf close`), never runs them, and never advances a workflow. Its **only** write is the Step -1 registry reconcile shared by every mode — advise writes no artifact of its own; advice is about *now*, and re-running is cheap.
 
-Load [status/_advise.md](status/_advise.md) and run its steps in order: A1 gather the portfolio (Tier 0, always; drop terminal slugs unless they carry open carried-risk; narrow to the branch roster when scoped), A2 build the constraint graph from each `02-shape.md` and current `04-plan-*.md` (Tier 1, skipped under `fast`; a cycle is itself a finding), A3 seek code truth for an uncertain edge (Tier 2, on demand, bounded to the one question; broad drift routes to `/wf status <slug> deep`), A4 rank the ready set, serialize footprint-colliding slugs, and run the WIP pass (stale slugs nothing depends on become CLOSE-OR-COMMIT decisions), A5 honor `steer.md` as the priority overlay (never above a HARD dependency). Render the Portfolio Advice block from that file: the "if you do one thing" line, the ranked plan, the blocked set, the decisions, the carried risk, and the sequencing notes — every row with a one-line rationale and a concrete next command.
+Load [status/_advise.md](status/_advise.md), run its steps A1–A5 in order, and render its Portfolio Advice block. Every row has a one-line rationale and a concrete next command.
 
 # Chat return contract
 - **Dashboard mode:** return the rendered tables + quick-actions. Prepend the one-line registry reconcile note from Step -1 only if it changed something. No other preamble — the dashboard IS the output.

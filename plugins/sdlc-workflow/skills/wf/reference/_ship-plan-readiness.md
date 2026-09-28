@@ -23,7 +23,7 @@ This file never hand-edits `.ai/ship-plan.md`, never bumps `plan-version` itself
 |---|---|---|
 | `base-branch` | `00-index.md` | change-surface diff, staleness window |
 | commit range | `git merge-base HEAD origin/<base-branch>`..`HEAD` (handoff) / the release HEAD (ship) | change-surface signal |
-| `has-migration` | handoff frontmatter / `00-index.md` | rollback-playbook signal |
+| `has-migration` | the packaged diff | rollback-playbook signal |
 | `branch-strategy` | `00-index.md` | not-applicable path (local-only work) |
 | caller | `handoff` or `ship` | which missing-plan gate applies (Step R3) |
 

@@ -1,53 +1,84 @@
-# Shared story-arc contract (single source)
+# Shared explainer contract (single source)
 
-Structure rules for artifact story sections and chat summaries. This file
-defines the arc — what the story section must contain and in what order. It
-defines no language rules: all story prose follows the controlled-language
-contract in [_ste-procedural.md](_ste-procedural.md), sections 1 and 3.
+Structure rules for the explainer each stage writes for the person, and for the
+chat summary each stage returns. This file defines no language rules: all text
+follows the controlled-language contract in
+[_ste-procedural.md](_ste-procedural.md), sections 1 and 3.
 
-**Scope.** Every substantive artifact opens with one prose section,
-immediately under the frontmatter and before any structured section. The chat
-summary each stage returns opens with the same prose, compressed (A6). The
-renderer lifts the story section to the top of the rendered page, so the
-heading pattern in A1 is load-bearing. The prose reports a trajectory, not a
-status: where the work came from, the road it took, and where it goes next.
+**Scope.** The agent file (`NN-<stage>[-<slice>].md`) holds state in its
+frontmatter and the contract and working record in its body. It has no story
+section. The explanation for the person is a separate HTML fragment, the
+explainer. The renderer puts the explainer at the top of the artifact's page.
+Agents do not read explainer fragments. Only recap, and the writer on a re-run
+of its own stage, read them. The drivers `auto` and `yolo` write no explainer;
+their final chat summary follows A6.
 
-- **A1 — The heading is `## The <Subcommand>`, title-cased.**
-
-  | Subcommand | Heading | Subcommand | Heading |
-  |---|---|---|---|
-  | intake | `## The Intake` | ship | `## The Ship` |
-  | shape | `## The Shape` | retro | `## The Retro` |
-  | slice (master) | `## The Slices` | instrument | `## The Instrumentation` |
-  | slice (per-slice) | `## The Slice` | experiment | `## The Experiment` |
-  | plan | `## The Plan` | benchmark | `## The Benchmark` |
-  | implement | `## The Implementation` | profile | `## The Profile` |
-  | verify | `## The Verification` | design | `## The Design` |
-  | review | `## The Review` | probe | `## The Probe` |
-  | handoff | `## The Handoff` | simplify | `## The Triage` |
-
-  Intake modes inherit the mode noun: `## The Fix`, `## The RCA`,
-  `## The Investigation`, `## The Discovery`, `## The Hotfix`,
-  `## The Refactor`, `## The Dependency Update`, `## The Ideation`,
-  `## The Adoption`, `## The Brainstorm`. The drivers `auto` and `yolo` write no artifact of their
-  own; their final chat summary follows A6.
-- **A2 — Three beats, in this order, every time.**
+- **A1 — The file.** Write `<stem>.explainer.html.fragment` next to the agent
+  file. For `04-plan-auth.md` it is `04-plan-auth.explainer.html.fragment`.
+  Write an HTML fragment: no `<html>`, `<head>`, or `<body>` element. Use inline
+  markup only: no remote scripts and no external assets. The explainer is the
+  free fragment with the label `explainer` (Step F2 of
+  [_fragment-authoring.md](_fragment-authoring.md)). Brainstorm is the one
+  exception: `01-brainstorm.md` keeps its story section, `## The Brainstorm`,
+  and follows A2–A6. Artifacts written before this contract can carry a
+  `## The <Stage>` section, and the renderer still shows it. Do not add that
+  section to a new artifact.
+- **A2 — Three beats, in this order, every time.** The text of the explainer
+  follows three beats:
   1. **Origin.** The state this stage inherited: what the previous stage
      handed over, or the problem that started the work.
   2. **Road.** The load-bearing decisions, in the order they were made, each
      with its reason. Include the decisive counts.
   3. **Destination.** What this stage enables next, and the top open risk in
      concrete terms.
-- **A3 — One to three short paragraphs.** One paragraph per beat when the
-  material warrants it. A small change compresses all three beats into one
-  paragraph, in the same order. `_ste-procedural.md` rule S4 governs each
-  paragraph; the 25-word descriptive cap (I3) applies.
-- **A4 — Self-sufficient.** A reader who reads only this section knows what
-  was produced, the load-bearing decisions and counts, and the top risk. The
-  structured sections beneath it are drill-down, never a prerequisite.
-- **A5 — Never restate the heading.** Do not open with "This <stage>
-  implements…" or any sentence that repeats the heading. The origin beat opens
-  the section, so the first sentence names the inherited state or the problem.
-- **A6 — Chat-summary form.** Two to five sentences, no bullets, no field
-  labels, the same three beats in the same order. The receipt fields
-  (`Deltas:`, `Artifacts:`, `Next:`) sit beneath it.
+- **A3 — Build the explainer in this order.**
+  1. Open with a plain summary paragraph of two to five sentences. It carries
+     all three beats in compressed form. A reader who reads only this
+     paragraph knows what was produced, the load-bearing decisions and counts,
+     and the top risk. Do not open with "This <stage> implements…": the first
+     sentence names the inherited state or the problem.
+  2. Before each visual, write one sentence that says what the visual shows.
+     After the visual, explain its key points.
+  3. Alternate text and visuals. Do not put two visuals together.
+  4. Keep each visual on one idea. Split a complex topic into several simple
+     visuals.
+  5. Label every visual. Use the view's theme tokens for colours, so that the
+     visual works in the light theme and the dark theme.
+  6. Use an interactive element (a toggle, a step-through) only when a change
+     of value helps the reader understand. The view runs no script in a
+     fragment, so use CSS only: `<details>`, or a checkbox or radio toggle.
+  7. Close with a short recap.
+- **A4 — Add a visual only for structure.** Add a visual when the topic has
+  structure that is easier to see than to read:
+  - a process or a sequence, for example how a request passes through the system;
+  - a spatial relation, for example where a component sits on a screen;
+  - a cycle or a feedback loop, for example the verify fix loop;
+  - a comparison between options or quantities;
+  - a data trend over time or across groups;
+  - a hierarchy, an architecture, or a dependency.
+
+  Add no visual for a simple definition or a single fact. Every visual must
+  explain something that the text alone does not explain as well.
+- **A5 — Use the explainer snippets.** For a visual, use these snippets, so
+  every explainer uses the same shapes and colours:
+
+  | Snippet | Shows |
+  |---|---|
+  | `@include explainer/sequence` | a sequence of steps between actors |
+  | `@include explainer/comparison` | a comparison bar between options or quantities |
+  | `@include explainer/cycle` | a state cycle or a feedback loop |
+  | `@include explainer/dependency` | a dependency graph |
+
+  Write each snippet as `<!-- @include explainer/<name> { <json> } -->`. The
+  renderer expands the token. The JSON keys:
+  - `sequence`: `{title?, steps: [{label, text?, lane?}]}`
+  - `comparison`: `{title?, unit?, max?, bars: [{label, value, tone?, note?}]}`
+  - `cycle`: `{title?, states: [{label, tone?, note?}]}`
+  - `dependency`: `{title?, nodes: [{id, label, tone?, note?}], edges: [{from, to, label?}]}`
+
+  `tone` is one of `accent`, `ok`, `warn`, `bad`, `risk`, `muted`.
+- **A6 — Chat-summary form.** The narrative of the chat summary is the
+  explainer's summary paragraph, as plain text: two to five sentences, no
+  bullets, no field labels, the three beats in order. The receipt fields
+  (`Deltas:`, `Artifacts:`, `Next:`) sit beneath it. For brainstorm, the
+  narrative compresses `## The Brainstorm`.

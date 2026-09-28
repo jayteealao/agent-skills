@@ -21,6 +21,7 @@
     "verify:surface": "node scripts/verify-surface.mjs",
     "doctor": "node scripts/doctor.mjs",
     "measure:load": "node scripts/measure-load.mjs",
+    "measure:artifacts": "node scripts/measure-artifacts.mjs",
     "evals": "node tests/evals/run.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
     "render": "node scripts/render-sunflower.mjs",

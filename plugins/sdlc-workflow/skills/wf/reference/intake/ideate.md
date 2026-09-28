@@ -4,7 +4,7 @@ argument-hint: "[focus-area] [count]"
 ---
 
 # Output boundary & shared context
-Load `_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake ideate`, a **pre-pipeline ideation utility** for the SDLC lifecycle.
 
@@ -23,9 +23,25 @@ This command does NOT start or advance any workflow. It discovers improvement op
 
 | | Detail |
 |---|---|
-| Requires | A git project (reads codebase, git log, existing workflow artifacts) |
-| Produces | A `type: workflow-index` slug workflow: `.ai/workflows/<slug>/01-ideate.md` (`type: ideation` — ranked ideas + adversarial filter log) + a lightweight `00-index.md` (`type: workflow-index`). (Legacy off-pipeline `.ai/ideation/<focus>-<timestamp>.md` runs still render via the retained ideation discovery.) |
+| Requires | See [## Requires](#requires). |
+| Produces | A `type: workflow-index` slug workflow: `.ai/workflows/<slug>/01-ideate.md` (`type: ideation` — the `ideas:` and `culled:` rosters + the ranked list) + a lightweight `00-index.md` (`type: workflow-index`). (Legacy off-pipeline `.ai/ideation/<focus>-<timestamp>.md` runs still render via the retained ideation discovery.) |
 | Next | `/wf intake <idea-title>` — kick off a workflow for any chosen idea |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| a git project (codebase, git log, existing workflow artifacts) | artifact | always | |
+| `00-index.md` | artifact | on-resume | |
+| `01-ideate.md` | artifact | on-resume | |
+| `steer.md` | artifact | if-present | |
+| `intake/_intake-context.md` | procedure | always | |
+| `intake/ideate/_lenses.md` | procedure | always | |
+| `intake/ideate/_artifact.md` | procedure | always | |
+| `_compressed-slice.md` | procedure | mode:slug | |
+| `01-ideate.md` | writes | | |
 
 > **Auto second opinion (objective triggers).** At the terminus, once the ideas are ranked (before Step 6 writes the artifact), **auto-invoke** `/consult codex <widen this idea set and flag blind spots — what did this analysis miss?>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) the ranked list will feed a build decision the user signalled they intend to act on now; (b) any surviving idea is `impact: critical` or category `security`; (c) the adversarial filter culled more than half the raw candidates (a high cull rate means the lens set may be systematically narrow — divergent breadth is exactly the cure). Fold distinct additions in through the same adversarial filter before ranking. Skip only when none of the triggers hold; the user may invoke it explicitly with any provider.
 
@@ -59,7 +75,7 @@ You are an **opportunity discoverer and adversarial filter**, not a problem solv
 
 Launch exploration sub-agents in parallel. Each sub-agent gets a specific lens and must return **structured findings** — not generic advice, but specific evidence from this codebase. Launch only the lenses relevant to the focus area (or all six if no focus).
 
-The six lens charters, the shared evidence rule, and the effort tier are in [intake/ideate/_lenses.md](ideate/_lenses.md).
+The six lens charters, the shared evidence rule, and the effort tier are in `intake/ideate/_lenses.md`.
 
 ---
 
@@ -106,7 +122,7 @@ Can someone run `/wf intake` on this right now with enough clarity to shape it? 
 **Challenge 5 — Is this the right level?**
 Some findings reveal symptoms rather than root causes. If two candidates are both symptoms of the same underlying problem, cull the symptom and keep the root cause (or merge them into one candidate that addresses the root).
 
-**Output the filter log:** For each culled candidate: `IDEA-NNN: [title] — culled: [reason]`. This log is written to the artifact but not shown prominently in chat.
+**Output the filter log:** write each culled candidate to the `culled:` roster. Do not show the log prominently in chat.
 
 ---
 
@@ -176,7 +192,7 @@ updated-at: "<ISO 8601>"
 ---
 ```
 
-Write **`01-ideate.md`** (`type: ideation`) per the template in [intake/ideate/_artifact.md](ideate/_artifact.md): frontmatter with the `ideas:` roster (per-idea `file:line` evidence and `entry:` invocation) and the `culled:` log, then the story section, the ranked ideas, the adversarial filter log, and the how-to-use footer.
+Write **`01-ideate.md`** (`type: ideation`) and its explainer per the template in `intake/ideate/_artifact.md`: frontmatter with the `ideas:` roster (per-idea `file:line` evidence and `entry:` invocation) and the `culled:` log, then the ranked ideas built from the roster, and the how-to-use footer.
 
 ---
 
@@ -197,7 +213,7 @@ and stops.
 4. **Print the next invocation** with provenance — the idea's `entry:` value, with `from <slug>` appended when it is a new-workflow form — and stop. Do not run it.
 
 # Chat return contract
-After writing files, return per [_chat-return.md](../_chat-return.md) — narrative lead in the artifact's `## The Ideation` story voice, then this receipt:
+After writing files, return per [_chat-return.md](../_chat-return.md) — quote the explainer summary as the narrative lead, then this receipt:
 - `wrote: .ai/workflows/<slug>/01-ideate.md + 00-index.md`
 - `ideas: <N> survivors from <M> raw candidates`
 - The ranked list (Step 5 format)

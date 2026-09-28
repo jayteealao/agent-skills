@@ -127,6 +127,13 @@ env-remediation rung is the step people skip: before you declare the environment
 try to fix the environment (boot the emulator, start the service). Only after the ladder is
 exhausted may an AC become a deferral.</dd>
 
+<dt>explainer</dt>
+<dd>The HTML fragment (<code>&lt;stem&gt;.explainer.html.fragment</code>) that each stage
+writes next to its agent file to explain the stage to you: a plain summary, text and small
+visuals in turn, and a recap. The workflow view puts it at the top of the stage's page, and
+the chat summary quotes its summary paragraph. It replaces the story section that older
+artifacts opened with. Agents do not read it, except recap.</dd>
+
 <dt>External Output Boundary</dt>
 <dd>The rule that anything leaving the repo (PR bodies, commit messages, announcements)
 speaks product language. Outward text never mentions <code>.ai/</code> paths, slugs, or other
@@ -163,7 +170,8 @@ RIM stands for "risk-if-misunderstood".</dd>
 <dt>narrative fragment</dt>
 <dd>A free-form HTML file (<code>&lt;stem&gt;.&lt;NN-label&gt;.html.fragment</code>) placed
 next to any artifact to add a custom diagram or widget to the artifact's rendered page. The
-fragment is unrestricted raw HTML, injected below the page body in label order.</dd>
+fragment is unrestricted raw HTML, injected below the page body in label order. The one
+exception is the fragment with the label <code>explainer</code>, which opens the page.</dd>
 
 <dt>perturbation</dt>
 <dd>Probe's controlled break: disable exactly one dependency, observe how the app behaves,
@@ -183,6 +191,13 @@ pre-implement gate. Formerly called the "compressed flow".</dd>
 <dt>quick-lane slice</dt>
 <dd>See compressed slice: the single-slice attachment a quick-lane entry (or probe/simplify)
 adds to a workflow.</dd>
+
+<dt>read check / Requires table</dt>
+<dd>Each stage reference has a <code>## Requires</code> table that names every input the
+stage must read before it writes its artifact. On Claude Code the mod compares the agent's
+actual reads with that table when the artifact is written, and records the result in
+<code>.read-ledger.jsonl</code>. The mod setting <code>readCheck</code> selects
+<code>warn</code>, <code>block</code>, or <code>off</code>.</dd>
 
 <dt>readiness check</dt>
 <dd>The pre-flight that handoff and ship run before they act. It asks: is the ship plan

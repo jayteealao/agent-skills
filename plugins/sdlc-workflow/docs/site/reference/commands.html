@@ -20,11 +20,11 @@
   <li><strong>Unknown key.</strong> A first token that is not a known key is an error. The dispatcher never treats the token as a slug or as an intake mode. The dispatcher lists the 23 valid keys and stops. The table under <a href="#renamed">Renamed commands</a> maps every retired command name to its current spelling.</li>
   <li><strong>Fuzzy slug suggestion.</strong> Exactly six keys have this behavior: <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, and <code>close</code>. For these keys, a slug that matches no row in <code>.ai/workflows/INDEX.md</code> triggers an advisory typo suggestion ("Did you mean <code>&lt;best-match&gt;</code>?"). The suggestion never auto-corrects; you re-invoke with the suggested slug. Every other key resolves its own first token, which can be a PR number, a branch name, a dimension, a mode, or a sub-key. For those keys the suggestion does not fire.</li>
   <li><strong>Git precondition.</strong> Before dispatch, <code>/wf</code> confirms that the project is a git repository. If the project is not a git repository, the dispatcher asks whether to run <code>git init</code>. Artifacts still write without git, but the workflow view does not render until the repo is initialized.</li>
-  <li><strong>Chat summary.</strong> Every run ends with a compact summary: a verb-first status line, a short narrative paragraph, an <code>Artifacts:</code> line that lists the paths written (or <code>none</code>), and a concrete <code>Next:</code> command.</li>
+  <li><strong>Chat summary.</strong> Every run ends with a compact summary: a verb-first status line, a short narrative paragraph (for a stage, the summary paragraph of the stage's explainer), an <code>Artifacts:</code> line that lists the paths written (or <code>none</code>), and a concrete <code>Next:</code> command.</li>
 </ul>
 
 <h2 id="stages">The lifecycle stages</h2>
-<p>In lifecycle order: intake → shape → slice → plan → implement → verify → review → handoff → ship → retro. When the work needs design, the human-only <code>design</code> stage runs between shape and slice. All of these stages write artifacts into <code>.ai/workflows/&lt;slug&gt;/</code>.</p>
+<p>In lifecycle order: intake → shape → slice → plan → implement → verify → review → handoff → ship → retro. When the work needs design, the human-only <code>design</code> stage runs between shape and slice. All of these stages write artifacts into <code>.ai/workflows/&lt;slug&gt;/</code>. Each stage reads the inputs that the Requires table of its reference names, and each stage artifact <code>NN-&lt;stage&gt;[-&lt;slice&gt;].md</code> has an explainer for the person next to it, <code>&lt;stem&gt;.explainer.html.fragment</code>. The <strong>Writes</strong> lines below name the agent files only. See <a href="../guides/the-standard-lifecycle.html#reads-and-writes">What every stage reads and writes</a>.</p>
 
 <h3 id="intake"><code>/wf intake</code></h3>
 <pre><code>/wf intake [slug] [mode] &lt;description&gt;</code></pre>
@@ -63,7 +63,7 @@
 <h3 id="verify"><code>/wf verify</code></h3>
 <pre><code>/wf verify &lt;slug&gt; [slice]</code></pre>
 <p>Verify runs tests, lints, and typechecks. It then applies the acceptance-criteria gate: each criterion is checked against user-observable behavior, with captured evidence. Verify owns a single-round, user-gated fix loop and re-checks augmentations, for example a benchmark comparison. Evidence from prior runs is snapshotted, not overwritten, so reviewers can compare runs.</p>
-<p><strong>Writes:</strong> <code>06-verify-&lt;slice-slug&gt;.md</code> plus updates to the <code>06-verify.md</code> master; evidence files under <code>verify-evidence/&lt;slice-slug&gt;/</code>.</p>
+<p><strong>Writes:</strong> <code>06-verify-&lt;slice-slug&gt;.md</code> plus updates to the <code>06-verify.md</code> master; the raw check output in the evidence report <code>verify-evidence/&lt;slice-slug&gt;/report.md</code>, with other evidence files in the same folder.</p>
 
 <h3 id="review"><code>/wf review</code></h3>
 <pre><code>/wf review &lt;slug&gt; [slice | triage]     # workflow stage
@@ -75,7 +75,7 @@
 <h3 id="handoff"><code>/wf handoff</code></h3>
 <pre><code>/wf handoff &lt;slug|pr#N|branch&gt; [slice-slug]</code></pre>
 <p>Handoff aggregates all complete slices of a slug into a PR-ready package with reviewer and QA context. A <code>pr#N</code> or branch-name first argument runs batch mode: the run assesses every slug on the branch, packages ready slugs into the single shared PR, and records the branch-level readiness check on the lead slug. Handoff refuses a slug when a required review has unresolved blockers. Handoff hard-blocks on any open intent-risk (RIM) entry. Handoff also runs the ship-plan readiness pre-check, so a missing or drifted <code>.ai/ship-plan.md</code> surfaces before the PR is declared ship-ready.</p>
-<p><strong>Writes:</strong> <code>08-handoff.md</code> per slug (batch mode: one per slug, with the readiness block on the lead).</p>
+<p><strong>Writes:</strong> <code>08-handoff.md</code> per slug (batch mode: one per slug; the lead's frontmatter carries the branch-level readiness keys, and each follower points to it with <code>readiness-via</code>).</p>
 
 <h3 id="ship"><code>/wf ship</code></h3>
 <pre><code>/wf ship &lt;slug|pr#N|branch&gt; [environment|announce|rollback] [&lt;run-id&gt;]</code></pre>
@@ -127,7 +127,7 @@
 
 <h3 id="recap"><code>/wf recap</code></h3>
 <pre><code>/wf recap &lt;slug|pr#N|branch&gt; [slice-slug | plan|shape|slice|review|findings]</code></pre>
-<p>Recap is a plain-language catch-up. Give recap a slug to hear the story of the whole workflow: what was decided, what was built, what was checked, and where the workflow stands. Give recap a slice to recap only that slice. Give recap a focus token to have one artifact explained. Batch mode recaps every slug on a branch and tells the combined story. Recap never advances the workflow.</p>
+<p>Recap is a plain-language catch-up. Give recap a slug to hear the story of the whole workflow: what was decided, what was built, what was checked, and where the workflow stands. Give recap a slice to recap only that slice. Give recap a focus token to have one artifact explained. Batch mode recaps every slug on a branch and tells the combined story. Recap is the one stage that reads the explainers of the other stages, and its page in the workflow view is the slug's story page. Recap never advances the workflow.</p>
 <p><strong>Writes:</strong> <code>90-recap.md</code>.</p>
 
 <h3 id="ship-plan"><code>/wf ship-plan</code></h3>
@@ -143,7 +143,7 @@
 <h3 id="status"><code>/wf status</code></h3>
 <pre><code>/wf status [slug|pr#N|branch] [deep]
 /wf status advise [branch|pr#N|fast]</code></pre>
-<p>Status is the dashboard and the registry keeper. With no argument, status renders the cross-workflow status table. With a slug, status shows the detail view and the exact next command. With a PR number or a branch, status shows a read-only roster of every slug on that branch. <code>deep</code> runs a reality-drift check against code, git, and dependencies. <code>advise</code> reasons across all open workflows and renders a ranked cross-slug sequencing plan; the plan is read-only and ephemeral. Every status run first reconciles the registry <code>.ai/workflows/INDEX.md</code> against disk.</p>
+<p>Status is the dashboard and the registry keeper. With no argument, status renders the cross-workflow status table. With a slug, status shows the detail view and the exact next command, plus every option from the current stage file's <code>recommended-routes</code> frontmatter (an older artifact without that key gives its options from its <code>## Recommended Next Stage</code> section). With a PR number or a branch, status shows a read-only roster of every slug on that branch. <code>deep</code> runs a reality-drift check against code, git, and dependencies. <code>advise</code> reasons across all open workflows and renders a ranked cross-slug sequencing plan; the plan is read-only and ephemeral. Every status run first reconciles the registry <code>.ai/workflows/INDEX.md</code> against disk.</p>
 <p><strong>Writes:</strong> normally nothing beyond the <code>INDEX.md</code> reconciliation; <code>deep</code> writes a <code>00-sync.md</code> drift report.</p>
 
 <h3 id="task"><code>/wf task</code></h3>

@@ -64,7 +64,7 @@ export function render(artifact, ctx) {
   const fragmentBlock = artifact.fragment
     ? `<div class="fragment">${artifact.fragment}</div>`
     : '';
-  const findingsBlock = artifact.fragment ? '' : findingsHtml;
+  const findingsBlock = artifact.fragment && !artifact.fragmentGenerated ? '' : findingsHtml;
   const proseBlock = artifact.body
     ? `<div class="prose">${md2html(artifact.body)}</div>`
     : '';

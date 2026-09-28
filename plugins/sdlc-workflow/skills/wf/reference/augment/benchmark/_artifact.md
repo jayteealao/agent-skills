@@ -20,13 +20,18 @@ targets-failed: <N>
 baseline-branch: <current-branch>
 baseline-commit: <run `git rev-parse --short HEAD`>
 measured-at: <real UTC timestamp per _timestamp.md>
+next-command: wf-implement
+next-invocation: "/wf implement <slug>"
+recommended-routes:
+  - invocation: "/wf implement <slug>"
+    reason: "<one phrase>"
+    default: true
 ---
 ```
 
-**Body sections:**
+Write the explainer to `05c-benchmark.explainer.html.fragment` per [../../_story-arc.md](../../_story-arc.md). Compare mode rewrites it with the verdict.
 
-## The Benchmark
-<!-- STORY SECTION — first, and self-sufficient. must follow `../../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `../../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+**Body sections:**
 
 ## Benchmark Targets
 
@@ -76,6 +81,7 @@ compare-commit: <git rev-parse --short HEAD>
 compared-at: <timestamp>
 regressions-found: <N>
 improvements-found: <N>
+next-command: wf-verify                      # also set next-invocation and recommended-routes to /wf verify <slug>
 ```
 
 **Body additions:**

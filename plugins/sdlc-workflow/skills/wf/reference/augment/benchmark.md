@@ -37,12 +37,26 @@ existing-workflow/
 
 | | Detail |
 |---|---|
-| Requires | An existing workflow at `.ai/workflows/<slug>/` with `02-shape.md` present. |
+| Requires | See [## Requires](#requires). |
 | Produces | `05c-benchmark.md` (baseline run) or updated `05c-benchmark.md` (compare run) |
-| Updates | `00-index.md` — adds entry to `augmentations:` list (baseline only) |
+| Updates | `00-index.md` — adds entry to `augmentations:` list (baseline), sets its `mode: complete` (compare) |
 | Does NOT | Write application code, modify the plan, or advance the workflow stage. |
 | Next (baseline) | `/wf implement <slug>` |
 | Next (compare) | `/wf verify <slug>` — comparison data is available as additional context |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | always | |
+| `02-shape.md` | artifact | always | |
+| `04-plan-*.md` | artifact | if-present | |
+| `05c-benchmark.md` | artifact | mode:compare | |
+| `augment/benchmark/_artifact.md` | procedure | always | |
+| `_story-arc.md` | procedure | always | |
+| `05c-benchmark.md` | writes | | |
 
 > **Auto second opinion (objective triggers).** In compare mode, once the regression analysis is
 > drafted, **auto-invoke** `/consult codex <diagnose the likely cause of these regressions given the
@@ -70,10 +84,7 @@ You are a **performance analyst**, not an optimizer.
      - No `05c-benchmark.md` → baseline mode.
      - `05c-benchmark.md` exists with `mode: baseline` and no `comparison:` block → compare mode.
      - `05c-benchmark.md` exists with both baseline and comparison → WARN: "Benchmark already has baseline AND comparison data; the calling stage must name `baseline` or `compare`. Stopping." Stop.
-3. **Read the workflow context:**
-   - Read `02-shape.md` — identifies the performance-sensitive areas in scope.
-   - Read any `04-plan-*.md` — identifies which files and functions are being modified.
-   - In compare mode, also read `05c-benchmark.md` in full — you must run the exact same targets.
+3. **Use the workflow context.** `02-shape.md` names the performance-sensitive areas. The plan files name the files and functions that change. In compare mode, `05c-benchmark.md` names the exact targets to run again.
 
 # ━━━━━━━━━━━━━━━━━━━━━━
 # BASELINE MODE
@@ -85,7 +96,7 @@ You are a **performance analyst**, not an optimizer.
 
 Prompt with ALL of the following:
 - Read `02-shape.md` and any `04-plan-*.md` files. Identify the functions, endpoints, operations, or modules that:
-  - Are explicitly named in the shape's "Scope in" section
+  - Are explicitly named in the shape's `## Affected Areas` section
   - Are performance-sensitive (called frequently, latency-critical, or processing-heavy)
   - Will be modified by this workflow (from the plan)
 - Detect the benchmark framework by reading: `package.json` (look for `vitest`, `jest`, `tinybench`, `benchmark` in devDependencies or scripts), `go.mod` (no special package needed — `testing.B` is built-in), `pyproject.toml` or `requirements.txt` (look for `pytest-benchmark`), `Cargo.toml` (look for `criterion`).
@@ -126,12 +137,12 @@ Add to `augmentations:` list:
 augmentations:
   - type: benchmark
     artifact: 05c-benchmark.md
-    mode: baseline
-    status: complete
+    mode: baseline         # compare mode sets complete
+    status: ready
     created-at: <timestamp>
 ```
 
-If `augmentations:` already has a benchmark entry (e.g., from a prior run), update its `mode` and `status` rather than duplicating.
+If `augmentations:` already has a benchmark entry (e.g., from a prior run), update its `mode` rather than duplicating. Compare Step 4 sets the entry's `mode: complete`.
 
 # ━━━━━━━━━━━━━━━━━━━━━━
 # COMPARE MODE
@@ -167,7 +178,7 @@ Add the `## Comparison Results` section and the comparison frontmatter per [benc
 
 # Step 5 — Hand off to user
 
-**Baseline mode summary.** Return per [_chat-return.md](../_chat-return.md) — narrative lead (what was measured and the headline numbers), then the structured anchors:
+**Baseline mode summary.** Return per [_chat-return.md](../_chat-return.md) — a narrative lead that quotes the explainer's summary paragraph, then the structured anchors:
 ```
 wf-benchmark baseline complete: <slug>
 Language: <language>, framework: <framework>
@@ -178,7 +189,7 @@ Re-baseline: re-run `plan` (it re-authors the baseline), or load this file in ba
 Artifact: .ai/workflows/<slug>/05c-benchmark.md
 ```
 
-**Compare mode summary.** Return per [_chat-return.md](../_chat-return.md) — narrative lead (what changed versus baseline, the regressions or improvements, and the verdict), then the structured anchors:
+**Compare mode summary.** Return per [_chat-return.md](../_chat-return.md) — a narrative lead that quotes the explainer's summary paragraph, then the structured anchors:
 ```
 wf-benchmark compare complete: <slug>
 Targets compared: <N>
@@ -205,10 +216,8 @@ If regressions found, prefix compare summary with:
 
 ## Step — Sibling YAML `benchmark`
 
-After writing the benchmark MD (`.ai/workflows/<slug>/05c-benchmark.md`
-or, when invoked as an augmentation under a slug,
-`.ai/workflows/<slug>/augmentations/<bench-id>.md`), write a sibling
-`.yaml` next to it with `artifact: benchmark`. The view-layer renderer
+After writing `.ai/workflows/<slug>/05c-benchmark.md`, write the sibling
+`05c-benchmark.yaml` next to it with `artifact: benchmark`. The view-layer renderer
 projects this as a metric-comparison table with per-row improvement/
 regression tone driven by `direction:` + delta sign.
 
@@ -222,7 +231,7 @@ from the sibling YAML (same YAML → byte-identical HTML) and pass
 Shape:
 
 ```yaml
-# 05c-benchmark.yaml — or augmentations/<bench-id>.yaml
+# 05c-benchmark.yaml
 artifact:        benchmark
 target:          "POST /api/checkout"
 language:        "typescript"

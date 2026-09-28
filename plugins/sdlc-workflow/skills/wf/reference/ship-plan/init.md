@@ -183,7 +183,7 @@ Schema split:
 - **Required core** (top of frontmatter) — fixed fields that `/wf ship` reads. Schema-stable; downstream code relies on these names.
 - **Extensions** (`additional-contracts[]`) — typed list, open content. Each entry is `{ id, purpose, fields: { ... }, enforced-by: "..." }`.
 
-Write the file with the frontmatter and body in [init/_artifact.md](init/_artifact.md).
+Write the file with the frontmatter and body in [init/_artifact.md](init/_artifact.md). Write the explainer to `.ai/ship-plan.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 ---
 

@@ -4,7 +4,7 @@ Load this file from `simplify.md` Step 2. It holds the effort tier, the shared i
 
 **Effort tier for every dispatched agent:** **low** (per [_subagents.md](../_subagents.md)). REQUIRED on every dispatch — reviewers must not silently inherit the parent's model.
 
-Each agent receives the scope token + target, the Step 1 input (`INPUT_DIFF`, `INPUT_PLAN_TEXT`, or codebase file list), and one charter below.
+Each agent receives the scope token + target, the Step 1 input (`INPUT_DIFF`, `INPUT_PLAN_TEXT`, or codebase file list), and one charter below. In plan scope, an agent may search the repository read-only to check the code and helpers the plan names.
 
 ## Output contract
 
@@ -12,7 +12,7 @@ Each agent returns a structured findings list:
 
 ```yaml
 findings:
-  - id: <agent>-<n>          # e.g., reuse-1, quality-3
+  - id: <agent>-<n>          # e.g., reuse-1, quality-3; the .md body and the sibling .yaml use this id
     severity: high | med | low | nit
     location: <file:line | plan-section | path>
     issue: <one-sentence problem statement>

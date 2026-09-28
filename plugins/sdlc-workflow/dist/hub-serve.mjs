@@ -3,12 +3,12 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-Y2ONWAUC.mjs";
-import "./chunk-WQR3SGEO.mjs";
+} from "./chunk-5ONUANR2.mjs";
+import "./chunk-G3IDXSTS.mjs";
 import "./chunk-TNCDSDXJ.mjs";
-import "./chunk-DW5WFXUB.mjs";
+import "./chunk-4HITZZ2W.mjs";
 import "./chunk-RFW2L66D.mjs";
-import "./chunk-O2MCLXSW.mjs";
+import "./chunk-U4XWDSQ3.mjs";
 import "./chunk-PNDGQNSP.mjs";
 import {
   hostAllowed,
@@ -24,15 +24,15 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-SM2WOF6Z.mjs";
-import "./chunk-6A72YATQ.mjs";
+} from "./chunk-PQGW3NEN.mjs";
+import "./chunk-NQ3YKNZA.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
   runtimeIdentity
 } from "./chunk-CGSPUUFD.mjs";
 import "./chunk-KRRL2TSM.mjs";
-import "./chunk-KYXH2XZE.mjs";
+import "./chunk-KNXRJRUP.mjs";
 import {
   REGISTRY_FRESH_GRACE_MS,
   REGISTRY_VERSION,
@@ -52,7 +52,7 @@ import {
   validateEntry,
   writePidFile,
   writeRegistry
-} from "./chunk-5LBIJZHF.mjs";
+} from "./chunk-XQW7VILZ.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";

@@ -246,10 +246,6 @@ Timeline navigation is CSS-only via `:target`. JS only enhances hover/focus.
     </tbody>
   </table>
   <aside class="sr-log-panel" hidden>… cell-click reveals log …</aside>
-  <div class="sr-actions">
-    <button class="btn btn-primary">Promote to 100%</button>
-    <button class="btn btn-danger">Roll back</button>
-  </div>
   <style>/* .sr-* scoped */</style>
   <script>/* cell click → log + sdlc:fragment-ready */</script>
 </section>

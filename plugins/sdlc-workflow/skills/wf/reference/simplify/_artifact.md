@@ -113,6 +113,15 @@ routing-assignments: []   # populated per Step 4
 # plan scope only — proposed deltas accompany route-amend-plan entries
 proposed-deltas: []
 
+# Next commands: one entry per suggested-invocation, sorted by priority:
+# route-intake → route-refactor → route-amend-* → route-verify / route-add-test → route-fix → route-handoff-config → route-docs
+next-command: <key of the default route>
+next-invocation: "<default suggested-invocation>"
+recommended-routes:
+  - invocation: "<suggested-invocation>"
+    reason: "<finding-id>: <one phrase>"
+    default: true
+
 # plan scope only — link back to the workflow
 refs:
   workflow: <slug>                       # only present for plan scope
@@ -120,9 +129,6 @@ refs:
 ---
 
 # Simplify — <scope> <target> @ <run-id>
-
-## The Triage
-<!-- STORY SECTION — first, and self-sufficient. must follow `_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language must follow `_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
 
 ## Input
 <what was reviewed and how it was assembled>
@@ -164,10 +170,9 @@ refs:
 
 ## Deferred
 <list of (finding-id, reason)>
-
-## Recommended next commands
-<copy-pasteable invocations sorted by priority: route-intake → route-refactor → route-amend-* → route-verify / route-add-test → route-fix → route-handoff-config → route-docs>
 ```
+
+Write the explainer to `01-simplify.explainer.html.fragment` per [../_story-arc.md](../_story-arc.md).
 
 ## Additive-write contract — no rewrites; one slug workflow per run
 
@@ -203,14 +208,14 @@ counts:
   skipped: 0
   deferred: 1
 findings:
-  - id:       SR-1
+  - id:       reuse-1         # same id as the .md body: reuse-<n> | quality-<n> | efficiency-<n> | debt-<n>
     category: reuse           # reuse | quality | efficiency
     action:   accept          # accept | skip | defer (matches the routing decision)
     file:     "src/cart/total.ts"
     line:     42
     msg:      "Duplicate validator implementation — see src/lib/validate.ts."
     fix:      "Replace inline impl with the shared validator."
-  - id:       SR-2
+  - id:       quality-1
     category: quality
     action:   defer
     msg:      "Naming inconsistency between cart and checkout modules."
@@ -222,6 +227,6 @@ deltas:
 ```
 
 Authoring rules:
-- One YAML per `01-simplify.md`. Per-finding `id` / `category` / `action` mirrors the MD body.
+- One YAML per `01-simplify.md`. Per-finding `id` / `category` / `action` mirrors the MD body; the `id` is the agent id (`reuse-1`), never a separate scheme. A `debt-<n>` finding carries `category: quality`.
 - `deltas[]` is optional. Include when the run identified concrete file-level changes downstream commands will make.
 - `counts` is authoritative — renderer reads it directly, not recomputed from `findings[]`. Keep them in sync.

@@ -9,7 +9,7 @@ Prompt with ALL of the following. The agent reports findings for each section:
 **Plan drift detection:**
 - For each file in `04-plan-<slice-slug>.md` → `## Likely Files / Areas to Touch`, read the current version and compare against plan assumptions.
 - Check `git log --oneline --since="<plan-created-at>"` on each affected file for changes since planning.
-- If sibling slices were implemented since planning, read their `05-implement-<other>.md` to understand what changed.
+- If sibling slices were implemented since planning, compare their `files-modified` keys with the plan's files. Read a sibling record in full when a file overlaps.
 - Flag any file that has moved, been renamed, deleted, or significantly refactored since planning.
 
 **Current state of the implementation target:**

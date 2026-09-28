@@ -17,7 +17,10 @@ policy, the tripwire mechanism, and the closure rule here.
 | `<complexity>` | `xs\|s\|m` | `xs\|s` | `s\|m\|l` | `s\|m\|l` |
 | `<next-command>` | `wf-implement` | `wf-implement` | `wf-implement` | `wf-review` |
 | `<next-invocation>` | `/wf implement <slug>` | `/wf implement <slug>` | `/wf implement <slug>` | `/wf review <slug>` |
+| `<routes>` | see below | see below | see below | see below |
 | stack confirm | one-question confirm | unconfirmed (caveat path) | one-question confirm | unconfirmed (caveat path) |
+
+Every planning artifact (`01-<mode>` to `04-plan`) carries the same `next-command` and `next-invocation`: the run's terminus, not the next file. `<routes>` is `[{invocation: "<next-invocation>", reason: "<one phrase>", default: true}, {invocation: "/wf intake \"<description>\" from <slug>", reason: "escalate"}]`.
 
 ## Collision check (Step 0)
 
@@ -60,9 +63,9 @@ schema: sdlc/v1
 type: index
 slug: <slug>
 title: "<title>"
-workflow-type: <mode>       # the AUTHORITATIVE discriminator the standard commands + resume read
+workflow-type: <mode>
 status: active
-current-stage: plan         # planning is done; the gate precedes implement
+current-stage: plan
 stage-number: 4
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
@@ -70,14 +73,14 @@ selected-slice: <slug>
 branch-strategy: <dedicated|none>
 branch: "<branch, or empty when branch-strategy: none>"
 base-branch: "<base>"
-review-scope: slug-wide     # single slice → one 07-review.md
-review-scope-confirmed: false   # plan asks the PO once the roster is known; absent ≠ asked
-appetite: small             # change-modes are small-appetite by construction; say so explicitly
+review-scope: slug-wide
+review-scope-confirmed: false
+appetite: small
 pr-url: ""
 pr-number: 0
 open-questions: []
 tags: <tags>
-stack:                      # Step 0 fingerprint per the stack policy above
+stack:
   detected-at: "<iso-8601>"
   platforms: []
   languages: []
@@ -90,9 +93,9 @@ stack:                      # Step 0 fingerprint per the stack policy above
   available-skills: []
   available-mcp: []
   user-confirmed: <true|false per the stack policy>
-ux-impact: <none|visual|flow|new-surface>   # per the UX impact rule above; update-deps writes none
+ux-impact: <none|visual|flow|new-surface>
 ux-impact-confirmed: <true|false>
-origin-investigate: <source-slug>   # only when provenance attached (any origin-<type> key); omit otherwise
+origin-investigate: <source-slug>
 next-command: <next-command>
 next-invocation: "<next-invocation>"
 workflow-files:
@@ -119,6 +122,8 @@ progress:
   retro: not-started
 ---
 ```
+
+Write no YAML comments in the index. `workflow-type` is the authoritative discriminator that the standard commands and resume read. Write an `origin-<type>` key only when provenance attached. `review-scope: slug-wide` gives one `07-review.md` for the single slice; plan confirms it.
 
 Then **register the slug in `.ai/workflows/INDEX.md`** per `intake/default.md` Step 10
 (create-if-absent / append-and-resort / never mutate other rows).

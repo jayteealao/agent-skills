@@ -1,6 +1,6 @@
 # Self-authored execution artifacts (Steps 7–8 of `intake/update-deps.md`)
 
-update-deps is the one change-mode that self-authors `05-implement.md` and `06-verify.md`. Both are un-suffixed (single slice) and satisfy the standard implement / verify required sets. Bodies are described in `intake/update-deps.md`.
+update-deps is the one change-mode that self-authors `05-implement.md` and `06-verify.md`. Both are un-suffixed (single slice) and satisfy the standard implement / verify required sets. Bodies are described in `intake/update-deps.md`. Raw check output goes to `verify-evidence/<slug>/report.md` (no frontmatter).
 
 ## `05-implement.md`
 
@@ -27,6 +27,7 @@ refs:
   next: 06-verify.md
 next-command: wf-review               # 06-verify.md is self-authored next; /wf verify would redirect back here
 next-invocation: "/wf review <slug>"
+recommended-routes: [{invocation: "/wf review <slug>", reason: "update-deps self-verifies next", default: true}]
 ---
 ```
 
@@ -50,7 +51,12 @@ metric-acceptance-total: <int>
 metric-interactive-checks-run: 0
 metric-interactive-checks-passed: 0
 metric-issues-found: <int>           # blocked packages
-evidence-dir: ""
+evidence-dir: ".ai/workflows/<slug>/verify-evidence/<slug>/"
+stack-source: unconfirmed-auto-detect   # the update-deps stack policy leaves the stack unconfirmed
+skipped-gating-specs: []
+debt-markers-found: 0
+debt-markers-malformed: 0
+debt-markers-unrecorded: 0
 tags: [deps]
 refs:
   index: 00-index.md
@@ -58,5 +64,6 @@ refs:
   next: 07-review.md
 next-command: wf-review
 next-invocation: "/wf review <slug>"
+recommended-routes: [{invocation: "/wf review <slug>", reason: "review the tiered update", default: true}]
 ---
 ```

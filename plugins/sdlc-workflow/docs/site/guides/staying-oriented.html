@@ -21,7 +21,7 @@
 
 <dl class="cmd-grid">
 <dt><code>/wf status &lt;slug&gt;</code></dt>
-<dd>Detail view for one workflow: a stage-by-stage progress table, a per-slice matrix, open questions, branch info, any open deferrals, and every viable next command from the current stage, not one command picked silently. If you are checked out on the wrong branch, the branch info includes a warning. If an autonomous driver ever ran here, a Driver row reports the driver as running, presumed dead, or completed, judged by the recency of its heartbeat journal.</dd>
+<dd>Detail view for one workflow: a stage-by-stage progress table, a per-slice matrix, open questions, branch info, any open deferrals, and every viable next command from the current stage, not one command picked silently. The options come from the <code>recommended-routes</code> list in the current stage file's frontmatter, each with its reason. If you are checked out on the wrong branch, the branch info includes a warning. If an autonomous driver ever ran here, a Driver row reports the driver as running, presumed dead, or completed, judged by the recency of its heartbeat journal.</dd>
 <dt><code>/wf status &lt;slug&gt; deep</code></dt>
 <dd>The reality-drift check. Deep mode inventories every file, test, git ref, and dependency that the artifacts mention, and it checks each one against the actual repo. It flags code that moved after the stage that referenced it, branches that vanished, and dependencies that drifted. It writes the findings to a <code>00-sync.md</code> report with a health rating and recommended actions. When a workflow sat idle mid-flight and you suspect that the world moved underneath it, run deep mode.</dd>
 <dt><code>/wf status pr#N</code> (or a branch name)</dt>
@@ -32,7 +32,7 @@
 
 <h2>/wf recap — the story in plain language</h2>
 
-<p>Status tells you the state; recap tells you the story. <code>/wf recap &lt;slug&gt;</code> reads the whole trail and retells it the way you would catch up a colleague who was away for two weeks. The recap covers the problem this work solves, the decisions and their reasons, the parts that are built and checked, and the constraints that the next person must respect. It writes the result to <code>90-recap.md</code> and advances nothing.</p>
+<p>Status tells you the state; recap tells you the story. <code>/wf recap &lt;slug&gt;</code> reads the whole trail, including the explainer of each stage, and retells it the way you would catch up a colleague who was away for two weeks. The recap covers the problem this work solves, the decisions and their reasons, the parts that are built and checked, and the constraints that the next person must respect. It writes the result to <code>90-recap.md</code> and advances nothing.</p>
 
 <p>A second argument scopes the recap. A slice name recaps just that slice's journey. A focus keyword (<code>plan</code>, <code>shape</code>, <code>slice</code>, <code>review</code>, or <code>findings</code>) switches to <strong>explain mode</strong>. Explain mode does not recap the journey. It explains that one artifact in plain language: what the artifact says, what it commits to, and what it implies. Use explain mode for "help me understand my own plan" and "walk me through these review findings". Like the other lifecycle-adjacent commands, <code>/wf recap pr#N</code> is a batch form. It recaps every slug on the branch and composes the combined narrative: what the branch as a whole does, how the slugs relate, and the single most useful next command.</p>
 

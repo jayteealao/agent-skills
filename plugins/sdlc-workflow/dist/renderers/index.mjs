@@ -1,17 +1,20 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  storyLink
+} from "../chunk-SWJT3BVF.mjs";
+import {
   md2html,
   renderHistoryBlock,
   renderRevisionLedger
-} from "../chunk-SCNOIKJL.mjs";
+} from "../chunk-M4L3PWUR.mjs";
 import {
   costRowsFor,
   costSectionHtml
 } from "../chunk-TNCDSDXJ.mjs";
 import {
   humanRelative
-} from "../chunk-DW5WFXUB.mjs";
+} from "../chunk-4HITZZ2W.mjs";
 import {
   evenX,
   figureCanvas
@@ -21,7 +24,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-O2MCLXSW.mjs";
+} from "../chunk-U4XWDSQ3.mjs";
 import "../chunk-PNDGQNSP.mjs";
 import {
   escapeHtml
@@ -138,6 +141,7 @@ function render(artifact, ctx) {
   const plansHtml = plansPreview(ctx.allArtifacts);
   const mobileStripeHtml = mobileStripe({ current, allArtifacts: ctx.allArtifacts, fm });
   const bodyHtml = `
+    ${storyLink(ctx.allArtifacts)}
     <div class="d-only">${figureHtml}${metricsHtml}</div>
     <div class="m-only">${mobileStripeHtml}</div>
     <section class="so-grid">

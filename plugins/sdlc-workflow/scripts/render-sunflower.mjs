@@ -32,7 +32,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { loadArtifact } from '../renderers/_yaml.mjs';
 import { validateFrontmatter, renderWarnBanner } from '../renderers/_validator.mjs';
-import { resolveViewPath, siblingPaths, classifyFragmentName, breadcrumbFromView, hubAssetBase } from '../renderers/_paths.mjs';
+import { resolveViewPath, siblingPaths, classifyFragmentName, breadcrumbFromView, hubAssetBase, EVIDENCE_DIRS, SURFACE_SWEEP_RE } from '../renderers/_paths.mjs';
+import { shouldGenerateFragment, generateTypedFragment } from '../renderers/_fragment-gen.mjs';
+import { composeStagePage, stageKeyFor, evidenceDirFor, viewHref } from '../renderers/_page.mjs';
 import { buildPathMap, rewriteBodyLinks } from '../renderers/_link-graph.mjs';
 import { workSetFilter } from '../renderers/_mtime.mjs';
 import { loadHistory } from '../renderers/_history.mjs';
@@ -149,6 +151,9 @@ function* walkStorage(root) {
         // Skip view tree, dotfiles, node_modules
         if (e.name.startsWith('.') && e.name !== '.ai') continue;
         if (e.name === 'node_modules') continue;
+        // Evidence folders (S5): no page per evidence file. The owning stage
+        // page links the files from part 4 (see listEvidenceFiles).
+        if (EVIDENCE_DIRS.includes(e.name)) continue;
         stack.push(abs);
       } else if (e.isFile()) {
         if (abs.endsWith('.md') || abs.endsWith('.yaml') || abs.endsWith('.html.fragment')) {
@@ -260,6 +265,17 @@ function discoverProjectArtifacts({ projectRoot }) {
     { rel: '.ai/observability.md', type: 'observability-plan', title: 'Observability plan', siblingRoot: projectRoot },
     { rel: '.ai/observability-build.md', type: 'observability-build', title: 'Observability build', siblingRoot: projectRoot },
   ];
+  // Slug-less probe sweeps (`/wf probe sweep`) write `.ai/surface-sweep-<date>.md`
+  // and its explainer `.ai/surface-sweep-<date>.explainer.html.fragment`. Each
+  // report gets a project page (project/surface-sweep-<date>.html).
+  const aiDir = join(projectRoot, '.ai');
+  if (existsSync(aiDir)) {
+    for (const name of readdirSync(aiDir).sort()) {
+      const rel = `.ai/${name}`;
+      if (!SURFACE_SWEEP_RE.test(rel)) continue;
+      candidates.push({ rel, type: 'surface-sweep', title: `Surface sweep ${name.slice('surface-sweep-'.length, -'.md'.length)}`, siblingRoot: projectRoot });
+    }
+  }
   for (const candidate of candidates) {
     const mdAbs = join(projectRoot, candidate.rel);
     if (!existsSync(mdAbs)) continue;
@@ -466,6 +482,30 @@ function appendNarrativeFragments(bodyHtml, fragments, config) {
   return `${bodyHtml}\n<section class="narrative-fragments" aria-label="narrative fragments">\n${blocks}\n</section>`;
 }
 
+function mtimeOrNull(abs) {
+  if (!abs) return null;
+  try { return statSync(abs).mtimeMs; } catch { return null; }
+}
+
+// Every file under an evidence folder (S5), sorted, capped. Evidence files get
+// no page of their own; part 4 of the owning stage page links each one.
+const EVIDENCE_LINK_CAP = 60;
+function listEvidenceFiles(dirAbs) {
+  const out = [];
+  const stack = [dirAbs];
+  while (stack.length && out.length < EVIDENCE_LINK_CAP * 4) {
+    const d = stack.pop();
+    let entries;
+    try { entries = readdirSync(d, { withFileTypes: true }); } catch { continue; }
+    for (const e of entries) {
+      const abs = join(d, e.name);
+      if (e.isDirectory()) stack.push(abs);
+      else if (e.isFile()) out.push(abs);
+    }
+  }
+  return out.sort().slice(0, EVIDENCE_LINK_CAP);
+}
+
 function synthesizeProjectFrontmatter(artifact, frontmatter) {
   const fm = frontmatter && typeof frontmatter === 'object' ? frontmatter : {};
   if (fm.schema && fm.type) return fm;
@@ -603,6 +643,29 @@ async function renderMain(args) {
     let fragmentHtml = fragmentAbs && existsSync(fragmentAbs)
       ? readFileSync(fragmentAbs, 'utf-8')
       : null;
+    // R7 — build the typed fragment from the sibling `.yaml` when the fragment
+    // is absent or older than the `.yaml`. An agent-authored fragment that is
+    // as new as the `.yaml` wins. `fragment: none` in frontmatter opts out.
+    let fragmentGenerated = false;
+    const fmType = loaded.frontmatter?.type;
+    if (loaded.siblingYaml && typeof loaded.siblingYaml === 'object'
+        && loaded.frontmatter?.fragment !== 'none'
+        && shouldGenerateFragment({
+          type: fmType,
+          yamlMtimeMs: mtimeOrNull(yamlAbs),
+          fragmentMtimeMs: fragmentHtml == null ? null : mtimeOrNull(fragmentAbs),
+        })) {
+      try {
+        fragmentHtml = generateTypedFragment({
+          type: fmType,
+          siblingYaml: loaded.siblingYaml,
+          artifact: basename(a.storageRel, '.md'),
+        });
+        fragmentGenerated = true;
+      } catch (err) {
+        console.warn(`[fragment-gen] ${a.mdAbs}: ${err.message}`);
+      }
+    }
     // v9.20.1 — expand `<!-- @include … -->` snippet tokens. Runs after
     // verify-fragment.mjs (Check 7) and before _shell.mjs wraps the doc.
     if (fragmentHtml) {
@@ -618,17 +681,35 @@ async function renderMain(args) {
     // Tier 2 — discover + load any free narrative fragments co-located with the
     // `.md` (`<stem>.<label>.html.fragment`). Injected raw-inline post-render so
     // EVERY artifact type can carry them, not just the rich tier.
-    const narrativeFragments = loadFreeFragments(a.mdAbs, {
+    const allFree = loadFreeFragments(a.mdAbs, {
       componentsRoot: join(args.pluginRoot, 'components'),
       maxDepth: 4,
     });
+    // S2 — the explainer (`<stem>.explainer.html.fragment`) leaves the foot
+    // list: it renders at the TOP of the page as part 1. Brainstorm keeps its
+    // current page, so its explainer (if any) stays a foot fragment.
+    const explainer = fmType !== 'brainstorm'
+      ? allFree.find((f) => f.label === 'explainer') ?? null
+      : null;
+    const narrativeFragments = allFree.filter((f) => f !== explainer);
+    // Part 4 evidence links (S5): only four-part pages show them.
+    let evidenceFiles = [];
+    if (explainer && a.kind === 'workflow') {
+      const stage = stageKeyFor({ type: fmType, frontmatter: loaded.frontmatter ?? {}, path: a.storageRel });
+      const dir = evidenceDirFor({ stage, frontmatter: loaded.frontmatter ?? {}, path: a.storageRel });
+      if (dir) evidenceFiles = listEvidenceFiles(join(storageRoot, a.slug, dir));
+    }
     const history = loadHistory(a.mdAbs);
     parsed.push({
       ...a,
       ...loaded,
       fragment: fragmentHtml,
+      fragmentGenerated,
+      explainer,
+      evidenceFiles,
       narrativeFragments,
-      narrativeFragmentPaths: narrativeFragments.map((f) => f.abs),
+      // The explainer and evidence files join the dirty-check inputs.
+      narrativeFragmentPaths: [...allFree.map((f) => f.abs), ...evidenceFiles],
       history,
       siblingPaths: { yaml: yamlAbs, fragment: fragmentAbs },
     });
@@ -728,7 +809,18 @@ async function renderMain(args) {
     // rest of the body following in its normal place. Backward-compatible:
     // artifacts without a story section leave storyMarkdown === '' and bodyRest
     // === body, so nothing about their render changes.
-    const { storyMarkdown, bodyRest } = splitStorySection(a.body);
+    //
+    // With an explainer fragment (S2) the page is the four-part page
+    // (renderers/_page.mjs): the explainer replaces the story, so nothing is
+    // lifted and the renderer's output becomes the collapsed full record.
+    // Without one (old slugs, D5) the page is exactly today's page.
+    const fourPart = Boolean(a.explainer) && config?.view?.narrativeFragments !== false;
+    const stage = fourPart ? stageKeyFor({ type, frontmatter: a.frontmatter ?? {}, path: a.storageRel }) : null;
+    const { storyMarkdown, bodyRest } = fourPart
+      ? { storyMarkdown: '', bodyRest: a.body }
+      : splitStorySection(a.body);
+    // A four-part page lists earlier revisions in part 4, not in the record.
+    const recordHistory = fourPart && stage && stage !== 'recap' ? [] : a.history;
 
     let result;
     try {
@@ -738,8 +830,9 @@ async function renderMain(args) {
         frontmatter: a.frontmatter,
         body: bodyRest,
         siblingYaml: a.siblingYaml,
-        history: a.history,
+        history: recordHistory,
         fragment: a.fragment,
+        fragmentGenerated: a.fragmentGenerated,
         path: a.storageRel,
       }, ctx);
     } catch (err) {
@@ -753,6 +846,38 @@ async function renderMain(args) {
     // keeps them after the story per the artifact-narrative contract.
     if (storyMarkdown) {
       result.bodyHtml = `<section class="story">${md2html(storyMarkdown)}</section>${result.bodyHtml ?? ''}`;
+    }
+
+    if (fourPart) {
+      const pageDir = dirname(a.viewAbs);
+      const evidence = (a.evidenceFiles ?? []).map((abs) => ({
+        label: relative(join(storageRoot, a.slug), abs).replace(/\\/g, '/'),
+        href: relative(pageDir, abs).replace(/\\/g, '/'),
+      }));
+      // Review dimension files are evidence of the review: link their pages.
+      const stem = basename(a.storageRel, '.md');
+      const related = stage === 'review'
+        ? (slugArtifacts.get(a.slug) ?? [])
+          .filter((x) => x !== a && x.viewRel && (x.frontmatter?.type === 'review-command')
+            && !/(?:^|\/)history\//.test(x.storageRel)
+            && (stem === '07-review' || basename(x.storageRel, '.md').startsWith(`${stem}-`)))
+          .sort((x, y) => String(x.storageRel).localeCompare(String(y.storageRel)))
+          .map((x) => ({ label: x.frontmatter?.title ?? basename(x.storageRel, '.md'), href: viewHref(a.viewRel, x.viewRel) }))
+        : [];
+      result.bodyHtml = composeStagePage({
+        stage,
+        frontmatter: a.frontmatter ?? {},
+        body: a.body ?? '',
+        siblingYaml: a.siblingYaml,
+        history: a.history,
+        explainerHtml: a.explainer.html,
+        recordHtml: result.bodyHtml ?? '',
+        evidence,
+        related,
+        allArtifacts: ctx.allArtifacts,
+        viewRel: a.viewRel,
+        scopeCss: config?.view?.scopeNarrativeCss !== false ? scopeFragmentCss : (h) => h,
+      });
     }
 
     // Rewrite inline body links that reference sibling source `.md` files to

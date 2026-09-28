@@ -4,7 +4,7 @@ argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Load `_intake-context.md` in full and apply it: the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Apply `intake/_intake-context.md`: the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake rca`, a **root-cause analysis workflow** that investigates an issue and recommends the right downstream command, without writing a fix.
 
@@ -19,11 +19,29 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 
 | | Detail |
 |---|---|
-| Requires | Nothing; starts fresh. Pass an error description, stack trace, or an existing slug to resume; pass `<slug> <route>` to record the route and close. |
+| Requires | See [## Requires](#requires). Pass an error description, stack trace, or an existing slug to resume; pass `<slug> <route>` to record the route and close. |
 | Produces | `01-rca.md` (full RCA), `02-shape.md` (synthesized minimal shape so /wf plan works), `00-index.md`. Body templates: [intake/rca/_artifact.md](rca/_artifact.md). |
 | Skips | No fix, no plan, no shape interview. The RCA *is* the shape. |
 | Next | `/wf plan <slug>` (default: non-trivial fixes, same slug continues), `/wf intake fix "<suggested fix, one line>" from <slug>` (small fixes), `/wf intake hotfix "<symptom, one line>" from <slug>` (active production incidents). The artifact recommends one based on the diagnosis; recording the route (`# Route — decision closure`) is the terminus. |
 | Escalate | If root cause is genuinely uncertain (confidence: low), climb the ladder before surrendering to triage: `/wf probe <slug> "<the runtime question the diagnosis hinges on>"` for a runtime fact, the `study-sources` skill for a dependency fact, `/consult` for a second model on the hypothesis. Human triage is the LAST rung, reached when low confidence survives those. |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](../_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | on-resume | |
+| `01-rca.md` | artifact | on-resume | |
+| `steer.md` | artifact | if-present | |
+| `intake/_intake-context.md` | procedure | always | |
+| `intake/_intake-provenance.md` | procedure | always | |
+| `intake/rca/_research.md` | procedure | always | |
+| `intake/rca/_artifact.md` | procedure | always | |
+| `intake/rca/_view.md` | procedure | always | |
+| `_compressed-slice.md` | procedure | mode:slug | |
+| `01-rca.md` | writes | | |
+| `02-shape.md` | writes | | |
 
 > **Auto second opinion (diagnosis).** Once the root-cause hypothesis is written (before the terminus recommendation), **auto-invoke** `/consult codex <is this root-cause sound? what else could explain the symptom?>` (pin `codex`/`claude`) unless the cause is already proven: a read-only panel whose repo-aware oracles check the hypothesis against the real code before you commit to a fix.
 
@@ -59,11 +77,11 @@ Ask at most **3 questions**; stop as soon as you have enough to investigate:
 If the user provided a stack trace or error message in `$ARGUMENTS`, treat it as partial answers; only ask remaining questions. Do not write the artifact yet. Hold the answers in working memory and proceed to Step 2.
 
 # Step 2 — Parallel root-cause investigation
-Launch parallel read-only sub-agents to identify the root cause. Do not proceed to synthesis until all complete. The three charters (code path investigation, recent change correlation, blast radius), the effort tier, the return shapes, and the local-symptom skip rule are in [intake/rca/_research.md](rca/_research.md).
+Launch parallel read-only sub-agents to identify the root cause. Do not proceed to synthesis until all complete. The three charters (code path investigation, recent change correlation, blast radius), the effort tier, the return shapes, and the local-symptom skip rule are in `intake/rca/_research.md`.
 
 # Step 3 — Synthesize and write `01-rca.md`
 
-Write the body per the section templates in [intake/rca/_artifact.md](rca/_artifact.md): the RCA story, Sections 1–11 (symptom through tripwires), including the Section 10 routing table that names the exact invocation for each route.
+Write the body per the section templates in `intake/rca/_artifact.md`: the explainer, then `## Symptom` through `## Tripwire warnings`, including the `## Recommended next command` routing table that names the exact invocation for each route.
 
 **`01-rca.md` frontmatter:**
 ```yaml
@@ -79,12 +97,15 @@ blast-radius: <low|medium|high|skipped>
 recommended-next: <plan|fix|hotfix|human-triage>
 status: ready-for-fix-routing
 created-at: <real UTC timestamp per _timestamp.md>
+next-command: <user-picks until the route is recorded>
+next-invocation: "/wf intake rca <slug> <route>"
+recommended-routes: [{invocation: "/wf intake rca <slug> <route>", reason: "<one phrase>", default: true}]
 ---
 ```
 
 # Step 4 — Synthesize `02-shape.md`
 
-Write a minimal `02-shape.md` so `/wf plan <slug>` can consume the workflow directory without modification. The body template is in [intake/rca/_artifact.md](rca/_artifact.md).
+Write a minimal `02-shape.md` so `/wf plan <slug>` can consume the workflow directory without modification. The body template is in `intake/rca/_artifact.md`.
 
 **`02-shape.md` frontmatter:**
 ```yaml
@@ -106,6 +127,7 @@ refs:
   index: 00-index.md
 next-command: wf-plan                 # wf-design when design is needed (Step 5)
 next-invocation: "/wf plan <slug>"    # "/wf design <slug>" when design is needed
+recommended-routes: [{invocation: "/wf plan <slug>", reason: "the same slug continues", default: true}]
 ---
 ```
 
@@ -127,25 +149,25 @@ status: ready
 branch-strategy: none
 branch: <current-branch-recorded-at-step-0>
 base-branch: <current-branch-recorded-at-step-0>
-next-command: <route from Section 10, e.g. wf-plan; user-picks until recorded>
-next-invocation: "<the Section 10 invocation for that route>"
+next-command: <route from `## Recommended next command`, e.g. wf-plan; user-picks until recorded>
+next-invocation: "<the invocation for that route>"
 recommended-routes:
-  primary: <route>
-  alternates: [<route>, <route>]
-stack:                      # cheap fingerprint per _change-mode-tail.md stack policy, user-confirmed: false —
-  detected-at: "<iso-8601>" # the plan route STOPs on a MISSING stack block, so rca must write one
+  - {invocation: "<route>", reason: "<one phrase>", default: true}
+  - {invocation: "<route>", reason: "<one phrase>"}
+stack:
+  detected-at: "<iso-8601>"
   platforms: []
   languages: []
   build: []
   testing: []
   user-confirmed: false
-ux-impact: <none|visual|flow|new-surface>   # from the suggested fix, per design/_lane.md
+ux-impact: <none|visual|flow|new-surface>
 ux-impact-confirmed: false
 open-questions: []
 progress:
   rca: complete
   shape-synthesized: complete
-  design: <not-started|skipped>             # skipped when ux-impact: none
+  design: <not-started|skipped>
 created-at: <timestamp>
 updated-at: <timestamp>
 ---
@@ -157,11 +179,11 @@ Body: one-line description + a short pointer to `01-rca.md` and the routing reco
 
 ## Step 5b — Write the rich `.yaml` + fragment (do not skip)
 
-Author the sibling `01-rca.yaml` (diagnosis set: `incident:`, `title:`, `chain:`, `timeline:`; the resolution set and `heatmap:` only for a post-incident RCA) and the body-only `01-rca.html.fragment` per [intake/rca/_view.md](rca/_view.md), which also holds the `@include` chrome rules and the optional `five_whys[]` block. Without the `.yaml` the page degrades to plain prose.
+Author the sibling `01-rca.yaml` (diagnosis set: `incident:`, `title:`, `chain:`, `timeline:`; the resolution set and `heatmap:` only for a post-incident RCA) and the body-only `01-rca.html.fragment` per `intake/rca/_view.md`, which also holds the `@include` chrome rules and the optional `five_whys[]` block. Without the `.yaml` the page degrades to plain prose.
 
 # Step 6 — Hand off to user
 
-Return per [_chat-return.md](../_chat-return.md): narrative lead (what was found and what it means for the user), then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md): quote the explainer summary as the narrative lead, then the structured anchors below.
 
 ```
 wf intake rca complete: <slug>
@@ -171,7 +193,7 @@ Confidence: <root-cause-confidence> root cause / <fix-shape-confidence> fix shap
 Blast radius: <low|medium|high|skipped>
 Tripwires: <none | comma-separated list>
 Recommended next: <route> — <one-sentence justification>
-Record it: /wf intake rca <slug> <route>   (then run the Section 10 invocation it prints)
+Record it: /wf intake rca <slug> <route>   (then run the invocation it prints)
 Alternates: <comma-separated list of other viable routes>
 RCA artifact: .ai/workflows/<slug>/01-rca.md
 ```
@@ -185,17 +207,17 @@ If the recommendation is `human-triage`, replace the `Recommended next:` line wi
 Runs only from Step 0 route mode (`/wf intake rca <slug> <plan|fix|hotfix|human-triage> [one-line reason]`). Recording the route is the workflow's decision record. It never starts the successor: it prints the invocation and stops.
 
 1. **Stamp the artifact.** Add to `01-rca.md` frontmatter: `chosen-route: <route>`; `routed-at:` set to the real UTC timestamp (per [_timestamp.md](../_timestamp.md)); and `decision-note: <the trailing prose>` if the user supplied any (omit the key otherwise).
-2. **Append a `## Decision` section** to the artifact body: which route was picked; why (the user's exact reason, else "user routed without a stated reason"); which tripwires were live at route time (from Section 11, or "none").
+2. **Append a `## Decision` section** to the artifact body: which route was picked; why (the user's exact reason, else "user routed without a stated reason"); which tripwires were live at route time (from `## Tripwire warnings`, or "none").
 3. **Close or continue, by route:**
    - **`fix` / `hotfix`**: the successor is a NEW workflow, so this one closes. Update `00-index.md` with `status: closed`, `close-reason: route-recorded`, `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`, `next-invocation: "none — route recorded"`; update the registry row to `closed`. The successor's link-back (`_intake-provenance.md`) corrects `superseded-by: pending`.
    - **`plan`**: the SAME slug continues into the standard chain; the workflow stays open. Set `next-command: wf-plan`, `next-invocation: "/wf plan <slug>"`, refresh `updated-at`. When design is needed and not settled per `design/_lane.md`, set `next-command: wf-design` and `next-invocation: "/wf design <slug>"` instead.
-   - **`human-triage`**: the workflow stays open awaiting the human. Set `next-command: user-picks`, `next-invocation: "user-picks — human triage; see 01-rca.md §9-10"`.
-4. **Print the next invocation** per the Section 10 table (`/wf plan <slug>`, or `/wf intake fix "<suggested fix, one line>" from <slug>`, or `/wf intake hotfix "<symptom, one line>" from <slug>`) and stop. Do not run it.
+   - **`human-triage`**: the workflow stays open awaiting the human. Set `next-command: user-picks`, `next-invocation: "user-picks — human triage; see 01-rca.md ## Confidence"`.
+4. **Print the next invocation** per the `## Recommended next command` table (`/wf plan <slug>`, or `/wf intake fix "<suggested fix, one line>" from <slug>`, or `/wf intake hotfix "<symptom, one line>" from <slug>`) and stop. Do not run it.
 
 # Routing notes (read carefully)
 
 - **`/wf plan <slug>` is the cleanest downstream path**: it reads the synthesized `02-shape.md` and the workflow directory without any modification, and the Step 5 index carries the `stack:` block plan requires. Use it as the default unless the diagnosis clearly fits hotfix or fix.
-- **`fix` and `hotfix` routes start fresh workflows** that inherit this diagnosis via `_intake-provenance.md`: the printed `… from <slug>` invocation carries the root cause, blast radius, and Section 8 verification (which becomes the successor's acceptance criteria). Never print a bare `intake fix <slug>` form: a slug in that position parses as a description and dead-ends in the collision warning.
+- **`fix` and `hotfix` routes start fresh workflows** that inherit this diagnosis via `_intake-provenance.md`: the printed `… from <slug>` invocation carries the root cause, blast radius, and `## Verification` (which becomes the successor's acceptance criteria). Never print a bare `intake fix <slug>` form: a slug in that position parses as a description and dead-ends in the collision warning.
 
 # What this command is NOT
 

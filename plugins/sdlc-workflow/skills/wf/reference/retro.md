@@ -18,10 +18,39 @@ You are running `/wf retro`, **stage 10 of 10** in the SDLC lifecycle.
 
 | | Detail |
 |---|---|
-| Requires | `09-ship.md` (strongly recommended), plus as many prior stage files as exist |
-| Conditional inputs (mandatory when present) | All design artifacts (`02b-design.md`, `02c-craft.md`, `design-notes/*`, `07-design-audit.md`, `07-design-critique.md`) — every artifact that exists on disk must be reflected in the retro. Design decisions and augmentation outcomes are first-class retro inputs, not optional commentary. |
+| Requires | See [## Requires](#requires). |
 | Produces | `10-retro.md` |
 | Next | Workflow complete. No further stages. |
+
+## Requires
+
+Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
+
+| Input | Kind | When | Sections |
+|---|---|---|---|
+| `00-index.md` | artifact | always | |
+| `po-answers.md` | artifact | if-present | |
+| `steer.md` | artifact | if-present | |
+| `01-*.md` | artifact | if-present | |
+| `02-shape.md` | artifact | if-present | |
+| `02b-design.md` | artifact | if-present | |
+| `02c-craft.md` | artifact | if-present | |
+| `03-slice*.md` | artifact | if-present | |
+| `04-plan*.md` | artifact | if-present | |
+| `05-implement*.md` | artifact | if-present | |
+| `06-verify*.md` | artifact | if-present | |
+| `07-review*.md` | artifact | if-present | |
+| `07-design-audit.md` | artifact | if-present | |
+| `07-design-critique.md` | artifact | if-present | |
+| `design-notes/*.md` | artifact | if-present | |
+| `08-handoff.md` | artifact | if-present | |
+| `09-ship-run-*.md` | artifact | if-present | |
+| `09-ship.md` | artifact | if-present | |
+| `retro/_artifact.md` | procedure | always | |
+| `design/record.md` | procedure | mode:design | |
+| `10-retro.md` | writes | | |
+
+The index holds every deferral (`runtime-evidence-deferrals`, cleared entries too).
 
 > **Auto second opinion (objective triggers).** At the synthesis step (after the analysis
 > sub-agents return), **auto-invoke** `/consult codex <what systemic patterns span this workflow's
@@ -42,13 +71,13 @@ You are a **workflow orchestrator**, not a problem solver.
    - **PR reference** `pr#N` / `#N` / bare integer → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then the branch path below.
    - **Branch name**: matches a `branch:` recorded in some `00-index.md` / `.ai/workflows/INDEX.md` (or an existing git branch) → **batch retro** (`retro-scope: branch`) — see `## Batch retro` below, then return here per-slug.
    - **Absent**: infer the most recent active workflow from `.ai/workflows/*/00-index.md` → single-slug. If ambiguous, ask the user.
-   - **`deep` token** (anywhere in the arguments, alongside the slug) → set `deep-retro: true` and run the deep-retro pass in *Deep retro* below. **Opt-in, never default** — omit the token and retro runs from artifacts alone. The deep pass's richest source (session transcripts) exists only under a host that keeps them; elsewhere `deep` falls back to an artifact-only deep pass (see *Deep retro*).
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
+   - **`deep` token** (anywhere in the arguments, alongside the slug) → set `deep-retro: true` and run the deep-retro pass in *Deep retro* below. **Opt-in, never default** — omit the token and retro runs from artifacts alone.
+2. **Parse `00-index.md`** frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
-   - At minimum, `05-implement.md` should exist (there must be something to retro on). If nothing exists beyond intake → STOP. Tell the user: "Not enough completed work to retrospect. Run more stages first."
-   - `09-ship.md` is strongly recommended but not blocking — a retro can run after a cancelled or abandoned effort.
+   - At least one implement record (`05-implement-<slice>.md`, or `05-implement.md` in change mode) must exist. If nothing exists beyond intake → STOP. Tell the user: "Not enough completed work to retrospect. Run more stages first."
+   - A ship run (`09-ship-run-*.md`, or a legacy `09-ship.md`) is strongly recommended but not blocking — a retro can run after a cancelled or abandoned effort.
    - If `current-stage` in the index shows the workflow is already complete → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
-4. **Read the full workflow trail** — every stage file that exists, plus `po-answers.md`. This includes design artifacts: `02b-design.md`, `02c-craft.md`, `design-notes/*`, `07-design-audit.md`, `07-design-critique.md`. Retro reflects on design decisions and augmentation outcomes, not only engineering ones. When design was needed, write back to the design record per [design/record.md](design/record.md) → Retro write-back: update `.ai/design/current.md`, and ask the person before any change to `.ai/design/direction.md`.
+4. **Use the full workflow trail** (every Requires row). Retro reflects on design decisions and augmentation outcomes, not only engineering ones. When design was needed, write back to the design record per [design/record.md](design/record.md) → Retro write-back: update `.ai/design/current.md`, and ask the person before any change to `.ai/design/direction.md`.
 5. **Carry forward** `open-questions` from the index.
 
 # Batch retro (`pr#N` / branch)
@@ -71,7 +100,6 @@ decision moments the stage files did not record and feeds that evidence into the
   artifact-only deep pass**: a deeper, more adversarial re-read of the existing stage trail,
   `po-answers.md`, and the git history for the same decision moments. The retro then notes that
   transcript mining was skipped (host-gated). It never instructs a read of a transcript path this host lacks.
-- **Opt-in, never default.** Only the explicit `deep` token turns it on.
 - **What the deep pass looks for.** **Decision moments** — points where an approach was chosen, an
   assumption locked in, or a user instruction interpreted (especially "mirror/match exactly", "just like
   X", silent narrowings). Extract the moment, what was decided, and whether the artifacts recorded it.
@@ -161,7 +189,7 @@ misfired, a gate was wrong, a reference misled). The two go different places:
 Apply [_workflow-rules.md](_workflow-rules.md).
 
 # Chat return contract
-Apply [_grounded-progress.md](_grounded-progress.md): every count this stage reports (checks run/passed, commits, findings) names the artifact or tool result it came from. After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Retro` story voice, then this receipt:
+Apply [_grounded-progress.md](_grounded-progress.md): every count this stage reports (checks run/passed, commits, findings) names the artifact or tool result it came from. After writing files, return per [_chat-return.md](_chat-return.md). Quote the explainer's summary paragraph as the narrative lead, then give this receipt:
 - `slug: <slug>`
 - `wrote: <path>`
 - `next: workflow complete` (or options if follow-up is warranted)
@@ -170,13 +198,11 @@ Apply [_grounded-progress.md](_grounded-progress.md): every count this stage rep
 **Batch mode** (`retro-scope: branch`): lead with the combined branch-level retro narrative (the cross-slug story), then the receipt as a per-slug roster — one `wrote:` line per retrospected slug, the skipped slugs named with their reason, and a single `cross-slug learnings:` line pointing at the `.ai/solutions/` files the synthesis wrote.
 
 Do this in order:
-1. Identify what worked, what caused friction, and what should be codified.
-2. Suggest concrete updates for `AGENTS.md`, `CLAUDE.md`, hooks, test coverage, CI checks, and skill prompts.
-3. Prioritize by impact and effort.
-4. Distill 0–3 durable learnings into `.ai/solutions/` + its INDEX.md (see the distillation step in *Parallel analysis*) and stamp `learnings-written:`.
-5. **Evaluate adaptive routing** (see below) and write options into `## Recommended Next Stage`.
-6. Mark the workflow as complete in `00-index.md` unless follow-up work is being opened.
-7. Write `.ai/workflows/<slug>/10-retro.md`.
+1. Prioritize the improvements by impact and effort.
+2. Distill 0–3 durable learnings into `.ai/solutions/` + its INDEX.md (see the distillation step in *Parallel analysis*) and stamp `learnings-written:`.
+3. **Evaluate adaptive routing** (see below) and write options into the `recommended-routes` frontmatter.
+4. Mark the workflow as complete in `00-index.md` unless follow-up work is being opened.
+5. Write `.ai/workflows/<slug>/10-retro.md`.
 
 # Adaptive routing — evaluate what's actually next
 After completing the retro, evaluate whether the workflow is truly done:
@@ -191,9 +217,9 @@ Use when: The retro identified follow-up work significant enough to warrant its 
 Use when: The retro is running mid-workflow and there are more slices.
 
 **Option D: Apply retro improvements** → suggest specific file edits
-Use when: The retro identified quick-win improvements to repo instructions, hooks, or CI that the user might want to apply now. List them as actionable suggestions but do NOT apply them. Durable learnings are already written to `.ai/solutions/` by the distillation step — Option D's remaining scope is repo instruction/hook/CI edits only.
+Use when: The retro identified quick-win improvements to repo instructions, hooks, or CI that the user might want to apply now. List them as actionable suggestions but do NOT apply them.
 
-Write ALL viable options into `## Recommended Next Stage` so the user can choose.
+Write ALL viable options into `recommended-routes` so the user can choose.
 
 Write `10-retro.md` with the frontmatter and body sections in [retro/_artifact.md](retro/_artifact.md). On a re-run over an existing `10-retro.md`, follow the additive-write contract in the same file.
 

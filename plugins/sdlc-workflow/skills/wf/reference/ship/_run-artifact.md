@@ -54,13 +54,18 @@ refs:
   handoff: 08-handoff.md
   plan: ../../ship-plan.md
   reviews: [07-review-<slice-1>.md, ...]
-next-command: wf-retro
-next-invocation: "/wf retro <slug>"
+next-command: retro
+next-invocation: "/wf retro <slug>"   # the default route
+recommended-routes:                  # every viable option from ship.md Adaptive routing; one default
+  - invocation: "/wf retro <slug>"
+    reason: "<one phrase>"
+    default: true
 ---
 ```
 
+Write the explainer to `09-ship-run-<run-id>.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
+
 Body, as `# Ship Run — <slug> @ <version> @ <environment>`, in order:
-- `## The Ship` — first, and self-sufficient. Follow `_story-arc.md`: three beats in order (the state this stage inherited, the load-bearing decisions with reasons and counts, what this stage enables next plus the top open risk). Language follows `_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs.
 - `## Pre-flight` — ship-plan readiness (`ok` | `acknowledged`, with the drift signals and reason), branch + tree clean, version chosen (and prior), source-of-truth files updated, secrets verified (with staleness flags), changelog regenerated (yes/no, commit sha).
 - `## Publish dry-run` — command, result, post-conditions checked with outcomes.
 - `## Rollout decision` — strategy, release window, stakeholders, caveats.
@@ -73,7 +78,6 @@ Body, as `# Ship Run — <slug> @ <version> @ <environment>`, in order:
 - `## Post-release version bump` — next dev version, commit sha.
 - `## Recovery actions taken` — `<playbook-id>`: steps confirmed by the user.
 - `## Announcements` — channels notified.
-- `## Recommended Next Stage` — Option A (default) `/wf retro <slug>`; Option B `/wf implement <slug> <slice>` (fix blockers or rebase conflicts); Option C `/wf verify <slug> <slice>` (re-verify stale evidence); Option D `/wf ship <slug>` (resume a paused run); each with its reason, when applicable.
 
 ## `09-ship-runs.md` (Step 11, append or refresh on every run)
 
@@ -135,7 +139,7 @@ The sunflower view renders the ship-run page from a sibling `.yaml` + `.html.fra
    ```
 
    Two field-shape traps that have each cost a blocked write: `release-workflow-conclusion` in the `.md` frontmatter takes an empty string `""`, not the word `empty`; and `notes` is capped at 160 characters.
-2. Write the sibling **`09-ship-run-<run-id>.html.fragment`**: one `<section class="fragment-shiprun" data-artifact="ship-run" data-release="<release>">` that reproduces the gallery's ship-run fragment 1:1: a deploy-timeline SVG (build → test → stage → canary → prod, segments tinted by status); `<table class="sr-checks">` with rows = checks, columns = envs, cells carrying `.is-pass / .is-fail / .is-flake / .is-skip / .is-running`; `<aside class="sr-log-panel" hidden>` that reveals on cell click; `<div class="sr-actions">` with `.btn-primary "Promote to 100%"` and `.btn-danger "Roll back"`. Authoring rules (verifier Check 7 enforces): inline `<style>` scoped under `.fragment-shiprun` / `.sr-*`; inline `<script>` scoped via `document.currentScript.closest('.fragment-shiprun')`; dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', { detail: { name: 'ship-run', artifact: 'ship-run', counts: { checks: <n>, stages: <n> }, status: '<latest-stage-status>' } }))`; inline SVG only; data deterministic from `09-ship-run.yaml`. Full contract: [`reference/fragment-author-contract.md`](../../../../reference/fragment-author-contract.md); gallery: [`reference/fragments-gallery.html`](../../../../reference/fragments-gallery.html).
+2. Write the sibling **`09-ship-run-<run-id>.html.fragment`**: one `<section class="fragment-shiprun" data-artifact="ship-run" data-release="<release>">` that reproduces the gallery's ship-run fragment: a deploy-timeline SVG (build → test → stage → canary → prod, segments tinted by status); `<table class="sr-checks">` with rows = checks, columns = envs, cells carrying `.is-pass / .is-fail / .is-flake / .is-skip / .is-running`; `<aside class="sr-log-panel" hidden>` that reveals on cell click. Do not add the gallery's action buttons: nothing is behind them. Authoring rules (verifier Check 7 enforces): inline `<style>` scoped under `.fragment-shiprun` / `.sr-*`; inline `<script>` scoped via `document.currentScript.closest('.fragment-shiprun')`; dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', { detail: { name: 'ship-run', artifact: 'ship-run', counts: { checks: <n>, stages: <n> }, status: '<latest-stage-status>' } }))`; inline SVG only; data deterministic from `09-ship-run.yaml`. Full contract: [`reference/fragment-author-contract.md`](../../../../reference/fragment-author-contract.md); gallery: [`reference/fragments-gallery.html`](../../../../reference/fragments-gallery.html).
 
 The fragment is body-only ([../_fragment-authoring.md](../_fragment-authoring.md) → "Scope"): `ship-run.mjs` owns the page heading and metric-row, so the fragment carries only the interactive layer. Use `@include` for shared chrome:
 
@@ -144,10 +148,6 @@ The fragment is body-only ([../_fragment-authoring.md](../_fragment-authoring.md
   <!-- No heading, no metric-row here — the page owns them. -->
   <svg class="sr-timeline" viewBox="…"> …deploy timeline (pulse on live stage)… </svg>
   <table class="sr-checks"> …clickable check matrix → log panel… </table>
-  <div class="sr-actions">
-    <button class="btn btn-primary">Promote to 100%</button>
-    <button class="btn btn-danger">Roll back</button>
-  </div>
   <!-- @include fragment-ready { "name": "ship-run", "artifact": "ship-run",
        "detailJson": "{\"counts\":{\"checks\":4,\"stages\":5}}" } -->
 </section>
