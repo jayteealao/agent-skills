@@ -335,6 +335,16 @@ var AWAITING_STATUS = /^(awaiting|blocked|needs-|pending-(input|approval|decisio
 var GATE_KEYS = ["image-gate", "gate", "awaiting", "awaiting-input", "live-review-decision", "approval-required", "blocked", "blocker"];
 var VERDICT_KEYS = ["readiness-verdict", "pr-readiness-verdict", "go-nogo", "verdict", "result", "recommendation"];
 var GATE_CLEAR = /^(pass|passed|clear|cleared|resolved|none|n\/a|approved|complete|done|false)$/i;
+var HUMAN_ONLY_STAGES = Object.freeze({
+  design: "to confirm the drawn surfaces",
+  brainstorm: "to talk the idea through"
+});
+function humanOnlyStage(invocation) {
+  const m = /^\s*\/?wf\s+(?:intake\s+)?([a-z][a-z0-9-]*)\b/i.exec(String(invocation ?? "")) ?? /^\s*([a-z][a-z0-9-]*)\s*$/i.exec(String(invocation ?? ""));
+  if (!m) return null;
+  const key = m[1].toLowerCase();
+  return Object.hasOwn(HUMAN_ONLY_STAGES, key) ? { key, ask: HUMAN_ONLY_STAGES[key] } : null;
+}
 function waitingForYou(fm = {}, sections = null) {
   const items = [];
   const questions = asList(fm["open-questions"]);
@@ -364,7 +374,14 @@ function waitingForYou(fm = {}, sections = null) {
       nextHtml = `<div class="waiting-next">${md2html(def.markdown)}</div>`;
     }
   }
-  const body = items.length ? `<ul class="waiting-list">${items.join("")}</ul>` : '<p class="waiting-none">Nothing waits for you.</p>';
+  let body;
+  if (items.length) {
+    body = `<ul class="waiting-list">${items.join("")}</ul>`;
+  } else {
+    const def = routes.find((r) => r.default) ?? routes[0];
+    const human = def?.invocation ? humanOnlyStage(def.invocation) : null;
+    body = human ? `<p class="waiting-none waiting-human">Next: the ${escapeHtml(human.key)} stage needs you${def.reason ? `: ${escapeHtml(def.reason.replace(/\.\s*$/, ""))}` : ` ${escapeHtml(human.ask)}`}.</p>` : '<p class="waiting-none">Nothing waits for you.</p>';
+  }
   return `<section class="page-part part-waiting" aria-label="Waiting for you">
 <h2 class="sdlc-h2">Waiting for you</h2>
 ${body}${verdictHtml}${nextHtml}

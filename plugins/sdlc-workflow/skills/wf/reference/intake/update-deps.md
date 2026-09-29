@@ -92,7 +92,9 @@ next-invocation: "<next-invocation>"
 recommended-routes: <routes>
 ---
 ```
-Write the explainer to `01-update-deps.explainer.html.fragment` per [_story-arc.md](../_story-arc.md). Body: `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (count only).
+Body: `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (count only).
+
+Write the explainer `01-update-deps.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 # Step 2 — Research + prioritize → `02-shape.md`
 For each package that needs updating, launch parallel web-research sub-agents in batches of 3–5.
@@ -220,7 +222,7 @@ Body: `## Updated` (package@version per tier with commit SHA), `## Blocked` (pac
 
 # Step 8 — Self-author `06-verify.md`
 Run the full suite against the updated state: complete test suite (not just targeted), the build (`npm run build` / `go build ./...` / `cargo build`), integration/E2E if present; confirm no blocked package left an inconsistent lockfile. Write `06-verify.md` (un-suffixed) per [intake/update-deps/_exec-artifacts.md](update-deps/_exec-artifacts.md); it satisfies the **verify** required set (`next: 07-review.md`).
-Body: `## Test Result` (pass/fail/skip), `## Build`, `## Blocked packages` (remaining at old version + why **+ revisit condition**), `## Caveats` (the unconfirmed stack). Write the raw test and build output to `verify-evidence/<slug>/report.md`. `result: partial` is valid when some packages updated and some are blocked.
+Body: `## Test Result` (pass/fail/skip), `## Build`, `## Blocked packages` (remaining at old version + why **+ revisit condition**), `## Caveats` (the unconfirmed stack). Write the raw test and build output to `verify-evidence/<slug>/checks.md`. `result: partial` is valid when some packages updated and some are blocked.
 
 **Then self-report to `00-index.md`** again: `current-stage: verify`, `stage-number: 6`, `progress.verify: complete`, append `06-verify.md` to `workflow-files`, refresh `updated-at`, `next-command: wf-review`, `next-invocation: "/wf review <slug>"`, and touch the registry row. Blocked packages also land on the index's `open-questions` as `"revisit <package>: <condition>"` so the next run's provenance seed finds them without re-reading stage bodies.
 

@@ -39,8 +39,6 @@ recommended-routes: [{invocation: "/wf intake ideate <slug> <idea-id>", reason: 
 
 # Ideation: <focus-area or "Codebase-Wide">
 
-Write the explainer to `01-ideate.explainer.html.fragment` per [_story-arc.md](../../_story-arc.md).
-
 *Generated: <date> | Lenses: <list> | Raw: <N> → Filtered: <N> → Showing: <N>*
 
 ## Ranked Ideas

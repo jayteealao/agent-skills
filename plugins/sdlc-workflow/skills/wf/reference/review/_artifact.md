@@ -62,8 +62,6 @@ recommended-routes:              # every viable option from _stage.md Adaptive r
 
 # Review
 
-Write the explainer to `07-review[-<slice-slug>].explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
 ## Verdict
 
 **{Ship / Ship with caveats / Don't Ship}**
@@ -158,42 +156,24 @@ Informational observations that are not findings: each verify `## Friction Notes
 
 ---
 
-## Step 5b — the sweep-level rich fragment (do not skip)
+## Step 5b — the sweep-level rich `.yaml` (do not skip)
 
-The sunflower view renders the review page from a sibling `.yaml` + `.html.fragment`. **Without them the page silently degrades to plain prose** — the Σ severity-heatmap, dimension chips, severity filter, and findings list never appear. Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) **BLOCKS the `.md` write when the sibling `.yaml` is missing** — author the `.yaml` first (or in the same turn) while findings are in context.
+The sunflower view renders the review page from a sibling `.yaml`. **Without it the page silently degrades to plain prose** — the Σ severity-heatmap, dimension chips, severity filter, and findings list never appear. Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) **BLOCKS the `.md` write when the sibling `.yaml` is missing** — author the `.yaml` first (or in the same turn) while findings are in context.
 
 For each review `.md` written (`07-review.md` slug-wide, or `07-review-<slice-slug>.md` per-slice):
 
-1. Write **`<stem>.yaml`** — structured data: `dimensions:` (severity × dimension heatmap matrix), `verdict:`, `findings:` (id, severity, dimension, file, line, message, evidence/diff, triage, **status**, **surfaced-at**), and metric counts. Schema: `siblingYamlSchemas.review` in `tests/frontmatter.schema.json`. **`findings:` and `counts:` = OPEN findings only** (open|deferred|could-not-fix) — resolved/fixed/dismissed history lives in the `.md` body. Bump `rev:` by 1 each run (first write = 1).
-2. Write **`<stem>.html.fragment`** — one `<section class="fragment-review" data-artifact="review" data-rev="<n>">` carrying the **interactive layer**: Σ severity-heatmap, dimension chips + severity filter, findings list with per-finding evidence/diff/copy controls. **Body-only** (see `../_fragment-authoring.md` → "Scope"): `review.mjs` already renders the heading, verdict block, and metric-row — do **not** repeat them; start at the heatmap.
+Write **`<stem>.yaml`** — structured data: `dimensions:` (severity × dimension heatmap matrix), `verdict:`, `findings:` (id, severity, dimension, file, line, message, evidence/diff, triage, **status**, **surfaced-at**), and metric counts. Schema: `siblingYamlSchemas.review` in `tests/frontmatter.schema.json`. **`findings:` and `counts:` = OPEN findings only** (open|deferred|could-not-fix) — resolved/fixed/dismissed history lives in the `.md` body. Bump `rev:` by 1 each run (first write = 1).
 
-Authoring rules (verifier Check 7 enforces these):
-
-- Inline `<style>` scoped under `.fragment-review` / `.fr-*`.
-- Inline `<script>` scoped via `document.currentScript.closest('.fragment-review')`.
-- Dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', { detail: { name: 'review', artifact: 'review', counts: { findings: <n>, blockers: <n> } } }))`.
-- Inline SVG only; no remote anything.
-- All data deterministic from `.yaml` — same YAML → byte-identical output.
-
-Full contract in [`reference/fragment-author-contract.md`](../../../../reference/fragment-author-contract.md); gallery at [`reference/fragments-gallery.html`](../../../../reference/fragments-gallery.html).
+Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../_fragment-authoring.md) Step F1.
 
 ---
 
-## Step 5c — per-dimension rich fragments (do not skip)
+## Step 5c — per-dimension rich `.yaml` (do not skip)
 
 Step 5b covers the sweep-level review page. Each **per-dimension** file — `07-review-<command>.md` (slug-wide) or `07-review-<slice-slug>-<command>.md` (per-slice) — renders through `review-dimension.mjs`. **Without a sibling `.yaml` it falls back to `renderSimple`** (plain prose, no interactive findings); managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) BLOCKS a `type: review-command` `.md` written without it.
 
 Per-dimension siblings are authored by the **Step-3 review sub-agent** (which holds the findings in context). This section is the shape spec that sub-agent follows. At Step 5b, confirm every per-dimension `.md` has its `.yaml` (or `fragment: none` for a clean dimension) and author any the sub-agent missed. For each per-dimension review `.md`:
 
-1. Write **`<stem>.yaml`** — schema `siblingYamlSchemas.review-dimension` in `tests/frontmatter.schema.json`: `artifact: review-dimension`, `dimension`, `parent` (the sweep `07-review.md`), `rev`, `verdict` (`ship|caveats|no`), `summary`, `counts` (blocker/high/med/low/nit), `findings` (id, severity, file, line, confidence, action, msg, evidence, fix, **status**, **surfaced-at**) — scoped to this dimension only. `findings:` + `counts:` = OPEN findings only; bump `rev:` by 1 each run.
-2. Write **`<stem>.html.fragment`** — one `<section class="fragment-review-dimension" data-artifact="review-dimension" data-rev="<n>">` carrying the **interactive layer**: severity-filter pill bar, sortable findings list (by severity / file:line), per-finding expandable evidence→fix rows. **Body-only**: `review-dimension.mjs` already renders the heading, verdict block, and metric-row, and suppresses its static findings list when a fragment is present (see `renderers/review-dimension.mjs` lines 64–67) — start at the filter bar, do not repeat the chrome.
+Write **`<stem>.yaml`** — schema `siblingYamlSchemas.review-dimension` in `tests/frontmatter.schema.json`: `artifact: review-dimension`, `dimension`, `parent` (the sweep `07-review.md`), `rev`, `verdict` (`ship|caveats|no`), `summary`, `counts` (blocker/high/med/low/nit), `findings` (id, severity, file, line, confidence, action, msg, evidence, fix, **status**, **surfaced-at**) — scoped to this dimension only. `findings:` + `counts:` = OPEN findings only; bump `rev:` by 1 each run.
 
-Authoring rules (verifier Check 7 enforces these):
-
-- Inline `<style>` scoped under `.fragment-review-dimension`. Use a **distinct prefix** (e.g. `.rd-*`) — both fragments can appear on one slug page.
-- Inline `<script>` scoped via `document.currentScript.closest('.fragment-review-dimension')`.
-- Dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', { detail: { name: 'review-dimension', artifact: 'review-dimension', dimension: '<dim>', counts: { findings: <n>, blockers: <n> } } }))`.
-- Inline SVG only; no remote anything.
-- All data deterministic from `.yaml` — same YAML → byte-identical output.
-
-Load `../_fragment-authoring.md` first; full contract in [`reference/fragment-author-contract.md`](../../../../reference/fragment-author-contract.md).
+Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../_fragment-authoring.md) Step F1.

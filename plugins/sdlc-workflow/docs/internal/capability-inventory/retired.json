@@ -498,5 +498,39 @@
     "entry": "compact recommended if verify was lengthy test output,",
     "reason": "ARTIFACT-SPLIT-PLAN prose budget: the Option A rationale clause (\"fix sub-agent chatter … is noise\") was shortened; it was never a dispatch, only a sentence that named sub-agents. The compact recommendation itself stays in Option A.",
     "release": "9.172.0"
+  },
+  {
+    "file": "skills/wf/reference/augment/profile.md",
+    "category": "artifacts",
+    "entry": "01-profile.html.fragment",
+    "reason": "ARTIFACT-SPLIT-PLAN R7/W5: the renderer generates the typed `<stem>.html.fragment` from the sibling `.yaml` (_fragment-authoring.md Step F1), so references no longer tell agents to hand-write it; the profile step now names only `01-profile.yaml`.",
+    "release": "9.173.1"
+  },
+  {
+    "file": "skills/wf/reference/plan.md",
+    "category": "artifacts",
+    "entry": "04-plan.yaml",
+    "reason": "ARTIFACT-SPLIT-PLAN R7/W5: the renderer generates the typed `<stem>.html.fragment` from the sibling `.yaml` (_fragment-authoring.md Step F1), so references no longer tell agents to hand-write it; the name appeared only in the deleted hand-authoring rules (\"derive everything from `04-plan.yaml`\"); Step F names the per-slice `04-plan-<slice-slug>.yaml`.",
+    "release": "9.173.1"
+  },
+  {
+    "file": "skills/wf/reference/ship.md",
+    "category": "artifacts",
+    "entry": "09-ship-run-<X>.html.fragment",
+    "reason": "ARTIFACT-SPLIT-PLAN R7/W5: the renderer generates the typed `<stem>.html.fragment` from the sibling `.yaml` (_fragment-authoring.md Step F1), so references no longer tell agents to hand-write it; the Produces row names the sibling `.yaml` and the explainer instead.",
+    "release": "9.173.1"
+  },
+  {
+    "file": "skills/wf/reference/ship.md",
+    "category": "artifacts",
+    "entry": "09-ship-run.yaml",
+    "reason": "ARTIFACT-SPLIT-PLAN R7/W5: the renderer generates the typed `<stem>.html.fragment` from the sibling `.yaml` (_fragment-authoring.md Step F1), so references no longer tell agents to hand-write it; the name appeared only in the deleted fragment rules of ship/_run-artifact.md Step Z, which still names `09-ship-run-<run-id>.yaml`.",
+    "release": "9.173.1"
+  },
+  {
+    "entry": "reference/fragment-author-contract.md",
+    "reason": "ARTIFACT-SPLIT-PLAN R7/W5: the renderer generates the typed `<stem>.html.fragment` from the sibling `.yaml` (_fragment-authoring.md Step F1), so references no longer tell agents to hand-write it; the hand-authoring pointers to the fragment author contract were deleted with the rules they served.",
+    "release": "9.173.1",
+    "category": "citations"
   }
 ]

@@ -200,7 +200,7 @@ only. If anything still fails after that round, the artifact records the escalat
 you to re-run verify or to return to implement. Verify never loops silently until green. Verify
 writes <code>06-verify-&lt;slice&gt;.md</code> with the per-criterion results and puts the raw
 check output (test runner output, probe logs, scan output) in the evidence report
-<code>verify-evidence/&lt;slice&gt;/report.md</code>. A write-time hook
+<code>verify-evidence/&lt;slice&gt;/checks.md</code>. A write-time hook
 hard-blocks any verify artifact that claims a pass while criteria are unmet. When evidence
 genuinely cannot be produced in this environment, verify records a deferral in
 <code>00-index.md</code>: a ship-blocking IOU, not a forgotten footnote.</p>
@@ -274,7 +274,7 @@ workflows. It writes <code>10-retro.md</code>, and the workflow is complete.</p>
 <tr><td>slice</td><td><code>03-slice.md</code> + per-slice files</td><td>Missing or unconfirmed stack fingerprint; needed design not settled</td></tr>
 <tr><td>plan</td><td><code>04-plan*.md</code> (+ <code>04b</code>/<code>04c</code>/<code>05c</code>)</td><td>Missing shape; unconfirmed stack; needed design not settled</td></tr>
 <tr><td>implement</td><td><code>05-implement-&lt;slice&gt;.md</code></td><td>Missing plan</td></tr>
-<tr><td>verify</td><td><code>06-verify-&lt;slice&gt;.md</code> + <code>verify-evidence/&lt;slice&gt;/report.md</code></td><td>Unmet acceptance criteria; one fix round, then escalate</td></tr>
+<tr><td>verify</td><td><code>06-verify-&lt;slice&gt;.md</code> + <code>verify-evidence/&lt;slice&gt;/checks.md</code></td><td>Unmet acceptance criteria; one fix round, then escalate</td></tr>
 <tr><td>review</td><td><code>07-review*.md</code> ledger</td><td>Open blockers → <code>dont-ship</code> verdict</td></tr>
 <tr><td>handoff</td><td><code>08-handoff.md</code> + the PR</td><td>Readiness check; open intent-risk entries; missing/drifted ship plan</td></tr>
 <tr><td>ship</td><td><code>09-ship-run-&lt;run-id&gt;.md</code></td><td>Readiness ≠ ready; open deferrals or intent-risks</td></tr>

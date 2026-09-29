@@ -29,7 +29,7 @@ recommended-routes: <routes>
 recommended-routes: <routes>
 ---
 ```
-Write the explainer to `01-adopt.explainer.html.fragment` per [_story-arc.md](../../_story-arc.md). Body (tight): `## Adopted Surface` (the changed-file roster with per-file +/- counts, the commit SHAs ahead of `<base>`, and the branch — the Step A0 evidence, exact), `## Restated Intent` (the inferred goal + any user correction from the gate), `## Acceptance Criteria` (each objectively verifiable; environment-dependent ACs carry their W2d resolution as an italic note), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
+Body (tight): `## Adopted Surface` (the changed-file roster with per-file +/- counts, the commit SHAs ahead of `<base>`, and the branch — the Step A0 evidence, exact), `## Restated Intent` (the inferred goal + any user correction from the gate), `## Acceptance Criteria` (each objectively verifiable; environment-dependent ACs carry their W2d resolution as an italic note), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
 
 **`02-shape.md` — `type: shape`:**
 ```yaml

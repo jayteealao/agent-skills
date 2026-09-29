@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   storyLink
-} from "../chunk-SWJT3BVF.mjs";
+} from "../chunk-DXPGDGXR.mjs";
 import {
   md2html,
   renderHistoryBlock,

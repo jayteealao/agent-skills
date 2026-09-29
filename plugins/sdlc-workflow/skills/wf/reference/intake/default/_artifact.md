@@ -130,8 +130,6 @@ recommended-routes:
 ---
 ```
 
-Write the explainer to `01-intake.explainer.html.fragment` per [_story-arc.md](../../_story-arc.md).
-
 # Intake
 
 ## Restated Request

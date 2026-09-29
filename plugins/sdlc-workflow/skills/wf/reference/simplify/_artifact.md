@@ -172,8 +172,6 @@ refs:
 <list of (finding-id, reason)>
 ```
 
-Write the explainer to `01-simplify.explainer.html.fragment` per [../_story-arc.md](../_story-arc.md).
-
 ## Additive-write contract — no rewrites; one slug workflow per run
 
 A standalone `simplify-run` **roots its own `type: workflow-index` slug workflow** — each invocation creates a fresh `.ai/workflows/<slug>/` (`slug` = `simplify-<scope>-<YYYYMMDD>`) holding `01-simplify.md` + `00-index.md`. No in-place rewrite scenario exists:

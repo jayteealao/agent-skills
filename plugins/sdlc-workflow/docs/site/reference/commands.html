@@ -63,7 +63,7 @@
 <h3 id="verify"><code>/wf verify</code></h3>
 <pre><code>/wf verify &lt;slug&gt; [slice]</code></pre>
 <p>Verify runs tests, lints, and typechecks. It then applies the acceptance-criteria gate: each criterion is checked against user-observable behavior, with captured evidence. Verify owns a single-round, user-gated fix loop and re-checks augmentations, for example a benchmark comparison. Evidence from prior runs is snapshotted, not overwritten, so reviewers can compare runs.</p>
-<p><strong>Writes:</strong> <code>06-verify-&lt;slice-slug&gt;.md</code> plus updates to the <code>06-verify.md</code> master; the raw check output in the evidence report <code>verify-evidence/&lt;slice-slug&gt;/report.md</code>, with other evidence files in the same folder.</p>
+<p><strong>Writes:</strong> <code>06-verify-&lt;slice-slug&gt;.md</code> plus updates to the <code>06-verify.md</code> master; the raw check output in the evidence report <code>verify-evidence/&lt;slice-slug&gt;/checks.md</code>, with other evidence files in the same folder.</p>
 
 <h3 id="review"><code>/wf review</code></h3>
 <pre><code>/wf review &lt;slug&gt; [slice | triage]     # workflow stage

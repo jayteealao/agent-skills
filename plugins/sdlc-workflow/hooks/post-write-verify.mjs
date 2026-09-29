@@ -11,6 +11,9 @@
  * - Run deep schema validation against tests/frontmatter.schema.json (native Ajv).
  * - Enforce sibling fragments: a rich-tier artifact `.md` written without its
  *   mandatory sibling `.yaml` BLOCKS (exit 2); see enforceSiblingFragments.
+ * - Nudge (warn only, never blocks) when a stage agent file lands without its
+ *   `<stem>.explainer.html.fragment`, and run the explainer check on a write
+ *   to an explainer (see EXPLAINER_STEM_PATTERNS, lib/explainer-check.mjs).
  * - Silent exit 0 on success.
  * - Exit 2 + stderr when validation fails or a mandatory sibling .yaml is absent.
  *
@@ -27,6 +30,7 @@ import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { validateBrainstormBoardFile, validateFrontmatterFile, validateSiblingYamlFile, formatValidationErrors } from '../lib/schema-validator.mjs';
 import { findUncitedLimitationClaims, findUnmarkedSuppressions, findUnownedMechanisms } from '../lib/limitation-lexicon.mjs';
+import { checkExplainer, EXPLAINER_SUFFIX, isExplainerFragmentPath } from '../lib/explainer-check.mjs';
 import {
   collectToolInputPaths,
   hasFrontmatterFence,
@@ -647,6 +651,79 @@ async function enforceIndexLint(paths, config) {
   outputSystemMessage(`wf: index lint (advisory):\n${lines.join('\n')}\nOpt out: hooks.indexLint: false.`);
 }
 
+// Explainer nudges (ARTIFACT-SPLIT-PLAN S2; _story-arc.md A1). Warn only.
+// The stems below are every stage template that says "Write the explainer to
+// <stem>.explainer.html.fragment" (grep skills/wf/reference for that line).
+// Not listed, so never nudged: 00-index.md, po-answers.md, 01-brainstorm.md
+// (brainstorm keeps `## The Brainstorm`), the 04-plan.md / 05-implement.md /
+// 06-verify.md masters (the templates name only the per-slice stems), history/
+// snapshots, and per-dimension review files (`type: review-command`).
+export const EXPLAINER_STEM_PATTERNS = Object.freeze([
+  /^01-(?:intake|fix|hotfix|refactor|update-deps|rca|discover|investigate|ideate|adopt|audit|task|simplify|profile)$/,
+  /^02-shape$/,
+  /^02c-craft$/,
+  /^03-slice(?:-.+)?$/,
+  /^04-plan-.+$/,
+  /^04b-instrument$/,
+  /^04c-experiment$/,
+  /^05-implement-.+$/,
+  /^05c-benchmark$/,
+  /^06-verify-.+$/,
+  /^07-review(?:-.+)?$/,
+  /^07-design-(?:audit|critique)$/,
+  /^08-handoff$/,
+  /^09-ship-run-.+$/,
+  /^10-retro$/,
+  /^99-close$/,
+]);
+
+const STAGE_FILE_RE = /(?:^|\/)\.ai\/(?:workflows\/[^/]+|simplify(?:\/[^/]+)*|profiles(?:\/[^/]+)*)\/([^/]+)\.md$/;
+
+/**
+ * The explainer stem a stage agent file must carry, or null. `type` is the
+ * file's frontmatter `type:` (a per-dimension review is `review-command`).
+ */
+export function explainerStemFor(filePath, type = null) {
+  const normalized = normalizePathForMatch(filePath);
+  if (/(?:^|\/)history\//.test(normalized)) return null;
+  const m = STAGE_FILE_RE.exec(normalized);
+  if (!m) return null;
+  const stem = m[1];
+  if (!EXPLAINER_STEM_PATTERNS.some((re) => re.test(stem))) return null;
+  if (type === 'review-command') return null;
+  return stem;
+}
+
+async function enforceExplainerPresence(paths, config) {
+  if (config.hooks?.remindMissingFragments === false) return;
+  const missing = [];
+  for (const path of paths) {
+    const text = await readTextIfExists(path.absolute);
+    const stem = explainerStemFor(path.original, fragmentOwningType(text));
+    if (!stem) continue;
+    if (existsSync(path.absolute.replace(/\.md$/, EXPLAINER_SUFFIX))) continue;
+    missing.push(`Write the explainer ${stem}${EXPLAINER_SUFFIX} per _story-arc.md before you finish the stage.`);
+  }
+  if (!missing.length) return;
+  outputSystemMessage(`wf: ${missing.join('\n')}\nOpt out: hooks.remindMissingFragments: false.`);
+}
+
+async function lintExplainers(paths, config) {
+  if (config.hooks?.remindMissingFragments === false) return;
+  const lines = [];
+  for (const path of paths) {
+    const text = await readTextIfExists(path.absolute);
+    if (text === null) continue;
+    const { errs, warns } = checkExplainer(text);
+    for (const w of [...errs, ...warns]) lines.push(`  - ${path.original}: ${w}`);
+  }
+  if (!lines.length) return;
+  outputSystemMessage(
+    `wf: explainer check (advisory, rules in _story-arc.md):\n${lines.join('\n')}\n` +
+    'Opt out: hooks.remindMissingFragments: false.',
+  );
+}
+
 const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 export async function run(input) {
@@ -682,11 +759,19 @@ export async function run(input) {
     .filter(({ absolute }) => absolute && existsSync(absolute));
   if (boardPaths.length) await validateBrainstormBoards(boardPaths, config, schemaPath);
 
+  // A write to an explainer fragment gets the explainer check as a nudge.
+  const explainerPaths = collectToolInputPaths(input)
+    .filter((path) => isExplainerFragmentPath(path) && /(?:^|\/)\.ai\//.test(normalizePathForMatch(path)))
+    .map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) }))
+    .filter(({ absolute }) => absolute && existsSync(absolute));
+  if (explainerPaths.length) await lintExplainers(explainerPaths, config);
+
   if (!paths.length) return;
 
-  // Index lint warns only; it runs before the schema pass so a warning is not
-  // lost when the schema check blocks.
+  // Index lint and the explainer nudge warn only; they run before the schema
+  // pass so a warning is not lost when the schema check blocks.
   await enforceIndexLint(paths, config);
+  await enforceExplainerPresence(paths, config);
 
   const failures = [];
   for (const path of paths) {

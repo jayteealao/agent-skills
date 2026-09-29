@@ -29,8 +29,6 @@ recommended-routes:
 ---
 ```
 
-Write the explainer to `04c-experiment.explainer.html.fragment` per [../../_story-arc.md](../../_story-arc.md).
-
 **Body sections (in order):**
 
 ## 1. Hypothesis
@@ -112,12 +110,7 @@ After writing `.ai/workflows/<slug>/04c-experiment.md`, write the sibling
 projects this as an arm-allocation figure (horizontal bar split by
 `allocated_pct`) plus a guardrail-threshold table.
 
-**Required whenever you write the `experiment` sibling YAML:** also write the
-sibling `.html.fragment` next to it. First load
-`../../_fragment-authoring.md` and follow
-its wrapper, snippet, and verifier rules. The fragment must stay deterministic
-from the sibling YAML (same YAML → byte-identical HTML) and pass
-`scripts/verify-fragment.mjs` (Check 7) clean.
+Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../../_fragment-authoring.md) Step F1.
 
 Shape:
 

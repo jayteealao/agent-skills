@@ -362,10 +362,32 @@ const GATE_KEYS = ['image-gate', 'gate', 'awaiting', 'awaiting-input', 'live-rev
 const VERDICT_KEYS = ['readiness-verdict', 'pr-readiness-verdict', 'go-nogo', 'verdict', 'result', 'recommendation'];
 const GATE_CLEAR = /^(pass|passed|clear|cleared|resolved|none|n\/a|approved|complete|done|false)$/i;
 
+// Stages only a person runs; no driver (`/wf auto`, `/wf yolo`) runs them.
+// design: skills/wf/reference/design/_lane.md ("only a person runs it").
+// brainstorm: a talk with the person, which only the person ends.
+const HUMAN_ONLY_STAGES = Object.freeze({
+  design: 'to confirm the drawn surfaces',
+  brainstorm: 'to talk the idea through',
+});
+
+/**
+ * The human-only stage an invocation routes to (`/wf design <slug>`,
+ * `/wf brainstorm …`, `/wf intake brainstorm …`), or null.
+ * @returns {{ key: string, ask: string } | null}
+ */
+export function humanOnlyStage(invocation) {
+  const m = /^\s*\/?wf\s+(?:intake\s+)?([a-z][a-z0-9-]*)\b/i.exec(String(invocation ?? ''))
+    ?? /^\s*([a-z][a-z0-9-]*)\s*$/i.exec(String(invocation ?? ''));
+  if (!m) return null;
+  const key = m[1].toLowerCase();
+  return Object.hasOwn(HUMAN_ONLY_STAGES, key) ? { key, ask: HUMAN_ONLY_STAGES[key] } : null;
+}
+
 /**
  * Part 2 — what waits for a person. Reads only frontmatter (and the old next
  * section as a fallback for the next step). Says "Nothing waits for you." when
- * no question, gate or awaiting status is open.
+ * no question, gate or awaiting status is open, unless the default next route
+ * is a human-only stage: then it says that the next step needs the person.
  */
 export function waitingForYou(fm = {}, sections = null) {
   const items = [];
@@ -399,9 +421,16 @@ export function waitingForYou(fm = {}, sections = null) {
       nextHtml = `<div class="waiting-next">${md2html(def.markdown)}</div>`;
     }
   }
-  const body = items.length
-    ? `<ul class="waiting-list">${items.join('')}</ul>`
-    : '<p class="waiting-none">Nothing waits for you.</p>';
+  let body;
+  if (items.length) {
+    body = `<ul class="waiting-list">${items.join('')}</ul>`;
+  } else {
+    const def = routes.find((r) => r.default) ?? routes[0];
+    const human = def?.invocation ? humanOnlyStage(def.invocation) : null;
+    body = human
+      ? `<p class="waiting-none waiting-human">Next: the ${escapeHtml(human.key)} stage needs you${def.reason ? `: ${escapeHtml(def.reason.replace(/\.\s*$/, ''))}` : ` ${escapeHtml(human.ask)}`}.</p>`
+      : '<p class="waiting-none">Nothing waits for you.</p>';
+  }
   return `<section class="page-part part-waiting" aria-label="Waiting for you">
 <h2 class="sdlc-h2">Waiting for you</h2>
 ${body}${verdictHtml}${nextHtml}

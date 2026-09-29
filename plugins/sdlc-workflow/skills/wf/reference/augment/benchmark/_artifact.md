@@ -29,8 +29,6 @@ recommended-routes:
 ---
 ```
 
-Write the explainer to `05c-benchmark.explainer.html.fragment` per [../../_story-arc.md](../../_story-arc.md). Compare mode rewrites it with the verdict.
-
 **Body sections:**
 
 ## Benchmark Targets

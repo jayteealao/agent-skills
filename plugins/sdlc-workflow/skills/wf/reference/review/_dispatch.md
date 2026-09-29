@@ -89,8 +89,8 @@ rows for history; mark them clearly.)
 - Open blockers: {N}    (pre-existing excluded; pre-existing findings: {N})
 - Status: {Clean / Issues Found / Blockers Found}
 
-Then author the rich siblings next to that `.md` (do NOT leave this for the orchestrator):
-  1. Write `<stem>.yaml` — schema `siblingYamlSchemas.review-dimension` in
+Then author the rich sibling next to that `.md` (do NOT leave this for the orchestrator):
+  Write `<stem>.yaml` — schema `siblingYamlSchemas.review-dimension` in
      `tests/frontmatter.schema.json` (`artifact: review-dimension`, `dimension`,
      `parent`, `rev`, `verdict`, `summary`, `counts`, `findings`), scoped to THIS
      dimension only. (`<stem>` = the review `.md` filename without `.md`.)
@@ -100,14 +100,11 @@ Then author the rich siblings next to that `.md` (do NOT leave this for the orch
        `surfaced-at` + `status` + `pre-existing` (additive fields; schema-validated).
      - `counts:` = OPEN counts. `rev:` = number of times this dimension file has been
        written (increment the prior `.yaml`'s `rev` by 1; first write = 1).
-  2. Write `<stem>.html.fragment` — one
-     `<section class="fragment-review-dimension" data-artifact="review-dimension">`
-     per the per-dimension shape in `<skill-dir>/reference/review/_artifact.md` (Step 5c) and
-     `<skill-dir>/reference/_fragment-authoring.md`.
+  Do not write `<stem>.html.fragment`: the renderer generates it from the `.yaml`.
 Managed-artifact enforcement (the host's write hook, `<skill-dir>/reference/_host-invocation.md`) BLOCKS the `.md` write when the sibling
 `.yaml` is missing — write the `.yaml` first (or in the same turn). If this
 dimension has zero OPEN findings (clean, or everything resolved), set `fragment: none`
-in the `.md` frontmatter instead of authoring an empty fragment.
+in the `.md` frontmatter instead of writing an empty `.yaml`.
 
 Write the files, then return a brief summary of what you found.
 ```

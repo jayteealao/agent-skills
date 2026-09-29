@@ -161,7 +161,9 @@ Write `.ai/workflows/<slug>/03-slice-probe-<descriptor>.md` from the frontmatter
 
 **Descriptor derivation:** if `target` is a single short string (≤5 words after slugification), `<descriptor>` is the slugified target; if `target == slug-wide`, `<descriptor>` is `slug-wide-<utc-date>` (e.g., `slug-wide-2026-05-16`); on collision append `-2`, `-3`, … until unique.
 
-The template gives the frontmatter (with `recommended-routes` from its Routes table), the explainer line and the `##` body sections. A slug-less sweep writes `.ai/surface-sweep-<utc-date>.md` from the sweep template in the same file.
+A slug-less sweep writes `.ai/surface-sweep-<utc-date>.md` from the sweep template in the same file.
+
+Write the explainer `03-slice-probe-<descriptor>.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
 
 ## Step — Write free narrative fragments
 

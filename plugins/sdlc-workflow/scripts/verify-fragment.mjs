@@ -15,9 +15,15 @@
  *
  * Exit code 0 = pass, 1 = at least one fragment failed.
  *
+ * A `<stem>.explainer.html.fragment` gets the explainer check instead
+ * (lib/explainer-check.mjs): warnings only; exit 1 only when it does not parse.
+ *
  * Usage:
- *   node plugins/sdlc-workflow/scripts/verify-fragment.mjs [--root .ai/workflows]
+ *   node plugins/sdlc-workflow/scripts/verify-fragment.mjs [<file-or-dir> ...]
+ *                                                          [--root .ai/workflows]
  *                                                          [--schema <path>]
+ *   Positional paths replace the --root walk: a file is checked as given, a
+ *   directory is walked for *.html.fragment.
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
@@ -26,7 +32,8 @@ import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
-import { classifyFragmentName, EXPLAINER_LABEL } from '../renderers/_paths.mjs';
+import { classifyFragmentName } from '../renderers/_paths.mjs';
+import { checkExplainer, isExplainerFragmentPath } from '../lib/explainer-check.mjs';
 
 /**
  * Classify a `*.html.fragment` against the `.md` artifacts beside it:
@@ -65,14 +72,33 @@ const FORBIDDEN_TAGS = ['<html', '<head', '<body', '<iframe', '<link'];
 const REMOTE_SCRIPT_RE = /<script[^>]*\bsrc\s*=/i;
 
 function parseArgs(argv) {
-  const args = { root: '.ai/workflows', schema: join(PLUGIN_ROOT, 'tests', 'frontmatter.schema.json'), verbose: false };
+  const args = { root: '.ai/workflows', schema: join(PLUGIN_ROOT, 'tests', 'frontmatter.schema.json'), verbose: false, targets: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--root')    args.root = argv[++i];
-    if (a === '--schema')  args.schema = resolve(argv[++i]);
-    if (a === '--verbose') args.verbose = true;
+    if (a === '--root')         args.root = argv[++i];
+    else if (a === '--schema')  args.schema = resolve(argv[++i]);
+    else if (a === '--verbose') args.verbose = true;
+    else if (!a.startsWith('--')) args.targets.push(a);
   }
   return args;
+}
+
+/**
+ * The files to check: every positional path (a file is checked as given, a
+ * directory is walked), else the `--root` walk.
+ */
+function* targetFiles(args) {
+  if (!args.targets.length) {
+    yield* walk(resolve(process.cwd(), args.root));
+    return;
+  }
+  for (const t of args.targets) {
+    const abs = resolve(process.cwd(), t);
+    let st;
+    try { st = statSync(abs); } catch { console.error(`[verify-fragment] not found: ${t}`); process.exitCode = 1; continue; }
+    if (st.isDirectory()) yield* walk(abs);
+    else yield abs;
+  }
 }
 
 function* walk(dir) {
@@ -128,142 +154,12 @@ function detectInlineSnippets(text) {
   return warnings;
 }
 
-/* ── Explainer check (warn-only, W5) ─────────────────────────────────
-   `<stem>.explainer.html.fragment` is a free fragment, so the envelope
-   contract does not apply. It follows the explainer rules in
-   skills/wf/reference/_story-arc.md instead; this check covers the parts a
-   script can see:
-     - the first element is a <p> (the plain summary);
-     - each visual (<svg>, <figure>, `@include explainer/*`) directly follows
-       a <p> sentence that says what it shows;
-     - the last element is a <p> (the recap);
-     - no <html>, <head> or <body>;
-     - no <script> (the view's CSP `script-src 'self'` blocks inline scripts,
-       so a script in a fragment never runs).
-   Every finding is a warning. Only a file that does not parse (an unclosed
-   or mismatched tag, an unclosed comment) is an error.
-   ──────────────────────────────────────────────────────────────────── */
-
-const VOID_TAGS = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr']);
-const RAW_TEXT_TAGS = new Set(['script', 'style']);
-// Tags HTML lets an author leave open; a close tag of an ancestor closes them.
-const IMPLIED_END = new Set(['p', 'li', 'dt', 'dd', 'tr', 'td', 'th', 'option', 'thead', 'tbody', 'tfoot']);
-const WRAPPER_TAGS = new Set(['div', 'section', 'article', 'main']);
-
-/**
- * Parse a fragment into a light element tree:
- *   { type: 'el', tag, children } | { type: 'text', text } | { type: 'comment', text }
- * Throws Error on a structure that does not parse.
- */
-export function parseFragmentTree(text) {
-  const root = { type: 'el', tag: '#root', children: [] };
-  const stack = [root];
-  const top = () => stack[stack.length - 1];
-  const TOKEN = /<!--([\s\S]*?)-->|<\/([a-zA-Z][\w:-]*)\s*>|<([a-zA-Z][\w:-]*)((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>|([^<]+)|(<)/g;
-  let m;
-  while ((m = TOKEN.exec(text)) !== null) {
-    const [, comment, closeTag, openTag, , selfClose, txt, stray] = m;
-    if (comment !== undefined) {
-      top().children.push({ type: 'comment', text: comment });
-    } else if (closeTag) {
-      const tag = closeTag.toLowerCase();
-      let i = stack.length - 1;
-      while (i > 0 && stack[i].tag !== tag && IMPLIED_END.has(stack[i].tag)) i--;
-      if (i === 0 || stack[i].tag !== tag) {
-        throw new Error(`unexpected </${tag}> (open element: <${top().tag}>)`);
-      }
-      stack.length = i;
-    } else if (openTag) {
-      const tag = openTag.toLowerCase();
-      const el = { type: 'el', tag, children: [] };
-      top().children.push(el);
-      if (RAW_TEXT_TAGS.has(tag)) {
-        const end = text.toLowerCase().indexOf(`</${tag}`, TOKEN.lastIndex);
-        if (end === -1) throw new Error(`unclosed <${tag}>`);
-        el.children.push({ type: 'text', text: text.slice(TOKEN.lastIndex, end) });
-        const close = text.indexOf('>', end);
-        TOKEN.lastIndex = close === -1 ? text.length : close + 1;
-      } else if (!selfClose && !VOID_TAGS.has(tag)) {
-        stack.push(el);
-      }
-    } else if (txt !== undefined) {
-      top().children.push({ type: 'text', text: txt });
-    } else if (stray) {
-      if (text.startsWith('<!--', m.index)) throw new Error('unclosed comment');
-      top().children.push({ type: 'text', text: '<' });
-    }
-  }
-  const unclosed = stack.slice(1).filter((el) => !IMPLIED_END.has(el.tag));
-  if (unclosed.length) throw new Error(`unclosed <${unclosed[unclosed.length - 1].tag}>`);
-  return root;
-}
-
-function isBlank(node) {
-  return node.type === 'text' && !node.text.trim();
-}
-
-function isExplainerInclude(node) {
-  return node.type === 'comment' && /^\s*@include\s+explainer\//.test(node.text);
-}
-
-function isVisual(node) {
-  return (node.type === 'el' && (node.tag === 'svg' || node.tag === 'figure')) || isExplainerInclude(node);
-}
-
-function describe(node) {
-  if (isExplainerInclude(node)) return `@include ${node.text.trim().split(/\s+/)[1]}`;
-  if (node.type === 'el') return `<${node.tag}>`;
-  return 'text';
-}
-
-/**
- * The explainer shape check. Returns `{ errs, warns }` like validateFragment.
- */
-export function checkExplainer(text) {
-  const errs = [];
-  const warns = [];
-  let tree;
-  try {
-    tree = parseFragmentTree(String(text ?? ''));
-  } catch (err) {
-    errs.push(`explainer does not parse: ${err.message}`);
-    return { errs, warns };
-  }
-  const lower = String(text).toLowerCase();
-  for (const tag of ['<html', '<head', '<body']) {
-    if (new RegExp(`${tag}[\\s>]`).test(lower)) warns.push(`explainer: remove ${tag}> (a fragment is not a full document)`);
-  }
-  if (/<script[\s>]/.test(lower)) {
-    warns.push("explainer: <script> never runs in the view (CSP script-src 'self'); use CSS-only interaction or remove it");
-  }
-  // Blocks = top-level nodes without blank text, non-include comments and
-  // <style>. A single wrapper element around everything is looked through.
-  const blocksOf = (el) => el.children.filter((n) => !isBlank(n)
-    && !(n.type === 'comment' && !isExplainerInclude(n))
-    && !(n.type === 'el' && n.tag === 'style'));
-  let blocks = blocksOf(tree);
-  while (blocks.length === 1 && blocks[0].type === 'el' && WRAPPER_TAGS.has(blocks[0].tag)) {
-    blocks = blocksOf(blocks[0]);
-  }
-  if (!blocks.length) {
-    warns.push('explainer: empty — open with a plain summary paragraph');
-    return { errs, warns };
-  }
-  const isP = (n) => n?.type === 'el' && n.tag === 'p';
-  if (!isP(blocks[0])) {
-    warns.push(`explainer: open with a plain summary <p> (first element is ${describe(blocks[0])})`);
-  }
-  blocks.forEach((n, i) => {
-    if (!isVisual(n)) return;
-    if (!isP(blocks[i - 1])) {
-      warns.push(`explainer: put one <p> sentence before ${describe(n)} #${blocks.slice(0, i + 1).filter(isVisual).length} that says what it shows`);
-    }
-  });
-  if (!isP(blocks[blocks.length - 1]) || blocks.length < 2) {
-    warns.push('explainer: close with a short recap <p>');
-  }
-  return { errs, warns };
-}
+// The explainer check (W5) lives in lib/explainer-check.mjs so the write hook
+// shares it; re-exported here for the existing callers and tests.
+export {
+  parseFragmentTree, checkExplainer, countSentences, countWords, isExplainerFragmentPath,
+  SUMMARY_MAX_SENTENCES, SUMMARY_MAX_WORDS,
+} from '../lib/explainer-check.mjs';
 
 function normalizeYamlScalars(value) {
   if (value instanceof Date) return value.toISOString();
@@ -280,15 +176,17 @@ function validateFragment(absPath, ajv, siblingSchemas) {
   const errs = [];
   const warns = [];
 
+  // The explainer is a free fragment with a light shape check (warnings only;
+  // an unparseable file is the one error). It is checked by its name, even
+  // before its agent file exists (the stage may write the explainer first).
+  if (isExplainerFragmentPath(absPath)) {
+    return checkExplainer(readFileSync(absPath, 'utf-8'));
+  }
+
   // Tier 2 — free narrative fragments (`<stem>.<label>.html.fragment`) are
   // UNRESTRICTED raw HTML; the envelope contract below does not apply to them.
   // Exempt before reading so an empty/exotic free fragment never trips a check.
   if (fragmentTier(absPath) === 'free') {
-    // The explainer is a free fragment with a light shape check (warnings only;
-    // an unparseable file is the one error).
-    if (absPath.endsWith(`.${EXPLAINER_LABEL}.html.fragment`)) {
-      return checkExplainer(readFileSync(absPath, 'utf-8'));
-    }
     return { errs, warns };
   }
 
@@ -360,7 +258,6 @@ function validateFragment(absPath, ajv, siblingSchemas) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
-  const root = resolve(process.cwd(), args.root);
   const schemaText = readFileSync(args.schema, 'utf-8');
   const schema = JSON.parse(schemaText);
   const siblingSchemas = Object.fromEntries(
@@ -386,7 +283,7 @@ function main() {
   const failures = [];
   const warnings = [];
 
-  for (const abs of walk(root)) {
+  for (const abs of targetFiles(args)) {
     total++;
     const { errs, warns } = validateFragment(abs, ajv, siblingSchemas);
     const rel = relative(process.cwd(), abs);

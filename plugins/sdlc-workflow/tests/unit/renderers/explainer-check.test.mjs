@@ -9,7 +9,9 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-import { checkExplainer, parseFragmentTree } from '../../../scripts/verify-fragment.mjs';
+import {
+  checkExplainer, parseFragmentTree, countSentences, countWords, SUMMARY_MAX_WORDS,
+} from '../../../scripts/verify-fragment.mjs';
 
 const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
@@ -69,6 +71,74 @@ test('verify-fragment CLI: explainer warnings exit 0, an unparseable explainer e
     const errRun = run();
     assert.equal(errRun.status, 1);
     assert.match(errRun.stderr, /does not parse/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+/* ── quality rules (summary length, comparison shape, include JSON) ── */
+
+const wrap = (summary, visual = '') => [
+  `<p>${summary}</p>`,
+  ...(visual ? ['<p>The bars compare the options.</p>', visual] : []),
+  '<p>Recap: done.</p>',
+].join('\n');
+
+test('a summary of more than five sentences or about 90 words is a warning', () => {
+  const five = 'One. Two. Three. Four. Five.';
+  assert.deepEqual(checkExplainer(wrap(five)).warns, []);
+  const six = checkExplainer(wrap(`${five} Six.`)).warns;
+  assert.ok(six.some((w) => /summary <p> has 6 sentences/.test(w)), six.join('\n'));
+  const long = Array.from({ length: SUMMARY_MAX_WORDS + 1 }, (_, i) => `w${i}`).join(' ');
+  const words = checkExplainer(wrap(`${long}.`)).warns;
+  assert.ok(words.some((w) => new RegExp(`has ${SUMMARY_MAX_WORDS + 1} words`).test(w)), words.join('\n'));
+  // Markup inside the summary counts as its text: 91 words split across tags.
+  const tagged = `${long.split(' ').slice(0, 45).join(' ')} <code>${long.split(' ').slice(45).join(' ')}</code>.`;
+  assert.ok(checkExplainer(wrap(tagged)).warns.some((w) => /words/.test(w)));
+  assert.equal(countWords('The x slot'), 3);
+  assert.equal(countSentences('It is 1.5 times faster. Done.'), 2);
+});
+
+test('a comparison with equal bars or fewer than two bars is a warning', () => {
+  const cmp = (bars) => `<!-- @include explainer/comparison ${JSON.stringify({ bars })} -->`;
+  assert.deepEqual(checkExplainer(wrap('A summary.', cmp([{ label: 'a', value: 3 }, { label: 'b', value: 5 }]))).warns, []);
+  const equal = checkExplainer(wrap('A summary.', cmp([{ label: 'a', value: 1 }, { label: 'b', value: 1 }, { label: 'c', value: 1 }]))).warns;
+  assert.ok(equal.some((w) => /bars all have the value 1; that is a list/.test(w)), equal.join('\n'));
+  const one = checkExplainer(wrap('A summary.', cmp([{ label: 'a', value: 1 }]))).warns;
+  assert.ok(one.some((w) => /has 1 bar; a comparison needs at least two/.test(w)), one.join('\n'));
+  const none = checkExplainer(wrap('A summary.', '<!-- @include explainer/comparison {} -->')).warns;
+  assert.ok(none.some((w) => /has 0 bars/.test(w)), none.join('\n'));
+});
+
+test('an @include whose JSON does not parse is a warning, not an error', () => {
+  const { errs, warns } = checkExplainer(wrap('A summary.', '<!-- @include explainer/sequence {"steps":[{label:"a"}]} -->'));
+  assert.deepEqual(errs, []);
+  assert.ok(warns.some((w) => /@include explainer\/sequence JSON does not parse/.test(w)), warns.join('\n'));
+});
+
+test('verify-fragment CLI checks explainer paths given as arguments, with or without an agent file', () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'sdlc-vf-arg-'));
+  const dir = join(tmp, '.ai', 'workflows', 'feat-y');
+  mkdirSync(dir, { recursive: true });
+  const script = join(PLUGIN_ROOT, 'scripts', 'verify-fragment.mjs');
+  const run = (...targets) => spawnSync(process.execPath, [script, ...targets], { cwd: tmp, encoding: 'utf-8' });
+  try {
+    // No 02-shape.md beside it: still an explainer, never a typed-contract failure.
+    const file = join(dir, '02-shape.explainer.html.fragment');
+    writeFileSync(file, '<p>One. Two. Three. Four. Five. Six.</p><p>Recap.</p>', 'utf-8');
+    let r = run(file);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /summary <p> has 6 sentences/);
+    assert.match(r.stdout, /1 fragment OK/);
+    // A directory argument is walked.
+    r = run(dir);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /02-shape\.explainer\.html\.fragment/);
+    // Unparseable is the one failure.
+    writeFileSync(file, '<p>a</p><div>', 'utf-8');
+    r = run(file);
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /does not parse/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

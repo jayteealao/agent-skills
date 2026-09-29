@@ -151,7 +151,7 @@ recommended-routes: [{invocation: "/wf slice <slug>", reason: "the person confir
 ---
 ```
 
-Write the explainer to `02c-craft.explainer.html.fragment` per [_story-arc.md](../_story-arc.md). Body sections, in order, under these exact `##` headings (later stages cite them):
+Body sections, in order, under these exact `##` headings (later stages cite them):
 
 - `## Visual direction confirmed` — one paragraph on the approved direction: the chosen probe (if any) and each deviation from the brief.
 - `## North-star mock` — the mock image path (or "none — text-only direction"), the scene sentence (always), and 5–10 annotated callouts, each with a short description and an implementation note.
@@ -164,57 +164,31 @@ Record the reference list authoritatively in the `references-loaded:` frontmatte
 
 **How the later stages carry the contract.** The contract is a design-stage artifact. `slice` maps its surfaces to slices; `plan` turns every `## Mock fidelity inventory` item into a concrete plan step and every `## Implementation contract` token/component/motion decision into a plan-step pointer; `implement` applies them ([_lane.md](_lane.md) → One duty per stage). Update `00-index.md` per [stage.md](stage.md) Step 6. A later stage that cannot build the contract as drawn routes to `/wf design <slug> amend`; it never edits the contract itself.
 
+## Step 5a: Write the explainer
+
+Write the explainer `02c-craft.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
+
 ---
 
-## Step 6: Write the contract's rich `.yaml` + fragment (do not skip)
+## Step 6: Write the contract's rich `.yaml` (do not skip)
 
 The visual contract page (`02c-craft.md`, `type: design-contract`) renders from a
-sibling `.yaml` + `.html.fragment` written next to it. `design-contract.mjs` gates its
-interactive coverage grid on the sibling; **without the `.yaml` the page silently
-degrades to the static frontmatter matrix** and managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) hard-blocks
-the write. Author both now, while the contract is in context. If this contract
-genuinely has no structured coverage to project, set `fragment: none` in the
-`02c-craft.md` frontmatter to opt out.
+sibling `.yaml`. `design-contract.mjs` gates its interactive coverage grid on it;
+**without the `.yaml` the page silently degrades to the static frontmatter matrix**
+and managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md))
+hard-blocks the write. Write it now, while the contract is in context. If this
+contract genuinely has no structured coverage to project, set `fragment: none` in
+the `02c-craft.md` frontmatter to opt out.
 
-For the `02c-craft.md` you just wrote:
-
-1. Write the sibling **`02c-craft.yaml`** — the authoritative structured data:
-   `artifact: design-contract`, `component:`, `based-on:`, `summary:`, the
-   coverage axes `tokens:` / `states:` / `sizes:` / `themes:` (string lists,
-   mirroring the frontmatter), an optional `contract:` array of per-element rows
-   (`element`, `tokens`, `states`, `requirement`), and optional `anti-patterns:`.
-   Schema: `siblingYamlSchemas.design-contract` in `tests/frontmatter.schema.json`.
-2. Write the sibling **`02c-craft.html.fragment`** — the body-only interactive layer.
-
-Before authoring the fragment, load
-`../_fragment-authoring.md` and apply the
-shared wrapper, snippet, and verifier rules.
-
-The fragment is one `<section class="fragment-design-contract"
-data-artifact="design-contract" data-component="<component-name>">` (body-only —
-`design-contract.mjs` owns the page heading and the tokens/states/sizes/themes
-metric-row; do **not** repeat them):
-
-- **Coverage grid** — a `tokens × states` (or `sizes × themes`) matrix showing
-  which combinations the contract commits to, with committed cells marked.
-- **Per-element contract rows** — one expandable row per `contract[]` entry
-  (element → required tokens/states → requirement text), so `/wf implement` can
-  scan the obligations.
-- **Anti-pattern callouts** — `anti-patterns[]` as `callout-warn` asides.
-
-Authoring rules (verifier enforces):
-
-- Exactly one top-level `<section class="fragment-design-contract">`; no remote
-  `<script src>`; inline `<style>`/`<script>` scoped under
-  `.fragment-design-contract` / `document.currentScript.closest('.fragment-design-contract')`.
-- Dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready',
-  { detail: { name: 'design-contract', artifact: 'design-contract',
-    counts: { tokens: <n>, states: <n>, sizes: <n>, themes: <n> } } }))`.
-- Inline SVG only. Data deterministic from `02c-craft.yaml`. Pass
-  `node scripts/verify-fragment.mjs <path>` with exit 0.
-
-Full contract:
-[`reference/fragment-author-contract.md`](../../../../reference/fragment-author-contract.md).
+For the `02c-craft.md` you just wrote, write the sibling **`02c-craft.yaml`**, the
+authoritative structured data: `artifact: design-contract`, `component:`,
+`based-on:`, `summary:`, the coverage axes `tokens:` / `states:` / `sizes:` /
+`themes:` (string lists, mirroring the frontmatter), an optional `contract:` array
+of per-element rows (`element`, `tokens`, `states`, `requirement`), and optional
+`anti-patterns:`. Schema: `siblingYamlSchemas.design-contract` in
+`tests/frontmatter.schema.json`. Do not write `02c-craft.html.fragment`: the
+renderer generates it from the `.yaml`, per
+[_fragment-authoring.md](../_fragment-authoring.md) Step F1.
 
 ## Step — Write free narrative fragments
 

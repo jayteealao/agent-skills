@@ -49,6 +49,12 @@ function writeFile(path, content) {
   writeFileSync(path, content, 'utf-8');
 }
 
+// A clean explainer beside a stage agent file, so a compliant write stays silent
+// (post-write-verify nudges when a stage file lands without one).
+function writeExplainer(mdPath) {
+  writeFile(mdPath.replace(/\.md$/, '.explainer.html.fragment'), '<p>Summary.</p>\n<p>Recap.</p>\n');
+}
+
 function md(frontmatter, body = 'body\n') {
   const yaml = Object.entries(frontmatter)
     .map(([key, value]) => `${key}: ${yamlScalar(value)}`)
@@ -400,6 +406,7 @@ test('post-write-verify validates written workflow artifacts with Ajv', () => {
     const good = join(tmp, '.ai', 'workflows', 'demo', '01-intake.md');
     const bad = join(tmp, '.ai', 'workflows', 'demo', '02-shape.md');
     writeFile(good, md(validIntake()));
+    writeExplainer(good);
     writeFile(bad, md({ schema: 'sdlc/v1', type: 'shape', slug: 'demo' }));
 
     let result = runHook(HOOKS.postWriteVerify, {
@@ -717,6 +724,7 @@ test('post-write-verify honours the `fragment: none` per-artifact escape', () =>
     // `fragment: none` in frontmatter — no block, no nudge, no output.
     const rel = '.ai/workflows/demo/04-plan-core.md';
     writeFile(join(tmp, rel), md(validPlan({ fragment: 'none' })));
+    writeExplainer(join(tmp, rel));
 
     const result = runHook(HOOKS.postWriteVerify, {
       cwd: tmp,
@@ -761,6 +769,7 @@ test('post-write-verify stays silent when a rich-tier artifact has both sibling 
     writeFile(join(dir, '04-plan-core.md'), md(validPlan()));
     writeFile(join(dir, '04-plan-core.yaml'), 'artifact: plan\nslice: core\nmodules: [core]\nfiles: [{ path: src/a.ts, role: new }]\n');
     writeFile(join(dir, '04-plan-core.html.fragment'), '<section class="fragment-plan"></section>\n');
+    writeExplainer(join(dir, '04-plan-core.md'));
 
     const result = runHook(HOOKS.postWriteVerify, {
       cwd: tmp,
@@ -965,6 +974,7 @@ test('post-write-verify stays silent for a profile artifact that has its sibling
     writeFile(join(dir, '01-profile.md'), md(validProfile()));
     writeFile(join(dir, '01-profile.yaml'), 'artifact: profile\n');
     writeFile(join(dir, '01-profile.html.fragment'), '<section class="fragment-profile"></section>\n');
+    writeExplainer(join(dir, '01-profile.md'));
 
     const result = runHook(HOOKS.postWriteVerify, {
       cwd: tmp,
@@ -1020,6 +1030,7 @@ test('post-write-verify allows a clean passing verify (met == total, no deferral
   try {
     const rel = '.ai/workflows/demo/06-verify-core.md';
     writeFile(join(tmp, rel), md(validVerify()));
+    writeExplainer(join(tmp, rel));
 
     const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
     equal(result.status, 0, result.stderr);

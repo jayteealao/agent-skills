@@ -81,7 +81,7 @@ Launch parallel read-only sub-agents to identify the root cause. Do not proceed 
 
 # Step 3 — Synthesize and write `01-rca.md`
 
-Write the body per the section templates in `intake/rca/_artifact.md`: the explainer, then `## Symptom` through `## Tripwire warnings`, including the `## Recommended next command` routing table that names the exact invocation for each route.
+Write the body per the section templates in `intake/rca/_artifact.md`: `## Symptom` through `## Tripwire warnings`, including the `## Recommended next command` routing table that names the exact invocation for each route.
 
 **`01-rca.md` frontmatter:**
 ```yaml
@@ -102,6 +102,10 @@ next-invocation: "/wf intake rca <slug> <route>"
 recommended-routes: [{invocation: "/wf intake rca <slug> <route>", reason: "<one phrase>", default: true}]
 ---
 ```
+
+# Step 3a — Write the explainer
+
+Write the explainer `01-rca.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 # Step 4 — Synthesize `02-shape.md`
 
@@ -177,9 +181,9 @@ updated-at: <timestamp>
 
 Body: one-line description + a short pointer to `01-rca.md` and the routing recommendation. No `selected-slice`: an rca has no slice roster, and a key naming a slice that never exists misleads every reader. `progress` is the stage→status **object** form; the renderer silently drops a YAML list.
 
-## Step 5b — Write the rich `.yaml` + fragment (do not skip)
+## Step 5b — Write the rich `.yaml` (do not skip)
 
-Author the sibling `01-rca.yaml` (diagnosis set: `incident:`, `title:`, `chain:`, `timeline:`; the resolution set and `heatmap:` only for a post-incident RCA) and the body-only `01-rca.html.fragment` per `intake/rca/_view.md`, which also holds the `@include` chrome rules and the optional `five_whys[]` block. Without the `.yaml` the page degrades to plain prose.
+Author the sibling `01-rca.yaml` (diagnosis set: `incident:`, `title:`, `chain:`, `timeline:`; the resolution set and `heatmap:` only for a post-incident RCA) per `intake/rca/_view.md`, which also holds the optional `five_whys[]` block. Without the `.yaml` the page degrades to plain prose. Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../_fragment-authoring.md) Step F1.
 
 # Step 6 — Hand off to user
 

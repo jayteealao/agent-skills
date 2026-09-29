@@ -16,7 +16,7 @@ from the tree and fails when a count exceeds its pin.
 | `intakeModes` | the mode keyword set that `reference/intake.md` names | 12 → 13 (2026-09-22, `brainstorm`) |
 | `reviewRubrics` | `reference/review/<rubric>.md`, underscore files excluded | 11 |
 | `aggregates` | rows of the aggregate table in `reference/review.md` | 7 |
-| `artifactStems` | distinct artifact names in the capability inventory's `artifacts` union | 93 → 95 (2026-09-22, `01-brainstorm`, `03-slice-brainstorm-*`) |
+| `artifactStems` | distinct artifact names in the capability inventory's `artifacts` union | 93 → 95 (2026-09-22, `01-brainstorm`, `03-slice-brainstorm-*`) → 92 (2026-09-29, hand-written typed fragment names left the references) |
 | `frontmatterTypes` | distinct `type` values the frontmatter schema's `oneOf` branches accept | 66 → 67 (2026-09-22, `brainstorm`) |
 
 A count under its pin is slack. The gate reports slack and does not fail on

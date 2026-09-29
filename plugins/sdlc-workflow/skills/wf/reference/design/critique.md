@@ -83,8 +83,6 @@ Judge the work against the design record:
 
 ## Output Format
 
-In SDLC context, write the explainer to `07-design-critique.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
 ```
 ## Design Critique
 
@@ -153,15 +151,8 @@ findings:
     recommendation: <specific fix>
 ```
 
-- **Required — write the sibling `07-design-critique.html.fragment`** next to the
-  `.md` and `.yaml`. First load
-  `../_fragment-authoring.md` and follow its
-  wrapper, snippet, and verifier rules. Body-only — `design-critique.mjs` already
-  owns the heading + metric-row and suppresses its static findings list when a
-  fragment is present, so the fragment supplies the interactive layer (severity-
-  filter pills over the findings, expandable observation→recommendation rows, a
-  dimension-grouping toggle). Deterministic from the sibling YAML (same YAML →
-  byte-identical HTML); pass `scripts/verify-fragment.mjs` (Check 7) clean.
+- Write the explainer `07-design-critique.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
+- Do not write the typed `07-design-critique.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../_fragment-authoring.md) Step F1.
 
 ## Step — Write free narrative fragments
 

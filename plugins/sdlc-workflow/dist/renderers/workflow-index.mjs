@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   nextRoutes,
   storyLink
-} from "../chunk-SWJT3BVF.mjs";
+} from "../chunk-DXPGDGXR.mjs";
 import {
   md2html,
   renderHistoryBlock

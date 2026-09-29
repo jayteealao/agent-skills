@@ -6,7 +6,7 @@
 
 Merge findings from the sub-agents. **Do not invent root causes the agents did not surface.** If the agents disagree or returned low confidence, the RCA records that; uncertainty is data.
 
-Write the explainer to `01-rca.explainer.html.fragment` per [_story-arc.md](../../_story-arc.md). Write each section below under a fixed, unnumbered `##` heading: `## Symptom`, `## Scope`, `## Investigation summary`, `## Root cause`, `## Contributing factors`, `## Blast radius`, `## Suggested fix shape`, `## Verification`, `## Confidence`, `## Recommended next command`, `## Tripwire warnings`. Other files cite these names.
+Write each section below under a fixed, unnumbered `##` heading: `## Symptom`, `## Scope`, `## Investigation summary`, `## Root cause`, `## Contributing factors`, `## Blast radius`, `## Suggested fix shape`, `## Verification`, `## Confidence`, `## Recommended next command`, `## Tripwire warnings`. Other files cite these names.
 
 ### Symptom
 The user-reported issue, exact where possible. ≤3 sentences. Cite the original error message or stack trace if provided.

@@ -2,7 +2,7 @@
 
 `intake/investigate.md` holds the `01-investigate.md` frontmatter and the synthesis rules (constraint cross-check, presentation cap). This file holds the body sections, in order.
 
-Write the explainer to `01-investigate.explainer.html.fragment` per [_story-arc.md](../../_story-arc.md). The section headings below are fixed anchors: do not number them.
+The section headings below are fixed anchors: do not number them.
 
 ## Problem & constraints
 

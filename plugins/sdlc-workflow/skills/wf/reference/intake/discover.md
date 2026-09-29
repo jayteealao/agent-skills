@@ -110,7 +110,7 @@ recommended-routes: [{invocation: "<the ## Routing route, with its from <slug> f
 
 **Body sections (in order):**
 
-Write the explainer to `01-discover.explainer.html.fragment` per [_story-arc.md](../_story-arc.md). The section headings below are fixed anchors: do not number them.
+The section headings below are fixed anchors: do not number them.
 
 ## What this decides
 
@@ -140,9 +140,7 @@ Then one paragraph of rationale — justify the choice by referencing the sectio
 
 For `partial` verdicts, also state precisely: *which* part of the hypothesis holds, and *which* part fails. Treat this like a refined hypothesis the user can take forward.
 
-For `fails` verdicts, name the counter-hypothesis (if any) that is more plausible.
-
-For `inconclusive` verdicts, list exactly what runtime data or external information would resolve it.
+For `fails` verdicts, name the counter-hypothesis (if any) that is more plausible. For `inconclusive` verdicts, list exactly what runtime data or external information would resolve it.
 
 ## Routing
 
@@ -173,7 +171,9 @@ For each fired tripwire: `[tripwire-name]: <what specifically tripped it>`. Clos
 
 > One or more wf-discover tripwires fired. The verdict is still recorded, but review the warnings before acting on it.
 
-## Step — Write free narrative fragments
+## Step — Write the explainer and free narrative fragments
+
+Write the explainer `01-discover.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 Author free narrative fragments for this artifact as described in the narrative-fragment tier of `_intake-context.md` — `<stem>.<NN-label>.html.fragment` siblings of unrestricted raw HTML, as many as the story needs, ordered with an `NN-` prefix, rendered raw-inline below the page.
 

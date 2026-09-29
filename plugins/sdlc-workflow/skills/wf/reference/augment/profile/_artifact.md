@@ -26,8 +26,6 @@ recommended-routes:            # from profile.md Step 4's table
 ---
 ```
 
-Write the explainer to `01-profile.explainer.html.fragment` per [../../_story-arc.md](../../_story-arc.md).
-
 **Body — use this exact structure** (downstream commands depend on it):
 
 ```
@@ -74,21 +72,10 @@ The view-layer renderer projects this YAML as a hotspots-table page at
 `comparisons:` is populated), optimization candidates list with confidence
 chips. Without this YAML the page falls back to a plain frontmatter card.
 
-**Required whenever you write the `profile` sibling YAML:** also write
-`01-profile.html.fragment` next to it. First load
-`../../_fragment-authoring.md` and follow
-its wrapper, snippet, and verifier rules. The profile fragment must:
+Do not write the typed `01-profile.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../../_fragment-authoring.md) Step F1.
 
-- wrap everything in one `<section class="fragment-profile" …>`;
-- draw a hotspot bar chart from `hotspots[]` — one horizontal bar per hotspot,
-  width proportional to `cost_pct`, with candidate hotspots marked distinctly;
-- when `comparisons:` is present, add a before/after sparkline mirroring the
-  renderer's figure;
-- stay deterministic from the sibling YAML (re-running on the same YAML produces
-  byte-identical HTML) and pass `scripts/verify-fragment.mjs` (Check 7) clean.
-
-(If no hotspots were found you do not write the `profile` sibling YAML — and
-therefore no fragment either; the simple-renderer fallback is correct.)
+(If no hotspots were found you do not write the `profile` sibling YAML; the
+simple-renderer fallback is correct.)
 
 Shape:
 

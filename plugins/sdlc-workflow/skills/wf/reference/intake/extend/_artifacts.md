@@ -33,7 +33,7 @@ recommended-routes: [{invocation: "/wf plan <slug> <new-slug>", reason: "plan th
 ---
 ```
 
-Write the explainer to `03-slice-<new-slug>.explainer.html.fragment` per [_story-arc.md](../../_story-arc.md). On a design delta, the default route is `/wf design <slug> amend`.
+On a design delta, the default route is `/wf design <slug> amend`.
 
 # Slice: <slice-name>
 

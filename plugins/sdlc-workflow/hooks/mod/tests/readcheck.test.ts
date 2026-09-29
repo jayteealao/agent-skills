@@ -44,7 +44,40 @@ const TREE: Record<string, string> = {
   [`${W}/03-slice-auth.md`]: '---\nslice: auth\n---\n# Slice auth\n\n## Why\n\nreasons\n\n## Acceptance Criteria\n\n- AC1\n- AC2\n\n## Notes\n\nmore\n',
   [`${REF}/plan/_artifact.md`]: '# Plan artifact\n\nline\nline\n',
   [`${REF}/fixture/slice.md`]: '# Slice\n',
+  [`${REF}/fixture/plan.md`]: '# Plan stage\n',
+  [`${REF}/fixture/task.md`]: '# Task stage\n',
+  [`${REF}/fixture/implement.md`]: '# Implement stage\n',
+  [`${REF}/fixture/context.md`]: '# Intake context\n',
 }
+
+/** A task stage and an implement stage: only task lists the master `05-implement.md`. */
+const MASTERS: RequiresEntry[] = [
+  {
+    reference: 'fixture/task.md',
+    stage: 'task',
+    rows: [
+      { input: 'fixture/context.md', kind: 'procedure', when: 'always', sections: [] },
+      { input: '05-implement.md', kind: 'writes', when: '', sections: [] },
+    ],
+  },
+  {
+    reference: 'fixture/implement.md',
+    stage: 'implement',
+    rows: [
+      { input: '02-shape.md', kind: 'artifact', when: 'always', sections: [] },
+      { input: '05-implement-<slice>.md', kind: 'writes', when: '', sections: [] },
+    ],
+  },
+  {
+    reference: 'fixture/plan.md',
+    stage: 'plan',
+    rows: [
+      { input: '02-shape.md', kind: 'artifact', when: 'always', sections: [] },
+      { input: '04-plan.md', kind: 'artifact', when: 'if-present', sections: [] },
+      { input: '04-plan.md', kind: 'writes', when: '', sections: [] },
+    ],
+  },
+]
 
 type World = { written: Map<string, string>; tree: Record<string, string> }
 
@@ -143,9 +176,9 @@ const ledgerRows = (world: World): Array<Record<string, unknown>> =>
 const setReadCheck = ($: Engine, value: string) =>
   $.config.set({ key: `${PLUGIN_NAME}.readCheck`, value, previous: 'warn', provider: { plugin: PLUGIN_NAME, tier: 'user' }, origin: { kind: 'composer' } })
 
-/** Agent A reads everything the fixture requires except the named files. */
+/** Agent A reads its stage reference and everything the fixture requires except the named files. */
 async function readAllBut($: Engine, agentId: string | undefined, skip: readonly string[] = []): Promise<void> {
-  for (const path of [`${W}/00-index.md`, `${W}/02-shape.md`, `${W}/03-slice-auth.md`, `${REF}/plan/_artifact.md`]) {
+  for (const path of [`${REF}/fixture/plan.md`, `${W}/00-index.md`,`${W}/02-shape.md`, `${W}/03-slice-auth.md`, `${REF}/plan/_artifact.md`]) {
     if (skip.some(name => path.endsWith(name))) continue
     await read($, path, agentId)
   }
@@ -215,7 +248,7 @@ describe('read check', () => {
     await read($, `${W}/02-shape.md`, 'A')
     await read($, `${W}/00-index.md`, 'A')
     await read($, `${W}/02-shape.md`)
-    for (let i = 0; i < 200; i += 1) await Promise.resolve()
+    for (let i = 0; i < 5000; i += 1) await Promise.resolve()
     const rows = (world.written.get('/home/.sdlc/mod-probe.jsonl') ?? '').split('\n').filter(line => line.includes('"event":"read"'))
     expect(rows).toHaveLength(2)
     expect(rows.join('\n')).toContain('agent A ')
@@ -288,7 +321,52 @@ describe('read check', () => {
     await $.session.start(SESSION)
     await readAllBut($, 'A')
     await $.turn.complete({ answer: 'done', durationMs: 1, isAborted: false, turnId: 'sub', reason: 'answer', agentId: 'A' })
+    await read($, `${REF}/fixture/plan.md`, 'A')
     expect(contextOf(await write($, PLAN, undefined, 'A'))).toContain('02-shape.md')
+  })
+
+  test('a write by an agent that read no stage reference, outside a /wf command, is not checked', async ($, on) => {
+    const world = seat(on)
+    await $.session.start(SESSION)
+    await readAllBut($, 'A', ['fixture/plan.md', '02-shape.md'])
+    expect(contextOf(await write($, PLAN, undefined, 'A'))).toBe('')
+    expect(world.written.has(LEDGER)).toBe(false)
+  })
+
+  test('the file being written never counts as a missing input of its own stage', async ($, on) => {
+    const world = seat(on, MASTERS)
+    await $.session.start(SESSION)
+    await read($, `${REF}/fixture/plan.md`, 'P')
+    await read($, `${W}/02-shape.md`, 'P')
+    const master = `${W}/04-plan.md`
+    expect(contextOf(await write($, master, '# Plan\n', 'P'))).toBe('')
+    // Again, now that the file exists before the write too.
+    expect(contextOf(await write($, master, '# Plan v2\n', 'P'))).toBe('')
+    expect(ledgerRows(world).map(row => [row['stage'], row['missing']])).toEqual([
+      ['plan', []],
+      ['plan', []],
+    ])
+  })
+
+  test('a master file only another stage lists is not checked for an agent running implement; it is for one running task', async ($, on) => {
+    const world = seat(on, MASTERS)
+    await $.session.start(SESSION)
+    await read($, `${REF}/fixture/implement.md`, 'I')
+    await read($, `${W}/02-shape.md`, 'I')
+    expect(contextOf(await write($, `${W}/05-implement.md`, '# Implement\n', 'I'))).toBe('')
+    expect(world.written.has(LEDGER)).toBe(false)
+    await read($, `${REF}/fixture/task.md`, 'T')
+    const text = contextOf(await write($, `${W}/05-implement.md`, '# Task\n', 'T'))
+    expect(text).toContain('fixture/context.md')
+    expect(ledgerRows(world)).toEqual([{ at: expect.any(String), agentId: 'T', stage: 'task', artifact: '05-implement.md', missing: ['fixture/context.md'], partial: [], waiver: null }])
+  })
+
+  test('the main loop is checked against the stage its /wf command names', async ($, on) => {
+    const world = seat(on, MASTERS)
+    await $.session.start(SESSION)
+    await $.turn.start({ text: '/wf task alpha-flow', turnId: 't1' })
+    expect(contextOf(await write($, `${W}/05-implement.md`, '# Task\n'))).toContain('fixture/context.md')
+    expect(ledgerRows(world).map(row => row['stage'])).toEqual(['task'])
   })
 
   test('a compaction mid-stage keeps the main ledger; one between stages clears it', async ($, on) => {

@@ -81,8 +81,6 @@ Match severity to the scores:
 
 Format as a structured report:
 
-In SDLC context, write the explainer to `07-design-audit.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
 ```
 ## Design Audit Report
 
@@ -159,16 +157,8 @@ violations:
     recommendation: <specific fix>
 ```
 
-- **Required — write the sibling `07-design-audit.html.fragment`** next to the
-  `.md` and `.yaml`. First load
-  `../_fragment-authoring.md` and follow its
-  wrapper, snippet, and verifier rules. Body-only — `design-audit.mjs` already owns
-  the heading, metric-row, and verdict block, and suppresses its static violations
-  list when a fragment is present, so the fragment supplies the interactive layer
-  (severity-filter pills over the violations, remediation-status grouping,
-  expandable observation→recommendation rows). Deterministic from the sibling YAML
-  (same YAML → byte-identical HTML); pass `scripts/verify-fragment.mjs` (Check 7)
-  clean.
+- Write the explainer `07-design-audit.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
+- Do not write the typed `07-design-audit.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../_fragment-authoring.md) Step F1.
 
 ## Step — Write free narrative fragments
 

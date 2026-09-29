@@ -170,7 +170,8 @@ from `01-intake.md` (Known Constraints + Restated Request + Risks-if-Misundersto
 One row per intake **Known Constraint / directive** and each numbered item of the Restated Request: `directive | disposition (honored / narrowed / dropped) | how | authority`. A `narrowed` row REQUIRES `authority` = a quoted PO answer whose **scope covers the requirement** (per [_question-craft.md](_question-craft.md)'s scope-of-authority rule) or a this-stage PO ratification. A **`dropped` row REQUIRES a this-stage gate-question ratification** ([_gate-question.md](_gate-question.md)): a scope-covering quote from an earlier answer suffices for a narrowing, but dropping a directive is always a fresh decision the PO confirms in the moment; cite the new `po-answers.md` entry. "Consequence of another answer" is NOT authority; owe the PO one more question rather than write an unauthorised narrowing.
 
 # Step 10 — Write the artifacts
-Write `.ai/workflows/<slug>/02-shape.md` per `# Artifacts` below. If Step 5a applied, also write `.ai/workflows/<slug>/02b-design.md`; its structure, sibling `.yaml`, and fragment contract are defined in [design/shape.md](design/shape.md).
+Write `.ai/workflows/<slug>/02-shape.md` per `# Artifacts` below. If Step 5a applied, also write `.ai/workflows/<slug>/02b-design.md`; its structure and sibling `.yaml` are defined in [design/shape.md](design/shape.md).
+Write the explainer `02-shape.explainer.html.fragment` per [_story-arc.md](_story-arc.md). It names the highest-severity RIM carried from intake and how shape disposed of it.
 
 # Chat return contract
 After writing files, return per [_chat-return.md](_chat-return.md): quote the explainer summary as the narrative lead, then this receipt:
@@ -215,8 +216,6 @@ next-invocation: "/wf slice <slug>" # "/wf design <slug>" when design is needed
 recommended-routes: [{invocation: "/wf slice <slug>", reason: "<one phrase>", default: true}]   # one entry per Adaptive-routing option
 ---
 ```
-
-Write the explainer to `02-shape.explainer.html.fragment` per [_story-arc.md](_story-arc.md). The explainer names the highest-severity RIM carried from intake and how shape disposed of it.
 
 Body sections, in order:
 - `## Problem Statement`, `## Primary Actor / User`, `## Desired Behavior`.

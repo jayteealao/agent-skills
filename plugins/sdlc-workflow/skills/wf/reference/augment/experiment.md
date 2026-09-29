@@ -115,6 +115,10 @@ Return as structured text: full experiment design covering all 6 elements above,
 
 Write `04c-experiment.md` with the frontmatter and the seven body sections in [experiment/_artifact.md](experiment/_artifact.md).
 
+# Step 2a — Write the explainer
+
+Write the explainer `04c-experiment.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
+
 # Step 3 — Update `00-index.md` augmentations registry
 
 Read `00-index.md`, then add or update the `augmentations:` field in its YAML frontmatter:

@@ -3,7 +3,8 @@
  *
  * The mod records every Read of a workflow artifact or a `/wf` procedure file
  * with its line ranges, per agent. When an agent writes a stage artifact that
- * a `## Requires` table names in a `writes` row, the check compares those
+ * a `## Requires` table names in a `writes` row of a stage the agent runs
+ * (`writerStagesOf`), the check compares those
  * reads with the table's `always` and `if-present` rows. A file counts as read
  * only when the ranges cover it, or cover each named `##` section.
  *
@@ -309,17 +310,20 @@ export function patternOf(input: string): Pattern {
  * then the reference name. `acceptSlice` refuses a `<slice>` capture that is
  * not a slice of the workflow, so a review dimension file
  * (`07-review-auth-security.md`) does not read as the review of a slice
- * `auth-security`.
+ * `auth-security`. `onlyStages`, when given, keeps only the entries of those
+ * stages: the stages the writer runs (`writerStagesOf`).
  */
 export function matchWrite(
   requires: readonly RequiresEntry[],
   file: string,
   preferStages: readonly string[] = [],
   acceptSlice: (slice: string) => boolean = () => true,
+  onlyStages: readonly string[] | null = null,
 ): WriteMatch | null {
   const name = cleanInput(file).toLowerCase()
   const hits: Array<WriteMatch & { literal: number }> = []
   for (const entry of requires) {
+    if (onlyStages !== null && !onlyStages.includes(entry.stage)) continue
     for (const row of entry.rows) {
       if (row.kind !== 'writes') continue
       const pattern = patternOf(row.input)
@@ -362,6 +366,36 @@ export function preferredStagesOf(command: { key: string; slug: string | null } 
   if (command === null) return []
   if (command.key === 'intake' || command.key === 'augment') return command.slug === null ? [command.key] : [`${command.key}:${command.slug}`, command.key]
   return [command.key]
+}
+
+/**
+ * The stages a writer runs, most preferred first: every stage whose reference
+ * the writer read (`skills/wf/reference/<reference>` in its reads), then the
+ * stages its `/wf` command maps to (the main loop's bracket command). A
+ * `writes` row matches a write only for one of these stages: a file several
+ * stages write (`05-implement.md`, `04-plan.md`, `02-shape.md`, `03-slice.md`)
+ * is checked against the stage the writer runs, never another stage that
+ * happens to name it. An empty list means no stage: the check does not run.
+ * An intake or augment command whose slug names no mode maps to its `default`
+ * mode (`/wf intake <idea>`).
+ */
+export function writerStagesOf(
+  requires: readonly RequiresEntry[],
+  reads: AgentReads | undefined,
+  command: { key: string; slug: string | null } | null,
+): string[] {
+  const known = new Set(requires.map(entry => entry.stage))
+  const stages: string[] = []
+  const add = (stage: string) => {
+    if (known.has(stage) && !stages.includes(stage)) stages.push(stage)
+  }
+  for (const entry of requires) {
+    if (reads?.has(procedureIdOf(entry.reference)) === true) add(entry.stage)
+  }
+  const named = preferredStagesOf(command).filter(stage => known.has(stage))
+  if (command !== null && named.length === 0 && (command.key === 'intake' || command.key === 'augment')) named.push(`${command.key}:default`)
+  for (const stage of named) add(stage)
+  return stages
 }
 
 /** One input the check requires for a write, placeholders filled. */
@@ -454,6 +488,12 @@ export type CheckContext = {
   reads: AgentReads | undefined
   /** Inputs a dispatch prompt fed for this output path. */
   fed: readonly string[]
+  /**
+   * The ledger id of the file being written. A required input with this id is
+   * the writer's own output (`04-plan.md` as an `if-present` Sibling Plans
+   * input of the plan that writes it): it never counts as missing or partial.
+   */
+  self?: string
 }
 
 /** The inputs the writer did not read, and the ones it read only in part. */
@@ -508,6 +548,7 @@ async function expandGlob(item: RequiredInput, context: CheckContext, io: Io): P
 }
 
 async function checkOne(item: RequiredInput, context: CheckContext, io: Io, result: CheckResult): Promise<void> {
+  if (context.self !== undefined && item.id === context.self.toLowerCase()) return
   if (fedCovers(item.input, context.fed)) return
   const reads = context.reads?.get(item.id)
   if (reads === undefined && item.when === 'if-present') {

@@ -109,7 +109,9 @@ next-invocation: "<next-invocation>"
 recommended-routes: <routes>
 ---
 ```
-Write the explainer to `01-fix.explainer.html.fragment` per [_story-arc.md](../_story-arc.md). Body (tight): `## Restated Request` (what the user wants + why), `## Acceptance Criteria` (≤3, each objectively verifiable; embed any inline question answers as italic notes), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
+Body (tight): `## Restated Request` (what the user wants + why), `## Acceptance Criteria` (≤3, each objectively verifiable; embed any inline question answers as italic notes), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
+
+Write the explainer `01-fix.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 **`02-shape.md` — `type: shape`:**
 ```yaml

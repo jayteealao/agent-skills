@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import {
   MAIN_AGENT, READ_LEDGER_FILE, agentKeyOf, appendedTextOf, checkReads, classifyPath, contextTextOf, coverageOf, coversSpan, fedCovers,
   isExcludedWrite, ledgerLineOf, matchWrite, mergeRanges, patternOf, preferredStagesOf, promptFedOf, readCheckModeOf, recordRead,
-  requiredOf, sectionSpansOf, waiverOf, writtenTextOf,
+  requiredOf, sectionSpansOf, waiverOf, writerStagesOf, writtenTextOf,
 } from '../../../hooks/mod/readledger.ts';
 
 const PLAN = {
@@ -121,6 +121,93 @@ test('matchWrite prefers the command stage, then a plain stage, and refuses a sl
   const accept = (slice) => roster.includes(slice) || !roster.some((known) => slice.startsWith(`${known}-`));
   assert.equal(matchWrite([REVIEW], '07-review-auth-security.md', [], accept), null);
   assert.equal(matchWrite([REVIEW], '07-review-auth.md', [], accept).slice, 'auth');
+});
+
+// A master file several stages list in a `writes` row (05-implement.md, 06-verify.md, 04-plan.md).
+const TASK = {
+  reference: 'task.md',
+  stage: 'task',
+  rows: [
+    { input: 'intake/_intake-context.md', kind: 'procedure', when: 'always', sections: [] },
+    { input: '05-implement.md', kind: 'writes', when: '', sections: [] },
+    { input: '06-verify.md', kind: 'writes', when: '', sections: [] },
+  ],
+};
+const IMPLEMENT = { reference: 'implement.md', stage: 'implement', rows: [{ input: '04-plan-<slice>.md', kind: 'artifact', when: 'always', sections: [] }, { input: '05-implement-<slice>.md', kind: 'writes', when: '', sections: [] }] };
+const PLAN_MASTER = {
+  reference: 'plan.md',
+  stage: 'plan',
+  rows: [
+    { input: '02-shape.md', kind: 'artifact', when: 'always', sections: [] },
+    { input: '04-plan.md', kind: 'artifact', when: 'if-present', sections: ['Sibling Plans'] },
+    { input: '04-plan-*.md', kind: 'artifact', when: 'if-present', sections: [] },
+    { input: '04-plan.md', kind: 'writes', when: '', sections: [] },
+  ],
+};
+const INTAKE_DEFAULT = { reference: 'intake/default.md', stage: 'intake:default', rows: [{ input: '01-intake.md', kind: 'writes', when: '', sections: [] }] };
+
+function readRef(ledger, agent, reference) {
+  recordRead(ledger, agent, `ref:${reference}`, `/p/skills/wf/reference/${reference}`, { startLine: 1, numLines: 5, totalLines: 5 });
+}
+
+test('writerStagesOf: stages whose reference the writer read first, then the command stages', () => {
+  const requires = [TASK, IMPLEMENT, PLAN, INTAKE_FIX, SHAPE, INTAKE_DEFAULT];
+  const ledger = new Map();
+  readRef(ledger, 'I', 'implement.md');
+  assert.deepEqual(writerStagesOf(requires, ledger.get('I'), null), ['implement']);
+  assert.deepEqual(writerStagesOf(requires, undefined, null), []);
+  assert.deepEqual(writerStagesOf(requires, ledger.get('I'), { key: 'plan', slug: 'alpha' }), ['implement', 'plan']);
+  assert.deepEqual(writerStagesOf(requires, undefined, { key: 'intake', slug: 'fix' }), ['intake:fix']);
+  // An intake slug that names no mode (the idea text) maps to the default mode.
+  assert.deepEqual(writerStagesOf(requires, undefined, { key: 'intake', slug: 'add-login' }), ['intake:default']);
+  assert.deepEqual(writerStagesOf(requires, undefined, { key: 'yolo', slug: 'alpha' }), []);
+});
+
+test('a shared master file matches only the stage the writer runs; none leaves the write unchecked', () => {
+  const requires = [TASK, IMPLEMENT];
+  const ledger = new Map();
+  readRef(ledger, 'I', 'implement.md');
+  const implementStages = writerStagesOf(requires, ledger.get('I'), null);
+  // The yolo implement agent writes the master 05-implement.md: not checked against /wf task.
+  assert.equal(matchWrite(requires, '05-implement.md', implementStages, undefined, implementStages), null);
+  assert.equal(matchWrite(requires, '06-verify.md', implementStages, undefined, implementStages), null);
+  readRef(ledger, 'T', 'task.md');
+  const taskStages = writerStagesOf(requires, ledger.get('T'), null);
+  assert.equal(matchWrite(requires, '05-implement.md', taskStages, undefined, taskStages).entry.stage, 'task');
+  // Several matches: the stage whose reference the writer read wins over the command stage.
+  const both = [INTAKE_FIX, SHAPE];
+  readRef(ledger, 'S', 'shape.md');
+  const shapeStages = writerStagesOf(both, ledger.get('S'), { key: 'intake', slug: 'fix' });
+  assert.deepEqual(shapeStages, ['shape', 'intake:fix']);
+  assert.equal(matchWrite(both, '02-shape.md', shapeStages, undefined, shapeStages).entry.stage, 'shape');
+  // The review agent writing a dimension file: intake:audit names 07-review-*.md, but the agent runs review.
+  const AUDIT = { reference: 'intake/audit.md', stage: 'intake:audit', rows: [{ input: '07-review-*.md', kind: 'writes', when: '', sections: [] }] };
+  readRef(ledger, 'R', 'review.md');
+  const reviewStages = writerStagesOf([AUDIT, REVIEW], ledger.get('R'), null);
+  const accept = (slice) => slice === 'auth' || !slice.startsWith('auth-');
+  assert.equal(matchWrite([AUDIT, REVIEW], '07-review-auth-security.md', reviewStages, accept, reviewStages), null);
+});
+
+test('checkReads: the file being written is never missing or partial, even when it exists', async () => {
+  const root = '/w';
+  const dir = '/w/.ai/workflows/alpha';
+  const files = { [`${dir}/02-shape.md`]: 'x', [`${dir}/04-plan.md`]: '# Plan\n\n## Sibling Plans\n\n- a\n', [`${dir}/04-plan-a.md`]: 'a' };
+  const ledger = new Map();
+  recordRead(ledger, 'P', 'wf:alpha/02-shape.md', `${dir}/02-shape.md`, { startLine: 1, numLines: 1, totalLines: 1 });
+  recordRead(ledger, 'P', 'wf:alpha/04-plan-a.md', `${dir}/04-plan-a.md`, { startLine: 1, numLines: 1, totalLines: 1 });
+  const required = requiredOf(matchWrite([PLAN_MASTER], '04-plan.md'), 'alpha');
+  const context = { root, slug: 'alpha', reads: ledger.get('P'), fed: [] };
+  // Without `self` the warn-mode check after the write reports the plan itself.
+  assert.deepEqual(await checkReads(required, context, io(files)), { missing: ['04-plan.md'], partial: [] });
+  assert.deepEqual(await checkReads(required, { ...context, self: 'wf:alpha/04-plan.md' }, io(files)), { missing: [], partial: [] });
+  // A partial read of the file being written is not partial either.
+  recordRead(ledger, 'P', 'wf:alpha/04-plan.md', `${dir}/04-plan.md`, { startLine: 1, numLines: 1, totalLines: 6 });
+  assert.deepEqual(await checkReads(required, { ...context, reads: ledger.get('P'), self: 'wf:alpha/04-plan.md' }, io(files)), { missing: [], partial: [] });
+  // A glob that expands to the file being written skips it too.
+  const GLOB = { reference: 'g.md', stage: 'g', rows: [{ input: '04-plan-*.md', kind: 'artifact', when: 'if-present', sections: [] }, { input: '04-plan-<slice>.md', kind: 'writes', when: '', sections: [] }] };
+  const globbed = requiredOf(matchWrite([GLOB], '04-plan-a.md'), 'alpha');
+  assert.deepEqual(await checkReads(globbed, { root, slug: 'alpha', reads: undefined, fed: [] }, io(files)), { missing: ['04-plan-a.md'], partial: [] });
+  assert.deepEqual(await checkReads(globbed, { root, slug: 'alpha', reads: undefined, fed: [], self: 'wf:alpha/04-plan-a.md' }, io(files)), { missing: [], partial: [] });
 });
 
 test('isExcludedWrite: yaml, fragments, history, evidence, the index and the ledgers', () => {

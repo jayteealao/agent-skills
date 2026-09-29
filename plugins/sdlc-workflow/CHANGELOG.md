@@ -5,6 +5,19 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.173.1] - 2026-09-29
+
+Fixes from the first live run of the artifact split (SoccerManager `engine-modules`, ARTIFACT-SPLIT-PLAN.md "First live run").
+
+### Fixed
+
+- **Every stage writes its explainer.** Implement and verify wrote none in the live run, because the explainer was one template line. Each stage now has an explicit explainer step after its agent-file write, and post-write-verify nudges when a stage file lands without its explainer (switch `hooks.remindMissingFragments`).
+- **Verify evidence file renamed to `verify-evidence/<slice>/checks.md`.** Claude Code refuses a sub-agent write to any file named `report.md`, so every yolo verify lost its evidence summary.
+- **Two false read-check warnings.** A writer is never required to read the file it writes, and a `writes` row applies only to a stage whose reference the writer read or whose `/wf` command runs (the master `05-implement.md`/`06-verify.md` no longer match `/wf task`).
+- **The explainer check runs.** `verify-fragment.mjs` checks explainer paths, and the post-write hook runs the check on each explainer write. New warnings: a summary over five sentences or about 90 words, a comparison with fewer than two bars or all bars equal, an unparseable snippet.
+- **Explainer rules.** `_story-arc.md` caps the summary, bans unexplained ids and jargon, reserves `comparison` for quantities that differ, and requires counts to agree.
+- **The page names a human next step.** "Waiting for you" says the next step needs the person when the next stage is design or brainstorm. The design stage no longer hand-writes typed fragments; the renderer generates them from the `.yaml`.
+
 ## [9.173.0] - 2026-09-28
 
 Yolo pins a model and a reasoning effort on every sub-agent, and the high effort tier maps to Opus.

@@ -80,7 +80,8 @@ Author the brief. Ask at most **2 questions** in chat; answers go inline into th
 - `## Steps` — at most 5, each with its **own outcome check** (the observation that will prove it happened) and a `rollback:` line for anything above `repo-local` (or the explicit "no rollback exists" acknowledgement).
 - `## Acceptance Criteria` — each naming **how it will be observed** (the concrete read-back), not just what should be true.
 - `## Assumptions / Open Questions`, and `## Gate Decision` (written at the gate).
-- The explainer, written to `01-task.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
+
+Write the explainer `01-task.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
 
 `00-index.md` is a fully-conformant `type: index` (the heavy 22-field set from `intake/default.md`) plus `workflow-type: task`. `progress:` marks `shape`, `slice`, `plan` as `skipped`; `review`, `handoff`, `ship` as `skipped` (revisited at Step 4); `intake: complete`. Register the row in `.ai/workflows/INDEX.md` per `intake/_intake-context.md`.
 
@@ -98,7 +99,7 @@ Do the work, step by step, per the brief. Then write `05-implement.md` (`type: i
 
 # Step 3 — Evidence (`06-verify.md`)
 
-Write `06-verify.md` (`type: verify`) with `## Acceptance Criteria Status`: per-AC evidence rows carrying `evidence-rung`. Close with `## Caveats`, `## Issues Found`, and `## Recommendation`. Write raw read-back output to `verify-evidence/<slug>/report.md`. Use the frontmatter keys of the verify template (`verify/_artifact.md`), including `stack-source`, `skipped-gating-specs: []`, the `debt-markers-*` counts, `next-command`, `next-invocation`, and `recommended-routes`. **Re-observe; never assert:**
+Write `06-verify.md` (`type: verify`) with `## Acceptance Criteria Status`: per-AC evidence rows carrying `evidence-rung`. Close with `## Caveats`, `## Issues Found`, and `## Recommendation`. Write raw read-back output to `verify-evidence/<slug>/checks.md`. Use the frontmatter keys of the verify template (`verify/_artifact.md`), including `stack-source`, `skipped-gating-specs: []`, the `debt-markers-*` counts, `next-command`, `next-invocation`, and `recommended-routes`. **Re-observe; never assert:**
 
 - **`live`** — you re-read the real system of record after acting. For a task, non-runtime systems of record count as live observation: `ls` the directory, `curl` the DNS record, query the API, read the file back (the §7 gloss).
 - **`attested`** — a named external party or human confirmed the outcome; record the citation (vendor email, signoff comment, ticket URL). The only rung available for the coordination class. Weaker than `live`, but honest.

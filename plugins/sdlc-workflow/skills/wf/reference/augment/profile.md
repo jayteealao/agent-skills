@@ -168,6 +168,10 @@ Then write the frontmatter `recommended-routes`. Pick the default from this tabl
 | Hotspots found but no clear improvement path | Run dynamic profiling with `<tool>` to get runtime data before deciding |
 | No significant hotspots found | Domain appears healthy — consider profiling a different area or accepting current performance |
 
+# Step 4a — Write the explainer
+
+Write the explainer `01-profile.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
+
 # Step 5 — Hand off to user
 
 Return per [_chat-return.md](../_chat-return.md) — a narrative lead that quotes the explainer's summary paragraph, then the structured anchors below.
@@ -210,7 +214,7 @@ Artifact: .ai/profiles/<run-id>/01-profile.md
 
 ## Step — Sibling YAML `profile`
 
-Write the sibling `01-profile.yaml` (and its `01-profile.html.fragment`) per [profile/_artifact.md](profile/_artifact.md) → *Sibling YAML*.
+Write the sibling `01-profile.yaml` per [profile/_artifact.md](profile/_artifact.md) → *Sibling YAML*.
 
 ## Step — Write free narrative fragments
 

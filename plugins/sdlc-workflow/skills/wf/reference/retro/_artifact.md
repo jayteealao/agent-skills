@@ -39,8 +39,6 @@ recommended-routes:                # every viable option from retro.md Adaptive 
 
 # Retro
 
-Write the explainer to `10-retro.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
 ## What Went Well
 - ...
 

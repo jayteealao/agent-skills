@@ -107,7 +107,7 @@ export function isProbeEvidencePath(filePath) {
 }
 
 // Evidence folders directly under a workflow directory. probe-evidence/ holds
-// /wf probe runtime evidence; verify-evidence/<slice>/report.md holds the raw
+// /wf probe runtime evidence; verify-evidence/<slice>/checks.md holds the raw
 // verify check output (ARTIFACT-SPLIT-PLAN S5). Files there are free-form: no
 // NN- name, no frontmatter, no schema check, no sibling check, not a page, and
 // not counted by the workflow stale check.

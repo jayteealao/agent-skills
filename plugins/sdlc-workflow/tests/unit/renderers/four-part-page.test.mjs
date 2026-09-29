@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   waitingForYou, nextRoutes, contractTable, evidenceDirFor, stageKeyFor,
-  composeStagePage, evidenceAndHistory, storyLink,
+  composeStagePage, evidenceAndHistory, storyLink, humanOnlyStage,
 } from '../../../renderers/_page.mjs';
 import { splitSections } from '../../../renderers/_story.mjs';
 import { storageRoute, isEvidencePath, resolveViewPath, classifyFragmentName, explainerPath } from '../../../renderers/_paths.mjs';
@@ -28,6 +28,31 @@ test('part 2 says "Nothing waits for you." when no question, gate or awaiting st
   const html = waitingForYou({ status: 'complete', 'image-gate': 'passed' });
   assert.match(html, /Nothing waits for you\./);
   assert.match(html, /<h2 class="sdlc-h2">Waiting for you<\/h2>/);
+});
+
+test('part 2 says the next step needs the person when the default route is a human-only stage', () => {
+  // design, from next-invocation with no reason: the stock ask.
+  let html = waitingForYou({ status: 'complete', 'next-invocation': '/wf design demo' });
+  assert.doesNotMatch(html, /Nothing waits for you/);
+  assert.match(html, /Next: the design stage needs you to confirm the drawn surfaces\./);
+  // The route's reason text wins when present.
+  html = waitingForYou({
+    status: 'complete',
+    'recommended-routes': [
+      { invocation: '/wf design demo', reason: 'two new screens need a drawn surface.', default: true },
+      { invocation: '/wf slice demo', reason: 'skip design' },
+    ],
+  });
+  assert.match(html, /Next: the design stage needs you: two new screens need a drawn surface\./);
+  // brainstorm is human-only too; an ordinary next stage is not.
+  assert.match(waitingForYou({ 'next-invocation': '/wf intake brainstorm demo' }), /the brainstorm stage needs you/);
+  assert.match(waitingForYou({ 'next-invocation': '/wf plan demo core' }), /Nothing waits for you\./);
+  // An open question still takes priority over the human-only line.
+  html = waitingForYou({ 'open-questions': ['Which region?'], 'next-invocation': '/wf design demo' });
+  assert.doesNotMatch(html, /stage needs you/);
+  assert.equal(humanOnlyStage('design').key, 'design');
+  assert.equal(humanOnlyStage('/wf intake demo'), null);
+  assert.equal(humanOnlyStage('/wf designer demo'), null);
 });
 
 test('part 2 lists open questions, an awaiting status and an open gate', () => {

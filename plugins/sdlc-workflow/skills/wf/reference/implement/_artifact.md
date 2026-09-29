@@ -69,8 +69,6 @@ recommended-routes:            # Option A verify (default); Option B review, whe
 ---
 ```
 
-Write the explainer to `05-implement-<slice-slug>.explainer.html.fragment` per [../_story-arc.md](../_story-arc.md).
-
 Body, as `# Implement: <slice-name>`, in order:
 - `## Summary of Changes` — bullets.
 - `## Files Changed` — `path: what changed and why`, one line per file.

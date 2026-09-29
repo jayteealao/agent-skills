@@ -130,6 +130,10 @@ If benchmarks fail to run (missing dependency, build error, missing test fixture
 
 Write `05c-benchmark.md` with the baseline frontmatter and body sections in [benchmark/_artifact.md](benchmark/_artifact.md) → *Baseline Step 3*.
 
+## Baseline Step 3a — Write the explainer
+
+Write the explainer `05c-benchmark.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
+
 ## Baseline Step 4 — Update `00-index.md` augmentations registry
 
 Add to `augmentations:` list:
@@ -174,7 +178,7 @@ For each measured target, calculate:
 
 ## Compare Step 4 — Update `05c-benchmark.md` with comparison data
 
-Add the `## Comparison Results` section and the comparison frontmatter per [benchmark/_artifact.md](benchmark/_artifact.md) → *Compare Step 4*. Do not overwrite baseline data.
+Add the `## Comparison Results` section and the comparison frontmatter per [benchmark/_artifact.md](benchmark/_artifact.md) → *Compare Step 4*. Do not overwrite baseline data. Rewrite the explainer with the verdict.
 
 # Step 5 — Hand off to user
 
@@ -221,12 +225,7 @@ After writing `.ai/workflows/<slug>/05c-benchmark.md`, write the sibling
 projects this as a metric-comparison table with per-row improvement/
 regression tone driven by `direction:` + delta sign.
 
-**Required whenever you write the `benchmark` sibling YAML:** also write the
-sibling `.html.fragment` next to it. First load
-`../_fragment-authoring.md` and follow
-its wrapper, snippet, and verifier rules. The fragment must stay deterministic
-from the sibling YAML (same YAML → byte-identical HTML) and pass
-`scripts/verify-fragment.mjs` (Check 7) clean.
+Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../_fragment-authoring.md) Step F1.
 
 Shape:
 

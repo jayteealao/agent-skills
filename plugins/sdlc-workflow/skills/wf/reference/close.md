@@ -112,13 +112,16 @@ recommended-routes: [{invocation: "/wf status <slug>", reason: "the revival rout
 ---
 ```
 
-Write the explainer to `99-close.explainer.html.fragment` per [_story-arc.md](_story-arc.md). Body sections, as fixed `##` headings: `## Work Completed` (one
+Body sections, as fixed `##` headings: `## Work Completed` (one
 bullet per completed/skipped stage), `## Work Not Completed` (last known state of each incomplete
 stage), `## Reason & Context` (expanded; name what superseded/absorbed it; revival triggers if
 deferred), `## Branch & PR Status` (a resource/state/action table), `## Revival Instructions` (only
 if `deferred`/`superseded`: *"To resume, restore `status: in-progress` in `00-index.md` and run
 `/wf status <slug>` for the next command, or `/wf intake <slug> <scope>` to extend; all prior artifacts
 are intact at `.ai/workflows/<slug>/`"*; otherwise "Not applicable — closed permanently").
+
+## Step W3a — Write the explainer
+Write the explainer `99-close.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
 
 ### Step — Write free narrative fragments
 Beyond the structured page, this artifact may ship free **narrative fragments**:

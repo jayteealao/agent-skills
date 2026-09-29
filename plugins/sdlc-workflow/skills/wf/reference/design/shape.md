@@ -111,57 +111,24 @@ just the conceptual state of an unwritten gate.)
 When `shape` runs this procedure (`../shape.md` Step 5a):
 - Write the brief to `.ai/workflows/<slug>/02b-design.md` (type `design`), with
   `recommended-references:` populated and **no** resolved `image-gate` (it stays unresolved for the design stage).
-- Write the sibling `02b-design.yaml` + `02b-design.html.fragment` (see below).
+- Write the sibling `02b-design.yaml` (see below).
 - Leave `00-index.md` `current-stage: shape` (the brief is part of shape).
 - Continue the normal shape flow (documentation plan, routing). Shape routes to `/wf design <slug>`;
   the design stage reads `02b-design.md`, resolves the direction gates with the person, and authors
   the visual contract `02c-craft.md`.
 
-## Step — Write the rich `.yaml` + fragment for `02b-design.md` (do not skip)
+## Step — Write the rich `.yaml` for `02b-design.md` (do not skip)
 
-The sunflower view renders the design page from a sibling `.yaml` + `.html.fragment`
-written next to `02b-design.md`. **Without the `.yaml` the page silently degrades to
-plain prose** — the swatch matrix, the token table, and the annotated specs never
-appear (`design.mjs` gates the rich body on the sibling YAML). Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md))
-blocks the `.md` write if you forget; author them here, now.
+The sunflower view renders the design page from a sibling `.yaml` written next to
+`02b-design.md`. **Without the `.yaml` the page silently degrades to plain prose**:
+the swatch matrix, the token table, and the annotated specs never appear
+(`design.mjs` gates the rich body on the sibling YAML). Managed-artifact enforcement
+([_host-invocation.md](../_host-invocation.md)) blocks the `.md` write if you forget;
+write it here, now.
 
-For the `02b-design.md` you just wrote:
-
-1. Write the sibling **`02b-design.yaml`** — the structured data: `component:`,
-   `themes:`, `states:`, `sizes:` (id, height, padx, pady), `tokens:` (name, category,
-   value), `specs:` (reference, annotate). Schema: `siblingYamlSchemas.design` in
-   `tests/frontmatter.schema.json`.
-2. Write the sibling **`02b-design.html.fragment`** — the body-only interactive layer.
-
-Before authoring the fragment, load
-`../_fragment-authoring.md` and apply
-the shared wrapper, snippet, and verifier rules in addition to the design-
-specific requirements below.
-
-The fragment is one `<section class="fragment-design" data-artifact="design"
-data-component="<component-name>">` that reproduces the gallery's design
-fragment 1:1:
-
-- **24-cell swatch matrix** (4 sizes × 3 states × 2 themes), each cell
-  renders a live `<button class="ck-btn is-{default|hover|pressed}">` so
-  the visual states show without JS.
-- **Token table** with per-row inline swatch / spacing bar / easing curve
-  preview / `<button class="btn copy-btn" data-token-copy="<value>">Copy</button>`.
-- **Annotated specs SVG** with dimension lines and labels (padding-y,
-  padding-x, gap, border-radius, height) referencing one cell from
-  `specs.reference` in the YAML.
-
-Authoring rules (verifier Check 7 enforces):
-
-- Inline `<style>` scoped under `.fragment-design` / `.dz-*` / `.ck-*`.
-- Inline `<script>` scoped via `document.currentScript.closest('.fragment-design')`
-  — token-copy uses `data-token-copy` attributes and applies `.is-copied` flash.
-- Dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready',
-  { detail: { name: 'design', artifact: 'design',
-    counts: { tokens: <n>, sizes: <n>, states: <n> } } }))`.
-- Inline SVG only. Data deterministic from `02b-design.yaml`.
-
-The fragment is **body-only**: the `design.mjs` renderer owns the page heading and the
-metric-row — do **not** repeat them. Full contract:
-[`reference/fragment-author-contract.md`](../../../../reference/fragment-author-contract.md).
-Gallery reference (bundled): [`reference/fragments-gallery.html`](../../../../reference/fragments-gallery.html).
+For the `02b-design.md` you just wrote, write the sibling **`02b-design.yaml`**, the
+structured data: `component:`, `themes:`, `states:`, `sizes:` (id, height, padx,
+pady), `tokens:` (name, category, value), `specs:` (reference, annotate). Schema:
+`siblingYamlSchemas.design` in `tests/frontmatter.schema.json`. Do not write the
+typed `02b-design.html.fragment`: the renderer generates it from the `.yaml`, per
+[_fragment-authoring.md](../_fragment-authoring.md) Step F1.

@@ -1,6 +1,6 @@
 # Verify artifact schemas
 
-`verify.md` steps 8 and 9 write these two files. Frontmatter carries every machine-readable field; the body is the contract that review, handoff, and design audit read. Raw check output goes to `verify-evidence/<slice-slug>/report.md`.
+`verify.md` steps 8 and 9 write these two files. Frontmatter carries every machine-readable field; the body is the contract that review, handoff, and design audit read. Raw check output goes to `verify-evidence/<slice-slug>/checks.md`.
 
 ## `06-verify.md` (master index)
 
@@ -111,10 +111,8 @@ recommended-routes:            # Adaptive routing options A–G, when applicable
 
 ## Body sections, in order
 
-Write the explainer to `06-verify-<slice-slug>.explainer.html.fragment` per [../_story-arc.md](../_story-arc.md).
-
 - `## Verification Summary`
-- `## Automated Checks Run` — one line per check: `command/check: result (pass/fail, summary)`. The full output is in the evidence report.
+- `## Automated Checks Run` — one line per check: `command/check: result (pass/fail, summary)`. The full output is in `verify-evidence/<slice-slug>/checks.md`.
 - `## Acceptance Criteria Status` — per criterion: **criterion** (quoted text or id), **kind** (`code-only` | `user-observable`, from the partition rule), **status** (met / partially met / not met / unverified / runtime-evidence-missing), **verification method** (automated / interactive / manual), **evidence** (test name / `verify-evidence/<slice-slug>/<file>` path / "(none — runtime evidence missing)"), **evidence-rung** (the highest rung that produced the evidence: `live | headless | emulator-or-container | cited-mock | uncited-mock | static | n-a`; `n-a` for `code-only` ACs). Task workflows (`workflow-type: task`) add two rungs from the contract (`EVIDENCE-SCHEMA-CONTRACT.md` §7): `attested` (a named external party or human confirmed the outcome, recorded with a citation; below `live`, above the mock rungs) and `asserted` (a claim with no independent read-back; task-land's `uncited-mock`; cannot close an AC). Re-reading a real, non-runtime system of record after acting (an `ls`, a `curl`, an API query) is `live`. Close with a rollup line (`evidence: live 2 / headless 1 / cited-mock 3`); `00-index.md` gets an `evidence-quality:` slug rollup (counts by rung) plus `metric-acceptance-mock-rung` = the count of user-observable ACs whose `evidence-rung` is `cited-mock`, `uncited-mock`, `static`, or `asserted`. The `kind` column makes the gate auditable.
 - `## Issues Found` — `severity: issue` per line.
 - `## Verify-Owned Fixes` — present when `fix-rounds-run > 0`. Table `| ID | Type | Triage | Sub-agent outcome | Regression test | Re-check result |` with values Fix / Skip / Escalate; Patched / Could not fix / N/A; `<path>` / `exempt: <reason>` / `n-a`; Pass / Still failing / Not re-run. Then `Commit: <SHA | "(no commit — branch-strategy: none)" | "(no files changed)">` and `Regression tests added: <N>`.
@@ -129,7 +127,7 @@ Write the explainer to `06-verify-<slice-slug>.explainer.html.fragment` per [../
 - `## Caveats` — stack provenance (`stack-source`), adapters excluded by the stack, and any other limit on the evidence.
 - `## Gaps / Unverified Areas`, `## Freshness Research`, `## Recommendation`.
 
-## `verify-evidence/<slice-slug>/report.md` (evidence report)
+## `verify-evidence/<slice-slug>/checks.md` (check output)
 
 No frontmatter. No stage reads it; it is the audit record. Write, in order: the raw output of each automated check; per user-observable criterion, the platform, tool, steps performed, evidence paths, and observation; the security scan output (CVE, secret detection, SAST); the cross-slice regression runs; the longitudinal delta per surface; the failure mode probes (`| Probe | Result | Finding |` over slow response, concurrent session, session expiry). Put each finding from these checks in `## Issues Found` as well.
 

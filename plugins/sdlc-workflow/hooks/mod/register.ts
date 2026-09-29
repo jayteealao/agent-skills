@@ -108,7 +108,6 @@ import type { Reader, SliceEntry, WorkflowEntry } from './workflows.ts'
 import {
   MAIN_AGENT,
   READ_LEDGER_FILE,
-  SLICE_MASTER,
   agentKeyOf,
   appendedTextOf,
   artifactIdOf,
@@ -119,13 +118,12 @@ import {
   isExcludedWrite,
   ledgerLineOf,
   matchWrite,
-  preferredStagesOf,
-  procedureIdOf,
   promptFedOf,
   readCheckModeOf,
   recordRead,
   requiredOf,
   waiverOf,
+  writerStagesOf,
   writtenTextOf,
 } from './readledger.ts'
 import type { CheckResult, Io, ReadFact, ReadLedger, RequiresEntry, WriteMatch } from './readledger.ts'
@@ -1027,8 +1025,9 @@ export function register(on: On, options: PluginOptions = {}) {
 
   /**
    * The stage artifact a write lands, when the read check runs on it: a file
-   * under a workflow that a `writes` row names, not an excluded file, and for
-   * the slice roster only the slice stage's own write.
+   * under a workflow, not an excluded file, that a `writes` row of a stage
+   * the writer runs names (the roster write-back by implement or verify is
+   * not checked).
    */
   async function readCheckTarget(engine: Host, path: string, agent: string): Promise<CheckTarget | null> {
     if (model.root === null) return null
@@ -1036,22 +1035,17 @@ export function register(on: On, options: PluginOptions = {}) {
     if (where === null || where.kind !== 'artifact' || isExcludedWrite(where.file)) return null
     const requires = requiresNow()
     if (matchWrite(requires, where.file) === null) return null
-    const agentReads = reads.get(agent)
-    // The stages the writer is running: the main loop's `/wf` command, and
-    // every stage whose reference the writer read (a yolo stage agent reads
-    // its own). They settle a file several stages write (`02-shape.md`).
-    const readStages = requires.filter(entry => agentReads?.has(procedureIdOf(entry.reference)) === true).map(entry => entry.stage)
-    const preferStages = [...preferredStagesOf(agent === MAIN_AGENT ? (bracket?.command ?? null) : null), ...readStages]
-    if (where.file.toLowerCase() === SLICE_MASTER) {
-      // Implement, verify and the driver write the roster back; only a stage
-      // that writes the roster (slice, a change-mode intake) is checked.
-      const writers = requires.filter(entry => entry.rows.some(row => row.kind === 'writes' && row.input.toLowerCase() === SLICE_MASTER)).map(entry => entry.stage)
-      if (!writers.some(stage => preferStages.includes(stage))) return null
-    }
+    // The stages the writer is running: every stage whose reference the writer
+    // read (a yolo stage agent reads its own), then the main loop's `/wf`
+    // command. Only their `writes` rows match: a file several stages write
+    // (`05-implement.md`, `03-slice.md`, `04-plan.md`) written by a stage that
+    // does not list it (implement, verify, the driver) is not checked.
+    const stages = writerStagesOf(requires, reads.get(agent), agent === MAIN_AGENT ? (bracket?.command ?? null) : null)
+    if (stages.length === 0) return null
     const roster = (await readSlices(engine, where.slug)).map(slice => slice.slug.toLowerCase())
     // A review dimension file (`07-review-auth-security.md`) is no slice `auth-security`.
     const acceptSlice = (slice: string) => roster.includes(slice) || !roster.some(known => slice.startsWith(`${known}-`))
-    const match = matchWrite(requires, where.file, preferStages, acceptSlice)
+    const match = matchWrite(requires, where.file, stages, acceptSlice, stages)
     if (match === null) return null
     return { agent, slug: where.slug, file: where.file, id: where.id, match }
   }
@@ -1066,7 +1060,7 @@ export function register(on: On, options: PluginOptions = {}) {
     }
     try {
       const required = requiredOf(target.match, target.slug)
-      return await checkReads(required, { root: model.root, slug: target.slug, reads: reads.get(target.agent), fed: fedByOutput.get(target.id) ?? [] }, io)
+      return await checkReads(required, { root: model.root, slug: target.slug, reads: reads.get(target.agent), fed: fedByOutput.get(target.id) ?? [], self: target.id }, io)
     } catch (error) {
       engine.log(`wf read check: ${messageOf(error)}`)
       return { missing: [], partial: [] }

@@ -137,7 +137,9 @@ recommended-routes: [{invocation: "/wf intake investigate <slug> <option>", reas
 ---
 ```
 
-Write the explainer and the body per `intake/investigate/_artifact.md`: `## Problem & constraints`, `## Architecture map`, `## Options`, `## Side-by-side comparison` with the status-quo column, `## Routing`, `## Tripwire warnings`.
+Write the body per `intake/investigate/_artifact.md`: `## Problem & constraints`, `## Architecture map`, `## Options`, `## Side-by-side comparison` with the status-quo column, `## Routing`, `## Tripwire warnings`.
+
+Write the explainer `01-investigate.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 ## Step — Write free narrative fragments
 

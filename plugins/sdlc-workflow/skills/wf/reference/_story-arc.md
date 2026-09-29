@@ -32,11 +32,15 @@ their final chat summary follows A6.
   3. **Destination.** What this stage enables next, and the top open risk in
      concrete terms.
 - **A3 — Build the explainer in this order.**
-  1. Open with a plain summary paragraph of two to five sentences. It carries
-     all three beats in compressed form. A reader who reads only this
-     paragraph knows what was produced, the load-bearing decisions and counts,
-     and the top risk. Do not open with "This <stage> implements…": the first
-     sentence names the inherited state or the problem.
+  1. Open with a plain summary paragraph of two to five sentences and at most
+     about 90 words. It carries all three beats in compressed form. A reader
+     who reads only this paragraph knows what was produced, the load-bearing
+     decisions and counts, and the top risk. Do not open with "This <stage>
+     implements…": the first sentence names the inherited state or the
+     problem. Name things in the person's words. Do not use internal ids or
+     jargon (criterion ids, risk ids such as RIM-1, charter ids such as C5,
+     terms such as "golden ledger" or "gate hash") unless the explainer
+     defines them in plain words.
   2. Before each visual, write one sentence that says what the visual shows.
      After the visual, explain its key points.
   3. Alternate text and visuals. Do not put two visuals together.
@@ -48,6 +52,8 @@ their final chat summary follows A6.
      of value helps the reader understand. The view runs no script in a
      fragment, so use CSS only: `<details>`, or a checkbox or radio toggle.
   7. Close with a short recap.
+  8. Make all counts agree, for example the criteria in each group and the
+     total. When one item counts in more than one group, say so.
 - **A4 — Add a visual only for structure.** Add a visual when the topic has
   structure that is easier to see than to read:
   - a process or a sequence, for example how a request passes through the system;
@@ -77,6 +83,10 @@ their final chat summary follows A6.
   - `dependency`: `{title?, nodes: [{id, label, tone?, note?}], edges: [{from, to, label?}]}`
 
   `tone` is one of `accent`, `ok`, `warn`, `bad`, `risk`, `muted`.
+
+  Use `comparison` only for real quantities that differ. Do not use it for a
+  list or a mapping, for example bars that all have the value 1. For a list or
+  a mapping, write a `<ul>` or a small `<table>`.
 - **A6 — Chat-summary form.** The narrative of the chat summary is the
   explainer's summary paragraph, as plain text: two to five sentences, no
   bullets, no field labels, the three beats in order. The receipt fields

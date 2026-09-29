@@ -136,6 +136,10 @@ Merge findings from both sub-agents into the instrumentation plan artifact.
 
 Write `04b-instrument.md` with the frontmatter and the five body sections in [instrument/_artifact.md](instrument/_artifact.md). The body is direction, not a plan.
 
+# Step 2a — Write the explainer
+
+Write the explainer `04b-instrument.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
+
 # Step 3 — Update `00-index.md` augmentations registry
 
 Read `00-index.md`, then add or update the `augmentations:` field in its YAML frontmatter:

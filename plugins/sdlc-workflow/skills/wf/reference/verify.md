@@ -14,7 +14,7 @@ You are running `/wf verify`, **stage 6 of 10**: 1·intake → 2·shape → 3·s
 | | Detail |
 |---|---|
 | Requires | See [## Requires](#requires). |
-| Produces | `06-verify-<slice-slug>.md` and the raw check output in `verify-evidence/<slice-slug>/report.md`; updates the `06-verify.md` master |
+| Produces | `06-verify-<slice-slug>.md` and the raw check output in `verify-evidence/<slice-slug>/checks.md`; updates the `06-verify.md` master |
 | Charters | [verify/_sub-agents.md](verify/_sub-agents.md): the five sub-agent charters Step 4 dispatches |
 | Deferrals | [verify/_deferrals.md](verify/_deferrals.md): the `interactive-verification: deferred` escape hatch and the index ledger |
 | Schemas | [verify/_artifact.md](verify/_artifact.md): frontmatter and body sections of both verify files |
@@ -61,7 +61,7 @@ Change-mode and single-scope workflows use the un-suffixed names, for example `0
 
 You are a **workflow orchestrator that owns its own triage→fix loop**.
 - Run checks and compare results against acceptance criteria; do not improvise fixes while checks run, and do not review, handoff, or ship (later stages).
-- After all checks and the user-observable AC gate finish (Step 7.5), you own a **single-round, user-gated fix loop** (Step 7.6): mechanical classes (lint / format / marker-syntax) auto-fix without a question; triage every other failure as a gate question per [_gate-question.md](_gate-question.md) (Fix / Skip / Escalate); `Fix` choices spawn parallel write-isolated sub-agents per [_subagents.md](_subagents.md) that apply the minimal patch; re-run only affected checks once, then finalize. ONE round only: if anything still fails, write `convergence: escalated` and route to re-invoke `/wf verify` or `/wf implement`; do not loop again in this invocation.
+- After all checks and the user-observable AC gate finish (Step 7.5), you own a **single-round, user-gated fix loop** (Step 7.6): mechanical classes (lint / format / marker-syntax) auto-fix without a question; triage every other failure as a gate question per [_gate-question.md](_gate-question.md) (Fix / Skip / Escalate); `Fix` choices spawn parallel write-isolated sub-agents per [_subagents.md](_subagents.md) that apply the minimal patch. ONE round only: if anything still fails, write `convergence: escalated` and route to re-invoke `/wf verify` or `/wf implement`; do not loop again in this invocation.
 - Your only output is the workflow artifacts, the dispatched fix sub-agents, and the compact chat summary defined below.
 
 # Workflow rules
@@ -102,7 +102,7 @@ When verification spans multiple concerns, launch parallel sub-agents per [_suba
 - **Sub-agent 3, Interactive & Runtime-Truth Verification** (required when any AC is user-observable): drives each such AC through the runtime adapters, climbs the constraint-resolution ladder, records `evidence-rung`, `mock-provenance:`, `fixture-fidelity:`, and first-light status, and records incidental defects against the `_surface-defects.md` classes.
 - **Sub-agent 4, Augmentation Re-verification** (only when `02c-craft.md` exists or `augmentations:` is non-empty).
 - **Sub-agent 5, Freshness** (when any test failed, the plan is older than 14 days, or the slice touches an external API or schema).
-Merge all results. For each check, record the command and pass/fail in the artifact. Write the raw output (test runner output, probe logs, scan output) to `verify-evidence/<slice-slug>/report.md`; the file needs no frontmatter. Do not fix issues here; the fix loop runs in Step 7.6 after the AC gate has partitioned issues.
+Merge all results. For each check, record the command and pass/fail in the artifact. Write the raw output (test runner output, probe logs, scan output) to `verify-evidence/<slice-slug>/checks.md`. Do not fix issues here; the fix loop runs in Step 7.6 after the AC gate has partitioned issues.
 
 # Chat return contract
 
@@ -125,6 +125,7 @@ Do this in order:
 7.5. **Apply the user-observable AC gate** (below). Partition AC into `code-only` and `user-observable`. Every `user-observable` AC needs a matching `interactive-verification-results` entry. If any has none and no `interactive-verification: deferred` annotation, write `result: blocked-runtime-evidence-missing` and list the AC in `## Issues Found`.
 7.6. **Single-round verify-owned fix loop** (below). Snapshot `metric-issues-found-initial`; auto-fix mechanical classes; triage each remaining failure as a gate question per [_gate-question.md](_gate-question.md); `Fix` choices spawn parallel write-isolated sub-agents; re-run only affected checks once. Record `fix-rounds-run`, `convergence`, `metric-issues-found-final`. ONE round only; if anything still fails, finalize with `convergence: escalated` and route to re-invoke verify or `/wf implement`.
 8. **Write `06-verify-<slice-slug>.md`** per [verify/_artifact.md](verify/_artifact.md).
+8a. Write the explainer `06-verify-<slice-slug>.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
 9. **Write or update `06-verify.md`** (the master index linking every per-slice verify file).
 10. Update `00-index.md` and add files to `workflow-files`. **Then promote the slice's roster status**: in `03-slice.md`'s `slices:` entry for this slice, `result: pass` sets `status: complete`; any other result (`fail`, `partial`, `blocked-runtime-evidence-missing`) leaves it at `status: in-progress`. A deferral-only `partial` is **not** complete; the AC still owes runtime evidence, and `/wf ship` blocks on it. Set only this slice's entry; do not touch siblings, do not renumber, and never move an entry that `close.md` set to `skipped`. Only verify writes `complete`; yolo mirrors a recorded `result: pass`.
 

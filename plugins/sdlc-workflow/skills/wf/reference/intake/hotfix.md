@@ -93,7 +93,9 @@ next-invocation: "<next-invocation>"
 recommended-routes: <routes>
 ---
 ```
-Write the explainer to `01-hotfix.explainer.html.fragment` per [_story-arc.md](../_story-arc.md). Body: `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Acceptance Criteria` (≤2, each objectively verifiable; embed any inline question answers as italic notes — verify and review read the criteria from this lead, so a hotfix without them cannot pass its own quality tail; the incident is over when these are observably true, e.g. "checkout returns 200 for the repro request" + "no new occurrences of the error signature for 30 minutes"), `## Recent Changes` (or "none known").
+Body: `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Acceptance Criteria` (≤2, each objectively verifiable; embed any inline question answers as italic notes — verify and review read the criteria from this lead, so a hotfix without them cannot pass its own quality tail; the incident is over when these are observably true, e.g. "checkout returns 200 for the repro request" + "no new occurrences of the error signature for 30 minutes"), `## Recent Changes` (or "none known").
+
+Write the explainer `01-hotfix.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 # Step 2 — Diagnose → `02-shape.md`
 Launch parallel sub-agents to identify root cause. Do not proceed until both complete.

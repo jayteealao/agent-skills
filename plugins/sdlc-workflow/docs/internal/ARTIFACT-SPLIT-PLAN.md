@@ -129,7 +129,7 @@ recommended-routes:
 
 ### S5 — Evidence folders (W3)
 
-- Raw verify check output goes to `.ai/workflows/<slug>/verify-evidence/<slice>/report.md`.
+- Raw verify check output goes to `.ai/workflows/<slug>/verify-evidence/<slice>/checks.md`.
   The file needs no frontmatter and no `NN-` name.
 - `isProbeEvidencePath` (keep the old export; add `isEvidencePath`) covers
   `probe-evidence/` and `verify-evidence/`. Both write hooks exempt them. The
@@ -264,6 +264,38 @@ Known limits:
 - **W4 "done when"** needs a live yolo run on a fixture slug with the read
   ledger. The unit and kit tests prove the check; the 95% coverage figure
   needs that run and the meter's section (e).
+
+### First live run and patch 9.173.1 (2026-09-29)
+
+The SoccerManager `engine-modules` run (intake to verify, yolo from plan on)
+gave the first live proof: 39 read checks, yolo sub-agents recorded under
+their own agent ids, and one missed read fixed by the agent within 61
+seconds. The run also found six defects, fixed in 9.173.1:
+
+1. Implement and verify wrote no explainer. Every stage now has an explicit
+   explainer step, and post-write-verify nudges when a stage file lands
+   without one.
+2. Claude Code refuses a sub-agent write to any file named `report.md`. The
+   verify evidence file is now `verify-evidence/<slice>/checks.md`.
+3. Two false warnings: a writer was required to read its own artifact, and
+   the master `05-implement.md`/`06-verify.md` matched `/wf task` rows. A
+   required input equal to the written file never counts now, and a `writes`
+   row applies only to a stage whose reference the writer read or whose
+   `/wf` command runs. Trade-off: a sub-agent that reads no stage reference
+   outside a `/wf` command is not checked.
+4. The explainer check never ran. `verify-fragment.mjs` now checks explainer
+   paths, and the post-write hook runs the check on every explainer write.
+5. Explainer quality: summaries of 99–177 words, jargon, a list drawn as a
+   bar chart with equal bars, and counts that disagreed. `_story-arc.md` now
+   caps the summary at five sentences and about 90 words, bans unexplained
+   ids, and allows `comparison` only for quantities that differ. The check
+   warns on each.
+6. "Nothing waits for you" showed when the next stage was the human-only
+   design stage; the page now says the next step needs the person. The
+   design stage no longer hand-writes typed fragments.
+
+The Prompt-fed limit above stands for inputs passed in a prompt; reads by
+Workflow-started agents are recorded.
 
 ## The plan
 
@@ -404,7 +436,7 @@ The renderer already expands `@include` snippets. W5 adds a small snippet set fo
 | slice | `03-slice`, `03-slice-<s>` | index state, `01-intake`, `02-shape`, `po-answers`, [`02b`, `02c`] | Add `## Likely Files` to the slice template, or remove plan's read of it. Correct the file names in slice's additive-write rules. |
 | plan | `04-plan-<s>` + `.yaml`; `04-plan.md` | index state, `02-shape`, `03-slice-<s>`, `po-answers`, `04-plan.md` sibling table, [`02b`, `02c`, augmentation files] | `04-plan.md` gets a sibling table, built from each existing `04-plan-<s>.yaml` (`files` and `edges`). Step 9 reads the table and reads a sibling plan in full when a file or an edge overlaps, or when the sibling is a listed dependency. The full read catches migration order, shared fixtures, API changes across different files and duplicated utilities, which a file table alone misses. Move Step 0 item 7 to after research. |
 | implement | `05-implement-<s>`; `05-implement.md` | index state, `03-slice-<s>`, `04-plan-<s>`, `02-shape`, `po-answers`, [`02b`, `02c`, augmentation files]; reviews mode: review ledger YAML | Add the `files-modified` key that verify reads. Give each upstream field (roster status, cross-links) one owner. Implement stops editing other stages' files directly. |
-| verify | `06-verify-<s>`; evidence in `verify-evidence/<s>/` | index state, `03-slice-<s>`, `04-plan-<s>`, `05-implement-<s>`, `02-shape`, `po-answers`, [`02b`, `02c`, augmentation files] | Move raw check output to `verify-evidence/<s>/report.md`. Keep acceptance-criteria status, issues, gaps, the recommendation, and the sections that review, handoff and design audit read: Augmentation Verification, Adversarial Tests, Cross-Browser Delta, Friction Notes, Free Exploration Notes, and the accessibility and performance lists. Cover the update-deps and task verify templates too. Add the missing keys (`stack-source`, `skipped-gating-specs`, `debt-markers-*`) and sections (Caveats, Design Comparison). |
+| verify | `06-verify-<s>`; evidence in `verify-evidence/<s>/` | index state, `03-slice-<s>`, `04-plan-<s>`, `05-implement-<s>`, `02-shape`, `po-answers`, [`02b`, `02c`, augmentation files] | Move raw check output to `verify-evidence/<s>/checks.md`. Keep acceptance-criteria status, issues, gaps, the recommendation, and the sections that review, handoff and design audit read: Augmentation Verification, Adversarial Tests, Cross-Browser Delta, Friction Notes, Free Exploration Notes, and the accessibility and performance lists. Cover the update-deps and task verify templates too. Add the missing keys (`stack-source`, `skipped-gating-specs`, `debt-markers-*`) and sections (Caveats, Design Comparison). |
 | augment (instrument · experiment · benchmark · profile) | `04b`, `04c`, `05c`, profile run | index state, `02-shape`, `04-plan-*` | Use one status vocabulary (plan writes `ready`, augment writes `complete`, consumers look for `baseline`). Use one path per type. |
 | simplify | `01-simplify` + `.yaml`, or a compressed slice | the scope input only | Use one finding-id scheme in the `.md` and the `.yaml`. Settle the plan-scope search rule. |
 | Assurance |
@@ -450,7 +482,7 @@ Version 4 of this plan was checked against the plugin code at v9.171.0, consumer
 | # | Change in v4 | Regression | Fix in this version |
 |---|---|---|---|
 | 1 | Retire the fragment hard block | hard The block (`post-write-verify.mjs:160`) is on a missing `.yaml`, not on the fragment. Without it, rich pages fall back to prose. No fragment generator exists. | Keep the `.yaml` block. Drop only the fragment nudge, after W5 ships a generator. (R7, W5) |
-| 2 | Write `verify-evidence/<s>/report.md` | hard `pre-write-validate.mjs:42-51` blocks it: no `NN-` name, no frontmatter. The renderer would also make it a page, and a `.md` there marks the workflow stale. | Extend `isProbeEvidencePath` to `verify-evidence/`, and exempt both folders in the renderer walk and the stale check. (W3) |
+| 2 | Write `verify-evidence/<s>/checks.md` | hard `pre-write-validate.mjs:42-51` blocks it: no `NN-` name, no frontmatter. The renderer would also make it a page, and a `.md` there marks the workflow stale. | Extend `isProbeEvidencePath` to `verify-evidence/`, and exempt both folders in the renderer walk and the stale check. (W3) |
 | 3 | Move 11 verify sections to evidence | silent Review turns failed augmentation checks into BLOCKER findings and reads Adversarial Tests, Cross-Browser Delta and Friction Notes (`review/_context.md:37-43`). Handoff builds Reviewer Focus Areas from them. Design audit reads the accessibility list. | Those sections are contract and stay in `06-verify`. Only raw check output moves. (Every key: verify) |
 | 4 | Remove "Recommended Next Stage" | silent `/wf status` shows every option from that section (`status.md:133`). Frontmatter holds one invocation. Retro writes an empty key; probe and rca have none. | Add `recommended-routes` and one key name first. (Every key: status) |
 | 5 | Move cleared deferrals and `revisions` out of the index | silent The repeat-deferral marker (`verify/_deferrals.md:57`), the plan tripwire (`plan.md:77`) and retro need cleared entries. The overview renders the index `revisions` strip, and amend writes it. | Only comment prose and old commentary move. (R6, W3) |
@@ -517,7 +549,7 @@ Put each key's inputs from the coverage table into its existing Requires table. 
 ### Small agent files
 
 Split the index: move YAML comment prose and old next-step commentary to `index-history.jsonl`. Keep the deferral list (cleared entries too), the intent risks and the `revisions` ledger. Add a lint that rejects YAML comment prose in the index, and a size warning.
-- Move raw verify check output to `verify-evidence/<s>/report.md`. Keep the sections that review, handoff and design audit read. Extend `isProbeEvidencePath` to cover `verify-evidence/` in both write hooks, and exempt both evidence folders in the renderer walk and the stale check.
+- Move raw verify check output to `verify-evidence/<s>/checks.md`. Keep the sections that review, handoff and design audit read. Extend `isProbeEvidencePath` to cover `verify-evidence/` in both write hooks, and exempt both evidence folders in the renderer walk and the stale check.
 - Add the `04-plan.md` sibling table from the plan `.yaml` files, and the yolo fan-out reconcile step with its durable marker (Y7, Y8).
 - Add `recommended-routes` to stage frontmatter. Then remove the duplicated content and the "Recommended Next Stage" body sections, and status reads frontmatter.
 **Done when**the meter shows no refused reads and an index p90 under 20 KB on new slugs, and a test proves that each moved key has no reader in code.

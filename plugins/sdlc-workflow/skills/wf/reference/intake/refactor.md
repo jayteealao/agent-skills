@@ -94,7 +94,9 @@ next-invocation: "<next-invocation>"
 recommended-routes: <routes>
 ---
 ```
-Write the explainer to `01-refactor.explainer.html.fragment` per [_story-arc.md](../_story-arc.md). Body: `## Target` (what), `## Why` (the structural problem), `## Frozen` (must-not-change APIs/behaviors), `## Target Structure`.
+Body: `## Target` (what), `## Why` (the structural problem), `## Frozen` (must-not-change APIs/behaviors), `## Target Structure`.
+
+Write the explainer `01-refactor.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 # Step 2 — Baseline → `02-shape.md` (the most important step)
 The baseline captures ground truth before any code change — it IS the shape. Launch parallel sub-agents.

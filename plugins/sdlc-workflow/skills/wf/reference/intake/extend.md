@@ -160,7 +160,9 @@ Classify the UX impact of the new scope per `design/_lane.md`, and record each n
 
 # Step 4 — Write New Slice Files
 
-For each confirmed new slice, write `03-slice-<new-slug>.md` per the template in `intake/extend/_artifacts.md`, with its explainer: frontmatter (`status: defined`, `source`, `source-ref`, `extension-round`, refs to `04-plan-<new-slug>.md` and `05-implement-<new-slug>.md`) and body (Goal, Why This Slice Exists, Scope, Acceptance Criteria, Dependencies on Other Slices, Risks).
+For each confirmed new slice, write `03-slice-<new-slug>.md` per the template in `intake/extend/_artifacts.md`: frontmatter (`status: defined`, `source`, `source-ref`, `extension-round`, refs to `04-plan-<new-slug>.md` and `05-implement-<new-slug>.md`) and body (Goal, Why This Slice Exists, Scope, Acceptance Criteria, Dependencies on Other Slices, Risks).
+
+Write the explainer `03-slice-<new-slug>.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 ## Step — Write free narrative fragments
 

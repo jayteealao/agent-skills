@@ -192,7 +192,9 @@ updated-at: "<ISO 8601>"
 ---
 ```
 
-Write **`01-ideate.md`** (`type: ideation`) and its explainer per the template in `intake/ideate/_artifact.md`: frontmatter with the `ideas:` roster (per-idea `file:line` evidence and `entry:` invocation) and the `culled:` log, then the ranked ideas built from the roster, and the how-to-use footer.
+Write **`01-ideate.md`** (`type: ideation`) per the template in `intake/ideate/_artifact.md`: frontmatter with the `ideas:` roster (per-idea `file:line` evidence and `entry:` invocation) and the `culled:` log, then the ranked ideas built from the roster, and the how-to-use footer.
+
+Write the explainer `01-ideate.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 ---
 

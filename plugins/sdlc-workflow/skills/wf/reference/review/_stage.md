@@ -130,7 +130,7 @@ Before dispatching, print the `## Review Scope` + `## Commands Selected` block f
 
 For EACH selected command, dispatch ONE sub-agent at **medium** effort per [_subagents.md](../_subagents.md). Set the tier explicitly — a reviewer must not inherit the parent configuration (per [_fix-loop.md](../_fix-loop.md) rule 3). All agents run in parallel, in waves of ≤6 when more dimensions are selected. Synthesis (Step 4 — aggregation, dedup, triage) stays with the coordinator.
 
-**Each sub-agent receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`; resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against): load [_dispatch.md](_dispatch.md) and send its fenced prompt unchanged. The prompt carries the pre-existing determination, the accumulate-never-overwrite merge law, the target path (`07-review-{slice-slug}-{command-name}.md` per-slice, `07-review-{command-name}.md` slug-wide), the `type: review-command` output contract, and the sibling `.yaml` + `.html.fragment` duty.
+**Each sub-agent receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`; resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against): load [_dispatch.md](_dispatch.md) and send its fenced prompt unchanged. The prompt carries the pre-existing determination, the accumulate-never-overwrite merge law, the target path (`07-review-{slice-slug}-{command-name}.md` per-slice, `07-review-{command-name}.md` slug-wide), the `type: review-command` output contract, and the sibling `.yaml` duty.
 
 Wait for ALL sub-agents to complete before proceeding.
 
@@ -199,17 +199,21 @@ If at least one `Fix` sub-agent successfully modified files: follow the shared c
 
 # Step 5: Write the merged master ledger
 
-Write (merge into) the master artifact. Filename depends on `review-scope`: **per-slice** → `07-review-<slice-slug>.md`; **slug-wide** → `07-review.md`. Load [_artifact.md](_artifact.md) and write the file from its Step 5 template: the `type: review` frontmatter (verdict, cumulative `commands-run`, OPEN metric counts, `runs:` audit trail, `refs:` per scope), then the body sections `## Verdict` through `## Recommendations`. Write the explainer per the template.
+Write (merge into) the master artifact. Filename depends on `review-scope`: **per-slice** → `07-review-<slice-slug>.md`; **slug-wide** → `07-review.md`. Load [_artifact.md](_artifact.md) and write the file from its Step 5 template: the `type: review` frontmatter (verdict, cumulative `commands-run`, OPEN metric counts, `runs:` audit trail, `refs:` per scope), then the body sections `## Verdict` through `## Recommendations`.
 
 When the file already exists, **edit in place** — preserve sections not changing (especially `## Triage Decisions` rows not re-triaged), update finding rows by ID, append net-new findings in severity-sorted position, mark resolved findings, and **append one entry to `runs:`**. Never overwrite the file wholesale.
 
-# Step 5b: Write the rich fragment (do not skip)
+# Step 5a: Write the explainer
 
-For each review `.md` written, write the sibling `<stem>.yaml` (`siblingYamlSchemas.review`; `findings:` and `counts:` = OPEN findings only; bump `rev:` each run) and `<stem>.html.fragment` (`fragment-review`, body-only, deterministic from the `.yaml`) per [_artifact.md](_artifact.md) Step 5b. Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) **BLOCKS the `.md` write when the sibling `.yaml` is missing** — author the `.yaml` first (or in the same turn) while findings are in context.
+Write the explainer `07-review[-<slice-slug>].explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
-# Step 5c: Write per-dimension rich fragments (do not skip)
+# Step 5b: Write the rich `.yaml` (do not skip)
 
-Each per-dimension file (`07-review-<command>.md` slug-wide, `07-review-<slice-slug>-<command>.md` per-slice) needs its own `<stem>.yaml` (`siblingYamlSchemas.review-dimension`) and `<stem>.html.fragment` (`fragment-review-dimension`). The Step-3 review sub-agent authors them; confirm every per-dimension `.md` has its `.yaml` (or `fragment: none` for a clean dimension) and author any the sub-agent missed, per [_artifact.md](_artifact.md) Step 5c.
+For each review `.md` written, write the sibling `<stem>.yaml` (`siblingYamlSchemas.review`; `findings:` and `counts:` = OPEN findings only; bump `rev:` each run) per [_artifact.md](_artifact.md) Step 5b. Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../_fragment-authoring.md) Step F1. Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) **BLOCKS the `.md` write when the sibling `.yaml` is missing** — author the `.yaml` first (or in the same turn) while findings are in context.
+
+# Step 5c: Write per-dimension rich `.yaml` (do not skip)
+
+Each per-dimension file (`07-review-<command>.md` slug-wide, `07-review-<slice-slug>-<command>.md` per-slice) needs its own `<stem>.yaml` (`siblingYamlSchemas.review-dimension`). The Step-3 review sub-agent authors it; confirm every per-dimension `.md` has its `.yaml` (or `fragment: none` for a clean dimension) and author any the sub-agent missed, per [_artifact.md](_artifact.md) Step 5c.
 
 ## Step — Write free narrative fragments
 

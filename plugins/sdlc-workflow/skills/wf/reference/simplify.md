@@ -190,10 +190,11 @@ Record one `routing-assignments` entry per accepted finding: `finding-id`, `rout
 Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Derive `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), write **two** files under `.ai/workflows/<slug>/`, and register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](intake/default.md) Step 10.
 
 1. Write `00-index.md` (`type: workflow-index`, lightweight) from the template in [simplify/_artifact.md](simplify/_artifact.md).
-2. Write `01-simplify.md` (`type: simplify-run`) from the template in the same file: frontmatter counts, `routing-summary`, `routing-assignments`, `proposed-deltas`, `recommended-routes`, then the body sections from **Input** to **Deferred**. Write the explainer fragment per the template.
-3. Follow the additive-write contract in the same file: never overwrite an existing slug, no `revision-count`, `regenerable: false`, cross-run links by `refs:`.
-4. Write the sibling `01-simplify.yaml` with `artifact: simplify-run` (shape and authoring rules in the same file). The renderer projects it as a finding-table page; without it the page falls back to a plain frontmatter card.
-5. Write the sibling `.html.fragment` for that YAML. Load `_fragment-authoring.md` and follow its wrapper, snippet, and verifier rules. The fragment must be deterministic from the YAML (same YAML → byte-identical HTML) and pass `scripts/verify-fragment.mjs` (Check 7).
+2. Write `01-simplify.md` (`type: simplify-run`) from the template in the same file: frontmatter counts, `routing-summary`, `routing-assignments`, `proposed-deltas`, `recommended-routes`, then the body sections from **Input** to **Deferred**.
+3. Write the explainer `01-simplify.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
+4. Follow the additive-write contract in the same file: never overwrite an existing slug, no `revision-count`, `regenerable: false`, cross-run links by `refs:`.
+5. Write the sibling `01-simplify.yaml` with `artifact: simplify-run` (shape and authoring rules in the same file). The renderer projects it as a finding-table page; without it the page falls back to a plain frontmatter card.
+6. Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](_fragment-authoring.md) Step F1.
 
 **Standalone-mode only.** In slug-mode the findings live in a compressed slice (`type: slice`), which renders via the slice template and does not consume a `simplify-run` sibling YAML.
 

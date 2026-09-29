@@ -5,7 +5,7 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
 | | Detail |
 |---|---|
 | Requires | See [design.md → ## Requires](../design.md#requires). |
-| Produces | `02c-craft.md` (type `design-contract`) with its sibling `.yaml` and `.html.fragment`; `00-index.md` updates |
+| Produces | `02c-craft.md` (type `design-contract`) with its sibling `.yaml` and its explainer; `00-index.md` updates |
 | Next | `/wf slice <slug>` (`/wf plan <slug>` for an `rca` workflow, which has no slice stage; `/wf plan <slug> <first-new-slice>` after an extension) — or `/wf auto <slug>` / `/wf yolo <slug>`, which may start now |
 
 ## Step 0 — Orient
@@ -56,7 +56,7 @@ A user-confirmed `PRODUCT.md` or an earlier `teach` answer satisfies the gate on
 
 ## Step 6 — Write the contract
 
-Write `02c-craft.md` per [contract.md](contract.md) Steps 5–6, with these extra frontmatter fields:
+Write `02c-craft.md` per [contract.md](contract.md) Steps 5, 5a and 6, with these extra frontmatter fields:
 
 ```yaml
 canvas: "<canvas link, or none>"

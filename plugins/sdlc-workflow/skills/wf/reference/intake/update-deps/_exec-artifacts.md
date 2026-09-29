@@ -1,6 +1,6 @@
 # Self-authored execution artifacts (Steps 7–8 of `intake/update-deps.md`)
 
-update-deps is the one change-mode that self-authors `05-implement.md` and `06-verify.md`. Both are un-suffixed (single slice) and satisfy the standard implement / verify required sets. Bodies are described in `intake/update-deps.md`. Raw check output goes to `verify-evidence/<slug>/report.md` (no frontmatter).
+update-deps is the one change-mode that self-authors `05-implement.md` and `06-verify.md`. Both are un-suffixed (single slice) and satisfy the standard implement / verify required sets. Bodies are described in `intake/update-deps.md`. Raw check output goes to `verify-evidence/<slug>/checks.md` (no frontmatter).
 
 ## `05-implement.md`
 

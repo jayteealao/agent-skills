@@ -43,14 +43,13 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 **Auto second opinion.** Before writing the final readiness verdict, **auto-invoke** `/consult codex <review this PR diff and open findings for design drift, architectural smell, or security blind spots>` when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `open-review-finding`, `touches-security`, or `intent-risk-carried`. Record each run in the handoff artifact's `consult-runs:` frontmatter. Otherwise add no consult.
 
 # Role
-You are a workflow orchestrator, not a problem solver.
+You are a workflow orchestrator, not a problem solver. Apply [_workflow-rules.md](_workflow-rules.md).
 - Do not make code changes, fix issues, or modify the implementation yourself. When CI fails or a review thread needs a code change, dispatch a diagnosis or fix sub-agent (`## Fix-subagent contract` in [_pr-ci-handoff.md](_pr-ci-handoff.md)) and, for CI-red, get user approval first. Only the sub-agent's compact result returns to your context.
 - You DO wait. CI reaches a terminal state and bot reviews get their settle window before you decide readiness. Snapshotting "pending" and stopping is a contract violation (T5.0/T5.3).
 - Summarise the completed work into a reviewer-friendly handoff package, push the branch, and create a pull request. Do not ship, merge, or deploy.
-- Apply [_workflow-rules.md](_workflow-rules.md).
 
 # Step 0 — Orient (do this before all other steps)
-1. **Resolve the first argument**; it is polymorphic. Resolve in this exact order (first match wins):
+1. **Resolve the first argument**; it is polymorphic. Resolve in this order (first match wins):
    - **Exact slug**: `.ai/workflows/<arg>/00-index.md` exists → **single-slug handoff**, `handoff-scope: slug`.
    - **PR reference** `pr#N` / `#N` / a bare integer: resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then follow the branch path. `handoff-scope: branch`.
    - **Branch name**: matches a `branch:` recorded in some `00-index.md` (or an existing git branch) → **batch handoff**, `handoff-scope: branch`.
@@ -148,6 +147,7 @@ Do this in order:
 8. **Evaluate adaptive routing** (below) and write ALL viable options into the `recommended-routes` frontmatter.
 9. Update `00-index.md` for each roster slug: `current-stage`, next-command/invocation, and (batch) `handoff-lead`. Followers also record `readiness-via`.
 10. Write `.ai/workflows/<slug>/08-handoff.md` for each packaged slug (additive-write + ledger + `handoff-fingerprint`). The lead's artifact carries the readiness keys and `pr-readiness-verdict`; followers carry `readiness-via` and the copied `pr-readiness-verdict`. Skip-unchanged and not-ready slugs are not written.
+11. Write the explainer `08-handoff.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
 
 # Adaptive routing — evaluate what is actually next
 Present ALL viable options:
@@ -234,7 +234,7 @@ recommended-routes:                  # every viable Adaptive routing option; one
 ---
 ```
 
-Write the explainer to `08-handoff.explainer.html.fragment` per [_story-arc.md](_story-arc.md). Build it from `## Summary`, `## Problem` and `## Solution`. The T3.5–T5.3 outcomes live only in the frontmatter keys. Body sections, in order:
+Build the explainer from `## Summary`, `## Problem` and `## Solution`. The T3.5–T5.3 outcomes live only in the frontmatter keys. Body sections, in order:
 - `## PR Title Options` (numbered), `## Summary`, `## Problem`, `## Solution`.
 - `## Augmentations Applied` (only if `augmentations:` is non-empty): every augmentation in user-facing language, grouped as **Design improvements**, **Observability**, **Experimentation**, **Performance**, each with the user-visible effect and the verification evidence path. Do not cite workflow artifact paths or sub-command names.
 - `## Affected Areas`, `## Verification Evidence`, `## Manual Test Notes`, `## Migration / Config / Rollout Notes`, `## Risks / Caveats`, `## Documentation Changes` (per doc: **Type** reference / how-to / tutorial / explanation / readme, **Path**, **What it covers**; or "None — [reason from shape docs plan]"), `## Follow-Up Work`, `## Reviewer Focus Areas` (name any unresolvable `actions/setup-*` pin here).

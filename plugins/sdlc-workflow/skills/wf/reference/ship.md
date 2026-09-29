@@ -14,7 +14,7 @@ You are running `/wf ship`, **stage 9 of 10**: 1·intake → 2·shape → 3·sli
 | | Detail |
 |---|---|
 | Requires | See [## Requires](#requires). The gate needs `readiness-verdict: ready` (single-slug) or `pr-readiness-verdict: ready` (batch) in `08-handoff.md`. |
-| Produces | `09-ship-run-<run-id>.md` (per release, on the lead slug) with its sibling `09-ship-run-<run-id>.yaml` and `09-ship-run-<run-id>.html.fragment`, plus a refreshed `09-ship-runs.md` per roster slug (followers carry a `shipped-via` pointer). Legacy `09-ship.md` is read-only. Schemas: [ship/_run-artifact.md](ship/_run-artifact.md). |
+| Produces | `09-ship-run-<run-id>.md` (per release, on the lead slug) with its sibling `09-ship-run-<run-id>.yaml` and its explainer, plus a refreshed `09-ship-runs.md` per roster slug (followers carry a `shipped-via` pointer). Legacy `09-ship.md` is read-only. Schemas: [ship/_run-artifact.md](ship/_run-artifact.md). |
 | Next | `/wf retro <slug>` (go) or `/wf implement <slug> <slice>` (blockers) |
 
 ## Requires
@@ -181,7 +181,8 @@ Skip each `version-source-of-truth` file already at the post-release version. 10
 
 11. **Update `09-ship-runs.md`** (schema in [ship/_run-artifact.md](ship/_run-artifact.md)). Batch mode: the lead slug's index gets the real run row; each follower's index gets a pointer row with `shipped-via: <lead>/09-ship-run-<run-id>.md` (same run-id, no duplicate artifact).
 12. **Adaptive routing.** Write ALL viable options into the run artifact's `recommended-routes` frontmatter and update `00-index.md` (`current-stage`, `recommended-next-command`, `recommended-next-invocation`).
-13. **Write `09-ship-run-<run-id>.md`** per [ship/_run-artifact.md](ship/_run-artifact.md), then its Step Z sibling `.yaml` and `.html.fragment` (managed-artifact enforcement blocks the `.md` write when the sibling `.yaml` is missing). A run paused before the Go/No-Go gate is representable; record it honestly: a ship at STOP after pre-flight or dry-run (awaiting a user decision, resumable) writes `status: awaiting-input` with `go-nogo: pending`, never `no-go`, which is a decision the gate never reached. `release-workflow-conclusion: ""` likewise means not-reached. In `00-index.md`, a paused ship is `progress.ship: in-progress`.
+13. **Write `09-ship-run-<run-id>.md`** per [ship/_run-artifact.md](ship/_run-artifact.md), then its Step Z sibling `.yaml`. A run paused before the Go/No-Go gate is representable; record it honestly: a ship at STOP after pre-flight or dry-run (awaiting a user decision, resumable) writes `status: awaiting-input` with `go-nogo: pending`, never `no-go`, which is a decision the gate never reached. `release-workflow-conclusion: ""` likewise means not-reached. In `00-index.md`, a paused ship is `progress.ship: in-progress`.
+13a. Write the explainer `09-ship-run-<run-id>.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
 14. **Announce.** Only when `go-nogo` is `go` or `conditional-go`. Load `ship/announce.md` and run it for `<slug>` (the lead in batch mode): it drafts audience- and channel-tailored announcements from the run artifact, writes `announce.md`, and stamps `announcements-sent` onto the run; in batch mode the announcement covers the whole branch. The phase is interactive; if the user declines or defers comms, note it and move on. To regenerate comms later without re-shipping, run `/wf ship <slug> announce` (the step 0.1.5 shortcut).
 
 # Adaptive routing

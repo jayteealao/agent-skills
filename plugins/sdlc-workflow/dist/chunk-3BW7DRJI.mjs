@@ -281,6 +281,175 @@ function findUnownedMechanisms(acText, decisionText) {
   return [...found];
 }
 
+// lib/explainer-check.mjs
+var EXPLAINER_SUFFIX = ".explainer.html.fragment";
+function isExplainerFragmentPath(p) {
+  return String(p ?? "").replace(/\\/g, "/").endsWith(EXPLAINER_SUFFIX);
+}
+var VOID_TAGS = /* @__PURE__ */ new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"]);
+var RAW_TEXT_TAGS = /* @__PURE__ */ new Set(["script", "style"]);
+var IMPLIED_END = /* @__PURE__ */ new Set(["p", "li", "dt", "dd", "tr", "td", "th", "option", "thead", "tbody", "tfoot"]);
+var WRAPPER_TAGS = /* @__PURE__ */ new Set(["div", "section", "article", "main"]);
+function parseFragmentTree(text) {
+  const root = { type: "el", tag: "#root", children: [] };
+  const stack = [root];
+  const top = () => stack[stack.length - 1];
+  const TOKEN = /<!--([\s\S]*?)-->|<\/([a-zA-Z][\w:-]*)\s*>|<([a-zA-Z][\w:-]*)((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>|([^<]+)|(<)/g;
+  let m;
+  while ((m = TOKEN.exec(text)) !== null) {
+    const [, comment, closeTag, openTag, , selfClose, txt, stray] = m;
+    if (comment !== void 0) {
+      top().children.push({ type: "comment", text: comment });
+    } else if (closeTag) {
+      const tag = closeTag.toLowerCase();
+      let i = stack.length - 1;
+      while (i > 0 && stack[i].tag !== tag && IMPLIED_END.has(stack[i].tag)) i--;
+      if (i === 0 || stack[i].tag !== tag) {
+        throw new Error(`unexpected </${tag}> (open element: <${top().tag}>)`);
+      }
+      stack.length = i;
+    } else if (openTag) {
+      const tag = openTag.toLowerCase();
+      const el = { type: "el", tag, children: [] };
+      top().children.push(el);
+      if (RAW_TEXT_TAGS.has(tag)) {
+        const end = text.toLowerCase().indexOf(`</${tag}`, TOKEN.lastIndex);
+        if (end === -1) throw new Error(`unclosed <${tag}>`);
+        el.children.push({ type: "text", text: text.slice(TOKEN.lastIndex, end) });
+        const close = text.indexOf(">", end);
+        TOKEN.lastIndex = close === -1 ? text.length : close + 1;
+      } else if (!selfClose && !VOID_TAGS.has(tag)) {
+        stack.push(el);
+      }
+    } else if (txt !== void 0) {
+      top().children.push({ type: "text", text: txt });
+    } else if (stray) {
+      if (text.startsWith("<!--", m.index)) throw new Error("unclosed comment");
+      top().children.push({ type: "text", text: "<" });
+    }
+  }
+  const unclosed = stack.slice(1).filter((el) => !IMPLIED_END.has(el.tag));
+  if (unclosed.length) throw new Error(`unclosed <${unclosed[unclosed.length - 1].tag}>`);
+  return root;
+}
+function isBlank(node) {
+  return node.type === "text" && !node.text.trim();
+}
+function isExplainerInclude(node) {
+  return node.type === "comment" && /^\s*@include\s+explainer\//.test(node.text);
+}
+function isVisual(node) {
+  return node.type === "el" && (node.tag === "svg" || node.tag === "figure") || isExplainerInclude(node);
+}
+function describe(node) {
+  if (isExplainerInclude(node)) return `@include ${node.text.trim().split(/\s+/)[1]}`;
+  if (node.type === "el") return `<${node.tag}>`;
+  return "text";
+}
+var SUMMARY_MAX_SENTENCES = 5;
+var SUMMARY_MAX_WORDS = 90;
+function textOf(node) {
+  if (!node) return "";
+  if (node.type === "text") return node.text;
+  if (node.type !== "el" || RAW_TEXT_TAGS.has(node.tag)) return "";
+  return node.children.map(textOf).join("");
+}
+function plainText(node) {
+  return textOf(node).replace(/&nbsp;/gi, " ").replace(/&[a-z]+;|&#\d+;/gi, "x").replace(/\s+/g, " ").trim();
+}
+function countSentences(text) {
+  return String(text ?? "").trim().split(/(?<=[.!?])["')\]]*\s+/).filter((s) => /\w/.test(s)).length;
+}
+function countWords(text) {
+  return String(text ?? "").trim().split(/\s+/).filter((w) => /\w/.test(w)).length;
+}
+function* commentsOf(node) {
+  for (const child of node.children ?? []) {
+    if (child.type === "comment") yield child;
+    else if (child.type === "el") yield* commentsOf(child);
+  }
+}
+function checkExplainerInclude(commentText) {
+  const m = /^\s*@include\s+(explainer\/[a-z][a-z0-9-]*)\s*([\s\S]*?)\s*$/.exec(commentText);
+  if (!m) return [];
+  const [, name, payload] = m;
+  let data = {};
+  if (payload) {
+    try {
+      data = JSON.parse(payload);
+    } catch (err) {
+      return [`explainer: @include ${name} JSON does not parse (${err.message}); the renderer cannot expand it`];
+    }
+  }
+  const warns = [];
+  if (name === "explainer/comparison") {
+    const bars = Array.isArray(data?.bars) ? data.bars : [];
+    if (bars.length < 2) {
+      warns.push(`explainer: @include ${name} has ${bars.length} bar${bars.length === 1 ? "" : "s"}; a comparison needs at least two (write one fact as a sentence)`);
+    } else {
+      const values = new Set(bars.map((b) => Number(b?.value)));
+      if (values.size === 1) {
+        warns.push(`explainer: @include ${name} bars all have the value ${[...values][0]}; that is a list, not a chart (use a list or a sentence)`);
+      }
+    }
+  }
+  return warns;
+}
+function checkExplainer(text) {
+  const errs = [];
+  const warns = [];
+  let tree;
+  try {
+    tree = parseFragmentTree(String(text ?? ""));
+  } catch (err) {
+    errs.push(`explainer does not parse: ${err.message}`);
+    return { errs, warns };
+  }
+  const lower = String(text).toLowerCase();
+  for (const tag of ["<html", "<head", "<body"]) {
+    if (new RegExp(`${tag}[\\s>]`).test(lower)) warns.push(`explainer: remove ${tag}> (a fragment is not a full document)`);
+  }
+  if (/<script[\s>]/.test(lower)) {
+    warns.push("explainer: <script> never runs in the view (CSP script-src 'self'); use CSS-only interaction or remove it");
+  }
+  const blocksOf = (el) => el.children.filter((n) => !isBlank(n) && !(n.type === "comment" && !isExplainerInclude(n)) && !(n.type === "el" && n.tag === "style"));
+  let blocks = blocksOf(tree);
+  while (blocks.length === 1 && blocks[0].type === "el" && WRAPPER_TAGS.has(blocks[0].tag)) {
+    blocks = blocksOf(blocks[0]);
+  }
+  if (!blocks.length) {
+    warns.push("explainer: empty \u2014 open with a plain summary paragraph");
+    return { errs, warns };
+  }
+  const isP = (n) => n?.type === "el" && n.tag === "p";
+  if (!isP(blocks[0])) {
+    warns.push(`explainer: open with a plain summary <p> (first element is ${describe(blocks[0])})`);
+  } else {
+    const summary = plainText(blocks[0]);
+    const sentences = countSentences(summary);
+    const words = countWords(summary);
+    if (sentences > SUMMARY_MAX_SENTENCES) {
+      warns.push(`explainer: the summary <p> has ${sentences} sentences; keep it to two to ${SUMMARY_MAX_SENTENCES} and move detail below it`);
+    }
+    if (words > SUMMARY_MAX_WORDS) {
+      warns.push(`explainer: the summary <p> has ${words} words; keep it under about ${SUMMARY_MAX_WORDS} and move detail below it`);
+    }
+  }
+  for (const c of commentsOf(tree)) {
+    if (isExplainerInclude(c)) warns.push(...checkExplainerInclude(c.text));
+  }
+  blocks.forEach((n, i) => {
+    if (!isVisual(n)) return;
+    if (!isP(blocks[i - 1])) {
+      warns.push(`explainer: put one <p> sentence before ${describe(n)} #${blocks.slice(0, i + 1).filter(isVisual).length} that says what it shows`);
+    }
+  });
+  if (!isP(blocks[blocks.length - 1]) || blocks.length < 2) {
+    warns.push("explainer: close with a short recap <p>");
+  }
+  return { errs, warns };
+}
+
 // hooks/post-write-verify.mjs
 var RICH_TIER_TYPES = /* @__PURE__ */ new Set([
   "review",
@@ -709,6 +878,65 @@ async function enforceIndexLint(paths, config) {
 ${lines2.join("\n")}
 Opt out: hooks.indexLint: false.`);
 }
+var EXPLAINER_STEM_PATTERNS = Object.freeze([
+  /^01-(?:intake|fix|hotfix|refactor|update-deps|rca|discover|investigate|ideate|adopt|audit|task|simplify|profile)$/,
+  /^02-shape$/,
+  /^02c-craft$/,
+  /^03-slice(?:-.+)?$/,
+  /^04-plan-.+$/,
+  /^04b-instrument$/,
+  /^04c-experiment$/,
+  /^05-implement-.+$/,
+  /^05c-benchmark$/,
+  /^06-verify-.+$/,
+  /^07-review(?:-.+)?$/,
+  /^07-design-(?:audit|critique)$/,
+  /^08-handoff$/,
+  /^09-ship-run-.+$/,
+  /^10-retro$/,
+  /^99-close$/
+]);
+var STAGE_FILE_RE = /(?:^|\/)\.ai\/(?:workflows\/[^/]+|simplify(?:\/[^/]+)*|profiles(?:\/[^/]+)*)\/([^/]+)\.md$/;
+function explainerStemFor(filePath, type = null) {
+  const normalized = normalizePathForMatch(filePath);
+  if (/(?:^|\/)history\//.test(normalized)) return null;
+  const m = STAGE_FILE_RE.exec(normalized);
+  if (!m) return null;
+  const stem = m[1];
+  if (!EXPLAINER_STEM_PATTERNS.some((re) => re.test(stem))) return null;
+  if (type === "review-command") return null;
+  return stem;
+}
+async function enforceExplainerPresence(paths, config) {
+  if (config.hooks?.remindMissingFragments === false) return;
+  const missing = [];
+  for (const path of paths) {
+    const text = await readTextIfExists(path.absolute);
+    const stem = explainerStemFor(path.original, fragmentOwningType(text));
+    if (!stem) continue;
+    if (existsSync(path.absolute.replace(/\.md$/, EXPLAINER_SUFFIX))) continue;
+    missing.push(`Write the explainer ${stem}${EXPLAINER_SUFFIX} per _story-arc.md before you finish the stage.`);
+  }
+  if (!missing.length) return;
+  outputSystemMessage(`wf: ${missing.join("\n")}
+Opt out: hooks.remindMissingFragments: false.`);
+}
+async function lintExplainers(paths, config) {
+  if (config.hooks?.remindMissingFragments === false) return;
+  const lines2 = [];
+  for (const path of paths) {
+    const text = await readTextIfExists(path.absolute);
+    if (text === null) continue;
+    const { errs, warns } = checkExplainer(text);
+    for (const w of [...errs, ...warns]) lines2.push(`  - ${path.original}: ${w}`);
+  }
+  if (!lines2.length) return;
+  outputSystemMessage(
+    `wf: explainer check (advisory, rules in _story-arc.md):
+${lines2.join("\n")}
+Opt out: hooks.remindMissingFragments: false.`
+  );
+}
 var PLUGIN_ROOT = fileURLToPath2(new URL("..", import.meta.url));
 async function run(input) {
   const projectRoot = projectRootFromInput(input);
@@ -721,8 +949,11 @@ async function run(input) {
   if (auditPaths.length) await enforceShipPlanAuditTriage(auditPaths, config);
   const boardPaths = collectToolInputPaths(input).filter((path) => isBrainstormBoardPath(path)).map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) })).filter(({ absolute }) => absolute && existsSync(absolute));
   if (boardPaths.length) await validateBrainstormBoards(boardPaths, config, schemaPath);
+  const explainerPaths = collectToolInputPaths(input).filter((path) => isExplainerFragmentPath(path) && /(?:^|\/)\.ai\//.test(normalizePathForMatch(path))).map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) })).filter(({ absolute }) => absolute && existsSync(absolute));
+  if (explainerPaths.length) await lintExplainers(explainerPaths, config);
   if (!paths.length) return;
   await enforceIndexLint(paths, config);
+  await enforceExplainerPresence(paths, config);
   const failures = [];
   for (const path of paths) {
     if (isProseLogPath(path.original)) continue;
@@ -762,5 +993,7 @@ export {
   INDEX_STAGE_HEAD_CHARS,
   INDEX_COMMENT_PROSE_MAX_WORDS,
   indexLintWarnings,
+  EXPLAINER_STEM_PATTERNS,
+  explainerStemFor,
   run
 };

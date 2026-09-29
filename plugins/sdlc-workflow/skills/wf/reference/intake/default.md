@@ -136,7 +136,8 @@ Do this in order:
 6c. **Auto second opinion**: apply the objective triggers in the blockquote above the Execution discipline section; when any holds, fire `/consult` now, and fold material findings back into the brief (a confirmed misreading becomes a RIM or a reworded Restated Request).
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into the `01-intake.md` `recommended-routes`.
 8. Update `00-index.md` with the recommended default option.
-9. Write `.ai/workflows/<slug>/01-intake.md` and its explainer per the template in `intake/default/_artifact.md`.
+9. Write `.ai/workflows/<slug>/01-intake.md` per the template in `intake/default/_artifact.md`.
+9a. Write the explainer `01-intake.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 10. **Register this workflow in `.ai/workflows/INDEX.md`** (additive bootstrap). After `00-index.md` is finalized, ensure the registry contains a row for this slug. Re-read the just-written `00-index.md` frontmatter so the row reflects the *final* values (branch/status/workflow-type can change between Step 0 and now based on Batch A answers).
     - **If `.ai/workflows/INDEX.md` does NOT exist**, create it with the header comment (exactly from the [`/wf status` reconcile spec](../status.md)) followed by exactly one row for this workflow. Use the canonical column order: `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`. Header line:
       ```

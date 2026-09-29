@@ -203,6 +203,7 @@ Do this in order:
 3. **Evaluate adaptive routing** (see below) and write options into the `recommended-routes` frontmatter.
 4. Mark the workflow as complete in `00-index.md` unless follow-up work is being opened.
 5. Write `.ai/workflows/<slug>/10-retro.md`.
+6. Write the explainer `10-retro.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
 
 # Adaptive routing — evaluate what's actually next
 After completing the retro, evaluate whether the workflow is truly done:
