@@ -58,7 +58,7 @@ for (const [k, v] of Object.entries({ projectRoot, referenceRoot, slug })) {
 
 // Model and reasoning effort for every agent() call. Explicit ids, because an alias
 // can lag a new release. OPUS: orient, the plan/implement/verify stages, the
-// review refuters, and update-deps exec. SONNET: every other agent.
+// review writer, and update-deps exec. SONNET: every other agent.
 const SONNET = { model: 'claude-sonnet-5-5', effort: 'high' }
 const OPUS = { model: 'claude-opus-5-5', effort: 'medium' }
 
@@ -1339,7 +1339,7 @@ async function driveReview(sliceArg, idx) {
     agent(
       `Adversarially REFUTE this code-review finding. Default to refuted=true if uncertain or unreproducible. ` +
       `Inspect ${projectRoot} (read-only) to check. Finding: ${JSON.stringify(f)}. Return { refuted, reason }.`,
-      { schema: VERDICT_SCHEMA, label: `refute:${f.id || '?'}`, phase: 'Review', ...OPUS }
+      { schema: VERDICT_SCHEMA, label: `refute:${f.id || '?'}`, phase: 'Review', ...SONNET }
     ).then(v => (v && v.refuted === false ? f : null))
   ))
   const verified = checked.filter(Boolean)
@@ -1366,7 +1366,7 @@ async function driveReview(sliceArg, idx) {
     ) +
     CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + DECISION_CONTRACT +
     heartbeatClause(`review${sliceArg ? ':' + sliceArg : ''}`, 'Review', 'review', sliceArg),
-    { schema: STAGE_RESULT, label: `review${sliceArg ? ':' + sliceArg : ''}`, phase: 'Review', ...SONNET }
+    { schema: STAGE_RESULT, label: `review${sliceArg ? ':' + sliceArg : ''}`, phase: 'Review', ...OPUS }
   )
 }
 

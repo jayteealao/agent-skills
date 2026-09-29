@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.174.1] - 2026-09-29
+
+### Changed
+
+- **Yolo review presets swapped.** The review writer runs on `OPUS` (`claude-opus-5-5`, effort `medium`), and the review refuters run on `SONNET` (`claude-sonnet-5-5`, effort `high`). In 9.173.0 the writer was on `SONNET` and the refuters were on `OPUS`. `_subagents.md` names the review writer in the `OPUS` list.
+
 ## [9.174.0] - 2026-09-29
 
 Explainers explain. In the first live run the 28 explainers averaged 141 words (median 82), 19 of them had no visual, and they reported stage progress instead of explaining the work (ARTIFACT-SPLIT-PLAN.md "Explainer v2").
