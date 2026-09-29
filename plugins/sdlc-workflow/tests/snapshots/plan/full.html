@@ -26,17 +26,17 @@
   <svg viewBox="0 0 980 158" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="File-change topology">
     <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a8377"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ink-3)"/>
     </marker>
-  </defs><rect x="20" y="30" width="458" height="108" rx="6" fill="none" stroke="#cbc4b1" stroke-dasharray="4 3" stroke-width="1"/>
-     <text x="30" y="48" font-size="10" font-weight="600" fill="#8a8377" letter-spacing="0.8">API</text><rect x="490" y="30" width="458" height="76" rx="6" fill="none" stroke="#cbc4b1" stroke-dasharray="4 3" stroke-width="1"/>
-     <text x="500" y="48" font-size="10" font-weight="600" fill="#8a8377" letter-spacing="0.8">STORAGE</text><rect x="32" y="58" width="434" height="24" rx="3" fill="#e9eef4" stroke="#4a6c8c" stroke-width="1"/>
-      <text x="40" y="70" font-size="11" fill="#1f1b16" font-family="ui-monospace, monospace">checkout.ts</text>
-      <text x="40" y="80" font-size="8" fill="#8a8377">modified · +18/−4</text><rect x="32" y="90" width="434" height="24" rx="3" fill="#ecf3e7" stroke="#3e7d4a" stroke-width="1"/>
-      <text x="40" y="102" font-size="11" fill="#1f1b16" font-family="ui-monospace, monospace">idempotency.ts</text>
-      <text x="40" y="112" font-size="8" fill="#8a8377">modified · +40</text><rect x="502" y="58" width="434" height="24" rx="3" fill="#ecf3e7" stroke="#3e7d4a" stroke-width="1"/>
-      <text x="510" y="70" font-size="11" fill="#1f1b16" font-family="ui-monospace, monospace">0042_idempotency.sql</text>
-      <text x="510" y="80" font-size="8" fill="#8a8377">modified · −NaN</text><path d="M 466 71 C 249 71, 249 103, 32 103" fill="none" stroke="#8a8377" stroke-width="1.2" marker-end="url(#arrow)"/>
+  </defs><rect x="20" y="30" width="458" height="108" rx="6" fill="none" stroke="var(--rule-2)" stroke-dasharray="4 3" stroke-width="1"/>
+     <text x="30" y="48" font-size="10" font-weight="600" fill="var(--ink-3)" letter-spacing="0.8">API</text><rect x="490" y="30" width="458" height="76" rx="6" fill="none" stroke="var(--rule-2)" stroke-dasharray="4 3" stroke-width="1"/>
+     <text x="500" y="48" font-size="10" font-weight="600" fill="var(--ink-3)" letter-spacing="0.8">STORAGE</text><rect x="32" y="58" width="434" height="24" rx="3" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1"/>
+      <text x="40" y="70" font-size="11" fill="var(--ink)" font-family="ui-monospace, monospace">checkout.ts</text>
+      <text x="40" y="80" font-size="8" fill="var(--ink-3)">modified · +18/−4</text><rect x="32" y="90" width="434" height="24" rx="3" fill="var(--low-bg)" stroke="var(--low)" stroke-width="1"/>
+      <text x="40" y="102" font-size="11" fill="var(--ink)" font-family="ui-monospace, monospace">idempotency.ts</text>
+      <text x="40" y="112" font-size="8" fill="var(--ink-3)">modified · +40</text><rect x="502" y="58" width="434" height="24" rx="3" fill="var(--low-bg)" stroke="var(--low)" stroke-width="1"/>
+      <text x="510" y="70" font-size="11" fill="var(--ink)" font-family="ui-monospace, monospace">0042_idempotency.sql</text>
+      <text x="510" y="80" font-size="8" fill="var(--ink-3)">modified · −NaN</text><path d="M 466 71 C 249 71, 249 103, 32 103" fill="none" stroke="var(--ink-3)" stroke-width="1.2" marker-end="url(#arrow)"/>
   </svg>
 </figure><dl class="frontmatter-card"><div><dt>slug</dt><dd>idempotency-key</dd></div><div><dt>parent</dt><dd>checkout</dd></div><div><dt>files</dt><dd>3</dd></div><div><dt>steps</dt><dd>5</dd></div><div><dt>revisions</dt><dd>2</dd></div><div><dt>tags</dt><dd>checkout, payments</dd></div><div><dt>updated</dt><dd>2026-06-05T08:00:00Z</dd></div></dl><section><h2 class="sec">acceptance criteria</h2><ul class="ac-list"><li><span class="chk todo" aria-hidden="true"></span><span class="ac-body">One charge per order under retry</span></li><li><span class="chk todo" aria-hidden="true"></span><span class="ac-body">Replay within 24 h returns the first response</span></li></ul></section><section><h2 class="sec">files touched</h2><div class="d-only"><div class="table-scroll"><table class="files-touched">
     <thead><tr><th>Path</th><th>LOC</th><th>&#916;</th><th>Role</th></tr></thead>

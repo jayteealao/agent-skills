@@ -6,11 +6,11 @@ import {
 } from "../chunk-VQ7FT7IB.mjs";
 import {
   renderSimple
-} from "../chunk-YVS5HJJI.mjs";
+} from "../chunk-ZVJXREMW.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-M4L3PWUR.mjs";
+} from "../chunk-U5DXOZ5H.mjs";
 import {
   figureCanvas
 } from "../chunk-RFW2L66D.mjs";
@@ -19,7 +19,7 @@ import {
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-U4XWDSQ3.mjs";
+} from "../chunk-Y7H4JJAK.mjs";
 import {
   escapeHtml
 } from "../chunk-3RXHOXIK.mjs";
@@ -40,7 +40,7 @@ var PX_PER_COMMIT = 25;
 var MAX_ARM = 360;
 var BASE_X = 460;
 var CY = 110;
-var HEX = { accent: "#4a6c8c", accentSoft: "#e9eef4", med: "#a07417", medBg: "#fbf3df", ink: "#1f1b16", ink3: "#8a8377", paper: "#fbfaf6", rule2: "#cbc4b1" };
+var HEX = { accent: "var(--accent)", accentSoft: "var(--accent-soft)", med: "var(--med)", medBg: "var(--med-bg)", ink: "var(--ink)", ink3: "var(--ink-3)", paper: "var(--paper)", rule2: "var(--rule-2)" };
 function render(artifact, ctx) {
   if (!artifact.siblingYaml) {
     return renderSimple(artifact, ctx, {

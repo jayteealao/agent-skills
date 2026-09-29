@@ -52,7 +52,19 @@ const INTAKE = [
   '',
 ].join('\n');
 
-const GOOD_EXPLAINER = '<p>The request is clear. One risk remains.</p>\n<p>Recap: ready for shape.</p>\n';
+// A stage explainer that meets every floor: a short summary, 250+ body
+// words, two visuals each led by a sentence, and a recap of ideas.
+const BODY = Array.from({ length: 26 }, (_, i) => `Part ${i} of the request is explained in plain words here.`).join(' ');
+const GOOD_EXPLAINER = [
+  '<p>The request is clear. One risk remains.</p>',
+  `<p>${BODY}</p>`,
+  '<p>The loop shows the fix rounds.</p>',
+  '<!-- @include explainer/cycle {"states":[{"label":"Run"},{"label":"Fix"}]} -->',
+  '<p>The picture shows the parts.</p>',
+  '<svg viewBox="0 0 10 10"><title>Parts</title><rect width="2" height="2" fill="var(--accent)"/></svg>',
+  '<p>Recap: the request is clear and the risk is known.</p>',
+  '',
+].join('\n');
 
 test('explainerStemFor: stage files that must carry an explainer', () => {
   for (const rel of [
@@ -143,6 +155,52 @@ test('post-write-verify runs the explainer check on an explainer write and never
     r = runHook({ cwd: tmp, tool_input: { file_path: rel } }, tmp);
     equal(r.status, 0, r.stderr);
     match(messages(r.stdout), /does not parse/);
+
+    // The hook passes the file name, so the stage floors apply.
+    writeFile(join(tmp, rel), '<p>Short. Thin.</p>\n<p>Recap: thin.</p>');
+    r = runHook({ cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(r.status, 0, r.stderr);
+    match(messages(r.stdout), /a stage explainer needs about 250/);
+    match(messages(r.stdout), /0 visuals; a stage explainer normally has two or more/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify applies the per-slice floors to a per-slice explainer', () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'sdlc-xpl-slice-'));
+  try {
+    const rel = '.ai/workflows/demo/05-implement-core.explainer.html.fragment';
+    writeFile(join(tmp, rel), '<p>The slice moved four parts. The gate matched.</p>\n<p>Recap: parts moved.</p>');
+    let r = runHook({ cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(r.status, 0, r.stderr);
+    const msg = messages(r.stdout);
+    match(msg, /a per-slice explainer needs about 150/);
+    match(msg, /0 visuals; a per-slice explainer needs at least one/);
+
+    // A per-slice explainer with enough body and one visual is silent.
+    const body = Array.from({ length: 16 }, (_, i) => `Step ${i} of the slice is explained in plain words here.`).join(' ');
+    writeFile(join(tmp, rel), [
+      '<p>The slice moved four parts. The gate matched.</p>',
+      `<p>${body}</p>`,
+      '<p>The steps show the build order.</p>',
+      '<!-- @include explainer/sequence {"steps":[{"label":"Types"},{"label":"Gate"}]} -->',
+      '<p>Recap: four parts moved and replays are unchanged.</p>',
+    ].join('\n'));
+    r = runHook({ cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(r.status, 0, r.stderr);
+    equal(r.stdout, '');
+
+    // The no-visual escape silences the visual floor.
+    writeFile(join(tmp, rel), [
+      '<p>The slice renamed one field. Nothing else changed.</p>',
+      `<p>${body}</p>`,
+      '<!-- no-visual: a rename has no structure to draw -->',
+      '<p>Recap: one field has a clearer name.</p>',
+    ].join('\n'));
+    r = runHook({ cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(r.status, 0, r.stderr);
+    equal(r.stdout, '');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

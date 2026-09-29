@@ -164,28 +164,28 @@ function fileTopologySvg(sy) {
   });
 
   const moduleSvg = modBoxes.map((b) =>
-    `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="6" fill="none" stroke="#cbc4b1" stroke-dasharray="4 3" stroke-width="1"/>
-     <text x="${b.x + 10}" y="${b.y + 18}" font-size="10" font-weight="600" fill="#8a8377" letter-spacing="0.8">${escapeHtml(String(b.label ?? '').toUpperCase())}</text>`,
+    `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="6" fill="none" stroke="var(--rule-2)" stroke-dasharray="4 3" stroke-width="1"/>
+     <text x="${b.x + 10}" y="${b.y + 18}" font-size="10" font-weight="600" fill="var(--ink-3)" letter-spacing="0.8">${escapeHtml(String(b.label ?? '').toUpperCase())}</text>`,
   ).join('');
 
   const fileSvg = files.map((f) => {
     const p = filePos.get(f.path);
     if (!p) return '';
     const role = changeRole(f);
-    const fill = role === 'new' ? '#ecf3e7'
-               : role === 'deleted' ? '#fbeaf0'
-               : role === 'external' ? '#f0ece1'
-               : '#e9eef4';
-    const stroke = role === 'new' ? '#3e7d4a'
-                 : role === 'deleted' ? '#b5305f'
-                 : role === 'external' ? '#cbc4b1'
-                 : '#4a6c8c';
+    const fill = role === 'new' ? 'var(--low-bg)'
+               : role === 'deleted' ? 'var(--blocker-bg)'
+               : role === 'external' ? 'var(--nit-bg)'
+               : 'var(--accent-soft)';
+    const stroke = role === 'new' ? 'var(--low)'
+                 : role === 'deleted' ? 'var(--blocker)'
+                 : role === 'external' ? 'var(--rule-2)'
+                 : 'var(--accent)';
     const short = escapeHtml(String(f.path).split('/').slice(-1)[0]);
     const deco = role === 'deleted' ? ' text-decoration="line-through"' : '';   // D5.3
     const sub = locSublabel(f);   // D5.2 — "new · +142" sublabel
     return `<rect x="${p.x}" y="${p.y}" width="${p.w}" height="${fileH - 2}" rx="3" fill="${fill}" stroke="${stroke}" stroke-width="1"/>
-      <text x="${p.x + 8}" y="${p.y + (sub ? 12 : 17)}" font-size="11" fill="#1f1b16" font-family="ui-monospace, monospace"${deco}>${short}</text>
-      ${sub ? `<text x="${p.x + 8}" y="${p.y + 22}" font-size="8" fill="#8a8377">${escapeHtml(sub)}</text>` : ''}`;
+      <text x="${p.x + 8}" y="${p.y + (sub ? 12 : 17)}" font-size="11" fill="var(--ink)" font-family="ui-monospace, monospace"${deco}>${short}</text>
+      ${sub ? `<text x="${p.x + 8}" y="${p.y + 22}" font-size="8" fill="var(--ink-3)">${escapeHtml(sub)}</text>` : ''}`;
   }).join('');
 
   const edgeSvg = edges.map((e) => {
@@ -195,7 +195,7 @@ function fileTopologySvg(sy) {
     const fx = from.x + from.w, fy = from.y + fileH / 2;
     const tx = to.x,            ty = to.y + fileH / 2;
     const dash = e.kind === 'replaces' ? ' stroke-dasharray="3 3"' : '';
-    const stroke = e.kind === 'replaces' ? '#b5305f' : '#8a8377';
+    const stroke = e.kind === 'replaces' ? 'var(--blocker)' : 'var(--ink-3)';
     const cpx = (fx + tx) / 2;
     // Inline relationship label for semantic edges (D5.4).
     const label = (e.kind === 'replaces' || e.kind === 'styles')
@@ -206,7 +206,7 @@ function fileTopologySvg(sy) {
 
   const defs = `<defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a8377"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ink-3)"/>
     </marker>
   </defs>`;
 
@@ -382,9 +382,9 @@ function placeholderTopologySvg() {
   const W = 920, H = 150;
   const nodes = [[140, 56], [380, 38], [380, 96], [620, 66]];
   const rects = nodes.map(([x, y]) =>
-    `<rect x="${x}" y="${y}" width="150" height="30" rx="4" fill="#fbfaf6" stroke="#cbc4b1" stroke-width="1" stroke-dasharray="4 3"/>`,
+    `<rect x="${x}" y="${y}" width="150" height="30" rx="4" fill="var(--paper)" stroke="var(--rule-2)" stroke-width="1" stroke-dasharray="4 3"/>`,
   ).join('');
-  const note = `<text x="${W / 2}" y="${H - 16}" text-anchor="middle" font-size="11" fill="#8a8377">topology renders once the plan declares files in its sibling YAML</text>`;
+  const note = `<text x="${W / 2}" y="${H - 16}" text-anchor="middle" font-size="11" fill="var(--ink-3)">topology renders once the plan declares files in its sibling YAML</text>`;
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="File-change topology (placeholder)">${rects}${note}</svg>`;
 }
 
@@ -436,9 +436,9 @@ function dataFlowLaneSvg(sy) {
   for (const f of sy.files ?? []) roleByPath.set(f.path, changeRole(f));
 
   const laneSvg = laneBoxes.map(({ y, lane }) => {
-    const banner = `<rect x="${padX}" y="${y}" width="${W - 2 * padX}" height="${laneH}" rx="6" fill="none" stroke="#cbc4b1" stroke-dasharray="4 3" stroke-width="1"/>`;
-    const label = `<text x="${lane._labelX + 6}" y="${y + 22}" font-size="10" font-weight="700" letter-spacing="0.8" fill="#8a8377">${escapeHtml(String(lane.label ?? lane.service ?? '').toUpperCase())}</text>`;
-    const sub = `<text x="${lane._labelX + 6}" y="${y + 38}" font-size="9" fill="#8a8377">service</text>`;
+    const banner = `<rect x="${padX}" y="${y}" width="${W - 2 * padX}" height="${laneH}" rx="6" fill="none" stroke="var(--rule-2)" stroke-dasharray="4 3" stroke-width="1"/>`;
+    const label = `<text x="${lane._labelX + 6}" y="${y + 22}" font-size="10" font-weight="700" letter-spacing="0.8" fill="var(--ink-3)">${escapeHtml(String(lane.label ?? lane.service ?? '').toUpperCase())}</text>`;
+    const sub = `<text x="${lane._labelX + 6}" y="${y + 38}" font-size="9" fill="var(--ink-3)">service</text>`;
     return banner + label + sub;
   }).join('');
 
@@ -446,17 +446,17 @@ function dataFlowLaneSvg(sy) {
     const p = filePos.get(path);
     if (!p) return '';
     const role = roleByPath.get(path) ?? 'modified';
-    const fill = role === 'new' ? '#ecf3e7'
-               : role === 'deleted' ? '#fbeaf0'
-               : role === 'external' ? '#f0ece1'
-               : '#e9eef4';
-    const stroke = role === 'new' ? '#3e7d4a'
-                 : role === 'deleted' ? '#b5305f'
-                 : role === 'external' ? '#cbc4b1'
-                 : '#4a6c8c';
+    const fill = role === 'new' ? 'var(--low-bg)'
+               : role === 'deleted' ? 'var(--blocker-bg)'
+               : role === 'external' ? 'var(--nit-bg)'
+               : 'var(--accent-soft)';
+    const stroke = role === 'new' ? 'var(--low)'
+                 : role === 'deleted' ? 'var(--blocker)'
+                 : role === 'external' ? 'var(--rule-2)'
+                 : 'var(--accent)';
     const short = escapeHtml(String(path).split('/').slice(-1)[0]);
     return `<rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" rx="4" fill="${fill}" stroke="${stroke}" stroke-width="1"/>
-      <text x="${p.x + 10}" y="${p.y + 19}" font-size="11" fill="#1f1b16" font-family="ui-monospace, monospace">${short}</text>`;
+      <text x="${p.x + 10}" y="${p.y + 19}" font-size="11" fill="var(--ink)" font-family="ui-monospace, monospace">${short}</text>`;
   })).join('');
 
   const edgeSvg = edges.map((e) => {
@@ -466,18 +466,18 @@ function dataFlowLaneSvg(sy) {
     const cross = e.kind === 'crosses-service' || from.y !== to.y;
     const fx = from.x + from.w, fy = from.y + from.h / 2;
     const tx = to.x,            ty = to.y + to.h / 2;
-    const stroke = cross ? '#b5305f' : '#8a8377';
+    const stroke = cross ? 'var(--blocker)' : 'var(--ink-3)';
     const dash = cross ? ' stroke-dasharray="4 4"' : '';
     const mid = (fy + ty) / 2;
     const sway = Math.abs(ty - fy) > 10 ? Math.max(40, Math.abs(ty - fy) * 0.6) : 0;
     const cpx1 = fx + sway, cpx2 = tx - sway;
     return `<path d="M ${fx} ${fy} C ${cpx1} ${fy}, ${cpx2} ${ty}, ${tx} ${ty}" fill="none" stroke="${stroke}" stroke-width="1.4"${dash} marker-end="url(#lane-arrow)"/>
-      ${cross ? `<text x="${(fx + tx) / 2}" y="${mid - 6}" text-anchor="middle" font-size="9" fill="#b5305f">${escapeHtml(e.kind)}</text>` : ''}`;
+      ${cross ? `<text x="${(fx + tx) / 2}" y="${mid - 6}" text-anchor="middle" font-size="9" fill="var(--blocker)">${escapeHtml(e.kind)}</text>` : ''}`;
   }).join('');
 
   const defs = `<defs>
     <marker id="lane-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a8377"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ink-3)"/>
     </marker>
   </defs>`;
 

@@ -316,6 +316,7 @@ test('plan renderer: topology colors by `status`, not the category `role`', () =
       files: [{ path: 'a/created.ts', role: 'ui', status: 'new', module: 'm1' }],
     },
   }));
-  // #ecf3e7 is the "new" fill; it only appears if status:new was honored.
-  match(out.bodyHtml, /#ecf3e7/);
+  // var(--low-bg) is the "new" fill (the theme token for #ecf3e7); it only
+  // appears if status:new was honored.
+  match(out.bodyHtml, /var\(--low-bg\)/);
 });

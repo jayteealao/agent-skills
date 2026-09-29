@@ -69,8 +69,8 @@ without the mod runs no check: the stage reads every row the same way and writes
 <p>Each stage writes two files for two readers. The <strong>agent file</strong>
 (<code>NN-&lt;stage&gt;[-&lt;slice&gt;].md</code>) holds state in its frontmatter and the
 contract that later stages read in its body. The <strong>explainer</strong>
-(<code>&lt;stem&gt;.explainer.html.fragment</code>, next to the agent file) tells you what
-happened: a plain summary first, then text and small visuals in turn, then a recap. The rendered
+(<code>&lt;stem&gt;.explainer.html.fragment</code>, next to the agent file) explains what
+the stage built or decided: a plain summary first, then text and visuals in turn, then a recap. The rendered
 workflow view puts the explainer at the top of the stage's page, and the chat summary quotes its
 summary paragraph. Agents do not read explainers. The next step is in the agent file's
 frontmatter: <code>next-invocation</code> and a <code>recommended-routes</code> list with every

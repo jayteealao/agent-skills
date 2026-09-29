@@ -307,7 +307,13 @@ function livenessBadge(sm) {
 // Minimal editorial styling, inline (no hub /_assets/ route). Warm paper bg +
 // ink, mirroring the per-repo view palette loosely.
 const STYLE = `
-  :root { --paper:#fbfaf6; --ink:#1f1b16; --ink-3:#8a8377; --hair:#e0dbcd; --bad:#b5305f; --ok:#3e7d4a; --cur:#4a6c8c; --idle:#8a8377; }
+  /* Token names mirror assets/sdlc.css so the shared swimlanesSvg (var(--…) fills) resolves here too. */
+  :root { --paper:#fbfaf6; --card:#fff; --ink:#1f1b16; --ink-3:#8a8377; --rule:#e0dbcd; --rule-2:#cbc4b1; --accent:#4a6c8c; --blocker:#b5305f; --low:#3e7d4a;
+    --hair:var(--rule); --bad:var(--blocker); --ok:var(--low); --cur:var(--accent); --idle:var(--ink-3); color-scheme:light dark; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --paper:#181613; --card:#211e1a; --ink:#ebe6db; --ink-3:#9d9588; --rule:#332f29; --rule-2:#4a443b; --accent:#8db2d4; --blocker:#ee7a9f; --low:#82c290; color-scheme:dark; }
+  }
+  :root[data-theme="dark"] { --paper:#181613; --card:#211e1a; --ink:#ebe6db; --ink-3:#9d9588; --rule:#332f29; --rule-2:#4a443b; --accent:#8db2d4; --blocker:#ee7a9f; --low:#82c290; color-scheme:dark; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
   .wrap { max-width:1100px; margin:0 auto; padding:32px 24px 80px; }
@@ -335,7 +341,7 @@ const STYLE = `
   /* Inbox */
   .inbox-zero { color:var(--ink-3); margin:8px 0; }
   .inbox { display:flex; flex-direction:column; gap:6px; }
-  .inbox-item { display:flex; align-items:baseline; gap:8px; text-decoration:none; color:var(--ink); border:1px solid var(--hair); border-left:3px solid var(--hair); border-radius:4px; padding:9px 12px; background:#fff; }
+  .inbox-item { display:flex; align-items:baseline; gap:8px; text-decoration:none; color:var(--ink); border:1px solid var(--hair); border-left:3px solid var(--hair); border-radius:4px; padding:9px 12px; background:var(--card); }
   .inbox-item:hover { border-color:var(--ink-3); }
   .ix-repo { font-weight:600; font-size:13px; }
   .ix-sep { color:var(--ink-3); }
@@ -350,7 +356,7 @@ const STYLE = `
   .repo { margin-top:34px; }
   .repo-name { font:600 18px/1.2 ui-sans-serif,system-ui,sans-serif; margin:0 0 12px; padding-bottom:6px; border-bottom:1px solid var(--hair); }
   .repo-path { font:400 11px/1 ui-monospace,monospace; color:var(--ink-3); margin-left:8px; }
-  .entry { border:1px solid var(--hair); border-radius:4px; padding:14px 16px; margin:0 0 14px; background:#fff; }
+  .entry { border:1px solid var(--hair); border-radius:4px; padding:14px 16px; margin:0 0 14px; background:var(--card); }
   .entry.stale { opacity:.55; }
   .entry-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
   .branch { font:600 14px/1 ui-monospace,monospace; color:var(--ink); text-decoration:none; }

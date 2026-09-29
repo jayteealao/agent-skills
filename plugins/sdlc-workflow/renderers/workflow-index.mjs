@@ -193,24 +193,24 @@ function quickFigure(fm, allArtifacts) {
 function quickStripeSvg(steps) {
   const W = 920, padX = 60, cy = 70, H = 130;
   const xs = evenX(W, padX, steps.length);
-  const rail = `<line x1="${padX}" y1="${cy}" x2="${W - padX}" y2="${cy}" stroke="#cbc4b1" stroke-width="2"/>`;
+  const rail = `<line x1="${padX}" y1="${cy}" x2="${W - padX}" y2="${cy}" stroke="var(--rule-2)" stroke-width="2"/>`;
   const lastDone = steps.reduce((acc, s, i) => (s.done ? i : acc), -1);
   // >= 0 (not > 0): a single done step at index 0 should still anchor the
   // overlay — same clamp/sentinel edge as the dashboard shipped-dot fix.
   const progress = lastDone >= 0
-    ? `<line x1="${xs[0]}" y1="${cy}" x2="${xs[lastDone]}" y2="${cy}" stroke="#1f1b16" stroke-width="2.5"/>`
+    ? `<line x1="${xs[0]}" y1="${cy}" x2="${xs[lastDone]}" y2="${cy}" stroke="var(--ink)" stroke-width="2.5"/>`
     : '';
   const nodes = steps.map((s, i) => {
     const x = xs[i];
     const isCur = !s.done && i === lastDone + 1;
-    const fill   = s.done ? '#3e7d4a' : isCur ? '#4a6c8c' : '#fbfaf6';
-    const stroke = s.done ? '#3e7d4a' : isCur ? '#4a6c8c' : '#cbc4b1';
+    const fill   = s.done ? 'var(--low)' : isCur ? 'var(--accent)' : 'var(--paper)';
+    const stroke = s.done ? 'var(--low)' : isCur ? 'var(--accent)' : 'var(--rule-2)';
     const dot = isCur
-      ? `<circle cx="${x}" cy="${cy}" r="13" fill="${fill}" stroke="${stroke}" stroke-width="2"/><circle cx="${x}" cy="${cy}" r="8" fill="none" stroke="#fbfaf6" stroke-width="1.2" stroke-dasharray="3 3"/>`
+      ? `<circle cx="${x}" cy="${cy}" r="13" fill="${fill}" stroke="${stroke}" stroke-width="2"/><circle cx="${x}" cy="${cy}" r="8" fill="none" stroke="var(--paper)" stroke-width="1.2" stroke-dasharray="3 3"/>`
       : s.done
         ? `<circle cx="${x}" cy="${cy}" r="7" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`
         : `<circle cx="${x}" cy="${cy}" r="7" fill="${fill}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="2.5 2"/>`;
-    const label = `<text x="${x}" y="${cy + 28}" text-anchor="middle" font-size="10" fill="#1f1b16">${escapeHtml(String(s.label).slice(0, 16))}</text>`;
+    const label = `<text x="${x}" y="${cy + 28}" text-anchor="middle" font-size="10" fill="var(--ink)">${escapeHtml(String(s.label).slice(0, 16))}</text>`;
     return `${dot}${label}`;
   }).join('');
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="Routing stripe">${rail}${progress}${nodes}</svg>`;

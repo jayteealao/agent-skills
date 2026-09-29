@@ -74,7 +74,7 @@ function mobileSevrow(counts) {
 function heatmapSvg(sy) {
   const SEVS = ['blocker', 'high', 'med', 'low', 'nit'];
   const SEV_COLOR = {
-    blocker: '#b5305f', high: '#b94e3d', med: '#a07417', low: '#3e7d4a', nit: '#8a8377',
+    blocker: 'var(--blocker)', high: 'var(--high)', med: 'var(--med)', low: 'var(--low)', nit: 'var(--ink-3)',
   };
   const dims = sy.dimensions ?? [];
   const findings = sy.findings ?? [];
@@ -98,14 +98,14 @@ function heatmapSvg(sy) {
   const colHeaders = SEVS.map((s, i) =>
     `<text x="${padL + i * cellW + cellW / 2}" y="${padT - 18}" text-anchor="middle" font-size="10" font-weight="600" fill="${SEV_COLOR[s]}">${s.toUpperCase()}</text>
      <text x="${padL + i * cellW + cellW / 2}" y="${padT - 4}" text-anchor="middle" font-size="14" fill="${SEV_COLOR[s]}">${glyph(s)}</text>`,
-  ).join('') + `<text x="${sumX + (cellW - 4) / 2}" y="${padT - 9}" text-anchor="middle" font-size="11" font-weight="700" fill="#1f1b16">&#931;</text>`;
+  ).join('') + `<text x="${sumX + (cellW - 4) / 2}" y="${padT - 9}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)">&#931;</text>`;
 
   const colTotals = { blocker: 0, high: 0, med: 0, low: 0, nit: 0 };
   let grand = 0;
 
   const rows = dims.map((d, ri) => {
     const y = padT + ri * cellH;
-    const dimLabel = `<text x="${padL - 14}" y="${y + cellH / 2 + 4}" text-anchor="end" font-size="11" fill="#1f1b16">${escapeHtml(d.name)}</text>`;
+    const dimLabel = `<text x="${padL - 14}" y="${y + cellH / 2 + 4}" text-anchor="end" font-size="11" fill="var(--ink)">${escapeHtml(d.name)}</text>`;
     let rowTotal = 0;
     const cells = SEVS.map((s, ci) => {
       const x = padL + ci * cellW;
@@ -115,19 +115,19 @@ function heatmapSvg(sy) {
       return heatCell(x, y, cellW, cellH, count, SEV_COLOR[s]);
     }).join('');
     grand += rowTotal;
-    const sumCell = `<rect x="${sumX}" y="${y}" width="${cellW - 4}" height="${cellH - 4}" rx="3" fill="#f3f1ea" stroke="#e0dbcd" stroke-width="0.5"/>
-      <text x="${sumX + (cellW - 4) / 2}" y="${y + cellH / 2 + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="#1f1b16">${rowTotal || ''}</text>`;
+    const sumCell = `<rect x="${sumX}" y="${y}" width="${cellW - 4}" height="${cellH - 4}" rx="3" fill="var(--paper-2)" stroke="var(--rule)" stroke-width="0.5"/>
+      <text x="${sumX + (cellW - 4) / 2}" y="${y + cellH / 2 + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--ink)">${rowTotal || ''}</text>`;
     return dimLabel + cells + sumCell;
   }).join('');
 
   // Totals row (D6.10): a hairline rule then per-severity + grand totals.
   const ty = padT + dims.length * cellH + 8;
-  const rule = `<line x1="${padL - 2}" y1="${ty - 4}" x2="${sumX + cellW - 4}" y2="${ty - 4}" stroke="#cbc4b1" stroke-width="1"/>`;
-  const totalsLabel = `<text x="${padL - 14}" y="${ty + cellH / 2 + 4}" text-anchor="end" font-size="10" font-weight="700" letter-spacing="1" fill="#8a8377">TOTAL</text>`;
+  const rule = `<line x1="${padL - 2}" y1="${ty - 4}" x2="${sumX + cellW - 4}" y2="${ty - 4}" stroke="var(--rule-2)" stroke-width="1"/>`;
+  const totalsLabel = `<text x="${padL - 14}" y="${ty + cellH / 2 + 4}" text-anchor="end" font-size="10" font-weight="700" letter-spacing="1" fill="var(--ink-3)">TOTAL</text>`;
   const totalsCells = SEVS.map((s, ci) => {
     const x = padL + ci * cellW;
     return `<text x="${x + (cellW - 4) / 2}" y="${ty + cellH / 2 + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="${SEV_COLOR[s]}">${colTotals[s] || ''}</text>`;
-  }).join('') + `<text x="${sumX + (cellW - 4) / 2}" y="${ty + cellH / 2 + 4}" text-anchor="middle" font-size="13" font-weight="700" fill="#1f1b16">${grand || ''}</text>`;
+  }).join('') + `<text x="${sumX + (cellW - 4) / 2}" y="${ty + cellH / 2 + 4}" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)">${grand || ''}</text>`;
 
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="Severity × dimension heatmap">
     ${colHeaders}
@@ -141,7 +141,7 @@ function heatmapSvg(sy) {
 function heatCell(x, y, cellW, cellH, count, color) {
   const op = count === 0 ? 0.04 : count === 1 ? 0.18 : count === 2 ? 0.34 : count === 3 ? 0.5 : 0.66;
   return `<rect x="${x}" y="${y}" width="${cellW - 4}" height="${cellH - 4}" rx="3" fill="${color}" fill-opacity="${op}" stroke="${color}" stroke-opacity="0.4" stroke-width="0.5"/>
-    <text x="${x + (cellW - 4) / 2}" y="${y + cellH / 2 + 4}" text-anchor="middle" font-size="12" font-weight="600" fill="#1f1b16">${count || ''}</text>`;
+    <text x="${x + (cellW - 4) / 2}" y="${y + cellH / 2 + 4}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">${count || ''}</text>`;
 }
 
 function glyph(sev) {

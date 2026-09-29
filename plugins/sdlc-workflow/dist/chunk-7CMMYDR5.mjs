@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   pageHref
-} from "./chunk-U4XWDSQ3.mjs";
+} from "./chunk-Y7H4JJAK.mjs";
 import {
   escapeHtml
 } from "./chunk-3RXHOXIK.mjs";
@@ -68,7 +68,7 @@ function sliceCard({ slug, fm = {}, meta = [], href }) {
 }
 function sliceGridFigure(slices, markerId = "slice-arrow") {
   if (!slices.length) {
-    return `<svg viewBox="0 0 600 80" width="100%"><text x="300" y="44" text-anchor="middle" fill="#8a8377" font-size="13">No slices yet</text></svg>`;
+    return `<svg viewBox="0 0 600 80" width="100%"><text x="300" y="44" text-anchor="middle" fill="var(--ink-3)" font-size="13">No slices yet</text></svg>`;
   }
   const bySlug = new Map(slices.map((s) => [s.slug, s]));
   const depsOf = (s) => (Array.isArray(s.fm["depends-on"]) ? s.fm["depends-on"] : []).filter((d) => bySlug.has(d));
@@ -114,22 +114,22 @@ function sliceGridFigure(slices, markerId = "slice-arrow") {
     const fx = from.x + from.w, fy = from.cy;
     const tx = to.x, ty = to.cy;
     const cpx = (fx + tx) / 2;
-    return `<path d="M ${fx} ${fy} C ${cpx} ${fy}, ${cpx} ${ty}, ${tx} ${ty}" fill="none" stroke="#8a8377" stroke-width="1.2" marker-end="url(#${markerId})"/>`;
+    return `<path d="M ${fx} ${fy} C ${cpx} ${fy}, ${cpx} ${ty}, ${tx} ${ty}" fill="none" stroke="var(--ink-3)" stroke-width="1.2" marker-end="url(#${markerId})"/>`;
   })).join("");
   const nodeSvg = slices.map((s) => {
     const p = pos.get(s.slug);
     if (!p) return "";
     const st = sliceState(s.fm.status);
-    const fill = st === "complete" ? "#ecf3e7" : st === "blocked" ? "#fbeaf0" : st === "in-progress" ? "#e9eef4" : "#fbfaf6";
-    const stroke = st === "complete" ? "#3e7d4a" : st === "blocked" ? "#b5305f" : st === "in-progress" ? "#4a6c8c" : "#cbc4b1";
+    const fill = st === "complete" ? "var(--low-bg)" : st === "blocked" ? "var(--blocker-bg)" : st === "in-progress" ? "var(--accent-soft)" : "var(--paper)";
+    const stroke = st === "complete" ? "var(--low)" : st === "blocked" ? "var(--blocker)" : st === "in-progress" ? "var(--accent)" : "var(--rule-2)";
     const dash = st === "not-started" ? ' stroke-dasharray="3 2"' : "";
     return `<rect x="${p.x}" y="${p.y}" width="${nodeW}" height="${nodeH}" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="1.2"${dash}/>
-      <text x="${p.x + 12}" y="${p.y + 20}" font-size="11" font-weight="600" fill="#1f1b16">${escapeHtml((s.slug || "").slice(0, 22))}</text>
-      <text x="${p.x + 12}" y="${p.y + 36}" font-size="9" fill="#8a8377">${escapeHtml(st === "in-progress" ? "in progress" : st)}</text>`;
+      <text x="${p.x + 12}" y="${p.y + 20}" font-size="11" font-weight="600" fill="var(--ink)">${escapeHtml((s.slug || "").slice(0, 22))}</text>
+      <text x="${p.x + 12}" y="${p.y + 36}" font-size="9" fill="var(--ink-3)">${escapeHtml(st === "in-progress" ? "in progress" : st)}</text>`;
   }).join("");
   const defs = `<defs>
     <marker id="${markerId}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a8377"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ink-3)"/>
     </marker>
   </defs>`;
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="Slice dependency graph">

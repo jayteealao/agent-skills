@@ -2,11 +2,11 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderSimple
-} from "../chunk-YVS5HJJI.mjs";
+} from "../chunk-ZVJXREMW.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-M4L3PWUR.mjs";
+} from "../chunk-U5DXOZ5H.mjs";
 import {
   evenX
 } from "../chunk-RFW2L66D.mjs";
@@ -15,7 +15,7 @@ import {
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-U4XWDSQ3.mjs";
+} from "../chunk-Y7H4JJAK.mjs";
 import {
   escapeHtml
 } from "../chunk-3RXHOXIK.mjs";
@@ -27,11 +27,11 @@ import "../chunk-SGA7NFMW.mjs";
 // renderers/ship-run.mjs
 var SHIP_STAGE_ORDER = ["build", "test", "stage", "canary", "prod"];
 var STAGE_STATUS_COLOR = {
-  ok: { fill: "#3e7d4a", stroke: "#3e7d4a" },
-  flake: { fill: "#d4a72c", stroke: "#a07b1b" },
-  fail: { fill: "#b5305f", stroke: "#b5305f" },
-  running: { fill: "#4a6c8c", stroke: "#4a6c8c" },
-  pending: { fill: "#fbfaf6", stroke: "#cbc4b1" }
+  ok: { fill: "var(--low)", stroke: "var(--low)" },
+  flake: { fill: "var(--warn-fill)", stroke: "var(--warn)" },
+  fail: { fill: "var(--blocker)", stroke: "var(--blocker)" },
+  running: { fill: "var(--accent)", stroke: "var(--accent)" },
+  pending: { fill: "var(--paper)", stroke: "var(--rule-2)" }
 };
 var CHECK_RESULT_TONE = {
   pass: "ok",
@@ -141,13 +141,13 @@ function stagesTimeline(stages) {
   const W = 760, H = 130, padX = 40;
   const xs = evenX(W, padX, present.length);
   const cy = 60;
-  const rail = `<line x1="${padX}" y1="${cy}" x2="${W - padX}" y2="${cy}" stroke="#cbc4b1" stroke-width="2"/>`;
+  const rail = `<line x1="${padX}" y1="${cy}" x2="${W - padX}" y2="${cy}" stroke="var(--rule-2)" stroke-width="2"/>`;
   const stations = present.map((name, i) => {
     const s = byName.get(name);
     const c = STAGE_STATUS_COLOR[s.status] ?? STAGE_STATUS_COLOR.pending;
     const x = xs[i];
-    const label = `<text x="${x}" y="${cy + 28}" text-anchor="middle" font-size="11" fill="#1f1b16" font-weight="500">${escapeHtml(name)}</text>`;
-    const stat = `<text x="${x}" y="${cy + 44}" text-anchor="middle" font-size="10" fill="#8a8377">${escapeHtml(s.status)}</text>`;
+    const label = `<text x="${x}" y="${cy + 28}" text-anchor="middle" font-size="11" fill="var(--ink)" font-weight="500">${escapeHtml(name)}</text>`;
+    const stat = `<text x="${x}" y="${cy + 44}" text-anchor="middle" font-size="10" fill="var(--ink-3)">${escapeHtml(s.status)}</text>`;
     return `<circle cx="${x}" cy="${cy}" r="9" fill="${c.fill}" stroke="${c.stroke}" stroke-width="2"/>${label}${stat}`;
   }).join("");
   return `<section class="ship-stages">

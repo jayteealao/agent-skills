@@ -158,7 +158,8 @@ function detectInlineSnippets(text) {
 // shares it; re-exported here for the existing callers and tests.
 export {
   parseFragmentTree, checkExplainer, countSentences, countWords, isExplainerFragmentPath,
-  SUMMARY_MAX_SENTENCES, SUMMARY_MAX_WORDS,
+  SUMMARY_MAX_SENTENCES, SUMMARY_MAX_WORDS, EXPLAINER_SNIPPETS, BODY_MIN_WORDS, MIN_VISUALS,
+  explainerKind, isMostlyNumbers,
 } from '../lib/explainer-check.mjs';
 
 function normalizeYamlScalars(value) {
@@ -180,7 +181,7 @@ function validateFragment(absPath, ajv, siblingSchemas) {
   // an unparseable file is the one error). It is checked by its name, even
   // before its agent file exists (the stage may write the explainer first).
   if (isExplainerFragmentPath(absPath)) {
-    return checkExplainer(readFileSync(absPath, 'utf-8'));
+    return checkExplainer(readFileSync(absPath, 'utf-8'), absPath);
   }
 
   // Tier 2 — free narrative fragments (`<stem>.<label>.html.fragment`) are

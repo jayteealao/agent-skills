@@ -322,7 +322,7 @@ function health(fm) {
 export function swimlanesSvg(active = [], shipped = []) {
   const rows = [...active, ...shipped];
   if (!rows.length) {
-    return `<svg viewBox="0 0 600 80" width="100%"><text x="300" y="44" text-anchor="middle" fill="#8a8377" font-size="13">No workflows yet</text></svg>`;
+    return `<svg viewBox="0 0 600 80" width="100%"><text x="300" y="44" text-anchor="middle" fill="var(--ink-3)" font-size="13">No workflows yet</text></svg>`;
   }
   const W = 980;
   const rowH = 46;
@@ -337,10 +337,10 @@ export function swimlanesSvg(active = [], shipped = []) {
 
   // Stage column headers + faint vertical column rules spanning every row (D3.2).
   const header = STAGES.map((s, i) =>
-    `<text x="${xs[i]}" y="${top - 22}" text-anchor="middle" font-size="10" font-weight="600" fill="#8a8377" letter-spacing="1.2">${s.toUpperCase()}</text>`,
+    `<text x="${xs[i]}" y="${top - 22}" text-anchor="middle" font-size="10" font-weight="600" fill="var(--ink-3)" letter-spacing="1.2">${s.toUpperCase()}</text>`,
   ).join('');
   const colRules = STAGES.map((s, i) =>
-    `<line x1="${xs[i]}" y1="${railTop}" x2="${xs[i]}" y2="${railBot}" stroke="#e0dbcd" stroke-width="1"/>`,
+    `<line x1="${xs[i]}" y1="${railTop}" x2="${xs[i]}" y2="${railBot}" stroke="var(--rule)" stroke-width="1"/>`,
   ).join('');
 
   let separator = '';
@@ -353,8 +353,8 @@ export function swimlanesSvg(active = [], shipped = []) {
     // SHIPPED separator rule + mono label before the first shipped row (D3.4).
     if (shipped.length && ri === shippedStart) {
       const sy = y - rowH / 2 - 2;
-      separator = `<line x1="20" y1="${sy}" x2="${W - 20}" y2="${sy}" stroke="#cbc4b1" stroke-width="1" stroke-dasharray="2 3"/>
-        <text x="20" y="${sy + 14}" font-size="9" font-weight="700" letter-spacing="1.5" fill="#8a8377" font-family="ui-monospace, monospace">SHIPPED</text>`;
+      separator = `<line x1="20" y1="${sy}" x2="${W - 20}" y2="${sy}" stroke="var(--rule-2)" stroke-width="1" stroke-dasharray="2 3"/>
+        <text x="20" y="${sy + 14}" font-size="9" font-weight="700" letter-spacing="1.5" fill="var(--ink-3)" font-family="ui-monospace, monospace">SHIPPED</text>`;
     }
 
     const declaredIdx = STAGES.indexOf(fm['current-stage'] ?? 'intake');
@@ -364,13 +364,13 @@ export function swimlanesSvg(active = [], shipped = []) {
     // Solid ink progress overlay first-station→current (D3.3); dashed tail over
     // the not-yet-reached stages.
     const progress = currentIdx > 0
-      ? `<line x1="${xs[0]}" y1="${y}" x2="${xs[currentIdx]}" y2="${y}" stroke="#1f1b16" stroke-width="1.5"/>`
+      ? `<line x1="${xs[0]}" y1="${y}" x2="${xs[currentIdx]}" y2="${y}" stroke="var(--ink)" stroke-width="1.5"/>`
       : '';
     const tailDash = currentIdx < STAGES.length - 1
-      ? `<line x1="${xs[currentIdx]}" y1="${y}" x2="${xs[STAGES.length - 1]}" y2="${y}" stroke="#cbc4b1" stroke-width="1" stroke-dasharray="2 3"/>`
+      ? `<line x1="${xs[currentIdx]}" y1="${y}" x2="${xs[STAGES.length - 1]}" y2="${y}" stroke="var(--rule-2)" stroke-width="1" stroke-dasharray="2 3"/>`
       : '';
 
-    const slugLabel = `<text x="20" y="${y + 4}" font-size="11" fill="#1f1b16"><tspan font-family="ui-monospace, monospace">${escapeHtml(slug.slice(0, 20))}</tspan></text>`;
+    const slugLabel = `<text x="20" y="${y + 4}" font-size="11" fill="var(--ink)"><tspan font-family="ui-monospace, monospace">${escapeHtml(slug.slice(0, 20))}</tspan></text>`;
 
     const dots = STAGES.map((s, i) => {
       const x = xs[i];
@@ -381,16 +381,16 @@ export function swimlanesSvg(active = [], shipped = []) {
       // dot falling through to the queued branch — P1 #1.)
       const done = isShipped ? true : currentIdx > i;
       if (isCur) {
-        const c = blocked ? '#b5305f' : '#4a6c8c';
+        const c = blocked ? 'var(--blocker)' : 'var(--accent)';
         return `<circle cx="${x}" cy="${y}" r="10" fill="none" stroke="${c}" stroke-width="1.2" opacity="0.5"/><circle cx="${x}" cy="${y}" r="7" fill="${c}" stroke="${c}" stroke-width="1.5"/>`;
       }
       if (done) {
         // Decision 5 (2026-06-04) — all done dots are ink, matching the hand-off
         // (DASH-10). The active-row green "in-flight health" extension was reverted.
-        return `<circle cx="${x}" cy="${y}" r="5" fill="#1f1b16" stroke="#1f1b16" stroke-width="1.5"/>`;
+        return `<circle cx="${x}" cy="${y}" r="5" fill="var(--ink)" stroke="var(--ink)" stroke-width="1.5"/>`;
       }
       // queued / not started — dashed open circle (D3.5)
-      return `<circle cx="${x}" cy="${y}" r="5" fill="#fbfaf6" stroke="#cbc4b1" stroke-width="1" stroke-dasharray="2.5 2"/>`;
+      return `<circle cx="${x}" cy="${y}" r="5" fill="var(--paper)" stroke="var(--rule-2)" stroke-width="1" stroke-dasharray="2.5 2"/>`;
     }).join('');
 
     // Inline annotation beside the current dot: blockers take priority, else rev (D3.6).
@@ -398,9 +398,9 @@ export function swimlanesSvg(active = [], shipped = []) {
     const rev = fm['revision-count'] ?? fm.rev;
     let annotation = '';
     if (!isShipped && blockerCount) {
-      annotation = `<text x="${xs[currentIdx] + 11}" y="${y - 9}" font-size="9" fill="#b5305f">· ${blockerCount} blocker${blockerCount === 1 ? '' : 's'}</text>`;
+      annotation = `<text x="${xs[currentIdx] + 11}" y="${y - 9}" font-size="9" fill="var(--blocker)">· ${blockerCount} blocker${blockerCount === 1 ? '' : 's'}</text>`;
     } else if (!isShipped && rev != null && rev !== '') {
-      annotation = `<text x="${xs[currentIdx] + 11}" y="${y - 9}" font-size="9" fill="#8a8377">· rev ${escapeHtml(String(rev))}</text>`;
+      annotation = `<text x="${xs[currentIdx] + 11}" y="${y - 9}" font-size="9" fill="var(--ink-3)">· rev ${escapeHtml(String(rev))}</text>`;
     }
 
     return `${progress}${tailDash}${slugLabel}${dots}${annotation}`;

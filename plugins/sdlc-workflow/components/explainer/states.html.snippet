@@ -1,0 +1,38 @@
+{{!--
+  explainer/states — a state machine: states and the labelled transitions
+  between them. The first state is the start (a thicker border). Columns follow
+  the longest path from the start; a transition back to an earlier state curves
+  below, and a transition from a state to itself loops above it. Inline SVG, no
+  script; colours are the view's theme tokens (set through style attributes).
+
+  <!-- @include explainer/states {"title": "Order life",
+       "states": [
+         {"id": "cart", "label": "In cart"},
+         {"id": "paid", "label": "Paid", "tone": "ok"},
+         {"id": "held", "label": "On hold", "tone": "warn", "note": "fraud check"}
+       ],
+       "transitions": [
+         {"from": "cart", "to": "paid", "label": "pay"},
+         {"from": "paid", "to": "held", "label": "flag"},
+         {"from": "held", "to": "paid", "label": "clear"},
+         {"from": "cart", "to": "cart", "label": "edit"}
+       ]} -->
+
+  Parameters: title (optional), states[].id, states[].label, states[].tone
+  (optional: accent | ok | warn | bad | risk | muted), states[].note (optional;
+  listed under the figure), transitions[] as {"from", "to", "label"?} or
+  ["from", "to"].
+--}}
+<figure class="xpl xpl-states" style="margin:18px 0;padding:14px 16px;border:1px solid var(--rule);border-radius:var(--rad-md);background:var(--paper)">
+{{#each title_list}}<figcaption style="font-family:var(--sans);font-size:13px;font-weight:600;color:var(--ink-2);margin:0 0 6px">{{this}}</figcaption>{{/each}}
+<div style="overflow-x:auto">
+<svg viewBox="0 0 {{width}} {{height}}" width="100%" style="min-width:min({{width}}px,440px);max-width:{{width}}px;display:block" role="img" aria-labelledby="{{id}}-t {{id}}-d">
+<title id="{{id}}-t">{{svg_title}}</title><desc id="{{id}}-d">{{desc}}</desc>
+<defs><marker id="{{id}}-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" style="fill:var(--ink-3)"/></marker></defs>
+{{#each edges}}<path d="{{this.d}}" marker-end="url(#{{id}}-arrow)" style="fill:none;stroke:var(--ink-3);stroke-width:1.5"/>
+{{/each}}{{#each nodes}}<g><rect x="{{this.rx}}" y="{{this.ry}}" width="{{this.w}}" height="{{this.h}}" rx="20" style="fill:{{this.bg}};stroke:{{this.stroke}};stroke-width:{{this.width_px}}"/><text text-anchor="middle" style="fill:var(--ink);font-family:var(--sans);font-size:12px">{{#each this.lines}}<tspan x="{{this.x}}" y="{{this.y}}">{{this.t}}</tspan>{{/each}}</text></g>
+{{/each}}{{#each edges}}{{#each this.label_list}}<text x="{{this.x}}" y="{{this.y}}" text-anchor="middle" style="fill:var(--ink-2);font-family:var(--mono);font-size:11px;stroke:var(--paper);stroke-width:4;paint-order:stroke">{{this.t}}</text>
+{{/each}}{{/each}}</svg>
+</div>
+<ul style="margin:8px 0 0;padding-left:22px;color:var(--ink-2);font-size:14px">{{#each nodes}}{{#each this.note_list}}<li><b>{{this.label}}</b>: {{this.text}}</li>{{/each}}{{/each}}</ul>
+</figure>

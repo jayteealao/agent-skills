@@ -120,6 +120,8 @@ export function renderShell(params) {
   const versionTag = `?v=${RUNTIME.rendererBuildId ? RUNTIME.rendererBuildId.slice(0, 12) : PLUGIN_VERSION}`;
   // External (not inline) so served pages can run a strict `script-src 'self'`
   // CSP that blocks injected inline scripts. See render-sunflower-serve.mjs.
+  // explainer.js is the declarative `data-ex-*` runtime (step-through, toggle,
+  // slider) for explainer fragments; it ships from assets/ like sdlc.js.
   const liveReloadScript = liveReload
     ? `\n  <script src="${escapeHtml(assetBase)}/livereload.js" defer></script>`
     : '';
@@ -129,9 +131,11 @@ export function renderShell(params) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
   <title>${escapeHtml(title)} — sdlc</title>
   <link rel="stylesheet" href="${escapeHtml(assetBase)}/sdlc.css${versionTag}">
   <script src="${escapeHtml(assetBase)}/sdlc.js${versionTag}" defer></script>
+  <script src="${escapeHtml(assetBase)}/explainer.js${versionTag}" defer></script>
   <link rel="icon" href="${escapeHtml(assetBase)}/favicon.svg" type="image/svg+xml">
 </head>
 <body class="artifact" data-artifact-type="${escapeHtml(type)}">

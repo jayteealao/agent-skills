@@ -286,6 +286,34 @@ var EXPLAINER_SUFFIX = ".explainer.html.fragment";
 function isExplainerFragmentPath(p) {
   return String(p ?? "").replace(/\\/g, "/").endsWith(EXPLAINER_SUFFIX);
 }
+var EXPLAINER_SNIPPETS = Object.freeze([
+  "sequence",
+  "comparison",
+  "cycle",
+  "dependency",
+  "layout",
+  "trend",
+  "states",
+  "steps"
+]);
+var SLICE_STEM_RE = /^(?:03-slice|04-plan|05-implement|06-verify|07-review)-.+$/;
+var BODY_MIN_WORDS = Object.freeze({ stage: 250, slice: 150 });
+var MIN_VISUALS = Object.freeze({ stage: 2, slice: 1 });
+function explainerKind(fileName) {
+  const base = String(fileName ?? "").replace(/\\/g, "/").split("/").pop();
+  if (!base.endsWith(EXPLAINER_SUFFIX)) return null;
+  const stem = base.slice(0, -EXPLAINER_SUFFIX.length);
+  return SLICE_STEM_RE.test(stem) ? "slice" : "stage";
+}
+var ATTR_RE = /([^\s=/"'>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
+function parseAttrs(attrText) {
+  const attrs = {};
+  if (!attrText) return attrs;
+  for (const m of attrText.matchAll(ATTR_RE)) {
+    attrs[m[1].toLowerCase()] = m[2] ?? m[3] ?? m[4] ?? "";
+  }
+  return attrs;
+}
 var VOID_TAGS = /* @__PURE__ */ new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"]);
 var RAW_TEXT_TAGS = /* @__PURE__ */ new Set(["script", "style"]);
 var IMPLIED_END = /* @__PURE__ */ new Set(["p", "li", "dt", "dd", "tr", "td", "th", "option", "thead", "tbody", "tfoot"]);
@@ -297,7 +325,7 @@ function parseFragmentTree(text) {
   const TOKEN = /<!--([\s\S]*?)-->|<\/([a-zA-Z][\w:-]*)\s*>|<([a-zA-Z][\w:-]*)((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>|([^<]+)|(<)/g;
   let m;
   while ((m = TOKEN.exec(text)) !== null) {
-    const [, comment, closeTag, openTag, , selfClose, txt, stray] = m;
+    const [, comment, closeTag, openTag, attrText, selfClose, txt, stray] = m;
     if (comment !== void 0) {
       top().children.push({ type: "comment", text: comment });
     } else if (closeTag) {
@@ -310,7 +338,7 @@ function parseFragmentTree(text) {
       stack.length = i;
     } else if (openTag) {
       const tag = openTag.toLowerCase();
-      const el = { type: "el", tag, children: [] };
+      const el = { type: "el", tag, attrs: parseAttrs(attrText), children: [] };
       top().children.push(el);
       if (RAW_TEXT_TAGS.has(tag)) {
         const end = text.toLowerCase().indexOf(`</${tag}`, TOKEN.lastIndex);
@@ -335,25 +363,87 @@ function parseFragmentTree(text) {
 function isBlank(node) {
   return node.type === "text" && !node.text.trim();
 }
+var INCLUDE_RE = /^\s*@include\s+(explainer\/([a-z][a-z0-9-]*))\s*([\s\S]*?)\s*$/;
 function isExplainerInclude(node) {
   return node.type === "comment" && /^\s*@include\s+explainer\//.test(node.text);
 }
+function includeName(node) {
+  return INCLUDE_RE.exec(node.text)?.[2] ?? null;
+}
+function isKnownInclude(node) {
+  return isExplainerInclude(node) && EXPLAINER_SNIPPETS.includes(includeName(node));
+}
+var attr = (node, name) => node?.type === "el" ? node.attrs?.[name] : void 0;
+var hasAttr = (node, name) => attr(node, name) !== void 0;
+var INTERACTIVE_ATTRS = ["data-ex-steps", "data-ex-slider", "data-ex-toggle"];
+function* elementsOf(node) {
+  for (const child of node.children ?? []) {
+    if (child.type !== "el") continue;
+    yield child;
+    yield* elementsOf(child);
+  }
+}
+function* nodesOf(node) {
+  for (const child of node.children ?? []) {
+    yield child;
+    if (child.type === "el") yield* nodesOf(child);
+  }
+}
 function isVisual(node) {
-  return node.type === "el" && (node.tag === "svg" || node.tag === "figure") || isExplainerInclude(node);
+  if (isExplainerInclude(node)) return true;
+  if (node.type !== "el" || node.tag === "p") return false;
+  if (node.tag === "svg" || node.tag === "figure") return true;
+  const self = [node, ...elementsOf(node)];
+  return self.some((el) => el.tag === "svg" || INTERACTIVE_ATTRS.some((a) => hasAttr(el, a))) || [...nodesOf(node)].some(isKnownInclude);
 }
 function describe(node) {
   if (isExplainerInclude(node)) return `@include ${node.text.trim().split(/\s+/)[1]}`;
   if (node.type === "el") return `<${node.tag}>`;
   return "text";
 }
-var SUMMARY_MAX_SENTENCES = 5;
-var SUMMARY_MAX_WORDS = 90;
+var SUMMARY_MAX_SENTENCES = 3;
+var SUMMARY_MAX_WORDS = 70;
 function textOf(node) {
   if (!node) return "";
   if (node.type === "text") return node.text;
   if (node.type !== "el" || RAW_TEXT_TAGS.has(node.tag)) return "";
-  return node.children.map(textOf).join("");
+  const inner = node.children.map(textOf).join("");
+  return SPACED_TAGS.has(node.tag) ? ` ${inner} ` : inner;
 }
+var SPACED_TAGS = /* @__PURE__ */ new Set([
+  "p",
+  "li",
+  "ul",
+  "ol",
+  "div",
+  "section",
+  "article",
+  "figure",
+  "figcaption",
+  "table",
+  "tr",
+  "td",
+  "th",
+  "dl",
+  "dt",
+  "dd",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "blockquote",
+  "button",
+  "label",
+  "br",
+  "svg",
+  "g",
+  "text",
+  "tspan",
+  "title",
+  "desc"
+]);
 function plainText(node) {
   return textOf(node).replace(/&nbsp;/gi, " ").replace(/&[a-z]+;|&#\d+;/gi, "x").replace(/\s+/g, " ").trim();
 }
@@ -363,6 +453,11 @@ function countSentences(text) {
 function countWords(text) {
   return String(text ?? "").trim().split(/\s+/).filter((w) => /\w/.test(w)).length;
 }
+function isMostlyNumbers(text) {
+  const tokens = String(text ?? "").trim().split(/\s+/).filter((w) => /\w/.test(w));
+  if (!tokens.length) return false;
+  return tokens.filter((w) => /\d/.test(w)).length * 2 > tokens.length;
+}
 function* commentsOf(node) {
   for (const child of node.children ?? []) {
     if (child.type === "comment") yield child;
@@ -370,9 +465,12 @@ function* commentsOf(node) {
   }
 }
 function checkExplainerInclude(commentText) {
-  const m = /^\s*@include\s+(explainer\/[a-z][a-z0-9-]*)\s*([\s\S]*?)\s*$/.exec(commentText);
+  const m = INCLUDE_RE.exec(commentText);
   if (!m) return [];
-  const [, name, payload] = m;
+  const [, name, short, payload] = m;
+  if (!EXPLAINER_SNIPPETS.includes(short)) {
+    return [`explainer: @include ${name} is not a known snippet (use one of ${EXPLAINER_SNIPPETS.join(", ")}, or a free <svg>)`];
+  }
   let data = {};
   if (payload) {
     try {
@@ -395,7 +493,96 @@ function checkExplainerInclude(commentText) {
   }
   return warns;
 }
-function checkExplainer(text) {
+var COLOUR_ATTRS = ["fill", "stroke", "stop-color", "flood-color", "lighting-color", "color"];
+var COLOUR_PROP_RE = /(?:^|[;{\s])(fill|stroke|stop-color|flood-color|lighting-color|color|background(?:-color)?)\s*:\s*([^;}"]+)/gi;
+var COLOUR_KEYWORDS = /^(?:none|currentcolor|transparent|inherit|initial|unset|revert|context-fill|context-stroke)$/i;
+function isHardColour(value) {
+  const v = String(value ?? "").trim().replace(/\s*!important$/i, "");
+  if (!v || COLOUR_KEYWORDS.test(v)) return false;
+  if (/^var\(/i.test(v) || /^url\(/i.test(v)) return false;
+  return true;
+}
+function hardColoursIn(svg) {
+  const found = [];
+  for (const el of [svg, ...elementsOf(svg)]) {
+    for (const a of COLOUR_ATTRS) {
+      if (isHardColour(attr(el, a))) found.push(`${a}="${attr(el, a)}"`);
+    }
+    const css = [attr(el, "style") ?? ""];
+    if (el.tag === "style") css.push(textOf({ ...el, tag: "x" }));
+    for (const text of css) {
+      for (const m of text.matchAll(COLOUR_PROP_RE)) {
+        if (isHardColour(m[2])) found.push(`${m[1]}: ${m[2].trim()}`);
+      }
+    }
+  }
+  return found;
+}
+function checkFreeSvg(svg, n) {
+  const warns = [];
+  if (![...elementsOf(svg)].some((el) => el.tag === "title")) {
+    warns.push(`explainer: <svg> #${n} has no <title>; give it a <title> that names what it shows`);
+  }
+  const hard = hardColoursIn(svg);
+  if (hard.length) {
+    warns.push(`explainer: <svg> #${n} hard-codes colours (${[...new Set(hard)].slice(0, 3).join(", ")}); use theme tokens, var(--\u2026), so it follows light and dark`);
+  }
+  return warns;
+}
+function checkInteractive(tree) {
+  const warns = [];
+  const els = [...elementsOf(tree)];
+  const groups = (name) => new Set(els.filter((el) => hasAttr(el, name)).map((el) => attr(el, name)));
+  const frames = groups("data-ex-frames");
+  const panels = groups("data-ex-panel");
+  for (const g of groups("data-ex-slider")) {
+    if (!frames.has(g)) warns.push(`explainer: slider data-ex-slider="${g}" has no [data-ex-frames="${g}"]; add the precomputed frames`);
+  }
+  for (const g of groups("data-ex-toggle")) {
+    if (!panels.has(g)) warns.push(`explainer: toggle data-ex-toggle="${g}" has no [data-ex-panel="${g}"]; add a panel for each button`);
+  }
+  for (const el of els.filter((e) => hasAttr(e, "data-ex-steps"))) {
+    const steps = [...elementsOf(el)].filter((e) => hasAttr(e, "data-ex-step")).length;
+    if (steps < 2) warns.push(`explainer: a [data-ex-steps] block has ${steps} [data-ex-step]; a step-through needs at least two`);
+  }
+  return warns;
+}
+function collectVisuals(tree) {
+  let count = 0;
+  const svgs = [];
+  const groups = /* @__PURE__ */ new Set();
+  const walk = (node, inInteractive) => {
+    for (const child of node.children ?? []) {
+      if (child.type === "comment") {
+        if (isKnownInclude(child) && !inInteractive) count++;
+        continue;
+      }
+      if (child.type !== "el") continue;
+      let inside = inInteractive;
+      if (hasAttr(child, "data-ex-steps")) {
+        if (!inInteractive) count++;
+        inside = true;
+      }
+      for (const [a, kind] of [["data-ex-slider", "slider"], ["data-ex-toggle", "toggle"]]) {
+        if (hasAttr(child, a) && !groups.has(`${kind}:${attr(child, a)}`)) {
+          groups.add(`${kind}:${attr(child, a)}`);
+          count++;
+        }
+      }
+      if (hasAttr(child, "data-ex-frames") || hasAttr(child, "data-ex-panel")) inside = true;
+      if (child.tag === "svg") {
+        svgs.push(child);
+        if (!inside) count++;
+        continue;
+      }
+      walk(child, inside);
+    }
+  };
+  walk(tree, false);
+  return { count, svgs };
+}
+var NO_VISUAL_RE = /^\s*no-visual\s*:\s*\S/;
+function checkExplainer(text, fileName = null) {
   const errs = [];
   const warns = [];
   let tree;
@@ -405,16 +592,17 @@ function checkExplainer(text) {
     errs.push(`explainer does not parse: ${err.message}`);
     return { errs, warns };
   }
+  const kind = explainerKind(fileName);
   const lower = String(text).toLowerCase();
   for (const tag of ["<html", "<head", "<body"]) {
     if (new RegExp(`${tag}[\\s>]`).test(lower)) warns.push(`explainer: remove ${tag}> (a fragment is not a full document)`);
   }
   if (/<script[\s>]/.test(lower)) {
-    warns.push("explainer: <script> never runs in the view (CSP script-src 'self'); use CSS-only interaction or remove it");
+    warns.push("explainer: remove the <script>; the view runs one script (assets/explainer.js) and inline scripts never run (CSP script-src 'self'); use data-ex-* markup for interaction");
   }
   const blocksOf = (el) => el.children.filter((n) => !isBlank(n) && !(n.type === "comment" && !isExplainerInclude(n)) && !(n.type === "el" && n.tag === "style"));
   let blocks = blocksOf(tree);
-  while (blocks.length === 1 && blocks[0].type === "el" && WRAPPER_TAGS.has(blocks[0].tag)) {
+  while (blocks.length === 1 && blocks[0].type === "el" && WRAPPER_TAGS.has(blocks[0].tag) && !INTERACTIVE_ATTRS.some((a) => hasAttr(blocks[0], a))) {
     blocks = blocksOf(blocks[0]);
   }
   if (!blocks.length) {
@@ -422,14 +610,16 @@ function checkExplainer(text) {
     return { errs, warns };
   }
   const isP = (n) => n?.type === "el" && n.tag === "p";
-  if (!isP(blocks[0])) {
+  const isList = (n) => n?.type === "el" && (n.tag === "ul" || n.tag === "ol");
+  const hasSummary = isP(blocks[0]);
+  if (!hasSummary) {
     warns.push(`explainer: open with a plain summary <p> (first element is ${describe(blocks[0])})`);
   } else {
     const summary = plainText(blocks[0]);
     const sentences = countSentences(summary);
     const words = countWords(summary);
     if (sentences > SUMMARY_MAX_SENTENCES) {
-      warns.push(`explainer: the summary <p> has ${sentences} sentences; keep it to two to ${SUMMARY_MAX_SENTENCES} and move detail below it`);
+      warns.push(`explainer: the summary <p> has ${sentences} sentences; keep it to two or ${SUMMARY_MAX_SENTENCES} and move detail below it`);
     }
     if (words > SUMMARY_MAX_WORDS) {
       warns.push(`explainer: the summary <p> has ${words} words; keep it under about ${SUMMARY_MAX_WORDS} and move detail below it`);
@@ -438,14 +628,36 @@ function checkExplainer(text) {
   for (const c of commentsOf(tree)) {
     if (isExplainerInclude(c)) warns.push(...checkExplainerInclude(c.text));
   }
+  const { count: visuals, svgs } = collectVisuals(tree);
+  svgs.forEach((svg, i) => warns.push(...checkFreeSvg(svg, i + 1)));
+  warns.push(...checkInteractive(tree));
+  if (kind) {
+    const body = blocks.slice(hasSummary ? 1 : 0).map(plainText).join(" ");
+    const bodyWords = countWords(body);
+    const floor = BODY_MIN_WORDS[kind];
+    if (bodyWords < floor) {
+      warns.push(`explainer: the body has ${bodyWords} words beyond the summary; a ${kind === "slice" ? "per-slice" : "stage"} explainer needs about ${floor} \u2014 explain what was built or decided, how it works, why (and what was rejected), and what it means`);
+    }
+    const escaped = [...commentsOf(tree)].some((c) => NO_VISUAL_RE.test(c.text));
+    if (!escaped && visuals < MIN_VISUALS[kind]) {
+      warns.push(`explainer: ${visuals} visual${visuals === 1 ? "" : "s"}; a ${kind === "slice" ? "per-slice explainer needs at least one" : "stage explainer normally has two or more"} \u2014 add a visual for each part with structure, or say in the text why there is none (<!-- no-visual: <reason> -->)`);
+    }
+  }
+  const GROUP_ATTRS = [...INTERACTIVE_ATTRS, "data-ex-panel", "data-ex-frames"];
+  const interactive = (n) => n?.type === "el" && [n, ...elementsOf(n)].some((el) => GROUP_ATTRS.some((a) => hasAttr(el, a)));
+  const continuesGroup = (n, prev) => n.type === "el" && (hasAttr(n, "data-ex-panel") || hasAttr(n, "data-ex-frames")) && interactive(prev);
   blocks.forEach((n, i) => {
     if (!isVisual(n)) return;
+    if (continuesGroup(n, blocks[i - 1])) return;
     if (!isP(blocks[i - 1])) {
       warns.push(`explainer: put one <p> sentence before ${describe(n)} #${blocks.slice(0, i + 1).filter(isVisual).length} that says what it shows`);
     }
   });
-  if (!isP(blocks[blocks.length - 1]) || blocks.length < 2) {
-    warns.push("explainer: close with a short recap <p>");
+  const last = blocks[blocks.length - 1];
+  if (!(isP(last) || isList(last)) || blocks.length < 2) {
+    warns.push("explainer: close with a short recap <p> or list");
+  } else if (isMostlyNumbers(plainText(last).replace(/^recap:?\s*/i, ""))) {
+    warns.push("explainer: the recap is mostly numbers; restate the ideas, not the counts");
   }
   return { errs, warns };
 }
@@ -927,7 +1139,7 @@ async function lintExplainers(paths, config) {
   for (const path of paths) {
     const text = await readTextIfExists(path.absolute);
     if (text === null) continue;
-    const { errs, warns } = checkExplainer(text);
+    const { errs, warns } = checkExplainer(text, path.original);
     for (const w of [...errs, ...warns]) lines2.push(`  - ${path.original}: ${w}`);
   }
   if (!lines2.length) return;

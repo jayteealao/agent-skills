@@ -714,7 +714,7 @@ async function lintExplainers(paths, config) {
   for (const path of paths) {
     const text = await readTextIfExists(path.absolute);
     if (text === null) continue;
-    const { errs, warns } = checkExplainer(text);
+    const { errs, warns } = checkExplainer(text, path.original);
     for (const w of [...errs, ...warns]) lines.push(`  - ${path.original}: ${w}`);
   }
   if (!lines.length) return;

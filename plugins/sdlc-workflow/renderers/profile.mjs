@@ -60,9 +60,9 @@ export function render(artifact, ctx) {
         title: 'Before / after',
         svgInner: comparisonFigure(sy.comparisons),
         legend: [
-          { swatch: '#cbc4b1', label: 'before' },
-          { swatch: '#3e7d4a', label: 'after — improved' },
-          { swatch: '#b5305f', label: 'after — regressed' },
+          { swatch: 'var(--rule-2)', label: 'before' },
+          { swatch: 'var(--low)', label: 'after — improved' },
+          { swatch: 'var(--blocker)', label: 'after — regressed' },
         ],
       })
     : '';
@@ -138,15 +138,15 @@ function comparisonFigure(comparisons) {
     const afterW  = (after  / max) * barAreaW;
     const isLower = c.direction !== 'higher-is-better';
     const improved = isLower ? after < before : after > before;
-    const afterColor = improved ? '#3e7d4a' : '#b5305f';
+    const afterColor = improved ? 'var(--low)' : 'var(--blocker)';
     const deltaPct = before === 0 ? 0 : ((after - before) / before) * 100;
     const deltaSign = deltaPct > 0 ? '+' : '';
     const deltaLabel = `${deltaSign}${deltaPct.toFixed(1)}%`;
     const unit = c.unit ? ` ${escapeHtml(c.unit)}` : '';
     return `<g>
-      <text x="${padX - 8}" y="${y + 16}" text-anchor="end" font-size="11" fill="#1f1b16">${escapeHtml(c.metric)}</text>
-      <rect x="${padX}" y="${y + 4}" width="${beforeW}" height="12" fill="#cbc4b1"/>
-      <text x="${padX + beforeW + 6}" y="${y + 14}" font-size="10" fill="#4a443c">${before}${unit}</text>
+      <text x="${padX - 8}" y="${y + 16}" text-anchor="end" font-size="11" fill="var(--ink)">${escapeHtml(c.metric)}</text>
+      <rect x="${padX}" y="${y + 4}" width="${beforeW}" height="12" fill="var(--rule-2)"/>
+      <text x="${padX + beforeW + 6}" y="${y + 14}" font-size="10" fill="var(--ink-2)">${before}${unit}</text>
       <rect x="${padX}" y="${y + 22}" width="${afterW}" height="12" fill="${afterColor}"/>
       <text x="${padX + afterW + 6}" y="${y + 32}" font-size="10" fill="${afterColor}" font-weight="600">${after}${unit} (${deltaLabel})</text>
     </g>`;

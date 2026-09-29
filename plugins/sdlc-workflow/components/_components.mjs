@@ -25,6 +25,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   prepareSequence, prepareComparison, prepareCycle, prepareDependency,
+  prepareLayout, prepareTrend, prepareStates, prepareSteps,
 } from './explainer/_prepare.mjs';
 
 // A snippet name is one segment (`callout`) or a folder path of segments
@@ -40,6 +41,10 @@ const PREPARERS = {
   'explainer/comparison': prepareComparison,
   'explainer/cycle':      prepareCycle,
   'explainer/dependency': prepareDependency,
+  'explainer/layout':     prepareLayout,
+  'explainer/trend':      prepareTrend,
+  'explainer/states':     prepareStates,
+  'explainer/steps':      prepareSteps,
 };
 
 // `{{!-- … --}}` doc comments are removed before substitution, so a snippet

@@ -42,7 +42,7 @@ A fragment is **additive**: a detail block the renderer appends *below* the page
 
 ## Shared snippets
 
-Prefer snippets from `../../../components/` instead of hand-copying shared chrome: `metric-row`, `callout`, `verdict`, `severity-chip`, `fragment-ready`, `files-touched-row`, `diff-block`. The explainer snippets (`explainer/sequence`, `explainer/comparison`, `explainer/cycle`, `explainer/dependency`) are listed in [_story-arc.md](_story-arc.md) rule A5. Example:
+Prefer snippets from `../../../components/` instead of hand-copying shared chrome: `metric-row`, `callout`, `verdict`, `severity-chip`, `fragment-ready`, `files-touched-row`, `diff-block`. The explainer snippets and the interaction markup are in [_story-arc.md](_story-arc.md) rules A5 and A7. Example:
 
 ```html
 <!-- @include fragment-ready { "name": "plan", "artifact": "plan",

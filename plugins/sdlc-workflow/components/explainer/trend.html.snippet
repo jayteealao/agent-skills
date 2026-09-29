@@ -1,0 +1,32 @@
+{{!--
+  explainer/trend — data over time or across groups: a line chart with axes,
+  x labels, a value on each point, and a legend when there are two or more
+  series. Inline SVG, no script; colours are the view's theme tokens (set
+  through style attributes so var() applies).
+
+  <!-- @include explainer/trend {"title": "Build time per week", "unit": "min",
+       "x": ["W1", "W2", "W3", "W4"],
+       "series": [
+         {"label": "Before cache", "values": [14, 15, 15, 16], "tone": "bad"},
+         {"label": "After cache", "values": [14, 9, 8, 8], "tone": "ok"}
+       ]} -->
+
+  Parameters: title (optional), unit (optional), x[] (the x labels),
+  series[].label, series[].values[] (numbers; a missing value leaves a gap),
+  series[].tone (optional: accent | ok | warn | bad | risk | muted), min and
+  max (optional; default the data range rounded out to a tick).
+--}}
+<figure class="xpl xpl-trend" style="margin:18px 0;padding:14px 16px;border:1px solid var(--rule);border-radius:var(--rad-md);background:var(--paper)">
+{{#each title_list}}<figcaption style="font-family:var(--sans);font-size:13px;font-weight:600;color:var(--ink-2);margin:0 0 6px">{{this}}</figcaption>{{/each}}
+{{#each legend_list}}<div style="display:flex;flex-wrap:wrap;gap:4px 16px;margin:0 0 6px;font-family:var(--sans);font-size:12.5px;color:var(--ink-2)">{{#each this.items}}<span style="display:inline-flex;align-items:center;gap:6px"><span aria-hidden="true" style="display:inline-block;width:22px;border-top:3px {{this.border}} {{this.color}}"></span>{{this.label}}</span>{{/each}}</div>{{/each}}
+<div style="overflow-x:auto">
+<svg viewBox="0 0 {{width}} {{height}}" width="100%" style="min-width:300px;max-width:{{width}}px;display:block" role="img" aria-labelledby="{{id}}-t {{id}}-d">
+<title id="{{id}}-t">{{svg_title}}</title><desc id="{{id}}-d">{{desc}}</desc>
+{{#each ticks}}<line x1="{{axis_x0}}" x2="{{axis_x1}}" y1="{{this.y}}" y2="{{this.y}}" style="stroke:var(--rule);stroke-width:1"/><text x="{{this.x}}" y="{{this.ty}}" text-anchor="end" style="fill:var(--ink-3);font-family:var(--mono);font-size:12px">{{this.text}}</text>
+{{/each}}<line x1="{{axis_x0}}" x2="{{axis_x0}}" y1="{{axis_y0}}" y2="{{axis_y1}}" style="stroke:var(--rule-2);stroke-width:1.2"/><line x1="{{axis_x0}}" x2="{{axis_x1}}" y1="{{axis_y1}}" y2="{{axis_y1}}" style="stroke:var(--rule-2);stroke-width:1.2"/>
+{{#each unit_list}}<text x="{{this.x}}" y="{{this.y}}" text-anchor="end" style="fill:var(--ink-3);font-family:var(--mono);font-size:12px">{{this.t}}</text>{{/each}}
+{{#each x_ticks}}<text x="{{this.x}}" y="{{this.y}}" text-anchor="middle" style="fill:var(--ink-2);font-family:var(--sans);font-size:13px">{{this.t}}</text>
+{{/each}}{{#each series}}<g>{{#each this.d_list}}<path d="{{this.d}}" style="fill:none;stroke:{{this.color}};stroke-width:2.4;stroke-linejoin:round;stroke-linecap:round;stroke-dasharray:{{this.dash}}"/>{{/each}}{{#each this.points}}<circle cx="{{this.cx}}" cy="{{this.cy}}" r="3.6" style="fill:var(--paper);stroke:{{this.color}};stroke-width:2"><title>{{this.tip}}</title></circle>{{#each this.label_list}}<text x="{{this.x}}" y="{{this.y}}" text-anchor="middle" style="fill:var(--ink-2);font-family:var(--mono);font-size:11.5px;stroke:var(--paper);stroke-width:3;paint-order:stroke">{{this.t}}</text>{{/each}}{{/each}}</g>
+{{/each}}</svg>
+</div>
+</figure>

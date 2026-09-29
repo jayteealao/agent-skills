@@ -1,0 +1,26 @@
+{{!--
+  explainer/steps — a step-through. The view's explainer.js runtime shows one
+  step at a time with Previous/Next buttons and a "Step n of N" label; without
+  the runtime every step shows as a numbered list. Pure HTML + CSS, no script
+  in the snippet; colours are the view's theme tokens.
+
+  <!-- @include explainer/steps {"title": "What happens on save",
+       "steps": [
+         {"label": "Validate", "text": "The form checks each field."},
+         {"label": "Write", "text": "One transaction writes the row.", "tone": "ok"},
+         {"label": "Notify", "text": "Watchers get an event.", "tone": "muted"}
+       ]} -->
+
+  Parameters: title (optional), steps[].label, steps[].text (optional),
+  steps[].tone (optional: accent | ok | warn | bad | risk | muted). A step may
+  also be a plain string (the label).
+--}}
+<figure class="xpl xpl-steps" style="margin:18px 0;padding:14px 16px;border:1px solid var(--rule);border-radius:var(--rad-md);background:var(--paper)">
+{{#each title_list}}<figcaption style="font-family:var(--sans);font-size:13px;font-weight:600;color:var(--ink-2);margin:0 0 10px">{{this}}</figcaption>{{/each}}
+<ol data-ex-steps aria-label="{{aria}}" style="list-style:none;margin:0;padding:0;display:grid;gap:10px">
+{{#each steps}}<li data-ex-step style="display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start;margin:0;padding:10px 12px;border:1px solid var(--rule);border-left:3px solid {{this.color}};border-radius:var(--rad-sm);background:var(--paper-2)">
+<span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:{{this.color}};color:var(--on-fill);font-family:var(--mono);font-size:12px;font-weight:600">{{this.n}}</span>
+<div style="min-width:0"><div style="font-weight:600;color:var(--ink);font-size:15px;line-height:1.4">{{this.label}}</div>{{#each this.text_list}}<div style="color:var(--ink-2);font-size:14.5px;line-height:1.55;margin-top:3px">{{this}}</div>{{/each}}</div>
+</li>
+{{/each}}</ol>
+</figure>

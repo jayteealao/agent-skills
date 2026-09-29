@@ -68,7 +68,9 @@ renderer for its <code>type</code>, and emits the HTML site under <code>.ai/_vie
 review renders differently from a plan or a ship run. When a stage artifact has an explainer
 fragment, its page opens with the explainer, then shows what waits for you, the stage's
 contract as a table, and a collapsed part with the evidence, the history, and the full agent
-file. An older artifact without an explainer keeps its earlier page. The default mode is additive: the render
+file. The explainer's step-throughs, toggles, and sliders run on one script that the view
+serves itself, and the page follows the light or the dark theme. An older artifact without an
+explainer keeps its earlier page. The default mode is additive: the render
 engine only re-renders an artifact whose sources are newer than its rendered counterpart.</li>
 <li><strong>The browser reloads.</strong> The SSE live-reload channel tells any open view to
 refresh.</li>

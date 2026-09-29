@@ -5,11 +5,11 @@ import {
 } from "./chunk-VQ7FT7IB.mjs";
 import {
   renderSimple
-} from "./chunk-YVS5HJJI.mjs";
+} from "./chunk-ZVJXREMW.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "./chunk-M4L3PWUR.mjs";
+} from "./chunk-U5DXOZ5H.mjs";
 import {
   figureCanvas
 } from "./chunk-RFW2L66D.mjs";
@@ -18,7 +18,7 @@ import {
   metricRow,
   stageBadge,
   statusBadge
-} from "./chunk-U4XWDSQ3.mjs";
+} from "./chunk-Y7H4JJAK.mjs";
 import {
   escapeHtml
 } from "./chunk-3RXHOXIK.mjs";
@@ -136,20 +136,20 @@ function timelineFigure(sy) {
   const cy = 65;
   const xs = events.map((_, i) => padX + i * (width - 2 * padX) / Math.max(1, events.length - 1));
   const kindColor = {
-    alert: "#b5305f",
-    escalation: "#a07417",
-    deploy: "#4a6c8c",
-    mitigation: "#6b4a8a",
-    resolution: "#3e7d4a"
+    alert: "var(--blocker)",
+    escalation: "var(--med)",
+    deploy: "var(--accent)",
+    mitigation: "var(--violet)",
+    resolution: "var(--low)"
   };
-  const rail = `<line x1="${padX}" y1="${cy}" x2="${width - padX}" y2="${cy}" stroke="#cbc4b1" stroke-width="2"/>`;
+  const rail = `<line x1="${padX}" y1="${cy}" x2="${width - padX}" y2="${cy}" stroke="var(--rule-2)" stroke-width="2"/>`;
   const dots = events.map((event, i) => {
     const x = xs[i];
-    const color = kindColor[event.kind] ?? "#4a6c8c";
+    const color = kindColor[event.kind] ?? "var(--accent)";
     return `<g><circle cx="${x}" cy="${cy}" r="9" fill="${color}"/>
-      <text x="${x}" y="${cy - 18}" text-anchor="middle" font-size="10" fill="#4a443c">${escapeHtml(event.at ?? "")}</text>
+      <text x="${x}" y="${cy - 18}" text-anchor="middle" font-size="10" fill="var(--ink-2)">${escapeHtml(event.at ?? "")}</text>
       <text x="${x}" y="${cy + 26}" text-anchor="middle" font-size="10" font-weight="600" fill="${color}">${escapeHtml(String(event.kind ?? "").toUpperCase())}</text>
-      <text x="${x}" y="${cy + 40}" text-anchor="middle" font-size="9" fill="#1f1b16">${escapeHtml(String(event.title ?? "").slice(0, 22))}</text></g>`;
+      <text x="${x}" y="${cy + 40}" text-anchor="middle" font-size="9" fill="var(--ink)">${escapeHtml(String(event.title ?? "").slice(0, 22))}</text></g>`;
   }).join("");
   return `<svg viewBox="0 0 ${width} ${height}" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="Incident timeline">${rail}${dots}</svg>`;
 }
@@ -162,18 +162,18 @@ function causalChainFigure(sy) {
   const cells = steps.map((step, i) => {
     const x = padX + i * (cellW + 16);
     const isRoot = step.step === "ROOT_CAUSE";
-    const fill = isRoot ? "#fbeaf0" : "#f3f1ea";
-    const stroke = isRoot ? "#b5305f" : "#cbc4b1";
-    const arrow = i < steps.length - 1 ? `<line x1="${x + cellW + 2}" y1="55" x2="${x + cellW + 14}" y2="55" stroke="#8a8377" stroke-width="1.5" marker-end="url(#chain-arrow)"/>` : "";
+    const fill = isRoot ? "var(--blocker-bg)" : "var(--paper-2)";
+    const stroke = isRoot ? "var(--blocker)" : "var(--rule-2)";
+    const arrow = i < steps.length - 1 ? `<line x1="${x + cellW + 2}" y1="55" x2="${x + cellW + 14}" y2="55" stroke="var(--ink-3)" stroke-width="1.5" marker-end="url(#chain-arrow)"/>` : "";
     return `<g>
       <rect x="${x}" y="20" width="${cellW}" height="70" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>
-      <text x="${x + 12}" y="40" font-size="10" font-weight="700" fill="${isRoot ? "#b5305f" : "#8a8377"}">${escapeHtml(step.step)}</text>
-      <text x="${x + 12}" y="62" font-size="11" fill="#1f1b16">${escapeHtml(String(step.body ?? "").slice(0, 50))}</text>
+      <text x="${x + 12}" y="40" font-size="10" font-weight="700" fill="${isRoot ? "var(--blocker)" : "var(--ink-3)"}">${escapeHtml(step.step)}</text>
+      <text x="${x + 12}" y="62" font-size="11" fill="var(--ink)">${escapeHtml(String(step.body ?? "").slice(0, 50))}</text>
       ${arrow}
     </g>`;
   }).join("");
   return `<svg viewBox="0 0 ${width} ${height}" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="Causal chain">
-    <defs><marker id="chain-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8a8377"/></marker></defs>
+    <defs><marker id="chain-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ink-3)"/></marker></defs>
     ${cells}
   </svg>`;
 }

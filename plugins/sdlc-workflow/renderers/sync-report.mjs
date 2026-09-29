@@ -39,7 +39,7 @@ const PX_PER_COMMIT = 25;
 const MAX_ARM = 360;       // clamp a long arm so it can't overflow the 920 viewBox
 const BASE_X = 460;
 const CY = 110;
-const HEX = { accent: '#4a6c8c', accentSoft: '#e9eef4', med: '#a07417', medBg: '#fbf3df', ink: '#1f1b16', ink3: '#8a8377', paper: '#fbfaf6', rule2: '#cbc4b1' };
+const HEX = { accent: 'var(--accent)', accentSoft: 'var(--accent-soft)', med: 'var(--med)', medBg: 'var(--med-bg)', ink: 'var(--ink)', ink3: 'var(--ink-3)', paper: 'var(--paper)', rule2: 'var(--rule-2)' };
 
 export function render(artifact, ctx) {
   if (!artifact.siblingYaml) {

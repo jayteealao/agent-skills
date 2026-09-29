@@ -5,7 +5,7 @@ import {
 } from "./chunk-TNCDSDXJ.mjs";
 import {
   humanRelative
-} from "./chunk-4HITZZ2W.mjs";
+} from "./chunk-7CMMYDR5.mjs";
 import {
   evenX,
   figureCanvas
@@ -13,7 +13,7 @@ import {
 import {
   artifactHeader,
   pageHref
-} from "./chunk-U4XWDSQ3.mjs";
+} from "./chunk-Y7H4JJAK.mjs";
 import {
   escapeHtml
 } from "./chunk-3RXHOXIK.mjs";
@@ -265,7 +265,7 @@ function health(fm) {
 function swimlanesSvg(active = [], shipped = []) {
   const rows = [...active, ...shipped];
   if (!rows.length) {
-    return `<svg viewBox="0 0 600 80" width="100%"><text x="300" y="44" text-anchor="middle" fill="#8a8377" font-size="13">No workflows yet</text></svg>`;
+    return `<svg viewBox="0 0 600 80" width="100%"><text x="300" y="44" text-anchor="middle" fill="var(--ink-3)" font-size="13">No workflows yet</text></svg>`;
   }
   const W = 980;
   const rowH = 46;
@@ -278,10 +278,10 @@ function swimlanesSvg(active = [], shipped = []) {
   const railTop = top - 14;
   const railBot = top + rows.length * rowH + sepGap - rowH + 14;
   const header = STAGES.map(
-    (s, i) => `<text x="${xs[i]}" y="${top - 22}" text-anchor="middle" font-size="10" font-weight="600" fill="#8a8377" letter-spacing="1.2">${s.toUpperCase()}</text>`
+    (s, i) => `<text x="${xs[i]}" y="${top - 22}" text-anchor="middle" font-size="10" font-weight="600" fill="var(--ink-3)" letter-spacing="1.2">${s.toUpperCase()}</text>`
   ).join("");
   const colRules = STAGES.map(
-    (s, i) => `<line x1="${xs[i]}" y1="${railTop}" x2="${xs[i]}" y2="${railBot}" stroke="#e0dbcd" stroke-width="1"/>`
+    (s, i) => `<line x1="${xs[i]}" y1="${railTop}" x2="${xs[i]}" y2="${railBot}" stroke="var(--rule)" stroke-width="1"/>`
   ).join("");
   let separator = "";
   const rowSvg = rows.map((row, ri) => {
@@ -291,35 +291,35 @@ function swimlanesSvg(active = [], shipped = []) {
     const y = top + ri * rowH + extra;
     if (shipped.length && ri === shippedStart) {
       const sy = y - rowH / 2 - 2;
-      separator = `<line x1="20" y1="${sy}" x2="${W - 20}" y2="${sy}" stroke="#cbc4b1" stroke-width="1" stroke-dasharray="2 3"/>
-        <text x="20" y="${sy + 14}" font-size="9" font-weight="700" letter-spacing="1.5" fill="#8a8377" font-family="ui-monospace, monospace">SHIPPED</text>`;
+      separator = `<line x1="20" y1="${sy}" x2="${W - 20}" y2="${sy}" stroke="var(--rule-2)" stroke-width="1" stroke-dasharray="2 3"/>
+        <text x="20" y="${sy + 14}" font-size="9" font-weight="700" letter-spacing="1.5" fill="var(--ink-3)" font-family="ui-monospace, monospace">SHIPPED</text>`;
     }
     const declaredIdx = STAGES.indexOf(fm["current-stage"] ?? "intake");
     const currentIdx = isShipped ? STAGES.length - 1 : declaredIdx < 0 ? 0 : declaredIdx;
     const blocked = !isShipped && (fm.status === "blocked" || fm.blocked === true);
-    const progress = currentIdx > 0 ? `<line x1="${xs[0]}" y1="${y}" x2="${xs[currentIdx]}" y2="${y}" stroke="#1f1b16" stroke-width="1.5"/>` : "";
-    const tailDash = currentIdx < STAGES.length - 1 ? `<line x1="${xs[currentIdx]}" y1="${y}" x2="${xs[STAGES.length - 1]}" y2="${y}" stroke="#cbc4b1" stroke-width="1" stroke-dasharray="2 3"/>` : "";
-    const slugLabel = `<text x="20" y="${y + 4}" font-size="11" fill="#1f1b16"><tspan font-family="ui-monospace, monospace">${escapeHtml(slug.slice(0, 20))}</tspan></text>`;
+    const progress = currentIdx > 0 ? `<line x1="${xs[0]}" y1="${y}" x2="${xs[currentIdx]}" y2="${y}" stroke="var(--ink)" stroke-width="1.5"/>` : "";
+    const tailDash = currentIdx < STAGES.length - 1 ? `<line x1="${xs[currentIdx]}" y1="${y}" x2="${xs[STAGES.length - 1]}" y2="${y}" stroke="var(--rule-2)" stroke-width="1" stroke-dasharray="2 3"/>` : "";
+    const slugLabel = `<text x="20" y="${y + 4}" font-size="11" fill="var(--ink)"><tspan font-family="ui-monospace, monospace">${escapeHtml(slug.slice(0, 20))}</tspan></text>`;
     const dots = STAGES.map((s, i) => {
       const x = xs[i];
       const isCur = !isShipped && currentIdx === i;
       const done = isShipped ? true : currentIdx > i;
       if (isCur) {
-        const c = blocked ? "#b5305f" : "#4a6c8c";
+        const c = blocked ? "var(--blocker)" : "var(--accent)";
         return `<circle cx="${x}" cy="${y}" r="10" fill="none" stroke="${c}" stroke-width="1.2" opacity="0.5"/><circle cx="${x}" cy="${y}" r="7" fill="${c}" stroke="${c}" stroke-width="1.5"/>`;
       }
       if (done) {
-        return `<circle cx="${x}" cy="${y}" r="5" fill="#1f1b16" stroke="#1f1b16" stroke-width="1.5"/>`;
+        return `<circle cx="${x}" cy="${y}" r="5" fill="var(--ink)" stroke="var(--ink)" stroke-width="1.5"/>`;
       }
-      return `<circle cx="${x}" cy="${y}" r="5" fill="#fbfaf6" stroke="#cbc4b1" stroke-width="1" stroke-dasharray="2.5 2"/>`;
+      return `<circle cx="${x}" cy="${y}" r="5" fill="var(--paper)" stroke="var(--rule-2)" stroke-width="1" stroke-dasharray="2.5 2"/>`;
     }).join("");
     const blockerCount = Number(fm.blockers ?? fm["blocker-count"] ?? (blocked ? 1 : 0)) || 0;
     const rev = fm["revision-count"] ?? fm.rev;
     let annotation = "";
     if (!isShipped && blockerCount) {
-      annotation = `<text x="${xs[currentIdx] + 11}" y="${y - 9}" font-size="9" fill="#b5305f">\xB7 ${blockerCount} blocker${blockerCount === 1 ? "" : "s"}</text>`;
+      annotation = `<text x="${xs[currentIdx] + 11}" y="${y - 9}" font-size="9" fill="var(--blocker)">\xB7 ${blockerCount} blocker${blockerCount === 1 ? "" : "s"}</text>`;
     } else if (!isShipped && rev != null && rev !== "") {
-      annotation = `<text x="${xs[currentIdx] + 11}" y="${y - 9}" font-size="9" fill="#8a8377">\xB7 rev ${escapeHtml(String(rev))}</text>`;
+      annotation = `<text x="${xs[currentIdx] + 11}" y="${y - 9}" font-size="9" fill="var(--ink-3)">\xB7 rev ${escapeHtml(String(rev))}</text>`;
     }
     return `${progress}${tailDash}${slugLabel}${dots}${annotation}`;
   }).join("");

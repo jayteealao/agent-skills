@@ -152,8 +152,7 @@ After the mode's logic completes, emit a chat summary as the LAST output before 
 ```
 wf intake <mode> complete: <slug-or-scope>     (slug-mode: wf intake <mode> → compressed slice <slice-slug> on <slug>)
 
-<Narrative — quote the explainer summary of the lead artifact: what this run produced or
-decided, how far the flow traveled, the load-bearing counts/decisions, and the top risk.>
+<Narrative — quote the explainer summary of the lead artifact, per _story-arc.md A6.>
 
 Artifacts: <comma-separated paths, or "none">
 Next: <recommended command, or "Done">

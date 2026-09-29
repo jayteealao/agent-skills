@@ -113,7 +113,7 @@ function armsBar(arms) {
   // Categorical arm colours — neutral hues only. The 5th slot was the reserved
   // --blocker token #b5305f, which made a control/variant arm read as a critical
   // error; swapped to a non-severity warm-orange.
-  const colors = ['#4a6c8c', '#3e7d4a', '#a07417', '#6b4a8a', '#c07820'];
+  const colors = ['var(--accent)', 'var(--low)', 'var(--med)', 'var(--violet)', 'var(--orange)'];
   let x = padX;
   const cells = arms.map((arm, i) => {
     const pct = allocations[i];
@@ -122,8 +122,8 @@ function armsBar(arms) {
     const id = arm.id ?? arm.name;
     const cell = `<g>
       <rect x="${x}" y="${barY}" width="${w}" height="${barH}" fill="${color}"/>
-      <text x="${x + 8}" y="${barY + 18}" font-size="11" font-weight="600" fill="#fbf9f3">${escapeHtml(id)}</text>
-      <text x="${x + 8}" y="${barY + barH + 14}" font-size="10" fill="#4a443c">${pct}%</text>
+      <text x="${x + 8}" y="${barY + 18}" font-size="11" font-weight="600" fill="var(--on-fill)">${escapeHtml(id)}</text>
+      <text x="${x + 8}" y="${barY + barH + 14}" font-size="10" fill="var(--ink-2)">${pct}%</text>
     </g>`;
     x += w;
     return cell;

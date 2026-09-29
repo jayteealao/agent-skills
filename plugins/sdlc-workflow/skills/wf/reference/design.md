@@ -101,7 +101,7 @@ Emit the summary last, per [design/_output.md](design/_output.md) Step 6:
 ```
 wf design <job> complete: <slug-or-"freestanding">
 
-<Narrative — quote the explainer summary: what the person confirmed or what the run produced, the counts that matter, and the top design risk.>
+<Narrative — quote the explainer summary, per _story-arc.md A6.>
 
 Register: <brand|product>
 Image gate: <pass | skipped:<reason> | n/a>

@@ -297,6 +297,21 @@ seconds. The run also found six defects, fixed in 9.173.1:
 The Prompt-fed limit above stands for inputs passed in a prompt; reads by
 Workflow-started agents are recorded.
 
+### Explainer v2 (9.174.0, 2026-09-29)
+
+The PO judged the live explainers sparse and empty (28 explainers, mean 141
+words, median 82; 19 slice explainers of about 79 words with no visual). The
+cause was the contract: `_story-arc.md` kept the old story beats, so each
+explainer reported stage progress instead of explaining the work. Rules 5
+(dark theme) and 6 (interaction) could not be met, because the view had no
+dark tokens and its CSP blocks inline scripts. 9.174.0 rewrites the contract
+(explain what it is, how it works, why, and what it means; body and visual
+floors), adds four snippets (`layout`, `trend`, `states`, `steps`) and free
+themed SVG, adds the same-origin `assets/explainer.js` runtime for
+`data-ex-*` step-through, toggle and slider markup, adds a dark theme, and
+makes the explainer check warn on each floor. The live limits "Interactive
+explainers" and "Dark theme" above are closed.
+
 ## The plan
 
 # Split each artifact into an agent file and a human page

@@ -5,6 +5,21 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.174.0] - 2026-09-29
+
+Explainers explain. In the first live run the 28 explainers averaged 141 words (median 82), 19 of them had no visual, and they reported stage progress instead of explaining the work (ARTIFACT-SPLIT-PLAN.md "Explainer v2").
+
+### Changed
+
+- **The explainer contract.** `_story-arc.md` now asks each explainer to explain the thing the stage built or decided: what it is, how it works, why this way and what was rejected, and what it means for the person. Stage progress stays in the page's "Waiting for you" part. Floors: a summary of two or three sentences (about 70 words at most), a body of about 250 words for a stage explainer and 150 for a slice, and a visual for each part with structure. A table says what each stage explains.
+- **The explainer check** warns on a short body, too few visuals, a long summary, an unknown snippet, a free SVG without a title or with hard-coded colours, broken interaction markup, and a recap that repeats counts instead of ideas.
+
+### Added
+
+- **Four snippets:** `explainer/layout` (spatial relations: a screen, a pitch), `explainer/trend` (data over time or across groups), `explainer/states` (a state machine), `explainer/steps` (a step-through). Free inline SVG with theme tokens is allowed when no snippet fits.
+- **Interactive explainers.** `assets/explainer.js`, served from the view's own origin (the CSP is unchanged), runs step-throughs, toggles and sliders over precomputed frames from `data-ex-*` markup. Agents write no script. Without JavaScript every step, panel and frame shows.
+- **Dark theme.** The view and the hub follow the system colour scheme; `data-theme="light"` or `"dark"` on `<html>` overrides it. Light mode keeps its colours. Renderer SVG colours use theme tokens.
+
 ## [9.173.1] - 2026-09-29
 
 Fixes from the first live run of the artifact split (SoccerManager `engine-modules`, ARTIFACT-SPLIT-PLAN.md "First live run").

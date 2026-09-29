@@ -294,24 +294,24 @@ function stageStripeSvg({ current, allArtifacts, fm = {} }) {
   const cy = 96;
   const currentIdx = Math.max(0, STAGES.indexOf(current));
 
-  const baseRail = `<line x1="${padX}" y1="${cy}" x2="${W - padX}" y2="${cy}" stroke="#cbc4b1" stroke-width="2"/>`;
+  const baseRail = `<line x1="${padX}" y1="${cy}" x2="${W - padX}" y2="${cy}" stroke="var(--rule-2)" stroke-width="2"/>`;
   // Solid ink-strong progress overlay from the first station to current (D4.4).
   const progress = currentIdx > 0
-    ? `<line x1="${xs[0]}" y1="${cy}" x2="${xs[currentIdx]}" y2="${cy}" stroke="#1f1b16" stroke-width="2.5"/>`
+    ? `<line x1="${xs[0]}" y1="${cy}" x2="${xs[currentIdx]}" y2="${cy}" stroke="var(--ink)" stroke-width="2.5"/>`
     : '';
 
   const stations = STAGES.map((stage, i) => {
     const x = xs[i];
     const done  = currentIdx > i;
     const isCur = currentIdx === i;
-    const fill   = done ? '#3e7d4a' : isCur ? '#4a6c8c' : '#fbfaf6';
-    const stroke = done ? '#3e7d4a' : isCur ? '#4a6c8c' : '#cbc4b1';
+    const fill   = done ? 'var(--low)' : isCur ? 'var(--accent)' : 'var(--paper)';
+    const stroke = done ? 'var(--low)' : isCur ? 'var(--accent)' : 'var(--rule-2)';
     const { count, latest } = stageArtifacts(stage, allArtifacts);
 
     // Current station is an enlarged disc (r=22) with an inner dashed ring (D4.7).
     const dot = isCur
       ? `<circle cx="${x}" cy="${cy}" r="22" fill="${fill}" stroke="${stroke}" stroke-width="2"/>` +
-        `<circle cx="${x}" cy="${cy}" r="14" fill="none" stroke="#fbfaf6" stroke-width="1.2" stroke-dasharray="3 3"/>`
+        `<circle cx="${x}" cy="${cy}" r="14" fill="none" stroke="var(--paper)" stroke-width="1.2" stroke-dasharray="3 3"/>`
       : done
         ? `<circle cx="${x}" cy="${cy}" r="7" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`
         : `<circle cx="${x}" cy="${cy}" r="7" fill="${fill}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="2.5 2"/>`;
@@ -319,12 +319,12 @@ function stageStripeSvg({ current, allArtifacts, fm = {} }) {
     // Design stacks the current-station marker ABOVE its date (date sits ~28px
     // off the rail for every station; "you are here" rises a line higher) — D4.5.
     const date  = latest
-      ? `<text x="${x}" y="${cy - 28}" text-anchor="middle" font-size="9" fill="#8a8377" font-family="ui-monospace, monospace">${escapeHtml(String(latest).slice(5, 10))}</text>`
+      ? `<text x="${x}" y="${cy - 28}" text-anchor="middle" font-size="9" fill="var(--ink-3)" font-family="ui-monospace, monospace">${escapeHtml(String(latest).slice(5, 10))}</text>`
       : '';
-    const youHere = isCur ? `<text x="${x}" y="${cy - 44}" text-anchor="middle" font-size="10" fill="#4a6c8c" font-style="italic">you are here</text>` : '';
-    const label = `<text x="${x}" y="${cy + 42}" text-anchor="middle" font-size="11" fill="#1f1b16" font-weight="${isCur ? 600 : 500}">${stage}</text>`;
+    const youHere = isCur ? `<text x="${x}" y="${cy - 44}" text-anchor="middle" font-size="10" fill="var(--accent)" font-style="italic">you are here</text>` : '';
+    const label = `<text x="${x}" y="${cy + 42}" text-anchor="middle" font-size="11" fill="var(--ink)" font-weight="${isCur ? 600 : 500}">${stage}</text>`;
     const ann = count > 0
-      ? `<text x="${x}" y="${cy + 56}" text-anchor="middle" font-size="9" fill="#8a8377">${escapeHtml(stationAnnotation(stage, count, allArtifacts, fm))}</text>`
+      ? `<text x="${x}" y="${cy + 56}" text-anchor="middle" font-size="9" fill="var(--ink-3)">${escapeHtml(stationAnnotation(stage, count, allArtifacts, fm))}</text>`
       : '';
     return `${date}${youHere}${dot}${label}${ann}`;
   }).join('');
@@ -347,12 +347,12 @@ function metricCalloutBand(W, y, fm, allArtifacts) {
     { lbl: 'BLOCKERS',    val: s.blockers },
     { lbl: 'CHECKS',      val: s.checks ?? '—' },
   ];
-  const rule = `<line x1="20" y1="${y}" x2="${W - 20}" y2="${y}" stroke="#e0dbcd" stroke-width="1"/>`;
+  const rule = `<line x1="20" y1="${y}" x2="${W - 20}" y2="${y}" stroke="var(--rule)" stroke-width="1"/>`;
   const gx = evenX(W, 110, groups.length);
   const cells = groups.map((g, i) => {
     const x = gx[i];
-    return `<text x="${x}" y="${y + 18}" text-anchor="middle" font-size="9" letter-spacing="1" fill="#8a8377">${g.lbl}</text>` +
-      `<text x="${x}" y="${y + 38}" text-anchor="middle" font-size="18" font-weight="600" fill="#1f1b16" font-family="${SVG_SERIF}">${escapeHtml(String(g.val))}</text>`;
+    return `<text x="${x}" y="${y + 18}" text-anchor="middle" font-size="9" letter-spacing="1" fill="var(--ink-3)">${g.lbl}</text>` +
+      `<text x="${x}" y="${y + 38}" text-anchor="middle" font-size="18" font-weight="600" fill="var(--ink)" font-family="${SVG_SERIF}">${escapeHtml(String(g.val))}</text>`;
   }).join('');
   return `${rule}${cells}`;
 }
