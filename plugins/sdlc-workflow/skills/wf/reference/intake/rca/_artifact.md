@@ -51,7 +51,7 @@ This section becomes the acceptance criteria for the downstream fix workflow.
 - **Root cause confidence:** high | medium | low. One sentence justifying.
 - **Fix shape confidence:** high | medium | low. One sentence justifying.
 
-If either is `low`, this section also names the next rung of the escalation ladder, cheapest first; never jump straight to a human: a runtime fact the diagnosis hinges on → `/wf probe <slug> "<the question>"` (the finding lands as a compressed slice on this workflow); a dependency/framework behavior question → the `study-sources` skill against the installed source; a second model on the hypothesis → `/consult`; a product/policy call or low confidence that survives those rungs → human triage. State which rung applies and why.
+If either is `low`, this section also names the next rung of the escalation ladder, cheapest first; never jump straight to a human: a runtime fact the diagnosis hinges on → `/wf probe <slug> "<the question>"` (the finding lands as a compressed slice on this workflow); a dependency/framework behavior question → the `study-sources` skill against the installed source; a product/policy call or low confidence that survives those rungs → human triage. State which rung applies and why.
 
 ### Recommended next command
 Pick **one** primary recommendation based on the diagnosis. The printed invocations are the exact dispatcher-valid forms: record the route first, then run the printed command.

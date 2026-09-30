@@ -35,7 +35,7 @@
   <li><code>plan</code>: the default for non-trivial fixes. The same slug continues into <code>/wf plan &lt;slug&gt;</code>, which reads the synthesized shape without modification.</li>
   <li><code>fix</code>: for a fix that fits in roughly three files with no architectural change. The rca closes and the printed invocation carries <code>from &lt;slug&gt;</code>, so the fix inherits the root cause, blast radius, and verification criteria instead of re-deriving them.</li>
   <li><code>hotfix</code>: for an active production incident where confidence is at least medium and the fix is small. Same closure and <code>from &lt;slug&gt;</code> forwarding.</li>
-  <li><strong>Human triage</strong>: the last rung, not the first. Low confidence climbs a ladder first — a runtime probe on the slug, a source read of the implicated dependency, a second model via consult — and only low confidence that survives those rungs goes to a human.</li>
+  <li><strong>Human triage</strong>: the last rung, not the first. Low confidence climbs a ladder first — a runtime probe on the slug, a source read of the implicated dependency — and only low confidence that survives those rungs goes to a human.</li>
 </ul>
 
 <p>Uncertainty is treated as data. If the sub-agents disagree, or if multiple plausible causes survive, the RCA records the disagreement rather than pick a tidy story. Tripwire warnings (low confidence, high blast radius, a concurrent PR that touches the same code) travel with the artifact, so the fix workflow inherits them.</p>

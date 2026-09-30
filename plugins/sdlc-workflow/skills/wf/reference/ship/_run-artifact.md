@@ -47,7 +47,6 @@ rollback-sha: "<sha or empty>"
 rollback-reason: ""
 rollback-artifact: "<09-rollback-<run-id>.md or empty>"   # stamped by the rollback phase
 announcements-sent: [<channel>, ...]
-consult-runs: []                     # [{trigger, provider, at}] per _consult-triggers.md
 tags: []
 refs:
   index: 00-index.md

@@ -53,8 +53,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 
 Change-mode and single-scope workflows use the un-suffixed names, for example `06-verify.md`. In `mode:rca`, `02-shape.md` is the synthesized forwarding contract.
 
-**Auto second opinion (diagnosis).** After the perceptual review pass, **auto-invoke** `/consult codex <do these screenshots and observations actually satisfy the user-observable AC, or is something off?>` (pinning `codex`/`claude` keeps it free) when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `ac-met-by-inference` or `ac-deferred`. Record each run in the verify artifact's `consult-runs:` frontmatter. When every AC is plainly met by direct observed evidence, add no consult.
-
 **Verify against the real contract, not the remembered one.** When a criterion turns on how a dependency, framework, or SDK actually behaves, invoke the `study-sources` skill to read its installed source (`node_modules`, `~/.m2`, the Go/Rust/NuGet caches, Android SDK `sources/`) before ruling the criterion met or unmet. Match the version the project resolved. Reads land in gitignored `.scratch/` and never enter the verify evidence or the diff.
 
 # Role

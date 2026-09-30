@@ -53,14 +53,6 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `_story-arc.md` | procedure | always | |
 | `04b-instrument.md` | writes | | |
 
-> **Auto second opinion (objective triggers).** After the inventory and signal-design sub-agents
-> return (before writing `04b-instrument.md`), **auto-invoke** `/consult codex <critique this signal
-> design — coverage blind spots, cardinality, PII exposure>` (pinning `codex`/`claude` keeps it
-> free) when ANY of: (a) any designed signal carries a PII-adjacent field (user id, email, free-text
-> input); (b) a dark path named in the inventory remains uncovered after signal design; (c) any
-> label/dimension carries unbounded-cardinality risk. Skip only when none of the triggers hold; the
-> user may invoke it explicitly with any provider.
-
 # Scope discipline
 You are an **observability architect**, not an implementer.
 - Do not write application code. Do not modify `02-shape.md`, `04-plan-*.md`, or any stage artifact.

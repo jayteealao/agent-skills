@@ -94,19 +94,6 @@
         }
       }
     },
-    "consultRuns": {
-      "type": "array",
-      "description": "One entry per /consult run the stage fired (WIDE-VIEW-REPAIR-PLAN §10.5). `trigger` is a name from skills/wf/reference/_consult-triggers.md.",
-      "items": {
-        "type": "object",
-        "required": ["trigger", "provider"],
-        "properties": {
-          "trigger": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
-          "provider": { "type": "string", "enum": ["codex", "claude", "gemini", "openai"] },
-          "at": { "type": "string" }
-        }
-      }
-    },
     "base": {
       "description": "Fields shared by every workflow artifact.",
       "type": "object",
@@ -642,7 +629,6 @@
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
         "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
         "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
-        "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "plan" },
         "slice-slug": { "type": "string" },
         "status": { "enum": ["complete", "awaiting-input"] },
@@ -759,7 +745,6 @@
         "debt-markers-found": {"type":"integer","minimum":0},
         "debt-markers-malformed": {"type":"integer","minimum":0},
         "debt-markers-unrecorded": {"type":"integer","minimum":0},
-        "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "verify" },
         "slice-slug": { "type": "string" },
         "status": { "enum": ["complete", "awaiting-input"] },
@@ -831,7 +816,6 @@
         "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
         "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "metric-findings-fixed": {"type":"integer","minimum":0},
-        "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "review" },
         "review-scope": { "enum": ["per-slice", "slug-wide"] },
         "slice-slug": { "type": "string" },
@@ -912,7 +896,6 @@
         "live-checks-failing-nonrequired": {"$ref":"#/$defs/stringArray"},
         "live-merge-state": {"type":"string"},
         "live-mergeable": {"type":"string"},
-        "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "handoff" },
         "slice-slugs": { "$ref": "#/$defs/stringArray" },
         "handoff-mode": { "enum": ["aggregate", "single-slice"] },
@@ -1002,7 +985,6 @@
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
         "reads-checked": {"type":"boolean","description":"S6 (ARTIFACT-SPLIT-PLAN): false when the stage ran on a host with no read hook (Codex), so the mod could not check the ## Requires reads."},
         "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
-        "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "type": { "const": "ship-run" },
         "run-id": { "$ref": "#/$defs/runId" },
         "status": { "enum": ["complete", "awaiting-input", "failed", "rolled-back"] },
@@ -1978,8 +1960,7 @@
               "answer": { "type": "string" }
             }
           }
-        },
-        "consult-runs": { "$ref": "#/$defs/consultRuns" }
+        }
       }
     },
     "brainstormKey": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
@@ -2077,7 +2058,6 @@
           }
         },
         "selected": { "$ref": "#/$defs/stringArray" },
-        "consult-runs": { "$ref": "#/$defs/consultRuns" },
         "revisions": { "$ref": "#/$defs/revisionLedger" },
         "refs": { "$ref": "#/$defs/refs" }
       }

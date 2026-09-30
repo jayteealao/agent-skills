@@ -170,7 +170,7 @@ A correction to the summary is a decision. Record it, and rewrite the summary.
 In plain words, with no key: the summary, then the map with each area's brief and state, then one line per live thread with what we know and what is still open, then the coverage of each open brief, then the open tensions and the top risks. Give the parked and dropped threads as names only. Put it in the text of the next question, or in chat when no question follows. Republish the page (2.9) and give its link; where the host has no page, point the person to `01-brainstorm.md`.
 
 ## 2.7 Second opinion
-> **Auto second opinion (objective triggers).** Auto-invoke `/consult codex <read these threads and name the assumptions and tensions this thinking missed>` (pinning `codex`/`claude` keeps it free) when ANY of: `thread-contested` (at `done`, a live thread is party to an open tension); `claim-contradicted` (a bounded read contradicted a statement and the person kept the thread live); `touches-auth`, `touches-billing`, `touches-security`, or `touches-migration` (a live thread touches that surface); `user-invoked` (the `second opinion` control word). The names are rows of [_consult-triggers.md](../_consult-triggers.md); record each run in `consult-runs`. Fold the panel's distinct additions in as findings with `source: consult`, never as pieces of work.
+Run this only when the person says `second opinion`; never run it unasked. Run `/consult codex <read these threads and name the assumptions and tensions this thinking missed>` with the live threads and open tensions as the brief. Fold the panel's distinct additions in as findings with `source: consult`, never as pieces of work.
 
 ## 2.8 Close an area
 An area is explored when its threads stop producing new ground. Closing it is part of a check-in, and the person can answer "not yet". Closing it scopes the area now, so `done` does not have to walk the whole board.
@@ -196,9 +196,8 @@ The person decides what goes into work, and decides it with you. You recap, expl
 ## 3.1 Choose what happens now
 1. Snapshot both board files to `history/` and add a `revisions:` entry (`trigger: manual`, `because: done`). Run a coherence pass unless one ran after the last change.
 2. In the question text, give the summary (2.5), and say in plain words how many decisions and open ideas each area holds. Print no entry command.
-3. Ask one question per [_gate-question.md](../_gate-question.md), with these options: go through the discussion together and scope the work; keep the board and think more later; take a second opinion first. Free text carries every other answer. An answer that asks for more thinking returns to Step 2.
+3. Ask one question per [_gate-question.md](../_gate-question.md), with these options: go through the discussion together and scope the work; keep the board and think more later. Free text carries every other answer. An answer that asks for more thinking returns to Step 2.
    - **Keep the board.** Change the timestamps only. `status` stays `open`.
-   - **Second opinion.** Run 2.7, then ask this question again.
    - **Scope the work.** Go to 3.2.
 
 ## 3.2 Walk through the discussion

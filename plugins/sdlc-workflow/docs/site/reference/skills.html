@@ -49,9 +49,9 @@
 
 <p>The result is presented as a panel. For each provider that answered, the panel shows its evidence-scope badge (<em>repo-aware</em> or <em>prompt-only</em>), a one-line verdict, and the key points. A one-line consensus-or-divergence read across the panel follows. Providers that were skipped or that failed are named with their reasons. A degraded panel announces itself up front ("Panel of 1 — treat this as one opinion, not a consensus") instead of reading with the confidence of an agreement it never earned. When a prompt-only oracle disagrees with a repo-aware oracle on a repo-specific claim, the synthesis weights the repo-aware opinion more heavily. The synthesis also says when a divergence looks like missing context rather than real dissent. Every run ends with a machine-readable <code>CONSULT_RESULT</code> block that records the providers, the panel size, the verdict, and the cost note.</p>
 
-<h3 id="consult-auto">Auto-invocation</h3>
+<h3 id="consult-auto">When it runs</h3>
 
-<p>You do not have to type <code>/consult</code> for it to run. The model auto-invokes the skill at the judgment points that the lifecycle stages call out: plan, shape, design, review, verify, and handoff, and their equivalents inside the <code>/wf auto</code> and <code>/wf yolo</code> drivers. The skill runs whenever a stage's <em>objective</em> trigger fires: a carried intent-risk, a ship-with-caveats verdict, an acceptance criterion that was inferred rather than observed, or a risk-bearing surface. These triggers are written into the stages themselves. A second opinion at those gates is a default action, not a rare one. Every model-initiated run pins a free subscription CLI (<code>codex</code> or <code>claude</code>), so autonomous consults never touch the paid REST oracles. The "use sparingly" caution applies to provider choice, not to frequency. Consult is never triggered by a hook or by page serving. Only a deliberate model or user decision starts a consult.</p>
+<p>No <code>/wf</code> stage runs <code>/consult</code> as a step. You run it when you want a second opinion. When the model starts a consult on its own, it pins a free subscription CLI (<code>codex</code> or <code>claude</code>), so it never touches the paid REST oracles. A hook or page serving never starts a consult.</p>
 
 <h2 id="diataxis">/diataxis — standalone documentation work</h2>
 
@@ -115,7 +115,6 @@
     <li><a href="../reference/commands.html">Commands</a> — the full <code>/wf</code> key reference, including <code>/wf docs</code> and <code>/wf design</code>.</li>
     <li><a href="../reference/configuration.html">Configuration</a> — where <code>externalDispatch.enabled</code> lives, and every other knob.</li>
     <li><a href="../guides/design.html">Design</a> — how the design stage uses the design canvas, and imagery and uiproto as its fallback.</li>
-    <li><a href="../concepts/evidence-and-gates.html">Evidence and gates</a> — the judgment points where consult auto-invocation fires.</li>
   </ul>
 </div>
 </main>

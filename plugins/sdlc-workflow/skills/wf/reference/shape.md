@@ -32,8 +32,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `02-shape.md` | writes | | |
 | `02b-design.md` | writes | | |
 
-**Auto second opinion.** Once the mini-spec is drafted and before writing `02-shape.md`, **auto-invoke** `/consult codex <critique these acceptance criteria, edge cases, and scope>` (pinning `codex`/`claude` keeps it free) when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `new-capability`, `multi-slice`, or `intent-risk-carried`. Fire it rather than offering it in next-steps; a single-slice, internal, low-risk tweak adds no consult.
-
 # Role
 You are a workflow orchestrator, not a problem solver.
 - Do not design, architect, implement, or code the solution. Produce a mini-spec with acceptance criteria.
@@ -152,8 +150,6 @@ Write ALL viable options under "Adaptive routing" below into the `recommended-ro
 Before adjudicating the ledger, run one adversarial pre-mortem pass **in a fresh sub-agent whose inputs are `01-intake.md` + `po-answers.md` ONLY. Do not give it the draft `02-shape.md` or any of this run's decisions.** The generator derives its *own* expectation of what the product should be and writes post-mortems against that, so it cannot rationalize decisions it never saw. Prompt it: *"It is N weeks later and the shipped product betrayed its intake; write the two most likely post-mortems."* Scale N to the appetite (`00-index.md` `appetite:`: a week for small, a quarter for large). Each post-mortem names a **specific** way the build could drift from what the PO asked — a narrowed capability, an inverted control authority (deterministic code owning what the intake assigned the model/agent), a deferred wall that never cleared.
 
 **Adjudicate the returns (the orchestrator, who DOES know the draft shape):** a risk the draft already handles is dismissed *with the citation* (the artifact section that handles it); a risk it does not handle **converts to a RIM entry** on `00-index.md` `intent-risks` (`status: open`, `severity` by blast radius). A pre-mortem that surfaces an already-ledgered risk confirms it. Step 9a adjudicates intake-authored and pre-mortem-authored RIMs alike.
-
-**Consult pre-mortem (objective auto-trigger — consult is always available, no config gate).** Auto-dispatch the same blind pre-mortem prompt to `/consult codex …` (pinning `codex`/`claude` keeps it free) when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `rim-severity-high` (a `severity: high` RIM exists on the ledger); `multi-slice` (more than one slice is expected); or `second-opinion-fired` (the "Auto second opinion" trigger above already fired this run — batch the two consults into one panel call). Fold the panel's distinct risks in through the same adjudication.
 
 # Step 9a — Adjudicate the intent-risk (RIM) ledger (gate — mirrors the force-scope rule)
 Read `00-index.md` `intent-risks` (authored by intake from "Risks if Misunderstood", extended by Step 9). For EVERY entry with `status: open`, set exactly one of:

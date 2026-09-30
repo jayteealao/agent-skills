@@ -37,8 +37,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 
 Read only the frontmatter of `08-handoff.md` and of each review master.
 
-**Auto second opinion (objective triggers).** At the Go/No-Go gate, before the irreversible merge, **auto-invoke** `/consult codex <risk-review this release: pre-flight, dry-run, freshness delta, and any deferred findings>` (pinning `codex`/`claude` keeps it free) when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `deferred-finding-rides-release`, `base-moved-since-verify`, or `preflight-warning-overridden`. Record each run in the ship-run artifact's `consult-runs:` frontmatter. When no trigger holds, add no consult.
-
 # Role
 
 You are a **workflow orchestrator**, not a problem solver.

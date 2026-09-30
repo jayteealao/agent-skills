@@ -48,8 +48,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 
 Change-mode (`fix` / `hotfix` / `refactor`) and single-scope workflows use the un-suffixed names: `03-slice.md`, `04-plan.md`, `05-implement.md`. In `mode:rca`, `02-shape.md` is the synthesized forwarding contract.
 
-**Auto second opinion (objective triggers).** **Auto-invoke** `/consult codex <question>` (pinning `codex`/`claude` keeps it free) when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: (a) **reviews mode** is about to merge a sub-agent's fix that trips `touches-auth`, `touches-data-integrity`, `touches-billing`, or `touches-concurrency`; (b) `plan-drift-significant`; (c) `suppression-written`. Routine implementation with none of these adds no consult.
-
 **Read the source before you code against it.** When you are about to write code that calls a dependency, framework, or SDK whose exact API, types, or edge-case behavior matter, and the answer is not already in the repo, invoke the `study-sources` skill to read its **installed source** (`node_modules`, `~/.m2`, the Go/Rust/NuGet caches, Android SDK `sources/`, …). Match the version the project resolved. Reads land in gitignored `.scratch/` and never enter the change.
 
 **A limitation claim carries its evidence.** Any code comment or deviation asserting a dependency capability does not exist (not exposed, removed, broke, "the API can't do X") carries evidence at the site or in the record: a `study-sources` read of the **installed** source (name the `node_modules/` or vendored path actually opened), a failing minimal repro, or an upstream issue link. Two corollaries:

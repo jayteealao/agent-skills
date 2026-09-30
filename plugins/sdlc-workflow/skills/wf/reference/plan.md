@@ -44,8 +44,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 
 `mode:design` rows apply when design is needed per [design/_lane.md](design/_lane.md). `mode:augment` rows apply when `02-shape.md` `augmentations-needed` names the type. A single-scope workflow writes only `04-plan.md`.
 
-**Second opinion (default on).** After the plan is written, **auto-invoke** `/consult codex <question about this plan>` and embed the read-only critique panel next to the plan artifact when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `touches-concurrency`, `touches-auth`, `touches-migration`, `touches-billing`, `touches-external-api`, `unknowns-present` (a `## Unknowns / Open Questions` entry), `intent-risk-carried`, or `appetite-medium-or-larger`. Record each run in the plan's `consult-runs:` frontmatter (`trigger`, `provider`, `at`). When no trigger holds, add no consult.
-
 **Plan against the real API.** When plan steps call a dependency, framework, or SDK, read its installed source first with the `study-sources` skill.
 
 **A limitation claim carries its evidence.** A plan step that asserts a dependency capability does not exist cites evidence in the same artifact: a `study-sources` read of the installed source (name the `node_modules/` or vendored path opened), a failing minimal repro, or an upstream issue link. An in-repo comment claiming a limitation is a hypothesis, never sufficient authority for a workaround; re-verify it with one `study-sources` read. A recalled API shape never justifies `as any` / `@ts-ignore` alone; cite the type read from the installed package or the mismatch repro. The warn-only `limitationClaimLint` hook flags an uncited limitation comment; its citation markers are `source:` / `node_modules/` / `repro:` / `issue:` / a URL within ±3 lines.
@@ -185,7 +183,6 @@ metric-step-count: <N>
 has-blockers: false
 revision-count: 0
 revisions: []   # reason-centric ledger per _additive-write.md; one entry per re-run that changed the plan
-consult-runs: []                     # [{trigger, provider, at}] per _consult-triggers.md
 tags: []
 stack-source: <confirmed|unconfirmed-auto-detect>   # from 00-index.md stack.user-confirmed; downstream stages may refuse `unconfirmed-auto-detect`
 refs: { index: 00-index.md, plan-index: 04-plan.md, slice-def: 03-slice-<slice-slug>.md, siblings: [04-plan-<other>.md], implement: 05-implement-<slice-slug>.md }

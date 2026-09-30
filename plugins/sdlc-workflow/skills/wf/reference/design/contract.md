@@ -93,17 +93,6 @@ Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after c
 
 **Confirm gate.** `shape=pass` is satisfied by the "yes to proceed" answer above, or by a recorded user-backed direction source (a user-confirmed PRODUCT.md, or a prior `teach` answer) — record which source satisfied the gate. Do not write the contract while no user-backed source exists, and never leave the mock neither confirmed nor explicitly skipped with a reason.
 
-> **Auto second opinion.** When the direction chose among competing options, introduces
-> a new interaction pattern or primary surface, or the brief left a visual-direction
-> gate open, **auto-invoke** `/consult codex <critique this design direction — does it
-> satisfy the brief, and what visual or interaction risks does it carry?>` (pinning
-> `codex`/`claude` keeps it free). Dispatch the consult **concurrently with the Step 4
-> mock fidelity inventory** — start both at the same time; do not wait for one before
-> you start the other. The consult is a read-only panel that gives the approved
-> direction an independent design eye. Read the panel result before Step 5 writes the
-> contract. Fire it rather than offering it; skip it only for a trivial, single-option
-> surface. The user may invoke it explicitly with any provider.
-
 ## Step 4: Mock fidelity inventory
 
 List the visible ingredients from the approved mock or scene sentence that must survive into implementation:

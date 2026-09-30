@@ -38,7 +38,7 @@
 <h2>Stage 4 — Plan</h2>
 <p>Plan the first slice:</p>
 <pre><code>/wf plan export-json-flag json-output</code></pre>
-<p>Plan produces the concrete implementation plan for one slice: the files to touch, the ordered steps, and the verification for each step. Before it writes the plan, plan runs a reuse scan. For example, the scan asks whether the codebase already has a JSON serialization helper that the new code can call. When a step depends on a library, plan reads the library's installed source. It does not trust a remembered API. For anything non-trivial, plan also gets a free second opinion from an external model and files the critique next to the plan.</p>
+<p>Plan produces the concrete implementation plan for one slice: the files to touch, the ordered steps, and the verification for each step. Before it writes the plan, plan runs a reuse scan. For example, the scan asks whether the codebase already has a JSON serialization helper that the new code can call. When a step depends on a library, plan reads the library's installed source. It does not trust a remembered API.</p>
 <p>Plan writes <code>04-plan-json-output.md</code> plus the <code>04-plan.md</code> master. If you pass <code>all</code> instead of a slice name, plan plans every slice in parallel. Here we take the slices one at a time.</p>
 
 <h2>Stage 5 — Implement</h2>

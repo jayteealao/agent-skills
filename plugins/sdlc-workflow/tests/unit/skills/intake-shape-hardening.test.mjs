@@ -153,13 +153,11 @@ test('W3.4/W3.5 — intake grounds its questions; shape verifies-and-deepens ins
 });
 
 // ── W4 — independence & surfacing ────────────────────────────────────────────
-test('W4.1 — intake default/ideate/investigate carry objective consult triggers', () => {
+test('W4.1 — no intake mode runs /consult as a workflow step (removed 9.176.0)', () => {
   for (const { name, root } of trees) {
     for (const file of ['intake/default.md', 'intake/ideate.md', 'intake/investigate.md']) {
       const src = ref(root, file);
-      assert.match(src, /Auto second opinion \(objective triggers\)/,
-        `${name}/${file}: lost the objective consult trigger block`);
-      assert.match(src, /auto-invoke/i, `${name}/${file}: consult reverted to offer-only`);
+      assert.ok(!/\/consult/.test(src), `${name}/${file}: runs /consult as a step again`);
     }
   }
 });

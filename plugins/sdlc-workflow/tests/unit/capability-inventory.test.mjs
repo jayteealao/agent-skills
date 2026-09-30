@@ -177,7 +177,8 @@ test('measure-load: 23 keys, core ⊆ instructed ⊆ referenced, targets derive 
   }
   // A "per X" reference is not an order; a "Load `X`" is.
   assert.ok(!load.keys.shape.instructed.fileList.includes('skills/wf/reference/_chat-return.md'), 'shape cites _chat-return.md as "per", not as a load');
-  assert.ok(load.keys.intake.instructed.fileList.includes('skills/wf/reference/intake/default.md'), 'intake orders its default mode');
+  // Mode files are one branch; the measure counts the largest, which need not be default.md.
+  assert.ok(load.keys.intake.instructed.branches.some((b) => b.dir === 'skills/wf/reference/intake' && b.alternatives >= 2), 'intake orders one of its mode files');
   assert.ok(load.keys.review.instructed.fileList.includes('skills/wf/reference/review/_stage.md'), 'review orders _stage.md in full');
   assert.ok(existsSync(LOAD_BASELINE_PATH), 'load-baseline.json is committed');
   const baseline = JSON.parse(readFileSync(LOAD_BASELINE_PATH, 'utf8'));

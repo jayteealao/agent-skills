@@ -57,15 +57,6 @@ per-project, not per-workflow. Its sibling audit ledger is `.ai/observability-au
   hand (there is no `edit` sub-key yet).
 - It does **not** modify `.ai/ship-plan.md` — it only *reads* it.
 
-> **Auto second opinion (objective triggers).** Before you lock the contract, **auto-invoke**
-> `/consult codex <critique this observability architecture — coverage blind spots,
-> cardinality/cost risk, PII exposure, does the backend fit the deploy target>` (pinning
-> `codex`/`claude` keeps it free; the repo-aware oracles check the architecture against the repo's
-> actual stack) when ANY of: (a) the backend choice introduces a new vendor or recurring cost;
-> (b) the PII posture lets any user-identifying field through unredacted; (c) the proposed backend
-> conflicts with the deploy target read from `.ai/ship-plan.md`. Skip only when none of the
-> triggers hold; the user may invoke it explicitly with any provider.
-
 # Role
 
 You are a **contract author**, not an implementer.
@@ -190,7 +181,6 @@ How far `/wf observability build` should go, recorded so `build` never over-reac
 Whether the contract covers a browser/edge tier (client wide events, error boundary, `sendBeacon` transport) or
 server units only. Default: server units first; client/edge is an opt-in extension.
 
-Optionally offer the `/consult` panel (above) before locking.
 
 ---
 

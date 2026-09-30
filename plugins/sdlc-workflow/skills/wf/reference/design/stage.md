@@ -42,7 +42,7 @@ Draw the whole feature, not one slice. Every surface in the brief's content inve
 1. Use the design canvas per `_host-invocation.md`, row "Design canvas". Put one artboard per surface and state. Record the canvas link.
 2. When the host has no design canvas, use `/imagery` for the north-star comps. When the person wants an interactive prototype and external dispatch is enabled, offer `/uiproto`.
 3. For `ux-impact: flow`, draw the flow as a sequence of states. A text flow with a recorded `image-gate: skipped:<reason>` is valid when no surface changes how it looks.
-4. Follow [contract.md](contract.md) Steps 1–4 for the direction, the second opinion, and the mock fidelity inventory.
+4. Follow [contract.md](contract.md) Steps 1–4 for the direction and the mock fidelity inventory.
 
 ## Step 5 — The person confirms
 

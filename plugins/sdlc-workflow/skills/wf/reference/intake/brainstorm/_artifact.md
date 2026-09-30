@@ -48,8 +48,7 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
   "log": [
     { "session": 1, "batch": 1, "thread": "limit-per-project", "kind": "fork", "asked": "<question in ten words>", "answer": "<answer in ten words>" },
     { "session": 1, "batch": 2, "thread": "limit-per-project", "kind": "talk", "asked": "<what the talk explained, in ten words>", "answer": "<the reply in ten words>" }
-  ],
-  "consult-runs": []
+  ]
 }
 ```
 
@@ -95,7 +94,6 @@ created-at: "<ISO 8601>"
 updated-at: "<ISO 8601>"
 sessions: 1
 batches: 0
-consult-runs: []
 revisions: []
 next-command: intake
 next-invocation: "/wf intake brainstorm <slug>"

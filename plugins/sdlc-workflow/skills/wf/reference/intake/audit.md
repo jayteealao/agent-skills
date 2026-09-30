@@ -139,13 +139,6 @@ For each OPEN finding, record a route in `## Triage Decisions`:
 
 Do not fix anything. Do not open a fix loop. Each accepted finding seeds its **own** follow-up workflow via the `from <slug>` provenance token (`_intake-provenance.md`); the audit workflow itself stays open as the ledger of record until `/wf close <slug>`.
 
-> **Auto second opinion (objective triggers).** After the merge, **auto-invoke** `/consult codex <critique these findings and name what this audit missed>` (pinning `codex`/`claude` keeps it free) when ANY of:
-> - the audit surfaced **zero** open findings on a surface above 20 files — a clean result on a large surface is the cheapest thing to be wrong about;
-> - any finding is BLOCKER;
-> - any lens returned `needs-runtime-evidence`;
-> - the surface spans security, auth, data migration, or money/billing.
-> Fold material critique back into the ledger as candidates for the next run (they do NOT bypass Step 4). The user may invoke it with any provider.
-
 # Chat return
 
 Return per [_chat-return.md](../_chat-return.md) — quote the `01-audit` explainer summary as the narrative lead, then:

@@ -113,9 +113,6 @@ section. The design stage draws from the brief. When <code>ux-impact</code> is
 needs (instrumentation, an experiment, a performance benchmark) and records the decision in the
 shape artifact's <code>augmentations-needed</code> frontmatter. Shape decides; plan authors.
 You never invoke the add-ons directly.</p>
-<p>Some spec errors are expensive downstream: a new capability, multiple slices, or a carried
-intent-risk. In those cases, shape automatically gets a second opinion on its draft acceptance
-criteria from an external model before it writes the file.</p>
 
 <h2>Between shape and slice — design</h2>
 <p>When the work needs design, you run the design stage yourself:</p>
@@ -165,9 +162,7 @@ plan while a needed design is not settled. For each add-on that shape decided, p
 metrics), or <code>05c-benchmark.md</code> (baseline numbers). Plan records each add-on in the
 <code>augmentations:</code> list in <code>00-index.md</code>, so implement and verify consume
 the add-ons without being told. Plan writes <code>04-plan.md</code> plus
-<code>04-plan-&lt;slice&gt;.md</code> per planned slice. By default, plan gets an external
-second opinion on any plan that touches risk: concurrency, auth, migrations, money, external
-APIs, or open unknowns.</p>
+<code>04-plan-&lt;slice&gt;.md</code> per planned slice.</p>
 
 <h2>Stage 5 — implement</h2>
 <p>Implement writes the code for one selected slice, exactly as planned:</p>

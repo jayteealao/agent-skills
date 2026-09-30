@@ -21,7 +21,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 |---|---|
 | Requires | See [## Requires](#requires). |
 | Produces (this command) | `01-hotfix.md` (`type: intake` — incident brief + acceptance criteria), `02-shape.md` (root cause + blast radius + scope), `03-slice.md` (`type: slice-index`, one slice), `04-plan.md` (minimal plan + rollback), conformant `00-index.md` (`type: index`). |
-| Compression | Each stage single-pass — **no stage is skipped**, but the lifecycle is expedited under incident pressure. One slice. Handoff and retro stay in the chain: ship STOPs without a ready handoff verdict, and retro auto-triggers its incident consult exactly for hotfixes. |
+| Compression | Each stage single-pass — **no stage is skipped**, but the lifecycle is expedited under incident pressure. One slice. Handoff and retro stay in the chain: ship STOPs without a ready handoff verdict. |
 | Gate | Stop-and-prompt before `05-implement` (Proceed / Adjust / Escalate; family rules per `_change-mode-tail.md`). |
 | Next | `/wf implement <slug>` — standard execution; `07-review` defaults to **`security`**. |
 | Escalate | If the fix needs >3 files / >~50 lines / architectural change, the tripwire fires — record it per `_change-mode-tail.md` and offer the gate's *Escalate*, which closes this slug and restarts as `/wf intake "<description>" from <slug>`. |
@@ -108,7 +108,7 @@ Prompt with ALL of: read the areas most likely to contain the bug; `git log --on
 ### research sub-agent 2 — Impact & Scope
 Prompt with ALL of: find every caller/consumer/dependent of the broken path (grep imports/references); check whether related components share the bug via shared code; identify any data that may have been corrupted during the active period; check whether the bug is on the production branch or only unreleased code. Report the complete affected file/path/service list, data risk (none/possible/confirmed), blast-radius summary.
 
-Wait for both. If root-cause confidence is low, launch a focused third agent on the most likely hypothesis. **Confidence floor:** if confidence is still low after the third agent, do NOT write a guessed `## Root Cause` — climb the ladder instead: reproduce the symptom at runtime via `/wf probe <slug> "<the runtime question the diagnosis hinges on>"` (the finding lands as a compressed slice on this slug), or `/consult` a second model on the hypothesis, or hand to human triage. A hotfix built on a guess ships a second incident. Then write `02-shape.md` carrying the diagnosis-as-scope. `02-shape.md` is the only home of the root cause; `01-hotfix.md` does not copy it.
+Wait for both. If root-cause confidence is low, launch a focused third agent on the most likely hypothesis. **Confidence floor:** if confidence is still low after the third agent, do NOT write a guessed `## Root Cause` — climb the ladder instead: reproduce the symptom at runtime via `/wf probe <slug> "<the runtime question the diagnosis hinges on>"` (the finding lands as a compressed slice on this slug), or hand to human triage. A hotfix built on a guess ships a second incident. Then write `02-shape.md` carrying the diagnosis-as-scope. `02-shape.md` is the only home of the root cause; `01-hotfix.md` does not copy it.
 ```yaml
 ---
 schema: sdlc/v1

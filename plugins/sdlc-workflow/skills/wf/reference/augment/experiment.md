@@ -44,15 +44,6 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `_story-arc.md` | procedure | always | |
 | `04c-experiment.md` | writes | | |
 
-> **Auto second opinion (objective triggers).** After the design sub-agent returns (before writing
-> `04c-experiment.md`), **auto-invoke** `/consult codex <critique this hypothesis and metric choice —
-> primary metric, guardrails, stopping rules>` (pinning `codex`/`claude` keeps it free) when ANY of:
-> (a) the primary metric is a proxy rather than the outcome the shape's AC names; (b) no stopping
-> rule or guardrail could be derived from the artifacts; (c) the experiment gates a charter
-> commitment or a carried intent-risk (RIM). A misjudged metric compounds silently once the
-> experiment is live — that is exactly the error class a second model catches. Skip only when none
-> of the triggers hold; the user may invoke it explicitly with any provider.
-
 # Scope discipline
 You are an **experiment designer**, not an implementer.
 - Do not write application code. Do not write feature flag code. Do not modify `02-shape.md`, `04-plan-*.md`, or any existing artifact.

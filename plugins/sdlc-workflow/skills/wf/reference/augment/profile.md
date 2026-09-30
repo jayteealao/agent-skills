@@ -40,14 +40,6 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `_story-arc.md` | procedure | always | |
 | `/.ai/profiles/*/01-profile.md` | writes | | |
 
-> **Auto second opinion (objective triggers).** At the optimization-candidates synthesis,
-> **auto-invoke** `/consult codex <are these optimization candidates sound, and what architectural
-> patterns did local analysis miss?>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) the
-> top hotspot lies outside the area the plan predicted; (b) any candidate requires an architectural
-> change rather than a local fix; (c) run-to-run variance is comparable to the measured delta (the
-> data is inconclusive, so cross-codebase breadth beats re-measuring). Skip only when none of the
-> triggers hold; the user may invoke it explicitly with any provider.
-
 # Core discipline
 - **Evidence first.** Every hotspot claim must cite a specific `file:line` or tool output. Do not say "this is probably slow" without a data point.
 - **Static analysis is fast; dynamic profiling is authoritative.** Always do static first. If runtime tools are available, run them too and let dynamic data override static guesses.

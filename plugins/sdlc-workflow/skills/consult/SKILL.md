@@ -22,9 +22,7 @@ implementation review, a design trade-off analysis, a diagnosis, a second
 opinion. It is **advisory only**: the oracles can read and search the repo but
 **cannot edit, write, or run commands**. It writes no code and proposes no patch.
 
-Inside a `/wf` stage, the model runs this skill when a trigger in
-[_consult-triggers.md](../wf/reference/_consult-triggers.md) holds; the user may run it at any
-time. A hook or the server never starts it. Cost depends on the provider, not on how
+No `/wf` stage runs this skill as a step. The user may run it at any time. A hook or the server never starts it. Cost depends on the provider, not on how
 often it runs: a self-initiated run pins a **free** subscription CLI (`codex`/`claude`). "Sparing" governs only the **paid** REST oracles (`gemini`,
 `openai`, gateway models) — never fan those out unattended (see Step 0).
 
@@ -86,7 +84,7 @@ node "<skill-dir>/scripts/dispatch.mjs" read-only <repoRoot> <promptFile> [provi
 
 - Omit `[provider ...]` for the bare fan-out; pass the pinned provider(s) otherwise.
 - It prints one JSON object: `{ results: [{provider, ok, text, costUsd, usage, evidenceScope, error}], skipped: [{provider, reason}], bare }`.
-- When the question is about a workflow slug, set `SDLC_COST_SLUG=<slug>` and `SDLC_COST_KEY=<stage key>` on the command. The runner then appends each provider's `usage` as an `external` row to `.ai/workflows/<slug>/cost.jsonl` (see [_consult-triggers.md](../wf/reference/_consult-triggers.md)). Without the variable, no row is written.
+- When the question is about a workflow slug, set `SDLC_COST_SLUG=<slug>` and `SDLC_COST_KEY=<stage key>` on the command. The runner then appends each provider's `usage` as an `external` row to `.ai/workflows/<slug>/cost.jsonl` (see [_additive-write.md](../wf/reference/_additive-write.md)). Without the variable, no row is written.
 - Exit `0` = well-formed (per-provider failures are inside `results`); `2` = usage
   error.
 

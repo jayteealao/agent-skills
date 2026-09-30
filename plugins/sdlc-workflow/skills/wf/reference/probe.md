@@ -59,13 +59,6 @@ Probe owns its own **first-token resolution**: if the first token is the reserve
 
 No flags — probe takes a slug and an optional target string. It always surfaces incidental defects observed during navigation and drives every adapter the repo matches (intersected with the confirmed stack).
 
-> **Auto second opinion (objective triggers).** After observing (before synthesizing),
-> **auto-invoke** `/consult codex <give an independent read of this runtime evidence against the
-> AC>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) the evidence is ambiguous against
-> the AC — no clean pass/fail; (b) the probe's verdict would clear a registered
-> runtime-evidence-deferral (its read unblocks ship, so it deserves two readers); (c) the
-> observation contradicts an earlier verify result. Skip only when none of the triggers hold.
-
 # Step 0 — Orient
 
 1. **Parse `00-index.md`:** `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), the **`charter:` block** (the PO-ratified constraints — see Step 5's comparison basis; constraints are durable and cross-slice, so a probe that reads only AC misses the contract), and the **`stack:` block** (written by `/wf intake` Step 0.5, confirmed in Batch B). When `user-confirmed: true`, it narrows adapter selection in Step 3 and tooling choice during drive/observe.

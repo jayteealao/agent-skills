@@ -38,7 +38,7 @@ Question 2:
       description: "Multiple days. Definitely needs slicing and incremental delivery."
   multiSelect: false
 ```
-Record the appetite answer as `appetite:` in `00-index.md` frontmatter; it is machine-read downstream (shape scales its pre-mortem horizon by it; slice reads it for slice-count expectations; plan's consult trigger keys off it).
+Record the appetite answer as `appetite:` in `00-index.md` frontmatter; it is machine-read downstream (shape scales its pre-mortem horizon by it; slice reads it for slice-count expectations).
 
 **Review scope is NOT asked here:** the PO cannot judge review layout before slicing exists. `00-index.md` carries the provisional default `review-scope: per-slice` with `review-scope-confirmed: false`; `slice` asks the PO once the roster is known (`plan` asks instead on the skip-to-plan path that bypasses slice).
 

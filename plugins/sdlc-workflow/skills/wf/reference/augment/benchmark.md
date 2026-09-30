@@ -58,14 +58,6 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `_story-arc.md` | procedure | always | |
 | `05c-benchmark.md` | writes | | |
 
-> **Auto second opinion (objective triggers).** In compare mode, once the regression analysis is
-> drafted, **auto-invoke** `/consult codex <diagnose the likely cause of these regressions given the
-> diff and the plan>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) a regression
-> tripwire fired (>10% CPU / >25% memory); (b) the drafted likely-cause cites no specific diff hunk —
-> an unlocalized cause is a guess, and a guess is exactly what a second model checks; (c) the numbers
-> reverse an expected improvement (the plan predicted faster, the compare measured slower). Skip only
-> when none of the triggers hold; the user may invoke it explicitly with any provider.
-
 # Measurement discipline
 You are a **performance analyst**, not an optimizer.
 - Do not modify application code. Do not rewrite benchmarks to make them faster.

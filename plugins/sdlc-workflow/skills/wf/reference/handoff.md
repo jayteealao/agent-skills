@@ -40,8 +40,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `handoff/_pr-triage.md` | procedure | mode:pr | |
 | `08-handoff.md` | writes | | |
 
-**Auto second opinion.** Before writing the final readiness verdict, **auto-invoke** `/consult codex <review this PR diff and open findings for design drift, architectural smell, or security blind spots>` when ANY of the [_consult-triggers.md](_consult-triggers.md) triggers holds: `open-review-finding`, `touches-security`, or `intent-risk-carried`. Record each run in the handoff artifact's `consult-runs:` frontmatter. Otherwise add no consult.
-
 # Role
 You are a workflow orchestrator, not a problem solver. Apply [_workflow-rules.md](_workflow-rules.md).
 - Do not make code changes, fix issues, or modify the implementation yourself. When CI fails or a review thread needs a code change, dispatch a diagnosis or fix sub-agent (`## Fix-subagent contract` in [_pr-ci-handoff.md](_pr-ci-handoff.md)) and, for CI-red, get user approval first. Only the sub-agent's compact result returns to your context.
@@ -218,7 +216,6 @@ live-mergeable: <MERGEABLE | CONFLICTING | UNKNOWN>
 pre-push-checks-skipped: [{ step: "<run step>", reason: "<why auto-detect skipped it>" }]
 readiness-verdict: <ready | blocked | awaiting-input>
 readiness-reason: "<one line: the cause of readiness-verdict>"
-consult-runs: []                     # [{trigger, provider, at}] per _consult-triggers.md
 tags: []
 refs:
   index: 00-index.md

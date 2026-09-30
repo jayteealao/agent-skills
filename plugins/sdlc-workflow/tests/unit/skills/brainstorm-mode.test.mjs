@@ -182,11 +182,10 @@ test('the provenance contract consumes a brainstorm source', () => {
   assert.match(src, /brainstorm-board\.json/, '_intake-provenance.md does not read the JSON board');
 });
 
-test('the consult block cites only recorded triggers', () => {
-  const triggers = read('reference', '_consult-triggers.md');
-  for (const name of ['thread-contested', 'claim-contradicted']) {
-    assert.match(triggers, new RegExp(`^\\| \`${name}\` \\|`, 'm'), `_consult-triggers.md lost the ${name} row`);
-  }
+test('a second opinion runs only when the person asks for it', () => {
+  const src = read('reference', 'intake', 'brainstorm.md');
+  assert.match(src, /Run this only when the person says `second opinion`; never run it unasked\./);
+  assert.ok(!/auto-invoke/i.test(src), 'brainstorm auto-invokes /consult again');
 });
 
 const doc = () => ({

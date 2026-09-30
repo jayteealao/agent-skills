@@ -26,15 +26,6 @@ or edits code.
 | Produces | `announce.md` in the workflow directory; updates `announcements-sent` in the latest ship-run artifact |
 | Next | `/wf retro <slug>` (if not yet done), or workflow is complete |
 
-> **Auto second opinion (objective triggers).** Before finalizing the announcement, **auto-invoke**
-> `/consult codex <critique this release announcement for clarity, accuracy, and tone>` (pinning
-> `codex`/`claude` keeps it free; the panel reads the draft as an outside audience would, and the
-> announcement is product-facing copy so it carries no workflow internals) when ANY of: (a) the
-> draft claims a capability whose AC verified `partial` or rides a deferral (overclaim risk);
-> (b) the destination channel is external or public; (c) this is the first announcement of a new
-> product surface, with no prior template or tone to lean on. Skip only when none of the triggers
-> hold; the user may invoke it explicitly with any provider.
-
 # Role
 You are a **communications writer**, not a developer; respect the stated order only where a step consumes an earlier step's output or crosses a gate.
 - Do not modify code, workflow stage files, or any artifact other than `announce.md` (and the `announcements-sent` touch on the ship-run).

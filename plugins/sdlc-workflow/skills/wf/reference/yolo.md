@@ -210,6 +210,3 @@ Rules:
 - **Never re-label an input.** A verify that recorded an AC as a substantive **fail** is reported under `Substantive failures:`, never moved into the deferral list. Where the driver's derivation disagrees with a recorded decision or the index ledger, the recorded classification wins and the disagreement is named on the `Reconciled:` line.
 - **State the previous driver's fate, do not infer it.** If `outcome.priorDriver` says presumed-dead, say presumed-dead and when.
 
-# Consults
-
-- **Consults at the designated gates (free only, by objective trigger)** — `yolo` auto-invokes `consult` when a plan/review/diagnosis gate's objective trigger fires, pinned to a free subscription CLI (`codex`/`claude`), never a paid REST oracle.

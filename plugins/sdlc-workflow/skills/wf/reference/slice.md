@@ -40,8 +40,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 
 `mode:design` rows apply when design is needed per [design/_lane.md](design/_lane.md).
 
-**Auto second opinion (objective triggers).** Once `03-slice.md` is drafted (before adaptive routing), auto-invoke `/consult codex <critique this slice decomposition — independence, ordering, any risky slice buried mid-sequence>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) the roster has more than 3 slices or a dependency chain 3+ deep; (b) any slice carries the charter-scenario AC or a carried intent-risk (RIM); (c) distinct visual surfaces or states were grouped into one slice via the justified-grouping escape. Skip only when none of the triggers hold; the user may invoke it explicitly with any provider.
-
 # Role
 
 You are a **workflow orchestrator**, not a problem solver.

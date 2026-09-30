@@ -87,12 +87,6 @@ Write the explainer `01-task.explainer.html.fragment` per [_story-arc.md](_story
 
 **[Gate]** — apply the blast-radius table as a gate question per [_gate-question.md](_gate-question.md) (Proceed / Adjust / Escalate). `repo-local` may auto-proceed low-risk at your discretion — record `auto-proceeded-low-risk` in the brief. The bottom three rows always stop; their **non-interactive default is STOP** (record the missing authorization; do not proceed). For `irreversible`, the confirmation must echo exactly what will happen.
 
-> **Auto second opinion (objective triggers).** At the gate, **auto-invoke** `/consult codex <critique this task brief: steps, rollback, blast radius>` (pinning `codex`/`claude` keeps it free) when ANY of:
-> - `blast-radius` is `shared-env`, `external-party`, or `irreversible`;
-> - the task touches credentials, billing, or production data;
-> - no rollback exists for any step.
-> Surface material critique to the user WITH the gate question — the point is a second set of eyes before anything acts outside the repo. The user may invoke it with any provider.
-
 # Step 2 — Execute
 
 Do the work, step by step, per the brief. Then write `05-implement.md` (`type: implement`) with `## Steps Performed`: **what actually happened per step, including deviations** — the brief is the plan; this file is the history. A step that failed or was skipped is recorded as such, never smoothed over.

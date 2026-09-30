@@ -76,7 +76,7 @@ criteria, so verify and review gate on observable incident-over conditions. Then
 investigators trace the root cause to specific files and lines and map the blast radius:
 callers, sibling components that share the bug, and data that may be corrupted. When confidence
 stays low after a third investigator, the lane does not write a guessed root cause — it climbs
-to a runtime probe, a second model, or human triage. The diagnosis becomes the shape.</p>
+to a runtime probe or human triage. The diagnosis becomes the shape.</p>
 
 <p><strong>Scope is locked.</strong> The only acceptable output is the minimum change that
 stops the incident: no refactoring, no cleanup, nothing outside the identified root cause. The
@@ -87,8 +87,7 @@ the exit — it closes the hotfix slug and restarts as a full intake carrying th
 <p>The lane stops at the gate. Next, run <code>/wf implement &lt;slug&gt;</code>, then verify.
 Then run <code>/wf review &lt;slug&gt; security</code>; review defaults to the security
 dimension for hotfixes. Then handoff, ship, and retro — the full tail runs even for an
-incident: ship refuses without a ready handoff verdict, and retro's incident consult exists
-exactly for hotfixes.</p>
+incident: ship refuses without a ready handoff verdict.</p>
 
 <h2><code>refactor</code> — restructuring without behavior change</h2>
 

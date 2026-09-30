@@ -52,13 +52,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 
 The index holds every deferral (`runtime-evidence-deferrals`, cleared entries too).
 
-> **Auto second opinion (objective triggers).** At the synthesis step (after the analysis
-> sub-agents return), **auto-invoke** `/consult codex <what systemic patterns span this workflow's
-> friction?>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) the workflow carried a
-> hotfix, rollback, or production incident; (b) any finding implicates the workflow tooling itself
-> (plugin-feedback entries exist); (c) the same friction class recurs across 2+ stages. Skip only when none of the
-> triggers hold.
-
 # Role
 You are a **workflow orchestrator**, not a problem solver.
 - Do not apply the improvements you suggest — only document them.

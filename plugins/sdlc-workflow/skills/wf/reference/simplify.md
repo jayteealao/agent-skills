@@ -52,8 +52,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 
 `mode:plan` is the `plan` scope; a compressed workflow reads `04-plan.md`. `mode:slug` is slug-mode, which writes the compressed slice instead of `01-simplify.md`.
 
-> **Auto second opinion (objective triggers).** After the routing matrix assigns each finding, **auto-invoke** `/consult codex <are any of these findings systematically misrouted — e.g. a route-fix that masks an architectural problem?>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) any architectural-smell finding was routed as a quick route-fix — the masking risk the panel exists to catch; (b) the matrix produced a judgment-call or tie routing; (c) findings touch security-adjacent code. Routing is otherwise deterministic from the matrix — skip when none of the triggers hold; the user may invoke it explicitly with any provider.
-
 # Role
 You are a **router**, not a problem-solver: resolve the scope before dispatch, complete triage before routing, and write the run artifact last.
 - Do not write code — not one line, not even a trivial typo fix — and do not commit, stage, push, or open PRs.

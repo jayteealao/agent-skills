@@ -23,7 +23,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | Produces | `01-rca.md` (full RCA), `02-shape.md` (synthesized minimal shape so /wf plan works), `00-index.md`. Body templates: [intake/rca/_artifact.md](rca/_artifact.md). |
 | Skips | No fix, no plan, no shape interview. The RCA *is* the shape. |
 | Next | `/wf plan <slug>` (default: non-trivial fixes, same slug continues), `/wf intake fix "<suggested fix, one line>" from <slug>` (small fixes), `/wf intake hotfix "<symptom, one line>" from <slug>` (active production incidents). The artifact recommends one based on the diagnosis; recording the route (`# Route — decision closure`) is the terminus. |
-| Escalate | If root cause is genuinely uncertain (confidence: low), climb the ladder before surrendering to triage: `/wf probe <slug> "<the runtime question the diagnosis hinges on>"` for a runtime fact, the `study-sources` skill for a dependency fact, `/consult` for a second model on the hypothesis. Human triage is the LAST rung, reached when low confidence survives those. |
+| Escalate | If root cause is genuinely uncertain (confidence: low), climb the ladder before surrendering to triage: `/wf probe <slug> "<the runtime question the diagnosis hinges on>"` for a runtime fact, the `study-sources` skill for a dependency fact. Human triage is the LAST rung, reached when low confidence survives those. |
 
 ## Requires
 
@@ -42,8 +42,6 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `_compressed-slice.md` | procedure | mode:slug | |
 | `01-rca.md` | writes | | |
 | `02-shape.md` | writes | | |
-
-> **Auto second opinion (diagnosis).** Once the root-cause hypothesis is written (before the terminus recommendation), **auto-invoke** `/consult codex <is this root-cause sound? what else could explain the symptom?>` (pin `codex`/`claude`) unless the cause is already proven: a read-only panel whose repo-aware oracles check the hypothesis against the real code before you commit to a fix.
 
 > **Read the real source (diagnosis).** When the symptom trail leads *out of the repo* (a stack frame inside `node_modules`/`site-packages`/a cached JAR, an error string absent from the tree, version-specific behavior), invoke the `study-sources` skill to read that dependency's **actual installed source** before settling on a hypothesis. A root cause grounded in the real implementation beats one grounded in recalled API behavior, which is exactly where plausible-but-wrong RCAs come from. Reads land in gitignored `.scratch/`; no repo mutation, no fix.
 
@@ -204,7 +202,7 @@ RCA artifact: .ai/workflows/<slug>/01-rca.md
 
 If the recommendation is `human-triage`, replace the `Recommended next:` line with:
 
-> ⚠ Human triage required — confidence is low and blast radius is high, and the escalation ladder (probe / study-sources / consult) did not raise confidence. Read `01-rca.md` and decide manually before routing to a fix workflow.
+> ⚠ Human triage required — confidence is low and blast radius is high, and the escalation ladder (probe / study-sources) did not raise confidence. Read `01-rca.md` and decide manually before routing to a fix workflow.
 
 # Route — decision closure
 

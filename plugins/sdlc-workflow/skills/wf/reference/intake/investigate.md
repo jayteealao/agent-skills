@@ -40,17 +40,6 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `_compressed-slice.md` | procedure | mode:slug | |
 | `01-investigate.md` | writes | | |
 
-> **Auto second opinion (objective triggers).** At the terminus, once the option set is
-> synthesized (after Step 3 has written `01-investigate.md` and before Step 4 writes the index —
-> folding the panel's output in therefore edits the just-written artifact), **auto-invoke** `/consult codex <critique these
-> candidate approaches and name what this analysis missed>` (pinning `codex`/`claude` keeps it
-> free) when ANY of: (a) any tripwire fired (`single-viable-option` especially — a second model
-> is the cheapest test of whether the option space is genuinely that narrow); (b) any option is
-> `effort: large` or requires a schema change or an architecture violation; (c) the options span
-> security, auth, data migration, or money/billing. Fold distinct options or refutations into the
-> artifact (an option the panel kills moves to "considered and rejected" with the reason). Skip
-> only when none of the triggers hold; the user may invoke it explicitly with any provider.
-
 > **Ground options in real source.** When a candidate approach hinges on what a
 > library, framework, or SDK *actually* supports — an extension point, a config
 > surface, a limit, whether an API even exists in the installed version — invoke the

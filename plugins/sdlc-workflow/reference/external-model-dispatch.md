@@ -7,7 +7,7 @@ and `uiproto` remain opt-in behind the machine-wide consent flag below. Full des
 
 | Skill | Invoke | Providers (bare = fan out to all available) | Role |
 |-------|--------|---------------------------------------------|------|
-| `consult` | `/consult [provider] <question>` (model-invocable, auto at `/wf` gates) | `codex`, `claude` (subscription CLIs, repo-aware), `gemini`, `openai`, `<provider>/<model>` (REST, prompt-only) | Read-only oracle panel — plan critique, code review, diagnosis, second opinion. Auto-runs at plan/design/review/diagnosis (pins a free CLI); never edits. |
+| `consult` | `/consult [provider] <question>` (model-invocable; no `/wf` stage runs it as a step) | `codex`, `claude` (subscription CLIs, repo-aware), `gemini`, `openai`, `<provider>/<model>` (REST, prompt-only) | Read-only oracle panel — plan critique, code review, diagnosis, second opinion. Auto-runs at plan/design/review/diagnosis (pins a free CLI); never edits. |
 | `imagery` | internal to `/wf design` — the design stage's fallback when the host has no design canvas | `image_gen` (built-in, no egress), `openai` (gpt-image-2), `gemini` (nano-banana), `openai-sub` (gpt-image-2 via codex subscription, explicit-only) | Image generation → variant set. Supersedes `imagegen` (D14). |
 | `uiproto` | internal to `/wf design` — the design stage's interactive-prototype fallback when the host has no design canvas | `stitch` (Google Stitch), `llm` (self-contained HTML) | UI component/screen prototype → sandboxed `<iframe srcdoc>`. |
 
@@ -75,7 +75,7 @@ panel, an imagery variant set (one image per distinct model — `openai-sub` exc
 to avoid double-billing gpt-image-2), or both uiproto engines. Subscription CLIs are
 free per call; the REST/API backends bill per-token on **every** call. Pin a single
 provider to control spend: `/consult codex …`, `imagery gemini …`, `uiproto llm …`.
-When the model self-initiates a `consult` (auto-run at a `/wf` gate) it always pins a
+When the model self-initiates a `consult` it always pins a
 free CLI (`codex`/`claude`) — the paid REST oracles are never fanned out unattended.
 
 ## Build/parity notes
