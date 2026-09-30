@@ -5,6 +5,21 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.175.0] - 2026-09-30
+
+`/wf yolo` honors `steer.md` in every agent that judges or writes, and sees steering edits made during a run.
+
+### Added
+
+- **Steering clause in the driver's own agents.** Rubric selection, dimension scouts, refuters, the wall probe, the decision classifier, the charter checkpoint and plan reconcile now get a steering clause. Before this release only the stage agents read `steer.md`, through their stage references. The clause names the path and tells the agent to read the file when it starts. So an edit made during a run reaches every agent that starts after it. Orient takes no copy. Bookkeeping agents (branch, write-back, ledger report) get no clause.
+- **Steering-compliance scout.** When rubric selection finds `steer.md`, the review fan-out adds one scout that checks the diff against each entry. A crossed veto is a HIGH finding, and a crossed preference is a MED finding. A refuter cannot refute a finding that quotes an entry on the grounds that the code works.
+- **Steering check at the charter checkpoint.** The checkpoint also judges the built code against each entry. A crossed veto stops the run with `stoppedAt: 'steering-checkpoint'`. A crossed preference is logged.
+- **Steering in the run report.** Stages return `steeringHonored` and, on a steering stop, `steeringConflict`. The hand-back rolls them and the checkpoint violations into `outcome.steering`.
+
+### Fixed
+
+- **An autonomous run enforced steering vetoes only inside the stages.** The review scouts and the checkpoint could not see a veto, so the review could not flag a diff that crossed one.
+
 ## [9.174.1] - 2026-09-29
 
 ### Changed
