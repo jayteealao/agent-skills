@@ -5,6 +5,22 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.176.0] - 2026-09-30
+
+`/consult` is no longer a `/wf` workflow step. The skill stays; you run it when you want a second opinion.
+
+### Removed
+
+- **Consult steps in the stages.** The 39 "auto second opinion" blocks in 35 stage references are gone. This covers plan, shape, slice, implement, verify, review, handoff, ship, retro, the intake modes, docs, probe, simplify, the ship-plan, observability, augment and design stages, and the `/wf auto` and `/wf yolo` notes. No check ever made a stage run them.
+- **`_consult-triggers.md`** and its 31 triggers, the `consult-runs:` frontmatter field in the stage templates, and the `consultRuns` schema entry. Old artifacts that carry `consult-runs:` still validate.
+- **The consult rung** in the hotfix, rca and refactor escalation ladders. The ladders are now probe, study-sources, then human triage.
+- **The consult-trigger-coverage test.**
+
+### Changed
+
+- **Brainstorm.** The `second opinion` control word still runs `/consult`, but only when the person says it. The `done` question no longer offers a second opinion.
+- **Docs.** The doc site and `external-model-dispatch.md` no longer say that a stage runs consult on its own.
+
 ## [9.175.0] - 2026-09-30
 
 `/wf yolo` honors `steer.md` in every agent that judges or writes, and sees steering edits made during a run.
