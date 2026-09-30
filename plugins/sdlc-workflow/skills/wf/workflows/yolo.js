@@ -136,6 +136,99 @@ const CONTROL_FILE_RULE =
   `against the NEW content, and retry ONCE. Never force a stale string through, and never rewrite the whole file ` +
   `to dodge the conflict.`
 
+// ---------------------------------------------------------------------------
+// STANDING STEERING — every agent that judges or writes reads steer.md FRESH.
+// Stage agents read steer.md through their stage reference, but the driver's own
+// agents (rubric selection, scouts, refuters, wall probe, classifier, charter
+// checkpoint, plan reconcile) are prompted by this script and never opened it. A
+// steering veto the scouts cannot see is a veto the review cannot enforce.
+// The clause names the PATH, never a copy of the text: the user may edit steer.md
+// while the run drives, and each agent that starts after the edit must see it. A
+// snapshot taken at orient would freeze the entries for the whole run.
+// Bookkeeping agents (branch, write-back, index write-back, ledger report) get no
+// clause: they change no code and judge nothing a steering entry governs.
+// ---------------------------------------------------------------------------
+function steeringClause(steerPath, role, contractPath) {
+  const head = `\n\nSTANDING STEERING (MANDATORY). The user keeps standing instructions for this workflow in ` +
+    `${steerPath}. Read that file NOW, in full, with the file-read tool — never from a copy in a prompt or from ` +
+    `an earlier run: the user can edit it while this run drives. If the file is absent or empty, there is no ` +
+    `steering: skip the rest of this block and return no steering fields. The contract is ${contractPath}. No ` +
+    `human gate in this run repeats these entries, so the file is the user's voice here. A steering VETO ` +
+    `outranks every autonomous-policy default in this prompt. Steering never overrides a mandatory gate (the ` +
+    `External Output Boundary, sibling-fragment enforcement, AC verifiability, the constraint-resolution rule), ` +
+    `never authorizes a deferral, and never waives a dont-ship verdict.`
+  if (role === 'writer') {
+    return head +
+      `\n- Honor each entry. A preference tilts an autonomous choice; a satisfiable constraint is obeyed. Never ` +
+      `take an action a veto forbids, even when the policy above allows it.\n` +
+      `- An entry may pre-answer a NAMED intent-bearing question: settle that one decision by the entry and ` +
+      `record the entry as its answer. An entry never gives standing leave to settle intent-bearing decisions in ` +
+      `general.\n` +
+      `- Record what you honored in the stage artifact's \`steering-honored:\` frontmatter list, and return the ` +
+      `same list as steeringHonored.\n` +
+      `- When an entry conflicts with the stage contract, is impossible for this stage, or is ambiguous, or when ` +
+      `the only way to finish crosses a veto: do not obey it into a broken state and do not ignore it. Finish ` +
+      `the artifact honestly (status: awaiting-input, the conflict recorded), return status:'hard-stop' with ` +
+      `hardStopReason 'steering: <what conflicts>', and return steeringConflict quoting the entry.\n` +
+      `- When you dispatch a sub-agent, copy the entries that bear on its task into its prompt.`
+  }
+  if (role === 'scout') {
+    return head +
+      ` Your rubric is STEERING COMPLIANCE. For each entry, check the diff against it. A change that crosses a ` +
+      `veto (touches what the entry forbids, adds what it rejects) is a finding with severity HIGH. A change that ` +
+      `goes against a preference is a finding with severity MED. Quote the entry in the issue. Report nothing ` +
+      `for an entry the diff does not touch; with no steer.md, return findings: [].`
+  }
+  if (role === 'refute') {
+    return head +
+      ` A finding that quotes a steering entry is refuted ONLY when the diff does not contradict that entry as ` +
+      `the file states it now. "The code works" or "the change is reasonable" does not refute it: the entry is ` +
+      `the user's rule. A finding whose fix would cross a veto is still real; say so in reason.`
+  }
+  if (role === 'classify') {
+    return head +
+      ` A decision that contradicts an entry is 'intent-bearing'. A decision an entry pre-answers by name keeps ` +
+      `the class the five tests give it; say in why which entry answered it.`
+  }
+  if (role === 'checkpoint') {
+    return head +
+      ` Also judge the built code against each entry. Return steeringViolations: one { entry (quoted), kind ` +
+      `('veto' when the entry forbids something, 'preference' otherwise), note } for each entry the code ` +
+      `contradicts; [] when none does or there is no steer.md.`
+  }
+  // 'context' — read-only agents whose choices must stay inside the entries.
+  return head +
+    ` Keep your work inside these entries: never run a command, recommend an action, or select an option an ` +
+    `entry forbids. When an entry names a concern your task covers, weigh it.`
+}
+
+// steeringDigest() — the hand-back's steering line: what each stage said it honored,
+// the stages that stopped on a steering conflict, and the checkpoint violations.
+// Null when nothing in the run reported steering (no steer.md, or no entry applied).
+function steeringDigest(o) {
+  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
+  const stages = chains.flatMap(c => (c && c.ran) || [])
+  if (o && o.slugWide) stages.push(o.slugWide)
+  const honored = []
+  const conflicts = []
+  for (const r of stages) {
+    if (!r) continue
+    for (const h of r.steeringHonored || []) {
+      if (h && String(h).trim()) honored.push({ slice: r.slice || null, stage: r.stage, honored: String(h).trim() })
+    }
+    if (r.steeringConflict && String(r.steeringConflict).trim()) {
+      conflicts.push({ slice: r.slice || null, stage: r.stage, entry: String(r.steeringConflict).trim() })
+    }
+  }
+  const violations = ((o && o.charterCheckpoints) || [])
+    .flatMap(cp => ((cp && cp.steeringViolations) || []).map(v => ({ throughSlice: cp.throughSlice, ...v })))
+  if (!honored.length && !conflicts.length && !violations.length) return null
+  return { honored, conflicts, violations }
+}
+
+const STEER_PATH = `${projectRoot}/.ai/workflows/${slug}/steer.md`
+const steer = (role) => steeringClause(STEER_PATH, role, `${referenceRoot}/_steering.md`)
+
 // Y6 — THE REQUIRES TABLE IS A CHECKLIST. Yolo stage agents read their own reference
 // almost always, then skipped what it points to: the shape in 8–18% of implement,
 // verify and review runs, procedure files in 3–58%. Nothing in the run noticed. The
@@ -549,6 +642,10 @@ const STAGE_RESULT = {
       },
     },
     hardStopReason: { type: 'string' },
+    // Standing steering — the stage artifact's `steering-honored:` list, returned so the
+    // hand-back can show it, and the entry a steering stop names.
+    steeringHonored: { type: 'array', items: { type: 'string' } },
+    steeringConflict: { type: 'string' },
   },
 }
 
@@ -591,6 +688,9 @@ const RUBRIC_SELECTION = {
         },
       },
     },
+    // true iff steer.md existed when this agent read it — the driver then adds the
+    // steering-compliance scout. Read at review time, so a mid-run edit counts.
+    steeringPresent: { type: 'boolean' },
   },
 }
 
@@ -928,7 +1028,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `artifact(s) under ${projectRoot}/.ai/workflows/${slug}/ — with ONE override: wherever the reference tells you ` +
     `to ask the user (AskUserQuestion) or pause for a human, DO NOT. Resolve it yourself by this policy:\n\n` +
     `${POLICY[stage]}${roundClause}${probeClause}${reChallenge}${scopeHint}${noIndexClause}${fanoutClause}` +
-    `${reconcileClause}` +
+    `${reconcileClause}` + steer('writer') +
     requiresClause(`${referenceRoot}/${stage}.md`) + `\n\n` +
     `Operating rules:\n` +
     `- GROUNDED PROGRESS (${referenceRoot}/_grounded-progress.md): before reporting progress or terminal state, ` +
@@ -957,7 +1057,8 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `each with the literal capability-probe command + output tail you ran THIS round to establish the wall; [] if ` +
     `none) + substantiveResidual (true iff an AC fails/partials for a CODE reason); review: verdict + blockerCount ` +
     `(= metric-findings-blocker, OPEN) — plus the class-stamped decisions you recorded, any residual ` +
-    `(could-not-fix) notes, and your recovered-error list.` +
+    `(could-not-fix) notes, your recovered-error list, and steeringHonored (plus steeringConflict when a steering ` +
+    `entry stopped you) when steer.md exists.` +
     heartbeatClause(`${stage}${sliceArg ? ':' + sliceArg : ''}`, 'Drive', stage, sliceArg),
     { schema: STAGE_RESULT, label: `${stage}${sliceArg ? ':' + sliceArg : ''}`, phase: 'Drive', ...OPUS }
   )
@@ -1205,7 +1306,7 @@ async function driveWallProbe(sliceArg, idx) {
     `For EACH, re-execute its capability probe FRESH now (the recorded clearing-probe when one exists, otherwise ` +
     `the probe named in the defer-reason) and record the literal command plus a one-line output tail. Report ` +
     `stands: true when the wall is still there, stands: false when it has fallen. Read-only: run the probes, ` +
-    `write NOTHING — no artifacts, no index edits, no commits.\n\n` +
+    `write NOTHING — no artifacts, no index edits, no commits.` + steer('context') + `\n\n` +
     `Set escalateReason ONLY if you find something that genuinely warrants re-running the whole verify stage — ` +
     `the artifacts contradict the index, or a wall fell and its acceptance criterion now needs real evidence ` +
     `collected. Name it in one line; the driver records your reason as a decision so a later audit can see why ` +
@@ -1242,7 +1343,8 @@ async function classifyDecisions(res, idx) {
     `intent-bearing decision an autonomous run made silently, which is the exact escape this taxonomy exists ` +
     `to prevent.\n` +
     `- If you genuinely cannot tell from the artifact, return class 'unclassified' with a reason. Do NOT guess ` +
-    `to fill the field — a guessed label is worse than an admitted gap, because it looks like knowledge.\n\n` +
+    `to fill the field — a guessed label is worse than an admitted gap, because it looks like knowledge.` +
+    steer('classify') + `\n\n` +
     `Return { classified: [{ index (1-based, from the list above), class, why }] }.` +
     heartbeatClause(`classify:${res.stage}${res.slice ? ':' + res.slice : ''}`, 'Drive', 'classify', res.slice),
     {
@@ -1308,7 +1410,8 @@ async function driveReview(sliceArg, idx) {
     `${idx.reviewDimension ? ` Always include '${idx.reviewDimension}' (the forwarded RCA's recommended rubric).` : ''}\n\n` +
     `Return rubrics: one entry per selected rubric as { rubric, file, focus, reason }, where file is the rubric's ` +
     `path relative to ${referenceRoot} (review/<name>.md, or design/audit.md / design/critique.md for the two ` +
-    `design dimensions) and focus is the alias section to read, or empty for the whole rubric.`,
+    `design dimensions) and focus is the alias section to read, or empty for the whole rubric. Return ` +
+    `steeringPresent: true when ${STEER_PATH} exists with at least one entry, false otherwise.` + steer('context'),
     { schema: RUBRIC_SELECTION, label: 'select-rubrics', phase: 'Review', ...SONNET }
   )
   const rubrics = (selection && Array.isArray(selection.rubrics) && selection.rubrics.length)
@@ -1329,16 +1432,28 @@ async function driveReview(sliceArg, idx) {
     `${r.focus ? ` — the '${r.focus}' section and '# Severity calibration'` : ' in full'}, and apply it as the ` +
     `rubric's own severity scale. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Report only ` +
     `findings the diff supports. Return each as { id, severity (BLOCKER|HIGH|MED|LOW|NIT), file, line, issue, ` +
-    `confidence }. Write nothing.\n\n${EOB}`,
+    `confidence }. Write nothing.\n\n${EOB}` + steer('context'),
     { schema: FINDINGS_SCHEMA, label: `scout:${r.rubric}${r.focus ? ':' + r.focus : ''}`, phase: 'Review', ...SONNET }
   )))
-  const raw = scouts.filter(Boolean).flatMap(s => s.findings || [])
+  // Standing steering — one more scout whose rubric is the user's steer.md. It runs only
+  // when rubric selection saw the file, and it reads the file itself (never a copy).
+  const steeringScout = selection && selection.steeringPresent === true
+    ? await agent(
+        `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the standing-steering ` +
+        `rubric ONLY. Inspect the diff: \`git -C ${projectRoot} diff ${diffRange}\`. Return each finding as { id, ` +
+        `severity (BLOCKER|HIGH|MED|LOW|NIT), file, line, issue, confidence }. Write nothing.\n\n${EOB}` +
+        steer('scout'),
+        { schema: FINDINGS_SCHEMA, label: 'scout:steering', phase: 'Review', ...SONNET }
+      )
+    : null
+  const raw = [...scouts, steeringScout].filter(Boolean).flatMap(s => s.findings || [])
   // 2. Adversarial verify — refute each finding; keep only survivors. Higher
   //    signal BEFORE auto-fix means fewer false-positive fixes.
   const checked = await parallel(raw.map(f => () =>
     agent(
       `Adversarially REFUTE this code-review finding. Default to refuted=true if uncertain or unreproducible. ` +
-      `Inspect ${projectRoot} (read-only) to check. Finding: ${JSON.stringify(f)}. Return { refuted, reason }.`,
+      `Inspect ${projectRoot} (read-only) to check. Finding: ${JSON.stringify(f)}. Return { refuted, reason }.` +
+      steer('refute'),
       { schema: VERDICT_SCHEMA, label: `refute:${f.id || '?'}`, phase: 'Review', ...SONNET }
     ).then(v => (v && v.refuted === false ? f : null))
   ))
@@ -1354,9 +1469,10 @@ async function driveReview(sliceArg, idx) {
     `accumulating ledger. Review scope is '${idx.reviewScope}'.${fanoutDimensionHint} A parallel per-dimension scan has ALREADY been run ` +
     `and adversarially verified; record and triage these surviving findings (re-confirm any you doubt, but do not ` +
     `discard the scan): ${JSON.stringify(verified)}.\n\n` +
-    `Apply the autonomous triage policy: ${POLICY.review}\n\n` +
+    `Apply the autonomous triage policy: ${POLICY.review}` + steer('writer') + `\n\n` +
     `Project root ${projectRoot} is ABSOLUTE; resolve paths under it and run \`git -C ${projectRoot} …\`. Write ` +
-    `schema-complete frontmatter. Return the terminal state (verdict + blockerCount, decisions, residual).` +
+    `schema-complete frontmatter. Return the terminal state (verdict + blockerCount, decisions, residual, and ` +
+    `steeringHonored / steeringConflict when steer.md exists).` +
     requiresClause(`${referenceRoot}/review.md`) +
     // S6 — the scouts read these rubrics and their verified findings ride in this prompt,
     // so the rubrics count as read for the review writer.
@@ -1386,7 +1502,8 @@ async function runUpdateDepsExec(idx) {
     `Read ${referenceRoot}/intake/update-deps.md IN FULL and follow Steps 6–9 VERBATIM. Its scan/research/` +
     `prioritize/slice/plan (Steps 1–5) are ALREADY DONE on disk — 01-update-deps.md, 02-shape.md, 03-slice.md and ` +
     `04-plan.md are complete; you START at Step 6. Apply ONE override wherever the reference asks the user or pauses ` +
-    `for a human — resolve it by this policy:\n\n${POLICY['update-deps']}${reChallengeClause(idx.priorDeferrals)}\n\n` +
+    `for a human — resolve it by this policy:\n\n${POLICY['update-deps']}${reChallengeClause(idx.priorDeferrals)}` +
+    steer('writer') + `\n\n` +
     `Operating rules:\n` +
     `- Your mandate is ONLY the self-managed update-deps exec (05-implement.md + 06-verify.md) for slug '${slug}'. ` +
     `Do NOT run /wf review or /wf handoff, do NOT claim completion of the whole workflow, and do NOT recommend ` +
@@ -1807,6 +1924,20 @@ const CHECKPOINT_RESULT = {
       },
     },
     summary: { type: 'string' },
+    // Standing steering — entries of steer.md (read fresh by the checkpoint) that the built
+    // code contradicts. A 'veto' violation stops the run; a 'preference' one is surfaced.
+    steeringViolations: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['entry', 'kind'],
+        properties: {
+          entry: { type: 'string' },
+          kind: { enum: ['veto', 'preference'] },
+          note: { type: 'string' },
+        },
+      },
+    },
   },
 }
 
@@ -1824,6 +1955,7 @@ async function charterCheckpoint(idx, throughSlice) {
     `(the code visibly serves it), 'at-risk' (drifting — a decision has weakened it), or 'broken' (the code ` +
     `now contradicts it — e.g. the intake said the model owns a decision and the code hard-codes it). Return ` +
     `{ commitments: [{id, status, note}], summary }. Judge against the CODE, not the artifacts' claims.` +
+    steer('checkpoint') +
     heartbeatClause(`checkpoint:${throughSlice}`, 'Drive', 'charter-checkpoint', throughSlice),
     { schema: CHECKPOINT_RESULT, label: `checkpoint:${throughSlice}`, phase: 'Drive', ...SONNET }
   )
@@ -1915,7 +2047,7 @@ async function reconcilePlans(idx) {
     `files, or when both change one migration sequence, one shared fixture, or one public API.\n` +
     `3. Return overlaps: one entry per slice that must be re-planned, as { slice, with (the sibling slices it ` +
     `overlaps), files (shared files), edges (edges that cross), reason }. When two slices overlap, name the ` +
-    `later one in roster order. Return overlaps: [] when no plans overlap.` +
+    `later one in roster order. Return overlaps: [] when no plans overlap.` + steer('context') +
     heartbeatClause('plan-reconcile', 'Drive', 'plan-reconcile', null),
     { schema: RECONCILE_RESULT, label: 'plan-reconcile', phase: 'Drive', ...SONNET } // read-only comparison; pinned per _subagents.md
   )
@@ -2223,6 +2355,13 @@ if (reconcileStop) {
           if (broken.length) {
             return { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: 'charter-checkpoint', stoppedSlice: s.slice, reason: `charter commitment(s) BROKEN after '${s.slice}': ${broken.map(c => `${c.id} (${c.note || 'no note'})`).join('; ')} — the build has departed from what the intake committed to; a human must re-decide before continuing`, results, charterCheckpoints, route: `read the broken commitment(s), decide whether to re-shape or accept, then re-run /wf yolo ${slug}` }
           }
+          // Standing steering — a crossed veto outranks every auto-resolve, so it stops the run.
+          const vetoes = (cp.steeringViolations || []).filter(v => v && v.kind === 'veto')
+          const prefs = (cp.steeringViolations || []).filter(v => v && v.kind === 'preference')
+          if (prefs.length) log(`steering check after '${s.slice}': ${prefs.length} preference(s) not followed — ${prefs.map(v => v.entry).join('; ')}`)
+          if (vetoes.length) {
+            return { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: 'steering-checkpoint', stoppedSlice: s.slice, reason: `steering veto(es) CROSSED after '${s.slice}': ${vetoes.map(v => `"${v.entry}"${v.note ? ` (${v.note})` : ''}`).join('; ')} — the built code contradicts the user's standing instructions in steer.md`, results, charterCheckpoints, route: `read the crossed veto(es) in steer.md, fix the code or change the entry, then re-run /wf yolo ${slug}` }
+          }
         }
       }
     }
@@ -2337,6 +2476,12 @@ if (digest) {
     ? `intent-bearing escapes: ${digest.intentBearing.length} — SUSPECT: ${digest.unclassified.length} decision(s) could not be classified and are NOT covered by that number; review them`
     : `intent-bearing escapes: ${digest.intentBearing.length} (every decision classified)`
   log(`autonomous decisions this run: ${digest.total} (${parts}) — ${guarantee}`)
+}
+// Standing steering — what the stages honored, and where steering stopped or was crossed.
+const steering = steeringDigest(outcome)
+if (steering) {
+  outcome.steering = steering
+  log(`steering (${STEER_PATH}): ${steering.honored.length} honored, ${steering.conflicts.length} stage stop(s) on a conflict, ${steering.violations.length} checkpoint violation(s)${steering.conflicts.length ? ` — ${steering.conflicts.map(c => `${c.stage}${c.slice ? ':' + c.slice : ''} "${c.entry}"`).join('; ')}` : ''}`)
 }
 log(outcome.stopped ? `yolo HARD-STOP at ${outcome.stoppedAt || 'orient'}: ${outcome.reason}` : `yolo reached the endpoint — next: ${outcome.route}`)
 return outcome

@@ -698,3 +698,102 @@ test('checkpoint: skipped when no stage ran since the last checkpoint', () => {
   assert.match(yoloSrc, /if \(chain\.ran\.length\) workSinceCheckpoint = true/);
   assert.match(yoloSrc, /!workSinceCheckpoint\) \{\s*log\(`charter checkpoint after '\$\{s\.slice\}' skipped/);
 });
+
+// ---------------------------------------------------------------------------
+// Standing steering. Stage agents read steer.md through their references; the
+// driver's own judging agents get a clause that names the PATH and tells them to
+// read it fresh, so an edit made during a run reaches every agent that starts later.
+// ---------------------------------------------------------------------------
+const { steeringClause, steeringDigest } = new Function(
+  [
+    extractFn(yoloSrc, 'steeringClause'),
+    extractFn(yoloSrc, 'steeringDigest'),
+    'return { steeringClause, steeringDigest };',
+  ].join('\n')
+)();
+
+// Source of one top-level (async) function, up to the next top-level declaration. Prompt
+// strings in the async agents hold unbalanced braces, so brace-matching is unsafe there.
+function fnSrc(name) {
+  const m = new RegExp(`^(?:async )?function ${name}\\(`, 'm').exec(yoloSrc);
+  assert.ok(m, `could not locate function ${name} in yolo.js`);
+  const rest = yoloSrc.slice(m.index + 1);
+  const next = rest.search(/^(?:async function |function |const |let |\/\/ ={5,})/m);
+  return next < 0 ? rest : rest.slice(0, next);
+}
+
+const STEER = '/repo/.ai/workflows/demo/steer.md';
+const CONTRACT = '/plugin/skills/wf/reference/_steering.md';
+
+test('steering: every role names the path, demands a fresh read, and handles an absent file', () => {
+  for (const role of ['writer', 'scout', 'refute', 'classify', 'checkpoint', 'context']) {
+    const c = steeringClause(STEER, role, CONTRACT);
+    assert.ok(c.includes(STEER), `${role}: path missing`);
+    assert.ok(c.includes(CONTRACT), `${role}: contract missing`);
+    assert.match(c, /Read that file NOW/, `${role}: no fresh-read demand`);
+    assert.match(c, /never from a copy/, `${role}: allows a stale copy`);
+    assert.match(c, /absent or empty, there is no steering/, `${role}: absent file not handled`);
+    assert.match(c, /VETO outranks every autonomous-policy default/, `${role}: veto precedence missing`);
+    assert.match(c, /never overrides a mandatory gate/, `${role}: mandatory-gate floor missing`);
+  }
+});
+
+test('steering: each role carries its own duty', () => {
+  assert.match(steeringClause(STEER, 'writer', CONTRACT), /steering-honored:.*steeringHonored/s);
+  assert.match(steeringClause(STEER, 'writer', CONTRACT), /steeringConflict/);
+  assert.match(steeringClause(STEER, 'scout', CONTRACT), /STEERING COMPLIANCE.*severity HIGH/s);
+  assert.match(steeringClause(STEER, 'refute', CONTRACT), /refuted ONLY when the diff does not contradict/);
+  assert.match(steeringClause(STEER, 'classify', CONTRACT), /contradicts an entry is 'intent-bearing'/);
+  assert.match(steeringClause(STEER, 'checkpoint', CONTRACT), /steeringViolations/);
+});
+
+test('steeringDigest: null when no stage reported steering', () => {
+  assert.equal(steeringDigest({ ran: [{ stage: 'plan', decisions: [] }] }), null);
+  assert.equal(steeringDigest({}), null);
+});
+
+test('steeringDigest: gathers honored, conflicts, the slug-wide review, and checkpoint violations', () => {
+  const d = steeringDigest({
+    results: [
+      { ran: [{ stage: 'plan', slice: 'a', steeringHonored: ['used the queue approach', ' '] }] },
+      { ran: [{ stage: 'implement', slice: 'b', steeringConflict: 'never touch config/loader.ts' }] },
+    ],
+    slugWide: { stage: 'review', steeringHonored: ['no new runtime deps'] },
+    charterCheckpoints: [{ throughSlice: 'c', steeringViolations: [{ entry: 'no new deps', kind: 'preference' }] }],
+  });
+  assert.deepEqual(d.honored.map(h => h.honored), ['used the queue approach', 'no new runtime deps']);
+  assert.deepEqual(d.conflicts, [{ slice: 'b', stage: 'implement', entry: 'never touch config/loader.ts' }]);
+  assert.deepEqual(d.violations, [{ throughSlice: 'c', entry: 'no new deps', kind: 'preference' }]);
+});
+
+test('steering: the driver never snapshots steer.md at orient', () => {
+  const orientSrc = fnSrc('orient');
+  assert.ok(!/steer\.md/.test(orientSrc), 'orient reads steer.md — a snapshot freezes entries for the whole run');
+});
+
+test('steering: every judging or writing agent carries the clause; bookkeeping agents do not', () => {
+  const withClause = {
+    runStage: "steer('writer')",
+    runUpdateDepsExec: "steer('writer')",
+    driveWallProbe: "steer('context')",
+    classifyDecisions: "steer('classify')",
+    charterCheckpoint: "steer('checkpoint')",
+    reconcilePlans: "steer('context')",
+  };
+  for (const [fn, call] of Object.entries(withClause)) {
+    assert.ok(fnSrc(fn).includes(call), `${fn} lacks ${call}`);
+  }
+  const review = fnSrc('driveReview');
+  for (const call of ["steer('context')", "steer('scout')", "steer('refute')", "steer('writer')"]) {
+    assert.ok(review.includes(call), `driveReview lacks ${call}`);
+  }
+  assert.match(review, /selection\.steeringPresent === true/);
+  for (const fn of ['ensureBranch', 'writeBackSliceStatus', 'readLedgerReport']) {
+    assert.ok(!fnSrc(fn).includes('steer('), `${fn} is bookkeeping and must not carry the clause`);
+  }
+});
+
+test('steering: a veto the built code crosses stops the run at the steering checkpoint', () => {
+  assert.match(yoloSrc, /const vetoes = \(cp\.steeringViolations \|\| \[\]\)\.filter\(v => v && v\.kind === 'veto'\)/);
+  assert.match(yoloSrc, /stoppedAt: 'steering-checkpoint'/);
+});
