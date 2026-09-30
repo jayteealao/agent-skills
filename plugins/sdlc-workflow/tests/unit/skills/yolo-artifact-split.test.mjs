@@ -255,14 +255,16 @@ test('_requires.md defines the table, the checklist, the modes, the ledger and t
   ]) assert.ok(src.includes(needle), `_requires.md lost: ${needle}`);
 });
 
-test('_story-arc.md is the explainer contract with the four snippet names', () => {
+test('_story-arc.md is the explainer contract with the eight snippet names', () => {
   const src = ref('_story-arc.md');
-  for (const name of ['sequence', 'comparison', 'cycle', 'dependency']) {
+  for (const name of ['sequence', 'comparison', 'cycle', 'dependency', 'layout', 'trend', 'states', 'steps']) {
     assert.ok(src.includes(`@include explainer/${name}`), `missing snippet explainer/${name}`);
   }
   assert.match(src, /<stem>\.explainer\.html\.fragment/);
   assert.match(src, /`## The Brainstorm`/);
   assert.match(src, /A6 — Chat-summary form/);
+  assert.match(src, /A2 — Explain the thing, not the progress/);
+  for (const attr of ['data-ex-steps', 'data-ex-toggle', 'data-ex-slider', 'data-ex-frames']) assert.ok(src.includes(attr), `missing interaction markup ${attr}`);
 });
 
 test('the explainer reaches the chat return, the additive-write snapshot, and the ownership table', () => {
