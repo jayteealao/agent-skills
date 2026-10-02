@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>sdlc-workflow — existing mods in styles A, D and E</title>
+<style>
+  :root { --page:#1b1d22; --pageInk:#c9ccd3; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--page); color:var(--pageInk); font:14px/1.45 system-ui, sans-serif; }
+  header { display:flex; gap:24px; align-items:center; flex-wrap:wrap; padding:14px 22px; border-bottom:1px solid #2c2f36; }
+  header h1 { font-size:15px; margin:0 12px 0 0; font-weight:600; color:#fff; }
+  .seg { display:flex; gap:0; border:1px solid #3a3e47; border-radius:6px; overflow:hidden; }
+  .seg button { background:none; color:#aab; border:0; padding:6px 12px; font:inherit; cursor:pointer; }
+  .seg button.on { background:#3a3e47; color:#fff; }
+  .lbl { font-size:12px; color:#8a8f99; margin-right:6px; }
+  main { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); gap:22px; padding:22px; }
+  .note { grid-column:1/-1; font-size:12.5px; color:#8a8f99; max-width:1100px; }
+  .note b { color:#c9ccd3; font-weight:600; }
+  .frame { border-radius:10px; overflow:hidden; border:1px solid #2c2f36; }
+  .cap { font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:#8a8f99; margin:0 0 6px; }
+  /* terminal surface */
+  .term { font:13px/1.5 "Cascadia Mono", Consolas, "SF Mono", monospace; padding:12px 14px; min-height:120px; white-space:pre; overflow:hidden; }
+  .row { display:block; min-height:1.5em; }
+  .b { font-weight:700; } .dim { opacity:.55; } .u { text-decoration:underline; }
+  .btn { padding:0 2px; cursor:pointer; } .btn:hover { filter:brightness(1.4); }
+  .prim { padding:0 4px; }
+  .rule { opacity:.35; }
+  .engine { opacity:.55; font-style:normal; }
+  .split { display:grid; grid-template-columns:1fr; gap:22px; }
+  .tag { padding:0 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Existing mods · restyle preview</h1>
+  <span><span class="lbl">viewStyle</span><span class="seg" id="style">
+    <button data-v="A" class="on">dashboard</button><button data-v="D">instrument</button><button data-v="E">grid</button></span></span>
+  <span><span class="lbl">band shows</span><span class="seg" id="band">
+    <button data-v="pick" class="on">picker open</button><button data-v="live">live line + strip</button></span></span>
+  <span><span class="lbl">dashboard details</span><span class="seg" id="det">
+    <button data-v="0" class="on">off</button><button data-v="1">on</button></span></span>
+  <span id="themeWrap"><span class="lbl">terminal theme</span><span class="seg" id="theme">
+    <button data-v="dark" class="on">dark</button><button data-v="light">light</button></span></span>
+</header>
+<main>
+  <p class="note">The same facts, hotkeys and row order in every style (plan section 14, rule Y3). Only the plugin's own trees take a style: the <b>picker band</b>, the <b>strip</b>, the <b>workflows dashboard</b> and the <b>hub notice</b>. The <b>status line</b>, <b>spinner</b>, <b>mode label</b> and <b>toasts</b> are engine lines: the plugin gives the words only, so they look the same in all three styles (rule Y2). Style E on a dark terminal draws an ink ground with the same accents (rule Y7).</p>
+  <section>
+    <p class="cap">Terminal · transcript column · prompt area</p>
+    <div class="frame"><div class="term" id="prompt"></div></div>
+  </section>
+  <section>
+    <p class="cap">Pane wf-dashboard · docked</p>
+    <div class="frame"><div class="term" id="dash"></div></div>
+  </section>
+</main>
+<script>
+const WF = [
+  { slug:'soccer-manager', status:'active', stage:'verify', slice:'s4', done:3, total:7, findings:3, next:'/wf review soccer-manager s4', needs:false, rail:3,
+    slices:['done','done','done','run','wait','wait','wait'] },
+  { slug:'conditions', status:'awaiting-input', stage:'plan', slice:'s1', done:0, total:4, findings:0, next:'/wf plan conditions s1', needs:true, rail:1,
+    slices:['need','wait','wait','wait'] },
+  { slug:'engine-modules', status:'active', stage:'implement', slice:'s2', done:1, total:5, findings:1, next:'/wf verify engine-modules s2', needs:false, rail:2,
+    slices:['done','run','wait','wait','wait'] },
+  { slug:'auth-refresh', status:'shipped', closed:true },
+  { slug:'hub-tray', status:'abandoned', closed:true },
+];
+const HUB = { v:'9.176.0', ok:true, repos:12, stale:0 };
+const STAGES = ['plan','implement','verify','review'];
+const S = { style:'A', band:'pick', det:'0', theme:'dark' };
+
+const PAL = {
+  A: { bg:'#080b10', ink:'#d9dfe9', dim:'#7d8594', green:'#4ade80', blue:'#60a5fa', amber:'#fbbf24', red:'#f87171', violet:'#a78bfa', acc:'#60a5fa' },
+  D: { bg:'#0a0a0a', ink:'#ececec', dim:'#7a7a7a', card:'#151515', orange:'#ff4a1c', mint:'#3ee6a8', acc:'#ff4a1c' },
+  Elight: { bg:'#f4f4f2', ink:'#0d0d0d', dim:'#7a7a74', line:'#d2d2cd', purple:'#7b5cff', lime:'#d7ff3a', red:'#ff3b30', acc:'#7b5cff', btnBg:'#0d0d0d', btnInk:'#f4f4f2' },
+  Edark:  { bg:'#0d0d0d', ink:'#f4f4f2', dim:'#8a8a84', line:'#2e2e2b', purple:'#9b84ff', lime:'#d7ff3a', red:'#ff5a50', acc:'#9b84ff', btnBg:'#f4f4f2', btnInk:'#0d0d0d' },
+};
+const pal = () => S.style==='E' ? (S.theme==='dark' ? PAL.Edark : PAL.Elight) : PAL[S.style];
+const esc = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const c = (col, t, cls='') => `<span class="${cls}" style="color:${col}">${esc(t)}</span>`;
+const bg = (fg, back, t, cls='') => `<span class="${cls}" style="color:${fg};background:${back}">${esc(t)}</span>`;
+const line = h => `<span class="row">${h}</span>`;
+const pad = (t,n) => (t+' '.repeat(n)).slice(0,n);
+const up = t => S.style==='A' ? t : t.toUpperCase();
+
+function stageCol(w){ const p=pal(); if (S.style==='A') return w.needs?p.amber:(w.stage==='verify'?p.blue:p.blue); return p.ink; }
+function rail(w){ // four segments plan/implement/verify/review
+  const p=pal(); let out='';
+  STAGES.forEach((st,i)=>{
+    const state = i < w.rail-1 ? 'done' : i===w.rail-1 ? (w.needs?'need':'run') : 'wait';
+    if (S.style==='A') out += c(state==='done'?p.green:state==='run'?p.blue:state==='need'?p.amber:p.dim, state==='wait'?'▱▱':'▰▰');
+    else if (S.style==='D') out += c(state==='need'?p.orange:state==='wait'?p.dim:p.ink, state==='wait'?'▫':'▪');
+    else out += c(state==='need'?p.ink:state==='run'?p.purple:state==='wait'?p.dim:p.ink, state==='wait'?'□':'■', '') ;
+  }); return out;
+}
+function sliceMarks(w){
+  const p=pal();
+  return w.slices.map(s=>{
+    if (S.style==='A') return c(s==='done'?p.green:s==='run'?p.blue:s==='need'?p.amber:p.dim, s==='wait'?'○':'●');
+    if (S.style==='D') return c(s==='need'?p.orange:s==='wait'?'#3a3a3a':s==='run'?p.mint:p.ink, '■');
+    return s==='need' ? bg(p.ink,p.lime,'■') : c(s==='run'?p.purple:s==='wait'?p.line:p.ink, '■');
+  }).join(S.style==='A'?' ':'');
+}
+
+/* ---------- prompt area: transcript tail, band, strip, footer, engine lines ---------- */
+function renderPrompt(){
+  const p=pal(), L=[];
+  const el=document.getElementById('prompt'); el.style.background=p.bg; el.style.color=p.ink;
+  L.push(line(c(p.dim,'● Bash(npm test -- verify)  ⎿ 214 passed')));
+  L.push(line(c(p.dim,'✻ ')+c(p.ink,'Verifying…')+c(p.dim,'  (engine spinner: stage verb, same in every style)')));
+  L.push(line(''));
+  L.push(line(c(p.dim,'─'.repeat(78),'rule')));
+  if (S.band==='pick') L.push(...picker()); else L.push(...liveLine());
+  L.push(...strip());
+  L.push(line(c(p.dim,'─'.repeat(78),'rule')));
+  L.push(line(c(p.ink,'> ')+c(p.dim,'█')));
+  L.push(line(c(p.dim,'  yolo · verify s4 · 4 s ago · 5h 76 %')+c(p.dim,'                    wf:verify & focus')));
+  L.push(line(''));
+  L.push(line(c(p.dim,'  toast (engine) ▸ wf yolo soccer-manager: driver presumed dead · 21 min quiet   [10 s]')));
+  L.push(line(c(p.dim,'  hub notice under the logo ▸ ')+notice()));
+  el.innerHTML=L.join('');
+}
+function picker(){
+  const p=pal(), L=[];
+  const rows = WF.filter(w=>!w.closed).concat(WF.filter(w=>w.closed));
+  let title;
+  if (S.style==='A') title = c(p.ink,'/wf › plan › ','b dim')+c(p.ink,'pick a workflow','b')+c(p.dim,'  (page 1 of 2)');
+  if (S.style==='D') title = c(p.dim,'01 ')+c(p.ink,'/WF · PICK A WORKFLOW','b')+'  '+c(p.orange,'1/2');
+  if (S.style==='E') title = c(p.purple,'/01 ','b')+c(p.ink,'PICK A WORKFLOW','b')+'  '+c(p.purple,'/WF › PLAN')+c(p.dim,'  1/2');
+  const filt = S.style==='A' ? c(p.dim,'[ filter            ]') : c(p.dim,'[ FILTER            ]');
+  const ctl = S.style==='A' ? c(p.acc,'0')+c(p.ink,': more  ')+c(p.dim,'← back  ')+c(p.dim,'close ✕','u')
+            : S.style==='D' ? c(p.orange,'0')+c(p.ink,': MORE  ')+c(p.dim,'← BACK  ')+c(p.dim,'CLOSE ✕','u')
+            : c(p.purple,'0')+c(p.ink,': MORE  ')+c(p.dim,'← BACK  ')+bg(p.btnInk,p.btnBg,' CLOSE ↗ ');
+  L.push(line(' '+title+'   '+filt+'   '+ctl));
+  rows.forEach((w,i)=>{
+    const hk = String(i+1);
+    const hkCol = S.style==='D' ? p.orange : S.style==='E' ? p.purple : p.acc;
+    let mark='', label, tail='';
+    if (w.closed) { label = `${w.slug}  closed (${w.status})`; mark = S.style==='A' ? c(p.dim,'○ ') : S.style==='D' ? c(p.dim,'▫▫▫▫ ') : c(p.dim,'□□□□ '); }
+    else {
+      label = `${w.slug}  ${w.status} · stage ${w.stage} · slice ${w.slice}`;
+      if (S.style==='A') mark = c(w.needs?p.amber:p.blue,'● ');
+      if (S.style==='D') { mark = rail(w)+' '; if (w.needs) tail = '  '+c(p.orange,'!','b'); }
+      if (S.style==='E') { mark = rail(w)+' '; if (w.needs) tail = '  '+bg('#0d0d0d',p.lime,' NEEDS YOU '); }
+    }
+    L.push(line(' '+c(hkCol,hk,'b')+c(p.ink,': ')+mark+c(w.closed?p.dim:p.ink,label)+tail));
+  });
+  L.push(line(' '+c(p.dim, S.style==='A'?'digit picks · type to filter · ctrl+x tab focuses':'DIGIT PICKS · TYPE TO FILTER · CTRL+X TAB FOCUSES')));
+  return L;
+}
+function liveLine(){
+  const p=pal(), w=WF[0];
+  if (S.style==='A') return [line(' '+c(p.green,'●')+' '+c(p.ink,'yolo · soccer-manager · ','b')+c(p.blue,'verify','b')+c(p.dim,' s4 · 6 of usual 8 min   ')+c(p.acc,'[ 1 stop after verify ]')+'  '+c(p.ink,'2')+c(p.dim,': open record'))];
+  if (S.style==='D') return [line(' '+c(p.mint,'∿')+' '+c(p.dim,'01 ')+c(p.ink,'YOLO · SOCCER-MANAGER · VERIFY S4','b')+c(p.dim,' 06/08 MIN   ')+c(p.orange,'[ 1 STOP AFTER VERIFY ]')+'  '+c(p.ink,'2')+c(p.dim,': OPEN RECORD'))];
+  return [line(' '+bg('#0d0d0d',p.lime,' OK ')+' '+c(p.purple,'/YOLO ','b')+c(p.ink,'SOCCER-MANAGER — VERIFY S4','b')+c(p.dim,'  6/8 MIN   ')+bg(p.btnInk,p.btnBg,' 1 STOP AFTER VERIFY ↗ ')+'  '+c(p.ink,'2')+c(p.dim,': OPEN RECORD'))];
+}
+function strip(){
+  const p=pal(), w=WF[0], more = c(p.dim,'⇄ 2 more');
+  let row;
+  if (S.style==='A') row = c(p.blue,'● ')+c(p.ink,`${w.slug} · `)+c(p.blue,w.stage)+c(p.ink,` · ${w.slice} `)+c(p.green,'▰▰▰')+c(p.dim,'▱▱▱▱')+c(p.ink,` ${w.done}/${w.total}`)+c(p.dim,` · next: ${w.next}`);
+  if (S.style==='D') row = c(p.ink,`${w.slug.toUpperCase()}  ${w.stage.toUpperCase()}  ${w.slice.toUpperCase()} `,'b')+c(p.mint,`${w.done}/${w.total}`)+c(p.dim,`  NEXT ${w.next}`);
+  if (S.style==='E') row = c(p.ink,`${w.slug.toUpperCase()} — ${w.stage.toUpperCase()}`,'b')+'  '+sliceMarks(w)+'  '+bg('#fff',p.purple,' RUNNING ')+c(p.dim,`  NEXT ${w.next}`);
+  const detail = S.style==='A' ? 'stage $1.84 · ledger 412k tokens' : 'STAGE $1.84 · LEDGER 412K TOKENS';
+  return [line(' '+row+'  '+more), line('    '+c(p.dim,detail))];
+}
+function notice(){
+  const p=pal(), t=`${HUB.v} · ${HUB.repos} repos`;
+  if (S.style==='A') return c(HUB.ok?p.green:p.red,'● ')+c(p.dim,'sdlc hub '+t+' · /sdlc-doctor');
+  if (S.style==='D') return c(p.dim,'HUB '+t.toUpperCase()+' · /SDLC-DOCTOR');
+  return c(p.purple,'/HUB ')+c(p.dim,t.toUpperCase().replace(' · ',' — ')+' · /SDLC-DOCTOR');
+}
+
+/* ---------- dashboard pane ---------- */
+function renderDash(){
+  const p=pal(), L=[];
+  const el=document.getElementById('dash'); el.style.background=p.bg; el.style.color=p.ink;
+  const det = S.det==='1';
+  const active = WF.filter(w=>!w.closed), closed = WF.filter(w=>w.closed);
+  const btn = (t)=> S.style==='E' ? bg(p.btnInk,p.btnBg,` ${t.toUpperCase()} ↗ `) : S.style==='D' ? c(p.dim,t.toUpperCase(),'u btn') : c(p.dim,t,'u btn');
+  const detBtn = S.style==='A' ? c(p.acc, det?'details ▾':'details ▸') : S.style==='D' ? c(p.dim, det?'DETAILS ▾':'DETAILS ▸') : bg(p.btnInk,p.btnBg, det?' DETAILS ▾ ':' DETAILS ▸ ');
+  if (S.style==='A') {
+    active.forEach(w=>{
+      L.push(line(c(w.needs?p.amber:p.blue,'● ')+c(p.ink,pad(w.slug,16),'b')+rail(w)+'  '+c(stageCol(w),pad(w.stage,10))+sliceMarks(w)+'  '+(w.findings?c(p.amber,`${w.findings} open`):c(p.dim,'0 open'))));
+      L.push(line('  '+c(p.dim,pad(w.needs?'waits for you · answer the plan questions':'next: '+w.next,46))+btn('status')+' '+btn('pick')));
+    });
+    if (det) closed.forEach(w=>L.push(line(c(p.dim,'○ '+pad(w.slug,16)+'closed ('+w.status+')')+'  '+btn('status'))));
+    L.push(line(''));
+    L.push(line(c(p.dim,`3 active · 2 closed · 4 open findings · blockers 0 · `)+c(p.green,'●')+c(p.dim,` hub ${HUB.v} ok`)));
+    L.push(line(detBtn));
+  }
+  if (S.style==='D') {
+    const card = (n,title,body)=>{ L.push(line(c(p.dim,'┌ ')+c(p.dim,n+' ')+c(p.ink,title,'b')+c(p.dim,' '+'─'.repeat(Math.max(2,46-title.length-n.length))))); body.forEach(b=>L.push(line(c(p.dim,'│ ')+b))); L.push(line(c(p.dim,'└'+'─'.repeat(50)))); };
+    active.forEach((w,i)=>card(String(i+1).padStart(2,'0'), w.slug.toUpperCase()+(w.needs?'  ':''), [
+      c(w.needs?p.orange:p.ink, w.stage.toUpperCase(),'b')+c(p.dim,`  ${w.slice.toUpperCase()}  `)+rail(w)+(w.needs?'  '+c(p.orange,'NEEDS YOU','b'):''),
+      sliceMarks(w)+'  '+c(w.findings?p.orange:p.dim,`${w.findings} FINDINGS`)+'   '+btn('status')+' '+btn('pick'),
+    ]));
+    if (det) card(String(active.length+1).padStart(2,'0'),'CLOSED',[c(p.dim,closed.map(w=>w.slug.toUpperCase()+' '+w.status.toUpperCase()).join(' · '))]);
+    card(String(active.length+(det?2:1)).padStart(2,'0'),'HUB',[c(p.mint,'● ')+c(p.ink,HUB.v,'b')+c(p.dim,` · ${HUB.repos} REPOS · ${HUB.stale} STALE   `)+detBtn]);
+  }
+  if (S.style==='E') {
+    L.push(line(c(p.purple,'/01 ','b')+c(p.ink,'WORKFLOWS','b')+c(p.dim,'   3 ACTIVE · 2 CLOSED')));
+    L.push(line(c(p.line,'─'.repeat(64))));
+    L.push(line(c(p.dim,pad('SLUG',16)+pad('STAGE',11)+pad('SLICES',9)+pad('FINDINGS',10)+'NEXT')));
+    L.push(line(c(p.line,'─'.repeat(64))));
+    active.forEach(w=>{
+      L.push(line(c(p.ink,pad(w.slug.toUpperCase(),16),'b')+c(w.needs?p.ink:p.purple,pad(w.stage.toUpperCase(),11),'b')+sliceMarks(w)+' '.repeat(Math.max(1,9-w.slices.length))+c(w.findings?p.ink:p.dim,pad(String(w.findings),10))+(w.needs?bg('#0d0d0d',p.lime,' NEEDS YOU '):c(p.dim,'/WF '+w.next.split(' ')[1].toUpperCase()))));
+      L.push(line(' '.repeat(16)+btn('status')+' '+btn('pick')));
+    });
+    if (det) closed.forEach(w=>L.push(line(c(p.dim,pad(w.slug.toUpperCase(),16)+'CLOSED · '+w.status.toUpperCase()))));
+    L.push(line(c(p.line,'─'.repeat(64))));
+    L.push(line(bg('#0d0d0d',p.lime,` HUB ${HUB.v} · OPERATIONAL `)+c(p.dim,`  ${HUB.repos} REPOS · BLOCKERS 0   `)+detBtn));
+  }
+  el.innerHTML=L.join('');
+}
+
+function render(){
+  document.getElementById('themeWrap').style.display = S.style==='E' ? '' : 'none';
+  renderPrompt(); renderDash();
+}
+for (const id of ['style','band','det','theme']) {
+  document.getElementById(id).addEventListener('click', ev=>{
+    const b=ev.target.closest('button'); if(!b) return;
+    S[id]=b.dataset.v; [...b.parentNode.children].forEach(x=>x.classList.toggle('on',x===b)); render();
+  });
+}
+render();
+</script>
+</body>
+</html>

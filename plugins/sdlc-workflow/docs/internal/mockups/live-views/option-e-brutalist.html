@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Option E · Brutalist grid · sdlc-workflow live views</title>
+<style>
+:root{
+  --bg:#ecece9; --paper:#f4f4f2; --ink:#0d0d0d; --mid:#5c5c5c; --mute:#8e8e8a; --line:#d2d2cd; --line2:#bdbdb7;
+  --vio:#7b5cff; --vio2:#a48cff; --lime:#d7ff3a; --red:#ff3b30;
+  --disp:"Bahnschrift","Arial Narrow","Roboto Condensed",Impact,sans-serif;
+  --mono:"JetBrains Mono","IBM Plex Mono","Cascadia Mono",Consolas,monospace;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono)}
+.wrap{max-width:1440px;margin:0 auto;padding:20px 26px 50px}
+.top{display:flex;align-items:center;gap:20px;margin-bottom:16px;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.top .opts{display:flex;gap:0;border:1px solid var(--ink)}
+.top .opts a{color:var(--ink);text-decoration:none;padding:6px 12px;border-right:1px solid var(--ink)}
+.top .opts a:last-child{border-right:0}
+.top .opts a.on{background:var(--ink);color:var(--paper)}
+nav{display:flex;margin-left:auto;gap:0;border:1px solid var(--ink)}
+nav button{all:unset;cursor:pointer;padding:6px 14px;border-right:1px solid var(--ink)}
+nav button:last-child{border-right:0}
+nav button.on{background:var(--vio);color:#fff}
+.ctl{display:flex;gap:6px}
+.ctl button{all:unset;cursor:pointer;border:1px solid var(--line2);padding:5px 9px}
+.ctl button.on{border-color:var(--ink)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:24px}
+.pane{background:var(--paper);border:1px solid var(--line2);position:relative}
+/* top bar */
+.bar{display:grid;grid-template-columns:auto 1fr auto auto;align-items:stretch;border-bottom:1px solid var(--line)}
+.bar > div{padding:14px 18px;display:flex;align-items:center;gap:10px}
+.logo{font:700 15px var(--mono);letter-spacing:.02em}
+.logo span{color:var(--vio)}
+.crumb{border-left:1px solid var(--line);font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;gap:12px!important}
+.crumb i{font-style:normal;color:var(--vio)}
+.sys{border-left:1px solid var(--line);font-size:10.5px;line-height:1.5;flex-direction:column;align-items:flex-start!important;justify-content:center;min-width:150px}
+.sys b{font-weight:400;color:var(--mute)}
+.cta{padding:10px 14px!important}
+.btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:22px;background:var(--ink);color:#fff;font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:12px 14px;transition:background .2s}
+.btn:hover{background:#2a2a2a}
+.btn::after{content:"↗";font-size:15px;color:var(--vio2)}
+.btn.vio{background:var(--vio)} .btn.vio::after{color:#fff}
+.btn.armed{background:var(--vio)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--ink);padding:9px 12px}
+.btn.ghost::after{color:var(--vio)}
+.btn.sm{padding:7px 10px;font-size:10px;gap:14px}
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);border-bottom:1px solid var(--line);position:relative}
+.hero .l{padding:26px 26px 26px 34px;border-right:1px solid var(--line);position:relative}
+.hero .l::before{content:"";position:absolute;left:14px;top:30px;bottom:30px;border-left:1px dashed var(--line2)}
+.idx{font:12px var(--mono);color:var(--vio);margin-bottom:6px}
+h1.big{font:700 112px/.86 var(--disp);font-stretch:condensed;letter-spacing:-.01em;margin:0;text-transform:uppercase;transition:opacity .3s,transform .3s}
+h1.big.out{opacity:0;transform:translateY(8px)}
+h2.big2{font:700 40px/1 var(--disp);font-stretch:condensed;margin:6px 0 0;text-transform:uppercase}
+.tag{font:600 12.5px var(--mono);letter-spacing:.08em;color:var(--vio);text-transform:uppercase;margin:16px 0 12px}
+.lead{font-size:12.5px;line-height:1.7;max-width:460px;margin:0 0 18px}
+.hero .r{position:relative;padding:22px 24px;display:flex;flex-direction:column}
+.hero .r .meta{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:.06em}
+.hero .r .meta span:first-child::before{content:"> ";color:var(--vio)}
+.plus{position:absolute;color:var(--vio);font-size:14px;line-height:1}
+.mtx{margin:18px auto 0;display:grid;gap:5px;position:relative}
+.mtx .lab{font-size:10px;color:var(--mute);display:flex;align-items:center;white-space:nowrap}
+.mtx .lab.cur{color:var(--ink)}
+.mtx .colh{font-size:9.5px;color:var(--mute);text-align:center;letter-spacing:.08em}
+.blk{width:38px;height:38px;background:#fff;border:1px solid var(--line2);transition:background .5s,border-color .5s,transform .4s var(--ease);position:relative}
+.blk.d{background:var(--ink);border-color:var(--ink)}
+.blk.g{background:#8a8a86;border-color:#8a8a86}
+.blk.run{background:var(--vio);border-color:var(--vio);animation:pul 1.4s ease-in-out infinite}
+.blk.n{outline:3px solid var(--lime);outline-offset:-3px}
+.blk.cut{background:repeating-linear-gradient(135deg,#fff 0 4px,#ff3b3055 4px 6px);border-color:#ff3b30}
+.blk.k{background:var(--vio);border-color:var(--vio)}
+.blk.foc{transform:scale(1.12);outline:3px solid var(--lime);outline-offset:-3px}
+@keyframes pul{50%{background:var(--vio2)}}
+.coord{position:absolute;right:18px;bottom:18px;background:#f4ffd0;border:1px solid #c8e83a;padding:10px 14px;font-size:11.5px;line-height:1.75;min-width:180px}
+.coord b{font-weight:400;color:var(--mid)}
+.scn{position:absolute;left:24px;bottom:22px;font-size:11px}
+/* sections */
+.secs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.sec{padding:22px 24px 24px;border-right:1px solid var(--line);min-width:0}
+.sec:last-child{border-right:0}
+.sec h3{font:700 26px/1 var(--disp);font-stretch:condensed;text-transform:uppercase;margin:4px 0 16px;letter-spacing:.01em}
+.need{border:1px solid var(--ink);padding:12px 12px 12px;margin-bottom:10px;background:#fff;animation:in .5s var(--ease) both}
+.need .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;display:flex;justify-content:space-between;margin-bottom:6px}
+.need .k span:first-child{background:var(--lime);padding:1px 6px}
+.need p{margin:0 0 10px;font-size:11.5px;line-height:1.6}
+.need.out{animation:outx .35s var(--ease) both}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes outx{to{opacity:0;transform:translateX(12px)}}
+.none{font-size:11.5px;color:var(--mute);border:1px dashed var(--line2);padding:16px 12px;text-align:center;letter-spacing:.04em}
+.st{display:grid;grid-template-columns:92px 1fr 70px;gap:10px;align-items:center;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;margin:11px 0}
+.st .v{text-align:right}
+.st .bar2{height:7px;background:#e2e2de;position:relative;overflow:hidden}
+.st .bar2 i{position:absolute;inset:0 auto 0 0;background:repeating-linear-gradient(90deg,var(--vio) 0 2px,transparent 2px 3.5px);transition:width 1s var(--ease)}
+.st .bar2 i.w{background:repeating-linear-gradient(90deg,#e08a00 0 2px,transparent 2px 3.5px)}
+.st .bar2 i.b{background:repeating-linear-gradient(90deg,var(--red) 0 2px,transparent 2px 3.5px)}
+.st .bar2 u{position:absolute;top:0;bottom:0;width:1px;background:var(--ink)}
+.ok{margin-top:16px;background:var(--lime);padding:9px 12px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;transition:background .4s,color .4s}
+.ok::after{content:"";width:9px;height:9px;border-radius:50%;background:var(--ink)}
+.ok.warn{background:#ffd27a} .ok.bad{background:var(--ink);color:#fff} .ok.bad::after{background:var(--red)}
+.log{font-size:11px;line-height:1.55}
+.log div{display:grid;grid-template-columns:44px 1fr;gap:8px;padding:6px 0;border-bottom:1px solid #e3e3df;animation:in .5s var(--ease) both}
+.log div span:first-child{color:var(--mute)}
+.log div.attn span:last-child::before,.log div.warn span:last-child::before,.log div.stop span:last-child::before,.log div.user span:last-child::before,.log div.ok span:last-child::before{display:inline-block;margin-right:6px;padding:0 4px;font-size:9.5px}
+.log div.attn span:last-child::before{content:"DECIDE";background:var(--lime)}
+.log div.warn span:last-child::before{content:"WARN";background:#ffd27a}
+.log div.stop span:last-child::before{content:"STOP";background:var(--ink);color:#fff}
+.log div.user span:last-child::before{content:"YOU";background:var(--vio);color:#fff}
+.log div.ok span:last-child::before{content:"OK";background:#e2e2de}
+.cards{display:grid;grid-template-columns:1fr;gap:8px}
+.card{border:1px solid var(--line2);background:#fff;padding:10px 12px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:11px;animation:in .5s var(--ease) both}
+.card b{font-weight:600;font-size:12px}
+.card span{color:var(--mute);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.card em{grid-row:span 2;align-self:center;font-style:normal;color:var(--vio);font-size:16px}
+.card.live{border-color:var(--vio)}
+.card.go{background:#f4ffd0;border-color:#c8e83a}
+.foot{display:grid;grid-template-columns:auto 1fr auto auto;border-top:1px solid var(--line);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.foot > div{padding:12px 18px;display:flex;align-items:center;gap:8px}
+.foot .dot{width:8px;height:8px;border-radius:50%;background:#2bd46b}
+.foot .dot.w{background:#e08a00} .foot .dot.b{background:var(--red)}
+.foot .act{background:var(--vio);color:#fff;justify-content:center;cursor:pointer}
+.foot .act:hover{background:#6a49ff}
+.foot .cell{border-left:1px solid var(--line)}
+.blink{animation:bl 1.1s steps(1) infinite}
+@keyframes bl{50%{opacity:0}}
+.wv{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:16px}
+.wv .col{display:flex;flex-direction:column;gap:6px}
+.wv .h{font-size:10px;letter-spacing:.04em;display:flex;gap:6px;justify-content:space-between;white-space:nowrap;overflow:hidden;border-bottom:1px solid var(--ink);padding-bottom:4px}
+.wv .h.act{color:var(--vio);border-color:var(--vio)}
+.wv .gts{display:flex;gap:2px;margin:2px 0 4px}
+.wv .gts i{flex:1;height:9px;background:#fff;border:1px solid var(--line2);font-size:7px;font-style:normal;transition:all .4s}
+.wv .gts i.on{background:var(--ink);border-color:var(--ink)}
+.wv .gts i.run{background:var(--vio2);border-color:var(--vio)}
+.sl{border:1px solid var(--line2);background:#fff;padding:7px 8px;font-size:10px;transition:all .4s}
+.sl .q{display:flex;gap:2px;margin-top:6px}
+.sl .q i{flex:1;height:6px;background:#e6e6e2;transition:background .4s}
+.sl .q i.d{background:var(--ink)} .sl .q i.run{background:var(--vio);animation:pul 1.4s infinite}
+.sl.done{border-color:var(--ink)}
+.sl.prep{background:#f4ffd0;border-color:#c8e83a}
+.sl.run{border-color:var(--vio)}
+.sl .no{color:var(--mute);margin-top:4px;font-size:9.5px;text-transform:uppercase}
+.sl.wait{opacity:.5}
+.pt{width:100%;border-collapse:collapse;font-size:11px}
+.pt td{padding:6px 4px;border-bottom:1px solid #e3e3df;vertical-align:middle}
+.pt td:first-child{color:var(--mute);width:28px}
+.pt .bar2{height:7px;background:#e2e2de;position:relative;width:150px}
+.pt .bar2 i{position:absolute;inset:0 auto 0 0;background:repeating-linear-gradient(90deg,var(--vio) 0 2px,transparent 2px 3.5px)}
+.pt tr.amb .bar2 i{background:repeating-linear-gradient(90deg,#e08a00 0 2px,transparent 2px 3.5px)}
+.pt tr.red .bar2 i{background:repeating-linear-gradient(90deg,var(--red) 0 2px,transparent 2px 3.5px)}
+.pt tr.red td{color:var(--red)}
+.pt .bar2 u{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--ink)}
+.pt tr{animation:in .5s var(--ease) both}
+.pt tr.hot td{background:#f4ffd0}
+.thr{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.thr h5{margin:0 0 6px;font:600 10.5px var(--mono);letter-spacing:.06em;color:var(--vio);text-transform:uppercase}
+.thr ul{list-style:none;margin:0;padding:0;font-size:11px;line-height:1.75}
+.thr li{opacity:0;transition:opacity .5s}
+.thr li.on{opacity:1}
+.thr li::before{content:"□ ";color:var(--mute)}
+.thr li.keep::before{content:"■ ";color:var(--vio)}
+.thr li.cut{text-decoration:line-through;color:var(--mute)} .thr li.cut::before{content:"× ";color:var(--red)}
+.thr li.later{color:var(--mute)} .thr li.later::before{content:"◇ "}
+.notes{font-size:12px;line-height:1.7}
+.notes h3{font:700 30px/1 var(--disp);font-stretch:condensed;text-transform:uppercase;margin:4px 0 12px}
+.notes h4{font-size:10.5px;letter-spacing:.08em;color:var(--vio);margin:16px 0 4px;text-transform:uppercase}
+.notes p{margin:0 0 8px;color:#333}
+.fnote{margin-top:22px;font-size:11.5px;color:var(--mid);line-height:1.6;border-top:1px solid var(--line2);padding-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><b>OPTION E · BRUTALIST GRID</b>
+    <div class="opts"><a href="option-a-dashboard.html">A</a><a href="option-d-dotmatrix.html">D · Dot-matrix</a><a href="option-e-brutalist.html" class="on">E · Brutalist</a></div>
+    <nav><button data-tab="yolo" class="on">/01 Yolo</button><button data-tab="campaign">/02 Campaign</button><button data-tab="brainstorm">/03 Brainstorm</button></nav>
+    <div class="ctl"><button data-sp="1" class="on">1×</button><button data-sp="2">2×</button><button id="rp">↻</button></div>
+  </div>
+  <div class="layout"><div class="pane" id="pane"></div><aside class="notes" id="notes"></aside></div>
+  <div class="fnote">Maps to the mod API: a <code>Pane</code> of <code>Box</code> rows with hairline borders. The block matrix is a grid of cells (two cells per block on the terminal); the striped bars are block characters; the black buttons are <code>Button</code>s with hotkeys. The condensed headline is one bold line on the terminal; the desktop draws it at full size.</div>
+</div>
+<script src="sim.js"></script>
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const STG=SIM.STAGES;
+const mmss=s=>{ s=Math.max(0,Math.round(s)); const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60; return h? `${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`:`${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`; };
+const pad=n=>String(n).padStart(2,'0');
+function headline(id,text){ const h=$('#'+id); if(h._t===text) return; h._t=text; h.classList.add('out'); setTimeout(()=>{ h.textContent=text; h.classList.remove('out'); },220); }
+function bar(pct,marks){ const c=pct>=90?'b':pct>=75?'w':''; return `<div class="bar2"><i class="${c}" style="width:${Math.min(100,pct)}%"></i>${(marks||[]).map(m=>`<u style="left:${m}%"></u>`).join('')}</div>`; }
+function logHTML(log){ return log.map(l=>`<div class="${l.kind}"><span>${l.t}</span><span>${l.text}</span></div>`).join(''); }
+function needsHTML(needs){ return needs.length? needs.map(n=>`<div class="need" data-id="${n.id}"><div class="k"><span>${n.kind==='intent'?'DECISION':n.kind==='file'?'PROTECTED_FILE':'PREPARE'}</span><span>${n.title}</span></div><p>${n.body}</p>${n.actions.map((a,i)=>`<button class="btn sm ${i?'ghost':''}">${a}</button> `).join('')}</div>`).join('') : '<div class="none">NOTHING_PENDING</div>'; }
+const plus=(pos)=>pos.map(([x,y])=>`<span class="plus" style="${x};${y}">+</span>`).join('');
+
+/* ===================== YOLO ===================== */
+const Y={
+  build(){
+    $('#pane').innerHTML=`
+    <div class="bar"><div class="logo">✣ SDLC_<span>YOLO</span></div><div class="crumb" id="y-crumb"></div><div class="sys"><span><b>ELAPSED</b> <span id="y-el"></span></span><span><b>LAST_LINE</b> <span id="y-gap"></span></span></div><div class="cta"><button class="btn" id="y-cta">Stop after verify</button></div></div>
+    <div class="hero"><div class="l"><div class="idx">/01 — NOW RUNNING</div><h1 class="big" id="y-h"></h1><h2 class="big2" id="y-h2"></h2><div class="tag" id="y-tag"></div><p class="lead" id="y-lead"></p>
+      <button class="btn" id="y-rec">Open stage record</button> &nbsp; <button class="btn ghost" id="y-b1">Stop after this stage</button></div>
+      <div class="r">${plus([['left:16px','top:16px'],['right:16px','top:16px'],['left:16px','bottom:70px']])}<div class="meta"><span>SLICES × STAGES</span><span id="y-done"></span></div><div class="mtx" id="y-mtx"></div>
+        <div class="coord" id="y-coord" style="position:static;margin-top:16px;align-self:flex-end"></div><div class="scn">//RUN_7C2E</div></div></div>
+    <div class="secs"><div class="sec"><div class="idx">/02</div><h3>Needs you</h3><div id="y-needs"></div></div>
+      <div class="sec"><div class="idx">/03</div><h3>System status</h3><div id="y-sys"></div><div class="ok" id="y-ok"></div></div>
+      <div class="sec"><div class="idx">/04</div><h3>Log</h3><div class="log" id="y-log"></div></div></div>
+    <div class="foot"><div><span class="dot" id="y-fd"></span><span id="y-ft"></span></div><div class="act" id="y-fa"></div><div class="cell" id="y-fr">RUN: 7C2E</div><div class="cell" id="y-fn"></div></div>`;
+    $('#y-cta').onclick=()=>{ if(!P.state.halted){ P.state.stopReq='verify'; render('yolo',P.state,'step'); } };
+    $('#y-fa').onclick=$('#y-cta').onclick;
+    $('#y-b1').onclick=()=>{ if(!P.state.halted){ P.state.stopReq='stage'; render('yolo',P.state,'step'); } };
+  },
+  render(s,kind){
+    const c=s.slices[s.cur], m=Math.round(s.used/60), u=Math.round(s.usual/60);
+    $('#y-el').textContent=mmss(s.elapsed); $('#y-gap').textContent= s.gap<60? pad(Math.round(s.gap))+'S' : Math.floor(s.gap/60)+'M'+pad(Math.round(s.gap%60))+'S';
+    const st= s.halted? ['b','STOPPED_AT_BOUNDARY','bad'] : s.gap>=1200? ['b','STALE · NO_LINE_20MIN','bad'] : s.gap>=600? ['w',`QUIET · NO_LINE_${Math.floor(s.gap/60)}MIN`,'warn'] : ['','ALL SYSTEMS OPERATIONAL',''];
+    $('#y-fd').className='dot '+st[0]; $('#y-ft').textContent= s.halted?'RUN ENDED':'CONNECTION LIVE'; $('#y-ok').className='ok '+st[2]; $('#y-ok').firstChild? $('#y-ok').firstChild.textContent=st[1] : $('#y-ok').textContent=st[1];
+    $('#y-sys').innerHTML=`<div class="st"><span>5H_USAGE</span>${bar(s.h5,[75,90])}<span class="v">${s.h5}%</span></div><div class="st"><span>WEEK</span>${bar(s.wk,[75,90])}<span class="v">${s.wk}%</span></div>
+      <div class="st"><span>STAGE_TIME</span>${bar(Math.min(100,m/u*75),[75])}<span class="v">${m}/${u} MIN</span></div><div class="st"><span>STEER_READ</span>${bar(s.steerRead/s.steerTotal*100)}<span class="v">${s.steerRead}/${s.steerTotal}</span></div>
+      <div class="st"><span>PROTECTED</span><span style="color:${s.prot==='changed'?'#e08a00':'inherit'}">${s.prot==='changed'?'PRODUCT.MD CHANGED':'2 FILES INTACT'}</span><span class="v">${s.prot==='changed'?'!':'OK'}</span></div>`;
+    if(kind==='tick') return;
+    $('#y-crumb').innerHTML=`ENGINE-MODULES <i>/</i> ${c.id.toUpperCase()} <i>/</i> ${(STG[c.stage]||'done').toUpperCase()}`;
+    headline('y-h', s.halted?'STOPPED':(STG[c.stage]||'DONE'));
+    $('#y-h2').textContent=`${c.id.toUpperCase()} ${c.name}`;
+    $('#y-tag').textContent= s.halted? 'ENDED CLEANLY · RESUME: /WF YOLO ENGINE-MODULES' : `SLICE ${pad(s.cur+1)} / 07 · ${m} MIN OF USUAL ${u} · ${s.agents.length} AGENT${s.agents.length===1?'':'S'}`;
+    $('#y-lead').textContent= s.log[0]? s.log[0].text : '';
+    $('#y-done').textContent=`${s.slices.filter(x=>x.stage===4).length}/07 DONE`;
+    const needSlices=new Set(s.needs.map(n=>n.id==='d6'?2:3));
+    $('#y-mtx').style.gridTemplateColumns='auto repeat(4,38px) auto';
+    $('#y-mtx').innerHTML=`<span></span>${STG.map(x=>`<span class="colh">${x.slice(0,4).toUpperCase()}</span>`).join('')}<span></span>`+s.slices.map((x,i)=>`<span class="lab ${i===s.cur?'cur':''}">${x.id.toUpperCase()}&nbsp;</span>${STG.map((_,k)=>`<span class="blk ${x.stage>k||x.stage===4?'d':x.stage===k&&!s.halted?'run':''} ${needSlices.has(i)&&k===(i===2?3:1)?'n':''}"></span>`).join('')}<span class="lab ${i===s.cur?'cur':''}">&nbsp;${x.name}</span>`).join('');
+    $('#y-coord').innerHTML=`<b>AGENTS_</b>${pad(s.agents.length)}<br><b>COMMITS_</b>${s.commits}<br><b>NEEDS_</b>${pad(s.needs.length)}`;
+    const N=$('#y-needs'), ids=s.needs.map(n=>n.id).join(); if(N._ids!==ids){ N._ids=ids; N.innerHTML=needsHTML(s.needs);
+      $$('.need',N).forEach(e=>$$('button',e).forEach(b=>b.onclick=()=>{ e.classList.add('out'); setTimeout(()=>{ s.needs=s.needs.filter(x=>x.id!==e.dataset.id); render('yolo',s,'step'); },350); })); }
+    $('#y-log').innerHTML=logHTML(s.log);
+    const req=s.stopReq; $('#y-cta').className='btn'+(req==='verify'?' armed':''); $('#y-cta').textContent= req==='verify'?'Stop requested · after verify':'Stop after verify';
+    $('#y-b1').className='btn ghost'+(req==='stage'?' armed':'');
+    $('#y-fa').innerHTML= s.halted? '&gt; RUN_ENDED · RESUME /WF YOLO ENGINE-MODULES' : req? `&gt; STOP_REQUESTED · ${req==='verify'?'AFTER_VERIFY':'AFTER_STAGE'}<span class="blink">_</span>` : '&gt; STOP_AFTER_VERIFY<span class="blink">_</span>';
+    $('#y-fn').textContent='NODE: '+c.id.toUpperCase();
+  },
+};
+
+/* ===================== CAMPAIGN ===================== */
+const C={
+  build(){
+    $('#pane').innerHTML=`
+    <div class="bar"><div class="logo">✣ SDLC_<span>CAMPAIGN</span></div><div class="crumb" id="c-crumb"></div><div class="sys"><span><b>UNSHIPPED</b> <span id="c-un"></span> / 02</span><span><b>DRIVES</b> <span id="c-dr"></span></span></div><div class="cta"><button class="btn" id="c-cta">Prepare next</button></div></div>
+    <div class="hero"><div class="l"><div class="idx" id="c-idx">/01 — IN PROGRESS</div><h1 class="big" id="c-h"></h1><h2 class="big2" id="c-h2"></h2><div class="tag" id="c-tag"></div><p class="lead" id="c-lead"></p>
+      <button class="btn" id="c-b2">Stop after this wave</button> &nbsp; <button class="btn ghost" id="c-res">Resume now</button></div>
+      <div class="r">${plus([['left:16px','top:16px'],['right:16px','top:16px']])}<div class="meta"><span>WAVES × SLUGS · GATES M V D R F S</span><span id="c-act"></span></div><div class="wv" id="c-wv"></div>
+        <div class="coord" id="c-coord" style="position:static;margin-top:auto;align-self:flex-end"></div></div></div>
+    <div class="secs"><div class="sec"><div class="idx">/02</div><h3>Needs you</h3><div id="c-needs"></div></div>
+      <div class="sec"><div class="idx">/03</div><h3>System status</h3><div id="c-sys"></div><div class="ok" id="c-ok"></div></div>
+      <div class="sec"><div class="idx">/04</div><h3>Outputs</h3><div class="cards" id="c-out"></div></div></div>
+    <div class="foot"><div><span class="dot" id="c-fd"></span><span id="c-ft"></span></div><div class="act" id="c-fa"></div><div class="cell">RUN: C7</div><div class="cell" id="c-fn"></div></div>`;
+    $('#c-cta').onclick=()=>{ SIM.campaign.prepare(P.state); render('campaign',P.state,'step'); };
+    $('#c-b2').onclick=()=>{ $('#c-b2').classList.add('armed'); $('#c-b2').textContent='Stop requested · after wave'; };
+    $('#c-res').onclick=()=>{ if(P.state.paused) P.state.cd=0; };
+    $('#c-fa').onclick=$('#c-cta').onclick;
+  },
+  render(s,kind){
+    const all=s.waves.flatMap(w=>w.slugs), drives=all.filter(x=>x.state==='run').length, prep=all.filter(x=>x.state==='prep');
+    headline('c-h', s.paused? 'PAUSED' : `WAVE ${pad(s.active)}`);
+    $('#c-h2').textContent= s.paused? `RESUMES IN ${mmss(s.cd)}` : `${drives} DRIVE${drives===1?'':'S'} RUNNING`;
+    const st= s.paused? ['b','PAUSED_FOR_USAGE · 91%','bad'] : s.h5>=75? ['w','OVER_75 · NO_NEW_DRIVES','warn'] : ['','ALL SYSTEMS OPERATIONAL',''];
+    $('#c-fd').className='dot '+st[0]; $('#c-ft').textContent= s.paused?'PAUSED':'CONNECTION LIVE'; $('#c-ok').className='ok '+st[2]; $('#c-ok').textContent=st[1];
+    if(kind==='tick') return;
+    $('#c-crumb').innerHTML=`REALISM-ADDITIONS <i>/</i> WAVE ${pad(s.active)} <i>/</i> ${s.paused?'PAUSED':'RUNNING'}`;
+    $('#c-un').textContent=pad(s.unshipped); $('#c-dr').textContent=pad(drives);
+    $('#c-idx').textContent= s.paused? '/01 — PAUSED AT THE BOUNDARY' : '/01 — IN PROGRESS';
+    $('#c-tag').textContent= s.paused? '5-HOUR WINDOW 91% · WAKES BY ITSELF AT 16:40' : `${s.prs.filter(p=>p.state==='merged').length} SHIPPED · ${prep.length} AWAIT PREPARE · ${4-s.active} WAVES AFTER THIS`;
+    $('#c-lead').textContent= s.log[0]? s.log[0].text : '';
+    $('#c-act').textContent=`ACTIVE: W${pad(s.active)}`;
+    $('#c-wv').innerHTML=s.waves.map(w=>`<div class="col"><div class="h ${w.n===s.active?'act':''}"><span>W${pad(w.n)}</span><span>${w.version||''}</span></div><div class="gts">${'MVDRFS'.split('').map((g,k)=>`<i class="${k<w.gates?'on':(w.run&&k===w.gates?'run':'')}"></i>`).join('')}</div>
+      ${w.slugs.map(x=>`<div class="sl ${x.state}"><div>${x.name}</div><div class="q">${[0,1,2,3].map(k=>`<i class="${x.stage>k||x.stage===4?'d':x.stage===k&&x.state==='run'?'run':''}"></i>`).join('')}</div><div class="no">${x.state==='done'?'done':(x.note||'')}</div></div>`).join('')}</div>`).join('');
+    $('#c-coord').innerHTML=`<b>5H_</b>${s.h5}%<br><b>WK_</b>${s.wk}%<br><b>LOCK_</b>${s.lock.holder?s.lock.holder.toUpperCase():'FREE'}`;
+    const needs= s.paused? [] : prep.map(x=>({id:x.name,kind:'prep',title:x.name.toUpperCase(),body:`Wave 3 needs your prepare: intake, shape and slice. Wave ${s.active} keeps running.`,actions:['Prepare','Later']}));
+    $('#c-needs').innerHTML= s.paused? '<div class="none">NOTHING · WAKES_AT_16:40</div>' : needsHTML(needs);
+    $$('#c-needs .need').forEach(e=>{ const b=$('button',e); b.onclick=()=>{ SIM.campaign.prepare(s); render('campaign',s,'step'); }; });
+    $('#c-sys').innerHTML=`<div class="st"><span>5H_USAGE</span>${bar(s.h5,[75,90])}<span class="v">${s.h5}%</span></div><div class="st"><span>WEEK</span>${bar(s.wk,[75,90])}<span class="v">${s.wk}%</span></div>
+      <div class="st"><span>FORECAST</span><span>${s.h5>=90?'PAUSE_TILL_RESET':s.h5>=75?'W3_MAY_NOT_FIT':'REMAINING_FIT'}</span><span class="v">${s.h5>=75?'!':'OK'}</span></div><div class="st"><span>PW_LOCK</span><span>${s.lock.holder?s.lock.holder.toUpperCase():'FREE'}</span><span class="v">${s.lock.wait.length?s.lock.wait.length+' WAIT':'—'}</span></div>`;
+    $('#c-out').innerHTML=[...s.prs].reverse().map(p=>`<div class="card ${p.state==='merged'?'':'live'}"><b>WAVE-${p.wave} · ${p.pr}</b><em>↗</em><span>${p.state==='merged'?'merged · '+p.label:p.state==='green'?'ci green · '+p.label:'ci running · '+p.label}</span></div>`).join('') + (s.build? `<div class="card go"><b>TRY ${s.build.toUpperCase()}</b><em>↗</em><span>.scratch/campaign/c7/wave-2</span></div>`:'');
+    $('#c-fa').innerHTML= prep.length&&!s.paused? `&gt; PREPARE_NEXT · ${prep[0].name.toUpperCase()}<span class="blink">_</span>` : s.paused? '&gt; RESUME_NOW<span class="blink">_</span>' : '&gt; ALL_PREPARED';
+    $('#c-fn').textContent='NODE: W'+pad(s.active);
+    $('#c-res').style.display= s.paused?'':'none';
+  },
+};
+
+/* ===================== BRAINSTORM ===================== */
+const B={
+  build(){
+    $('#pane').innerHTML=`
+    <div class="bar"><div class="logo">✣ SDLC_<span>BRAINSTORM</span></div><div class="crumb" id="b-crumb"></div><div class="sys"><span><b>REVISION</b> <span id="b-rev"></span></span><span><b>TALK_TURN</b> 18</span></div><div class="cta"><button class="btn" id="b-cta">I'm done</button></div></div>
+    <div class="hero"><div class="l"><div class="idx">/01 — MODE</div><h1 class="big" id="b-h"></h1><h2 class="big2">realism-additions</h2><div class="tag" id="b-tag"></div><p class="lead" id="b-lead"></p></div>
+      <div class="r">${plus([['left:16px','top:16px'],['right:16px','top:16px']])}<div class="meta"><span>THREADS × IDEAS</span><span id="b-wk"></span></div><div class="mtx" id="b-mtx"></div><div class="coord" id="b-coord" style="position:static;margin-top:16px;align-self:flex-end"></div><div class="scn">//NOTEBOOK</div></div></div>
+    <div class="secs"><div class="sec"><div class="idx">/02</div><h3>Threads</h3><div class="thr" id="b-thr"></div></div>
+      <div class="sec"><div class="idx">/03</div><h3>Work packets</h3><div id="b-pk"></div></div>
+      <div class="sec"><div class="idx">/04</div><h3>Log</h3><div class="log" id="b-log"></div></div></div>
+    <div class="foot"><div><span class="dot" id="b-fd"></span><span id="b-ft"></span></div><div class="act" id="b-fa"></div><div class="cell" id="b-src"></div><div class="cell">ONLY YOU END IT</div></div>`;
+  },
+  render(s,kind){
+    if(kind==='tick') return;
+    headline('b-h',{explore:'EXPLORE',scope:'SCOPE',done:'DONE'}[s.mode]);
+    $('#b-crumb').innerHTML=`REALISM-ADDITIONS <i>/</i> ${s.mode.toUpperCase()} <i>/</i> REV ${pad(s.rev)}`; $('#b-rev').textContent=pad(s.rev);
+    $('#b-tag').textContent= s.hotfix? 'REOPENED · REVISION 04 · HOTFIX ADDED' : s.mode==='explore'? `${s.captured} IDEAS · 4 THREADS · THE SESSION LISTENS` : s.mode==='scope'? `WALKED ${pad(s.walked)} / 14 · YOU DECIDE EACH IDEA` : `${s.packets.length} PACKETS · READY FOR /WF CAMPAIGN`;
+    $('#b-lead').textContent='“'+s.overheard+'”';
+    const mx=$('#b-mtx'); mx.style.gridTemplateColumns='auto repeat(4,38px)';
+    mx.innerHTML=s.threads.map(t=>`<span class="lab">${t.name.toUpperCase()}&nbsp;</span>${[0,1,2,3].map(k=>{ const i=t.items[k]; if(!i) return '<span></span>'; const cls=!i.on?'':i.call==='keep'?'k':i.call==='cut'?'cut':i.call==='later'?'g':'d'; return `<span class="blk ${cls} ${s.focus===i.name&&s.mode==='scope'?'foc':''}" title="${i.name}"></span>`; }).join('')}`).join('');
+    $('#b-wk').textContent= s.mode==='explore'? `${s.captured}/14 CAPTURED` : `${s.walked}/14 WALKED`;
+    const all=s.threads.flatMap(t=>t.items), cnt=c=>all.filter(i=>i.call===c).length;
+    $('#b-coord').innerHTML=`<b>KEEP_</b>${pad(cnt('keep'))}<br><b>CUT_</b>${pad(cnt('cut'))}<br><b>LATER_</b>${pad(cnt('later'))}`;
+    $('#b-thr').innerHTML=s.threads.map(t=>`<div><h5>${t.name}</h5><ul>${t.items.map(i=>`<li class="${i.on?'on':''} ${i.call||''}">${i.name}</li>`).join('')}</ul></div>`).join('');
+    $('#b-pk').innerHTML= s.packets.length? `<table class="pt">${s.packets.map(p=>{ const c=p.size>40?'red':p.size>25?'amb':''; return `<tr class="${c} ${p.hot?'hot':''}"><td>${p.wave?'W'+p.wave:'HF'}</td><td>${p.name}</td><td><div class="bar2"><i style="width:${Math.min(100,p.size/60*100)}%"></i><u style="left:${25/60*100}%"></u><u style="left:${40/60*100}%"></u></div></td><td style="text-align:right">${p.size}</td></tr>`; }).join('')}</table>`
+      + (s.packets.some(p=>p.size>40)? needsHTML([{id:'split',kind:'intent',title:'THE-PLAYERS-MIND',body:'51 carried decisions, over the limit of 40. Split it before the campaign can prepare it.',actions:['Propose split']}]).replace('DECISION','SPLIT_REQUIRED'):'')
+      : '<div class="none">PACKETS_APPEAR_AT_DONE</div>';
+    $('#b-log').innerHTML=logHTML(s.log);
+    $('#b-fd').className='dot '+(s.hotfix?'w':''); $('#b-ft').textContent= s.hotfix? 'REOPENED':'SESSION LIVE';
+    $('#b-fa').innerHTML= s.mode==='explore'? '&gt; SAY_DONE_TO_SCOPE<span class="blink">_</span>' : s.mode==='scope'? `&gt; WALK ${pad(s.walked)}/14<span class="blink">_</span>` : '&gt; /WF CAMPAIGN REALISM-ADDITIONS<span class="blink">_</span>';
+    $('#b-src').textContent=`R_${pad(s.src.r)} · F_${pad(s.src.f)} · W_${pad(s.src.w)}`;
+  },
+};
+
+const NOTES={
+ yolo:`<h3>Yolo / one screen</h3><p>The headline is the stage that runs now, at full size. The purple line under it gives the slice, the time against the usual time, and the agents.</p><h4>/ Block matrix</h4><p>Seven slices by four stages. Black is done, purple is running, a lime outline marks where something needs you.</p><h4>/ Three columns</h4><p>Needs you, system status and the log. The lime bar is the single health line; it turns amber when the run is quiet and black when it stops.</p><h4>/ Action</h4><p>The one primary action sits top right and again in the purple footer bar: stop after verify.</p>`,
+ campaign:`<h3>Campaign / one screen</h3><p>The headline is the wave, or PAUSED with the countdown. The right side shows every wave: gate strip, then each slug with its four-step track. Lime cells wait for your prepare.</p><h4>/ Outputs</h4><p>Each wave's pull request is a card with ↗. The build to try is the lime card.</p><h4>/ Status</h4><p>Striped bars for both usage windows with the 75 and 90 marks, the forecast and the Playwright lock.</p>`,
+ brainstorm:`<h3>Brainstorm / one screen</h3><p>The headline is the mode. The quote under it is the last thing you said, so you see what the session heard.</p><h4>/ Block matrix</h4><p>Threads by ideas. Black is captured; during the walk each block takes your call: purple keep, hatched red cut, grey later.</p><h4>/ Packets</h4><p>At done, a table with striped size bars marked at 25 and 40. Over 40 is red and asks for a split.</p>`,
+};
+const VIEWS={yolo:Y,campaign:C,brainstorm:B};
+function render(scene,s,kind){ const V=VIEWS[scene]; if(kind==='reset'){ V.build(); $('#notes').innerHTML=NOTES[scene]; } V.render(s,kind); }
+const P=makePlayer(render);
+$$('nav button').forEach(b=>b.onclick=()=>{ $$('nav button').forEach(x=>x.classList.toggle('on',x===b)); P.active=b.dataset.tab; P.restart(); });
+$$('[data-sp]').forEach(b=>b.onclick=()=>{ P.speed=+b.dataset.sp; $$('[data-sp]').forEach(x=>x.classList.toggle('on',x===b)); });
+$('#rp').onclick=()=>P.restart();
+const h=location.hash.slice(1); if(VIEWS[h]) $(`nav button[data-tab="${h}"]`).click(); else P.restart();
+</script>
+</body>
+</html>

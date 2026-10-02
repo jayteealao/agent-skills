@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Option D · Dot-matrix instrument · sdlc-workflow live views</title>
+<style>
+:root{
+  --bg:#0a0a0a; --card:#151515; --card2:#111; --edge:#ffffff0d; --t:#ececec; --m:#7c7c7c; --d:#3a3a3a; --dd:#232323;
+  --acc:#ff4a1c; --ok:#3ee6a8; --ease:cubic-bezier(.22,1,.36,1);
+  --mono:"JetBrains Mono","Cascadia Mono","SF Mono",Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:radial-gradient(1200px 700px at 0% -20%,#2a160d 0%,transparent 60%),var(--bg);color:var(--t);font-family:var(--mono)}
+.wrap{max-width:1400px;margin:0 auto;padding:24px 28px 50px}
+.top{display:flex;align-items:center;gap:20px;margin-bottom:20px;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--m)}
+.top .opts{display:flex;gap:6px}
+.top .opts a{color:var(--m);text-decoration:none;border:1px solid var(--dd);border-radius:999px;padding:5px 11px}
+.top .opts a.on{color:var(--bg);background:var(--t);border-color:var(--t)}
+nav{display:flex;gap:4px;margin-left:auto;background:#121212;border:1px solid var(--dd);border-radius:999px;padding:3px}
+nav button{all:unset;cursor:pointer;padding:6px 14px;border-radius:999px;color:var(--m);letter-spacing:.1em}
+nav button.on{background:#232323;color:var(--t)}
+.ctl{display:flex;gap:4px}
+.ctl button{all:unset;cursor:pointer;border:1px solid var(--dd);border-radius:999px;padding:5px 10px;color:var(--m)}
+.ctl button.on{color:var(--t);border-color:#555}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:26px}
+.pane{border:1px solid #1d1d1d;border-radius:18px;padding:18px;background:#0d0d0d}
+.ph{display:flex;align-items:flex-end;justify-content:space-between;margin:2px 4px 16px}
+.ph .ttl{color:var(--t)}
+.ph .sub{font-size:11px;color:var(--m);letter-spacing:.1em;text-transform:uppercase;margin-top:8px;display:flex;align-items:center;gap:8px}
+.ph .sub i{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block}
+.ph .sub i.warn{background:#f5a524} .ph .sub i.bad{background:var(--acc)}
+.ph .r{font-size:11px;color:var(--m);letter-spacing:.1em;text-align:right;line-height:1.7}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.c{background:linear-gradient(180deg,#181818,#121212);border:1px solid var(--edge);border-radius:16px;padding:16px 16px 14px;min-height:190px;display:flex;flex-direction:column;box-shadow:0 1px 0 #ffffff08 inset,0 18px 40px -24px #000;position:relative;overflow:hidden}
+.c.s2{grid-column:span 2}
+.c.alert{border-color:#ff4a1c55;box-shadow:0 0 0 1px #ff4a1c22 inset,0 18px 40px -24px #000}
+.ch{display:flex;gap:10px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#bdbdbd;margin-bottom:12px}
+.ch b{color:var(--m);font-weight:400}
+.ch .r{margin-left:auto;color:var(--m)}
+.ch .r.live{color:var(--acc)}
+.lbl{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--m)}
+.val{font-size:17px;color:var(--t);margin-top:3px}
+.foot{display:flex;gap:0;margin-top:auto;padding-top:12px}
+.foot > div{flex:1;padding-right:10px}
+.foot > div + div{border-left:1px solid #262626;padding-left:12px}
+.dm{display:block;color:var(--t)}
+.dm circle{fill:#ffffff0b;transition:fill .4s}
+.dm circle.on{fill:currentColor}
+.dm.acc{color:var(--acc)} .dm.ok{color:var(--ok)}
+.subline{font-size:11.5px;color:var(--m);letter-spacing:.08em;text-transform:uppercase;margin-top:8px}
+canvas.wave{width:100%;height:56px;display:block;margin-top:12px}
+.mx{display:grid;grid-template-columns:auto repeat(4,16px) 1fr;gap:5px 6px;align-items:center;font-size:10px;color:var(--m)}
+.mx i{width:16px;height:16px;border-radius:3px;background:var(--dd);transition:background .5s, box-shadow .5s}
+.mx i.d{background:#e9e9e9}
+.mx i.r{background:var(--acc);box-shadow:0 0 12px #ff4a1c88;animation:blip 1.2s ease-in-out infinite}
+@keyframes blip{50%{opacity:.55}}
+.mx .nm{color:var(--m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:4px}
+.mx .nm.cur{color:var(--t)}
+.mxh{font-size:9px;color:var(--d);text-align:center}
+.need{border:1px solid #2a2a2a;border-radius:12px;padding:10px 11px;margin-bottom:8px;animation:in .5s var(--ease) both;background:#141414}
+.need .k{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);display:flex;align-items:center;gap:6px}
+.need .k::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--acc)}
+.need p{margin:5px 0 8px;font-size:11.5px;line-height:1.5;color:#cfcfcf}
+.need.out{animation:outx .35s var(--ease) both}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes outx{to{opacity:0;transform:translateX(10px)}}
+.pill{all:unset;cursor:pointer;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid #3a3a3a;border-radius:999px;padding:5px 11px;color:var(--t);margin-right:6px;transition:all .2s}
+.pill:hover{border-color:var(--t)}
+.pill.acc{border-color:var(--acc);color:var(--acc)}
+.pill.armed{background:var(--acc);border-color:var(--acc);color:#000}
+.empty{font-size:11.5px;color:var(--m);margin-top:auto;margin-bottom:auto;text-align:center;line-height:1.7}
+.ring{display:flex;align-items:center;gap:14px}
+.ring svg line{stroke:#2c2c2c;stroke-width:2.2;stroke-linecap:round;transition:stroke .35s}
+.ring svg line.on{stroke:#e9e9e9}
+.ring svg line.on.w{stroke:#f5a524}
+.ring svg line.on.b{stroke:var(--acc)}
+.ring svg line.mk{stroke:var(--acc)!important}
+.ring .side{display:flex;flex-direction:column;gap:10px;font-size:10px}
+.ring .side .row{display:flex;align-items:center;gap:6px;color:var(--m);letter-spacing:.1em;text-transform:uppercase}
+.ring .side .row b{color:var(--t);font-weight:400;font-size:14px;letter-spacing:0;text-transform:none}
+.ring .side i{width:6px;height:6px;border-radius:50%;background:#e9e9e9;display:inline-block}
+.bars{display:flex;align-items:flex-end;gap:5px;height:76px;margin-top:10px}
+.bars .col{display:flex;flex-direction:column-reverse;gap:3px}
+.bars .col i{width:5px;height:5px;border-radius:50%;background:#bdbdbd}
+.bars .col.cur i{background:var(--acc)}
+.bars .col.dim i{background:#4a4a4a}
+.ag{display:flex;align-items:center;gap:8px;font-size:11.5px;padding:3px 0;animation:in .4s var(--ease) both}
+.ag i{width:7px;height:7px;border-radius:50%;background:#e9e9e9;flex:none}
+.ag.sub{color:var(--m)} .ag.sub i{background:#4a4a4a;width:5px;height:5px;margin:0 1px}
+.ag em{margin-left:auto;font-style:normal;color:var(--m);font-size:10px}
+.pips{display:flex;gap:4px;margin-top:6px}
+.pips i{width:12px;height:12px;border-radius:50%;border:1.5px solid #3a3a3a;transition:all .4s}
+.pips i.on{background:var(--ok);border-color:var(--ok)}
+.waves{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.wv{border-left:1px solid #262626;padding-left:10px}
+.wv:first-child{border-left:0;padding-left:0}
+.wv .wn{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.12em;color:var(--m);text-transform:uppercase;margin-bottom:6px}
+.wv .wn b{color:var(--t);font-weight:400}
+.wv.act .wn b{color:var(--acc)}
+.gt{display:flex;gap:3px;margin-bottom:10px}
+.gt span{width:15px;height:15px;border-radius:50%;font-size:7.5px;display:flex;align-items:center;justify-content:center;border:1px solid #333;color:#555;transition:all .4s}
+.gt span.on{background:#e9e9e9;color:#000;border-color:#e9e9e9}
+.gt span.run{border-color:var(--acc);color:var(--acc);animation:blip 1s infinite}
+.sg{margin-bottom:10px}
+.sg .n{font-size:11px;color:#d7d7d7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sg .q{display:flex;gap:3px;margin:5px 0 3px}
+.sg .q i{flex:1;height:5px;border-radius:3px;background:var(--dd);transition:background .5s}
+.sg .q i.d{background:#e9e9e9} .sg .q i.r{background:var(--acc);animation:blip 1.2s infinite}
+.sg .no{font-size:9.5px;color:var(--m);letter-spacing:.06em}
+.sg.prep .no{color:var(--acc)} .sg.prep .q i{background:repeating-linear-gradient(90deg,#ff4a1c55 0 2px,transparent 2px 4px)}
+.sg.done .n::before{content:"● ";color:var(--ok);font-size:8px}
+.pr{display:flex;align-items:center;gap:8px;font-size:11.5px;padding:5px 0;border-bottom:1px solid #222}
+.pr:last-child{border-bottom:0}
+.pr .w{color:var(--m);width:54px}
+.pr .s{margin-left:auto;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.pr .s.merged,.pr .s.green{color:var(--ok)} .pr .s.ci{color:#f5a524}
+.th{display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center;margin-bottom:12px}
+.th .tn{font-size:10.5px;color:var(--m);letter-spacing:.08em;text-transform:uppercase}
+.th .its{display:flex;gap:14px;flex-wrap:wrap}
+.it{display:flex;align-items:center;gap:6px;font-size:11px;color:#cfcfcf;opacity:0;transform:scale(.8);transition:all .5s var(--ease)}
+.it.on{opacity:1;transform:none}
+.it i{width:9px;height:9px;border-radius:50%;background:#e9e9e9;flex:none;transition:all .4s}
+.it.keep i{background:var(--ok)} .it.cut{color:#555;text-decoration:line-through} .it.cut i{background:var(--acc)} .it.later{color:var(--m)} .it.later i{background:transparent;border:1.5px dashed #777}
+.it.focus{color:#fff} .it.focus i{box-shadow:0 0 0 4px #ffffff22}
+.waf{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:12px}
+.waf i{aspect-ratio:1;border-radius:3px;background:var(--dd);transition:background .4s}
+.waf i.keep{background:var(--ok)} .waf i.cut{background:var(--acc)} .waf i.later{background:#5a5a5a}
+.pk{display:grid;grid-template-columns:22px 170px 1fr 34px;gap:10px;align-items:center;font-size:11.5px;padding:5px 0;animation:in .5s var(--ease) both}
+.pk .w{color:var(--m);font-size:10px}
+.pk .dots{display:flex;gap:2px;position:relative}
+.pk .dots i{width:4px;height:4px;border-radius:50%;background:#2c2c2c}
+.pk .dots i.f{background:#e9e9e9}
+.pk.amb .dots i.f{background:#f5a524} .pk.red .dots i.f{background:var(--acc)}
+.pk .dots i.mk{outline:1px solid #888;outline-offset:1px}
+.pk b{font-weight:400;text-align:right}
+.pk.red b{color:var(--acc)} .pk.hot .nm{color:var(--acc)}
+.pk.new{animation:in .6s var(--ease) both}
+.notes{font-size:12.5px;line-height:1.65;color:#b8b8b8}
+.notes h3{font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--t);margin:6px 0 10px}
+.notes h4{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc);margin:16px 0 4px}
+.notes p{margin:0 0 8px}
+.fnote{margin-top:24px;font-size:12px;color:var(--m);line-height:1.6;border-top:1px solid #1d1d1d;padding-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span style="color:var(--t)">Option D · Dot-matrix instrument</span>
+    <div class="opts"><a href="option-a-dashboard.html">A</a><a href="option-d-dotmatrix.html" class="on">D · Dot-matrix</a><a href="option-e-brutalist.html">E · Brutalist</a></div>
+    <nav><button data-tab="yolo" class="on">Yolo</button><button data-tab="campaign">Campaign</button><button data-tab="brainstorm">Brainstorm</button></nav>
+    <div class="ctl"><button data-sp="1" class="on">1×</button><button data-sp="2">2×</button><button id="rp">↻</button></div>
+  </div>
+  <div class="layout">
+    <div class="pane" id="pane"></div>
+    <aside class="notes" id="notes"></aside>
+  </div>
+  <div class="fnote">Maps to the mod API: each card is a <code>Box</code> in a <code>Pane</code>. On the terminal, the dot-matrix numerals, rings and waves are <code>Raster</code> braille cells (2×4 dots per cell), repainted by <code>$.ui.blit</code>; on desktop they are <code>Svg</code>. Buttons are real <code>Button</code>s with hotkeys.</div>
+</div>
+<script src="sim.js"></script>
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+/* ---------- 5x7 dot-matrix font ---------- */
+const F={'0':'01110100011001110101110011000101110','1':'00100011000010000100001000010001110','2':'01110100010000100010001000100011111','3':'11111000100010000010000011000101110','4':'00010001100101010010111110001000010','5':'11111100001111000001000011000101110','6':'00110010001000011110100011000101110','7':'11111000010001000100010000100001000','8':'01110100011000101110100011000101110','9':'01110100011000101111000010001001100',
+'A':'01110100011000111111100011000110001','B':'11110100011000111110100011000111110','C':'01110100011000010000100001000101110','D':'11100100101000110001100011001011100','E':'11111100001000011110100001000011111','F':'11111100001000011110100001000010000','G':'01110100011000010111100011000101111','H':'10001100011000111111100011000110001','I':'01110001000010000100001000010001110','J':'00111000100001000010000101001001100','K':'10001100101010011000101001001010001','L':'10000100001000010000100001000011111','M':'10001110111010110101100011000110001','N':'10001100011100110101100111000110001','O':'01110100011000110001100011000101110','P':'11110100011000111110100001000010000','Q':'01110100011000110001101011001001101','R':'11110100011000111110101001001010001','S':'01111100001000001110000010000111110','T':'11111001000010000100001000010000100','U':'10001100011000110001100011000101110','V':'10001100011000110001100010101000100','W':'10001100011000110101101011010101010','X':'10001100010101000100010101000110001','Y':'10001100010101000100001000010000100','Z':'11111000010001000100010001000011111',
+'%':'11000110010001000100010001001100011','/':'00001000010001000100010001000010000',':':'00000011000110000000011000110000000','.':'00000000000000000000000000110001100','-':'00000000000000011111000000000000000',' ':'00000000000000000000000000000000000','+':'00000001000010011111001000010000000'};
+function dm(el,text,pitch=5){
+  text=String(text).toUpperCase(); if(el._t===text&&el._p===pitch) return;
+  const n=text.length, cols=n*6-1, W=cols*pitch, H=7*pitch;
+  if(el._n!==n||el._p!==pitch){ let s=`<svg class="dm" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+    for(let r=0;r<7;r++) for(let c=0;c<cols;c++) s+=`<circle cx="${c*pitch+pitch/2}" cy="${r*pitch+pitch/2}" r="${pitch*.36}"/>`;
+    el.innerHTML=s+'</svg>'; el._c=[...el.querySelectorAll('circle')]; el._n=n; el._p=pitch; el._cols=cols; }
+  const on=new Set(); [...text].forEach((ch,i)=>{ const g=F[ch]||F[' ']; for(let r=0;r<7;r++) for(let c=0;c<5;c++) if(g[r*5+c]==='1') on.add(r*cols+i*6+c); });
+  el._c.forEach((c,k)=>{ const v=on.has(k); if(c.classList.contains('on')!==v){ c.style.transitionDelay=(Math.random()*260|0)+'ms'; c.classList.toggle('on',v); } });
+  el._t=text;
+}
+/* ---------- dotted wave ---------- */
+class Wave{ constructor(cv){ this.cv=cv; this.v=Array(72).fill(1); this.q=[]; this.col='#e9e9e9'; }
+  spike(){ this.q.push(2,4,7,5,3,6,2); }
+  push(base){ this.v.shift(); this.v.push(this.q.length? this.q.shift() : base); this.draw(); }
+  draw(){ const cv=this.cv, d=devicePixelRatio||1, w=cv.clientWidth, h=cv.clientHeight; if(!w) return; if(cv.width!==w*d){ cv.width=w*d; cv.height=h*d; }
+    const x=cv.getContext('2d'); x.setTransform(d,0,0,d,0,0); x.clearRect(0,0,w,h); const step=w/this.v.length, mid=h/2;
+    this.v.forEach((a,i)=>{ for(let k=-a;k<=a;k++){ if(Math.abs(k)>a) continue; x.beginPath(); x.fillStyle= a>=5? '#ff4a1c' : k===0? this.col : '#bdbdbd'; x.globalAlpha= k===0? .9 : 1-Math.abs(k)/(a+1)*.6; x.arc(i*step+step/2, mid+k*3.6, 1.35, 0, 7); x.fill(); } }); x.globalAlpha=1; } }
+/* ---------- tick ring ---------- */
+function ring(id,size=118){ const N=60, r1=size/2-12, r2=size/2-3, c=size/2; let s=`<svg width="${size}" height="${size}" id="${id}">`;
+  for(let i=0;i<N;i++){ const a=-Math.PI*1.25 + i/(N-1)*Math.PI*1.5; const mk=(i===Math.round(.75*(N-1))||i===Math.round(.9*(N-1)));
+    s+=`<line ${mk?'class="mk"':''} x1="${c+Math.cos(a)*r1}" y1="${c+Math.sin(a)*r1}" x2="${c+Math.cos(a)*r2}" y2="${c+Math.sin(a)*r2}"/>`; }
+  return s+`<foreignObject x="0" y="${c-18}" width="${size}" height="40"><div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;justify-content:center" id="${id}-v"></div></foreignObject></svg>`; }
+function setRing(id,pct){ const ls=$$('#'+id+' line'); const n=Math.round(pct/100*(ls.length-1)); ls.forEach((l,i)=>{ if(l.classList.contains('mk')&&i<=n){} l.classList.toggle('on',i<=n&&pct>0); l.classList.toggle('w',pct>=75&&pct<90); l.classList.toggle('b',pct>=90); }); dm($('#'+id+'-v'),pct+'%',3); }
+const mmss=s=>{ s=Math.max(0,Math.round(s)); const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60; return h? `${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`:`${m}:${String(x).padStart(2,'0')}`; };
+const STG=SIM.STAGES;
+
+/* ======================= YOLO ======================= */
+const Y={
+  build(){
+    $('#pane').innerHTML=`
+    <div class="ph"><div><div class="ttl" id="y-title"></div><div class="sub"><i id="y-dot"></i><span id="y-sub">Running · signal clear</span></div></div><div class="r">RUN WF_YOLO-7C2E<br><span id="y-el">14:02</span> ELAPSED</div></div>
+    <div class="grid">
+      <div class="c s2"><div class="ch"><b>01</b>Run status<span class="r live" id="y-live">● live</span></div>
+        <div id="y-stage"></div><div class="subline" id="y-slice"></div><canvas class="wave" id="y-wave"></canvas>
+        <div class="foot"><div><div class="lbl">Slice</div><div class="val" id="y-f1"></div></div><div><div class="lbl">Last line</div><div class="val" id="y-f2"></div></div><div><div class="lbl">Journal</div><div class="val" style="font-size:11.5px;color:var(--m);margin-top:6px" id="y-f3"></div></div></div></div>
+      <div class="c" id="y-needc"><div class="ch"><b>02</b>Needs you<span class="r" id="y-nc"></span></div><div id="y-needs" style="display:flex;flex-direction:column;flex:1"></div></div>
+      <div class="c"><div class="ch"><b>03</b>Slices<span class="r" id="y-done"></span></div><div class="mx" id="y-mx"></div></div>
+      <div class="c"><div class="ch"><b>04</b>Stage time</div><div style="display:flex;align-items:flex-end;gap:10px"><div id="y-used"></div><div class="subline" style="margin:0 0 2px" id="y-usual"></div></div><div class="bars" id="y-bars" style="margin-top:16px"></div></div>
+      <div class="c"><div class="ch"><b>05</b>Usage</div><div class="ring">${ring('y-r5')}<div class="side"><div class="row"><i></i>5-hour<b id="y-p5"></b></div><div class="row"><i style="background:#777"></i>Week<b id="y-pw"></b></div><div class="row" style="color:var(--acc)"><i style="background:var(--acc)"></i>Lines 75 · 90</div></div></div></div>
+      <div class="c"><div class="ch"><b>06</b>Commits</div><div id="y-cc"></div><div class="subline" style="text-transform:none;letter-spacing:0;line-height:1.5;margin-top:12px" id="y-lc"></div></div>
+      <div class="c"><div class="ch"><b>07</b>Agents · steering</div><div id="y-ag"></div><div style="margin-top:auto"><div class="lbl">steer.md read since your edit</div><div class="pips" id="y-pips"></div></div></div>
+      <div class="c"><div class="ch"><b>08</b>Control</div><div class="subline" style="text-transform:none;letter-spacing:0;line-height:1.6;margin:0 0 12px;color:#cfcfcf" id="y-ctl"></div>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px;align-items:flex-start"><button class="pill" id="y-b1">1 · Stop after this stage</button><button class="pill" id="y-b2">2 · Stop after verify</button></div></div>
+    </div>`;
+    dm($('#y-title'),'ENGINE-MODULES',3);
+    this.wave=new Wave($('#y-wave')); this.lastGap=0;
+    $('#y-b1').onclick=()=>{ if(!P.state.halted){ P.state.stopReq='stage'; render('yolo',P.state,'step'); } };
+    $('#y-b2').onclick=()=>{ if(!P.state.halted){ P.state.stopReq='verify'; render('yolo',P.state,'step'); } };
+  },
+  render(s,kind){
+    const c=s.slices[s.cur];
+    if(kind==='tick'){ if(s.gap<this.lastGap) this.wave.spike(); this.lastGap=s.gap; this.wave.col= s.halted?'#ff4a1c': s.gap>600?'#f5a524':'#e9e9e9'; this.wave.push(s.halted?0: s.gap>600?0:(Math.random()<.3?1:0)); }
+    dm($('#y-stage'), s.halted?'STOPPED': STG[c.stage]||'DONE', 7); $('#y-stage').firstChild.classList.toggle('acc',s.halted);
+    $('#y-slice').textContent=`${c.id} · ${c.name} · ${Math.round(c.p*100)}% of stage`;
+    $('#y-f1').textContent=`${s.cur+1} / 7`; $('#y-f2').textContent= s.gap<60? Math.round(s.gap)+'s' : Math.floor(s.gap/60)+'m '+Math.round(s.gap%60)+'s'; $('#y-f2').style.color= s.gap>600?'#f5a524':''; $('#y-f3').textContent=s.journal;
+    $('#y-el').textContent=mmss(s.elapsed);
+    const q= s.halted? ['bad','Stopped at your request · resume: /wf yolo engine-modules'] : s.gap>=1200? ['bad','Stale · no journal line for 20 min'] : s.gap>=600? ['warn',`Quiet · no line for ${Math.floor(s.gap/60)} min`] : ['', s.stopReq? `Running · stops after ${s.stopReq==='verify'?'verify':'this stage'}` : 'Running · signal clear'];
+    $('#y-dot').className=q[0]; $('#y-sub').textContent=q[1]; $('#y-live').textContent= s.halted?'■ stopped':'● live';
+    if(kind==='tick'){ this.timeCard(s); return; }
+    // needs
+    const N=$('#y-needs'); const ids=s.needs.map(n=>n.id).join(); $('#y-needc').classList.toggle('alert',s.needs.length>0);
+    $('#y-nc').textContent= s.needs.length? s.needs.length+' waiting':'';
+    if(N._ids!==ids){ N._ids=ids; N.innerHTML= s.needs.length? '' : `<div class="empty">Nothing needs you.<br><span style="color:#444">Decisions and protected files appear here.</span></div>`;
+      s.needs.forEach(n=>{ const e=document.createElement('div'); e.className='need'; e.innerHTML=`<div class="k">${n.kind==='intent'?'Decision':'Protected file'} · ${n.title}</div><p>${n.body}</p>${n.actions.map((a,i)=>`<button class="pill ${i?'':'acc'}">${a}</button>`).join('')}`;
+        $$('button',e).forEach(b=>b.onclick=()=>{ e.classList.add('out'); setTimeout(()=>{ s.needs=s.needs.filter(x=>x!==n); render('yolo',s,'step'); },350); }); N.append(e); }); }
+    // matrix
+    $('#y-mx').innerHTML=`<span></span>${STG.map(x=>`<span class="mxh">${x[0].toUpperCase()}</span>`).join('')}<span></span>`+s.slices.map((x,i)=>`<span style="color:${i===s.cur?'#ececec':'#555'}">${x.id}</span>${STG.map((_,k)=>`<i class="${x.stage>k||x.stage===4?'d':x.stage===k&&!s.halted?'r':''}"></i>`).join('')}<span class="nm ${i===s.cur?'cur':''}">${x.name}</span>`).join('');
+    $('#y-done').textContent=s.slices.filter(x=>x.stage===4).length+' / 7 done';
+    this.timeCard(s);
+    dm($('#y-cc'),String(s.commits),6); $('#y-lc').textContent='Last: '+s.lastCommit;
+    setRing('y-r5',s.h5); $('#y-p5').textContent=s.h5+'%'; $('#y-pw').textContent=s.wk+'%';
+    $('#y-ag').innerHTML= s.agents.length? s.agents.map(a=>`<div class="ag ${a.model==='sonnet'?'sub':''}"><i></i>${a.name}<em>${a.model}</em></div>`).join('') : '<div class="ag sub"><i></i>none</div>';
+    $('#y-pips').innerHTML=Array.from({length:s.steerTotal},(_,i)=>`<i class="${i<s.steerRead?'on':''}"></i>`).join('');
+    $('#y-ctl').textContent= s.halted? 'The run ended cleanly at the boundary. Your steer.md change reaches the next run.' : s.stopReq? `Stop request written. The run ends ${s.stopReq==='verify'?'after the next verify':'after this stage'}.` : 'Stop at the next boundary. The current agent finishes first.';
+    $('#y-b1').className='pill'+(s.stopReq==='stage'?' armed':''); $('#y-b2').className='pill'+(s.stopReq==='verify'?' armed':'');
+  },
+  timeCard(s){ const m=Math.round(s.used/60), u=Math.round(s.usual/60); dm($('#y-used'),m+'M',6); $('#y-used').firstChild.classList.toggle('acc',m>u); $('#y-usual').textContent=`/ usual ${u}m`;
+    const hist=s.durations.slice(-11); $('#y-bars').innerHTML=hist.map(v=>`<div class="col dim">${'<i></i>'.repeat(Math.min(14,v))}</div>`).join('')+`<div class="col cur">${'<i></i>'.repeat(Math.max(1,Math.min(14,m)))}</div>`; },
+};
+
+/* ======================= CAMPAIGN ======================= */
+const C={
+  build(){
+    $('#pane').innerHTML=`
+    <div class="ph"><div><div class="ttl" id="c-title"></div><div class="sub"><i id="c-dot"></i><span id="c-sub"></span></div></div><div class="r">RUN C7 · 4 WAVES · 7 SLUGS<br>MAX 2 UNSHIPPED</div></div>
+    <div class="grid">
+      <div class="c s2"><div class="ch"><b>01</b>Campaign status<span class="r live" id="c-live">● live</span></div>
+        <div id="c-big"></div><div class="subline" id="c-line"></div><canvas class="wave" id="c-wave"></canvas>
+        <div class="foot"><div><div class="lbl">Drives</div><div class="val" id="c-f1"></div></div><div><div class="lbl">Shipped</div><div class="val" id="c-f2"></div></div><div><div class="lbl">Unshipped</div><div class="val" id="c-f3"></div></div></div></div>
+      <div class="c" id="c-needc"><div class="ch"><b>02</b>Needs you</div><div id="c-needs" style="display:flex;flex-direction:column;flex:1"></div></div>
+      <div class="c s2"><div class="ch"><b>03</b>Waves<span class="r">gates · M V D R F S</span></div><div class="waves" id="c-waves"></div></div>
+      <div class="c"><div class="ch"><b>04</b>Usage</div><div class="ring">${ring('c-r5')}<div class="side"><div class="row"><i></i>5-hour<b id="c-p5"></b></div><div class="row"><i style="background:#777"></i>Week<b id="c-pw"></b></div></div></div><div class="subline" style="text-transform:none;letter-spacing:0;margin-top:10px" id="c-fc"></div></div>
+      <div class="c"><div class="ch"><b>05</b>Outputs · PR stack</div><div id="c-prs"></div><div style="margin-top:auto" id="c-try"></div></div>
+      <div class="c"><div class="ch"><b>06</b>Heavy suites</div><div id="c-lock"></div></div>
+      <div class="c"><div class="ch"><b>07</b>Control</div><div class="subline" style="text-transform:none;letter-spacing:0;line-height:1.6;margin:0 0 12px;color:#cfcfcf">Act at the next boundary. Running drives finish first.</div>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px;align-items:flex-start"><button class="pill" id="c-b1">1 · Prepare next slug</button><button class="pill" id="c-b2">2 · Stop after this wave</button><button class="pill" id="c-b3">R · Resume now</button></div></div>
+    </div>`;
+    dm($('#c-title'),'REALISM-ADDITIONS',3); this.wave=new Wave($('#c-wave'));
+    $('#c-b1').onclick=()=>{ SIM.campaign.prepare(P.state); render('campaign',P.state,'step'); };
+    $('#c-b2').onclick=()=>{ $('#c-b2').classList.add('armed'); };
+    $('#c-b3').onclick=()=>{ if(P.state.paused) P.state.cd=0; };
+  },
+  render(s,kind){
+    const drives=s.waves.flatMap(w=>w.slugs).filter(x=>x.state==='run').length;
+    if(kind==='tick'){ this.wave.col= s.paused?'#ff4a1c':'#e9e9e9'; this.wave.push(s.paused?0:Math.min(3,drives+(Math.random()<.3?1:0)-1)); if(!s.paused && Math.random()<.04*drives) this.wave.spike(); }
+    dm($('#c-big'), s.paused? mmss(s.cd) : `WAVE ${s.active}/4`, 7); $('#c-big').firstChild.classList.toggle('acc',s.paused);
+    $('#c-line').textContent= s.paused? 'Paused at the boundary · 5-hour window 91% · resumes 16:40' : `${drives} drive${drives===1?'':'s'} running · wave ${s.active}`;
+    const q= s.paused? ['bad','Paused for usage · wakes by itself'] : s.h5>=75? ['warn','Running · over the 75 line, no new drives'] : ['','Running · all gates nominal'];
+    $('#c-dot').className=q[0]; $('#c-sub').textContent=q[1]; $('#c-live').textContent= s.paused?'❚❚ paused':'● live';
+    if(kind==='tick') return;
+    $('#c-f1').textContent=drives; $('#c-f2').textContent=s.prs.filter(p=>p.state==='merged').length; $('#c-f3').textContent=`${s.unshipped} / 2`;
+    const prep=s.waves.flatMap(w=>w.slugs).filter(x=>x.state==='prep');
+    $('#c-needc').classList.toggle('alert',prep.length>0&&!s.paused);
+    $('#c-needs').innerHTML= s.paused? `<div class="empty">Nothing. The campaign wakes at 16:40.<br><span style="color:#444">Press R to resume now.</span></div>` : prep.length? prep.map(x=>`<div class="need"><div class="k">Prepare · wave 3</div><p><b style="font-weight:400;color:#fff">${x.name}</b> waits for your prepare. Wave ${s.active} keeps running.</p><button class="pill acc" onclick="document.getElementById('c-b1').click()">Prepare</button></div>`).join('') : `<div class="empty">Nothing needs you.</div>`;
+    $('#c-waves').innerHTML=s.waves.map(w=>`<div class="wv ${w.n===s.active?'act':''}"><div class="wn"><b>W${w.n}</b><span>${w.version||(w.gates?'merging':'')}</span></div><div class="gt">${'MVDRFS'.split('').map((g,k)=>`<span class="${k<w.gates?'on':(w.run&&k===w.gates?'run':'')}">${g}</span>`).join('')}</div>
+      ${w.slugs.map(x=>`<div class="sg ${x.state}"><div class="n">${x.name}</div><div class="q">${[0,1,2,3].map(k=>`<i class="${x.stage>k||x.stage===4?'d':x.stage===k&&x.state==='run'?'r':''}"></i>`).join('')}</div><div class="no">${x.state==='done'?'done':x.note||''}</div></div>`).join('')}</div>`).join('');
+    setRing('c-r5',s.h5); $('#c-p5').textContent=s.h5+'%'; $('#c-pw').textContent=s.wk+'%';
+    $('#c-fc').textContent= s.h5>=90? 'Over 90: paused until the reset.' : s.h5>=75? 'Over 75: wave 3 may not fit.' : 'Remaining waves fit before the 90 line.'; $('#c-fc').style.color= s.h5>=75?'#f5a524':'';
+    $('#c-prs').innerHTML=[...s.prs].reverse().map(p=>`<div class="pr"><span class="w">wave-${p.wave}</span>${p.pr}<span class="s ${p.state}">${p.state==='merged'?'merged · '+p.label:p.state==='green'?'ci green':'ci running'}</span></div>`).join('');
+    $('#c-try').innerHTML= s.build? `<div class="lbl" style="margin-bottom:6px">Ready to try</div><div style="font-size:11.5px;margin-bottom:8px">${s.build}</div><button class="pill acc">Open build ↗</button>` : '';
+    $('#c-lock').innerHTML= s.lock.holder? `<div class="lbl">Playwright lock</div><div class="val" style="margin-bottom:10px">${s.lock.holder}</div>${s.lock.wait.map(w=>`<div class="ag sub"><i></i>${w} waits</div>`).join('')}` : `<div class="empty">Playwright lock is free.</div>`;
+  },
+};
+
+/* ======================= BRAINSTORM ======================= */
+const B={
+  build(){
+    $('#pane').innerHTML=`
+    <div class="ph"><div><div class="ttl" id="b-title"></div><div class="sub"><i id="b-dot"></i><span id="b-sub"></span></div></div><div class="r">BRAINSTORM · REVISION <span id="b-rev"></span><br>ONLY YOU END IT</div></div>
+    <div class="grid">
+      <div class="c s2"><div class="ch"><b>01</b>Session</div><div id="b-mode"></div><div class="subline" style="text-transform:none;letter-spacing:0;font-size:13px;color:#cfcfcf;margin-top:14px;line-height:1.5" id="b-ov"></div>
+        <div class="foot"><div><div class="lbl">Ideas</div><div class="val" id="b-f1"></div></div><div><div class="lbl">Threads</div><div class="val">4</div></div><div><div class="lbl">Talk turn</div><div class="val">18</div></div></div></div>
+      <div class="c"><div class="ch"><b>02</b><span id="b-lt">Last captured</span></div><div id="b-key"></div><div class="val" style="margin-top:12px" id="b-item"></div><div class="subline" id="b-thr"></div></div>
+      <div class="c s2"><div class="ch"><b>03</b>Threads<span class="r">● keep  ● cut  ◌ later</span></div><div id="b-th"></div></div>
+      <div class="c"><div class="ch"><b>04</b>Scoping walk</div><div id="b-walk"></div><div class="waf" id="b-waf"></div></div>
+      <div class="c s2" id="b-pkc"><div class="ch"><b>05</b>Work packets<span class="r">size = carried decisions · marks 25 · 40</span></div><div id="b-pk" style="display:flex;flex-direction:column;flex:1"></div></div>
+      <div class="c"><div class="ch"><b>06</b>Sources</div><div style="display:flex;gap:18px;margin-top:4px"><div><div class="lbl">Research</div><div id="b-r" style="margin-top:6px"></div></div><div><div class="lbl">Refs</div><div id="b-f" style="margin-top:6px"></div></div><div><div class="lbl">Work</div><div id="b-w" style="margin-top:6px"></div></div></div></div>
+    </div>`;
+    dm($('#b-title'),'REALISM-ADDITIONS',3);
+  },
+  render(s,kind){
+    if(kind==='tick') return;
+    dm($('#b-mode'),{explore:'EXPLORE',scope:'SCOPE',done:'DONE'}[s.mode],7);
+    $('#b-ov').textContent='“'+s.overheard+'”';
+    $('#b-dot').className= s.hotfix?'bad':s.mode==='scope'?'warn':''; $('#b-sub').textContent= s.hotfix? 'Reopened · revision 4 · campaign picks it up' : s.mode==='explore'? 'Exploring · the session captures each idea' : s.mode==='scope'? 'Scoping walk · you decide each idea' : 'Done · packets written to work/';
+    $('#b-rev').textContent=s.rev; $('#b-f1').textContent=s.captured;
+    const scoping=s.mode!=='explore' && s.last && s.last.call;
+    $('#b-lt').textContent= scoping? 'Last call' : 'Last captured';
+    dm($('#b-key'), scoping? s.last.call.toUpperCase() : (s.last?s.last.key:'—'), 6); $('#b-key').firstChild.classList.toggle('ok',scoping&&s.last.call==='keep'); $('#b-key').firstChild.classList.toggle('acc',scoping&&s.last.call==='cut');
+    $('#b-item').textContent=s.last?s.last.item:''; $('#b-thr').textContent=s.last?s.last.thread:'';
+    $('#b-th').innerHTML=s.threads.map(t=>`<div class="th"><span class="tn">${t.name}</span><div class="its">${t.items.map(i=>`<span class="it ${i.on?'on':''} ${i.call||''} ${s.focus===i.name&&s.mode==='scope'?'focus':''}"><i></i>${i.name}</span>`).join('')}</div></div>`).join('');
+    dm($('#b-walk'),`${s.walked}/14`,6);
+    const all=s.threads.flatMap(t=>t.items); $('#b-waf').innerHTML=all.map(i=>`<i class="${i.call||''}"></i>`).join('');
+    $('#b-pk').innerHTML= s.packets.length? s.packets.map(p=>{ const cls=p.size>40?'red':p.size>25?'amb':''; return `<div class="pk ${cls} ${p.hot?'hot':''} ${p.isNew?'new':''}"><span class="w">${p.wave?'W'+p.wave:'HF'}</span><span class="nm">${p.name}</span><div class="dots">${Array.from({length:60},(_,k)=>`<i class="${k<p.size?'f':''} ${k===24||k===39?'mk':''}"></i>`).join('')}</div><b>${p.size}</b></div>`; }).join('')
+      + (s.packets.some(p=>p.size>40)?`<div class="need" style="margin-top:8px"><div class="k">Split required</div><p>the-players-mind carries 51 decisions, over 40. Split it before the campaign can prepare it.</p><button class="pill acc">Propose split</button></div>`:'')
+      : `<div class="empty">Packets appear when you say done.</div>`;
+    $('#b-pkc').classList.toggle('alert', s.packets.some(p=>p.size>40));
+    dm($('#b-r'),String(s.src.r),5); dm($('#b-f'),String(s.src.f),5); dm($('#b-w'),String(s.src.w),5);
+  },
+};
+
+const NOTES={
+ yolo:`<h3>Yolo · instrument panel</h3><p>Each card answers one question. Card 01 is the focus: the current stage in dot-matrix type, the slice, and a dotted heartbeat that spikes on each journal line and goes flat when the run is quiet.</p><h4>Needs you</h4><p>Card 02 is empty most of the time. A decision or a protected-file change turns its border orange and adds a card with buttons.</p><h4>Colour</h4><p>White is state. Orange is the only accent, and it always means "look here": the running stage, an alert, a line crossed. Green appears only for steering proof.</p>`,
+ campaign:`<h3>Campaign · instrument panel</h3><p>Card 01 shows the wave in progress, or the countdown when the campaign pauses for usage. Card 03 shows every wave: gate dots, then each slug with a four-step track.</p><h4>Prepare</h4><p>Slugs that wait for your prepare have a hatched orange track, and card 02 asks for them.</p><h4>Usage</h4><p>The tick ring fills to the 5-hour value, with the 75 and 90 ticks marked in orange.</p>`,
+ brainstorm:`<h3>Brainstorm · instrument panel</h3><p>Card 01 is the mode and the last thing you said. Card 03 lists every thread with its ideas as dots. During the walk each dot takes your call.</p><h4>Packets</h4><p>At done, card 05 lists each work packet with a 60-dot size bar, marked at 25 and 40. Over 40 is orange and asks for a split.</p>`,
+};
+const VIEWS={yolo:Y,campaign:C,brainstorm:B};
+function render(scene,s,kind){ const V=VIEWS[scene]; if(kind==='reset'){ V.build(); $('#notes').innerHTML=NOTES[scene]; } V.render(s,kind); }
+const P=makePlayer(render);
+$$('nav button').forEach(b=>b.onclick=()=>{ $$('nav button').forEach(x=>x.classList.toggle('on',x===b)); P.active=b.dataset.tab; P.restart(); });
+$$('[data-sp]').forEach(b=>b.onclick=()=>{ P.speed=+b.dataset.sp; $$('[data-sp]').forEach(x=>x.classList.toggle('on',x===b)); });
+$('#rp').onclick=()=>P.restart();
+document.addEventListener('keydown',e=>{ const m={yolo:{'1':'y-b1','2':'y-b2'},campaign:{'1':'c-b1','2':'c-b2','r':'c-b3'}}[P.active]||{}; if(m[e.key]) $('#'+m[e.key]).click(); });
+const h=location.hash.slice(1); if(VIEWS[h]) $(`nav button[data-tab="${h}"]`).click(); else P.restart();
+</script>
+</body>
+</html>
