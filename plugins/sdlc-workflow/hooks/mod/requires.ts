@@ -644,6 +644,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "kind": "procedure",
         "when": "mode:slug",
         "sections": []
+      },
+      {
+        "input": "intake/_packet.md",
+        "kind": "procedure",
+        "when": "mode:packet",
+        "sections": []
       }
     ]
   },
@@ -847,6 +853,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "input": "intake/brainstorm/_design.md",
         "kind": "procedure",
         "when": "mode:design",
+        "sections": []
+      },
+      {
+        "input": "intake/brainstorm/_work.md",
+        "kind": "procedure",
+        "when": "mode:done",
         "sections": []
       },
       {

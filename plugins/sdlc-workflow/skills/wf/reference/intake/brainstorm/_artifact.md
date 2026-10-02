@@ -64,7 +64,9 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
   - `source` is `person`, `agent`, `code`, `data`, `research`, `consult`, or `history`.
   - A finding carries `evidence` (a `file:line`, a dataset, or a link) and `check` (`verified`, `contradicted`, or `unverified`).
   - `state` is `named`, `confirmed`, or `rejected` for an assumption; `open` or `resolved` for a tension; `open`, `answered`, or `for-plan` for a question. A commitment is a question with `state: for-plan`.
-  - `scope` is `keep`, `cut`, `later`, or `null`, and is set when the item's area closes or at `done`. A cut carries the person's `reason` when the person gives one.
+  - `scope` is `keep`, `cut`, `later`, `pending-cut`, or `null`, and is set when the item's area closes or at `done`. A cut carries the person's `reason` when the person gives one. `pending-cut` marks a cut of a decision whose piece of work is already `prepared` or `routed` ([_work.md](_work.md), Reopening).
+  - `session` and `decided-at` record when the person made a decision. Write both on each new decision. A packet carries them, so intake can show the person how old each decision is.
+  - A finding from research sets `evidence: research/R<NN>-<label>.md#<anchor>`. A finding from a reference cites the reference id, for example `F03`.
   - `core: true` marks a decision the person named as core when the area closed; `first-version: true` marks a decision in the area's first version.
   - `top-risk: true` marks the accepted risk that worries the person most in its area.
   - `accepted-risk` is the consequence the person accepted with a decision, in one plain sentence.
@@ -75,9 +77,62 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
 
 A **piece of work** (one per agreed piece at `done`, in order):
 ```json
-{ "key": "spending-limit", "order": 1, "title": "Add a warning-only spending limit per project", "shape": "intake", "threads": ["limit-per-project"], "items": ["limit-warns-only", "cost-rows-per-run"], "entry": "/wf intake spending-limit from <slug>", "state": "proposed", "routed-to": null, "stale": false }
+{ "key": "spending-limit", "order": 1, "title": "Add a warning-only spending limit per project", "shape": "intake", "slug": "spending-limit", "depends-on": [], "provides": [{ "key": "project-limit", "text": "Each project has a spending limit that warns." }], "expects": [], "threads": ["limit-per-project"], "items": ["limit-warns-only", "cost-rows-per-run"], "research": ["R01"], "references": ["F02"], "entry": "/wf intake .ai/workflows/<slug>/work/spending-limit.md", "state": "proposed", "routed-to": null, "stale": false }
 ```
-`shape` is `intake`, `investigate`, `fix`, `discover`, `task`, `extension`, `design`, or `design-direction`. A piece of work that carries design items also records `ux-impact` (the proposed value) and `sketches` (the keys of its carried sketches). `state` is `proposed` or `routed`. `stale: true` with `stale-because` marks a piece of work that a later area changed.
+- `shape` is the form: `intake`, `investigate`, `discover`, `fix`, `hotfix`, `task`, `extension`, or `write-now` ([_work.md](_work.md)). Older boards also hold `design` and `design-direction` pieces; a new board records those as `design-form` on the piece they serve.
+- `slug`, `target-slug`, `depends-on`, `provides`, `expects`, `shared`, `research`, `references`, `amends`, and `urgency` are agreed in 3.3 ([_work.md](_work.md)). `size` is `small`, `medium`, `large`, or `too-large`, from the count of carried decisions.
+- A piece of work that carries design items also records `ux-impact` (the proposed value) and `sketches` (the keys of its carried sketches).
+- `state` is `proposed`, `prepared` (intake read its packet), `routed` (a successor workflow started), or `written` (a write-now piece the session wrote). A written piece records `written-files` (each `path` with its `section`) and `written-at`.
+- `stale: true` with `stale-because` marks a piece of work that a later area changed.
+
+## Sources: `research/` and `references/`
+
+A brainstorm keeps every source it uses inside its own folder. A board item, a research note, or a packet never cites `.scratch/` or another gitignored path, because that citation breaks on another machine, in a worktree, and after a cleanup.
+
+```
+.ai/workflows/<slug>/
+  research/
+    index.md
+    R01-<label>.md ...
+  references/
+    index.md
+    <group>/...            (for example code/, transcripts/, reports/, briefs/)
+  work/
+    index.md               (written by work-packets.mjs)
+    changes.md             (written by work-packets.mjs)
+    <slug>.md ...          (the packets, written by work-packets.mjs)
+```
+
+**Research notes.** Every research act writes one note in `research/`:
+- a `look it up` dispatch;
+- a research sub-agent of a brief map or a coherence pass that reads outside the board;
+- a second opinion;
+- a talk turn that cites external sources.
+
+Name the note `R<NN>-<label>.md`. `NN` counts up in this folder and never reuses a number. Give the note this frontmatter, then the result and the evidence in the body:
+```yaml
+---
+id: R03
+question: "<the question the research answered>"
+asked-in: "session <N>, <thread key>"
+method: "<look it up | brief map | coherence pass | second opinion | talk turn>"
+sources: ["<URL, repo path, or reference id>"]
+date: "<YYYY-MM-DD>"
+---
+```
+A finding that comes from the note sets `evidence: research/R03-<label>.md#<anchor>`. The board item stays short; the note holds the detail. The `write` command at `done` regenerates `research/index.md`. A coherence pass regenerates it too ([_cohere.md](_cohere.md)): one line per note with its id, its question, and the item keys that cite it.
+
+**References.** A reference is outside material that the session reads and cites: a pasted brief, a document, a dataset extract, code from another repository or branch, or a transcript.
+1. Copy the reference into `references/<group>/`.
+2. Add a row to `references/index.md`:
+   ```
+   | id | path | origin | copied-at | sha256 | bytes | copy |
+   | F03 | references/reports/season-2025.csv | https://… | 2026-10-03 | <hash> | 48213 | yes |
+   ```
+3. When the file is larger than 5 MB, do not copy it. Record a pointer row with `copy: no`, the origin, the hash, the size, and how to fetch it. A raw dataset is the usual case.
+4. Cite the reference by its id. To use a gitignored path, copy the file in or record a pointer row first.
+
+A brief the person brings is copied to `references/briefs/`, and `briefs[].source` holds its reference id ([_brief.md](_brief.md)).
 
 ## `01-brainstorm.md` — the person's document
 
@@ -148,7 +203,7 @@ The body names everything in words. It carries no key, no internal number, and n
 <Empty until `done`. Then the agreed scope: the kept items by piece of work, the items left for later, and the cut items with the person's reasons.>
 
 ## Work
-<Empty until `done`. Then each piece of work in order: its title, what it carries, its form, and its entry command.>
+<Empty until `done`. Then each piece of work in order, one line each: its title, its form, and a link to its packet (`work/<slug>.md`), or the documents a write-now piece changed. No second copy of the packet content.>
 
 ## How to continue
 - Resume: `/wf intake brainstorm <slug>`

@@ -1,0 +1,27 @@
+{
+  "schema": "sdlc/v1",
+  "artifact": "brainstorm-board",
+  "slug": "brainstorm-reading-time-20261003",
+  "topic": "a per-page reading-time estimate",
+  "updated-at": "2026-10-03T09:00:00Z",
+  "sessions": 1,
+  "batches": 6,
+  "page": null,
+  "areas": [
+    { "key": "showing-the-time", "name": "Showing the reading time", "side": "solution", "state": "explored", "brief": "Each page shows minutes at the top. Core: the estimate. Scope: kept.", "scope": "keep" }
+  ],
+  "threads": [
+    { "key": "estimate-rule", "name": "How the estimate is counted", "area": "showing-the-time", "state": "live" }
+  ],
+  "items": [
+    { "key": "minutes-at-top", "kind": "decision", "thread": "estimate-rule", "text": "Each docs page shows its reading time in whole minutes under the title.", "why": "Readers decide before they scroll.", "source": "person", "core": true, "first-version": true, "scope": "keep", "session": 1, "decided-at": "2026-10-03T08:30:00Z" },
+    { "key": "two-hundred-wpm", "kind": "decision", "thread": "estimate-rule", "text": "The estimate counts 200 words per minute and never shows less than 1 minute.", "source": "person", "scope": "keep", "session": 1, "decided-at": "2026-10-03T08:40:00Z" },
+    { "key": "code-blocks-count", "kind": "question", "thread": "estimate-rule", "text": "Do code blocks count as words?", "source": "agent", "state": "for-plan" },
+    { "key": "pages-are-markdown", "kind": "finding", "thread": "estimate-rule", "text": "Every docs page is a markdown file under docs/.", "source": "code", "evidence": "docs/guide.md:1", "check": "verified" }
+  ],
+  "work": [
+    { "key": "reading-time", "order": 1, "title": "Show a reading-time estimate on each docs page", "shape": "intake", "slug": "reading-time", "threads": ["estimate-rule"], "items": ["minutes-at-top", "two-hundred-wpm", "pages-are-markdown"], "provides": [{ "key": "page-minutes", "text": "Each docs page shows its reading time." }], "entry": "/wf intake .ai/workflows/brainstorm-reading-time-20261003/work/reading-time.md", "state": "proposed", "routed-to": null }
+  ],
+  "selected": ["reading-time"],
+  "log": []
+}

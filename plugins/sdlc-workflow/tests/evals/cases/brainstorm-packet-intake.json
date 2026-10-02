@@ -1,0 +1,42 @@
+{
+  "name": "brainstorm-packet-intake",
+  "order": 120,
+  "fixture": "brainstorm-packets",
+  "prompt": "/wf intake .ai/workflows/brainstorm-reading-time-20261003/work/reading-time.md",
+  "maxTurns": 40,
+  "assertions": [
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/reading-time/00-index.md",
+      "min": 1,
+      "max": 1
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/reading-time/00-index.md"
+    },
+    {
+      "type": "frontmatter-has",
+      "glob": ".ai/workflows/reading-time/00-index.md",
+      "field": "origin-packet"
+    },
+    {
+      "type": "frontmatter-has",
+      "glob": ".ai/workflows/reading-time/00-index.md",
+      "field": "origin-items"
+    },
+    {
+      "type": "file-contains",
+      "path": ".ai/workflows/reading-time/01-intake.md",
+      "pattern": "200 words per minute"
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/brainstorm-reading-time-20261003/work/reading-time.md"
+    },
+    {
+      "type": "changes-only-under",
+      "prefix": ".ai/"
+    }
+  ]
+}

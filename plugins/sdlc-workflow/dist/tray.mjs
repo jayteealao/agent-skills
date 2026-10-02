@@ -14,14 +14,14 @@ import {
   restartHub,
   stopHubAction,
   togglePerRepoServe
-} from "./chunk-CSR7GKF6.mjs";
+} from "./chunk-MJ6OHYHJ.mjs";
 import {
   clearTrayHeartbeat,
   writeTrayHeartbeat
-} from "./chunk-4CZ7PZD2.mjs";
-import "./chunk-AN7MIYZZ.mjs";
+} from "./chunk-BTCO5K4U.mjs";
+import "./chunk-KN66PBDK.mjs";
 import "./chunk-KIZZEX5M.mjs";
-import "./chunk-PQGW3NEN.mjs";
+import "./chunk-6Q5ZO6ZF.mjs";
 import {
   disableAutostart,
   enableAutostart,
@@ -29,7 +29,7 @@ import {
   refreshAutostart,
   verifyTrayHelper
 } from "./chunk-G5IZHK3B.mjs";
-import "./chunk-NQ3YKNZA.mjs";
+import "./chunk-DH6HHLEG.mjs";
 import {
   runtimeIdentity
 } from "./chunk-CGSPUUFD.mjs";
@@ -38,7 +38,8 @@ import "./chunk-KRRL2TSM.mjs";
 import "./chunk-KNXRJRUP.mjs";
 import {
   sdlcHomeDir
-} from "./chunk-XQW7VILZ.mjs";
+} from "./chunk-6KXVCHJL.mjs";
+import "./chunk-5U76735W.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";

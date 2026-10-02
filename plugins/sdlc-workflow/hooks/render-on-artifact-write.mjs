@@ -32,7 +32,7 @@ import { resolveProjectRoot } from '../lib/project-root.mjs';
 import { configPathFor } from '../lib/config.mjs';
 import { enqueue, queueDir } from '../lib/render-queue.mjs';
 import { ensureHubEnabled, spawnHubEnsure } from '../lib/ensure-hub.mjs';
-import { isEvidencePath } from '../lib/hook-utils.mjs';
+import { isBrainstormSourcePath, isEvidencePath, isWorkSetPath } from '../lib/hook-utils.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -76,7 +76,7 @@ function pickArtifactPaths(input) {
   return list.filter((p) =>
     typeof p === 'string' && (
       p.endsWith('.md') || p.endsWith('.yaml') || p.endsWith('.html.fragment')
-    ) && !isEvidencePath(p),
+    ) && !isEvidencePath(p) && !isBrainstormSourcePath(p) && !isWorkSetPath(p),
   );
 }
 

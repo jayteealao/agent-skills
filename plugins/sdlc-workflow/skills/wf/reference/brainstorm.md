@@ -24,7 +24,7 @@ Resolve the first token by an exact existence check. Never fuzzy-match: a wrong 
 
 1. **When `.ai/workflows/<token0>/00-index.md` exists**, `token0` is the slug. Read its `workflow-type` and `status`.
    - `status: closed` → STOP: *"Workflow `<slug>` is closed. To reopen it, set `status: in-progress` in its `00-index.md`, then run `/wf brainstorm <slug>` again."*
-   - `workflow-type: brainstorm` → **resume** that board. When `token1` is `design`, set the board's `focus: design`.
+   - `workflow-type: brainstorm` → **resume** that board. When `token1` is `design`, set the board's `focus: design`. When `token1` is `add`, the rest is a **quick capture** (`intake/brainstorm/_work.md`).
    - any other type, and `token1` is `design` → **design on a workflow**. The remaining tokens are an optional idea.
    - any other type, and `token1` is anything else → **slug-mode**: the remaining tokens are the topic of a compressed brainstorm slice.
 2. **Else**, when `token0` is `design` → **new board**, `focus: design`. The remaining tokens are the idea. With no idea, STOP and render the usage below.
@@ -35,6 +35,8 @@ Usage:
   /wf brainstorm <idea>                     Think an idea through on a new board.
   /wf brainstorm design <idea>              Think through how an idea looks and behaves, with sketches.
   /wf brainstorm <brainstorm-slug> [design] Resume a board; design switches its focus.
+  /wf brainstorm <brainstorm-slug> add <text>
+                                            Add one piece of work, for example a bug, as a packet.
   /wf brainstorm <feature-slug> design [idea]
                                             Brainstorm the design of a workflow that exists.
   /wf brainstorm <feature-slug> <topic>     Brainstorm a topic inside a workflow, as a compressed slice.

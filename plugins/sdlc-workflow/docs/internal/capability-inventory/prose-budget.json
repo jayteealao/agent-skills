@@ -109,7 +109,7 @@
       "reason": "WIDE-VIEW-REPAIR-PLAN §16: implement.md holds 22 artifact keys, 6 stops, 2 dispatches, the suppressionDebtLint/limitationClaimLint config entries, and the pinned build-discipline phrases; the 2,731-word share is unreachable without deleting capability. §4.3 cuts (rationale, history, restatements) landed first."
     },
     "skills/wf/reference/intake.md": {
-      "words": 3059,
+      "words": 3058,
       "reason": "The five-branch shape resolution with its STOPs, the nine-row auto-route signal table with six discriminators, the 14-row mode→span map, and the 14-row mode→file map are the intake dispatcher capability surface; §4.3 cuts removed only rationale and restatements (3,498 → 3,092 words)."
     },
     "skills/wf/reference/plan.md": {

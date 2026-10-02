@@ -7,14 +7,15 @@ import {
   splitStorySection,
   stageKeyFor,
   viewHref
-} from "./chunk-OJOSZZLD.mjs";
+} from "./chunk-OSVLK5ZV.mjs";
 import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-U5DXOZ5H.mjs";
+} from "./chunk-MFUP6TXX.mjs";
 import {
   EVIDENCE_DIRS,
+  NO_PAGE_DIRS,
   PLUGIN_VERSION,
   SURFACE_SWEEP_RE,
   breadcrumbFromView,
@@ -23,7 +24,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-Y7H4JJAK.mjs";
+} from "./chunk-HSVXEPAP.mjs";
 import {
   aggregateCost,
   readCostRows
@@ -37,14 +38,14 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-AN7MIYZZ.mjs";
+} from "./chunk-KN66PBDK.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-PQGW3NEN.mjs";
-import "./chunk-NQ3YKNZA.mjs";
+} from "./chunk-6Q5ZO6ZF.mjs";
+import "./chunk-DH6HHLEG.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -75,7 +76,8 @@ import {
   upsertRegistryEntry,
   viewMtimeForSlug,
   writePidFile
-} from "./chunk-XQW7VILZ.mjs";
+} from "./chunk-6KXVCHJL.mjs";
+import "./chunk-5U76735W.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
@@ -1197,6 +1199,7 @@ function* walkStorage(root) {
         if (e.name.startsWith(".") && e.name !== ".ai") continue;
         if (e.name === "node_modules") continue;
         if (EVIDENCE_DIRS.includes(e.name)) continue;
+        if (NO_PAGE_DIRS.includes(e.name) && /[\\/]\.ai[\\/]workflows[\\/][^\\/]+$/.test(dir)) continue;
         stack.push(abs);
       } else if (e.isFile()) {
         if (abs.endsWith(".md") || abs.endsWith(".yaml") || abs.endsWith(".html.fragment")) {

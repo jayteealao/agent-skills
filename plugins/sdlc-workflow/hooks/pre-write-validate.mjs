@@ -23,14 +23,17 @@ import { basename, dirname, join } from 'node:path';
 import { loadConfig } from '../lib/config.mjs';
 import { designGateRefusal, isPlanArtifact, planSliceOf } from '../lib/design-lane.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
+import { startedPacketRewriteError } from '../lib/work-packets.mjs';
 import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import {
   formatList,
   hasFrontmatterFence,
-  isEvidencePath,
+  isFreeFormWorkflowPath,
   isProjectContextMarkdownPath,
   isProseLogPath,
   isWorkflowMarkdownPath,
+  isWorkPacketPath,
+  isWorkSetPath,
   outputSystemMessage,
   projectContextPathInfo,
   projectRootFromInput,
@@ -93,9 +96,10 @@ export async function run(input) {
   }
 
   const filename = basename(info.filename);
-  // probe-evidence/ and verify-evidence/ files are free-form (no filename
-  // convention, no frontmatter) — see isEvidencePath in hook-utils.
-  if (isEvidencePath(filePath)) return;
+  // probe-evidence/, verify-evidence/, a brainstorm's research/ and references/,
+  // work/changes.md, and history/ snapshots are free-form (no filename
+  // convention, no frontmatter) — see isFreeFormWorkflowPath in hook-utils.
+  if (isFreeFormWorkflowPath(filePath)) return;
   const errors = [];
   // po-answers.md is the frontmatter-less product-owner prose log — exempt from
   // both the filename convention and the frontmatter requirement. See isProseLogPath.
@@ -104,7 +108,10 @@ export async function run(input) {
   // names (animate-<ts>.md, extract.md, etc.) deliberately skip the
   // NN-stagename convention (they carry the design-augmentation type instead).
   const inDesignNotes = info.storageRel.startsWith('design-notes/');
-  if (!inDesignNotes && !isProseLog) {
+  // work/<slug>.md packets and work/index.md carry a schema type but are named
+  // for the slug they open (BRAINSTORM-WORK-PACKETS-PLAN section 5).
+  const inWorkSet = isWorkSetPath(filePath);
+  if (!inDesignNotes && !isProseLog && !inWorkSet) {
     const filenameError = validateFilename(filename);
     if (filenameError) errors.push(filenameError);
   }
@@ -137,6 +144,13 @@ export async function run(input) {
         errors.push(`Slug mismatch: frontmatter slug '${slug}' does not match workflow directory '${info.slug}'. The slug must remain stable across all files in a workflow.`);
       }
     }
+  }
+
+  // A started packet is never rewritten (V3): only its link-back fields change.
+  if (errors.length === 0 && isWorkPacketPath(filePath)) {
+    const prior = await readTextIfExists(resolveProjectPath(projectRoot, filePath));
+    const refusal = prior === null ? null : startedPacketRewriteError(prior, content);
+    if (refusal) errors.push(refusal);
   }
 
   if (errors.length === 0 && config.hooks.designDirectionGate !== false && isPlanArtifact(info.storageRel)) {

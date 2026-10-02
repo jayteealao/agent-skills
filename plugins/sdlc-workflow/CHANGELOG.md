@@ -5,6 +5,26 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+A brainstorm keeps its sources in its own folder and ends in work packets. A piece that only changes documents is written in the brainstorm session.
+
+### Added
+
+- **Work packets.** At `done`, each piece of work that opens or extends a workflow gets `work/<slug>.md`. The packet carries the kept decisions word for word, with their dates, plus the findings, the open questions, the sources, the dependencies, and the contract lines (`provides`, `expects`). `work/index.md` lists the packets, the contracts, the waves, and the start commands. `work/changes.md` records each revision of the work set.
+- **`work-packets.mjs check` and `write`.** The script generates the packets from `brainstorm-board.json`, so the board stays the single truth. The check refuses the work set when an `expects` line has no earlier `provides` line, when a kept decision lands in no piece (or in two without `shared`), when the dependencies form a cycle, when a piece carries more than 40 decisions, or when the board cites `.scratch/` or another gitignored path. More than 25 decisions is a proposed split.
+- **Write-now pieces.** A piece that changes only documents takes the form `write-now`. The brainstorm writes it after the person confirms the scope, reads back each changed section for its decision keys, and records the files on the board. It is never printed as `/wf task`. A piece that touches code, configuration, or anything outside the repository stays a `task`. When the context is more than 70 % used, or the piece changes more than 6 documents, the agent proposes `task` and the person decides.
+- **Intake from a packet.** `/wf intake .ai/workflows/<brainstorm>/work/<slug>.md` runs the packet's form with its slug. Intake shows the carried decisions in groups of up to 8 for the person to keep or change. A changed decision goes into `po-answers.md` with its key, and the packet records it in `decision-changed`. The next brainstorm resume asks the person to update the board. `00-index.md` records `origin-packet` and `origin-items`.
+- **Sources stay in the folder.** `look it up`, a second opinion, a brief map, a coherence pass that reads outside the board, and a talk turn with external sources each write a research note in `research/`. Briefs and other outside material are copied into `references/`, or recorded as a pointer row above 5 MB.
+- **`/wf brainstorm <slug> add <text>`** records one new piece, for example a bug found while trying built work, and writes its packet.
+- **New forms:** `hotfix` (with `urgency`) and `write-now`. New frontmatter types: `work-packet` and `work-set`.
+
+### Changed
+
+- **Shape** adds one Intake Fidelity row per carried decision, and sets the packet's state to `routed`. The intent-fidelity review reads the packet's carried decisions.
+- **A started packet is never rewritten.** The write hook refuses any change to a `prepared` or `routed` packet except its state, `routed-to`, and `decision-changed`. A new decision about its slug becomes a new packet with `amends`. A cut of a started piece is recorded as `pending-cut`, and the person decides about the built work.
+- **Write hooks.** `research/`, `references/`, `work/changes.md`, `work/<subfolder>/`, and `history/` are free-form: no NN- name and no schema check. Packets and `work/index.md` need no NN- name and are schema-checked. None of these folders gets a page, queues a render, or marks a workflow stale.
+
 ## [9.176.0] - 2026-09-30
 
 `/consult` is no longer a `/wf` workflow step. The skill stays; you run it when you want a second opinion.

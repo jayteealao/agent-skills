@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { readdir, realpath, stat } from 'node:fs/promises';
 import { basename, join, relative } from 'node:path';
 import { safeLoadFrontmatterFile } from './frontmatter.mjs';
-import { EVIDENCE_DIRS } from './hook-utils.mjs';
+import { EVIDENCE_DIRS, SOURCE_DIRS, WORK_DIR } from './hook-utils.mjs';
 import { latestMtimeMs } from './render-state.mjs';
 
 // Wider than the schema's `status` enum (active/complete/closed) on purpose —
@@ -169,7 +169,9 @@ export function activeWorkflowIndexes(workflows) {
 // written after the index, so they never mark a workflow stale
 // (ARTIFACT-SPLIT-PLAN S5). `.jsonl` files (index-history.jsonl,
 // .read-ledger.jsonl, cost.jsonl) are ignored by the extension filter below.
-const STALE_EXEMPT_DIRS = new Set(EVIDENCE_DIRS);
+// A brainstorm's research/, references/ and work/ get no page, so they never
+// mark a workflow stale either (BRAINSTORM-WORK-PACKETS-PLAN).
+const STALE_EXEMPT_DIRS = new Set([...EVIDENCE_DIRS, ...SOURCE_DIRS, WORK_DIR]);
 
 async function walkWorkflowFiles(root) {
   const out = [];

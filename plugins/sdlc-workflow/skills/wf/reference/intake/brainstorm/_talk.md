@@ -18,7 +18,7 @@ Take no two talk turns in a row unless the person asks for more. Everything else
    - what it changes on the board: the decisions it supports, and the decisions it puts in question;
    - your own view, and your reason.
 2. End the turn with one plain sentence that invites a reply: what the person thinks, what to explain more, or "go on" for the questions. Ask no question form in the same turn. The host can hide the chat text before a question form; a turn that ends in prose is never hidden.
-3. Record what the talk explained as findings or ideas, and log one entry with kind `talk`.
+3. Record what the talk explained as findings or ideas, and log one entry with kind `talk`. When the talk cites an external source, write a research note in `research/` ([_artifact.md](_artifact.md), Sources), and point each finding's `evidence` at it.
 4. Read the reply as an answer (2.2). The first batch after a talk turn names what the talk explained in one line, not again in full. In each choice question, give your view and its reason in the question text.
 
 ## A session story

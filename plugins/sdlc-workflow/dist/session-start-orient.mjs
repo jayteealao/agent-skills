@@ -8,7 +8,7 @@ import {
 import {
   ensureHubEnabled,
   spawnHubEnsure
-} from "./chunk-TNRU7QVJ.mjs";
+} from "./chunk-TIRARM56.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-K6PBZI5W.mjs";
@@ -20,7 +20,7 @@ import {
 } from "./chunk-YYMENX7Z.mjs";
 import {
   logError
-} from "./chunk-XFYSNSWS.mjs";
+} from "./chunk-3REOQAKO.mjs";
 import {
   loadConfig
 } from "./chunk-KNXRJRUP.mjs";
@@ -29,7 +29,8 @@ import {
   isInsideGitCheckout,
   projectRootFromInput,
   sdlcHomeDir
-} from "./chunk-XQW7VILZ.mjs";
+} from "./chunk-6KXVCHJL.mjs";
+import "./chunk-5U76735W.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";

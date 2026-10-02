@@ -17,7 +17,7 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - **Evidence-first**: every finding cites `file:line` + the intake directive it betrays (quote both).
 - **Severity + Confidence** on every finding. Severity follows the rule in the Severity line below, never below MED.
 - **Name the directive, not a vibe**: "this narrows intake directive X" with X quoted, not "feels off".
-- Inputs, read before the diff: `01-intake.md` (Restated Request, Known Constraints, Success Criteria — exact text); the intent-risk (RIM) ledger on `00-index.md`; shape's `## Intake Fidelity` table; the charter on `00-index.md` when present; the slice diff.
+- Inputs, read before the diff: `01-intake.md` (Restated Request, Known Constraints, Success Criteria — exact text); the intent-risk (RIM) ledger on `00-index.md`; shape's `## Intake Fidelity` table; the charter on `00-index.md` when present; the carried decisions of the origin work packet when `00-index.md` records `origin-packet` (a narrowed carried decision is a narrowed directive); the slice diff.
 - **Advance or imitate?** Does this diff advance the intake's product, or a simplified imitation of it? State which, with evidence.
 - **Uncovered narrowing?** Name EVERY intake directive this slice's code narrows or reframes; a narrowing covered by no fidelity-table row and no RIM adjudication is a finding.
 - **Control authority** (the waypoint check). For each user-facing behaviour, does the component the intake assigned (model/agent vs deterministic code) own it? An inversion — the intake says the agent decides, the code says a regex does — is HIGH.

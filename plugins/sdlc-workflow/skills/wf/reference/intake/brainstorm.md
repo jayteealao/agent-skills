@@ -1,6 +1,6 @@
 ---
-description: Brainstorm with a thinking partner. The person has a half-formed thought and explores the problem space and the solution space with the agent. The agent maps the areas the topic touches, asks question batches in plain words, brings ideas of its own, and keeps two files — a document the person reads and a JSON board the agent works from. Only the person ends the loop. On `done` the person and the agent walk through the discussion, decide what to keep, cut, or leave for later, and shape the kept decisions into pieces of work together. Writes no code and no plan. The workflow stays open until every thread is routed, parked, or dropped, and a resumed session reopens a distilled board.
-argument-hint: <topic> | <slug> (resume) | <slug> (existing workflow) brainstorm <topic>
+description: Brainstorm with a thinking partner. The person has a half-formed thought and explores the problem space and the solution space with the agent. The agent maps the areas the topic touches, asks question batches in plain words, brings ideas of its own, and keeps two files — a document the person reads and a JSON board the agent works from. Only the person ends the loop. On `done` the person and the agent walk through the discussion, decide what to keep, cut, or leave for later, and shape the kept decisions into pieces of work together. Each piece becomes a work packet that a successor workflow starts from, or, when it changes only documents, is written in the same session. Writes no code and no plan. The workflow stays open until every thread is routed, parked, or dropped, and a resumed session reopens a distilled board.
+argument-hint: <topic> | <slug> (resume) | <slug> add <text> | <slug> (existing workflow) brainstorm <topic>
 ---
 
 # Output boundary & shared context
@@ -22,7 +22,7 @@ If neither applies, proceed standalone below.
 | | Detail |
 |---|---|
 | Requires | See [## Requires](#requires). A topic, or an existing brainstorm slug to resume. |
-| Produces | `00-index.md` (`type: workflow-index`, `workflow-type: brainstorm`), `01-brainstorm.md` (`type: brainstorm`, the person's document), and `brainstorm-board.json` (the agent's board). No branch. |
+| Produces | `00-index.md` (`type: workflow-index`, `workflow-type: brainstorm`), `01-brainstorm.md` (`type: brainstorm`, the person's document), and `brainstorm-board.json` (the agent's board). `research/` and `references/` hold the sources. At `done`, `work/` holds one packet per piece of work. No branch. |
 | Skips | Every build stage. A brainstorm is not a build lifecycle. |
 | Next | Terminal. Only the person's `done` leaves the loop, and `done` scopes the work with the person. The workflow **stays open**; retire it with `/wf close <slug>` when no thread is live. |
 
@@ -40,6 +40,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `intake/brainstorm/_artifact.md` | procedure | always | |
 | `intake/brainstorm/_talk.md` | procedure | always | |
 | `intake/brainstorm/_design.md` | procedure | mode:design | |
+| `intake/brainstorm/_work.md` | procedure | mode:done | |
 | `_compressed-slice.md` | procedure | mode:slug | |
 | `01-brainstorm.md` | writes | | |
 
@@ -59,7 +60,7 @@ These rules protect the person. They have no exceptions.
 - **No commitments and no code.** See Your role.
 - **Nothing becomes work until the person confirms it** (Step 3).
 - **The board is the memory.** Write the changed items to both files after every batch, so a lost session loses at most one batch.
-- **Evidence is bounded.** When a statement is checkable against the codebase, run one bounded read and cite `file:line`. Run a sub-agent only when the person says `look it up`, or for a coherence pass or a brief map ([brainstorm/_cohere.md](brainstorm/_cohere.md), [brainstorm/_brief.md](brainstorm/_brief.md)).
+- **Evidence is bounded.** When a statement is checkable against the codebase, run one bounded read and cite `file:line`. Run a sub-agent only when the person says `look it up`, or for a coherence pass or a brief map ([brainstorm/_cohere.md](brainstorm/_cohere.md), [brainstorm/_brief.md](brainstorm/_brief.md)). Every research act writes a research note in `research/`, and every outside source goes into `references/`; never cite `.scratch/` or another gitignored path ([brainstorm/_artifact.md](brainstorm/_artifact.md), Sources).
 
 # Craft
 These are principles, not quotas. Before each batch, judge it against them.
@@ -94,7 +95,8 @@ An item has one of six kinds: a **decision**, which the person chose; an **idea*
 
 # Step 0 — Orient
 1. **Resolve the shape** from the instructions:
-   - First token matches an existing `workflow-type: brainstorm` slug → **resume**. When the board has no JSON file and its frontmatter carries `claims:`, it is a legacy board: convert it first, per the conversion section of [brainstorm/_artifact.md](brainstorm/_artifact.md). Snapshot both files to `history/` and add a `revisions:` entry (`trigger: resume`) per [_additive-write.md](../_additive-write.md). Bump `sessions`. Reopen a distilled board (`status: open`, `progress.brainstorm: in-progress`, the pieces of work kept as they are). Write a `brief` for each area that has none. Then run Step 0.3, tell the story of the last session in chat ([brainstorm/_talk.md](brainstorm/_talk.md)), show where we are (2.6), and go to Step 2. Skip Step 1.
+   - First token matches an existing `workflow-type: brainstorm` slug and the next token is `add` → **quick capture**. Load [brainstorm/_work.md](brainstorm/_work.md) and run its section "Quick capture: `add`" with the remaining text. Skip the loop.
+   - First token matches an existing `workflow-type: brainstorm` slug, with no `add` → **resume**. When the board has no JSON file and its frontmatter carries `claims:`, it is a legacy board: convert it first, per the conversion section of [brainstorm/_artifact.md](brainstorm/_artifact.md). Snapshot both files to `history/` and add a `revisions:` entry (`trigger: resume`) per [_additive-write.md](../_additive-write.md). Bump `sessions`. When `work/` holds packets, load [brainstorm/_work.md](brainstorm/_work.md) and run its "Changed decisions come back" rule before the first batch. Reopen a distilled board (`status: open`, `progress.brainstorm: in-progress`, the pieces of work kept as they are). Write a `brief` for each area that has none. Then run Step 0.3, tell the story of the last session in chat ([brainstorm/_talk.md](brainstorm/_talk.md)), show where we are (2.6), and go to Step 2. Skip Step 1.
    - Otherwise the tokens are the **topic**. Derive the slug `brainstorm-<topic-slug>-<YYYYMMDD>` (the topic in kebab form, the date from the date-only row of [_timestamp.md](../_timestamp.md), dashes removed). If that slug exists, append `-2`, `-3`.
 2. **Read recorded history** for the topic, as cheap reads, skipping whatever is absent: retro action items (`.ai/workflows/*/10-retro.md`), `.ai/solutions/INDEX.md`, deferred review findings, and `sdlc-debt:` markers. A recorded item that touches the topic becomes a finding on the first thread, with its source.
 3. **Map the space.** List the areas the topic touches, on the problem side (what feels wrong, where, and for whom) and on the solution side (the kinds of change that could answer it). Cover the whole topic before any area goes deep. On a resume, start from the board's areas and add the areas the earlier sessions missed. Mark each area `open`, `touched`, or `explored`.
@@ -139,7 +141,7 @@ Compose **one to four questions**, guided by the Craft section. A batch has one 
 Deliver the batch through rung 1 of [_gate-question.md](../_gate-question.md), under its batch clause. A talk turn ([brainstorm/_talk.md](brainstorm/_talk.md)) takes the place of a batch, and ends with no question. Between two batches, say in one plain sentence what changed and where the next batch goes.
 
 ## 2.2 Read the answers
-A free-text answer whose first token is a control word is a command (2.3), not an answer. A reply that carries a brief, pasted or as a file path, runs [brainstorm/_brief.md](brainstorm/_brief.md). An answer that asks a question, or asks you to explain or go deeper, gets a talk turn. Every other answer becomes board content: a chosen reading or a choice is a decision, a new direction is an idea or a new thread, a rejected premise changes an assumption's state, and a checkable statement gets its bounded read.
+A free-text answer whose first token is a control word is a command (2.3), not an answer. A reply that carries a brief, pasted or as a file path, runs [brainstorm/_brief.md](brainstorm/_brief.md); the brief is copied into `references/briefs/` first. An answer that asks a question, or asks you to explain or go deeper, gets a talk turn. Every other answer becomes board content: a chosen reading or a choice is a decision, a new direction is an idea or a new thread, a rejected premise changes an assumption's state, and a checkable statement gets its bounded read.
 
 ## 2.3 Control words
 | Word | Effect |
@@ -147,7 +149,7 @@ A free-text answer whose first token is a control word is a command (2.3), not a
 | `park <thread>` · `pull <thread>` | `park` sets the thread `parked`: no further question on it until `pull` sets it `live`. The person names the thread in words; you find its key. |
 | `drop <thread>` | The thread's state becomes `dropped`, with the person's one-line reason. |
 | `board` | Show where we are (2.6). No question this batch. |
-| `look it up` | Dispatch one research sub-agent per [_subagents.md](../_subagents.md) on the last unverified statement, record the result as a finding, then continue. |
+| `look it up` | Dispatch one research sub-agent per [_subagents.md](../_subagents.md) on the last unverified statement. Write its result as a research note in `research/`, record the finding with `evidence` pointing at the note, then continue. |
 | `second opinion` | Run `/consult` with the live threads and open tensions as the brief (2.7). |
 | `cohere` | Run a coherence pass ([brainstorm/_cohere.md](brainstorm/_cohere.md)). |
 | `pause` | Tell the story of this sitting ([brainstorm/_talk.md](brainstorm/_talk.md)), write both files, and return (Step 4). The board stays open. |
@@ -170,7 +172,7 @@ A correction to the summary is a decision. Record it, and rewrite the summary.
 In plain words, with no key: the summary, then the map with each area's brief and state, then one line per live thread with what we know and what is still open, then the coverage of each open brief, then the open tensions and the top risks. Give the parked and dropped threads as names only. Put it in the text of the next question, or in chat when no question follows. Republish the page (2.9) and give its link; where the host has no page, point the person to `01-brainstorm.md`.
 
 ## 2.7 Second opinion
-Run this only when the person says `second opinion`; never run it unasked. Run `/consult codex <read these threads and name the assumptions and tensions this thinking missed>` with the live threads and open tensions as the brief. Fold the panel's distinct additions in as findings with `source: consult`, never as pieces of work.
+Run this only when the person says `second opinion`; never run it unasked. Run `/consult codex <read these threads and name the assumptions and tensions this thinking missed>` with the live threads and open tensions as the brief. Write the panel's answer as a research note in `research/`. Fold the panel's distinct additions in as findings with `source: consult` and `evidence` pointing at the note, never as pieces of work.
 
 ## 2.8 Close an area
 An area is explored when its threads stop producing new ground. Closing it is part of a check-in, and the person can answer "not yet". Closing it scopes the area now, so `done` does not have to walk the whole board.
@@ -210,25 +212,24 @@ Go through the map one area at a time, in the order the areas were explored. The
 6. The person can stop the walk at any time. The `scope` fields hold the progress, and a resume continues the walk at the first area with no answer.
 
 ## 3.3 Shape the work
-When every area has an answer, talk through how the kept items become work. Ask in batches, and give your view with its reason:
+When every area has an answer, talk through how the kept items become work. Load [brainstorm/_work.md](brainstorm/_work.md) now: it lists what to agree for each piece, the forms, and the size limits. Ask in batches, and give your view with its reason:
 - What comes first: the smallest piece that shows the thinking is right.
-- How the kept items group into pieces of work, the order of the pieces, and the dependencies between them, in plain words.
-- The size of each piece, and whether a piece is too large to start.
-- A stale piece of work (2.8): propose the piece that brings it up to date, for example a `task` that revises its design document.
-- The form of each piece: a feature to build (`intake`), a problem to investigate first (`investigate`), a yes-or-no question to check (`discover`), a small correction (`fix`), a document or other deliverable that is not code (`task`), or new scope on a workflow that exists (`extension`, `/wf intake <existing-slug> <scope>`). A design focus adds `design` and `design-direction` (`brainstorm/_design.md`).
+- How the kept items group into pieces of work, their order, dependencies, slugs, and sizes, and the split of a piece that is too large; what each piece provides to later pieces and expects from earlier ones. Propose these; the person confirms them.
+- A stale piece of work (2.8): propose the piece that brings it up to date.
+- The form of each piece. A piece that changes only documents is `write-now`: this session writes it after the person confirms ([brainstorm/_work.md](brainstorm/_work.md) says when it stays a `task`). A design focus adds `design` or `design-direction` to the piece it serves (`brainstorm/_design.md`).
 
 Propose a first split, then change it as the person directs. Continue until the person says that the split holds.
 
 ## 3.4 Confirm and record
-1. Write the agreed scope in plain words: each piece of work in order, with its kept items; then the items left for later; then the cut items with their reasons.
-2. Put that scope in the text of a question that asks the person to confirm it or to change it. A change returns to 3.2 or 3.3.
-3. After the person confirms, write one piece of work per agreed piece into the board's `work` list (the template's entry, with its kept items). Mark them `selected`, and print each entry command in order. Run no command. The `entry` carries `from <slug>` for the new-workflow forms.
+1. Write the agreed scope in plain words: each piece of work in order, with its kept items and its form; then the items left for later; then the cut items with their reasons. Name each write-now piece and the documents it changes.
+2. Put that scope in the text of a question that asks the person to confirm it or to change it. Say that a confirmation also starts the write-now pieces. A change returns to 3.2 or 3.3.
+3. After the person confirms, write one piece of work per agreed piece into the board's `work` list, with the fields of [brainstorm/_work.md](brainstorm/_work.md), and mark them `selected`. Then check the work set, run each write-now piece, and write the work set, per that file's "Check and write the work set". Run no command that starts a successor.
 4. A thread with no kept item becomes `parked` when any of its items is `later`, and `dropped` with the person's reason when all are `cut`.
-5. Write the agreed scope to the document's `## Scope` and `## Work` sections. Set `status: distilled` and `progress.brainstorm: complete`. Leave the index `status: ready` and `next-invocation` as the resume command; when no thread is live, set `next-invocation: "/wf close <slug>"`. Update the slug's row in `.ai/workflows/INDEX.md` (`updated-at` only).
+5. Write the agreed scope to the document's `## Scope` and `## Work` sections. `## Work` links each packet; it holds no second copy. Set `status: distilled` and `progress.brainstorm: complete`. Leave the index `status: ready` and `next-invocation` as the resume command; when no thread is live, set `next-invocation: "/wf close <slug>"`. Update the slug's row in `.ai/workflows/INDEX.md` (`updated-at` only).
 
 A second `done` on a distilled board shows the recorded scope and asks what to change. It walks the areas the person names and every decision or idea with no `scope` value.
 
-**Link-back.** A successor started `from <slug>` applies [_intake-provenance.md](_intake-provenance.md): it records `origin-brainstorm`, sets the piece of work's `state: routed` and `routed-to`, and sets each of its threads to `routed` when no other piece of work draws on the thread. An item with `scope: cut` never seeds a successor. The board is never superseded.
+**Link-back.** A successor started from a packet, or `from <slug>`, applies [_intake-provenance.md](_intake-provenance.md): it records `origin-brainstorm`, sets the piece of work's `state` (`prepared`, then `routed`) and `routed-to` on the board and on the packet, and sets each of its threads to `routed` when no other piece of work draws on the thread. An item with `scope: cut` never seeds a successor. The board is never superseded.
 
 ## Step — Write free narrative fragments
 Author free narrative fragments for this artifact as described in the narrative-fragment tier of `_intake-context.md` — `<stem>.<NN-label>.html.fragment` siblings of unrestricted raw HTML, as many as the story needs, ordered with an `NN-` prefix, rendered raw-inline below the page.
@@ -240,10 +241,10 @@ Author free narrative fragments for this artifact as described in the narrative-
 - Not a build: no branch, no slice, no plan, no code.
 # Step 4 — Chat return contract
 After writing files, return per [_chat-return.md](../_chat-return.md) — narrative lead is the story of this sitting ([brainstorm/_talk.md](brainstorm/_talk.md)), then this receipt:
-- `wrote: .ai/workflows/<slug>/01-brainstorm.md + brainstorm-board.json + 00-index.md`
+- `wrote: .ai/workflows/<slug>/01-brainstorm.md + brainstorm-board.json + 00-index.md`, plus `work/` after `done`
 - `threads: <live> live · <parked> parked · <routed> routed · <dropped> dropped`
 - `batches: <N> this session · <sessions> sessions`
 - `scope:` — `<kept> kept · <later> later · <cut> cut` after `done`, or `not scoped yet`
-- `work:` — one line per piece of work with its entry command (after `done`), or `none yet`; a stale piece is marked `stale`
+- `work:` — one line per piece of work (after `done`): a packet with its path, or a write-now piece with the documents it changed; `none yet` before `done`; a stale piece is marked `stale`
 - `page:` — the page link, or `none` where the host has no published page
-- `Next: /wf intake brainstorm <slug>` (resume), or the selected entry commands, or `/wf close <slug>` when no thread is live
+- `Next:` — `/wf intake brainstorm <slug>` (resume); after `done`, per [brainstorm/_work.md](brainstorm/_work.md) "Next"; `/wf close <slug>` when no thread is live. Never a write-now piece as a `/wf task` command.

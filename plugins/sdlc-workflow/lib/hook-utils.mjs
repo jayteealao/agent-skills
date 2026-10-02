@@ -118,6 +118,49 @@ export function isEvidencePath(filePath) {
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:probe-evidence|verify-evidence)\//.test(normalized);
 }
 
+// A brainstorm's sources (BRAINSTORM-WORK-PACKETS-PLAN R1-R5, F1-F5): research
+// notes in research/ and copied references in references/. Free-form like the
+// evidence folders: no NN- name, no sdlc/v1 type, no schema check, no page, and
+// not counted by the stale check.
+export const SOURCE_DIRS = Object.freeze(['research', 'references']);
+
+export function isBrainstormSourcePath(filePath) {
+  const normalized = normalizePathForMatch(filePath);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:research|references)\//.test(normalized);
+}
+
+// A brainstorm's work set: work/<slug>.md packets (type work-packet) and
+// work/index.md (type work-set), written by work-packets.mjs. Both carry a
+// schema type but no NN- name. work/changes.md (a prose log) and anything in a
+// subfolder of work/ (the campaign's work/campaign/) are free-form.
+export const WORK_DIR = 'work';
+
+export function isWorkSetPath(filePath) {
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/work\//.test(normalizePathForMatch(filePath));
+}
+
+export function isWorkPacketPath(filePath) {
+  const m = normalizePathForMatch(filePath).match(/(?:^|\/)\.ai\/workflows\/[^/]+\/work\/([^/]+\.md)$/);
+  return Boolean(m) && m[1] !== 'index.md' && m[1] !== 'changes.md';
+}
+
+export function isWorkSetFreeFormPath(filePath) {
+  const normalized = normalizePathForMatch(filePath);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/work\/(?:changes\.md$|[^/]+\/)/.test(normalized);
+}
+
+// history/ holds snapshots: copies of stage artifacts, and the documents a
+// write-now piece changed, copied before the change (K8). A snapshot is a copy,
+// so the write hooks do not hold it to the NN- name or the frontmatter rules.
+export function isHistorySnapshotPath(filePath) {
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/history\//.test(normalizePathForMatch(filePath));
+}
+
+/** A workflow file that the write hooks never schema-check. */
+export function isFreeFormWorkflowPath(filePath) {
+  return isEvidencePath(filePath) || isBrainstormSourcePath(filePath) || isWorkSetFreeFormPath(filePath) || isHistorySnapshotPath(filePath);
+}
+
 export function isProjectContextMarkdownPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
   return (

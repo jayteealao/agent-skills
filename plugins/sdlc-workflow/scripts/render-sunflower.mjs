@@ -32,7 +32,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { loadArtifact } from '../renderers/_yaml.mjs';
 import { validateFrontmatter, renderWarnBanner } from '../renderers/_validator.mjs';
-import { resolveViewPath, siblingPaths, classifyFragmentName, breadcrumbFromView, hubAssetBase, EVIDENCE_DIRS, SURFACE_SWEEP_RE } from '../renderers/_paths.mjs';
+import { resolveViewPath, siblingPaths, classifyFragmentName, breadcrumbFromView, hubAssetBase, EVIDENCE_DIRS, NO_PAGE_DIRS, SURFACE_SWEEP_RE } from '../renderers/_paths.mjs';
 import { shouldGenerateFragment, generateTypedFragment } from '../renderers/_fragment-gen.mjs';
 import { composeStagePage, stageKeyFor, evidenceDirFor, viewHref } from '../renderers/_page.mjs';
 import { buildPathMap, rewriteBodyLinks } from '../renderers/_link-graph.mjs';
@@ -154,6 +154,9 @@ function* walkStorage(root) {
         // Evidence folders (S5): no page per evidence file. The owning stage
         // page links the files from part 4 (see listEvidenceFiles).
         if (EVIDENCE_DIRS.includes(e.name)) continue;
+        // A brainstorm's research/, references/ and work/, directly under a
+        // workflow slug: no page per file (BRAINSTORM-WORK-PACKETS-PLAN).
+        if (NO_PAGE_DIRS.includes(e.name) && /[\\/]\.ai[\\/]workflows[\\/][^\\/]+$/.test(dir)) continue;
         stack.push(abs);
       } else if (e.isFile()) {
         if (abs.endsWith('.md') || abs.endsWith('.yaml') || abs.endsWith('.html.fragment')) {

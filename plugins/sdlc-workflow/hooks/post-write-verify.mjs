@@ -36,7 +36,7 @@ import {
   hasFrontmatterFence,
   isBrainstormBoardPath,
   isManagedArtifactMarkdownPath,
-  isEvidencePath,
+  isFreeFormWorkflowPath,
   isProjectContextMarkdownPath,
   isProseLogPath,
   isShipPlanAuditPath,
@@ -736,8 +736,9 @@ export async function run(input) {
     .filter((path) => isManagedArtifactMarkdownPath(path))
     // probe-evidence/ and verify-evidence/ are free-form evidence — never
     // schema-gated or sibling-checked (mirrors the pre-write-validate carve-out;
-    // see isEvidencePath).
-    .filter((path) => !isEvidencePath(path))
+    // see isEvidencePath). So are a brainstorm's sources, work/changes.md, and
+    // history/ snapshots (isFreeFormWorkflowPath).
+    .filter((path) => !isFreeFormWorkflowPath(path))
     .map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) }))
     .filter(({ absolute }) => absolute && existsSync(absolute));
 

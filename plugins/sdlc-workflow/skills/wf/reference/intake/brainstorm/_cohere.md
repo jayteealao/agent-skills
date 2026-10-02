@@ -15,7 +15,8 @@ A budget is a limit the person decided, for example "a matchday runs in about th
 
 ## Steps
 1. **Collect** the decisions made or changed since the last pass (the log entries after the last `cohere` entry), and the budgets.
-2. **Read the existing work.** For each piece of work with `routed-to`, find the documents its successor wrote, for example a design document. Dispatch one read-only research sub-agent per [_subagents.md](../../_subagents.md) to read them in full against the collected decisions. The sub-agent returns each decision marked `new`, `repeat`, or `contradiction`, with `file:line`. Skip this step when no work is routed.
+2. **Read the existing work.** For each piece of work with `routed-to`, find the documents its successor wrote, for example a design document. Dispatch one read-only research sub-agent per [_subagents.md](../../_subagents.md) to read them in full against the collected decisions. The sub-agent returns each decision marked `new`, `repeat`, or `contradiction`, with `file:line`. Write its result as a research note in `research/` ([_artifact.md](_artifact.md), Sources). Skip this step when no work is routed.
+2a. **Check the sources.** List each citation of `.scratch/` or another gitignored path on the board: item `evidence`, piece `references`, and brief `source`. Ask the person, for each one, whether to copy the file into `references/` or to record a pointer row. Then regenerate `research/index.md`: one line per note with its id, its question, and the item keys that cite it.
 3. **Check the board against itself**: the same subject decided twice, a kept decision that needs a later or cut item, and two decisions that pull apart.
 4. **Add up the cost.** For each budget, estimate the combined load of the kept decisions, with the numbers and the assumption behind each. A budget the decisions no longer fit is a conflict.
 5. **Resolve.**

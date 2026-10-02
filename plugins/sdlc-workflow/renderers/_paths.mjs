@@ -388,6 +388,13 @@ export const EXPLAINER_LABEL = 'explainer';
  */
 export const EVIDENCE_DIRS = Object.freeze(['probe-evidence', 'verify-evidence']);
 
+/**
+ * A brainstorm's sources and work set (BRAINSTORM-WORK-PACKETS-PLAN): research/,
+ * references/, and work/. The walk skips them; they get no page. The brainstorm
+ * page links the packets. `lib/hook-utils.mjs` holds the hook-side twins.
+ */
+export const NO_PAGE_DIRS = Object.freeze(['research', 'references', 'work']);
+
 /** True when a slug-relative storage path lies inside an evidence folder. */
 export function isEvidencePath(storageRel) {
   const rel = normalizeRel(storageRel);

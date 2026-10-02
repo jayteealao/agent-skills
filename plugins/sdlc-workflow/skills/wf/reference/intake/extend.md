@@ -114,7 +114,7 @@ From `10-retro.md`, extract the items that imply new development work: `## Recom
 
 ## General seed
 
-The user's free scope text (if any) is the starting description; the Step 2 discovery interview sharpens it into precise slices. If no text was given, the interview elicits the scope from scratch. Proceed directly to the interview.
+The user's free scope text (if any) is the starting description; the Step 2 discovery interview sharpens it into precise slices. A work packet (`intake/_packet.md`) is a general seed: its title and its confirmed carried decisions are the starting description, and the interview does not ask a carried decision again. If no text was given, the interview elicits the scope from scratch. Proceed directly to the interview.
 
 ---
 

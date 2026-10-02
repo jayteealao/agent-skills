@@ -19,12 +19,15 @@ Read every row before you run the mode reference. [_requires.md](_requires.md) d
 |---|---|---|---|
 | `intake/_intake-context.md` | procedure | always | |
 | `_compressed-slice.md` | procedure | mode:slug | |
+| `intake/_packet.md` | procedure | mode:packet | |
 
 # Step 0 — Parse the invocation (mode + shape resolution)
 
 `$ARGUMENTS` reaches you with the leading `intake` key already stripped by `wf/SKILL.md`. Tokenize respecting shell quoting (`"two words"` is one token). The **mode keyword set** is: `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `amend`, `modernize`.
 
 Two shape carve-outs: `adopt` is **standalone-only** (never slug-attachable, never auto-proposed); `amend` and `modernize` are **slug-REQUIRED** (never compressed slices, never auto-proposed). The branches below enforce both.
+
+**Packet first.** A `token0` path to a `type: work-packet` file runs [intake/_packet.md](intake/_packet.md).
 
 Resolve in this exact order (the order matters — the slug checks come FIRST):
 
@@ -114,7 +117,7 @@ The mode decides how far the flow travels. Run only the stages the mode needs. T
 | `modernize` | n/a — slug-required | **maintenance**: additive schema backfill across the workflow's existing artifacts (charter, intent-risks, deferral wall-ownership/clearing-event, revision ledgers). Never rewrites a decision, verdict, or criterion | → the command that resolves the largest remaining gap |
 
 Notes:
-- **The dispatcher is a pure router:** each mode reference owns its artifact writes. Build modes (`fix`/`hotfix`/`refactor`/`update-deps`) emit a full `type:index` overview; the terminal analysis modes (`ideate`, `brainstorm`, standalone `discover`) root a lightweight `type:workflow-index` lead.
+- **The dispatcher is a pure router:** each mode reference owns its artifact writes, as the table above says.
 
 # Step 3 — Load the mode reference
 
@@ -162,5 +165,5 @@ Next: <recommended command, or "Done">
 - **First line.** Name the mode and the slug (standalone: the workflow created — `ideate`/`brainstorm`/`investigate`/ `discover` may have none; slug-mode: the workflow the slice attached to).
 - **Artifacts** are the paths created or modified this run. `"none"` for read-only runs.
 - **Next** is a concrete invocation, or `Done`. In slug-mode, scope `Next` with `<slug>` as the first positional (`/wf implement <slug>`).
-- If the mode reference defines its own "Chat return contract", treat it as the *content* spec — pick the load-bearing fields and keep it compact.
+- If the mode reference defines its own "Chat return contract", treat it as the *content* spec, and keep it compact.
 - Framing follows [_chat-return.md](_chat-return.md).

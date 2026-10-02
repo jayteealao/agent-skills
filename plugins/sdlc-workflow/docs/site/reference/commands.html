@@ -99,10 +99,12 @@
 <pre><code>/wf brainstorm &lt;idea&gt;
 /wf brainstorm design &lt;idea&gt;
 /wf brainstorm &lt;brainstorm-slug&gt; [design]
+/wf brainstorm &lt;brainstorm-slug&gt; add &lt;text&gt;
 /wf brainstorm &lt;feature-slug&gt; design [idea]
 /wf brainstorm &lt;feature-slug&gt; &lt;topic&gt;</code></pre>
 <p>Brainstorm thinks an idea through with you, as a loop of question batches on a board that stays open until you say <code>done</code>. It runs the same loop as <code>/wf intake brainstorm</code>, which stays valid. <code>design</code> focuses the brainstorm on how the idea looks and behaves. The design focus reads the design record, maps the design space, and draws rough sketches: on the design canvas, else with <code>/imagery</code>, else as a one-sentence scene. A sketch is an idea only. The brainstorm never writes <code>02c-craft.md</code>, never resolves the image gate, and never records <code>direction-confirmed-by</code>. The first token resolves by exact existence. A brainstorm slug resumes that board, and <code>design</code> switches its focus. A feature slug with <code>design</code> brainstorms the design of that workflow; <code>done</code> then routes to <code>/wf design &lt;slug&gt;</code>, or to <code>/wf design &lt;slug&gt; amend</code> when the design is already confirmed. A feature slug with any other topic runs a compressed brainstorm slice. At <code>done</code> on a standalone board, each piece of work carries its design items, a proposed <code>ux-impact</code>, and its sketches to the design stage. See <a href="../guides/design.html#brainstorm">Design</a>.</p>
-<p><strong>Writes:</strong> a standalone board writes <code>00-index.md</code>, <code>01-brainstorm.md</code>, and <code>brainstorm-board.json</code>; a design brainstorm on a feature workflow writes <code>brainstorm-board-design.json</code> and <code>design-notes/brainstorm-design.md</code> beside that workflow's artifacts.</p>
+<p><code>add</code> records one new piece of work on a brainstorm board, for example a bug found while trying built work, and writes its packet.</p>
+<p><strong>Writes:</strong> a standalone board writes <code>00-index.md</code>, <code>01-brainstorm.md</code>, and <code>brainstorm-board.json</code>, keeps its sources in <code>research/</code> and <code>references/</code>, and at <code>done</code> writes one work packet per piece in <code>work/</code>; a design brainstorm on a feature workflow writes <code>brainstorm-board-design.json</code> and <code>design-notes/brainstorm-design.md</code> beside that workflow's artifacts.</p>
 
 <h3 id="close"><code>/wf close</code></h3>
 <pre><code>/wf close &lt;slug&gt; [&lt;slice&gt; | reason]</code></pre>

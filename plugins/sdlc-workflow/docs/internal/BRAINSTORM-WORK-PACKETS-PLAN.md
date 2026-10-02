@@ -1,6 +1,6 @@
 # BRAINSTORM-WORK-PACKETS-PLAN — a brainstorm that keeps its sources and ends in work packets
 
-Status **Plan, nothing built; revised after review** · Date **2026-10-02** · Plugin **v9.176.0** · Owner **jayte**
+Status **Built 2026-10-03 (W0–W5a, W7), unreleased; W6 waits for the person (section 13)** · Date **2026-10-02** · Plugin **v9.176.0** · Owner **jayte**
 Companion plan: [WF-CAMPAIGN-PLAN.md](WF-CAMPAIGN-PLAN.md). The campaign reads what this plan writes. This plan is Stage B1 of the campaign plan (section 5): it ships first, and it helps single-slug work without the campaign.
 
 ## 1. Why
@@ -57,6 +57,7 @@ One term per concept (STE W1). These terms are new or are narrowed here.
 | Term | Meaning |
 |---|---|
 | **work packet** | The file `work/<slug>.md` that `done` writes for one resulting slug. Not "brief": `brief` already names the person's input document in `_brief.md`. |
+| **write-now piece** | A piece of work that changes only documents, which the brainstorm writes itself in the same session after the person confirms the scope (section 4.4). It has no packet and no successor workflow. |
 | **work set** | All packets of one brainstorm. One packet = a **single-slug** work set. Two or more = a **multi-slug** work set. |
 | **research note** | A file in `research/` that one research act wrote. |
 | **reference** | A file in `references/` that the session copied in from outside. |
@@ -109,7 +110,7 @@ One term per concept (STE W1). These terms are new or are narrowed here.
 
 ### 4.3 `work/`
 
-- **K1.** `done` writes one packet per agreed piece of work whose form opens or extends a workflow slug. The forms are `intake`, `investigate`, `discover`, `fix`, `hotfix`, `task`, and `extension`. `design` and `design-direction` are not separate packets. They are flags on the packet of the slug they serve (`brainstorm/_design.md`).
+- **K1.** `done` writes one packet per agreed piece of work whose form opens or extends a workflow slug. The forms are `intake`, `investigate`, `discover`, `fix`, `hotfix`, `task`, and `extension`. `design` and `design-direction` are not separate packets. They are flags on the packet of the slug they serve (`brainstorm/_design.md`). A `write-now` piece (4.4) gets no packet. Section 9.3a of the campaign plan says which packet forms the campaign drives in its waves.
 - **K2.** `work/index.md` is the overview of the work set. It holds:
   - the frontmatter `work-set: single|multi`, `slugs`, and `waves`
   - a dependency table
@@ -117,6 +118,31 @@ One term per concept (STE W1). These terms are new or are narrowed here.
   - an ordered list of start commands
 - **K3.** The board's `work[]` stays the single truth. `done` regenerates the packets and `work/index.md` from the board. A later `done` regenerates them again. A packet says at its top that the board wins on a difference. The realism briefs already said this.
 - **K4.** A packet that a successor already routed is not rewritten. Its `state` changes, and a regenerated body goes to `history/` beside the old one.
+
+### 4.4 Write-now pieces
+
+Source: PO, 2026-10-02. In SoccerManager session `b253a8c5`, the person confirmed a scope whose first piece only changed design documents. The shipped procedure routed that piece to `/wf task update-for-real-players` (`intake/brainstorm.md:217-218`). The person then had to say "just do the required work inline here", and the session ran the full `task` lifecycle for a document edit. The brainstorm already holds every decision and source for such a piece, so a successor workflow only re-reads what the session knows.
+
+- **K5. Document-only pieces are written now.** In 3.3, a piece whose whole deliverable is a change to documents in the repository takes the form `write-now`. Examples: a design document section, a work brief, a research guide, a packet that is not started. The brainstorm writes it in the same session, after the person confirms the scope in 3.4. The rule "writes no code and no plan" (`intake/brainstorm.md:2`) still holds: a write-now piece writes no code, no test, no configuration and no plan.
+- **K6. What stays a `task`.** A piece stays a `task` packet when any of these is true:
+  - It changes a file that is not a document, such as code, a test, configuration or CI.
+  - It acts outside the repository: an external service, a published page, an issue, or a sign-off. The `task` lifecycle keeps its blast-radius gates for these (`task.md`).
+  - It rewrites a packet that is `prepared` or `routed` (V3).
+  - The person chooses `task` in 3.4.
+- **K7. The session must have room.** 3.3 proposes `task` instead of `write-now` when either is true:
+  - The session's context is more than 70 % used.
+  - The piece changes more than 6 documents.
+
+  The person decides. The proposal gives the reason.
+- **K8. How a write-now piece runs.** After the board write in 3.4, and before the packets are written:
+  1. Copy each document that the piece changes to `history/` with the session number.
+  2. Write the changes. Each changed section names the item keys that it carries.
+  3. Read back each changed section. Every carried decision key of the piece must appear in the changed text. A missing key is a failed check.
+  4. If a check fails, fix the text and read it back again. If the check fails a second time, stop and ask the person. Do not change the piece's form to `task` without the person.
+  5. Record the piece on the board: `state: written`, `written-files` (each path with its section), and `written-at`.
+  6. Add one entry to `work/changes.md` that lists the changed documents. The campaign reads it, and its drift check runs over every slug that carries or expects a changed document (campaign plan, 15.2).
+- **K9. Order.** A write-now piece runs before every packet that depends on it. A packet may list a write-now piece in `depends-on`. The dependency is met when the piece's `state` is `written`.
+- **K10. Coverage.** A kept decision that lands in a write-now piece counts as covered for I6.
 
 ## 5. The work packet
 
@@ -211,10 +237,12 @@ The rule today is "re-verify, do not copy" for everything a successor reads. Tha
   - the `depends-on` list
   - the `provides` and `expects` lines
   - the size of each piece
+  - the form of each piece: `write-now` for a piece that changes only documents (K5–K7)
 
   The agent proposes the contract lines and the person confirms them. A piece with more than 25 carried decisions gets a proposed split, which the person may decline. A piece with more than 40 carried decisions must be split before the walk continues. The realism piece `realism-harness-core`, with 155 decisions, is the example.
 - **3.4 Confirm and record** adds these steps after the board write:
-  1. Check the contracts (X3), the coverage (I6), and that the dependency graph has no cycle.
+  1. Check the contracts (X3), the coverage (I6 and K10), and that the dependency graph has no cycle.
+  1a. Run each write-now piece (K8). The confirm question names the write-now pieces, so the person's confirmation also starts them.
   2. Write each packet, then `research/index.md`, then `work/index.md` last. A reader that sees the new `work-revision` then finds every packet already written.
   3. When the work set is multi-slug, print the campaign command `/wf campaign <brainstorm-slug>` as `Next`. Do not print the per-slug start commands as `Next`.
   4. When the work set is single-slug, print the one start command as `Next`.
@@ -275,13 +303,13 @@ boundary ([WF-CAMPAIGN-PLAN.md](WF-CAMPAIGN-PLAN.md), section 15).
 |---|---|
 | W0 | Red-first tests: the schema accepts the new `work[]` fields and the packet frontmatter. A packet whose `expects` line has no match fails. A board that cites `.scratch/` fails the coherence check. |
 | W1 | Folder rules R1–R5 and F1–F5 in `intake/brainstorm.md` and `_artifact.md`. `look it up`, second opinion, and the brief procedure write files. |
-| W2 | `done` 3.3 and 3.4 changes, packet template, `work/index.md` template, generation from the board. |
+| W2 | `done` 3.3 and 3.4 changes, packet template, `work/index.md` template, generation from the board. Write-now pieces K5–K10: the `write-now` form and the `written` state in the schema, the read-back check, and a test that a document-only piece is written in the session and never printed as `/wf task`. |
 | W3 | Intake packet form P1–P5, `_intake-provenance.md` I1–I3, decision confirmation I1a, shape I4, review I5. Test that a changed decision reaches `po-answers.md` with its key and marks the packet. |
 | W4 | Hooks and validators: `lib/hook-utils.mjs:146-152`, `lib/schema-validator.mjs:189-197`, `hooks/post-write-verify.mjs:561-583`. Rebuild `hooks/mod/requires.ts` with `scripts/build-requires.mjs`. Rebuild `dist/` in the same commit. |
 | W5 | Update the tests that assert brainstorm wording: `tests/unit/skills/brainstorm-mode.test.mjs` (:85-115, :148-162, :248-263), `brainstorm-design.test.mjs`, `hooks.test.mjs:432-487`, `requires-tables.test.mjs`, `intake-terminus-contracts.test.mjs`, the evals in `tests/evals/cases/brainstorm*.json`. |
 | W5a | Reopen rules V1–V7: `work-revision`, `work/changes.md`, the `amends` field, the `fix` and `hotfix` packet forms, and the `add` quick capture. Test that a `done` never rewrites a `prepared` packet. |
 | W6 | Convert the realism fixture (M3, M3a) in SoccerManager, with the person for the splits. Run a fresh short brainstorm end to end to a multi-slug `done`. |
-| W7 | Docs: doc-site pages, `BRAINSTORM-MODE-PLAN.md` status line, CHANGELOG, version bump. |
+| W7 | Docs: doc-site pages, `archived/BRAINSTORM-MODE-PLAN.md` status line, CHANGELOG, version bump. |
 
 ## 12. Open questions
 
@@ -292,3 +320,36 @@ boundary ([WF-CAMPAIGN-PLAN.md](WF-CAMPAIGN-PLAN.md), section 15).
 | Q3 | Does slug-mode get the folders, under `brainstorm-<descriptor>/` in the parent workflow? | Not in this plan. Revisit after W6. |
 | Q4 | Does a cut item appear in the packet? | Yes, under "Left for later and cut", so the next stage does not re-propose it. |
 | Q5 | What is the size limit for a packet? | **Decided 2026-10-02:** count carried decisions. Soft limit 25: a split is proposed, and the person may decline it. Hard limit 40: a split is required. 25 is the largest size that ran end to end (`engine-modules`, 26 decisions); the median realism piece carries 11. |
+
+## 13. Build status
+
+Built on 2026-10-03, not yet released. Waves W0–W5a and W7 are in the tree. W6 is not done (below).
+
+**Where each part lives.**
+- `lib/work-packets.mjs`: the check (X3, I6, K10, cycles, size, F4) and the generator (packets, `work/index.md`, `research/index.md`, `work/changes.md`, K4 history copies, V6 cuts). `scripts/work-packets.mjs` is the command line, bundled to `dist/work-packets.mjs`. The skill runs it through `skills/wf/scripts/work-packets.mjs`.
+- `intake/brainstorm/_work.md`: 3.3 fields and forms, write-now pieces (K5–K9), check and write, `Next`, reopening (V1–V7), the `add` capture, older boards (M2).
+- `intake/brainstorm/_artifact.md`: the new `work[]` fields and the Sources section (R1–R5, F1–F5).
+- `intake/_packet.md`: the packet form of intake (P1–P5, I1, I1a, I3). Shape Step 9b holds I4; `review/intent-fidelity.md` holds I5.
+- Hooks: `lib/hook-utils.mjs` (`isFreeFormWorkflowPath`, `isWorkPacketPath`), `hooks/pre-write-validate.mjs` (the V3 guard), `hooks/post-write-verify.mjs`, `hooks/render-on-artifact-write.mjs`, `scripts/render-sunflower.mjs`, `lib/workflow-index.mjs`.
+- Tests: `tests/unit/skills/work-packets.test.mjs`, `tests/unit/hooks/work-packet-hooks.test.mjs`, eval `tests/evals/cases/brainstorm-packet-intake.json` with fixture `brainstorm-packets`.
+
+**Departures from the plan.**
+- **Packet `slug`.** Every file in a workflow folder carries that folder's slug, and both write hooks check it. So a packet's `slug` is the brainstorm slug, and the slug the packet opens is `work-slug`. The board's `work[].slug` keeps its meaning.
+- **Generated, not hand-written.** A script writes the packets from the board. The plan said `done` writes them. The script makes I1 (verbatim decisions) a property of code, not of the writer.
+- **`Next` for a multi-slug set.** `/wf campaign` is not built, so 3.4 prints the start commands of the first wave and the path of `work/index.md`. The campaign build changes `_work.md` "Next" to print `/wf campaign <slug>`.
+- **`prepared` and `routed`.** Intake sets `prepared`; shape sets `routed`. The plan named only `prepared` for intake.
+- **`history/` is free-form.** A write-now piece copies documents that have no workflow frontmatter into `history/`, so the write hooks no longer hold `history/` files to the NN- name and frontmatter rules.
+- **V3 guard covers Write only.** The pre-write hook sees the full content of a Write. An Edit of a started packet is not checked.
+
+**W6 is open.** It needs the person:
+- M3 and M3a: convert the 27 realism briefs in SoccerManager to packets. Eleven pieces carry more than 40 decisions, and each split is a joint walk with the person.
+- M4: write `references/index.md` for the regen-faces session.
+- Run a fresh short brainstorm end to end to a multi-slug `done`.
+
+**Earn rule (SURFACE-POLICY.md section 2) for `work-packet` and `work-set`.**
+1. User job: a brainstorm's decisions reach the successor workflow word for word, with their sources and their order.
+2. Workarounds: the 27 hand-made briefs of `brainstorm-realism-additions-20260922`, the 229 copied files of `brainstorm-regen-faces-and-aging-20260924`, and session `b253a8c5`, which routed a document edit to `/wf task`.
+3. Every new reference file is within its class budget (`npm run verify:prose`).
+4. Eval: `tests/evals/cases/brainstorm-packet-intake.json`.
+5. `surface-policy.json` `frontmatterTypes` 67 → 69.
+

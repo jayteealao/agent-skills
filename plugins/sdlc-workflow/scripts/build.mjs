@@ -76,6 +76,7 @@ const SCRIPT_ENTRIES = [
   'verify-runtime',          // self-contained runtime integrity/parity check (NATIVE-INTEROP Workstream D)
   'hub-upgrade',             // explicit controlled runtime upgrade + rollback (NATIVE-INTEROP Workstream C)
   'doctor',                  // machine-state report; spawned by the tray's "Run doctor…" (WIDE-VIEW §14.2.1)
+  'work-packets',            // brainstorm done: check + write the work set; run via skills/wf/scripts/work-packets.mjs (BRAINSTORM-WORK-PACKETS-PLAN)
 ];
 
 // Public renderers are loaded at runtime by render-sunflower's loadRenderer()
