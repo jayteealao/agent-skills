@@ -5,7 +5,7 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [9.177.0] - 2026-10-03
 
 A brainstorm keeps its sources in its own folder and ends in work packets. A piece that only changes documents is written in the brainstorm session.
 
