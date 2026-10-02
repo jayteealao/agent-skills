@@ -3,8 +3,8 @@
 Status: **REFERENCE, written 2026-09-16 at v9.157.0.** This file records what
 the function-hooks module under `hooks/mod/` does on Claude Code, where each
 feature lives, which engine events it uses, and what is still unverified live.
-Two plans hold the design history: [WF-PICKER-UX-PLAN.md](WF-PICKER-UX-PLAN.md)
-(the picker) and [WF-MOD-UX-PLAN.md](WF-MOD-UX-PLAN.md) (the session aids).
+Two plans hold the design history: [WF-PICKER-UX-PLAN.md](archived/WF-PICKER-UX-PLAN.md)
+(the picker) and [WF-MOD-UX-PLAN.md](archived/WF-MOD-UX-PLAN.md) (the session aids).
 The pi port plans against this file: [PI-EXTENSION-PLAN.md](PI-EXTENSION-PLAN.md).
 
 ## 1. Where it loads
@@ -199,7 +199,7 @@ with severity BLOCKER or HIGH and status open.
 
 ### 3.11 The post-stage compaction (`stageCompact`)
 
-Plan: [POST-STAGE-COMPACT-PLAN.md](POST-STAGE-COMPACT-PLAN.md). A
+Plan: [POST-STAGE-COMPACT-PLAN.md](archived/POST-STAGE-COMPACT-PLAN.md). A
 `/wf <key> <slug> [slice]` turn on the main loop that ends with an answer
 and lands its artifact (the stage check's own test) is followed by one
 `$.session.compact({ instructions })` call, scheduled past the
@@ -230,7 +230,7 @@ prose keeps its "consider compacting" lines for them.
 
 ### 3.12 Every surface, and the probe journal (`probeJournal`)
 
-Plan: [MOD-DESKTOP-PLAN.md](MOD-DESKTOP-PLAN.md). The module binds its host
+Plan: [MOD-DESKTOP-PLAN.md](archived/MOD-DESKTOP-PLAN.md). The module binds its host
 at `session.start` whatever the surface. Claude Code Desktop runs the engine
 through the SDK, where `session.start` reports `surface: null` and
 `isInteractive: false`; before this the module returned at that test and

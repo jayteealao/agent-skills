@@ -2,7 +2,7 @@
 
 Status: **DRAFTED 2026-09-16** against v9.156.2 (`6932c2ea`); **W1–W7 BUILT 2026-09-16** (unreleased at the time of writing). Departures: the cost row shows the workflow in ledger tokens, not dollars, because `cost.jsonl` records tokens only; the pane is drawn with `userConfig` rows whose schema the validator settled (P8: `type`, `title`, `description`, `default`); P9 answered yes (`mock.clock` has `advance` and `set`); P10 settled from `review/_artifact.md` Step 5b and the triage gate of `post-write-verify.mjs`: a review sibling YAML holds open findings only (`open`, `deferred`, `could-not-fix`), so the count is its `findings:` items in one of those statuses; the audit's blockers are its `findings:` items with severity BLOCKER or HIGH and status open (absent counts as open). Review 2026-09-16 (same day, before release) also moved the driver watch past its own turn (`/wf yolo` runs the driver in the background), added the dispatcher-run fallback for a `turn.start` whose text is the expanded skill, deferred the next-step suggestion past the `turn.complete` dispatch, made the hub and driver switches stop and start their timers, pinned the hub line to one notice, and kept the engine's notice command.
 Scope, as the operator chose it on 2026-09-16: candidates C1, C2, and C5 of
-[PI-SDLC-MOD-PORT-CANDIDATES.md](PI-SDLC-MOD-PORT-CANDIDATES.md), and the
+[PI-SDLC-MOD-PORT-CANDIDATES.md](../PI-SDLC-MOD-PORT-CANDIDATES.md), and the
 additions 1, 2, 3, 4, 6, 7, and 8 from the same conversation (the artifact
 rows in the transcript, addition 5, are out). Every mechanism below is in
 the Claude Code 2.1.271 mod contract (`.claude/types/claude-code.d.ts`)
@@ -10,7 +10,7 @@ unless a line says **probe**.
 
 Related: [WF-PICKER-UX-PLAN.md](WF-PICKER-UX-PLAN.md) (the band the strip
 shares; its probes P1–P6 are still open), `hooks/mod/` (the module),
-[RELEASE-DISCIPLINE.md](RELEASE-DISCIPLINE.md).
+[RELEASE-DISCIPLINE.md](../RELEASE-DISCIPLINE.md).
 
 ## 1. Goal
 
@@ -281,7 +281,7 @@ the slice step; the findings count from a fixture ledger.
    the hub line.
 3. W7 in one minor release, after P10.
 
-Each release follows [RELEASE-DISCIPLINE.md](RELEASE-DISCIPLINE.md): gates,
+Each release follows [RELEASE-DISCIPLINE.md](../RELEASE-DISCIPLINE.md): gates,
 changelog heading, catalog line, `npm version`, commit and tag by hand,
 push with tags, reinstall the four hosts, adopt the hub through the
 installed plugin's `hub-ensure.mjs`.

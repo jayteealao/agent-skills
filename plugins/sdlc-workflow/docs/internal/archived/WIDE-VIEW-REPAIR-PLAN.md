@@ -12,7 +12,7 @@ Related: [CLAUDE5-PROMPTING-REPAIR-PLAN.md](CLAUDE5-PROMPTING-REPAIR-PLAN.md)
 (BUILT v9.152.0 — the rubric strip this plan continues),
 [SINGLE-SOURCE-PLAN.md](SINGLE-SOURCE-PLAN.md) (BUILT v9.153.0 — the
 neutrality gate this plan copies as a pattern),
-[PROGRESSIVE-DISCLOSURE-AUDIT.md](PROGRESSIVE-DISCLOSURE-AUDIT.md) (proposals
+[PROGRESSIVE-DISCLOSURE-AUDIT.md](../PROGRESSIVE-DISCLOSURE-AUDIT.md) (proposals
 this plan supersedes in part).
 
 Scope: items 1, 2, 3, 4, 6, 7, 8, 9, and 10 of the 2026-09-04 review. Item 5

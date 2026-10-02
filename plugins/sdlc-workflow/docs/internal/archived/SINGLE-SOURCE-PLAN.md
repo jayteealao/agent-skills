@@ -81,10 +81,10 @@ plugin, scratch `CODEX_HOME`, local marketplace install, headless `codex exec`
 with `--dangerously-bypass-hook-trust`), plus `claude plugin validate --strict`.
 Supersedes: the "Authoring source: Claude-native (canonical) — no migration to
 a host-neutral spec" decision in
-[MULTI-HOST-SUPPORT-PLAN.md](archived/MULTI-HOST-SUPPORT-PLAN.md) (2026-05, pre-dates
+[MULTI-HOST-SUPPORT-PLAN.md](MULTI-HOST-SUPPORT-PLAN.md) (2026-05, pre-dates
 the v9.107.0 handwritten-codex cutover) and the v9.107.0 decision itself
 (handwritten per-host trees). Antigravity remains out of scope here.
-Related: [archived/CODEX-PLUGIN-MIGRATION-PLAN.md](archived/CODEX-PLUGIN-MIGRATION-PLAN.md) ·
+Related: [archived/CODEX-PLUGIN-MIGRATION-PLAN.md](CODEX-PLUGIN-MIGRATION-PLAN.md) ·
 `archived/CODEX-PLATFORM-GAPS.md` · the codex tree's `MIGRATION.md` (its "handwritten
 for Codex" contract is what this plan retires).
 

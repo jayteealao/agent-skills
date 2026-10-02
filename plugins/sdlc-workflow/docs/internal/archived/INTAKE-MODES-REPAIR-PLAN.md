@@ -18,7 +18,7 @@ sibling sub-shapes into schema `$defs` (branch-compiled validators cannot
 reference across siblings) and the variant is hook-selected
 (`rca-diagnosis`) from the artifact's `status`, exactly per the decision.
 Originally drafted as:
-[INTAKE-MODES-AUDIT-2026-07-30.md](INTAKE-MODES-AUDIT-2026-07-30.md) (the
+[INTAKE-MODES-AUDIT-2026-07-30.md](../INTAKE-MODES-AUDIT-2026-07-30.md) (the
 five-reviewer holistic audit of all non-default intake modes; file:line
 evidence lives there and in its reviewer outputs). Sequel to the investigate
 decision lifecycle shipped as v9.145.0

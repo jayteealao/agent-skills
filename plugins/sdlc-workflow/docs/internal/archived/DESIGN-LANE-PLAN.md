@@ -6,8 +6,8 @@ Option 2 (design as a lane in every stage) as Phase B, with one hard rule:
 **design has a human in the loop, so design finishes before any stage that
 `/wf auto` or `/wf yolo` can drive.**
 
-Related: [HOST-NEUTRALITY.md](HOST-NEUTRALITY.md),
-[RELEASE-DISCIPLINE.md](RELEASE-DISCIPLINE.md),
+Related: [HOST-NEUTRALITY.md](../HOST-NEUTRALITY.md),
+[RELEASE-DISCIPLINE.md](../RELEASE-DISCIPLINE.md),
 `skills/wf/reference/design.md` (the router today),
 `skills/wf/reference/design/contract.md` (the contract procedure today),
 `skills/wf/reference/_host-invocation.md` (host-contract table).

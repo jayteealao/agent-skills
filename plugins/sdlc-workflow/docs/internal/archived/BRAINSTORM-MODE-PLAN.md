@@ -1,5 +1,7 @@
 # `/wf intake brainstorm` — a rubber-duck intake mode — plan
 
+Later change (2026-10-03): `done` now ends in work packets and write-now pieces, and the sources stay in `research/` and `references/`. See [BRAINSTORM-WORK-PACKETS-PLAN.md](../BRAINSTORM-WORK-PACKETS-PLAN.md).
+
 Status: **DRAFTED 2026-09-22** against v9.158.0 (`a4e3b579`); **W1–W7 and W9
 BUILT 2026-09-22** as v9.159.0. The operator settled one point before the
 draft (§11): a question turn is a **batch** of questions through the host's
@@ -38,12 +40,12 @@ working tree at v9.158.0.
 
 Related: [INTAKE-MODES-REPAIR-PLAN.md](INTAKE-MODES-REPAIR-PLAN.md) (the
 mode family's terminus contracts), the archived
-[INTAKE-AUDIT-MODE-PLAN.md](archived/INTAKE-AUDIT-MODE-PLAN.md) (the last
+[INTAKE-AUDIT-MODE-PLAN.md](INTAKE-AUDIT-MODE-PLAN.md) (the last
 mode added; its Appendix A lists what an intake mode gets for free),
 `skills/wf/reference/intake/ideate.md` (the closest sibling),
 `skills/wf/reference/_gate-question.md` (the question ladder this plan
-extends), [MOD-FEATURES.md](MOD-FEATURES.md) §4 (the question counter),
-[RELEASE-DISCIPLINE.md](RELEASE-DISCIPLINE.md).
+extends), [MOD-FEATURES.md](../MOD-FEATURES.md) §4 (the question counter),
+[RELEASE-DISCIPLINE.md](../RELEASE-DISCIPLINE.md).
 
 ## 1. Goal
 

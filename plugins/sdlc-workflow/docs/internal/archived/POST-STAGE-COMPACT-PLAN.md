@@ -22,13 +22,13 @@ P-C3 fell with the floor. Every engine mechanism below is in the Claude
 Code 2.1.271 mod contract (`.claude/types/claude-code.d.ts`) unless a line
 says **probe**.
 
-Related: [MOD-FEATURES.md](MOD-FEATURES.md) (what the mod does today),
+Related: [MOD-FEATURES.md](../MOD-FEATURES.md) (what the mod does today),
 [WF-MOD-UX-PLAN.md](WF-MOD-UX-PLAN.md) §5 (the `turn.complete` hook this
-plan extends), [JEV-MOD-PLAN.md](JEV-MOD-PLAN.md) F6 (a `session.compact`
+plan extends), [JEV-MOD-PLAN.md](../JEV-MOD-PLAN.md) F6 (a `session.compact`
 hook that scores messages; it composes with W3 below),
-[PI-SDLC-MOD-PORT-CANDIDATES.md](PI-SDLC-MOD-PORT-CANDIDATES.md) C4 (the
+[PI-SDLC-MOD-PORT-CANDIDATES.md](../PI-SDLC-MOD-PORT-CANDIDATES.md) C4 (the
 keep-the-stage instruction, taken up here), `hooks/mod/` (the module),
-[RELEASE-DISCIPLINE.md](RELEASE-DISCIPLINE.md).
+[RELEASE-DISCIPLINE.md](../RELEASE-DISCIPLINE.md).
 
 ## 1. Goal
 
@@ -307,7 +307,7 @@ shows the sentence in the summary.
 ### W4 — Docs and release
 
 §9's doc rows, then one minor release under
-[RELEASE-DISCIPLINE.md](RELEASE-DISCIPLINE.md): gates, changelog heading,
+[RELEASE-DISCIPLINE.md](../RELEASE-DISCIPLINE.md): gates, changelog heading,
 catalog line, `npm version minor`, commit and tag by hand, push with tags,
 reinstall the four hosts.
 

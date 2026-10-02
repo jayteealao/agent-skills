@@ -4,7 +4,7 @@ Status: **BUILT 2026-09-24 in v9.168.0**, one release, installed on every
 host. Drafted against v9.167.1 (`e608340d`).
 
 Related: [DESIGN-LANE-PLAN.md](DESIGN-LANE-PLAN.md) (the human-only design
-stage this plan feeds), [SURFACE-POLICY.md](SURFACE-POLICY.md) (the earn rule
+stage this plan feeds), [SURFACE-POLICY.md](../SURFACE-POLICY.md) (the earn rule
 for the new key), `skills/wf/reference/intake/brainstorm.md` (the loop).
 
 ## 1. Goal

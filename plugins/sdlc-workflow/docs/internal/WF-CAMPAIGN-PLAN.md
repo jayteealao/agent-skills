@@ -247,6 +247,25 @@ Prepare runs one wave ahead, not all at once.
 6. **A wave starts with its prepared slugs.** An unprepared slug moves to the next wave, and its dependents move with it. The commentary tells the person which slugs wait for prepare, with a push notification.
 7. The person can stop at any time. The ledger holds the progress.
 
+### 9.3a Which packets the campaign drives
+
+A wave is a set of yolo drives. yolo drives only the build lifecycles: standard, `fix`, `hotfix` and `refactor` (`yolo.md:48`). It refuses `investigate` and `discover` (`yolo.md:51`) and `task` (`yolo.md:52`), because their next step is the person's decision or needs the person's authorization. The campaign therefore handles each packet form as follows:
+
+| Form | Who runs it | Where | What it gives the waves |
+|---|---|---|---|
+| `intake` | prepare with the person (9.3), then yolo | a wave | the built slug |
+| `extension` | prepare with the person, then yolo on the existing slug | a later wave (15.2) | new slices on the slug |
+| `fix` | compressed fix intake with the person, then yolo | the next wave | the corrected slug |
+| `hotfix` | hotfix intake with the person, then yolo | before the next wave, on the trunk (15.2, V3) | a hotfix release |
+| `task` | the person, in the campaign session, through `/wf task <slug>` | between waves; never inside a wave | the task's outcome. A packet that depends on the task waits until the task is closed. |
+| `investigate` | the person, in prepare, through `/wf intake <packet-path>` | before the dependent packets are prepared | the person's pick. The pick goes back to the brainstorm (`/wf brainstorm <slug> add`), which writes the resulting packet. |
+| `discover` | the person, in prepare | before the dependent packets are prepared | the verdict. A verdict that changes a carried decision goes back to the brainstorm, and the drift check runs. |
+| `write-now` (brainstorm plan, 4.4) | the brainstorm session, at `done` | never reaches the campaign | the changed documents. Their `work/changes.md` entry starts the drift check. |
+
+- **W1. A wave holds only build forms.** A `task`, `investigate` or `discover` packet never enters a wave, because yolo refuses it.
+- **W2. A non-build packet blocks its dependents, not the wave.** The campaign lists it as "needs you" at each wave boundary, with a push notification. Waves whose slugs do not depend on it continue.
+- **W3. Only the brainstorm writes packets.** An `investigate` pick or a `discover` verdict becomes a new or changed packet through the brainstorm (brainstorm plan, V1 and V5). The campaign never turns a result into a packet by itself.
+
 ### 9.4 Phase 2 — Waves (autonomous)
 
 For each wave, in order:
@@ -495,7 +514,9 @@ only reads them ([BRAINSTORM-WORK-PACKETS-PLAN.md](BRAINSTORM-WORK-PACKETS-PLAN.
 
 | Change | Action |
 |---|---|
-| New packet (`intake`, `task`, `investigate`, `discover`) | Joins the rolling prepare. When it is prepared, it enters the earliest wave its `depends-on` allows. |
+| New `intake` packet | Joins the rolling prepare. When it is prepared, it enters the earliest wave its `depends-on` allows. |
+| New `task`, `investigate` or `discover` packet | Runs with the person outside the waves (9.3a). Its dependents wait for it (W2). |
+| New `write-now` entry in `work/changes.md` | Run the drift check over every slug that carries or expects a changed document. |
 | `extension` of a slug that merged | A new unit on that slug. It runs as extension slices in a later wave. |
 | `extension` of a slug in the running wave | Waits until the slug merges, then runs in a later wave. |
 | `extension` of a slug that is prepared but not started | The person re-prepares the slug (shape and slice) with the new scope. No separate unit. |

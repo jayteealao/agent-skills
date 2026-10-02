@@ -7,7 +7,7 @@ anthropics/claude-code@f96c3b4). Every claim below is tagged **contract**
 (the declarations say so), **seen** (the operator saw it), or **probe** (a
 live session must answer it; §7 lists the probes).
 
-Related: [CHANGELOG.md](../../CHANGELOG.md) 9.155.0 → 9.156.1 (the three
+Related: [CHANGELOG.md](../../../CHANGELOG.md) 9.155.0 → 9.156.1 (the three
 shapes the band has had), `hooks/mod/` (the module), memory note
 `sdlc_wf_picker_mod` (the port decisions).
 

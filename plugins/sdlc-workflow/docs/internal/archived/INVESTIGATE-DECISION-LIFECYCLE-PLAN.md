@@ -12,7 +12,7 @@ around it is homeless. The `bed65dc0` restructure (two-wave sub-agents,
 enumerate-then-select, status-quo baseline, constraint cross-check) fixed the
 command's internal quality problems. The remaining gaps sit at the two edges:
 what happens after the user picks, and what happens when the user cannot pick.
-Related: [archived/INTAKE-SHAPE-HARDENING-PLAN.md](archived/INTAKE-SHAPE-HARDENING-PLAN.md) ·
+Related: [archived/INTAKE-SHAPE-HARDENING-PLAN.md](INTAKE-SHAPE-HARDENING-PLAN.md) ·
 [SINGLE-SOURCE-PLAN.md](SINGLE-SOURCE-PLAN.md) (interaction noted in §Risks).
 
 ---

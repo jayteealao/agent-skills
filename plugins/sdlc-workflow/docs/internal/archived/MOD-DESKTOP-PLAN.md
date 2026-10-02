@@ -4,10 +4,10 @@ Status: **DRAFTED 2026-09-22** against v9.160.0 (`50bfe4fa`). Every engine
 mechanism below is in the Claude Code 2.1.271 mod contract
 (`.claude/types/claude-code.d.ts`) unless a line says **probe**.
 
-Related: [MOD-FEATURES.md](MOD-FEATURES.md) (what the mod does today),
+Related: [MOD-FEATURES.md](../MOD-FEATURES.md) (what the mod does today),
 [POST-STAGE-COMPACT-PLAN.md](POST-STAGE-COMPACT-PLAN.md) (the aids this
 makes reachable on Desktop), `hooks/mod/` (the module),
-[RELEASE-DISCIPLINE.md](RELEASE-DISCIPLINE.md).
+[RELEASE-DISCIPLINE.md](../RELEASE-DISCIPLINE.md).
 
 ## 1. The defect
 

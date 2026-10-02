@@ -5,7 +5,7 @@ pi-sdlc extension's host-facing layer (`C:/Users/jayte/Documents/dev/pi-sdlc`,
 `src/adapters/pi/**`, `src/inspection/**`, `docs/FEATURE-MATRIX.md`) against
 the Claude Code 2.1.271 mod contract (`.claude/types/claude-code.d.ts`).
 The first port, the `/wf` picker, shipped in v9.155.0 → v9.156.2; its lessons
-are in [WF-PICKER-UX-PLAN.md](WF-PICKER-UX-PLAN.md).
+are in [WF-PICKER-UX-PLAN.md](archived/WF-PICKER-UX-PLAN.md).
 
 pi-sdlc is a native rewrite: deterministic code owns each stage's authority
 and the model supplies reasoning. Most of its 38 k lines are that domain
