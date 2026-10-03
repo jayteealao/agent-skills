@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.180.0] - 2026-10-03
+
+Live views for yolo, campaign and brainstorm, three styles for every part the mod draws, and a cost hook that counts Workflow agents.
+
 ### Added
 
 - **Live views for yolo, campaign and brainstorm** (`docs/internal/WF-LIVE-VIEWS-PLAN.md`). `/wf-live [slug]` opens a pane that follows the run; a `/wf yolo`, `/wf campaign` or `/wf brainstorm` turn follows its run by itself, and the pane opens unasked from 144 terminal columns (a brainstorm only once it scopes or is done). The yolo view shows the focus slice and stage against the stage's usual time, the stage marks of every slice, the driver heartbeat, the usage windows and "Needs you". The campaign view shows the waves with their gates and slugs, the forecast and the outputs. The brainstorm view shows the threads, the walk and the packets. Its buttons stop a yolo run after this stage or after verify, stop a campaign after this wave, resume a paused campaign, and confirm, keep or dismiss a need; a stop writes the run's `.control.json` with `by: "live-view"`, reads it back, and a second press removes it. While a live run shows, the band carries one live line with two actions on `1` and `2`, and the status line carries the heartbeat age and the 5-hour usage.
