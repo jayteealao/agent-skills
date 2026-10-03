@@ -1078,13 +1078,60 @@ describe('register', () => {
     // Claude Code Desktop runs the engine through the SDK: no surface, no
     // person at the prompt. The module still binds and registers.
     expect(world.registered).toEqual([...CATALOG.map(entry => `wf-${entry.key}`), 'wf-dashboard', 'wf-active', 'wf-live'])
-    // The band never draws, so the picker never opens: the command runs as typed.
+    // No surface draws, so the picker never opens: the command runs as typed.
     expect(await run($, 'wf')).toEqual({ text: 'passed on' })
     expect(ran).toBe(1)
-    expect(textOf(await $.ui.render(DESKTOP_BAND))).toBe('')
     expect(world.statuses).toEqual([])
-    expect(await run($, 'wf-dashboard')).toEqual({ text: 'The workflows dashboard draws in the terminal only; this session draws elsewhere.' })
+    expect(await run($, 'wf-dashboard')).toEqual({ text: 'The workflows dashboard draws in the Desktop app and the terminal; this session draws in neither.' })
     expect(world.opened).toEqual([])
+  })
+
+  test('a Desktop session draws the picker, the strip, the status line, the notice and the dashboard', async ($, on) => {
+    // The Desktop app starts the engine through the SDK (no surface at start) with its client attached.
+    const world = seat(on, { ...TREE, ...HUB_CONFIG })
+    world.surfaces = ['desktop']
+    await $.session.start(SDK_SESSION)
+    await settle()
+    expect(textOf(await $.ui.render(DESKTOP_BAND))).toContain('alpha-flow')
+    expect(world.statuses.at(-1)).toContain('next /wf verify alpha-flow auth')
+    await run($, 'wf-plan')
+    const band = textOf(await $.ui.render(DESKTOP_BAND))
+    expect(band).toContain('alpha-flow')
+    expect(band).not.toBe('')
+    const DESKTOP_NOTICE: RenderInput<'InfoNotice'> = { ...NOTICE, surface: 'desktop', requestId: 'notice-desktop' }
+    expect(textOf(await $.ui.render(DESKTOP_NOTICE))).toContain('sdlc hub 9.157.0')
+    expect((await run($, 'wf-dashboard')).text).toBe('The workflows dashboard is open.')
+    expect(world.opened).toEqual(['wf-dashboard'])
+    const pane = textOf(await $.ui.render({ ...PANE, surface: 'desktop', requestId: 'wf-dashboard' }))
+    expect(pane).toContain('alpha-flow')
+    // The Desktop app is the first surface: the band, the notice and the pane validate on its table.
+    for (const component of ['AbovePrompt', 'InfoNotice'] as const) {
+      const props = component === 'AbovePrompt' ? BAND.props : NOTICE.props
+      const ui = await $.ui.mount({ plugin: PLUGIN_NAME, surface: 'desktop', component, props, viewport: { columns: 120, rows: 40 } } as Parameters<Engine['ui']['mount']>[0])
+      await ui.drawn()
+      await ui.unmount()
+    }
+  })
+
+  test('a Desktop client that attaches after the start turns the drawing on', async ($, on) => {
+    const world = seat(on, { ...TREE })
+    world.surfaces = []
+    let ran = 0
+    on('command.run', () => {
+      ran += 1
+      return { text: 'passed on' }
+    })
+    await $.session.start(SDK_SESSION)
+    // Before the client attaches, no surface draws: the bare /wf runs as typed.
+    expect(await run($, 'wf')).toEqual({ text: 'passed on' })
+    expect(world.statuses).toEqual([])
+    await $.session.attach({ surface: 'desktop', clientId: 'desktop:default' })
+    await settle()
+    // Once it attaches, /wf opens the key list in the Desktop band, and the status line draws.
+    await run($, 'wf')
+    expect(ran).toBe(1)
+    expect(textOf(await $.ui.render(DESKTOP_BAND))).toContain('plan')
+    expect(world.statuses.length).toBeGreaterThan(0)
   })
 
   test('a surfaceless session still checks the stage, compacts, and suggests', async ($, on) => {

@@ -37,9 +37,10 @@
  * The module binds its host on every session, whatever the surface
  * (MOD-DESKTOP-PLAN.md): Claude Code Desktop runs the engine through the SDK,
  * where `session.start` reports no surface and no person at the prompt, and
- * the parts that never draw belong there too. Each draw gates on its own
- * `e.surface === 'terminal'`; each prompt or notice call is attempted and its
- * failure recorded. `hooks/mod/probe.ts` keeps the journal that says which
+ * the parts that never draw belong there too. The Desktop app is the first
+ * surface the mod draws for, the terminal the second: each draw gates on its
+ * own `e.surface` being one of the two (`DRAW_SURFACES`); each prompt or
+ * notice call is attempted and its failure recorded. `hooks/mod/probe.ts` keeps the journal that says which
  * parts ran, on which host, for `scripts/mod-probe.mjs` to judge.
  *
  * The read check (ARTIFACT-SPLIT-PLAN.md S6, `hooks/mod/readledger.ts`): a
@@ -144,6 +145,9 @@ import { createUsageGuard } from './usage-guard.ts'
  * Nothing else writes the key, so a session reads the generated module.
  */
 export const REQUIRES_STORE_KEY = 'readCheck:requires'
+
+/** Where the mod draws: the Desktop app first, then the terminal. VS Code and mobile raise none of its sites. */
+const DRAW_SURFACES: ReadonlySet<string> = new Set(['desktop', 'terminal'])
 
 /*
  * The `$.state` atoms this file reads and writes (14.5). Each carries a shape tag (Z2): bump it
@@ -433,9 +437,9 @@ export function register(on: On, options: PluginOptions = {}) {
 
   const commandNames: string[] = [...DISPATCHER_COMMANDS, ...CATALOG.map(entry => commandNameOf(entry.key))]
 
-  /** True where the band, the pinned line, and the pane draw: the terminal alone. */
-  function isTerminal(): boolean {
-    return model.surface === 'terminal'
+  /** True where the band, the pinned line, and the panes draw: the Desktop app and the terminal. */
+  function drawsHere(): boolean {
+    return model.surface !== null && DRAW_SURFACES.has(model.surface)
   }
 
   /**
@@ -551,7 +555,7 @@ export function register(on: On, options: PluginOptions = {}) {
    * then the usage guard's two windows.
    */
   function drawStatus(engine: Host): void {
-    if (!isTerminal()) return
+    if (!drawsHere()) return
     const workflow = activeWorkflow()
     // K1: a live view's line (the heartbeat age and the 5-hour usage) takes the place of the driver line and the usage.
     const base = liveText ?? driverText ?? (settings.strip && workflow !== null ? statusTextOf(workflow, settings.cost ? model.lastStageUsd : null, settings.hubNotice ? model.hub : null) : null)
@@ -899,9 +903,18 @@ export function register(on: On, options: PluginOptions = {}) {
         engine.log(registerFailedTextOf(ACTIVE_COMMAND, messageOf(error)))
       }
       host = engine
-      await refreshActive(engine)
-      if (settings.hubNotice && isTerminal()) await watchHub(engine)
+      // The Desktop app starts the engine through the SDK: no surface at start. A Desktop
+      // client already attached says where the session draws.
       const surfaces = await engine.surfaces()
+      if (model.surface === null) {
+        const drawn = surfaces.find(surface => DRAW_SURFACES.has(surface))
+        if (drawn !== undefined) {
+          model = { ...model, surface: drawn }
+          journal?.setSurface(drawn)
+        }
+      }
+      await refreshActive(engine)
+      if (settings.hubNotice && drawsHere()) await watchHub(engine)
       void journal?.write({ event: 'load', ok: true, detail: `surfaces ${surfaces.join(',') || 'none'} · root ${model.root ?? 'none'} · workflows ${model.workflows.length}` })
       void journal?.write({ event: 'commands', ok: registered === COMMAND_TOTAL, detail: `${registered}/${COMMAND_TOTAL}` })
     } catch (error) {
@@ -923,6 +936,7 @@ export function register(on: On, options: PluginOptions = {}) {
     journal?.setSurface(surface)
     void journal?.write({ event: 'attach', ok: true, detail: `${e.surface} · client ${e.clientId}` })
     await refreshActive(engine)
+    if (settings.hubNotice && drawsHere()) await watchHub(engine)
     return result
   })
 
@@ -999,13 +1013,13 @@ export function register(on: On, options: PluginOptions = {}) {
     const engine = host
     if (!engine) return next(e)
     if (e.command === DASHBOARD_COMMAND || e.command === `${PLUGIN_NAME}:${DASHBOARD_COMMAND}`) {
-      if (!isTerminal()) return { text: DASHBOARD_TERMINAL_TEXT }
+      if (!drawsHere()) return { text: DASHBOARD_TERMINAL_TEXT }
       if (model.step !== null) close(engine)
       await refreshActive(engine)
       for (const workflow of model.workflows) if (!workflow.terminal) await readSlices(engine, workflow.slug)
       model = { ...model, isDashboardOpen: true }
       await engine.openPane(DASHBOARD_PANE, 'sdlc workflows')
-      return { text: 'The workflows dashboard is open above the prompt (docked in fullscreen); ctrl+x x closes it.' }
+      return { text: 'The workflows dashboard is open.' }
     }
     if (e.command === ACTIVE_COMMAND || e.command === `${PLUGIN_NAME}:${ACTIVE_COMMAND}`) {
       await readWorkflows(engine, true)
@@ -1023,9 +1037,9 @@ export function register(on: On, options: PluginOptions = {}) {
     const key = keyOfCommand(e.command)
     const named = wfCommandOf(`/wf ${key === null ? '' : `${key} `}${e.args}`)
     if (named?.slug) setActive(engine, named.slug)
-    // The band draws on the terminal alone, so a step that cannot be shown is
-    // not opened: the command runs as typed, or goes into the prompt box.
-    const step = isTerminal() ? stepFor(key, e.args) : null
+    // The band draws on the Desktop app and the terminal, so where neither draws a step
+    // that cannot be shown is not opened: the command runs as typed, or goes into the prompt box.
+    const step = drawsHere() ? stepFor(key, e.args) : null
     if (step === null) {
       // The arguments are complete. A `/wf-<key>` run becomes the dispatcher's
       // command in the prompt box; the bare `/wf` runs as typed. A band still
@@ -1056,7 +1070,7 @@ export function register(on: On, options: PluginOptions = {}) {
     const below = await next(e)
     const engine = host
     const step = model.step
-    if (!engine || e.surface !== 'terminal' || e.props.hasSurvey) return below
+    if (!engine || (e.surface !== 'desktop' && e.surface !== 'terminal') || e.props.hasSurvey) return below
     // The reads subscribe the band: a write of any of them draws it again (X1).
     await read($, pickerAtom)
     await read($, workflowsAtom)
@@ -1127,7 +1141,7 @@ export function register(on: On, options: PluginOptions = {}) {
   })
 
   on('ui.render', { component: 'InfoNotice' }, async ($, e, next) => {
-    if (!settings.hubNotice || model.hub === null || e.surface !== 'terminal') return next(e)
+    if (!settings.hubNotice || model.hub === null || !DRAW_SURFACES.has(e.surface)) return next(e)
     // The hub line joins one notice, the first drawn; the others stay the engine's.
     noticeRequestId ??= e.requestId
     if (e.requestId !== noticeRequestId) return next(e)
@@ -1157,7 +1171,7 @@ export function register(on: On, options: PluginOptions = {}) {
     const engine = host
     const dashboard = await read($, dashboardAtom)
     await read($, workflowsAtom)
-    if (!engine || !(model.isDashboardOpen || dashboard.isOpen) || e.surface !== 'terminal') return next(e)
+    if (!engine || !(model.isDashboardOpen || dashboard.isOpen) || !DRAW_SURFACES.has(e.surface)) return next(e)
     const { Box, Text, Button } = $.ui.resolve(e)
     const findings = new Map<string, number>()
     let shipPlanBlockers: number | null = null
