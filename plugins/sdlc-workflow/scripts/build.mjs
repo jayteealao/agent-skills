@@ -138,7 +138,8 @@ const result = await build({
 // 'launch-hidden.vbs')`. From a flat depth-1 dist chunk that lands on
 // dist/launch-hidden.vbs — so the asset must sit beside the chunks. Without this
 // copy the bundled feature silently falls back (here: the Windows console flash).
-const libAssets = readdirSync(join(PLUGIN_ROOT, 'lib')).filter((f) => !f.endsWith('.mjs'));
+// Type declarations (`*.d.mts`) are for the editor and the mod's typecheck, never runtime assets.
+const libAssets = readdirSync(join(PLUGIN_ROOT, 'lib')).filter((f) => !f.endsWith('.mjs') && !/\.d\.m?ts$/u.test(f));
 for (const asset of libAssets) {
   copyFileSync(join(PLUGIN_ROOT, 'lib', asset), join(DIST, asset));
 }

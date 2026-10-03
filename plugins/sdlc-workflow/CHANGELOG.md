@@ -5,6 +5,24 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Live views for yolo, campaign and brainstorm** (`docs/internal/WF-LIVE-VIEWS-PLAN.md`). `/wf-live [slug]` opens a pane that follows the run; a `/wf yolo`, `/wf campaign` or `/wf brainstorm` turn follows its run by itself, and the pane opens unasked from 144 terminal columns (a brainstorm only once it scopes or is done). The yolo view shows the focus slice and stage against the stage's usual time, the stage marks of every slice, the driver heartbeat, the usage windows and "Needs you". The campaign view shows the waves with their gates and slugs, the forecast and the outputs. The brainstorm view shows the threads, the walk and the packets. Its buttons stop a yolo run after this stage or after verify, stop a campaign after this wave, resume a paused campaign, and confirm, keep or dismiss a need; a stop writes the run's `.control.json` with `by: "live-view"`, reads it back, and a second press removes it. While a live run shows, the band carries one live line with two actions on `1` and `2`, and the status line carries the heartbeat age and the 5-hour usage.
+- **Three styles for every part the mod draws.** `viewStyle` is `dashboard` (the default), `instrument` (a dot-matrix instrument panel) or `grid` (a brutalist grid). The picker band, the strip, the hub notice, the `/wf-dashboard` pane and the live views all take it; the layout and the hotkeys stay the same. The pane's `style` button sets the next style, and is hidden when the setting is locked. `liveView` lets the live pane open; `liveViewDetails` opens each view with its details shown. The details state is kept per view across sessions.
+
+### Changed
+
+- **The mod keeps what it draws in `$.state`** under a contract, `types/index.d.ts`, so a reload (a `/config` change) keeps the open pick, its page and filter, the dashboard and the live view. `/wf-dashboard` draws one row per open workflow with a stage rail; closed workflows show once its `details` button is on.
+- **The shared event rules moved to `lib/live-events.mjs`.** `scripts/yolo-watch.mjs` and the mod read journals with the same rules, so both raise the same events.
+- **Push-class toasts stay ten seconds:** a dead or stopped driver, a decision, a stale run, a changed protected file, a wave event.
+
+### Fixed
+
+- **The cost ledger counts Workflow agents.** The Stop hook read only the sub-agent files directly under `subagents/`; a Workflow run writes its agents one folder down (`subagents/workflows/<run>/`), so every `/wf yolo` drive and every campaign boundary agent was missing from `cost.jsonl` (73 of 84 agents in one campaign session). The hook now reads both.
+- **Each sub-agent is booked to the slug it works in.** The hook gave every sub-agent the turn's slug, so a yolo drive inside a campaign session went to the brainstorm. A sub-agent now takes the last `.ai/workflows/<slug>/` it wrote; an agent that writes nothing takes the slug of its Workflow run, or else the turn's slug. A turn writes one row per slug. A sub-agent's row goes to the slug folder in the main checkout, never into a worktree (an untracked file there makes `git worktree remove` refuse); a slug with no folder in the main checkout stays with the turn. The campaign forecast now gets its tokens per slug and per wave.
+
 ## [9.179.0] - 2026-10-03
 
 `/wf campaign` Stage D: the slugs of a wave drive at once in their own worktrees, the wave PRs form a gh-stack stack, and a usage guard in the mod narrows, pauses, and resumes a run against the 5-hour and 7-day windows. The probes behind each rule are in `docs/internal/CAMPAIGN-PROBES.md`.

@@ -48,10 +48,15 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const STAGE_KINDS = Object.freeze(['plan', 'implement', 'verify', 'review', 'update-deps-exec']);
+import {
+  STAGE_KINDS, STAGE_FILE, STALE_FLOOR_MS, applyLines, decisionSignalOf, frontmatterField, judgeSilence, liveLimitMs, stageOf,
+} from '../lib/live-events.mjs';
+
+// The event rules live in lib/live-events.mjs, shared with the live view of the mod (WF-LIVE-VIEWS-PLAN M2).
+export { STAGE_KINDS, frontmatterField, judgeSilence, liveLimitMs, stageOf };
+
 export const STOP_AFTER = Object.freeze(['current', 'plan', 'implement', 'verify', 'review']);
-const STAGE_FILE = Object.freeze({ plan: '04-plan', implement: '05-implement', verify: '06-verify', review: '07-review', 'update-deps-exec': '06-verify' });
-export const STALE_FLOOR_MS = 20 * 60 * 1000;
+export { STALE_FLOOR_MS };
 // K1 — a first campaign watch still reports the campaign events of this window, because the
 // wave start writes `wave-start` just before the session starts the watch.
 export const CAMPAIGN_FIRST_WINDOW_MS = 5 * 60 * 1000;
@@ -134,26 +139,6 @@ export function readJournalFrom(file, offset) {
   }
 }
 
-// The stage and slice of a heartbeat line. An agent-end line may carry no
-// "stage" field, so the label ("verify:auth", "update-deps:exec") decides.
-export function stageOf(line) {
-  if (!line) return { stage: null, slice: null };
-  const label = String(line.agent || '');
-  const cut = label.indexOf(':');
-  const head = cut === -1 ? label : label.slice(0, cut);
-  const rest = cut === -1 ? null : label.slice(cut + 1) || null;
-  let stage = line.stage || null;
-  if (!stage) {
-    if (head === 'update-deps' && rest === 'exec') stage = 'update-deps-exec';
-    else if (STAGE_KINDS.includes(head)) stage = head;
-  }
-  if (!STAGE_KINDS.includes(stage)) return { stage: null, slice: null };
-  // Only stage agents have a stage kind; a scout or a classifier is noise (3.2).
-  if (!(STAGE_KINDS.includes(head) || label === 'update-deps:exec')) return { stage: null, slice: null };
-  const slice = line.slice || (stage === 'update-deps-exec' ? null : rest);
-  return { stage, slice };
-}
-
 // The artifact a stage wrote: 04-plan-<slice>.md first, then 04-plan.md.
 export function stageArtifact(root, slug, stage, slice) {
   const prefix = STAGE_FILE[stage];
@@ -167,27 +152,13 @@ export function stageArtifact(root, slug, stage, slice) {
   return null;
 }
 
-export function frontmatterField(text, field) {
-  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text || '');
-  if (!m) return null;
-  const re = new RegExp(`^${field}:\\s*["']?([^"'\\r\\n#]*?)["']?\\s*(?:#.*)?$`, 'm');
-  const f = re.exec(m[1]);
-  return f ? f[1].trim() : null;
-}
-
-// A decision that needs the person (3.2): the artifact waits for input, or a
-// record in it (or its sibling .yaml) carries class: intent-bearing.
+// A decision that needs the person (3.2): the rule is decisionSignalOf; this reads the files.
 export function decisionSignal(file) {
   let text = '';
   try { text = readFileSync(file, 'utf8'); } catch { return null; }
   let yaml = '';
   try { yaml = readFileSync(file.replace(/\.md$/, '.yaml'), 'utf8'); } catch { /* no sibling */ }
-  const reasons = [];
-  if (frontmatterField(text, 'status') === 'awaiting-input') reasons.push('awaiting-input');
-  const ib = /class:\s*["']?intent-bearing/g;
-  const count = (text.match(ib) || []).length + (yaml.match(ib) || []).length;
-  if (count) reasons.push('intent-bearing');
-  return reasons.length ? { reasons, intentBearing: count } : null;
+  return decisionSignalOf(text, yaml);
 }
 
 // ---------------------------------------------------------------------------
@@ -283,96 +254,21 @@ export function loadState(root, slug) {
   return s && s.version === STATE_VERSION ? { ...freshSlugState(), ...s } : null;
 }
 
-// The liveness limit: the run's own longest gap, never under the 20-minute floor.
-export const liveLimitMs = (st) => Math.max(STALE_FLOOR_MS, st.longestGapMs || 0);
 
 // ---------------------------------------------------------------------------
 // One poll of one slug's journal. Pure apart from the artifact reads.
 // ---------------------------------------------------------------------------
 export function applyJournalLines(root, slug, st, lines, { emitFrom = null } = {}) {
-  const events = [];
-  for (const line of lines) {
-    if (!line || typeof line !== 'object') continue;
-    const at = Date.parse(line.at || '');
-    if (line.run && line.run !== st.run) {
-      // A new run: its gaps are its own, and the old run's end does not end it.
-      st.run = line.run; st.longestGapMs = 0; st.prevLineAt = null; st.ended = false; st.openStages = {};
-    }
-    if (Number.isFinite(at)) {
-      if (st.prevLineAt !== null) st.longestGapMs = Math.max(st.longestGapMs, at - st.prevLineAt);
-      st.prevLineAt = at; st.lastLineAt = at;
-    }
-    st.newest = { event: line.event || null, agent: line.agent || null, status: line.status || null, at: line.at || null };
-    st.staleFor = null;
-    const emit = emitFrom === null || (line.run === emitFrom.run && Number(line.seq) > emitFrom.seq);
-    if (line.event === 'run-end') {
-      st.ended = true;
-      if (emit) events.push({ event: 'run-end', slug, run: line.run || st.run, stoppedAt: line.stoppedAt || null, inferred: false, at: line.at || null });
-      continue;
-    }
-    const { stage, slice } = stageOf(line);
-    if (!stage) continue;
-    if (line.event === 'agent-start') {
-      st.openStages[line.agent] = line.at || null;
-      if (emit) events.push({ event: 'stage-start', slug, run: line.run || st.run, stage, slice, agent: line.agent, at: line.at || null });
-      continue;
-    }
-    if (line.event !== 'agent-end') continue;
-    const startedAt = st.openStages[line.agent] || null;
-    delete st.openStages[line.agent];
-    if (!emit) continue;
+  const artifactOf = (stage, slice) => {
     const file = stageArtifact(root, slug, stage, slice);
-    let artifactStatus = null;
-    try { artifactStatus = file ? frontmatterField(readFileSync(file, 'utf8'), 'status') : null; } catch { /* unreadable */ }
-    const rel = file ? path.relative(root, file).split(path.sep).join('/') : null;
-    events.push({
-      event: 'stage-end', slug, run: line.run || st.run, stage, slice, agent: line.agent, parallel: 1,
-      status: line.status || null, errors: Number.isFinite(Number(line.errors)) ? Number(line.errors) : null,
-      startedAt, at: line.at || null, artifact: rel, artifactStatus,
-    });
-    if (line.status === 'hard-stop' || line.status === 'stopped') {
-      events.push({
-        event: 'stop', slug, run: line.run || st.run, stage, slice,
-        kind: line.status === 'stopped' ? 'stop-request' : 'hard-stop', at: line.at || null,
-        resume: `/wf yolo ${slug}`,
-      });
-    }
-    if (file) {
-      const sig = decisionSignal(file);
-      let mtime = 0;
-      try { mtime = statSync(file).mtimeMs; } catch { /* gone */ }
-      const key = `${rel}@${mtime}`;
-      if (sig && !st.decisionsSeen.includes(key)) {
-        st.decisionsSeen = [...st.decisionsSeen, key].slice(-200);
-        events.push({ event: 'decision', slug, run: line.run || st.run, stage, slice, artifact: rel, reasons: sig.reasons, intentBearing: sig.intentBearing, at: line.at || null });
-      }
-    }
-  }
-  return events;
-}
-
-// Silence (3.2 stale, S4): judged against the run's own cadence. A silence
-// whose newest line is an agent-start is a stale driver; one whose newest line
-// is an agent-end means every agent returned, so the run ended.
-export function judgeSilence(slug, st, nowMs, watchStartMs) {
-  if (st.ended || st.lastLineAt === null) return [];
-  // A re-arm resets `ended` for a relaunch; a run whose newest line is its end is silent by design.
-  if (st.newest && st.newest.event === 'run-end') return [];
-  const since = Math.max(st.lastLineAt, watchStartMs);
-  const silentMs = nowMs - since;
-  const limit = liveLimitMs(st);
-  if (silentMs <= limit) return [];
-  if (st.newest && st.newest.event === 'agent-end') {
-    st.ended = true;
-    return [{ event: 'run-end', slug, run: st.run, stoppedAt: null, inferred: true, lastAgent: st.newest.agent, lastStatus: st.newest.status, at: iso(nowMs) }];
-  }
-  const key = String(st.lastLineAt);
-  if (st.staleFor === key) return [];
-  st.staleFor = key;
-  return [{
-    event: 'stale', slug, run: st.run, lastAgent: st.newest && st.newest.agent, lastLineAt: iso(st.lastLineAt),
-    silentMinutes: Math.round(silentMs / 60000), limitMinutes: Math.round(limit / 60000), at: iso(nowMs),
-  }];
+    if (!file) return null;
+    let status = null;
+    try { status = frontmatterField(readFileSync(file, 'utf8'), 'status'); } catch { /* unreadable */ }
+    let mtime = 0;
+    try { mtime = statSync(file).mtimeMs; } catch { /* gone */ }
+    return { rel: path.relative(root, file).split(path.sep).join('/'), status, signal: decisionSignal(file), mtime };
+  };
+  return applyLines(slug, st, lines, { emitFrom, artifactOf });
 }
 
 export function readWorkRevision(root, b) {

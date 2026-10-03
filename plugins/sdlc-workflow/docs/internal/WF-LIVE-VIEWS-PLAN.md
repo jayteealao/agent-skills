@@ -1,6 +1,6 @@
 # WF-LIVE-VIEWS-PLAN — live views for brainstorm, yolo and campaign, in three configurable styles
 
-Status **Plan, nothing built** · Date **2026-10-02** · Plugin **v9.176.0** · Owner **jayte**
+Status **Built, not released** (2026-10-03): W0–W6 and W8–W10, X0–X3, X5 and X6 are built; T1–T18 pass (`claude plugin test .`, and T17 in `npm test`). Open: W7 (a live run per style, in the terminal and the Desktop app) and X4 (the Desktop gates, after P11). The probe results and the engine rules the build found are in [LIVE-VIEWS-PROBES.md](LIVE-VIEWS-PROBES.md). · Date **2026-10-02** · Plugin **v9.176.0** · Owner **jayte**
 Scope: the new live views (sections 1–13) and the existing visual mods: the picker band, the strip, the `wf-dashboard` pane, the hub notice, the status line, the spinner word, the mode label and the toasts (section 14). All of them take the same three styles from one setting.
 Related plans: [YOLO-COMMENTARY-PLAN.md](YOLO-COMMENTARY-PLAN.md) (events, `.control.json`), [WF-CAMPAIGN-PLAN.md](WF-CAMPAIGN-PLAN.md) (ledger, usage guard, stages), [BRAINSTORM-WORK-PACKETS-PLAN.md](BRAINSTORM-WORK-PACKETS-PLAN.md) (`work[]`, packets).
 Mockups: [mockups/live-views/](mockups/live-views/) — `option-a-dashboard.html`, `option-d-dotmatrix.html`, `option-e-brutalist.html`, and `sim.js`, the shared run script. Open a file in a browser. Each page plays the same scripted SoccerManager run.

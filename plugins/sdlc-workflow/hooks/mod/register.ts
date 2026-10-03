@@ -50,7 +50,8 @@
  * `block` refuses the write without a `read-waiver:`. Each check is one row
  * in the workflow's `.read-ledger.jsonl`. The switch is `readCheck`.
  */
-import type { On, PluginOptions, RenderElement } from 'claude-code'
+import { atom, read, update } from 'claude-code'
+import type { EngineInterface, On, PluginOptions, RenderElement } from 'claude-code'
 
 import {
   DEFAULT_SETTINGS,
@@ -98,8 +99,15 @@ import {
 } from './names.ts'
 import { backOf, filterOptions, filterTextOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from './picker.ts'
 import type { Option, Step } from './picker.ts'
-import { PICK_KEY_PREFIX, ROTATE_KEY, STATUS_KEY_PREFIX, dashboardView, noticeView, stripRows, stripView } from './strip.tsx'
-import type { StripModel } from './strip.tsx'
+import { ROTATE_KEY } from './strip.tsx'
+import type { StripParts } from './styles/existing.tsx'
+import { noticeStyledView, pickerRowLabel, stripStyledView, styledStripRows, workflowsStyledView } from './styles/existing.tsx'
+import { liveBandView } from './styles/kit.tsx'
+import { isDarkThemeOf, paletteOf, viewStyleOf } from './styles/tokens.ts'
+import { PUSH_TOAST_MS, registerLive } from './live/register.ts'
+import type { LiveLink } from './live/register.ts'
+import { EMPTY_DASHBOARD, EMPTY_PICKER, EMPTY_WORKFLOWS, detailsStoreKeyOf } from './state.ts'
+import type { SdlcDashboard, SdlcHub, SdlcPicker, SdlcWorkflows } from '../../types'
 import { bandView, pageSizeOf, rowKeyOf, stack } from './views.tsx'
 import { PROBE_FILE, ProbeJournal, surfaceAfterAttach } from './probe.ts'
 import type { ProbeIdentity } from './probe.ts'
@@ -137,12 +145,38 @@ import { createUsageGuard } from './usage-guard.ts'
  */
 export const REQUIRES_STORE_KEY = 'readCheck:requires'
 
+/*
+ * The `$.state` atoms this file reads and writes (14.5). Each carries a shape tag (Z2): bump it
+ * when the code's idea of the value changes, so a reload does not read the old form.
+ */
+const pickerAtom = atom({ plugin: 'sdlc-workflow', key: 'picker' } as const, EMPTY_PICKER, { shape: 'picker-1' })
+const activeAtom = atom({ plugin: 'sdlc-workflow', key: 'active' } as const, null, { shape: 'active-1' })
+const workflowsAtom = atom({ plugin: 'sdlc-workflow', key: 'workflows' } as const, EMPTY_WORKFLOWS, { shape: 'workflows-2' })
+const dashboardAtom = atom({ plugin: 'sdlc-workflow', key: 'dashboard' } as const, EMPTY_DASHBOARD, { shape: 'dashboard-2' })
+const hubAtom = atom({ plugin: 'sdlc-workflow', key: 'hub' } as const, null, { shape: 'hub-1' })
+const driverAtom = atom({ plugin: 'sdlc-workflow', key: 'driver' } as const, null, { shape: 'driver-1' })
+const usageAtom = atom({ plugin: 'sdlc-workflow', key: 'usage' } as const, null, { shape: 'usage-1' })
+const lastStageUsdAtom = atom({ plugin: 'sdlc-workflow', key: 'lastStageUsd' } as const, null, { shape: 'stage-usd-1' })
+const liveBandAtom = atom({ plugin: 'sdlc-workflow', key: 'liveBand' } as const, null, { shape: 'live-band-1' })
+
+/** One value `publish` writes to `$.state`, named so `put` can pick its literal atom. */
+type Published =
+  | { name: 'picker'; value: SdlcPicker }
+  | { name: 'active'; value: string | null }
+  | { name: 'workflows'; value: SdlcWorkflows }
+  | { name: 'dashboard'; value: SdlcDashboard }
+  | { name: 'hub'; value: SdlcHub | null }
+  | { name: 'driver'; value: string | null }
+  | { name: 'usage'; value: string | null }
+  | { name: 'lastStageUsd'; value: number | null }
+
 /** Every `$.noun.event` the mod calls after `session.start`, bound once. */
 type Host = {
   cwd: string
   reader: Reader
   fill: (text: string) => Promise<{ isFilled: boolean }>
-  invalidate: () => void
+  /** Writes one `$.state` value (14.5): the write redraws exactly the drawings that read it. */
+  put: (value: Published) => Promise<void>
   log: (text: string) => void
   status: (text: string | undefined) => void
   /** Moves the band's focus ring onto one of the mod's elements while the band holds the keys. */
@@ -152,7 +186,8 @@ type Host = {
   registerCommand: (spec: { name: string; description: string; argumentHint?: string }) => Promise<unknown>
   /** A file's modification time in ms, or null when it is absent. */
   mtime: (path: string) => Promise<number | null>
-  toast: (text: string) => void
+  /** A toast; a push-class one passes `timeoutMs` (F8). */
+  toast: (text: string, timeoutMs?: number) => void
   suggest: (text: string) => Promise<unknown>
   /** The session's cost so far in dollars, or null where the host keeps none. */
   costUsd: () => Promise<number | null>
@@ -166,7 +201,7 @@ type Host = {
   home: () => Promise<string | undefined>
   every: (ms: number, fn: () => void) => { cancel: () => void }
   now: () => Promise<number>
-  openPane: (id: string, title: string) => Promise<void>
+  openPane: (id: string, title: string) => Promise<unknown>
   /** The plugin's store, kept across sessions and reloads. */
   storeGet: (key: string) => Promise<unknown>
   storeSet: (key: string, value: unknown) => Promise<void>
@@ -225,6 +260,10 @@ type Model = {
   hub: HubHealth | null
   /** The pane's open state; the render hook draws only while open. */
   isDashboardOpen: boolean
+  /** The dashboard's details state (Y5): closed workflows show only with details on. */
+  isDashboardDetailed: boolean
+  /** How many times the tree was read: each read redraws the readers of `workflows`. */
+  reads: number
   /** Where the session draws: `terminal` under the REPL, else a surface that attached, else null. */
   surface: string | null
   /** Whether a person is at the prompt, as `session.start` reported it. */
@@ -244,6 +283,8 @@ const EMPTY: Model = {
   lastStageUsd: null,
   hub: null,
   isDashboardOpen: false,
+  isDashboardDetailed: false,
+  reads: 0,
   surface: null,
   interactive: false,
 }
@@ -274,6 +315,26 @@ const activeStoreKeyOf = (root: string) => `active:${root}`
 const COMMAND_TOTAL = CATALOG.length + 2
 /** Keys whose turn is not a stage: no "this stage" cost. */
 const READ_ONLY_KEYS: ReadonlySet<string> = new Set(['status', 'recap'])
+
+/** The drawn values a reload left in `$.state` (X1): the open pick, the dashboard, the active slug, the stage cost. */
+async function restoredOf($: EngineInterface): Promise<Partial<Model>> {
+  try {
+    const picker = await read($, pickerAtom)
+    const dashboard = await read($, dashboardAtom)
+    const active = await read($, activeAtom)
+    const lastStageUsd = await read($, lastStageUsdAtom)
+    let details = dashboard.details
+    try {
+      const stored = await $.store.get(detailsStoreKeyOf('workflows'))
+      if (typeof stored === 'boolean') details = stored
+    } catch {
+      // No store: the state's own value.
+    }
+    return { step: picker.step, page: picker.page, filter: picker.filter, ring: picker.ring, isDashboardOpen: dashboard.isOpen, isDashboardDetailed: details, active, lastStageUsd }
+  } catch {
+    return {}
+  }
+}
 
 export function register(on: On, options: PluginOptions = {}) {
   let host: Host | null = null
@@ -316,6 +377,54 @@ export function register(on: On, options: PluginOptions = {}) {
   let appendQueue: Promise<void> = Promise.resolve()
   /** A fixture Requires table from the store, or null for the generated module. */
   let requiresOverride: readonly RequiresEntry[] | null = null
+  /** The view style of every part the plugin draws (V3); a `/config` change reloads the module with the new one. */
+  const viewStyle = viewStyleOf(options?.['viewStyle'])
+  /** The person's theme row (Y7), read at session start; dark when unknown. */
+  let isDarkTheme = true
+  /** The text of each `$.state` value as last written, so an unchanged value is not written again. */
+  let synced = new Map<string, string>()
+  /** The writes under way; a handler awaits them before it answers. */
+  let syncing: Promise<void> = Promise.resolve()
+  /** The live view's status-line part (K1), or null when no live run shows. */
+  let liveText: string | null = null
+  // The live views (WF-LIVE-VIEWS-PLAN.md): the same module, its own hooks (P10: one module per plugin).
+  /** The live module's side of the shared sites (K1, K3): it fills `press` and `open`, and calls `onStatus`. */
+  const live: LiveLink = {
+    press: () => undefined,
+    open: () => undefined,
+    measure: () => undefined,
+    onStatus: text => {
+      // The poll reports every tick: an unchanged text draws nothing.
+      if (text === liveText) return
+      liveText = text
+      if (host !== null && model.step === null) drawStatus(host)
+    },
+  }
+  registerLive(on, { options: options ?? {}, pluginName: PLUGIN_NAME, link: live })
+
+  /**
+   * Writes the drawn values to `$.state` (14.5, X1). A drawing reads them,
+   * so a write redraws exactly its readers, and a reload (a `/config` change)
+   * keeps what the person sees: `session.start` restores the module's copy.
+   */
+  function publish(engine: Host): void {
+    const values: Published[] = [
+      { name: 'picker', value: { step: model.step, page: model.page, filter: model.filter, ring: model.ring } },
+      { name: 'active', value: model.active },
+      { name: 'workflows', value: { root: model.root, isRead: model.isRead, entries: model.workflows, slices: Object.fromEntries(model.slices), reads: model.reads } },
+      { name: 'dashboard', value: { isOpen: model.isDashboardOpen, details: model.isDashboardDetailed } },
+      { name: 'hub', value: model.hub },
+      { name: 'driver', value: driverText },
+      { name: 'usage', value: usageText },
+      { name: 'lastStageUsd', value: model.lastStageUsd },
+    ]
+    for (const published of values) {
+      const text = JSON.stringify(published.value)
+      if (synced.get(published.name) === text) continue
+      synced.set(published.name, text)
+      syncing = syncing.then(() => engine.put(published)).catch(error => engine.log(`sdlc-workflow state: ${messageOf(error)}`))
+    }
+  }
 
   /** The Requires tables the check reads. */
   function requiresNow(): readonly RequiresEntry[] {
@@ -381,7 +490,7 @@ export function register(on: On, options: PluginOptions = {}) {
     if (model.isRead && !isFresh) return
     const root = await findProjectRoot(engine.cwd, engine.reader)
     const workflows = root === null ? [] : await listWorkflows(root, engine.reader)
-    model = { ...model, root, isRead: true, workflows, slices: new Map() }
+    model = { ...model, root, isRead: true, workflows, slices: new Map(), reads: model.reads + 1 }
     if (model.active === null || !workflows.some(w => w.slug === model.active)) {
       const remembered = await rememberedSlug(engine, root)
       const active = remembered !== null && workflows.some(w => w.slug === remembered) ? remembered : await newestSlug(engine, root, workflows)
@@ -434,7 +543,7 @@ export function register(on: On, options: PluginOptions = {}) {
     const workflow = activeWorkflow()
     if (workflow !== null) await readSlices(engine, workflow.slug)
     if (model.step === null) drawStatus(engine)
-    engine.invalidate()
+    publish(engine)
   }
 
   /**
@@ -444,9 +553,11 @@ export function register(on: On, options: PluginOptions = {}) {
   function drawStatus(engine: Host): void {
     if (!isTerminal()) return
     const workflow = activeWorkflow()
-    const base = driverText ?? (settings.strip && workflow !== null ? statusTextOf(workflow, settings.cost ? model.lastStageUsd : null, settings.hubNotice ? model.hub : null) : null)
-    const text = [base, usageText].filter(part => part !== null && part !== '').join(' · ')
+    // K1: a live view's line (the heartbeat age and the 5-hour usage) takes the place of the driver line and the usage.
+    const base = liveText ?? driverText ?? (settings.strip && workflow !== null ? statusTextOf(workflow, settings.cost ? model.lastStageUsd : null, settings.hubNotice ? model.hub : null) : null)
+    const text = [base, liveText === null ? usageText : null].filter(part => part !== null && part !== '').join(' · ')
     engine.status(text === '' ? undefined : text)
+    publish(engine)
   }
 
   function stopDriver(): void {
@@ -459,11 +570,13 @@ export function register(on: On, options: PluginOptions = {}) {
     if (slug === null || slug === model.active) return
     model = { ...model, active: slug }
     void remember(engine)
-    engine.invalidate()
+    publish(engine)
   }
 
+  type StyledStrip = { parts: StripParts; detail: string | null; others: number; columns: number }
+
   /** The strip's rows for the active workflow, or null when nothing is active. */
-  async function stripOf(engine: Host, columns: number): Promise<StripModel | null> {
+  async function stripOf(engine: Host, columns: number): Promise<StyledStrip | null> {
     if (!settings.strip) return null
     const workflow = activeWorkflow()
     if (workflow === null) return null
@@ -475,7 +588,7 @@ export function register(on: On, options: PluginOptions = {}) {
     }
     const detail = costTextOf(settings.cost ? model.lastStageUsd : null, tokens)
     const others = model.workflows.length - 1
-    return { text: stripTextOf(workflow, slices), detail, others, columns }
+    return { parts: { workflow, slices, text: stripTextOf(workflow, slices) }, detail, others, columns }
   }
 
   /** A file's text, or null when it is absent; an absent file is no error to log. */
@@ -496,7 +609,7 @@ export function register(on: On, options: PluginOptions = {}) {
     await remember(engine)
     await readSlices(engine, target)
     if (model.step === null) drawStatus(engine)
-    engine.invalidate()
+    publish(engine)
   }
 
   async function readSlices(engine: Host, slug: string): Promise<SliceEntry[]> {
@@ -512,12 +625,12 @@ export function register(on: On, options: PluginOptions = {}) {
   function close(engine: Host): void {
     model = { ...model, step: null, filter: '', ring: null }
     drawStatus(engine)
-    engine.invalidate()
+    publish(engine)
   }
 
   function show(engine: Host, step: Step): void {
     model = { ...model, step, page: 0, filter: '', ring: null }
-    engine.invalidate()
+    publish(engine)
   }
 
   /** The `back` button: the step before, on its first page. */
@@ -528,12 +641,12 @@ export function register(on: On, options: PluginOptions = {}) {
 
   function turnPage(engine: Host, by: number): void {
     model = { ...model, page: model.page + by }
-    engine.invalidate()
+    publish(engine)
   }
 
   function setFilter(engine: Host, text: string): void {
     model = { ...model, filter: text, page: 0 }
-    engine.invalidate()
+    publish(engine)
   }
 
   /** The rows of the step after the filter, before paging; a bare digit in the field narrows nothing. */
@@ -584,6 +697,7 @@ export function register(on: On, options: PluginOptions = {}) {
 
   on('session.measure', async ($, e, next) => {
     await usageGuard.measure(e)
+    if (e.changed.includes('rateLimits')) live.measure(e.rateLimits)
     return next(e)
   })
 
@@ -626,9 +740,16 @@ export function register(on: On, options: PluginOptions = {}) {
       storeSet: (key, value) => $.store.set(key, value),
       every: (ms, fn) => $.clock.every(ms, fn),
     })
-    model = { ...EMPTY, surface: e.surface, interactive: e.isInteractive }
+    // A reload (a `/config` change, a hot reload) runs this hook again: the drawn values come back from `$.state` (X1, F2).
+    model = { ...EMPTY, surface: e.surface, interactive: e.isInteractive, ...(await restoredOf($)) }
+    synced = new Map()
     host = null
     journal = null
+    try {
+      isDarkTheme = isDarkThemeOf((await $.config.list()).find(row => row.key === 'theme')?.value)
+    } catch {
+      isDarkTheme = true
+    }
     const engine: Host = {
       cwd: e.cwd,
       reader: {
@@ -637,7 +758,35 @@ export function register(on: On, options: PluginOptions = {}) {
         exists: path => $.fs.exists(path),
       },
       fill: text => $.prompt.fill({ text }),
-      invalidate: () => $.ui.invalidate('ui.render'),
+      put: async published => {
+        // One literal atom per value: the engine's scan reads no atom passed in a variable.
+        switch (published.name) {
+          case 'picker':
+            await update($, pickerAtom, () => published.value)
+            break
+          case 'active':
+            await update($, activeAtom, () => published.value)
+            break
+          case 'workflows':
+            await update($, workflowsAtom, () => published.value)
+            break
+          case 'dashboard':
+            await update($, dashboardAtom, () => published.value)
+            break
+          case 'hub':
+            await update($, hubAtom, () => published.value)
+            break
+          case 'driver':
+            await update($, driverAtom, () => published.value)
+            break
+          case 'usage':
+            await update($, usageAtom, () => published.value)
+            break
+          case 'lastStageUsd':
+            await update($, lastStageUsdAtom, () => published.value)
+            break
+        }
+      },
       log: text => $.ui.log(text),
       status: text => $.ui.status(text),
       focus: (requestId, key) => $.ui.focus({ requestId, key }),
@@ -653,7 +802,7 @@ export function register(on: On, options: PluginOptions = {}) {
           return null
         }
       },
-      toast: text => $.ui.toast(text),
+      toast: (text, timeoutMs) => $.ui.toast(text, timeoutMs === undefined ? undefined : { timeoutMs }),
       suggest: text => $.prompt.suggest({ text }),
       costUsd: async () => {
         try {
@@ -727,7 +876,8 @@ export function register(on: On, options: PluginOptions = {}) {
       // No store: the generated module.
     }
     stopDriver()
-    driverText = null
+    driverText = await read($, driverAtom).catch(() => null)
+    usageText = await read($, usageAtom).catch(() => null)
     deadToastedRun = null
     lastRun = null
     noticeRequestId = null
@@ -785,7 +935,7 @@ export function register(on: On, options: PluginOptions = {}) {
     const read = async () => hubHealthOf((await engine.fetchText(url)) ?? '')
     model = { ...model, hub: await read() }
     if (model.step === null) drawStatus(engine)
-    engine.invalidate()
+    publish(engine)
     hubTimer = engine.every(60_000, () => {
       void read().then(health => {
         const wasUp = model.hub?.ok === true
@@ -794,7 +944,7 @@ export function register(on: On, options: PluginOptions = {}) {
         if (wasUp === isUp) return
         engine.toast(isUp ? `sdlc hub is back (${health?.version ?? '?'})` : 'sdlc hub stopped answering')
         if (model.step === null) drawStatus(engine)
-        engine.invalidate()
+        publish(engine)
       })
     })
   }
@@ -907,13 +1057,24 @@ export function register(on: On, options: PluginOptions = {}) {
     const engine = host
     const step = model.step
     if (!engine || e.surface !== 'terminal' || e.props.hasSurvey) return below
+    // The reads subscribe the band: a write of any of them draws it again (X1).
+    await read($, pickerAtom)
+    await read($, workflowsAtom)
+    const liveBand = await read($, liveBandAtom)
     const { Box, Text, Button, Input } = $.ui.resolve(e)
+    const palette = paletteOf(viewStyle, e.surface, isDarkTheme)
     const strip = await stripOf(engine, e.props.bodyColumns)
-    const stripTree = strip === null ? null : stripView({ Box, Text, Button }, strip, () => {
+    const stripTree = strip === null ? null : stripStyledView({ Box, Text, Button }, viewStyle, palette, strip.parts, strip.detail, strip.others, ROTATE_KEY, () => {
       pending = rotateActive(engine, null).catch(error => engine.log(messageOf(error)))
     })
-    const stripHeight = strip === null ? 0 : stripRows(strip)
-    if (step === null) return stripTree === null ? below : stack(Box, below, stripTree)
+    const stripHeight = strip === null ? 0 : styledStripRows(viewStyle, strip.parts, strip.detail, strip.others, strip.columns)
+    if (step === null) {
+      // K3: with no pick open, the band draws the live line (focus, actions on 1 and 2), then the strip.
+      const liveLine = liveBand === null ? null : liveBandView({ Box, Text, Button }, liveBand, palette, () => live.open(), key => live.press(key))
+      const parts = [liveLine, stripTree].filter((part): part is RenderElement => part !== null)
+      if (parts.length === 0) return below
+      return parts.reduce((tree, part) => stack(Box, tree, part), below)
+    }
     ringMaxRows = e.props.maxRows - stripHeight
     const { options, note } = await rowsOf(engine, step)
     // Every row carries a hotkey, and a digit arms only while the whole band
@@ -923,9 +1084,10 @@ export function register(on: On, options: PluginOptions = {}) {
     const pickRow = (value: string) => {
       pending = advance(engine, value).catch(error => engine.log(messageOf(error)))
     }
+    const labelOf = (option: Option) => pickerRowLabel(viewStyle, option.label, step.kind === 'slug' ? (model.workflows.find(workflow => workflow.slug === option.value) ?? null) : null)
     const band = bandView(
       { Box, Text, Button, Input },
-      { title: titleOf(step), page, filter: model.filter, hasBack: backOf(step) !== null, ...(note === undefined ? {} : { note }) },
+      { title: titleOf(step), page, filter: model.filter, hasBack: backOf(step) !== null, style: viewStyle, palette, labelOf, ...(note === undefined ? {} : { note }) },
       {
         pick: pickRow,
         filter: text => setFilter(engine, text),
@@ -969,9 +1131,10 @@ export function register(on: On, options: PluginOptions = {}) {
     // The hub line joins one notice, the first drawn; the others stay the engine's.
     noticeRequestId ??= e.requestId
     if (e.requestId !== noticeRequestId) return next(e)
+    await read($, hubAtom)
     const { Box, Text } = $.ui.resolve(e)
     const engineText = e.props.command === null ? e.props.text : `${e.props.text} ${e.props.command}`
-    return noticeView({ Box, Text }, engineText, hubNoticeTextOf(model.hub), DOCTOR_COMMAND)
+    return noticeStyledView({ Box, Text }, viewStyle, paletteOf(viewStyle, e.surface, isDarkTheme), engineText, model.hub, hubNoticeTextOf(model.hub), DOCTOR_COMMAND)
   })
 
   on('ui.render', { component: 'AskUserQuestion' }, async ($, e, next) => {
@@ -992,7 +1155,9 @@ export function register(on: On, options: PluginOptions = {}) {
 
   on('ui.render', { component: 'Pane', requestId: DASHBOARD_PANE }, async ($, e, next) => {
     const engine = host
-    if (!engine || !model.isDashboardOpen || e.surface !== 'terminal') return next(e)
+    const dashboard = await read($, dashboardAtom)
+    await read($, workflowsAtom)
+    if (!engine || !(model.isDashboardOpen || dashboard.isOpen) || e.surface !== 'terminal') return next(e)
     const { Box, Text, Button } = $.ui.resolve(e)
     const findings = new Map<string, number>()
     let shipPlanBlockers: number | null = null
@@ -1005,10 +1170,11 @@ export function register(on: On, options: PluginOptions = {}) {
       const audit = await readIfPresent(engine, joinPath(model.root, '.ai', 'ship-plan-audit.md'))
       shipPlanBlockers = audit === null ? null : shipPlanBlockersOf(audit)
     }
-    const hub = model.hub === null ? 'hub unknown' : `hub ${model.hub.version ?? '?'} ${model.hub.ok ? 'ok' : 'down'}`
-    return dashboardView(
+    return workflowsStyledView(
       { Box, Text, Button },
-      { workflows: model.workflows, slices: model.slices, findings, shipPlanBlockers, hub, columns: e.props.bodyColumns },
+      viewStyle,
+      paletteOf(viewStyle, e.surface, isDarkTheme),
+      { workflows: model.workflows, slices: model.slices, findings, shipPlanBlockers, hub: model.hub, columns: e.props.bodyColumns, details: model.isDashboardDetailed },
       {
         status: slug => {
           void fill(engine, `/wf status ${slug}`).then(text => engine.log(text))
@@ -1016,6 +1182,12 @@ export function register(on: On, options: PluginOptions = {}) {
         pick: slug => {
           setActive(engine, slug)
           show(engine, { kind: 'slice', key: 'plan', slug })
+        },
+        details: () => {
+          // Y5: the details state per view, kept in the store across sessions.
+          model = { ...model, isDashboardDetailed: !model.isDashboardDetailed }
+          publish(engine)
+          void engine.storeSet(detailsStoreKeyOf('workflows'), model.isDashboardDetailed).catch(error => engine.log(messageOf(error)))
         },
       },
     )
@@ -1039,8 +1211,17 @@ export function register(on: On, options: PluginOptions = {}) {
     }
   }
 
+  on('ui.open', { id: DASHBOARD_PANE }, async ($, e, next) => {
+    // F2: the open state comes from the pane's own events and lives in `$.state`, so a reload keeps the body.
+    const result = await next(e)
+    model = { ...model, isDashboardOpen: true }
+    if (host !== null) publish(host)
+    return result
+  })
+
   on('ui.close', { id: DASHBOARD_PANE }, async ($, e, next) => {
     model = { ...model, isDashboardOpen: false }
+    if (host !== null) publish(host)
     return next(e)
   })
 
@@ -1250,7 +1431,7 @@ export function register(on: On, options: PluginOptions = {}) {
       const run = beats[beats.length - 1]?.run ?? ''
       if (deadToastedRun !== run) {
         deadToastedRun = run
-        engine.toast(`wf ${key} ${slug}: driver ${driverText.slice(driverText.indexOf('presumed dead'))}`)
+        engine.toast(`wf ${key} ${slug}: driver ${driverText.slice(driverText.indexOf('presumed dead'))}`, PUSH_TOAST_MS)
       }
       stopDriver()
     } else if (driverText.includes(' · stopped at ')) {
@@ -1458,7 +1639,7 @@ export function register(on: On, options: PluginOptions = {}) {
     if (landing === undefined) return next(e)
     const key = rowKeyOf(landing.value)
     model = { ...model, page: model.page + by, ring: key }
-    engine.invalidate()
+    publish(engine)
     // Land the ring on the new page's row through the chain; when the new
     // tree is not drawn yet, ask again once this dispatch is over.
     const moved = await next({ ...e, element: key })

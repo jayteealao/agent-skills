@@ -5,7 +5,10 @@ import type { ElementTable, RenderElement } from 'claude-code'
 
 import { BACK_KEY, CLOSE_KEY, FILTER_KEY, HINT_TEXT, MORE_KEY, NOTHING_TEXT, NO_MATCH_TEXT, OPTION_KEY_PREFIX } from './names.ts'
 import { MAX_PAGE_SIZE, hotkeyOf } from './picker.ts'
-import type { Page } from './picker.ts'
+import type { Option, Page } from './picker.ts'
+import { pickerControlLabel, pickerTitleView } from './styles/existing.tsx'
+import { DEFAULT_VIEW_STYLE, paletteOf } from './styles/tokens.ts'
+import type { Palette, ViewStyle } from './styles/tokens.ts'
 
 /** The element constructors the band draws with; the terminal carries all four. */
 export type Ui = Pick<ElementTable<'terminal'>, 'Box' | 'Text' | 'Button' | 'Input'>
@@ -20,6 +23,11 @@ export type BandModel = {
   note?: string
   /** True when a step lies before this one, so the band draws `back`. */
   hasBack: boolean
+  /** The view style (E1): the title, the row marks and the control labels; keys, hotkeys and order never change (Y3). */
+  style?: ViewStyle
+  palette?: Palette
+  /** A row's label with its style mark; absent, the option's own label. */
+  labelOf?: (option: Option) => string
 }
 
 export type BandActions = {
@@ -51,12 +59,16 @@ export function rowKeyOf(value: string): string {
 export function bandView(ui: Ui, model: BandModel, actions: BandActions): RenderElement {
   const { Box, Text, Button, Input } = ui
   const { items, page, pages } = model.page
-  const title = pages > 1 ? `${model.title}  (page ${page + 1} of ${pages})` : model.title
+  const style = model.style ?? DEFAULT_VIEW_STYLE
+  const palette = model.palette ?? paletteOf(style, 'terminal', true)
   const empty = model.filter.trim() === '' ? NOTHING_TEXT : NO_MATCH_TEXT
+  const label = (text: string) => pickerControlLabel(style, text)
   return (
     <Box flexDirection="column" paddingX={1}>
       <Box flexDirection="row" gap={2}>
-        <Text bold>{title}</Text>
+        <Box flexDirection="row" gap={1}>
+          {pickerTitleView({ Text }, style, palette, model.title, page, pages)}
+        </Box>
         <Input
           key={FILTER_KEY}
           placeholder="filter"
@@ -66,9 +78,9 @@ export function bandView(ui: Ui, model: BandModel, actions: BandActions): Render
           onInput={text => actions.filter(text)}
           onSubmit={text => actions.submit(text)}
         />
-        {pages > 1 ? <Button key={MORE_KEY} hotkey="0" plain label="more" onPress={() => actions.more()} /> : null}
-        {model.hasBack ? <Button key={BACK_KEY} label="← back" dimColor onPress={() => actions.back()} /> : null}
-        <Button key={CLOSE_KEY} label="close" dimColor onPress={() => actions.close()} />
+        {pages > 1 ? <Button key={MORE_KEY} hotkey="0" plain label={label('more')} onPress={() => actions.more()} /> : null}
+        {model.hasBack ? <Button key={BACK_KEY} label={`← ${label('back')}`} dimColor onPress={() => actions.back()} /> : null}
+        <Button key={CLOSE_KEY} label={label('close')} role="dismiss" dimColor onPress={() => actions.close()} />
       </Box>
       {items.length === 0 ? <Text dimColor>{empty}</Text> : null}
       {items.map((option, index) => {
@@ -78,7 +90,7 @@ export function bandView(ui: Ui, model: BandModel, actions: BandActions): Render
             key={rowKeyOf(option.value)}
             {...(hotkey === undefined ? {} : { hotkey })}
             plain
-            label={option.label}
+            label={model.labelOf === undefined ? option.label : model.labelOf(option)}
             onPress={() => actions.pick(option.value)}
           />
         )

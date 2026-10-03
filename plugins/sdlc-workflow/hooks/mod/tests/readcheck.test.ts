@@ -108,7 +108,7 @@ function seat(on: On, requires: readonly RequiresEntry[] = FIXTURE): World {
       const rest = file.slice(dir.length + 1)
       names.set(rest.split('/')[0] as string, rest.includes('/') ? 'dir' : 'file')
     }
-    return { value: [...names].map(([name, kind]) => ({ name, kind, size: 0 })) }
+    return { value: [...names].map(([name, kind]) => ({ name, kind, size: 0, mtimeMs: 0, isLink: false })) }
   })
   on('fs.read', ($, e) => {
     const text = tree[normal(e.path)] ?? world.written.get(normal(e.path))
@@ -121,7 +121,7 @@ function seat(on: On, requires: readonly RequiresEntry[] = FIXTURE): World {
   on('fs.stat', ($, e) => {
     const path = normal(e.path)
     if (!(path in tree)) return { deny: `ENOENT: ${path}` }
-    return { value: { kind: 'file', size: 0, mtimeMs: 0 } }
+    return { value: { kind: 'file' as const, size: 0, mtimeMs: 0, isLink: false } }
   })
   on('ui.invalidate', () => ({ value: undefined }))
   on('ui.status', () => ({ value: undefined }))
@@ -132,7 +132,7 @@ function seat(on: On, requires: readonly RequiresEntry[] = FIXTURE): World {
     return Box({}) as RenderElement
   })
   on('prompt.suggest', () => ({ isShown: true }))
-  on('session.usage', () => ({ value: { context: { tokens: 0, window: 200000, percent: 10 }, rateLimits: [], cost: { usd: 1 } } }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: { tokens: 0, window: 200000, percent: 10 }, rateLimits: [], cost: { usd: 1 } } }))
   on('session.compact', () => ({ messages: [SUMMARY], tokensBefore: 1000, tokensAfter: 100 }))
   on('env.get', ($, e) => ({ value: e.name === 'USERPROFILE' ? '/home' : undefined }))
   on('session.id', () => ({ value: 'abcdef0123456789' }))

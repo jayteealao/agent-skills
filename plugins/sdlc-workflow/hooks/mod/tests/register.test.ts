@@ -148,7 +148,7 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
       const head = rest.split('/')[0] as string
       names.set(head, rest.includes('/') ? 'dir' : 'file')
     }
-    return { value: [...names].map(([name, kind]) => ({ name, kind, size: 0 })) }
+    return { value: [...names].map(([name, kind]) => ({ name, kind, size: 0, mtimeMs: 0, isLink: false })) }
   })
   on('fs.read', ($, e) => {
     const text = tree[normal(e.path)] ?? world.written.get(normal(e.path))
@@ -171,7 +171,7 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
   })
   on('ui.open', ($, e) => {
     world.opened.push(e.id)
-    return { value: undefined }
+    return { value: { isPlaced: true as const } }
   })
   on('ui.close', () => ({ value: undefined }))
   on('prompt.suggest', ($, e) => {
@@ -181,7 +181,7 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
   on('session.usage', () => {
     if (world.percent === 'reject') return { deny: 'no usage' }
     const context = world.percent === null ? { tokens: 0, window: 200000 } : { tokens: 0, window: 200000, percent: world.percent }
-    return { value: { context, rateLimits: [], cost: { usd: world.usd } } }
+    return { value: { startedAt: 0, context, rateLimits: [], cost: { usd: world.usd } } }
   })
   on('session.compact', ($, e) => {
     world.compacted.push(e.instructions ?? '')
@@ -211,7 +211,7 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
   on('fs.stat', ($, e) => {
     const path = normal(e.path)
     if (!(path in tree)) return { deny: `ENOENT: ${path}` }
-    return { value: { kind: 'file', size: tree[path]?.length ?? 0, mtimeMs: world.mtimes.get(path) ?? UNTOUCHED } }
+    return { value: { kind: 'file' as const, size: tree[path]?.length ?? 0, mtimeMs: world.mtimes.get(path) ?? UNTOUCHED, isLink: false } }
   })
   on('config.set', ($, e) => ({ value: e.value }))
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
@@ -254,7 +254,7 @@ const ringTo = ($: Engine, element: string) =>
   $.ui.focus({ component: 'AbovePrompt', requestId: 'band', plugin: PLUGIN_NAME, element, origin: { kind: 'person' } })
 
 const MODE: RenderInput<'SessionMode'> = { component: 'SessionMode', surface: 'terminal', requestId: 'mode', viewport: { columns: 120, rows: 40 }, props: { modes: ['focus'] } }
-const SPINNER: RenderInput<'Spinner'> = { component: 'Spinner', surface: 'terminal', requestId: 'spin', viewport: { columns: 120, rows: 40 }, props: { word: 'Sauteing', message: null, mode: 'thinking' } }
+const SPINNER: RenderInput<'Spinner'> = { component: 'Spinner', surface: 'terminal', requestId: 'spin', viewport: { columns: 120, rows: 40 }, props: { word: 'Sauteing', message: null, suffix: '', mode: 'thinking' } }
 const NOTICE: RenderInput<'InfoNotice'> = { component: 'InfoNotice', surface: 'terminal', requestId: 'notice', viewport: { columns: 120, rows: 40 }, props: { text: 'model: sonnet', command: null } }
 const QUESTION: RenderInput<'AskUserQuestion'> = { component: 'AskUserQuestion', surface: 'terminal', requestId: 'q1', viewport: { columns: 120, rows: 40 }, props: { tool: 'AskUserQuestion', questions: [{ question: 'Which host?', header: 'Host', options: [{ label: 'a', description: '' }, { label: 'b', description: '' }], multiSelect: false }] } }
 const PANE: RenderInput<'Pane'> = { component: 'Pane', surface: 'terminal', requestId: 'wf-dashboard', viewport: { columns: 120, rows: 40 }, props: { title: 'sdlc workflows', isFocused: false, bodyColumns: 100, placement: 'inline', scroll: { offset: 0, bodyRows: 12 }, view: {} } }
@@ -323,7 +323,7 @@ describe('register', () => {
     const world = seat(on)
     await $.session.start(SESSION)
     expect(world.registered.slice(0, CATALOG.length)).toEqual(CATALOG.map(entry => `wf-${entry.key}`))
-    expect(world.registered).toEqual([...CATALOG.map(entry => `wf-${entry.key}`), 'wf-dashboard', 'wf-active'])
+    expect(world.registered).toEqual([...CATALOG.map(entry => `wf-${entry.key}`), 'wf-dashboard', 'wf-active', 'wf-live'])
   })
 
   test('a bare /wf opens the key list; /wf <key> opens the workflow list', async ($, on) => {
@@ -1008,7 +1008,7 @@ describe('register', () => {
     const world = seat(on, { ...TREE, ...HUB_CONFIG })
     const clock = world.clock
     await $.session.start(SESSION)
-    expect(textOf(await $.ui.render(NOTICE))).toBe('model: sonnet sdlc hub 9.157.0 · 3 repos · 2 renders stale · /wf-doctor')
+    expect(textOf(await $.ui.render(NOTICE))).toBe('model: sonnet ● sdlc hub 9.157.0 · 3 repos · 2 renders stale · /wf-doctor')
     world.hub = null
     await clock.advance(60_000)
     await clock.advance(60_000)
@@ -1023,7 +1023,7 @@ describe('register', () => {
     await clock.advance(60_000)
     expect(world.toasts).toHaveLength(2)
     await setSetting($, 'hubNotice', true)
-    expect(textOf(await $.ui.render(NOTICE))).toBe('model: sonnet sdlc hub down · /wf-doctor')
+    expect(textOf(await $.ui.render(NOTICE))).toBe('model: sonnet ● sdlc hub down · /wf-doctor')
     world.hub = HUB_HEALTH
     await clock.advance(60_000)
     expect(world.toasts).toHaveLength(3)
@@ -1034,7 +1034,7 @@ describe('register', () => {
     await $.session.start(SESSION)
     const first = { ...NOTICE, requestId: 'n1', props: { text: 'model: sonnet', command: '/model' } }
     const second = { ...NOTICE, requestId: 'n2', props: { text: 'tip', command: null } }
-    expect(textOf(await $.ui.render(first))).toBe('model: sonnet /model sdlc hub 9.157.0 · 3 repos · 2 renders stale · /wf-doctor')
+    expect(textOf(await $.ui.render(first))).toBe('model: sonnet /model ● sdlc hub 9.157.0 · 3 repos · 2 renders stale · /wf-doctor')
     expect(textOf(await $.ui.render(second))).toBe('')
   })
 
@@ -1051,10 +1051,14 @@ describe('register', () => {
     expect(text).toContain('dashboard is open')
     expect(world.opened).toEqual(['wf-dashboard'])
     const pane = textOf(await $.ui.render(PANE))
-    expect(pane).toContain('alpha-flow  active    implement   auth        /wf verify alpha-flow auth')
-    expect(pane).toContain('beta        closed')
+    // E3: one row per open workflow (mark, slug, stage rail, findings, next step); closed ones wait for details (Y5).
+    expect(pane).toContain('● alpha-flow ━━┄┄ implement ▰▰▰ ▱▱▱ 3 open findings /wf verify alpha-flow auth')
     expect(pane).toContain('alpha-flow slices   auth ▰▰▰ verified   ui ▱▱▱ defined')
-    expect(pane).toContain('alpha-flow open findings 3 · ship-plan blockers 2 · hub 9.157.0 ok')
+    expect(pane).toContain('ship-plan blockers 2 · hub 9.157.0 ok')
+    expect(pane).toContain('details ▸ (1 closed)')
+    expect(pane).not.toContain('beta')
+    await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-dash-details' })
+    expect(textOf(await $.ui.render(PANE))).toContain('beta')
 
     await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-dash-status:beta' })
     expect(world.filled).toEqual(['/wf status beta '])
@@ -1073,7 +1077,7 @@ describe('register', () => {
     await $.session.start(SDK_SESSION)
     // Claude Code Desktop runs the engine through the SDK: no surface, no
     // person at the prompt. The module still binds and registers.
-    expect(world.registered).toEqual([...CATALOG.map(entry => `wf-${entry.key}`), 'wf-dashboard', 'wf-active'])
+    expect(world.registered).toEqual([...CATALOG.map(entry => `wf-${entry.key}`), 'wf-dashboard', 'wf-active', 'wf-live'])
     // The band never draws, so the picker never opens: the command runs as typed.
     expect(await run($, 'wf')).toEqual({ text: 'passed on' })
     expect(ran).toBe(1)

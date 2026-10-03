@@ -6,7 +6,7 @@ import {
   collectTurn,
   readCursor,
   writeCursor
-} from "./chunk-PNDGQNSP.mjs";
+} from "./chunk-5OCA23PS.mjs";
 import {
   readStdinJson
 } from "./chunk-YYMENX7Z.mjs";
@@ -79,27 +79,46 @@ async function runCostLedger({ input, cursorDir, env = process.env, now = () => 
   const cursor = readCursor(cursorDir, sessionId);
   const turn = collectTurn({ transcriptPath: transcript, subagentsDir: join(dirname(transcript), sessionId, "subagents"), cursor });
   cursor.turn = (cursor.turn ?? 0) + 1;
-  let wrote = false;
-  let ledger;
-  if (turn.hadUsage && turn.attributed?.slug) {
-    const a = turn.attributed;
+  const mainRoot = resolve(projectRoot, ".ai", "workflows");
+  const [own, ...others] = turn.groups ?? [{ attributed: turn.attributed, main: turn.main, subagents: turn.subagents }];
+  const ownDir = (a) => {
+    if (!a?.slug) return null;
     const root = a.root && isAbsolute(a.root) ? a.root : resolve(projectRoot, a.root ?? join(".ai", "workflows"));
-    ledger = appendCostRow(join(root, a.slug), {
-      ts: now().toISOString(),
+    return join(root, a.slug);
+  };
+  const byDir = /* @__PURE__ */ new Map();
+  const turnRow = { attributed: own.attributed, main: own.main, subagents: [...own.subagents] };
+  if (ownDir(own.attributed)) byDir.set(ownDir(own.attributed), turnRow);
+  for (const g of others) {
+    const dir = join(mainRoot, g.attributed.slug);
+    if (!existsSync(dir)) {
+      turnRow.subagents.push(...g.subagents);
+      continue;
+    }
+    if (!byDir.has(dir)) byDir.set(dir, { attributed: g.attributed, main: null, subagents: [] });
+    byDir.get(dir).subagents.push(...g.subagents);
+  }
+  const ts = now().toISOString();
+  const ledgers = [];
+  for (const [dir, r] of byDir) {
+    if (!r.main && !r.subagents.length) continue;
+    ledgers.push(appendCostRow(dir, {
+      ts,
       host: hostName(turn.host, env),
       session: sessionId,
       turn: cursor.turn,
-      key: a.key ?? null,
-      slug: a.slug,
-      slice: a.slice ?? null,
-      main: turn.main,
-      subagents: turn.subagents,
+      key: r.attributed.key ?? null,
+      slug: r.attributed.slug,
+      slice: r.attributed.slice ?? null,
+      main: r.main,
+      subagents: r.subagents,
       external: []
-    });
-    wrote = true;
+    }));
   }
+  const wrote = ledgers.length > 0;
+  const ledger = ledgers[0];
   writeCursor(cursorDir, sessionId, cursor);
-  return { wrote, reason: wrote ? "row" : turn.hadUsage ? "no slug" : "no usage", ledger };
+  return { wrote, reason: wrote ? "row" : turn.hadUsage ? "no slug" : "no usage", ledger, ledgers };
 }
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === "1") return;

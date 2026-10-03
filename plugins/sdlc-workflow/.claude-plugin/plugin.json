@@ -26,6 +26,7 @@
     "typography",
     "responsive"
   ],
+  "types": "./types/index.d.ts",
   "userConfig": {
     "strip": {
       "type": "boolean",
@@ -99,6 +100,25 @@
       "description": "When an agent writes a stage artifact, compare the files it read with the stage's ## Requires table. warn: the write lands and the agent gets the missing list. block: the write is refused unless the artifact carries read-waiver: \"<reason>\". off: no check. Each check is one row in the workflow's .read-ledger.jsonl.",
       "options": ["warn", "block", "off"],
       "default": "warn"
+    },
+    "viewStyle": {
+      "type": "string",
+      "title": "View style",
+      "description": "How the sdlc-workflow views look: the live views, the /wf picker band, the strip, the hub notice and the workflows dashboard. dashboard: calm dark view. instrument: dot-matrix cards. grid: light brutalist grid.",
+      "options": ["dashboard", "instrument", "grid"],
+      "default": "dashboard"
+    },
+    "liveView": {
+      "type": "boolean",
+      "title": "Live view",
+      "description": "Open a live view pane when a brainstorm, yolo or campaign runs. Off: no pane (the band, status line and toasts stay).",
+      "default": true
+    },
+    "liveViewDetails": {
+      "type": "boolean",
+      "title": "Live view details",
+      "description": "Open each live view with its details shown. The pane's details button changes it per view, and the choice is remembered.",
+      "default": false
     }
   }
 }
