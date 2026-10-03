@@ -170,6 +170,8 @@ test('the ledger state decides what /wf campaign does next (section 6)', () => {
   const ledger = C.newLedger({ brainstorm: 'realism', revision: 1, units: u, now: '2026-10-03T10:00:00Z' });
   assert.equal(C.campaignAction(ledger, { revision: 1 }).action, 'setup');
   Object.assign(ledger.answers, { forecast: 'continue', 'target-version': '0.3.0', 'release-each-wave': false, output: { 'build-cmd': 'make', artifacts: ['out/'], try: 'run out/app' } });
+  assert.deepEqual(C.campaignAction(ledger, { revision: 1 }), { action: 'setup', question: 'budget' });
+  ledger.answers.budget = C.DEFAULT_BUDGET;
   assert.equal(C.campaignAction(ledger, { revision: 1 }).action, 'prepare');
   ledger.units.A.state = 'prepared';
   assert.equal(C.campaignAction(ledger, { revision: 1 }).action, 'start-wave');
@@ -179,4 +181,105 @@ test('the ledger state decides what /wf campaign does next (section 6)', () => {
   ledger.pause = null;
   ledger.questions.push({ id: 'q1', wave: 1, text: 'CI is red', 'asked-at': '2026-10-03T11:00:00Z' });
   assert.equal(C.campaignAction(ledger, { revision: 1 }).action, 'ask');
+});
+
+// ---------------------------------------------------------------- Stage D
+
+const reading = (five, seven, at = '2026-10-03T10:00:00Z') => ({
+  at, rateLimits: [
+    { kind: 'five_hour', percentUsed: five, resetsAt: '2026-10-03T13:00:00Z' },
+    { kind: 'seven_day', percentUsed: seven, resetsAt: '2026-10-08T00:00:00Z' },
+  ],
+});
+const NOW = Date.parse('2026-10-03T10:05:00Z');
+
+test('budget: under slow is ok; slow narrows; pause and the 7-day reserve pause until the reset (17.2, 17.3)', () => {
+  const b = C.DEFAULT_BUDGET;
+  assert.deepEqual(b, { fiveHourSlow: 75, fiveHourPause: 90, sevenDayReserve: 15 });
+  assert.equal(C.budgetState(reading(40, 20), b, { now: NOW }).state, 'ok');
+  assert.equal(C.budgetState(reading(80, 20), b, { now: NOW }).state, 'slow');
+  const p = C.budgetState(reading(91, 20), b, { now: NOW });
+  assert.equal(p.state, 'pause');
+  assert.equal(p.until, '2026-10-03T13:00:00Z');
+  const r = C.budgetState(reading(10, 86), b, { now: NOW });
+  assert.equal(r.state, 'pause');
+  assert.equal(r.until, '2026-10-08T00:00:00Z');
+  assert.match(r.reason, /reserve/);
+});
+
+test('budget: no reading, an empty reading, or one older than 10 minutes is unknown (17.5)', () => {
+  const b = C.DEFAULT_BUDGET;
+  assert.equal(C.budgetState(null, b, { now: NOW }).state, 'unknown');
+  assert.equal(C.budgetState({ at: '2026-10-03T10:00:00Z', rateLimits: [] }, b, { now: NOW }).state, 'unknown');
+  assert.equal(C.budgetState(reading(10, 10, '2026-10-03T09:50:00Z'), b, { now: NOW }).state, 'unknown');
+  assert.equal(C.newestReading([reading(1, 1, '2026-10-03T09:00:00Z'), reading(2, 2, '2026-10-03T10:00:00Z'), null]).rateLimits[0].percentUsed, 2);
+});
+
+test('a usage-limit failure is the rate_limit kind, status 429, or the limit text; 529 is not (P3)', () => {
+  assert.equal(C.isUsageLimitFailure({ error: 'rate_limit' }), true);
+  assert.equal(C.isUsageLimitFailure({ apiErrorStatus: 429 }), true);
+  assert.equal(C.isUsageLimitFailure({ text: "You've reached your Fable limit. Switch to another model" }), true);
+  assert.equal(C.isUsageLimitFailure({ text: 'Claude AI usage limit reached|1759500000' }), true);
+  assert.equal(C.isUsageLimitFailure({ error: 'server_error', apiErrorStatus: 529, text: 'Overloaded' }), false);
+  assert.equal(C.isUsageLimitFailure({ text: 'the test failed: expected 3' }), false);
+});
+
+test('width: no isolation contract or parallel false is width 1; slow and unknown narrow to 1; pause is 0 (13, 17.3)', () => {
+  const iso = { parallel: true, 'port-env': { PORT: 3000 }, 'build-dirs': ['target'], 'heavy-suites': ['npx playwright test'], 'min-free-gb': 20 };
+  assert.equal(C.effectiveWidth({ width: 3, isolation: null, budget: 'ok' }), 1);
+  assert.equal(C.effectiveWidth({ width: 3, isolation: { ...iso, parallel: false }, budget: 'ok' }), 1);
+  assert.equal(C.effectiveWidth({ width: 3, isolation: iso, budget: 'ok' }), 3);
+  assert.equal(C.effectiveWidth({ width: 3, isolation: iso, budget: 'slow' }), 1);
+  assert.equal(C.effectiveWidth({ width: 3, isolation: iso, budget: 'unknown' }), 1);
+  assert.equal(C.effectiveWidth({ width: 3, isolation: iso, budget: 'pause' }), 0);
+  assert.deepEqual(C.portsFor(iso, 2), { PORT: 3200 });
+  assert.equal(C.isolationOf({ campaign: { isolation: iso } }).parallel, true);
+  assert.equal(C.isolationOf({}), null);
+  assert.equal(C.isolationOf({ campaign: { isolation: { parallel: true } } }), null, 'a contract without port-env and build-dirs is not usable');
+});
+
+test('drive slots: the next prepared units of the running wave, in packet order, up to the width', () => {
+  const u = units(packet('A', { order: 1 }), packet('B', { order: 2 }), packet('C', { order: 3 }), packet('D', { order: 4 }));
+  const ledger = C.newLedger({ brainstorm: 'b', revision: 1, units: u });
+  for (const k of ['A', 'B', 'C', 'D']) ledger.units[k].state = 'prepared';
+  ledger.waves[0].state = 'running';
+  ledger.units.A.state = 'running';
+  assert.deepEqual(C.driveSlots(ledger, 1, 3), ['B', 'C']);
+  ledger.units.B.state = 'finished';
+  assert.deepEqual(C.driveSlots(ledger, 1, 3), ['C', 'D']);
+  assert.deepEqual(C.driveSlots(ledger, 1, 1), []);
+});
+
+test('stacking: the next wave may start once the wave below merged its slugs, up to max-unshipped (16.3, 12.5)', () => {
+  const u = units(packet('A'), packet('B', { 'depends-on': ['A'] }), packet('C', { 'depends-on': ['B'] }));
+  const ledger = C.newLedger({ brainstorm: 'b', revision: 1, units: u });
+  Object.assign(ledger.answers, { forecast: 'continue', 'target-version': 'none', 'release-each-wave': false, output: 'none', budget: C.DEFAULT_BUDGET });
+  for (const k of ['A', 'B', 'C']) ledger.units[k].state = 'prepared';
+  ledger.waves[0].state = 'boundary';
+  assert.equal(C.campaignAction(ledger, { revision: 1 }).action, 'running', 'the merge into the wave branch is not done yet');
+  ledger.waves[0].state = 'handoff';
+  ledger.units.A.state = 'merged';
+  assert.equal(C.campaignAction(ledger, { revision: 1 }).action, 'running', 'Stage C waits for the merge');
+  ledger.stack = { enabled: true, number: null, 'max-unshipped': 2 };
+  assert.deepEqual(C.campaignAction(ledger, { revision: 1 }), { action: 'start-wave', wave: 2, beside: [1] });
+  ledger.waves[1].state = 'handoff';
+  ledger.units.B.state = 'merged';
+  assert.equal(C.campaignAction(ledger, { revision: 1 }).action, 'running', 'two unshipped waves already wait above the trunk');
+  assert.equal(C.waveBase(ledger, 3, 'main'), 'campaign/b/wave-2');
+  ledger.waves[0].state = 'shipped';
+  ledger.waves[1].state = 'shipped';
+  assert.equal(C.waveBase(ledger, 3, 'main'), 'main');
+});
+
+test('the context file names the ports, the build folders, and the heavy-suite lock (13, part 6)', () => {
+  const u = units(packet('A'));
+  const ledger = C.newLedger({ brainstorm: 'b', revision: 1, units: u });
+  const iso = { parallel: true, 'port-env': { PORT: 3000, E2E_PORT: 4173 }, 'build-dirs': ['target'], 'heavy-suites': ['npx playwright test'], 'min-free-gb': 20 };
+  const text = C.renderContext({ unit: u[0], units: u, ledger, isolation: C.isolationText(iso, { index: 1, worktree: '/w/a', lockCmd: 'node campaign.mjs lock' }) });
+  assert.match(text, /PORT=3100/);
+  assert.match(text, /E2E_PORT=4273/);
+  assert.match(text, /`target`/);
+  assert.match(text, /npx playwright test/);
+  assert.match(text, /node campaign\.mjs lock acquire/);
+  assert.match(text, /lock-wait/);
 });

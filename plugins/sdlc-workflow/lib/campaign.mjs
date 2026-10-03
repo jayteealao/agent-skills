@@ -17,7 +17,15 @@ export const LEDGER_VERSION = 1;
 export const WAVE_STATES = Object.freeze(['planned', 'running', 'boundary', 'handoff', 'shipping', 'shipped', 'stopped']);
 export const UNIT_STATES = Object.freeze(['planned', 'prepared', 'running', 'stopped', 'finished', 'merged', 'needs-fix', 'shipped']);
 export const LIVE_WAVE_STATES = Object.freeze(['running', 'boundary', 'handoff', 'shipping']);
-export const SETUP_ANSWERS = Object.freeze(['forecast', 'target-version', 'release-each-wave', 'output']);
+export const SETUP_ANSWERS = Object.freeze(['forecast', 'target-version', 'release-each-wave', 'output', 'budget']);
+/** 17.2: the budget lines, in percent of each rate-limit window (the yolo.usageBudget names). */
+export const DEFAULT_BUDGET = Object.freeze({ fiveHourSlow: 75, fiveHourPause: 90, sevenDayReserve: 15 });
+/** 17.5: a reading older than this is unknown. */
+export const READING_STALE_MS = 10 * 60 * 1000;
+/** 12.5: unshipped waves that may wait above the trunk. */
+export const DEFAULT_MAX_UNSHIPPED = 2;
+/** 13: the width when the project has an isolation contract and the config names none. */
+export const DEFAULT_WIDTH = 3;
 const CONTEXT_LONG_LINES = 200;
 
 // ---------------------------------------------------------------- units
@@ -322,6 +330,7 @@ export function newLedger({ brainstorm, revision, units, now = new Date().toISOS
     waiting: plan.waiting,
     questions: [],
     pause: null,
+    stack: null,
     revisions: [{ revision, at: now, note: 'planned from this revision' }],
   };
   for (const u of units) {
@@ -386,8 +395,19 @@ export function campaignAction(ledger, { revision = null } = {}) {
   const open = ledger.questions.filter((q) => !q['answered-at']);
   if (open.length) return { action: 'ask', questions: open };
   const unprepared = (w) => (w ? w.units.filter((k) => ledger.units[k]?.state === 'planned') : []);
-  const live = ledger.waves.find((w) => LIVE_WAVE_STATES.includes(w.state));
+  const lives = ledger.waves.filter((w) => LIVE_WAVE_STATES.includes(w.state));
+  const live = lives[0];
   const next = ledger.waves.find((w) => w.state === 'planned');
+  // Stage D2 (16.3, 12.5): with stacked wave PRs, the next wave builds on the
+  // wave below once that wave's slugs merged into its branch (handoff or
+  // later), while fewer than max-unshipped waves wait above the trunk.
+  const stacked = ledger.stack?.enabled && next && lives.length
+    && lives.every((w) => ['handoff', 'shipping'].includes(w.state))
+    && lives.length < (ledger.stack['max-unshipped'] ?? DEFAULT_MAX_UNSHIPPED);
+  if (stacked) {
+    const todo = unprepared(next);
+    return todo.length ? { action: 'prepare', wave: next.n, units: todo } : { action: 'start-wave', wave: next.n, beside: lives.map((w) => w.n) };
+  }
   if (live) return { action: 'running', wave: live.n, state: live.state, prepare: unprepared(next) };
   const stopped = ledger.waves.find((w) => w.state === 'stopped');
   if (stopped) return { action: 'stopped', wave: stopped.n };
@@ -488,8 +508,107 @@ export function renderContext({ unit, units, ledger, asBuilt = {}, drift = [], i
   L.push('## 5. Drift notes', '', 'Implementation-detail differences that the drift check recorded for this slug.', '');
   L.push(...(drift.length ? drift.map((d) => `- \`${d.from}/${d.key}\` (${d.text}): ${d.note ?? d.status}`) : ['- None.']), '');
   L.push('## 6. Isolation', '');
-  L.push(isolation ? `- ${isolation}` : '- Width 1, in the main checkout. No port base, no own build folder, no heavy-suite lock.', '');
+  L.push(isolation ? (isolation.startsWith('- ') ? isolation : `- ${isolation}`) : '- Width 1, in the main checkout. No port base, no own build folder, no heavy-suite lock.', '');
   return L.join('\n');
+}
+
+// ---------------------------------------------------------------- Stage D: isolation and width (13)
+
+/** The project's isolation contract from `.ai/sdlc-config.json`, or null when it is absent or not usable. */
+export function isolationOf(config) {
+  const iso = config?.campaign?.isolation;
+  if (!iso || typeof iso !== 'object') return null;
+  const ports = iso['port-env'];
+  if (!ports || typeof ports !== 'object' || Array.isArray(ports)) return null;
+  if (!Array.isArray(iso['build-dirs'])) return null;
+  return {
+    parallel: iso.parallel !== false,
+    'port-env': ports,
+    'build-dirs': iso['build-dirs'],
+    'heavy-suites': Array.isArray(iso['heavy-suites']) ? iso['heavy-suites'] : [],
+    'min-free-gb': Number.isFinite(iso['min-free-gb']) ? iso['min-free-gb'] : 20,
+  };
+}
+
+/** Each worktree gets base + 100 × index for each port variable. */
+export function portsFor(isolation, index) {
+  return Object.fromEntries(Object.entries(isolation?.['port-env'] ?? {}).map(([k, base]) => [k, Number(base) + 100 * index]));
+}
+
+/** How many drives may run at once (13, 17.3, 17.5). */
+export function effectiveWidth({ width = DEFAULT_WIDTH, isolation, budget = 'unknown' }) {
+  if (budget === 'pause') return 0;
+  if (!isolation || isolation.parallel === false) return 1;
+  if (budget !== 'ok') return 1;
+  return Math.max(1, Number(width) || 1);
+}
+
+/** The prepared units of wave n to start now, in packet order, so that at most `width` drives run. */
+export function driveSlots(ledger, n, width) {
+  const w = ledger.waves.find((x) => x.n === n);
+  if (!w) return [];
+  const running = w.units.filter((k) => ledger.units[k]?.state === 'running').length;
+  const free = Math.max(0, width - running);
+  return w.units
+    .filter((k) => ledger.units[k]?.state === 'prepared')
+    .sort((a, b) => (ledger.units[a].order ?? 0) - (ledger.units[b].order ?? 0))
+    .slice(0, free);
+}
+
+/** Part 6 of the context file for a drive in a worktree. */
+export function isolationText(isolation, { index, worktree, lockCmd, slug = '<slug>' }) {
+  const ports = Object.entries(portsFor(isolation, index)).map(([k, v]) => `\`${k}=${v}\``).join(', ');
+  const L = [];
+  L.push(`- Worktree: \`${worktree}\`. Run every command there. Never write in the main checkout or in another worktree.`);
+  if (ports) L.push(`- Ports: set ${ports} in the environment of every command that starts the app or the tests.`);
+  if (isolation['build-dirs'].length) L.push(`- Build folders: ${isolation['build-dirs'].map((d) => `\`${d}\``).join(', ')} stay inside this worktree. Never point a build at another worktree's folder.`);
+  for (const suite of isolation['heavy-suites']) {
+    L.push(`- Heavy suite \`${suite}\` runs only under the lock. Run \`${lockCmd} acquire ${slug}\` first. When it answers busy, wait, append a \`lock-wait\` line to the driver journal every 5 minutes, and try again. Run \`${lockCmd} release ${slug}\` after the suite ends, also when it fails.`);
+  }
+  return L.join('\n');
+}
+
+// ---------------------------------------------------------------- Stage D: stacked waves (16)
+
+/** The branch wave n starts from: the trunk, or (stacked) the newest unshipped wave branch below it. */
+export function waveBase(ledger, n, trunk) {
+  if (!ledger.stack?.enabled) return trunk;
+  const below = ledger.waves.filter((w) => w.n < n && w.state !== 'shipped' && w.state !== 'planned').sort((a, b) => b.n - a.n)[0];
+  return below ? (below.branch ?? `campaign/${ledger.brainstorm}/wave-${below.n}`) : trunk;
+}
+
+// ---------------------------------------------------------------- Stage D: usage (17)
+
+/** The newest of a list of usage readings `{ at, rateLimits }`. */
+export function newestReading(readings) {
+  return (readings ?? []).filter((r) => r && r.at && Array.isArray(r.rateLimits))
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0] ?? null;
+}
+
+/** 17.2–17.5: ok, slow, pause (with the reset time), or unknown. */
+export function budgetState(reading, budget = DEFAULT_BUDGET, { now = Date.now(), staleMs = READING_STALE_MS } = {}) {
+  const b = { ...DEFAULT_BUDGET, ...(budget ?? {}) };
+  if (!reading || !Array.isArray(reading.rateLimits) || !reading.rateLimits.length) return { state: 'unknown', reason: 'no reading' };
+  const age = now - Date.parse(reading.at);
+  if (!Number.isFinite(age) || age > staleMs) return { state: 'unknown', reason: `the newest reading is older than ${Math.round(staleMs / 60000)} minutes` };
+  const win = (kind) => reading.rateLimits.find((r) => r.kind === kind);
+  const five = win('five_hour');
+  const seven = win('seven_day');
+  if (seven && seven.percentUsed >= 100 - b.sevenDayReserve) {
+    return { state: 'pause', until: seven.resetsAt ?? null, reason: `7-day window at ${seven.percentUsed}%: the last ${b.sevenDayReserve}% is the person's reserve`, windows: reading.rateLimits };
+  }
+  if (five && five.percentUsed >= b.fiveHourPause) return { state: 'pause', until: five.resetsAt ?? null, reason: `5-hour window at ${five.percentUsed}%`, windows: reading.rateLimits };
+  if (five && five.percentUsed >= b.fiveHourSlow) return { state: 'slow', reason: `5-hour window at ${five.percentUsed}%`, windows: reading.rateLimits };
+  return { state: 'ok', windows: reading.rateLimits };
+}
+
+const USAGE_LIMIT_TEXT = /you(?:'|’)ve (?:reached|hit) your [^.\n]{0,40}\blimit\b|\busage limit\b[^.\n]{0,20}\breached|\bapi error: 429\b|\brate[_ ]limit(?:ed)?\b/i;
+
+/** P3: a failure caused by a usage limit — the rate_limit kind, status 429, or the limit text. A 529 is not one. */
+export function isUsageLimitFailure({ error = null, apiErrorStatus = null, text = '' } = {}) {
+  if (error === 'rate_limit' || Number(apiErrorStatus) === 429) return true;
+  if (error === 'server_error' || Number(apiErrorStatus) === 529) return false;
+  return USAGE_LIMIT_TEXT.test(String(text ?? ''));
 }
 
 function preLinesTooLong(pre, post) {

@@ -20,6 +20,8 @@ export type Settings = {
   hubNotice: boolean
   stageCompact: boolean
   probeJournal: boolean
+  /** The usage guard (WF-CAMPAIGN-PLAN.md 17). */
+  usageGuard: boolean
   /** The read check (ARTIFACT-SPLIT-PLAN.md S6): `warn`, `block`, or `off`. */
   readCheck: ReadCheckMode
 }
@@ -38,6 +40,7 @@ export const SETTING_NAMES: ReadonlyArray<SwitchName> = [
   'hubNotice',
   'stageCompact',
   'probeJournal',
+  'usageGuard',
 ]
 
 /** Every setting on, as the manifest defaults them. */
@@ -52,6 +55,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hubNotice: true,
   stageCompact: true,
   probeJournal: true,
+  usageGuard: true,
   readCheck: 'warn',
 }
 

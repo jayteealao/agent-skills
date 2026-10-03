@@ -87,6 +87,12 @@
       "description": "Record which parts of the mod ran, on which host and surface, in ~/.sdlc/mod-probe.jsonl (at most 400 rows, no prompt text); `npm run mod:probe` in the plugin directory prints the verdict.",
       "default": true
     },
+    "usageGuard": {
+      "type": "boolean",
+      "title": "Usage guard",
+      "description": "Read the 5-hour and 7-day usage windows, show them in the status line, and record them in ~/.claude/sdlc/usage/. When a live /wf campaign or /wf yolo run crosses its pause line, write a pause into the run's control file; when the window resets, clear that pause and submit the resume command.",
+      "default": true
+    },
     "readCheck": {
       "type": "string",
       "title": "Read check",

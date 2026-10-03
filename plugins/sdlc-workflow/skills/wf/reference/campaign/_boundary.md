@@ -9,7 +9,7 @@ The boundary driver (`workflows/campaign-boundary.js`) runs these steps as agent
 
 ## Slug output
 
-1. Check out the slug branch. When the working tree has uncommitted changes, do not stash and do not force: return `status: failed` with the reason.
+1. Check out the slug branch, in its worktree when it has one. When a tracked file has uncommitted changes, do not stash and do not force: return `status: failed` with the reason. Untracked files, such as the watch state, do not block.
 2. Run the recipe's `build-cmd`. When it fails, return `built: false` and the last 30 lines of its output as `failure`. A build failure is a verify failure for the slug.
 3. Copy each path or glob of the recipe's `artifacts` to the output folder.
 4. The build label is `wave-<n>.<slug>+<first 7 characters of the branch tip sha>`. Write it to `LABEL.txt` in the output folder, with the recipe's `try` text below it.
@@ -17,7 +17,7 @@ The boundary driver (`workflows/campaign-boundary.js`) runs these steps as agent
 
 ## Merge
 
-1. Check out the wave branch. When the working tree has uncommitted changes, return `status: failed`.
+1. Check out the wave branch in the wave worktree, `.scratch/campaign/<run-id>/wt/wave-<n>` (add it with `git -C <projectRoot> worktree add <path> <wave branch>` when it does not exist). The main checkout stays on the trunk, where the rolling prepare writes. When a tracked file has uncommitted changes, return `status: failed`. Untracked files do not block.
 2. Merge each slug branch in the order that the prompt gives, one at a time: `git -C <projectRoot> merge --no-ff <slug branch> -m "<the slug's change in product language>"`.
 3. On a conflict, apply this table. Then either finish the merge, or run `git merge --abort` and record that slug as not merged.
 

@@ -5,6 +5,35 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+`/wf campaign` Stage D: the slugs of a wave drive at once in their own worktrees, the wave PRs form a gh-stack stack, and a usage guard in the mod narrows, pauses, and resumes a run against the 5-hour and 7-day windows. The probes behind each rule are in `docs/internal/CAMPAIGN-PROBES.md`.
+
+### Added
+
+- **Parallel drives (D1).** With an isolation contract (`campaign.isolation` in `.ai/sdlc-config.json`: `port-env` with base values, `build-dirs`, `heavy-suites`, `min-free-gb`), up to `campaign.width` (default 3) slugs of a wave drive at once. `campaign.mjs worktree <key> add` makes the slug's worktree and branch from the wave branch, copies the prepared workflow folder in, checks the free disk, and gives the drive its ports (base + 100 × index); `remove` never forces. The context file names the worktree, the ports, the build folders, and the heavy-suite lock (`campaign.mjs lock acquire|release <slug>`, one holder, stale after 3 hours). Each drive is a yolo Workflow with `projectRoot` set to its worktree; probe P1 showed two Workflows from one session run at once without crossing worktrees.
+- **Stacked wave PRs (D2).** With gh-stack v0.1.0 or later, orient turns the stack on (`campaign.stack: false` keeps plain PRs). The next wave starts on the wave branch below while that wave waits in handoff or ship, up to `campaign.max-unshipped` (default 2). `reference/campaign/_gh-stack.md` lists every `gh stack` command with its lowest version: `link` needs two PRs, `link <stack> <pr>` appends, `rebase --upstack` moves the upper waves at a boundary (exit 3 is a conflict), and `submit` is never used because it opens drafts.
+- **The usage guard (D3).** The sdlc mod reads the rate-limit windows at each `session.measure` and every minute, shows them in the status line, and writes the newest reading to `~/.claude/sdlc/usage/<session>.json` with each change in `<session>.history.jsonl`. When a live campaign or yolo run crosses its pause line, it writes the pause into the run's control file; when the window resets, it clears its own pause and submits the resume command. The switch is `usageGuard`. `campaign.mjs budget` gives the state (`ok`, `slow`, `pause`, `unknown`) and the width it allows; the setup asks for the budget (`budget`: 75% slow, 90% pause, 15% 7-day reserve).
+- **Usage-limit failures.** A failure with kind `rate_limit`, status 429, or the "You've reached your … limit" text is a usage pause, not a failure. A 529 Overloaded is not one. Inside a Workflow an agent that failed returns nothing, so the campaign checks the newest reading instead.
+- **`campaign` settings in the config schema:** `output`, `width`, `isolation`, `stack`, `max-unshipped`. Stage C already wrote `campaign.output`, which the schema refused.
+
+### Changed
+
+- **Ship merges a stacked PR with `gh stack merge`.** `gh pr merge` refuses a PR that is in a stack (probe P2). Before ship, the campaign sets each slug's `base-branch` to the trunk, because GitHub moved the PR there when the wave below merged.
+- **The wave merge runs in a wave worktree** (`wt/wave-<n>`), so the main checkout stays on the trunk for the rolling prepare. Merged slug branches are deleted there at the boundary: after a squash merge or a stack rebase, `branch -d` refuses them.
+- **Width 1 without a usage reading.** With an isolation contract, the drives then run one at a time in their worktrees.
+
+### Fixed
+
+Found by a live campaign on a scratch project (3 packets, 2 stacked waves, both shipped):
+
+- **The drive records reach the wave merge.** The drive left its verify and review records uncommitted, and the merge carries only commits. The run-end note now comes first, then a `chore(<slug>): record the drive` commit; only tracked changes block a merge.
+- **Orient reports a missing ship plan** as a tool gap (`/wf ship-plan init`): handoff and ship stop without one.
+- **`worktree <key> remove` deletes the watch cursor first.** Left in place, the untracked `.watch-state.json` made git refuse the remove.
+- **The watch:** a first campaign watch emits the events of the last 5 minutes, so the wave-start written just before it is not lost; a slug journal that a merge brings in is history, not new stage events; a re-armed watch over a finished run is silent; a `wave-end` ends the watch only when no other started wave is open, because wave n ships while wave n+1 runs.
+- **`gh stack merge` moves the next wave.** After a squash merge it rebases the next wave branch and force-pushes it; `_gh-stack.md` says to move the local branch to its remote before a commit, and that `sync` needs local tracking.
+- **The eval harness ignores a seeded `AGENTS.md` or `CLAUDE.md`** whose only content is the sdlc fence.
+
 ## [9.178.0] - 2026-10-03
 
 `/wf yolo` watches its own run and gives a running commentary. The person can stop a run at the next stage boundary. `/wf campaign` drives the work packets of a brainstorm in dependency waves, one PR per wave.

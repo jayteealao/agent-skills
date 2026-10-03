@@ -26,6 +26,7 @@ Ask the setup questions in one batch, per [../_gate-question.md](../_gate-questi
 | `target-version` | The version the campaign builds toward, for example `0.3.0` (V1). | A string. The script sets `"none"` when the project has no ship plan or `version-scheme: none`. |
 | `release-each-wave` | Push each wave tag as a pre-release, or merge each wave only? | `true` or `false`. It holds for the whole campaign. |
 | `output` | How to build the output, and how a person uses it. | `{"build-cmd", "artifacts", "try"}` |
+| `budget` | The usage budget: above 75% of the 5-hour window, no new slug starts while another runs; at 90%, the campaign pauses until the reset; the last 15% of the 7-day window is kept for the person. Keep these, or change a line? | `"default"`, or `{"fiveHourSlow", "fiveHourPause", "sevenDayReserve"}` |
 
 For `output`, take the recipe from the first source that has one:
 
@@ -35,7 +36,18 @@ For `output`, take the recipe from the first source that has one:
 
 CAUTION: the release question is about permanent tags. A pushed tag cannot be re-used: a fixed release takes a new version. Say this when you ask.
 
-For each tool gap from Phase 0, ask the person to fix it. The campaign does not change the person's tools.
+For each tool gap from Phase 0, ask the person to fix it. The campaign does not change the person's tools. A `gh-stack` gap turns stacked wave PRs off (`<cmd> stack disable`) until the person upgrades it. A `ship-plan` gap needs `/wf ship-plan init` with the person before wave 1 reaches handoff: handoff and ship stop without a plan.
+
+**Width.** Slugs of one wave run at once only under an isolation contract, `campaign.isolation` in `.ai/sdlc-config.json`. When the project has none, ask the person for one, in the same batch, and write the answer there:
+
+```json
+{ "campaign": { "width": 3, "isolation": { "parallel": true, "port-env": { "PORT": 3000 }, "build-dirs": ["target"], "heavy-suites": ["npx playwright test"], "min-free-gb": 20 } } }
+```
+
+- `port-env`: each port variable with its base value. The drive with index i gets base + 100 × i.
+- `build-dirs`: the build folders each worktree keeps for itself.
+- `heavy-suites`: the test commands that only one worktree may run at a time.
+- `parallel: false`: keep width 1 for this project. Without a contract the width is 1, in the main checkout.
 
 ## Rolling prepare
 

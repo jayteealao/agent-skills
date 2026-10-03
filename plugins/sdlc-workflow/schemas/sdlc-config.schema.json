@@ -268,6 +268,94 @@
           }
         }
       }
+    },
+    "campaign": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "/wf campaign settings (WF-CAMPAIGN-PLAN.md). The campaign writes output in Phase 1 when the person gives the recipe.",
+      "properties": {
+        "output": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "14.2: how to build a slug or wave output, and how a person uses it.",
+          "properties": {
+            "build-cmd": {
+              "type": "string",
+              "description": "The command that builds the output."
+            },
+            "artifacts": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "The paths or globs to copy into the output folder."
+            },
+            "try": {
+              "type": "string",
+              "description": "How a person installs or runs the output."
+            }
+          },
+          "required": ["build-cmd", "artifacts", "try"]
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8,
+          "default": 3,
+          "description": "13: how many slugs of one wave drive at once under an isolation contract."
+        },
+        "isolation": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "13: the isolation contract. Without it the width is 1, in the main checkout.",
+          "properties": {
+            "parallel": {
+              "type": "boolean",
+              "default": true,
+              "description": "false keeps width 1 for this project."
+            },
+            "port-env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "description": "Each port variable with its base value; the drive with index i gets base + 100 × i."
+            },
+            "build-dirs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "The build folders each worktree keeps for itself."
+            },
+            "heavy-suites": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "The test commands that only one worktree may run at a time."
+            },
+            "min-free-gb": {
+              "type": "number",
+              "minimum": 0,
+              "default": 20,
+              "description": "The free disk space a new worktree needs."
+            }
+          },
+          "required": ["port-env", "build-dirs"]
+        },
+        "stack": {
+          "type": "boolean",
+          "default": true,
+          "description": "16: false keeps plain wave PRs against the trunk even when gh-stack v0.1.0 or later is installed."
+        },
+        "max-unshipped": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 2,
+          "description": "12.5: unshipped waves that may wait above the trunk."
+        }
+      }
     }
   }
 }

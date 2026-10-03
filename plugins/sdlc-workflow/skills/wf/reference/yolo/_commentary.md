@@ -120,7 +120,7 @@ The person can stop the run at a stage boundary, for example "stop after the cur
   node "<pluginRoot>/scripts/yolo-watch.mjs" "<projectRoot>" <slug-1> <slug-2> ... --campaign <brainstorm-slug>
   ```
 
-  The source is the main checkout. A slug's `run-end` does not end this watch, because the boundary and the next slug still run. The campaign journal's `wave-end` or `campaign-end` line ends it. To end it early, run `yolo-watch.mjs end "<projectRoot>" - --campaign <brainstorm-slug>`.
+  The source is the main checkout. A slug's `run-end` does not end this watch, because the boundary and the next slug still run. The campaign journal's `campaign-end` line ends it, and so does a `wave-end` line when no other started wave is still open (waves overlap: wave n ships while wave n+1 runs). To end it early, run `yolo-watch.mjs end "<projectRoot>" - --campaign <brainstorm-slug>`.
 - **K2. Parallel slugs.** A `stage-end` event carries `parallel`, the number of slugs with a stage open. When `parallel` is more than 1, give the stage end one line, not a full note. Give the full note at that slug's `run-end`.
 - **K3. Campaign events.** Each of these gets a full note:
 

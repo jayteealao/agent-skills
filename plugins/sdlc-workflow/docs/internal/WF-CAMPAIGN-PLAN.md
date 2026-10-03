@@ -1,6 +1,6 @@
 # WF-CAMPAIGN-PLAN — `/wf campaign`, many slugs in dependency waves
 
-Status **Stage C built 2026-10-03 (C1–C7, unreleased); Stage A, C8, and Stage D open — see section 23** · Date **2026-10-02** · Plugin **v9.176.0** · Owner **jayte**
+Status **Stage C shipped v9.178.0; Stage A run, Stage D built, and the C8/D4 scratch trial run 2026-10-03 (unreleased); the realism run is open — see section 23** · Date **2026-10-02** · Plugin **v9.176.0** · Owner **jayte**
 Depends on: [BRAINSTORM-WORK-PACKETS-PLAN.md](BRAINSTORM-WORK-PACKETS-PLAN.md) (the campaign reads work packets) and [YOLO-COMMENTARY-PLAN.md](YOLO-COMMENTARY-PLAN.md) (the watch and the control file). Section 5 gives the order.
 
 ## 1. Why
@@ -833,10 +833,12 @@ SURFACE-POLICY.md admits a new key only with five items. These are the five for 
 | C5 | Built as procedure. One PR per wave against the trunk, through `/wf handoff` and `/wf ship` in batch mode. | `_waves.md`, "Handoff and ship per wave" |
 | C6 | Built. `pause` writes the campaign control file; every yolo agent reads it fresh. | `scripts/campaign.mjs`, `_waves.md`, "Pause and resume" |
 | C7 | Built. The `work-changed` action, `replan`, and the pick-up table. | `_phases.md`, "Reopen pick-up" |
-| C8 | Open. A live run on the realism work needs the person: Phase 1 and every prepare are the person's answers. | — |
-| A1 | Open. Probes P1–P8 are not run. | — |
-| D1–D3 | Open. Each one waits on its probes. D2 also needs gh-stack v0.1.0; this machine has v0.0.2. | — |
-| D4 | Open. A live run; it needs D1–D3 and the person. | — |
+| C8 | Run on a scratch project first (`jayteealao/campaign-probes`, the `tally` tool, 3 packets, 2 waves), by the person's choice. Both waves shipped (PR #6 `0d993e3`, PR #7 `e2c6ff2`); 3 of 3 carried decisions honoured; wave 1 took 43 minutes, wave 2 took 28. No reopen and no `add` ran: the realism run with them is open. Findings below. | `.campaign-probes/trial/` (outside the repo) |
+| A1 | Run. P1, P2, P6, P7, P8 pass (P2 and P7 with changes); P3 passes for the session and falls back inside the Workflow; P4 and P5 need a session that runs the usage guard. | `docs/internal/CAMPAIGN-PROBES.md` |
+| D1 | Built. `campaign.isolation`, `worktree <key> add\|remove`, `lock acquire\|release`, `budget`, the width rule, and the isolation part of the context file. | `lib/campaign.mjs`, `scripts/campaign.mjs`, `_waves.md` step 5 |
+| D2 | Built. `stack enable\|disable\|set`, the gh-stack tool gap below v0.1.0, the stacked wave start, `max-unshipped`, and `_gh-stack.md`. gh-stack on this machine is v0.2.0. | `campaign/_gh-stack.md`, `_waves.md` "Handoff and ship per wave" |
+| D3 | Built. The usage guard in the sdlc mod: readings, the status line, the pause into the control file, the resume prompt. Setting `usageGuard`. | `hooks/mod/usage.ts`, `hooks/mod/usage-guard.ts`, `hooks/mod/register.ts` |
+| D4 | Partly run with C8: worktrees, stacked PRs (stack #8, `link`, `merge`), ship plan, cleanup. Width stayed 1 (no usage reading in the 9.178.0 mod), so width 3 and the guard are open for the realism run. | — |
 
 The commentary plan's W5 (the watch in a campaign, K1–K6) is built with Stage C. See YOLO-COMMENTARY-PLAN.md section 7.
 
@@ -845,4 +847,17 @@ The commentary plan's W5 (the watch in a campaign, K1–K6) is built with Stage 
 - **A shape change at prepare goes through the brainstorm.** The plan let prepare record a changed contract line as `revised-by: shape`. The brainstorm owns the packets, and the packet hook freezes a started packet, so the campaign asks the person to change the line with `/wf brainstorm <slug> add` in the brainstorm session instead.
 - **"Merge each wave only" uses ship for its gates and its merge.** It bumps nothing, tags nothing, and publishes nothing. When ship has no way to skip one of those steps, the campaign asks the person.
 - **The campaign script, not the session, writes the ledger.** Every ledger change goes through `scripts/campaign.mjs`, which also regenerates `ledger.md`. The boundary driver returns its outcome and never edits the ledger.
+- **The usage guard runs from `register.ts`.** A mod has one module and may hook each event once, so `usage-guard.ts` exports `start` and `measure`, and `register.ts` calls them from its own `session.start` and `session.measure` hooks.
+- **`port-env` is a map.** Each port variable maps to its base value; drive i gets base + 100·i.
+- **Setup asks a `budget` answer.** The person keeps 75 / 90 / 15 or sets other lines.
+- **P2 changed ship.** A stacked PR merges with `gh stack merge <pr> --yes --<method>`, and `base-branch` moves to the trunk before ship.
+- **`gh stack link` needs two PRs.** Wave 1's PR joins the stack when wave 2's PR opens.
+- **A budget without a reading gives width 1.** With an isolation contract, the drives then run one at a time in their worktrees (found in the trial; `_waves.md` step 5 now says so).
+- **`worktree <key> remove` deletes the watch cursor first.** `.watch-state.json` is machine-local and never committed; left in place, git refuses the remove (found in the trial).
+- **`gh stack merge` rebases the next wave.** After a squash merge it rebases the next wave branch onto the trunk and force-pushes it, which drops the wave's merge commits. `_gh-stack.md` says to move the local branch to its remote before a commit.
+- **`gh stack sync` needs local tracking.** `link` creates the stack on GitHub only, and `sync` exits with "is not part of a stack". Two waves need no `sync`; three or more are untested.
+- **Slug branches are deleted at the boundary.** After a squash merge or a stack rebase, `branch -d` refuses every slug branch. The boundary deletes them in the wave worktree, where the wave branch holds their merge.
+- **The wave merge runs in a wave worktree.** The boundary agents checked out each wave branch in `wt/wave-<n>`, so the main checkout stays on the trunk for the rolling prepare. `_boundary.md` now says so.
+- **A wave-end ends the watch only when no other wave is open.** Wave n ships while wave n+1 runs; the old rule ended the wave n+1 watch.
+- **Open: the tokens per wave are unknown.** The cost hook writes each turn to the active slug of the session, the brainstorm. The yolo drives run inside the campaign session, so the slugs have no `cost.jsonl`, and step 10 reads them.
 - **The yolo commentary file does not link `campaign.md`.** That one link put the whole campaign graph into the yolo graph (yolo measured 66 files with the link and 29 without it), so the commentary names the key in plain text.

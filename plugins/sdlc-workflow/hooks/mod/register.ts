@@ -128,6 +128,7 @@ import {
 } from './readledger.ts'
 import type { CheckResult, Io, ReadFact, ReadLedger, RequiresEntry, WriteMatch } from './readledger.ts'
 import { REQUIRES } from './requires.ts'
+import { createUsageGuard } from './usage-guard.ts'
 
 /**
  * The store key a test puts a fixture Requires table under; the engine loads
@@ -278,6 +279,10 @@ export function register(on: On, options: PluginOptions = {}) {
   let host: Host | null = null
   let model: Model = EMPTY
   let settings: Settings = settingsOf(options ?? {})
+  // The usage guard (WF-CAMPAIGN-PLAN.md 17): its own file, called from this module's session hooks.
+  const usageGuard = createUsageGuard(() => settings.usageGuard)
+  /** The usage guard's windows for the status line, or null before its first reading. */
+  let usageText: string | null = null
   let bracket: Bracket | null = null
   /**
    * A `/wf` turn that ended while its background sub-agents still ran. The
@@ -432,15 +437,16 @@ export function register(on: On, options: PluginOptions = {}) {
     engine.invalidate()
   }
 
-  /** The pinned status line: the driver's heartbeat while one is watched, else the strip's short text. */
+  /**
+   * The pinned status line: the driver's heartbeat while one is watched, else the strip's short text,
+   * then the usage guard's two windows.
+   */
   function drawStatus(engine: Host): void {
     if (!isTerminal()) return
-    if (driverText !== null) {
-      engine.status(driverText)
-      return
-    }
     const workflow = activeWorkflow()
-    engine.status(settings.strip && workflow !== null ? statusTextOf(workflow, settings.cost ? model.lastStageUsd : null, settings.hubNotice ? model.hub : null) : undefined)
+    const base = driverText ?? (settings.strip && workflow !== null ? statusTextOf(workflow, settings.cost ? model.lastStageUsd : null, settings.hubNotice ? model.hub : null) : null)
+    const text = [base, usageText].filter(part => part !== null && part !== '').join(' · ')
+    engine.status(text === '' ? undefined : text)
   }
 
   function stopDriver(): void {
@@ -576,7 +582,50 @@ export function register(on: On, options: PluginOptions = {}) {
     return { options: sliceOptions(step, await readSlices(engine, step.slug)) }
   }
 
+  on('session.measure', async ($, e, next) => {
+    await usageGuard.measure(e)
+    return next(e)
+  })
+
   on('session.start', async ($, e, next) => {
+    usageGuard.start({
+      cwd: e.cwd,
+      home: async () => (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')),
+      sessionId: async () => {
+        try {
+          return await $.session.id()
+        } catch {
+          return ''
+        }
+      },
+      now: () => $.clock.now(),
+      usage: async () => (await $.session.usage()).rateLimits,
+      read: async path => {
+        try {
+          return (await $.fs.exists(path)) ? await $.fs.read(path) : null
+        } catch {
+          return null
+        }
+      },
+      write: (path, text) => $.fs.write(path, text),
+      list: async path => {
+        try {
+          return await $.fs.list(path)
+        } catch {
+          return []
+        }
+      },
+      exists: path => $.fs.exists(path),
+      status: text => {
+        usageText = text ?? null
+        if (host !== null && model.step === null) drawStatus(host)
+      },
+      toast: text => $.ui.toast(text),
+      submit: text => $.prompt.submit({ text }),
+      storeGet: key => $.store.get(key),
+      storeSet: (key, value) => $.store.set(key, value),
+      every: (ms, fn) => $.clock.every(ms, fn),
+    })
     model = { ...EMPTY, surface: e.surface, interactive: e.isInteractive }
     host = null
     journal = null
@@ -1196,7 +1245,7 @@ export function register(on: On, options: PluginOptions = {}) {
     const text = (await readIfPresent(engine, joinPath(model.root, '.ai', 'workflows', slug, '.driver-journal.jsonl'))) ?? ''
     const beats = beatsOf(text)
     driverText = driverStatusOf(key, beats, await engine.now())
-    if (model.step === null) engine.status(driverText)
+    if (model.step === null) drawStatus(engine)
     if (driverText.includes('presumed dead')) {
       const run = beats[beats.length - 1]?.run ?? ''
       if (deadToastedRun !== run) {

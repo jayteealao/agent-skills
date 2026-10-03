@@ -114,6 +114,27 @@ test('a first watch with no state skips the history, unless --since asks for it'
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('a re-armed watch over a finished run is silent: a newest run-end line is never stale', () => {
+  const root = makeRepo();
+  try {
+    journal(root,
+      { at: at(0), run: 'r1', seq: 1, event: 'agent-start', agent: 'plan:auth', stage: 'plan', slice: 'auth' },
+      { at: at(2), run: 'r1', seq: 1, event: 'agent-end', agent: 'plan:auth', status: 'complete' },
+      { at: at(3), run: 'r1', event: 'run-end', agent: 'main-session' },
+    );
+    let now = T0 + 4 * 60000;
+    const first = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: () => now });
+    assert.deepEqual(first.pollJournals(), []);
+    first.save();
+    // The re-arm loads the saved state, which resets `ended` for a relaunch.
+    now = T0 + 10 * 60000;
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: () => now });
+    assert.deepEqual(w.pollJournals(), []);
+    now = T0 + 60 * 60000;
+    assert.deepEqual(w.pollJournals(), [], 'no stale for a run that ended');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('a silent journal emits stale once; a silent journal that ended emits run-end', () => {
   const root = makeRepo();
   try {
@@ -384,6 +405,36 @@ test('K1/K3: one watch over the wave\'s slugs and the campaign journal; campaign
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('K1: a first campaign watch emits the campaign events of the last 5 minutes, so the wave-start written just before it is not lost', () => {
+  const root = makeRepo();
+  try {
+    makeCampaign(root);
+    appendFileSync(W.campaignJournalPath(root, B), `${JSON.stringify({ at: at(-60), event: 'wave-start', wave: 1, units: ['W0'] })}\n`);
+    appendFileSync(W.campaignJournalPath(root, B), `${JSON.stringify({ at: at(-1), event: 'wave-start', wave: 2, units: ['W1'] })}\n`);
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], campaign: B, now: clockAt(0) });
+    const ev = w.pollJournals();
+    assert.deepEqual(ev.map((e) => `${e.event}:${e.wave}`), ['wave-start:2']);
+    assert.deepEqual(w.pollJournals(), []);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('K1: a slug journal that a merge brings in later is history, not new stage events', () => {
+  const root = makeRepo();
+  try {
+    makeCampaign(root);
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], campaign: B, now: clockAt(0) });
+    assert.deepEqual(w.pollJournals(), []);
+    // The drive ran in a worktree; the wave merge now brings its committed journal in.
+    const runId = 'r-old';
+    mkdirSync(path.dirname(W.journalPath(root, SLUG)), { recursive: true });
+    appendFileSync(W.journalPath(root, SLUG), `${JSON.stringify({ at: at(-30), run: runId, seq: 1, event: 'agent-start', agent: 'plan:s1', stage: 'plan', slice: 's1' })}\n`);
+    appendFileSync(W.journalPath(root, SLUG), `${JSON.stringify({ at: at(-28), run: runId, seq: 2, event: 'agent-end', agent: 'plan:s1', stage: 'plan', slice: 's1', status: 'complete' })}\n`);
+    assert.deepEqual(w.pollJournals().filter((e) => e.slug === SLUG), []);
+    appendFileSync(W.journalPath(root, SLUG), `${JSON.stringify({ at: at(1), run: 'r-new', seq: 1, event: 'agent-start', agent: 'plan:s2', stage: 'plan', slice: 's2' })}\n`);
+    assert.deepEqual(w.pollJournals().map((e) => e.event), ['stage-start']);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('K3 work-changed: a new work-revision from the brainstorm session is an event', () => {
   const root = makeRepo();
   try {
@@ -410,6 +461,23 @@ test('in a campaign a slug\'s run-end does not end the watch; the wave-end does'
     assert.equal(w.allEnded(), true);
     w.save();
     assert.ok(existsSync(W.campaignStatePath(root, B)), 'the campaign offsets persist');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('waves overlap: wave 1 shipping does not end the watch while wave 2 is open', () => {
+  const root = makeRepo();
+  try {
+    makeCampaign(root);
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], campaign: B, now: clockAt(0) });
+    w.pollJournals();
+    campLine(root, { event: 'wave-start', wave: 1 });
+    campLine(root, { event: 'wave-start', wave: 2 });
+    campLine(root, { event: 'wave-end', wave: 1, state: 'shipped' });
+    w.pollJournals();
+    assert.equal(w.allEnded(), false, 'wave 2 is still open');
+    campLine(root, { event: 'wave-end', wave: 2, state: 'shipped' });
+    w.pollJournals();
+    assert.equal(w.allEnded(), true);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

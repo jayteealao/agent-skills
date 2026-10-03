@@ -112,11 +112,13 @@ type World = {
   surfaces: RenderSurface[]
   /** True makes the status-line mock throw, as a surface without one would. */
   statusThrows: boolean
+  /** Every prompt a plugin submitted, in order. */
+  submitted: string[]
 }
 
 /** The world beneath the mod: a session in /work, the tree above, an empty band. */
 function seat(on: On, tree: Record<string, string> = TREE): World {
-  const world: World = { registered: [], filled: [], logged: [], focused: [], toasts: [], suggested: [], statuses: [], opened: [], usd: 1, percent: 62, compacted: [], compactAnswers: ['done'], hub: HUB_HEALTH, mtimes: new Map(), clock: null as unknown as MockClock, props: null, written: new Map(), surfaces: ['terminal'], statusThrows: false }
+  const world: World = { registered: [], filled: [], logged: [], focused: [], toasts: [], suggested: [], statuses: [], opened: [], usd: 1, percent: 62, compacted: [], compactAnswers: ['done'], hub: HUB_HEALTH, mtimes: new Map(), clock: null as unknown as MockClock, props: null, written: new Map(), surfaces: ['terminal'], statusThrows: false, submitted: [] }
   const dirs = new Set<string>()
   for (const file of Object.keys(tree)) {
     const parts = file.split('/')
@@ -196,7 +198,11 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
   on('session.id', () => ({ value: 'abcdef0123456789' }))
   on('session.surfaces', () => ({ value: [...world.surfaces] }))
   on('session.attach', ($, e) => ({ clientId: e.clientId }))
-  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('prompt.submit', ($, e) => {
+    world.submitted.push(e.text)
+    return { text: e.text }
+  })
+  on('session.measure', ($, e) => ({ changed: e.changed }))
   on('fs.write', ($, e) => {
     world.written.set(normal(e.path), e.text)
     return { value: undefined }
@@ -1098,7 +1104,7 @@ describe('register', () => {
     const load = probeRows(world)
     expect(load[0]).toMatchObject({ event: 'load', ok: true, host: 'cli', session: 'abcdef01' })
     expect(load[0]?.['detail']).toContain('root /work')
-    expect(load[1]).toMatchObject({ event: 'commands', ok: true, detail: '25/25' })
+    expect(load[1]).toMatchObject({ event: 'commands', ok: true, detail: '26/26' })
     await turn($, '/wf implement alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md'])
     await world.clock.advance(1)
     await settle()
@@ -1142,5 +1148,40 @@ describe('register', () => {
     await world.clock.advance(1)
     await settle()
     expect(world.compacted).toHaveLength(1)
+  })
+})
+
+describe('usage guard', () => {
+  const LEDGER_PATH = '/work/.ai/workflows/realism/work/campaign/ledger.json'
+  const CONTROL_PATH = '/work/.ai/workflows/realism/work/campaign/.control.json'
+  const liveLedger = JSON.stringify({ waves: [{ n: 1, state: 'running', units: ['A'] }], units: { A: { slug: 'engine' } }, pause: null, answers: { budget: null } })
+
+  test('a reading over the pause line writes the reading, the status, a toast, and the campaign pause; the reset clears it and resumes', async ($, on) => {
+    const world = seat(on, { ...TREE, [LEDGER_PATH]: liveLedger })
+    await $.session.start(SESSION)
+    const resetsAt = new Date(world.clock.now() + 120_000).toISOString()
+    await $.session.measure({ context: { window: 200000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 91, resetsAt }, { kind: 'seven_day', percentUsed: 20 }], changed: ['rateLimits'] })
+    await settle()
+    const reading = JSON.parse(world.written.get('/home/.claude/sdlc/usage/abcdef0123456789.json') ?? '{}')
+    expect(reading.rateLimits[0]).toMatchObject({ kind: 'five_hour', percentUsed: 91 })
+    expect(world.written.get('/home/.claude/sdlc/usage/abcdef0123456789.history.jsonl')).toContain('"five_hour":91')
+    expect(world.statuses.some(s => (s ?? '').includes('usage 5h 91% · 7d 20%'))).toBe(true)
+    expect(world.toasts.some(t => t.includes('5-hour window at 91%'))).toBe(true)
+    const control = JSON.parse(world.written.get(CONTROL_PATH) ?? '{}')
+    expect(control).toMatchObject({ action: 'pause', scope: 'campaign', until: resetsAt, by: 'usage-guard' })
+
+    await world.clock.advance(180_000)
+    await settle()
+    expect(JSON.parse(world.written.get(CONTROL_PATH) ?? '{}')).toMatchObject({ action: 'none', clearedBy: 'usage-guard' })
+    expect(world.submitted).toContain('The usage window reset. Resume the run with /wf campaign realism.')
+  })
+
+  test('with usageGuard off nothing is read or written', async ($, on) => {
+    const world = seat(on, { ...TREE, [LEDGER_PATH]: liveLedger })
+    await setSetting($, 'usageGuard', false)
+    await $.session.start(SESSION)
+    await $.session.measure({ context: { window: 200000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 95 }], changed: ['rateLimits'] })
+    await settle()
+    expect([...world.written.keys()].some(k => k.includes('/usage/'))).toBe(false)
   })
 })

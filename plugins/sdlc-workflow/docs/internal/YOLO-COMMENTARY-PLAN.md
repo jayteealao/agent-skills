@@ -1,6 +1,6 @@
 # YOLO-COMMENTARY-PLAN — a built-in watch and running commentary for yolo and campaign
 
-Status **W0–W3 and W5 built 2026-10-03 (unreleased); W4 open — see section 7** · Date **2026-10-02** · Plugin **v9.176.0** · Owner **jayte**
+Status **W0–W3 and W5 shipped v9.178.0; W4 run on the campaign trial 2026-10-03 — see section 7** · Date **2026-10-02** · Plugin **v9.176.0** · Owner **jayte**
 Used by: [WF-CAMPAIGN-PLAN.md](WF-CAMPAIGN-PLAN.md), section 20. This plan is Stage B2 of the campaign plan (section 5): it ships first, and it helps single-slug yolo runs without the campaign.
 
 ## 1. Why
@@ -149,7 +149,7 @@ Built 2026-10-03, after v9.177.1, not yet released.
 | W1 | Built. All ten events. | `scripts/yolo-watch.mjs` |
 | W2 | Built. | `skills/wf/reference/yolo/_commentary.md`, yolo.md Step 1 and Step 2 |
 | W3 | Built. 5 tests, with stub agents for `driveChain`. | `yolo.js` (`stopCheckClause`, `stopKindOf`, `STAGE_RESULT.status`), `tests/unit/skills/yolo-stop-request.test.mjs` |
-| W4 | Open. A live run on one SoccerManager slug needs the person. | — |
+| W4 | Run on the campaign scratch trial (3 slugs, 2 waves) instead of a SoccerManager slug. It found and fixed 4 bugs, each with a red-first test: a missed wave-start, merged journals replayed as new events, false stale events on a re-armed watch, and a wave-end that ended the watch of the next wave. | `scripts/yolo-watch.mjs`, `tests/unit/yolo-watch.test.mjs` |
 | W5 | Built with campaign Stage C. K1–K6: one watch per wave over its slugs and the campaign journal, `parallel` on each stage end, the campaign events, `note --campaign`, and `control --campaign --scope`. 5 tests. Width 1 only until campaign Stage D1 runs slugs in parallel. | `scripts/yolo-watch.mjs`, `reference/yolo/_commentary.md` "In a campaign" |
 
 Departures from the plan:

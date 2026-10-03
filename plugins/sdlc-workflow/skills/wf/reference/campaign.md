@@ -19,7 +19,7 @@ You are running `/wf campaign <brainstorm-slug>`. A brainstorm that ends in many
 - **The brainstorm owns the board and the packets.** The campaign only reads them. The campaign owns `work/campaign/` and, while it is live, the main checkout's `INDEX.md` ([_control-file-ownership.md](_control-file-ownership.md)).
 - **One session runs the campaign.** It announces in chat that it is the campaign session. The person reopens the brainstorm in another session. When the person opens the brainstorm here, say once that it belongs in another session, and continue.
 
-This is Stage C of the campaign plan: one slug at a time, in the main checkout, one PR per wave against the trunk. A wave starts after the previous wave merged.
+Each wave is one PR. With an isolation contract, the slugs of a wave run at once, each in its own worktree. With stacked PRs, the next wave starts on the wave branch below before that wave merged ([campaign/_gh-stack.md](campaign/_gh-stack.md)). A usage budget narrows or pauses the campaign before a limit stops it.
 
 ## Step 0 — Resolve
 
@@ -93,7 +93,7 @@ A build packet (form `intake`, `extension`, `fix`, `hotfix`) is a unit. A `task`
 | `orient` | Phase 0: check the work set, compute the waves, write the ledger and the forecast |
 | `status` | The next action and the ledger summary |
 | `replan` | Re-read the packets; re-plan the waves that did not start |
-| `answer <key> <json>` | Record a setup answer: `forecast`, `target-version`, `release-each-wave`, `output` |
+| `answer <key> <json>` | Record a setup answer: `forecast`, `target-version`, `release-each-wave`, `output`, `budget` |
 | `unit <key> <state> [--route r] [--merge sha] [--digest json]` | Set a unit's state, its route, its merge commit, or its yolo decision digest |
 | `outside <key> closed\|needs-you` | Close a task, investigate, or discover packet; its dependents re-plan |
 | `wave <n> start` | Start a wave with its prepared units; the unprepared ones move on |
@@ -106,10 +106,15 @@ A build packet (form `intake`, `extension`, `fix`, `hotfix`) is a unit. A `task`
 | `label <n> [<slug>]` | The build label of a wave or slug branch tip |
 | `journal <event> [<json>]` | Append a campaign event for the watch |
 | `forecast [--wave n --minutes m --tokens t]` | Update the forecast with the real numbers of a wave |
+| `budget` | The usage state (`ok`, `slow`, `pause`, `unknown`) from the newest reading, and the width it allows |
+| `worktree <key> add|remove` | Make or remove a unit's worktree, slug branch, and ports; `remove` never forces |
+| `lock acquire|release <slug>` | The heavy-suite lock: one holder at a time |
+| `stack enable|disable|set <n>` | Stacked wave PRs on or off, and the stack number on GitHub |
 
 ## Where the rest is
 
 - Phase 0, Phase 1, the rolling prepare, the packet forms, and the reopen pick-up: [campaign/_phases.md](campaign/_phases.md).
 - The waves, the failure paths, versions and outputs, handoff and ship per wave, pause and resume, and the end: [campaign/_waves.md](campaign/_waves.md).
+- The stacked wave PRs and every `gh stack` command: [campaign/_gh-stack.md](campaign/_gh-stack.md).
 - The boundary agents' procedure: [campaign/_boundary.md](campaign/_boundary.md).
 - The watch and the commentary: [yolo/_commentary.md](yolo/_commentary.md), section "In a campaign".

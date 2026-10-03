@@ -1,6 +1,6 @@
 export const meta = {
   name: 'wf-campaign-boundary',
-  description: 'The wave boundary of /wf campaign (Stage C, width 1, main checkout). mode "slug-output" builds one slug\'s output; mode "wave" merges the finished slugs into the wave branch, runs the wave verify with the revert search, writes the as-built notes and the fidelity checkpoint with a refuter on each, and builds the wave output and the try-it note; mode "drift" classifies the changed contract lines before the next wave. Never opens a PR, never ships, never pushes.',
+  description: 'The wave boundary of /wf campaign. mode "slug-output" builds one slug\'s output; mode "wave" merges the finished slugs into the wave branch, runs the wave verify with the revert search, writes the as-built notes and the fidelity checkpoint with a refuter on each, and builds the wave output and the try-it note; mode "drift" classifies the changed contract lines before the next wave. Never opens a PR, never ships, never pushes.',
   phases: [
     { title: 'Merge', detail: 'merge each finished slug branch into the wave branch with --no-ff, in packet order (12.3)' },
     { title: 'Verify', detail: 'wave verify, up to 2 fix rounds, then the revert search (12.2)' },
@@ -90,7 +90,9 @@ async function slugOutput(u) {
   return await agent(
     `BUILD THE SLUG OUTPUT for slug '${u.slug}' (packet ${u.key}) of campaign '${brainstorm}', wave ${wave}. ` +
     common('Slug output') +
-    `\n\nSlug branch: ${u.branch}. Output folder: ${OUT}/slugs/${u.slug}/. The recipe: ${JSON.stringify(OPT.output || null)}.` +
+    `\n\nSlug branch: ${u.branch}.` +
+    (u.worktree ? ` The branch is checked out in the worktree ${u.worktree}: build there, and do not check the branch out anywhere else.` : '') +
+    ` Output folder: ${OUT}/slugs/${u.slug}/. The recipe: ${JSON.stringify(OPT.output || null)}.` +
     STOP_CHECK + heartbeat(`slug-output:${u.slug}`, 'slug-output') +
     `\n\nReturn { status, label, path, built (true when the build command passed), failure (the failing output tail) }.`,
     { schema: obj(['status'], { label: { type: 'string' }, path: { type: 'string' }, built: { type: 'boolean' }, failure: { type: 'string' } }), label: `slug-output:${u.slug}`, phase: 'Output', ...SONNET }

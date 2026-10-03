@@ -9,7 +9,8 @@ import "./chunk-SGA7NFMW.mjs";
 
 // scripts/campaign.mjs
 import { spawnSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statfsSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,7 +22,11 @@ var LEDGER_VERSION = 1;
 var WAVE_STATES = Object.freeze(["planned", "running", "boundary", "handoff", "shipping", "shipped", "stopped"]);
 var UNIT_STATES = Object.freeze(["planned", "prepared", "running", "stopped", "finished", "merged", "needs-fix", "shipped"]);
 var LIVE_WAVE_STATES = Object.freeze(["running", "boundary", "handoff", "shipping"]);
-var SETUP_ANSWERS = Object.freeze(["forecast", "target-version", "release-each-wave", "output"]);
+var SETUP_ANSWERS = Object.freeze(["forecast", "target-version", "release-each-wave", "output", "budget"]);
+var DEFAULT_BUDGET = Object.freeze({ fiveHourSlow: 75, fiveHourPause: 90, sevenDayReserve: 15 });
+var READING_STALE_MS = 10 * 60 * 1e3;
+var DEFAULT_MAX_UNSHIPPED = 2;
+var DEFAULT_WIDTH = 3;
 var CONTEXT_LONG_LINES = 200;
 function unitOf(packet) {
   const form = packet.form ?? "intake";
@@ -55,18 +60,18 @@ var byOrder = (a, b) => a.order - b.order || String(a.key).localeCompare(String(
 function findCycle(units) {
   const graph = new Map(units.map((u) => [u.key, u.dependsOn]));
   const state = /* @__PURE__ */ new Map();
-  const stack = [];
+  const stack2 = [];
   const visit = (k) => {
     if (state.get(k) === "done") return null;
-    if (state.get(k) === "open") return [...stack.slice(stack.indexOf(k)), k];
+    if (state.get(k) === "open") return [...stack2.slice(stack2.indexOf(k)), k];
     state.set(k, "open");
-    stack.push(k);
+    stack2.push(k);
     for (const n of graph.get(k) ?? []) {
       if (!graph.has(n)) continue;
       const c = visit(n);
       if (c) return c;
     }
-    stack.pop();
+    stack2.pop();
     state.set(k, "done");
     return null;
   };
@@ -251,6 +256,7 @@ function newLedger({ brainstorm, revision, units, now = (/* @__PURE__ */ new Dat
     waiting: plan.waiting,
     questions: [],
     pause: null,
+    stack: null,
     revisions: [{ revision, at: now, note: "planned from this revision" }]
   };
   for (const u of units) {
@@ -322,8 +328,14 @@ function campaignAction(ledger, { revision = null } = {}) {
   const open = ledger.questions.filter((q) => !q["answered-at"]);
   if (open.length) return { action: "ask", questions: open };
   const unprepared = (w) => w ? w.units.filter((k) => ledger.units[k]?.state === "planned") : [];
-  const live = ledger.waves.find((w) => LIVE_WAVE_STATES.includes(w.state));
+  const lives = ledger.waves.filter((w) => LIVE_WAVE_STATES.includes(w.state));
+  const live = lives[0];
   const next = ledger.waves.find((w) => w.state === "planned");
+  const stacked = ledger.stack?.enabled && next && lives.length && lives.every((w) => ["handoff", "shipping"].includes(w.state)) && lives.length < (ledger.stack["max-unshipped"] ?? DEFAULT_MAX_UNSHIPPED);
+  if (stacked) {
+    const todo = unprepared(next);
+    return todo.length ? { action: "prepare", wave: next.n, units: todo } : { action: "start-wave", wave: next.n, beside: lives.map((w) => w.n) };
+  }
   if (live) return { action: "running", wave: live.n, state: live.state, prepare: unprepared(next) };
   const stopped = ledger.waves.find((w) => w.state === "stopped");
   if (stopped) return { action: "stopped", wave: stopped.n };
@@ -415,8 +427,65 @@ function renderContext({ unit: unit2, units, ledger, asBuilt = {}, drift: drift2
   L.push("## 5. Drift notes", "", "Implementation-detail differences that the drift check recorded for this slug.", "");
   L.push(...drift2.length ? drift2.map((d) => `- \`${d.from}/${d.key}\` (${d.text}): ${d.note ?? d.status}`) : ["- None."], "");
   L.push("## 6. Isolation", "");
-  L.push(isolation ? `- ${isolation}` : "- Width 1, in the main checkout. No port base, no own build folder, no heavy-suite lock.", "");
+  L.push(isolation ? isolation.startsWith("- ") ? isolation : `- ${isolation}` : "- Width 1, in the main checkout. No port base, no own build folder, no heavy-suite lock.", "");
   return L.join("\n");
+}
+function isolationOf(config) {
+  const iso = config?.campaign?.isolation;
+  if (!iso || typeof iso !== "object") return null;
+  const ports = iso["port-env"];
+  if (!ports || typeof ports !== "object" || Array.isArray(ports)) return null;
+  if (!Array.isArray(iso["build-dirs"])) return null;
+  return {
+    parallel: iso.parallel !== false,
+    "port-env": ports,
+    "build-dirs": iso["build-dirs"],
+    "heavy-suites": Array.isArray(iso["heavy-suites"]) ? iso["heavy-suites"] : [],
+    "min-free-gb": Number.isFinite(iso["min-free-gb"]) ? iso["min-free-gb"] : 20
+  };
+}
+function portsFor(isolation, index) {
+  return Object.fromEntries(Object.entries(isolation?.["port-env"] ?? {}).map(([k, base]) => [k, Number(base) + 100 * index]));
+}
+function effectiveWidth({ width = DEFAULT_WIDTH, isolation, budget: budget2 = "unknown" }) {
+  if (budget2 === "pause") return 0;
+  if (!isolation || isolation.parallel === false) return 1;
+  if (budget2 !== "ok") return 1;
+  return Math.max(1, Number(width) || 1);
+}
+function isolationText(isolation, { index, worktree: worktree2, lockCmd, slug = "<slug>" }) {
+  const ports = Object.entries(portsFor(isolation, index)).map(([k, v]) => `\`${k}=${v}\``).join(", ");
+  const L = [];
+  L.push(`- Worktree: \`${worktree2}\`. Run every command there. Never write in the main checkout or in another worktree.`);
+  if (ports) L.push(`- Ports: set ${ports} in the environment of every command that starts the app or the tests.`);
+  if (isolation["build-dirs"].length) L.push(`- Build folders: ${isolation["build-dirs"].map((d) => `\`${d}\``).join(", ")} stay inside this worktree. Never point a build at another worktree's folder.`);
+  for (const suite of isolation["heavy-suites"]) {
+    L.push(`- Heavy suite \`${suite}\` runs only under the lock. Run \`${lockCmd} acquire ${slug}\` first. When it answers busy, wait, append a \`lock-wait\` line to the driver journal every 5 minutes, and try again. Run \`${lockCmd} release ${slug}\` after the suite ends, also when it fails.`);
+  }
+  return L.join("\n");
+}
+function waveBase(ledger, n, trunk) {
+  if (!ledger.stack?.enabled) return trunk;
+  const below = ledger.waves.filter((w) => w.n < n && w.state !== "shipped" && w.state !== "planned").sort((a, b) => b.n - a.n)[0];
+  return below ? below.branch ?? `campaign/${ledger.brainstorm}/wave-${below.n}` : trunk;
+}
+function newestReading(readings2) {
+  return (readings2 ?? []).filter((r) => r && r.at && Array.isArray(r.rateLimits)).sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0] ?? null;
+}
+function budgetState(reading, budget2 = DEFAULT_BUDGET, { now = Date.now(), staleMs = READING_STALE_MS } = {}) {
+  const b = { ...DEFAULT_BUDGET, ...budget2 ?? {} };
+  if (!reading || !Array.isArray(reading.rateLimits) || !reading.rateLimits.length) return { state: "unknown", reason: "no reading" };
+  const age = now - Date.parse(reading.at);
+  if (!Number.isFinite(age) || age > staleMs) return { state: "unknown", reason: `the newest reading is older than ${Math.round(staleMs / 6e4)} minutes` };
+  const win = (kind) => reading.rateLimits.find((r) => r.kind === kind);
+  const five = win("five_hour");
+  const seven = win("seven_day");
+  if (seven && seven.percentUsed >= 100 - b.sevenDayReserve) {
+    return { state: "pause", until: seven.resetsAt ?? null, reason: `7-day window at ${seven.percentUsed}%: the last ${b.sevenDayReserve}% is the person's reserve`, windows: reading.rateLimits };
+  }
+  if (five && five.percentUsed >= b.fiveHourPause) return { state: "pause", until: five.resetsAt ?? null, reason: `5-hour window at ${five.percentUsed}%`, windows: reading.rateLimits };
+  if (five && five.percentUsed >= b.fiveHourSlow) return { state: "slow", reason: `5-hour window at ${five.percentUsed}%`, windows: reading.rateLimits };
+  return { state: "ok", windows: reading.rateLimits };
 }
 function preLinesTooLong(pre, post) {
   const lines = pre.reduce((n, u) => n + 3 + u.provides.length, 0) + post.reduce((n, u) => n + u.expects.length, 0);
@@ -488,7 +557,8 @@ function renderForecast(fc, { brainstorm, now = (/* @__PURE__ */ new Date()).toI
 }
 
 // scripts/campaign.mjs
-var USAGE = "Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast> <projectRoot> <brainstorm> ...";
+var USAGE = "Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|stack> <projectRoot> <brainstorm> ...";
+var PLUGIN_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 var brainstormDir = (root, b) => join(root, ".ai", "workflows", b);
 var workDir = (root, b) => join(brainstormDir(root, b), "work");
 var campDir = (root, b) => join(workDir(root, b), "campaign");
@@ -643,8 +713,13 @@ function orient(root, b) {
   ledger.trunk = trunkOf(root);
   ledger["run-id"] = `${nowIso().replace(/[-:]/g, "").replace(/\.\d+/, "")}-${b}`;
   if (ledger["ship-plan"] === null || ledger["ship-plan"]["version-scheme"] === "none") ledger.answers["target-version"] = "none";
+  if (ledger["ship-plan"] === null) ledger["tool-gaps"].push({ tool: "ship-plan", have: "none", need: ".ai/ship-plan.md", fix: "/wf ship-plan init" });
   const cliOk = claudeVersionGap();
   if (cliOk) ledger["tool-gaps"].push(cliOk);
+  const stackVersion = ghStackVersion();
+  const stackOk = stackVersion !== null && compareSemver(stackVersion, "0.1.0") >= 0;
+  if (stackVersion !== null && !stackOk) ledger["tool-gaps"].push({ tool: "gh-stack", have: stackVersion, need: "0.1.0", fix: "gh extension upgrade stack" });
+  ledger.stack = { enabled: stackOk && cfg.campaign?.stack !== false, number: null, "max-unshipped": cfg.campaign?.["max-unshipped"] ?? DEFAULT_MAX_UNSHIPPED };
   const history = forecastHistory(root);
   const slices = Object.fromEntries(units.filter(isBuildUnit).map((u) => [u.key, sliceCount(root, u.slug)]).filter(([, n]) => n));
   const fc = buildForecast({ units, history, slices });
@@ -661,6 +736,107 @@ function claudeVersionGap() {
   const [maj, min, pat] = m.slice(1).map(Number);
   const ok = maj > 2 || maj === 2 && (min > 1 || min === 1 && pat >= 287);
   return ok ? null : { tool: "claude-code", have: m[0], need: "2.1.287", fix: "update Claude Code" };
+}
+function ghStackVersion() {
+  if (process.env.SDLC_CAMPAIGN_SKIP_TOOLS === "1") return null;
+  const r = spawnSync("gh", ["extension", "list"], { encoding: "utf8", windowsHide: true });
+  const line = (r.stdout ?? "").split(/\r?\n/).find((l) => /gh-stack/.test(l));
+  const m = line ? /v?(\d+\.\d+\.\d+)/.exec(line) : null;
+  return m ? m[1] : null;
+}
+function compareSemver(a, b) {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
+  return 0;
+}
+var configOf = (root) => readJson(join(root, ".ai", "sdlc-config.json")) ?? {};
+var usageDir = () => process.env.SDLC_USAGE_DIR || join(homedir(), ".claude", "sdlc", "usage");
+function readings() {
+  const dir = usageDir();
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => readJson(join(dir, f)));
+}
+function budget(root, b) {
+  const ledger = requireLedger(root, b);
+  const cfg = configOf(root);
+  const reading = newestReading(readings());
+  const st = budgetState(reading, ledger.answers.budget ?? DEFAULT_BUDGET, { now: Date.now() });
+  const isolation = isolationOf(cfg);
+  const width = effectiveWidth({ width: cfg.campaign?.width ?? DEFAULT_WIDTH, isolation, budget: st.state });
+  return { ok: true, ...st, width, readingAt: reading?.at ?? null, isolation: isolation !== null };
+}
+var worktreeRoot = (root, ledger) => join(root, ".scratch", "campaign", ledger["run-id"] ?? "run", "wt");
+function worktree(root, b, [key, action]) {
+  const ledger = requireLedger(root, b);
+  const u = ledger.units[key];
+  if (!u) throw new Error(`worktree: ${key} is not a build unit of this campaign`);
+  if (action === "remove") {
+    if (!u.worktree) return { ok: true, removed: false, reason: "no worktree" };
+    rmSync(join(u.worktree.path, ".ai", "workflows", u.slug ?? key, ".watch-state.json"), { force: true });
+    const r2 = spawnSync("git", ["-C", root, "worktree", "remove", u.worktree.path], { encoding: "utf8", windowsHide: true });
+    if (r2.status !== 0) return { ok: false, error: `git refused to remove ${u.worktree.path}: ${(r2.stderr || "").trim()}. Ask the person; do not force.` };
+    delete u.worktree;
+    saveLedger(root, b, ledger);
+    return { ok: true, removed: true };
+  }
+  if (action !== "add") throw new Error("worktree: the action is add or remove");
+  const iso = isolationOf(configOf(root));
+  if (!iso) return { ok: false, error: "no usable isolation contract (campaign.isolation in .ai/sdlc-config.json): drive this slug in the main checkout at width 1" };
+  const w = ledger.waves.find((x) => x.n === u.wave);
+  if (!w || w.state !== "running" || !w.branch) throw new Error(`worktree: wave ${u.wave} of ${key} is not running`);
+  if (u.worktree && existsSync(u.worktree.path)) return { ok: true, ...u.worktree, reused: true };
+  const base = worktreeRoot(root, ledger);
+  mkdirSync(base, { recursive: true });
+  const freeGb = statfsSync(base).bavail * statfsSync(base).bsize / 1024 ** 3;
+  if (freeGb < iso["min-free-gb"]) return { ok: false, wait: true, error: `${freeGb.toFixed(1)} GB free, below min-free-gb ${iso["min-free-gb"]}: wait until a merged slug's worktree is removed` };
+  const index = [...w.units].sort((a, c) => (ledger.units[a].order ?? 0) - (ledger.units[c].order ?? 0)).indexOf(key);
+  const branch = `campaign/${b}/wave-${w.n}--${u.slug}`;
+  const path = join(base, u.slug);
+  const r = spawnSync("git", ["-C", root, "worktree", "add", "-b", branch, path, w.branch], { encoding: "utf8", windowsHide: true });
+  if (r.status !== 0) return { ok: false, error: `git worktree add failed: ${(r.stderr || "").trim()}` };
+  const src = join(root, ".ai", "workflows", u.slug);
+  const dest = join(path, ".ai", "workflows", u.slug);
+  if (existsSync(src) && !existsSync(dest)) cpSync(src, dest, { recursive: true });
+  u.worktree = { path, branch, index, ports: portsFor(iso, index) };
+  saveLedger(root, b, ledger);
+  appendJournal(root, b, "worktree", { key, slug: u.slug, path, branch, index });
+  return { ok: true, ...u.worktree };
+}
+var LOCK_STALE_MS = 3 * 60 * 60 * 1e3;
+function lock(root, b, [action, holder]) {
+  if (!holder) throw new Error("lock: give the holder (the slug)");
+  const file = join(root, ".scratch", "campaign", "heavy.lock");
+  mkdirSync(join(file, ".."), { recursive: true });
+  const cur = readJson(file);
+  if (action === "release") {
+    if (!cur || cur.holder !== holder) return { ok: true, released: false, holder: cur?.holder ?? null };
+    rmSync(file, { force: true });
+    return { ok: true, released: true };
+  }
+  if (action !== "acquire") throw new Error("lock: the action is acquire or release");
+  if (cur && cur.holder !== holder && Date.now() - Date.parse(cur.at) < LOCK_STALE_MS) return { ok: true, acquired: false, holder: cur.holder, since: cur.at };
+  if (!cur || cur.holder !== holder) {
+    try {
+      writeFileSync(file, JSON.stringify({ holder, at: nowIso() }), { flag: cur ? "w" : "wx" });
+    } catch {
+      const now = readJson(file);
+      return { ok: true, acquired: false, holder: now?.holder ?? null, since: now?.at ?? null };
+    }
+  }
+  return { ok: true, acquired: true, holder };
+}
+function stack(root, b, [action, value]) {
+  const ledger = requireLedger(root, b);
+  ledger.stack = { enabled: false, number: null, "max-unshipped": DEFAULT_MAX_UNSHIPPED, ...ledger.stack ?? {} };
+  if (action === "enable") ledger.stack.enabled = true;
+  else if (action === "disable") ledger.stack.enabled = false;
+  else if (action === "set") {
+    if (!/^\d+$/.test(value ?? "")) throw new Error("stack set: give the stack number");
+    ledger.stack.number = Number(value);
+  } else throw new Error("stack: the action is enable, disable, or set <number>");
+  saveLedger(root, b, ledger);
+  return { ok: true, stack: ledger.stack };
 }
 function status(root, b) {
   const ledger = loadLedger(root, b);
@@ -692,6 +868,11 @@ function answer(root, b, [key, ...rest]) {
     value = JSON.parse(raw);
   } catch {
     value = raw;
+  }
+  if (key === "budget") {
+    if (value === "default") value = { ...DEFAULT_BUDGET };
+    if (!value || typeof value !== "object" || Object.keys(value).some((k) => !(k in DEFAULT_BUDGET) || !Number.isFinite(value[k]))) throw new Error('answer budget: default, or {"fiveHourSlow":n,"fiveHourPause":n,"sevenDayReserve":n}');
+    value = { ...DEFAULT_BUDGET, ...value };
   }
   ledger.answers[key] = value;
   saveLedger(root, b, ledger);
@@ -730,14 +911,18 @@ function wave(root, b, [nText, action, state], f) {
   if (!w) throw new Error(`wave: no wave ${nText}`);
   if (action === "start") {
     if (w.state !== "planned") throw new Error(`wave ${n} is ${w.state}, not planned`);
-    const live = ledger.waves.find((x) => ["running", "boundary", "handoff", "shipping"].includes(x.state));
-    if (live) throw new Error(`wave ${live.n} is ${live.state}: in Stage C a wave starts after the previous wave merged`);
+    const lives = ledger.waves.filter((x) => ["running", "boundary", "handoff", "shipping"].includes(x.state));
+    const building = lives.find((x) => ["running", "boundary"].includes(x.state));
+    if (building) throw new Error(`wave ${building.n} is ${building.state}: a wave starts after the wave below merged its slugs into its branch`);
+    if (lives.length && !ledger.stack?.enabled) throw new Error(`wave ${lives[0].n} is ${lives[0].state}: without stacked PRs a wave starts after the previous wave merged`);
+    const max = ledger.stack?.["max-unshipped"] ?? DEFAULT_MAX_UNSHIPPED;
+    if (lives.length >= max) throw new Error(`${lives.length} unshipped waves wait above the trunk (max-unshipped ${max}): ship one first`);
     const ws = readWorkSet(root, b);
     const units = ws.error ? [] : ws.packets.map(unitOf);
     const prepared = new Set(w.units.filter((k) => ledger.units[k]?.state === "prepared"));
     const { start, moved } = deferUnprepared(w.units, units, prepared);
     if (!start.length) return { ok: false, error: `no unit of wave ${n} is prepared`, moved };
-    const trunk = f.trunk ?? ledger.trunk ?? "main";
+    const trunk = waveBase(ledger, n, f.trunk ?? ledger.trunk ?? "main");
     w.units = start;
     w.moved = [...w.moved ?? [], ...moved];
     w.state = "running";
@@ -824,7 +1009,10 @@ function context(root, b, [key]) {
   if (!u) throw new Error(`context: no packet ${key}`);
   const driftFile = join(campDir(root, b), "drift", `${key}.json`);
   const drift2 = (readJson(driftFile)?.lines ?? []).filter((l) => l.class === "implementation-detail");
-  const text = renderContext({ unit: u, units, ledger, asBuilt: asBuiltNotes(root, b), drift: drift2 });
+  const wt = ledger.units[key]?.worktree;
+  const iso = wt ? isolationOf(readJson(join(root, ".ai", "sdlc-config.json")) ?? {}) : null;
+  const isolation = wt && iso ? isolationText(iso, { index: wt.index, worktree: wt.path, slug: u.slug, lockCmd: `node "${join(PLUGIN_ROOT, "skills", "wf", "scripts", "campaign.mjs")}" lock "${root}" ${b}` }) : null;
+  const text = renderContext({ unit: u, units, ledger, asBuilt: asBuiltNotes(root, b), drift: drift2, isolation });
   const file = join(campDir(root, b), "context", `${u.slug}.md`);
   writeAtomic(file, text);
   return { ok: true, key, slug: u.slug, path: file };
@@ -970,6 +1158,18 @@ function main(argv = process.argv.slice(2)) {
         break;
       case "forecast":
         out = forecast(root, b, f);
+        break;
+      case "budget":
+        out = budget(root, b);
+        break;
+      case "worktree":
+        out = worktree(root, b, pos);
+        break;
+      case "lock":
+        out = lock(root, b, pos);
+        break;
+      case "stack":
+        out = stack(root, b, pos);
         break;
       default:
         process.stderr.write(`${USAGE}

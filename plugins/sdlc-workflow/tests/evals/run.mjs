@@ -170,13 +170,26 @@ function matchGlob(ws, glob) {
 // registry seeds `.ai/.gitignore` beside the view directory and SessionStart
 // renders `.ai/_view/`. Neither is the model's doing, so `no-changes` and
 // `changes-only-under` ignore them.
-const HOST_LITTER = [/^\.ai\/\.gitignore$/, /^\.ai\/_view\//];
+// The memory seed also writes `.ai/.wf-rules-seeded` and, in a repository
+// without them, a new `AGENTS.md` and `CLAUDE.md` that hold only its fence.
+// A new memory file with any text outside the fence is the model's change.
+const HOST_LITTER = [/^\.ai\/\.gitignore$/, /^\.ai\/_view\//, /^\.ai\/\.wf-rules-seeded$/];
+const SEED_FILES = new Set(['AGENTS.md', 'CLAUDE.md']);
+const SEED_FENCE = /<!-- sdlc:wf-rules[^\n]*START[^\n]*-->[\s\S]*?<!-- sdlc:wf-rules[^\n]*END -->/g;
+
+function isSeedOnly(ws, p) {
+  let text;
+  try { text = readFileSync(path.join(ws, p), 'utf8'); } catch { return false; }
+  return text.includes('sdlc:wf-rules') && text.replace(SEED_FENCE, '').trim() === '';
+}
 
 function changedPaths(ws) {
   return git(ws, 'status', '--porcelain', '--untracked-files=all')
     .split(/\r?\n/)
     .filter(Boolean)
-    .map((l) => l.slice(3).replace(/^"|"$/g, '').replace(/\\/g, '/'))
+    .map((l) => ({ code: l.slice(0, 2), p: l.slice(3).replace(/^"|"$/g, '').replace(/\\/g, '/') }))
+    .filter(({ code, p }) => !(code === '??' && SEED_FILES.has(p) && isSeedOnly(ws, p)))
+    .map(({ p }) => p)
     .filter((p) => !HOST_LITTER.some((re) => re.test(p)));
 }
 

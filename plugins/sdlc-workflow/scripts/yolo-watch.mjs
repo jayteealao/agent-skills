@@ -52,6 +52,9 @@ export const STAGE_KINDS = Object.freeze(['plan', 'implement', 'verify', 'review
 export const STOP_AFTER = Object.freeze(['current', 'plan', 'implement', 'verify', 'review']);
 const STAGE_FILE = Object.freeze({ plan: '04-plan', implement: '05-implement', verify: '06-verify', review: '07-review', 'update-deps-exec': '06-verify' });
 export const STALE_FLOOR_MS = 20 * 60 * 1000;
+// K1 — a first campaign watch still reports the campaign events of this window, because the
+// wave start writes `wave-start` just before the session starts the watch.
+export const CAMPAIGN_FIRST_WINDOW_MS = 5 * 60 * 1000;
 export const DEFAULT_PROTECTED = Object.freeze(['PRODUCT.md', 'DESIGN.md']);
 export const DEFAULT_BUDGET = Object.freeze({ fiveHourSlow: 75, fiveHourPause: 90, sevenDayReserve: 15 });
 const STATE_FILE = '.watch-state.json';
@@ -353,6 +356,8 @@ export function applyJournalLines(root, slug, st, lines, { emitFrom = null } = {
 // is an agent-end means every agent returned, so the run ended.
 export function judgeSilence(slug, st, nowMs, watchStartMs) {
   if (st.ended || st.lastLineAt === null) return [];
+  // A re-arm resets `ended` for a relaunch; a run whose newest line is its end is silent by design.
+  if (st.newest && st.newest.event === 'run-end') return [];
   const since = Math.max(st.lastLineAt, watchStartMs);
   const silentMs = nowMs - since;
   const limit = liveLimitMs(st);
@@ -417,7 +422,7 @@ export function createWatcher({ projectRoot, slugs, since = null, usageDir = nul
     const saved = readJson(campaignStatePath(root, campaign));
     camp = saved && saved.version === STATE_VERSION
       ? { ...saved, ended: false, first: false }
-      : { version: STATE_VERSION, offset: 0, ended: false, first: true, revision: readWorkRevision(root, campaign), open: {}, lastLineAt: null, longestGapMs: 0, prevLineAt: null, newest: null, staleFor: null };
+      : { version: STATE_VERSION, offset: 0, ended: false, first: true, revision: readWorkRevision(root, campaign), open: {}, openWaves: [], lastLineAt: null, longestGapMs: 0, prevLineAt: null, newest: null, staleFor: null };
   }
 
   function pollCampaign() {
@@ -436,8 +441,14 @@ export function createWatcher({ projectRoot, slugs, since = null, usageDir = nul
       camp.staleFor = null;
       if (line.event === 'agent-start') { camp.open[line.agent] = line.at || null; continue; }
       if (line.event === 'agent-end') { delete camp.open[line.agent]; continue; }
-      if (CAMPAIGN_END_EVENTS.includes(line.event)) camp.ended = true;
-      if (skip) continue;
+      // Waves overlap: wave n ships while wave n+1 runs. A wave-end ends the watch
+      // only when no other started wave is still open.
+      if (line.event === 'wave-start' && camp.openWaves && line.wave != null && !camp.openWaves.includes(line.wave)) camp.openWaves.push(line.wave);
+      if (line.event === 'wave-end' && camp.openWaves) {
+        camp.openWaves = camp.openWaves.filter((n) => n !== line.wave);
+        if (!camp.openWaves.length) camp.ended = true;
+      } else if (CAMPAIGN_END_EVENTS.includes(line.event)) camp.ended = true;
+      if (skip && !(Number.isFinite(at) && at >= watchStartMs - CAMPAIGN_FIRST_WINDOW_MS)) continue;
       if (CAMPAIGN_EVENTS.includes(line.event)) {
         const { at: lineAt, event: name, ...rest } = line;
         events.push({ ...rest, event: name, campaign, at: lineAt || iso(now()) });
@@ -484,7 +495,15 @@ export function createWatcher({ projectRoot, slugs, since = null, usageDir = nul
         emitFrom = { run: newestRun, seq: since === null ? Infinity : since };
         entry.first = false;
       }
-      events.push(...applyJournalLines(root, slug, st, r.lines, { emitFrom }));
+      let lines = r.lines;
+      if (!emitFrom && st.lastLineAt === null && lines.length) {
+        // K1 — a journal this watch never saw a line of can arrive with old lines, when a
+        // wave merge brings in a drive that ran in a worktree. Lines older than the watch are history.
+        const old = lines.filter((l) => Date.parse(l.at || '') < watchStartMs);
+        if (old.length) applyJournalLines(root, slug, st, old, { emitFrom: { run: null, seq: Infinity } });
+        lines = lines.filter((l) => !(Date.parse(l.at || '') < watchStartMs));
+      }
+      events.push(...applyJournalLines(root, slug, st, lines, { emitFrom }));
       st.offset = r.offset;
       events.push(...judgeSilence(slug, st, now(), watchStartMs));
     }
