@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.180.1] - 2026-10-03
+
 ### Changed
 
 - **The Desktop app is the mod's first surface.** The picker band, the workflow strip, the status line, the hub notice under the logo and the `/wf-dashboard` pane drew in the terminal only; they now draw in the Claude Code Desktop app too. The Desktop app starts the engine with no surface, so the mod takes the surface from the client already attached at start, or from the client that attaches later. A session no surface draws on (a `-p` run) still draws nothing.
