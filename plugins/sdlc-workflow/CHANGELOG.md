@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.180.3] - 2026-10-03
+
+### Fixed
+
+- **The picker no longer opens again on its own command.** A command that the picker put in the prompt box, or sent as your prompt, came back through the picker and opened the step it was chosen from. Picking `(no slice)` or `(no slug)` therefore looped. Such a command now runs as it is. A typed `/wf status`, or any key whose workflow is optional, also runs as typed without the workflow step.
+- **The picker reads the workflow list faster.** It reads the workflow index files at the same time, not one after another. In the Desktop app, each read is a separate request to the app.
+
+### Added
+
+- **`draw` rows in the probe journal.** The first draw of each picker step records how long the tree read took and how long it was until the picker drew. Each live-pane outcome is recorded once, as drawn, as no model, or as a fault with its message. Run `npm run mod:probe -- --rows` to read them.
+
 ## [9.180.2] - 2026-10-03
 
 ### Fixed
