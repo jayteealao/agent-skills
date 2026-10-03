@@ -381,18 +381,33 @@ async function follow(x: LiveEngine, kind: Kind, slug: string, isAsked: boolean)
   schedule(x)
 }
 
-async function openPane(x: LiveEngine, kind: Kind, slug: string, isAsked: boolean): Promise<void> {
-  if (!isPaneOn) return
+/**
+ * Opens the live pane. Resolves to null when a surface draws it, else to why
+ * it does not draw: the pane option is off, the engine refused it, or the pane
+ * waits (`isPlaced: false`, with the engine's reason).
+ */
+async function openPane(x: LiveEngine, kind: Kind, slug: string, isAsked: boolean): Promise<string | null> {
+  if (!isPaneOn) return 'the liveView option is off'
   let isPlaced = true
+  let why: string | null = null
   try {
-    const result = await x.open(LIVE_PANE, `${kind} · ${slug}`)
-    isPlaced = result === undefined || result === null || (result as { isPlaced?: boolean }).isPlaced !== false
+    const result = (await x.open(LIVE_PANE, `${kind} · ${slug}`)) as { isPlaced?: boolean; reason?: string } | null | undefined
+    isPlaced = result === undefined || result === null || result.isPlaced !== false
+    if (!isPlaced) why = result?.reason ?? 'no surface here places it'
   } catch (error) {
     fault('open', error)
     isPlaced = false
+    why = messageOf(error)
   }
   await setView(x, view => ({ ...view, isOpen: true, isAsked: view.isAsked || isAsked }))
   await writeBand(x, isPlaced)
+  return why
+}
+
+/** What `/wf-live` answers: the pane is open, or it is not drawn and why. */
+function openedTextOf(kind: Kind, slug: string, why: string | null): string {
+  if (why === null) return `The live view of ${kind} ${slug} is open.`
+  return `The live view of ${kind} ${slug} follows the run, but its pane is not drawn: ${why}.`
 }
 
 // -------------------------------------------------------------------------
@@ -1015,16 +1030,14 @@ export function registerLive(on: On, ctx: LiveContext): void {
       const tab = slug === '' ? view.current : (view.tabs.find(entry => entry.slug === slug) ?? null)
       if (tab !== null) {
         await follow(x, tab.kind, tab.slug, true)
-        await openPane(x, tab.kind, tab.slug, true)
-        return { text: `The live view of ${tab.kind} ${tab.slug} is open.` }
+        return { text: openedTextOf(tab.kind, tab.slug, await openPane(x, tab.kind, tab.slug, true)) }
       }
       if (slug !== '' && root !== null) {
         const isCampaign = (await reader?.mtime(joinPath(root, '.ai', 'workflows', slug, 'work', 'campaign', 'ledger.json'))) != null
         const isBoard = (await reader?.mtime(joinPath(root, '.ai', 'workflows', slug, 'brainstorm-board.json'))) != null
         const kind: Kind = isCampaign ? 'campaign' : isBoard ? 'brainstorm' : 'yolo'
         await follow(x, kind, slug, true)
-        await openPane(x, kind, slug, true)
-        return { text: `The live view of ${kind} ${slug} is open.` }
+        return { text: openedTextOf(kind, slug, await openPane(x, kind, slug, true)) }
       }
       return { text: 'No yolo, campaign or brainstorm runs here. Start one, or name its slug: /wf-live <slug>.' }
     } catch (error) {

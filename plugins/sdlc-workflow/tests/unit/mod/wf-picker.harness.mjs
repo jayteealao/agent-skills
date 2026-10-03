@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { CATALOG, commandNameOf, keyOfCommand } from '../../../hooks/mod/catalog.ts';
-import { ALL, NONE, backOf, digitCommandOf, fillOf, filterOptions, filterTextOf, hotkeyOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from '../../../hooks/mod/picker.ts';
+import { ALL, NONE, afterFillOf, backOf, digitCommandOf, fillOf, filterOptions, filterTextOf, hotkeyOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from '../../../hooks/mod/picker.ts';
 import { findProjectRoot, frontmatterOf, joinPath, listSlices, listWorkflows, rosterOf } from '../../../hooks/mod/workflows.ts';
 import { PROBE_CAP, ProbeJournal, rowOf, rowsOf, sinceOf, surfaceAfterAttach, textOf, verdictOf } from '../../../hooks/mod/probe.ts';
 import { readHookCell, readProbeDetail, readProbeOf } from '../../../hooks/mod/probe.ts';
@@ -468,6 +468,13 @@ test('the journal text keeps the newest rows up to the cap, and a broken line is
   assert.equal(kept.at(-1).detail, String(PROBE_CAP + 4));
   assert.equal(textOf([]), '');
   assert.deepEqual(rowsOf(['not json', '{"no":"fields"}', ''].join(NL)), []);
+});
+
+test('afterFillOf sends the command where the surface draws its own prompt box', () => {
+  assert.equal(afterFillOf(true, undefined), 'filled');
+  assert.equal(afterFillOf(false, 'no_composer'), 'submit');
+  assert.equal(afterFillOf(false, 'dialog'), 'type');
+  assert.equal(afterFillOf(false, undefined), 'type');
 });
 
 test('surfaceAfterAttach keeps a surface the session already had', () => {

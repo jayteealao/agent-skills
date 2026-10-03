@@ -91,6 +91,7 @@ import {
   DASHBOARD_TERMINAL_TEXT,
   DISPATCHER_COMMANDS,
   FILL_REFUSED_TEXT,
+  SUBMIT_TEXT,
   NO_ROOT_TEXT,
   NO_WORKFLOWS_TEXT,
   OPENED_TEXT,
@@ -98,7 +99,7 @@ import {
   RUN_TEXT,
   registerFailedTextOf,
 } from './names.ts'
-import { backOf, filterOptions, filterTextOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from './picker.ts'
+import { afterFillOf, backOf, filterOptions, filterTextOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from './picker.ts'
 import type { Option, Step } from './picker.ts'
 import { ROTATE_KEY } from './strip.tsx'
 import type { StripParts } from './styles/existing.tsx'
@@ -178,7 +179,9 @@ type Published =
 type Host = {
   cwd: string
   reader: Reader
-  fill: (text: string) => Promise<{ isFilled: boolean }>
+  fill: (text: string) => Promise<{ isFilled: boolean; refusal?: string }>
+  /** Queues `text` as the person's own prompt; it runs once the session is idle. */
+  submit: (text: string) => Promise<unknown>
   /** Writes one `$.state` value (14.5): the write redraws exactly the drawings that read it. */
   put: (value: Published) => Promise<void>
   log: (text: string) => void
@@ -659,16 +662,34 @@ export function register(on: On, options: PluginOptions = {}) {
     return { options: filterOptions(options, filterTextOf(model.filter)), ...(note === undefined ? {} : { note }) }
   }
 
+  /**
+   * Puts the command into the prompt box for the person's Enter. A surface that
+   * draws its own prompt box (the Desktop app) refuses every fill with
+   * `no_composer`; there the command is sent as the person's prompt instead.
+   */
   async function fill(engine: Host, text: string): Promise<string> {
     let isFilled = false
+    let refusal: string | undefined
     try {
-      isFilled = (await engine.fill(`${text} `)).isFilled
+      const filled = await engine.fill(`${text} `)
+      isFilled = filled.isFilled
+      refusal = filled.refusal
     } catch (error) {
       journal?.callFailed('fill', messageOf(error))
       engine.log(messageOf(error))
     }
-    if (!isFilled) journal?.callFailed('fill', FILL_REFUSED_TEXT.trim())
-    return isFilled ? `${RUN_TEXT} ${text}` : `${FILL_REFUSED_TEXT}${text}`
+    const after = afterFillOf(isFilled, refusal)
+    if (after === 'filled') return `${RUN_TEXT} ${text}`
+    if (after === 'submit') {
+      // Not awaited: the prompt runs once the session is idle, and this hook holds it busy.
+      void engine.submit(text).catch(error => {
+        journal?.callFailed('submit', messageOf(error))
+        engine.log(`${FILL_REFUSED_TEXT}${text}`)
+      })
+      return `${SUBMIT_TEXT} ${text}`
+    }
+    journal?.callFailed('fill', refusal === undefined ? FILL_REFUSED_TEXT.trim() : `${FILL_REFUSED_TEXT.trim()} (${refusal})`)
+    return `${FILL_REFUSED_TEXT}${text}`
   }
 
   /** What a pick does: the next step, or the command into the prompt box. */
@@ -762,6 +783,7 @@ export function register(on: On, options: PluginOptions = {}) {
         exists: path => $.fs.exists(path),
       },
       fill: text => $.prompt.fill({ text }),
+      submit: text => $.prompt.submit({ text, asUser: true }),
       put: async published => {
         // One literal atom per value: the engine's scan reads no atom passed in a variable.
         switch (published.name) {

@@ -133,11 +133,13 @@ type World = {
   configSet: Array<{ key: string; value: unknown }>
   logged: string[]
   locked: boolean
+  /** Null places every pane; a reason makes the open mock answer that the pane waits. */
+  unplaced: string | null
 }
 
 /** The world beneath the mod: a session in /work over `tree`. */
 function seat(on: On, tree: Record<string, string>): World {
-  const world: World = { clock: null as unknown as MockClock, written: new Map(), opened: [], toasts: [], submitted: [], configSet: [], logged: [], locked: false }
+  const world: World = { clock: null as unknown as MockClock, written: new Map(), opened: [], toasts: [], submitted: [], configSet: [], logged: [], locked: false, unplaced: null }
   const normal = (path: string) => path.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '').replace(/\/+$/, '')
   const textAt = (path: string) => world.written.get(path) ?? tree[path]
   const dirs = () => {
@@ -204,6 +206,7 @@ function seat(on: On, tree: Record<string, string>): World {
   })
   on('ui.open', ($, e) => {
     world.opened.push(e.id)
+    if (world.unplaced !== null) return { value: { isPlaced: false as const, reason: world.unplaced } }
     return { value: { isPlaced: true as const } }
   })
   on('ui.close', () => ({ value: undefined }))
@@ -480,6 +483,14 @@ describe('the live pane', () => {
   test('liveView off opens no pane (T6)', { options: { liveView: false } }, async ($, on) => {
     const world = await openLive($, on)
     expect(world.opened).not.toContain('wf-live')
+    expect((await run($, 'wf-live', 'alpha-flow')).text).toBe('The live view of yolo alpha-flow follows the run, but its pane is not drawn: the liveView option is off.')
+  })
+
+  test('/wf-live says so when no surface places the pane', async ($, on) => {
+    const world = await openLive($, on)
+    expect((await run($, 'wf-live', 'alpha-flow')).text).toBe('The live view of yolo alpha-flow is open.')
+    world.unplaced = 'no attached surface places panes'
+    expect((await run($, 'wf-live', 'alpha-flow')).text).toBe('The live view of yolo alpha-flow follows the run, but its pane is not drawn: no attached surface places panes.')
   })
 
   test('the style button sets the next style; a locked row hides it (T7)', async ($, on) => {

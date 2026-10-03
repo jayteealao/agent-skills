@@ -208,3 +208,14 @@ export function filterOptions(options: readonly Option[], text: string): Option[
     return words.every(word => haystack.includes(word))
   })
 }
+
+/**
+ * What a command does after its fill: `filled`, the prompt box holds it for the
+ * person's Enter; `submit`, the surface draws its own prompt box (the Desktop
+ * app answers every fill `no_composer`), so the command goes in as the person's
+ * prompt; `type`, the box is busy or the cause is unknown, so the person types it.
+ */
+export function afterFillOf(isFilled: boolean, refusal: string | undefined): 'filled' | 'submit' | 'type' {
+  if (isFilled) return 'filled'
+  return refusal === 'no_composer' ? 'submit' : 'type'
+}

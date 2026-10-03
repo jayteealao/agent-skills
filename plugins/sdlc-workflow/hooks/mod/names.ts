@@ -26,6 +26,8 @@ export const CLOSED_TEXT = 'Picker closed.'
 export const OPENED_TEXT = 'Pick from the list above the prompt.'
 export const RUN_TEXT = 'Press Enter to run'
 export const FILL_REFUSED_TEXT = 'The prompt box is not free; type the command in full: '
+/** Where the surface draws its own prompt box (the Desktop app), the command is sent as the person's prompt. */
+export const SUBMIT_TEXT = 'Running'
 export const DASHBOARD_TERMINAL_TEXT = 'The workflows dashboard draws in the Desktop app and the terminal; this session draws in neither.'
 
 export function registerFailedTextOf(command: string, reason: string): string {
