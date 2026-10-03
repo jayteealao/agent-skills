@@ -33,7 +33,7 @@ test('SKILL.md dispatch surface names task everywhere the roster is enumerated',
       `${name}: SKILL.md lost the Minimal lifecycle dispatch section`);
     assert.match(skill, /\| `task`\s+\|/, `${name}: SKILL.md dispatch table lost the task row`);
     // The not-a-known-key error roster — the last-resort discovery surface.
-    assert.match(skill, /auto, yolo, task, status|auto, task, status/,
+    assert.match(skill, /auto, yolo, campaign, task, status|auto, yolo, task, status|auto, task, status/,
       `${name}: SKILL.md not-a-known-key roster does not name task`);
     // Step 0.5 exclusion — task resolves its own first token, so the applies-to list omits it.
     const applies = /Step 0\.5 applies to ([^.]+)\./.exec(skill)?.[1] ?? '';

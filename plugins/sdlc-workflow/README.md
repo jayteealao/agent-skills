@@ -39,7 +39,7 @@ Follow [start/your-first-workflow.html](docs/site/start/your-first-workflow.html
 
 `/wf status` shows every workflow and the next command for each. `/wf auto <slug>` drives the lifecycle and pauses only at a stage's own gate. For small work, `/wf intake fix <description>` runs a compressed entry; [start/everyday-fixes.html](docs/site/start/everyday-fixes.html) lists the lanes.
 
-## The 23 keys
+## The 24 keys
 
 | Key | Does |
 |---|---|
@@ -59,6 +59,7 @@ Follow [start/your-first-workflow.html](docs/site/start/your-first-workflow.html
 | `simplify` | Three read-only reviewers over a branch, a commit range, a plan, or a path. |
 | `auto` | Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff. |
 | `yolo` | Autonomous driver. Resolves each gate by written policy. Claude Code only. |
+| `campaign` | Drives a brainstorm's work packets in dependency waves, one PR per wave. Setup and prepare on every host; the waves Claude Code only. |
 | `task` | Work whose deliverable is not a code change; observable ACs and a blast-radius gate. |
 | `status` | Dashboard; per-slug detail with the next command; `deep` drift check; `advise` sequencing. |
 | `recap` | Plain-language catch-up for a slug or a branch. |

@@ -172,6 +172,9 @@ export function activeWorkflowIndexes(workflows) {
 // A brainstorm's research/, references/ and work/ get no page, so they never
 // mark a workflow stale either (BRAINSTORM-WORK-PACKETS-PLAN).
 const STALE_EXEMPT_DIRS = new Set([...EVIDENCE_DIRS, ...SOURCE_DIRS, WORK_DIR]);
+// The yolo commentary is appended after every watch event, long after the index
+// was written, so it never marks a workflow stale (YOLO-COMMENTARY-PLAN C4).
+const STALE_EXEMPT_FILES = new Set(['commentary.md']);
 
 async function walkWorkflowFiles(root) {
   const out = [];
@@ -190,6 +193,8 @@ async function walkWorkflowFiles(root) {
         if (entry.name === 'node_modules') continue;
         if (dir === root && STALE_EXEMPT_DIRS.has(entry.name)) continue;
         stack.push(abs);
+      } else if (dir === root && STALE_EXEMPT_FILES.has(entry.name)) {
+        continue;
       } else if (
         entry.isFile() &&
         (entry.name.endsWith('.md') || entry.name.endsWith('.yaml') || entry.name.endsWith('.html.fragment'))

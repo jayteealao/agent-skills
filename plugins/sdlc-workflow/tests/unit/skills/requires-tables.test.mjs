@@ -46,7 +46,7 @@ const NO_WRITES = new Map([
 // References without a table. `_*.md` sub-procedures never carry one (S1); these
 // are the other files, each loaded by a stage reference that owns the table.
 const NO_TABLE = [
-  [/^auto\.md$|^yolo\.md$/, 'lifecycle drivers: they run stage references, which carry the tables'],
+  [/^auto\.md$|^yolo\.md$|^campaign\.md$/, 'lifecycle drivers: they run stage references, which carry the tables'],
   [/^intake\/amend\.md$/, 'edits 00-index.md only; writes no stage artifact'],
   [/^intake\/modernize\.md$/, 'backfills fields of existing artifacts; writes no stage artifact'],
   [/^design\/[^/]+\.md$/, 'design moves and sub-steps, loaded by design.md (and by shape, slice, plan, retro)'],

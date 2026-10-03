@@ -113,8 +113,6 @@ Negotiating the environment, precisely: before any deferral `yolo` climbs the **
 
 Charter fidelity: every **3** slices one read-only subagent reads the `charter:` block in `00-index.md` and the recent `05-implement` artifacts and judges each commitment **honored**, **at-risk**, or **broken**. `honored` drives on silently; `at-risk` drives on but is recorded in `outcome.charterCheckpoints`; **broken** is a HARD-STOP (`outcome.stoppedAt = 'charter-checkpoint'`). The checkpoint never edits or fixes.
 
-Decision digest: `outcome.decisionDigest` groups every recorded autonomous decision by its [_decision-classes.md](_decision-classes.md) class: `{ total, byClass, intentBearing }`. An **intent-bearing** record should have been a stop; the digest names each one in the hand-back.
-
 Mid-build discover checkpoint: when a `severity: high` RIM's **visible-milestone** slice lands, the driver records a recommended read-only `/wf discover <hypothesis derived from the RIM>` in the run report. It does not run discover and does not stop.
 
 Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-guards.md](_autonomy-guards.md) to the driving session itself.
@@ -152,7 +150,7 @@ Workflow({
 })
 ```
 
-The workflow runs in the background. Do not start a second driver for the same slug while it runs.
+The workflow runs in the background. Right after this call, start the watch and the running commentary per [yolo/_commentary.md](yolo/_commentary.md).
 
 # Resuming — one sanctioned path
 
@@ -170,7 +168,7 @@ When the model resumes a `yolo` run, it relaunches this script through the Workf
 
 # Step 2 — Hand back to the user
 
-When the workflow completes, read its returned `outcome` and emit a chat summary. Lead with a short **narrative** paragraph (prose, no bullets): which stages ran, the load-bearing decisions each produced, the autonomous calls the driver made, and why the run ended. Then the anchors:
+When the workflow completes, end the watch per [yolo/_commentary.md](yolo/_commentary.md), then read its returned `outcome` and emit a chat summary. Lead with a short **narrative** paragraph (prose, no bullets): which stages ran, the load-bearing decisions each produced, the autonomous calls the driver made, and why the run ended. Then the anchors:
 
 ```
 wf yolo complete: <slug> [<slice>]  (mode: <slug|slice> — <endpoint reached | HARD-STOP at <stage>: <reason>>)
@@ -200,6 +198,7 @@ Next: <outcome.route — the routing command>
 - **Endpoint, slice mode:** the next roster slice → `/wf yolo <slug> <next-slice>`; last slice → `/wf yolo <slug>` (slug-wide) or `/wf handoff <slug>` (per-slice).
 - **Endpoint, slug mode:** `/wf handoff <slug>`.
 - **HARD-STOP:** the gate that fired and the command to resolve it, then `/wf yolo <slug> [<slice>]` to resume.
+- **Stop request or pause** (`stoppedAt` is `stop-request` or `usage-pause`): where the run stopped, then `outcome.route`.
 
 Rules:
 - **Always emit**, even on a HARD-STOP or an orientation block. The narrative explains why it stopped.

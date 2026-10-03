@@ -22,11 +22,11 @@ export const BOUNDARY_PATH = resolve(
 );
 const DEFAULT_ROOTS = ['.ai/', '.claude/'];
 
-// The 22 live /wf keys + retired skill suffixes that may still leak from
+// The 24 live /wf keys + retired skill suffixes that may still leak from
 // prompts or old artifacts.
 const WF_KEYS =
   'intake|shape|slice|plan|implement|verify|review|handoff|ship-plan|ship|retro|' +
-  'design|probe|simplify|auto|yolo|status|recap|close|docs|observability|task';
+  'design|brainstorm|probe|simplify|auto|yolo|campaign|status|recap|close|docs|observability|task';
 const SKILL_SUFFIXES = `${WF_KEYS}|meta|quick|next|resume|amend|extend|announce`;
 // Stage tokens that appear in NN-stage artifact stems (06-verify-core.md, 02b-design.md…).
 const STAGE_NAMES =

@@ -302,6 +302,7 @@ export function spinnerWordOf(command: WfCommand): string | null {
     simplify: 'Simplifying',
     auto: 'Driving',
     yolo: 'Driving',
+    campaign: 'Campaigning',
     task: 'Working',
     status: 'Inspecting',
     recap: 'Recapping',

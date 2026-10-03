@@ -1,5 +1,5 @@
 /**
- * The 23 `/wf` keys as the picker offers them: the command each key gets in
+ * The 24 `/wf` keys as the picker offers them: the command each key gets in
  * the typeahead (`/wf-<key>`), the one-line description the typeahead shows,
  * the dim argument hint, and what the picker has to ask for before the
  * command is complete.
@@ -42,6 +42,7 @@ export const CATALOG: readonly CatalogEntry[] = [
   { key: 'simplify', description: 'Review a bounded scope for simplification.', argumentHint: '[branch [base]|commit range|plan slug slice|codebase [path]]', need: 'none' },
   { key: 'auto', description: 'Drive stages until the pre-handoff boundary.', argumentHint: '<slug> [slice]', need: 'slug-slice-optional' },
   { key: 'yolo', description: 'Run policy-governed autonomy with an external grant.', argumentHint: '<slug> [slice]', need: 'slug-slice-optional' },
+  { key: 'campaign', description: "Drive a brainstorm's work packets in waves.", argumentHint: '<brainstorm-slug>', need: 'slug' },
   { key: 'task', description: 'Run the minimal non-code lifecycle.', argumentHint: '<description|task-slug|existing-slug description>', need: 'none' },
   { key: 'status', description: 'Inspect workflow state and next actions.', argumentHint: '[slug|pr#N|#N|N|branch] [deep] | advise [scope|fast]', need: 'slug-optional' },
   { key: 'recap', description: 'Explain recorded workflow context.', argumentHint: '<slug|pr#N|#N|N|branch> [slice|focus]', need: 'slug-slice-optional' },

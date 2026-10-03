@@ -191,7 +191,7 @@ function isWorkflowMarkdownPath(filePath) {
 }
 function isProseLogPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
-  return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:po-answers|steer)\.md$/.test(normalized);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:po-answers|steer|commentary)\.md$/.test(normalized);
 }
 var EVIDENCE_DIRS = Object.freeze(["probe-evidence", "verify-evidence"]);
 function isEvidencePath(filePath) {
@@ -507,6 +507,7 @@ function activeWorkflowIndexes(workflows) {
   return workflows.filter((workflow) => workflow.isActive && workflow.classification !== "invalid");
 }
 var STALE_EXEMPT_DIRS = /* @__PURE__ */ new Set([...EVIDENCE_DIRS, ...SOURCE_DIRS, WORK_DIR]);
+var STALE_EXEMPT_FILES = /* @__PURE__ */ new Set(["commentary.md"]);
 async function walkWorkflowFiles(root) {
   const out = [];
   const stack = [root];
@@ -524,6 +525,8 @@ async function walkWorkflowFiles(root) {
         if (entry.name === "node_modules") continue;
         if (dir === root && STALE_EXEMPT_DIRS.has(entry.name)) continue;
         stack.push(abs);
+      } else if (dir === root && STALE_EXEMPT_FILES.has(entry.name)) {
+        continue;
       } else if (entry.isFile() && (entry.name.endsWith(".md") || entry.name.endsWith(".yaml") || entry.name.endsWith(".html.fragment"))) {
         out.push(abs);
       }

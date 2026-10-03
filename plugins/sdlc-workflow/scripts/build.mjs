@@ -77,6 +77,7 @@ const SCRIPT_ENTRIES = [
   'hub-upgrade',             // explicit controlled runtime upgrade + rollback (NATIVE-INTEROP Workstream C)
   'doctor',                  // machine-state report; spawned by the tray's "Run doctor…" (WIDE-VIEW §14.2.1)
   'work-packets',            // brainstorm done: check + write the work set; run via skills/wf/scripts/work-packets.mjs (BRAINSTORM-WORK-PACKETS-PLAN)
+  'campaign',                // /wf campaign: ledger, waves, context files, drift, versions; run via skills/wf/scripts/campaign.mjs (WF-CAMPAIGN-PLAN)
 ];
 
 // Public renderers are loaded at runtime by render-sunflower's loadRenderer()

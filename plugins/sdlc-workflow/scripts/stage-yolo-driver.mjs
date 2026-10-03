@@ -28,6 +28,11 @@
  * from the plugin cache and from the dev tree.
  *
  *   node scripts/stage-yolo-driver.mjs <absolute projectRoot>
+ *   node scripts/stage-yolo-driver.mjs <absolute projectRoot> --driver campaign-boundary
+ *
+ * `--driver` stages another Workflow script of skills/wf/workflows/ the same
+ * way: /wf campaign stages campaign-boundary.js beside yolo.js (WF-CAMPAIGN-PLAN
+ * section 19).
  *   → {"scriptPath":"…/.scratch/wf/yolo.js","version":"9.154.0","sha256":"…","overwroteHotPatch":false}
  */
 import { createHash } from 'node:crypto';
@@ -38,6 +43,7 @@ import { fileURLToPath } from 'node:url';
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DRIVER_SOURCE = path.join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', 'yolo.js');
 export const STAGE_REL = path.join('.scratch', 'wf', 'yolo.js');
+export const DRIVERS = Object.freeze(['yolo', 'campaign-boundary']);
 
 function sha256(buf) {
   return createHash('sha256').update(buf).digest('hex');
@@ -67,14 +73,16 @@ export function stageYoloDriver(projectRoot, opts = {}) {
   if (!existsSync(path.join(projectRoot, '.ai', 'workflows'))) {
     throw new Error(`stage-yolo-driver: ${projectRoot} has no .ai/workflows — pass the repo root that owns the workflow`);
   }
-  const source = opts.source ?? DRIVER_SOURCE;
+  const name = opts.driver ?? 'yolo';
+  if (!DRIVERS.includes(name)) throw new Error(`stage-yolo-driver: the driver is one of ${DRIVERS.join(', ')}`);
+  const source = opts.source ?? path.join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', `${name}.js`);
   const log = opts.log ?? ((line) => console.error(line));
   const bytes = readFileSync(source);
   const digest = sha256(bytes);
 
   const scratchDir = path.join(projectRoot, '.scratch');
   const stageDir = path.join(scratchDir, 'wf');
-  const scriptPath = path.join(stageDir, 'yolo.js');
+  const scriptPath = path.join(stageDir, `${name}.js`);
   mkdirSync(stageDir, { recursive: true });
 
   const ignoreFile = path.join(scratchDir, '.gitignore');
@@ -99,12 +107,14 @@ export function stageYoloDriver(projectRoot, opts = {}) {
 
 function main() {
   const projectRoot = process.argv[2];
+  const at = process.argv.indexOf('--driver');
+  const driver = at > -1 ? process.argv[at + 1] : 'yolo';
   if (!projectRoot) {
     console.error('usage: node scripts/stage-yolo-driver.mjs <absolute projectRoot>');
     process.exit(2);
   }
   try {
-    console.log(JSON.stringify(stageYoloDriver(path.resolve(projectRoot))));
+    console.log(JSON.stringify(stageYoloDriver(path.resolve(projectRoot), { driver })));
   } catch (err) {
     console.error(err.message);
     process.exit(1);

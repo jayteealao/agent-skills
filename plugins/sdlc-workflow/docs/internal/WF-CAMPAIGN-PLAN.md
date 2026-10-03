@@ -1,6 +1,6 @@
 # WF-CAMPAIGN-PLAN — `/wf campaign`, many slugs in dependency waves
 
-Status **Plan, nothing built; revised after review** · Date **2026-10-02** · Plugin **v9.176.0** · Owner **jayte**
+Status **Stage C built 2026-10-03 (C1–C7, unreleased); Stage A, C8, and Stage D open — see section 23** · Date **2026-10-02** · Plugin **v9.176.0** · Owner **jayte**
 Depends on: [BRAINSTORM-WORK-PACKETS-PLAN.md](BRAINSTORM-WORK-PACKETS-PLAN.md) (the campaign reads work packets) and [YOLO-COMMENTARY-PLAN.md](YOLO-COMMENTARY-PLAN.md) (the watch and the control file). Section 5 gives the order.
 
 ## 1. Why
@@ -809,3 +809,40 @@ The campaign uses the watch from
 | Q11 | How many unshipped waves may wait above the trunk? | **Decided: 2 by default** (D16), set by `campaign.max-unshipped`. |
 | Q12 | What is the size limit for a packet? | **Decided** (D18): soft limit 25 carried decisions, hard limit 40 (brainstorm plan, Q5). |
 | Q13 | Is the minimal campaign (Stage C) worth releasing to the person before Stage D? | **Decided: yes** (D17). It runs the realism waves unattended overnight at width 1, and every later stage adds speed, not new behaviour. |
+
+## 23. Build status and the earn rule
+
+### The earn rule for the 24th key
+
+SURFACE-POLICY.md admits a new key only with five items. These are the five for `campaign`.
+
+1. **The job.** Drive the many workflow slugs that one brainstorm ended in, in dependency waves, so the person does not keep the order in their head. No other key does this: `auto` and `yolo` drive one slug, and `status advise` sequences without driving.
+2. **Real use.** In SoccerManager, the brainstorm `brainstorm-realism-additions-20260922` ended in slugs that the person started by hand, in an order the person kept in their head: `realism-speed-and-replay-foundation` (created 2026-09-26, yolo run `20260926T131531Z`), `engine-modules` (2026-09-29, yolo run `20260929T170310Z`), `task-update-realism-documents` (2026-10-02), `task-realism-programme-design-docs`, and `task-update-for-real-players`. Each carries `origin-brainstorm: brainstorm-realism-additions-20260922`.
+3. **The budget.** `SKILL.md` gained one table row and one roster word, and stays at its cap (120 lines, 1715 words) after a trim. `load-baseline.json` covers the new key. Its citation graph is 52 files, under the limit of 60.
+4. **The eval.** `tests/evals/cases/campaign.json` (order 130) runs `/wf campaign` on the new two-packet fixture `campaign-packets` and checks that orient writes `ledger.json` and `forecast.md`, and changes nothing outside `.ai/`.
+5. **The pin.** `surface-policy.json` `keys: 24`; the SURFACE-POLICY.md pin history names this section.
+
+### What is built
+
+| Step | State | Where |
+|---|---|---|
+| C1 | Built, red first. 12 library tests, 7 script tests, 6 driver tests. | `tests/unit/lib/campaign.test.mjs`, `tests/unit/campaign-cli.test.mjs`, `tests/unit/skills/yolo-campaign.test.mjs` |
+| C2 | Built. The key is registered in the dispatcher, the picker catalog, the surface pins, the README, the doc site, and the manifests. | `lib/campaign.mjs`, `scripts/campaign.mjs`, `reference/campaign.md`, `reference/campaign/_phases.md` |
+| C3 | Built. The yolo args `contextPath` and `campaignControlPath`, decision class 6, and the campaign-contract review scout. | `workflows/campaign-boundary.js`, `reference/campaign/_boundary.md`, `yolo.js` |
+| C4 | Built. `version wave\|hotfix`, `label`, the slug and wave outputs, the try-it note. | `reference/campaign/_waves.md`, "Versions and outputs" |
+| C5 | Built as procedure. One PR per wave against the trunk, through `/wf handoff` and `/wf ship` in batch mode. | `_waves.md`, "Handoff and ship per wave" |
+| C6 | Built. `pause` writes the campaign control file; every yolo agent reads it fresh. | `scripts/campaign.mjs`, `_waves.md`, "Pause and resume" |
+| C7 | Built. The `work-changed` action, `replan`, and the pick-up table. | `_phases.md`, "Reopen pick-up" |
+| C8 | Open. A live run on the realism work needs the person: Phase 1 and every prepare are the person's answers. | — |
+| A1 | Open. Probes P1–P8 are not run. | — |
+| D1–D3 | Open. Each one waits on its probes. D2 also needs gh-stack v0.1.0; this machine has v0.0.2. | — |
+| D4 | Open. A live run; it needs D1–D3 and the person. | — |
+
+The commentary plan's W5 (the watch in a campaign, K1–K6) is built with Stage C. See YOLO-COMMENTARY-PLAN.md section 7.
+
+### Departures from the plan
+
+- **A shape change at prepare goes through the brainstorm.** The plan let prepare record a changed contract line as `revised-by: shape`. The brainstorm owns the packets, and the packet hook freezes a started packet, so the campaign asks the person to change the line with `/wf brainstorm <slug> add` in the brainstorm session instead.
+- **"Merge each wave only" uses ship for its gates and its merge.** It bumps nothing, tags nothing, and publishes nothing. When ship has no way to skip one of those steps, the campaign asks the person.
+- **The campaign script, not the session, writes the ledger.** Every ledger change goes through `scripts/campaign.mjs`, which also regenerates `ledger.md`. The boundary driver returns its outcome and never edits the ledger.
+- **The yolo commentary file does not link `campaign.md`.** That one link put the whole campaign graph into the yolo graph (yolo measured 66 files with the link and 29 without it), so the commentary names the key in plain text.

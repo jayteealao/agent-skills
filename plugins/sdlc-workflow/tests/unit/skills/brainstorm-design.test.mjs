@@ -19,14 +19,14 @@ const REF = 'skills/wf/reference';
 test('brainstorm is a key: SKILL.md row, key list, router, picker, surface pin', () => {
   const skill = read('skills/wf/SKILL.md');
   match(skill, /\| `brainstorm` \| `\[slug\] \[design\] \[idea\]` \|/);
-  match(skill, /one of the 23 keys/);
+  match(skill, /one of the 24 keys/);
   match(skill, /retro, design, brainstorm, probe/);
   const router = read(`${REF}/brainstorm.md`);
   match(router, /Follow \[intake\/brainstorm\.md\]\(intake\/brainstorm\.md\)/);
   match(router, /`workflow-type: brainstorm` → \*\*resume\*\*/);
   match(router, /\*\*design on a workflow\*\*/);
   match(read('hooks/mod/catalog.ts'), /key: 'brainstorm'/);
-  equal(JSON.parse(read('docs/internal/surface-policy.json')).keys, 23);
+  equal(JSON.parse(read('docs/internal/surface-policy.json')).keys, 24);
 });
 
 test('the design focus: record first, sketches are ideas, design items marked', () => {

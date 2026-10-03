@@ -1,0 +1,498 @@
+#!/usr/bin/env node
+/**
+ * scripts/campaign.mjs — the disk side of /wf campaign (WF-CAMPAIGN-PLAN, Stage C).
+ * Bundled to dist/campaign.mjs; skills/wf/scripts/campaign.mjs runs the bundle.
+ *
+ *   orient   <root> <brainstorm>                 Phase 0: check, waves, forecast, ledger (9.1)
+ *   status   <root> <brainstorm>                 the next action (section 6) and the ledger summary
+ *   replan   <root> <brainstorm>                 re-read the packets; re-plan the waves not started (15)
+ *   answer   <root> <brainstorm> <key> <json>    record a setup answer (9.2)
+ *   unit     <root> <brainstorm> <key> <state> [--route r] [--reason r] [--merge sha] [--output path] [--digest json]
+ *   outside  <root> <brainstorm> <key> <closed|needs-you>
+ *   wave     <root> <brainstorm> <n> start [--trunk main]       start a wave (9.4 step 2; 9.3 step 6)
+ *   wave     <root> <brainstorm> <n> set <state> [--pr url] [--version v] [--label l]
+ *   ask      <root> <brainstorm> <id> [--wave n] <text...>      record a question (16.4)
+ *   reply    <root> <brainstorm> <id> <answer...>               record the person's answer
+ *   pause    <root> <brainstorm> <until ISO> <reason...>        (17.4)
+ *   resume   <root> <brainstorm>
+ *   context  <root> <brainstorm> <key>            write context/<slug>.md (section 10)
+ *   drift    <root> <brainstorm> <n>              write drift/wave-<n>.md from as-built/*.json (11.2)
+ *   version  <root> <brainstorm> wave|hotfix [--label beta]     the version at ship time (V2, V3)
+ *   label    <root> <brainstorm> <n> [<slug>]     the build label of the branch tip (V4)
+ *   journal  <root> <brainstorm> <event> [<json>] append a campaign journal line (the watch reads it)
+ *   forecast <root> <brainstorm> [--wave n --minutes m --tokens t]
+ *
+ * Every command prints one JSON object on stdout. The ledger (work/campaign/ledger.json)
+ * is the truth; every write regenerates ledger.md beside it.
+ */
+import { spawnSync } from 'node:child_process';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import {
+  buildForecast, buildLabel, campaignAction, checkCampaignSet, classifyDrift, deferUnprepared, hotfixVersion,
+  isBuildUnit, newLedger, nextWaveVersion, renderContext, renderForecast, renderLedgerMd, replan, rowTokens,
+  SETUP_ANSWERS, stageMinutesFromJournals, unitOf, UNIT_STATES, WAVE_STATES,
+} from '../lib/campaign.mjs';
+import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
+
+const USAGE = 'Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast> <projectRoot> <brainstorm> ...';
+
+const brainstormDir = (root, b) => join(root, '.ai', 'workflows', b);
+const workDir = (root, b) => join(brainstormDir(root, b), 'work');
+const campDir = (root, b) => join(workDir(root, b), 'campaign');
+const ledgerPath = (root, b) => join(campDir(root, b), 'ledger.json');
+export const journalPath = (root, b) => join(campDir(root, b), '.campaign-journal.jsonl');
+export const controlPath = (root, b) => join(campDir(root, b), '.control.json');
+
+const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+function writeAtomic(file, text) {
+  mkdirSync(join(file, '..'), { recursive: true });
+  const tmp = `${file}.${process.pid}.tmp`;
+  writeFileSync(tmp, text);
+  renameSync(tmp, file);
+}
+
+function git(root, args) {
+  const r = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', windowsHide: true });
+  return r.status === 0 ? r.stdout.trim() : null;
+}
+
+/** The work set on disk: work/index.md's revision and every packet's frontmatter. */
+export function readWorkSet(root, b) {
+  const dir = workDir(root, b);
+  const indexFile = join(dir, 'index.md');
+  if (!existsSync(indexFile)) return { error: `no work set: ${relative(root, indexFile)} does not exist. End the brainstorm with done first.` };
+  // work/index.md is written by the brainstorm session and the write may not be
+  // atomic: a read that does not parse is retried once (15.1).
+  let index = safeParseFrontmatter(readFileSync(indexFile, 'utf8')).data;
+  if (!index) index = safeParseFrontmatter(readFileSync(indexFile, 'utf8')).data;
+  if (!index) return { error: 'work/index.md does not parse; read it again at the next boundary.' };
+  const packets = [];
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith('.md') || file === 'index.md' || file === 'changes.md') continue;
+    const data = safeParseFrontmatter(readFileSync(join(dir, file), 'utf8')).data;
+    if (data?.type === 'work-packet') packets.push({ ...data, file: `work/${file}` });
+  }
+  return { revision: Number(index['work-revision']) || 0, index, packets };
+}
+
+function loadLedger(root, b) {
+  const p = ledgerPath(root, b);
+  return existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null;
+}
+
+function saveLedger(root, b, ledger) {
+  ledger['updated-at'] = nowIso();
+  writeAtomic(ledgerPath(root, b), `${JSON.stringify(ledger, null, 2)}\n`);
+  writeAtomic(join(campDir(root, b), 'ledger.md'), renderLedgerMd(ledger));
+}
+
+function requireLedger(root, b) {
+  const l = loadLedger(root, b);
+  if (!l) throw new Error(`no campaign ledger for ${b}: run orient first`);
+  return l;
+}
+
+export function appendJournal(root, b, event, extra = {}) {
+  const line = { at: nowIso(), event, ...extra };
+  mkdirSync(campDir(root, b), { recursive: true });
+  appendFileSync(journalPath(root, b), `${JSON.stringify(line)}\n`);
+  return line;
+}
+
+function readJson(file) {
+  try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; }
+}
+
+function readJsonl(file) {
+  try {
+    return readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+  } catch { return []; }
+}
+
+/** The history the forecast uses: every earlier driver journal and cost ledger in the repo. */
+function forecastHistory(root) {
+  const wfRoot = join(root, '.ai', 'workflows');
+  const journals = [];
+  const sliceTokens = [];
+  const slicesPerSlug = [];
+  let slugs = [];
+  try { slugs = readdirSync(wfRoot, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name); } catch { /* none */ }
+  for (const slug of slugs) {
+    const j = readJsonl(join(wfRoot, slug, '.driver-journal.jsonl'));
+    if (j.length) journals.push(j);
+    const cost = readJsonl(join(wfRoot, slug, 'cost.jsonl'));
+    const n = sliceCount(root, slug);
+    if (n) slicesPerSlug.push(n);
+    if (cost.length && n) sliceTokens.push(cost.reduce((a, r) => a + rowTokens(r), 0) / n);
+  }
+  const med = (xs) => { if (!xs.length) return null; const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+  return { stageMinutes: stageMinutesFromJournals(journals), sliceTokens: med(sliceTokens), slicesPerSlug: med(slicesPerSlug), journals: journals.length };
+}
+
+function sliceCount(root, slug) {
+  const idx = join(root, '.ai', 'workflows', slug, '00-index.md');
+  if (!existsSync(idx)) return null;
+  const data = safeParseFrontmatter(readFileSync(idx, 'utf8')).data;
+  const s = data?.slices;
+  return Array.isArray(s) && s.length ? s.length : null;
+}
+
+function shipPlan(root) {
+  const p = join(root, '.ai', 'ship-plan.md');
+  if (!existsSync(p)) return null;
+  const d = safeParseFrontmatter(readFileSync(p, 'utf8')).data ?? {};
+  return {
+    'version-scheme': d['version-scheme'] ?? null,
+    'version-source-of-truth': d['version-source-of-truth'] ?? null,
+    'version-bump-cmd': d['version-bump-cmd'] ?? null,
+    'release-trigger': d['release-trigger'] ?? null,
+    'rollout-stages': d['rollout-stages'] ?? null,
+  };
+}
+
+function trunkOf(root) {
+  const head = git(root, ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD']);
+  if (head) return head.replace(/^origin\//, '');
+  for (const b of ['main', 'master']) if (git(root, ['rev-parse', '--verify', '--quiet', b]) !== null) return b;
+  return 'main';
+}
+
+function flags(args) {
+  const pos = [];
+  const f = {};
+  for (let i = 0; i < args.length; i++) {
+    if (args[i].startsWith('--')) { f[args[i].slice(2)] = args[i + 1]; i++; } else pos.push(args[i]);
+  }
+  return { pos, f };
+}
+
+// ---------------------------------------------------------------- commands
+
+function orient(root, b) {
+  if (loadLedger(root, b)) return { ok: false, error: 'a ledger exists: use status (the campaign infers its phase from the ledger)' };
+  const ws = readWorkSet(root, b);
+  if (ws.error) return { ok: false, error: ws.error };
+  const units = ws.packets.map(unitOf);
+  const check = checkCampaignSet(units);
+  if (check.single) {
+    const only = units.find(isBuildUnit);
+    return { ok: false, single: true, error: 'the work set has one build packet: that is not a campaign.', start: only ? `/wf intake .ai/workflows/${b}/${only.file}` : null };
+  }
+  if (check.errors.length) return { ok: false, errors: check.errors, warnings: check.warnings };
+  // 9.1 step 4: a worktree, a branch, or a PR carries .ai/ only when the repo tracks it.
+  const cfg = readJson(join(root, '.ai', 'sdlc-config.json')) ?? {};
+  const ignored = cfg.artifactTracking === 'ignored' || git(root, ['check-ignore', '-q', '.ai/workflows']) !== null;
+  if (ignored) return { ok: false, error: 'the repo does not track .ai/ (artifactTracking: ignored, or .ai/workflows is gitignored). The waves carry the workflow artifacts on their branches, so a campaign needs a tracked .ai/.' };
+  const ledger = newLedger({ brainstorm: b, revision: ws.revision, units, now: nowIso() });
+  ledger['ship-plan'] = shipPlan(root);
+  ledger.trunk = trunkOf(root);
+  ledger['run-id'] = `${nowIso().replace(/[-:]/g, '').replace(/\.\d+/, '')}-${b}`;
+  if (ledger['ship-plan'] === null || ledger['ship-plan']['version-scheme'] === 'none') ledger.answers['target-version'] = 'none';
+  const cliOk = claudeVersionGap();
+  if (cliOk) ledger['tool-gaps'].push(cliOk);
+  const history = forecastHistory(root);
+  const slices = Object.fromEntries(units.filter(isBuildUnit).map((u) => [u.key, sliceCount(root, u.slug)]).filter(([, n]) => n));
+  const fc = buildForecast({ units, history, slices });
+  ledger.forecast = { minutes: fc.minutes, tokens: fc.tokens, unknown: fc.unknown, journals: history.journals };
+  saveLedger(root, b, ledger);
+  writeAtomic(join(campDir(root, b), 'forecast.md'), renderForecast(fc, { brainstorm: b, now: nowIso() }));
+  appendJournal(root, b, 'campaign-orient', { revision: ws.revision, waves: ledger.waves.length });
+  return { ok: true, waves: ledger.waves.map((w) => w.units), waiting: ledger.waiting, outside: Object.keys(ledger.outside), warnings: check.warnings, forecast: ledger.forecast, toolGaps: ledger['tool-gaps'], next: campaignAction(ledger, { revision: ws.revision }) };
+}
+
+function claudeVersionGap() {
+  const r = process.platform === 'win32'
+    // A .cmd shim needs the shell; one command string avoids the args-with-shell deprecation.
+    ? spawnSync('claude --version', { encoding: 'utf8', windowsHide: true, shell: true })
+    : spawnSync('claude', ['--version'], { encoding: 'utf8' });
+  const m = /(\d+)\.(\d+)\.(\d+)/.exec(r.stdout ?? '');
+  if (!m) return null; // not on PATH here: the session that runs the campaign is Claude Code itself
+  const [maj, min, pat] = m.slice(1).map(Number);
+  const ok = maj > 2 || (maj === 2 && (min > 1 || (min === 1 && pat >= 287)));
+  return ok ? null : { tool: 'claude-code', have: m[0], need: '2.1.287', fix: 'update Claude Code' };
+}
+
+function status(root, b) {
+  const ledger = loadLedger(root, b);
+  const ws = readWorkSet(root, b);
+  const revision = ws.error ? null : ws.revision;
+  return { ok: true, next: campaignAction(ledger, { revision }), revision, ledger: ledger ? { waves: ledger.waves.map((w) => ({ n: w.n, state: w.state, units: w.units, moved: w.moved })), waiting: ledger.waiting, pause: ledger.pause } : null };
+}
+
+function doReplan(root, b) {
+  const ledger = requireLedger(root, b);
+  const ws = readWorkSet(root, b);
+  if (ws.error) return { ok: false, error: ws.error };
+  const units = ws.packets.map(unitOf);
+  const check = checkCampaignSet(units);
+  if (check.errors.length) return { ok: false, errors: check.errors };
+  const before = new Set([...Object.keys(ledger.units), ...Object.keys(ledger.outside)]);
+  // A packet that is prepared or routed counts as prepared for a unit still planned.
+  for (const u of units) if (ledger.units[u.key]?.state === 'planned' && ['prepared', 'routed'].includes(u.packetState)) ledger.units[u.key].state = 'prepared';
+  replan(ledger, units, { revision: ws.revision, now: nowIso() });
+  const added = [...Object.keys(ledger.units), ...Object.keys(ledger.outside)].filter((k) => !before.has(k));
+  saveLedger(root, b, ledger);
+  appendJournal(root, b, 'replan', { revision: ws.revision, added });
+  return { ok: true, added, waves: ledger.waves.map((w) => ({ n: w.n, state: w.state, units: w.units })), waiting: ledger.waiting };
+}
+
+function answer(root, b, [key, ...rest]) {
+  if (!SETUP_ANSWERS.includes(key)) throw new Error(`answer: the key is one of ${SETUP_ANSWERS.join(', ')}`);
+  const ledger = requireLedger(root, b);
+  const raw = rest.join(' ');
+  let value;
+  try { value = JSON.parse(raw); } catch { value = raw; }
+  ledger.answers[key] = value;
+  saveLedger(root, b, ledger);
+  return { ok: true, key, value, next: campaignAction(ledger, {}) };
+}
+
+function unit(root, b, [key, state], f) {
+  if (!UNIT_STATES.includes(state)) throw new Error(`unit: the state is one of ${UNIT_STATES.join(', ')}`);
+  const ledger = requireLedger(root, b);
+  const u = ledger.units[key];
+  if (!u) throw new Error(`unit: ${key} is not a build unit of this campaign`);
+  u.state = state;
+  for (const k of ['route', 'reason', 'merge', 'output']) if (f[k] !== undefined) u[k] = f[k];
+  // The yolo outcome's decision digest, kept for the as-built note (11.1).
+  if (f.digest !== undefined) { try { u.digest = JSON.parse(f.digest); } catch { u.digest = f.digest; } }
+  saveLedger(root, b, ledger);
+  appendJournal(root, b, 'unit-state', { key, slug: u.slug, state, ...(f.route ? { route: f.route } : {}) });
+  return { ok: true, key, state };
+}
+
+function outside(root, b, [key, state]) {
+  const ledger = requireLedger(root, b);
+  if (!ledger.outside[key]) throw new Error(`outside: ${key} is not a task, investigate or discover packet of this campaign`);
+  if (!['closed', 'needs-you'].includes(state)) throw new Error('outside: the state is closed or needs-you');
+  ledger.outside[key].state = state;
+  saveLedger(root, b, ledger);
+  return doReplan(root, b);
+}
+
+function wave(root, b, [nText, action, state], f) {
+  const ledger = requireLedger(root, b);
+  const n = Number(nText);
+  const w = ledger.waves.find((x) => x.n === n);
+  if (!w) throw new Error(`wave: no wave ${nText}`);
+  if (action === 'start') {
+    if (w.state !== 'planned') throw new Error(`wave ${n} is ${w.state}, not planned`);
+    const live = ledger.waves.find((x) => ['running', 'boundary', 'handoff', 'shipping'].includes(x.state));
+    if (live) throw new Error(`wave ${live.n} is ${live.state}: in Stage C a wave starts after the previous wave merged`);
+    const ws = readWorkSet(root, b);
+    const units = ws.error ? [] : ws.packets.map(unitOf);
+    const prepared = new Set(w.units.filter((k) => ledger.units[k]?.state === 'prepared'));
+    const { start, moved } = deferUnprepared(w.units, units, prepared);
+    if (!start.length) return { ok: false, error: `no unit of wave ${n} is prepared`, moved };
+    const trunk = f.trunk ?? ledger.trunk ?? 'main';
+    w.units = start;
+    w.moved = [...(w.moved ?? []), ...moved];
+    w.state = 'running';
+    w.branch = `campaign/${b}/wave-${n}`;
+    w.base = trunk;
+    w['started-at'] = nowIso();
+    for (const k of start) { ledger.units[k].state = 'prepared'; ledger.units[k].wave = n; }
+    // The moved units go back to planning: they enter the earliest later wave their dependencies allow.
+    if (moved.length) replan(ledger, units, { revision: ledger['work-revision'], now: nowIso() });
+    saveLedger(root, b, ledger);
+    appendJournal(root, b, 'wave-start', { wave: n, branch: w.branch, base: trunk, units: start, slugs: start.map((k) => ledger.units[k].slug), moved });
+    return { ok: true, wave: n, branch: w.branch, base: trunk, units: start.map((k) => ({ key: k, slug: ledger.units[k].slug })), moved };
+  }
+  if (action === 'set') {
+    if (!WAVE_STATES.includes(state)) throw new Error(`wave set: the state is one of ${WAVE_STATES.join(', ')}`);
+    w.state = state;
+    for (const k of ['pr', 'version', 'label']) if (f[k] !== undefined) w[k] = f[k];
+    if (state === 'shipped') {
+      w['shipped-at'] = nowIso();
+      for (const k of w.units) if (ledger.units[k]?.state === 'merged') ledger.units[k].state = 'shipped';
+    }
+    saveLedger(root, b, ledger);
+    appendJournal(root, b, state === 'shipped' ? 'wave-end' : 'wave-state', { wave: n, state, ...(f.pr ? { pr: f.pr } : {}), ...(f.version ? { version: f.version } : {}) });
+    return { ok: true, wave: n, state };
+  }
+  throw new Error('wave: the action is start or set');
+}
+
+function ask(root, b, args, f) {
+  const [id, ...text] = args;
+  const ledger = requireLedger(root, b);
+  if (ledger.questions.some((q) => q.id === id && !q['answered-at'])) throw new Error(`ask: question ${id} is open`);
+  const q = { id, ...(f.wave ? { wave: Number(f.wave) } : {}), text: text.join(' '), 'asked-at': nowIso() };
+  ledger.questions.push(q);
+  saveLedger(root, b, ledger);
+  appendJournal(root, b, 'asked', { id, wave: q.wave ?? null, text: q.text });
+  return { ok: true, question: q };
+}
+
+function reply(root, b, [id, ...text]) {
+  const ledger = requireLedger(root, b);
+  const q = ledger.questions.find((x) => x.id === id && !x['answered-at']);
+  if (!q) throw new Error(`reply: no open question ${id}`);
+  q.answer = text.join(' ');
+  q['answered-at'] = nowIso();
+  saveLedger(root, b, ledger);
+  return { ok: true, question: q };
+}
+
+function pause(root, b, [until, ...reason]) {
+  if (!until || !Number.isFinite(Date.parse(until))) throw new Error('pause: give the reset time as an ISO 8601 timestamp');
+  const ledger = requireLedger(root, b);
+  ledger.pause = { reason: reason.join(' ') || 'usage limit', until: new Date(Date.parse(until)).toISOString(), at: nowIso() };
+  saveLedger(root, b, ledger);
+  writeAtomic(controlPath(root, b), `${JSON.stringify({ action: 'pause', scope: 'campaign', until: ledger.pause.until, reason: ledger.pause.reason, requestedAt: nowIso() }, null, 2)}\n`);
+  appendJournal(root, b, 'paused', ledger.pause);
+  return { ok: true, pause: ledger.pause };
+}
+
+function resume(root, b) {
+  const ledger = requireLedger(root, b);
+  ledger.pause = null;
+  saveLedger(root, b, ledger);
+  const ctl = readJson(controlPath(root, b));
+  if (ctl && ctl.action === 'pause') writeAtomic(controlPath(root, b), '{}\n');
+  appendJournal(root, b, 'resumed', {});
+  return { ok: true, next: campaignAction(ledger, {}) };
+}
+
+function asBuiltNotes(root, b) {
+  const dir = join(campDir(root, b), 'as-built');
+  const out = {};
+  if (!existsSync(dir)) return out;
+  for (const f of readdirSync(dir).filter((x) => x.endsWith('.json'))) {
+    const d = readJson(join(dir, f));
+    if (d?.key) out[d.key] = { ...d, path: `../as-built/${f.replace(/\.json$/, '.md')}` };
+  }
+  return out;
+}
+
+function context(root, b, [key]) {
+  const ledger = requireLedger(root, b);
+  const ws = readWorkSet(root, b);
+  if (ws.error) return { ok: false, error: ws.error };
+  const units = ws.packets.map(unitOf);
+  const u = units.find((x) => x.key === key);
+  if (!u) throw new Error(`context: no packet ${key}`);
+  const driftFile = join(campDir(root, b), 'drift', `${key}.json`);
+  const drift = (readJson(driftFile)?.lines ?? []).filter((l) => l.class === 'implementation-detail');
+  const text = renderContext({ unit: u, units, ledger, asBuilt: asBuiltNotes(root, b), drift });
+  const file = join(campDir(root, b), 'context', `${u.slug}.md`);
+  writeAtomic(file, text);
+  return { ok: true, key, slug: u.slug, path: file };
+}
+
+function drift(root, b, [nText]) {
+  const ledger = requireLedger(root, b);
+  const n = Number(nText);
+  const w = ledger.waves.find((x) => x.n === n);
+  if (!w) throw new Error(`drift: no wave ${nText}`);
+  const ws = readWorkSet(root, b);
+  const units = ws.error ? [] : ws.packets.map(unitOf);
+  const notes = asBuiltNotes(root, b);
+  const results = w.units.map((k) => units.find((u) => u.key === k)).filter(Boolean).map((u) => classifyDrift(u, notes));
+  const L = [`# Drift check before wave ${n}`, '', 'Each waiting slug\'s expects lines against the as-built notes of the slugs it names, after the refuter (11.2).', ''];
+  for (const r of results) {
+    writeAtomic(join(campDir(root, b), 'drift', `${r.key}.json`), `${JSON.stringify(r, null, 2)}\n`);
+    L.push(`## ${r.key} — ${r.class}`, '');
+    if (!r.lines.length) L.push('- No expects lines.');
+    for (const l of r.lines) L.push(`- \`${l.from}/${l.key}\` (${l.text}): ${l.status} → **${l.class}**${l.note ? `. ${l.note}` : ''}`);
+    L.push('');
+  }
+  const contract = results.filter((r) => r.class === 'contract').map((r) => r.key);
+  // A contract difference stops that slug and every slug that depends on it (11.2).
+  const stop = new Set(contract);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const u of units) if (!stop.has(u.key) && u.dependsOn.some((d) => stop.has(d)) && w.units.includes(u.key)) { stop.add(u.key); grew = true; }
+  }
+  L.push('## Result', '', contract.length ? `Contract differences: ${contract.join(', ')}. These slugs and their dependents wait for the person: ${[...stop].join(', ')}.` : 'No contract difference. The wave can start.', '');
+  writeAtomic(join(campDir(root, b), 'drift', `wave-${n}.md`), L.join('\n'));
+  appendJournal(root, b, 'drift', { wave: n, contract, stop: [...stop], implementation: results.filter((r) => r.class === 'implementation-detail').map((r) => r.key) });
+  return { ok: true, wave: n, results: results.map((r) => ({ key: r.key, class: r.class })), stop: [...stop] };
+}
+
+function version(root, b, [kind], f) {
+  const ledger = requireLedger(root, b);
+  const tags = (git(root, ['tag', '--list']) ?? '').split(/\r?\n/).filter(Boolean);
+  const stages = ledger['ship-plan']?.['rollout-stages'];
+  const label = f.label ?? (Array.isArray(stages) && typeof stages[0] === 'string' && /^[a-z]+$/.test(stages[0]) ? stages[0] : 'beta');
+  if (kind === 'wave') {
+    const target = ledger.answers['target-version'];
+    if (!target || target === 'none') return { ok: true, version: null, reason: 'no versioning (V6): the outputs keep their build labels' };
+    return { ok: true, version: nextWaveVersion({ target, tags, label }) };
+  }
+  if (kind === 'hotfix') return { ok: true, version: hotfixVersion({ tags }), confirm: 'the person confirms the hotfix number (V3)' };
+  throw new Error('version: wave or hotfix');
+}
+
+function label(root, b, [nText, slug]) {
+  const ledger = requireLedger(root, b);
+  const w = ledger.waves.find((x) => x.n === Number(nText));
+  if (!w?.branch) throw new Error(`label: wave ${nText} has no branch yet`);
+  const ref = slug ? `campaign/${b}/wave-${w.n}--${slug}` : w.branch;
+  const sha = git(root, ['rev-parse', ref]) ?? git(root, ['rev-parse', 'HEAD']);
+  return { ok: true, label: buildLabel({ wave: w.n, slug: slug ?? null, sha }) };
+}
+
+function journal(root, b, [event, json]) {
+  let extra = {};
+  if (json) { try { extra = JSON.parse(json); } catch { throw new Error('journal: the second argument is a JSON object'); } }
+  return { ok: true, line: appendJournal(root, b, event, extra) };
+}
+
+function forecast(root, b, f) {
+  const ledger = requireLedger(root, b);
+  const ws = readWorkSet(root, b);
+  const units = ws.error ? [] : ws.packets.map(unitOf);
+  ledger['forecast-actual'] ??= [];
+  if (f.wave) ledger['forecast-actual'].push({ wave: Number(f.wave), minutes: f.minutes ? Number(f.minutes) : null, tokens: f.tokens ? Number(f.tokens) : null });
+  const history = forecastHistory(root);
+  const slices = Object.fromEntries(units.filter(isBuildUnit).map((u) => [u.key, sliceCount(root, u.slug)]).filter(([, n]) => n));
+  const fc = buildForecast({ units: units.filter((u) => !['merged', 'shipped'].includes(ledger.units[u.key]?.state)), history, slices });
+  ledger.forecast = { minutes: fc.minutes, tokens: fc.tokens, unknown: fc.unknown, journals: history.journals };
+  saveLedger(root, b, ledger);
+  writeAtomic(join(campDir(root, b), 'forecast.md'), renderForecast(fc, { brainstorm: b, now: nowIso(), actual: ledger['forecast-actual'] }));
+  return { ok: true, forecast: ledger.forecast };
+}
+
+export function main(argv = process.argv.slice(2)) {
+  const [cmd, rootArg, b, ...rest] = argv;
+  if (!cmd || !rootArg || !b) { process.stderr.write(`${USAGE}\n`); return 2; }
+  const root = resolve(rootArg);
+  const { pos, f } = flags(rest);
+  let out;
+  try {
+    switch (cmd) {
+      case 'orient': out = orient(root, b); break;
+      case 'status': out = status(root, b); break;
+      case 'replan': out = doReplan(root, b); break;
+      case 'answer': out = answer(root, b, pos); break;
+      case 'unit': out = unit(root, b, pos, f); break;
+      case 'outside': out = outside(root, b, pos); break;
+      case 'wave': out = wave(root, b, pos, f); break;
+      case 'ask': out = ask(root, b, pos, f); break;
+      case 'reply': out = reply(root, b, pos); break;
+      case 'pause': out = pause(root, b, pos); break;
+      case 'resume': out = resume(root, b); break;
+      case 'context': out = context(root, b, pos); break;
+      case 'drift': out = drift(root, b, pos); break;
+      case 'version': out = version(root, b, pos, f); break;
+      case 'label': out = label(root, b, pos); break;
+      case 'journal': out = journal(root, b, pos); break;
+      case 'forecast': out = forecast(root, b, f); break;
+      default: process.stderr.write(`${USAGE}\n`); return 2;
+    }
+  } catch (e) {
+    out = { ok: false, error: e.message };
+  }
+  process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
+  return out.ok ? 0 : 1;
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  process.exitCode = main();
+}

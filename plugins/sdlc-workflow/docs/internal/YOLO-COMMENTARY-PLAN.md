@@ -1,6 +1,6 @@
 # YOLO-COMMENTARY-PLAN — a built-in watch and running commentary for yolo and campaign
 
-Status **Plan, nothing built; revised after review** · Date **2026-10-02** · Plugin **v9.176.0** · Owner **jayte**
+Status **W0–W3 and W5 built 2026-10-03 (unreleased); W4 open — see section 7** · Date **2026-10-02** · Plugin **v9.176.0** · Owner **jayte**
 Used by: [WF-CAMPAIGN-PLAN.md](WF-CAMPAIGN-PLAN.md), section 20. This plan is Stage B2 of the campaign plan (section 5): it ships first, and it helps single-slug yolo runs without the campaign.
 
 ## 1. Why
@@ -138,3 +138,28 @@ The campaign runs the same script over every slug in the active wave and over th
 | Q2 | Is `commentary.md` committed? | Yes. It is the person's record of the run, like the stage artifacts. |
 | Q3 | Which files are protected by default? | `PRODUCT.md`, `DESIGN.md`, and any file with uncommitted edits when the run starts. |
 | Q4 | Could a mod replace the Monitor watch? A mod timer runs between turns without starting one (`$.clock.every`), reads the journal with `$.fs.read`, shows a status line entry and toasts, and wakes the session with `$.prompt.submit`. It needs no 30-minute re-arm. | Evaluate in W0 beside the Monitor watch. The Monitor watch stays the default until a mod watch is proven in the CLI and the Desktop app. Mods need Claude Code 2.1.287 or later. |
+
+## 7. Build status
+
+Built 2026-10-03, after v9.177.1, not yet released.
+
+| Wave | State | Where |
+|---|---|---|
+| W0 | Built. 16 tests. The tests were written with the script, not before it, so they are not red-first. | `tests/unit/yolo-watch.test.mjs` |
+| W1 | Built. All ten events. | `scripts/yolo-watch.mjs` |
+| W2 | Built. | `skills/wf/reference/yolo/_commentary.md`, yolo.md Step 1 and Step 2 |
+| W3 | Built. 5 tests, with stub agents for `driveChain`. | `yolo.js` (`stopCheckClause`, `stopKindOf`, `STAGE_RESULT.status`), `tests/unit/skills/yolo-stop-request.test.mjs` |
+| W4 | Open. A live run on one SoccerManager slug needs the person. | — |
+| W5 | Built with campaign Stage C. K1–K6: one watch per wave over its slugs and the campaign journal, `parallel` on each stage end, the campaign events, `note --campaign`, and `control --campaign --scope`. 5 tests. Width 1 only until campaign Stage D1 runs slugs in parallel. | `scripts/yolo-watch.mjs`, `reference/yolo/_commentary.md` "In a campaign" |
+
+Departures from the plan:
+
+- **Run end (S4).** The Workflow script has no file access, so it writes no outcome to disk. The watch ends on a `run-end` journal line, which the main session appends with `yolo-watch.mjs end` when the Workflow returns. Without that line, a journal whose newest line is an `agent-end` and that stays silent past the liveness limit gives an inferred `run-end`.
+- **The stop check reads the journal.** "stop after verify" holds when the journal has a verify `agent-end` later than the request's `requestedAt`. A comparison with the last stage the driver ended would stop at once when an earlier slice ended a verify.
+- **Which agents check.** The first agent of each stage: plan, implement, the first verify round, the review (the rubric selection agent when the review fans out), and the update-deps exec. A verify fix round and the review scouts do not check, so a stop never lands inside a stage.
+- **Subcommands.** The main session writes the control file and the notes through `yolo-watch.mjs control` and `note`. The file gets a real clock, and no write hook runs on it.
+- **A first watch skips the journal history.** It reads the history for the cadence only. `--since <seq>` emits the newest run's lines after that seq.
+- **`stopped`, not `paused`.** A pause returns `status: stopped` with `stopKind: pause`, and the driver ends with `stoppedAt: usage-pause`. The campaign plan (17.4) names the status `paused`; the campaign maps it when it is built.
+- **Usage.** The watch reads `~/.claude/sdlc/usage/<sessionId>.json` in the shape of the campaign plan 17.1. Nothing writes that file until the usage guard (campaign Stage D3) is built, so `usage` and `usage-reset` stay silent until then. The budget lines are the new `yolo.usageBudget` config.
+- **Q4 (a mod watch).** Not evaluated. The Monitor watch is the default.
+

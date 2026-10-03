@@ -88,9 +88,11 @@ export function isWorkflowMarkdownPath(filePath) {
 // AND the post-write schema verifier. Centralised here so the carve-out can't
 // drift between the two hooks (that exact drift shipped a broken post-write check
 // in 9.34.1). steer.md added in 9.120.0 (W6 standing-steering contract).
+// commentary.md is the yolo run commentary (YOLO-COMMENTARY-PLAN C4), appended by
+// scripts/yolo-watch.mjs note: prose, newest last, no frontmatter.
 export function isProseLogPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
-  return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:po-answers|steer)\.md$/.test(normalized);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:po-answers|steer|commentary)\.md$/.test(normalized);
 }
 
 // probe-evidence/ holds raw runtime evidence captured by /wf probe (command

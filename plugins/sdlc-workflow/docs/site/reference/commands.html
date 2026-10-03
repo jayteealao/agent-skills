@@ -14,7 +14,7 @@
 <div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
 
 <h2 id="dispatcher">The dispatcher</h2>
-<p>All plugin operations run through one command: <code>/wf &lt;key&gt; [args…]</code>. The first token must be one of the 23 keys on this page. Everything after the first token passes verbatim to that key. The dispatcher itself has this behavior:</p>
+<p>All plugin operations run through one command: <code>/wf &lt;key&gt; [args…]</code>. The first token must be one of the 24 keys on this page. Everything after the first token passes verbatim to that key. The dispatcher itself has this behavior:</p>
 <ul>
   <li><strong>Empty invocation.</strong> <code>/wf</code> with no arguments renders the key menu and asks which operation you want.</li>
   <li><strong>Unknown key.</strong> A first token that is not a known key is an error. The dispatcher never treats the token as a slug or as an intake mode. The dispatcher lists the 23 valid keys and stops. The table under <a href="#renamed">Renamed commands</a> maps every retired command name to its current spelling.</li>
@@ -87,7 +87,7 @@
 <p>Retro is the post-mortem stage. It extracts reusable lessons and turns them into concrete improvements to prompts, hooks, repo instructions, tests, and automation. Batch mode retrospects every slug on the branch, one retro each, and skips slugs with nothing to retro. Batch mode also synthesizes the cross-slug lessons that span the whole branch.</p>
 <p><strong>Writes:</strong> <code>10-retro.md</code> (one per slug in batch mode).</p>
 
-<h2 id="other">The other twelve keys</h2>
+<h2 id="other">The other thirteen keys</h2>
 <p>The keys below are in alphabetical order. They are standalone commands, drivers, navigation, lifecycle control, and routers.</p>
 
 <h3 id="auto"><code>/wf auto</code></h3>
@@ -105,6 +105,11 @@
 <p>Brainstorm thinks an idea through with you, as a loop of question batches on a board that stays open until you say <code>done</code>. It runs the same loop as <code>/wf intake brainstorm</code>, which stays valid. <code>design</code> focuses the brainstorm on how the idea looks and behaves. The design focus reads the design record, maps the design space, and draws rough sketches: on the design canvas, else with <code>/imagery</code>, else as a one-sentence scene. A sketch is an idea only. The brainstorm never writes <code>02c-craft.md</code>, never resolves the image gate, and never records <code>direction-confirmed-by</code>. The first token resolves by exact existence. A brainstorm slug resumes that board, and <code>design</code> switches its focus. A feature slug with <code>design</code> brainstorms the design of that workflow; <code>done</code> then routes to <code>/wf design &lt;slug&gt;</code>, or to <code>/wf design &lt;slug&gt; amend</code> when the design is already confirmed. A feature slug with any other topic runs a compressed brainstorm slice. At <code>done</code> on a standalone board, each piece of work carries its design items, a proposed <code>ux-impact</code>, and its sketches to the design stage. See <a href="../guides/design.html#brainstorm">Design</a>.</p>
 <p><code>add</code> records one new piece of work on a brainstorm board, for example a bug found while trying built work, and writes its packet.</p>
 <p><strong>Writes:</strong> a standalone board writes <code>00-index.md</code>, <code>01-brainstorm.md</code>, and <code>brainstorm-board.json</code>, keeps its sources in <code>research/</code> and <code>references/</code>, and at <code>done</code> writes one work packet per piece in <code>work/</code>; a design brainstorm on a feature workflow writes <code>brainstorm-board-design.json</code> and <code>design-notes/brainstorm-design.md</code> beside that workflow's artifacts.</p>
+
+<h3 id="campaign"><code>/wf campaign</code></h3>
+<pre><code>/wf campaign &lt;brainstorm-slug&gt;</code></pre>
+<p>Campaign drives the many workflow slugs that one brainstorm ended in. It reads the work packets in the brainstorm's <code>work/</code> folder and puts them in dependency waves: a wave holds every packet whose dependencies are done, and two packets that touch the same slug never share a wave. Setup asks the person four questions: the forecast, the target version, whether each wave releases, and the outputs to build. The person then prepares each slug (intake, shape, slice, and the design stage when the packet needs one); the campaign never makes an intake or shape decision. Each wave runs <code>/wf yolo</code> on its slugs one at a time, merges them into one wave branch, verifies the merge, records what each slug actually built, and hands off and ships one PR per wave. A slug that breaks the wave verify is found by reverting the merges newest first, and the other slugs stay merged. Before the next wave, a drift check compares what the earlier slugs built with what the next slugs expect. Setup and prepare run on every host; the waves run on Claude Code only. The campaign asks the person at every handoff or ship issue. One command resumes at any point.</p>
+<p><strong>Writes:</strong> <code>work/campaign/</code> inside the brainstorm: <code>ledger.json</code> (the state), <code>ledger.md</code>, <code>forecast.md</code>, the context file each yolo run reads, the as-built notes, the drift and fidelity checks, and one try-it note per wave. Built outputs go to <code>.scratch/campaign/</code>. The campaign never writes the board or a packet.</p>
 
 <h3 id="close"><code>/wf close</code></h3>
 <pre><code>/wf close &lt;slug&gt; [&lt;slice&gt; | reason]</code></pre>

@@ -4,19 +4,19 @@ import {
   buildLexicon,
   formatFindings,
   scanText
-} from "./chunk-26W7OXX4.mjs";
+} from "./chunk-7BEX7IM3.mjs";
 import {
   blockToolCall,
   isEntry,
   runStandalone
-} from "./chunk-TYIVWWNW.mjs";
+} from "./chunk-QAWMADB5.mjs";
 import {
   loadConfig
 } from "./chunk-KNXRJRUP.mjs";
 import {
   outputSystemMessage,
   projectRootFromInput
-} from "./chunk-6KXVCHJL.mjs";
+} from "./chunk-JNFVGADR.mjs";
 
 // hooks/leak-guard-bash.mjs
 var PUBLISH_COMMANDS = /\bgit\s+commit\b|\bgit\s+tag\b|\bgh\s+pr\s+create\b|\bgh\s+release\s+(?:create|edit)\b/;

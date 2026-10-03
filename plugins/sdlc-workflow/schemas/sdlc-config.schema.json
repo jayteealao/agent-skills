@@ -224,6 +224,50 @@
           "description": "When true (default), each SessionStart ensures the fenced `/wf` rules block in AGENTS.md and the `@AGENTS.md` import in CLAUDE.md, replacing an older kernel version in place and never re-announcing after the first insert. Set false to disable seeding entirely (existing seeded blocks are left untouched)."
         }
       }
+    },
+    "yolo": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The /wf yolo watch (YOLO-COMMENTARY-PLAN). scripts/yolo-watch.mjs reads these settings when it starts.",
+      "properties": {
+        "protectedFiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": [],
+          "description": "Repo-relative paths that the watch hashes every 20 seconds. A change gives a protected-change event and a push notification. PRODUCT.md, DESIGN.md, and every file with uncommitted edits when the run starts are always protected."
+        },
+        "usageBudget": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Budget lines for the usage event, in percent of each rate-limit window. The watch reads the newest reading in ~/.claude/sdlc/usage/.",
+          "properties": {
+            "fiveHourSlow": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "default": 75,
+              "description": "Above this 5-hour use, the watch emits a usage event at level slow."
+            },
+            "fiveHourPause": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "default": 90,
+              "description": "Above this 5-hour use, the watch emits a usage event at level pause."
+            },
+            "sevenDayReserve": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "default": 15,
+              "description": "The last part of the 7-day window, kept for the person. A 7-day use inside the reserve is level pause."
+            }
+          }
+        }
+      }
     }
   }
 }

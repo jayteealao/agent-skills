@@ -24,6 +24,8 @@ A decision is intent-bearing if it does ANY of the following:
    charter, when one exists).
 5. **Drops or stubs a committed capability** — removes, stubs, or defers a capability the shape
    committed to (an adoption-matrix `USE` row included).
+6. **Changes a campaign contract line** — under `/wf campaign`, breaks an `expects` line of a
+   later slug, or changes a `provides` line of this slug, as the slug's context file lists them.
 
 Everything else is **implementation-detail**: naming, file layout, internal data shapes, test
 scaffolding, error-message wording, and library idioms *within* an already-committed choice.

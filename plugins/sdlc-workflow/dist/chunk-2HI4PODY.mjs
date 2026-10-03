@@ -4,12 +4,12 @@ import {
   buildLexicon,
   formatFindings,
   scanText
-} from "./chunk-26W7OXX4.mjs";
+} from "./chunk-7BEX7IM3.mjs";
 import {
   blockToolCall,
   isEntry,
   runStandalone
-} from "./chunk-TYIVWWNW.mjs";
+} from "./chunk-QAWMADB5.mjs";
 import {
   loadConfig
 } from "./chunk-KNXRJRUP.mjs";
@@ -17,7 +17,7 @@ import {
   normalizePathForMatch,
   outputSystemMessage,
   projectRootFromInput
-} from "./chunk-6KXVCHJL.mjs";
+} from "./chunk-JNFVGADR.mjs";
 
 // hooks/leak-guard-write.mjs
 function isPublicDocPath(filePath, roots) {
