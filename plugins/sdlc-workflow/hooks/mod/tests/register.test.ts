@@ -365,6 +365,53 @@ describe('register', () => {
     expect(textOf(await $.ui.render(BAND))).not.toContain('pick a')
   })
 
+  test('a typed /wf status runs as typed; a slug-optional key opens no step', async ($, on) => {
+    const world = seat(on)
+    let ran = 0
+    on('command.run', () => {
+      ran += 1
+      return { text: 'passed on' }
+    })
+    await $.session.start(SESSION)
+    expect(await run($, 'wf', 'status')).toEqual({ text: 'passed on' })
+    expect(ran).toBe(1)
+    expect(textOf(await $.ui.render(BAND))).not.toContain('pick a')
+    expect(world.filled).toEqual([])
+  })
+
+  test('(no slice) issues the command once; its run does not open the picker again', async ($, on) => {
+    const world = seat(on)
+    let ran = 0
+    on('command.run', () => {
+      ran += 1
+      return { text: 'passed on' }
+    })
+    await $.session.start(SESSION)
+    await run($, 'wf-plan', 'alpha-flow')
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan alpha-flow — pick a slice')
+    await pickRow($, '-')
+    expect(world.filled).toEqual(['/wf plan alpha-flow '])
+    // The person presses Enter on the filled line: it runs, and no step opens.
+    expect(await run($, 'wf', 'plan alpha-flow')).toEqual({ text: 'passed on' })
+    expect(ran).toBe(1)
+    expect(textOf(await $.ui.render(BAND))).not.toContain('pick a')
+    // Typed again by the person, the same line opens the slice step as before.
+    await run($, 'wf', 'plan alpha-flow')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a slice')
+  })
+
+  test('the first draw of a picker step writes one draw row with its timing', async ($, on) => {
+    const world = seat(on)
+    await $.session.start(SESSION)
+    await run($, 'wf-plan')
+    await $.ui.render(BAND)
+    await $.ui.render(BAND)
+    await settle()
+    const draws = probeRows(world).filter(row => row['event'] === 'draw')
+    expect(draws.length).toBe(1)
+    expect(draws[0]?.['detail']).toMatch(/^picker slug · terminal · read \d+ ms · drawn \d+ ms after the command$/u)
+  })
+
   test('a workflow without a roster skips the slice step', async ($, on) => {
     const world = seat(on)
     await $.session.start(SESSION)

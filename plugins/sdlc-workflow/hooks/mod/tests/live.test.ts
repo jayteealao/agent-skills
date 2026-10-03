@@ -486,6 +486,19 @@ describe('the live pane', () => {
     expect((await run($, 'wf-live', 'alpha-flow')).text).toBe('The live view of yolo alpha-flow follows the run, but its pane is not drawn: the liveView option is off.')
   })
 
+  test('the pane draw writes one draw row per outcome through the link', async ($, on) => {
+    const world = await openLive($, on)
+    const ui = await mountPane($, 'desktop')
+    await ui.drawn()
+    await ui.unmount()
+    const again = await mountPane($, 'desktop')
+    await again.drawn()
+    await again.unmount()
+    await world.clock.advance(1)
+    const rows = (world.written.get('/home/.sdlc/mod-probe.jsonl') ?? '').split('\n').filter(line => line.includes('"draw"'))
+    expect(rows.filter(line => line.includes('live pane · desktop · yolo alpha-flow · dashboard')).length).toBe(1)
+  })
+
   test('/wf-live says so when no surface places the pane', async ($, on) => {
     const world = await openLive($, on)
     expect((await run($, 'wf-live', 'alpha-flow')).text).toBe('The live view of yolo alpha-flow is open.')

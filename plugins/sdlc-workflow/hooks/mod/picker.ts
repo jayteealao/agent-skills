@@ -37,7 +37,10 @@ export function stepFor(key: string | null, args: string): Step | null {
   if (key === null) {
     if (tokens.length === 0) return { kind: 'key' }
     const typed = tokens[0] as string
-    if (entryOf(typed) === null) return null
+    const entry = entryOf(typed)
+    if (entry === null) return null
+    // A typed `/wf status` is complete: a key whose slug is optional runs without one.
+    if (tokens.length === 1 && entry.need === 'slug-optional') return null
     return stepFor(typed, tokens.slice(1).join(' '))
   }
   const entry = entryOf(key)

@@ -13,7 +13,7 @@
  */
 
 /** The events a row carries, in the order a session writes them. */
-export type ProbeEvent = 'load' | 'attach' | 'commands' | 'turn' | 'compact' | 'call' | 'read'
+export type ProbeEvent = 'load' | 'attach' | 'commands' | 'turn' | 'compact' | 'call' | 'read' | 'draw'
 
 /**
  * The `detail` of a `read` row: `agent <id|main> <path>`. A `tool.call` hook on

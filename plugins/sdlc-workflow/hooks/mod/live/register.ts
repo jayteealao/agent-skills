@@ -99,6 +99,8 @@ export type LiveLink = {
   onStatus: (text: string | null) => void
   /** Called from `register.ts`'s `session.measure` hook (U1). */
   measure: (rateLimits: readonly unknown[]) => void
+  /** Writes one `draw` row to the probe journal; `register.ts` fills it. */
+  note: (ok: boolean, detail: string) => void
 }
 
 export type LiveContext = {
@@ -1055,6 +1057,7 @@ export function registerLive(on: On, ctx: LiveContext): void {
       const table = $.ui.resolve(e)
       const ui = styleUiOf(table)
       if (model === undefined || current === null) {
+        noteDraw(true, `live pane · ${e.surface} · no model${current === null ? '' : ` for ${current.kind} ${current.slug}`}`)
         const { Text } = ui
         return Text({ dimColor: true, children: 'No live run yet. It opens when a yolo, campaign or brainstorm starts.' }) as RenderElement
       }
@@ -1075,9 +1078,12 @@ export function registerLive(on: On, ctx: LiveContext): void {
         style,
         palette: paletteOf(style, e.surface, isDarkTheme),
       }
-      return paneRendererOf(style)(ui, facts, paneView, actionsOf(liveEngineOf($)))
+      const tree = paneRendererOf(style)(ui, facts, paneView, actionsOf(liveEngineOf($)))
+      noteDraw(true, `live pane · ${e.surface} · ${current.kind} ${current.slug} · ${style}`)
+      return tree
     } catch (error) {
       fault('ui.render', error)
+      noteDraw(false, `live pane · ${e.surface} · ${messageOf(error)}`)
       return next(e)
     }
   })
@@ -1093,6 +1099,14 @@ export function registerLive(on: On, ctx: LiveContext): void {
     }
     return result
   })
+
+  /** One row per distinct outcome a session: the pane redraws every poll. */
+  const noted = new Set<string>()
+  const noteDraw = (ok: boolean, detail: string): void => {
+    if (noted.has(detail)) return
+    noted.add(detail)
+    ctx.link.note(ok, detail)
+  }
 
   ctx.link.press = key => {
     const x = engine

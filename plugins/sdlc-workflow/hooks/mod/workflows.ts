@@ -134,15 +134,13 @@ export async function listWorkflows(root: string, reader: Reader): Promise<Workf
   } catch {
     return []
   }
+  // The index files are read at once: on the Desktop app each read is a round trip.
+  const dirs = entries.filter(entry => entry.kind === 'dir' && SLUG_PATTERN.test(entry.name))
+  const texts = await Promise.all(dirs.map(entry => reader.read(joinPath(workflowsDir, entry.name, '00-index.md')).catch(() => null)))
   const workflows: WorkflowEntry[] = []
-  for (const entry of entries) {
-    if (entry.kind !== 'dir' || !SLUG_PATTERN.test(entry.name)) continue
-    let text: string
-    try {
-      text = await reader.read(joinPath(workflowsDir, entry.name, '00-index.md'))
-    } catch {
-      continue
-    }
+  for (const [index, entry] of dirs.entries()) {
+    const text = texts[index]
+    if (text === null || text === undefined) continue
     const fields = frontmatterOf(text)
     const status = (fields['status'] ?? '').trim()
     if (status === '') continue

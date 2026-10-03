@@ -366,6 +366,14 @@ export function register(on: On, options: PluginOptions = {}) {
   let hubTimer: { cancel: () => void } | null = null
   /** The complete `/wf` command the dispatcher last ran, for a `turn.start` whose text is the expanded skill. */
   let lastRun: { command: WfCommand; at: number } | null = null
+  /**
+   * The command the mod last put in the prompt box or sent as a prompt. When
+   * it comes back as a run it is complete as typed: `(no slice)` and `(no
+   * slug)` must not open the step they were picked from again.
+   */
+  let issued: string | null = null
+  /** When the last picker step was asked for, and how long the tree read took, for the first draw's `draw` row. */
+  let pickerTiming: { at: number; readMs: number; kind: string } | null = null
   /** The InfoNotice instance the hub line joins: the first one drawn. */
   let noticeRequestId: string | null = null
   /** The work the last row press started: a press settles once it is done. */
@@ -400,6 +408,7 @@ export function register(on: On, options: PluginOptions = {}) {
     press: () => undefined,
     open: () => undefined,
     measure: () => undefined,
+    note: (ok, detail) => void journal?.write({ event: 'draw', ok, detail }),
     onStatus: text => {
       // The poll reports every tick: an unchanged text draws nothing.
       if (text === liveText) return
@@ -668,6 +677,7 @@ export function register(on: On, options: PluginOptions = {}) {
    * `no_composer`; there the command is sent as the person's prompt instead.
    */
   async function fill(engine: Host, text: string): Promise<string> {
+    issued = commandKeyOf(text)
     let isFilled = false
     let refusal: string | undefined
     try {
@@ -1057,11 +1067,16 @@ export function register(on: On, options: PluginOptions = {}) {
       return next(e)
     }
     const key = keyOfCommand(e.command)
-    const named = wfCommandOf(`/wf ${key === null ? '' : `${key} `}${e.args}`)
+    const typedLine = `/wf ${key === null ? '' : `${key} `}${e.args}`
+    const named = wfCommandOf(typedLine)
     if (named?.slug) setActive(engine, named.slug)
+    const isIssued = issued !== null && issued === commandKeyOf(typedLine)
+    issued = null
+    const askedAt = await engine.now()
     // The band draws on the Desktop app and the terminal, so where neither draws a step
     // that cannot be shown is not opened: the command runs as typed, or goes into the prompt box.
-    const step = drawsHere() ? stepFor(key, e.args) : null
+    // A command the picker itself issued is complete: it runs as typed.
+    const step = drawsHere() && !isIssued ? stepFor(key, e.args) : null
     if (step === null) {
       // The arguments are complete. A `/wf-<key>` run becomes the dispatcher's
       // command in the prompt box; the bare `/wf` runs as typed. A band still
@@ -1084,6 +1099,7 @@ export function register(on: On, options: PluginOptions = {}) {
         return { text: await fill(engine, `/wf ${key} ${step.slug}`) }
       }
     }
+    pickerTiming = { at: askedAt, readMs: (await engine.now()) - askedAt, kind: step.kind }
     show(engine, step)
     return { text: OPENED_TEXT }
   })
@@ -1112,6 +1128,12 @@ export function register(on: On, options: PluginOptions = {}) {
       return parts.reduce((tree, part) => stack(Box, tree, part), below)
     }
     ringMaxRows = e.props.maxRows - stripHeight
+    if (pickerTiming !== null) {
+      const timing = pickerTiming
+      pickerTiming = null
+      const drawnMs = (await engine.now()) - timing.at
+      void journal?.write({ event: 'draw', ok: true, detail: `picker ${timing.kind} · ${e.surface} · read ${timing.readMs} ms · drawn ${drawnMs} ms after the command` })
+    }
     const { options, note } = await rowsOf(engine, step)
     // Every row carries a hotkey, and a digit arms only while the whole band
     // fits the rows the site gives it: size the page to those rows, less the
@@ -1706,6 +1728,11 @@ function readFactOf(result: unknown): ReadFact {
     if (typeof startLine === 'number' && typeof numLines === 'number' && typeof totalLines === 'number') return { startLine, numLines, totalLines }
   }
   return { startLine: 1, numLines: 0, totalLines: 0 }
+}
+
+/** A `/wf` command line with its spacing made one: what `issued` compares. */
+function commandKeyOf(text: string): string {
+  return text.trim().split(/\s+/u).join(' ')
 }
 
 function messageOf(error: unknown): string {
