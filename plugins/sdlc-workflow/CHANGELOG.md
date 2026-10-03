@@ -5,6 +5,14 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.177.1] - 2026-10-03
+
+The Claude mod no longer reports a stage as unfinished while a background sub-agent of the stage still runs.
+
+### Fixed
+
+- **Stage check and background sub-agents.** A `/wf` stage that dispatches a background sub-agent ends its main turn with "waiting". The mod then showed `wf: implement ended without 05-implement-<slice>.md` while the sub-agent still ran, and the turn that wrote the artifact was not checked or compacted. The mod now records each background sub-agent that the main loop of a `/wf` turn starts. When the main turn ends while one of these sub-agents runs, the stage waits: the next turn that names no `/wf` command (the sub-agent's notification) continues it. The stage check and the post-stage compaction run when a turn of the stage ends with no sub-agent of it running. The probe journal records the waiting turn as `wait(<n>)`. A typed `/wf` command drops a waiting stage without a check.
+
 ## [9.177.0] - 2026-10-03
 
 A brainstorm keeps its sources in its own folder and ends in work packets. A piece that only changes documents is written in the brainstorm session.
