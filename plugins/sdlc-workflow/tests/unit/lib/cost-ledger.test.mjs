@@ -192,6 +192,47 @@ test('collectTurn (claude): main + subagent usage, attribution, cursor offsets; 
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('collectTurn (claude): Workflow agents are read, and each sub-agent is booked to the slug it writes in', () => {
+  const dir = tmp();
+  try {
+    const sid = 'sess-wf';
+    const transcript = join(dir, `${sid}.jsonl`);
+    const subDir = join(dir, sid, 'subagents');
+    const wfDir = join(subDir, 'workflows', 'wf_1');
+    mkdirSync(wfDir, { recursive: true });
+    const use = (out) => ({ input_tokens: 1, output_tokens: out, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
+    const line = (requestId, out, content) => J(claudeLine({ requestId, isSidechain: true, message: { model: 'claude-sonnet-5-5', usage: use(out), content } }));
+    // The main session works in the brainstorm; the drive works in a worktree.
+    writeFileSync(transcript, line('m1', 10, [writeBlock(join(dir, 'repo', '.ai', 'workflows', 'brain', 'work', 'campaign', 'ledger.md'))]));
+    writeFileSync(join(subDir, 'agent-a1.jsonl'), line('s1', 20, []));
+    // The scout sorts before the stage agent and writes nothing; it shares the stage agent's Workflow.
+    writeFileSync(join(wfDir, 'agent-a2.jsonl'), line('w0', 30, []));
+    writeFileSync(join(wfDir, 'agent-a3.jsonl'), line('w1', 40, [writeBlock(join(dir, 'repo', 'wt', 'drive', '.ai', 'workflows', 'drive', '05-implement-core.md'))]));
+    writeFileSync(join(wfDir, 'journal.jsonl'), J({ type: 'result', usage: use(999) }));
+    const cursor = newCursor();
+    const t = collectTurn({ transcriptPath: transcript, subagentsDir: subDir, cursor });
+    assert.deepEqual(t.subagents.map((s) => s.agent_id).sort(), ['a1', 'a2', 'a3'], 'Workflow agents count; the Workflow journal does not');
+    assert.equal(t.groups.length, 2);
+    assert.equal(t.groups[0].attributed.slug, 'brain');
+    assert.equal(t.groups[0].main.output_tokens, 10);
+    assert.deepEqual(t.groups[0].subagents.map((s) => s.agent_id), ['a1'], 'an agent that writes nothing stays with the turn');
+    assert.equal(t.groups[1].attributed.slug, 'drive');
+    assert.equal(t.groups[1].attributed.key, 'implement');
+    assert.equal(t.groups[1].main, null);
+    assert.deepEqual(t.groups[1].subagents.map((s) => s.agent_id).sort(), ['a2', 'a3'], 'a silent agent goes with its Workflow');
+    assert.equal(t.attributed.slug, 'brain', 'sub-agent writes never move the turn attribution');
+
+    // A later Stop: the stage agent goes on without a write; it keeps its slug.
+    appendFileSync(join(wfDir, 'agent-a3.jsonl'), line('w2', 5, []));
+    const t2 = collectTurn({ transcriptPath: transcript, subagentsDir: subDir, cursor });
+    assert.equal(t2.groups.length, 2);
+    assert.equal(t2.groups[0].main, null);
+    assert.deepEqual(t2.groups[0].subagents, []);
+    assert.equal(t2.groups[1].attributed.slug, 'drive');
+    assert.equal(t2.groups[1].subagents[0].output_tokens, 5);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('collectTurn (codex): the turn is the delta of cumulative totals; fields stay codex-named', () => {
   const dir = tmp();
   try {

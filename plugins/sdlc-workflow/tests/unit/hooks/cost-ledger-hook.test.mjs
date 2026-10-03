@@ -81,6 +81,42 @@ test('claude Stop: appends one attributed row, keeps a cursor under SDLC_HOME, a
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('claude Stop: a Workflow agent\'s tokens go to its slug in the main checkout, never into its worktree', () => {
+  const { dir, repo, home } = setup();
+  try {
+    mkdirSync(join(repo, '.ai', 'workflows', 'brain'), { recursive: true });
+    mkdirSync(join(repo, '.ai', 'workflows', 'drive'), { recursive: true });
+    const wt = join(repo, '.scratch', 'wt', 'drive');
+    mkdirSync(join(wt, '.ai', 'workflows', 'drive'), { recursive: true });
+    mkdirSync(join(wt, '.ai', 'workflows', 'gone'), { recursive: true });
+    const sid = 'sess-wf';
+    const transcript = join(dir, `${sid}.jsonl`);
+    const wfDir = join(dir, sid, 'subagents', 'workflows', 'wf_1');
+    mkdirSync(wfDir, { recursive: true });
+    const use = (out) => ({ input_tokens: 1, output_tokens: out, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
+    const write = (p) => [{ type: 'tool_use', name: 'Write', input: { file_path: p, content: '' } }];
+    writeFileSync(transcript, claudeAssistant('m1', use(10), write(join(repo, '.ai', 'workflows', 'brain', 'notes.md'))));
+    writeFileSync(join(wfDir, 'agent-a1.jsonl'), claudeAssistant('w1', use(40), write(join(wt, '.ai', 'workflows', 'drive', '06-verify-core.md'))));
+    // A slug that exists only in the worktree: its tokens stay with the turn.
+    writeFileSync(join(dir, sid, 'subagents', 'agent-b1.jsonl'), claudeAssistant('s1', use(7), write(join(wt, '.ai', 'workflows', 'gone', '04-plan.md'))));
+    runHook({ session_id: sid, transcript_path: transcript, cwd: repo, hook_event_name: 'Stop' }, { env: { SDLC_HOME: home } });
+
+    const rows = (slug) => readFileSync(join(repo, '.ai', 'workflows', slug, 'cost.jsonl'), 'utf-8').trim().split('\n').map((l) => JSON.parse(l));
+    const brain = rows('brain');
+    assert.equal(brain.length, 1);
+    assert.equal(brain[0].main.output_tokens, 10);
+    assert.deepEqual(brain[0].subagents.map((s) => s.agent_id), ['b1']);
+    const drive = rows('drive');
+    assert.equal(drive.length, 1);
+    assert.equal(drive[0].slug, 'drive');
+    assert.equal(drive[0].key, 'verify');
+    assert.equal(drive[0].turn, brain[0].turn, 'one turn, one turn number');
+    assert.equal(drive[0].main, null);
+    assert.deepEqual(drive[0].subagents.map((s) => [s.agent_id, s.output_tokens]), [['a1', 40]]);
+    assert.ok(!existsSync(join(wt, '.ai', 'workflows', 'drive', 'cost.jsonl')), 'nothing written in the worktree: git would refuse to remove it');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('hooks.costLedger:false disables the row; a payload without session_id writes nothing', () => {
   const { dir, repo, home } = setup();
   try {

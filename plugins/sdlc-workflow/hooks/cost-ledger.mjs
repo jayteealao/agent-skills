@@ -13,6 +13,8 @@
  * - Write a row only when the turn has usage AND a slug is known — written this
  *   turn under `.ai/workflows/<slug>/`, or inherited from the session's last
  *   attributed turn (that is how a gate-question turn is attributed).
+ * - Read every sub-agent, Workflow agents included (`subagents/workflows/<run>/`),
+ *   and book each to the slug it writes in: one row per slug per turn.
  * - Write ONLY cost.jsonl. Never touch 00-index.md.
  *
  * Hosts (one entrypoint, three payload shapes):
@@ -94,27 +96,48 @@ export async function runCostLedger({ input, cursorDir, env = process.env, now =
   const turn = collectTurn({ transcriptPath: transcript, subagentsDir: join(dirname(transcript), sessionId, 'subagents'), cursor });
   cursor.turn = (cursor.turn ?? 0) + 1;
 
-  let wrote = false;
-  let ledger;
-  if (turn.hadUsage && turn.attributed?.slug) {
-    const a = turn.attributed;
+  // One row per slug: the turn's own slug, plus each slug that a sub-agent
+  // (a Workflow drive, for example) worked in. A sub-agent's slug is booked in
+  // the main checkout only: a row in a worktree would leave an untracked file
+  // that makes `git worktree remove` refuse. A slug with no folder in the main
+  // checkout goes back to the turn.
+  const mainRoot = resolve(projectRoot, '.ai', 'workflows');
+  const [own, ...others] = turn.groups ?? [{ attributed: turn.attributed, main: turn.main, subagents: turn.subagents }];
+  const ownDir = (a) => {
+    if (!a?.slug) return null;
     const root = a.root && isAbsolute(a.root) ? a.root : resolve(projectRoot, a.root ?? join('.ai', 'workflows'));
-    ledger = appendCostRow(join(root, a.slug), {
-      ts: now().toISOString(),
+    return join(root, a.slug);
+  };
+  const byDir = new Map();
+  const turnRow = { attributed: own.attributed, main: own.main, subagents: [...own.subagents] };
+  if (ownDir(own.attributed)) byDir.set(ownDir(own.attributed), turnRow);
+  for (const g of others) {
+    const dir = join(mainRoot, g.attributed.slug);
+    if (!existsSync(dir)) { turnRow.subagents.push(...g.subagents); continue; }
+    if (!byDir.has(dir)) byDir.set(dir, { attributed: g.attributed, main: null, subagents: [] });
+    byDir.get(dir).subagents.push(...g.subagents);
+  }
+  const ts = now().toISOString();
+  const ledgers = [];
+  for (const [dir, r] of byDir) {
+    if (!r.main && !r.subagents.length) continue;
+    ledgers.push(appendCostRow(dir, {
+      ts,
       host: hostName(turn.host, env),
       session: sessionId,
       turn: cursor.turn,
-      key: a.key ?? null,
-      slug: a.slug,
-      slice: a.slice ?? null,
-      main: turn.main,
-      subagents: turn.subagents,
+      key: r.attributed.key ?? null,
+      slug: r.attributed.slug,
+      slice: r.attributed.slice ?? null,
+      main: r.main,
+      subagents: r.subagents,
       external: [],
-    });
-    wrote = true;
+    }));
   }
+  const wrote = ledgers.length > 0;
+  const ledger = ledgers[0];
   writeCursor(cursorDir, sessionId, cursor);
-  return { wrote, reason: wrote ? 'row' : (turn.hadUsage ? 'no slug' : 'no usage'), ledger };
+  return { wrote, reason: wrote ? 'row' : (turn.hadUsage ? 'no slug' : 'no usage'), ledger, ledgers };
 }
 
 async function main() {

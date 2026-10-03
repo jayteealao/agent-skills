@@ -336,7 +336,7 @@ export function sumSubagents(list, fields = CLAUDE_USAGE_FIELDS) {
  * @param {string} o.transcriptPath   main transcript (Claude / pi) or Codex rollout
  * @param {string} [o.subagentsDir]   Claude: `<dirname(transcript)>/<session_id>/subagents`
  * @param {object} o.cursor           mutable cursor (see newCursor)
- * @returns {{ host:string, main:(object|null), subagents:object[], attributed:(object|null), hadUsage:boolean, fields:string[] }}
+ * @returns {{ host:string, main:(object|null), subagents:object[], attributed:(object|null), hadUsage:boolean, fields:string[], groups:object[] }}
  */
 export function collectTurn({ transcriptPath, subagentsDir = null, cursor }) {
   const host = detectTranscriptHost(transcriptPath);
@@ -345,6 +345,7 @@ export function collectTurn({ transcriptPath, subagentsDir = null, cursor }) {
   let main = null;
   let subagents = [];
   let writes = [];
+  let agents = [];
   let fields = CLAUDE_USAGE_FIELDS;
 
   if (host === 'codex') {
@@ -366,31 +367,92 @@ export function collectTurn({ transcriptPath, subagentsDir = null, cursor }) {
     const r = parseClaudeEntries(entries);
     writes = r.writes;
     main = sumMain(r.usages);
-    const collected = [];
-    if (subagentsDir && existsSync(subagentsDir)) {
-      cursor.agents ??= {};
-      for (const name of readdirSync(subagentsDir).filter((n) => n.endsWith('.jsonl')).sort()) {
-        const agentId = name.replace(/^agent-/, '').replace(/\.jsonl$/, '');
-        const rr = readNewLines(join(subagentsDir, name), cursor.agents[agentId] ?? 0);
-        cursor.agents[agentId] = rr.offset;
-        const pr = parseClaudeEntries(parseJsonLines(rr.lines));
-        for (const u of pr.usages) collected.push({ agent_id: agentId, model: u.model, ...u.usage });
-      }
-    }
-    subagents = sumSubagents(collected);
+    agents = subagentsDir ? readClaudeAgents(subagentsDir, cursor) : [];
+    subagents = sumSubagents(agents.flatMap((a) => a.usages));
   }
   cursor.mainOffset = read.offset;
 
   const attributed = attributeWrites(writes, cursor.last ?? null);
   if (attributed) cursor.last = attributed;
   const hadUsage = Boolean(main) || subagents.length > 0;
-  return { host, main, subagents, attributed: cursor.last ?? null, hadUsage, fields };
+  const turnAttr = cursor.last ?? null;
+  return { host, main, subagents, attributed: turnAttr, hadUsage, fields, groups: groupBySlug(host === 'claude' ? agents : null, { main, subagents, attributed: turnAttr }) };
+}
+
+/** Every sub-agent transcript of a Claude session: `subagents/agent-*.jsonl`, and one level down for each Workflow run (`subagents/workflows/<run>/agent-*.jsonl`). */
+export function listClaudeAgentFiles(subagentsDir) {
+  const out = [];
+  const agentsIn = (dir, workflow) => {
+    let names = [];
+    try { names = readdirSync(dir); } catch { return; }
+    for (const name of names.filter((n) => /^agent-.+\.jsonl$/.test(n)).sort()) {
+      out.push({ id: name.replace(/^agent-/, '').replace(/\.jsonl$/, ''), file: join(dir, name), workflow });
+    }
+  };
+  if (!subagentsDir || !existsSync(subagentsDir)) return out;
+  agentsIn(subagentsDir, null);
+  const wfRoot = join(subagentsDir, 'workflows');
+  let runs = [];
+  try { runs = readdirSync(wfRoot, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort(); } catch { runs = []; }
+  for (const run of runs) agentsIn(join(wfRoot, run), run);
+  return out;
+}
+
+/**
+ * Read the new lines of every sub-agent and give each one its own slug: the last
+ * `.ai/workflows/<slug>/` it wrote (kept in the cursor across Stops). An agent
+ * that never wrote takes the slug of its Workflow run; outside a run it stays
+ * with the turn. A drive's agents write in their own slug, so a yolo run inside
+ * another slug's session (a campaign) is booked to the slug it built.
+ */
+function readClaudeAgents(subagentsDir, cursor) {
+  cursor.agents ??= {};
+  cursor.agentLast ??= {};
+  cursor.workflowLast ??= {};
+  const read = [];
+  for (const f of listClaudeAgentFiles(subagentsDir)) {
+    const rr = readNewLines(f.file, cursor.agents[f.id] ?? 0);
+    cursor.agents[f.id] = rr.offset;
+    const pr = parseClaudeEntries(parseJsonLines(rr.lines));
+    const own = attributeWrites(pr.writes, cursor.agentLast[f.id] ?? null);
+    if (own) {
+      cursor.agentLast[f.id] = own;
+      if (f.workflow && pr.writes.length) cursor.workflowLast[f.workflow] = own;
+    }
+    read.push({ ...f, usages: pr.usages.map((u) => ({ agent_id: f.id, model: u.model, ...u.usage })) });
+  }
+  // Second pass: a silent agent read before its run's writer still gets the run's slug.
+  return read.filter((a) => a.usages.length).map((a) => ({
+    ...a,
+    attributed: cursor.agentLast[a.id] ?? (a.workflow ? cursor.workflowLast[a.workflow] ?? null : null),
+  }));
+}
+
+/**
+ * The turn's rows: the turn's own group first (main usage + the sub-agents of
+ * the turn's slug or of no slug), then one group per other slug a sub-agent
+ * worked in (main: null). Hosts other than Claude Code have one group.
+ */
+function groupBySlug(agents, turn) {
+  const first = { attributed: turn.attributed, main: turn.main, subagents: turn.subagents };
+  if (!agents) return [first];
+  const same = (a, b) => a && b && a.slug === b.slug && a.root === b.root;
+  const other = new Map();
+  const mine = [];
+  for (const a of agents) {
+    if (!a.attributed || same(a.attributed, turn.attributed)) { mine.push(...a.usages); continue; }
+    const k = `${a.attributed.root}|${a.attributed.slug}`;
+    if (!other.has(k)) other.set(k, { attributed: a.attributed, usages: [] });
+    other.get(k).usages.push(...a.usages);
+  }
+  first.subagents = sumSubagents(mine);
+  return [first, ...[...other.values()].map((g) => ({ attributed: g.attributed, main: null, subagents: sumSubagents(g.usages) }))];
 }
 
 /* ───────────────────────── cursor + ledger files ───────────────────────── */
 
 export function newCursor() {
-  return { mainOffset: 0, agents: {}, turn: 0, last: null, codexTotal: null, codexModel: null };
+  return { mainOffset: 0, agents: {}, agentLast: {}, workflowLast: {}, turn: 0, last: null, codexTotal: null, codexModel: null };
 }
 
 export function cursorPath(cursorDir, sessionId) {
