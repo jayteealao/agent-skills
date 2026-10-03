@@ -1,4 +1,4 @@
-import type { On, RenderElement, RenderInput, RenderSurface, SessionMessage } from 'claude-code'
+import type { On, PromptEditInput, RenderElement, RenderInput, RenderSurface, SessionMessage } from 'claude-code'
 import { describe, expect, mock, test, tier } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
 
@@ -239,6 +239,10 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
   return world
 }
 
+/** The person types `text` into an empty box: one `prompt.edit` (the kit runs it; its `$` type lists no `edit`). */
+const editPrompt = ($: Engine, text: string) =>
+  ($.prompt as unknown as { edit: (input: PromptEditInput) => Promise<unknown> }).edit({ origin: { kind: 'composer' }, text: '', cursor: 0, start: 0, end: 0, inputText: text })
+
 const run = ($: Engine, command: string, args = '') =>
   $.command.run({ command, args, origin: { kind: 'composer' }, presentation: PRESENTATION })
 
@@ -412,6 +416,56 @@ describe('register', () => {
     expect(draws[0]?.['detail']).toMatch(/^picker slug · terminal · read \d+ ms · drawn \d+ ms after the command$/u)
   })
 
+  test('typing /wf opens the picker over the strip, and each word moves it', async ($, on) => {
+    const world = seat(on)
+    // The engine's own edit: the splice applied to the draft.
+    on('prompt.edit', ($, e) => {
+      const text = e.text.slice(0, e.start) + e.inputText + e.text.slice(e.end)
+      return { text, cursor: e.start + e.inputText.length }
+    })
+    const type = (text: string) => editPrompt($, text)
+    await $.session.start(SESSION)
+    expect(textOf(await $.ui.render(BAND))).toContain('wf alpha-flow')
+    await type('/wf')
+    let band = textOf(await $.ui.render(BAND))
+    expect(band).toContain('/wf — pick a key')
+    expect(band).toContain('keep typing to narrow')
+    // The strip gives its place to the picker, and the band draws no field of its own.
+    expect(band).not.toContain('wf alpha-flow ·')
+    expect(JSON.stringify(await $.ui.render(BAND))).not.toContain(FILTER_KEY)
+    await type('/wf pl')
+    band = textOf(await $.ui.render(BAND))
+    expect(band).toContain('filter: pl')
+    expect(band).toContain('plan')
+    expect(band).not.toContain('intake')
+    await type('/wf plan ')
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan — pick a workflow')
+    // A click puts the pick in the box, and the next step opens on it.
+    await pickRow($, 'alpha-flow')
+    expect(world.filled).toEqual(['/wf plan alpha-flow '])
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan alpha-flow — pick a slice')
+    // A draft that is no /wf command closes it, and the strip comes back.
+    await type('hello')
+    band = textOf(await $.ui.render(BAND))
+    expect(band).not.toContain('pick a')
+    expect(band).toContain('wf alpha-flow')
+    await settle()
+    const prompts = probeRows(world).filter(row => row['event'] === 'prompt').map(row => row['detail'])
+    expect(prompts).toContain('edit raised · terminal')
+    expect(prompts).toContain('edit drives the picker · terminal')
+  })
+
+  test('a picker a command opened keeps its own field; typing does not move it', async ($, on) => {
+    seat(on)
+    on('prompt.edit', ($, e) => ({ text: e.inputText, cursor: e.inputText.length }))
+    await $.session.start(SESSION)
+    await run($, 'wf-plan')
+    await editPrompt($, '/wf sh')
+    const band = textOf(await $.ui.render(BAND))
+    expect(band).toContain('/wf plan — pick a workflow')
+    expect(JSON.stringify(await $.ui.render(BAND))).toContain(FILTER_KEY)
+  })
+
   test('a workflow without a roster skips the slice step', async ($, on) => {
     const world = seat(on)
     await $.session.start(SESSION)
@@ -541,7 +595,7 @@ describe('register', () => {
     seat(on)
     await $.session.start(SESSION)
     await run($, 'wf')
-    const short = { ...BAND, props: { ...BAND.props, maxRows: 6, scroll: { offset: 0, bodyRows: 5 } } }
+    const short = { ...BAND, props: { ...BAND.props, maxRows: 5, scroll: { offset: 0, bodyRows: 4 } } }
     const tree = await $.ui.render(short)
     expect(hotkeysOf(tree)).toEqual(['0', '1', '2', '3'])
     expect(textOf(tree)).toContain('(page 1 of 8)')
@@ -688,10 +742,11 @@ describe('register', () => {
     expect(said).toBe('The strip shows gamma.')
     expect(textOf(await $.ui.render(BAND))).toContain('wf gamma')
     expect((await run($, 'wf-active', 'nope')).text).toContain('No workflow named nope')
-    // A narrow band: the strip takes more rows and the key list pages fewer.
+    // The strip morphs into the picker: while a step is open the strip is gone, so a narrow band pages as many rows.
     const narrow = { ...BAND, props: { ...BAND.props, bodyColumns: 40, maxRows: 12 } }
     await run($, 'wf')
-    expect(hotkeysOf(await $.ui.render(narrow)).length).toBeLessThan(hotkeysOf(await $.ui.render(BAND)).length)
+    expect(textOf(await $.ui.render(BAND))).not.toContain('wf gamma')
+    expect(hotkeysOf(await $.ui.render(narrow))).toEqual(hotkeysOf(await $.ui.render(BAND)))
   })
 
   test('the active workflow survives a session restart, and the strip never opens on a closed one', async ($, on) => {
@@ -1158,6 +1213,26 @@ describe('register', () => {
       await ui.drawn()
       await ui.unmount()
     }
+  })
+
+  test('style A draws the band as a card on the Desktop app, and as before on the terminal', async ($, on) => {
+    seat(on, { ...TREE })
+    await $.session.start(SESSION)
+    await run($, 'wf-plan')
+    const mountBand = async (surface: 'desktop' | 'terminal') => {
+      const ui = await $.ui.mount({ plugin: PLUGIN_NAME, surface, component: 'AbovePrompt', props: BAND.props, viewport: { columns: 120, rows: 40 } } as Parameters<Engine['ui']['mount']>[0])
+      const tree = JSON.stringify(await ui.drawn())
+      await ui.unmount()
+      return tree
+    }
+    const desktop = await mountBand('desktop')
+    // The card ground and the rounded border of section 8.1, and the words in the card's text colour.
+    expect(desktop).toContain('"backgroundColor":"#0f141c"')
+    expect(desktop).toContain('"borderStyle":"round"')
+    expect(desktop).toContain('"color":"#d9dfe9"')
+    const terminal = await mountBand('terminal')
+    expect(terminal).not.toContain('#0f141c')
+    expect(terminal).not.toContain('"borderStyle":"round"')
   })
 
   test('a Desktop client that attaches after the start turns the drawing on', async ($, on) => {

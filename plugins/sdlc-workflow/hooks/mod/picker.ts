@@ -222,3 +222,48 @@ export function afterFillOf(isFilled: boolean, refusal: string | undefined): 'fi
   if (isFilled) return 'filled'
   return refusal === 'no_composer' ? 'submit' : 'type'
 }
+
+/** `/wf`, `/sdlc-workflow:wf`, or a `/wf-<word>` shortcut at the start of a draft. */
+const DRAFT_HEAD = /^\/(?:sdlc-workflow:)?wf(?:-([a-z][a-z-]*))?(?=\s|$)/u
+
+/**
+ * The picker step a draft in the prompt box asks for, and the filter the word
+ * being typed sets; null when the draft is no `/wf` command, or is complete.
+ *
+ * `/wf` and `/wf pl` give the key step (filter `pl`); `/wf plan ` the
+ * workflow step; `/wf plan al` the workflow step (filter `al`); `/wf plan
+ * alpha ` the slice step where the key takes a slice. A `/wf-plan` shortcut
+ * reads as `/wf plan`. A word that is no key, a key that needs nothing, or a
+ * key past its last argument gives null.
+ */
+export function draftStepOf(draft: string): { step: Step; filter: string } | null {
+  const text = draft.replace(/^\s+/u, '')
+  const head = DRAFT_HEAD.exec(text)
+  if (head === null) return null
+  const rest = text.slice(head[0].length)
+  const words = rest.trim() === '' ? [] : rest.trim().split(/\s+/u)
+  const tokens = head[1] === undefined ? words : [head[1], ...words]
+  // The last word is still being typed unless the draft ends in a space.
+  const isTyping = tokens.length > 0 && !/\s$/u.test(text)
+  const done = isTyping ? tokens.slice(0, -1) : tokens
+  const filter = isTyping ? (tokens[tokens.length - 1] as string) : ''
+  if (done.length === 0) {
+    if (filter !== '' && !keyOptions().some(option => option.value.startsWith(filter))) return null
+    return { step: { kind: 'key' }, filter }
+  }
+  const key = done[0] as string
+  const entry = entryOf(key)
+  if (entry === null || entry.need === 'none') return null
+  if (done.length === 1) return { step: { kind: 'slug', key }, filter }
+  if (done.length === 2 && takesSlice(entry.need)) return { step: { kind: 'slice', key, slug: done[1] as string }, filter }
+  return null
+}
+
+/** True when two steps ask for the same pick. */
+export function isSameStep(left: Step | null, right: Step | null): boolean {
+  if (left === null || right === null) return left === right
+  if (left.kind !== right.kind) return false
+  if (left.kind === 'key') return true
+  if (left.kind === 'slug') return right.kind === 'slug' && left.key === right.key
+  return right.kind === 'slice' && left.key === right.key && left.slug === right.slug
+}

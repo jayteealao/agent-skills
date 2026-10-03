@@ -15,6 +15,8 @@ export const BACK_KEY = 'wf-back'
 export const DISPATCHER_COMMANDS = ['wf', `${PLUGIN_NAME}:wf`] as const
 
 /** One row at 80 columns: a longer hint wraps, and a wrapped band arms no digit. */
+/** The hint under a picker that follows the prompt box: the box keeps the keys. */
+export const DRAFT_HINT_TEXT = 'keep typing to narrow · click a row to put it in the box · Backspace past /wf closes'
 export const HINT_TEXT = 'digit picks · 0 or wheel pages · ctrl+x tab: type filters, digit+Enter picks, Tab moves, Esc leaves'
 export const NO_MATCH_TEXT = '(nothing matches the filter)'
 export const NOTHING_TEXT = '(nothing to pick)'

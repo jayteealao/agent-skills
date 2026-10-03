@@ -3,11 +3,11 @@
 /* @jsxFrag Fragment */
 import type { ElementTable, RenderElement } from 'claude-code'
 
-import { BACK_KEY, CLOSE_KEY, FILTER_KEY, HINT_TEXT, MORE_KEY, NOTHING_TEXT, NO_MATCH_TEXT, OPTION_KEY_PREFIX } from './names.ts'
+import { BACK_KEY, CLOSE_KEY, DRAFT_HINT_TEXT, FILTER_KEY, HINT_TEXT, MORE_KEY, NOTHING_TEXT, NO_MATCH_TEXT, OPTION_KEY_PREFIX } from './names.ts'
 import { MAX_PAGE_SIZE, hotkeyOf } from './picker.ts'
 import type { Option, Page } from './picker.ts'
 import { pickerControlLabel, pickerTitleView } from './styles/existing.tsx'
-import { DEFAULT_VIEW_STYLE, paletteOf } from './styles/tokens.ts'
+import { DEFAULT_VIEW_STYLE, paletteOf, quietOf } from './styles/tokens.ts'
 import type { Palette, ViewStyle } from './styles/tokens.ts'
 
 /** The element constructors the band draws with; the terminal carries all four. */
@@ -28,6 +28,12 @@ export type BandModel = {
   palette?: Palette
   /** A row's label with its style mark; absent, the option's own label. */
   labelOf?: (option: Option) => string
+  /**
+   * True when the picker follows the prompt box: the box keeps the keys, so
+   * the band draws no field of its own (an autofocused one would take them)
+   * and shows the word being typed instead.
+   */
+  isDraft?: boolean
 }
 
 export type BandActions = {
@@ -69,20 +75,24 @@ export function bandView(ui: Ui, model: BandModel, actions: BandActions): Render
         <Box flexDirection="row" gap={1}>
           {pickerTitleView({ Text }, style, palette, model.title, page, pages)}
         </Box>
-        <Input
-          key={FILTER_KEY}
-          placeholder="filter"
-          value={model.filter}
-          submitLabel="pick"
-          autoFocus
-          onInput={text => actions.filter(text)}
-          onSubmit={text => actions.submit(text)}
-        />
+        {model.isDraft === true ? (
+          model.filter === '' ? null : <Text {...quietOf(palette)}>{`filter: ${model.filter}`}</Text>
+        ) : (
+          <Input
+            key={FILTER_KEY}
+            placeholder="filter"
+            value={model.filter}
+            submitLabel="pick"
+            autoFocus
+            onInput={text => actions.filter(text)}
+            onSubmit={text => actions.submit(text)}
+          />
+        )}
         {pages > 1 ? <Button key={MORE_KEY} hotkey="0" plain label={label('more')} onPress={() => actions.more()} /> : null}
         {model.hasBack ? <Button key={BACK_KEY} label={`← ${label('back')}`} dimColor onPress={() => actions.back()} /> : null}
         <Button key={CLOSE_KEY} label={label('close')} role="dismiss" dimColor onPress={() => actions.close()} />
       </Box>
-      {items.length === 0 ? <Text dimColor>{empty}</Text> : null}
+      {items.length === 0 ? <Text {...quietOf(palette)}>{empty}</Text> : null}
       {items.map((option, index) => {
         const hotkey = hotkeyOf(index)
         return (
@@ -95,11 +105,22 @@ export function bandView(ui: Ui, model: BandModel, actions: BandActions): Render
           />
         )
       })}
-      <Text dimColor wrap="truncate-end">
-        {model.note ?? HINT_TEXT}
+      <Text wrap="truncate-end" {...quietOf(palette)}>
+        {model.note ?? (model.isDraft === true ? DRAFT_HINT_TEXT : HINT_TEXT)}
       </Text>
     </Box>
   )
+}
+
+/**
+ * The band's own parts (the live line, the picker, the strip) as one card in
+ * the style's colours: the card ground and a rounded border in the line
+ * colour. A style that follows the surface (style A on the terminal) draws
+ * the parts as they are.
+ */
+export function bandCard(Box: Ui['Box'], palette: Palette, parts: readonly RenderElement[]): RenderElement {
+  if (palette.card === undefined) return Box({ flexDirection: 'column', children: [...parts] })
+  return Box({ flexDirection: 'column', backgroundColor: palette.card, borderStyle: 'round', ...(palette.line === undefined ? {} : { borderColor: palette.line }), children: [...parts] })
 }
 
 /** The band's tree over whatever the hooks beneath drew there. */

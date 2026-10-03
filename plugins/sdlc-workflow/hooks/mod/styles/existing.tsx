@@ -11,7 +11,7 @@ import type { ElementTable, RenderElement } from 'claude-code'
 import { sliceMarkOf, wrappedRowsOf } from '../active.ts'
 import type { HubHealth } from '../active.ts'
 import type { SliceEntry, WorkflowEntry } from '../workflows.ts'
-import { GRID_INK, GRID_LIME, INSTRUMENT_ORANGE } from './tokens.ts'
+import { GRID_INK, GRID_LIME, INSTRUMENT_ORANGE, inkOf, quietOf } from './tokens.ts'
 import type { Palette, Tone, ViewStyle } from './tokens.ts'
 
 type Ui = Pick<ElementTable<'terminal'>, 'Box' | 'Text' | 'Button'>
@@ -55,8 +55,8 @@ export function pickerTitleView(ui: Pick<Ui, 'Text'>, style: ViewStyle, palette:
   const parts = pickerTitleParts(style, title, page, pages)
   const out: RenderElement[] = []
   if (parts.lead !== null) out.push(<Text color={style === 'grid' ? palette.tones.run : palette.tones.quiet}>{parts.lead}</Text>)
-  out.push(<Text bold>{parts.title}</Text>)
-  if (parts.tail !== null) out.push(<Text color={style === 'instrument' ? INSTRUMENT_ORANGE : undefined} dimColor={style === 'dashboard'}>{parts.tail}</Text>)
+  out.push(<Text bold {...inkOf(palette)}>{parts.title}</Text>)
+  if (parts.tail !== null) out.push(style === 'instrument' ? <Text color={INSTRUMENT_ORANGE}>{parts.tail}</Text> : <Text {...(style === 'dashboard' ? quietOf(palette) : inkOf(palette))}>{parts.tail}</Text>)
   return out
 }
 
@@ -137,18 +137,18 @@ export function stripStyledView(ui: Ui, style: ViewStyle, palette: Palette, part
             {pieces.mark}
           </Text>
         )}
-        <Text wrap="wrap" bold={style === 'grid'}>
+        <Text wrap="wrap" bold={style === 'grid'} {...inkOf(palette)}>
           {pieces.main}
         </Text>
         {pieces.tail === '' ? null : (
-          <Text wrap="wrap" dimColor>
+          <Text wrap="wrap" {...quietOf(palette)}>
             {`· ${pieces.tail}`}
           </Text>
         )}
         {others === 0 ? null : <Button key={rotateKey} label={style === 'dashboard' ? `⇄ ${others} more` : `⇄ ${others} MORE`} dimColor onPress={rotate} />}
       </Box>
       {detail === null ? null : (
-        <Text dimColor wrap="wrap">
+        <Text wrap="wrap" {...quietOf(palette)}>
           {`   ${styledDetail(style, detail)}`}
         </Text>
       )}

@@ -108,6 +108,25 @@ export function paletteOf(style: ViewStyle, surface: string, isDarkTheme: boolea
   return surface === 'terminal' ? DASHBOARD : DASHBOARD_DESKTOP
 }
 
+/**
+ * The text colour of a style's own words: none where the style follows the
+ * surface (style A on the terminal), else the palette's text colour, so words
+ * stay readable on the style's card.
+ */
+export function inkOf(palette: Palette): { color?: string } {
+  return palette.text === undefined ? {} : { color: palette.text }
+}
+
+/** The colour of a style's quiet words: dim on the surface's colours, else the palette's quiet tone. */
+export function quietOf(palette: Palette): { color?: string; dimColor?: boolean } {
+  return palette.text === undefined ? { dimColor: true } : { color: palette.tones.quiet }
+}
+
+/** Rows the band card's border takes: two where the style draws a card, none where it follows the surface. */
+export function cardRowsOf(palette: Palette): number {
+  return palette.card === undefined ? 0 : 2
+}
+
 /** True when a theme row's value names a dark theme; an unknown value counts as dark, the terminal default. */
 export function isDarkThemeOf(value: unknown): boolean {
   if (typeof value !== 'string') return true

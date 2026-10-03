@@ -99,18 +99,18 @@ import {
   RUN_TEXT,
   registerFailedTextOf,
 } from './names.ts'
-import { afterFillOf, backOf, filterOptions, filterTextOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from './picker.ts'
+import { afterFillOf, backOf, draftStepOf, fillOf, filterOptions, isSameStep, filterTextOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from './picker.ts'
 import type { Option, Step } from './picker.ts'
 import { ROTATE_KEY } from './strip.tsx'
 import type { StripParts } from './styles/existing.tsx'
 import { noticeStyledView, pickerRowLabel, stripStyledView, styledStripRows, workflowsStyledView } from './styles/existing.tsx'
 import { liveBandView } from './styles/kit.tsx'
-import { isDarkThemeOf, paletteOf, viewStyleOf } from './styles/tokens.ts'
+import { cardRowsOf, isDarkThemeOf, paletteOf, viewStyleOf } from './styles/tokens.ts'
 import { PUSH_TOAST_MS, registerLive } from './live/register.ts'
 import type { LiveLink } from './live/register.ts'
 import { EMPTY_DASHBOARD, EMPTY_PICKER, EMPTY_WORKFLOWS, detailsStoreKeyOf } from './state.ts'
 import type { SdlcDashboard, SdlcHub, SdlcPicker, SdlcWorkflows } from '../../types'
-import { bandView, pageSizeOf, rowKeyOf, stack } from './views.tsx'
+import { bandCard, bandView, pageSizeOf, rowKeyOf, stack } from './views.tsx'
 import { PROBE_FILE, ProbeJournal, surfaceAfterAttach } from './probe.ts'
 import type { ProbeIdentity } from './probe.ts'
 import { findProjectRoot, joinPath, listSlices, listWorkflows } from './workflows.ts'
@@ -180,6 +180,8 @@ type Host = {
   cwd: string
   reader: Reader
   fill: (text: string) => Promise<{ isFilled: boolean; refusal?: string }>
+  /** The prompt box as it stands: the draft and the cursor; empty where no box is bound. */
+  readBox: () => Promise<{ text: string; cursor: number }>
   /** Queues `text` as the person's own prompt; it runs once the session is idle. */
   submit: (text: string) => Promise<unknown>
   /** Writes one `$.state` value (14.5): the write redraws exactly the drawings that read it. */
@@ -372,6 +374,16 @@ export function register(on: On, options: PluginOptions = {}) {
    * slug)` must not open the step they were picked from again.
    */
   let issued: string | null = null
+  /**
+   * True while the picker follows the draft in the prompt box (`prompt.edit`):
+   * typing `/wf` opened it, and each edit moves it. A picker a command opened
+   * is the person's own and the box does not move it.
+   */
+  let isDraftDriven = false
+  /** True once the band asked the box for its draft this session. */
+  let boxRead = false
+  /** The prompt-box facts the journal has recorded this session: one row each. */
+  const promptNoted = new Set<string>()
   /** When the last picker step was asked for, and how long the tree read took, for the first draw's `draw` row. */
   let pickerTiming: { at: number; readMs: number; kind: string } | null = null
   /** The InfoNotice instance the hub line joins: the first one drawn. */
@@ -638,7 +650,25 @@ export function register(on: On, options: PluginOptions = {}) {
     return slices
   }
 
+  /** Writes one `prompt` row per distinct fact a session; never the draft's words. */
+  function notePrompt(detail: string): void {
+    if (promptNoted.has(detail)) return
+    promptNoted.add(detail)
+    void journal?.write({ event: 'prompt', ok: true, detail })
+  }
+
+  /** Puts the next step's command into the box while the picker follows it; a refused fill changes nothing. */
+  async function fillDraft(engine: Host, text: string): Promise<void> {
+    try {
+      const filled = await engine.fill(text)
+      notePrompt(`fill ${filled.isFilled ? 'took' : `refused (${filled.refusal ?? 'unknown'})`} · ${model.surface ?? 'none'}`)
+    } catch (error) {
+      journal?.callFailed('fill', messageOf(error))
+    }
+  }
+
   function close(engine: Host): void {
+    isDraftDriven = false
     model = { ...model, step: null, filter: '', ring: null }
     drawStatus(engine)
     publish(engine)
@@ -710,7 +740,14 @@ export function register(on: On, options: PluginOptions = {}) {
     if (step.kind === 'slug' && value !== '') await readSlices(engine, value)
     const outcome = pick(step, value, slug => (model.slices.get(slug) ?? []).length > 0)
     if (outcome.kind === 'step') {
+      const isDraft = isDraftDriven
       show(engine, outcome.step)
+      if (isDraft) {
+        // The picker follows the box: the box takes the pick, and the next step opens on it.
+        isDraftDriven = true
+        const next = outcome.step
+        await fillDraft(engine, next.kind === 'slug' ? fillOf(next.key) : next.kind === 'slice' ? fillOf(next.key, next.slug) : fillOf(''))
+      }
       return
     }
     const text = await fill(engine, outcome.text.trim())
@@ -793,6 +830,7 @@ export function register(on: On, options: PluginOptions = {}) {
         exists: path => $.fs.exists(path),
       },
       fill: text => $.prompt.fill({ text }),
+      readBox: () => $.prompt.read(),
       submit: text => $.prompt.submit({ text, asUser: true }),
       put: async published => {
         // One literal atom per value: the engine's scan reads no atom passed in a variable.
@@ -1119,15 +1157,23 @@ export function register(on: On, options: PluginOptions = {}) {
     const stripTree = strip === null ? null : stripStyledView({ Box, Text, Button }, viewStyle, palette, strip.parts, strip.detail, strip.others, ROTATE_KEY, () => {
       pending = rotateActive(engine, null).catch(error => engine.log(messageOf(error)))
     })
-    const stripHeight = strip === null ? 0 : styledStripRows(viewStyle, strip.parts, strip.detail, strip.others, strip.columns)
+    // The style's card frames the band's own parts; its border takes rows from the page.
+    const stripHeight = (strip === null ? 0 : styledStripRows(viewStyle, strip.parts, strip.detail, strip.others, strip.columns)) + cardRowsOf(palette)
     if (step === null) {
+      if (!boxRead) {
+        // One look at the box per session: whether this surface lets the mod read the draft.
+        boxRead = true
+        void engine.readBox().then(box => notePrompt(`read · ${e.surface} · ${box.text === '' ? 'empty' : 'draft'}`), error => journal?.callFailed('read', messageOf(error)))
+      }
       // K3: with no pick open, the band draws the live line (focus, actions on 1 and 2), then the strip.
       const liveLine = liveBand === null ? null : liveBandView({ Box, Text, Button }, liveBand, palette, () => live.open(), key => live.press(key))
       const parts = [liveLine, stripTree].filter((part): part is RenderElement => part !== null)
       if (parts.length === 0) return below
-      return parts.reduce((tree, part) => stack(Box, tree, part), below)
+      return stack(Box, below, bandCard(Box, palette, parts))
     }
-    ringMaxRows = e.props.maxRows - stripHeight
+    // The strip morphs into the picker: while a step is open, the card holds the picker alone.
+    const pickerHeight = cardRowsOf(palette)
+    ringMaxRows = e.props.maxRows - pickerHeight
     if (pickerTiming !== null) {
       const timing = pickerTiming
       pickerTiming = null
@@ -1138,14 +1184,14 @@ export function register(on: On, options: PluginOptions = {}) {
     // Every row carries a hotkey, and a digit arms only while the whole band
     // fits the rows the site gives it: size the page to those rows, less the
     // strip's.
-    const page = pageOf(options, model.page, pageSizeOf(e.props.maxRows - stripHeight))
+    const page = pageOf(options, model.page, pageSizeOf(e.props.maxRows - pickerHeight))
     const pickRow = (value: string) => {
       pending = advance(engine, value).catch(error => engine.log(messageOf(error)))
     }
     const labelOf = (option: Option) => pickerRowLabel(viewStyle, option.label, step.kind === 'slug' ? (model.workflows.find(workflow => workflow.slug === option.value) ?? null) : null)
     const band = bandView(
       { Box, Text, Button, Input },
-      { title: titleOf(step), page, filter: model.filter, hasBack: backOf(step) !== null, style: viewStyle, palette, labelOf, ...(note === undefined ? {} : { note }) },
+      { title: titleOf(step), page, filter: model.filter, hasBack: backOf(step) !== null, style: viewStyle, palette, labelOf, isDraft: isDraftDriven, ...(note === undefined ? {} : { note }) },
       {
         pick: pickRow,
         filter: text => setFilter(engine, text),
@@ -1167,7 +1213,7 @@ export function register(on: On, options: PluginOptions = {}) {
         },
       },
     )
-    return stripTree === null ? stack(Box, below, band) : stack(Box, stack(Box, below, band), stripTree)
+    return stack(Box, below, bandCard(Box, palette, [band]))
   })
 
   on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
@@ -1709,6 +1755,41 @@ export function register(on: On, options: PluginOptions = {}) {
       })
     }
     return {}
+  })
+
+  on('prompt.edit', async ($, e, next) => {
+    // The picker follows the draft: `/wf` opens the key step over the strip,
+    // each word typed narrows the rows, and a finished word moves to the next step.
+    const result = await next(e)
+    const engine = host
+    if (!engine) return result
+    notePrompt(`edit raised · ${model.surface ?? 'none'}`)
+    if (!drawsHere()) return result
+    try {
+      const drafted = draftStepOf(result.text)
+      if (drafted === null) {
+        if (isDraftDriven && model.step !== null) close(engine)
+        return result
+      }
+      // A picker a command opened keeps its own field; the box does not move it.
+      if (model.step !== null && !isDraftDriven) return result
+      notePrompt(`edit drives the picker · ${model.surface ?? 'none'}`)
+      const step = drafted.step
+      if (step.kind !== 'key') await readWorkflows(engine, false)
+      if (step.kind === 'slice' && !model.slices.has(step.slug)) await readSlices(engine, step.slug)
+      if (step.kind === 'slice' && (model.slices.get(step.slug) ?? []).length === 0) {
+        if (isDraftDriven) close(engine)
+        return result
+      }
+      const isSame = isSameStep(model.step, step)
+      if (isSame && model.filter === drafted.filter) return result
+      isDraftDriven = true
+      model = { ...model, step, filter: drafted.filter, page: isSame && model.filter === drafted.filter ? model.page : 0, ring: null }
+      publish(engine)
+    } catch (error) {
+      journal?.callFailed('edit', messageOf(error))
+    }
+    return result
   })
 
   on('prompt.submit', ($, e, next) => {

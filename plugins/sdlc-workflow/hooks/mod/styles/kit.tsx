@@ -8,6 +8,7 @@ import type { ElementTable, RenderElement } from 'claude-code'
 
 import type { SdlcLiveBand, SdlcNeed, SdlcStageMark } from '../../../types'
 import type { ViewFacts } from './facts.ts'
+import { inkOf } from './tokens.ts'
 import type { Palette, Tone, ViewStyle } from './tokens.ts'
 
 type Terminal = ElementTable<'terminal'>
@@ -133,7 +134,7 @@ export function liveBandView(ui: Pick<Terminal, 'Box' | 'Text' | 'Button'>, band
   return (
     <Box flexDirection="row" gap={1} paddingX={1}>
       <Text color={palette.tones[band.tone]}>{band.tone === 'stop' ? '■' : band.tone === 'attention' || band.tone === 'intent' ? '◆' : '●'}</Text>
-      <Text wrap="truncate-end">{band.focus}</Text>
+      <Text wrap="truncate-end" {...inkOf(palette)}>{band.focus}</Text>
       {band.actions.map((action, index) => (
         <Button key={LIVE_KEYS.band(action.key)} hotkey={action.hotkey} label={action.label} {...(index === 0 ? { variant: 'primary' as const } : { dimColor: true })} onPress={() => press(action.key)} />
       ))}

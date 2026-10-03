@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { CATALOG, commandNameOf, keyOfCommand } from '../../../hooks/mod/catalog.ts';
-import { ALL, NONE, afterFillOf, backOf, digitCommandOf, fillOf, filterOptions, filterTextOf, hotkeyOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from '../../../hooks/mod/picker.ts';
+import { ALL, NONE, afterFillOf, backOf, draftStepOf, isSameStep, digitCommandOf, fillOf, filterOptions, filterTextOf, hotkeyOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from '../../../hooks/mod/picker.ts';
 import { findProjectRoot, frontmatterOf, joinPath, listSlices, listWorkflows, rosterOf } from '../../../hooks/mod/workflows.ts';
 import { PROBE_CAP, ProbeJournal, rowOf, rowsOf, sinceOf, surfaceAfterAttach, textOf, verdictOf } from '../../../hooks/mod/probe.ts';
 import { readHookCell, readProbeDetail, readProbeOf } from '../../../hooks/mod/probe.ts';
@@ -468,6 +468,31 @@ test('the journal text keeps the newest rows up to the cap, and a broken line is
   assert.equal(kept.at(-1).detail, String(PROBE_CAP + 4));
   assert.equal(textOf([]), '');
   assert.deepEqual(rowsOf(['not json', '{"no":"fields"}', ''].join(NL)), []);
+});
+
+test('draftStepOf reads the step and the filter a draft asks for', () => {
+  assert.deepEqual(draftStepOf('/wf'), { step: { kind: 'key' }, filter: '' });
+  assert.deepEqual(draftStepOf('  /wf '), { step: { kind: 'key' }, filter: '' });
+  assert.deepEqual(draftStepOf('/wf pl'), { step: { kind: 'key' }, filter: 'pl' });
+  assert.equal(draftStepOf('/wf zzz'), null);
+  assert.deepEqual(draftStepOf('/wf plan '), { step: { kind: 'slug', key: 'plan' }, filter: '' });
+  assert.deepEqual(draftStepOf('/wf plan al'), { step: { kind: 'slug', key: 'plan' }, filter: 'al' });
+  assert.deepEqual(draftStepOf('/wf plan alpha '), { step: { kind: 'slice', key: 'plan', slug: 'alpha' }, filter: '' });
+  assert.deepEqual(draftStepOf('/wf plan alpha au'), { step: { kind: 'slice', key: 'plan', slug: 'alpha' }, filter: 'au' });
+  assert.equal(draftStepOf('/wf plan alpha auth '), null);
+  assert.deepEqual(draftStepOf('/wf-plan '), { step: { kind: 'slug', key: 'plan' }, filter: '' });
+  assert.deepEqual(draftStepOf('/sdlc-workflow:wf '), { step: { kind: 'key' }, filter: '' });
+  assert.equal(draftStepOf('/wf-live'), null);
+  assert.equal(draftStepOf('/wfx'), null);
+  assert.equal(draftStepOf('hello /wf'), null);
+});
+
+test('isSameStep matches steps by kind, key and workflow', () => {
+  assert.equal(isSameStep({ kind: 'key' }, { kind: 'key' }), true);
+  assert.equal(isSameStep({ kind: 'slug', key: 'plan' }, { kind: 'slug', key: 'verify' }), false);
+  assert.equal(isSameStep({ kind: 'slice', key: 'plan', slug: 'a' }, { kind: 'slice', key: 'plan', slug: 'a' }), true);
+  assert.equal(isSameStep(null, { kind: 'key' }), false);
+  assert.equal(isSameStep(null, null), true);
 });
 
 test('afterFillOf sends the command where the surface draws its own prompt box', () => {
