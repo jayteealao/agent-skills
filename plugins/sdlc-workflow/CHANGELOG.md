@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.180.2] - 2026-10-03
+
+### Fixed
+
+- **`/wf-<key>` shortcuts and picker choices run in the Desktop app.** They put the command into the prompt box for your Enter. The Desktop app draws its own prompt box and refuses every such fill (`no_composer`), so each one ended in "The prompt box is not free; type the command in full". Where the engine gives that refusal, the mod now sends the command as your prompt. A dialog that holds the keys still asks you to type the command.
+- **`/wf-live` no longer says "is open" when nothing draws the pane.** When the engine reports that the pane waits, or the `liveView` option is off, the reply says the live view follows the run and gives the reason the pane is not drawn.
+
 ## [9.180.1] - 2026-10-03
 
 ### Changed
