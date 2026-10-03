@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.180.4] - 2026-10-03
+
+### Added
+
+- **The picker follows what you type.** When you type `/wf` in the prompt box, the strip turns into the key picker. Each word you type narrows the rows, and a finished word moves the picker to the next step: `/wf plan ` opens the workflow step, and `/wf plan alpha ` opens the slice step. A click on a row puts the command so far in the box and opens the next step. This picker draws no filter field of its own, because the box keeps the keys. When the draft is no longer a `/wf` command, the picker closes and the strip comes back. A picker that a command opened keeps its own field, and typing does not move it. The probe journal records `prompt` rows: whether the surface raises `prompt.edit`, whether the edit moved the picker, whether a fill took, and whether `prompt.read` returned a draft. The rows record no words of the draft.
+
+### Changed
+
+- **The band above the prompt is one card in the style's colours.** The live line and the workflow strip draw inside one card, and the `/wf` picker takes the strip's place in the card while a step is open. The card has the style's background and a rounded border in its line colour, and its words use the style's text and quiet colours. In the Desktop app every style draws the card. In the terminal, style A keeps following the terminal theme without a card, while styles D and E draw it.
+
 ## [9.180.3] - 2026-10-03
 
 ### Fixed
