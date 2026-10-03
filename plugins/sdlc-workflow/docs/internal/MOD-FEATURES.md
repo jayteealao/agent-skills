@@ -138,6 +138,18 @@ The command comes from `turn.start`'s text, or, when that text is the
 expanded skill rather than the typed line, from the dispatcher's own
 `command.run` within the previous ten seconds.
 
+A background sub-agent outlives the main turn that started it: the main model
+answers "waiting" and its turn ends before the artifact exists. The
+`agent.spawn` hook records each background spawn of the main loop (`background`
+true, no `parentAgentId`) on the `/wf` turn's bracket, and the sub-agent's own
+`turn.complete` (its `agentId`) removes it. A main `turn.complete` with
+reason `answer` and a sub-agent still recorded parks the bracket: no check, no
+compaction, no suggestion, and one journal row `wait(<n>)`. The next main
+`turn.start` that names no `/wf` command (the task notification, or the person
+waiting) continues the parked bracket, with its command, its start time, its
+cost at start, and its writes. A sub-agent's writes between the turns go to
+the parked bracket. A typed `/wf` command drops a parked bracket unchecked.
+
 ### 3.6 The question count (`questionProgress`)
 
 During an intake or shape turn, a `tool.call { tool: /^AskUserQuestion$/ }`

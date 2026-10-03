@@ -197,6 +197,11 @@ type Bracket = {
   writes: string[]
   /** AskUserQuestion calls so far in the turn. */
   questions: number
+  /**
+   * The background sub-agents the turn's main loop started that have not
+   * ended. While one runs, the end of the main turn is not the end of the stage.
+   */
+  background: Set<string>
 }
 
 type Model = {
@@ -274,6 +279,12 @@ export function register(on: On, options: PluginOptions = {}) {
   let model: Model = EMPTY
   let settings: Settings = settingsOf(options ?? {})
   let bracket: Bracket | null = null
+  /**
+   * A `/wf` turn that ended while its background sub-agents still ran. The
+   * next main turn that names no `/wf` command (the sub-agent's notification)
+   * continues it, and the stage check runs when no sub-agent of it still runs.
+   */
+  let parked: Bracket | null = null
   let driverTimer: { cancel: () => void } | null = null
   /** The driver line the status shows while a driver is watched; null hands the line back to the strip. */
   let driverText: string | null = null
@@ -655,6 +666,7 @@ export function register(on: On, options: PluginOptions = {}) {
       },
     }
     bracket = null
+    parked = null
     reads = new Map()
     fedByOutput = new Map()
     mainReadSinceCheck = false
@@ -1014,9 +1026,11 @@ export function register(on: On, options: PluginOptions = {}) {
   async function afterWrite(engine: Host, path: string | null, isWritten: boolean): Promise<void> {
     if (model.root === null || !isWritten) return
     if (path === null || !isWorkflowPath(model.root, path)) return
-    if (bracket !== null) bracket.writes.push(path)
+    // A background sub-agent writes between the turns of a parked stage.
+    const stage = bracket ?? parked
+    if (stage !== null) stage.writes.push(path)
     const slug = slugOfPath(model.root, path)
-    if (slug !== null && bracket?.command?.slug == null) {
+    if (slug !== null && stage?.command?.slug == null) {
       model = { ...model, active: slug }
       await remember(engine)
     }
@@ -1126,6 +1140,16 @@ export function register(on: On, options: PluginOptions = {}) {
     return next(e)
   })
 
+  // A background sub-agent outlives the main turn that started it: the main
+  // model answers "waiting" and its turn ends before the stage writes its
+  // artifact. The `/wf` turn records the sub-agent so its end is not the
+  // stage's end.
+  on('agent.spawn', async ($, e, next) => {
+    const result = await next(e)
+    if (e.background && e.parentAgentId === undefined && result.agentId !== undefined && bracket?.command != null) bracket.background.add(result.agentId)
+    return result
+  })
+
   on('turn.start', async ($, e, next) => {
     const engine = host
     const result = await next(e)
@@ -1136,7 +1160,11 @@ export function register(on: On, options: PluginOptions = {}) {
     const typed = wfCommandOf(e.text)
     const command = typed ?? (lastRun !== null && startedAt - lastRun.at < LAST_RUN_WINDOW_MS ? lastRun.command : null)
     lastRun = null
-    bracket = { turnId: e.turnId, startedAt, command, costAtStart: await engine.costUsd(), writes: [], questions: 0 }
+    // A turn that names no `/wf` command continues a parked stage: it is the
+    // notification of a background sub-agent, or the person waiting with it.
+    const resumed = command === null ? parked : null
+    parked = null
+    bracket = resumed ?? { turnId: e.turnId, startedAt, command, costAtStart: await engine.costUsd(), writes: [], questions: 0, background: new Set() }
     if (command?.slug) setActive(engine, command.slug)
     // A watched driver that ended or died hands the status line back at the next turn.
     if (driverTimer === null && driverText !== null) {
@@ -1191,12 +1219,23 @@ export function register(on: On, options: PluginOptions = {}) {
     if (e.agentId !== undefined) {
       // A sub-agent's reads end with it.
       reads.delete(e.agentId)
+      bracket?.background.delete(e.agentId)
+      parked?.background.delete(e.agentId)
       return result
     }
     const turn = bracket
     bracket = null
     if (!engine || turn === null) return result
     const command = turn.command
+    // The main model answered while its background sub-agents still run: the
+    // stage is not over. Park it; the check and the compaction wait for the
+    // turn that ends with no sub-agent of the stage running.
+    if (command !== null && e.reason === 'answer' && turn.background.size > 0) {
+      parked = turn
+      if (turn.writes.length > 0) await refreshActive(engine)
+      journalTurn(command, turn, null, `wait(${turn.background.size})`)
+      return result
+    }
     if (command !== null && !READ_ONLY_KEYS.has(command.key)) {
       const costNow = await engine.costUsd()
       if (costNow !== null && turn.costAtStart !== null) model = { ...model, lastStageUsd: Math.max(0, costNow - turn.costAtStart) }

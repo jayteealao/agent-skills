@@ -260,6 +260,12 @@ async function turn($: Engine, text: string, writes: readonly string[] = [], rea
   await $.turn.complete({ answer: 'done', durationMs: 1000, isAborted: reason === 'aborted', turnId: 't', reason })
 }
 
+/**
+ * The main model's Agent call with `run_in_background`, as the engine raises
+ * it: the test engine passes only the arguments given, so `background` is set here.
+ */
+const spawnBackground = ($: Engine, prompt: string) => $.agent.spawn({ prompt, background: true } as Parameters<Engine['agent']['spawn']>[0])
+
 /** Lets the promise chains a timer or the probe journal started run to their end. */
 const settle = async (): Promise<void> => {
   for (let i = 0; i < 200; i += 1) await Promise.resolve()
@@ -795,6 +801,49 @@ describe('register', () => {
     expect(turns).toHaveLength(1)
     expect(turns[0]).toMatchObject({ ok: true, detail: 'plan alpha-flow auth · writes 1 · landed true · compact' })
     expect(world.compacted).toHaveLength(1)
+  })
+
+  test('a stage turn that ends while its background sub-agent runs waits for it, then checks and compacts once', async ($, on) => {
+    // The main model dispatches a background sub-agent and answers "waiting":
+    // its turn ends before the artifact exists. The sub-agent's notification
+    // starts the next main turn, which writes the artifact.
+    const world = seat(on, { ...TREE })
+    on('agent.spawn', () => ({ model: 'sonnet', agentId: 'bg-1' }))
+    await $.session.start(SESSION)
+    await $.turn.start({ text: '/wf implement alpha-flow auth', turnId: 'main' })
+    await spawnBackground($, 'Implement slice auth.')
+    await $.turn.complete({ answer: 'Waiting on the agent.', durationMs: 1, isAborted: false, turnId: 'main', reason: 'answer' })
+    await world.clock.advance(1)
+    await settle()
+    expect(world.toasts).toEqual([])
+    expect(world.compacted).toEqual([])
+    await $.turn.complete({ answer: 'slice done', durationMs: 1, isAborted: false, turnId: 'sub', reason: 'answer', agentId: 'bg-1' })
+    await turn($, '<task-notification>agent bg-1 completed</task-notification>', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md'])
+    await world.clock.advance(1)
+    await settle()
+    expect(world.toasts).toEqual(['wf: compacting after implement (context 62%)'])
+    expect(world.compacted).toHaveLength(1)
+    const turns = probeRows(world).filter(row => row['event'] === 'turn')
+    expect(turns.map(row => row['detail'])).toEqual(['implement alpha-flow auth · writes 0 · landed n/a · wait(1)', 'implement alpha-flow auth · writes 1 · landed true · compact'])
+  })
+
+  test('a typed /wf command drops a parked stage, and an unlanded stage toasts once its sub-agent ends', async ($, on) => {
+    const world = seat(on, { ...TREE })
+    on('agent.spawn', () => ({ model: 'sonnet', agentId: 'bg-2' }))
+    await $.session.start(SESSION)
+    await $.turn.start({ text: '/wf verify alpha-flow ui', turnId: 'v1' })
+    await spawnBackground($, 'Verify slice ui.')
+    await $.turn.complete({ answer: 'Waiting.', durationMs: 1, isAborted: false, turnId: 'v1', reason: 'answer' })
+    // The sub-agent never ends; the person starts another stage.
+    await turn($, '/wf verify alpha-flow ui')
+    expect(world.toasts).toEqual(['wf: verify ended without 06-verify-ui.md'])
+    await $.turn.start({ text: '/wf verify alpha-flow ui', turnId: 'v2' })
+    await spawnBackground($, 'Verify slice ui.')
+    await $.turn.complete({ answer: 'Waiting.', durationMs: 1, isAborted: false, turnId: 'v2', reason: 'answer' })
+    expect(world.toasts).toHaveLength(1)
+    await $.turn.complete({ answer: 'no luck', durationMs: 1, isAborted: false, turnId: 'sub', reason: 'answer', agentId: 'bg-2' })
+    await turn($, '<task-notification>agent bg-2 completed</task-notification>')
+    expect(world.toasts).toEqual(['wf: verify ended without 06-verify-ui.md', 'wf: verify ended without 06-verify-ui.md'])
   })
 
   test('a vetoed compaction logs the reason and still suggests; a refused call is one row carrying the engine reason', async ($, on) => {
