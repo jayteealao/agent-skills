@@ -4,6 +4,7 @@
  * contract, the pane's settings and actions, and the existing parts' styles.
  */
 import type { On, RenderElement, RenderInput } from 'claude-code'
+import type { SdlcLiveModel } from '../../../types'
 import { describe, expect, mock, test, tier } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
 
@@ -25,7 +26,9 @@ import type { StripParts } from '../styles/existing.tsx'
 import { ALL_PALETTES, contrastOf, VIEW_STYLES } from '../styles/tokens.ts'
 import { PANE_WIDE_COLUMNS } from '../styles/pane.tsx'
 import { APP_GROUND, contrastFaults, MIN_CONTRAST } from './contrast.ts'
-import { PUSH_TOAST_MS } from '../live/register.ts'
+import { fillOrSend, isRunOver, PUSH_TOAST_MS } from '../live/register.ts'
+import type { LiveEngine } from '../live/register.ts'
+import Heartbeat from '../live/client/heartbeat.tsx'
 
 tier('user')
 
@@ -137,11 +140,13 @@ type World = {
   locked: boolean
   /** Null places every pane; a reason makes the open mock answer that the pane waits. */
   unplaced: string | null
+  /** The panes the engine holds open and placed, for `$.ui.panes`. */
+  seated: Set<string>
 }
 
 /** The world beneath the mod: a session in /work over `tree`. */
 function seat(on: On, tree: Record<string, string>): World {
-  const world: World = { clock: null as unknown as MockClock, written: new Map(), opened: [], toasts: [], submitted: [], configSet: [], logged: [], locked: false, unplaced: null }
+  const world: World = { clock: null as unknown as MockClock, written: new Map(), opened: [], toasts: [], submitted: [], configSet: [], logged: [], locked: false, unplaced: null, seated: new Set() }
   const normal = (path: string) => path.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '').replace(/\/+$/, '')
   const textAt = (path: string) => world.written.get(path) ?? tree[path]
   const dirs = () => {
@@ -209,9 +214,14 @@ function seat(on: On, tree: Record<string, string>): World {
   on('ui.open', ($, e) => {
     world.opened.push(e.id)
     if (world.unplaced !== null) return { value: { isPlaced: false as const, reason: world.unplaced } }
+    world.seated.add(e.id)
     return { value: { isPlaced: true as const } }
   })
-  on('ui.close', () => ({ value: undefined }))
+  on('ui.close', ($, e) => {
+    world.seated.delete(e.id)
+    return { value: undefined }
+  })
+  on('ui.panes', () => ({ value: [...world.seated].map(id => ({ id, title: id, isShown: true, isFocused: false, isPlaced: true })) }))
   on('prompt.fill', () => ({ isFilled: true }))
   on('prompt.suggest', () => ({ isShown: true }))
   on('prompt.submit', ($, e) => {
@@ -554,6 +564,60 @@ describe('the live pane', () => {
     expect(world.toasts.filter(toast => toast.text === why)).toHaveLength(2)
   })
 
+  test("a pane the engine no longer holds brings back the live line's live view button", async ($, on) => {
+    const world = await openLive($, on)
+    const buttonOf = async () => {
+      const band = await $.ui.mount({ plugin: PLUGIN_NAME, surface: 'terminal', component: 'AbovePrompt', props: BAND_PROPS, viewport: { columns: 120, rows: 40 } })
+      const found = await band.find({ key: LIVE_KEYS.open })
+      await band.unmount()
+      return found !== undefined
+    }
+    expect(world.seated.has('wf-live')).toBe(true)
+    expect(await buttonOf()).toBe(false)
+    // The person closed the pane, or a restart did not bring it back: the next poll reads the engine's record.
+    world.seated.delete('wf-live')
+    await world.clock.advance(60_000)
+    expect(await buttonOf()).toBe(true)
+  })
+
+  test("a run that ended more than 30 minutes ago leaves the live line, and the strip's live button opens it", async ($, on) => {
+    const tree: Record<string, string> = { ...TREE }
+    const world = seat(on, tree)
+    await world.clock.set(NOW)
+    const endedAt = NOW - 38 * 60 * 60_000
+    tree['/work/.ai/workflows/alpha-flow/.driver-journal.jsonl'] = yoloJournal(endedAt) + JSON.stringify({ at: at(endedAt), run: 'r1', seq: 6, event: 'run-end' }) + '\n'
+    await $.session.start(SESSION)
+    await pressLive($, 'alpha-flow')
+    expect(world.opened).toContain('wf-live')
+    const band = await $.ui.mount({ plugin: PLUGIN_NAME, surface: 'terminal', component: 'AbovePrompt', props: BAND_PROPS, viewport: { columns: 120, rows: 40 } })
+    await band.drawn()
+    expect(await band.find({ key: LIVE_KEYS.open })).toBeUndefined()
+    expect(await band.find({ key: LIVE_KEY })).toBeDefined()
+    await band.unmount()
+    // The pane the button opened reads the whole journal again: the run, not "no journal yet".
+    const pane = textOf(await $.ui.render({ component: 'Pane', surface: 'terminal', requestId: 'wf-live', viewport: { columns: 120, rows: 50 }, props: PANE_PROPS }))
+    expect(pane).toContain('run r1')
+    expect(pane).not.toContain('no journal yet')
+  })
+
+  test('a run that ended a few minutes ago keeps its live line', async ($, on) => {
+    const tree: Record<string, string> = { ...TREE }
+    const world = seat(on, tree)
+    await world.clock.set(NOW)
+    const endedAt = NOW - 5 * 60_000
+    tree['/work/.ai/workflows/alpha-flow/.driver-journal.jsonl'] = yoloJournal(endedAt) + JSON.stringify({ at: at(endedAt), run: 'r1', seq: 6, event: 'run-end' }) + '\n'
+    await $.session.start(SESSION)
+    await pressLive($, 'alpha-flow')
+    const text = textOf(await $.ui.render({ component: 'AbovePrompt', surface: 'terminal', requestId: 'ended-band', viewport: { columns: 120, rows: 40 }, props: BAND_PROPS }))
+    expect(text).toContain('YOLO alpha-flow')
+    expect(text).not.toContain('no journal yet')
+    const band = await $.ui.mount({ plugin: PLUGIN_NAME, surface: 'terminal', component: 'AbovePrompt', props: BAND_PROPS, viewport: { columns: 120, rows: 40 } })
+    await band.drawn()
+    // The live line shows the run, so the strip draws no live button of its own.
+    expect(await band.find({ key: LIVE_KEY })).toBeUndefined()
+    await band.unmount()
+  })
+
   test('the strip draws a live button only for a workflow with a run, and not while the live line shows that run', async ($, on) => {
     const tree: Record<string, string> = { ...TREE }
     const world = seat(on, tree)
@@ -648,6 +712,93 @@ describe('the live pane', () => {
     await ui.advance(500)
     expect(JSON.stringify(await ui.drawn({ in: 'live-heartbeat' }))).not.toBe(before)
     await ui.unmount()
+  })
+
+  test('the live line stop buttons carry no hotkey: a digit typed in an empty prompt box presses none', async ($, on) => {
+    await openLive($, on)
+    const band = await $.ui.mount({ plugin: PLUGIN_NAME, surface: 'terminal', component: 'AbovePrompt', props: BAND_PROPS, viewport: { columns: 120, rows: 40 } })
+    const drawn = JSON.stringify(await band.drawn())
+    await band.unmount()
+    expect(drawn).toContain('Stop after this stage')
+    expect(drawn).not.toMatch(/"hotkey":"[0-9]"/u)
+  })
+
+  test('a need that fills the prompt box sends a whole command where the box refuses it, and names one that waits for words', async () => {
+    const sent: string[] = []
+    const toasts: string[] = []
+    const engineWith = (answer: unknown) =>
+      ({
+        fill: async () => answer,
+        submit: async (text: string) => {
+          sent.push(text)
+        },
+        toast: (text: string) => {
+          toasts.push(text)
+        },
+      }) as unknown as LiveEngine
+    const desktop = engineWith({ isFilled: false, refusal: 'no_composer' })
+    await fillOrSend(desktop, '/wf yolo alpha-flow')
+    expect(sent).toEqual(['/wf yolo alpha-flow'])
+    // An answer waits for the person's words: it is named, not sent.
+    await fillOrSend(desktop, '/wf campaign idea answer q1: ')
+    expect(sent).toEqual(['/wf yolo alpha-flow'])
+    expect(toasts).toEqual(['Type this in the prompt box, then your words: /wf campaign idea answer q1:'])
+    // The terminal fills the box: nothing is sent.
+    await fillOrSend(engineWith({ isFilled: true }), '/wf yolo alpha-flow')
+    expect(sent).toHaveLength(1)
+  })
+
+  test('a run is over after its end, a campaign with no wave running, a done brainstorm, or two silent hours', () => {
+    const min = 60_000
+    const liveness = (silentMs: number, state = 'live') => ({ state, lastLineAt: NOW - silentMs, limitMs: 20 * min, lastLine: null, beats: [] })
+    const yolo = (silentMs: number, outcome: string) => ({ kind: 'yolo', outcome, liveness: liveness(silentMs, outcome === 'ended' ? 'ended' : 'live') }) as unknown as SdlcLiveModel
+    const campaign = (silentMs: number, activeWave: number | null) => ({ kind: 'campaign', activeWave, running: 0, paused: null, liveness: liveness(silentMs, 'stale') }) as unknown as SdlcLiveModel
+    const brainstorm = (silentMs: number, mode: string) => ({ kind: 'brainstorm', mode, liveness: liveness(silentMs, 'quiet') }) as unknown as SdlcLiveModel
+    expect(isRunOver(yolo(29 * min, 'ended'), NOW)).toBe(false)
+    expect(isRunOver(yolo(31 * min, 'ended'), NOW)).toBe(true)
+    expect(isRunOver(yolo(31 * min, 'stopped'), NOW)).toBe(true)
+    expect(isRunOver(yolo(60 * min, 'running'), NOW)).toBe(false)
+    expect(isRunOver(campaign(31 * min, null), NOW)).toBe(true)
+    expect(isRunOver(campaign(60 * min, 1), NOW)).toBe(false)
+    expect(isRunOver(campaign(121 * min, 1), NOW)).toBe(true)
+    expect(isRunOver(brainstorm(60 * min, 'explore'), NOW)).toBe(false)
+    expect(isRunOver(brainstorm(31 * min, 'done'), NOW)).toBe(true)
+    expect(isRunOver(brainstorm(121 * min, 'explore'), NOW)).toBe(true)
+  })
+
+  test('the heartbeat age counts from the last hook draw, and a run that turns live starts the clock', () => {
+    const timers: Array<() => void> = []
+    const surface = {
+      elements: { Box: (props: Record<string, unknown>) => props, Text: (props: Record<string, unknown>) => props },
+      state: undefined as unknown,
+      setState(next: unknown) {
+        this.state = next
+      },
+      every(_ms: number, fn: () => void) {
+        timers.push(fn)
+        return () => undefined
+      },
+    }
+    const base = { look: 'dot', beats: [], limitMs: 1_200_000, width: 20, color: null, quietColor: null, stopColor: null }
+    const wordsOf = (props: Record<string, unknown>) => {
+      const tree = Heartbeat(props as never, surface as never) as unknown as { children: Array<{ children: string }> }
+      return tree.children[1]?.children
+    }
+    const tick = (count: number) => {
+      for (let i = 0; i < count; i += 1) for (const fn of timers) fn()
+    }
+    // The first draw waits for a journal: no clock yet.
+    expect(wordsOf({ ...base, state: 'none', lastLineAt: null, now: 0 })).toBe('no journal yet')
+    expect(timers).toHaveLength(0)
+    // The run turns live: the clock starts.
+    expect(wordsOf({ ...base, state: 'live', lastLineAt: 0, now: 1_000 })).toBe('last line 1 s ago')
+    expect(timers).toHaveLength(1)
+    tick(10)
+    expect(wordsOf({ ...base, state: 'live', lastLineAt: 0, now: 1_000 })).toBe('last line 6 s ago')
+    // A new hook draw 30 minutes on, one second after a new line: the age is 1 s, not 30 min.
+    expect(wordsOf({ ...base, state: 'live', lastLineAt: 1_799_000, now: 1_800_000 })).toBe('last line 1 s ago')
+    // A stale run says it is past its limit, not only quiet.
+    expect(wordsOf({ ...base, state: 'stale', lastLineAt: 0, now: 1_500_000 })).toBe('quiet for 25 min · past its 20 min limit')
   })
 
   test('push-class toasts carry a 10 second timeout (T18)', async ($, on) => {
@@ -750,6 +901,36 @@ describe('the design: contrast and layout of the live views (MOD-DESIGN)', () =>
       await pane.unmount()
       expect(textOf(card).toLowerCase()).toContain('alpha-flow')
       expect(textOf(drawn).toLowerCase()).toContain('alpha-flow')
+      expect(faults).toEqual([])
+    })
+  }
+
+  // D and E draw fixed ink colours: on a terminal (light or dark, unknown), every word must sit on their own ground.
+  for (const style of ['instrument', 'grid'] as const) {
+    test(`style ${style}: every word of the live card and the live pane sits on the style's ground on the terminal`, { options: { viewStyle: style } }, async ($, on) => {
+      // No brainstorm board: the pane starts with no run, so "No live run yet" draws.
+      const tree: Record<string, string> = Object.fromEntries(Object.entries(TREE).filter(([path]) => !path.endsWith('brainstorm-board.json')))
+      const world = seat(on, tree)
+      await world.clock.set(NOW)
+      await $.session.start(SESSION)
+      const faults: string[] = []
+      // Before any run: the pane's "No live run yet".
+      const empty = await mountPane($, 'terminal')
+      const emptyTree = await empty.drawn()
+      faults.push(...contrastFaults(emptyTree, null).map(fault => `empty pane: ${fault}`))
+      await empty.unmount()
+      tree['/work/.ai/workflows/alpha-flow/.driver-journal.jsonl'] = yoloJournal(NOW)
+      await pressLive($, 'alpha-flow')
+      const band = await $.ui.mount({ plugin: PLUGIN_NAME, surface: 'terminal', component: 'AbovePrompt', props: BAND_PROPS, viewport: { columns: 120, rows: 40 } })
+      const card = await band.drawn()
+      faults.push(...contrastFaults(card, null).map(fault => `card: ${fault}`))
+      await band.unmount()
+      const pane = await mountPane($, 'terminal')
+      const drawn = await pane.drawn()
+      faults.push(...contrastFaults(drawn, null).map(fault => `pane: ${fault}`))
+      await pane.unmount()
+      expect(textOf(emptyTree)).toContain('No live run yet')
+      expect(textOf(card).toLowerCase()).toContain('alpha-flow')
       expect(faults).toEqual([])
     })
   }

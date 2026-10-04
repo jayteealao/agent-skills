@@ -30,16 +30,37 @@ export function needsPerson(workflow: WorkflowEntry): boolean {
   return /awaiting|blocked|needs/iu.test(workflow.status)
 }
 
-/** The stage label of a workflow: its stage, "needs you", or "closed". */
+/**
+ * The stage a workflow is at, for its label and its cells: the stage its next
+ * command names when that command moves it forward along the cells, else the
+ * stage its index names. A slice loop writes `plan` to the index and names
+ * `/wf implement` next: the workflow is at implement.
+ */
+export function stageAtOf(workflow: WorkflowEntry): string | null {
+  const stage = workflow.currentStage
+  if (workflow.terminal || stage === null) return stage
+  const key = /^\/wf\s+([a-z-]+)/u.exec(workflow.nextInvocation ?? '')?.[1] ?? null
+  if (key === null) return stage
+  const from = stagePlaceOf(stage, false).at
+  const to = stagePlaceOf(key, false).at
+  return from >= 0 && to > from ? key : stage
+}
+
+/** The stage label of a workflow: the stage it is at, "needs you", or "closed". */
 export function stageWordOf(workflow: WorkflowEntry): string {
   if (workflow.terminal) return 'closed'
   if (needsPerson(workflow)) return 'needs you'
-  return workflow.currentStage ?? workflow.status
+  return stageAtOf(workflow) ?? workflow.status
 }
 
 /** The slices done of a roster, and its size. */
 export function slicesDoneOf(slices: readonly SliceEntry[]): { done: number; total: number } {
   return { done: slices.filter(slice => slice.status === 'complete' || slice.status === 'completed' || slice.stage === 'verified').length, total: slices.length }
+}
+
+/** The strip's slice count, named so that it does not read as the stage cells: `21/23 slices`. */
+export function sliceCountText(slices: { done: number; total: number }): string {
+  return `${slices.done}/${slices.total} slices`
 }
 
 // ---------------------------------------------------------------------------
@@ -106,10 +127,29 @@ export type StripParts = {
 /** The width from which the strip is one row; below it the next command and the cost take a second row. */
 export const STRIP_ONE_ROW_COLUMNS = 96
 
-/** Rows the strip takes at a width: one, or two when the next command moves down. */
-export function styledStripRows(_style: ViewStyle, parts: StripParts, detail: string | null, _others: number, columns: number): number {
-  const hasTail = (parts.workflow.nextInvocation !== null && !parts.workflow.terminal) || detail !== null
-  return columns >= STRIP_ONE_ROW_COLUMNS || !hasTail ? 1 : 2
+/**
+ * The columns the strip's first row takes with the cost on it and no next
+ * command: the padding, the words, the buttons as the terminal draws them
+ * (`[ label ]`, the label in the style's form), and a gap between parts.
+ */
+function stripHeadColumnsOf(style: ViewStyle, parts: StripParts, detail: string | null, others: number, hasLive: boolean): number {
+  const workflow = parts.workflow
+  const slices = slicesDoneOf(parts.slices)
+  const labels = [...(hasLive ? ['live'] : []), 'dashboard', ...(others === 0 ? [] : [`⇄ ${others}`])]
+  const buttons = labels.map(label => controlLabel(style, label).length + 4)
+  const words = [1, workflow.slug.length, stageWordOf(workflow).length + 2, CELL_STAGES.length, slices.total === 0 ? 0 : sliceCountText(slices).length, detail?.length ?? 0, ...buttons].filter(width => width > 0)
+  return 2 + words.reduce((sum, width) => sum + width, 0) + (words.length - 1)
+}
+
+/**
+ * Rows the strip takes at a width: one, or two when the next command moves
+ * down. With no next command, the cost stays on the first row when it fits:
+ * a second row for the cost alone is a row of nothing.
+ */
+export function styledStripRows(style: ViewStyle, parts: StripParts, detail: string | null, others: number, columns: number, hasLive = true): number {
+  const hasNext = parts.workflow.nextInvocation !== null && !parts.workflow.terminal
+  if (columns >= STRIP_ONE_ROW_COLUMNS || (!hasNext && detail === null)) return 1
+  return !hasNext && stripHeadColumnsOf(style, parts, detail, others, hasLive) <= columns ? 1 : 2
 }
 
 /**
@@ -136,10 +176,10 @@ export function stripStyledView(ui: Ui, style: ViewStyle, palette: Palette, part
   const { Box, Text, Button } = ui
   const workflow = parts.workflow
   const tone = workflowTone(workflow)
-  const place = stagePlaceOf(workflow.currentStage, workflow.terminal)
+  const place = stagePlaceOf(stageAtOf(workflow), workflow.terminal)
   const slices = slicesDoneOf(parts.slices)
   const next = workflow.terminal ? null : workflow.nextInvocation
-  const isOneRow = styledStripRows(style, parts, detail, actions.others, columns) === 1
+  const isOneRow = styledStripRows(style, parts, detail, actions.others, columns, actions.live !== null) === 1
   const tail: RenderElement[] = [
     next === null ? (
       <Box flexGrow={1} />
@@ -167,7 +207,7 @@ export function stripStyledView(ui: Ui, style: ViewStyle, palette: Palette, part
         <Box flexDirection="row" flexShrink={0}>
           {cellsView(ui, style, palette, place.done, place.at, CELL_STAGES.length)}
         </Box>
-        {slices.total === 0 ? null : <Text dimColor>{`${slices.done}/${slices.total}`}</Text>}
+        {slices.total === 0 ? null : <Text dimColor>{sliceCountText(slices)}</Text>}
         {isOneRow ? tail : <Box flexGrow={1} />}
         {buttons}
       </Box>
@@ -294,20 +334,24 @@ export function workflowsStyledView(ui: Ui, style: ViewStyle, palette: Palette, 
 // ---------------------------------------------------------------------------
 
 /** The hub line under the logo (E4): the state mark or tag, the hub, then the rest quiet. */
-export function noticeStyledView(ui: Pick<Ui, 'Box' | 'Text'>, style: ViewStyle, palette: Palette, engineText: string, hub: HubHealth | null, hubText: string, command: string): RenderElement {
+export function noticeStyledView(ui: Pick<Ui, 'Box' | 'Text'>, style: ViewStyle, palette: Palette, engineText: string, hub: HubHealth | null, hubText: string): RenderElement {
   const { Box, Text } = ui
   const isUp = hub !== null && hub.ok
   const tone: Tone = isUp ? 'done' : 'stop'
   const [head = hubText, ...rest] = hubText.split(' · ')
+  // D and E draw ink colours: the hub row carries their plate, so it reads on a dark terminal too.
+  const plate = palette.card === undefined ? {} : { backgroundColor: palette.card, paddingX: 1 }
   return (
     <Box flexDirection="column">
       {engineText === '' ? null : <Text dimColor>{engineText}</Text>}
-      <Box flexDirection="row" gap={1}>
-        {style === 'grid' ? chipView(ui, style, palette, isUp ? 'attention' : 'stop', isUp ? 'operational' : 'down') : markView(ui, style, palette, tone)}
+      <Box flexDirection="row" gap={1} {...plate}>
+        {style === 'grid' ? chipView(ui, style, palette, isUp ? 'done' : 'stop', isUp ? 'operational' : 'down') : markView(ui, style, palette, tone)}
         <Text bold={style !== 'dashboard'}>{say(style, head)}</Text>
-        <Text dimColor wrap="truncate-end">
-          {`· ${say(style, [...rest, command].filter(Boolean).join(' · '))}`}
-        </Text>
+        {rest.length === 0 ? null : (
+          <Text dimColor wrap="truncate-end">
+            {`· ${say(style, rest.join(' · '))}`}
+          </Text>
+        )}
       </Box>
     </Box>
   )

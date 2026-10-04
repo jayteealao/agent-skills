@@ -214,7 +214,9 @@ export function ageText(ms: number | null): string {
   if (seconds < 60) return `${seconds} s`
   const minutes = Math.round(seconds / 60)
   if (minutes < 60) return `${minutes} min`
-  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} h ${minutes % 60} min`
+  return `${Math.floor(hours / 24)} d ${hours % 24} h`
 }
 
 /** A percent as `76 %`, or `—` when unknown (U3). */

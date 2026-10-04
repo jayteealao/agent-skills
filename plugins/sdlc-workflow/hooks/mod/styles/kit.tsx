@@ -128,7 +128,8 @@ export function paneButtons(ui: StyleUi, view: PaneView, act: LiveActions, label
 /**
  * The band's live line (K3), one row: the state mark, the driver's label, the
  * workflow, what runs (the part that shrinks), then pinned right up to two
- * actions on hotkeys `1` and `2`. One layout in every style; the style gives
+ * actions, with no hotkeys: a bare digit in an empty prompt box presses a band
+ * button, and these write stop requests. One layout in every style; the style gives
  * the colours, the marks and the case.
  */
 export function liveBandView(ui: Pick<Terminal, 'Box' | 'Text' | 'Button'>, band: SdlcLiveBand, palette: Palette, open: () => void, press: (key: string) => void, style: ViewStyle = 'dashboard'): RenderElement {
@@ -144,7 +145,7 @@ export function liveBandView(ui: Pick<Terminal, 'Box' | 'Text' | 'Button'>, band
         <Text wrap="truncate-end">{say(style, focus)}</Text>
       </Box>
       {band.actions.map((action, index) => (
-        <Button key={LIVE_KEYS.band(action.key)} hotkey={action.hotkey} label={controlLabel(style, action.label)} {...(index === 0 ? { variant: 'primary' as const } : { dimColor: true })} onPress={() => press(action.key)} />
+        <Button key={LIVE_KEYS.band(action.key)} label={controlLabel(style, action.label)} {...(index === 0 ? { variant: 'primary' as const } : { dimColor: true })} onPress={() => press(action.key)} />
       ))}
       {band.isPaneSeated ? null : <Button key={LIVE_KEYS.open} label={controlLabel(style, 'live view')} dimColor onPress={() => open()} />}
     </Box>

@@ -40,12 +40,15 @@ function wordsOf(node: unknown, ground: string, color: unknown, out: Word[]): Wo
 /**
  * The words of a tree whose colour is missing, not a raw colour, or under
  * 4.5:1 on its ground. A tree with no words is a fault too: the walk found
- * nothing to check.
+ * nothing to check. `appGround` is the surface's own ground under a word no
+ * `backgroundColor` covers; null is a surface whose ground is unknown (a
+ * terminal, light or dark), where such a word is a fault: a fixed ink colour
+ * needs a ground of its own.
  */
-export function contrastFaults(tree: unknown): string[] {
-  const words = wordsOf(tree, APP_GROUND, undefined, [])
+export function contrastFaults(tree: unknown, appGround: string | null = APP_GROUND): string[] {
+  const words = wordsOf(tree, appGround ?? '', undefined, [])
   if (words.length === 0) return ['no words drawn']
   return words
-    .filter(word => typeof word.color !== 'string' || !/^#[0-9a-f]{6}$/iu.test(word.color) || contrastOf(word.color, word.ground) < MIN_CONTRAST)
-    .map(word => `${JSON.stringify(word.text)} ${String(word.color)} on ${word.ground}`)
+    .filter(word => typeof word.color !== 'string' || !/^#[0-9a-f]{6}$/iu.test(word.color) || word.ground === '' || contrastOf(word.color, word.ground) < MIN_CONTRAST)
+    .map(word => `${JSON.stringify(word.text)} ${String(word.color)} on ${word.ground === '' ? 'no ground' : word.ground}`)
 }

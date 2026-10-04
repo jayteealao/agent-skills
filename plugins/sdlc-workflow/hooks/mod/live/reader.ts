@@ -125,6 +125,17 @@ export class LiveReader {
     return this.io.list(path)
   }
 
+  /**
+   * Forgets the offsets of the files in one directory, so the next read of
+   * each starts again from the start: a new tracker of a run reads its whole
+   * journal, not only the lines after an older tracker's last read.
+   */
+  forget(dir: string): void {
+    const inside = (path: string) => path === dir || path.startsWith(`${dir}/`) || path.startsWith(`${dir}${String.fromCharCode(92)}`)
+    for (const path of [...this.tails.keys()]) if (inside(path)) this.tails.delete(path)
+    for (const path of [...this.seen.keys()]) if (inside(path)) this.seen.delete(path)
+  }
+
   /** Forgets every offset: the next poll reads every file again. */
   clear(): void {
     this.tails.clear()

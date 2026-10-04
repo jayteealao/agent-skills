@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The strip's token count no longer counts cache reads.** Every call reads the whole cached context again, so a long workflow showed figures such as `1626.5M tok`. The count is now the new input, the cache writes and the output. A Codex row's cached input and reasoning are not added twice. A count of a billion or more shows as `1.6B`.
+- **An ended run leaves the live line.** When a run ended more than 30 minutes ago, the band no longer shows its live line. The strip's `live` button still opens the run. A run that is opened again reads its whole journal, not "no journal yet".
+- **The live line's `live view` button comes back.** When you close the live pane, or a restart does not bring it back, the live line shows its `live view` button again. Before, the button stayed hidden after the first open, so a run that needed you had no button.
+- **An age above a day reads in days.** The live line says `1 d 14 h ago`, not `38 h 26 ago`. An age under a day says `1 h 30 min`.
+- **A closed workflow's strip is one row.** With no next command, the cost stays on the first row when it fits, so the strip no longer spends a second row on the cost alone.
+- **The stage label, the cells and the count agree.** The stage label and the stage cells follow the next command when it moves the workflow forward, so a workflow whose index says `plan` and whose next command is `/wf implement` shows `IMPLEMENT`. The slice count says `21/23 slices`.
+- **A new session opens on an active workflow.** All sessions of a project share the remembered workflow. A closed workflow that another session named last no longer opens a new session while an active workflow exists.
+- **The status line names the strip's workflow.** A `/wf` command that names a workflow draws the status line again, so the strip and the status line name the same workflow.
+- **The live line has no hotkeys.** A bare digit in an empty prompt box pressed a band button, so typing `1` could write a stop request. The live line's buttons now take a press only.
+- **The usage guard resumes only its own pause.** The guard resumes a pause of this project only, and a pause of this session, or a pause that no session claimed for five minutes after it ended. The guard does not write a pause over a stop request that you wrote, and it sends no resume when the control file carries another request.
+- **A `/wf yolo`, `/wf campaign` or `/wf brainstorm` turn follows its run at once.** The live view takes the command from the mod's own turn hook, so a Desktop turn and a terminal turn follow the run the same way.
+- **The ship and reviews stages find their artifacts.** The strip looks for `09-ship-run-*.md` after ship and for `05-implement-*.md` after a reviews fix pass, so these stages no longer read as not landed.
+- **A need button works on Desktop.** Desktop refuses to fill the prompt box. A need with a whole command now sends the command; a need that waits for your words shows the command in a toast.
+- **A `/clear` starts the read check again.** After `/clear`, the next stage names every input that it must read.
+- **The read check names the right stage.** The check lists the stages whose files the writer read in this turn first, then the command's own stages.
+- **The heartbeat age counts on.** The live pane's heartbeat counts from its last draw, and a run that turns live starts the clock. A stale run reads `quiet for 25 min · past its 20 min limit`.
+- **Campaign and brainstorm runs end too.** A campaign with no wave running and a brainstorm that is done leave the live line 30 minutes after their last event. Any run that is silent for two hours leaves it.
+- **A word that names no workflow leaves the active workflow.** A `/wf` command whose first word is not a workflow no longer moves the strip.
+- **The band redraws when the active workflow changes.** The `⇄` button and a `/wf` command redraw the band at once.
+- **The driver watch is gone; the setting is now "Run status".** The live view already carries the run's heartbeat in the status line, so the five-second timer that read the same journal is removed.
+- **The hub notice names no command.** `/wf-doctor` is not a command of this plugin. The notice is drawn in the terminal only.
+- **The instrument and grid styles keep their ground in the terminal.** The hub notice and the empty live pane sit on the style's plate, and the grid's attention chip reads lime on black.
+- **The strip buttons fit.** The strip counts each button's frame, so a narrow strip moves the next command to the second row before the buttons wrap.
+
 ## [9.180.5] - 2026-10-04
 
 ### Removed

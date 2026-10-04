@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import {
   MAIN_AGENT, READ_LEDGER_FILE, agentKeyOf, appendedTextOf, checkReads, classifyPath, contextTextOf, coverageOf, coversSpan, fedCovers,
   isExcludedWrite, ledgerLineOf, matchWrite, mergeRanges, patternOf, preferredStagesOf, promptFedOf, readCheckModeOf, recordRead,
-  requiredOf, sectionSpansOf, waiverOf, writerStagesOf, writtenTextOf,
+  readMarkOf, requiredOf, sectionSpansOf, waiverOf, writerStagesOf, writtenTextOf,
 } from '../../../hooks/mod/readledger.ts';
 
 const PLAN = {
@@ -150,13 +150,21 @@ function readRef(ledger, agent, reference) {
   recordRead(ledger, agent, `ref:${reference}`, `/p/skills/wf/reference/${reference}`, { startLine: 1, numLines: 5, totalLines: 5 });
 }
 
-test('writerStagesOf: stages whose reference the writer read first, then the command stages', () => {
+test('writerStagesOf: stages whose reference the writer read this turn, then the command stages, then older reads', () => {
   const requires = [TASK, IMPLEMENT, PLAN, INTAKE_FIX, SHAPE, INTAKE_DEFAULT];
   const ledger = new Map();
   readRef(ledger, 'I', 'implement.md');
   assert.deepEqual(writerStagesOf(requires, ledger.get('I'), null), ['implement']);
   assert.deepEqual(writerStagesOf(requires, undefined, null), []);
   assert.deepEqual(writerStagesOf(requires, ledger.get('I'), { key: 'plan', slug: 'alpha' }), ['implement', 'plan']);
+  // The main loop keeps its reads for the session: an intake reference read in an earlier turn does not beat this turn's shape command.
+  const main = new Map();
+  readRef(main, 'M', 'intake/fix.md');
+  const mark = readMarkOf();
+  assert.deepEqual(writerStagesOf(requires, main.get('M'), { key: 'shape', slug: 'b' }, mark), ['shape', 'intake:fix']);
+  // Read again in this turn, it is fresh and comes first.
+  readRef(main, 'M', 'intake/fix.md');
+  assert.deepEqual(writerStagesOf(requires, main.get('M'), { key: 'shape', slug: 'b' }, mark), ['intake:fix', 'shape']);
   assert.deepEqual(writerStagesOf(requires, undefined, { key: 'intake', slug: 'fix' }), ['intake:fix']);
   // An intake slug that names no mode (the idea text) maps to the default mode.
   assert.deepEqual(writerStagesOf(requires, undefined, { key: 'intake', slug: 'add-login' }), ['intake:default']);

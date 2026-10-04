@@ -140,8 +140,19 @@ export function inputIdOf(kind: RequiresKind, input: string, slug: string): stri
 /** A covered line range, 1-based, both ends included. */
 export type Range = readonly [number, number]
 
-/** What one agent read of one file: the merged ranges, the file's length, and the last path read. */
-export type FileReads = { path: string; ranges: Range[]; totalLines: number }
+/**
+ * What one agent read of one file: the merged ranges, the file's length, the
+ * last path read, and the sequence number of its last read (`readMarkOf`).
+ */
+export type FileReads = { path: string; ranges: Range[]; totalLines: number; seq?: number }
+
+/** The count of reads recorded in this module's life: a turn notes it at its start. */
+let readSeq = 0
+
+/** The sequence number of the last read recorded: a read after the mark has a higher one. */
+export function readMarkOf(): number {
+  return readSeq
+}
 
 /** One agent's reads, by ledger id. */
 export type AgentReads = Map<string, FileReads>
@@ -186,10 +197,12 @@ export function recordRead(ledger: ReadLedger, agent: string, id: string, path: 
   const known = reads.get(id)
   const start = Math.max(1, Math.floor(fact.startLine))
   const range: Range = [start, start + Math.max(0, Math.floor(fact.numLines)) - 1]
+  readSeq += 1
   reads.set(id, {
     path,
     ranges: mergeRanges(known?.ranges ?? [], range),
     totalLines: Math.max(0, Math.floor(fact.totalLines)),
+    seq: readSeq,
   })
 }
 
@@ -370,8 +383,11 @@ export function preferredStagesOf(command: { key: string; slug: string | null } 
 
 /**
  * The stages a writer runs, most preferred first: every stage whose reference
- * the writer read (`skills/wf/reference/<reference>` in its reads), then the
- * stages its `/wf` command maps to (the main loop's bracket command). A
+ * the writer read since `since` (`skills/wf/reference/<reference>` in its
+ * reads, `readMarkOf` at the turn's start), then the stages its `/wf` command
+ * maps to (the main loop's bracket command), then the stages whose reference
+ * it read before. The main loop keeps its reads for the session: a reference
+ * read for an earlier turn must not beat this turn's command. A
  * `writes` row matches a write only for one of these stages: a file several
  * stages write (`05-implement.md`, `04-plan.md`, `02-shape.md`, `03-slice.md`)
  * is checked against the stage the writer runs, never another stage that
@@ -383,18 +399,22 @@ export function writerStagesOf(
   requires: readonly RequiresEntry[],
   reads: AgentReads | undefined,
   command: { key: string; slug: string | null } | null,
+  since = 0,
 ): string[] {
   const known = new Set(requires.map(entry => entry.stage))
   const stages: string[] = []
   const add = (stage: string) => {
     if (known.has(stage) && !stages.includes(stage)) stages.push(stage)
   }
-  for (const entry of requires) {
-    if (reads?.has(procedureIdOf(entry.reference)) === true) add(entry.stage)
+  const readSince = (entry: RequiresEntry, isFresh: boolean) => {
+    const read = reads?.get(procedureIdOf(entry.reference))
+    return read !== undefined && ((read.seq ?? 0) > since) === isFresh
   }
+  for (const entry of requires) if (readSince(entry, true)) add(entry.stage)
   const named = preferredStagesOf(command).filter(stage => known.has(stage))
   if (command !== null && named.length === 0 && (command.key === 'intake' || command.key === 'augment')) named.push(`${command.key}:default`)
   for (const stage of named) add(stage)
+  for (const entry of requires) if (readSince(entry, false)) add(entry.stage)
   return stages
 }
 

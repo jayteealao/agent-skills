@@ -3,6 +3,7 @@ import { describe, expect, mock, test, tier } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
 
 import { BACK_KEY, CLOSE_KEY, DASHBOARD_KEY, FILTER_KEY, MORE_KEY, OPTION_KEY_PREFIX, PLUGIN_NAME } from '../names.ts'
+import { stageWordOf, styledStripRows } from '../styles/existing.tsx'
 import { VIEW_STYLES } from '../styles/tokens.ts'
 import { contrastFaults } from './contrast.ts'
 
@@ -117,8 +118,8 @@ type World = {
   submitted: string[]
 }
 
-/** The world beneath the mod: a session in /work, the tree above, an empty band. */
-function seat(on: On, tree: Record<string, string> = TREE): World {
+/** The world beneath the mod: a session in /work, the tree above, an empty band, and what the store holds. */
+function seat(on: On, tree: Record<string, string> = TREE, store: Record<string, unknown> = {}): World {
   const world: World = { registered: [], filled: [], logged: [], focused: [], toasts: [], suggested: [], statuses: [], opened: [], usd: 1, percent: 62, compacted: [], compactAnswers: ['done'], hub: HUB_HEALTH, mtimes: new Map(), clock: null as unknown as MockClock, props: null, written: new Map(), surfaces: ['terminal'], statusThrows: false, submitted: [] }
   const dirs = new Set<string>()
   for (const file of Object.keys(tree)) {
@@ -130,7 +131,7 @@ function seat(on: On, tree: Record<string, string> = TREE): World {
   const normal = (path: string) => path.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '').replace(/\/+$/, '')
 
   world.clock = mock.clock(on)
-  mock.store(on, {})
+  mock.store(on, store)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('command.register', ($, e) => {
     world.registered.push(e.name)
@@ -357,7 +358,7 @@ describe('register', () => {
     await run($, 'wf', 'plan')
     const slugs = textOf(await $.ui.render(BAND))
     expect(slugs).toContain('/wf › plan › pick a workflow')
-    expect(slugs).toContain('alpha-flow IMPLEMENT')
+    expect(slugs).toContain('alpha-flow VERIFY')
     expect(slugs).toContain('beta CLOSED')
     expect(slugs.indexOf('alpha-flow')).toBeLessThan(slugs.indexOf('beta'))
   })
@@ -438,13 +439,13 @@ describe('register', () => {
     })
     const type = (text: string) => editPrompt($, text)
     await $.session.start(SESSION)
-    expect(textOf(await $.ui.render(BAND))).toContain('alpha-flow IMPLEMENT')
+    expect(textOf(await $.ui.render(BAND))).toContain('alpha-flow VERIFY')
     await type('/wf')
     let band = textOf(await $.ui.render(BAND))
     expect(band).toContain('/wf › pick a key')
     expect(band).toContain('keep typing to narrow')
     // The strip gives its place to the picker, and the band draws no field of its own.
-    expect(band).not.toContain('alpha-flow IMPLEMENT')
+    expect(band).not.toContain('alpha-flow VERIFY')
     expect(JSON.stringify(await $.ui.render(BAND))).not.toContain(FILTER_KEY)
     await type('/wf pl')
     band = textOf(await $.ui.render(BAND))
@@ -461,7 +462,7 @@ describe('register', () => {
     await type('hello')
     band = textOf(await $.ui.render(BAND))
     expect(band).not.toContain('pick a')
-    expect(band).toContain('alpha-flow IMPLEMENT')
+    expect(band).toContain('alpha-flow VERIFY')
     await settle()
     const prompts = probeRows(world).filter(row => row['event'] === 'prompt').map(row => row['detail'])
     expect(prompts).toContain('edit raised · terminal')
@@ -717,7 +718,7 @@ describe('register', () => {
     world.mtimes.set('/work/.ai/workflows/alpha-flow/00-index.md', 5_000_000)
     await $.session.start(SESSION)
     const text = textOf(await $.ui.render(BAND))
-    expect(text).toContain('alpha-flow IMPLEMENT ■■■■ ■ □□□ 1/2 next /wf verify alpha-flow auth')
+    expect(text).toContain('alpha-flow VERIFY ■■■■■ ■ □□ 1/2 slices next /wf verify alpha-flow auth')
     expect(text).toContain('2k tok')
     expect(text).not.toContain('sdlc hub')
     expect(text).not.toContain('this stage')
@@ -736,22 +737,24 @@ describe('register', () => {
     on('command.run', () => ({ text: '' }))
     await $.session.start(SESSION)
     let text = textOf(await $.ui.render(BAND))
-    expect(text).toContain('alpha-flow IMPLEMENT')
+    expect(text).toContain('alpha-flow VERIFY')
     expect(text).toContain('⇄ 2')
     await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-strip-rotate' })
     text = textOf(await $.ui.render(BAND))
-    expect(text).toContain('gamma PLAN')
+    expect(text).toContain('gamma IMPLEMENT')
     expect(world.statuses.at(-1)).toBe('next /wf implement gamma core · hub 9.157.0')
     await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-strip-rotate' })
     expect(textOf(await $.ui.render(BAND))).toContain('beta CLOSED')
     await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-strip-rotate' })
-    expect(textOf(await $.ui.render(BAND))).toContain('alpha-flow IMPLEMENT')
+    expect(textOf(await $.ui.render(BAND))).toContain('alpha-flow VERIFY')
     await run($, 'wf', 'status gamma')
-    expect(textOf(await $.ui.render(BAND))).toContain('gamma PLAN')
+    expect(textOf(await $.ui.render(BAND))).toContain('gamma IMPLEMENT')
+    // The status line names the workflow the strip names.
+    expect(world.statuses.at(-1)).toBe('next /wf implement gamma core · hub 9.157.0')
     // The strip morphs into the picker: while a step is open the strip is gone, so a narrow band pages as many rows.
     const narrow = { ...BAND, props: { ...BAND.props, bodyColumns: 40, maxRows: 12 } }
     await run($, 'wf')
-    expect(textOf(await $.ui.render(BAND))).not.toContain('gamma PLAN')
+    expect(textOf(await $.ui.render(BAND))).not.toContain('gamma IMPLEMENT')
     expect(hotkeysOf(await $.ui.render(narrow))).toEqual(hotkeysOf(await $.ui.render(BAND)))
   })
 
@@ -762,12 +765,74 @@ describe('register', () => {
     world.mtimes.set('/work/.ai/workflows/alpha-flow/00-index.md', 5_000_000)
     on('command.run', () => ({ text: '' }))
     await $.session.start(SESSION)
-    expect(textOf(await $.ui.render(BAND))).toContain('alpha-flow IMPLEMENT')
+    expect(textOf(await $.ui.render(BAND))).toContain('alpha-flow VERIFY')
     await run($, 'wf', 'status beta')
     expect(textOf(await $.ui.render(BAND))).toContain('beta CLOSED')
     // A reload (a /config change) or the next session starts on the remembered workflow.
     await $.session.start(SESSION)
     expect(textOf(await $.ui.render(BAND))).toContain('beta CLOSED')
+  })
+
+  test('the band redraws on its own when the active workflow changes, and a word that names no workflow leaves it', async ($, on) => {
+    const world = seat(on, {
+      ...TREE,
+      '/work/.ai/workflows/gamma/00-index.md': '---\nslug: gamma\nstatus: active\ncurrent-stage: plan\nselected-slice: core\nnext-invocation: /wf implement gamma core\n---\n',
+    })
+    world.mtimes.set('/work/.ai/workflows/alpha-flow/00-index.md', 5_000_000)
+    on('command.run', () => ({ text: '' }))
+    await $.session.start(SESSION)
+    const band = await $.ui.mount({ plugin: PLUGIN_NAME, surface: 'terminal', component: 'AbovePrompt', props: BAND.props, viewport: { columns: 120, rows: 40 } } as Parameters<Engine['ui']['mount']>[0])
+    const words = async () => textOf(await band.drawn())
+    expect(await words()).toContain('alpha-flow VERIFY')
+    // A whole lap and one more: on the second lap every workflow's slices are known, so only the active slug changes.
+    for (const slug of ['gamma IMPLEMENT', 'beta CLOSED', 'alpha-flow VERIFY', 'gamma IMPLEMENT']) {
+      await band.press({ key: 'wf-strip-rotate' })
+      expect(await words()).toContain(slug)
+    }
+    // Words after the key that name no workflow: the strip stays on gamma.
+    await run($, 'wf', 'status advise')
+    expect(await words()).toContain('gamma IMPLEMENT')
+    await $.turn.start({ text: '/wf intake brainstorm my idea', turnId: 'tb' })
+    expect(await words()).toContain('gamma IMPLEMENT')
+    expect(world.statuses.at(-1)).toMatch(/^next \/wf implement gamma core/u)
+    await band.unmount()
+  })
+
+  test('a new session does not open on a closed workflow that another session named last', async ($, on) => {
+    seat(on, TREE, { 'active:/work': 'beta' })
+    await $.session.start(SESSION)
+    expect(textOf(await $.ui.render(BAND))).toContain('alpha-flow VERIFY')
+  })
+
+  test('a new session opens on the closed workflow it remembers when no workflow is active', async ($, on) => {
+    const world = seat(on, { '/work/.ai/workflows/beta/00-index.md': TREE['/work/.ai/workflows/beta/00-index.md'] as string, '/work/.ai/workflows/zeta/00-index.md': '---\nslug: zeta\nstatus: closed\n---\n' }, { 'active:/work': 'beta' })
+    // The newer closed workflow is zeta: the remembered one wins.
+    world.mtimes.set('/work/.ai/workflows/zeta/00-index.md', 9_000_000)
+    await $.session.start(SESSION)
+    expect(textOf(await $.ui.render(BAND))).toContain('beta CLOSED')
+  })
+
+  test('the stage label and cells follow the next command forward, and never back', () => {
+    const at = (currentStage: string | null, nextInvocation: string | null) => stageWordOf({ slug: 'x', status: 'active', terminal: false, currentStage, selectedSlice: null, nextInvocation })
+    expect(at('plan', '/wf implement x core')).toBe('implement')
+    expect(at('implement', '/wf implement x core')).toBe('implement')
+    expect(at('review', '/wf implement x fix')).toBe('review')
+    expect(at('brainstorm', '/wf intake brainstorm x')).toBe('brainstorm')
+    expect(at('plan', null)).toBe('plan')
+  })
+
+  test('a strip with no next command keeps its cost on the first row when it fits', () => {
+    const closed = { slug: 'task-update-realism-documents', status: 'closed', terminal: true, currentStage: 'retro', selectedSlice: null, nextInvocation: null }
+    const open = { ...closed, status: 'active', terminal: false, currentStage: 'plan', nextInvocation: '/wf implement x core' }
+    // [ dashboard ] and [ ⇄ 8 ] as the terminal draws them; no live button for a workflow with no run.
+    expect(styledStripRows('dashboard', { workflow: closed, slices: [], text: '' }, '51.9M tok', 8, 90, false)).toBe(1)
+    // With a live button the same row needs 93 columns.
+    expect(styledStripRows('dashboard', { workflow: closed, slices: [], text: '' }, '51.9M tok', 8, 90, true)).toBe(2)
+    // Style E's labels are longer (capitals and an arrow).
+    expect(styledStripRows('grid', { workflow: closed, slices: [], text: '' }, '51.9M tok', 8, 86, false)).toBe(2)
+    expect(styledStripRows('dashboard', { workflow: closed, slices: [], text: '' }, '51.9M tok', 8, 50, false)).toBe(2)
+    expect(styledStripRows('dashboard', { workflow: open, slices: [], text: '' }, '51.9M tok', 8, 90)).toBe(2)
+    expect(styledStripRows('dashboard', { workflow: open, slices: [], text: '' }, null, 8, 120)).toBe(1)
   })
 
   test('a /wf run names the active workflow, and the strip draws under the picker', async ($, on) => {
@@ -1063,62 +1128,45 @@ describe('register', () => {
     expect(questions[0]?.question).toBe('Which host?')
   })
 
-  test('the driver status follows the heartbeat journal during a yolo turn', async ($, on) => {
+  test('a /wf yolo turn follows its run at once, and the run takes the status line; /wf auto leaves it', async ($, on) => {
     const tree: Record<string, string> = { ...TREE, ...HUB_CONFIG }
     const world = seat(on, tree)
     const clock = world.clock
     await clock.set(10_000_000)
     await $.session.start(SESSION)
-    await $.turn.start({ text: '/wf yolo alpha-flow', turnId: 't3' })
-    expect(world.statuses.at(-1)).toBe('yolo · no driver journal')
+    // /wf auto writes no driver journal: the status line keeps the workflow's line.
+    await $.turn.start({ text: '/wf auto alpha-flow', turnId: 't2' })
+    expect(world.statuses.at(-1)).toMatch(/^next \/wf verify alpha-flow auth/u)
+    // The journal appears after the session's first scan: the yolo turn itself follows the run, no scan needed.
     const at = (ms: number) => new Date(ms).toISOString()
     tree['/work/.ai/workflows/alpha-flow/.driver-journal.jsonl'] =
-      `{"at":"${at(clock.now() - 600_000)}","run":"r3","seq":1,"event":"finish","agent":"a0","phase":"stage","stage":"plan","slice":"auth"}\n{"at":"${at(clock.now() - 120_000)}","run":"r3","seq":2,"event":"start","agent":"a1","phase":"stage","stage":"implement","slice":"auth"}\n`
-    await clock.advance(5_000)
-    expect(world.statuses.at(-1)).toMatch(/^yolo · run r3 · implement auth · agent a1 · \d+ min · last beat 2 min ago$/u)
-    // The driver runs in the background: the watch outlives the turn, and a write's refresh keeps the driver line.
-    await $.turn.complete({ answer: 'done', durationMs: 1, isAborted: false, turnId: 't3', reason: 'answer' })
-    await $.tool.call({ tool: 'Write', file_path: '/work/.ai/workflows/alpha-flow/05-implement-auth.md', content: 'x' })
-    expect(world.statuses.at(-1)).toMatch(/^yolo · run r3/u)
-    await clock.advance(5_000)
-    expect(world.statuses.at(-1)).toMatch(/last beat 2 min ago$/u)
-    // Silence past the 20-minute floor: presumed dead, one toast, and the watch stops.
-    await clock.advance(20 * 60_000)
-    expect(world.statuses.at(-1)).toMatch(/^yolo · presumed dead since \d\d:\d\d · last: implement auth$/u)
-    expect(world.toasts).toEqual([expect.stringMatching(/^wf yolo alpha-flow: driver presumed dead since/u)])
-    const after = world.statuses.length
-    await clock.advance(60_000)
-    expect(world.statuses.length).toBe(after)
-    expect(world.toasts).toHaveLength(1)
-    // The next turn hands the status line back to the strip.
-    await $.turn.start({ text: 'hello', turnId: 't4' })
-    expect(world.statuses.at(-1)).toBe('next /wf verify alpha-flow auth · $0.00 stage · hub 9.157.0')
+      `{"at":"${at(clock.now() - 120_000)}","run":"r3","seq":1,"event":"agent-start","agent":"implement:auth","stage":"implement","slice":"auth"}\n`
+    await $.turn.start({ text: '/wf yolo alpha-flow', turnId: 't3' })
+    expect(world.statuses.at(-1)).toMatch(/^yolo · /u)
+    // The driverStatus switch off: the workflow's line comes back.
+    await setSetting($, 'driverStatus', false)
+    expect(world.statuses.at(-1)).toMatch(/^next \/wf verify alpha-flow auth/u)
   })
 
-  test('a driver whose last agent returned reads stopped, with no toast', async ($, on) => {
-    const tree: Record<string, string> = { ...TREE, ...HUB_CONFIG }
-    const world = seat(on, tree)
-    const clock = world.clock
-    await clock.set(10_000_000)
-    await $.session.start(SESSION)
-    const at = (ms: number) => new Date(ms).toISOString()
-    tree['/work/.ai/workflows/alpha-flow/.driver-journal.jsonl'] =
-      `{"at":"${at(clock.now() - 600_000)}","run":"r5","seq":1,"event":"agent-start","agent":"implement:auth","stage":"implement","slice":"auth"}\n{"at":"${at(clock.now() - 120_000)}","run":"r5","seq":1,"event":"agent-end","agent":"implement:auth","stage":"implement","slice":"auth","status":"hard-stop"}\n`
-    await $.turn.start({ text: '/wf yolo alpha-flow', turnId: 't5' })
-    expect(world.statuses.at(-1)).toMatch(/^yolo · run r5 · implement auth/u)
-    await clock.advance(20 * 60_000)
-    expect(world.statuses.at(-1)).toMatch(/^yolo · stopped at \d\d:\d\d · last: implement auth \(hard-stop\)$/u)
-    expect(world.toasts).toEqual([])
-    const after = world.statuses.length
-    await clock.advance(60_000)
-    expect(world.statuses.length).toBe(after)
-  })
+  // D and E draw fixed ink colours: the hub row carries their plate, so it reads on any terminal.
+  for (const style of ['instrument', 'grid'] as const) {
+    test(`style ${style}: the hub row sits on the style's plate on the terminal, and names no command`, { options: { viewStyle: style } }, async ($, on) => {
+      seat(on, { ...TREE, ...HUB_CONFIG })
+      await $.session.start(SESSION)
+      const tree = await $.ui.render(NOTICE)
+      // The engine's own words ("model: sonnet") are its own: only the hub row is the mod's.
+      const faults = contrastFaults(tree, null).filter(fault => !fault.startsWith('"model: sonnet"'))
+      expect(textOf(tree).toLowerCase()).toContain('sdlc hub 9.157.0')
+      expect(textOf(tree)).not.toContain('/wf-')
+      expect(faults).toEqual([])
+    })
+  }
 
   test('the hub line draws under the logo, and a state change is one toast', async ($, on) => {
     const world = seat(on, { ...TREE, ...HUB_CONFIG })
     const clock = world.clock
     await $.session.start(SESSION)
-    expect(textOf(await $.ui.render(NOTICE))).toBe('model: sonnet ● sdlc hub 9.157.0 · 3 repos · 2 renders stale · /wf-doctor')
+    expect(textOf(await $.ui.render(NOTICE))).toBe('model: sonnet ● sdlc hub 9.157.0 · 3 repos · 2 renders stale')
     world.hub = null
     await clock.advance(60_000)
     await clock.advance(60_000)
@@ -1133,7 +1181,7 @@ describe('register', () => {
     await clock.advance(60_000)
     expect(world.toasts).toHaveLength(2)
     await setSetting($, 'hubNotice', true)
-    expect(textOf(await $.ui.render(NOTICE))).toBe('model: sonnet ■ sdlc hub down · /wf-doctor')
+    expect(textOf(await $.ui.render(NOTICE))).toBe('model: sonnet ■ sdlc hub down')
     world.hub = HUB_HEALTH
     await clock.advance(60_000)
     expect(world.toasts).toHaveLength(3)
@@ -1144,7 +1192,7 @@ describe('register', () => {
     await $.session.start(SESSION)
     const first = { ...NOTICE, requestId: 'n1', props: { text: 'model: sonnet', command: '/model' } }
     const second = { ...NOTICE, requestId: 'n2', props: { text: 'tip', command: null } }
-    expect(textOf(await $.ui.render(first))).toBe('model: sonnet /model ● sdlc hub 9.157.0 · 3 repos · 2 renders stale · /wf-doctor')
+    expect(textOf(await $.ui.render(first))).toBe('model: sonnet /model ● sdlc hub 9.157.0 · 3 repos · 2 renders stale')
     expect(textOf(await $.ui.render(second))).toBe('')
   })
 
@@ -1162,7 +1210,7 @@ describe('register', () => {
     expect(world.opened).toEqual(['wf-dashboard'])
     const pane = textOf(await $.ui.render(PANE))
     // E3: one row per open workflow (mark, slug, stage rail, findings, next step); closed ones wait for details (Y5).
-    expect(pane).toContain('● alpha-flow IMPLEMENT ■ □ 3 open /wf verify alpha-flow auth status pick')
+    expect(pane).toContain('● alpha-flow VERIFY ■ □ 3 open /wf verify alpha-flow auth status pick')
     expect(pane).toContain('WORKFLOW STAGE SLICES FINDINGS NEXT')
     expect(pane).toContain('ship-plan blockers 2 · hub 9.157.0 ok')
     expect(pane).toContain('details ▸ (1 closed)')
@@ -1354,6 +1402,47 @@ describe('usage guard', () => {
     await settle()
     expect(JSON.parse(world.written.get(CONTROL_PATH) ?? '{}')).toMatchObject({ action: 'none', clearedBy: 'usage-guard' })
     expect(world.submitted).toContain('The usage window reset. Resume the run with /wf campaign realism.')
+  })
+
+  const RESET = new Date(0).toISOString()
+  const guardPause = JSON.stringify({ action: 'pause', scope: 'campaign', until: RESET, by: 'usage-guard' })
+  const personStop = JSON.stringify({ action: 'stop', scope: 'wave', after: 'wave', by: 'live-view' })
+  const RESUME = 'The usage window reset. Resume the run with /wf campaign realism.'
+
+  test('a pause of another project is never resumed here; another session waits five minutes, then resumes it once', async ($, on) => {
+    const world = seat(on, { ...TREE, [LEDGER_PATH]: liveLedger, [CONTROL_PATH]: guardPause, '/other/.ai/workflows/x/work/campaign/.control.json': guardPause }, {
+      'usage-guard:pauses': [
+        { file: '/other/.ai/workflows/x/work/campaign/.control.json', until: RESET, kind: 'campaign', name: 'x', root: '/other', session: 'abcdef0123456789' },
+        { file: CONTROL_PATH, until: RESET, kind: 'campaign', name: 'realism', root: '/work', session: 'another-session' },
+      ],
+    })
+    await $.session.start(SESSION)
+    await world.clock.advance(60_000)
+    await settle()
+    expect(world.submitted).toEqual([])
+    await world.clock.advance(5 * 60_000)
+    await settle()
+    expect(world.submitted).toEqual([RESUME])
+    await world.clock.advance(60_000)
+    await settle()
+    expect(world.submitted).toEqual([RESUME])
+  })
+
+  test('a pause the person replaced sends no resume, and a pause never overwrites the person\'s stop', async ($, on) => {
+    const world = seat(on, { ...TREE, [LEDGER_PATH]: liveLedger, [CONTROL_PATH]: personStop }, {
+      'usage-guard:pauses': [{ file: CONTROL_PATH, until: RESET, kind: 'campaign', name: 'realism', root: '/work', session: 'abcdef0123456789' }],
+    })
+    await $.session.start(SESSION)
+    await world.clock.advance(60_000)
+    await settle()
+    expect(world.submitted).toEqual([])
+    expect(world.toasts.some(text => text.includes('so the guard sent no resume'))).toBe(true)
+    expect(world.written.has(CONTROL_PATH)).toBe(false)
+    // Usage over the pause line: the person's stop stands.
+    const resetsAt = new Date(world.clock.now() + 120_000).toISOString()
+    await $.session.measure({ context: { window: 200000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 95, resetsAt }, { kind: 'seven_day', percentUsed: 20 }], changed: ['rateLimits'] })
+    await settle()
+    expect(world.written.has(CONTROL_PATH)).toBe(false)
   })
 
   test('with usageGuard off nothing is read or written', async ($, on) => {

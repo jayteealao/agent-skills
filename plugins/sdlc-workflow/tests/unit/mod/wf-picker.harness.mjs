@@ -7,13 +7,14 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { CATALOG } from '../../../hooks/mod/catalog.ts';
+import { ageText } from '../../../hooks/mod/live/glyphs.ts';
 import { ALL, NONE, afterFillOf, backOf, draftStepOf, isSameStep, digitCommandOf, fillOf, filterOptions, filterTextOf, hotkeyOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from '../../../hooks/mod/picker.ts';
 import { findProjectRoot, frontmatterOf, joinPath, listSlices, listWorkflows, rosterOf } from '../../../hooks/mod/workflows.ts';
 import { PROBE_CAP, ProbeJournal, rowOf, rowsOf, sinceOf, surfaceAfterAttach, textOf, verdictOf } from '../../../hooks/mod/probe.ts';
 import { readHookCell, readProbeDetail, readProbeOf } from '../../../hooks/mod/probe.ts';
 import {
-  COMPACT_KEYS, beatsOf, compactEligible, compactInstructionsOf, compactKeepSentenceOf, compactToastOf, costTextOf, driverStatusOf, expectedArtifactOf, hubHealthOf, hubNoticeTextOf, isWorkflowPath,
-  ledgerTokensOf, modeLabelOf, openFindingsOf, settingOfKey, settingsOf, slugOfPath, spinnerWordOf, statusTextOf,
+  COMPACT_KEYS, compactEligible, compactInstructionsOf, compactKeepSentenceOf, compactToastOf, costTextOf, expectedArtifactOf, hubHealthOf, hubNoticeTextOf, isWorkflowPath,
+  ledgerTokensOf, modeLabelOf, openFindingsOf, settingOfKey, settingsOf, slugOfPath, spinnerWordOf, statusTextOf, tokensText,
   nextActiveSlug, openingCandidatesOf, reviewLedgerNameOf, shipPlanBlockersOf, stageLanded, stripTextOf, wfCommandOf, wrappedRowsOf, yamlListItemsOf,
 } from '../../../hooks/mod/active.ts';
 
@@ -245,6 +246,14 @@ test('expectedArtifactOf names the stage file, or null for keys without one', ()
   assert.equal(expectedArtifactOf({ key: 'verify', slug: 'a', slice: null }), null);
   assert.equal(expectedArtifactOf({ key: 'shape', slug: 'a', slice: null }), '02-shape.md');
   assert.equal(expectedArtifactOf({ key: 'status', slug: 'a', slice: null }), null);
+  // Ship writes one run artifact per release; reviews mode writes the slices it fixes.
+  assert.equal(expectedArtifactOf({ key: 'ship', slug: 'a', slice: null }), '09-ship-run-*.md');
+  assert.equal(expectedArtifactOf({ key: 'implement', slug: 'a', slice: 'reviews' }), '05-implement-*.md');
+  assert.equal(stageLanded(['/r/.ai/workflows/a/09-ship-run-20261004-1.md'], '09-ship-run-*.md', 100, null), true);
+  assert.equal(stageLanded(['/r/.ai/workflows/a/09-ship-runs.md'], '09-ship-run-*.md', 100, null), false);
+  assert.equal(stageLanded(['/r/.ai/workflows/a/05-implement-auth.md'], '05-implement-*.md', 100, null), true);
+  assert.equal(stageLanded(['/r/.ai/workflows/a/05-implement.md'], '05-implement-*.md', 100, null), false);
+  assert.equal(spinnerWordOf({ key: 'implement', slug: 'a', slice: 'reviews' }), 'Fixing review findings in a');
 });
 
 test('workflow paths are recognised on either slash and yield their slug', () => {
@@ -285,40 +294,21 @@ test('the strip, status, mode, and spinner texts', () => {
 
 test('the cost row sums the ledger tokens and formats the stage dollars', () => {
   const ledger = '{"main":{"input_tokens":1000,"output_tokens":200},"subagents":[{"input_tokens":300,"output_tokens":100}]}\nnot json\n{"main":{"cached_input_tokens":400}}\n';
-  assert.equal(ledgerTokensOf(ledger), 2000);
-  assert.equal(ledgerTokensOf('{"main":{"output_tokens":10,"reasoning_output_tokens":5}}'), 15);
+  assert.equal(ledgerTokensOf(ledger), 1600);
+  // A cache read is not counted; a cache write is.
+  assert.equal(ledgerTokensOf('{"main":{"input_tokens":40,"output_tokens":9000,"cache_read_input_tokens":2700000,"cache_creation_input_tokens":130000}}'), 139040);
+  // A Codex row: the cached input is inside the input, and the reasoning is inside the output.
+  assert.equal(ledgerTokensOf('{"main":{"fields":"codex","input_tokens":1000,"cached_input_tokens":800,"output_tokens":10,"reasoning_output_tokens":5}}'), 210);
+  assert.equal(tokensText(1_626_500_000), '1.6B');
+});
+
+test('an age reads in minutes, then hours and minutes, then days and hours', () => {
+  assert.equal(ageText(45 * 60_000), '45 min');
+  assert.equal(ageText(90 * 60_000), '1 h 30 min');
+  assert.equal(ageText((38 * 60 + 26) * 60_000), '1 d 14 h');
   assert.equal(costTextOf(0.42, 2000), '$0.42 this stage · 2k tokens workflow');
   assert.equal(costTextOf(null, 1_250_000), '1.3M tokens workflow');
   assert.equal(costTextOf(null, null), null);
-});
-
-test('the driver status reads the newest run and presumes death past the longest gap with a 20-minute floor', () => {
-  const at = ms => new Date(ms).toISOString();
-  const journal = [
-    { at: at(1_000_000), run: 'r1', seq: 1, event: 'start', agent: 'a0', phase: 'p', stage: 'plan', slice: 'x' },
-    { at: at(2_000_000), run: 'r2', seq: 1, event: 'start', agent: 'a1', phase: 'p', stage: 'implement', slice: 'auth' },
-    { at: at(2_300_000), run: 'r2', seq: 2, event: 'finish', agent: 'a1', phase: 'p', stage: 'implement', slice: 'auth' },
-  ].map(row => JSON.stringify(row)).join('\n');
-  const beats = beatsOf(journal);
-  assert.equal(beats.length, 3);
-  assert.equal(driverStatusOf('yolo', beats, 2_360_000), 'yolo · run r2 · implement auth · agent a1 · 6 min · last beat 1 min ago');
-  // The newest row is a finish: every agent returned, so the run stopped. It did not die.
-  assert.match(driverStatusOf('yolo', beats, 2_300_000 + 21 * 60_000), /^yolo · stopped at \d\d:\d\d · last: implement auth$/);
-  assert.equal(driverStatusOf('auto', [], 0), 'auto · no driver journal');
-});
-
-test('the driver status presumes death only when the newest row is an agent that never returned', () => {
-  const at = ms => new Date(ms).toISOString();
-  const journal = [
-    { at: at(2_000_000), run: 'r2', seq: 1, event: 'agent-start', agent: 'a1', stage: 'implement', slice: 'auth' },
-    { at: at(2_300_000), run: 'r2', seq: 1, event: 'agent-end', agent: 'a1', stage: 'implement', slice: 'auth', status: 'hard-stop' },
-  ];
-  const later = 2_300_000 + 21 * 60_000;
-  const stopped = beatsOf(journal.map(row => JSON.stringify(row)).join('\n'));
-  assert.match(driverStatusOf('yolo', stopped, later), /^yolo · stopped at \d\d:\d\d · last: implement auth \(hard-stop\)$/);
-  const open = [...journal, { at: at(2_310_000), run: 'r2', seq: 2, event: 'agent-start', agent: 'a2', stage: 'verify', slice: 'auth' }];
-  const dead = beatsOf(open.map(row => JSON.stringify(row)).join('\n'));
-  assert.match(driverStatusOf('yolo', dead, later + 10_000), /^yolo · presumed dead since \d\d:\d\d · last: verify auth$/);
 });
 
 test('the hub notice reads the health answer', () => {
@@ -365,15 +355,6 @@ test('the review ledger is the sweep-level YAML, else the selected slice\'s, els
   assert.equal(reviewLedgerNameOf(['07-review-auth-security.yaml', '07-review-ui.yaml'], null), '07-review-ui.yaml');
   assert.equal(reviewLedgerNameOf(['07-review-auth.md', '07-review.md', '00-index.md'], null), '07-review.md');
   assert.equal(reviewLedgerNameOf(['00-index.md'], 'auth'), null);
-});
-
-test('the driver status names the stage from the newest row that carries one', () => {
-  const at = ms => new Date(ms).toISOString();
-  const journal = [
-    { at: at(2_000_000), run: 'r2', seq: 1, event: 'agent-start', agent: 'a1', phase: 'Drive', stage: 'implement', slice: 'auth' },
-    { at: at(2_300_000), run: 'r2', seq: 1, event: 'agent-end', agent: 'a1', status: 'complete', errors: 0 },
-  ].map(row => JSON.stringify(row)).join('\n');
-  assert.equal(driverStatusOf('yolo', beatsOf(journal), 2_360_000), 'yolo · run r2 · implement auth · agent a1 · 6 min · last beat 1 min ago');
 });
 
 test('stageLanded: the artifact in the writes, or an mtime at or after the start; without an expected file, any write', () => {

@@ -111,8 +111,11 @@ no token figure. The hub is not in this row (second live test: the hub is
 already in the status line and under the logo). The stage
 figure is the session cost difference (`$.session.usage().cost.usd`) across
 the last `/wf` turn that was not `status` or `recap`; the workflow figure is
-the sum of `cost.jsonl` (main and subagent rows; Claude and Codex token
-field names, `reasoning_output_tokens` included). Departure: the ledger
+the sum of `cost.jsonl` (main and subagent rows): the new input, the cache
+writes and the output. A cache read is not counted, because every call reads
+the same context again (since 9.180.6; before, a long workflow read as
+billions of tokens). A Codex row's input holds its cached input and its
+output holds its reasoning, so neither is added twice. Departure: the ledger
 holds tokens only, so the workflow figure is tokens, not dollars.
 
 ### 3.4 The next step as the prompt suggestion (`suggestNext`)
@@ -159,20 +162,16 @@ hook appends `(question N, floor 20)` to each question in the dialog.
 (`AskUserQuestion` is not in the build's builtin tool union, so the matcher
 is a RegExp.)
 
-### 3.7 The driver status (`driverStatus`)
+### 3.7 The run status (`driverStatus`)
 
-From a `/wf auto <slug>` or `/wf yolo <slug>` turn on, a five-second timer
-reads `.ai/workflows/<slug>/.driver-journal.jsonl` into the status line:
-`yolo · run r3 · implement auth · agent a4 · 14 min · last beat 2 min ago`.
-The rule is `_control-file-ownership.md`'s: past silence longer than the
-run's own longest gap, with a 20-minute floor, a newest `agent-end` row reads
-`stopped at HH:MM · last: <stage> <slice> (<status>)`, and a newest
-`agent-start` row reads `presumed dead since HH:MM · last: <stage> <slice>`.
-The driver runs in the background past its own turn, so the watch outlives
-the turn. It stops at the first stopped reading, silently, or at the first
-presumed-dead reading, with one toast. The next turn hands the status line
-back to the strip. An `agent-end` row without a stage takes the run's last
-named stage.
+Since 9.180.6 the live view owns the run status; the five-second driver
+watch is gone. A `/wf yolo`, `/wf campaign` or `/wf brainstorm` turn calls
+`live.started` from the main `turn.start` hook, so the live view follows the
+run at once. While the run shows in the live view, the status line carries
+its heartbeat age and the 5-hour usage in place of the workflow line; off,
+the status line keeps the workflow line. A run that ended 30 minutes ago,
+or that has been silent for two hours, is over (`isRunOver`): the band drops
+its live line and the status line returns to the workflow.
 
 ### 3.8 The spinner verb (`spinnerVerb`)
 
@@ -186,8 +185,8 @@ At session start the module reads `~/.sdlc/hub-config.json` (`USERPROFILE`,
 then `HOME`; literal names, as the validator requires) and polls
 `http://<host>:<port>/__sdlc/health` once a minute (`$.http.fetch`). The
 first `InfoNotice` the engine draws gains one dim line: `sdlc hub 9.157.0 ·
-15 repos · 2 renders stale · /wf-doctor`, or `sdlc hub down`; the engine's own
-text and command stay. A change between up and down is one toast each way.
+15 repos · 2 renders stale`, or `sdlc hub down`; the engine's own
+text and command stay. The engine draws `InfoNotice` in the terminal only. A change between up and down is one toast each way.
 Without a hub config there is no line.
 
 ### 3.10 The dashboard pane (the strip's `dashboard` button)
@@ -405,8 +404,8 @@ Still open:
    mouse; P5 (a digit in the focused field) is answered: the digit types.
 3. Whether `turn.start`'s text is the typed `/wf` line or the expanded
    skill (the fallback covers both).
-4. The driver watch against a real `/wf yolo` run (the fixture journal
-   covers the read path only).
+4. The live view's run status against a real `/wf yolo` run (the fixture
+   journal covers the read path only).
 5. Whether a Desktop `/wf` stage now compacts: the journal's `compact` row
    carries the engine's own reason when it does not.
 6. What Claude Code Desktop reports at `session.start` (`surface`,

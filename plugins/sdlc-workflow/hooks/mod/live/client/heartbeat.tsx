@@ -29,7 +29,13 @@ export type HeartbeatProps = {
   textColor?: string | null
 }
 
-type HeartbeatState = { elapsed: number; cancel: (() => void) | null; spikeAt: number | null; lastBeat: number | null }
+/**
+ * The region's own clock. `elapsed` counts the ticks since the region first
+ * drew (the pulse and the spike read it). `baseNow` is the last hook time the
+ * region saw and `baseElapsed` the tick count then: the time drawn is
+ * `props.now` plus the ticks since that draw, never since the first one.
+ */
+type HeartbeatState = { elapsed: number; cancel: (() => void) | null; spikeAt: number | null; lastBeat: number | null; baseNow: number; baseElapsed: number }
 
 const TICK_MS = 500
 const SPIKE_MS = 900
@@ -43,25 +49,33 @@ export default function Heartbeat(rawProps: JsonValue, surface: ClientSurface<He
   const { Box, Text } = surface.elements
   const current = surface.state
   const newest = props.beats[props.beats.length - 1] ?? null
+  const startClock = () =>
+    surface.every(TICK_MS, () => {
+      const state = surface.state
+      if (state !== undefined) surface.setState({ ...state, elapsed: state.elapsed + TICK_MS })
+    })
   if (current === undefined) {
-    // Start the clock once; the first state is the only setState a render makes.
-    const cancel = isMoving(props.state)
-      ? surface.every(TICK_MS, () => {
-          const state = surface.state
-          if (state !== undefined) surface.setState({ ...state, elapsed: state.elapsed + TICK_MS })
-        })
-      : null
-    surface.setState({ elapsed: 0, cancel, spikeAt: null, lastBeat: newest })
-  } else if (!isMoving(props.state) && current.cancel !== null) {
-    // The run stopped: the heartbeat stops with it (N3).
-    current.cancel()
-    surface.setState({ ...current, cancel: null })
-  } else if (newest !== null && newest !== current.lastBeat) {
+    // The first draw: the clock runs only while the run is live or quiet.
+    surface.setState({ elapsed: 0, cancel: isMoving(props.state) ? startClock() : null, spikeAt: null, lastBeat: newest, baseNow: props.now, baseElapsed: 0 })
+  } else {
+    let next = current
+    // A new hook time: the ticks count from it, so the age is never the pane's own lifetime.
+    if (props.now !== current.baseNow) next = { ...next, baseNow: props.now, baseElapsed: current.elapsed }
+    if (!isMoving(props.state) && next.cancel !== null) {
+      // The run stopped: the heartbeat stops with it (N3).
+      next.cancel()
+      next = { ...next, cancel: null }
+    } else if (isMoving(props.state) && next.cancel === null) {
+      // The run is live again, or became live after a first draw that was not: the clock starts.
+      next = { ...next, cancel: startClock() }
+    }
     // A new journal line: one spike (5.6, 0.9 s).
-    surface.setState({ ...current, spikeAt: current.elapsed, lastBeat: newest })
+    if (newest !== null && newest !== next.lastBeat) next = { ...next, spikeAt: next.elapsed, lastBeat: newest }
+    if (next !== current) surface.setState(next)
   }
   const elapsed = current?.elapsed ?? 0
-  const now = props.now + elapsed
+  const sinceDraw = current === undefined || props.now !== current.baseNow ? 0 : elapsed - current.baseElapsed
+  const now = props.now + sinceDraw
   const age = props.lastLineAt === null ? null : now - props.lastLineAt
   const spiking = current?.spikeAt != null && elapsed - current.spikeAt < SPIKE_MS
   const tone = props.state === 'stale' ? props.stopColor : props.state === 'quiet' ? props.quietColor : props.color
@@ -84,7 +98,7 @@ export default function Heartbeat(rawProps: JsonValue, surface: ClientSurface<He
 
   // The breathing dot: full on even ticks, dim on odd ones; a spike holds it full.
   const breath = isMoving(props.state) && !spiking && Math.floor(elapsed / TICK_MS) % 2 === 1
-  const words = props.state === 'none' ? 'no journal yet' : props.state === 'stale' ? `quiet for ${ageText(age)}` : props.state === 'ended' ? `ended · last line ${ageText(age)} ago` : props.state === 'quiet' ? `quiet for ${ageText(age)}` : `last line ${ageText(age)} ago`
+  const words = props.state === 'none' ? 'no journal yet' : props.state === 'stale' ? `quiet for ${ageText(age)} · past its ${ageText(props.limitMs)} limit` : props.state === 'ended' ? `ended · last line ${ageText(age)} ago` : props.state === 'quiet' ? `quiet for ${ageText(age)}` : `last line ${ageText(age)} ago`
   return Box({
     flexDirection: 'row',
     gap: 1,

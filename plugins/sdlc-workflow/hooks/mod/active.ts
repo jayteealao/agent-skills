@@ -101,9 +101,16 @@ export function wfCommandOf(text: string): WfCommand | null {
   return { key, slug: slug === undefined ? null : slug, slice: slice === undefined ? null : slice }
 }
 
-/** The stage file a key writes for a slug and a slice, or null when the key writes none the check can name. */
+/**
+ * The stage file a key writes for a slug and a slice, or null when the key
+ * writes none the check can name. A `*` stands for any text: ship writes one
+ * `09-ship-run-<run-id>.md` per release (the legacy `09-ship.md` is read-only),
+ * and `/wf implement <slug> reviews` writes `05-implement-<slice>.md` for the
+ * slices it fixes.
+ */
 export function expectedArtifactOf(command: WfCommand): string | null {
   const { key, slice } = command
+  if (key === 'implement' && slice === 'reviews') return '05-implement-*.md'
   const withSlice = (stem: string) => (slice === null || slice === 'all' ? null : `${stem}-${slice}.md`)
   switch (key) {
     case 'shape':
@@ -119,7 +126,7 @@ export function expectedArtifactOf(command: WfCommand): string | null {
     case 'handoff':
       return '08-handoff.md'
     case 'ship':
-      return '09-ship.md'
+      return '09-ship-run-*.md'
     case 'retro':
       return '10-retro.md'
     default:
@@ -136,7 +143,8 @@ export function expectedArtifactOf(command: WfCommand): string | null {
 export function stageLanded(writes: readonly string[], expected: string | null, startedAt: number, mtime: number | null): boolean {
   if (expected === null) return writes.length > 0
   const name = expected.toLowerCase()
-  if (writes.some(path => basenameOf(path) === name)) return true
+  const pattern = new RegExp(`^${name.split('*').map(part => part.replace(/[.+?^${}()|[\]\\]/gu, '\\$&')).join('.*')}$`, 'u')
+  if (writes.some(path => pattern.test(basenameOf(path)))) return true
   return mtime !== null && mtime >= startedAt
 }
 
@@ -316,11 +324,18 @@ export function spinnerWordOf(command: WfCommand): string | null {
   }
   const verb = verbs[command.key]
   if (verb === undefined) return null
+  // Reviews mode is no slice: it fixes the review findings of the workflow's slices.
+  if (command.key === 'implement' && command.slice === 'reviews') return command.slug === null ? 'Fixing review findings' : `Fixing review findings in ${command.slug}`
   const target = command.slice ?? command.slug
   return target === null ? verb : `${verb} ${target}`
 }
 
-/** The tokens a `cost.jsonl` ledger sums to, main and subagent rows alike. */
+/**
+ * The tokens a `cost.jsonl` ledger sums to, main and subagent rows alike: the
+ * new input, the cache writes and the output. A cache read is the same context
+ * read again on every call, so it is not counted: with it, a long workflow
+ * reads as billions of tokens.
+ */
 export function ledgerTokensOf(text: string): number {
   let total = 0
   for (const line of text.split(/\r?\n/u)) {
@@ -343,19 +358,16 @@ function tokensOf(usage: unknown): number {
   if (!usage || typeof usage !== 'object') return 0
   const u = usage as Record<string, unknown>
   const int = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0)
-  return (
-    int(u['input_tokens']) +
-    int(u['output_tokens']) +
-    int(u['cache_read_input_tokens']) +
-    int(u['cached_input_tokens']) +
-    int(u['cache_creation_input_tokens']) +
-    int(u['cache_write_input_tokens']) +
-    int(u['reasoning_output_tokens'])
-  )
+  // A Codex row (`lib/cost-ledger.mjs`): its input holds the cached input, and its output holds the reasoning.
+  if (u['fields'] === 'codex' || 'cached_input_tokens' in u) {
+    return Math.max(0, int(u['input_tokens']) - int(u['cached_input_tokens'])) + int(u['cache_write_input_tokens']) + int(u['output_tokens'])
+  }
+  return int(u['input_tokens']) + int(u['cache_creation_input_tokens']) + int(u['output_tokens'])
 }
 
-/** `1.2M`, `340k`, `900` for a token count. */
+/** `1.2B`, `1.2M`, `340k`, `900` for a token count. */
 export function tokensText(count: number): string {
+  if (count >= 1_000_000_000) return `${(count / 1_000_000_000).toFixed(1)}B`
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`
   if (count >= 1_000) return `${Math.round(count / 1_000)}k`
   return String(count)
@@ -375,75 +387,6 @@ export function costShortOf(stageUsd: number | null, ledgerTokens: number | null
   if (stageUsd !== null) parts.push(`$${stageUsd.toFixed(2)}`)
   if (ledgerTokens !== null) parts.push(`${tokensText(ledgerTokens)} tok`)
   return parts.length === 0 ? null : parts.join(' · ')
-}
-
-/** One heartbeat line of `.driver-journal.jsonl`. */
-export type Beat = { at: number; run: string; event: string; agent: string | null; phase: string | null; stage: string | null; slice: string | null; status: string | null }
-
-export function beatsOf(text: string): Beat[] {
-  const beats: Beat[] = []
-  for (const line of text.split(/\r?\n/u)) {
-    if (line.trim() === '') continue
-    let row: unknown
-    try {
-      row = JSON.parse(line)
-    } catch {
-      continue
-    }
-    if (!row || typeof row !== 'object') continue
-    const r = row as Record<string, unknown>
-    const at = typeof r['at'] === 'string' ? Date.parse(r['at']) : typeof r['at'] === 'number' ? r['at'] : NaN
-    if (!Number.isFinite(at)) continue
-    const str = (v: unknown) => (typeof v === 'string' ? v : null)
-    beats.push({ at, run: str(r['run']) ?? '', event: str(r['event']) ?? '', agent: str(r['agent']), phase: str(r['phase']), stage: str(r['stage']), slice: str(r['slice']), status: str(r['status']) })
-  }
-  return beats
-}
-
-/** The presumed-dead floor: a single slow first agent is never called dead. */
-export const DEAD_FLOOR_MS = 20 * 60 * 1000
-
-/** The rows an agent writes when it returns. Any other newest row is an agent still out. */
-const END_EVENTS = new Set(['agent-end', 'end', 'finish'])
-
-/**
- * The driver status line from the newest run's beats: running with its
- * elapsed time and last beat, or no longer running when the silence exceeds
- * the run's own longest gap (20-minute floor), the rule of
- * `_control-file-ownership.md`. Past that point, a newest row where the agent
- * returned is a stop; a newest row where it never returned is a presumed death.
- */
-export function driverStatusOf(key: string, beats: readonly Beat[], now: number): string {
-  if (beats.length === 0) return `${key} · no driver journal`
-  const last = beats[beats.length - 1] as Beat
-  const run = beats.filter(beat => beat.run === last.run)
-  const first = run[0] as Beat
-  let longestGap = 0
-  for (let i = 1; i < run.length; i += 1) longestGap = Math.max(longestGap, (run[i] as Beat).at - (run[i - 1] as Beat).at)
-  const silence = now - last.at
-  // An `agent-end` row may omit the stage: the newest row of the run that names one says where.
-  const placed = [...run].reverse().find(beat => beat.stage !== null) ?? last
-  const where = [placed.stage, placed.slice].filter(Boolean).join(' ')
-  if (silence > Math.max(longestGap, DEAD_FLOOR_MS)) {
-    if (END_EVENTS.has(last.event)) {
-      return `${key} · stopped at ${clockText(last.at)} · last: ${where || last.event}${last.status ? ` (${last.status})` : ''}`
-    }
-    return `${key} · presumed dead since ${clockText(last.at)} · last: ${where || last.event}`
-  }
-  const parts = [key, `run ${last.run}`]
-  if (where) parts.push(where)
-  if (last.agent) parts.push(`agent ${last.agent}`)
-  parts.push(`${minutesText(now - first.at)} min`, `last beat ${minutesText(silence)} min ago`)
-  return parts.join(' · ')
-}
-
-function minutesText(ms: number): string {
-  return String(Math.max(0, Math.round(ms / 60000)))
-}
-
-function clockText(at: number): string {
-  const d = new Date(at)
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 /** The hub health answer's fields the notice draws. */

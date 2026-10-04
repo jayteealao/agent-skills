@@ -113,7 +113,8 @@ export function chipView(ui: { Text: TextLike }, style: ViewStyle, palette: Pale
   const { Text } = ui
   const words = text.toUpperCase()
   if (style === 'grid') {
-    if (tone === 'attention') return <Text bold color={GRID_INK} backgroundColor={GRID_LIME}>{` ${words} `}</Text>
+    // "Needs you" is a black block with lime words: lime as a fill is 1.04:1 on the grey plate, and read as plain text.
+    if (tone === 'attention') return <Text bold color={GRID_LIME} backgroundColor={GRID_INK}>{` ${words} `}</Text>
     if (tone === 'quiet') return <Text bold color={palette.tones.quiet}>{`[${words}]`}</Text>
     return <Text bold color="#ffffff" backgroundColor={palette.tones[tone] ?? GRID_INK}>{` ${words} `}</Text>
   }

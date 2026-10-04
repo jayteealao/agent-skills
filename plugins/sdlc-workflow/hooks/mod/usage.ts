@@ -17,7 +17,11 @@ export type Reading = { sessionId: string; at: string; source: string; rateLimit
 export type Budget = { fiveHourSlow: number; fiveHourPause: number; sevenDayReserve: number }
 export type Level = { level: 'ok' | 'slow' | 'pause'; until: string | null; reason: string }
 export type Target = { kind: 'campaign' | 'yolo'; name: string; file: string; budget: Budget }
-export type GuardPause = { file: string; until: string | null; kind?: string; name?: string }
+/**
+ * A pause the guard wrote, kept in the plugin store, which every session of
+ * every project shares: `root` and `session` say which session resumes it.
+ */
+export type GuardPause = { file: string; until: string | null; kind?: string; name?: string; root?: string; session?: string }
 
 /** The `by` field of a pause the guard wrote: the guard clears only its own pauses. */
 export const GUARD_TAG = 'usage-guard'

@@ -79,7 +79,7 @@ const INSTRUMENT: Palette = {
   isDark: false,
 }
 
-/** Style E: a warm grey plate in a heavy black frame, purple for what runs, lime (with ink on it) for what needs you. */
+/** Style E: a warm grey plate in a heavy black frame, purple for what runs, lime words on a black block for what needs you. */
 const GRID: Palette = {
   ground: '#f4f4f2',
   card: '#f4f4f2',
@@ -90,7 +90,7 @@ const GRID: Palette = {
   isDark: false,
 }
 
-/** The lime of style E, always a fill with ink on it. */
+/** The lime of style E, always words on a black block (lime as a fill does not stand out from the grey plate). */
 export const GRID_LIME = '#d7ff3a'
 export const GRID_PURPLE = '#5b3fd9'
 export const GRID_INK = '#0d0d0d'

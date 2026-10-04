@@ -217,6 +217,21 @@ describe('read check', () => {
     expect(ledgerRows(world)[0]).toMatchObject({ missing: [], partial: [], waiver: null })
   })
 
+  test('a /clear drops the main loop reads: the stage run again after it names every input', async ($, on) => {
+    seat(on)
+    on('session.end', () => ({ sessionId: 'abcdef0123456789' }))
+    await $.session.start(SESSION)
+    await $.turn.start({ text: '/wf plan alpha-flow auth', turnId: 't1' })
+    await readAllBut($, undefined)
+    await $.turn.complete({ answer: 'done', durationMs: 1, isAborted: false, turnId: 't1', reason: 'aborted' })
+    // The inputs read before the clear are out of the context after it.
+    await $.session.end({ reason: 'clear', sessionId: 'abcdef0123456789', resume: { id: 'abcdef0123456789' } })
+    await $.turn.start({ text: '/wf plan alpha-flow auth', turnId: 't2' })
+    const again = contextOf(await write($, PLAN))
+    expect(again).toContain('02-shape.md')
+    expect(again).toContain('00-index.md')
+  })
+
   test('a partial read counts as partial until a second read covers the rest', async ($, on) => {
     const world = seat(on)
     await $.session.start(SESSION)

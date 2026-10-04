@@ -20,7 +20,6 @@ import type { EngineInterface, On, PluginOptions, RenderElement } from 'claude-c
 import type { SdlcLiveAction, SdlcLiveBand, SdlcLiveStatus, SdlcLiveKind, SdlcLiveModel, SdlcLiveView, SdlcNeed } from '../../../types'
 import { frontmatterField, intentRecordsOf, STAGE_FILE, stageOf } from '../../../lib/live-events.mjs'
 import type { ArtifactFact, LiveEvent } from '../../../lib/live-events.mjs'
-import { wfCommandOf } from '../active.ts'
 import { EMPTY_LIVE_VIEW, detailsStoreKeyOf } from '../state.ts'
 import { bandFocusOf, factsOf, liveStatusOf } from '../styles/facts.ts'
 import { paneRendererOf } from '../styles/index.ts'
@@ -55,6 +54,28 @@ const SLOW_FACTS_MS = 20_000
 const PROTECTED_MAX_BYTES = 1024 * 1024
 /** A journal or board changed this recently is a driver to follow (O1). */
 const FRESH_MS = 3 * 60_000
+/** A run that ended keeps the band's live line this long after its last line; after it, the strip's `live` button opens it. */
+export const ENDED_BAND_MS = 30 * 60_000
+/** A run silent this long is no live run, whatever its state: no live line, no status part, the slow poll. */
+export const IDLE_BAND_MS = 2 * 60 * 60_000
+
+/**
+ * Whether a run is over for the band's live line, the status line and the
+ * poll. A run silent for `IDLE_BAND_MS` is over. Past `ENDED_BAND_MS` of
+ * silence: a yolo run that ended or stopped, a campaign with no wave running
+ * and no pause, a brainstorm that is done. The strip's `live` button still
+ * opens an over run's pane.
+ */
+export function isRunOver(model: SdlcLiveModel, now: number): boolean {
+  const last = model.liveness.lastLineAt
+  if (last === null) return false
+  const silent = now - last
+  if (silent > IDLE_BAND_MS) return true
+  if (silent <= ENDED_BAND_MS) return false
+  if (model.kind === 'yolo') return model.outcome === 'ended' || model.outcome === 'stopped' || model.liveness.state === 'ended'
+  if (model.kind === 'campaign') return model.activeWave === null && model.running === 0 && model.paused === null
+  return model.mode === 'done'
+}
 /** F8: a push-class toast stays 10 s, so a person who looked away can read it. */
 export const PUSH_TOAST_MS = 10_000
 
@@ -103,6 +124,12 @@ export type LiveLink = {
   measure: (rateLimits: readonly unknown[]) => void
   /** Writes one `draw` row to the probe journal; `register.ts` fills it. */
   note: (ok: boolean, detail: string) => void
+  /**
+   * Called from `register.ts`'s `turn.start` hook with the turn's `/wf` command
+   * (the typed line, or the dispatcher's run when the text is the expanded skill):
+   * a yolo, campaign or brainstorm turn follows its run (O1).
+   */
+  started: (key: string, slug: string | null) => Promise<void>
 }
 
 export type LiveContext = {
@@ -230,6 +257,8 @@ export type LiveEngine = {
   every: (ms: number, fn: () => void) => { cancel: () => void }
   toast: (text: string, timeoutMs: number) => void
   open: (id: string, title: string) => Promise<unknown>
+  /** The plugin's own open panes, as the engine records them: a pane the person closed is not listed. */
+  panes: () => Promise<ReadonlyArray<{ id: string; isPlaced: boolean }>>
   log: (text: string) => void
   submit: (text: string) => Promise<unknown>
   fill: (text: string) => Promise<unknown>
@@ -260,8 +289,9 @@ function liveEngineOf($: EngineInterface): LiveEngine {
     every: (ms, fn) => $.clock.every(ms, fn),
     toast: (text, timeoutMs) => $.ui.toast(text, { timeoutMs }),
     open: (id, title) => $.ui.open({ id, title }),
+    panes: () => $.ui.panes(),
     log: text => $.ui.log(text),
-    submit: text => $.prompt.submit({ text }),
+    submit: text => $.prompt.submit({ text, asUser: true }),
     fill: text => $.prompt.fill({ text }),
     configSet: (key, value) => $.config.set({ key, value }),
     configList: () => $.config.list(),
@@ -360,7 +390,11 @@ async function detailsOf(x: LiveEngine, kind: Kind): Promise<boolean> {
 async function follow(x: LiveEngine, kind: Kind, slug: string, isAsked: boolean): Promise<void> {
   const now = await x.now()
   const key = keyOf(kind, slug)
-  if (!trackers.has(key)) trackers.set(key, newTracker(kind, slug, now))
+  if (!trackers.has(key)) {
+    // A run followed again (its tab closed when another run started) reads its journal from the start.
+    if (root !== null) reader?.forget(joinPath(root, '.ai', 'workflows', slug))
+    trackers.set(key, newTracker(kind, slug, now))
+  }
   const details = await detailsOf(x, kind)
   const models = await x.readModels().catch(() => ({}) as Record<string, SdlcLiveModel>)
   await setView(x, view => {
@@ -441,8 +475,13 @@ async function openLive(x: LiveEngine, slug: string): Promise<string | null> {
 // -------------------------------------------------------------------------
 
 function schedule(x: LiveEngine): void {
-  void viewOf(x).then(view => {
-    const anyLive = [...trackers.values()].some(tracker => tracker.modelText !== '' && !/"outcome":"(ended|stopped)"/u.test(tracker.modelText))
+  void Promise.all([viewOf(x), x.readModels().catch(() => ({}) as Record<string, SdlcLiveModel>), x.now()]).then(([view, models, now]) => {
+    // A run is live while it is not over and, for yolo, has not ended: brainstorm and campaign carry no outcome.
+    const anyLive = [...trackers.values()].some(tracker => {
+      const model = models[keyOf(tracker.kind, tracker.slug)]
+      if (model === undefined || isRunOver(model, now)) return false
+      return !(model.kind === 'yolo' && (model.outcome === 'ended' || model.outcome === 'stopped'))
+    })
     const want = trackers.size === 0 || !anyLive ? POLL_IDLE_MS : view.isOpen ? POLL_SHOWN_MS : POLL_HIDDEN_MS
     if (timer !== null && want === pollMs) return
     timer?.cancel()
@@ -753,8 +792,10 @@ async function pollBrainstorm(x: LiveEngine, tracker: Tracker, now: number): Pro
   const index = (await reader.changed(joinPath(dir, 'work', 'index.md'))).text
   const revision = Number(frontmatterField(index ?? '', 'work-revision'))
   const change = newestChangeOf((await reader.changed(joinPath(dir, 'work', 'changes.md'))).text)
-  // A brainstorm is a conversation: its pulse is the board's writes, judged against the 20-minute floor.
-  const liveness = livenessFrom({ ...freshJournalState(), run: { ...freshJournalState().run, lastLineAt: boardAt, run: tracker.slug }, beats: tracker.boardBeats, lastLine: boardAt === null ? null : 'board written' }, now)
+  // A brainstorm is a conversation: its pulse is the board's writes. No driver runs that could die, so a
+  // long silence is the person thinking: quiet, never stale (red, "past its limit").
+  const judged = livenessFrom({ ...freshJournalState(), run: { ...freshJournalState().run, lastLineAt: boardAt, run: tracker.slug }, beats: tracker.boardBeats, lastLine: boardAt === null ? null : 'board written' }, now)
+  const liveness = judged.state === 'stale' ? { ...judged, state: 'quiet' as const } : judged
   const view = await viewOf(x)
   const model = buildBrainstormModel({ slug: tracker.slug, board, liveness, sources, revision: Number.isFinite(revision) && index !== null ? revision : null, change, dismissed: view.dismissed })
   for (const need of model.needs) toast(x, tracker, `split:${need.id}`, `wf brainstorm ${tracker.slug}: ${need.title} · ${need.body}`)
@@ -798,11 +839,27 @@ async function writeShared(x: LiveEngine): Promise<void> {
   }
   const now = await x.now()
   const facts = factsOf(model, now)
-  const isOver = facts.liveness.state === 'ended' || facts.liveness.state === 'none'
+  const isOver = facts.liveness.state === 'ended' || facts.liveness.state === 'none' || isRunOver(model, now)
   const text = isOver ? null : liveStatusOf(facts)
   await x.updateStatus(previous => (text === null ? null : previous?.text === text ? previous : { text }))
   onStatus(text)
   await writeBand(x, null)
+}
+
+/**
+ * Whether the live pane is open and placed, from the engine's record: a pane
+ * the person closed, or one a restart did not bring back, is not seated, so
+ * the live line draws its `live view` button again. Null when the engine does
+ * not answer. With the liveView option off no pane opens, and the button stays
+ * hidden.
+ */
+async function paneSeatedOf(x: LiveEngine): Promise<boolean | null> {
+  if (!isPaneOn) return true
+  try {
+    return (await x.panes()).some(pane => pane.id === LIVE_PANE && pane.isPlaced)
+  } catch {
+    return null
+  }
 }
 
 async function writeBand(x: LiveEngine, isPlaced: boolean | null): Promise<void> {
@@ -814,11 +871,18 @@ async function writeBand(x: LiveEngine, isPlaced: boolean | null): Promise<void>
     await x.updateBand(() => null)
     return
   }
-  const facts = factsOf(model, await x.now())
-  const actions: SdlcLiveAction[] = facts.controls.slice(0, 2).map((control, index) => ({ key: control.key, label: control.armed ? control.armedLabel : control.label, hotkey: index === 0 ? '1' : '2', armed: control.armed }))
+  const now = await x.now()
+  const facts = factsOf(model, now)
+  // A run that is over is no live run: its line would stay above the prompt for days.
+  if (isRunOver(model, now)) {
+    await x.updateBand(() => null)
+    return
+  }
+  const isSeated = isPlaced ?? (await paneSeatedOf(x))
+  const actions: SdlcLiveAction[] = facts.controls.slice(0, 2).map((control, index) => ({ key: control.key, label: control.armed ? control.armedLabel : control.label, armed: control.armed }))
   const tone = facts.needs.length > 0 ? (facts.needs[0] as SdlcNeed).tone : facts.liveness.tone === 'stop' ? 'stop' : facts.focus.tone
   await x.updateBand(previous => {
-    const band: SdlcLiveBand = { kind: current.kind, slug: current.slug, focus: bandFocusOf(facts), tone, actions, isPaneSeated: isPlaced ?? previous?.isPaneSeated ?? !isPaneOn }
+    const band: SdlcLiveBand = { kind: current.kind, slug: current.slug, focus: bandFocusOf(facts), tone, actions, isPaneSeated: isSeated ?? previous?.isPaneSeated ?? !isPaneOn }
     return JSON.stringify(previous) === JSON.stringify(band) ? (previous as SdlcLiveBand) : band
   })
 }
@@ -897,6 +961,30 @@ async function submit(x: LiveEngine, text: string): Promise<void> {
   }
 }
 
+/**
+ * A need's `fill` action: the command goes into the prompt box. Where the
+ * surface draws its own box (the Desktop app answers `no_composer`), a
+ * complete command is sent as the prompt; one that waits for the person's
+ * words (it ends in a space or a colon) cannot be, and a toast names it to
+ * type. Any other refusal (a busy box) also names it in a toast.
+ */
+export async function fillOrSend(x: LiveEngine, text: string): Promise<void> {
+  let result: { isFilled?: boolean; refusal?: string } | null = null
+  try {
+    result = (await x.fill(text)) as { isFilled?: boolean; refusal?: string } | null
+  } catch (error) {
+    fault('fill', error)
+  }
+  if (result?.isFilled !== false) return
+  const command = text.trimEnd()
+  const waitsForWords = /[\s:]$/u.test(text)
+  if (result.refusal === 'no_composer' && !waitsForWords) {
+    await submit(x, command)
+    return
+  }
+  x.toast(`Type this in the prompt box${waitsForWords ? ', then your words' : ''}: ${command}`, PUSH_TOAST_MS)
+}
+
 async function needAction(x: LiveEngine, id: string, actionKey: string): Promise<void> {
   const view = await viewOf(x)
   const current = view.current
@@ -906,13 +994,7 @@ async function needAction(x: LiveEngine, id: string, actionKey: string): Promise
   const action = need?.actions.find(entry => entry.key === actionKey)
   if (need === undefined || action === undefined) return
   if (action.kind === 'prompt' && action.prompt !== undefined) await submit(x, action.prompt)
-  if (action.kind === 'fill' && action.prompt !== undefined) {
-    try {
-      await x.fill(action.prompt)
-    } catch (error) {
-      fault('fill', error)
-    }
-  }
+  if (action.kind === 'fill' && action.prompt !== undefined) await fillOrSend(x, action.prompt)
   // Keep, later and dismiss take the need off the list; so does a confirm, which the main session records.
   if (action.kind === 'dismiss' || actionKey === 'confirm') {
     await setView(x, state => ({ ...state, dismissed: [...new Set([...state.dismissed, id])].slice(-200) }))
@@ -1002,11 +1084,10 @@ async function startLive(x: LiveEngine, cwd: string): Promise<void> {
 }
 
 /** O1: a `/wf yolo`, `/wf campaign` or `/wf brainstorm` turn follows its run (`turn.start` in `register.ts`). */
-async function liveTurnStarted(x: LiveEngine, text: string): Promise<void> {
+async function liveTurnStarted(x: LiveEngine, key: string, slug: string | null): Promise<void> {
   try {
-    const command = wfCommandOf(text)
-    const kind = command === null ? null : liveKindOf(command.key)
-    if (command !== null && kind !== null && command.slug !== null && root !== null) await follow(x, kind, command.slug, false)
+    const kind = liveKindOf(key)
+    if (kind !== null && slug !== null && root !== null) await follow(x, kind, slug, false)
   } catch (error) {
     fault('turn.start', error)
   }
@@ -1024,8 +1105,8 @@ export function registerLive(on: On, ctx: LiveContext): void {
   // Hooks
   // -------------------------------------------------------------------------
 
-  // `$` never crosses an import, so these two events are hooked here, each with a matcher: the
-  // engine allows one hook per event per plugin without one, and `register.ts` holds that one.
+  // `$` never crosses an import, so this event is hooked here, with a matcher: the engine allows
+  // one hook per event per plugin without one, and `register.ts` holds that one.
   on('session.start', { cwd: /./u }, async ($, e, next) => {
     const result = await next(e)
     // The live views start after the engine: they read the tree and follow a run a reload left open.
@@ -1033,10 +1114,12 @@ export function registerLive(on: On, ctx: LiveContext): void {
     return result
   })
 
-  on('turn.start', { text: /(?:yolo|campaign|brainstorm)/u }, async ($, e, next) => {
-    await liveTurnStarted(liveEngineOf($), e.text)
-    return next(e)
-  })
+  // A `/wf yolo|campaign|brainstorm` turn: `register.ts` resolves the command (the typed line, or the
+  // dispatcher's run when the turn text is the expanded skill) and passes it here.
+  ctx.link.started = async (key, slug) => {
+    const x = engine
+    if (x !== null) await liveTurnStarted(x, key, slug)
+  }
 
   ctx.link.measure = limits => {
     // U1: the engine pushes a new value when a window moves; no poll for usage.
@@ -1053,8 +1136,13 @@ export function registerLive(on: On, ctx: LiveContext): void {
       const ui = inked(styleUiOf(table), paletteOf(style, e.surface, isDarkTheme))
       if (model === undefined || current === null) {
         noteDraw(true, `live pane · ${e.surface} · no model${current === null ? '' : ` for ${current.kind} ${current.slug}`}`)
-        const { Text } = ui
-        return Text({ dimColor: true, children: 'No live run yet. It opens when a yolo, campaign or brainstorm starts.' }) as RenderElement
+        const { Box, Text } = ui
+        // D and E draw ink colours: the words carry their style's ground, so they read on a dark terminal too.
+        const ground = paletteOf(style, e.surface, isDarkTheme).ground
+        return Box({
+          ...(ground === undefined ? {} : { backgroundColor: ground, paddingX: 1 }),
+          children: [Text({ dimColor: true, children: 'No live run yet. It opens when a yolo, campaign or brainstorm starts.' })],
+        }) as RenderElement
       }
       const now = await $.clock.now()
       const facts = factsOf(model, now)
@@ -1088,6 +1176,8 @@ export function registerLive(on: On, ctx: LiveContext): void {
     try {
       const x = liveEngineOf($)
       await setView(x, view => ({ ...view, isOpen: false, isAsked: false }))
+      // The live line draws its `live view` button again: the person closed the pane.
+      await writeBand(x, false)
       schedule(x)
     } catch (error) {
       fault('ui.close', error)

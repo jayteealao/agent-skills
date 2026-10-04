@@ -22,8 +22,9 @@
  * same in the pinned status line and the footer's mode labels; the next
  * invocation as the prompt box's dim suggestion after a stage turn; a toast
  * when a stage turn ends without its artifact; the question count in the
- * AskUserQuestion dialog during intake and shape; the driver's heartbeat in
- * the status line during auto and yolo; the spinner's verb from the stage;
+ * AskUserQuestion dialog during intake and shape; the live view's heartbeat
+ * in the status line while a yolo, campaign or brainstorm runs (the
+ * `driverStatus` switch); the spinner's verb from the stage;
  * the hub's health under the logo; and a dashboard pane, which the strip's
  * `dashboard` button opens (the `live` button opens the live view). Each has a
  * switch in the plugin's settings.
@@ -56,13 +57,11 @@ import type { EngineInterface, On, PluginOptions, RenderElement } from 'claude-c
 
 import {
   DEFAULT_SETTINGS,
-  beatsOf,
   compactEligible,
   compactInstructionsOf,
   compactKeepSentenceOf,
   compactToastOf,
   costShortOf,
-  driverStatusOf,
   expectedArtifactOf,
   hubHealthOf,
   hubNoticeTextOf,
@@ -131,6 +130,7 @@ import {
   recordRead,
   requiredOf,
   waiverOf,
+  readMarkOf,
   writerStagesOf,
   writtenTextOf,
 } from './readledger.ts'
@@ -157,7 +157,6 @@ const activeAtom = atom({ plugin: 'sdlc-workflow', key: 'active' } as const, nul
 const workflowsAtom = atom({ plugin: 'sdlc-workflow', key: 'workflows' } as const, EMPTY_WORKFLOWS, { shape: 'workflows-2' })
 const dashboardAtom = atom({ plugin: 'sdlc-workflow', key: 'dashboard' } as const, EMPTY_DASHBOARD, { shape: 'dashboard-2' })
 const hubAtom = atom({ plugin: 'sdlc-workflow', key: 'hub' } as const, null, { shape: 'hub-1' })
-const driverAtom = atom({ plugin: 'sdlc-workflow', key: 'driver' } as const, null, { shape: 'driver-1' })
 const usageAtom = atom({ plugin: 'sdlc-workflow', key: 'usage' } as const, null, { shape: 'usage-1' })
 const lastStageUsdAtom = atom({ plugin: 'sdlc-workflow', key: 'lastStageUsd' } as const, null, { shape: 'stage-usd-1' })
 const liveBandAtom = atom({ plugin: 'sdlc-workflow', key: 'liveBand' } as const, null, { shape: 'live-band-1' })
@@ -169,7 +168,6 @@ type Published =
   | { name: 'workflows'; value: SdlcWorkflows }
   | { name: 'dashboard'; value: SdlcDashboard }
   | { name: 'hub'; value: SdlcHub | null }
-  | { name: 'driver'; value: string | null }
   | { name: 'usage'; value: string | null }
   | { name: 'lastStageUsd'; value: number | null }
 
@@ -233,6 +231,8 @@ type Host = {
 type Bracket = {
   turnId: string
   startedAt: number
+  /** `readMarkOf()` at the turn's start: a main-loop reference read after it names the stage first. */
+  readMark: number
   command: WfCommand | null
   costAtStart: number | null
   /** Paths under `.ai/workflows` the turn's Write and Edit calls touched. */
@@ -298,7 +298,6 @@ const EMPTY: Model = {
 const DASHBOARD_PANE = 'wf-dashboard'
 /** How long the strip trusts what it read about a workflow's run before it reads again. */
 const RUN_SEEN_MS = 10_000
-const DOCTOR_COMMAND = '/wf-doctor'
 const QUESTION_FLOOR = 20
 /** The intake mode whose question batches carry no floor annotation. */
 const NO_FLOOR_INTAKE_MODE = 'brainstorm'
@@ -312,7 +311,6 @@ const FED_CAP = 200
 
 /** A write the read check runs on: who wrote which stage artifact, and the stage entry it matched. */
 type CheckTarget = { agent: string; slug: string; file: string; id: string; match: WriteMatch }
-const DRIVER_TICK_MS = 5_000
 /** How long a dispatcher run names the turn that follows it. */
 const LAST_RUN_WINDOW_MS = 10_000
 /** The store key of the active workflow, per repository root. */
@@ -356,11 +354,6 @@ export function register(on: On, options: PluginOptions = {}) {
    * continues it, and the stage check runs when no sub-agent of it still runs.
    */
   let parked: Bracket | null = null
-  let driverTimer: { cancel: () => void } | null = null
-  /** The driver line the status shows while a driver is watched; null hands the line back to the strip. */
-  let driverText: string | null = null
-  /** The run a presumed-dead toast went out for, so it goes out once. */
-  let deadToastedRun: string | null = null
   let hubTimer: { cancel: () => void } | null = null
   /** The complete `/wf` command the dispatcher last ran, for a `turn.start` whose text is the expanded skill. */
   let lastRun: { command: WfCommand; at: number } | null = null
@@ -418,6 +411,7 @@ export function register(on: On, options: PluginOptions = {}) {
     follow: async () => undefined,
     kindOf: async () => null,
     measure: () => undefined,
+    started: async () => undefined,
     note: (ok, detail) => void journal?.write({ event: 'draw', ok, detail }),
     onStatus: text => {
       // The poll reports every tick: an unchanged text draws nothing.
@@ -440,7 +434,6 @@ export function register(on: On, options: PluginOptions = {}) {
       { name: 'workflows', value: { root: model.root, isRead: model.isRead, entries: model.workflows, slices: Object.fromEntries(model.slices), reads: model.reads } },
       { name: 'dashboard', value: { isOpen: model.isDashboardOpen, details: model.isDashboardDetailed } },
       { name: 'hub', value: model.hub },
-      { name: 'driver', value: driverText },
       { name: 'usage', value: usageText },
       { name: 'lastStageUsd', value: model.lastStageUsd },
     ]
@@ -505,8 +498,10 @@ export function register(on: On, options: PluginOptions = {}) {
     const workflows = root === null ? [] : await listWorkflows(root, engine.reader)
     model = { ...model, root, isRead: true, workflows, slices: new Map(), reads: model.reads + 1 }
     if (model.active === null || !workflows.some(w => w.slug === model.active)) {
+      // The store is shared by every session of the root: a closed workflow another
+      // session last named does not open a new session while an active one waits.
       const remembered = await rememberedSlug(engine, root)
-      const active = remembered !== null && workflows.some(w => w.slug === remembered) ? remembered : await newestSlug(engine, root, workflows)
+      const active = remembered !== null && openingCandidatesOf(workflows).some(w => w.slug === remembered) ? remembered : await newestSlug(engine, root, workflows)
       model = { ...model, active }
     }
   }
@@ -560,29 +555,32 @@ export function register(on: On, options: PluginOptions = {}) {
   }
 
   /**
-   * The pinned status line: the driver's heartbeat while one is watched, else the strip's short text,
-   * then the usage guard's two windows.
+   * The pinned status line: the live view's line while a run shows (with `driverStatus` on), else the
+   * strip's short text, then the usage guard's two windows.
    */
   function drawStatus(engine: Host): void {
     if (!drawsHere()) return
     const workflow = activeWorkflow()
-    // K1: a live view's line (the heartbeat age and the 5-hour usage) takes the place of the driver line and the usage.
-    const base = liveText ?? driverText ?? (settings.strip && workflow !== null ? statusTextOf(workflow, settings.cost ? model.lastStageUsd : null, settings.hubNotice ? model.hub : null) : null)
-    const text = [base, liveText === null ? usageText : null].filter(part => part !== null && part !== '').join(' · ')
+    // K1: a live view's line (the heartbeat age and the 5-hour usage) takes the place of the strip's text and the usage.
+    const shownLive = settings.driverStatus ? liveText : null
+    const base = shownLive ?? (settings.strip && workflow !== null ? statusTextOf(workflow, settings.cost ? model.lastStageUsd : null, settings.hubNotice ? model.hub : null) : null)
+    const text = [base, shownLive === null ? usageText : null].filter(part => part !== null && part !== '').join(' · ')
     engine.status(text === '' ? undefined : text)
     publish(engine)
   }
 
-  function stopDriver(): void {
-    driverTimer?.cancel()
-    driverTimer = null
-  }
-
-  /** Marks a workflow active, as a `/wf` run or a write names it. */
+  /**
+   * Marks a workflow active, as a `/wf` run or a write names it. The strip and
+   * the status line name the same workflow: both are drawn again. A word that
+   * names no workflow is not one: `/wf intake brainstorm …`, `/wf status
+   * advise` and `/wf handoff pr#12` keep the strip where it was.
+   */
   function setActive(engine: Host, slug: string | null): void {
     if (slug === null || slug === model.active) return
+    if (!model.workflows.some(workflow => workflow.slug === slug)) return
     model = { ...model, active: slug }
     void remember(engine)
+    if (model.step === null) drawStatus(engine)
     publish(engine)
   }
 
@@ -846,9 +844,6 @@ export function register(on: On, options: PluginOptions = {}) {
           case 'hub':
             await update($, hubAtom, () => published.value)
             break
-          case 'driver':
-            await update($, driverAtom, () => published.value)
-            break
           case 'usage':
             await update($, usageAtom, () => published.value)
             break
@@ -944,10 +939,7 @@ export function register(on: On, options: PluginOptions = {}) {
     } catch {
       // No store: the generated module.
     }
-    stopDriver()
-    driverText = await read($, driverAtom).catch(() => null)
     usageText = await read($, usageAtom).catch(() => null)
-    deadToastedRun = null
     lastRun = null
     noticeRequestId = null
     hubTimer?.cancel()
@@ -971,6 +963,23 @@ export function register(on: On, options: PluginOptions = {}) {
     } catch (error) {
       engine.log(messageOf(error))
       void journal?.write({ event: 'load', ok: false, detail: messageOf(error) })
+    }
+    return next(e)
+  })
+
+  on('session.end', async ($, e, next) => {
+    // A `/clear` ends the conversation and no `session.start` follows: what the
+    // agents read is out of their context, so the read check starts again, and
+    // a stage the turn bracket held is over. Nothing here waits: an end is short.
+    if (e.reason === 'clear') {
+      bracket = null
+      parked = null
+      reads = new Map()
+      fedByOutput = new Map()
+      mainReadSinceCheck = false
+      lastRun = null
+      issued = null
+      isDraftDriven = false
     }
     return next(e)
   })
@@ -1050,10 +1059,6 @@ export function register(on: On, options: PluginOptions = {}) {
             model = { ...model, hub: null }
           }
         }
-        if (name === 'driverStatus' && !result.value) {
-          stopDriver()
-          driverText = null
-        }
         await refreshActive(host)
       }
     }
@@ -1118,6 +1123,8 @@ export function register(on: On, options: PluginOptions = {}) {
     // The reads subscribe the band: a write of any of them draws it again (X1).
     await read($, pickerAtom)
     await read($, workflowsAtom)
+    await read($, activeAtom)
+    await read($, lastStageUsdAtom)
     const liveBand = await read($, liveBandAtom)
     const palette = paletteOf(viewStyle, e.surface, isDarkTheme)
     const { Box, Text, Button, Input } = inked($.ui.resolve(e), palette)
@@ -1142,7 +1149,7 @@ export function register(on: On, options: PluginOptions = {}) {
     }
     const stripTree = strip === null ? null : stripStyledView({ Box, Text, Button }, viewStyle, palette, strip.parts, strip.detail, stripActions, strip.columns)
     // The style's card frames the band's own parts; its border takes rows from the page.
-    const stripHeight = (strip === null ? 0 : styledStripRows(viewStyle, strip.parts, strip.detail, strip.others, strip.columns)) + cardRowsOf(palette)
+    const stripHeight = (strip === null ? 0 : styledStripRows(viewStyle, strip.parts, strip.detail, strip.others, strip.columns, stripActions.live !== null)) + cardRowsOf(palette)
     if (step === null) {
       if (!boxRead) {
         // One look at the box per session: whether this surface lets the mod read the draft.
@@ -1217,6 +1224,9 @@ export function register(on: On, options: PluginOptions = {}) {
   })
 
   on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
+    // The reads subscribe the label: a new active workflow, or a new stage, draws it again.
+    await read($, activeAtom)
+    await read($, workflowsAtom)
     const workflow = activeWorkflow()
     const label = workflow === null || !settings.strip ? null : modeLabelOf(workflow)
     if (label === null || e.props.modes.includes(label)) return next(e)
@@ -1239,7 +1249,7 @@ export function register(on: On, options: PluginOptions = {}) {
     const noticePalette = paletteOf(viewStyle, e.surface, isDarkTheme)
     const { Box, Text } = inked($.ui.resolve(e), noticePalette)
     const engineText = e.props.command === null ? e.props.text : `${e.props.text} ${e.props.command}`
-    return noticeStyledView({ Box, Text }, viewStyle, noticePalette, engineText, model.hub, hubNoticeTextOf(model.hub), DOCTOR_COMMAND)
+    return noticeStyledView({ Box, Text }, viewStyle, noticePalette, engineText, model.hub, hubNoticeTextOf(model.hub))
   })
 
   on('ui.render', { component: 'AskUserQuestion' }, async ($, e, next) => {
@@ -1390,7 +1400,7 @@ export function register(on: On, options: PluginOptions = {}) {
     // command. Only their `writes` rows match: a file several stages write
     // (`05-implement.md`, `03-slice.md`, `04-plan.md`) written by a stage that
     // does not list it (implement, verify, the driver) is not checked.
-    const stages = writerStagesOf(requires, reads.get(agent), agent === MAIN_AGENT ? (bracket?.command ?? null) : null)
+    const stages = writerStagesOf(requires, reads.get(agent), agent === MAIN_AGENT ? (bracket?.command ?? null) : null, agent === MAIN_AGENT ? (bracket?.readMark ?? 0) : 0)
     if (stages.length === 0) return null
     const roster = (await readSlices(engine, where.slug)).map(slice => slice.slug.toLowerCase())
     // A review dimension file (`07-review-auth-security.md`) is no slice `auth-security`.
@@ -1500,50 +1510,11 @@ export function register(on: On, options: PluginOptions = {}) {
     // notification of a background sub-agent, or the person waiting with it.
     const resumed = command === null ? parked : null
     parked = null
-    bracket = resumed ?? { turnId: e.turnId, startedAt, command, costAtStart: await engine.costUsd(), writes: [], questions: 0, background: new Set() }
+    bracket = resumed ?? { turnId: e.turnId, startedAt, command, costAtStart: await engine.costUsd(), writes: [], questions: 0, background: new Set(), readMark: readMarkOf() }
     if (command?.slug) setActive(engine, command.slug)
-    // A watched driver that ended or died hands the status line back at the next turn.
-    if (driverTimer === null && driverText !== null) {
-      driverText = null
-      drawStatus(engine)
-    }
-    if (settings.driverStatus && command !== null && (command.key === 'auto' || command.key === 'yolo') && command.slug !== null) {
-      stopDriver()
-      deadToastedRun = null
-      const slug = command.slug
-      const key = command.key
-      const tick = () => {
-        void driverTick(engine, key, slug)
-      }
-      driverTimer = engine.every(DRIVER_TICK_MS, tick)
-      await driverTick(engine, key, slug)
-    }
+    if (command !== null) await live.started(command.key, command.slug).catch(error => engine.log(messageOf(error)))
     return result
   })
-
-  /**
-   * One read of the driver journal into the status line. The driver runs in
-   * the background past its own turn, so the watch outlives the turn; it stops
-   * at the first stopped reading, silently, or at the first presumed-dead
-   * reading, with one toast. The line stays until the next turn starts.
-   */
-  async function driverTick(engine: Host, key: string, slug: string): Promise<void> {
-    if (model.root === null) return
-    const text = (await readIfPresent(engine, joinPath(model.root, '.ai', 'workflows', slug, '.driver-journal.jsonl'))) ?? ''
-    const beats = beatsOf(text)
-    driverText = driverStatusOf(key, beats, await engine.now())
-    if (model.step === null) drawStatus(engine)
-    if (driverText.includes('presumed dead')) {
-      const run = beats[beats.length - 1]?.run ?? ''
-      if (deadToastedRun !== run) {
-        deadToastedRun = run
-        engine.toast(`wf ${key} ${slug}: driver ${driverText.slice(driverText.indexOf('presumed dead'))}`, PUSH_TOAST_MS)
-      }
-      stopDriver()
-    } else if (driverText.includes(' · stopped at ')) {
-      stopDriver()
-    }
-  }
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
@@ -1585,7 +1556,8 @@ export function register(on: On, options: PluginOptions = {}) {
     let landed: boolean | null = null
     if (command !== null && command.slug !== null && e.reason === 'answer' && model.root !== null) {
       const expected = expectedArtifactOf(command)
-      const at = expected === null ? null : await engine.mtime(joinPath(model.root, '.ai', 'workflows', command.slug, expected))
+      // A name with `*` has no single file to stat: only the turn's writes can show it.
+      const at = expected === null || expected.includes('*') ? null : await engine.mtime(joinPath(model.root, '.ai', 'workflows', command.slug, expected))
       landed = stageLanded(turn.writes, expected, turn.startedAt, at)
       if (settings.stageCheck && expected !== null && !landed) {
         const text = `wf: ${command.key} ended without ${expected}`

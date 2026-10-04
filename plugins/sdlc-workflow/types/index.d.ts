@@ -56,7 +56,8 @@ export type SdlcLiveKind = 'yolo' | 'campaign' | 'brainstorm'
 export type SdlcLiveStatus = { text: string }
 
 /** One primary action of the live line in the band (K3). */
-export type SdlcLiveAction = { key: string; label: string; hotkey: '1' | '2'; armed: boolean }
+/** A live-line action. It has no hotkey: a bare digit in an empty prompt box presses a band button, and these write stop requests. */
+export type SdlcLiveAction = { key: string; label: string; armed: boolean }
 
 /** What the live module hands the band (K3): the focus line and the primary actions. */
 export type SdlcLiveBand = { kind: SdlcLiveKind; slug: string; focus: string; tone: SdlcTone; actions: SdlcLiveAction[]; isPaneSeated: boolean }
@@ -200,8 +201,6 @@ declare module 'claude-code' {
       /** The `wf-dashboard` pane: its open state, from `ui.open` and `ui.close`, and its details state (Y5). */
       dashboard: SdlcShaped<SdlcDashboard>
       hub: SdlcShaped<SdlcHub | null>
-      /** The driver line of `/wf auto` and `/wf yolo`; null hands the status line back to the strip. */
-      driver: SdlcShaped<string | null>
       /** The usage guard's two windows for the status line. */
       usage: SdlcShaped<string | null>
       /** The dollars the last `/wf` turn cost, for the strip's cost row. */
