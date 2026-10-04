@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.180.5] - 2026-10-04
+
+### Removed
+
+- **The mod's 27 slash commands.** The mod no longer registers the 24 `/wf-<key>` shortcuts (`/wf-intake` through `/wf-observability`), `/wf-dashboard`, `/wf-active` or `/wf-live`. `/wf` is the one way in: typing it turns the strip into the picker, and a bare `/wf` opens the picker at the key step. The shortcuts came from a time when the mod could not see what you typed. They only repeated `/wf` and filled the command list.
+
+### Changed
+
+- **The strip opens the mod's views.** The strip has a `dashboard` button that opens the workflows dashboard. When the strip's workflow has a yolo, campaign or brainstorm run on disk, the strip also has a `live` button that opens the live view of that run. The `live` button is hidden while the live line already shows that run. To put another workflow on the strip, press `⇄ N`, or run a `/wf` command that names the workflow. When the live pane does not draw, the `live` button and the live line's `live view` button show a toast with the reason.
+
+- **Every word reads on the light Desktop app.** Each style has a light palette, and every colour in it reaches at least 4.5:1 against its ground (WCAG AA). Style A draws on the app's own background inside a hairline frame. Style D draws on white, and style E draws on off-white. An ink layer gives every word a colour from the palette. A dim word gets the palette's quiet colour, because a dim colour on a light ground was too faint to read. In the terminal, style A still follows the terminal theme.
+- **The strip has a fixed layout.** The strip is one row: the mark, the slug, the stage chip, eight stage cells, the slice count, the next command and the cost, then the rotate button. Each part keeps its place, and only the next command grows or shortens. When the band is narrower than 96 columns, the next command and the cost move to a second row under the slug.
+- **The picker is a table.** The header shows the path of the steps (`/wf › plan › pick a workflow`), the filter and the page. Each row has a mark, the name, a stage chip and a slice count. The footer holds the hint and the `0 more` button.
+- **The live line, the dashboard and the hub notice use the same parts.** The live line shows the mark, the run kind, the slug and the focus, with the actions pinned at the end. The dashboard is a table with the columns workflow, stage, slices, findings and next. The hub notice shows its mark and state on the light ground.
+- **One live pane for every style.** The pane shows three rows, then the items that need you. A pane of 100 columns or wider also names the stages and the tracks, and shows the summary. The styles now differ by palette, frame, marks and letter case, not by layout. The per-style pane files and the `rail` and `dots` clients are removed.
+
+### Added
+
+- **Contrast and layout tests.** A test walks every tree the mod draws in the Desktop app: the strip, the picker, the live line, the hub notice, the dashboard and the live pane, in every style. Every word must have a palette colour that reaches 4.5:1 on its ground. Other tests check the second row of a narrow strip and the stage names of a wide pane.
+
 ## [9.180.4] - 2026-10-03
 
 ### Added
