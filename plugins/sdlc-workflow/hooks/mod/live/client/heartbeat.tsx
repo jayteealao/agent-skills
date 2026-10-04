@@ -25,6 +25,8 @@ export type HeartbeatProps = {
   color: string | null
   quietColor: string | null
   stopColor: string | null
+  /** The colour of the age words; null leaves them dim in the surface's colour (style A on the terminal). */
+  textColor?: string | null
 }
 
 type HeartbeatState = { elapsed: number; cancel: (() => void) | null; spikeAt: number | null; lastBeat: number | null }
@@ -86,6 +88,6 @@ export default function Heartbeat(rawProps: JsonValue, surface: ClientSurface<He
   return Box({
     flexDirection: 'row',
     gap: 1,
-    children: [Text({ color: colour, dimColor: breath, children: props.state === 'ended' || props.state === 'none' ? '○' : '●' }), Text({ dimColor: true, children: words })],
+    children: [Text({ color: colour, dimColor: breath, children: props.state === 'ended' || props.state === 'none' ? '○' : '●' }), Text({ ...(props.textColor == null ? { dimColor: true } : { color: props.textColor }), wrap: 'truncate-end', children: words })],
   })
 }

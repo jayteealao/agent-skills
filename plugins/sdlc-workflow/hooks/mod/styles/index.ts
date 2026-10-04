@@ -1,26 +1,18 @@
 /**
- * The style renderers (WF-LIVE-VIEWS-PLAN.md 8, K4): one set for both the live
- * pane and the existing parts, so the band, the strip and the dashboard
- * always match the live view (V3).
+ * The style renderers (MOD-DESIGN, 2026-10-04): one live-pane layout for the
+ * three styles, which change only its colours, marks and case, so the band,
+ * the strip and the dashboard always match the live view (V3).
  */
 import type { RenderElement } from 'claude-code'
 
-import { dashboardPane } from './dashboard.tsx'
 import type { ViewFacts } from './facts.ts'
-import { gridPane } from './grid.tsx'
-import { instrumentPane } from './instrument.tsx'
 import type { LiveActions, PaneView, StyleUi } from './kit.tsx'
+import { livePane } from './pane.tsx'
 import type { ViewStyle } from './tokens.ts'
 
 export type PaneRenderer = (ui: StyleUi, facts: ViewFacts, view: PaneView, act: LiveActions) => RenderElement
 
-const PANES: Record<ViewStyle, PaneRenderer> = {
-  dashboard: dashboardPane,
-  instrument: instrumentPane,
-  grid: gridPane,
-}
-
-/** The live pane's renderer for a style. */
-export function paneRendererOf(style: ViewStyle): PaneRenderer {
-  return PANES[style]
+/** The live pane's renderer for a style: one layout; the style rides on `view.style`. */
+export function paneRendererOf(_style: ViewStyle): PaneRenderer {
+  return livePane
 }

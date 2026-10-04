@@ -25,6 +25,7 @@ import { EMPTY_LIVE_VIEW, detailsStoreKeyOf } from '../state.ts'
 import { bandFocusOf, factsOf, liveStatusOf } from '../styles/facts.ts'
 import { paneRendererOf } from '../styles/index.ts'
 import { styleUiOf } from '../styles/kit.tsx'
+import { inked } from '../styles/skin.tsx'
 import type { LiveActions, PaneView } from '../styles/kit.tsx'
 import { isDarkThemeOf, nextViewStyle, paletteOf, viewStyleOf } from '../styles/tokens.ts'
 import type { ViewStyle } from '../styles/tokens.ts'
@@ -43,9 +44,6 @@ import { LiveReader, hashOf } from './reader.ts'
 import type { LiveIo } from './reader.ts'
 
 export const LIVE_PANE = 'wf-live'
-export const LIVE_COMMAND = 'wf-live'
-/** The command as typed, or under the plugin's namespace. */
-const LIVE_COMMAND_PATTERN = /^(?:sdlc-workflow:)?wf-live$/u
 
 /** R1: the poll while the pane shows, while it is hidden, and while no driver is live. */
 export const POLL_SHOWN_MS = 2_000
@@ -95,7 +93,11 @@ type Tracker = {
  */
 export type LiveLink = {
   press: (key: string) => void
-  open: () => void
+  open: () => Promise<void>
+  /** The strip's `live` button: follows the run of `slug` and opens its pane. */
+  follow: (slug: string) => Promise<void>
+  /** The kind of run `slug` has on disk (a driver journal, a campaign ledger, a board), or null. */
+  kindOf: (slug: string) => Promise<Kind | null>
   onStatus: (text: string | null) => void
   /** Called from `register.ts`'s `session.measure` hook (U1). */
   measure: (rateLimits: readonly unknown[]) => void
@@ -238,7 +240,6 @@ export type LiveEngine = {
   usage: () => Promise<{ rateLimits?: readonly unknown[] | null | undefined }>
   /** The person's home directory, from USERPROFILE then HOME. */
   home: () => Promise<string | undefined>
-  registerCommand: (spec: { name: string; description: string; argumentHint?: string }) => Promise<unknown>
 }
 
 function liveEngineOf($: EngineInterface): LiveEngine {
@@ -268,7 +269,6 @@ function liveEngineOf($: EngineInterface): LiveEngine {
     storeSet: (key, value) => $.store.set(key, value),
     usage: () => $.session.usage(),
     home: async () => (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')),
-    registerCommand: spec => $.command.register(spec),
   }
 }
 
@@ -406,10 +406,34 @@ async function openPane(x: LiveEngine, kind: Kind, slug: string, isAsked: boolea
   return why
 }
 
-/** What `/wf-live` answers: the pane is open, or it is not drawn and why. */
-function openedTextOf(kind: Kind, slug: string, why: string | null): string {
-  if (why === null) return `The live view of ${kind} ${slug} is open.`
+/** What the strip's `live` button reports when the pane does not draw: the reason, as a toast. */
+function unopenedTextOf(kind: Kind, slug: string, why: string): string {
   return `The live view of ${kind} ${slug} follows the run, but its pane is not drawn: ${why}.`
+}
+
+/** The kind of run a workflow has on disk, or null: a campaign ledger, a brainstorm board, a driver journal. */
+async function runKindOf(slug: string): Promise<Kind | null> {
+  if (root === null || reader === null) return null
+  const base = joinPath(root, '.ai', 'workflows', slug)
+  if ((await reader.mtime(joinPath(base, 'work', 'campaign', 'ledger.json'))) != null) return 'campaign'
+  if ((await reader.mtime(joinPath(base, 'brainstorm-board.json'))) != null) return 'brainstorm'
+  if ((await reader.mtime(joinPath(base, '.driver-journal.jsonl'))) != null) return 'yolo'
+  return null
+}
+
+/**
+ * The strip's `live` button: follows the run of `slug` (a tab it already has,
+ * else the kind its files name) and opens the pane. Resolves to null when the
+ * pane draws, else to the text that says why it does not.
+ */
+async function openLive(x: LiveEngine, slug: string): Promise<string | null> {
+  const view = await viewOf(x)
+  const tab = view.tabs.find(entry => entry.slug === slug) ?? null
+  const kind = tab?.kind ?? (await runKindOf(slug))
+  if (kind === null) return `${slug} has no yolo, campaign or brainstorm run.`
+  await follow(x, kind, slug, true)
+  const why = await openPane(x, kind, slug, true)
+  return why === null ? null : unopenedTextOf(kind, slug, why)
 }
 
 // -------------------------------------------------------------------------
@@ -966,11 +990,6 @@ async function startLive(x: LiveEngine, cwd: string): Promise<void> {
     } catch {
       rateLimits = null
     }
-    try {
-      await x.registerCommand({ name: LIVE_COMMAND, description: 'Open the live view of the running yolo, campaign or brainstorm.', argumentHint: '[slug]' })
-    } catch (error) {
-      fault('command', error)
-    }
     // V2: a reload keeps the view in `$.state`; the trackers re-read the files from the start.
     const view = await viewOf(x)
     for (const tab of view.tabs) trackers.set(keyOf(tab.kind, tab.slug), newTracker(tab.kind, tab.slug, await x.now()))
@@ -1024,30 +1043,6 @@ export function registerLive(on: On, ctx: LiveContext): void {
     rateLimits = limits as RateLimitLike[]
   }
 
-  on('command.run', { command: LIVE_COMMAND_PATTERN }, async ($, e) => {
-    try {
-      const x = liveEngineOf($)
-      const slug = e.args.trim()
-      const view = await viewOf(x)
-      const tab = slug === '' ? view.current : (view.tabs.find(entry => entry.slug === slug) ?? null)
-      if (tab !== null) {
-        await follow(x, tab.kind, tab.slug, true)
-        return { text: openedTextOf(tab.kind, tab.slug, await openPane(x, tab.kind, tab.slug, true)) }
-      }
-      if (slug !== '' && root !== null) {
-        const isCampaign = (await reader?.mtime(joinPath(root, '.ai', 'workflows', slug, 'work', 'campaign', 'ledger.json'))) != null
-        const isBoard = (await reader?.mtime(joinPath(root, '.ai', 'workflows', slug, 'brainstorm-board.json'))) != null
-        const kind: Kind = isCampaign ? 'campaign' : isBoard ? 'brainstorm' : 'yolo'
-        await follow(x, kind, slug, true)
-        return { text: openedTextOf(kind, slug, await openPane(x, kind, slug, true)) }
-      }
-      return { text: 'No yolo, campaign or brainstorm runs here. Start one, or name its slug: /wf-live <slug>.' }
-    } catch (error) {
-      fault('command', error)
-      return { text: `The live view did not open: ${messageOf(error)}` }
-    }
-  })
-
   on('ui.render', { component: 'Pane', requestId: LIVE_PANE }, async ($, e, next) => {
     try {
       const view = await read($, liveViewAtom)
@@ -1055,7 +1050,7 @@ export function registerLive(on: On, ctx: LiveContext): void {
       const current = view.current
       const model = current === null ? undefined : models[keyOf(current.kind, current.slug)]
       const table = $.ui.resolve(e)
-      const ui = styleUiOf(table)
+      const ui = inked(styleUiOf(table), paletteOf(style, e.surface, isDarkTheme))
       if (model === undefined || current === null) {
         noteDraw(true, `live pane · ${e.surface} · no model${current === null ? '' : ` for ${current.kind} ${current.slug}`}`)
         const { Text } = ui
@@ -1113,11 +1108,27 @@ export function registerLive(on: On, ctx: LiveContext): void {
     if (x === null) return
     void pressControl(x, key).catch(error => fault('band', error))
   }
-  ctx.link.open = () => {
+  ctx.link.follow = async slug => {
     const x = engine
     if (x === null) return
-    void viewOf(x)
-      .then(view => (view.current === null ? undefined : openPane(x, view.current.kind, view.current.slug, true)))
-      .catch(error => fault('band open', error))
+    try {
+      const why = await openLive(x, slug)
+      if (why !== null) x.toast(why, PUSH_TOAST_MS)
+    } catch (error) {
+      fault('strip live', error)
+    }
+  }
+  ctx.link.kindOf = slug => runKindOf(slug).catch(() => null)
+  ctx.link.open = async () => {
+    const x = engine
+    if (x === null) return
+    try {
+      const current = (await viewOf(x)).current
+      if (current === null) return
+      const why = await openPane(x, current.kind, current.slug, true)
+      if (why !== null) x.toast(unopenedTextOf(current.kind, current.slug, why), PUSH_TOAST_MS)
+    } catch (error) {
+      fault('band open', error)
+    }
   }
 }

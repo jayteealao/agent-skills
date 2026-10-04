@@ -2,8 +2,9 @@ import type { On, PromptEditInput, RenderElement, RenderInput, RenderSurface, Se
 import { describe, expect, mock, test, tier } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
 
-import { CATALOG } from '../catalog.ts'
-import { BACK_KEY, CLOSE_KEY, FILTER_KEY, MORE_KEY, OPTION_KEY_PREFIX, PLUGIN_NAME } from '../names.ts'
+import { BACK_KEY, CLOSE_KEY, DASHBOARD_KEY, FILTER_KEY, MORE_KEY, OPTION_KEY_PREFIX, PLUGIN_NAME } from '../names.ts'
+import { VIEW_STYLES } from '../styles/tokens.ts'
+import { contrastFaults } from './contrast.ts'
 
 tier('user')
 
@@ -249,6 +250,15 @@ const run = ($: Engine, command: string, args = '') =>
 /** Presses the band's row for one option value, as its digit hotkey does. */
 const pickRow = ($: Engine, value: string) => $.ui.press({ plugin: PLUGIN_NAME, key: `${OPTION_KEY_PREFIX}${value}` })
 
+/** Draws the band, turns its pages until the row of `value` shows, then picks that row. */
+async function pickShown($: Engine, value: string): Promise<void> {
+  const key = `${OPTION_KEY_PREFIX}${value}`
+  for (let page = 0; page < 5 && !JSON.stringify(await $.ui.render(BAND)).includes(`"${key}"`); page += 1) {
+    await $.ui.press({ plugin: PLUGIN_NAME, key: MORE_KEY })
+  }
+  await pickRow($, value)
+}
+
 /** A wheel tick over the band, or a page key while it holds the keyboard. */
 const wheel = ($: Engine, by: number) =>
   $.ui.scroll({ component: 'AbovePrompt', requestId: 'band', offset: 0, by, bodyRows: 11, contentRows: 11, origin: { kind: 'person' } })
@@ -311,23 +321,26 @@ function elementOf(node: unknown, key: string): Record<string, unknown> | null {
   return null
 }
 
-/** The hotkey digits of the rows on screen, in draw order. */
+/** The hotkey digits on screen, sorted: `0 more` sits in the footer, the rows above it. */
 function hotkeysOf(node: unknown): string[] {
-  if (Array.isArray(node)) return node.flatMap(hotkeysOf)
+  return hotkeysIn(node).sort()
+}
+
+function hotkeysIn(node: unknown): string[] {
+  if (Array.isArray(node)) return node.flatMap(hotkeysIn)
   if (node && typeof node === 'object') {
     const record = node as { props?: Record<string, unknown>; children?: unknown }
     const own = typeof record.props?.['hotkey'] === 'string' ? [record.props['hotkey'] as string] : []
-    return [...own, ...hotkeysOf(record.children ?? record.props?.['children'] ?? [])]
+    return [...own, ...hotkeysIn(record.children ?? record.props?.['children'] ?? [])]
   }
   return []
 }
 
 describe('register', () => {
-  test('session start registers one command per key', async ($, on) => {
+  test('session start registers no command: /wf is the one way in', async ($, on) => {
     const world = seat(on)
     await $.session.start(SESSION)
-    expect(world.registered.slice(0, CATALOG.length)).toEqual(CATALOG.map(entry => `wf-${entry.key}`))
-    expect(world.registered).toEqual([...CATALOG.map(entry => `wf-${entry.key}`), 'wf-dashboard', 'wf-active', 'wf-live'])
+    expect(world.registered).toEqual([])
   })
 
   test('a bare /wf opens the key list; /wf <key> opens the workflow list', async ($, on) => {
@@ -339,32 +352,32 @@ describe('register', () => {
     expect(text).toContain('Pick from the list')
     const keys = textOf(await $.ui.render(BAND))
     expect(keys).toContain('pick a key')
-    expect(keys).toContain('plan  Plan one or more workflow slices.')
+    expect(keys).toContain('plan Plan one or more workflow slices.')
 
     await run($, 'wf', 'plan')
     const slugs = textOf(await $.ui.render(BAND))
-    expect(slugs).toContain('/wf plan — pick a workflow')
-    expect(slugs).toContain('alpha-flow  active · stage implement · slice auth')
-    expect(slugs).toContain('beta  closed (closed)')
+    expect(slugs).toContain('/wf › plan › pick a workflow')
+    expect(slugs).toContain('alpha-flow IMPLEMENT')
+    expect(slugs).toContain('beta CLOSED')
     expect(slugs.indexOf('alpha-flow')).toBeLessThan(slugs.indexOf('beta'))
   })
 
-  test('/wf-plan lists workflows, then slices with status and stage, then fills the prompt', async ($, on) => {
+  test('/wf plan lists workflows, then slices with status and stage, then fills the prompt', async ($, on) => {
     const world = seat(on)
     await $.session.start(SESSION)
 
-    await run($, 'wf-plan')
+    await run($, 'wf', 'plan')
     expect(textOf(await $.ui.render(BAND))).toContain('pick a workflow')
 
-    await run($, 'wf-plan', 'alpha-flow')
+    await run($, 'wf', 'plan alpha-flow')
     const slices = textOf(await $.ui.render(BAND))
-    expect(slices).toContain('/wf plan alpha-flow — pick a slice')
+    expect(slices).toContain('/wf › plan › alpha-flow › pick a slice')
     expect(slices).toContain('(no slice)')
-    expect(slices).toContain('all  every slice')
-    expect(slices).toContain('auth  complete · verified · s')
-    expect(slices).toContain('ui  defined · m')
+    expect(slices).toContain('all every slice')
+    expect(slices).toContain('auth complete · verified · s')
+    expect(slices).toContain('ui defined · m')
 
-    await run($, 'wf-plan', 'alpha-flow auth')
+    await pickRow($, 'auth')
     expect(world.filled).toEqual(['/wf plan alpha-flow auth '])
     expect(textOf(await $.ui.render(BAND))).not.toContain('pick a')
   })
@@ -391,8 +404,8 @@ describe('register', () => {
       return { text: 'passed on' }
     })
     await $.session.start(SESSION)
-    await run($, 'wf-plan', 'alpha-flow')
-    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan alpha-flow — pick a slice')
+    await run($, 'wf', 'plan alpha-flow')
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf › plan › alpha-flow › pick a slice')
     await pickRow($, '-')
     expect(world.filled).toEqual(['/wf plan alpha-flow '])
     // The person presses Enter on the filled line: it runs, and no step opens.
@@ -407,7 +420,7 @@ describe('register', () => {
   test('the first draw of a picker step writes one draw row with its timing', async ($, on) => {
     const world = seat(on)
     await $.session.start(SESSION)
-    await run($, 'wf-plan')
+    await run($, 'wf', 'plan')
     await $.ui.render(BAND)
     await $.ui.render(BAND)
     await settle()
@@ -425,13 +438,13 @@ describe('register', () => {
     })
     const type = (text: string) => editPrompt($, text)
     await $.session.start(SESSION)
-    expect(textOf(await $.ui.render(BAND))).toContain('wf alpha-flow')
+    expect(textOf(await $.ui.render(BAND))).toContain('alpha-flow IMPLEMENT')
     await type('/wf')
     let band = textOf(await $.ui.render(BAND))
-    expect(band).toContain('/wf — pick a key')
+    expect(band).toContain('/wf › pick a key')
     expect(band).toContain('keep typing to narrow')
     // The strip gives its place to the picker, and the band draws no field of its own.
-    expect(band).not.toContain('wf alpha-flow ·')
+    expect(band).not.toContain('alpha-flow IMPLEMENT')
     expect(JSON.stringify(await $.ui.render(BAND))).not.toContain(FILTER_KEY)
     await type('/wf pl')
     band = textOf(await $.ui.render(BAND))
@@ -439,16 +452,16 @@ describe('register', () => {
     expect(band).toContain('plan')
     expect(band).not.toContain('intake')
     await type('/wf plan ')
-    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan — pick a workflow')
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf › plan › pick a workflow')
     // A click puts the pick in the box, and the next step opens on it.
     await pickRow($, 'alpha-flow')
     expect(world.filled).toEqual(['/wf plan alpha-flow '])
-    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan alpha-flow — pick a slice')
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf › plan › alpha-flow › pick a slice')
     // A draft that is no /wf command closes it, and the strip comes back.
     await type('hello')
     band = textOf(await $.ui.render(BAND))
     expect(band).not.toContain('pick a')
-    expect(band).toContain('wf alpha-flow')
+    expect(band).toContain('alpha-flow IMPLEMENT')
     await settle()
     const prompts = probeRows(world).filter(row => row['event'] === 'prompt').map(row => row['detail'])
     expect(prompts).toContain('edit raised · terminal')
@@ -459,18 +472,18 @@ describe('register', () => {
     seat(on)
     on('prompt.edit', ($, e) => ({ text: e.inputText, cursor: e.inputText.length }))
     await $.session.start(SESSION)
-    await run($, 'wf-plan')
+    await run($, 'wf', 'plan')
     await editPrompt($, '/wf sh')
     const band = textOf(await $.ui.render(BAND))
-    expect(band).toContain('/wf plan — pick a workflow')
+    expect(band).toContain('/wf › plan › pick a workflow')
     expect(JSON.stringify(await $.ui.render(BAND))).toContain(FILTER_KEY)
   })
 
   test('a workflow without a roster skips the slice step', async ($, on) => {
     const world = seat(on)
     await $.session.start(SESSION)
-    const { text } = await run($, 'wf-verify', 'beta')
-    expect(text).toContain('Press Enter to run /wf verify beta')
+    await run($, 'wf', 'verify')
+    await pickShown($, 'beta')
     expect(world.filled).toEqual(['/wf verify beta '])
     expect(textOf(await $.ui.render(BAND))).not.toContain('pick a')
   })
@@ -478,25 +491,19 @@ describe('register', () => {
   test('a key that takes no argument fills the prompt at once', async ($, on) => {
     const world = seat(on)
     await $.session.start(SESSION)
-    await run($, 'wf-ship-plan')
+    await run($, 'wf')
+    await pickShown($, 'ship-plan')
     expect(world.filled).toEqual(['/wf ship-plan '])
   })
 
   test('an optional-slug key offers "(no slug)" first', async ($, on) => {
     const world = seat(on)
     await $.session.start(SESSION)
-    await run($, 'wf-status')
+    await run($, 'wf')
+    await pickShown($, 'status')
     const text = textOf(await $.ui.render(BAND))
     expect(text.indexOf('(no slug)')).toBeLessThan(text.indexOf('alpha-flow'))
     expect(world.filled).toEqual([])
-  })
-
-  test('/wf-implement with a complete argument list fills the dispatcher form', async ($, on) => {
-    const world = seat(on)
-    await $.session.start(SESSION)
-    const { text } = await run($, 'wf-implement', 'alpha-flow ui')
-    expect(text).toContain('Press Enter to run /wf implement alpha-flow ui')
-    expect(world.filled).toEqual(['/wf implement alpha-flow ui '])
   })
 
   test('/wf plan <slug> typed in full opens the slice step; with a slice it runs as typed', async ($, on) => {
@@ -541,11 +548,11 @@ describe('register', () => {
     await run($, 'wf')
     expect(hotkeysOf(await $.ui.render(BAND))).toEqual(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])
     await pickRow($, 'plan')
-    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan — pick a workflow')
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf › plan › pick a workflow')
     expect(world.filled).toEqual([])
 
     await pickRow($, 'alpha-flow')
-    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan alpha-flow — pick a slice')
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf › plan › alpha-flow › pick a slice')
 
     await pickRow($, 'ui')
     expect(world.filled).toEqual(['/wf plan alpha-flow ui '])
@@ -555,7 +562,7 @@ describe('register', () => {
   test('a "(no slice)" row fills the key and the slug alone', async ($, on) => {
     const world = seat(on)
     await $.session.start(SESSION)
-    await run($, 'wf-verify', 'alpha-flow')
+    await run($, 'wf', 'verify alpha-flow')
     expect(textOf(await $.ui.render(BAND))).toContain('(no slice)')
     await pickRow($, '-')
     expect(world.filled).toEqual(['/wf verify alpha-flow '])
@@ -567,28 +574,28 @@ describe('register', () => {
     await run($, 'wf')
 
     const first = textOf(await $.ui.render(BAND))
-    expect(first).toContain('(page 1 of 3)')
-    expect(first).toContain('intake  ')
-    expect(first).toContain('handoff  ')
-    expect(first).not.toContain('ship  ')
+    expect(first).toContain('pick a key 1/3')
+    expect(first).toContain('intake Start')
+    expect(first).toContain('handoff Prepare')
+    expect(first).not.toContain('ship Execute')
     expect(first).toContain('more')
 
     await $.ui.press({ plugin: PLUGIN_NAME, key: MORE_KEY })
     const second = textOf(await $.ui.render(BAND))
-    expect(second).toContain('(page 2 of 3)')
-    expect(second).toContain('ship  ')
-    expect(second).not.toContain('intake  ')
+    expect(second).toContain('pick a key 2/3')
+    expect(second).toContain('ship Execute')
+    expect(second).not.toContain('intake Start')
 
     await $.ui.press({ plugin: PLUGIN_NAME, key: MORE_KEY })
-    expect(textOf(await $.ui.render(BAND))).toContain('(page 3 of 3)')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a key 3/3')
     await $.ui.press({ plugin: PLUGIN_NAME, key: MORE_KEY })
-    expect(textOf(await $.ui.render(BAND))).toContain('(page 1 of 3)')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a key 1/3')
 
     // A new step starts on its first page.
     await pickRow($, 'plan')
     await $.ui.press({ plugin: PLUGIN_NAME, key: CLOSE_KEY })
     await run($, 'wf')
-    expect(textOf(await $.ui.render(BAND))).toContain('(page 1 of 3)')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a key 1/3')
   })
 
   test('a short band shrinks the page so every row keeps a hotkey', async ($, on) => {
@@ -598,7 +605,7 @@ describe('register', () => {
     const short = { ...BAND, props: { ...BAND.props, maxRows: 5, scroll: { offset: 0, bodyRows: 4 } } }
     const tree = await $.ui.render(short)
     expect(hotkeysOf(tree)).toEqual(['0', '1', '2', '3'])
-    expect(textOf(tree)).toContain('(page 1 of 8)')
+    expect(textOf(tree)).toContain('pick a key 1/8')
   })
 
   test('a tall band still pages nine rows, one digit each, and never arms a letter', async ($, on) => {
@@ -608,8 +615,8 @@ describe('register', () => {
     const tall = { ...BAND, props: { ...BAND.props, maxRows: 40, scroll: { offset: 0, bodyRows: 39 } } }
     const tree = await $.ui.render(tall)
     expect(hotkeysOf(tree)).toEqual(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])
-    expect(textOf(tree)).toContain('(page 1 of 3)')
-    expect(textOf(tree)).not.toContain('observability  ')
+    expect(textOf(tree)).toContain('pick a key 1/3')
+    expect(textOf(tree)).not.toContain('observability Route')
   })
 
   test('the back button returns to the step before, and the key step has none', async ($, on) => {
@@ -620,13 +627,13 @@ describe('register', () => {
     await pickRow($, 'plan')
     await $.ui.render(BAND)
     await pickRow($, 'alpha-flow')
-    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan alpha-flow — pick a slice')
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf › plan › alpha-flow › pick a slice')
     await $.ui.press({ plugin: PLUGIN_NAME, key: BACK_KEY })
-    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan — pick a workflow')
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf › plan › pick a workflow')
     await $.ui.press({ plugin: PLUGIN_NAME, key: BACK_KEY })
     await $.ui.render(BAND)
     const tree = textOf(await $.ui.render(BAND))
-    expect(tree).toContain('/wf — pick a key')
+    expect(tree).toContain('/wf › pick a key')
     expect(tree).not.toContain('← back')
   })
 
@@ -634,17 +641,17 @@ describe('register', () => {
     seat(on)
     await $.session.start(SESSION)
     await run($, 'wf')
-    expect(textOf(await $.ui.render(BAND))).toContain('(page 1 of 3)')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a key 1/3')
 
     expect(await wheel($, 1)).toEqual({})
-    expect(textOf(await $.ui.render(BAND))).toContain('(page 2 of 3)')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a key 2/3')
     await wheel($, 3)
-    expect(textOf(await $.ui.render(BAND))).toContain('(page 3 of 3)')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a key 3/3')
     await wheel($, -1)
-    expect(textOf(await $.ui.render(BAND))).toContain('(page 2 of 3)')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a key 2/3')
     await wheel($, -1)
     await wheel($, -1)
-    expect(textOf(await $.ui.render(BAND))).toContain('(page 3 of 3)')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a key 3/3')
   })
 
   test('the wheel with no band up passes through', async ($, on) => {
@@ -663,18 +670,18 @@ describe('register', () => {
     // The ring walks the rows; nothing turns.
     await ringTo($, `${OPTION_KEY_PREFIX}intake`)
     await ringTo($, `${OPTION_KEY_PREFIX}shape`)
-    expect(textOf(await $.ui.render(BAND))).toContain('(page 1 of 3)')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a key 1/3')
 
     // From the last row (handoff) a move onto a title control is Tab past the end.
     await ringTo($, `${OPTION_KEY_PREFIX}handoff`)
     world.focused.length = 0
     await ringTo($, MORE_KEY)
-    expect(textOf(await $.ui.render(BAND))).toContain('(page 2 of 3)')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a key 2/3')
     expect(world.focused).toEqual([`${OPTION_KEY_PREFIX}ship`])
 
     // From the first row of page 2 a move onto the field is Shift+Tab before the start.
     await ringTo($, FILTER_KEY)
-    expect(textOf(await $.ui.render(BAND))).toContain('(page 1 of 3)')
+    expect(textOf(await $.ui.render(BAND))).toContain('pick a key 1/3')
     expect(world.focused).toEqual([`${OPTION_KEY_PREFIX}ship`, `${OPTION_KEY_PREFIX}handoff`])
 
     // On a one-page step the ring moves as the engine says.
@@ -690,7 +697,7 @@ describe('register', () => {
   test('a list that fits one page draws no "more" row', async ($, on) => {
     seat(on)
     await $.session.start(SESSION)
-    await run($, 'wf-plan')
+    await run($, 'wf', 'plan')
     const tree = await $.ui.render(BAND)
     expect(hotkeysOf(tree)).toEqual(['1', '2'])
     expect(elementOf(tree, MORE_KEY)).toBeNull()
@@ -700,7 +707,7 @@ describe('register', () => {
   test('without .ai/workflows the workflow step says so', async ($, on) => {
     seat(on, {})
     await $.session.start(SESSION)
-    await run($, 'wf-plan')
+    await run($, 'wf', 'plan')
     const text = textOf(await $.ui.render(BAND))
     expect(text).toContain('No .ai/workflows directory')
   })
@@ -710,8 +717,8 @@ describe('register', () => {
     world.mtimes.set('/work/.ai/workflows/alpha-flow/00-index.md', 5_000_000)
     await $.session.start(SESSION)
     const text = textOf(await $.ui.render(BAND))
-    expect(text).toContain('wf alpha-flow · implement · slice auth (1 of 2 complete) · next: /wf verify alpha-flow auth')
-    expect(text).toContain('2k tokens workflow')
+    expect(text).toContain('alpha-flow IMPLEMENT ■■■■ ■ □□□ 1/2 next /wf verify alpha-flow auth')
+    expect(text).toContain('2k tok')
     expect(text).not.toContain('sdlc hub')
     expect(text).not.toContain('this stage')
     expect(world.statuses.at(-1)).toBe('next /wf verify alpha-flow auth · hub 9.157.0')
@@ -719,33 +726,32 @@ describe('register', () => {
     expect(modesOf(world.props)).toEqual(['focus', 'wf:implement'])
   })
 
-  test('the rotate button and /wf-active walk every workflow, active first; the strip wraps to the band width', async ($, on) => {
+  test('the rotate button walks every workflow, active first, and a /wf naming one shows it', async ($, on) => {
     const world = seat(on, {
       ...TREE,
       ...HUB_CONFIG,
       '/work/.ai/workflows/gamma/00-index.md': '---\nslug: gamma\nstatus: active\ncurrent-stage: plan\nselected-slice: core\nnext-invocation: /wf implement gamma core\n---\n',
     })
     world.mtimes.set('/work/.ai/workflows/alpha-flow/00-index.md', 5_000_000)
+    on('command.run', () => ({ text: '' }))
     await $.session.start(SESSION)
     let text = textOf(await $.ui.render(BAND))
-    expect(text).toContain('wf alpha-flow · implement')
-    expect(text).toContain('⇄ 2 more')
+    expect(text).toContain('alpha-flow IMPLEMENT')
+    expect(text).toContain('⇄ 2')
     await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-strip-rotate' })
     text = textOf(await $.ui.render(BAND))
-    expect(text).toContain('wf gamma · plan · slice core')
+    expect(text).toContain('gamma PLAN')
     expect(world.statuses.at(-1)).toBe('next /wf implement gamma core · hub 9.157.0')
     await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-strip-rotate' })
-    expect(textOf(await $.ui.render(BAND))).toContain('wf beta · closed (closed)')
+    expect(textOf(await $.ui.render(BAND))).toContain('beta CLOSED')
     await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-strip-rotate' })
-    expect(textOf(await $.ui.render(BAND))).toContain('wf alpha-flow · implement')
-    const { text: said } = await run($, 'wf-active', 'gamma')
-    expect(said).toBe('The strip shows gamma.')
-    expect(textOf(await $.ui.render(BAND))).toContain('wf gamma')
-    expect((await run($, 'wf-active', 'nope')).text).toContain('No workflow named nope')
+    expect(textOf(await $.ui.render(BAND))).toContain('alpha-flow IMPLEMENT')
+    await run($, 'wf', 'status gamma')
+    expect(textOf(await $.ui.render(BAND))).toContain('gamma PLAN')
     // The strip morphs into the picker: while a step is open the strip is gone, so a narrow band pages as many rows.
     const narrow = { ...BAND, props: { ...BAND.props, bodyColumns: 40, maxRows: 12 } }
     await run($, 'wf')
-    expect(textOf(await $.ui.render(BAND))).not.toContain('wf gamma')
+    expect(textOf(await $.ui.render(BAND))).not.toContain('gamma PLAN')
     expect(hotkeysOf(await $.ui.render(narrow))).toEqual(hotkeysOf(await $.ui.render(BAND)))
   })
 
@@ -754,21 +760,23 @@ describe('register', () => {
     // The closed workflow's index is the newest file: the strip still opens on the active one.
     world.mtimes.set('/work/.ai/workflows/beta/00-index.md', 9_000_000)
     world.mtimes.set('/work/.ai/workflows/alpha-flow/00-index.md', 5_000_000)
+    on('command.run', () => ({ text: '' }))
     await $.session.start(SESSION)
-    expect(textOf(await $.ui.render(BAND))).toContain('wf alpha-flow · implement')
-    await run($, 'wf-active', 'beta')
-    expect(textOf(await $.ui.render(BAND))).toContain('wf beta · closed (closed)')
+    expect(textOf(await $.ui.render(BAND))).toContain('alpha-flow IMPLEMENT')
+    await run($, 'wf', 'status beta')
+    expect(textOf(await $.ui.render(BAND))).toContain('beta CLOSED')
     // A reload (a /config change) or the next session starts on the remembered workflow.
     await $.session.start(SESSION)
-    expect(textOf(await $.ui.render(BAND))).toContain('wf beta · closed (closed)')
+    expect(textOf(await $.ui.render(BAND))).toContain('beta CLOSED')
   })
 
   test('a /wf run names the active workflow, and the strip draws under the picker', async ($, on) => {
     const world = seat(on)
+    on('command.run', () => ({ text: '' }))
     await $.session.start(SESSION)
-    await run($, 'wf-status', 'beta')
+    await run($, 'wf', 'status beta')
     const text = textOf(await $.ui.render(BAND))
-    expect(text).toContain('wf beta · closed (closed)')
+    expect(text).toContain('beta CLOSED')
     expect(text).not.toContain('pick a')
     await $.ui.render(MODE)
     expect(modesOf(world.props)).toEqual(['focus'])
@@ -805,7 +813,7 @@ describe('register', () => {
       'The /wf implement stage of workflow alpha-flow is complete. Keep the workflow slug alpha-flow, the selected slice auth, the next invocation /wf verify alpha-flow auth. Keep the paths of the artifacts written this turn: /work/.ai/workflows/alpha-flow/05-implement-auth.md. Keep verbatim every decision, acceptance criterion, blocker, and answer the person gave that is not yet written to an artifact. Drop tool output, test logs, and file contents; the next stage re-reads the artifacts from disk.',
     )
     expect(world.suggested).toEqual(['/wf verify alpha-flow auth'])
-    expect(textOf(await $.ui.render(BAND))).toContain('$0.42 this stage')
+    expect(textOf(await $.ui.render(BAND))).toContain('$0.42')
     expect(world.statuses.at(-1)).toBe('next /wf verify alpha-flow auth · $0.42 stage · hub 9.157.0')
     await $.ui.render(SPINNER)
     expect(wordOf(world.props)).toBe('Sauteing')
@@ -1125,7 +1133,7 @@ describe('register', () => {
     await clock.advance(60_000)
     expect(world.toasts).toHaveLength(2)
     await setSetting($, 'hubNotice', true)
-    expect(textOf(await $.ui.render(NOTICE))).toBe('model: sonnet ● sdlc hub down · /wf-doctor')
+    expect(textOf(await $.ui.render(NOTICE))).toBe('model: sonnet ■ sdlc hub down · /wf-doctor')
     world.hub = HUB_HEALTH
     await clock.advance(60_000)
     expect(world.toasts).toHaveLength(3)
@@ -1146,16 +1154,16 @@ describe('register', () => {
     expect(textOf(await $.ui.render(NOTICE))).toBe('')
   })
 
-  test('/wf-dashboard opens the pane; its rows fill a status command or open the picker', async ($, on) => {
+  test('the strip\'s dashboard button opens the pane; its rows fill a status command or open the picker', async ($, on) => {
     const world = seat(on, { ...TREE, ...HUB_CONFIG, ...LEDGER })
     await $.session.start(SESSION)
-    const { text } = await run($, 'wf-dashboard')
-    expect(text).toContain('dashboard is open')
+    expect(textOf(await $.ui.render(BAND))).toContain('dashboard')
+    await $.ui.press({ plugin: PLUGIN_NAME, key: DASHBOARD_KEY })
     expect(world.opened).toEqual(['wf-dashboard'])
     const pane = textOf(await $.ui.render(PANE))
     // E3: one row per open workflow (mark, slug, stage rail, findings, next step); closed ones wait for details (Y5).
-    expect(pane).toContain('● alpha-flow ━━┄┄ implement ▰▰▰ ▱▱▱ 3 open findings /wf verify alpha-flow auth')
-    expect(pane).toContain('alpha-flow slices   auth ▰▰▰ verified   ui ▱▱▱ defined')
+    expect(pane).toContain('● alpha-flow IMPLEMENT ■ □ 3 open /wf verify alpha-flow auth status pick')
+    expect(pane).toContain('WORKFLOW STAGE SLICES FINDINGS NEXT')
     expect(pane).toContain('ship-plan blockers 2 · hub 9.157.0 ok')
     expect(pane).toContain('details ▸ (1 closed)')
     expect(pane).not.toContain('beta')
@@ -1165,10 +1173,10 @@ describe('register', () => {
     await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-dash-status:beta' })
     expect(world.filled).toEqual(['/wf status beta '])
     await $.ui.press({ plugin: PLUGIN_NAME, key: 'wf-dash-pick:alpha-flow' })
-    expect(textOf(await $.ui.render(BAND))).toContain('/wf plan alpha-flow — pick a slice')
+    expect(textOf(await $.ui.render(BAND))).toContain('/wf › plan › alpha-flow › pick a slice')
   })
 
-  test('a surfaceless session binds the host, registers the commands, and draws nothing', async ($, on) => {
+  test('a surfaceless session binds the host, registers no command, and draws nothing', async ($, on) => {
     const world = seat(on, { ...TREE })
     world.surfaces = []
     let ran = 0
@@ -1178,13 +1186,12 @@ describe('register', () => {
     })
     await $.session.start(SDK_SESSION)
     // Claude Code Desktop runs the engine through the SDK: no surface, no
-    // person at the prompt. The module still binds and registers.
-    expect(world.registered).toEqual([...CATALOG.map(entry => `wf-${entry.key}`), 'wf-dashboard', 'wf-active', 'wf-live'])
+    // person at the prompt. The module still binds; it registers no command.
+    expect(world.registered).toEqual([])
     // No surface draws, so the picker never opens: the command runs as typed.
     expect(await run($, 'wf')).toEqual({ text: 'passed on' })
     expect(ran).toBe(1)
     expect(world.statuses).toEqual([])
-    expect(await run($, 'wf-dashboard')).toEqual({ text: 'The workflows dashboard draws in the Desktop app and the terminal; this session draws in neither.' })
     expect(world.opened).toEqual([])
   })
 
@@ -1196,16 +1203,16 @@ describe('register', () => {
     await settle()
     expect(textOf(await $.ui.render(DESKTOP_BAND))).toContain('alpha-flow')
     expect(world.statuses.at(-1)).toContain('next /wf verify alpha-flow auth')
-    await run($, 'wf-plan')
+    await $.ui.press({ plugin: PLUGIN_NAME, key: DASHBOARD_KEY })
+    expect(world.opened).toEqual(['wf-dashboard'])
+    const pane = textOf(await $.ui.render({ ...PANE, surface: 'desktop', requestId: 'wf-dashboard' }))
+    expect(pane).toContain('alpha-flow')
+    await run($, 'wf', 'plan')
     const band = textOf(await $.ui.render(DESKTOP_BAND))
     expect(band).toContain('alpha-flow')
     expect(band).not.toBe('')
     const DESKTOP_NOTICE: RenderInput<'InfoNotice'> = { ...NOTICE, surface: 'desktop', requestId: 'notice-desktop' }
     expect(textOf(await $.ui.render(DESKTOP_NOTICE))).toContain('sdlc hub 9.157.0')
-    expect((await run($, 'wf-dashboard')).text).toBe('The workflows dashboard is open.')
-    expect(world.opened).toEqual(['wf-dashboard'])
-    const pane = textOf(await $.ui.render({ ...PANE, surface: 'desktop', requestId: 'wf-dashboard' }))
-    expect(pane).toContain('alpha-flow')
     // The Desktop app is the first surface: the band, the notice and the pane validate on its table.
     for (const component of ['AbovePrompt', 'InfoNotice'] as const) {
       const props = component === 'AbovePrompt' ? BAND.props : NOTICE.props
@@ -1215,10 +1222,10 @@ describe('register', () => {
     }
   })
 
-  test('style A draws the band as a card on the Desktop app, and as before on the terminal', async ($, on) => {
+  test('style A draws the band in a hairline frame on the light Desktop app, and as before on the terminal', async ($, on) => {
     seat(on, { ...TREE })
     await $.session.start(SESSION)
-    await run($, 'wf-plan')
+    await run($, 'wf', 'plan')
     const mountBand = async (surface: 'desktop' | 'terminal') => {
       const ui = await $.ui.mount({ plugin: PLUGIN_NAME, surface, component: 'AbovePrompt', props: BAND.props, viewport: { columns: 120, rows: 40 } } as Parameters<Engine['ui']['mount']>[0])
       const tree = JSON.stringify(await ui.drawn())
@@ -1226,13 +1233,13 @@ describe('register', () => {
       return tree
     }
     const desktop = await mountBand('desktop')
-    // The card ground and the rounded border of section 8.1, and the words in the card's text colour.
-    expect(desktop).toContain('"backgroundColor":"#0f141c"')
+    // No painted ground: a hairline frame on the app's background, and the words in the app's ink.
     expect(desktop).toContain('"borderStyle":"round"')
-    expect(desktop).toContain('"color":"#d9dfe9"')
+    expect(desktop).toContain('"color":"#1f1e1b"')
+    expect(desktop).not.toContain('backgroundColor')
     const terminal = await mountBand('terminal')
-    expect(terminal).not.toContain('#0f141c')
     expect(terminal).not.toContain('"borderStyle":"round"')
+    expect(terminal).not.toContain('#1f1e1b')
   })
 
   test('a Desktop client that attaches after the start turns the drawing on', async ($, on) => {
@@ -1269,7 +1276,7 @@ describe('register', () => {
     expect(world.toasts.at(-1)).toBe('wf: verify ended without 06-verify-ui.md')
   })
 
-  test('the probe journal records the load, the commands, the turn, and the compaction', async ($, on) => {
+  test('the probe journal records the load, the turn, and the compaction', async ($, on) => {
     const world = seat(on, { ...TREE })
     world.surfaces = []
     await $.session.start(SDK_SESSION)
@@ -1277,7 +1284,7 @@ describe('register', () => {
     const load = probeRows(world)
     expect(load[0]).toMatchObject({ event: 'load', ok: true, host: 'cli', session: 'abcdef01' })
     expect(load[0]?.['detail']).toContain('root /work')
-    expect(load[1]).toMatchObject({ event: 'commands', ok: true, detail: '26/26' })
+    expect(load.some(row => row['event'] === 'commands')).toBe(false)
     await turn($, '/wf implement alpha-flow auth', ['/work/.ai/workflows/alpha-flow/05-implement-auth.md'])
     await world.clock.advance(1)
     await settle()
@@ -1356,5 +1363,54 @@ describe('usage guard', () => {
     await $.session.measure({ context: { window: 200000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 95 }], changed: ['rateLimits'] })
     await settle()
     expect([...world.written.keys()].some(k => k.includes('/usage/'))).toBe(false)
+  })
+})
+
+describe('the design: contrast and layout of the band, the notice and the dashboard (MOD-DESIGN)', () => {
+  for (const style of VIEW_STYLES) {
+    test(`style ${style}: every word of the strip, the picker, the notice and the dashboard reads on the Desktop app`, { options: { viewStyle: style } }, async ($, on) => {
+      const world = seat(on, { ...TREE, ...HUB_CONFIG })
+      await $.session.start(SESSION)
+      await settle()
+      const faults: string[] = []
+      const look = async (name: string, input: Parameters<Engine['ui']['mount']>[0]) => {
+        const ui = await $.ui.mount(input)
+        const drawn = await ui.drawn()
+        await ui.unmount()
+        faults.push(...contrastFaults(drawn).map(fault => `${name}: ${fault}`))
+        return textOf(drawn).toLowerCase()
+      }
+      const band = { plugin: PLUGIN_NAME, surface: 'desktop', component: 'AbovePrompt', props: BAND.props, viewport: { columns: 120, rows: 40 } } as Parameters<Engine['ui']['mount']>[0]
+      const notice = { plugin: PLUGIN_NAME, surface: 'desktop', component: 'InfoNotice', requestId: 'notice', props: NOTICE.props, viewport: { columns: 120, rows: 40 } } as Parameters<Engine['ui']['mount']>[0]
+      expect(await look('strip', band)).toContain('alpha-flow')
+      expect(await look('notice (hub up)', notice)).toContain('sdlc hub')
+      world.hub = null
+      await world.clock.advance(60_000)
+      await world.clock.advance(60_000)
+      expect(await look('notice (hub down)', notice)).toContain('sdlc hub')
+      await $.ui.render(DESKTOP_BAND)
+      await $.ui.press({ plugin: PLUGIN_NAME, key: DASHBOARD_KEY })
+      expect(await look('dashboard', { plugin: PLUGIN_NAME, surface: 'desktop', component: 'Pane', requestId: 'wf-dashboard', props: PANE.props, viewport: { columns: 120, rows: 40 } })).toContain('alpha-flow')
+      await run($, 'wf', 'plan')
+      expect(await look('picker', band)).toContain('pick a workflow')
+      expect(faults).toEqual([])
+    })
+  }
+
+  test('the strip draws a second row on a narrow band, and one row on a wide band', async ($, on) => {
+    seat(on, { ...TREE })
+    await $.session.start(SESSION)
+    const stripAt = async (columns: number) => {
+      const ui = await $.ui.mount({ plugin: PLUGIN_NAME, surface: 'desktop', component: 'AbovePrompt', props: { ...BAND.props, bodyColumns: columns }, viewport: { columns: 160, rows: 40 } } as Parameters<Engine['ui']['mount']>[0])
+      const tree = JSON.stringify(await ui.drawn())
+      await ui.unmount()
+      return tree
+    }
+    const wide = await stripAt(120)
+    const narrow = await stripAt(60)
+    // The second row sits under the slug, indented two columns, and carries the next command.
+    expect(wide).not.toContain('"paddingLeft":2')
+    expect(narrow).toContain('"paddingLeft":2')
+    expect(narrow).toContain('/wf verify alpha-flow auth')
   })
 })

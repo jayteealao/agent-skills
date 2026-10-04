@@ -8,7 +8,7 @@ import { describe, expect, mock, test, tier } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
 
 import { applyLines, freshRunState } from '../../../lib/live-events.mjs'
-import { PLUGIN_NAME } from '../names.ts'
+import { DASHBOARD_KEY, LIVE_KEY, PLUGIN_NAME } from '../names.ts'
 import { absorb, freshJournalState, livenessFrom } from '../live/model/journal.ts'
 import type { JournalState } from '../live/model/journal.ts'
 import { buildBrainstormModel } from '../live/model/brainstorm.ts'
@@ -20,9 +20,11 @@ import { LiveReader } from '../live/reader.ts'
 import type { LiveIo } from '../live/reader.ts'
 import { coreFactNames, LIVE_KEYS } from '../styles/kit.tsx'
 import { factsOf } from '../styles/facts.ts'
-import { pickerControlLabel, pickerRowLabel, styledStripRows, stripPieces } from '../styles/existing.tsx'
+import { pickerControlLabel, pickerRowLabel, STRIP_ONE_ROW_COLUMNS, styledStripRows } from '../styles/existing.tsx'
 import type { StripParts } from '../styles/existing.tsx'
-import { VIEW_STYLES } from '../styles/tokens.ts'
+import { ALL_PALETTES, contrastOf, VIEW_STYLES } from '../styles/tokens.ts'
+import { PANE_WIDE_COLUMNS } from '../styles/pane.tsx'
+import { APP_GROUND, contrastFaults, MIN_CONTRAST } from './contrast.ts'
 import { PUSH_TOAST_MS } from '../live/register.ts'
 
 tier('user')
@@ -221,6 +223,8 @@ function seat(on: On, tree: Record<string, string>): World {
   on('session.id', () => ({ value: 'live-test' }))
   on('session.surfaces', () => ({ value: ['terminal'] }))
   on('env.get', ($, e) => (e.name === 'USERPROFILE' ? { value: '/home' } : { value: undefined }))
+  // The `/wf` skill beneath the mod: a complete `/wf` command runs as typed.
+  on('command.run', () => ({ text: '' }))
   on('ui.render', ($, e) => {
     const { Box } = $.ui.resolve(e)
     return Box({}) as RenderElement
@@ -236,6 +240,36 @@ const PANE_PROPS: RenderInput<'Pane'>['props'] = { title: 'live', isFocused: fal
 const mountPane = ($: Engine, surface: (typeof SURFACES)[number]) =>
   $.ui.mount({ plugin: PLUGIN_NAME, surface, component: 'Pane', requestId: 'wf-live', props: PANE_PROPS, viewport: { columns: 120, rows: 50 } })
 
+/** The band's props: a terminal band 120 columns wide. */
+const BAND_PROPS: RenderInput<'AbovePrompt'>['props'] = { hasSurvey: false, isWorking: false, maxRows: 12, bodyColumns: 120, scroll: { offset: 0, bodyRows: 11 }, view: {} }
+
+/** Presses one of the band's buttons on the terminal, where the band draws the strip and the live line. */
+async function pressBand($: Engine, key: string): Promise<void> {
+  const band = await $.ui.mount({ plugin: PLUGIN_NAME, surface: 'terminal', component: 'AbovePrompt', props: BAND_PROPS, viewport: { columns: 120, rows: 40 } })
+  await band.drawn()
+  await band.press({ key })
+  await band.unmount()
+}
+
+/**
+ * Opens the live view of `slug` as the person does: a `/wf` command names the
+ * workflow, so the strip shows it, then the strip's `live` button. When the
+ * live line already shows that run, the strip draws no `live` button: the live
+ * line's `live view` button opens the pane, and draws only while the pane is
+ * not seated.
+ */
+async function pressLive($: Engine, slug: string): Promise<void> {
+  await run($, 'wf', `status ${slug}`)
+  const band = await $.ui.mount({ plugin: PLUGIN_NAME, surface: 'terminal', component: 'AbovePrompt', props: BAND_PROPS, viewport: { columns: 120, rows: 40 } })
+  await band.drawn()
+  for (const key of [LIVE_KEY, LIVE_KEYS.open]) {
+    if ((await band.find({ key })) === undefined) continue
+    await band.press({ key })
+    break
+  }
+  await band.unmount()
+}
+
 /** A world with the yolo journal at the clock's time, the session started, and the live view of `slug` open. */
 async function openLive($: Engine, on: On, slug = 'alpha-flow', extra: Record<string, string> = {}): Promise<World> {
   const tree: Record<string, string> = { ...TREE, ...extra }
@@ -243,7 +277,7 @@ async function openLive($: Engine, on: On, slug = 'alpha-flow', extra: Record<st
   await world.clock.set(NOW)
   tree['/work/.ai/workflows/alpha-flow/.driver-journal.jsonl'] = yoloJournal(NOW)
   await $.session.start(SESSION)
-  await run($, 'wf-live', slug)
+  await pressLive($, slug)
   return world
 }
 
@@ -451,11 +485,11 @@ describe('the live pane', () => {
   for (const style of VIEW_STYLES) {
     test(`style ${style} draws the yolo, campaign and brainstorm views on each surface (T4)`, { options: { viewStyle: style } }, async ($, on) => {
       await openLive($, on)
-      await run($, 'wf-live', 'camp')
-      await run($, 'wf-live', 'idea')
+      await pressLive($, 'camp')
+      await pressLive($, 'idea')
       for (const surface of SURFACES) {
         for (const slug of ['alpha-flow', 'camp', 'idea']) {
-          await run($, 'wf-live', slug)
+          await pressLive($, slug)
           const ui = await mountPane($, surface)
           const tree = await ui.drawn()
           expect(textOf(tree)).not.toContain('No live run yet')
@@ -480,10 +514,10 @@ describe('the live pane', () => {
     expect(core).toContain('liveness')
   })
 
-  test('liveView off opens no pane (T6)', { options: { liveView: false } }, async ($, on) => {
+  test('liveView off opens no pane, and the live button says why (T6)', { options: { liveView: false } }, async ($, on) => {
     const world = await openLive($, on)
     expect(world.opened).not.toContain('wf-live')
-    expect((await run($, 'wf-live', 'alpha-flow')).text).toBe('The live view of yolo alpha-flow follows the run, but its pane is not drawn: the liveView option is off.')
+    expect(world.toasts.map(toast => toast.text)).toContain('The live view of yolo alpha-flow follows the run, but its pane is not drawn: the liveView option is off.')
   })
 
   test('the pane draw writes one draw row per outcome through the link', async ($, on) => {
@@ -499,11 +533,47 @@ describe('the live pane', () => {
     expect(rows.filter(line => line.includes('live pane · desktop · yolo alpha-flow · dashboard')).length).toBe(1)
   })
 
-  test('/wf-live says so when no surface places the pane', async ($, on) => {
-    const world = await openLive($, on)
-    expect((await run($, 'wf-live', 'alpha-flow')).text).toBe('The live view of yolo alpha-flow is open.')
+  test('the live button opens the pane, and says why when no surface places it', async ($, on) => {
+    const placed = await openLive($, on)
+    expect(placed.opened).toContain('wf-live')
+    expect(placed.toasts.filter(toast => toast.text.includes('not drawn'))).toEqual([])
+  })
+
+  test('the strip and live line buttons say why when no surface places the pane', async ($, on) => {
+    const tree: Record<string, string> = { ...TREE }
+    const world = seat(on, tree)
     world.unplaced = 'no attached surface places panes'
-    expect((await run($, 'wf-live', 'alpha-flow')).text).toBe('The live view of yolo alpha-flow follows the run, but its pane is not drawn: no attached surface places panes.')
+    await world.clock.set(NOW)
+    tree['/work/.ai/workflows/alpha-flow/.driver-journal.jsonl'] = yoloJournal(NOW)
+    await $.session.start(SESSION)
+    const why = 'The live view of yolo alpha-flow follows the run, but its pane is not drawn: no attached surface places panes.'
+    // The strip's `live` button, then the live line's `live view` button: the pane is not seated.
+    await pressLive($, 'alpha-flow')
+    expect(world.toasts.filter(toast => toast.text === why)).toHaveLength(1)
+    await pressLive($, 'alpha-flow')
+    expect(world.toasts.filter(toast => toast.text === why)).toHaveLength(2)
+  })
+
+  test('the strip draws a live button only for a workflow with a run, and not while the live line shows that run', async ($, on) => {
+    const tree: Record<string, string> = { ...TREE }
+    const world = seat(on, tree)
+    await world.clock.set(NOW)
+    tree['/work/.ai/workflows/alpha-flow/.driver-journal.jsonl'] = yoloJournal(NOW)
+    tree['/work/.ai/workflows/plain/00-index.md'] = '---\nslug: plain\nstatus: active\n---\n'
+    await $.session.start(SESSION)
+    const liveButtonOf = async (slug: string) => {
+      await run($, 'wf', `status ${slug}`)
+      const band = await $.ui.mount({ plugin: PLUGIN_NAME, surface: 'terminal', component: 'AbovePrompt', props: BAND_PROPS, viewport: { columns: 120, rows: 40 } })
+      const found = await band.find({ key: LIVE_KEY })
+      await band.unmount()
+      return found !== undefined
+    }
+    expect(await liveButtonOf('plain')).toBe(false)
+    expect(await liveButtonOf('camp')).toBe(true)
+    expect(await liveButtonOf('alpha-flow')).toBe(true)
+    await pressLive($, 'alpha-flow')
+    expect(world.opened).toContain('wf-live')
+    expect(await liveButtonOf('alpha-flow')).toBe(false)
   })
 
   test('the style button sets the next style; a locked row hides it (T7)', async ($, on) => {
@@ -522,7 +592,7 @@ describe('the live pane', () => {
     await world.clock.set(NOW)
     tree['/work/.ai/workflows/alpha-flow/.driver-journal.jsonl'] = yoloJournal(NOW)
     await $.session.start(SESSION)
-    await run($, 'wf-live', 'alpha-flow')
+    await pressLive($, 'alpha-flow')
     const ui = await mountPane($, 'terminal')
     expect(await ui.find({ key: LIVE_KEYS.style })).toBeUndefined()
     await ui.unmount()
@@ -537,7 +607,7 @@ describe('the live pane', () => {
     expect(open.length).toBeGreaterThanOrEqual(closed.length)
     await ui.unmount()
     await $.session.start(SESSION)
-    await run($, 'wf-live', 'alpha-flow')
+    await pressLive($, 'alpha-flow')
     ui = await mountPane($, 'terminal')
     expect(factNamesOf(await ui.drawn())).toEqual(open)
     await ui.unmount()
@@ -560,7 +630,7 @@ describe('the live pane', () => {
     const world = seat(on, { ...TREE, '/work/.ai/workflows/alpha-flow/.driver-journal.jsonl': '{not json\n' })
     await world.clock.set(NOW)
     await $.session.start(SESSION)
-    await run($, 'wf-live', 'alpha-flow')
+    await pressLive($, 'alpha-flow')
     const ui = await mountPane($, 'terminal')
     await ui.drawn()
     await ui.unmount()
@@ -586,7 +656,7 @@ describe('the live pane', () => {
     await world.clock.set(NOW)
     tree['/work/.ai/workflows/alpha-flow/.driver-journal.jsonl'] = yoloJournal(NOW)
     await $.session.start(SESSION)
-    await run($, 'wf-live', 'alpha-flow')
+    await pressLive($, 'alpha-flow')
     tree['/work/.ai/workflows/alpha-flow/.driver-journal.jsonl'] += `${JSON.stringify({ at: at(NOW + 1000), run: 'r1', seq: 6, event: 'agent-end', agent: 'verify:auth', stage: 'verify', slice: 'auth', status: 'hard-stop' })}\n`
     await world.clock.advance(3_000)
     const stops = world.toasts.filter(toast => toast.text.includes('stopped'))
@@ -607,19 +677,17 @@ describe('the existing parts in each style', () => {
 
   test('the picker rows and controls keep their words in every style (T15)', async () => {
     for (const style of VIEW_STYLES) {
-      expect(pickerRowLabel(style, 'alpha-flow  active', null)).toContain('alpha-flow')
+      expect(pickerRowLabel(style, 'alpha-flow  active', null).toLowerCase()).toContain('alpha-flow')
       expect(pickerControlLabel(style, 'back')).toMatch(/back/iu)
     }
   })
 
-  test('the strip row count matches the drawn rows at 40, 80 and 120 columns (T16)', async () => {
+  test('the strip is one row from its width, two below it, in every style (T16)', async () => {
     for (const style of VIEW_STYLES) {
-      for (const columns of [40, 80, 120]) {
-        const rows = styledStripRows(style, PARTS, null, 0, columns)
-        const pieces = stripPieces(style, PARTS)
-        const width = [pieces.mark, pieces.main, pieces.tail].filter(Boolean).join(' ').length
-        expect(rows).toBeGreaterThanOrEqual(Math.max(1, Math.ceil(width / columns)))
-      }
+      expect(styledStripRows(style, PARTS, '$0.42', 2, 120)).toBe(1)
+      expect(styledStripRows(style, PARTS, '$0.42', 2, STRIP_ONE_ROW_COLUMNS)).toBe(1)
+      expect(styledStripRows(style, PARTS, '$0.42', 2, STRIP_ONE_ROW_COLUMNS - 1)).toBe(2)
+      expect(styledStripRows(style, PARTS, '$0.42', 2, 40)).toBe(2)
     }
   })
 
@@ -628,7 +696,7 @@ describe('the existing parts in each style', () => {
       const tree: Record<string, string> = { ...TREE, '/home/.sdlc/hub-config.json': '{"version":1,"host":"127.0.0.1","port":48173}' }
       seat(on, tree)
       await $.session.start(SESSION)
-      await run($, 'wf-dashboard')
+      await pressBand($, DASHBOARD_KEY)
       for (const surface of SURFACES) {
         const band = await $.ui.mount({ plugin: PLUGIN_NAME, surface, component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 12, bodyColumns: 120, scroll: { offset: 0, bodyRows: 11 }, view: {} }, viewport: { columns: 120, rows: 40 } })
         await band.drawn()
@@ -648,10 +716,54 @@ describe('the existing parts in each style', () => {
   test('a reload keeps an open picker step, its page and its filter (T13)', async ($, on) => {
     seat(on, { ...TREE })
     await $.session.start(SESSION)
-    await run($, 'wf-plan')
+    await run($, 'wf', 'plan')
     const BAND: RenderInput<'AbovePrompt'> = { component: 'AbovePrompt', surface: 'terminal', requestId: 'band', viewport: { columns: 120, rows: 40 }, props: { hasSurvey: false, isWorking: false, maxRows: 12, bodyColumns: 120, scroll: { offset: 0, bodyRows: 11 }, view: {} } }
     const before = textOf(await $.ui.render(BAND))
     await $.session.start(SESSION)
     expect(textOf(await $.ui.render(BAND))).toBe(before)
+  })
+})
+
+describe('the design: contrast and layout of the live views (MOD-DESIGN)', () => {
+  test('every colour of every light palette reads at 4.5:1 on its ground', async () => {
+    const faults: string[] = []
+    for (const { name, palette } of ALL_PALETTES) {
+      const ground = palette.ground ?? APP_GROUND
+      for (const [tone, colour] of Object.entries({ text: palette.text, ...palette.tones })) {
+        if (colour !== undefined && contrastOf(colour, ground) < MIN_CONTRAST) faults.push(`${name} ${tone} ${colour} on ${ground}`)
+      }
+    }
+    expect(faults).toEqual([])
+  })
+
+  for (const style of VIEW_STYLES) {
+    test(`style ${style}: every word of the live card and the live pane reads on the Desktop app`, { options: { viewStyle: style } }, async ($, on) => {
+      await openLive($, on)
+      const faults: string[] = []
+      const band = await $.ui.mount({ plugin: PLUGIN_NAME, surface: 'desktop', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 12, bodyColumns: 120, scroll: { offset: 0, bodyRows: 11 }, view: {} }, viewport: { columns: 120, rows: 40 } })
+      const card = await band.drawn()
+      faults.push(...contrastFaults(card).map(fault => `card: ${fault}`))
+      await band.unmount()
+      const pane = await mountPane($, 'desktop')
+      const drawn = await pane.drawn()
+      faults.push(...contrastFaults(drawn).map(fault => `pane: ${fault}`))
+      await pane.unmount()
+      expect(textOf(card).toLowerCase()).toContain('alpha-flow')
+      expect(textOf(drawn).toLowerCase()).toContain('alpha-flow')
+      expect(faults).toEqual([])
+    })
+  }
+
+  test('the live pane names the stages when it is wide, and only then', async ($, on) => {
+    await openLive($, on)
+    const textAt = async (columns: number) => {
+      const ui = await $.ui.mount({ plugin: PLUGIN_NAME, surface: 'desktop', component: 'Pane', requestId: 'wf-live', props: { ...PANE_PROPS, bodyColumns: columns }, viewport: { columns: 160, rows: 50 } })
+      const text = textOf(await ui.drawn())
+      await ui.unmount()
+      return text
+    }
+    expect(await textAt(PANE_WIDE_COLUMNS)).toContain('implement')
+    expect(await textAt(PANE_WIDE_COLUMNS)).toContain('verify')
+    expect(await textAt(PANE_WIDE_COLUMNS - 40)).not.toMatch(/\bimplement\b.*\bverify\b.*\breview\b/u)
   })
 })

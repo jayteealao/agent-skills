@@ -8,7 +8,7 @@ import type { ElementTable, RenderElement } from 'claude-code'
 
 import type { SdlcLiveBand, SdlcNeed, SdlcStageMark } from '../../../types'
 import type { ViewFacts } from './facts.ts'
-import { inkOf } from './tokens.ts'
+import { chipView, controlLabel, markView, say } from './skin.tsx'
 import type { Palette, Tone, ViewStyle } from './tokens.ts'
 
 type Terminal = ElementTable<'terminal'>
@@ -126,19 +126,27 @@ export function paneButtons(ui: StyleUi, view: PaneView, act: LiveActions, label
 }
 
 /**
- * The band's live line (K3): the focus and up to two primary actions, hotkeys
- * `1` and `2`. One layout in every style; the style gives only the colours.
+ * The band's live line (K3), one row: the state mark, the driver's label, the
+ * workflow, what runs (the part that shrinks), then pinned right up to two
+ * actions on hotkeys `1` and `2`. One layout in every style; the style gives
+ * the colours, the marks and the case.
  */
-export function liveBandView(ui: Pick<Terminal, 'Box' | 'Text' | 'Button'>, band: SdlcLiveBand, palette: Palette, open: () => void, press: (key: string) => void): RenderElement {
+export function liveBandView(ui: Pick<Terminal, 'Box' | 'Text' | 'Button'>, band: SdlcLiveBand, palette: Palette, open: () => void, press: (key: string) => void, style: ViewStyle = 'dashboard'): RenderElement {
   const { Box, Text, Button } = ui
+  const title = `${band.kind} · ${band.slug} · `
+  const focus = band.focus.startsWith(title) ? band.focus.slice(title.length) : band.focus
   return (
     <Box flexDirection="row" gap={1} paddingX={1}>
-      <Text color={palette.tones[band.tone]}>{band.tone === 'stop' ? '■' : band.tone === 'attention' || band.tone === 'intent' ? '◆' : '●'}</Text>
-      <Text wrap="truncate-end" {...inkOf(palette)}>{band.focus}</Text>
+      {markView(ui, style, palette, band.tone)}
+      {chipView(ui, style, palette, band.tone === 'quiet' || band.tone === 'plain' ? 'run' : band.tone, band.kind)}
+      <Text bold>{say(style, band.slug)}</Text>
+      <Box flexGrow={1} flexShrink={1}>
+        <Text wrap="truncate-end">{say(style, focus)}</Text>
+      </Box>
       {band.actions.map((action, index) => (
-        <Button key={LIVE_KEYS.band(action.key)} hotkey={action.hotkey} label={action.label} {...(index === 0 ? { variant: 'primary' as const } : { dimColor: true })} onPress={() => press(action.key)} />
+        <Button key={LIVE_KEYS.band(action.key)} hotkey={action.hotkey} label={controlLabel(style, action.label)} {...(index === 0 ? { variant: 'primary' as const } : { dimColor: true })} onPress={() => press(action.key)} />
       ))}
-      {band.isPaneSeated ? null : <Button key={LIVE_KEYS.open} label="live view" dimColor onPress={() => open()} />}
+      {band.isPaneSeated ? null : <Button key={LIVE_KEYS.open} label={controlLabel(style, 'live view')} dimColor onPress={() => open()} />}
     </Box>
   )
 }

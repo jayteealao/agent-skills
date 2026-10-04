@@ -369,6 +369,14 @@ export function costTextOf(stageUsd: number | null, ledgerTokens: number | null)
   return parts.length === 0 ? null : parts.join(' · ')
 }
 
+/** The strip's cost, short enough to pin right: the last stage in dollars, the workflow in tokens. */
+export function costShortOf(stageUsd: number | null, ledgerTokens: number | null): string | null {
+  const parts: string[] = []
+  if (stageUsd !== null) parts.push(`$${stageUsd.toFixed(2)}`)
+  if (ledgerTokens !== null) parts.push(`${tokensText(ledgerTokens)} tok`)
+  return parts.length === 0 ? null : parts.join(' · ')
+}
+
 /** One heartbeat line of `.driver-journal.jsonl`. */
 export type Beat = { at: number; run: string; event: string; agent: string | null; phase: string | null; stage: string | null; slice: string | null; status: string | null }
 

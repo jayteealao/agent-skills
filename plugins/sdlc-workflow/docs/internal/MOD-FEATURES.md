@@ -45,9 +45,9 @@ nothing from `claude-code`; they take a `Reader` and return plain values.
 
 ### 3.1 The `/wf` picker (v9.155.0 → v9.156.2)
 
-What the person sees: typing `/wf` lists 22 commands `wf-<key>` in the
-native typeahead, each with its description and argument hint. Running a
-bare `/wf`, a `/wf <key>` that still needs a slug, or any `/wf-<key>` draws a
+What the person sees (since 9.180.5 the mod registers no `/wf-<key>`
+command: `/wf` is the one way in, and typing it turns the strip into the
+picker): running a bare `/wf` or a `/wf <key>` that still needs a slug draws a
 numbered list in the band above the prompt: the keys, then the workflows
 under `.ai/workflows` (active first, closed marked), then the slices of the
 picked workflow (roster status and furthest stage file). The last pick
@@ -82,8 +82,9 @@ from the prompt.
 Under the picker (or alone) one row, wrapped to the band's width: `wf
 alpha-flow · implement · slice auth (2 of 5 complete) · next: /wf verify
 alpha-flow auth`, with a `⇄ N more` button that walks the other workflows,
-active ones first by slug and closed ones after (`/wf-active [slug]` does
-the same from the prompt). The
+active ones first by slug and closed ones after (since 9.180.5 the strip
+also carries a `live` button and a `dashboard` button, and `/wf-active` is
+gone: a `/wf` command that names a workflow puts it on the strip). The
 pinned status line (`$.ui.status`) carries what the strip does not: `next
 /wf verify alpha-flow auth · $0.42 stage · hub 9.157.0`, so it stays useful
 while the plugin panel is hidden (`ctrl+x ctrl+a`). `wf:<stage>` joins the
@@ -189,7 +190,9 @@ first `InfoNotice` the engine draws gains one dim line: `sdlc hub 9.157.0 ·
 text and command stay. A change between up and down is one toast each way.
 Without a hub config there is no line.
 
-### 3.10 The dashboard pane (`/wf-dashboard`)
+### 3.10 The dashboard pane (the strip's `dashboard` button)
+
+Since 9.180.5 the strip's `dashboard` button opens the pane; the `/wf-dashboard` command is gone.
 
 `$.ui.open({ id: 'wf-dashboard', title: 'sdlc workflows' })` opens a pane
 (docked beside the transcript in fullscreen, above the prompt otherwise;
@@ -256,8 +259,8 @@ What gates now, and where:
 - `model.surface` carries the session's own surface, and `isTerminal()` gates
   the calls that are not renders: the pinned status line, the picker's steps
   (a band that cannot draw must not report itself open, so the command runs as
-  typed or goes into the prompt box), the hub watch, and `/wf-dashboard`
-  (which answers `DASHBOARD_TERMINAL_TEXT` elsewhere).
+  typed or goes into the prompt box), and the hub watch. The dashboard opens
+  only from the strip, which draws only where the session draws.
 - `session.attach` records a client that joins later and redraws;
   `surfaceAfterAttach` keeps a surface the session already had.
 - Everything that never draws — the stage check, the post-stage compaction,

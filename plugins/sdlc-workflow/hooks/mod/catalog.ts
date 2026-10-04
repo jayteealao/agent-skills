@@ -1,8 +1,8 @@
 /**
- * The 24 `/wf` keys as the picker offers them: the command each key gets in
- * the typeahead (`/wf-<key>`), the one-line description the typeahead shows,
- * the dim argument hint, and what the picker has to ask for before the
- * command is complete.
+ * The 24 `/wf` keys as the picker offers them: the one-line description each
+ * row shows, the dim argument hint, and what the picker has to ask for before
+ * the command is complete. The mod registers no `/wf-<key>` command: `/wf`
+ * is the one way in.
  *
  * `need` says which picker steps a key runs through:
  * - `none`: nothing to pick; the prompt is filled with `/wf <key> ` at once.
@@ -52,18 +52,6 @@ export const CATALOG: readonly CatalogEntry[] = [
   { key: 'observability', description: 'Route observability operations.', argumentHint: '<init|build|audit> [args]', need: 'none' },
 ]
 
-/** The command name a key is registered under: `wf-<key>`. */
-export function commandNameOf(key: string): string {
-  return `wf-${key}`
-}
-
-/** The key a registered command name stands for, or null for another name. */
-export function keyOfCommand(command: string): string | null {
-  const bare = command.includes(':') ? command.slice(command.lastIndexOf(':') + 1) : command
-  if (!bare.startsWith('wf-')) return null
-  const key = bare.slice(3)
-  return CATALOG.some(entry => entry.key === key) ? key : null
-}
 
 export function entryOf(key: string): CatalogEntry | null {
   return CATALOG.find(entry => entry.key === key) ?? null

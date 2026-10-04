@@ -1,10 +1,9 @@
 /**
  * The `/wf` picker as a Claude Code mod.
  *
- * Two rungs. At `session.start` the mod registers one command per key,
- * `/wf-<key>`, so the native typeahead lists every key with its description
- * when the person types `/wf`. At `command.run` of a bare `/wf`, of a
- * `/wf <key>` that still needs a slug, or of any `/wf-<key>`, the mod draws a
+ * The mod registers no command of its own: `/wf` is the one way in. Typing
+ * `/wf` turns the strip into the picker, and at `command.run` of a bare `/wf`
+ * or of a `/wf <key>` that still needs a slug, the mod draws a
  * numbered list above the prompt: the keys, then the workflows under
  * `.ai/workflows` (active first, closed marked), then the slices of the picked
  * workflow (roster status and the furthest stage file present). A digit picks
@@ -25,7 +24,8 @@
  * when a stage turn ends without its artifact; the question count in the
  * AskUserQuestion dialog during intake and shape; the driver's heartbeat in
  * the status line during auto and yolo; the spinner's verb from the stage;
- * the hub's health under the logo; and a `/wf-dashboard` pane. Each has a
+ * the hub's health under the logo; and a dashboard pane, which the strip's
+ * `dashboard` button opens (the `live` button opens the live view). Each has a
  * switch in the plugin's settings.
  *
  * After a stage turn lands its artifact (POST-STAGE-COMPACT-PLAN.md), the mod
@@ -61,7 +61,7 @@ import {
   compactInstructionsOf,
   compactKeepSentenceOf,
   compactToastOf,
-  costTextOf,
+  costShortOf,
   driverStatusOf,
   expectedArtifactOf,
   hubHealthOf,
@@ -85,10 +85,8 @@ import {
 } from './active.ts'
 import type { HubHealth, Settings, WfCommand } from './active.ts'
 
-import { CATALOG, commandNameOf, keyOfCommand } from './catalog.ts'
 import {
   CLOSED_TEXT,
-  DASHBOARD_TERMINAL_TEXT,
   DISPATCHER_COMMANDS,
   FILL_REFUSED_TEXT,
   SUBMIT_TEXT,
@@ -96,14 +94,14 @@ import {
   NO_WORKFLOWS_TEXT,
   OPENED_TEXT,
   PLUGIN_NAME,
+  ROTATE_KEY,
   RUN_TEXT,
-  registerFailedTextOf,
 } from './names.ts'
 import { afterFillOf, backOf, draftStepOf, fillOf, filterOptions, isSameStep, filterTextOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from './picker.ts'
 import type { Option, Step } from './picker.ts'
-import { ROTATE_KEY } from './strip.tsx'
-import type { StripParts } from './styles/existing.tsx'
-import { noticeStyledView, pickerRowLabel, stripStyledView, styledStripRows, workflowsStyledView } from './styles/existing.tsx'
+import type { StripActions, StripParts } from './styles/existing.tsx'
+import { noticeStyledView, pickerRowLabel, slicesDoneOf, stageWordOf, stripStyledView, styledStripRows, workflowTone, workflowsStyledView } from './styles/existing.tsx'
+import { chipView, inked, markView } from './styles/skin.tsx'
 import { liveBandView } from './styles/kit.tsx'
 import { cardRowsOf, isDarkThemeOf, paletteOf, viewStyleOf } from './styles/tokens.ts'
 import { PUSH_TOAST_MS, registerLive } from './live/register.ts'
@@ -192,7 +190,6 @@ type Host = {
   focus: (requestId: string, key: string) => Promise<{ deny?: string }>
   /** Runs `fn` once the current dispatch is over. */
   later: (fn: () => void) => void
-  registerCommand: (spec: { name: string; description: string; argumentHint?: string }) => Promise<unknown>
   /** A file's modification time in ms, or null when it is absent. */
   mtime: (path: string) => Promise<number | null>
   /** A toast; a push-class one passes `timeoutMs` (F8). */
@@ -298,9 +295,9 @@ const EMPTY: Model = {
   interactive: false,
 }
 
-const DASHBOARD_COMMAND = 'wf-dashboard'
-const ACTIVE_COMMAND = 'wf-active'
 const DASHBOARD_PANE = 'wf-dashboard'
+/** How long the strip trusts what it read about a workflow's run before it reads again. */
+const RUN_SEEN_MS = 10_000
 const DOCTOR_COMMAND = '/wf-doctor'
 const QUESTION_FLOOR = 20
 /** The intake mode whose question batches carry no floor annotation. */
@@ -321,7 +318,6 @@ const LAST_RUN_WINDOW_MS = 10_000
 /** The store key of the active workflow, per repository root. */
 const activeStoreKeyOf = (root: string) => `active:${root}`
 /** Every command the module registers: one per key, plus the dashboard and the active-workflow commands. */
-const COMMAND_TOTAL = CATALOG.length + 2
 /** Keys whose turn is not a stage: no "this stage" cost. */
 const READ_ONLY_KEYS: ReadonlySet<string> = new Set(['status', 'recap'])
 
@@ -418,7 +414,9 @@ export function register(on: On, options: PluginOptions = {}) {
   /** The live module's side of the shared sites (K1, K3): it fills `press` and `open`, and calls `onStatus`. */
   const live: LiveLink = {
     press: () => undefined,
-    open: () => undefined,
+    open: async () => undefined,
+    follow: async () => undefined,
+    kindOf: async () => null,
     measure: () => undefined,
     note: (ok, detail) => void journal?.write({ event: 'draw', ok, detail }),
     onStatus: text => {
@@ -459,7 +457,7 @@ export function register(on: On, options: PluginOptions = {}) {
     return requiresOverride ?? REQUIRES
   }
 
-  const commandNames: string[] = [...DISPATCHER_COMMANDS, ...CATALOG.map(entry => commandNameOf(entry.key))]
+  const commandNames: readonly string[] = DISPATCHER_COMMANDS
 
   /** True where the band, the pinned line, and the panes draw: the Desktop app and the terminal. */
   function drawsHere(): boolean {
@@ -473,19 +471,6 @@ export function register(on: On, options: PluginOptions = {}) {
    * `prompt.fill` — and the `load` and `turn` rows carry the rest.
    */
 
-  async function registerCommands(engine: Host): Promise<number> {
-    let registered = 0
-    for (const entry of CATALOG) {
-      const name = commandNameOf(entry.key)
-      try {
-        await engine.registerCommand({ name, description: entry.description, argumentHint: entry.argumentHint })
-        registered += 1
-      } catch (error) {
-        engine.log(registerFailedTextOf(name, messageOf(error)))
-      }
-    }
-    return registered
-  }
 
   /**
    * Opens this session's probe journal, or leaves it closed when the switch is
@@ -601,7 +586,18 @@ export function register(on: On, options: PluginOptions = {}) {
     publish(engine)
   }
 
-  type StyledStrip = { parts: StripParts; detail: string | null; others: number; columns: number }
+  type StyledStrip = { parts: StripParts; detail: string | null; others: number; columns: number; hasRun: boolean }
+
+  /** Whether each workflow has a yolo, campaign or brainstorm run on disk, read again after 10 seconds. */
+  const runSeen = new Map<string, { hasRun: boolean; at: number }>()
+  async function hasRunOf(engine: Host, slug: string): Promise<boolean> {
+    const now = await engine.now()
+    const seen = runSeen.get(slug)
+    if (seen !== undefined && now - seen.at < RUN_SEEN_MS) return seen.hasRun
+    const hasRun = (await live.kindOf(slug)) !== null
+    runSeen.set(slug, { hasRun, at: now })
+    return hasRun
+  }
 
   /** The strip's rows for the active workflow, or null when nothing is active. */
   async function stripOf(engine: Host, columns: number): Promise<StyledStrip | null> {
@@ -614,9 +610,9 @@ export function register(on: On, options: PluginOptions = {}) {
       const ledger = await readIfPresent(engine, joinPath(model.root, '.ai', 'workflows', workflow.slug, 'cost.jsonl'))
       tokens = ledger === null ? null : ledgerTokensOf(ledger)
     }
-    const detail = costTextOf(settings.cost ? model.lastStageUsd : null, tokens)
+    const detail = costShortOf(settings.cost ? model.lastStageUsd : null, tokens)
     const others = model.workflows.length - 1
-    return { parts: { workflow, slices, text: stripTextOf(workflow, slices) }, detail, others, columns }
+    return { parts: { workflow, slices, text: stripTextOf(workflow, slices) }, detail, others, columns, hasRun: await hasRunOf(engine, workflow.slug) }
   }
 
   /** A file's text, or null when it is absent; an absent file is no error to log. */
@@ -629,7 +625,7 @@ export function register(on: On, options: PluginOptions = {}) {
     }
   }
 
-  /** The rotate button and `/wf-active`: the next workflow in the ring (active first, then closed), or the named one. */
+  /** The rotate button: the next workflow in the ring (active first, then closed), or the named one. */
   async function rotateActive(engine: Host, slug: string | null): Promise<void> {
     const target = slug ?? nextActiveSlug(model.workflows, model.active)
     if (target === null || !model.workflows.some(w => w.slug === target)) return
@@ -867,7 +863,6 @@ export function register(on: On, options: PluginOptions = {}) {
       later: fn => {
         $.clock.after(0, fn)
       },
-      registerCommand: spec => $.command.register(spec),
       mtime: async path => {
         try {
           if (!(await $.fs.exists(path))) return null
@@ -959,19 +954,6 @@ export function register(on: On, options: PluginOptions = {}) {
     hubTimer = null
     try {
       journal = await openJournal(engine, e.surface, e.isInteractive)
-      let registered = await registerCommands(engine)
-      try {
-        await engine.registerCommand({ name: DASHBOARD_COMMAND, description: 'Open the sdlc workflows dashboard pane.' })
-        registered += 1
-      } catch (error) {
-        engine.log(registerFailedTextOf(DASHBOARD_COMMAND, messageOf(error)))
-      }
-      try {
-        await engine.registerCommand({ name: ACTIVE_COMMAND, description: 'Show the named workflow in the strip, or the next active one.', argumentHint: '[slug]' })
-        registered += 1
-      } catch (error) {
-        engine.log(registerFailedTextOf(ACTIVE_COMMAND, messageOf(error)))
-      }
       host = engine
       // The Desktop app starts the engine through the SDK: no surface at start. A Desktop
       // client already attached says where the session draws.
@@ -986,7 +968,6 @@ export function register(on: On, options: PluginOptions = {}) {
       await refreshActive(engine)
       if (settings.hubNotice && drawsHere()) await watchHub(engine)
       void journal?.write({ event: 'load', ok: true, detail: `surfaces ${surfaces.join(',') || 'none'} · root ${model.root ?? 'none'} · workflows ${model.workflows.length}` })
-      void journal?.write({ event: 'commands', ok: registered === COMMAND_TOTAL, detail: `${registered}/${COMMAND_TOTAL}` })
     } catch (error) {
       engine.log(messageOf(error))
       void journal?.write({ event: 'load', ok: false, detail: messageOf(error) })
@@ -1079,33 +1060,25 @@ export function register(on: On, options: PluginOptions = {}) {
     return result
   })
 
+  /** The strip's `dashboard` button: every workflow's rows read, then the pane opened. */
+  async function openDashboard(engine: Host): Promise<void> {
+    if (model.step !== null) close(engine)
+    await refreshActive(engine)
+    for (const workflow of model.workflows) if (!workflow.terminal) await readSlices(engine, workflow.slug)
+    model = { ...model, isDashboardOpen: true }
+    await engine.openPane(DASHBOARD_PANE, 'sdlc workflows')
+  }
+
   on('command.run', async ($, e, next) => {
     const engine = host
     if (!engine) return next(e)
-    if (e.command === DASHBOARD_COMMAND || e.command === `${PLUGIN_NAME}:${DASHBOARD_COMMAND}`) {
-      if (!drawsHere()) return { text: DASHBOARD_TERMINAL_TEXT }
-      if (model.step !== null) close(engine)
-      await refreshActive(engine)
-      for (const workflow of model.workflows) if (!workflow.terminal) await readSlices(engine, workflow.slug)
-      model = { ...model, isDashboardOpen: true }
-      await engine.openPane(DASHBOARD_PANE, 'sdlc workflows')
-      return { text: 'The workflows dashboard is open.' }
-    }
-    if (e.command === ACTIVE_COMMAND || e.command === `${PLUGIN_NAME}:${ACTIVE_COMMAND}`) {
-      await readWorkflows(engine, true)
-      const slug = e.args.trim() === '' ? null : e.args.trim()
-      if (slug !== null && !model.workflows.some(w => w.slug === slug)) return { text: `No workflow named ${slug} under .ai/workflows.` }
-      await rotateActive(engine, slug)
-      return { text: model.active === null ? 'No active workflow.' : `The strip shows ${model.active}.` }
-    }
     const isOwn = commandNames.includes(e.command)
     if (!isOwn) {
       // Another command while the band is up closes it.
       if (model.step !== null) close(engine)
       return next(e)
     }
-    const key = keyOfCommand(e.command)
-    const typedLine = `/wf ${key === null ? '' : `${key} `}${e.args}`
+    const typedLine = `/wf ${e.args}`
     const named = wfCommandOf(typedLine)
     if (named?.slug) setActive(engine, named.slug)
     const isIssued = issued !== null && issued === commandKeyOf(typedLine)
@@ -1114,17 +1087,13 @@ export function register(on: On, options: PluginOptions = {}) {
     // The band draws on the Desktop app and the terminal, so where neither draws a step
     // that cannot be shown is not opened: the command runs as typed, or goes into the prompt box.
     // A command the picker itself issued is complete: it runs as typed.
-    const step = drawsHere() && !isIssued ? stepFor(key, e.args) : null
+    const step = drawsHere() && !isIssued ? stepFor(null, e.args) : null
     if (step === null) {
-      // The arguments are complete. A `/wf-<key>` run becomes the dispatcher's
-      // command in the prompt box; the bare `/wf` runs as typed. A band still
-      // up from an earlier pick closes either way.
+      // The arguments are complete: the command runs as typed. A band still
+      // up from an earlier pick closes.
       if (model.step !== null) close(engine)
-      if (key === null) {
-        if (named !== null) lastRun = { command: named, at: await engine.now() }
-        return next(e)
-      }
-      return { text: await fill(engine, `/wf ${key} ${e.args.trim()}`.trimEnd()) }
+      if (named !== null) lastRun = { command: named, at: await engine.now() }
+      return next(e)
     }
     await readWorkflows(engine, true)
     if (step.kind === 'slice') {
@@ -1133,8 +1102,7 @@ export function register(on: On, options: PluginOptions = {}) {
       const slices = await readSlices(engine, step.slug)
       if (slices.length === 0) {
         if (model.step !== null) close(engine)
-        if (key === null) return next(e)
-        return { text: await fill(engine, `/wf ${key} ${step.slug}`) }
+        return next(e)
       }
     }
     pickerTiming = { at: askedAt, readMs: (await engine.now()) - askedAt, kind: step.kind }
@@ -1151,12 +1119,28 @@ export function register(on: On, options: PluginOptions = {}) {
     await read($, pickerAtom)
     await read($, workflowsAtom)
     const liveBand = await read($, liveBandAtom)
-    const { Box, Text, Button, Input } = $.ui.resolve(e)
     const palette = paletteOf(viewStyle, e.surface, isDarkTheme)
+    const { Box, Text, Button, Input } = inked($.ui.resolve(e), palette)
     const strip = await stripOf(engine, e.props.bodyColumns)
-    const stripTree = strip === null ? null : stripStyledView({ Box, Text, Button }, viewStyle, palette, strip.parts, strip.detail, strip.others, ROTATE_KEY, () => {
-      pending = rotateActive(engine, null).catch(error => engine.log(messageOf(error)))
-    })
+    // The strip's buttons open the mod's own views: the live view of its workflow
+    // (unless the live line already shows that run), the dashboard, the next workflow.
+    const stripSlug = strip?.parts.workflow.slug ?? null
+    const stripActions: StripActions = {
+      others: strip?.others ?? 0,
+      rotate: () => {
+        pending = rotateActive(engine, null).catch(error => engine.log(messageOf(error)))
+      },
+      dashboard: () => {
+        pending = openDashboard(engine).catch(error => engine.log(messageOf(error)))
+      },
+      live:
+        strip === null || stripSlug === null || !strip.hasRun || liveBand?.slug === stripSlug
+          ? null
+          : () => {
+              pending = live.follow(stripSlug)
+            },
+    }
+    const stripTree = strip === null ? null : stripStyledView({ Box, Text, Button }, viewStyle, palette, strip.parts, strip.detail, stripActions, strip.columns)
     // The style's card frames the band's own parts; its border takes rows from the page.
     const stripHeight = (strip === null ? 0 : styledStripRows(viewStyle, strip.parts, strip.detail, strip.others, strip.columns)) + cardRowsOf(palette)
     if (step === null) {
@@ -1166,7 +1150,10 @@ export function register(on: On, options: PluginOptions = {}) {
         void engine.readBox().then(box => notePrompt(`read · ${e.surface} · ${box.text === '' ? 'empty' : 'draft'}`), error => journal?.callFailed('read', messageOf(error)))
       }
       // K3: with no pick open, the band draws the live line (focus, actions on 1 and 2), then the strip.
-      const liveLine = liveBand === null ? null : liveBandView({ Box, Text, Button }, liveBand, palette, () => live.open(), key => live.press(key))
+      const openLive = () => {
+        pending = live.open()
+      }
+      const liveLine = liveBand === null ? null : liveBandView({ Box, Text, Button }, liveBand, palette, openLive, key => live.press(key), viewStyle)
       const parts = [liveLine, stripTree].filter((part): part is RenderElement => part !== null)
       if (parts.length === 0) return below
       return stack(Box, below, bandCard(Box, palette, parts))
@@ -1189,9 +1176,22 @@ export function register(on: On, options: PluginOptions = {}) {
       pending = advance(engine, value).catch(error => engine.log(messageOf(error)))
     }
     const labelOf = (option: Option) => pickerRowLabel(viewStyle, option.label, step.kind === 'slug' ? (model.workflows.find(workflow => workflow.slug === option.value) ?? null) : null)
+    // A workflow row: its state mark, its stage label, and its slices done (MOD-DESIGN 3.3).
+    const rowOf = (option: Option) => {
+      if (step.kind !== 'slug') return {}
+      const workflow = model.workflows.find(entry => entry.slug === option.value)
+      if (workflow === undefined) return {}
+      const tone = workflowTone(workflow)
+      const roster = slicesDoneOf(model.slices.get(workflow.slug) ?? [])
+      return {
+        mark: markView({ Text }, viewStyle, palette, tone),
+        chip: chipView({ Text }, viewStyle, palette, tone, stageWordOf(workflow)),
+        note: roster.total === 0 ? '' : `${roster.done} of ${roster.total} slices`,
+      }
+    }
     const band = bandView(
       { Box, Text, Button, Input },
-      { title: titleOf(step), page, filter: model.filter, hasBack: backOf(step) !== null, style: viewStyle, palette, labelOf, isDraft: isDraftDriven, ...(note === undefined ? {} : { note }) },
+      { title: titleOf(step), page, filter: model.filter, hasBack: backOf(step) !== null, style: viewStyle, palette, labelOf, rowOf, isDraft: isDraftDriven, ...(note === undefined ? {} : { note }) },
       {
         pick: pickRow,
         filter: text => setFilter(engine, text),
@@ -1236,9 +1236,10 @@ export function register(on: On, options: PluginOptions = {}) {
     noticeRequestId ??= e.requestId
     if (e.requestId !== noticeRequestId) return next(e)
     await read($, hubAtom)
-    const { Box, Text } = $.ui.resolve(e)
+    const noticePalette = paletteOf(viewStyle, e.surface, isDarkTheme)
+    const { Box, Text } = inked($.ui.resolve(e), noticePalette)
     const engineText = e.props.command === null ? e.props.text : `${e.props.text} ${e.props.command}`
-    return noticeStyledView({ Box, Text }, viewStyle, paletteOf(viewStyle, e.surface, isDarkTheme), engineText, model.hub, hubNoticeTextOf(model.hub), DOCTOR_COMMAND)
+    return noticeStyledView({ Box, Text }, viewStyle, noticePalette, engineText, model.hub, hubNoticeTextOf(model.hub), DOCTOR_COMMAND)
   })
 
   on('ui.render', { component: 'AskUserQuestion' }, async ($, e, next) => {
@@ -1262,7 +1263,8 @@ export function register(on: On, options: PluginOptions = {}) {
     const dashboard = await read($, dashboardAtom)
     await read($, workflowsAtom)
     if (!engine || !(model.isDashboardOpen || dashboard.isOpen) || !DRAW_SURFACES.has(e.surface)) return next(e)
-    const { Box, Text, Button } = $.ui.resolve(e)
+    const dashboardPalette = paletteOf(viewStyle, e.surface, isDarkTheme)
+    const { Box, Text, Button } = inked($.ui.resolve(e), dashboardPalette)
     const findings = new Map<string, number>()
     let shipPlanBlockers: number | null = null
     if (model.root !== null) {
@@ -1277,7 +1279,7 @@ export function register(on: On, options: PluginOptions = {}) {
     return workflowsStyledView(
       { Box, Text, Button },
       viewStyle,
-      paletteOf(viewStyle, e.surface, isDarkTheme),
+      dashboardPalette,
       { workflows: model.workflows, slices: model.slices, findings, shipPlanBlockers, hub: model.hub, columns: e.props.bodyColumns, details: model.isDashboardDetailed },
       {
         status: slug => {

@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { CATALOG, commandNameOf, keyOfCommand } from '../../../hooks/mod/catalog.ts';
+import { CATALOG } from '../../../hooks/mod/catalog.ts';
 import { ALL, NONE, afterFillOf, backOf, draftStepOf, isSameStep, digitCommandOf, fillOf, filterOptions, filterTextOf, hotkeyOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from '../../../hooks/mod/picker.ts';
 import { findProjectRoot, frontmatterOf, joinPath, listSlices, listWorkflows, rosterOf } from '../../../hooks/mod/workflows.ts';
 import { PROBE_CAP, ProbeJournal, rowOf, rowsOf, sinceOf, surfaceAfterAttach, textOf, verdictOf } from '../../../hooks/mod/probe.ts';
@@ -29,14 +29,9 @@ const SLICES = [
   { slug: 'docs', status: 'defined', complexity: 'xs', stage: 'defined' },
 ];
 
-test('the catalog holds the 24 keys, each with a wf-<key> command name', () => {
+test('the catalog holds the 24 keys in lifecycle order', () => {
   assert.equal(CATALOG.length, 24);
   assert.deepEqual(CATALOG.slice(0, 11).map((e) => e.key), ['intake', 'shape', 'design', 'slice', 'plan', 'implement', 'verify', 'review', 'handoff', 'ship', 'retro']);
-  assert.equal(commandNameOf('plan'), 'wf-plan');
-  assert.equal(keyOfCommand('wf-plan'), 'plan');
-  assert.equal(keyOfCommand('sdlc-workflow:wf-plan'), 'plan');
-  assert.equal(keyOfCommand('wf'), null);
-  assert.equal(keyOfCommand('wf-nope'), null);
 });
 
 test('stepFor: a bare /wf opens the key step; a key without a slug opens the slug step', () => {

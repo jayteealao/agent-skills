@@ -163,16 +163,15 @@ hooks/mod/live/
   model/brainstorm.ts       facts → BrainstormModel  (pure)
   model/needs.ts            decisions, protected files, prepare, asked → NeedsItem[]  (pure)
   events.ts                 model diff → event list (stage-end, decision, …); shared with scripts/yolo-watch.mjs
-  styles/dashboard.tsx      (ui, model, view state) → tree   — style A
-  styles/instrument.tsx     (ui, model, view state) → tree   — style D
-  styles/grid.tsx           (ui, model, view state) → tree   — style E
+  styles/pane.tsx           (ui, facts, view state) → tree   — the one live pane of every style (since 9.180.5)
+  styles/skin.tsx           the ink layer and the style marks: words, chips, stage cells (since 9.180.5)
   styles/common.tsx         band, spinner word, status text, toast text (same facts in every style)
   glyphs.ts                 5×7 dot-matrix font, braille packing, tick-ring and wave geometry
   client/heartbeat.tsx      Client module: waveform / breathing dot on the frame clock
-  client/rail.tsx           Client module: stage rail with the moving runner
-  client/dots.tsx           Client module: dot-matrix numerals and tick ring that shimmer on change
   tests/*.test.ts           claude plugin test suites (section 9)
 ```
+
+In 9.180.5 one shared pane (`hooks/mod/styles/pane.tsx`) replaced the three per-style pane files and the `rail` and `dots` clients. The styles differ by palette, frame, marks and casing (`styles/tokens.ts`, `styles/skin.tsx`), not by layout. The style files live in `hooks/mod/styles/`, not in `hooks/mod/live/styles/`.
 
 - **M1.** The models are pure functions of the facts. This is the same split as the mockups' `sim.js` (state) and page (render). A style never reads a file. A model never draws.
 - **M2.** `events.ts` is shared with `scripts/yolo-watch.mjs` (commentary plan S1–S5). The script loads it with `node --experimental-strip-types`, as `scripts/mod-probe.mjs` already does. The watch and the view therefore name the same events with the same rules. Probe P7 checks that the mod can import a file that the script also imports.

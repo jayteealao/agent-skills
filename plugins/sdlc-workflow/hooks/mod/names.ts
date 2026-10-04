@@ -21,6 +21,10 @@ export const HINT_TEXT = 'digit picks · 0 or wheel pages · ctrl+x tab: type fi
 export const NO_MATCH_TEXT = '(nothing matches the filter)'
 export const NOTHING_TEXT = '(nothing to pick)'
 export const MORE_KEY = 'wf-more'
+/** The strip's buttons: the next workflow, the dashboard pane, the live view of the strip's workflow. */
+export const ROTATE_KEY = 'wf-strip-rotate'
+export const DASHBOARD_KEY = 'wf-strip-dashboard'
+export const LIVE_KEY = 'wf-strip-live'
 export const OPTION_KEY_PREFIX = 'wf-opt:'
 export const NO_ROOT_TEXT = 'No .ai/workflows directory at or above the working directory; type the command in full.'
 export const NO_WORKFLOWS_TEXT = 'No workflows under .ai/workflows yet; start one with /wf intake <description>.'
@@ -30,8 +34,3 @@ export const RUN_TEXT = 'Press Enter to run'
 export const FILL_REFUSED_TEXT = 'The prompt box is not free; type the command in full: '
 /** Where the surface draws its own prompt box (the Desktop app), the command is sent as the person's prompt. */
 export const SUBMIT_TEXT = 'Running'
-export const DASHBOARD_TERMINAL_TEXT = 'The workflows dashboard draws in the Desktop app and the terminal; this session draws in neither.'
-
-export function registerFailedTextOf(command: string, reason: string): string {
-  return `sdlc-workflow: could not register /${command}: ${reason}`
-}
