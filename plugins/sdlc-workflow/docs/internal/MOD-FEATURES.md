@@ -22,6 +22,10 @@ The pi port plans against this file: [PI-EXTENSION-PLAN.md](PI-EXTENSION-PLAN.md
 - Each feature except the picker has a boolean switch in the manifest's
   `userConfig` (`.claude-plugin/plugin.json`), shown under `sdlc-workflow` in
   `/config` and read live at `config.set`.
+- Since 9.180.8 the `mod` switch turns off the whole module. A change to an
+  option reloads the module (the reload cancels its timers and drops its
+  panes); with `mod: false`, `register` hooks one `session.start` that clears
+  the status line, and nothing else.
 
 ## 2. The files
 

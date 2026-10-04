@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **One switch turns off the whole /wf mod.** The new `mod` option, first in `/config` under `sdlc-workflow`, turns off the picker, the strip, the live views, the status line, the read check, the usage guard and every other part of the mod at once. With `mod` off, `/wf`, its skills and the plugin's other hooks work as before, and the other mods of your plugins keep running. The option is on by default.
+
 ## [9.180.7] - 2026-10-04
 
 ### Fixed

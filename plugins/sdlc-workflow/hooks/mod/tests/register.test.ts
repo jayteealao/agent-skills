@@ -1173,6 +1173,29 @@ describe('register', () => {
     })
   }
 
+  test('the mod switch off: the module draws nothing, clears its status line, and every /wf runs as typed', { options: { mod: false } }, async ($, on) => {
+    const world = seat(on, { ...TREE, ...HUB_CONFIG })
+    let ran = 0
+    on('command.run', () => {
+      ran += 1
+      return { text: 'passed on' }
+    })
+    await $.session.start(SESSION)
+    expect(world.statuses).toEqual([undefined])
+    expect(await run($, 'wf')).toEqual({ text: 'passed on' })
+    expect(await run($, 'wf', 'plan')).toEqual({ text: 'passed on' })
+    expect(ran).toBe(2)
+    const band = textOf(await $.ui.render(BAND))
+    expect(band).not.toContain('pick a')
+    expect(band).not.toContain('alpha-flow')
+    expect(textOf(await $.ui.render(NOTICE))).not.toContain('sdlc hub')
+    world.clock.advance(120_000)
+    await settle()
+    expect(world.statuses).toEqual([undefined])
+    expect(world.toasts).toEqual([])
+    expect(probeRows(world)).toEqual([])
+  })
+
   test('the hub line draws under the logo, and a state change is one toast', async ($, on) => {
     const world = seat(on, { ...TREE, ...HUB_CONFIG })
     const clock = world.clock

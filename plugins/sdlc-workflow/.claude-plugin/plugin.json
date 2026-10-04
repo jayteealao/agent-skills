@@ -28,6 +28,12 @@
   ],
   "types": "./types/index.d.ts",
   "userConfig": {
+    "mod": {
+      "type": "boolean",
+      "title": "sdlc mod",
+      "description": "The one switch for the whole /wf mod: the picker, the strip, the live views, the status line, the read check, the usage guard and every other option below. Off, the mod draws and checks nothing; /wf, its skills and the plugin's hooks work as before.",
+      "default": true
+    },
     "strip": {
       "type": "boolean",
       "title": "Workflow strip",

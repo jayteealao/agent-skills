@@ -42,7 +42,7 @@ or inside a dispatched read-only sub-agent.</p>
 </table>
 
 <h2 id="wf-picker">wf-picker (a mod)</h2>
-<p>Beside the picker, the same module keeps eight session aids, each with a switch under <code>sdlc-workflow</code> in the engine's <code>/config</code> panel (the plugin manifest's <code>userConfig</code>; all on by default). None of them starts a model turn, and Codex never loads the module.</p>
+<p>Beside the picker, the same module keeps a set of session aids, each with a switch under <code>sdlc-workflow</code> in the engine's <code>/config</code> panel (the plugin manifest's <code>userConfig</code>; all on by default except <code>liveViewDetails</code>). One more switch, <code>mod</code>, turns off the whole module at once: the picker, every aid, the live views, the read check and the usage guard. With <code>mod</code> off, <code>/wf</code>, its skills and the plugin's other hooks work as before. To set it by hand, write <code>"mod": false</code> under <code>pluginConfigs</code> → <code>sdlc-workflow@agent-skills-marketplace</code> → <code>options</code> in <code>~/.claude/settings.json</code>. Codex never loads the module.</p>
 <table>
 <thead><tr><th>Setting</th><th>What you see</th><th>Reads</th></tr></thead>
 <tbody>

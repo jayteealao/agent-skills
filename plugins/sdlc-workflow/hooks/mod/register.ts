@@ -339,6 +339,18 @@ async function restoredOf($: EngineInterface): Promise<Partial<Model>> {
 }
 
 export function register(on: On, options: PluginOptions = {}) {
+  // The one switch for the whole mod. A change to an option reloads the module, which
+  // cancels the old timers and drops its panes; off, the module hooks nothing but the
+  // start of that reload, to clear the status line the mod drew. (The engine refuses a
+  // second session.start hook without a matcher, even in a branch that does not run;
+  // `^` matches every cwd and differs from the live module's `.`.)
+  if (options?.['mod'] === false) {
+    on('session.start', { cwd: /^/u }, ($, e, next) => {
+      $.ui.status(undefined)
+      return next(e)
+    })
+    return
+  }
   let host: Host | null = null
   let model: Model = EMPTY
   let settings: Settings = settingsOf(options ?? {})
