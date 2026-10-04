@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.180.6] - 2026-10-04
+
 ### Fixed
 
 - **The strip's token count no longer counts cache reads.** Every call reads the whole cached context again, so a long workflow showed figures such as `1626.5M tok`. The count is now the new input, the cache writes and the output. A Codex row's cached input and reasoning are not added twice. A count of a billion or more shows as `1.6B`.
