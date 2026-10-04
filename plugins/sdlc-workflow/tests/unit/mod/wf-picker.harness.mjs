@@ -8,7 +8,7 @@ import { test } from 'node:test';
 
 import { CATALOG } from '../../../hooks/mod/catalog.ts';
 import { ageText } from '../../../hooks/mod/live/glyphs.ts';
-import { ALL, NONE, afterFillOf, backOf, draftStepOf, isSameStep, digitCommandOf, fillOf, filterOptions, filterTextOf, hotkeyOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from '../../../hooks/mod/picker.ts';
+import { ALL, NONE, afterFillOf, backOf, draftStepOf, isSameStep, digitCommandOf, fillOf, filterOptions, filterTextOf, hotkeyOf, keyOptions, openedTextOf, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from '../../../hooks/mod/picker.ts';
 import { findProjectRoot, frontmatterOf, joinPath, listSlices, listWorkflows, rosterOf } from '../../../hooks/mod/workflows.ts';
 import { PROBE_CAP, ProbeJournal, rowOf, rowsOf, sinceOf, surfaceAfterAttach, textOf, verdictOf } from '../../../hooks/mod/probe.ts';
 import { readHookCell, readProbeDetail, readProbeOf } from '../../../hooks/mod/probe.ts';
@@ -39,8 +39,22 @@ test('stepFor: a bare /wf opens the key step; a key without a slug opens the slu
   assert.deepEqual(stepFor(null, ''), { kind: 'key' });
   assert.deepEqual(stepFor(null, 'plan'), { kind: 'slug', key: 'plan' });
   assert.deepEqual(stepFor('plan', ''), { kind: 'slug', key: 'plan' });
-  assert.deepEqual(stepFor('plan', 'alpha'), { kind: 'slice', key: 'plan', slug: 'alpha' });
-  assert.deepEqual(stepFor(null, 'plan alpha'), { kind: 'slice', key: 'plan', slug: 'alpha' });
+});
+
+test('stepFor: a typed slug runs as typed, its slice optional; the slice step opens only from the picker', () => {
+  assert.equal(stepFor('plan', 'alpha'), null);
+  assert.equal(stepFor(null, 'plan alpha'), null);
+  assert.equal(stepFor(null, 'review engine-modules'), null);
+  assert.equal(stepFor(null, 'verify alpha'), null);
+  assert.deepEqual(pick({ kind: 'slug', key: 'plan' }, 'alpha', () => true), { kind: 'step', step: { kind: 'slice', key: 'plan', slug: 'alpha' } });
+});
+
+test('openedTextOf: the opened picker names the whole command to send, and the open workflows', () => {
+  assert.equal(openedTextOf({ kind: 'key' }, WORKFLOWS), 'Pick from the list above the prompt, or send /wf <key> <slug>.');
+  assert.equal(openedTextOf({ kind: 'slug', key: 'plan' }, WORKFLOWS), 'Pick from the list above the prompt, or send /wf plan <slug>. Open workflows: alpha, gamma.');
+  assert.equal(openedTextOf({ kind: 'slug', key: 'plan' }, []), 'Pick from the list above the prompt, or send /wf plan <slug>.');
+  const many = Array.from({ length: 8 }, (_, i) => ({ ...WORKFLOWS[0], slug: `w${i}` }));
+  assert.match(openedTextOf({ kind: 'slug', key: 'review' }, many), /Open workflows: w0, w1, w2, w3, w4, w5 and 2 more\.$/u);
 });
 
 test('stepFor: complete arguments, no-argument keys, and unknown keys open nothing', () => {

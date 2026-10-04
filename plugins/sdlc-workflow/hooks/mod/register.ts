@@ -91,12 +91,11 @@ import {
   SUBMIT_TEXT,
   NO_ROOT_TEXT,
   NO_WORKFLOWS_TEXT,
-  OPENED_TEXT,
   PLUGIN_NAME,
   ROTATE_KEY,
   RUN_TEXT,
 } from './names.ts'
-import { afterFillOf, backOf, draftStepOf, fillOf, filterOptions, isSameStep, filterTextOf, keyOptions, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from './picker.ts'
+import { afterFillOf, backOf, draftStepOf, fillOf, filterOptions, isSameStep, filterTextOf, keyOptions, openedTextOf, pageOf, pick, sliceOptions, slugOptions, stepFor, submitActionOf, titleOf } from './picker.ts'
 import type { Option, Step } from './picker.ts'
 import type { StripActions, StripParts } from './styles/existing.tsx'
 import { noticeStyledView, pickerRowLabel, slicesDoneOf, stageWordOf, stripStyledView, styledStripRows, workflowTone, workflowsStyledView } from './styles/existing.tsx'
@@ -1084,6 +1083,8 @@ export function register(on: On, options: PluginOptions = {}) {
       return next(e)
     }
     const typedLine = `/wf ${e.args}`
+    // Where a /wf command comes from (the person's Enter, the phone, a plugin): the probe that tells them apart.
+    notePrompt(`command origin ${e.origin.kind}`)
     const named = wfCommandOf(typedLine)
     if (named?.slug) setActive(engine, named.slug)
     const isIssued = issued !== null && issued === commandKeyOf(typedLine)
@@ -1101,18 +1102,9 @@ export function register(on: On, options: PluginOptions = {}) {
       return next(e)
     }
     await readWorkflows(engine, true)
-    if (step.kind === 'slice') {
-      // `/wf plan <slug>`: the slice step opens only when the workflow has a
-      // roster; without one the command is complete as typed.
-      const slices = await readSlices(engine, step.slug)
-      if (slices.length === 0) {
-        if (model.step !== null) close(engine)
-        return next(e)
-      }
-    }
     pickerTiming = { at: askedAt, readMs: (await engine.now()) - askedAt, kind: step.kind }
     show(engine, step)
-    return { text: OPENED_TEXT }
+    return { text: openedTextOf(step, model.workflows) }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {

@@ -28,9 +28,10 @@ export const ALL = 'all'
  * arguments already satisfy the key and the command should run as typed.
  *
  * A bare `/wf` opens at the key step. A key with no argument that needs a
- * slug opens at the slug step. A key whose arguments already hold a slug and
- * that may take a slice opens at the slice step only when the slug is the
- * whole of the arguments and the workflow has slices (the caller checks).
+ * slug opens at the slug step. A key whose arguments already hold a slug runs
+ * as typed: its slice is optional, and a person who typed or sent the slug
+ * (from the phone, where the band does not draw) is not held for one. The
+ * slice step opens only from the picker's own slug step (`pick`).
  */
 export function stepFor(key: string | null, args: string): Step | null {
   const tokens = args.trim() === '' ? [] : args.trim().split(/\s+/u)
@@ -48,10 +49,28 @@ export function stepFor(key: string | null, args: string): Step | null {
   if (tokens.length === 0) {
     return entry.need === 'none' ? null : { kind: 'slug', key }
   }
-  if (tokens.length === 1 && takesSlice(entry.need)) {
-    return { kind: 'slice', key, slug: tokens[0] as string }
-  }
   return null
+}
+
+/** How many open workflows the opened text names before it says "and N more". */
+const NAMED_WORKFLOWS = 6
+
+/**
+ * What a command that opened the picker answers: where the list is, and the
+ * whole command to send instead, for a person whose client draws no band (the
+ * phone over Remote Control). A step that asks for a workflow names the open ones.
+ */
+export function openedTextOf(step: Step, workflows: readonly WorkflowEntry[]): string {
+  const head = 'Pick from the list above the prompt'
+  if (step.kind === 'key') return `${head}, or send /wf <key> <slug>.`
+  const key = step.kind === 'slug' ? step.key : `${step.key} ${step.slug}`
+  const form = step.kind === 'slug' ? `/wf ${key} <slug>` : `/wf ${key} <slice>`
+  if (step.kind !== 'slug') return `${head}, or send ${form}.`
+  const open = workflows.filter(workflow => !workflow.terminal).map(workflow => workflow.slug)
+  if (open.length === 0) return `${head}, or send ${form}.`
+  const named = open.slice(0, NAMED_WORKFLOWS).join(', ')
+  const more = open.length > NAMED_WORKFLOWS ? ` and ${open.length - NAMED_WORKFLOWS} more` : ''
+  return `${head}, or send ${form}. Open workflows: ${named}${more}.`
 }
 
 export function takesSlice(need: ArgumentNeed): boolean {

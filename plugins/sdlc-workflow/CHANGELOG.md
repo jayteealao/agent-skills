@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A `/wf <key> <slug>` typed in full runs at once.** A typed `/wf review engine-modules` or `/wf plan alpha` opened the slice list when the workflow had slices, and the command ran only after you picked "(no slice)". From the phone, where the list does not draw, the command could not run. The slice is optional, so a typed slug is enough. The slice list still opens after you pick a workflow from the list.
+- **The picker's answer names the command to send.** When `/wf` or `/wf <key>` opens the list, the answer also says `or send /wf <key> <slug>` and names the open workflows, so a client that draws no list can still run the step.
+
 ## [9.180.6] - 2026-10-04
 
 ### Fixed

@@ -370,7 +370,7 @@ describe('register', () => {
     await run($, 'wf', 'plan')
     expect(textOf(await $.ui.render(BAND))).toContain('pick a workflow')
 
-    await run($, 'wf', 'plan alpha-flow')
+    await pickRow($, 'alpha-flow')
     const slices = textOf(await $.ui.render(BAND))
     expect(slices).toContain('/wf › plan › alpha-flow › pick a slice')
     expect(slices).toContain('(no slice)')
@@ -405,7 +405,9 @@ describe('register', () => {
       return { text: 'passed on' }
     })
     await $.session.start(SESSION)
-    await run($, 'wf', 'plan alpha-flow')
+    await run($, 'wf', 'plan')
+    await $.ui.render(BAND)
+    await pickRow($, 'alpha-flow')
     expect(textOf(await $.ui.render(BAND))).toContain('/wf › plan › alpha-flow › pick a slice')
     await pickRow($, '-')
     expect(world.filled).toEqual(['/wf plan alpha-flow '])
@@ -413,9 +415,6 @@ describe('register', () => {
     expect(await run($, 'wf', 'plan alpha-flow')).toEqual({ text: 'passed on' })
     expect(ran).toBe(1)
     expect(textOf(await $.ui.render(BAND))).not.toContain('pick a')
-    // Typed again by the person, the same line opens the slice step as before.
-    await run($, 'wf', 'plan alpha-flow')
-    expect(textOf(await $.ui.render(BAND))).toContain('pick a slice')
   })
 
   test('the first draw of a picker step writes one draw row with its timing', async ($, on) => {
@@ -507,7 +506,7 @@ describe('register', () => {
     expect(world.filled).toEqual([])
   })
 
-  test('/wf plan <slug> typed in full opens the slice step; with a slice it runs as typed', async ($, on) => {
+  test('a /wf <key> <slug> typed or sent in full runs as typed, with or without a slice', async ($, on) => {
     const world = seat(on)
     let ran = 0
     on('command.run', () => {
@@ -516,15 +515,25 @@ describe('register', () => {
     })
     await $.session.start(SESSION)
 
-    await run($, 'wf', 'plan alpha-flow')
-    expect(ran).toBe(0)
-    expect(textOf(await $.ui.render(BAND))).toContain('pick a slice')
-
-    const { text } = await run($, 'wf', 'plan alpha-flow ui')
-    expect(text).toBe('the skill ran')
-    expect(ran).toBe(1)
+    // alpha-flow has a roster, so the slice step could open; the slug the person sent is enough.
+    expect(await run($, 'wf', 'review alpha-flow')).toEqual({ text: 'the skill ran' })
+    expect(await run($, 'wf', 'plan alpha-flow')).toEqual({ text: 'the skill ran' })
+    expect(await $.command.run({ command: 'wf', args: 'verify alpha-flow', origin: { kind: 'bridge' }, presentation: PRESENTATION })).toEqual({ text: 'the skill ran' })
+    expect(await run($, 'wf', 'plan alpha-flow ui')).toEqual({ text: 'the skill ran' })
+    expect(ran).toBe(4)
     expect(world.filled).toEqual([])
     expect(textOf(await $.ui.render(BAND))).not.toContain('pick a')
+    await settle()
+    expect(probeRows(world).some(row => row['event'] === 'prompt' && row['detail'] === 'command origin bridge')).toBe(true)
+  })
+
+  test('a /wf <key> with no slug answers with the whole command and the open workflows', async ($, on) => {
+    seat(on)
+    await $.session.start(SESSION)
+    const { text } = await run($, 'wf', 'review')
+    expect(text).toContain('Pick from the list above the prompt, or send /wf review <slug>.')
+    expect(text).toContain('alpha-flow')
+    expect(text).not.toContain('beta')
   })
 
   test('the close button and a submitted prompt both close the band', async ($, on) => {
@@ -563,7 +572,9 @@ describe('register', () => {
   test('a "(no slice)" row fills the key and the slug alone', async ($, on) => {
     const world = seat(on)
     await $.session.start(SESSION)
-    await run($, 'wf', 'verify alpha-flow')
+    await run($, 'wf', 'verify')
+    await $.ui.render(BAND)
+    await pickRow($, 'alpha-flow')
     expect(textOf(await $.ui.render(BAND))).toContain('(no slice)')
     await pickRow($, '-')
     expect(world.filled).toEqual(['/wf verify alpha-flow '])

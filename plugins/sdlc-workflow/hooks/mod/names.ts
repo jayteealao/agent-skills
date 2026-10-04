@@ -29,7 +29,6 @@ export const OPTION_KEY_PREFIX = 'wf-opt:'
 export const NO_ROOT_TEXT = 'No .ai/workflows directory at or above the working directory; type the command in full.'
 export const NO_WORKFLOWS_TEXT = 'No workflows under .ai/workflows yet; start one with /wf intake <description>.'
 export const CLOSED_TEXT = 'Picker closed.'
-export const OPENED_TEXT = 'Pick from the list above the prompt.'
 export const RUN_TEXT = 'Press Enter to run'
 export const FILL_REFUSED_TEXT = 'The prompt box is not free; type the command in full: '
 /** Where the surface draws its own prompt box (the Desktop app), the command is sent as the person's prompt. */
