@@ -6,6 +6,7 @@ This file belongs to [../campaign.md](../campaign.md). `<cmd>` stands for `node 
 
 1. Run `<cmd> orient`. The script reads `work/index.md` and every packet, and then:
    - refuses a work set with a dependency cycle, an `expects` line with no matching `provides` line, an unknown dependency, or a packet with more than 40 carried decisions;
+   - counts a dependency on a piece that the brainstorm already wrote (the `written:` list of `work/index.md`) as done, and its `expects` lines as met;
    - refuses a repo that does not track `.ai/` (`artifactTracking: ignored`, or a gitignored `.ai/workflows`), because each wave carries the workflow artifacts on its branch;
    - computes the waves: a wave is every build packet whose dependencies are in earlier waves, and two packets that touch the same slug never share a wave;
    - reads the version contract from `.ai/ship-plan.md` (`version-scheme`, `version-source-of-truth`, `version-bump-cmd`, `release-trigger`, `rollout-stages`);

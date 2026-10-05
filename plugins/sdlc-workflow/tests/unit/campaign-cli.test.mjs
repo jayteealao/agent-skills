@@ -39,8 +39,8 @@ function packetFile(root, fm) {
   writeFileSync(path.join(dir, `${fm['work-slug']}.md`), `---\n${JSON.stringify(full, null, 2)}\n---\n\n# ${full.title}\n`);
 }
 
-function workIndex(root, revision) {
-  writeFileSync(path.join(root, '.ai', 'workflows', B, 'work', 'index.md'), `---\n${JSON.stringify({ schema: 'sdlc/v1', type: 'work-set', slug: B, 'work-set': 'multi', 'work-revision': revision })}\n---\n\n# Work set\n`);
+function workIndex(root, revision, extra = {}) {
+  writeFileSync(path.join(root, '.ai', 'workflows', B, 'work', 'index.md'), `---\n${JSON.stringify({ schema: 'sdlc/v1', type: 'work-set', slug: B, 'work-set': 'multi', 'work-revision': revision, ...extra })}\n---\n\n# Work set\n`);
 }
 
 function makeRepo() {
@@ -85,6 +85,22 @@ test('a project with a ship plan has no ship-plan gap', () => {
     const o = run(root, 'orient');
     assert.equal(o.ok, true, JSON.stringify(o));
     assert.ok(!o.toolGaps.some((g) => g.tool === 'ship-plan'));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('a dependency on a piece the brainstorm already wrote is done: orient accepts it, and the context names it', () => {
+  const root = makeRepo();
+  try {
+    packetFile(root, { key: 'W6', 'work-slug': 'runtime', order: 6, 'depends-on': ['charter'], expects: [{ from: 'charter', key: 'doc', text: 'the product charter' }] });
+    workIndex(root, 1);
+    assert.ok(run(root, 'orient').errors.some((e) => /W6 depends on charter, which is not a packet of this work set and not in the written list/.test(e)));
+    workIndex(root, 1, { written: ['charter'] });
+    const o = run(root, 'orient');
+    assert.equal(o.ok, true, JSON.stringify(o));
+    assert.deepEqual(o.waves, [['W1', 'W2', 'W6'], ['W3']]);
+    const text = readFileSync(run(root, 'context', 'W6').path, 'utf8');
+    assert.match(text, /### charter — written in the brainstorm session/);
+    assert.match(text, /- Expects `doc`: the product charter/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

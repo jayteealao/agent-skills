@@ -80,8 +80,12 @@ export function readWorkSet(root, b) {
     const data = safeParseFrontmatter(readFileSync(join(dir, file), 'utf8')).data;
     if (data?.type === 'work-packet') packets.push({ ...data, file: `work/${file}` });
   }
-  return { revision: Number(index['work-revision']) || 0, index, packets };
+  const written = Array.isArray(index.written) ? index.written.map(String) : [];
+  return { revision: Number(index['work-revision']) || 0, index, packets, written };
 }
+
+/** The campaign units of a work set; a dependency on a written piece is done (see unitOf). */
+const unitsOf = (ws) => ws.packets.map((p) => unitOf(p, { written: ws.written }));
 
 function loadLedger(root, b) {
   const p = ledgerPath(root, b);
@@ -180,7 +184,7 @@ function orient(root, b) {
   if (loadLedger(root, b)) return { ok: false, error: 'a ledger exists: use status (the campaign infers its phase from the ledger)' };
   const ws = readWorkSet(root, b);
   if (ws.error) return { ok: false, error: ws.error };
-  const units = ws.packets.map(unitOf);
+  const units = unitsOf(ws);
   const check = checkCampaignSet(units);
   if (check.single) {
     const only = units.find(isBuildUnit);
@@ -359,7 +363,7 @@ function doReplan(root, b) {
   const ledger = requireLedger(root, b);
   const ws = readWorkSet(root, b);
   if (ws.error) return { ok: false, error: ws.error };
-  const units = ws.packets.map(unitOf);
+  const units = unitsOf(ws);
   const check = checkCampaignSet(units);
   if (check.errors.length) return { ok: false, errors: check.errors };
   const before = new Set([...Object.keys(ledger.units), ...Object.keys(ledger.outside)]);
@@ -428,7 +432,7 @@ function wave(root, b, [nText, action, state], f) {
     const max = ledger.stack?.['max-unshipped'] ?? DEFAULT_MAX_UNSHIPPED;
     if (lives.length >= max) throw new Error(`${lives.length} unshipped waves wait above the trunk (max-unshipped ${max}): ship one first`);
     const ws = readWorkSet(root, b);
-    const units = ws.error ? [] : ws.packets.map(unitOf);
+    const units = ws.error ? [] : unitsOf(ws);
     const prepared = new Set(w.units.filter((k) => ledger.units[k]?.state === 'prepared'));
     const { start, moved } = deferUnprepared(w.units, units, prepared);
     if (!start.length) return { ok: false, error: `no unit of wave ${n} is prepared`, moved };
@@ -517,7 +521,7 @@ function context(root, b, [key]) {
   const ledger = requireLedger(root, b);
   const ws = readWorkSet(root, b);
   if (ws.error) return { ok: false, error: ws.error };
-  const units = ws.packets.map(unitOf);
+  const units = unitsOf(ws);
   const u = units.find((x) => x.key === key);
   if (!u) throw new Error(`context: no packet ${key}`);
   const driftFile = join(campDir(root, b), 'drift', `${key}.json`);
@@ -539,7 +543,7 @@ function drift(root, b, [nText]) {
   const w = ledger.waves.find((x) => x.n === n);
   if (!w) throw new Error(`drift: no wave ${nText}`);
   const ws = readWorkSet(root, b);
-  const units = ws.error ? [] : ws.packets.map(unitOf);
+  const units = ws.error ? [] : unitsOf(ws);
   const notes = asBuiltNotes(root, b);
   const results = w.units.map((k) => units.find((u) => u.key === k)).filter(Boolean).map((u) => classifyDrift(u, notes));
   const L = [`# Drift check before wave ${n}`, '', 'Each waiting slug\'s expects lines against the as-built notes of the slugs it names, after the refuter (11.2).', ''];
@@ -596,7 +600,7 @@ function journal(root, b, [event, json]) {
 function forecast(root, b, f) {
   const ledger = requireLedger(root, b);
   const ws = readWorkSet(root, b);
-  const units = ws.error ? [] : ws.packets.map(unitOf);
+  const units = ws.error ? [] : unitsOf(ws);
   ledger['forecast-actual'] ??= [];
   if (f.wave) ledger['forecast-actual'].push({ wave: Number(f.wave), minutes: f.minutes ? Number(f.minutes) : null, tokens: f.tokens ? Number(f.tokens) : null });
   const history = forecastHistory(root);

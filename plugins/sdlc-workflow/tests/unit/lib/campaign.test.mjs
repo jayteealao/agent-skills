@@ -109,6 +109,20 @@ test('cycle detection and contract checks refuse the work set', () => {
   assert.deepEqual(ok.errors, []);
 });
 
+test('a piece the brainstorm already wrote is a done dependency: no error, no wait, no drift', () => {
+  const p = packet('B', { 'depends-on': ['A', 'charter'], expects: [{ from: 'A', key: 'api', text: 'an API' }, { from: 'charter', key: 'doc', text: 'the charter' }] });
+  const a = packet('A', { provides: [{ key: 'api', text: 'an API' }] });
+  assert.equal(C.checkCampaignSet([a, p]).errors.length, 2, 'without the written list, charter is unknown');
+  assert.deepEqual(C.checkCampaignSet([a, p], { written: ['charter'] }).errors, []);
+  const u = C.unitOf(p, { written: ['charter'] });
+  assert.deepEqual(u.dependsOn, ['A']);
+  assert.deepEqual(u.expects.map((e) => e.from), ['A']);
+  assert.deepEqual(u.writtenDeps, ['charter']);
+  assert.deepEqual(u.writtenExpects.map((e) => e.key), ['doc']);
+  assert.deepEqual(keysOf(C.planWaves([C.unitOf(a), u]).waves), [['A'], ['B']]);
+  assert.equal(C.classifyDrift(u, { A: { lines: [{ key: 'api', status: 'met' }] } }).class, 'none', 'the written charter has no as-built note and is not drift');
+});
+
 test('a wave starts with its prepared units; an unprepared unit moves with its dependents (9.3 step 6)', () => {
   const u = units(packet('A'), packet('B'), packet('C', { 'depends-on': ['B'] }));
   const res = C.deferUnprepared(['A', 'B'], u, new Set(['A']));

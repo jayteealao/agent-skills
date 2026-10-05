@@ -30,9 +30,18 @@ const CONTEXT_LONG_LINES = 200;
 
 // ---------------------------------------------------------------- units
 
-/** One campaign unit from a packet's frontmatter. */
-export function unitOf(packet) {
+/**
+ * One campaign unit from a packet's frontmatter. `written` is the `written:`
+ * list of work/index.md: the write-now pieces the brainstorm session already
+ * wrote. A dependency on one of them is done before the campaign starts, and
+ * its expects lines are met (the brainstorm checked them, 3.4 step 1), so they
+ * leave dependsOn and expects and are kept apart for the context file.
+ */
+export function unitOf(packet, { written = [] } = {}) {
   const form = packet.form ?? 'intake';
+  const done = new Set(written);
+  const deps = packet['depends-on'] ?? [];
+  const exps = packet.expects ?? [];
   const workSlug = packet['work-slug'] ?? packet.key;
   const targetSlug = packet['target-slug'] ?? null;
   return {
@@ -45,9 +54,11 @@ export function unitOf(packet) {
     targetSlug,
     urgency: packet.urgency ?? 'normal',
     order: Number.isFinite(Number(packet.order)) ? Number(packet.order) : 1,
-    dependsOn: [...(packet['depends-on'] ?? [])],
+    dependsOn: deps.filter((d) => !done.has(d)),
     provides: [...(packet.provides ?? [])],
-    expects: [...(packet.expects ?? [])],
+    expects: exps.filter((e) => !done.has(e.from)),
+    writtenDeps: deps.filter((d) => done.has(d)),
+    writtenExpects: exps.filter((e) => done.has(e.from)),
     decisions: [...(packet['carried-decisions'] ?? [])],
     uxImpact: packet['ux-impact'] ?? 'none',
     packetState: packet.state ?? 'proposed',
@@ -108,13 +119,13 @@ function closure(byKey, key) {
  * most one build packet: that is not a campaign, and the person starts the
  * packet by its own start command.
  */
-export function checkCampaignSet(packets) {
-  const units = packets.map((p) => (p.dependsOn ? p : unitOf(p)));
+export function checkCampaignSet(packets, { written = [] } = {}) {
+  const units = packets.map((p) => (p.dependsOn ? p : unitOf(p, { written })));
   const byKey = new Map(units.map((u) => [u.key, u]));
   const errors = [];
   const warnings = [];
   for (const u of units) {
-    for (const d of u.dependsOn) if (!byKey.has(d)) errors.push(`packet ${u.key} depends on ${d}, which is not a packet of this work set.`);
+    for (const d of u.dependsOn) if (!byKey.has(d)) errors.push(`packet ${u.key} depends on ${d}, which is not a packet of this work set and not in the written list of work/index.md.`);
   }
   const cycle = findCycle(units);
   if (cycle) errors.push(`the dependencies form a cycle: ${cycle.join(' -> ')}.`);
@@ -496,6 +507,11 @@ export function renderContext({ unit, units, ledger, asBuilt = {}, drift = [], i
     const diffs = (note?.lines ?? []).filter((l) => l.status !== 'met');
     for (const d of diffs) preLines.push(`- **Differs:** \`${d.key}\` is ${d.status}${d.note ? `: ${d.note}` : ''}.`);
     preLines.push(...(u.provides.length ? u.provides.map((p) => `- Provides \`${p.key}\`: ${p.text}`) : ['- Provides nothing named.']), '');
+  }
+  for (const k of new Set([...(unit.writtenDeps ?? []), ...(unit.writtenExpects ?? []).map((e) => e.from)])) {
+    preLines.push(`### ${k} — written in the brainstorm session`, '');
+    const exps = (unit.writtenExpects ?? []).filter((e) => e.from === k);
+    preLines.push(...(exps.length ? exps.map((e) => `- Expects \`${e.key}\`: ${e.text}`) : ['- Expects nothing named.']), '');
   }
   L.push('## 2. Preceding slugs', '', 'What this slug builds on. A difference between the as-built note and a provides line comes first.', '');
   L.push(...(preLines.length ? preLines : ['- None.', '']));

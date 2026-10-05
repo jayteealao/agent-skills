@@ -28,8 +28,11 @@ var READING_STALE_MS = 10 * 60 * 1e3;
 var DEFAULT_MAX_UNSHIPPED = 2;
 var DEFAULT_WIDTH = 3;
 var CONTEXT_LONG_LINES = 200;
-function unitOf(packet) {
+function unitOf(packet, { written = [] } = {}) {
   const form = packet.form ?? "intake";
+  const done = new Set(written);
+  const deps = packet["depends-on"] ?? [];
+  const exps = packet.expects ?? [];
   const workSlug = packet["work-slug"] ?? packet.key;
   const targetSlug = packet["target-slug"] ?? null;
   return {
@@ -42,9 +45,11 @@ function unitOf(packet) {
     targetSlug,
     urgency: packet.urgency ?? "normal",
     order: Number.isFinite(Number(packet.order)) ? Number(packet.order) : 1,
-    dependsOn: [...packet["depends-on"] ?? []],
+    dependsOn: deps.filter((d) => !done.has(d)),
     provides: [...packet.provides ?? []],
-    expects: [...packet.expects ?? []],
+    expects: exps.filter((e) => !done.has(e.from)),
+    writtenDeps: deps.filter((d) => done.has(d)),
+    writtenExpects: exps.filter((e) => done.has(e.from)),
     decisions: [...packet["carried-decisions"] ?? []],
     uxImpact: packet["ux-impact"] ?? "none",
     packetState: packet.state ?? "proposed",
@@ -93,13 +98,13 @@ function closure(byKey, key) {
   walk(key);
   return seen;
 }
-function checkCampaignSet(packets) {
-  const units = packets.map((p) => p.dependsOn ? p : unitOf(p));
+function checkCampaignSet(packets, { written = [] } = {}) {
+  const units = packets.map((p) => p.dependsOn ? p : unitOf(p, { written }));
   const byKey = new Map(units.map((u) => [u.key, u]));
   const errors = [];
   const warnings = [];
   for (const u of units) {
-    for (const d of u.dependsOn) if (!byKey.has(d)) errors.push(`packet ${u.key} depends on ${d}, which is not a packet of this work set.`);
+    for (const d of u.dependsOn) if (!byKey.has(d)) errors.push(`packet ${u.key} depends on ${d}, which is not a packet of this work set and not in the written list of work/index.md.`);
   }
   const cycle = findCycle(units);
   if (cycle) errors.push(`the dependencies form a cycle: ${cycle.join(" -> ")}.`);
@@ -416,6 +421,11 @@ function renderContext({ unit: unit2, units, ledger, asBuilt = {}, drift: drift2
     for (const d of diffs) preLines.push(`- **Differs:** \`${d.key}\` is ${d.status}${d.note ? `: ${d.note}` : ""}.`);
     preLines.push(...u.provides.length ? u.provides.map((p) => `- Provides \`${p.key}\`: ${p.text}`) : ["- Provides nothing named."], "");
   }
+  for (const k of /* @__PURE__ */ new Set([...unit2.writtenDeps ?? [], ...(unit2.writtenExpects ?? []).map((e) => e.from)])) {
+    preLines.push(`### ${k} \u2014 written in the brainstorm session`, "");
+    const exps = (unit2.writtenExpects ?? []).filter((e) => e.from === k);
+    preLines.push(...exps.length ? exps.map((e) => `- Expects \`${e.key}\`: ${e.text}`) : ["- Expects nothing named."], "");
+  }
   L.push("## 2. Preceding slugs", "", "What this slug builds on. A difference between the as-built note and a provides line comes first.", "");
   L.push(...preLines.length ? preLines : ["- None.", ""]);
   L.push("## 3. Succeeding slugs", "", "Do not break these lines. Plan treats each one as a Known Constraint. A plan fork that would break one is intent-bearing.", "");
@@ -589,8 +599,10 @@ function readWorkSet(root, b) {
     const data = safeParseFrontmatter(readFileSync(join(dir, file), "utf8")).data;
     if (data?.type === "work-packet") packets.push({ ...data, file: `work/${file}` });
   }
-  return { revision: Number(index["work-revision"]) || 0, index, packets };
+  const written = Array.isArray(index.written) ? index.written.map(String) : [];
+  return { revision: Number(index["work-revision"]) || 0, index, packets, written };
 }
+var unitsOf = (ws) => ws.packets.map((p) => unitOf(p, { written: ws.written }));
 function loadLedger(root, b) {
   const p = ledgerPath(root, b);
   return existsSync(p) ? JSON.parse(readFileSync(p, "utf8")) : null;
@@ -698,7 +710,7 @@ function orient(root, b) {
   if (loadLedger(root, b)) return { ok: false, error: "a ledger exists: use status (the campaign infers its phase from the ledger)" };
   const ws = readWorkSet(root, b);
   if (ws.error) return { ok: false, error: ws.error };
-  const units = ws.packets.map(unitOf);
+  const units = unitsOf(ws);
   const check = checkCampaignSet(units);
   if (check.single) {
     const only = units.find(isBuildUnit);
@@ -848,7 +860,7 @@ function doReplan(root, b) {
   const ledger = requireLedger(root, b);
   const ws = readWorkSet(root, b);
   if (ws.error) return { ok: false, error: ws.error };
-  const units = ws.packets.map(unitOf);
+  const units = unitsOf(ws);
   const check = checkCampaignSet(units);
   if (check.errors.length) return { ok: false, errors: check.errors };
   const before = /* @__PURE__ */ new Set([...Object.keys(ledger.units), ...Object.keys(ledger.outside)]);
@@ -918,7 +930,7 @@ function wave(root, b, [nText, action, state], f) {
     const max = ledger.stack?.["max-unshipped"] ?? DEFAULT_MAX_UNSHIPPED;
     if (lives.length >= max) throw new Error(`${lives.length} unshipped waves wait above the trunk (max-unshipped ${max}): ship one first`);
     const ws = readWorkSet(root, b);
-    const units = ws.error ? [] : ws.packets.map(unitOf);
+    const units = ws.error ? [] : unitsOf(ws);
     const prepared = new Set(w.units.filter((k) => ledger.units[k]?.state === "prepared"));
     const { start, moved } = deferUnprepared(w.units, units, prepared);
     if (!start.length) return { ok: false, error: `no unit of wave ${n} is prepared`, moved };
@@ -1004,7 +1016,7 @@ function context(root, b, [key]) {
   const ledger = requireLedger(root, b);
   const ws = readWorkSet(root, b);
   if (ws.error) return { ok: false, error: ws.error };
-  const units = ws.packets.map(unitOf);
+  const units = unitsOf(ws);
   const u = units.find((x) => x.key === key);
   if (!u) throw new Error(`context: no packet ${key}`);
   const driftFile = join(campDir(root, b), "drift", `${key}.json`);
@@ -1023,7 +1035,7 @@ function drift(root, b, [nText]) {
   const w = ledger.waves.find((x) => x.n === n);
   if (!w) throw new Error(`drift: no wave ${nText}`);
   const ws = readWorkSet(root, b);
-  const units = ws.error ? [] : ws.packets.map(unitOf);
+  const units = ws.error ? [] : unitsOf(ws);
   const notes = asBuiltNotes(root, b);
   const results = w.units.map((k) => units.find((u) => u.key === k)).filter(Boolean).map((u) => classifyDrift(u, notes));
   const L = [`# Drift check before wave ${n}`, "", "Each waiting slug's expects lines against the as-built notes of the slugs it names, after the refuter (11.2).", ""];
@@ -1085,7 +1097,7 @@ function journal(root, b, [event, json]) {
 function forecast(root, b, f) {
   const ledger = requireLedger(root, b);
   const ws = readWorkSet(root, b);
-  const units = ws.error ? [] : ws.packets.map(unitOf);
+  const units = ws.error ? [] : unitsOf(ws);
   ledger["forecast-actual"] ??= [];
   if (f.wave) ledger["forecast-actual"].push({ wave: Number(f.wave), minutes: f.minutes ? Number(f.minutes) : null, tokens: f.tokens ? Number(f.tokens) : null });
   const history = forecastHistory(root);
