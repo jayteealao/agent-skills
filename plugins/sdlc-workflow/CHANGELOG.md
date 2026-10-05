@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.181.0] - 2026-10-05
+
+### Added
+
+- **`/wf campaign` runs in a repo that does not track `.ai/`.** Before, orient refused such a repo (`artifactTracking: ignored`, or a gitignored `.ai/workflows`), because the waves carried the records on their branches. Now the records stay in the main checkout, and the branches carry only code. Each worktree gets a copy of the main `.ai/` tree. Everything that a worktree creates or changes comes back before the campaign removes the worktree. The copy back never deletes a file in the main checkout and never overwrites a main change. When both sides changed a file, the main version stays, and the worktree version is kept in `work/campaign/records/conflicts/`. Each copy is checked by its content hash before it is put in place.
+- **A worktree is removed only when no file would be lost.** `campaign.mjs worktree … remove` refuses while a file exists only in the worktree, or while git would delete an ignored file outside `.ai/` that is not a build folder. `git worktree remove` deletes ignored files without asking, so this check also runs in a repo that tracks `.ai/`.
+- **No copied record can reach a branch.** A worktree gets its own `.ai/.gitignore` that ignores every record, because the main `.gitignore` can be untracked. When git can still see a copied record, the campaign does not drive in that worktree.
+
+### Fixed
+
+- **A packet can depend on a piece that the brainstorm already wrote.** The brainstorm accepted a packet that depends on a write-now piece, such as a product charter, but orient refused it: "depends on product-charter, which is not a packet of this work set". The campaign now reads the `written:` list of `work/index.md`. A written piece counts as done, its `expects` lines count as met, and the drift check does not stop the packet for a missing as-built note.
+
 ## [9.180.8] - 2026-10-04
 
 ### Added
