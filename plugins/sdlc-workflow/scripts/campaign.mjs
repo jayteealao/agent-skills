@@ -21,6 +21,7 @@
  *   label    <root> <brainstorm> <n> [<slug>]     the build label of the branch tip (V4)
  *   journal  <root> <brainstorm> <event> [<json>] append a campaign journal line (the watch reads it)
  *   forecast <root> <brainstorm> [--wave n --minutes m --tokens t]
+ *   worktree <root> <brainstorm> <key|wave-<n>> <add|refresh|sync|remove>   (13; local records)
  *
  * Every command prints one JSON object on stdout. The ledger (work/campaign/ledger.json)
  * is the truth; every write regenerates ledger.md beside it.
@@ -37,6 +38,7 @@ import {
   isBuildUnit, newLedger, nextWaveVersion, renderContext, renderForecast, renderLedgerMd, replan, rowTokens,
   SETUP_ANSWERS, stageMinutesFromJournals, unitOf, UNIT_STATES, WAVE_STATES,
 } from '../lib/campaign.mjs';
+import { ignoredAtRisk, loadManifest, recordsIn, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 
 const USAGE = 'Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|stack> <projectRoot> <brainstorm> ...';
@@ -191,11 +193,13 @@ function orient(root, b) {
     return { ok: false, single: true, error: 'the work set has one build packet: that is not a campaign.', start: only ? `/wf intake .ai/workflows/${b}/${only.file}` : null };
   }
   if (check.errors.length) return { ok: false, errors: check.errors, warnings: check.warnings };
-  // 9.1 step 4: a worktree, a branch, or a PR carries .ai/ only when the repo tracks it.
+  // 9.1 step 4: a branch carries .ai/ only when the repo tracks it. When the repo
+  // does not, the records stay in the main checkout (local records, 13).
   const cfg = readJson(join(root, '.ai', 'sdlc-config.json')) ?? {};
   const ignored = cfg.artifactTracking === 'ignored' || git(root, ['check-ignore', '-q', '.ai/workflows']) !== null;
-  if (ignored) return { ok: false, error: 'the repo does not track .ai/ (artifactTracking: ignored, or .ai/workflows is gitignored). The waves carry the workflow artifacts on their branches, so a campaign needs a tracked .ai/.' };
   const ledger = newLedger({ brainstorm: b, revision: ws.revision, units, now: nowIso() });
+  ledger.records = ignored ? 'local' : 'tracked';
+  if (ignored) check.warnings.push('the repo does not track .ai/: the records stay in the main checkout. Each worktree gets a copy, and its changes come back before the worktree is removed (local records). The wave PR text and the code are still public.');
   ledger['ship-plan'] = shipPlan(root);
   ledger.trunk = trunkOf(root);
   ledger['run-id'] = `${nowIso().replace(/[-:]/g, '').replace(/\.\d+/, '')}-${b}`;
@@ -216,7 +220,7 @@ function orient(root, b) {
   saveLedger(root, b, ledger);
   writeAtomic(join(campDir(root, b), 'forecast.md'), renderForecast(fc, { brainstorm: b, now: nowIso() }));
   appendJournal(root, b, 'campaign-orient', { revision: ws.revision, waves: ledger.waves.length });
-  return { ok: true, waves: ledger.waves.map((w) => w.units), waiting: ledger.waiting, outside: Object.keys(ledger.outside), warnings: check.warnings, forecast: ledger.forecast, toolGaps: ledger['tool-gaps'], next: campaignAction(ledger, { revision: ws.revision }) };
+  return { ok: true, records: ledger.records, waves: ledger.waves.map((w) => w.units), waiting: ledger.waiting, outside: Object.keys(ledger.outside), warnings: check.warnings, forecast: ledger.forecast, toolGaps: ledger['tool-gaps'], next: campaignAction(ledger, { revision: ws.revision }) };
 }
 
 function claudeVersionGap() {
@@ -271,45 +275,156 @@ function budget(root, b) {
 
 const worktreeRoot = (root, ledger) => join(root, '.scratch', 'campaign', ledger['run-id'] ?? 'run', 'wt');
 
-/** 13: a worktree per drive, its slug branch from the wave branch, and the prepared workflow folder copied in. */
-function worktree(root, b, [key, action]) {
-  const ledger = requireLedger(root, b);
-  const u = ledger.units[key];
-  if (!u) throw new Error(`worktree: ${key} is not a build unit of this campaign`);
-  if (action === 'remove') {
-    if (!u.worktree) return { ok: true, removed: false, reason: 'no worktree' };
-    // The watch cursor is machine-local and never committed; left in place, it makes git refuse.
-    rmSync(join(u.worktree.path, '.ai', 'workflows', u.slug ?? key, '.watch-state.json'), { force: true });
-    // CAUTION (13): never --force. A refusal means uncommitted or untracked work; the person decides.
-    const r =spawnSync('git', ['-C', root, 'worktree', 'remove', u.worktree.path], { encoding: 'utf8', windowsHide: true });
-    if (r.status !== 0) return { ok: false, error: `git refused to remove ${u.worktree.path}: ${(r.stderr || '').trim()}. Ask the person; do not force.` };
-    delete u.worktree;
-    saveLedger(root, b, ledger);
-    return { ok: true, removed: true };
+const recordsDir = (root, b) => join(campDir(root, b), 'records');
+const manifestFile = (root, b, id) => join(recordsDir(root, b), `${id}.json`);
+const isLocal = (ledger) => ledger?.records === 'local';
+/**
+ * The worktree's `.ai/.gitignore` belongs to the campaign: it ignores every copied
+ * record, so no `git add` in the worktree can put one on a branch. The main
+ * `.gitignore` may be untracked, so a worktree cannot rely on it. The sync never
+ * copies this file in either direction.
+ */
+const WORKTREE_IGNORE = '# written by /wf campaign (local records): the records in this worktree stay out of git\n*\n';
+const isAiIgnore = (rel) => rel === '.gitignore';
+/** The campaign folder belongs to the main checkout: a drive reads it there, by absolute path. */
+const mainOwned = (b) => (rel) => isAiIgnore(rel) || rel.startsWith(`workflows/${b}/work/campaign/`);
+
+/** Main to worktree, under the records lock (local records, 13). */
+function syncIn(root, b, id, path) {
+  return withRecordsLock(join(recordsDir(root, b), '.lock'), id, () => {
+    const ignoreFile = join(path, '.ai', '.gitignore');
+    mkdirSync(join(path, '.ai'), { recursive: true });
+    const tracked = spawnSync('git', ['-C', path, 'ls-files', '--error-unmatch', '.ai/.gitignore'], { encoding: 'utf8', windowsHide: true }).status === 0;
+    const have = existsSync(ignoreFile) ? readFileSync(ignoreFile, 'utf8') : '';
+    if (!tracked && !have.split(/\r?\n/).includes('*')) writeFileSync(ignoreFile, WORKTREE_IGNORE);
+    const manifest = loadManifest(manifestFile(root, b, id), id);
+    manifest.worktree = path;
+    const res = recordsIn({ main: root, worktree: path, manifest, exclude: mainOwned(b) });
+    saveManifest(manifestFile(root, b, id), manifest, nowIso());
+    // Check what git sees: a copied record that git can stage could reach a public branch.
+    const st = spawnSync('git', ['-C', path, 'status', '--porcelain', '--untracked-files=all', '--', '.ai'], { encoding: 'utf8', windowsHide: true });
+    const visible = st.status === 0 ? st.stdout.split(/\r?\n/).filter((l) => l.startsWith('?? ')).map((l) => l.slice(3)) : ['(git status failed)'];
+    if (visible.length) res.visibleToGit = visible;
+    return res;
+  });
+}
+
+/** Worktree to main, under the records lock. Nothing is deleted; a change on both sides keeps both versions. */
+function syncOut(root, b, id, path) {
+  return withRecordsLock(join(recordsDir(root, b), '.lock'), id, () => {
+    const manifest = loadManifest(manifestFile(root, b, id), id);
+    const conflictsDir = join(recordsDir(root, b), 'conflicts', id, nowIso().replace(/[-:]/g, ''));
+    const res = recordsOut({ main: root, worktree: path, manifest, conflictsDir, exclude: isAiIgnore });
+    saveManifest(manifestFile(root, b, id), manifest, nowIso());
+    if (res.copied.length || res.conflicts.length) appendJournal(root, b, 'records-out', { id, copied: res.copied.length, conflicts: res.conflicts.map((c) => c.rel) });
+    return res;
+  });
+}
+
+/**
+ * Remove a campaign worktree without losing a file (13). With local records, the
+ * records come back first, and a file that exists only in the worktree stops the
+ * remove. In both modes, an ignored file outside .ai/ that is not a build folder
+ * stops it, because git deletes ignored files without asking. Never --force.
+ */
+function removeWorktree(root, b, ledger, id, path) {
+  let records = null;
+  if (isLocal(ledger)) {
+    records = syncOut(root, b, id, path);
+    const pending = recordsPending({ main: root, worktree: path, manifest: loadManifest(manifestFile(root, b, id), id), exclude: isAiIgnore });
+    if (pending.length) return { ok: false, error: `${pending.length} file(s) in the worktree exist nowhere else, so the worktree stays. Ask the person.`, pending, records };
+  } else {
+    // The watch cursors are machine-local and never committed; left in place, they make git refuse.
+    const wf = join(path, '.ai', 'workflows');
+    if (existsSync(wf)) for (const d of readdirSync(wf)) rmSync(join(wf, d, '.watch-state.json'), { force: true });
   }
-  if (action !== 'add') throw new Error('worktree: the action is add or remove');
+  const st = spawnSync('git', ['-C', path, 'status', '--porcelain', '--ignored=matching'], { encoding: 'utf8', windowsHide: true });
+  if (st.status !== 0) return { ok: false, error: `git status failed in ${path}: ${(st.stderr || '').trim()}`, records };
+  const risk = ignoredAtRisk(st.stdout, isolationOf(configOf(root))?.['build-dirs'] ?? []);
+  if (risk.length) return { ok: false, error: 'git worktree remove deletes ignored files without asking, and these are not build folders. Ask the person: copy what they need into the main checkout, or name the folder in campaign.isolation.build-dirs, then remove again.', ignored: risk, records };
+  // CAUTION (13): never --force. A refusal means uncommitted or untracked work; the person decides.
+  const r = spawnSync('git', ['-C', root, 'worktree', 'remove', path], { encoding: 'utf8', windowsHide: true });
+  if (r.status !== 0) return { ok: false, error: `git refused to remove ${path}: ${(r.stderr || '').trim()}. Ask the person; do not force.`, records };
+  return { ok: true, removed: true, records };
+}
+
+/**
+ * 13: a worktree per drive, its slug branch from the wave branch, and the
+ * prepared workflow folder copied in. `wave-<n>` names the wave worktree: the
+ * boundary merges there, and with local records handoff and ship run there.
+ *   add      create the worktree, or reuse it; with local records, copy the main .ai/ in
+ *   refresh  with local records, copy the main changes in; a worktree change stays
+ *   sync     with local records, copy the worktree changes back to the main checkout
+ *   remove   sync, check that no file would be lost, then git worktree remove
+ */
+function worktree(root, b, args) {
+  const res = worktreeStep(root, b, args);
+  const visible = res.records?.visibleToGit ?? [];
+  if (!visible.length) return res;
+  return { ...res, ok: false, error: `git can stage ${visible.length} copied record(s) in this worktree, so a commit there could publish them. Do not drive, hand off or ship in this worktree. Ask the person.` };
+}
+
+function worktreeStep(root, b, [key, action]) {
+  const ledger = requireLedger(root, b);
+  const waveN = /^wave-(\d+)$/.exec(key ?? '')?.[1];
+  const w = waveN ? ledger.waves.find((x) => x.n === Number(waveN)) : null;
+  if (waveN && !w) throw new Error(`worktree: no wave ${waveN}`);
+  const u = waveN ? null : ledger.units[key];
+  if (!waveN && !u) throw new Error(`worktree: ${key} is not a build unit of this campaign`);
+  if (!['add', 'refresh', 'sync', 'remove'].includes(action)) throw new Error('worktree: the action is add, refresh, sync or remove');
+  const local = isLocal(ledger);
+  const holder = w ?? u;
+  if (action !== 'add') {
+    if (!holder.worktree) return { ok: true, removed: false, synced: false, reason: local ? 'no worktree: the drive wrote in the main checkout' : 'no worktree' };
+    if (action === 'remove') {
+      const res = removeWorktree(root, b, ledger, key, holder.worktree.path);
+      if (res.ok) {
+        delete holder.worktree;
+        saveLedger(root, b, ledger);
+      }
+      return res;
+    }
+    if (!local) return { ok: true, synced: false, reason: 'the repo tracks .ai/: the records travel in commits' };
+    return { ok: true, records: action === 'sync' ? syncOut(root, b, key, holder.worktree.path) : syncIn(root, b, key, holder.worktree.path) };
+  }
+  if (w) {
+    if (!w.branch) throw new Error(`worktree: wave ${w.n} has no branch yet`);
+    const path = join(worktreeRoot(root, ledger), key);
+    if (!existsSync(path)) {
+      mkdirSync(worktreeRoot(root, ledger), { recursive: true });
+      const r = spawnSync('git', ['-C', root, 'worktree', 'add', path, w.branch], { encoding: 'utf8', windowsHide: true });
+      if (r.status !== 0) return { ok: false, error: `git worktree add failed: ${(r.stderr || '').trim()}` };
+    }
+    w.worktree = { path, branch: w.branch };
+    saveLedger(root, b, ledger);
+    return { ok: true, ...w.worktree, ...(local ? { records: syncIn(root, b, key, path) } : {}) };
+  }
   const iso = isolationOf(configOf(root));
   if (!iso) return { ok: false, error: 'no usable isolation contract (campaign.isolation in .ai/sdlc-config.json): drive this slug in the main checkout at width 1' };
-  const w = ledger.waves.find((x) => x.n === u.wave);
-  if (!w || w.state !== 'running' || !w.branch) throw new Error(`worktree: wave ${u.wave} of ${key} is not running`);
-  if (u.worktree && existsSync(u.worktree.path)) return { ok: true, ...u.worktree, reused: true };
+  const uw = ledger.waves.find((x) => x.n === u.wave);
+  if (!uw || uw.state !== 'running' || !uw.branch) throw new Error(`worktree: wave ${u.wave} of ${key} is not running`);
+  if (u.worktree && existsSync(u.worktree.path)) return { ok: true, ...u.worktree, reused: true, ...(local ? { records: syncIn(root, b, key, u.worktree.path) } : {}) };
   const base = worktreeRoot(root, ledger);
   mkdirSync(base, { recursive: true });
   const freeGb = statfsSync(base).bavail * statfsSync(base).bsize / 1024 ** 3;
   if (freeGb < iso['min-free-gb']) return { ok: false, wait: true, error: `${freeGb.toFixed(1)} GB free, below min-free-gb ${iso['min-free-gb']}: wait until a merged slug's worktree is removed` };
-  const index = [...w.units].sort((a, c) => (ledger.units[a].order ?? 0) - (ledger.units[c].order ?? 0)).indexOf(key);
-  const branch = `campaign/${b}/wave-${w.n}--${u.slug}`;
+  const index = [...uw.units].sort((a, c) => (ledger.units[a].order ?? 0) - (ledger.units[c].order ?? 0)).indexOf(key);
+  const branch = `campaign/${b}/wave-${uw.n}--${u.slug}`;
   const path = join(base, u.slug);
-  const r = spawnSync('git', ['-C', root, 'worktree', 'add', '-b', branch, path, w.branch], { encoding: 'utf8', windowsHide: true });
+  const r = spawnSync('git', ['-C', root, 'worktree', 'add', '-b', branch, path, uw.branch], { encoding: 'utf8', windowsHide: true });
   if (r.status !== 0) return { ok: false, error: `git worktree add failed: ${(r.stderr || '').trim()}` };
-  // The slug's prepared artifacts may be uncommitted in the main checkout; the drive needs them.
-  const src = join(root, '.ai', 'workflows', u.slug);
-  const dest = join(path, '.ai', 'workflows', u.slug);
-  if (existsSync(src) && !existsSync(dest)) cpSync(src, dest, { recursive: true });
   u.worktree = { path, branch, index, ports: portsFor(iso, index) };
   saveLedger(root, b, ledger);
+  let records = null;
+  if (local) records = syncIn(root, b, key, path);
+  else {
+    // The slug's prepared artifacts may be uncommitted in the main checkout; the drive needs them.
+    const src = join(root, '.ai', 'workflows', u.slug);
+    const dest = join(path, '.ai', 'workflows', u.slug);
+    if (existsSync(src) && !existsSync(dest)) cpSync(src, dest, { recursive: true });
+  }
   appendJournal(root, b, 'worktree', { key, slug: u.slug, path, branch, index });
-  return { ok: true, ...u.worktree };
+  return { ok: true, ...u.worktree, ...(records ? { records } : {}) };
 }
 
 const LOCK_STALE_MS = 3 * 60 * 60 * 1000;
@@ -531,7 +646,7 @@ function context(root, b, [key]) {
   const isolation = wt && iso
     ? isolationText(iso, { index: wt.index, worktree: wt.path, slug: u.slug, lockCmd: `node "${join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'campaign.mjs')}" lock "${root}" ${b}` })
     : null;
-  const text = renderContext({ unit: u, units, ledger, asBuilt: asBuiltNotes(root, b), drift, isolation });
+  const text = renderContext({ unit: u, units, ledger, asBuilt: asBuiltNotes(root, b), drift, isolation, localRecords: isLocal(ledger) });
   const file = join(campDir(root, b), 'context', `${u.slug}.md`);
   writeAtomic(file, text);
   return { ok: true, key, slug: u.slug, path: file };

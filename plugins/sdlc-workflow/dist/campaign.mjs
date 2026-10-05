@@ -9,9 +9,9 @@ import "./chunk-SGA7NFMW.mjs";
 
 // scripts/campaign.mjs
 import { spawnSync } from "node:child_process";
-import { appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statfsSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync as existsSync2, mkdirSync as mkdirSync2, readdirSync as readdirSync2, readFileSync as readFileSync2, renameSync as renameSync2, rmSync as rmSync2, statfsSync, writeFileSync as writeFileSync2 } from "node:fs";
 import { homedir } from "node:os";
-import { join, relative, resolve } from "node:path";
+import { join as join2, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // lib/campaign.mjs
@@ -88,14 +88,14 @@ function findCycle(units) {
 }
 function closure(byKey, key) {
   const seen = /* @__PURE__ */ new Set();
-  const walk = (k) => {
+  const walk2 = (k) => {
     for (const n of byKey.get(k)?.dependsOn ?? []) {
       if (seen.has(n)) continue;
       seen.add(n);
-      walk(n);
+      walk2(n);
     }
   };
-  walk(key);
+  walk2(key);
   return seen;
 }
 function checkCampaignSet(packets, { written = [] } = {}) {
@@ -395,7 +395,7 @@ function renderLedgerMd(ledger) {
   L.push("");
   return L.join("\n");
 }
-function renderContext({ unit: unit2, units, ledger, asBuilt = {}, drift: drift2 = [], isolation = null }) {
+function renderContext({ unit: unit2, units, ledger, asBuilt = {}, drift: drift2 = [], isolation = null, localRecords = false }) {
   const byKey = new Map(units.map((u) => [u.key, u]));
   const wave2 = ledger?.units?.[unit2.key]?.wave ?? null;
   const pre = [...closure(byKey, unit2.key)].map((k) => byKey.get(k)).filter(Boolean).sort(byOrder);
@@ -438,6 +438,7 @@ function renderContext({ unit: unit2, units, ledger, asBuilt = {}, drift: drift2
   L.push(...drift2.length ? drift2.map((d) => `- \`${d.from}/${d.key}\` (${d.text}): ${d.note ?? d.status}`) : ["- None."], "");
   L.push("## 6. Isolation", "");
   L.push(isolation ? isolation.startsWith("- ") ? isolation : `- ${isolation}` : "- Width 1, in the main checkout. No port base, no own build folder, no heavy-suite lock.", "");
+  if (localRecords) L.push("- Local records: this repo does not track `.ai/`. Do not stage or commit a file under `.ai/`. The campaign copies the records back to the main checkout.", "");
   return L.join("\n");
 }
 function isolationOf(config) {
@@ -566,21 +567,247 @@ function renderForecast(fc, { brainstorm, now = (/* @__PURE__ */ new Date()).toI
   return L.join("\n");
 }
 
+// lib/campaign-records.mjs
+import { createHash, randomBytes } from "node:crypto";
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+var MANIFEST_VERSION = 1;
+var REGISTRY = "workflows/INDEX.md";
+var MACHINE_LOCAL = /* @__PURE__ */ new Set([".watch-state.json"]);
+var TEMP_RE = /\.records-\d+-[0-9a-f]+\.tmp$/;
+var posix = (p) => p.split("\\").join("/");
+function isSkipped(rel) {
+  const parts = rel.split("/");
+  const base = parts[parts.length - 1];
+  return MACHINE_LOCAL.has(base) || parts.includes("_view") || TEMP_RE.test(base);
+}
+function hashFile(abs) {
+  return createHash("sha256").update(readFileSync(abs)).digest("hex");
+}
+function walk(dir) {
+  const files = /* @__PURE__ */ new Map();
+  const links = [];
+  if (!existsSync(dir)) return { files, links };
+  const visit = (abs, rel) => {
+    for (const name of readdirSync(abs)) {
+      const a = join(abs, name);
+      const r = rel ? `${rel}/${name}` : name;
+      const st = lstatSync(a);
+      if (st.isSymbolicLink()) links.push(r);
+      else if (st.isDirectory()) visit(a, r);
+      else if (st.isFile()) files.set(r, a);
+    }
+  };
+  visit(dir, "");
+  return { files, links };
+}
+function pause(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+function putVerified(dest, bytes, hash, mtime = null) {
+  mkdirSync(dirname(dest), { recursive: true });
+  const tmp = join(dirname(dest), `.records-${process.pid}-${randomBytes(4).toString("hex")}.tmp`);
+  writeFileSync(tmp, bytes);
+  if (hashFile(tmp) !== hash) {
+    rmSync(tmp, { force: true });
+    throw new Error(`records: the temp copy of ${dest} does not match its source`);
+  }
+  if (mtime) utimesSync(tmp, mtime, mtime);
+  for (let i = 0; ; i++) {
+    try {
+      renameSync(tmp, dest);
+      break;
+    } catch (e) {
+      if (i >= 5 || !["EPERM", "EBUSY", "EACCES"].includes(e.code)) {
+        rmSync(tmp, { force: true });
+        throw e;
+      }
+      pause(100 * (i + 1));
+    }
+  }
+  if (hashFile(dest) !== hash) throw new Error(`records: ${dest} does not match its source after the copy`);
+}
+function copyVerified(src, dest, hash) {
+  putVerified(dest, readFileSync(src), hash, statSync(src).mtime);
+}
+function loadManifest(file, id) {
+  try {
+    const m = JSON.parse(readFileSync(file, "utf8"));
+    if (m && m.files) return m;
+  } catch {
+  }
+  return { version: MANIFEST_VERSION, id, files: {} };
+}
+function saveManifest(file, manifest, now) {
+  manifest["updated-at"] = now;
+  const text = `${JSON.stringify(manifest, null, 2)}
+`;
+  putVerified(file, text, createHash("sha256").update(text).digest("hex"));
+}
+var entryOf = (manifest, rel) => manifest.files[rel] ??= { base: null, kept: [] };
+function mergeRegistry(mainText, otherText) {
+  const header = [];
+  const rows = /* @__PURE__ */ new Map();
+  const take = (text, isMain) => {
+    for (const line of String(text).split(/\r?\n/)) {
+      if (!line.trim()) continue;
+      if (line.startsWith("#")) {
+        if (isMain) header.push(line);
+        continue;
+      }
+      const cols = line.split("	");
+      const prev = rows.get(cols[0]);
+      if (!prev || String(cols[4] ?? "") > String(prev[4] ?? "")) rows.set(cols[0], cols);
+    }
+  };
+  take(mainText, true);
+  take(otherText, false);
+  const body = [...rows.keys()].sort().map((k) => rows.get(k).join("	"));
+  return `${[...header, ...body].join("\n")}
+`;
+}
+function recordsIn({ main: main2, worktree: worktree2, manifest, exclude = () => false }) {
+  const src = walk(join(main2, ".ai"));
+  const dst = walk(join(worktree2, ".ai"));
+  const res = { copied: [], refreshed: [], same: 0, keptInWorktree: [], deletedInWorktree: [] };
+  for (const [rel, abs] of src.files) {
+    if (isSkipped(rel) || exclude(rel)) continue;
+    const mh = hashFile(abs);
+    const e = manifest.files[rel];
+    const target = join(worktree2, ".ai", ...rel.split("/"));
+    if (!dst.files.has(rel)) {
+      if (e?.base) {
+        res.deletedInWorktree.push(rel);
+        continue;
+      }
+      copyVerified(abs, target, mh);
+      entryOf(manifest, rel).base = mh;
+      res.copied.push(rel);
+      continue;
+    }
+    const wh = hashFile(dst.files.get(rel));
+    if (wh === mh) {
+      entryOf(manifest, rel).base = mh;
+      res.same++;
+      continue;
+    }
+    if (e?.base && wh === e.base) {
+      copyVerified(abs, target, mh);
+      e.base = mh;
+      res.refreshed.push(rel);
+      continue;
+    }
+    res.keptInWorktree.push(rel);
+  }
+  return res;
+}
+function recordsOut({ main: main2, worktree: worktree2, manifest, conflictsDir, exclude = () => false }) {
+  const src = walk(join(worktree2, ".ai"));
+  const res = { copied: [], same: 0, unchanged: 0, conflicts: [], deletedInWorktree: [], links: src.links.filter((r) => !isSkipped(r)) };
+  for (const [rel, abs] of src.files) {
+    if (isSkipped(rel) || exclude(rel)) continue;
+    const wh = hashFile(abs);
+    const target = join(main2, ".ai", ...rel.split("/"));
+    const mh = existsSync(target) ? hashFile(target) : null;
+    const e = entryOf(manifest, rel);
+    if (mh === wh) {
+      e.base = wh;
+      res.same++;
+      continue;
+    }
+    if (e.base && wh === e.base) {
+      res.unchanged++;
+      continue;
+    }
+    if (mh === null || e.base && mh === e.base) {
+      const now = existsSync(target) ? hashFile(target) : null;
+      if (now === mh) {
+        copyVerified(abs, target, wh);
+        e.base = wh;
+        res.copied.push(rel);
+        continue;
+      }
+    }
+    const kept = join(conflictsDir, ...rel.split("/"));
+    copyVerified(abs, kept, wh);
+    if (!e.kept.includes(wh)) e.kept.push(wh);
+    let merged = false;
+    if (rel === REGISTRY && existsSync(target)) {
+      const text = mergeRegistry(readFileSync(target, "utf8"), readFileSync(abs, "utf8"));
+      putVerified(target, text, createHash("sha256").update(text).digest("hex"));
+      merged = true;
+    }
+    e.base = wh;
+    res.conflicts.push({ rel, kept: posix(kept), merged });
+  }
+  for (const [rel, e] of Object.entries(manifest.files)) {
+    if (e.base && !src.files.has(rel) && !isSkipped(rel) && !exclude(rel)) res.deletedInWorktree.push(rel);
+  }
+  return res;
+}
+function recordsPending({ main: main2, worktree: worktree2, manifest, exclude = () => false }) {
+  const src = walk(join(worktree2, ".ai"));
+  const pending = src.links.filter((r) => !isSkipped(r)).map((rel) => ({ rel, reason: "a link: the sync never follows links" }));
+  for (const [rel, abs] of src.files) {
+    if (isSkipped(rel) || exclude(rel)) continue;
+    const wh = hashFile(abs);
+    const target = join(main2, ".ai", ...rel.split("/"));
+    if (existsSync(target) && hashFile(target) === wh) continue;
+    const e = manifest.files[rel];
+    if (e && (e.base === wh || e.kept.includes(wh))) continue;
+    pending.push({ rel, reason: "not in the main checkout" });
+  }
+  return pending;
+}
+function withRecordsLock(file, holder, fn, { waitMs = 6e4, staleMs = 15 * 6e4, now = () => (/* @__PURE__ */ new Date()).toISOString() } = {}) {
+  mkdirSync(dirname(file), { recursive: true });
+  const until = Date.now() + waitMs;
+  for (; ; ) {
+    try {
+      writeFileSync(file, JSON.stringify({ holder, pid: process.pid, at: now() }), { flag: "wx" });
+      break;
+    } catch (e) {
+      if (e.code !== "EEXIST") throw e;
+      let cur = null;
+      try {
+        cur = JSON.parse(readFileSync(file, "utf8"));
+      } catch {
+      }
+      const at = cur?.at ? Date.parse(cur.at) : statSync(file).mtimeMs;
+      if (Date.now() - at > staleMs) {
+        rmSync(file, { force: true });
+        continue;
+      }
+      if (Date.now() > until) throw new Error(`records: the records lock is held by ${cur?.holder ?? "another sync"} since ${cur?.at ?? "?"}; try again`);
+      pause(250);
+    }
+  }
+  try {
+    return fn();
+  } finally {
+    rmSync(file, { force: true });
+  }
+}
+function ignoredAtRisk(porcelain, allow = []) {
+  const ok = ["node_modules", ...allow].map((d) => posix(d).replace(/^\.\//, "").replace(/\/+$/, ""));
+  return String(porcelain).split(/\r?\n/).filter((l) => l.startsWith("!! ")).map((l) => l.slice(3).replace(/^"|"$/g, "").replace(/\/$/, "")).filter((p) => p !== ".ai" && !p.startsWith(".ai/")).filter((p) => !ok.some((d) => p === d || p.startsWith(`${d}/`) || p.split("/").includes(d)));
+}
+
 // scripts/campaign.mjs
 var USAGE = "Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|stack> <projectRoot> <brainstorm> ...";
 var PLUGIN_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
-var brainstormDir = (root, b) => join(root, ".ai", "workflows", b);
-var workDir = (root, b) => join(brainstormDir(root, b), "work");
-var campDir = (root, b) => join(workDir(root, b), "campaign");
-var ledgerPath = (root, b) => join(campDir(root, b), "ledger.json");
-var journalPath = (root, b) => join(campDir(root, b), ".campaign-journal.jsonl");
-var controlPath = (root, b) => join(campDir(root, b), ".control.json");
+var brainstormDir = (root, b) => join2(root, ".ai", "workflows", b);
+var workDir = (root, b) => join2(brainstormDir(root, b), "work");
+var campDir = (root, b) => join2(workDir(root, b), "campaign");
+var ledgerPath = (root, b) => join2(campDir(root, b), "ledger.json");
+var journalPath = (root, b) => join2(campDir(root, b), ".campaign-journal.jsonl");
+var controlPath = (root, b) => join2(campDir(root, b), ".control.json");
 var nowIso = () => (/* @__PURE__ */ new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
 function writeAtomic(file, text) {
-  mkdirSync(join(file, ".."), { recursive: true });
+  mkdirSync2(join2(file, ".."), { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, text);
-  renameSync(tmp, file);
+  writeFileSync2(tmp, text);
+  renameSync2(tmp, file);
 }
 function git(root, args) {
   const r = spawnSync("git", ["-C", root, ...args], { encoding: "utf8", windowsHide: true });
@@ -588,15 +815,15 @@ function git(root, args) {
 }
 function readWorkSet(root, b) {
   const dir = workDir(root, b);
-  const indexFile = join(dir, "index.md");
-  if (!existsSync(indexFile)) return { error: `no work set: ${relative(root, indexFile)} does not exist. End the brainstorm with done first.` };
-  let index = safeParseFrontmatter(readFileSync(indexFile, "utf8")).data;
-  if (!index) index = safeParseFrontmatter(readFileSync(indexFile, "utf8")).data;
+  const indexFile = join2(dir, "index.md");
+  if (!existsSync2(indexFile)) return { error: `no work set: ${relative(root, indexFile)} does not exist. End the brainstorm with done first.` };
+  let index = safeParseFrontmatter(readFileSync2(indexFile, "utf8")).data;
+  if (!index) index = safeParseFrontmatter(readFileSync2(indexFile, "utf8")).data;
   if (!index) return { error: "work/index.md does not parse; read it again at the next boundary." };
   const packets = [];
-  for (const file of readdirSync(dir)) {
+  for (const file of readdirSync2(dir)) {
     if (!file.endsWith(".md") || file === "index.md" || file === "changes.md") continue;
-    const data = safeParseFrontmatter(readFileSync(join(dir, file), "utf8")).data;
+    const data = safeParseFrontmatter(readFileSync2(join2(dir, file), "utf8")).data;
     if (data?.type === "work-packet") packets.push({ ...data, file: `work/${file}` });
   }
   const written = Array.isArray(index.written) ? index.written.map(String) : [];
@@ -605,13 +832,13 @@ function readWorkSet(root, b) {
 var unitsOf = (ws) => ws.packets.map((p) => unitOf(p, { written: ws.written }));
 function loadLedger(root, b) {
   const p = ledgerPath(root, b);
-  return existsSync(p) ? JSON.parse(readFileSync(p, "utf8")) : null;
+  return existsSync2(p) ? JSON.parse(readFileSync2(p, "utf8")) : null;
 }
 function saveLedger(root, b, ledger) {
   ledger["updated-at"] = nowIso();
   writeAtomic(ledgerPath(root, b), `${JSON.stringify(ledger, null, 2)}
 `);
-  writeAtomic(join(campDir(root, b), "ledger.md"), renderLedgerMd(ledger));
+  writeAtomic(join2(campDir(root, b), "ledger.md"), renderLedgerMd(ledger));
 }
 function requireLedger(root, b) {
   const l = loadLedger(root, b);
@@ -620,21 +847,21 @@ function requireLedger(root, b) {
 }
 function appendJournal(root, b, event, extra = {}) {
   const line = { at: nowIso(), event, ...extra };
-  mkdirSync(campDir(root, b), { recursive: true });
+  mkdirSync2(campDir(root, b), { recursive: true });
   appendFileSync(journalPath(root, b), `${JSON.stringify(line)}
 `);
   return line;
 }
 function readJson(file) {
   try {
-    return JSON.parse(readFileSync(file, "utf8"));
+    return JSON.parse(readFileSync2(file, "utf8"));
   } catch {
     return null;
   }
 }
 function readJsonl(file) {
   try {
-    return readFileSync(file, "utf8").split(/\r?\n/).filter(Boolean).map((l) => {
+    return readFileSync2(file, "utf8").split(/\r?\n/).filter(Boolean).map((l) => {
       try {
         return JSON.parse(l);
       } catch {
@@ -646,19 +873,19 @@ function readJsonl(file) {
   }
 }
 function forecastHistory(root) {
-  const wfRoot = join(root, ".ai", "workflows");
+  const wfRoot = join2(root, ".ai", "workflows");
   const journals = [];
   const sliceTokens = [];
   const slicesPerSlug = [];
   let slugs = [];
   try {
-    slugs = readdirSync(wfRoot, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+    slugs = readdirSync2(wfRoot, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
   } catch {
   }
   for (const slug of slugs) {
-    const j = readJsonl(join(wfRoot, slug, ".driver-journal.jsonl"));
+    const j = readJsonl(join2(wfRoot, slug, ".driver-journal.jsonl"));
     if (j.length) journals.push(j);
-    const cost = readJsonl(join(wfRoot, slug, "cost.jsonl"));
+    const cost = readJsonl(join2(wfRoot, slug, "cost.jsonl"));
     const n = sliceCount(root, slug);
     if (n) slicesPerSlug.push(n);
     if (cost.length && n) sliceTokens.push(cost.reduce((a, r) => a + rowTokens(r), 0) / n);
@@ -671,16 +898,16 @@ function forecastHistory(root) {
   return { stageMinutes: stageMinutesFromJournals(journals), sliceTokens: med(sliceTokens), slicesPerSlug: med(slicesPerSlug), journals: journals.length };
 }
 function sliceCount(root, slug) {
-  const idx = join(root, ".ai", "workflows", slug, "00-index.md");
-  if (!existsSync(idx)) return null;
-  const data = safeParseFrontmatter(readFileSync(idx, "utf8")).data;
+  const idx = join2(root, ".ai", "workflows", slug, "00-index.md");
+  if (!existsSync2(idx)) return null;
+  const data = safeParseFrontmatter(readFileSync2(idx, "utf8")).data;
   const s = data?.slices;
   return Array.isArray(s) && s.length ? s.length : null;
 }
 function shipPlan(root) {
-  const p = join(root, ".ai", "ship-plan.md");
-  if (!existsSync(p)) return null;
-  const d = safeParseFrontmatter(readFileSync(p, "utf8")).data ?? {};
+  const p = join2(root, ".ai", "ship-plan.md");
+  if (!existsSync2(p)) return null;
+  const d = safeParseFrontmatter(readFileSync2(p, "utf8")).data ?? {};
   return {
     "version-scheme": d["version-scheme"] ?? null,
     "version-source-of-truth": d["version-source-of-truth"] ?? null,
@@ -717,10 +944,11 @@ function orient(root, b) {
     return { ok: false, single: true, error: "the work set has one build packet: that is not a campaign.", start: only ? `/wf intake .ai/workflows/${b}/${only.file}` : null };
   }
   if (check.errors.length) return { ok: false, errors: check.errors, warnings: check.warnings };
-  const cfg = readJson(join(root, ".ai", "sdlc-config.json")) ?? {};
+  const cfg = readJson(join2(root, ".ai", "sdlc-config.json")) ?? {};
   const ignored = cfg.artifactTracking === "ignored" || git(root, ["check-ignore", "-q", ".ai/workflows"]) !== null;
-  if (ignored) return { ok: false, error: "the repo does not track .ai/ (artifactTracking: ignored, or .ai/workflows is gitignored). The waves carry the workflow artifacts on their branches, so a campaign needs a tracked .ai/." };
   const ledger = newLedger({ brainstorm: b, revision: ws.revision, units, now: nowIso() });
+  ledger.records = ignored ? "local" : "tracked";
+  if (ignored) check.warnings.push("the repo does not track .ai/: the records stay in the main checkout. Each worktree gets a copy, and its changes come back before the worktree is removed (local records). The wave PR text and the code are still public.");
   ledger["ship-plan"] = shipPlan(root);
   ledger.trunk = trunkOf(root);
   ledger["run-id"] = `${nowIso().replace(/[-:]/g, "").replace(/\.\d+/, "")}-${b}`;
@@ -737,9 +965,9 @@ function orient(root, b) {
   const fc = buildForecast({ units, history, slices });
   ledger.forecast = { minutes: fc.minutes, tokens: fc.tokens, unknown: fc.unknown, journals: history.journals };
   saveLedger(root, b, ledger);
-  writeAtomic(join(campDir(root, b), "forecast.md"), renderForecast(fc, { brainstorm: b, now: nowIso() }));
+  writeAtomic(join2(campDir(root, b), "forecast.md"), renderForecast(fc, { brainstorm: b, now: nowIso() }));
   appendJournal(root, b, "campaign-orient", { revision: ws.revision, waves: ledger.waves.length });
-  return { ok: true, waves: ledger.waves.map((w) => w.units), waiting: ledger.waiting, outside: Object.keys(ledger.outside), warnings: check.warnings, forecast: ledger.forecast, toolGaps: ledger["tool-gaps"], next: campaignAction(ledger, { revision: ws.revision }) };
+  return { ok: true, records: ledger.records, waves: ledger.waves.map((w) => w.units), waiting: ledger.waiting, outside: Object.keys(ledger.outside), warnings: check.warnings, forecast: ledger.forecast, toolGaps: ledger["tool-gaps"], next: campaignAction(ledger, { revision: ws.revision }) };
 }
 function claudeVersionGap() {
   const r = process.platform === "win32" ? spawnSync("claude --version", { encoding: "utf8", windowsHide: true, shell: true }) : spawnSync("claude", ["--version"], { encoding: "utf8" });
@@ -762,12 +990,12 @@ function compareSemver(a, b) {
   for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
   return 0;
 }
-var configOf = (root) => readJson(join(root, ".ai", "sdlc-config.json")) ?? {};
-var usageDir = () => process.env.SDLC_USAGE_DIR || join(homedir(), ".claude", "sdlc", "usage");
+var configOf = (root) => readJson(join2(root, ".ai", "sdlc-config.json")) ?? {};
+var usageDir = () => process.env.SDLC_USAGE_DIR || join2(homedir(), ".claude", "sdlc", "usage");
 function readings() {
   const dir = usageDir();
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => readJson(join(dir, f)));
+  if (!existsSync2(dir)) return [];
+  return readdirSync2(dir).filter((f) => f.endsWith(".json")).map((f) => readJson(join2(dir, f)));
 }
 function budget(root, b) {
   const ledger = requireLedger(root, b);
@@ -778,59 +1006,141 @@ function budget(root, b) {
   const width = effectiveWidth({ width: cfg.campaign?.width ?? DEFAULT_WIDTH, isolation, budget: st.state });
   return { ok: true, ...st, width, readingAt: reading?.at ?? null, isolation: isolation !== null };
 }
-var worktreeRoot = (root, ledger) => join(root, ".scratch", "campaign", ledger["run-id"] ?? "run", "wt");
-function worktree(root, b, [key, action]) {
-  const ledger = requireLedger(root, b);
-  const u = ledger.units[key];
-  if (!u) throw new Error(`worktree: ${key} is not a build unit of this campaign`);
-  if (action === "remove") {
-    if (!u.worktree) return { ok: true, removed: false, reason: "no worktree" };
-    rmSync(join(u.worktree.path, ".ai", "workflows", u.slug ?? key, ".watch-state.json"), { force: true });
-    const r2 = spawnSync("git", ["-C", root, "worktree", "remove", u.worktree.path], { encoding: "utf8", windowsHide: true });
-    if (r2.status !== 0) return { ok: false, error: `git refused to remove ${u.worktree.path}: ${(r2.stderr || "").trim()}. Ask the person; do not force.` };
-    delete u.worktree;
-    saveLedger(root, b, ledger);
-    return { ok: true, removed: true };
+var worktreeRoot = (root, ledger) => join2(root, ".scratch", "campaign", ledger["run-id"] ?? "run", "wt");
+var recordsDir = (root, b) => join2(campDir(root, b), "records");
+var manifestFile = (root, b, id) => join2(recordsDir(root, b), `${id}.json`);
+var isLocal = (ledger) => ledger?.records === "local";
+var WORKTREE_IGNORE = "# written by /wf campaign (local records): the records in this worktree stay out of git\n*\n";
+var isAiIgnore = (rel) => rel === ".gitignore";
+var mainOwned = (b) => (rel) => isAiIgnore(rel) || rel.startsWith(`workflows/${b}/work/campaign/`);
+function syncIn(root, b, id, path) {
+  return withRecordsLock(join2(recordsDir(root, b), ".lock"), id, () => {
+    const ignoreFile = join2(path, ".ai", ".gitignore");
+    mkdirSync2(join2(path, ".ai"), { recursive: true });
+    const tracked = spawnSync("git", ["-C", path, "ls-files", "--error-unmatch", ".ai/.gitignore"], { encoding: "utf8", windowsHide: true }).status === 0;
+    const have = existsSync2(ignoreFile) ? readFileSync2(ignoreFile, "utf8") : "";
+    if (!tracked && !have.split(/\r?\n/).includes("*")) writeFileSync2(ignoreFile, WORKTREE_IGNORE);
+    const manifest = loadManifest(manifestFile(root, b, id), id);
+    manifest.worktree = path;
+    const res = recordsIn({ main: root, worktree: path, manifest, exclude: mainOwned(b) });
+    saveManifest(manifestFile(root, b, id), manifest, nowIso());
+    const st = spawnSync("git", ["-C", path, "status", "--porcelain", "--untracked-files=all", "--", ".ai"], { encoding: "utf8", windowsHide: true });
+    const visible = st.status === 0 ? st.stdout.split(/\r?\n/).filter((l) => l.startsWith("?? ")).map((l) => l.slice(3)) : ["(git status failed)"];
+    if (visible.length) res.visibleToGit = visible;
+    return res;
+  });
+}
+function syncOut(root, b, id, path) {
+  return withRecordsLock(join2(recordsDir(root, b), ".lock"), id, () => {
+    const manifest = loadManifest(manifestFile(root, b, id), id);
+    const conflictsDir = join2(recordsDir(root, b), "conflicts", id, nowIso().replace(/[-:]/g, ""));
+    const res = recordsOut({ main: root, worktree: path, manifest, conflictsDir, exclude: isAiIgnore });
+    saveManifest(manifestFile(root, b, id), manifest, nowIso());
+    if (res.copied.length || res.conflicts.length) appendJournal(root, b, "records-out", { id, copied: res.copied.length, conflicts: res.conflicts.map((c) => c.rel) });
+    return res;
+  });
+}
+function removeWorktree(root, b, ledger, id, path) {
+  let records = null;
+  if (isLocal(ledger)) {
+    records = syncOut(root, b, id, path);
+    const pending = recordsPending({ main: root, worktree: path, manifest: loadManifest(manifestFile(root, b, id), id), exclude: isAiIgnore });
+    if (pending.length) return { ok: false, error: `${pending.length} file(s) in the worktree exist nowhere else, so the worktree stays. Ask the person.`, pending, records };
+  } else {
+    const wf = join2(path, ".ai", "workflows");
+    if (existsSync2(wf)) for (const d of readdirSync2(wf)) rmSync2(join2(wf, d, ".watch-state.json"), { force: true });
   }
-  if (action !== "add") throw new Error("worktree: the action is add or remove");
+  const st = spawnSync("git", ["-C", path, "status", "--porcelain", "--ignored=matching"], { encoding: "utf8", windowsHide: true });
+  if (st.status !== 0) return { ok: false, error: `git status failed in ${path}: ${(st.stderr || "").trim()}`, records };
+  const risk = ignoredAtRisk(st.stdout, isolationOf(configOf(root))?.["build-dirs"] ?? []);
+  if (risk.length) return { ok: false, error: "git worktree remove deletes ignored files without asking, and these are not build folders. Ask the person: copy what they need into the main checkout, or name the folder in campaign.isolation.build-dirs, then remove again.", ignored: risk, records };
+  const r = spawnSync("git", ["-C", root, "worktree", "remove", path], { encoding: "utf8", windowsHide: true });
+  if (r.status !== 0) return { ok: false, error: `git refused to remove ${path}: ${(r.stderr || "").trim()}. Ask the person; do not force.`, records };
+  return { ok: true, removed: true, records };
+}
+function worktree(root, b, args) {
+  const res = worktreeStep(root, b, args);
+  const visible = res.records?.visibleToGit ?? [];
+  if (!visible.length) return res;
+  return { ...res, ok: false, error: `git can stage ${visible.length} copied record(s) in this worktree, so a commit there could publish them. Do not drive, hand off or ship in this worktree. Ask the person.` };
+}
+function worktreeStep(root, b, [key, action]) {
+  const ledger = requireLedger(root, b);
+  const waveN = /^wave-(\d+)$/.exec(key ?? "")?.[1];
+  const w = waveN ? ledger.waves.find((x) => x.n === Number(waveN)) : null;
+  if (waveN && !w) throw new Error(`worktree: no wave ${waveN}`);
+  const u = waveN ? null : ledger.units[key];
+  if (!waveN && !u) throw new Error(`worktree: ${key} is not a build unit of this campaign`);
+  if (!["add", "refresh", "sync", "remove"].includes(action)) throw new Error("worktree: the action is add, refresh, sync or remove");
+  const local = isLocal(ledger);
+  const holder = w ?? u;
+  if (action !== "add") {
+    if (!holder.worktree) return { ok: true, removed: false, synced: false, reason: local ? "no worktree: the drive wrote in the main checkout" : "no worktree" };
+    if (action === "remove") {
+      const res = removeWorktree(root, b, ledger, key, holder.worktree.path);
+      if (res.ok) {
+        delete holder.worktree;
+        saveLedger(root, b, ledger);
+      }
+      return res;
+    }
+    if (!local) return { ok: true, synced: false, reason: "the repo tracks .ai/: the records travel in commits" };
+    return { ok: true, records: action === "sync" ? syncOut(root, b, key, holder.worktree.path) : syncIn(root, b, key, holder.worktree.path) };
+  }
+  if (w) {
+    if (!w.branch) throw new Error(`worktree: wave ${w.n} has no branch yet`);
+    const path2 = join2(worktreeRoot(root, ledger), key);
+    if (!existsSync2(path2)) {
+      mkdirSync2(worktreeRoot(root, ledger), { recursive: true });
+      const r2 = spawnSync("git", ["-C", root, "worktree", "add", path2, w.branch], { encoding: "utf8", windowsHide: true });
+      if (r2.status !== 0) return { ok: false, error: `git worktree add failed: ${(r2.stderr || "").trim()}` };
+    }
+    w.worktree = { path: path2, branch: w.branch };
+    saveLedger(root, b, ledger);
+    return { ok: true, ...w.worktree, ...local ? { records: syncIn(root, b, key, path2) } : {} };
+  }
   const iso = isolationOf(configOf(root));
   if (!iso) return { ok: false, error: "no usable isolation contract (campaign.isolation in .ai/sdlc-config.json): drive this slug in the main checkout at width 1" };
-  const w = ledger.waves.find((x) => x.n === u.wave);
-  if (!w || w.state !== "running" || !w.branch) throw new Error(`worktree: wave ${u.wave} of ${key} is not running`);
-  if (u.worktree && existsSync(u.worktree.path)) return { ok: true, ...u.worktree, reused: true };
+  const uw = ledger.waves.find((x) => x.n === u.wave);
+  if (!uw || uw.state !== "running" || !uw.branch) throw new Error(`worktree: wave ${u.wave} of ${key} is not running`);
+  if (u.worktree && existsSync2(u.worktree.path)) return { ok: true, ...u.worktree, reused: true, ...local ? { records: syncIn(root, b, key, u.worktree.path) } : {} };
   const base = worktreeRoot(root, ledger);
-  mkdirSync(base, { recursive: true });
+  mkdirSync2(base, { recursive: true });
   const freeGb = statfsSync(base).bavail * statfsSync(base).bsize / 1024 ** 3;
   if (freeGb < iso["min-free-gb"]) return { ok: false, wait: true, error: `${freeGb.toFixed(1)} GB free, below min-free-gb ${iso["min-free-gb"]}: wait until a merged slug's worktree is removed` };
-  const index = [...w.units].sort((a, c) => (ledger.units[a].order ?? 0) - (ledger.units[c].order ?? 0)).indexOf(key);
-  const branch = `campaign/${b}/wave-${w.n}--${u.slug}`;
-  const path = join(base, u.slug);
-  const r = spawnSync("git", ["-C", root, "worktree", "add", "-b", branch, path, w.branch], { encoding: "utf8", windowsHide: true });
+  const index = [...uw.units].sort((a, c) => (ledger.units[a].order ?? 0) - (ledger.units[c].order ?? 0)).indexOf(key);
+  const branch = `campaign/${b}/wave-${uw.n}--${u.slug}`;
+  const path = join2(base, u.slug);
+  const r = spawnSync("git", ["-C", root, "worktree", "add", "-b", branch, path, uw.branch], { encoding: "utf8", windowsHide: true });
   if (r.status !== 0) return { ok: false, error: `git worktree add failed: ${(r.stderr || "").trim()}` };
-  const src = join(root, ".ai", "workflows", u.slug);
-  const dest = join(path, ".ai", "workflows", u.slug);
-  if (existsSync(src) && !existsSync(dest)) cpSync(src, dest, { recursive: true });
   u.worktree = { path, branch, index, ports: portsFor(iso, index) };
   saveLedger(root, b, ledger);
+  let records = null;
+  if (local) records = syncIn(root, b, key, path);
+  else {
+    const src = join2(root, ".ai", "workflows", u.slug);
+    const dest = join2(path, ".ai", "workflows", u.slug);
+    if (existsSync2(src) && !existsSync2(dest)) cpSync(src, dest, { recursive: true });
+  }
   appendJournal(root, b, "worktree", { key, slug: u.slug, path, branch, index });
-  return { ok: true, ...u.worktree };
+  return { ok: true, ...u.worktree, ...records ? { records } : {} };
 }
 var LOCK_STALE_MS = 3 * 60 * 60 * 1e3;
 function lock(root, b, [action, holder]) {
   if (!holder) throw new Error("lock: give the holder (the slug)");
-  const file = join(root, ".scratch", "campaign", "heavy.lock");
-  mkdirSync(join(file, ".."), { recursive: true });
+  const file = join2(root, ".scratch", "campaign", "heavy.lock");
+  mkdirSync2(join2(file, ".."), { recursive: true });
   const cur = readJson(file);
   if (action === "release") {
     if (!cur || cur.holder !== holder) return { ok: true, released: false, holder: cur?.holder ?? null };
-    rmSync(file, { force: true });
+    rmSync2(file, { force: true });
     return { ok: true, released: true };
   }
   if (action !== "acquire") throw new Error("lock: the action is acquire or release");
   if (cur && cur.holder !== holder && Date.now() - Date.parse(cur.at) < LOCK_STALE_MS) return { ok: true, acquired: false, holder: cur.holder, since: cur.at };
   if (!cur || cur.holder !== holder) {
     try {
-      writeFileSync(file, JSON.stringify({ holder, at: nowIso() }), { flag: cur ? "w" : "wx" });
+      writeFileSync2(file, JSON.stringify({ holder, at: nowIso() }), { flag: cur ? "w" : "wx" });
     } catch {
       const now = readJson(file);
       return { ok: true, acquired: false, holder: now?.holder ?? null, since: now?.at ?? null };
@@ -983,7 +1293,7 @@ function reply(root, b, [id, ...text]) {
   saveLedger(root, b, ledger);
   return { ok: true, question: q };
 }
-function pause(root, b, [until, ...reason]) {
+function pause2(root, b, [until, ...reason]) {
   if (!until || !Number.isFinite(Date.parse(until))) throw new Error("pause: give the reset time as an ISO 8601 timestamp");
   const ledger = requireLedger(root, b);
   ledger.pause = { reason: reason.join(" ") || "usage limit", until: new Date(Date.parse(until)).toISOString(), at: nowIso() };
@@ -1003,11 +1313,11 @@ function resume(root, b) {
   return { ok: true, next: campaignAction(ledger, {}) };
 }
 function asBuiltNotes(root, b) {
-  const dir = join(campDir(root, b), "as-built");
+  const dir = join2(campDir(root, b), "as-built");
   const out = {};
-  if (!existsSync(dir)) return out;
-  for (const f of readdirSync(dir).filter((x) => x.endsWith(".json"))) {
-    const d = readJson(join(dir, f));
+  if (!existsSync2(dir)) return out;
+  for (const f of readdirSync2(dir).filter((x) => x.endsWith(".json"))) {
+    const d = readJson(join2(dir, f));
     if (d?.key) out[d.key] = { ...d, path: `../as-built/${f.replace(/\.json$/, ".md")}` };
   }
   return out;
@@ -1019,13 +1329,13 @@ function context(root, b, [key]) {
   const units = unitsOf(ws);
   const u = units.find((x) => x.key === key);
   if (!u) throw new Error(`context: no packet ${key}`);
-  const driftFile = join(campDir(root, b), "drift", `${key}.json`);
+  const driftFile = join2(campDir(root, b), "drift", `${key}.json`);
   const drift2 = (readJson(driftFile)?.lines ?? []).filter((l) => l.class === "implementation-detail");
   const wt = ledger.units[key]?.worktree;
-  const iso = wt ? isolationOf(readJson(join(root, ".ai", "sdlc-config.json")) ?? {}) : null;
-  const isolation = wt && iso ? isolationText(iso, { index: wt.index, worktree: wt.path, slug: u.slug, lockCmd: `node "${join(PLUGIN_ROOT, "skills", "wf", "scripts", "campaign.mjs")}" lock "${root}" ${b}` }) : null;
-  const text = renderContext({ unit: u, units, ledger, asBuilt: asBuiltNotes(root, b), drift: drift2, isolation });
-  const file = join(campDir(root, b), "context", `${u.slug}.md`);
+  const iso = wt ? isolationOf(readJson(join2(root, ".ai", "sdlc-config.json")) ?? {}) : null;
+  const isolation = wt && iso ? isolationText(iso, { index: wt.index, worktree: wt.path, slug: u.slug, lockCmd: `node "${join2(PLUGIN_ROOT, "skills", "wf", "scripts", "campaign.mjs")}" lock "${root}" ${b}` }) : null;
+  const text = renderContext({ unit: u, units, ledger, asBuilt: asBuiltNotes(root, b), drift: drift2, isolation, localRecords: isLocal(ledger) });
+  const file = join2(campDir(root, b), "context", `${u.slug}.md`);
   writeAtomic(file, text);
   return { ok: true, key, slug: u.slug, path: file };
 }
@@ -1040,7 +1350,7 @@ function drift(root, b, [nText]) {
   const results = w.units.map((k) => units.find((u) => u.key === k)).filter(Boolean).map((u) => classifyDrift(u, notes));
   const L = [`# Drift check before wave ${n}`, "", "Each waiting slug's expects lines against the as-built notes of the slugs it names, after the refuter (11.2).", ""];
   for (const r of results) {
-    writeAtomic(join(campDir(root, b), "drift", `${r.key}.json`), `${JSON.stringify(r, null, 2)}
+    writeAtomic(join2(campDir(root, b), "drift", `${r.key}.json`), `${JSON.stringify(r, null, 2)}
 `);
     L.push(`## ${r.key} \u2014 ${r.class}`, "");
     if (!r.lines.length) L.push("- No expects lines.");
@@ -1058,7 +1368,7 @@ function drift(root, b, [nText]) {
     }
   }
   L.push("## Result", "", contract.length ? `Contract differences: ${contract.join(", ")}. These slugs and their dependents wait for the person: ${[...stop].join(", ")}.` : "No contract difference. The wave can start.", "");
-  writeAtomic(join(campDir(root, b), "drift", `wave-${n}.md`), L.join("\n"));
+  writeAtomic(join2(campDir(root, b), "drift", `wave-${n}.md`), L.join("\n"));
   appendJournal(root, b, "drift", { wave: n, contract, stop: [...stop], implementation: results.filter((r) => r.class === "implementation-detail").map((r) => r.key) });
   return { ok: true, wave: n, results: results.map((r) => ({ key: r.key, class: r.class })), stop: [...stop] };
 }
@@ -1105,7 +1415,7 @@ function forecast(root, b, f) {
   const fc = buildForecast({ units: units.filter((u) => !["merged", "shipped"].includes(ledger.units[u.key]?.state)), history, slices });
   ledger.forecast = { minutes: fc.minutes, tokens: fc.tokens, unknown: fc.unknown, journals: history.journals };
   saveLedger(root, b, ledger);
-  writeAtomic(join(campDir(root, b), "forecast.md"), renderForecast(fc, { brainstorm: b, now: nowIso(), actual: ledger["forecast-actual"] }));
+  writeAtomic(join2(campDir(root, b), "forecast.md"), renderForecast(fc, { brainstorm: b, now: nowIso(), actual: ledger["forecast-actual"] }));
   return { ok: true, forecast: ledger.forecast };
 }
 function main(argv = process.argv.slice(2)) {
@@ -1148,7 +1458,7 @@ function main(argv = process.argv.slice(2)) {
         out = reply(root, b, pos);
         break;
       case "pause":
-        out = pause(root, b, pos);
+        out = pause2(root, b, pos);
         break;
       case "resume":
         out = resume(root, b);

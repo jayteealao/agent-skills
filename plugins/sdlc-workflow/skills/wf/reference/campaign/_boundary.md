@@ -17,7 +17,7 @@ The boundary driver (`workflows/campaign-boundary.js`) runs these steps as agent
 
 ## Merge
 
-1. Check out the wave branch in the wave worktree, `.scratch/campaign/<run-id>/wt/wave-<n>` (add it with `git -C <projectRoot> worktree add <path> <wave branch>` when it does not exist). The main checkout stays on the trunk, where the rolling prepare writes. When a tracked file has uncommitted changes, return `status: failed`. Untracked files do not block.
+1. Check out the wave branch in the wave worktree, `.scratch/campaign/<run-id>/wt/wave-<n>`. The campaign session adds it with `campaign.mjs worktree wave-<n> add` before the boundary; add it with `git -C <projectRoot> worktree add <path> <wave branch>` only when it does not exist. Never remove a worktree: the campaign session does that, through its guarded `remove`. The main checkout stays on the trunk, where the rolling prepare writes. When a tracked file has uncommitted changes, return `status: failed`. Untracked files do not block.
 2. Merge each slug branch in the order that the prompt gives, one at a time: `git -C <projectRoot> merge --no-ff <slug branch> -m "<the slug's change in product language>"`.
 3. On a conflict, apply this table. Then either finish the merge, or run `git merge --abort` and record that slug as not merged.
 

@@ -24,9 +24,9 @@ Each wave is one PR. With an isolation contract, up to `campaign.width` slugs of
    6. When the run reaches its endpoint, run `<cmd> unit <key> finished --digest '<outcome.decisionDigest as JSON>'`. When the run stopped, run `<cmd> unit <key> stopped --route "<outcome.route>"` and continue with the next unit (12.1). A unit that depends on a stopped unit stays in the wave list but is not driven: mark it `stopped` with `--route "waits for <key>"`.
    7. When the run stopped on an agent that returned nothing, or the session saw a usage-limit error (kind `rate_limit`, status 429, or "You've reached your … limit"), run `<cmd> budget`. When its state is `pause`, or the newest reading is 95% or more, this is a usage pause and not a failure: run `<cmd> pause` with the reset time, and resume the drive later. A 529 Overloaded is not a usage limit.
    8. Run `<watch> end "<projectRoot>" <slug>` with `--stopped-at` when the run stopped. With a worktree, `<projectRoot>` is the worktree path. Then append the hand-back narrative to the slug's `commentary.md` (`--event run-end`).
-   9. After the run-end note, commit the slug's records on the slug branch (in the worktree when there is one). The drive leaves its verify and review records uncommitted, and the wave merge carries only commits. Stage `.ai/workflows/<slug>/` by path, unstage its `.watch-state.json`, and commit with `chore(<slug>): record the drive`.
+   9. After the run-end note, commit the slug's records on the slug branch (in the worktree when there is one). The drive leaves its verify and review records uncommitted, and the wave merge carries only commits. Stage `.ai/workflows/<slug>/` by path, unstage its `.watch-state.json`, and commit with `chore(<slug>): record the drive`. With local records, do not commit: when the unit has a worktree, run `<cmd> worktree <key> sync` instead (see "Local records").
    10. Build the slug output: launch the boundary driver (below) with `mode: "slug-output"` and this one unit, with its `worktree` path when there is one. When the output does not build, the slug failed its verify: mark it `stopped` with the failure as its route.
-6. **Boundary.** Run `<cmd> wave <n> set boundary`. Launch the boundary driver with `mode: "wave"` and the finished units. Then record its outcome:
+6. **Boundary.** Run `<cmd> wave <n> set boundary`. Run `<cmd> worktree wave-<n> add`; the boundary merges in that wave worktree. Launch the boundary driver with `mode: "wave"` and the finished units. Then record its outcome:
    - each `merged` unit: `<cmd> unit <key> merged --merge <sha>`;
    - each `needsFix` unit: `<cmd> unit <key> needs-fix --route "<reason>"`;
    - each `notMerged` unit: `<cmd> unit <key> stopped --route "<reason>"`;
@@ -39,8 +39,8 @@ Each wave is one PR. With an isolation contract, up to `campaign.width` slugs of
 8. **Pick up changes.** When `status` returns `work-changed`, follow [_phases.md](_phases.md), "Reopen pick-up".
 9. **Drift for the next wave.** Launch the boundary driver with `mode: "drift"` and `wave: <n+1>`. Its agent classifies each changed contract line and runs `<cmd> drift <n+1>`.
 10. **Forecast.** Run `<cmd> forecast --wave <n> --minutes <m> --tokens <t>`, with the wave's real run time from the journals and its tokens from the slugs' `cost.jsonl`.
-11. **Clean up.** After the wave shipped, remove the wave worktree with `git -C "<projectRoot>" worktree remove <path>`.
-    - CAUTION: do not run `git worktree remove --force`. It deletes through a linked folder (a `node_modules` junction) into the files it points to. When `worktree remove` refuses, ask the person.
+11. **Clean up.** After the wave shipped, run `<cmd> worktree wave-<n> remove`.
+    - CAUTION: do not run `git worktree remove` yourself, and do not run it with `--force`. Git deletes the ignored files of a worktree without asking, and `--force` also deletes through a linked folder (a `node_modules` junction) into the files it points to. When `<cmd> worktree … remove` refuses, show the person its `pending` and `ignored` lists and ask.
 12. **F3.** When the boundary outcome has `stopBeforeNextWave`, record the question with `<cmd> ask` and do not start the next wave. The wave itself still ships.
 
 ### The boundary driver
@@ -61,6 +61,21 @@ Args: `projectRoot`, `referenceRoot`, `brainstorm`, `mode`, `wave`, `waveBranch`
 - **12.4 A change lands on a lower wave.** With stacked PRs, move the higher waves at the next wave boundary, never while their slugs run ([_gh-stack.md](_gh-stack.md)).
 - **12.5 Stack height.** At most `max-unshipped` waves (default 2) wait unshipped above the trunk. At the limit, `wave <n> start` refuses: continue the rolling prepare and ask the person about the waves that wait in handoff or ship.
 
+## Local records
+
+A repo that does not track `.ai/` keeps the records in the main checkout. Orient records `records: local` in the ledger. Branches carry only code, so no wave PR carries a workflow file.
+
+- `<cmd> worktree <key|wave-<n>> add` copies the main `.ai/` tree into the worktree. The campaign folder stays in the main checkout, because the drives read it there by absolute path. The worktree gets its own `.ai/.gitignore` with `*`, so no `git add` in the worktree can stage a record. The main `.gitignore` can be untracked, and then a worktree does not have it. When git can still see a copied record, `add` and `refresh` return `ok: false` with `visibleToGit`: do not drive, hand off or ship in that worktree, and ask the person.
+- `refresh` copies the main changes in. A file that the worktree changed or deleted stays as the worktree has it.
+- `sync` copies every file that the worktree created or changed back to the main checkout. It never deletes a file in the main checkout, and it never overwrites a main change.
+- `remove` runs `sync` first. The worktree stays when a file exists only in the worktree (`pending`), or when git would delete an ignored file outside `.ai/` that is not in `campaign.isolation.build-dirs` or `node_modules` (`ignored`).
+
+The sync compares content hashes with the base, the version that both sides last agreed on. The base of each file is in `work/campaign/records/<key>.json`. Each copy goes to a temp file, the hash is checked, and a rename puts it in place. Watch cursors (`.watch-state.json`) and render caches (`_view/`) never travel.
+
+When both sides changed a file, the main version stays, and `sync` keeps the worktree version in `work/campaign/records/conflicts/<key>/<time>/`. The result lists it under `conflicts`. For `.ai/workflows/INDEX.md`, the sync also merges the rows into the main copy, and the newer row of each slug wins. For every other conflict, show the person both versions and ask which version to keep. A file that the worktree deleted stays in the main checkout, and the result lists it under `deletedInWorktree`.
+
+WARNING: local records keep the brainstorm and the packets out of git, but not out of the wave PRs. Handoff writes each PR description from the slug's records, and a pushed PR is public in a public repo. Before handoff pushes a wave, read its PR text for private details.
+
 ## Versions and outputs
 
 - **V1.** The target version is the setup answer `target-version`.
@@ -75,6 +90,14 @@ WARNING: do not push a wave tag, and do not publish a release, unless the setup 
 ## Handoff and ship per wave
 
 Each wave is one PR. Its base is the wave's `base`: the trunk, or the wave branch below when the PRs are stacked.
+
+With local records, handoff and ship run in the wave worktree, because only that checkout has the wave branch. Edit every `00-index.md` in the main checkout. Then, around each `/wf handoff` and each `/wf ship`:
+
+1. Run `<cmd> worktree wave-<n> refresh`. It copies the main edits in.
+2. Run the command with the wave worktree as the project root.
+3. Run `<cmd> worktree wave-<n> sync`. It copies the handoff and ship records back.
+
+The steps:
 
 1. Run `<cmd> wave <n> set handoff`. In each merged slug's `00-index.md`, set `branch:` to the wave branch and `base-branch:` to the wave's `base` (the trunk, or the wave branch below).
 2. Run `/wf handoff <wave branch>`. Batch mode builds the roster of the slugs on that branch and opens one PR with one package. The ship-plan readiness check and the RIM block run as usual. Record the PR with `<cmd> wave <n> set handoff --pr <url>` and `<cmd> journal pr-opened '{"wave":<n>,"pr":"<url>"}'`.

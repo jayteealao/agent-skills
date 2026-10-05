@@ -107,7 +107,7 @@ A build packet (form `intake`, `extension`, `fix`, `hotfix`) is a unit. A `task`
 | `journal <event> [<json>]` | Append a campaign event for the watch |
 | `forecast [--wave n --minutes m --tokens t]` | Update the forecast with the real numbers of a wave |
 | `budget` | The usage state (`ok`, `slow`, `pause`, `unknown`) from the newest reading, and the width it allows |
-| `worktree <key> add|remove` | Make or remove a unit's worktree, slug branch, and ports; `remove` never forces |
+| `worktree <key>\|wave-<n> add\|refresh\|sync\|remove` | Make or remove a unit's worktree, slug branch, and ports, or the wave worktree. With local records, `add` and `refresh` copy the main `.ai/` in, and `sync` copies the worktree changes back. `remove` syncs, refuses while a file would be lost, and never forces |
 | `lock acquire|release <slug>` | The heavy-suite lock: one holder at a time |
 | `stack enable|disable|set <n>` | Stacked wave PRs on or off, and the stack number on GitHub |
 

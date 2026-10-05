@@ -104,7 +104,7 @@ test('a dependency on a piece the brainstorm already wrote is done: orient accep
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('a single build packet is not a campaign; a gitignored .ai/ stops orient', () => {
+test('a single build packet is not a campaign; a gitignored .ai/ turns on local records', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'campaign single '));
   try {
     git(root, 'init', '-q');
@@ -115,7 +115,126 @@ test('a single build packet is not a campaign; a gitignored .ai/ stops orient', 
     assert.match(o.start, /\/wf intake \.ai\/workflows\/realism\/work\/engine\.md/);
     packetFile(root, { key: 'W2', 'work-slug': 'squads' });
     writeFileSync(path.join(root, '.gitignore'), '.ai/\n');
-    assert.match(run(root, 'orient').error, /does not track \.ai/);
+    const local = run(root, 'orient');
+    assert.equal(local.ok, true, JSON.stringify(local));
+    assert.equal(local.records, 'local');
+    assert.ok(local.warnings.some((w) => /records stay in the main checkout/.test(w)));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+/** makeRepo, with .ai/ ignored and untracked: the records exist only in the main checkout. */
+function makeLocalRepo() {
+  const root = makeRepo();
+  writeFileSync(path.join(root, '.gitignore'), '.ai/*\n');
+  git(root, 'rm', '-r', '-q', '--cached', '.ai');
+  git(root, 'add', '.gitignore');
+  git(root, 'commit', '-q', '-m', 'ignore .ai');
+  writeFileSync(path.join(root, '.ai', 'sdlc-config.json'), JSON.stringify({ artifactTracking: 'ignored', campaign: { isolation: ISOLATION } }));
+  mkdirSync(path.join(root, '.ai', 'workflows', 'squads'), { recursive: true });
+  writeFileSync(path.join(root, '.ai', 'workflows', 'squads', '00-index.md'), '---\nslug: squads\n---\n');
+  return root;
+}
+
+test('local records: a worktree gets the main .ai/, its records come back, and remove loses no file (13)', () => {
+  const root = makeLocalRepo();
+  try {
+    const o = run(root, 'orient');
+    assert.equal(o.records, 'local', JSON.stringify(o));
+    setupDone(root);
+    run(root, 'unit', 'W1', 'prepared');
+    run(root, 'unit', 'W2', 'prepared');
+    const st = run(root, 'wave', '1', 'start');
+    git(root, 'branch', st.branch, st.base);
+    const a = run(root, 'worktree', 'W2', 'add');
+    assert.equal(a.ok, true, JSON.stringify(a));
+    const ai = (p, ...rel) => path.join(p, '.ai', ...rel);
+    assert.ok(existsSync(ai(a.path, 'workflows', 'squads', '00-index.md')), 'the prepared folder is copied in');
+    assert.ok(existsSync(ai(a.path, 'sdlc-config.json')), 'the whole .ai/ tree is copied in');
+    assert.ok(existsSync(ai(a.path, 'workflows', B, 'work', 'squads.md')), 'the packets are copied in');
+    assert.ok(!existsSync(ai(a.path, 'workflows', B, 'work', 'campaign')), 'the campaign folder stays in the main checkout');
+    assert.match(readFileSync(run(root, 'context', 'W2').path, 'utf8'), /Local records: this repo does not track `\.ai\/`/);
+    // The drive writes records in the worktree; a second slug-less file appears too.
+    writeFileSync(ai(a.path, 'workflows', 'squads', '05-implement-a.md'), 'implemented');
+    writeFileSync(ai(a.path, 'workflows', 'squads', '00-index.md'), '---\nslug: squads\ncurrent-stage: verify\n---\n');
+    mkdirSync(ai(a.path, 'solutions'), { recursive: true });
+    writeFileSync(ai(a.path, 'solutions', 'tick-order.md'), 'a learning');
+    writeFileSync(ai(a.path, 'workflows', 'squads', '.watch-state.json'), '{}');
+    const s = run(root, 'worktree', 'W2', 'sync');
+    assert.equal(s.ok, true, JSON.stringify(s));
+    assert.deepEqual(s.records.copied.sort(), ['solutions/tick-order.md', 'workflows/squads/00-index.md', 'workflows/squads/05-implement-a.md']);
+    assert.equal(readFileSync(ai(root, 'workflows', 'squads', '05-implement-a.md'), 'utf8'), 'implemented');
+    assert.ok(!existsSync(ai(root, 'workflows', 'squads', '.watch-state.json')), 'the watch cursor is machine-local');
+    // A record written after the sync still comes back: remove syncs first.
+    writeFileSync(ai(a.path, 'workflows', 'squads', '06-verify-a.md'), 'verified');
+    // An ignored file outside .ai/ that is not a build folder stops the remove.
+    writeFileSync(path.join(a.path, '.gitignore'), '.ai/*\n.env.local\ntarget/\n');
+    git(a.path, 'commit', '-q', '-am', 'ignore env');
+    writeFileSync(path.join(a.path, '.env.local'), 'SECRET=1');
+    mkdirSync(path.join(a.path, 'target'), { recursive: true });
+    writeFileSync(path.join(a.path, 'target', 'sm'), 'binary');
+    const refused = run(root, 'worktree', 'W2', 'remove');
+    assert.equal(refused.ok, false);
+    assert.deepEqual(refused.ignored, ['.env.local'], 'the build folder is disposable; the env file is not');
+    assert.equal(readFileSync(ai(root, 'workflows', 'squads', '06-verify-a.md'), 'utf8'), 'verified', 'the refused remove still synced the records');
+    rmSync(path.join(a.path, '.env.local'));
+    const removed = run(root, 'worktree', 'W2', 'remove');
+    assert.equal(removed.ok, true, JSON.stringify(removed));
+    assert.ok(!existsSync(a.path));
+    for (const f of ['05-implement-a.md', '06-verify-a.md']) assert.ok(existsSync(ai(root, 'workflows', 'squads', f)), f);
+    assert.ok(existsSync(ai(root, 'solutions', 'tick-order.md')));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('local records: with an untracked .gitignore, the worktree still hides every copied record from git (13)', () => {
+  const root = makeRepo();
+  try {
+    // The Secbot shape: .ai/ untracked, and the .gitignore that ignores it never committed.
+    git(root, 'rm', '-r', '-q', '--cached', '.ai');
+    git(root, 'commit', '-q', '-m', 'untrack .ai');
+    writeFileSync(path.join(root, '.gitignore'), '.ai/*\n');
+    writeFileSync(path.join(root, '.ai', 'sdlc-config.json'), JSON.stringify({ artifactTracking: 'ignored', campaign: { isolation: ISOLATION } }));
+    writeFileSync(path.join(root, '.ai', '.gitignore'), '# managed by sdlc-workflow\n_view/\n');
+    assert.equal(run(root, 'orient').records, 'local');
+    setupDone(root);
+    run(root, 'unit', 'W1', 'prepared');
+    run(root, 'unit', 'W2', 'prepared');
+    const st = run(root, 'wave', '1', 'start');
+    git(root, 'branch', st.branch, st.base);
+    const a = run(root, 'worktree', 'W2', 'add');
+    assert.equal(a.ok, true, JSON.stringify(a));
+    assert.ok(!existsSync(path.join(a.path, '.gitignore')), 'the worktree has no root .gitignore');
+    assert.equal(git(a.path, 'status', '--porcelain', '--untracked-files=all'), '', 'git sees no copied record');
+    assert.match(readFileSync(path.join(a.path, '.ai', '.gitignore'), 'utf8'), /^\*$/m);
+    writeFileSync(path.join(a.path, '.ai', 'workflows', 'squads-new.md'), 'new');
+    assert.equal(run(root, 'worktree', 'W2', 'remove').ok, true);
+    assert.equal(readFileSync(path.join(root, '.ai', '.gitignore'), 'utf8'), '# managed by sdlc-workflow\n_view/\n', 'the main .ai/.gitignore never takes the worktree version');
+    assert.equal(readFileSync(path.join(root, '.ai', 'workflows', 'squads-new.md'), 'utf8'), 'new');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('local records: the wave worktree takes the main records for handoff, and its changes come back (13)', () => {
+  const root = makeLocalRepo();
+  try {
+    run(root, 'orient');
+    setupDone(root);
+    run(root, 'unit', 'W1', 'prepared');
+    run(root, 'unit', 'W2', 'prepared');
+    const st = run(root, 'wave', '1', 'start');
+    git(root, 'branch', st.branch, st.base);
+    const w = run(root, 'worktree', 'wave-1', 'add');
+    assert.equal(w.ok, true, JSON.stringify(w));
+    assert.equal(w.branch, 'campaign/realism/wave-1');
+    const idx = path.join(w.path, '.ai', 'workflows', 'squads', '00-index.md');
+    assert.ok(existsSync(idx));
+    // The campaign session sets branch: in the main checkout; refresh carries it in.
+    writeFileSync(path.join(root, '.ai', 'workflows', 'squads', '00-index.md'), '---\nslug: squads\nbranch: campaign/realism/wave-1\n---\n');
+    assert.deepEqual(run(root, 'worktree', 'wave-1', 'refresh').records.refreshed, ['workflows/squads/00-index.md']);
+    assert.match(readFileSync(idx, 'utf8'), /branch: campaign\/realism\/wave-1/);
+    // Handoff writes its package in the wave worktree.
+    writeFileSync(path.join(w.path, '.ai', 'workflows', 'squads', '08-handoff.md'), 'handoff');
+    assert.deepEqual(run(root, 'worktree', 'wave-1', 'sync').records.copied, ['workflows/squads/08-handoff.md']);
+    assert.equal(run(root, 'worktree', 'wave-1', 'remove').ok, true);
+    assert.equal(readFileSync(path.join(root, '.ai', 'workflows', 'squads', '08-handoff.md'), 'utf8'), 'handoff');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

@@ -480,9 +480,10 @@ export function renderLedgerMd(ledger) {
 /**
  * Section 10: the context file a yolo run reads fresh, by path. `asBuilt` maps a
  * packet key to { path, lines } (after the refuter); `drift` is this unit's
- * implementation-detail drift lines.
+ * implementation-detail drift lines. `localRecords` is true when the repo does
+ * not track .ai/ (local records, 13).
  */
-export function renderContext({ unit, units, ledger, asBuilt = {}, drift = [], isolation = null }) {
+export function renderContext({ unit, units, ledger, asBuilt = {}, drift = [], isolation = null, localRecords = false }) {
   const byKey = new Map(units.map((u) => [u.key, u]));
   const wave = ledger?.units?.[unit.key]?.wave ?? null;
   const pre = [...closure(byKey, unit.key)].map((k) => byKey.get(k)).filter(Boolean).sort(byOrder);
@@ -525,6 +526,7 @@ export function renderContext({ unit, units, ledger, asBuilt = {}, drift = [], i
   L.push(...(drift.length ? drift.map((d) => `- \`${d.from}/${d.key}\` (${d.text}): ${d.note ?? d.status}`) : ['- None.']), '');
   L.push('## 6. Isolation', '');
   L.push(isolation ? (isolation.startsWith('- ') ? isolation : `- ${isolation}`) : '- Width 1, in the main checkout. No port base, no own build folder, no heavy-suite lock.', '');
+  if (localRecords) L.push('- Local records: this repo does not track `.ai/`. Do not stage or commit a file under `.ai/`. The campaign copies the records back to the main checkout.', '');
   return L.join('\n');
 }
 
