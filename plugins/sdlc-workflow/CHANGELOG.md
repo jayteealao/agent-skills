@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.182.0] - 2026-10-08
+
+### Added
+
+- **Every workflow keeps its drawings in one folder.** The design stage now makes design boards in `.ai/workflows/<slug>/design/`: one picture for each surface and state, a manifest `boards.json`, and a contact sheet `index.html` that shows every board. A board starts from a capture of the running product, from an imported design, or from an HTML page built with the tokens of `DESIGN.md`. Before, the drawings lived only on a private canvas link, in slug-less `.ai/design-probes/` files, or in folders that each session made up.
+- **The board tool.** `skills/wf/scripts/design-boards.mjs` renders HTML boards to PNG with an installed Chromium browser in headless mode (Chrome, Edge, or a Playwright browser; no new package), writes the contact sheet, freezes a confirmed revision, checks the boards, names the verify captures, imports outside design work, and writes the `.gitignore` lines that keep the design record tracked. Set `SDLC_BROWSER` to choose a browser.
+- **A confirmed design is frozen.** On approve, the boards are copied to `design/r<N>/`, which never changes. `02c-craft.md` records `boards:` and `design-revision:`, and `north-star-mock:` is a board. An amend freezes `r<N+1>/`, so an old contract still points at the boards the person saw.
+- **`/wf design <slug> import <link|path>`** turns a design canvas, a claude.ai/design project, a folder, a zip, or image files into boards. You map each screen to a surface and a state, and then you confirm the boards as usual.
+- **Later stages use the boards.** Plan cites board keys, implement reads the board PNGs of its slice, and sub-agents get board paths, never a canvas link. Verify saves each capture under its board's name in `design/captures/<slice>/` and pairs the two in `## Design Comparison`. With no boards, verify records `design-comparison: no-boards` and reports no visual pass. Review compares board and capture pairs, and does not redraw a confirmed board. Retro links the newest board of each surface in `.ai/design/current.md`.
+- **Brainstorm sketches travel with the work.** A design brainstorm saves each sketch in `design/sketches/`, the work packet lists them, and intake copies them into the new workflow.
+- **The contract page shows the boards.** The viewer copies the frozen board PNGs beside the contract page and shows them with the canvas link.
+- **Keep the design record in git.** In a repo that ignores `.ai/`, `design-boards.mjs track` shows (and with `--write`, adds) the `.gitignore` lines that keep `.ai/design/` and every `design/r<N>/` tracked. `/wf status` mentions it once; `/wf ship-plan init` adds it when you choose "Ignored".
+
+### Changed
+
+- **A design that needs pictures is settled only when its boards exist.** For `ux-impact: visual` or `new-surface`, a contract that names its boards is settled only while every board file is on disk. The pre-write hook refuses a plan write and names the missing files. A contract from an earlier release has no `boards:` and keeps the old rule.
+- **The design canvas is a mirror.** When the host has a canvas, the stage puts the boards on it for comments; the files stay the contract. `/imagery` makes mood images only and takes a trailing `into <folder>`. A generated image is never a board.
+- **A campaign prepares a unit only when its design is settled.** `campaign.mjs unit <key> prepared` refuses a unit whose needed design is not settled, or whose `visual` or `new-surface` contract has no frozen boards on disk. A worktree receives the boards of its own workflows only. A design change in a slug branch stops its merge; a verify capture does not.
+
+### Fixed
+
+- **The two design pages had swapped folders.** The viewer rendered the brief under `design/` and the confirmed contract under `design-brief/`. The contract is now the design stage's page, `design/`.
+- **`.ai/design/current.md` and `direction.md` have schema types.** The record templates named `design-current` and `design-direction`, but the schema had no branch for them.
+
 ## [9.181.0] - 2026-10-05
 
 ### Added
