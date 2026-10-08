@@ -305,6 +305,18 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
+        "input": "design/_boards.md",
+        "kind": "procedure",
+        "when": "mode:stage",
+        "sections": []
+      },
+      {
+        "input": "design/import.md",
+        "kind": "procedure",
+        "when": "mode:import",
+        "sections": []
+      },
+      {
         "input": "design/audit.md",
         "kind": "procedure",
         "when": "mode:audit",
@@ -557,6 +569,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
       },
       {
         "input": "02c-craft.md",
+        "kind": "artifact",
+        "when": "if-present",
+        "sections": []
+      },
+      {
+        "input": "design/boards.json",
         "kind": "artifact",
         "when": "if-present",
         "sections": []
@@ -1706,6 +1724,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
       },
       {
         "input": "02c-craft.md",
+        "kind": "artifact",
+        "when": "if-present",
+        "sections": []
+      },
+      {
+        "input": "design/boards.json",
         "kind": "artifact",
         "when": "if-present",
         "sections": []

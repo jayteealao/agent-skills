@@ -24,7 +24,7 @@
 
 import {
   existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync,
-  statSync, rmSync, renameSync, appendFileSync,
+  statSync, rmSync, renameSync, appendFileSync, copyFileSync,
 } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, resolve, join, relative, basename } from 'node:path';
@@ -35,6 +35,8 @@ import { validateFrontmatter, renderWarnBanner } from '../renderers/_validator.m
 import { resolveViewPath, siblingPaths, classifyFragmentName, breadcrumbFromView, hubAssetBase, EVIDENCE_DIRS, NO_PAGE_DIRS, SURFACE_SWEEP_RE } from '../renderers/_paths.mjs';
 import { shouldGenerateFragment, generateTypedFragment } from '../renderers/_fragment-gen.mjs';
 import { composeStagePage, stageKeyFor, evidenceDirFor, viewHref } from '../renderers/_page.mjs';
+import { boardsGallery } from '../renderers/_boards.mjs';
+import { frozenBoardsOf } from '../lib/design-boards.mjs';
 import { buildPathMap, rewriteBodyLinks } from '../renderers/_link-graph.mjs';
 import { workSetFilter } from '../renderers/_mtime.mjs';
 import { loadHistory } from '../renderers/_history.mjs';
@@ -334,6 +336,19 @@ function assetUpToDate(src, dst) {
     return readFileSync(src).equals(readFileSync(dst));
   } catch {
     return false;
+  }
+}
+
+// Copy the frozen board PNGs of a contract page into `<page dir>/boards/`, so that
+// the page serves them from its own origin (the hub CSP allows `img-src 'self'`).
+// An unchanged copy is skipped. A failed copy warns and never stops the render.
+function copyBoardImages(designBoards, pageDir) {
+  const dir = join(pageDir, 'boards');
+  mkdirSync(dir, { recursive: true });
+  for (const b of designBoards.boards) {
+    const dst = join(dir, b.file);
+    if (assetUpToDate(b.abs, dst)) continue;
+    try { copyFileSync(b.abs, dst); } catch (err) { console.warn(`[render] board copy failed for ${b.key}: ${err.code ?? err.message}`); }
   }
 }
 
@@ -797,7 +812,15 @@ async function renderMain(args) {
 
     const displaySlug = a.kind === 'docs' ? 'docs' : a.slug;
     const effectiveAssetBase = defaultAssetBase(args);
+    const fourPart = Boolean(a.explainer) && config?.view?.narrativeFragments !== false;
+    // The frozen design boards of a contract page (DESIGN-BOARDS-PLAN W7): copied
+    // beside the page after the write, shown by the renderer or the composer.
+    const designBoards = type === 'design-contract' && a.kind === 'workflow' && !/(?:^|\/)history\//.test(a.storageRel)
+      ? frozenBoardsOf(join(storageRoot, a.slug), a.frontmatter ?? {})
+      : null;
     const ctx = {
+      designBoards,
+      fourPart,
       slug: displaySlug,
       slugRoot: a.kind === 'workflow' ? join(storageRoot, a.slug) : null,
       viewRoot: a.kind === 'workflow' ? join(viewRoot, a.slug) : viewRoot,
@@ -817,7 +840,6 @@ async function renderMain(args) {
     // (renderers/_page.mjs): the explainer replaces the story, so nothing is
     // lifted and the renderer's output becomes the collapsed full record.
     // Without one (old slugs, D5) the page is exactly today's page.
-    const fourPart = Boolean(a.explainer) && config?.view?.narrativeFragments !== false;
     const stage = fourPart ? stageKeyFor({ type, frontmatter: a.frontmatter ?? {}, path: a.storageRel }) : null;
     const { storyMarkdown, bodyRest } = fourPart
       ? { storyMarkdown: '', bodyRest: a.body }
@@ -877,6 +899,7 @@ async function renderMain(args) {
         recordHtml: result.bodyHtml ?? '',
         evidence,
         related,
+        boardsHtml: designBoards ? boardsGallery(designBoards) : '',
         allArtifacts: ctx.allArtifacts,
         viewRel: a.viewRel,
         scopeCss: config?.view?.scopeNarrativeCss !== false ? scopeFragmentCss : (h) => h,
@@ -919,6 +942,7 @@ async function renderMain(args) {
       mkdirSync(dirname(a.viewAbs), { recursive: true });
       writeFileAtomic(a.viewAbs, html);
       renderedCount++;
+      if (designBoards?.boards.length) copyBoardImages(designBoards, dirname(a.viewAbs));
 
       // Drain children (sub-blooms)
       if (result.children?.length) {

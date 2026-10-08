@@ -70,7 +70,7 @@ You are a **workflow orchestrator**, not a problem solver.
    - At least one implement record (`05-implement-<slice>.md`, or `05-implement.md` in change mode) must exist. If nothing exists beyond intake → STOP. Tell the user: "Not enough completed work to retrospect. Run more stages first."
    - A ship run (`09-ship-run-*.md`, or a legacy `09-ship.md`) is strongly recommended but not blocking — a retro can run after a cancelled or abandoned effort.
    - If `current-stage` in the index shows the workflow is already complete → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
-4. **Use the full workflow trail** (every Requires row). Retro reflects on design decisions and augmentation outcomes, not only engineering ones. When design was needed, write back to the design record per [design/record.md](design/record.md) → Retro write-back: update `.ai/design/current.md`, and ask the person before any change to `.ai/design/direction.md`.
+4. **Use the full workflow trail** (every Requires row). Retro reflects on design decisions and augmentation outcomes, not only engineering ones. When design was needed, write back to the design record per [design/record.md](design/record.md) → Retro write-back: update `.ai/design/current.md`, and ask the person before any change to `.ai/design/direction.md`. In `current.md` `## Surfaces`, set the Newest board of each surface the workflow changed to its PNG in the last frozen revision (`workflows/<slug>/design/r<N>/boards/<key>.png`).
 5. **Carry forward** `open-questions` from the index.
 
 # Batch retro (`pr#N` / branch)

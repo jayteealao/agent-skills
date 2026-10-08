@@ -158,9 +158,19 @@ export function isHistorySnapshotPath(filePath) {
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/history\//.test(normalizePathForMatch(filePath));
 }
 
+/**
+ * The design boards folder of a workflow (`.ai/workflows/<slug>/design/`): board
+ * HTML and PNG files, the boards.json manifest, sources, sketches and captures
+ * (DESIGN-BOARDS-PLAN section 3). Free-form like design-notes/: no filename rule,
+ * no schema check, and no page render.
+ */
+export function isDesignBoardsPath(filePath) {
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/design\//.test(normalizePathForMatch(filePath));
+}
+
 /** A workflow file that the write hooks never schema-check. */
 export function isFreeFormWorkflowPath(filePath) {
-  return isEvidencePath(filePath) || isBrainstormSourcePath(filePath) || isWorkSetFreeFormPath(filePath) || isHistorySnapshotPath(filePath);
+  return isEvidencePath(filePath) || isBrainstormSourcePath(filePath) || isWorkSetFreeFormPath(filePath) || isHistorySnapshotPath(filePath) || isDesignBoardsPath(filePath);
 }
 
 export function isProjectContextMarkdownPath(filePath) {
@@ -174,7 +184,10 @@ export function isProjectContextMarkdownPath(filePath) {
     // -build keeps .ai/observability-audit.md OUT — that ledger is kind-keyed
     // (kind: observability-audit, no sdlc/v1 type) and must not be schema-gated.
     // Added in v9.132.0 (OBSERVABILITY-ROUTER-PLAN).
-    /(?:^|\/)\.ai\/observability(?:-build)?\.md$/.test(normalized)
+    /(?:^|\/)\.ai\/observability(?:-build)?\.md$/.test(normalized) ||
+    // The design record (design/record.md): .ai/design/current.md (type:
+    // design-current) and .ai/design/direction.md (type: design-direction).
+    /(?:^|\/)\.ai\/design\/(?:current|direction)\.md$/.test(normalized)
   );
 }
 
@@ -217,6 +230,12 @@ export function projectContextPathInfo(filePath) {
   }
   if (/(?:^|\/)\.ai\/observability-build\.md$/.test(normalized)) {
     return { filename: 'observability-build.md', expectedType: 'observability-build' };
+  }
+  if (/(?:^|\/)\.ai\/design\/current\.md$/.test(normalized)) {
+    return { filename: 'current.md', expectedType: 'design-current' };
+  }
+  if (/(?:^|\/)\.ai\/design\/direction\.md$/.test(normalized)) {
+    return { filename: 'direction.md', expectedType: 'design-direction' };
   }
   return null;
 }

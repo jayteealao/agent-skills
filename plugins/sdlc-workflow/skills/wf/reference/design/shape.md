@@ -93,9 +93,9 @@ sentence, named anchor references, anti-goals — from the discovery interview. 
 **NOT** draw surfaces or generate image probes, and does **NOT** run a confirm gate. Those two moves belong
 to the design stage, which a person runs:
 
-- **Drawings + north-star mock** — the design stage draws every changed surface when it authors
-  the visual contract (see [contract.md](contract.md) → *Land the visual direction*). Do
-  not run the design canvas or `imagery` here.
+- **Boards** — the design stage draws one board per changed surface and state when it authors
+  the visual contract (see [contract.md](contract.md) → *Land the visual direction*, and
+  [_boards.md](_boards.md)). Do not draw boards, open the design canvas, or run `imagery` here.
 - **Confirm gate** — the design stage presents the resolved direction and gets the person's approval
   (`shape=pass`) before writing `02c-craft.md`. The brief is revisable discovery output, not
   a locked contract.

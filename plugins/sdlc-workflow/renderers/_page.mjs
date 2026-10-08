@@ -543,6 +543,7 @@ export function composeStagePage(p) {
   }
   return `<div class="stage-page stage-page-${escapeHtml(p.stage)}">
 ${part1}
+${p.boardsHtml ?? ''}
 ${waitingForYou(fm, sections)}
 ${contractTable(p.stage, { fm, sy: p.siblingYaml, sections, allArtifacts: p.allArtifacts, viewRel: p.viewRel })}
 ${evidenceAndHistory({ evidence: p.evidence, related: p.related, history: p.history, recordHtml: p.recordHtml })}

@@ -5,6 +5,7 @@ import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs
 import { renderHistoryBlock } from './_history.mjs';
 import { frontmatterCard } from './_simple.mjs';
 import { escapeHtml } from './_validator.mjs';
+import { boardsGallery } from './_boards.mjs';
 
 export function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
@@ -54,15 +55,19 @@ export function render(artifact, ctx) {
     : '';
 
   const frontmatterBlock = frontmatterCard(fm, [
-    'component', 'based-on', 'register', 'image-gate', 'north-star-mock', 'references-loaded', 'refs',
+    'component', 'based-on', 'register', 'image-gate', 'north-star-mock', 'boards', 'design-revision',
+    'canvas', 'surfaces', 'direction-confirmed-by', 'confirmed-at', 'carried-from', 'references-loaded', 'refs',
   ]);
+  // The frozen boards (DESIGN-BOARDS-PLAN W7). On a four-part page the composer
+  // shows them above the record, so the record leaves them out.
+  const galleryHtml = ctx?.designBoards && !ctx?.fourPart ? boardsGallery(ctx.designBoards) : '';
   const proseBlock = artifact.body
     ? `<div class="prose">${md2html(artifact.body)}</div>`
     : '';
 
   return {
     headerHtml,
-    bodyHtml: `${metricsHtml}${summaryHtml}${fragmentBlock}${matrixHtml}${frontmatterBlock}${proseBlock}${renderHistoryBlock(artifact.history)}`,
+    bodyHtml: `${metricsHtml}${summaryHtml}${galleryHtml}${fragmentBlock}${matrixHtml}${frontmatterBlock}${proseBlock}${renderHistoryBlock(artifact.history)}`,
     links: [],
     children: [],
   };

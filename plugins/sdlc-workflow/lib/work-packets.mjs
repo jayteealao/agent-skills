@@ -314,6 +314,20 @@ function startCommand(slug, piece) {
   return `/wf intake .ai/workflows/${slug}/work/${packetFileName(piece)}`;
 }
 
+/**
+ * The carried sketches of a piece (DESIGN-BOARDS-PLAN W5b): each key with its
+ * file under the board's `design/sketches/`, its canvas link, and its caption.
+ * A board path that does not start with `.ai/` is relative to the board folder.
+ */
+export function packetSketches(board, piece) {
+  const sketches = byKey(board.sketches);
+  return (piece.sketches ?? []).map((key) => {
+    const s = sketches.get(key) ?? {};
+    const path = s.path ? (String(s.path).startsWith('.ai/') ? s.path : `.ai/workflows/${board.slug}/${s.path}`) : null;
+    return { key, path, link: s.link ?? null, ...(s.caption ? { caption: s.caption } : {}) };
+  });
+}
+
 /** The frontmatter object of a piece's packet. */
 export function packetFrontmatter(board, piece, { revision = 1, generatedAt = null } = {}) {
   const decisions = carriedDecisionItems(board, piece);
@@ -355,6 +369,7 @@ export function packetFrontmatter(board, piece, { revision = 1, generatedAt = nu
     references: piece.references ?? [],
     'ux-impact': piece['ux-impact'] ?? 'none',
     design: piece['design-form'] ?? 'none',
+    ...(piece.sketches?.length ? { sketches: packetSketches(board, piece) } : {}),
     size: sizeOf(decisions.length),
     state: isStartedState(piece.state) ? piece.state : 'proposed',
     'routed-to': piece['routed-to'] ?? null,
@@ -442,6 +457,7 @@ export function renderPacket(board, piece, { revision = 1, generatedAt = null, r
   const sources = [
     ...(piece.research ?? []).map((id) => `- Research: ${researchLink(id, researchFiles)}`),
     ...(piece.references ?? []).map((ref) => `- Reference: ${referenceLink(ref)}`),
+    ...(fm.sketches ?? []).map((sk) => `- Sketch \`${sk.key}\`: ${sk.path ? `\`${sk.path}\`` : 'no file'}${sk.link ? ` ([canvas](${sk.link}))` : ''}${sk.caption ? ` — ${sk.caption}` : ''}`),
   ];
   lines.push(...(sources.length ? sources : [none]), '');
   return lines.join('\n');

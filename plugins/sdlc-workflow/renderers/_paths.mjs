@@ -63,8 +63,11 @@ const PHASE_BY_BASENAME = {
   // brainstorm on a `type: workflow-index` slug — terminal, named dir, no build.
   '01-brainstorm':         ['brainstorm', null],
   '02-shape':              ['shape', null],
-  '02b-design':            ['design', null],
-  '02c-craft':             ['design-brief', null],
+  // The brief (02b) renders under design-brief/ and the confirmed contract (02c)
+  // under design/, the design stage's own folder (DESIGN-BOARDS-PLAN W7). Before
+  // v9.182 the two were swapped.
+  '02b-design':            ['design-brief', null],
+  '02c-craft':             ['design', null],
   '03-slice-index':        ['slice', null],
   '04-plan-index':         ['plan', null],
   '05-implement-index':    ['implement', null],
@@ -390,10 +393,11 @@ export const EVIDENCE_DIRS = Object.freeze(['probe-evidence', 'verify-evidence']
 
 /**
  * A brainstorm's sources and work set (BRAINSTORM-WORK-PACKETS-PLAN): research/,
- * references/, and work/. The walk skips them; they get no page. The brainstorm
+ * references/, and work/; and the design boards folder design/ (DESIGN-BOARDS-PLAN:
+ * the contract page shows its frozen boards). The walk skips them; they get no page. The brainstorm
  * page links the packets. `lib/hook-utils.mjs` holds the hook-side twins.
  */
-export const NO_PAGE_DIRS = Object.freeze(['research', 'references', 'work']);
+export const NO_PAGE_DIRS = Object.freeze(['research', 'references', 'work', 'design']);
 
 /** True when a slug-relative storage path lies inside an evidence folder. */
 export function isEvidencePath(storageRel) {

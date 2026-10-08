@@ -88,6 +88,7 @@ Read what actually exists — do not infer from filenames.
 3. `po-answers.md` — the product-owner decisions that constrain the work. Keep the ones that still matter; drop superseded ones.
 3b. `steer.md` (see `_steering.md`) — the standing constraints. Surface them; do not act on them (recap advances nothing).
 4. If slices exist, list `03-slice-*.md` / `04-plan-*.md` / `05-implement-*.md` / `06-verify-*.md` / `07-review-*.md` to build the slice-by-slice progress picture.
+5. When `design/index.html` exists in the workflow folder, give its path in `## Where it stands now`. It is the contact sheet of the design boards.
 
 **Slice recap (slug + slice):** use `00-index.md` and the `02-shape` explainer for context, then the frontmatter and explainers of that slice's own trail — `03-slice-<slice>.md`, `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md` (whichever exist). Read `po-answers.md` entries tagged to this slice. Ignore the other slices except where this slice depends on them.
 

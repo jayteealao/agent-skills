@@ -22,6 +22,7 @@ import { existsSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { loadConfig } from '../lib/config.mjs';
 import { designGateRefusal, isPlanArtifact, planSliceOf } from '../lib/design-lane.mjs';
+import { missingBoardFiles } from '../lib/design-boards.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { startedPacketRewriteError } from '../lib/work-packets.mjs';
 import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
@@ -175,7 +176,8 @@ export async function run(input) {
 }
 
 // Design lane human rule: read the slug's 00-index.md, 02b-design.md presence, and
-// 02c-craft.md frontmatter beside the plan being written. A per-slice plan also
+// 02c-craft.md frontmatter beside the plan being written, and the board files that
+// 02c-craft.md `boards:` lists. A per-slice plan also
 // reads 03-slice-<slice>.md: a slice with `ux-impact: none` needs no design. Fail
 // open on any read or parse problem — this gate guards a decision, not the file format.
 async function designGate({ projectRoot, filePath, slug, storageRel }) {
@@ -194,7 +196,10 @@ async function designGate({ projectRoot, filePath, slug, storageRel }) {
     const slice = sliceText === null
       ? null
       : (safeParseFrontmatter(sliceText, { filePath: join(dir, `03-slice-${sliceSlug}.md`) }).data ?? null);
-    return designGateRefusal({ index, hasBrief, contract, slug, slice, sliceSlug });
+    // A contract that names its boards (`boards:`) is settled only when the board
+    // files exist (DESIGN-BOARDS-PLAN D5).
+    const missingBoards = contract ? missingBoardFiles(dir, contract) : null;
+    return designGateRefusal({ index, hasBrief, contract, slug, slice, sliceSlug, missingBoards });
   } catch {
     return null;
   }

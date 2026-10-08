@@ -2,6 +2,14 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  designNeeded,
+  designSettled
+} from "./chunk-UBOP6VUB.mjs";
+import {
+  missingBoardFiles,
+  needsPictures
+} from "./chunk-5QUQXL7Q.mjs";
+import {
   safeParseFrontmatter
 } from "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -1037,9 +1045,10 @@ var WORKTREE_IGNORE = "# written by /wf campaign (local records): the records in
 var isAiIgnore = (rel) => rel === ".gitignore";
 var mainOwned = (b) => (rel) => isAiIgnore(rel) || rel.startsWith(`workflows/${b}/work/campaign/`);
 var EVIDENCE_RE = /^workflows\/([^/]+)\/[^/]+-evidence(\/|$)/;
+var DESIGN_RE = /^workflows\/([^/]+)\/design(\/|$)/;
 var notCopiedIn = (b, slugs) => (rel) => {
   if (mainOwned(b)(rel)) return true;
-  const m = EVIDENCE_RE.exec(rel);
+  const m = EVIDENCE_RE.exec(rel) ?? DESIGN_RE.exec(rel);
   return Boolean(m) && !slugs.includes(m[1]);
 };
 var slugsOf = (ledger, w, u) => w ? w.units.map((k) => ledger.units[k]?.slug ?? k) : [u.slug];
@@ -1248,11 +1257,33 @@ function answer(root, b, [key, ...rest]) {
   saveLedger(root, b, ledger);
   return { ok: true, key, value, next: campaignAction(ledger, {}) };
 }
+function designBlocksPrepared(root, slug) {
+  const dir = join2(root, ".ai", "workflows", slug);
+  const read = (name) => existsSync2(join2(dir, name)) ? safeParseFrontmatter(readFileSync2(join2(dir, name), "utf8")).data ?? {} : null;
+  const index = read("00-index.md");
+  if (!index) return null;
+  if (!designNeeded(index, existsSync2(join2(dir, "02b-design.md")))) return null;
+  const contract = read("02c-craft.md");
+  const missing = contract ? missingBoardFiles(dir, contract) : null;
+  if (!designSettled(index, contract, missing)) {
+    if (missing?.length) return `the confirmed boards are missing: ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? ` and ${missing.length - 3} more` : ""}`;
+    return `the design is not settled; run /wf design ${slug} with the person`;
+  }
+  const skipped = index.progress && typeof index.progress === "object" && index.progress.design === "skipped";
+  if (!skipped && needsPictures(index) && !String(contract?.boards ?? "").trim()) {
+    return `02c-craft.md names no boards: (ux-impact ${index["ux-impact"]}); run /wf design ${slug} amend or import to freeze the boards`;
+  }
+  return null;
+}
 function unit(root, b, [key, state], f) {
   if (!UNIT_STATES.includes(state)) throw new Error(`unit: the state is one of ${UNIT_STATES.join(", ")}`);
   const ledger = requireLedger(root, b);
   const u = ledger.units[key];
   if (!u) throw new Error(`unit: ${key} is not a build unit of this campaign`);
+  if (state === "prepared") {
+    const why = designBlocksPrepared(root, u.slug);
+    if (why) return { ok: false, key, state: u.state, error: `unit ${key} is not prepared: ${why}` };
+  }
   u.state = state;
   for (const k of ["route", "reason", "merge", "output"]) if (f[k] !== void 0) u[k] = f[k];
   if (f.digest !== void 0) {
@@ -1559,6 +1590,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 export {
   appendJournal,
   controlPath,
+  designBlocksPrepared,
   journalPath,
   main,
   readWorkSet

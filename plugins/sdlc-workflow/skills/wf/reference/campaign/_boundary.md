@@ -26,6 +26,8 @@ The boundary driver (`workflows/campaign-boundary.js`) runs these steps as agent
 | `.ai/workflows/INDEX.md` | Regenerate the conflicting rows from each slug's `00-index.md`. Never merge the rows by hand. |
 | The brainstorm's board, `01-brainstorm.md`, and the packets | Abort this slug's merge. A yolo run never writes them, so a change there is a fault to report. |
 | `.ai/solutions/`, `.ai/ship-plan*`, `.ai/design/*` | Abort this slug's merge. yolo does not write them. |
+| `design/boards.json`, `design/boards/`, `design/r*/`, `design/source/`, `design/sketches/` of any workflow | Abort this slug's merge. A drive never writes the boards (`design/_boards.md`). |
+| `design/captures/` of any workflow | A change is allowed: a drive writes its verify captures there. On a conflict, keep the slug branch's version. |
 | Code | Resolve the conflict only when both sides keep their tests green and no `provides` line changes. Run the tests of both slugs after the resolution. Otherwise abort this slug's merge. |
 
 4. Append one `merge` event per slug, as the prompt says, with `result` `merged` or `stopped`.

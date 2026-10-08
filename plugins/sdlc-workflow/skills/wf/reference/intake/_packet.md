@@ -43,6 +43,7 @@ Do this before the mode's own questions.
 - The open ideas and the open questions of the packet go into this mode's question rounds. Intake still asks its own questions for the gaps that the packet leaves open.
 - The findings and the assumptions are re-verified per [_intake-provenance.md](_intake-provenance.md). A contradicted finding becomes a known unknown.
 - The items under "Left for later and cut" join the out-of-scope list, so the workflow does not re-widen.
+- Copy each file of the packet's `sketches:` into `.ai/workflows/<work-slug>/design/sketches/`. Keep its key as the file name (`design/_boards.md`). A sketch with `path: null` has no file to copy.
 
 ## Step 4 — Link back
 

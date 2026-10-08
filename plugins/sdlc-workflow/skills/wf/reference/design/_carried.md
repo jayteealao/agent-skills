@@ -6,15 +6,18 @@ A design brainstorm (`intake/brainstorm/_design.md`) leaves design thoughts on a
 
 Look in these places, in this order. Read every source that exists.
 
-1. **The origin board.** When `00-index.md` records `origin-brainstorm: <board-slug>`, read `.ai/workflows/<board-slug>/brainstorm-board.json`. Take the piece of work in `work[]` whose `routed-to` is this slug.
-2. **This workflow's own board.** When `.ai/workflows/<slug>/brainstorm-board-design.json` exists, take its piece of work with `shape: design`.
+1. **The origin packet.** When `00-index.md` records `origin-packet: <packet path>`, read the packet's `sketches:`: each key with its file, its link, and its caption.
+2. **The origin board.** When `00-index.md` records `origin-brainstorm: <board-slug>`, read `.ai/workflows/<board-slug>/brainstorm-board.json`. Take the piece of work in `work[]` whose `routed-to` is this slug.
+3. **This workflow's own board.** When `.ai/workflows/<slug>/brainstorm-board-design.json` exists, take its piece of work with `shape: design`.
 
 From each piece of work, the carried set is:
 - its kept items (`scope: keep`) with `design: true`: the decisions and the open ideas, with each item's `why`;
 - the open questions and the open tensions on its threads with `design: true`;
-- its sketches (`sketches`), with each sketch's link and caption.
+- its sketches (`sketches`), with each sketch's file, link, and caption. The packet gives the file; the board gives a sketch that the packet does not list.
 
 An item with `scope: cut` or `scope: later` is not carried. When no source exists, or the carried set is empty, there is nothing to present: continue without this file.
+
+When a carried sketch file is not in this slug's `design/sketches/`, copy it there. Keep its key as the file name (`design/_boards.md`).
 
 ## In the brief (`shape` Step 5a)
 
@@ -24,7 +27,7 @@ Treat each carried decision as an answer the person already gave. Record it in t
 
 The person meets the carried thoughts again, with time and the brief behind them.
 
-1. **Present.** In the question text, give a short summary in plain words: what the brainstorm decided about how the idea looks and behaves, with the reason for each decision. Give each carried sketch's link and caption.
+1. **Present.** In the question text, give a short summary in plain words: what the brainstorm decided about how the idea looks and behaves, with the reason for each decision. Give each carried sketch's file path and caption, and its link when a canvas link exists.
 2. **Walk.** Ask about each carried decision and idea: keep, change (free text says how), or drop. Ask about up to four items per batch, per [_gate-question.md](../_gate-question.md). When you have a view, give it and its reason in the question text. The person decides.
 3. **Ask the open questions.** Put each carried open question and open tension to the person in the same batches.
 4. **Hand over.** The kept and changed items, and the carried sketches they point to, are the starting direction for Step 4. Draw from them first. A drawing that departs from a kept item says why in its caption.

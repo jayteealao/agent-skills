@@ -7,12 +7,15 @@ import {
   splitStorySection,
   stageKeyFor,
   viewHref
-} from "./chunk-OSVLK5ZV.mjs";
+} from "./chunk-4JO5VAGE.mjs";
+import {
+  boardsGallery
+} from "./chunk-FHZLIB5Q.mjs";
 import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-MFUP6TXX.mjs";
+} from "./chunk-VNXAWS4C.mjs";
 import {
   EVIDENCE_DIRS,
   NO_PAGE_DIRS,
@@ -24,7 +27,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-HSVXEPAP.mjs";
+} from "./chunk-P62FLZNA.mjs";
 import {
   aggregateCost,
   readCostRows
@@ -38,14 +41,17 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-PND5HQ2L.mjs";
+} from "./chunk-FWUDQOYE.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-HYL7DDCU.mjs";
-import "./chunk-RI5SKTSH.mjs";
+} from "./chunk-XP5JN45V.mjs";
+import {
+  frozenBoardsOf
+} from "./chunk-5QUQXL7Q.mjs";
+import "./chunk-VDBU23EK.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -76,7 +82,7 @@ import {
   upsertRegistryEntry,
   viewMtimeForSlug,
   writePidFile
-} from "./chunk-JNFVGADR.mjs";
+} from "./chunk-J4EY6FXU.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -92,7 +98,8 @@ import {
   statSync as statSync2,
   rmSync,
   renameSync,
-  appendFileSync
+  appendFileSync,
+  copyFileSync
 } from "node:fs";
 import { spawn } from "node:child_process";
 import { dirname, resolve, join as join3, relative, basename } from "node:path";
@@ -1339,6 +1346,28 @@ async function loadRenderer(type, pluginRoot) {
     return null;
   }
 }
+function assetUpToDate(src, dst) {
+  if (!existsSync3(dst)) return false;
+  try {
+    if (statSync2(src).size !== statSync2(dst).size) return false;
+    return readFileSync2(src).equals(readFileSync2(dst));
+  } catch {
+    return false;
+  }
+}
+function copyBoardImages(designBoards, pageDir) {
+  const dir = join3(pageDir, "boards");
+  mkdirSync(dir, { recursive: true });
+  for (const b of designBoards.boards) {
+    const dst = join3(dir, b.file);
+    if (assetUpToDate(b.abs, dst)) continue;
+    try {
+      copyFileSync(b.abs, dst);
+    } catch (err) {
+      console.warn(`[render] board copy failed for ${b.key}: ${err.code ?? err.message}`);
+    }
+  }
+}
 function writeFileAtomic(absPath, content) {
   const tmp = `${absPath}.tmp`;
   writeFileSync(tmp, content, "utf-8");
@@ -1664,7 +1693,11 @@ async function renderMain(args) {
     }, {});
     const displaySlug = a.kind === "docs" ? "docs" : a.slug;
     const effectiveAssetBase = defaultAssetBase(args);
+    const fourPart = Boolean(a.explainer) && config?.view?.narrativeFragments !== false;
+    const designBoards = type === "design-contract" && a.kind === "workflow" && !/(?:^|\/)history\//.test(a.storageRel) ? frozenBoardsOf(join3(storageRoot, a.slug), a.frontmatter ?? {}) : null;
     const ctx = {
+      designBoards,
+      fourPart,
       slug: displaySlug,
       slugRoot: a.kind === "workflow" ? join3(storageRoot, a.slug) : null,
       viewRoot: a.kind === "workflow" ? join3(viewRoot, a.slug) : viewRoot,
@@ -1673,7 +1706,6 @@ async function renderMain(args) {
       pathMap: pathMaps.get(a.slug),
       mode: args.mode
     };
-    const fourPart = Boolean(a.explainer) && config?.view?.narrativeFragments !== false;
     const stage = fourPart ? stageKeyFor({ type, frontmatter: a.frontmatter ?? {}, path: a.storageRel }) : null;
     const { storyMarkdown, bodyRest } = fourPart ? { storyMarkdown: "", bodyRest: a.body } : splitStorySection(a.body);
     const recordHistory = fourPart && stage && stage !== "recap" ? [] : a.history;
@@ -1715,6 +1747,7 @@ async function renderMain(args) {
         recordHtml: result.bodyHtml ?? "",
         evidence,
         related,
+        boardsHtml: designBoards ? boardsGallery(designBoards) : "",
         allArtifacts: ctx.allArtifacts,
         viewRel: a.viewRel,
         scopeCss: config?.view?.scopeNarrativeCss !== false ? scopeFragmentCss : (h) => h
@@ -1745,6 +1778,7 @@ async function renderMain(args) {
       mkdirSync(dirname(a.viewAbs), { recursive: true });
       writeFileAtomic(a.viewAbs, html);
       renderedCount++;
+      if (designBoards?.boards.length) copyBoardImages(designBoards, dirname(a.viewAbs));
       if (result.children?.length) {
         for (const child of result.children) {
           if (child.viewRel && child.html) {

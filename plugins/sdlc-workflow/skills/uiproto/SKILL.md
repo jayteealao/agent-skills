@@ -1,13 +1,14 @@
 ---
 name: uiproto
-description: Prototype a UI component/screen from a prompt. Fans out to Stitch + an LLM by default (side-by-side); a provider keyword yields one. Writes a self-contained, sandboxed HTML fragment. The design stage's fallback for hosts without a design canvas; internal to `/wf design`, invoke it through that key.
+description: Prototype a UI component/screen from a prompt. Fans out to Stitch + an LLM by default (side-by-side); a provider keyword yields one. Writes a self-contained, sandboxed HTML fragment. An optional interactive prototype the person may ask for at the design stage; never a design board. Internal to `/wf design`, invoke it through that key.
 version: 1.0.0
 user-invocable: false
 argument-hint: "[stitch|llm] <prompt>"
 ---
 
 Prototype a UI component or screen from a natural-language prompt and embed it as
-a **sandboxed `<iframe srcdoc>`** fragment beside the design artifact. Google
+a **sandboxed `<iframe srcdoc>`** fragment beside the design artifact. A prototype
+is never a design board (`design/_boards.md` in the wf skill holds the board methods). Google
 Stitch is the primary engine; a self-contained LLM-HTML generator is the automatic
 fallback. Resolve `<skill-dir>` per [_host-invocation.md](../wf/reference/_host-invocation.md).
 
@@ -18,8 +19,10 @@ fallback. Resolve `<skill-dir>` per [_host-invocation.md](../wf/reference/_host-
 2. **Consent for egress.** Both engines send the prompt to a third party, so they
    require `externalDispatch.enabled` in `~/.sdlc/hub-config.json`. If consent is
    off, STOP with the one-line opt-in notice (there is no no-egress fallback here).
-3. **Output.** Generated HTML goes to a temp file; the fragment is
-   `<stem>.uiproto.<provider>.html.fragment` next to the design artifact `<stem>.md`.
+3. **Output.** The fragment is `<stem>.uiproto.<provider>.html.fragment`. When a
+   workflow slug is in scope, write the generated HTML and the fragment into
+   `.ai/workflows/<slug>/design/source/`. Otherwise, write the generated HTML to a
+   temp file, and write the fragment next to the design artifact `<stem>.md`.
 
 ## Step 1 — Generate
 
@@ -64,7 +67,7 @@ UIPROTO_RESULT:
 
 ## Caller + cost
 
-Invoked at the visual-contract step (`plan`, following `design/contract.md`) or a design transform, beside the `imagery` mock. Bare fan-out
+The person may ask for a prototype at the design stage or in a design move. Bare fan-out
 calls **both** engines (per-token to your keys; Stitch needs its own provisioned
 project). Pin `/uiproto llm <prompt>` or `/uiproto stitch <prompt>` for one engine.
 Always opt-in; never hook- or serve-triggered.

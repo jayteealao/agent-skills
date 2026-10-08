@@ -28,7 +28,7 @@ export type CatalogEntry = {
 export const CATALOG: readonly CatalogEntry[] = [
   { key: 'intake', description: 'Start, extend, adopt, or maintain workflow scope.', argumentHint: '[slug] [mode] <description>', need: 'slug-optional' },
   { key: 'shape', description: 'Shape product intent and acceptance criteria.', argumentHint: '[slug] [hint]', need: 'slug-optional' },
-  { key: 'design', description: 'Confirm the design with the person before the build.', argumentHint: '[slug] [move|amend|audit|critique] [instructions] | <setup|teach|extract|direction|sync>', need: 'slug-optional' },
+  { key: 'design', description: 'Confirm the design with the person before the build.', argumentHint: '[slug] [move|amend|import|audit|critique] [instructions] | <setup|teach|extract|direction|sync>', need: 'slug-optional' },
   { key: 'slice', description: 'Decompose shaped scope into deliverable slices.', argumentHint: '<slug>', need: 'slug' },
   { key: 'plan', description: 'Plan one or more workflow slices.', argumentHint: '<slug> [slice|all] [feedback]', need: 'slug-slice-or-all' },
   { key: 'implement', description: 'Implement an approved slice plan.', argumentHint: '<slug> [slice|reviews]', need: 'slug-slice-optional' },

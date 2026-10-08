@@ -4,8 +4,9 @@ Load this file from `design.md` Step 0. Each row names the reference file for on
 
 | Command | Job | Reference file | Purpose |
 |---|---|---|---|
-| (none) | stage | `design/stage.md` | The human-only design stage: draw every changed surface, confirm with the person, write `02c-craft.md` |
+| (none) | stage | `design/stage.md` | The human-only design stage: draw one board per changed surface, confirm with the person, freeze the boards, write `02c-craft.md` |
 | `amend` | stage | `design/stage.md` → Amend | Reopen a confirmed design |
+| `import` | stage | `design/import.md` | Turn outside design work (a canvas, a claude.ai/design project, a folder, a zip, image files) into boards, then confirm |
 | `audit` | review | `design/audit.md` | Technical quality scan (a11y, perf, theming, responsive, anti-patterns, drift) + 0–4 scoring |
 | `critique` | review | `design/critique.md` | Prescriptive, register-forked design feedback against identity and direction |
 | `setup` | upkeep | `design/setup.md` + `design/record.md` | Create PRODUCT.md, DESIGN.md, and the `.ai/design/` record |

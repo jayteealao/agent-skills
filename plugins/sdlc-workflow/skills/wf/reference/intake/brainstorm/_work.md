@@ -22,6 +22,7 @@ Agree these with the person, in plain words, and give your view with its reason.
 | `shared` | A kept decision that two pieces carry. List it on each piece that carries it. |
 | `research`, `references` | The research notes (`R<NN>`) and references (`F<NN>`, or a repo path) the piece draws on. |
 | `design-form` | `design` or `design-direction` when a design focus adds the design stage to the piece ([_design.md](_design.md)); otherwise `none`. |
+| `sketches` | With a design focus: the carried sketches, by key. The packet carries each key with its path under this board's `design/sketches/`. |
 
 Propose the contract lines yourself. The person confirms them, changes them, or removes them.
 

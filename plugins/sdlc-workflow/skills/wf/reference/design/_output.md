@@ -42,16 +42,18 @@ artifact lets `/wf review` and `/wf handoff` see exactly what design augmentatio
   slug; truly standalone runs use `"freestanding"`.
 - **Narrative — the heart of the summary, REQUIRED for any command that produces an artifact.**
   Quote the summary paragraph of the artifact's explainer when one exists; otherwise write a short
-  **prose paragraph** (no bullets, no field labels) that *tells the user what happened*: for the design stage, what the person confirmed and how many surfaces
-  were drawn; for `audit`/`critique`, the verdict and top findings; for `extract`, what
+  **prose paragraph** (no bullets, no field labels) that *tells the user what happened*: for the design stage, what the person confirmed and how many boards
+  were frozen; for `audit`/`critique`, the verdict and top findings; for `extract`, what
   was reverse-engineered; for the other upkeep commands, what the design record now says. Weave in the
   load-bearing counts, decisions, and the top risk. Write it like you're telling a colleague, not
   filling a form. Omit only for genuinely read-only runs with nothing to narrate.
 - **Register** is `brand` or `product` — always emit; it is the load-bearing design-mode signal.
-- **Image gate** records whether the imagery check passed for commands that use it; `n/a` for
-  commands that don't run it.
+- **Image gate** records whether the person confirmed the boards (`pass`) or why a flow skipped
+  them; `n/a` for commands that don't run it.
+- **Boards** — for the design stage, the frozen revision (`design/r<N>/`), its board count, and the
+  contact-sheet path `design/r<N>/index.html`.
 - **Artifacts.** Comma-separate the `.ai/workflows/<slug>/` paths written (build runs list the
-  whole span). No-slug standalone reports may write `"none"` if nothing persisted.
+  whole span; the design stage lists `design/r<N>/` as one entry). No-slug standalone reports may write `"none"` if nothing persisted.
 - **Next** is a concrete invocation, or `Done`. The design stage routes to `/wf slice <slug>`;
   `audit`/`critique` route to `/wf review <slug>`; upkeep runs usually `Done`.
 - If the command reference defines its own "Chat return contract", treat that as the *content*

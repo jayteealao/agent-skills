@@ -134,11 +134,11 @@ question: "Should the .ai/ workflow artifacts (intake/shape/plan/verify bookkeep
 header: "Artifact tracking"
 options:
   - { label: "Tracked (Recommended)", description: "Artifacts ride the branch — reviewable, shared across machines. Ship's clean-tree gate offers a one-keystroke 'commit bookkeeping' for them." }
-  - { label: "Ignored",               description: "Artifacts stay local. Writes a .gitignore block: .ai/ except ship-plan.md + sdlc-config.json (the project-level contracts stay tracked)." }
+  - { label: "Ignored",               description: "Artifacts stay local. Writes a .gitignore block: .ai/ except ship-plan.md + sdlc-config.json (the project-level contracts stay tracked), the design record .ai/design/, and the confirmed design boards .ai/workflows/*/design/r*/." }
 multiSelect: false
 ```
 
-Record the answer as `artifactTracking: "tracked" | "ignored"` in `.ai/sdlc-config.json` (create the file with just this key if absent — never clobber other keys). On "Ignored", also write the `.gitignore` block now (append, with a `# sdlc-workflow artifacts` marker comment) so the policy is mechanically true, not aspirational. `/wf ship`'s pre-flight (Step 1.1) and `/wf handoff` read this policy instead of improvising; existing repos without the key get a one-time advisory from `/wf status`, never a new gate.
+Record the answer as `artifactTracking: "tracked" | "ignored"` in `.ai/sdlc-config.json` (create the file with just this key if absent — never clobber other keys). On "Ignored", also write the `.gitignore` block now (append, with a `# sdlc-workflow artifacts` marker comment) so the policy is mechanically true, not aspirational. Then run `node "<skill-dir>/scripts/design-boards.mjs" track "<projectRoot>" --write` to add the design exceptions (`design/_boards.md`); the "Ignored" answer is the approval, because the option names them. `/wf ship`'s pre-flight (Step 1.1) and `/wf handoff` read this policy instead of improvising; existing repos without the key get a one-time advisory from `/wf status`, never a new gate.
 
 ---
 

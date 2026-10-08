@@ -75,7 +75,7 @@ Apply [_workflow-rules.md](_workflow-rules.md). Two verify-specific rules:
 4. **Determine the workflow source mode** from `workflow-type`:
    - `quick` (legacy) → **compressed mode**. `01-quick.md` holds the acceptance criteria. No per-slice files exist.
    - `rca` → **forwarded mode**. `01-rca.md` and the synthesized `02-shape.md` hold the acceptance criteria.
-   - `investigate` → **terminal analysis, not verified in place.** It has no build. Direct the user to `/wf intake <option>`.
+   - `investigate` → **terminal analysis, not verified in place.** Direct the user to `/wf intake <option>`.
    - `fix` / `hotfix` / `refactor` → **change-mode.** Verify as standard mode with the un-suffixed files. The lead `01-<mode>.md` holds the acceptance criteria, not `03-slice.md`. Hotfix: reproduce the incident symptom and run the regression suite. Refactor: re-run the literal `## Baseline Command` from `02-shape.md`, diff its pass/fail/skip counts against `## Baseline Test Result`, confirm every `## Public API Surface` name keeps its signature and its callers work; any unplanned deviation is a FAIL.
    - `update-deps` → **self-managed**; it authors its own `06-verify.md`. STOP and direct the user back to `/wf intake update-deps <slug>`.
    - `feature` or unset → **standard mode**. The slice file holds the acceptance criteria.
@@ -83,7 +83,7 @@ Apply [_workflow-rules.md](_workflow-rules.md). Two verify-specific rules:
    - All modes: if implement record shows `Status: Awaiting input` → STOP.
    - If `06-verify-<slice-slug>.md` (or `06-verify.md` in compressed mode) already exists → note the re-run in chat and proceed; [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger.
    - **Stack gate (do not silently re-detect).** Inspect `stack:` in `00-index.md` and `stack-source` in `04-plan-<slice-slug>.md`.
-     - If `stack:` is **missing entirely** → STOP: "Stack fingerprint missing from `00-index.md`. Re-run `/wf intake <slug>` first." Verify does not re-detect.
+     - If `stack:` is **missing entirely** → STOP: "Stack fingerprint missing from `00-index.md`. Re-run `/wf intake <slug>` first."
      - If `stack.user-confirmed: false` → **hard gate.** Ask ONE gate question per [_gate-question.md](_gate-question.md): header `"Stack unconfirmed"`, question `"stack: was auto-detected but the PO never confirmed it. Adapter selection may be wrong. (1) Stop and re-run intake Batch B. (2) Proceed with unconfirmed stack — result stamped weak-provenance and review/ship may refuse it."`, options `Stop (recommended)` / `Proceed with unconfirmed stack`. Stop → STOP. Proceed → set `stack-source: unconfirmed-auto-detect` in the verify slice frontmatter and `## Caveats`. Never auto-proceed.
      - If `04-plan-<slice-slug>.md` carries `stack-source: unconfirmed-auto-detect` → propagate the same warning and frontmatter stamp.
      - If `stack.user-confirmed: true` and the plan agrees → proceed. Sub-agent 3 intersects matched adapters with `stack.platforms`; companion skills used for evidence come from `stack.available-skills`.
@@ -98,9 +98,9 @@ When verification spans multiple concerns, launch parallel sub-agents per [_suba
 - **Sub-agent 1, Static Analysis & Build** (every slice): lint, types, build, the default performance gate, security scanning, `sdlc-debt:` marker hygiene.
 - **Sub-agent 2, Test Execution** (every slice): unit, integration, coverage, the skipped-gating-spec mapping (`skipped-gating-specs`), the cross-slice regression check.
 - **Sub-agent 3, Interactive & Runtime-Truth Verification** (required when any AC is user-observable): drives each such AC through the runtime adapters, climbs the constraint-resolution ladder, records `evidence-rung`, `mock-provenance:`, `fixture-fidelity:`, and first-light status, and records incidental defects against the `_surface-defects.md` classes.
-- **Sub-agent 4, Augmentation Re-verification** (only when `02c-craft.md` exists or `augmentations:` is non-empty).
+- **Sub-agent 4, Augmentation Re-verification** (only when `02c-craft.md` exists or `augmentations:` is non-empty). It gets board PNG paths, never a canvas link.
 - **Sub-agent 5, Freshness** (when any test failed, the plan is older than 14 days, or the slice touches an external API or schema).
-Merge all results. For each check, record the command and pass/fail in the artifact. Write the raw output (test runner output, probe logs, scan output) to `verify-evidence/<slice-slug>/checks.md`. Do not fix issues here; the fix loop runs in Step 7.6 after the AC gate has partitioned issues.
+Merge all results. For each check, record the command and pass/fail in the artifact. Write the raw output (test runner output, probe logs, scan output) to `verify-evidence/<slice-slug>/checks.md`. Do not fix issues here; the fix loop runs in Step 7.6 after the AC gate partitions issues.
 
 # Chat return contract
 

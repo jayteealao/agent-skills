@@ -88,7 +88,10 @@ function runPlanWrite(files, config) {
     const dir = join(tmp, '.ai', 'workflows', 'demo');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(tmp, '.ai', 'workflows', 'INDEX.md'), 'demo\tactive\n');
-    for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
+    for (const [name, text] of Object.entries(files)) {
+      mkdirSync(dirname(join(dir, name)), { recursive: true });
+      writeFileSync(join(dir, name), text);
+    }
     if (config) writeFileSync(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify(config));
     return spawnSync(process.execPath, [HOOK], {
       cwd: tmp,
@@ -132,6 +135,44 @@ test('hook: refuses a plan while a confirmed design is reopened', () => {
   });
   equal(r.status, 2, r.stderr);
   match(r.stderr, /\/wf design demo amend/);
+});
+
+// Boards (DESIGN-BOARDS-PLAN D5): a contract that names its boards is settled only
+// when the board files exist, for visual and new-surface changes.
+const BOARDED = fm({ schema: 'sdlc/v1', type: 'design-contract', slug: 'demo', 'image-gate': 'pass', 'direction-confirmed-by': 'in-session', boards: 'design/r1/boards.json', 'design-revision': 1 });
+const MANIFEST_R1 = JSON.stringify({
+  schema: 'sdlc/design-boards/v1', slug: 'demo', revision: 1, viewports: { desktop: '1280x800' },
+  boards: [{ key: 'cart--empty', surface: 'cart', state: 'empty', html: null, png: 'boards/cart--empty.png' }],
+  confirmed: [{ revision: 1, at: '2026-10-08T00:00:00Z', by: 'in-session' }],
+});
+
+test('hook: refuses a plan when the confirmed boards are not on disk', () => {
+  const none = runPlanWrite({ '00-index.md': INDEX({ 'ux-impact': 'new-surface' }), '02c-craft.md': BOARDED });
+  equal(none.status, 2, none.stderr);
+  match(none.stderr, /design\/r1\/boards\.json/);
+  const png = runPlanWrite({ '00-index.md': INDEX({ 'ux-impact': 'visual' }), '02c-craft.md': BOARDED, 'design/r1/boards.json': MANIFEST_R1 });
+  equal(png.status, 2, png.stderr);
+  match(png.stderr, /design\/r1\/boards\/cart--empty\.png/);
+});
+
+test('hook: allows a plan when every confirmed board exists, and keeps the old rule without boards:', () => {
+  const r = runPlanWrite({
+    '00-index.md': INDEX({ 'ux-impact': 'visual' }), '02c-craft.md': BOARDED,
+    'design/r1/boards.json': MANIFEST_R1, 'design/r1/boards/cart--empty.png': 'png',
+  });
+  equal(r.status, 0, r.stderr);
+  const flow = runPlanWrite({ '00-index.md': INDEX({ 'ux-impact': 'flow' }), '02c-craft.md': BOARDED });
+  equal(flow.status, 0, 'a flow design does not need pictures');
+});
+
+test('designSettled: boards decide only for visual and new-surface', () => {
+  const contract = { ...CONFIRMED, boards: 'design/r1/boards.json' };
+  equal(designSettled({ 'ux-impact': 'visual' }, contract, ['design/r1/boards/a--b.png']), false);
+  equal(designSettled({ 'ux-impact': 'visual' }, contract, []), true);
+  equal(designSettled({ 'ux-impact': 'visual' }, contract, null), true, 'a caller that read no disk keeps the frontmatter rule');
+  equal(designSettled({ 'ux-impact': 'flow' }, contract, ['x']), true);
+  equal(designSettled({ 'ux-impact': 'visual' }, CONFIRMED, ['x']), true, 'a contract without boards: keeps the old rule');
+  match(designGateRefusal({ index: { 'ux-impact': 'new-surface' }, hasBrief: true, contract, slug: 'demo', missingBoards: ['design/r1/boards/a--b.png'] }), /not on disk: design\/r1\/boards\/a--b\.png/);
 });
 
 // A slice that changes nothing a person sees is planned without the design stage.
@@ -182,7 +223,9 @@ test('schema: the contract carries the confirmation fields and no pen-doc', () =
   };
   const opts = { schemaPath: defaultFrontmatterSchemaPath() };
   equal(validateFrontmatter({ ...base, 'ux-impact': 'flow' }, opts).valid, true);
-  equal(validateFrontmatter({ ...base, 'ux-impact': 'huge' }, opts).valid, false);
+  equal(validateFrontmatter({ ...base, 'ux-impact': 'huge' }, opts).valid, false);  for (const k of ['boards', 'design-revision']) ok(contract.properties[k], k);
+  equal(validateFrontmatter({ schema: 'sdlc/v1', type: 'design-current', 'updated-at': '2026-10-08T00:00:00Z' }, opts).valid, true);
+  equal(validateFrontmatter({ schema: 'sdlc/v1', type: 'design-direction', 'confirmed-by': 'person' }, opts).valid, true);
 });
 
 // ── prose carries the rule ────────────────────────────────────────────────────
@@ -204,15 +247,19 @@ test('prose: plan consumes the contract and never authors it', () => {
   ok(!/design\/contract\.md\]\(design\/contract\.md\) — land the visual direction/.test(plan));
 });
 
-test('prose: the design canvas is the first choice; imagery and uiproto are the fallback', () => {
+test('prose: the boards are the contract, the canvas is a mirror, and imagery and uiproto make no board', () => {
   const host = read('skills/wf/reference/_host-invocation.md');
   match(host, /\| Design canvas \(design stage\) \|/);
   match(host, /\| Design system sync/);
   const contract = read('skills/wf/reference/design/contract.md');
-  match(contract, /First choice — the design canvas/);
-  match(contract, /Fallback — generated comps/);
-  match(read('skills/uiproto/SKILL.md'), /fallback for hosts without a design canvas/);
-  match(read('skills/imagery/SKILL.md'), /fallback for hosts without a design canvas/);
+  match(contract, /\*\*The boards\.\*\*/);
+  match(contract, /\*\*The canvas mirror\.\*\*/);
+  match(contract, /A generated image is never a board/);
+  match(read('skills/wf/reference/design/stage.md'), /Freeze the confirmed boards per \[_boards\.md\]/);
+  match(read('skills/wf/reference/design/_lane.md'), /every board that manifest lists also exists on disk/);
+  match(read('skills/uiproto/SKILL.md'), /An optional interactive prototype the person may ask for at the design stage; never a design board\./);
+  match(read('skills/imagery/SKILL.md'), /Mood and brand images only; a generated image is never a design board\./);
+  match(read('skills/imagery/SKILL.md'), /\[into <folder>\]/);
 });
 
 test('prose: the brief procedure cites the right shape step', () => {

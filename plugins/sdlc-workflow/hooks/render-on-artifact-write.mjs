@@ -32,7 +32,7 @@ import { resolveProjectRoot } from '../lib/project-root.mjs';
 import { configPathFor } from '../lib/config.mjs';
 import { enqueue, queueDir } from '../lib/render-queue.mjs';
 import { ensureHubEnabled, spawnHubEnsure } from '../lib/ensure-hub.mjs';
-import { isBrainstormSourcePath, isEvidencePath, isWorkSetPath } from '../lib/hook-utils.mjs';
+import { isBrainstormSourcePath, isDesignBoardsPath, isEvidencePath, isWorkSetPath } from '../lib/hook-utils.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -70,13 +70,14 @@ function pickArtifactPaths(input) {
   if (Array.isArray(ti.edits)) {
     for (const e of ti.edits) if (e.file_path) list.push(e.file_path);
   }
-  // Evidence folders (probe-evidence/, verify-evidence/) are not pages, so a
-  // write there queues no render (ARTIFACT-SPLIT-PLAN S5). `.jsonl` files
+  // Evidence folders (probe-evidence/, verify-evidence/) and the design boards
+  // folder (design/) are not pages, so a write there queues no render
+  // (ARTIFACT-SPLIT-PLAN S5, DESIGN-BOARDS-PLAN section 3). `.jsonl` files
   // (index-history.jsonl, .read-ledger.jsonl) fail the extension filter.
   return list.filter((p) =>
     typeof p === 'string' && (
       p.endsWith('.md') || p.endsWith('.yaml') || p.endsWith('.html.fragment')
-    ) && !isEvidencePath(p) && !isBrainstormSourcePath(p) && !isWorkSetPath(p),
+    ) && !isEvidencePath(p) && !isBrainstormSourcePath(p) && !isWorkSetPath(p) && !isDesignBoardsPath(p),
   );
 }
 

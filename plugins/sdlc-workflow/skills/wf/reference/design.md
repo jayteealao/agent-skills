@@ -1,6 +1,6 @@
 ---
-description: The human-only design stage and the design record. `/wf design <slug> [move]` runs the design stage between shape and slice — draw every changed surface, get the person's confirmation, write the visual contract `02c-craft.md` — so no driven stage ever decides a design. `amend` reopens a confirmed design. `setup`, `teach`, `extract`, `direction`, and `sync` maintain the project's design record. `audit` and `critique` run the review's design dimensions on demand.
-argument-hint: "[slug] [move|amend|audit|critique|extract] [instructions] | <setup|teach|extract|direction|sync> [instructions]"
+description: The human-only design stage and the design record. `/wf design <slug> [move]` runs the design stage between shape and slice — draw one board per changed surface, get the person's confirmation, freeze the boards, write the visual contract `02c-craft.md` — so no driven stage ever decides a design. `amend` reopens a confirmed design. `import` turns outside design work into boards. `setup`, `teach`, `extract`, `direction`, and `sync` maintain the project's design record. `audit` and `critique` run the review's design dimensions on demand.
+argument-hint: "[slug] [move|amend|import|audit|critique|extract] [instructions] | <setup|teach|extract|direction|sync> [instructions]"
 ---
 
 # External Output Boundary
@@ -34,6 +34,8 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `design/contract.md` | procedure | mode:stage | |
 | `design/_carried.md` | procedure | mode:stage | |
 | `design/_design-context.md` | procedure | mode:stage | |
+| `design/_boards.md` | procedure | mode:stage | |
+| `design/import.md` | procedure | mode:import | |
 | `design/audit.md` | procedure | mode:audit | |
 | `design/critique.md` | procedure | mode:critique | |
 | `02c-craft.md` | writes | | |
@@ -48,6 +50,7 @@ Resolve the first token by an exact existence check. Never fuzzy-match: a wrong 
    - absent → **stage**;
    - one of the 15 moves → **stage** focused on that move;
    - `amend` → **amend**;
+   - `import` → **import**; the rest of the invocation is the link or the paths;
    - `audit` or `critique` → **review**;
    - `extract` → **upkeep** (the report attaches to the slug);
    - anything else → STOP and render the usage below.
@@ -63,6 +66,7 @@ The 15 moves: `adapt`, `animate`, `bolder`, `clarify`, `colorize`, `delight`, `d
 Usage:
   /wf design <slug> [move] [instructions]   Run the design stage: draw, confirm, write 02c-craft.md.
   /wf design <slug> amend [instructions]    Reopen a confirmed design.
+  /wf design <slug> import <link|path>...   Turn outside design work into boards, then confirm.
   /wf design [slug] audit|critique          Run a design review dimension now.
   /wf design <move> <instructions>          Start a new workflow seeded with a move.
   /wf design setup|teach|extract|direction|sync [instructions]
@@ -78,7 +82,11 @@ Record the resolved job, slug, command, and instructions before you continue.
 
 ## Stage and amend
 
-Follow [design/stage.md](design/stage.md) exactly. It loads the design record, the shared design context, and the move reference when a move is named.
+Follow [design/stage.md](design/stage.md) exactly. The boards follow [design/_boards.md](design/_boards.md).
+
+## Import
+
+Follow [design/import.md](design/import.md). An import continues at the design stage, Step 5: the person confirms the imported boards. It loads the design record, the shared design context, and the move reference when a move is named.
 
 ## New workflow (`/wf design <move> <instructions>`)
 

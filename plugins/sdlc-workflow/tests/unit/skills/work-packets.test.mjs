@@ -113,6 +113,30 @@ test('decisions travel verbatim, with their keys, sessions, and dates (I1)', () 
   match(renderPacket(b, b.work[0]), /Needed by: \[Build replays from events\]\(replay-builder\.md\)/, 'X2: needed by is computed');
 });
 
+test('a packet carries its sketches with their files; a packet without sketches has no field (DESIGN-BOARDS W5b)', () => {
+  const sketches = [
+    { key: 'module-map', thread: 'module-shape', items: ['one-module-contract'], link: 'https://claude.ai/canvas/x', path: `.ai/workflows/${SLUG}/design/sketches/module-map.png`, caption: 'The modules side by side.', state: 'carried' },
+    { key: 'event-strip', thread: 'module-shape', link: null, path: 'design/sketches/event-strip.html', caption: 'One strip per event.', state: 'carried' },
+    { key: 'scene-only', thread: 'module-shape', link: null, path: null, caption: 'A scene in words.', state: 'carried' },
+  ];
+  const base = board();
+  const b = board({ focus: 'design', sketches, work: [{ ...base.work[0], 'ux-impact': 'visual', sketches: ['module-map', 'event-strip', 'scene-only'] }, ...base.work.slice(1)] });
+  ok(validateBrainstormBoard(b).valid, JSON.stringify(validateBrainstormBoard(b).errors));
+  const text = renderPacket(b, b.work[0], { revision: 1 });
+  const fm = safeParseFrontmatter(text).data;
+  deepEqual(fm.sketches, [
+    { key: 'module-map', path: `.ai/workflows/${SLUG}/design/sketches/module-map.png`, link: 'https://claude.ai/canvas/x', caption: 'The modules side by side.' },
+    { key: 'event-strip', path: `.ai/workflows/${SLUG}/design/sketches/event-strip.html`, link: null, caption: 'One strip per event.' },
+    { key: 'scene-only', path: null, link: null, caption: 'A scene in words.' },
+  ]);
+  const r = validateFrontmatter(fm);
+  ok(r.valid, JSON.stringify(r.errors));
+  match(text, /- Sketch `module-map`: `\.ai\/workflows\/[^`]+\/design\/sketches\/module-map\.png` \(\[canvas\]\(https:\/\/claude\.ai\/canvas\/x\)\) — The modules side by side\./);
+  equal(validateFrontmatter({ ...fm, sketches: [{ key: 'module-map' }] }).valid, false, 'a packet sketch names its path, or null');
+  const plain = safeParseFrontmatter(renderPacket(base, base.work[0], { revision: 1 })).data;
+  equal('sketches' in plain, false);
+});
+
 test('a clean work set passes the check, and the waves follow depends-on', () => {
   const b = board();
   const r = checkWorkSet(b);

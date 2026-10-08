@@ -40,6 +40,8 @@ import {
 } from '../lib/campaign.mjs';
 import { ignoredAtRisk, loadManifest, recordsIn, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
+import { missingBoardFiles, needsPictures } from '../lib/design-boards.mjs';
+import { designNeeded, designSettled } from '../lib/design-lane.mjs';
 
 const USAGE = 'Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|stack> <projectRoot> <brainstorm> ...';
 
@@ -301,14 +303,17 @@ const isAiIgnore = (rel) => rel === '.gitignore';
 const mainOwned = (b) => (rel) => isAiIgnore(rel) || rel.startsWith(`workflows/${b}/work/campaign/`);
 /** A stage's evidence folder: `implement-evidence/`, `verify-evidence/`, `probe-evidence/`. */
 const EVIDENCE_RE = /^workflows\/([^/]+)\/[^/]+-evidence(\/|$)/;
+/** A workflow's design boards folder (DESIGN-BOARDS-PLAN section 3). */
+const DESIGN_RE = /^workflows\/([^/]+)\/design(\/|$)/;
 /**
- * What a worktree does not receive: the campaign folder, and the evidence folders of
- * every workflow that the worktree does not drive. One finished workflow can hold
- * hundreds of thousands of evidence files, and a drive reads only its own.
+ * What a worktree does not receive: the campaign folder, and the evidence folders and
+ * design boards of every workflow that the worktree does not drive. One finished
+ * workflow can hold hundreds of thousands of evidence files and megabytes of board
+ * PNGs, and a drive reads only its own.
  */
 const notCopiedIn = (b, slugs) => (rel) => {
   if (mainOwned(b)(rel)) return true;
-  const m = EVIDENCE_RE.exec(rel);
+  const m = EVIDENCE_RE.exec(rel) ?? DESIGN_RE.exec(rel);
   return Boolean(m) && !slugs.includes(m[1]);
 };
 /** The workflow slugs that a worktree drives: the unit's slug, or every unit slug of the wave. */
@@ -559,11 +564,40 @@ function answer(root, b, [key, ...rest]) {
   return { ok: true, key, value, next: campaignAction(ledger, {}) };
 }
 
+/**
+ * Why a unit's design keeps it from `prepared`, or null (DESIGN-BOARDS-PLAN W5b).
+ * The prepare runs the design lane with the person; a unit whose design is needed
+ * is prepared only when the design is settled. For `visual` and `new-surface`, the
+ * contract must also name its frozen boards, and every board must exist on disk.
+ */
+export function designBlocksPrepared(root, slug) {
+  const dir = join(root, '.ai', 'workflows', slug);
+  const read = (name) => (existsSync(join(dir, name)) ? safeParseFrontmatter(readFileSync(join(dir, name), 'utf8')).data ?? {} : null);
+  const index = read('00-index.md');
+  if (!index) return null;
+  if (!designNeeded(index, existsSync(join(dir, '02b-design.md')))) return null;
+  const contract = read('02c-craft.md');
+  const missing = contract ? missingBoardFiles(dir, contract) : null;
+  if (!designSettled(index, contract, missing)) {
+    if (missing?.length) return `the confirmed boards are missing: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? ` and ${missing.length - 3} more` : ''}`;
+    return `the design is not settled; run /wf design ${slug} with the person`;
+  }
+  const skipped = index.progress && typeof index.progress === 'object' && index.progress.design === 'skipped';
+  if (!skipped && needsPictures(index) && !String(contract?.boards ?? '').trim()) {
+    return `02c-craft.md names no boards: (ux-impact ${index['ux-impact']}); run /wf design ${slug} amend or import to freeze the boards`;
+  }
+  return null;
+}
+
 function unit(root, b, [key, state], f) {
   if (!UNIT_STATES.includes(state)) throw new Error(`unit: the state is one of ${UNIT_STATES.join(', ')}`);
   const ledger = requireLedger(root, b);
   const u = ledger.units[key];
   if (!u) throw new Error(`unit: ${key} is not a build unit of this campaign`);
+  if (state === 'prepared') {
+    const why = designBlocksPrepared(root, u.slug);
+    if (why) return { ok: false, key, state: u.state, error: `unit ${key} is not prepared: ${why}` };
+  }
   u.state = state;
   for (const k of ['route', 'reason', 'merge', 'output']) if (f[k] !== undefined) u[k] = f[k];
   // The yolo outcome's decision digest, kept for the as-built note (11.1).

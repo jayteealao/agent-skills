@@ -519,6 +519,8 @@
         "surfaces": { "$ref": "#/$defs/stringArray" },
         "move": { "type": "string", "description": "The move (design/<move>.md) the design stage focused on, when the person named one." },
         "carried-from": { "$ref": "#/$defs/stringArray", "description": "The brainstorm boards whose design thoughts the design stage presented as its starting direction, as `<board path>#<piece-of-work key>` (design/_carried.md)." },
+        "boards": { "type": "string", "pattern": "^design/r[0-9]+/boards[.]json$", "description": "The frozen board manifest the person confirmed, relative to the workflow folder: design/r<N>/boards.json (DESIGN-BOARDS-PLAN section 4). For ux-impact visual or new-surface, the design is settled only when every board it lists exists." },
+        "design-revision": { "type": "integer", "minimum": 1, "description": "The confirmed board revision N; equals the r<N> folder that `boards` names." },
         "regenerable": { "type": "boolean" }
       }
     },
@@ -778,6 +780,10 @@
           }
         },
         "evidence-dir": { "type": "string" },
+        "design-comparison": {
+          "enum": ["pairs", "no-boards", "not-applicable"],
+          "description": "DESIGN-BOARDS-PLAN W5: pairs = ## Design Comparison lists board and capture pairs by key; no-boards = the slice has drawn surfaces but no board files, so verify reports no visual pass; not-applicable = no drawn surface."
+        },
         "convergence": {
           "enum": ["not-needed", "converged", "escalated"],
           "description": "Whether verify results converged, escalated, or were not applicable. Written by /wf verify to 06-verify-<slice>.md."
@@ -1499,6 +1505,28 @@
       }
     },
 
+    "designCurrentFrontmatter": {
+      "type": "object",
+      "description": ".ai/design/current.md — the Current design part of the project design record (design/record.md): the surfaces that exist, their drift from the system, the design debt.",
+      "required": ["schema", "type"],
+      "properties": {
+        "type": { "const": "design-current" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "design-system": { "type": ["string", "null"] }
+      }
+    },
+
+    "designDirectionFrontmatter": {
+      "type": "object",
+      "description": ".ai/design/direction.md — the Direction part of the project design record (design/record.md): goals, future direction, open and decided design questions.",
+      "required": ["schema", "type"],
+      "properties": {
+        "type": { "const": "design-direction" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "confirmed-by": { "type": "string" }
+      }
+    },
+
     "shipPlanFrontmatter": {
       "type": "object",
       "description": ".ai/ship-plan.md project-level shipping contract read by /wf ship and built by /wf-meta build-pipeline. v9.35.0: required[] aligned to the actual init-ship-plan template (project-name/plan-version), dropping the stray title/status/source that were copied from project-context and never emitted. v9.42.0: documented the inbound-half blocks (code-quality / local-dx / governance) as optional objects — the branch stays open (no additionalProperties:false), so these are documentation, not enforcement; inner shapes live in the init-ship-plan reference. v9.43.0: added Block K (security) as a documented object; governance gained merge controls + branch-protection fidelity fields, ship-environments gained per-env protection, ci-pipeline gained ci-ergonomics, plus a repo-topology field — all nested in already-open keys.",
@@ -1820,6 +1848,7 @@
               "thread": { "type": "string" },
               "items": { "$ref": "#/$defs/stringArray" },
               "link": { "type": ["string", "null"] },
+              "path": { "type": ["string", "null"], "description": "The sketch file, .ai/workflows/<slug>/design/sketches/<key>.<ext> (DESIGN-BOARDS-PLAN W5b)." },
               "caption": { "type": "string" },
               "state": { "enum": ["idea", "carried", "dropped"] }
             }
@@ -2025,6 +2054,7 @@
         "references": { "$ref": "#/$defs/stringArray" },
         "ux-impact": { "enum": ["none", "visual", "flow", "new-surface"] },
         "design": { "enum": ["none", "design", "design-direction"] },
+        "sketches": { "type": "array", "description": "The carried sketches, each with its file under the board's design/sketches/ (DESIGN-BOARDS-PLAN W5b). Intake copies each file into the new slug's design/sketches/.", "items": { "type": "object", "required": ["key", "path"], "properties": { "key": { "$ref": "#/$defs/brainstormKey" }, "path": { "type": ["string", "null"] }, "link": { "type": ["string", "null"] }, "caption": { "type": "string" } } } },
         "size": { "enum": ["small", "medium", "large", "too-large"] },
         "state": { "enum": ["proposed", "prepared", "routed"] },
         "routed-to": { "type": ["string", "null"] },
@@ -2285,6 +2315,8 @@
         { "$ref": "#/$defs/designCritiqueFrontmatter" },
         { "$ref": "#/$defs/designAuditFrontmatter" },
         { "$ref": "#/$defs/projectContextFrontmatter" },
+        { "$ref": "#/$defs/designCurrentFrontmatter" },
+        { "$ref": "#/$defs/designDirectionFrontmatter" },
         { "$ref": "#/$defs/shipPlanFrontmatter" },
         { "$ref": "#/$defs/observabilityPlanFrontmatter" },
         { "$ref": "#/$defs/observabilityBuildFrontmatter" },

@@ -345,6 +345,61 @@ test('local records: the wave worktree takes the main records for handoff, and i
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+// DESIGN-BOARDS-PLAN W5b: a worktree gets the design boards of its own slug only, and
+// a PNG travels byte for byte.
+test('local records: a worktree gets the design boards of its own slug only; a PNG copies exactly (13)', () => {
+  const root = makeLocalRepo();
+  try {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 5, 0, 0, 0, 3, 0x20, 0xff, 0x00, 0x7f]);
+    const board = (slug) => path.join(root, '.ai', 'workflows', slug, 'design', 'r1', 'boards');
+    for (const slug of ['squads', 'engine']) {
+      mkdirSync(board(slug), { recursive: true });
+      writeFileSync(path.join(board(slug), 'squad-list--default.png'), png);
+    }
+    run(root, 'orient');
+    setupDone(root);
+    run(root, 'unit', 'W1', 'prepared');
+    run(root, 'unit', 'W2', 'prepared');
+    const st = run(root, 'wave', '1', 'start');
+    git(root, 'branch', st.branch, st.base);
+    const a = run(root, 'worktree', 'W2', 'add');
+    assert.equal(a.ok, true, JSON.stringify(a));
+    const copied = path.join(a.path, '.ai', 'workflows', 'squads', 'design', 'r1', 'boards', 'squad-list--default.png');
+    assert.ok(readFileSync(copied).equals(png), 'the board PNG of the driven slug arrives byte for byte');
+    assert.ok(!existsSync(path.join(a.path, '.ai', 'workflows', 'engine', 'design')), 'the boards of another workflow stay in the main checkout');
+    const capture = path.join(a.path, '.ai', 'workflows', 'squads', 'design', 'captures', 's1', 'squad-list--default.png');
+    mkdirSync(path.dirname(capture), { recursive: true });
+    writeFileSync(capture, png);
+    const s = run(root, 'worktree', 'W2', 'sync');
+    assert.equal(s.ok, true, JSON.stringify(s));
+    assert.ok(readFileSync(path.join(root, '.ai', 'workflows', 'squads', 'design', 'captures', 's1', 'squad-list--default.png')).equals(png), 'a verify capture comes back to the main checkout');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('unit prepared refuses a unit whose needed design has no confirmed boards on disk (DESIGN-BOARDS-PLAN W5b)', () => {
+  const root = makeRepo();
+  try {
+    run(root, 'orient');
+    const dir = path.join(root, '.ai', 'workflows', 'squads');
+    mkdirSync(path.join(dir, 'design', 'r1', 'boards'), { recursive: true });
+    writeFileSync(path.join(dir, '00-index.md'), '---\nslug: squads\nux-impact: new-surface\n---\n');
+    const notSettled = run(root, 'unit', 'W2', 'prepared');
+    assert.equal(notSettled.ok, false);
+    assert.match(notSettled.error, /design is not settled/);
+    writeFileSync(path.join(dir, '02c-craft.md'), '---\nimage-gate: pass\ndirection-confirmed-by: in-session\n---\n');
+    assert.match(run(root, 'unit', 'W2', 'prepared').error, /names no boards/);
+    writeFileSync(path.join(dir, '02c-craft.md'), '---\nimage-gate: pass\ndirection-confirmed-by: in-session\nboards: design/r1/boards.json\ndesign-revision: 1\n---\n');
+    writeFileSync(path.join(dir, 'design', 'r1', 'boards.json'), JSON.stringify({
+      schema: 'sdlc/design-boards/v1', slug: 'squads', revision: 1, viewports: { desktop: '1280x800' },
+      boards: [{ key: 'squad-list--default', surface: 'squad-list', state: 'default', png: 'boards/squad-list--default.png' }], confirmed: [],
+    }));
+    assert.match(run(root, 'unit', 'W2', 'prepared').error, /boards are missing: design\/r1\/boards\/squad-list--default\.png/);
+    writeFileSync(path.join(dir, 'design', 'r1', 'boards', 'squad-list--default.png'), 'png');
+    assert.equal(run(root, 'unit', 'W2', 'prepared').ok, true);
+    assert.equal(run(root, 'unit', 'W1', 'prepared').ok, true, 'a unit without a workflow folder yet is not checked');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('setup, rolling prepare, and a wave that starts with its prepared units', () => {
   const root = makeRepo();
   try {

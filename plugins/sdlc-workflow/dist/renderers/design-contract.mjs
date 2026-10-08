@@ -2,17 +2,20 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   frontmatterCard
-} from "../chunk-565SLLKK.mjs";
+} from "../chunk-H2DJFHPE.mjs";
+import {
+  boardsGallery
+} from "../chunk-FHZLIB5Q.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-MFUP6TXX.mjs";
+} from "../chunk-VNXAWS4C.mjs";
 import {
   artifactHeader,
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-HSVXEPAP.mjs";
+} from "../chunk-P62FLZNA.mjs";
 import {
   escapeHtml
 } from "../chunk-3RXHOXIK.mjs";
@@ -57,13 +60,21 @@ function render(artifact, ctx) {
     "register",
     "image-gate",
     "north-star-mock",
+    "boards",
+    "design-revision",
+    "canvas",
+    "surfaces",
+    "direction-confirmed-by",
+    "confirmed-at",
+    "carried-from",
     "references-loaded",
     "refs"
   ]);
+  const galleryHtml = ctx?.designBoards && !ctx?.fourPart ? boardsGallery(ctx.designBoards) : "";
   const proseBlock = artifact.body ? `<div class="prose">${md2html(artifact.body)}</div>` : "";
   return {
     headerHtml,
-    bodyHtml: `${metricsHtml}${summaryHtml}${fragmentBlock}${matrixHtml}${frontmatterBlock}${proseBlock}${renderHistoryBlock(artifact.history)}`,
+    bodyHtml: `${metricsHtml}${summaryHtml}${galleryHtml}${fragmentBlock}${matrixHtml}${frontmatterBlock}${proseBlock}${renderHistoryBlock(artifact.history)}`,
     links: [],
     children: []
   };

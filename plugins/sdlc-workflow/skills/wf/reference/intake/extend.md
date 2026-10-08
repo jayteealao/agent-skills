@@ -156,7 +156,7 @@ This step **computes** the deltas and holds them; **Step 6 is the single index w
 
 # Step 3c — Design delta
 
-Classify the UX impact of the new scope per `design/_lane.md`, and record each new slice's own value as `ux-impact` in its slice file. A design delta exists when design is needed and a new slice touches a surface or state that `02c-craft.md` does not list in `surfaces:`. Hold the result for Step 6.
+Classify the UX impact of the new scope per `design/_lane.md`, and record each new slice's own value as `ux-impact` in its slice file. A design delta exists when design is needed and a new slice touches a surface or state that `02c-craft.md` does not list in `surfaces:`. The amend adds boards for the new surfaces and freezes `design/r<N+1>/` (`design/_boards.md`). Hold the result for Step 6.
 
 # Step 4 — Write New Slice Files
 
@@ -192,7 +192,7 @@ This is the ONE step that writes `00-index.md` — everything earlier only compu
 1. `updated-at` → current ISO 8601 timestamp.
 2. Append all new `03-slice-<new-slug>.md` files to `workflow-files`.
 3. Append the Step 3b **RIM delta** entries to `intent-risks` and the **charter delta** entries to the `charter` ledger (never rewrite or renumber existing entries); append any `open` risk to `open-questions`.
-4. **Re-point the forward pointers at the new work:** set `next-command: wf-plan` and `next-invocation: "/wf plan <slug> <first-new-slice-slug>"`. On a Step 3c design delta, instead raise `ux-impact`, set `next-command: wf-design`, `next-invocation: "/wf design <slug> amend"`, and `progress.design: in-progress` (with no `02c-craft.md`: `"/wf design <slug>"`, and leave `progress.design`); if `03-slice.md` carries `best-first-slice` and every prior slice is complete/skipped, set it to the first new slice. Without this, `/wf status` and resume point at an already-done slice.
+4. **Re-point the forward pointers at the new work:** set `next-command: wf-plan` and `next-invocation: "/wf plan <slug> <first-new-slice-slug>"`. On a Step 3c design delta, instead raise `ux-impact`, set `next-command: wf-design`, `next-invocation: "/wf design <slug> amend"` (it draws the new boards), and `progress.design: in-progress` (with no `02c-craft.md`: `"/wf design <slug>"`, and leave `progress.design`); if `03-slice.md` carries `best-first-slice` and every prior slice is complete/skipped, set it to the first new slice. Without this, `/wf status` and resume point at an already-done slice.
 5. **Revive a complete/closed parent:** extension means the workflow has live work again. If `status` is `complete` or `closed`, set `status: active` and `current-stage: slice` (leave `close-reason`/`closed-at` in place as history — the revival is visible, not erased).
 6. **Registry row:** update the slug's row in `.ai/workflows/INDEX.md` (`status`, `updated-at`) to match.
 

@@ -40,7 +40,8 @@ test('resolveViewPath: slug overview', () => {
 test('resolveViewPath: phase files', () => {
   strictEqual(resolveViewPath('01-intake.md').viewRel, 'intake/INDEX.html');
   strictEqual(resolveViewPath('02-shape.md').viewRel, 'shape/INDEX.html');
-  strictEqual(resolveViewPath('02b-design.md').viewRel, 'design/INDEX.html');
+  strictEqual(resolveViewPath('02b-design.md').viewRel, 'design-brief/INDEX.html');
+  strictEqual(resolveViewPath('02c-craft.md').viewRel, 'design/INDEX.html');
   strictEqual(resolveViewPath('07-review.md').viewRel, 'review/INDEX.html');
   strictEqual(resolveViewPath('10-retro.md').viewRel, 'retro/INDEX.html');
 });

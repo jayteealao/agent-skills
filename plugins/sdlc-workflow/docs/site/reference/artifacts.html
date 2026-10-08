@@ -38,7 +38,7 @@ filename never lands. The numbers run in lifecycle order:</p>
 <tr><td><code>01-simplify.md</code></td><td>simplify</td><td>The quality-run record: the findings and the downstream command each finding is routed to. It sits in its own slug workflow beside a lightweight <code>00-index.md</code>. A simplify run writes no code.</td></tr>
 <tr><td><code>02-shape.md</code></td><td>shape (synthesized by rca)</td><td>Discovery: goals, acceptance criteria, the Documentation Plan, the add-on plan.</td></tr>
 <tr><td><code>02b-design.md</code></td><td>shape</td><td>The design brief, with a UX intent section. Shape writes it when <code>ux-impact</code> is not <code>none</code>.</td></tr>
-<tr><td><code>02c-craft.md</code></td><td>the human-only design stage (<code>/wf design</code>)</td><td>The visual contract that the person confirmed. It records <code>canvas</code>, <code>direction-confirmed-by</code>, <code>confirmed-at</code>, and <code>surfaces</code>. Plan reads it and does not write it.</td></tr>
+<tr><td><code>02c-craft.md</code></td><td>the human-only design stage (<code>/wf design</code>)</td><td>The visual contract that the person confirmed. It records the frozen boards (<code>boards</code>, <code>design-revision</code>), <code>canvas</code>, <code>direction-confirmed-by</code>, <code>confirmed-at</code>, and <code>surfaces</code>. Plan reads it and does not write it.</td></tr>
 <tr><td><code>03-slice.md</code> + <code>03-slice-&lt;slice&gt;.md</code></td><td>slice</td><td>The slice index plus one detailed file per slice. Quick-lane entries and <code>/wf probe</code> also append slices here (<code>03-slice-probe-&lt;descriptor&gt;.md</code>).</td></tr>
 <tr><td><code>04-plan.md</code> + <code>04-plan-&lt;slice&gt;.md</code></td><td>plan</td><td>Per-slice implementation plans plus the master.</td></tr>
 <tr><td><code>04b-instrument.md</code>, <code>04c-experiment.md</code></td><td>plan</td><td>Add-on plans (telemetry instrumentation, experiment design), written only when shape decided the work needs them.</td></tr>
@@ -95,6 +95,12 @@ received.</li>
 Stages read it and never write it.</li>
 <li><code>skip-slice-&lt;slice&gt;.md</code> — written by <code>/wf close</code> when you
 close a single slice rather than the whole workflow.</li>
+<li><code>design/</code> — the design boards: <code>boards.json</code> (the manifest), <code>index.html</code>
+(the contact sheet), <code>boards/&lt;surface&gt;--&lt;state&gt;.png</code> and its HTML source,
+<code>source/</code>, <code>sketches/</code>, the verify captures in <code>captures/&lt;slice&gt;/</code>,
+and one frozen folder <code>r&lt;N&gt;/</code> for each confirmed revision. The write hooks do not check
+file names here, and the folder gets no page: the contract page shows the frozen boards.
+See <a href="../guides/design.html#boards">Design boards</a>.</li>
 <li><code>design-notes/</code> — one record for each design move that implement
 applies (for example <code>animate-&lt;ts&gt;.md</code>), and the report that
 <code>/wf design &lt;slug&gt; extract</code> writes. These files are named by operation,

@@ -30,7 +30,7 @@ Rules:
 A person confirms the design before any stage that a driver can run. The `design` stage sits between `shape` and `slice`, and only a person runs it. Neither `/wf auto` nor `/wf yolo` runs it.
 
 **Design is settled** when one of these holds:
-- `02c-craft.md` exists, carries a resolved `image-gate` (`pass` or `skipped:<reason>`), and carries `direction-confirmed-by:`.
+- `02c-craft.md` exists, carries a resolved `image-gate` (`pass` or `skipped:<reason>`), and carries `direction-confirmed-by:`. When it names its boards (`boards: design/r<N>/boards.json`) and `ux-impact` is `visual` or `new-surface`, every board that manifest lists also exists on disk ([_boards.md](_boards.md)). A contract without `boards:` (written before boards existed) keeps the first two conditions only.
 - `00-index.md` records `progress.design: skipped` and a `design-skip-reason:`.
 
 The design is **reopened**, and not settled, while `00-index.md` records `progress.design: in-progress`. An extension that adds surfaces sets it, and so does rule 2 below. Step 6 of the design stage sets `progress.design: complete` again.
@@ -40,7 +40,7 @@ Rules for every stage after `design`:
 2. When the confirmed design cannot be built as drawn, STOP. Set `status: awaiting-input` and `progress.design: in-progress`, and route to `/wf design <slug> amend`. Do not redraw the design inside the stage.
 3. Consume the confirmed design. Do not change its direction.
 
-The pre-write hook refuses a `04-plan*.md` write while design is needed and not settled. Opt out with `hooks.designDirectionGate: false`.
+The pre-write hook refuses a `04-plan*.md` write while design is needed and not settled, including while a confirmed board file is missing. Opt out with `hooks.designDirectionGate: false`.
 
 ## The design record
 
@@ -53,7 +53,7 @@ The project keeps one design record across all workflows. [record.md](record.md)
 | Current design | `.ai/design/current.md` | The surfaces that exist, their drift from the system, the design debt |
 | Direction | `.ai/design/direction.md` | Design goals, the future direction, open design decisions |
 
-Every stage that has a design duty reads the parts its duty names. Only `retro` and the `/wf design` upkeep commands write the record.
+Every stage that has a design duty reads the parts its duty names. Only `retro`, the `/wf design` upkeep commands, and the design stage write the record. The design stage creates a missing `.ai/design/` file from its template, and adds an open question to `## Open decisions` only when the person agrees to keep it.
 
 ## One duty per stage
 
@@ -63,13 +63,13 @@ Each duty applies only when design is needed, except the `intake` and `shape` du
 |---|---|
 | `intake` | Set `ux-impact` from the request and the files in scope. Ask the person to confirm it with the stack confirmation. Every mode that can route to `slice` or `plan` sets it: `rca` from the suggested fix, `update-deps` as `none`, and `extend` for the new slices. |
 | `shape` | When design is needed, write the brief `02b-design.md` per [shape.md](shape.md), including `## UX intent`, against the Identity, Current design, and Direction parts. When `ux-impact: none`, write `progress.design: skipped` and a one-line `design-skip-reason:`. |
-| `design` | Run [stage.md](stage.md) with the person: present the thoughts a design brainstorm carried ([_carried.md](_carried.md)), draw every changed surface, get the person's confirmation, write `02c-craft.md`. |
-| `slice` | Map every slice to the surfaces in `02c-craft.md`. A surface with its own acceptance criteria gets its own slice, or one sentence in `## Slice Strategy` justifies the grouping. Write `ux-impact` into each slice file: `none` for a slice that maps to no surface. |
-| `plan` | Check the human rule. Turn every `02c-craft.md` `## Mock fidelity inventory` item into a plan step. Cite the moves in `references-loaded:` as step pointers. Write `## Design Components`: the system components the slice uses, and the component delta (new or changed components). |
-| `implement` | Build from the tokens and components in `DESIGN.md`. Run the contract-check pass. Record the result in `## Visual Contract Honored`. |
-| `verify` | Measure the design floor. When the stack can capture the running surface, capture each built surface and place it next to its drawing in `## Design Comparison`. The difference list is evidence, not a pass rule. |
-| `review` | `design-audit` and `design-critique` judge drift from `DESIGN.md` and from `.ai/design/direction.md`. |
-| `retro` | Update `.ai/design/current.md` per [record.md](record.md). Write each proposed change to `direction.md` as a question for the person. Do not change `direction.md` without the person's answer. |
+| `design` | Run [stage.md](stage.md) with the person: present the thoughts a design brainstorm carried ([_carried.md](_carried.md)), draw one board per changed surface and state ([_boards.md](_boards.md)), get the person's confirmation, freeze the boards, write `02c-craft.md`. |
+| `slice` | Map every slice to the surfaces in `02c-craft.md` and their board keys. A surface with its own acceptance criteria gets its own slice, or one sentence in `## Slice Strategy` justifies the grouping. Write `ux-impact` into each slice file: `none` for a slice that maps to no surface. |
+| `plan` | Check the human rule. Turn every `02c-craft.md` `## Mock fidelity inventory` item into a plan step that cites its board key. Cite the moves in `references-loaded:` as step pointers. Write `## Design Components`: the system components the slice uses, and the component delta (new or changed components). |
+| `implement` | Build from the tokens and components in `DESIGN.md`. Read the board PNGs of the slice's surfaces. Run the contract-check pass against them. Record the result in `## Visual Contract Honored`. |
+| `verify` | Measure the design floor. When the stack can capture the running surface, capture each built surface to `design/captures/<slice>/<key>.png` and pair it with its board in `## Design Comparison`. The difference list is evidence, not a pass rule. With no boards, record `design-comparison: no-boards` and report no visual pass. |
+| `review` | `design-audit` and `design-critique` judge drift from `DESIGN.md`, from `.ai/design/direction.md`, and between each board and its capture. They do not redraw a confirmed board; a finding against one routes to `/wf design <slug> amend`. |
+| `retro` | Update `.ai/design/current.md` per [record.md](record.md), with a link to the newest board of each surface. Write each proposed change to `direction.md` as a question for the person. Do not change `direction.md` without the person's answer. |
 
 ## Moves
 

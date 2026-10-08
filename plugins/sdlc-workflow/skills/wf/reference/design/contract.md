@@ -63,39 +63,30 @@ If codebase context is unavailable: run a quick scan to identify `package.json` 
 Draw the direction when:
 - Work is net-new or visually open-ended
 - Brief scope is mid-fi, high-fi, or production-ready
-- The design canvas or image generation is available
+- The person can see a picture: a board, a capture, or an imported design
 
 When conditions are met, this step is mandatory for both brand and product work.
 
 - For brand: push visual identity, composition, and mood aggressively
 - For product: push hierarchy, topology, and density while staying grounded in realistic product structure
 
-**First choice — the design canvas.** When the host offers one (`_host-invocation.md`, row "Design canvas"), draw one artboard per surface and state, using the tokens and components in `DESIGN.md`. Record the canvas link as `canvas:` and name the north-star artboard in `north-star-mock:`.
+**The boards.** Draw one board per surface and state per `design/_boards.md` → Make the boards: capture the running product, import the outside design, or write HTML boards from the tokens and components in `DESIGN.md`. Render them to PNG with the board tool. Name the north-star board (the surface that sets the direction) in `north-star-mock:`.
 
-**Fallback — generated comps.** When the host has no design canvas, generate 1–3 north-star comps at **2K** fidelity via the `imagery` skill (it infers
-the 2K tier from this north-star context and the output path, and reports the file
-back — no flags):
-```
-/imagery "<resolved brief prompt>"
-```
-(Bare `/imagery` fans out to every available backend; pin one — e.g.
-`/imagery gemini "<resolved brief prompt>"` — for a single 2K comp.) When the person wants an
-interactive prototype of the approved direction, offer `/uiproto <component description>` (or
-`/uiproto stitch|llm …`). It writes a sandboxed `<iframe srcdoc>` fragment next to the contract,
-sends the prompt to external engines, and is gated by `externalDispatch.enabled`. Offer it; never
-run it automatically.
+**The canvas mirror.** When the host offers a design canvas (`_host-invocation.md`, row "Design canvas"), mirror the boards to it, one artboard per board, so that the person can comment. Record the link as `canvas:`. The board files stay the contract.
+
+**Mood images.** `/imagery` makes mood and brand images to explore a direction before the boards. Save them in `design/source/`. A generated image is never a board and never the north star. When the person wants an interactive prototype of the approved direction, offer `/uiproto` (gated by `externalDispatch.enabled`). Offer it; never run it automatically.
 
 Present the drawings. The approval question is asked by `stage.md` Step 5 (approve / adjust / stop).
 
-If no canvas and no provider in `/imagery`'s table is available (no built-in tool on this host, no key for a scripted provider, egress consent off): state in one line that the step is skipped and why. Then proceed with a text direction.
+When no board can be shown (no browser renders the HTML and the person cannot open it), state in one line why. For `flow`, proceed with a text direction and `image-gate: skipped:<reason>`. For `visual` and `new-surface`, stop: the design is not settled without boards.
 
-Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after confirmation, or `skipped:<reason>`. (`02c` is authoritative; the `02b` brief left the gate unset — you may mirror the resolved value onto `02b` too, but it is not required.)
+Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after the person confirmed the boards, or `skipped:<reason>` for a flow with no visual change. (`02c` is authoritative; the `02b` brief left the gate unset — you may mirror the resolved value onto `02b` too, but it is not required.)
 
 **Confirm gate.** `shape=pass` is satisfied by the "yes to proceed" answer above, or by a recorded user-backed direction source (a user-confirmed PRODUCT.md, or a prior `teach` answer) — record which source satisfied the gate. Do not write the contract while no user-backed source exists, and never leave the mock neither confirmed nor explicitly skipped with a reason.
 
 ## Step 4: Mock fidelity inventory
 
-List the visible ingredients from the approved mock or scene sentence that must survive into implementation:
+List the visible ingredients from the approved boards or scene sentence that must survive into implementation. Name the board key of each ingredient:
 - Composition and spatial relationships
 - Typography choices (sizes, weights, families used)
 - Color strategy execution (which elements carry which colors)
@@ -128,8 +119,10 @@ refs:
   design: 02b-design.md
 register: <brand|product>
 image-gate: <pass|skipped:<reason>>
-north-star-mock: <path, artboard name, or "none">
-canvas: <design canvas link, or "none">
+north-star-mock: <design/r<N>/boards/<key>.png, or "none" for a text-only flow>
+boards: design/r<N>/boards.json
+design-revision: <N>
+canvas: <canvas mirror link, or "none">
 direction-confirmed-by: <in-session|product-md|teach>
 confirmed-at: <timestamp>
 surfaces: [every surface drawn]
@@ -143,8 +136,9 @@ recommended-routes: [{invocation: "/wf slice <slug>", reason: "the person confir
 Body sections, in order, under these exact `##` headings (later stages cite them):
 
 - `## Visual direction confirmed` — one paragraph on the approved direction: the chosen probe (if any) and each deviation from the brief.
-- `## North-star mock` — the mock image path (or "none — text-only direction"), the scene sentence (always), and 5–10 annotated callouts, each with a short description and an implementation note.
-- `## Mock fidelity inventory` — the non-negotiable visible ingredients, one numbered line each: `<ingredient> — <where in mock> — <why non-negotiable>`.
+- `## North-star mock` — the north-star board path (or "none — text-only direction"), the scene sentence (always), and 5–10 annotated callouts, each with a short description and an implementation note.
+- `## Boards` — one row per frozen board: `| Key | Surface | State | Viewport | PNG |`, from `design/r<N>/boards.json`.
+- `## Mock fidelity inventory` — the non-negotiable visible ingredients, one numbered line each: `<ingredient> — <board key and where on it> — <why non-negotiable>`.
 - `## Implementation contract` — the decisions `/wf implement` follows: **token choices** (existing tokens, new tokens); **component decisions** (extend X or create Y); **layout structure** (grid, breakpoints); **type scale**; **color application**; **motion** (timing, easing, and for anything frequently seen, whether it animates at all; `animate.md` carries the rules); **finish & detail** (concentric radius, optical alignment, shadows versus borders, hit-area minimums; `polish.md`); **state coverage** per interactive element.
 - `## Anti-patterns to avoid` — from the brief's anti-goals plus the absolute bans in `_design-context.md`, specific to this feature.
 - `## Implementation references` — the reference docs `/wf implement` consults (`typeset.md`, `animate.md`, `harden.md`, and so on).

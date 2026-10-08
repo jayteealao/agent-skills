@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jayteealao/agent-skills/schemas/sdlc-workflow/design-boards.schema.json",
+  "title": "SDLC Workflow Design Boards Manifest",
+  "description": "The manifest of the design boards of one workflow: .ai/workflows/<slug>/design/boards.json, and its frozen copy design/r<N>/boards.json (docs/internal/DESIGN-BOARDS-PLAN.md section 4). Paths in a board entry are relative to the folder of the manifest. scripts/design-boards.mjs writes it; lib/design-boards.mjs validateManifest holds the same rules.",
+  "type": "object",
+  "required": ["schema", "slug", "revision", "boards"],
+  "properties": {
+    "schema": { "const": "sdlc/design-boards/v1" },
+    "slug": { "type": "string", "minLength": 1 },
+    "revision": { "type": "integer", "minimum": 0, "description": "The newest frozen revision. 0 until the first freeze." },
+    "method": { "enum": ["html", "capture", "import", "canvas-export"], "description": "How the boards were made (DESIGN-BOARDS-PLAN D3)." },
+    "viewports": {
+      "type": "object",
+      "description": "Viewport name to <width>x<height>. The person confirms them at the design stage.",
+      "additionalProperties": { "type": "string", "pattern": "^[0-9]{2,5}x[0-9]{2,5}$" }
+    },
+    "boards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key", "surface", "state"],
+        "properties": {
+          "key": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*--[a-z0-9]+(-[a-z0-9]+)*(--[a-z0-9]+(-[a-z0-9]+)*)?$" },
+          "surface": { "type": "string", "description": "A name from 02c-craft.md surfaces:." },
+          "state": { "type": "string" },
+          "viewport": { "type": ["string", "null"] },
+          "html": { "type": ["string", "null"] },
+          "png": { "type": ["string", "null"] },
+          "render": { "type": "string", "description": "Set when no PNG exists: none — <reason>." },
+          "source": { "type": ["string", "null"] },
+          "sketch": { "type": ["string", "null"], "description": "The brainstorm sketch key the board grew from." },
+          "caption": { "type": "string" }
+        }
+      }
+    },
+    "confirmed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["revision", "at", "by"],
+        "properties": {
+          "revision": { "type": "integer", "minimum": 1 },
+          "at": { "type": "string" },
+          "by": { "enum": ["in-session", "product-md", "teach"] },
+          "canvas": { "type": ["string", "null"] },
+          "canvas-version": { "type": ["integer", "string", "null"] }
+        }
+      }
+    }
+  }
+}

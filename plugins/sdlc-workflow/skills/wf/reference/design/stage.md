@@ -5,7 +5,7 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
 | | Detail |
 |---|---|
 | Requires | See [design.md → ## Requires](../design.md#requires). |
-| Produces | `02c-craft.md` (type `design-contract`) with its sibling `.yaml` and its explainer; `00-index.md` updates |
+| Produces | `02c-craft.md` (type `design-contract`) with its sibling `.yaml` and its explainer; the boards in `design/` and the frozen revision `design/r<N>/` ([_boards.md](_boards.md)); `00-index.md` updates |
 | Next | `/wf slice <slug>` (`/wf plan <slug>` for an `rca` workflow, which has no slice stage; `/wf plan <slug> <first-new-slice>` after an extension) — or `/wf auto <slug>` / `/wf yolo <slug>`, which may start now |
 
 ## Step 0 — Orient
@@ -35,31 +35,37 @@ When `02b-design.md` is missing, author it now per [shape.md](shape.md). The per
 
 Run the four codebase inspection sub-agents from [_design-context.md](_design-context.md) → Preflight gates. Reuse the `stack:` block where it answers the question. Add one duty to the surface ranger: list every existing surface the brief touches and its entry in `.ai/design/current.md`.
 
+When the product already exists and the stack can run it, capture every touched surface in its current state into `design/source/captures/` now. The boards start from these captures.
+
 ## Step 4 — Draw every changed surface
 
-Draw the whole feature, not one slice. Every surface in the brief's content inventory gets a drawing, in every state the brief names.
+Draw the whole feature, not one slice. Every surface in the brief's content inventory gets a board, in every state the brief names.
 
-1. Use the design canvas per `_host-invocation.md`, row "Design canvas". Put one artboard per surface and state. Record the canvas link.
-2. When the host has no design canvas, use `/imagery` for the north-star comps. When the person wants an interactive prototype and external dispatch is enabled, offer `/uiproto`.
-3. For `ux-impact: flow`, draw the flow as a sequence of states. A text flow with a recorded `image-gate: skipped:<reason>` is valid when no surface changes how it looks.
-4. Follow [contract.md](contract.md) Steps 1–4 for the direction and the mock fidelity inventory.
+1. Make the boards per [_boards.md](_boards.md) → Make the boards: capture, import, or HTML boards from `DESIGN.md`. Ask the person which viewports to draw.
+2. On a host with a design canvas (`_host-invocation.md`, row "Design canvas"), mirror the boards to the canvas for comments. Record the canvas link.
+3. When the person wants an interactive prototype and external dispatch is enabled, offer `/uiproto`. A prototype is never a board.
+4. For `ux-impact: flow`, draw the flow as a sequence of states. A text flow with a recorded `image-gate: skipped:<reason>` is valid when no surface changes how it looks.
+5. Follow [contract.md](contract.md) Steps 1–4 for the direction and the mock fidelity inventory.
 
 ## Step 5 — The person confirms
 
-Present the drawings, the direction, and the inventory. Ask one gate question per [_gate-question.md](../_gate-question.md): *"Does this match the design you want? (approve / adjust / stop)"*
+Show the boards per [_boards.md](_boards.md) → Show the boards: the contact sheet `design/index.html`, its path, and the board files where the host can send them. Present the direction and the inventory. Ask one gate question per [_gate-question.md](../_gate-question.md): *"Does this match the design you want? (approve / adjust / stop)"*
 
 - **Approve** — record `direction-confirmed-by: in-session` and continue.
-- **Adjust** — change the drawings and ask again. Record each adjustment in `po-answers.md` with `stage: design`.
+- **Adjust** — change the named boards, render them again, and ask again. Record each adjustment in `po-answers.md` with `stage: design`.
 - **Stop** — leave `02c-craft.md` unwritten, set `status: awaiting-input`, and end the stage.
 
-A user-confirmed `PRODUCT.md` or an earlier `teach` answer satisfies the gate only when the drawings add nothing new to it. Record which source satisfied the gate.
+A user-confirmed `PRODUCT.md` or an earlier `teach` answer satisfies the gate only when the boards add nothing new to it. Record which source satisfied the gate. For `visual` and `new-surface`, the person always sees the boards: no other source replaces the pictures.
 
 ## Step 6 — Write the contract
 
-Write `02c-craft.md` per [contract.md](contract.md) Steps 5, 5a and 6, with these extra frontmatter fields:
+Freeze the confirmed boards per [_boards.md](_boards.md) → Freeze. Then write `02c-craft.md` per [contract.md](contract.md) Steps 5, 5a and 6, with these extra frontmatter fields:
 
 ```yaml
-canvas: "<canvas link, or none>"
+boards: design/r<N>/boards.json        # from the freeze result
+design-revision: <N>
+north-star-mock: design/r<N>/boards/<key>.png
+canvas: "<canvas link of the mirror, or none>"
 direction-confirmed-by: <in-session | product-md | teach>
 confirmed-at: "<iso-8601>"
 surfaces: [<every surface drawn>]
@@ -74,10 +80,10 @@ Then update `00-index.md`: `current-stage: design`, `progress.design: complete`,
 `/wf design <slug> amend [instructions]` reopens a confirmed design, because a later stage found that it cannot be built as drawn, or because the person changed their mind.
 
 1. Read the stop reason from `00-index.md` and the stage artifact that raised it. For an extension, the reason is the new slices in `03-slice.md` and the surfaces they add. For a design brainstorm, the reason is the carried thoughts: run Step 1b first.
-2. Change or add only the surfaces the reason names. Run Steps 4–6 for those surfaces. Step 6 adds new surfaces to `surfaces:`.
+2. Change or add only the boards of the surfaces the reason names. Run Steps 4–6 for those surfaces. Step 6 freezes `r<N+1>/` and adds new surfaces to `surfaces:`.
 3. Snapshot the prior contract per [_additive-write.md](../_additive-write.md), then write the new one.
 4. Name every plan that cites a changed surface. Route to `/wf plan <slug> <slice>` for each.
 
 ## Chat return
 
-Return per [_chat-return.md](../_chat-return.md): what the person confirmed, how many surfaces and states were drawn, the canvas link, and the top design risk. Next: `/wf slice <slug>`, or `/wf auto <slug>` when the person wants the build driven.
+Return per [_chat-return.md](../_chat-return.md): what the person confirmed, how many boards were frozen and in which revision, the path of `design/r<N>/index.html`, the canvas link when a mirror exists, and the top design risk. Next: `/wf slice <slug>`, or `/wf auto <slug>` when the person wants the build driven.

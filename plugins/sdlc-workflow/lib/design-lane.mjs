@@ -6,6 +6,13 @@
 // whether a workflow needs design and whether that design is settled. The
 // pre-write hook uses them to refuse a `04-plan*.md` write while a needed design
 // is unsettled; the prose stages and the yolo driver state the same rule.
+//
+// Boards (DESIGN-BOARDS-PLAN D5): when `02c-craft.md` names its frozen boards in
+// `boards:` and the change is `visual` or `new-surface`, the design is settled only
+// when every listed board file exists. The caller reads the disk
+// (lib/design-boards.mjs missingBoardFiles) and passes the missing list in.
+
+import { needsPictures } from './design-boards.mjs';
 
 export const UX_IMPACT_VALUES = Object.freeze(['none', 'visual', 'flow', 'new-surface']);
 const NEEDS_DESIGN = new Set(['visual', 'flow', 'new-surface']);
@@ -47,8 +54,11 @@ export function designReopened(index) {
  * Is the design settled?
  * @param {object} index    - `00-index.md` frontmatter
  * @param {object|null} contract - `02c-craft.md` frontmatter, or null when absent
+ * @param {string[]|null} [missingBoards] - the board files that `boards:` lists but
+ *   that are not on disk; null when the caller did not read the disk. A contract
+ *   without `boards:` (written before the boards release) keeps the old rule.
  */
-export function designSettled(index, contract) {
+export function designSettled(index, contract, missingBoards = null) {
   if (designReopened(index)) return false;
   const progress = index?.progress;
   if (progress && typeof progress === 'object' && progress.design === 'skipped'
@@ -56,8 +66,16 @@ export function designSettled(index, contract) {
     return true;
   }
   if (!contract) return false;
-  return imageGateResolved(contract['image-gate'])
-    && String(contract['direction-confirmed-by'] ?? '').trim() !== '';
+  if (!imageGateResolved(contract['image-gate'])) return false;
+  if (String(contract['direction-confirmed-by'] ?? '').trim() === '') return false;
+  return !boardsMissing(index, contract, missingBoards);
+}
+
+/** True when the contract names boards, the change needs pictures, and a board file is missing. */
+export function boardsMissing(index, contract, missingBoards) {
+  if (!String(contract?.boards ?? '').trim()) return false;
+  if (!needsPictures(index)) return false;
+  return Array.isArray(missingBoards) && missingBoards.length > 0;
 }
 
 /** Is `storageRel` (path inside `.ai/workflows/<slug>/`) a top-level plan file? */
@@ -83,19 +101,23 @@ export function sliceHasNoUx(slice) {
 
 /**
  * The refusal message for a plan write, or null when the write may proceed.
- * @param {{index: object|null, hasBrief: boolean, contract: object|null, slug: string, slice?: object|null, sliceSlug?: string|null}} args
+ * @param {{index: object|null, hasBrief: boolean, contract: object|null, slug: string, slice?: object|null, sliceSlug?: string|null, missingBoards?: string[]|null}} args
  */
-export function designGateRefusal({ index, hasBrief, contract, slug, slice = null, sliceSlug = null }) {
+export function designGateRefusal({ index, hasBrief, contract, slug, slice = null, sliceSlug = null, missingBoards = null }) {
   if (!index) return null;
   if (!designNeeded(index, hasBrief)) return null;
   if (sliceHasNoUx(slice)) return null;
-  if (designSettled(index, contract)) return null;
+  if (designSettled(index, contract, missingBoards)) return null;
   const reopened = designReopened(index) && contract;
+  const shown = (missingBoards ?? []).slice(0, 5).join(', ');
+  const more = (missingBoards?.length ?? 0) > 5 ? ` and ${missingBoards.length - 5} more` : '';
   const why = reopened
     ? 'the design is reopened (progress.design: in-progress)'
-    : contract
-      ? '02c-craft.md exists but carries no resolved image-gate or no direction-confirmed-by'
-      : '02c-craft.md is missing';
+    : !contract
+      ? '02c-craft.md is missing'
+      : boardsMissing(index, contract, missingBoards)
+        ? `the confirmed boards are not on disk: ${shown}${more}. Run the board check (design-boards check ${slug})`
+        : '02c-craft.md exists but carries no resolved image-gate or no direction-confirmed-by';
   const route = reopened ? `/wf design ${slug} amend` : `/wf design ${slug}`;
   const sliceHint = sliceSlug
     ? ` When slice '${sliceSlug}' changes nothing a person sees, set \`ux-impact: none\` in 03-slice-${sliceSlug}.md instead.`

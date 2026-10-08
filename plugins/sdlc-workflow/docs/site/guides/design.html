@@ -15,7 +15,7 @@
 
 <h2 id="stage">The design stage and why a person runs it</h2>
 
-<p>The <code>design</code> stage is a lifecycle stage. It sits between <code>shape</code> and <code>slice</code>, and only a person runs it. The stage turns the design brief into a drawing, and the person confirms the drawing. Every later stage then builds against a decision that a person made.</p>
+<p>The <code>design</code> stage is a lifecycle stage. It sits between <code>shape</code> and <code>slice</code>, and only a person runs it. The stage turns the design brief into design boards, one picture for each surface and state, and the person confirms the boards. Every later stage then builds against a decision that a person made.</p>
 
 <p>A driver can plan, build, and verify. A driver cannot know what the person wants the product to look like. For that reason, <code>/wf auto</code> and <code>/wf yolo</code> never run the design stage. If a driver invokes it, the stage stops and routes the person to <code>/wf design &lt;slug&gt;</code>.</p>
 
@@ -25,26 +25,26 @@
   <li>It loads the project's design record (see <a href="#record">The design record</a>). When <code>PRODUCT.md</code> is missing, it runs <code>/wf design setup</code> with the person first.</li>
   <li>When a design brainstorm left thoughts for this workflow, it presents them again as the starting direction (see <a href="#carried">How the carried thoughts come back</a>).</li>
   <li>It makes sure that the brief <code>02b-design.md</code> exists. Shape usually writes it. When it is missing, the stage writes it now.</li>
-  <li>It inspects the code: the existing surfaces, tokens, and components that the brief touches.</li>
-  <li>It draws every changed surface of the whole feature, not one slice. Every surface in the brief gets a drawing, in every state that the brief names. For a flow change, it draws the flow as a sequence of states.</li>
-  <li>It asks the person one question: approve, adjust, or stop. On adjust, it changes the drawings and asks again. On stop, it writes no contract.</li>
-  <li>On approve, it writes the visual contract <code>02c-craft.md</code>. The contract records the canvas link (<code>canvas:</code>), who confirmed the direction (<code>direction-confirmed-by:</code>), when (<code>confirmed-at:</code>), and every surface drawn (<code>surfaces:</code>). When a brainstorm carried design thoughts, the contract also records <code>carried-from:</code> and a <code>## Carried design thoughts</code> section.</li>
+  <li>It inspects the code: the existing surfaces, tokens, and components that the brief touches. When the product already runs, it captures each touched surface as it is now.</li>
+  <li>It makes a board for every changed surface of the whole feature, not one slice, in every state that the brief names. A board starts from a capture of the running product, from an imported design, or from an HTML page built with the tokens of <code>DESIGN.md</code>. The board tool renders each one to a PNG. See <a href="#boards">Design boards</a>. For a flow change, it draws the flow as a sequence of states.</li>
+  <li>It shows you the contact sheet <code>design/index.html</code>, which holds every board, and asks one question: approve, adjust, or stop. On adjust, it changes the boards you named and asks again. On stop, it writes no contract.</li>
+  <li>On approve, it freezes the boards in <code>design/r&lt;N&gt;/</code> and writes the visual contract <code>02c-craft.md</code>. The contract records the frozen boards (<code>boards:</code> and <code>design-revision:</code>), the canvas mirror link (<code>canvas:</code>), who confirmed the direction (<code>direction-confirmed-by:</code>), when (<code>confirmed-at:</code>), and every surface drawn (<code>surfaces:</code>). When a brainstorm carried design thoughts, the contract also records <code>carried-from:</code> and a <code>## Carried design thoughts</code> section.</li>
 </ol>
 
 <p>The next step is <code>/wf slice &lt;slug&gt;</code>. You can also start <code>/wf auto &lt;slug&gt;</code> or <code>/wf yolo &lt;slug&gt;</code> now, because the design is settled.</p>
 
-<p><strong>Design is settled</strong> when <code>02c-craft.md</code> carries a resolved image gate and <code>direction-confirmed-by:</code>, or when <code>00-index.md</code> records <code>progress.design: skipped</code> with a reason.</p>
+<p><strong>Design is settled</strong> when <code>02c-craft.md</code> carries a resolved image gate and <code>direction-confirmed-by:</code>, or when <code>00-index.md</code> records <code>progress.design: skipped</code> with a reason. For a <code>visual</code> or <code>new-surface</code> change, every board that <code>boards:</code> names must also exist on disk. A contract written before boards existed has no <code>boards:</code> and keeps the old rule.</p>
 <p>A confirmed design is <strong>reopened</strong>, and no longer settled, while <code>00-index.md</code> records <code>progress.design: in-progress</code>. Two events reopen it: an extension adds slices with surfaces that nobody drew, or a later stage finds that it cannot build the design as drawn. <code>/wf design &lt;slug&gt; amend</code> draws the changed surfaces, asks the person again, and settles the design.</p>
 
 <h3 id="after">What later stages do with the design</h3>
 
 <ul>
-  <li><strong>slice</strong> maps every slice to the surfaces in <code>02c-craft.md</code>.</li>
-  <li><strong>plan</strong> does not write <code>02c-craft.md</code>. It reads the contract, turns every item of the mock fidelity inventory into a plan step, and writes <code>## Design Components</code>: the system components that the slice uses, and the new or changed components.</li>
-  <li><strong>implement</strong> builds from the tokens and components in <code>DESIGN.md</code> and records the result in <code>## Visual Contract Honored</code>.</li>
-  <li><strong>verify</strong> measures the design floor. When the stack can capture the running surface, verify puts each built surface next to its drawing in <code>## Design Comparison</code>.</li>
-  <li><strong>review</strong> judges drift from <code>DESIGN.md</code> and from the design direction.</li>
-  <li><strong>retro</strong> writes back to the design record.</li>
+  <li><strong>slice</strong> maps every slice to the surfaces in <code>02c-craft.md</code> and their boards.</li>
+  <li><strong>plan</strong> does not write <code>02c-craft.md</code>. It reads the contract, turns every item of the mock fidelity inventory into a plan step that names its board, and writes <code>## Design Components</code>: the system components that the slice uses, and the new or changed components.</li>
+  <li><strong>implement</strong> reads the board PNGs of its slice, builds from the tokens and components in <code>DESIGN.md</code>, and records the result in <code>## Visual Contract Honored</code>.</li>
+  <li><strong>verify</strong> measures the design floor. When the stack can capture the running surface, verify saves each capture under the board's name in <code>design/captures/&lt;slice&gt;/</code> and pairs it with its board in <code>## Design Comparison</code>. With no boards, verify records <code>design-comparison: no-boards</code> and reports no visual pass.</li>
+  <li><strong>review</strong> judges drift from <code>DESIGN.md</code>, from the design direction, and between each board and its capture.</li>
+  <li><strong>retro</strong> writes back to the design record, with a link to the newest board of each surface.</li>
 </ul>
 
 <p>A later stage does not redraw the design. When a stage cannot build the design as drawn, it stops, sets <code>status: awaiting-input</code>, and routes to <code>/wf design &lt;slug&gt; amend</code>.</p>
@@ -73,10 +73,11 @@
 
 <h2 id="grammar">The command grammar</h2>
 
-<p>The <code>/wf design</code> key has five forms:</p>
+<p>The <code>/wf design</code> key has six forms:</p>
 
 <pre><code>/wf design &lt;slug&gt; [move] [instructions]      Run the design stage: draw, confirm, write 02c-craft.md.
 /wf design &lt;slug&gt; amend [instructions]       Reopen a confirmed design.
+/wf design &lt;slug&gt; import &lt;link|path&gt;...      Turn outside design work into boards, then confirm.
 /wf design [slug] audit|critique             Run a design review dimension now.
 /wf design &lt;move&gt; &lt;instructions&gt;             Start a new workflow seeded with a move.
 /wf design setup|teach|extract|direction|sync [instructions]
@@ -84,7 +85,9 @@
 
 <p>The command resolves the first token with an <strong>exact existence check, never with fuzzy matching</strong>. When <code>.ai/workflows/&lt;token&gt;/00-index.md</code> exists, the token is a slug. Otherwise the token is the command. A wrong guess would send the work down the wrong path, so design does not suggest a near slug. An unknown token stops the run and shows the usage.</p>
 
-<p><strong>amend</strong> reopens a confirmed design. Use it when a later stage found that it cannot build the design as drawn, or when you changed your mind. Amend changes only the surfaces that the reason names, asks for your confirmation again, keeps a snapshot of the prior contract, and names every plan that cites a changed surface. Run <code>/wf plan &lt;slug&gt; &lt;slice&gt;</code> again for each of those plans.</p>
+<p><strong>amend</strong> reopens a confirmed design. Use it when a later stage found that it cannot build the design as drawn, or when you changed your mind. Amend changes only the surfaces that the reason names, asks for your confirmation again, keeps a snapshot of the prior contract, and names every plan that cites a changed surface. Run <code>/wf plan &lt;slug&gt; &lt;slice&gt;</code> again for each of those plans. The confirmed boards freeze as a new revision, <code>design/r&lt;N+1&gt;/</code>, and the earlier revision stays as it was.</p>
+
+<p><strong>import</strong> brings in design work made outside <code>/wf</code>: a design canvas link, a claude.ai/design project, a folder, a zip, or image files. The source is copied into <code>design/source/import-&lt;n&gt;/</code>. You map each screen to a surface and a state, and each screen becomes a board. An import never confirms by itself: it ends at the question approve, adjust, or stop.</p>
 
 <h2 id="brainstorm">Brainstorm a design</h2>
 
@@ -99,7 +102,7 @@
 <ul>
   <li>It reads the design record at the start. On a feature workflow, it also reads <code>02-shape.md</code>, <code>02b-design.md</code>, and <code>02c-craft.md</code> when they exist. A missing file is a gap to name, not a stop.</li>
   <li>It maps the design space: the surfaces, what a person does on each, layout and hierarchy, register, color, and type, motion and feedback, the states (empty, loading, error, first use), content and voice, and the fit with the design record.</li>
-  <li>It draws a rough sketch when a picture decides faster than words. It uses the design canvas, else <code>imagery</code>, else a one-sentence scene in the question text. When an area closes, you say which sketches carry forward.</li>
+  <li>It draws a rough sketch when a picture decides faster than words. It uses the design canvas, else an HTML sketch or an <code>imagery</code> image, else a one-sentence scene in the question text. Each sketch is also saved as a file in <code>design/sketches/</code>, so that it travels with the work. When an area closes, you say which sketches carry forward.</li>
   <li>It raises a tension when an idea pulls against <code>PRODUCT.md</code> or against a goal in <code>direction.md</code>.</li>
 </ul>
 
@@ -107,7 +110,7 @@
 
 <h3 id="brainstorm-done">What happens at done</h3>
 
-<p>On a standalone board, you and the agent walk the decisions and agree on pieces of work, as in any brainstorm. A piece of work that holds design items also records a proposed <code>ux-impact</code> and its sketches. Two forms of work are for design:</p>
+<p>On a standalone board, you and the agent walk the decisions and agree on pieces of work, as in any brainstorm. A piece of work that holds design items also records a proposed <code>ux-impact</code> and its sketches. Its work packet lists the sketch files, and intake copies them into the new workflow's <code>design/sketches/</code>. Two forms of work are for design:</p>
 
 <ul>
   <li><code>design</code> is the design stage of a feature workflow.</li>
@@ -211,17 +214,27 @@
 
 <p>With a slug, the commands write <code>07-design-audit.md</code> or <code>07-design-critique.md</code> in the workflow and register themselves in <code>00-index.md</code>. Without a slug, they write no workflow artifact and report in chat.</p>
 
-<h2 id="canvas">The canvas and its fallbacks</h2>
+<h2 id="boards">Design boards</h2>
 
-<p>The design stage draws on the best surface that the host offers:</p>
+<p>Every workflow keeps its drawings in one folder, <code>.ai/workflows/&lt;slug&gt;/design/</code>. The folder holds the boards (one HTML file and one PNG for each surface and state), the manifest <code>boards.json</code>, the contact sheet <code>index.html</code>, the sources that made the boards, the brainstorm sketches, the verify captures, and one frozen folder <code>r&lt;N&gt;/</code> for each confirmed revision. A frozen revision never changes. Every host can make and read these files, and sub-agents get the PNG paths.</p>
+
+<p>The board tool <code>skills/wf/scripts/design-boards.mjs</code> renders each HTML board to a PNG with an installed Chromium browser (Chrome, Edge, or a Playwright browser) in headless mode. It needs no extra package. Set <code>SDLC_BROWSER</code> to choose a browser. When no browser works, a board stays HTML, and the manifest says why.</p>
+
+<p>The stage chooses how to make the boards from the situation:</p>
 
 <ol>
-  <li><strong>The design canvas.</strong> When the host has a design canvas (under Claude Code, a Claude Design artifact), the stage draws one artboard per surface and state, with the tokens and components in <code>DESIGN.md</code>. It records the canvas link as <code>canvas:</code> in <code>02c-craft.md</code>.</li>
-  <li><strong>Generated comps.</strong> When the host has no design canvas, the stage uses the <code>imagery</code> skill to generate one to three north-star comps.</li>
-  <li><strong>An interactive prototype.</strong> When you want an interactive prototype of the approved direction, the stage offers the <code>uiproto</code> skill. It never runs it automatically. <code>uiproto</code> needs <code>externalDispatch.enabled</code>. Without that flag, <code>imagery</code> uses only its no-egress paths. See <a href="../reference/skills.html">Skills</a>.</li>
+  <li><strong>Capture.</strong> The product already runs: the stage captures each touched surface and draws the change from there.</li>
+  <li><strong>Import.</strong> You bring a design from outside: <code>/wf design &lt;slug&gt; import</code>.</li>
+  <li><strong>HTML boards.</strong> For new surfaces, the stage writes one HTML page for each surface and state, with the tokens and components of <code>DESIGN.md</code>, real copy, and realistic data.</li>
 </ol>
 
+<p><strong>The canvas is a mirror.</strong> When the host has a design canvas (under Claude Code, a Claude Design artifact), the stage puts the boards on it too, so that you can comment there. The files in <code>design/</code> stay the contract. The <code>imagery</code> skill makes mood and brand images only. A generated image is never a board. When you want an interactive prototype of the approved direction, the stage offers the <code>uiproto</code> skill, which needs <code>externalDispatch.enabled</code>. See <a href="../reference/skills.html">Skills</a>.</p>
+
 <p>For a flow change where no surface changes how it looks, a text flow is valid. The contract then records <code>image-gate: skipped:&lt;reason&gt;</code>.</p>
+
+<p><strong>Keep the boards in git.</strong> A repo that ignores <code>.ai/</code> loses the boards with the machine. Run <code>node skills/wf/scripts/design-boards.mjs track &lt;projectRoot&gt;</code> to see the <code>.gitignore</code> lines that keep <code>.ai/design/</code> and every frozen <code>design/r&lt;N&gt;/</code> tracked. Add <code>--write</code> to write them. The working boards, sources, and captures stay local. <code>/wf status</code> tells you once when a repo that ignores <code>.ai/</code> has no such lines.</p>
+
+<p>The contract page in the viewer shows the frozen boards, with the canvas link.</p>
 
 <h3 id="register-gate">The Register line and the image gate</h3>
 

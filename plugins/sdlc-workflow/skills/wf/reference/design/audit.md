@@ -110,6 +110,7 @@ Format as a structured report:
 When invoked as `/wf design <slug> audit`:
 - Write report to `.ai/workflows/<slug>/07-design-audit.md`
 - Register `design-audit` under `augmentations:` in `00-index.md` per [_output.md](_output.md)
+- When `02c-craft.md` names `boards:`, compare each board PNG with its capture in `06-verify-*.md` `## Design Comparison` (`design/_boards.md`). Name the board key in `where:`. A board without a capture is a gap; do not score it as a pass.
 - Use this frontmatter:
 
 ```yaml
@@ -122,7 +123,7 @@ status: ready
 created-at: <timestamp>
 updated-at: <timestamp>
 verdict: <pass|fail|conditional>
-audited-against: [02b-design.md, 02c-craft.md]
+audited-against: [02b-design.md, 02c-craft.md, design/r<N>/boards.json]   # boards.json only when 02c-craft.md names boards:
 violations-count: <number>
 severity-distribution:
   blocker: <number>
@@ -144,7 +145,7 @@ recommended-routes: [{invocation: "/wf review <slug>", reason: "fold the finding
 ```yaml
 artifact: design-audit
 verdict: <pass|fail|conditional>
-audited-against: [02b-design.md, 02c-craft.md]
+audited-against: [02b-design.md, 02c-craft.md, design/r<N>/boards.json]   # boards.json only when 02c-craft.md names boards:
 remediation-state: <none|in-progress|complete|deferred>
 run_at: <timestamp>
 violations:

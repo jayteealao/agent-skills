@@ -47,6 +47,8 @@ This step runs **unconditionally on every invocation, before Step 0**, even with
 
 **One-time advisory — artifact-tracking policy unset.** While reconciling, if `.ai/sdlc-config.json` has no `artifactTracking` key AND at least one workflow exists, append one advisory line to the status report (never a gate, never a prompt): "artifact-tracking policy unset — `.ai/` tracked-vs-ignored is currently decided ad hoc at ship time; record it via `/wf ship-plan edit` (or init Step 3.5) to give ship's clean-tree gate a policy to read." Print it at most once per invocation; a repo that has recorded the key never sees it again.
 
+**One-time advisory — design record ignored.** While reconciling, when at least one workflow has a `design/` folder, run `node "<skill-dir>/scripts/design-boards.mjs" track "<projectRoot>"` (read-only without `--write`). When the result has `change: true`, append one advisory line (never a gate, never a prompt): "git ignores the design record — `design-boards.mjs track` shows the `.gitignore` lines that keep `.ai/design/` and `.ai/workflows/*/design/r*/` tracked; add `--write` after the person approves." Print it at most once per invocation.
+
 **File: `.ai/workflows/INDEX.md`** — one header line (a `#` comment), then one tab-separated row per workflow, sorted alphabetically by slug. Closed workflows are retained (positional slug detection skips closed rows, but a slug match still triggers the "append a slice to a closed workflow?" confirmation).
 
 ```
@@ -147,7 +149,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 1. **Read `00-index.md`** for the slug. If not found → "Workflow `<slug>` not found. Run `/wf status`
    to list all workflows." STOP.
 2. Read the `workflow-files` list and check which files exist on disk.
-3. Read each existing stage file's frontmatter (`status`, `created-at`, `updated-at`, key metrics). Never read the stage bodies, except for the fallback below.
+3. Read each existing stage file's frontmatter (`status`, `created-at`, `updated-at`, key metrics). Never read the stage bodies, except for the fallback below. When `02c-craft.md` names `boards:`, show `design-revision` and the board count of that `boards.json` in `## Key Metrics`.
 4. The **current** stage file's frontmatter drives the `## Next` routing: `status`, `next-invocation` and `recommended-routes` (every option, with its reason). Never take `recommended-next-*` from a stage file. Fallback: an artifact written before `recommended-routes` existed lists its options in a `## Recommended Next Stage` body section. Read that section instead.
 5. **Render the detail view** from the detail render in [status/_renders.md](status/_renders.md): title line, `## Stage Progress` (one row per stage file from `01-intake.md` on), `## Slice Progress`, `## Key Metrics`, `## Open Questions`, `## Branch Info`, `## Driver`, `## Open Deferrals`, `## Cost`, and `## Next` (default invocation, every option from the current stage file's `recommended-routes` — present ALL, do not pick silently; the awaiting-input, complete/closed, and wrong-branch variants).
 6. For the **slice progress matrix**, list `03-slice-*.md`, `04-plan-*.md`, `05-implement-*.md`, `06-verify-*.md`, `07-review-*.md` (the `07-review-<slice>.md` master per slice; exclude `07-review-<slice>-<command>.md` sub-reviews), `08-handoff.md`. Mark: `✓` complete · `→` in-progress/awaiting-input · `✗` failed · `·` pending.

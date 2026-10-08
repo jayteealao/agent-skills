@@ -58,9 +58,9 @@ Prepare runs one wave ahead, not all at once. The person decides every question.
    1. Run `/wf intake <packet path>` ([../intake/_packet.md](../intake/_packet.md)). Intake shows the carried decisions in groups of up to 8, each with its session and date, and the person keeps or changes each group. Do not skip this step.
    2. Run `/wf shape <slug>`. After shape, compare the shape with the packet's `provides` and `expects` lines. The person confirms each change. Write a confirmed change into the packet only through the brainstorm (`/wf brainstorm <brainstorm-slug> add`), because the brainstorm owns the packets.
    3. Run `/wf slice <slug>`.
-   4. When the packet's `ux-impact` is not `none`, run the design lane per [../design/_lane.md](../design/_lane.md).
+   4. When the packet's `ux-impact` is not `none`, run the design lane per [../design/_lane.md](../design/_lane.md), with the person, in the main checkout. The design stage builds the boards, and `freeze` writes `design/r1/` (`design/_boards.md`).
    5. Set `branch-strategy: dedicated` in the slug's `00-index.md`. The wave start sets `branch` and `base-branch`.
-   6. Run `<cmd> unit <key> prepared`.
+   6. Run `<cmd> unit <key> prepared`. For a unit whose design is needed, the command refuses until the design is settled. For `visual` and `new-surface`, it also refuses until `02c-craft.md` names its frozen boards and every board exists. The result names the cause: finish the design with the person, then run the command again. `node "<pluginRoot>/skills/wf/scripts/design-boards.mjs" check "<projectRoot>" <slug>` lists the missing boards.
 2. **While wave n runs,** prepare the units of wave n+1 (`next.prepare` in `status`). When the as-built notes of wave n exist, show the ones that a unit of wave n+1 depends on before its intake.
 3. **A wave starts with its prepared units.** `wave <n> start` moves each unprepared unit, and each unit of the wave that depends on it, to a later wave. Tell the person which units moved.
 4. The person can stop at any time. The ledger holds the progress.
@@ -79,6 +79,13 @@ yolo drives only the build forms. The other forms never enter a wave.
 | `write-now` | the brainstorm session, at `done` | never reaches the campaign | Its `work/changes.md` entry starts the drift check. |
 
 A packet outside the waves blocks only its dependents, not the wave. At each wave boundary, list it as "needs you", with a push notification. The campaign never turns a result into a packet itself: only the brainstorm writes packets.
+
+## Design amend
+
+When the design of a unit reopens, run `<cmd> unit <key> stopped --route "design amend"`. List the unit as "needs you", with a push notification.
+1. The person runs `/wf design <slug> amend` in the main checkout. The amend freezes `design/r<N+1>/`.
+2. When the unit has a worktree, run `<cmd> worktree <key> refresh`. The refresh copies the new revision in.
+3. When the unit started a drive, relaunch the drive (yolo.md, "Resuming"). Otherwise, run step 6 of the rolling prepare again.
 
 ## Reopen pick-up
 

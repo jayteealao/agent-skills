@@ -17,7 +17,7 @@ from the tree and fails when a count exceeds its pin.
 | `reviewRubrics` | `reference/review/<rubric>.md`, underscore files excluded | 11 |
 | `aggregates` | rows of the aggregate table in `reference/review.md` | 7 |
 | `artifactStems` | distinct artifact names in the capability inventory's `artifacts` union | 93 → 95 (2026-09-22, `01-brainstorm`, `03-slice-brainstorm-*`) → 92 (2026-09-29, hand-written typed fragment names left the references) |
-| `frontmatterTypes` | distinct `type` values the frontmatter schema's `oneOf` branches accept | 66 → 67 (2026-09-22, `brainstorm`) → 69 (2026-10-03, `work-packet`, `work-set`; earn rule in BRAINSTORM-WORK-PACKETS-PLAN.md section 13) |
+| `frontmatterTypes` | distinct `type` values the frontmatter schema's `oneOf` branches accept | 66 → 67 (2026-09-22, `brainstorm`) → 69 (2026-10-03, `work-packet`, `work-set`; earn rule in BRAINSTORM-WORK-PACKETS-PLAN.md section 13) → 71 (2026-10-08, `design-current`, `design-direction`: the design record files had a documented type and no schema branch; DESIGN-BOARDS-PLAN W1) |
 
 A count under its pin is slack. The gate reports slack and does not fail on
 it. Lower a pin when a surface is deleted, so the file states the tree.

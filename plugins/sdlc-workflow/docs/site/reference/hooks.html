@@ -146,7 +146,10 @@ a <code>04-plan*.md</code> write blocks while the workflow needs design and the 
 settled. Design is needed when <code>ux-impact</code> is <code>visual</code>, <code>flow</code>,
 or <code>new-surface</code>. Design is settled when <code>02c-craft.md</code> carries a resolved
 <code>image-gate</code> and <code>direction-confirmed-by</code>, or when <code>00-index.md</code>
-records <code>progress.design: skipped</code> with a <code>design-skip-reason</code>. Run
+records <code>progress.design: skipped</code> with a <code>design-skip-reason</code>. For
+<code>visual</code> and <code>new-surface</code>, a contract that names its boards
+(<code>boards: design/r&lt;N&gt;/boards.json</code>) is settled only while every board it lists
+exists on disk; the refusal names the missing files. Run
 <code>/wf design &lt;slug&gt;</code> to settle the design.</li>
 </ul>
 

@@ -1,14 +1,16 @@
 ---
 name: imagery
-description: Generate images from a text prompt. Fans out to all available providers by default (built-in image_gen, gpt-image-2, nano-banana) → a variant set; a provider keyword yields one. The design stage's fallback for hosts without a design canvas; internal to `/wf design`, invoke it through that key.
+description: Generate images from a text prompt. Fans out to all available providers by default (built-in image_gen, gpt-image-2, nano-banana) → a variant set; a provider keyword yields one. Mood and brand images only; a generated image is never a design board. Internal to `/wf design`, invoke it through that key.
 version: 1.0.0
 user-invocable: false
-argument-hint: "[image_gen|openai|gemini|openai-sub] <prompt> [skip <reason>]"
+argument-hint: "[image_gen|openai|gemini|openai-sub] <prompt> [skip <reason>] [into <folder>]"
 ---
 
 Generate an image (or a fan-out variant set) from a natural-language prompt, then
 embed it. This skill calls the image APIs directly, and it is fan-out-capable. It
 **emits the `IMAGEGEN_RESULT` output contract** that the `/wf design` image gate reads.
+Its images are mood and brand images. A generated image is never a design board
+(`design/_boards.md` in the wf skill holds the board methods).
 `<skill-dir>` resolves per [_host-invocation.md](../wf/reference/_host-invocation.md).
 
 ## Step 0 — Resolve (positional, no flags)
@@ -19,10 +21,12 @@ embed it. This skill calls the image APIs directly, and it is fan-out-capable. I
    Otherwise the whole argument is the prompt → **fan out** (see Step 2).
 2. **Skip.** A trailing `skip <reason>` → go straight to the text fallback
    (Method T) with `method=skipped`.
-3. **Output path.** Default `.ai/design-probes/<unix-ts>[-<provider>].<ext>` —
-   `<ext>` is **set from the actual bytes** by the generators (PNG for gpt-image-2,
-   JPEG for Gemini), so pass a base path; the result reports the real path.
-   Create `.ai/design-probes/` if needed.
+3. **Output path.** A trailing `into <folder>` sets the folder, for example
+   `into .ai/workflows/<slug>/design/source`. It is always the last token: remove it
+   before steps 1 and 2 read the argument. Without it, the folder is `.ai/design-probes/`.
+   The base path is `<folder>/<unix-ts>[-<provider>]`. The generators set `<ext>`
+   **from the actual bytes** (PNG for gpt-image-2, JPEG for Gemini), so pass the
+   base path; the result reports the real path. Create the folder if needed.
 4. **Resolution tier (no `--resolution` flag).** Infer from the prompt prose
    **or the invoking context**: a **north-star / hi-res / high-res / 2K** cue → the
    **2K** tier; else **1K**. Pass the tier as the generator's positional `<tier>`

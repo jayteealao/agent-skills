@@ -107,6 +107,8 @@ Judge the work against the design record:
 
 When invoked as `/wf design <slug> critique`:
 - Write to `.ai/workflows/<slug>/07-design-critique.md`
+- When `02c-craft.md` names `boards:`, judge the board and capture pairs in `06-verify-*.md` `## Design Comparison` (`design/_boards.md`). Name the board key in `where:`.
+- Do not reopen a board that the person confirmed. Write a finding against a confirmed board as a question for `/wf design <slug> amend`. Do not redraw the board.
 - Use this frontmatter:
 
 ```yaml

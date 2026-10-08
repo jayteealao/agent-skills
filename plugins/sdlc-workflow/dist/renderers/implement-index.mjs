@@ -3,14 +3,14 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-MFUP6TXX.mjs";
+} from "../chunk-VNXAWS4C.mjs";
 import {
   blockerPart,
   countPart,
   sliceCard,
   sliceGridFigure,
   sliceState
-} from "../chunk-6JA72YGC.mjs";
+} from "../chunk-SMMXWVLL.mjs";
 import {
   figureCanvas
 } from "../chunk-RFW2L66D.mjs";
@@ -18,7 +18,7 @@ import {
   artifactHeader,
   metricRow,
   statusBadge
-} from "../chunk-HSVXEPAP.mjs";
+} from "../chunk-P62FLZNA.mjs";
 import {
   escapeHtml
 } from "../chunk-3RXHOXIK.mjs";

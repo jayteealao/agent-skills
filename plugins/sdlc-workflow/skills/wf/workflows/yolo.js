@@ -902,7 +902,10 @@ async function orient() {
     `Read ux-impact from 00-index.md. Design is NEEDED when ux-impact ∈ {visual, flow, new-surface}, or when ` +
     `ux-impact is absent and 02b-design.md exists. Design is SETTLED when 02c-craft.md exists with a resolved ` +
     `image-gate (pass or skipped:<reason>) AND a direction-confirmed-by field, or when 00-index.md ` +
-    `progress.design is 'skipped' with a design-skip-reason. The design is NOT settled while 00-index.md records ` +
+    `progress.design is 'skipped' with a design-skip-reason. When 02c-craft.md carries boards: (design/r<N>/boards.json) ` +
+    `and ux-impact is visual or new-surface, the design is settled only when every board file that manifest lists ` +
+    `exists on disk; run node "${referenceRoot}/../scripts/design-boards.mjs" check "${projectRoot}" ${slug} to list the missing ones. ` +
+    `Give drives board paths (design/r<N>/boards/<key>.png), never a canvas link. The design is NOT settled while 00-index.md records ` +
     `progress.design: in-progress (reopened by an extension or an amend stop). A slice whose 03-slice-<slice>.md ` +
     `carries ux-impact: none changes nothing a person sees, so its plan does not wait for the design; a slice ` +
     `WITHOUT the field keeps the slug rule. When design is needed and not settled, and at least one roster slice ` +

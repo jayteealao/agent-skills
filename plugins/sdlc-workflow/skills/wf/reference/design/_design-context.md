@@ -112,17 +112,15 @@ person when it authors the visual contract (`02c-craft.md`, following `design/st
 resolved `image-gate`. No driven stage resolves it.
 
 - `image_gate=pending` — **blocks all code mutation.** Visual direction is not yet confirmed.
-- `image_gate=pass` — the surfaces were drawn on the design canvas, or the visual probes were
-  generated via the `imagery` skill; visual direction is confirmed and code mutation may open.
-- `image_gate=skipped:<reason>` — direction confirmed without an image probe, with a recorded
-  reason. An empty or generic reason is **INVALID** — name *why* no probe was needed (e.g.
-  "text-only fallback: no image backend available", "token-only transform, no new surface").
+- `image_gate=pass` — the person saw the boards of every changed surface and confirmed them, and
+  `freeze` wrote them to `design/r<N>/` ([_boards.md](_boards.md)). For `visual` and `new-surface`,
+  the design is settled only while every board that `boards:` names exists on disk.
+- `image_gate=skipped:<reason>` — direction confirmed without a picture, with a recorded reason.
+  Only a `flow` change with no visual change may skip. An empty or generic reason is **INVALID** —
+  name *why* no picture was needed (for example, "flow-only change: the error text moves, no surface changes").
 
-The `imagery` skill (`../../../imagery/SKILL.md`) is invoked internally
-and fans out to the best available image backends at runtime (the host's built-in image tool
-where one exists — see the imagery provider table — plus the gpt-image-2 / nano-banana API
-backends when `externalDispatch.enabled`); the caller records the
-`IMAGEGEN_RESULT` and sets the gate.
+A generated image from the `imagery` skill (`../../../imagery/SKILL.md`) is a mood image. It never
+resolves the gate and is never a board.
 
 ## Preflight gates (run before any design work that edits files)
 

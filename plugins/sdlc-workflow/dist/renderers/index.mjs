@@ -2,19 +2,19 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   storyLink
-} from "../chunk-OSVLK5ZV.mjs";
+} from "../chunk-4JO5VAGE.mjs";
 import {
   md2html,
   renderHistoryBlock,
   renderRevisionLedger
-} from "../chunk-MFUP6TXX.mjs";
+} from "../chunk-VNXAWS4C.mjs";
 import {
   costRowsFor,
   costSectionHtml
 } from "../chunk-E5HZ3FHL.mjs";
 import {
   humanRelative
-} from "../chunk-6JA72YGC.mjs";
+} from "../chunk-SMMXWVLL.mjs";
 import {
   evenX,
   figureCanvas
@@ -24,7 +24,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-HSVXEPAP.mjs";
+} from "../chunk-P62FLZNA.mjs";
 import "../chunk-5OCA23PS.mjs";
 import {
   escapeHtml
@@ -52,8 +52,8 @@ var STAGE_NAV = {
   intake: { types: ["intake"], dir: "intake" },
   shape: { types: ["shape", "design", "design-brief"], dir: "shape" },
   // The human-only design stage (design/_lane.md): its artifact is the visual
-  // contract 02c-craft.md (type design-contract), placed under design-brief/.
-  design: { types: ["design-contract"], dir: "design-brief" },
+  // contract 02c-craft.md (type design-contract), placed under design/.
+  design: { types: ["design-contract"], dir: "design" },
   slice: { types: ["slice-index", "slice"], dir: "slice" },
   plan: { types: ["plan-index", "plan"], dir: "plan" },
   implement: { types: ["implement-index", "implement"], dir: "implement" },

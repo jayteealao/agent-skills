@@ -31,6 +31,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `04-plan.md` | artifact | if-present | Sibling Plans |
 | `02b-design.md` | artifact | if-present | |
 | `02c-craft.md` | artifact | if-present | |
+| `design/boards.json` | artifact | if-present | |
 | `design/_lane.md` | procedure | always | |
 | `design/_design-context.md` | procedure | mode:design | |
 | `runtime-adapters/_ladder.md` | procedure | always | |
@@ -66,7 +67,7 @@ You are a workflow orchestrator, not a problem solver. Do not write code, edit f
    - **Review-scope fallback (skip-to-plan path only).** If `00-index.md` shows `review-scope-confirmed: false` (absent means the question was asked at intake), the workflow bypassed `slice`, where the question normally lands. Ask it here with one gate question per [_gate-question.md](_gate-question.md); for a single-scope workflow recommend `Slug-wide` ("one 07-review.md against the cumulative diff") over `Per slice`. Record the answer in `po-answers.md` (`stage: plan`); set `review-scope:` and `review-scope-confirmed: true` in `00-index.md`. The question is asked once per workflow.
 4. **Use the design context when design is needed.** Use `design/_design-context.md` for the register, design laws, absolute bans, and motion summary. When the feature touches motion, interface detail, or typography, also read `animate.md` / `polish.md` / `typeset.md`. Its preflight, image, and mutation sections govern `/wf design`. Then:
    - `02b-design.md` — register, recommended references, anti-goals.
-   - `02c-craft.md` — the visual contract. Every `## Mock fidelity inventory` item becomes a concrete plan step. The `## Implementation contract` (token choices, component decisions, motion specs) binds the plan. If the plan must contradict the contract, surface the conflict before implementation.
+   - `02c-craft.md` — the visual contract. Every `## Mock fidelity inventory` item becomes a concrete plan step. When `boards:` is set, read the board PNG files of each surface. Each step that builds a surface cites its board key (`design/r<N>/boards/<key>.png`, `design/_boards.md`). The `## Implementation contract` (token choices, component decisions, motion specs) binds the plan. If the plan must contradict the contract, surface the conflict before implementation.
    - **Design references — union of both files.** Build the reference set from `recommended-references:` in `02b-design.md` and `references-loaded:` in `02c-craft.md`. Strip a trailing `.md` before de-duplicating. Every UI plan step cites its reference as a pointer ("follow `design/typeset.md` for type scale"); each resolves to `design/<name>.md`.
 5. **Design gate.** Apply the human rule in [design/_lane.md](design/_lane.md): when design is needed and not settled, STOP with `status: awaiting-input` and route to `/wf design <slug>`. Plan never authors `02c-craft.md`. Write `## Design Components` per the lane's `plan` duty.
 6. **Determine planning mode** (check top to bottom):
@@ -81,7 +82,7 @@ You are a workflow orchestrator, not a problem solver. Do not write code, edit f
    - It shares a file with this slice's `## Likely Files / Areas to Touch` or the draft plan's files.
    - One of its `edges` touches such a file.
    - This slice lists it in `depends-on`.
-   The full read catches migration order, shared fixtures, API changes across files, and duplicated utilities. Repeat the check after research, against the draft plan's files.
+   Repeat the check after research, against the draft plan's files.
 8. Carry forward `open-questions` from the index.
 
 # Parallel research (use sub-agents for all planning)
@@ -94,7 +95,7 @@ Charter: read every file in the slice definition's `## Likely Files / Areas to T
 
 **Rung 3 — reuse opportunities.** Read the slice's `## Goal` and `## Scope (In)`. For each new function, class, utility, or capability, search the whole codebase for keywords, type names, domain terms, similar logic, and extensible base classes, mixins, or higher-order functions. For each candidate report: path and symbol; what it does and how closely it matches; whether modifying it is backward-compatible; and a recommendation — reuse as-is / reuse with modification / extract into a shared utility / implement fresh (with reason). If nothing exists, state "No reuse candidates found for [capability]." Do not skip this section.
 
-**Learnings scan.** Read `.ai/solutions/INDEX.md` if it exists; match the slice's goal and scope keywords against the index hooks; load matching files (typically 0–3) and use their `tags:` for a second pass. When `.ai/sdlc-config.json` sets `solutions.globalDir` (default `null`), read that directory's `INDEX.md` too; on a conflicting learning the repo corpus wins. For each match report its path, the learning in one line, and what this plan does differently because of it; a learning that changes nothing is a non-match. If nothing matches, report "No applicable learnings found." Results land in `## Applied Learnings`.
+**Learnings scan.** Read `.ai/solutions/INDEX.md` if it exists; match the slice's goal and scope keywords against the index hooks; load matching files and use their `tags:` for a second pass. When `.ai/sdlc-config.json` sets `solutions.globalDir` (default `null`), read that directory's `INDEX.md` too; on a conflicting learning the repo corpus wins. For each match report its path, the learning in one line, and what this plan does differently because of it; a learning that changes nothing is a non-match. If nothing matches, report "No applicable learnings found." Results land in `## Applied Learnings`.
 
 **Repeat-deferral tripwire.** Read `00-index.md` → `runtime-evidence-deferrals`. The tripwire fires when an entry's defer-reason matches an environment dependency this slice's `## Verification Strategy` will also name (same credential wall, device class, missing service).
 - **Re-classify the wall first — never inherit the prior entry's verdict.** Ask the ladder's triage question ([runtime-adapters/_ladder.md](runtime-adapters/_ladder.md) → *Classify the wall before you climb it*): would a change to code in this repo dissolve it? Record `wall-ownership: code-owned | environment-negotiable | external`. A `code-owned` wall is **not** eligible for `harness-declined` on grounds of environment; it is scoped, or declined as a deliberate refusal to fix reachable code.
@@ -118,7 +119,7 @@ Do not rerun shape's "what driver should we use?" question. If the PO answered i
 ### Web research sub-agent — Dependencies & External Knowledge
 **Launch this sub-agent for every slice.** Skip only when all of these hold: pure refactoring with zero dependency changes and zero new API surface; or config/env changes only; or text/copy/i18n changes only. Charter: report the touched dependencies' versions, deprecations, and breaking changes; official-doc patterns versus the codebase; CVEs and known bugs; and gotchas the steps must account for. Every claim names its source. CONTRACT: before endorsing a new dependency or a hand-rolled implementation, search the standard library and platform/framework docs for a built-in (ladder rungs 1–2); report it when one exists.
 
-Merge all findings into `## Current State`, `## Likely Files / Areas to Touch`, and `## Freshness Research`. Best practices and gotchas shape the implementation steps directly.
+Merge all findings into `## Current State`, `## Likely Files / Areas to Touch`, and `## Freshness Research`.
 
 **Author the augmentations after research.** Read `augmentations-needed` from `02-shape.md` frontmatter (absent or `[]` → skip). Run each type's artifact-authoring mode in this order: `instrument` → `experiment` → `benchmark` → `profile`.
 - `instrument`: author `04b-instrument.md` per `augment/instrument.md`. Fold the signals into the plan steps.
@@ -155,7 +156,7 @@ Triggered when an existing plan is re-invoked. The body stays current truth; nev
 
 # Adaptive routing
 After completing this stage, write every viable option as one `recommended-routes` entry with its reason:
-- **Option A (default): Implement** → `/wf implement <slug> <slice-slug>`. Recommend compacting first; the SessionStart hook re-reads the artifacts.
+- **Option A (default): Implement** → `/wf implement <slug> <slice-slug>`. Recommend compacting first.
 - **Option B: Implement all (sequential)** → `/wf implement <slug> <first-slice-slug>` when every slice is planned.
 - **Option C: Revisit slice** → `/wf slice <slug>` for wrong slice boundaries.
 - **Option D: Revisit shape** → `/wf shape <slug>` for an incomplete or contradictory spec.

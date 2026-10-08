@@ -56,7 +56,7 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
 - **`areas[].side`** is `problem`, `solution`, or `both`. **`areas[].state`** is `open`, `touched`, or `explored`. **`areas[].brief`** is five plain lines or fewer: what we decided, what is core, what is still open, and the scope. **`areas[].scope`** is `keep`, `cut`, `later`, `mixed`, or `null`, and is set when the area closes or at `done`.
 - **`page`** is the link of the published page, or `null` where the host has none.
 - **`stories[]`** holds the story of each session ([_talk.md](_talk.md)): its `session` number and its plain `text`.
-- **`focus`** is `general` or `design`; absent means `general`. **`sketches[]`** holds each sketch of a design focus ([_design.md](_design.md)): `key`, `thread`, the keys of the `items` it shows, `link` (or `null`), a plain `caption`, and `state` (`idea`, `carried`, or `dropped`).
+- **`focus`** is `general` or `design`; absent means `general`. **`sketches[]`** holds each sketch of a design focus ([_design.md](_design.md)): `key`, `thread`, the keys of the `items` it shows, `link` (or `null`), `path` (the file `.ai/workflows/<slug>/design/sketches/<key>.<ext>`, or `null`), a plain `caption`, and `state` (`idea`, `carried`, or `dropped`).
 - **`budgets[]`** holds each limit the person decided, with the key of the deciding item in `decision` ([_cohere.md](_cohere.md)).
 - **`briefs[]`** holds each brief the person brought ([_brief.md](_brief.md)). `source` is `pasted` or a file path. Each criterion has a `part` (`good`, `failure`, `check`, or `other`), a `status` (`covered`, `partial`, `open`, or `out-of-scope`, with `reason`), and the keys of the items that answer it.
 - **`threads[].state`** is `live`, `parked`, `routed`, or `dropped`. A dropped thread carries `reason`.
@@ -81,7 +81,7 @@ A **piece of work** (one per agreed piece at `done`, in order):
 ```
 - `shape` is the form: `intake`, `investigate`, `discover`, `fix`, `hotfix`, `task`, `extension`, or `write-now` ([_work.md](_work.md)). Older boards also hold `design` and `design-direction` pieces; a new board records those as `design-form` on the piece they serve.
 - `slug`, `target-slug`, `depends-on`, `provides`, `expects`, `shared`, `research`, `references`, `amends`, and `urgency` are agreed in 3.3 ([_work.md](_work.md)). `size` is `small`, `medium`, `large`, or `too-large`, from the count of carried decisions.
-- A piece of work that carries design items also records `ux-impact` (the proposed value) and `sketches` (the keys of its carried sketches).
+- A piece of work that carries design items also records `ux-impact` (the proposed value) and `sketches` (the keys of its carried sketches). Its packet `work/<slug>.md` carries `sketches:`: each key with its `path`, `link`, and `caption` from `sketches[]`.
 - `state` is `proposed`, `prepared` (intake read its packet), `routed` (a successor workflow started), or `written` (a write-now piece the session wrote). A written piece records `written-files` (each `path` with its `section`) and `written-at`.
 - `stale: true` with `stale-because` marks a piece of work that a later area changed.
 
