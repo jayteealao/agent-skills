@@ -273,7 +273,18 @@ function budget(root, b) {
   return { ok: true, ...st, width, readingAt: reading?.at ?? null, isolation: isolation !== null };
 }
 
-const worktreeRoot = (root, ledger) => join(root, '.scratch', 'campaign', ledger['run-id'] ?? 'run', 'wt');
+/**
+ * Keep the worktree path short. Windows limits a path to 260 characters unless git
+ * has core.longpaths, and a long worktree root pushes deep repo files past it.
+ * The run stamp (the run id up to its first dash) keeps two runs apart.
+ */
+const worktreeRoot = (root, ledger) => join(root, '.scratch', 'cw', String(ledger['run-id'] ?? 'run').split('-')[0]);
+/** git, with long paths on: a no-op off Windows. */
+const gitLong = (root, args) => spawnSync('git', ['-c', 'core.longpaths=true', '-C', root, ...args], { encoding: 'utf8', windowsHide: true });
+const commitOf = (root, ref) => {
+  const r = spawnSync('git', ['-C', root, 'rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { encoding: 'utf8', windowsHide: true });
+  return r.status === 0 ? r.stdout.trim() : null;
+};
 
 const recordsDir = (root, b) => join(campDir(root, b), 'records');
 const manifestFile = (root, b, id) => join(recordsDir(root, b), `${id}.json`);
@@ -288,9 +299,38 @@ const WORKTREE_IGNORE = '# written by /wf campaign (local records): the records 
 const isAiIgnore = (rel) => rel === '.gitignore';
 /** The campaign folder belongs to the main checkout: a drive reads it there, by absolute path. */
 const mainOwned = (b) => (rel) => isAiIgnore(rel) || rel.startsWith(`workflows/${b}/work/campaign/`);
+/** A stage's evidence folder: `implement-evidence/`, `verify-evidence/`, `probe-evidence/`. */
+const EVIDENCE_RE = /^workflows\/([^/]+)\/[^/]+-evidence(\/|$)/;
+/**
+ * What a worktree does not receive: the campaign folder, and the evidence folders of
+ * every workflow that the worktree does not drive. One finished workflow can hold
+ * hundreds of thousands of evidence files, and a drive reads only its own.
+ */
+const notCopiedIn = (b, slugs) => (rel) => {
+  if (mainOwned(b)(rel)) return true;
+  const m = EVIDENCE_RE.exec(rel);
+  return Boolean(m) && !slugs.includes(m[1]);
+};
+/** The workflow slugs that a worktree drives: the unit's slug, or every unit slug of the wave. */
+const slugsOf = (ledger, w, u) => (w ? w.units.map((k) => ledger.units[k]?.slug ?? k) : [u.slug]);
+
+/**
+ * The tracked `.ai/` files that the worktree holds exactly as committed (no staged
+ * or unstaged change), as paths relative to `.ai/`. The sync never writes over them.
+ */
+function committedAs(path) {
+  const list = (args) => {
+    const r = spawnSync('git', ['-C', path, ...args, '-z', '--', '.ai'], { encoding: 'utf8', windowsHide: true });
+    if (r.status !== 0) throw new Error(`records: git ${args.join(' ')} failed in ${path}: ${(r.stderr || '').trim()}`);
+    return r.stdout.split('\0').filter(Boolean).map((p) => p.replace(/^\.ai\//, ''));
+  };
+  const changed = new Set([...list(['diff', '--name-only']), ...list(['diff', '--cached', '--name-only'])]);
+  const clean = new Set(list(['ls-files']).filter((p) => !changed.has(p)));
+  return (rel) => clean.has(rel);
+}
 
 /** Main to worktree, under the records lock (local records, 13). */
-function syncIn(root, b, id, path) {
+function syncIn(root, b, id, path, slugs) {
   return withRecordsLock(join(recordsDir(root, b), '.lock'), id, () => {
     const ignoreFile = join(path, '.ai', '.gitignore');
     mkdirSync(join(path, '.ai'), { recursive: true });
@@ -299,7 +339,7 @@ function syncIn(root, b, id, path) {
     if (!tracked && !have.split(/\r?\n/).includes('*')) writeFileSync(ignoreFile, WORKTREE_IGNORE);
     const manifest = loadManifest(manifestFile(root, b, id), id);
     manifest.worktree = path;
-    const res = recordsIn({ main: root, worktree: path, manifest, exclude: mainOwned(b) });
+    const res = recordsIn({ main: root, worktree: path, manifest, exclude: notCopiedIn(b, slugs), pristine: committedAs(path) });
     saveManifest(manifestFile(root, b, id), manifest, nowIso());
     // Check what git sees: a copied record that git can stage could reach a public branch.
     const st = spawnSync('git', ['-C', path, 'status', '--porcelain', '--untracked-files=all', '--', '.ai'], { encoding: 'utf8', windowsHide: true });
@@ -374,6 +414,7 @@ function worktreeStep(root, b, [key, action]) {
   if (!['add', 'refresh', 'sync', 'remove'].includes(action)) throw new Error('worktree: the action is add, refresh, sync or remove');
   const local = isLocal(ledger);
   const holder = w ?? u;
+  const slugs = slugsOf(ledger, w, u);
   if (action !== 'add') {
     if (!holder.worktree) return { ok: true, removed: false, synced: false, reason: local ? 'no worktree: the drive wrote in the main checkout' : 'no worktree' };
     if (action === 'remove') {
@@ -385,38 +426,48 @@ function worktreeStep(root, b, [key, action]) {
       return res;
     }
     if (!local) return { ok: true, synced: false, reason: 'the repo tracks .ai/: the records travel in commits' };
-    return { ok: true, records: action === 'sync' ? syncOut(root, b, key, holder.worktree.path) : syncIn(root, b, key, holder.worktree.path) };
+    return { ok: true, records: action === 'sync' ? syncOut(root, b, key, holder.worktree.path) : syncIn(root, b, key, holder.worktree.path, slugs) };
   }
   if (w) {
     if (!w.branch) throw new Error(`worktree: wave ${w.n} has no branch yet`);
-    const path = join(worktreeRoot(root, ledger), key);
+    const path = w.worktree && existsSync(w.worktree.path) ? w.worktree.path : join(worktreeRoot(root, ledger), key);
     if (!existsSync(path)) {
       mkdirSync(worktreeRoot(root, ledger), { recursive: true });
-      const r = spawnSync('git', ['-C', root, 'worktree', 'add', path, w.branch], { encoding: 'utf8', windowsHide: true });
+      const r = gitLong(root, ['worktree', 'add', path, w.branch]);
       if (r.status !== 0) return { ok: false, error: `git worktree add failed: ${(r.stderr || '').trim()}` };
     }
     w.worktree = { path, branch: w.branch };
     saveLedger(root, b, ledger);
-    return { ok: true, ...w.worktree, ...(local ? { records: syncIn(root, b, key, path) } : {}) };
+    return { ok: true, ...w.worktree, ...(local ? { records: syncIn(root, b, key, path, slugs) } : {}) };
   }
   const iso = isolationOf(configOf(root));
   if (!iso) return { ok: false, error: 'no usable isolation contract (campaign.isolation in .ai/sdlc-config.json): drive this slug in the main checkout at width 1' };
   const uw = ledger.waves.find((x) => x.n === u.wave);
   if (!uw || uw.state !== 'running' || !uw.branch) throw new Error(`worktree: wave ${u.wave} of ${key} is not running`);
-  if (u.worktree && existsSync(u.worktree.path)) return { ok: true, ...u.worktree, reused: true, ...(local ? { records: syncIn(root, b, key, u.worktree.path) } : {}) };
+  if (u.worktree && existsSync(u.worktree.path)) return { ok: true, ...u.worktree, reused: true, ...(local ? { records: syncIn(root, b, key, u.worktree.path, slugs) } : {}) };
   const base = worktreeRoot(root, ledger);
   mkdirSync(base, { recursive: true });
   const freeGb = statfsSync(base).bavail * statfsSync(base).bsize / 1024 ** 3;
   if (freeGb < iso['min-free-gb']) return { ok: false, wait: true, error: `${freeGb.toFixed(1)} GB free, below min-free-gb ${iso['min-free-gb']}: wait until a merged slug's worktree is removed` };
   const index = [...uw.units].sort((a, c) => (ledger.units[a].order ?? 0) - (ledger.units[c].order ?? 0)).indexOf(key);
   const branch = `campaign/${b}/wave-${uw.n}--${u.slug}`;
-  const path = join(base, u.slug);
-  const r = spawnSync('git', ['-C', root, 'worktree', 'add', '-b', branch, path, uw.branch], { encoding: 'utf8', windowsHide: true });
-  if (r.status !== 0) return { ok: false, error: `git worktree add failed: ${(r.stderr || '').trim()}` };
+  const path = join(base, `w${uw.n}-${index + 1}`);
+  // A branch left by an earlier attempt of this wave is reused: it holds the slug's commits, if any.
+  // A branch that does not contain the wave tip comes from another run; the person decides.
+  const had = commitOf(root, `refs/heads/${branch}`);
+  if (had && spawnSync('git', ['-C', root, 'merge-base', '--is-ancestor', uw.branch, branch], { windowsHide: true }).status !== 0) {
+    return { ok: false, error: `the branch ${branch} exists and does not contain the wave branch ${uw.branch}, so it comes from another run. Ask the person: delete it, or rename it, then add again.` };
+  }
+  const r = gitLong(root, had ? ['worktree', 'add', path, branch] : ['worktree', 'add', '-b', branch, path, uw.branch]);
+  if (r.status !== 0) {
+    // A failed `add -b` leaves its new branch behind. At the wave tip it holds no commit, so delete it: the retry starts clean.
+    if (!had && commitOf(root, `refs/heads/${branch}`) === commitOf(root, uw.branch)) spawnSync('git', ['-C', root, 'branch', '-D', branch], { encoding: 'utf8', windowsHide: true });
+    return { ok: false, error: `git worktree add failed: ${(r.stderr || '').trim()}` };
+  }
   u.worktree = { path, branch, index, ports: portsFor(iso, index) };
   saveLedger(root, b, ledger);
   let records = null;
-  if (local) records = syncIn(root, b, key, path);
+  if (local) records = syncIn(root, b, key, path, slugs);
   else {
     // The slug's prepared artifacts may be uncommitted in the main checkout; the drive needs them.
     const src = join(root, '.ai', 'workflows', u.slug);

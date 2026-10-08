@@ -185,6 +185,113 @@ test('local records: a worktree gets the main .ai/, its records come back, and r
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('local records: a worktree gets the evidence of its own slug only; the wave worktree gets the evidence of every wave slug (13)', () => {
+  const root = makeLocalRepo();
+  try {
+    const ev = (slug) => path.join(root, '.ai', 'workflows', slug, 'verify-evidence', 's1');
+    for (const slug of ['squads', 'engine', 'old-finished']) {
+      mkdirSync(ev(slug), { recursive: true });
+      writeFileSync(path.join(ev(slug), 'checks.md'), `checks of ${slug}`);
+    }
+    writeFileSync(path.join(root, '.ai', 'workflows', 'old-finished', '06-verify.md'), 'verified');
+    run(root, 'orient');
+    setupDone(root);
+    run(root, 'unit', 'W1', 'prepared');
+    run(root, 'unit', 'W2', 'prepared');
+    const st = run(root, 'wave', '1', 'start');
+    git(root, 'branch', st.branch, st.base);
+    const has = (p, slug) => existsSync(path.join(p, '.ai', 'workflows', slug, 'verify-evidence', 's1', 'checks.md'));
+    const a = run(root, 'worktree', 'W2', 'add');
+    assert.equal(a.ok, true, JSON.stringify(a));
+    assert.ok(has(a.path, 'squads'), 'the slug the worktree drives keeps its evidence');
+    assert.ok(!has(a.path, 'engine') && !has(a.path, 'old-finished'), 'the evidence of other workflows stays in the main checkout');
+    assert.ok(existsSync(path.join(a.path, '.ai', 'workflows', 'old-finished', '06-verify.md')), 'their records still travel');
+    const w = run(root, 'worktree', 'wave-1', 'add');
+    assert.equal(w.ok, true, JSON.stringify(w));
+    assert.ok(has(w.path, 'squads') && has(w.path, 'engine'), 'the wave worktree gets the evidence of every unit of the wave');
+    assert.ok(!has(w.path, 'old-finished'));
+    const s = run(root, 'worktree', 'W2', 'sync');
+    assert.equal(s.records.deletedInWorktree.length, 0, 'evidence that never travelled is not reported as deleted');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('local records: a tracked .ai/ file keeps its committed version in the worktree, so a commit there cannot publish a main edit (13)', () => {
+  const root = makeLocalRepo();
+  try {
+    // The SoccerManager shape: .ai/* ignored, but the project contracts tracked.
+    writeFileSync(path.join(root, '.gitignore'), '.ai/*\n!.ai/ship-plan.md\n');
+    writeFileSync(path.join(root, '.ai', 'ship-plan.md'), 'plan (committed)\n');
+    git(root, 'add', '.gitignore', '.ai/ship-plan.md');
+    git(root, 'commit', '-q', '-m', 'track the ship plan');
+    writeFileSync(path.join(root, '.ai', 'ship-plan.md'), 'plan (uncommitted edit)\n');
+    run(root, 'orient');
+    setupDone(root);
+    run(root, 'unit', 'W1', 'prepared');
+    run(root, 'unit', 'W2', 'prepared');
+    const st = run(root, 'wave', '1', 'start');
+    git(root, 'branch', st.branch, st.base);
+    const a = run(root, 'worktree', 'W2', 'add');
+    assert.equal(a.ok, true, JSON.stringify(a));
+    assert.deepEqual(a.records.tracked, ['ship-plan.md']);
+    const plan = path.join(a.path, '.ai', 'ship-plan.md');
+    // git may check the file out with CRLF line ends on Windows.
+    const planText = () => readFileSync(plan, 'utf8').replace(/\r\n/g, '\n');
+    assert.equal(planText(), 'plan (committed)\n');
+    assert.equal(git(a.path, 'status', '--porcelain'), '', 'git sees no change in the worktree');
+    writeFileSync(path.join(root, '.ai', 'ship-plan.md'), 'plan (second edit)\n');
+    run(root, 'worktree', 'W2', 'refresh');
+    assert.equal(planText(), 'plan (committed)\n', 'a refresh does not write over it');
+    assert.deepEqual(run(root, 'worktree', 'W2', 'sync').records.conflicts, [], 'no false conflict on the way out');
+    assert.equal(readFileSync(path.join(root, '.ai', 'ship-plan.md'), 'utf8'), 'plan (second edit)\n');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('worktree add keeps the path short, and a failed add leaves no branch behind (13)', () => {
+  const root = makeRepo();
+  try {
+    run(root, 'orient');
+    setupDone(root);
+    writeFileSync(path.join(root, '.ai', 'sdlc-config.json'), JSON.stringify({ campaign: { isolation: ISOLATION } }));
+    run(root, 'unit', 'W1', 'prepared');
+    run(root, 'unit', 'W2', 'prepared');
+    const st = run(root, 'wave', '1', 'start');
+    git(root, 'branch', st.branch, st.base);
+    const runId = JSON.parse(readFileSync(path.join(root, '.ai', 'workflows', B, 'work', 'campaign', 'ledger.json'), 'utf8'))['run-id'];
+    const target = path.join(root, '.scratch', 'cw', runId.split('-')[0], 'w1-2');
+    // A file in the way makes git refuse the add.
+    mkdirSync(target, { recursive: true });
+    writeFileSync(path.join(target, 'in-the-way'), 'x');
+    const failed = run(root, 'worktree', 'W2', 'add');
+    assert.equal(failed.ok, false);
+    assert.equal(git(root, 'branch', '--list', 'campaign/realism/wave-1--squads'), '', 'the failed add left no branch');
+    rmSync(target, { recursive: true, force: true });
+    const a = run(root, 'worktree', 'W2', 'add');
+    assert.equal(a.ok, true, JSON.stringify(a));
+    assert.equal(path.resolve(a.path), path.resolve(target));
+    assert.ok(path.relative(root, a.path).length < 40, `short path: ${a.path}`);
+    // A branch left by an earlier attempt (an older version, or a crash) is reused, never refused.
+    git(root, 'worktree', 'remove', a.path);
+    const ledgerFile = path.join(root, '.ai', 'workflows', B, 'work', 'campaign', 'ledger.json');
+    const ledger = JSON.parse(readFileSync(ledgerFile, 'utf8'));
+    delete ledger.units.W2.worktree;
+    writeFileSync(ledgerFile, JSON.stringify(ledger));
+    const again = run(root, 'worktree', 'W2', 'add');
+    assert.equal(again.ok, true, JSON.stringify(again));
+    assert.equal(again.branch, 'campaign/realism/wave-1--squads');
+    // A branch of the same name from another run (it lacks the wave tip) is never reused.
+    git(root, 'worktree', 'remove', again.path);
+    delete ledger.units.W2.worktree;
+    writeFileSync(ledgerFile, JSON.stringify(ledger));
+    git(root, 'branch', '-f', 'campaign/realism/wave-1--squads', `${st.branch}~0`);
+    git(root, 'checkout', '-q', st.branch);
+    writeFileSync(path.join(root, 'wave-only.txt'), 'x');
+    git(root, 'add', 'wave-only.txt');
+    git(root, 'commit', '-q', '-m', 'move the wave tip');
+    git(root, 'checkout', '-q', '-');
+    assert.match(run(root, 'worktree', 'W2', 'add').error, /comes from another run/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('local records: with an untracked .gitignore, the worktree still hides every copied record from git (13)', () => {
   const root = makeRepo();
   try {

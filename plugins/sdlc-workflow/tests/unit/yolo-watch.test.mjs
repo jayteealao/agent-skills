@@ -259,6 +259,33 @@ test('protected files: PRODUCT.md, steer.md paths, config paths, and the person\
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('usage: an old reading whose windows already reset gives no event, not a pause and a reset every minute', () => {
+  const root = makeRepo();
+  const usageDir = mkdtempSync(path.join(os.tmpdir(), 'yolo-usage-'));
+  try {
+    // The SoccerManager case: the newest reading is two days old, and its 7-day window (96 percent) has reset since.
+    writeFileSync(path.join(usageDir, 'old.json'), JSON.stringify({ rateLimits: [
+      { kind: 'five_hour', percentUsed: 8, resetsAt: '2026-10-01T23:40:00Z' },
+      { kind: 'seven_day', percentUsed: 96, resetsAt: '2026-10-02T00:00:00Z' },
+    ] }));
+    let now = T0;
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], usageDir, now: () => now });
+    for (let i = 0; i < 3; i++) {
+      now = T0 + i * 60_000;
+      assert.deepEqual([...w.pollUsage(), ...w.pollUsageReset()], [], `minute ${i}: no event`);
+    }
+    // A window that has not reset still counts.
+    writeFileSync(path.join(usageDir, 'old.json'), JSON.stringify({ rateLimits: [
+      { kind: 'five_hour', percentUsed: 8, resetsAt: '2026-10-01T23:40:00Z' },
+      { kind: 'seven_day', percentUsed: 96, resetsAt: '2026-10-08T00:00:00Z' },
+    ] }));
+    assert.deepEqual(w.pollUsage().map((e) => `${e.event}:${e.level}`), ['usage:pause']);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(usageDir, { recursive: true, force: true });
+  }
+});
+
 test('usage: crossing a budget line gives usage; a lower reading or the reset time gives usage-reset', () => {
   const root = makeRepo();
   const usageDir = mkdtempSync(path.join(os.tmpdir(), 'yolo-usage-'));
@@ -461,6 +488,22 @@ test('in a campaign a slug\'s run-end does not end the watch; the wave-end does'
     assert.equal(w.allEnded(), true);
     w.save();
     assert.ok(existsSync(W.campaignStatePath(root, B)), 'the campaign offsets persist');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('a wave built before the campaign ends with no start; the next wave-start still opens the watch', () => {
+  const root = makeRepo();
+  try {
+    makeCampaign(root);
+    // History: wave 1 was recorded as shipped without a start, then wave 2 started.
+    campLine(root, { event: 'wave-end', wave: 1, state: 'shipped' });
+    campLine(root, { event: 'wave-start', wave: 2 });
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], campaign: B, now: clockAt(0) });
+    w.pollJournals();
+    assert.equal(w.allEnded(), false, 'wave 2 is open');
+    campLine(root, { event: 'wave-end', wave: 2, state: 'shipped' });
+    w.pollJournals();
+    assert.equal(w.allEnded(), true);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

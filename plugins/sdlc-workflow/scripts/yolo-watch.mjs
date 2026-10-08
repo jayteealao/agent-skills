@@ -90,10 +90,20 @@ function readJson(file) {
   try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; }
 }
 
+function pause(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
 function writeJsonAtomic(file, value) {
   const tmp = `${file}.${process.pid}.tmp`;
   writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`);
-  renameSync(tmp, file);
+  // Windows refuses a rename onto a file that a scanner or an indexer holds open for a moment.
+  for (let i = 0; ; i++) {
+    try { renameSync(tmp, file); return; } catch (e) {
+      if (i >= 5 || !['EPERM', 'EBUSY', 'EACCES'].includes(e.code)) { rmSync(tmp, { force: true }); throw e; }
+      pause(100 * (i + 1));
+    }
+  }
 }
 
 // raw: keep the leading spaces, which carry meaning in `git status --porcelain`.
@@ -213,7 +223,12 @@ export function protectedSet(root, slugs, cfg) {
 // ~/.claude/sdlc/usage/<sessionId>.json, shape { rateLimits: [{ kind,
 // percentUsed, resetsAt }] } (WF-CAMPAIGN-PLAN 17.1). No reading → no event.
 // ---------------------------------------------------------------------------
-export function newestUsage(dir) {
+/**
+ * The newest usage reading. A window whose reset time has passed no longer
+ * applies, so it is dropped. Without this rule, an old reading gives a pause
+ * event and a reset event every minute. With no window left, there is no reading.
+ */
+export function newestUsage(dir, nowMs = Date.now()) {
   let best = null;
   let entries = [];
   try { entries = readdirSync(dir).filter((n) => n.endsWith('.json')); } catch { return null; }
@@ -226,8 +241,15 @@ export function newestUsage(dir) {
   if (!best) return null;
   const v = readJson(best.file);
   if (!v || !Array.isArray(v.rateLimits)) return null;
-  const win = (kind) => v.rateLimits.find((r) => r && r.kind === kind) || null;
-  return { at: iso(best.mtime), fiveHour: win('five_hour'), sevenDay: win('seven_day') };
+  const win = (kind) => {
+    const w = v.rateLimits.find((r) => r && r.kind === kind) || null;
+    const reset = Date.parse(w?.resetsAt ?? '');
+    return w && !(Number.isFinite(reset) && reset <= nowMs) ? w : null;
+  };
+  const fiveHour = win('five_hour');
+  const sevenDay = win('seven_day');
+  if (!fiveHour && !sevenDay) return null;
+  return { at: iso(best.mtime), fiveHour, sevenDay };
 }
 
 export function usageLevel(reading, budget) {
@@ -340,6 +362,9 @@ export function createWatcher({ projectRoot, slugs, since = null, usageDir = nul
       // Waves overlap: wave n ships while wave n+1 runs. A wave-end ends the watch
       // only when no other started wave is still open.
       if (line.event === 'wave-start' && camp.openWaves && line.wave != null && !camp.openWaves.includes(line.wave)) camp.openWaves.push(line.wave);
+      // A new wave reopens the watch. An earlier end line (a wave built before the
+      // campaign, a finished run) is history and must not end this watch.
+      if (line.event === 'wave-start') camp.ended = false;
       if (line.event === 'wave-end' && camp.openWaves) {
         camp.openWaves = camp.openWaves.filter((n) => n !== line.wave);
         if (!camp.openWaves.length) camp.ended = true;
@@ -442,7 +467,7 @@ export function createWatcher({ projectRoot, slugs, since = null, usageDir = nul
 
   function pollUsage() {
     const dir = usageDir || path.join(os.homedir(), '.claude', 'sdlc', 'usage');
-    const reading = newestUsage(dir);
+    const reading = newestUsage(dir, now());
     if (!reading) return [];
     const level = usageLevel(reading, cfg.budget);
     const prev = lead.repo.usageLevel;

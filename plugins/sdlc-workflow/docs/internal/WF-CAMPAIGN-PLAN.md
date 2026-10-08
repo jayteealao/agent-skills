@@ -182,8 +182,14 @@ Built outputs are binaries and do not go into `.ai/`. They go to:
 <projectRoot>/.scratch/campaign/<run-id>/
   wave-<n>/                     (the wave output)
   slugs/<slug>/                 (the slug output)
-  worktrees/<slug>/             (Stage D1 only)
+<projectRoot>/.scratch/cw/<run-stamp>/
+  w<n>-<i>/                     (the worktree of unit i of wave n)
+  wave-<n>/                     (the wave worktree)
 ```
+
+The worktree path stays short. Windows limits a path to 260 characters
+unless git has `core.longpaths`, and a long worktree root pushes deep repo
+files past that limit.
 
 The usage readings are per machine, not per campaign. They live in
 `~/.claude/sdlc/usage/<sessionId>.json` (17.1).
@@ -852,7 +858,7 @@ The commentary plan's W5 (the watch in a campaign, K1–K6) is built with Stage 
 - **Setup asks a `budget` answer.** The person keeps 75 / 90 / 15 or sets other lines.
 - **P2 changed ship.** A stacked PR merges with `gh stack merge <pr> --yes --<method>`, and `base-branch` moves to the trunk before ship.
 - **`gh stack link` needs two PRs.** Wave 1's PR joins the stack when wave 2's PR opens.
-- **A budget without a reading gives width 1.** With an isolation contract, the drives then run one at a time in their worktrees (found in the trial; `_waves.md` step 5 now says so).
+- **A budget without a reading gives width 1.** With an isolation contract, the drives then run one at a time in their worktrees (found in the trial; `_waves.md` step 5 now says so). **Superseded 2026-10-06:** with the mod off, no reading is ever written, so this rule held the SoccerManager wave 2 at width 1 although `campaign.width` was 2. An `unknown` budget now keeps the set width; `slow` still narrows to 1, and `pause` and a usage-limit error still stop.
 - **`worktree <key> remove` deletes the watch cursor first.** `.watch-state.json` is machine-local and never committed; left in place, git refuses the remove (found in the trial).
 - **`gh stack merge` rebases the next wave.** After a squash merge it rebases the next wave branch onto the trunk and force-pushes it, which drops the wave's merge commits. `_gh-stack.md` says to move the local branch to its remote before a commit.
 - **`gh stack sync` needs local tracking.** `link` creates the stack on GitHub only, and `sync` exits with "is not part of a stack". Two waves need no `sync`; three or more are untested.

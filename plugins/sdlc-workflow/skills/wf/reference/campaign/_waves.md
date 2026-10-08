@@ -12,7 +12,7 @@ Each wave is one PR. With an isolation contract, up to `campaign.width` slugs of
 4. **Watch.** Start the watch over the wave's slugs and the campaign journal ([../yolo/_commentary.md](../yolo/_commentary.md), "In a campaign"). A drive in a worktree also starts its own watch on that worktree (yolo.md Step 1).
 5. **Drive the units.** Before each drive starts, run `<cmd> budget`:
    - `width` 0: the budget asks for a pause. Run `<cmd> pause <until> <reason>` with the result's `until` and `reason`, and start nothing.
-   - `width` 1: drive one unit at a time, in packet order: in its worktree with an isolation contract, in the main checkout without one. A budget without a reading gives width 1.
+   - `width` 1: drive one unit at a time, in packet order: in its worktree with an isolation contract, in the main checkout without one. A budget without a reading (`unknown`, for example with the mod off) keeps the set width; only `slow` narrows to 1.
    - `width` above 1: start drives until `width` run at once, in packet order. Launch the Workflows of one batch in the same message, so they run at the same time.
 
    For each unit:
@@ -65,7 +65,7 @@ Args: `projectRoot`, `referenceRoot`, `brainstorm`, `mode`, `wave`, `waveBranch`
 
 A repo that does not track `.ai/` keeps the records in the main checkout. Orient records `records: local` in the ledger. Branches carry only code, so no wave PR carries a workflow file.
 
-- `<cmd> worktree <key|wave-<n>> add` copies the main `.ai/` tree into the worktree. The campaign folder stays in the main checkout, because the drives read it there by absolute path. The worktree gets its own `.ai/.gitignore` with `*`, so no `git add` in the worktree can stage a record. The main `.gitignore` can be untracked, and then a worktree does not have it. When git can still see a copied record, `add` and `refresh` return `ok: false` with `visibleToGit`: do not drive, hand off or ship in that worktree, and ask the person.
+- `<cmd> worktree <key|wave-<n>> add` copies the main `.ai/` tree into the worktree. The campaign folder stays in the main checkout, because the drives read it there by absolute path. The evidence folders (`*-evidence/`) of a workflow that the worktree does not drive also stay in the main checkout. A tracked `.ai/` file (for example `ship-plan.md`) keeps its committed version in the worktree, and the result names it in `records.tracked`. An uncommitted main edit to that file does not reach the drive, so that no worktree commit can publish it. The worktree gets its own `.ai/.gitignore` with `*`, so no `git add` in the worktree can stage a record. The main `.gitignore` can be untracked, and then a worktree does not have it. When git can still see a copied record, `add` and `refresh` return `ok: false` with `visibleToGit`: do not drive, hand off or ship in that worktree, and ask the person.
 - `refresh` copies the main changes in. A file that the worktree changed or deleted stays as the worktree has it.
 - `sync` copies every file that the worktree created or changed back to the main checkout. It never deletes a file in the main checkout, and it never overwrites a main change.
 - `remove` runs `sync` first. The worktree stays when a file exists only in the worktree (`pending`), or when git would delete an ignored file outside `.ai/` that is not in `campaign.isolation.build-dirs` or `node_modules` (`ignored`).

@@ -553,11 +553,16 @@ export function portsFor(isolation, index) {
   return Object.fromEntries(Object.entries(isolation?.['port-env'] ?? {}).map(([k, base]) => [k, Number(base) + 100 * index]));
 }
 
-/** How many drives may run at once (13, 17.3, 17.5). */
+/**
+ * How many drives may run at once (13, 17.3, 17.5). A reading at `slow` narrows to 1,
+ * and `pause` stops. An `unknown` budget keeps the set width: with the mod off (or on a
+ * host without usage data) no reading is ever written, and a rule that narrows on
+ * unknown would hold every campaign at width 1. A usage-limit error still pauses.
+ */
 export function effectiveWidth({ width = DEFAULT_WIDTH, isolation, budget = 'unknown' }) {
   if (budget === 'pause') return 0;
   if (!isolation || isolation.parallel === false) return 1;
-  if (budget !== 'ok') return 1;
+  if (budget === 'slow') return 1;
   return Math.max(1, Number(width) || 1);
 }
 

@@ -461,7 +461,7 @@ function portsFor(isolation, index) {
 function effectiveWidth({ width = DEFAULT_WIDTH, isolation, budget: budget2 = "unknown" }) {
   if (budget2 === "pause") return 0;
   if (!isolation || isolation.parallel === false) return 1;
-  if (budget2 !== "ok") return 1;
+  if (budget2 === "slow") return 1;
   return Math.max(1, Number(width) || 1);
 }
 function isolationText(isolation, { index, worktree: worktree2, lockCmd, slug = "<slug>" }) {
@@ -574,7 +574,7 @@ import { dirname, join } from "node:path";
 var MANIFEST_VERSION = 1;
 var REGISTRY = "workflows/INDEX.md";
 var MACHINE_LOCAL = /* @__PURE__ */ new Set([".watch-state.json"]);
-var TEMP_RE = /\.records-\d+-[0-9a-f]+\.tmp$/;
+var TEMP_RE = /\.records-\d+-[0-9a-f]+\.tmp$|^\.watch-state\.json\.\d+\.tmp$/;
 var posix = (p) => p.split("\\").join("/");
 function isSkipped(rel) {
   const parts = rel.split("/");
@@ -666,10 +666,10 @@ function mergeRegistry(mainText, otherText) {
   return `${[...header, ...body].join("\n")}
 `;
 }
-function recordsIn({ main: main2, worktree: worktree2, manifest, exclude = () => false }) {
+function recordsIn({ main: main2, worktree: worktree2, manifest, exclude = () => false, pristine = () => false }) {
   const src = walk(join(main2, ".ai"));
   const dst = walk(join(worktree2, ".ai"));
-  const res = { copied: [], refreshed: [], same: 0, keptInWorktree: [], deletedInWorktree: [] };
+  const res = { copied: [], refreshed: [], same: 0, keptInWorktree: [], deletedInWorktree: [], tracked: [] };
   for (const [rel, abs] of src.files) {
     if (isSkipped(rel) || exclude(rel)) continue;
     const mh = hashFile(abs);
@@ -689,6 +689,12 @@ function recordsIn({ main: main2, worktree: worktree2, manifest, exclude = () =>
     if (wh === mh) {
       entryOf(manifest, rel).base = mh;
       res.same++;
+      continue;
+    }
+    if (pristine(rel)) {
+      const t = entryOf(manifest, rel);
+      if (!t.base) t.base = wh;
+      res.tracked.push(rel);
       continue;
     }
     if (e?.base && wh === e.base) {
@@ -759,7 +765,16 @@ function recordsPending({ main: main2, worktree: worktree2, manifest, exclude = 
   }
   return pending;
 }
-function withRecordsLock(file, holder, fn, { waitMs = 6e4, staleMs = 15 * 6e4, now = () => (/* @__PURE__ */ new Date()).toISOString() } = {}) {
+function pidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e.code === "EPERM";
+  }
+}
+function withRecordsLock(file, holder, fn, { waitMs = 6e4, staleMs = 15 * 6e4, liveStaleMs = 6 * 60 * 6e4, alive = pidAlive, now = () => (/* @__PURE__ */ new Date()).toISOString() } = {}) {
   mkdirSync(dirname(file), { recursive: true });
   const until = Date.now() + waitMs;
   for (; ; ) {
@@ -774,11 +789,14 @@ function withRecordsLock(file, holder, fn, { waitMs = 6e4, staleMs = 15 * 6e4, n
       } catch {
       }
       const at = cur?.at ? Date.parse(cur.at) : statSync(file).mtimeMs;
-      if (Date.now() - at > staleMs) {
+      const hasPid = Number.isInteger(cur?.pid);
+      const running = hasPid && alive(cur.pid);
+      const stale = hasPid ? !running || Date.now() - at > liveStaleMs : Date.now() - at > staleMs;
+      if (stale) {
         rmSync(file, { force: true });
         continue;
       }
-      if (Date.now() > until) throw new Error(`records: the records lock is held by ${cur?.holder ?? "another sync"} since ${cur?.at ?? "?"}; try again`);
+      if (Date.now() > until) throw new Error(`records: the records lock is held by ${cur?.holder ?? "another sync"} since ${cur?.at ?? "?"}${running ? ` (process ${cur.pid} still runs)` : ""}; try again`);
       pause(250);
     }
   }
@@ -1006,14 +1024,36 @@ function budget(root, b) {
   const width = effectiveWidth({ width: cfg.campaign?.width ?? DEFAULT_WIDTH, isolation, budget: st.state });
   return { ok: true, ...st, width, readingAt: reading?.at ?? null, isolation: isolation !== null };
 }
-var worktreeRoot = (root, ledger) => join2(root, ".scratch", "campaign", ledger["run-id"] ?? "run", "wt");
+var worktreeRoot = (root, ledger) => join2(root, ".scratch", "cw", String(ledger["run-id"] ?? "run").split("-")[0]);
+var gitLong = (root, args) => spawnSync("git", ["-c", "core.longpaths=true", "-C", root, ...args], { encoding: "utf8", windowsHide: true });
+var commitOf = (root, ref) => {
+  const r = spawnSync("git", ["-C", root, "rev-parse", "--verify", "--quiet", `${ref}^{commit}`], { encoding: "utf8", windowsHide: true });
+  return r.status === 0 ? r.stdout.trim() : null;
+};
 var recordsDir = (root, b) => join2(campDir(root, b), "records");
 var manifestFile = (root, b, id) => join2(recordsDir(root, b), `${id}.json`);
 var isLocal = (ledger) => ledger?.records === "local";
 var WORKTREE_IGNORE = "# written by /wf campaign (local records): the records in this worktree stay out of git\n*\n";
 var isAiIgnore = (rel) => rel === ".gitignore";
 var mainOwned = (b) => (rel) => isAiIgnore(rel) || rel.startsWith(`workflows/${b}/work/campaign/`);
-function syncIn(root, b, id, path) {
+var EVIDENCE_RE = /^workflows\/([^/]+)\/[^/]+-evidence(\/|$)/;
+var notCopiedIn = (b, slugs) => (rel) => {
+  if (mainOwned(b)(rel)) return true;
+  const m = EVIDENCE_RE.exec(rel);
+  return Boolean(m) && !slugs.includes(m[1]);
+};
+var slugsOf = (ledger, w, u) => w ? w.units.map((k) => ledger.units[k]?.slug ?? k) : [u.slug];
+function committedAs(path) {
+  const list = (args) => {
+    const r = spawnSync("git", ["-C", path, ...args, "-z", "--", ".ai"], { encoding: "utf8", windowsHide: true });
+    if (r.status !== 0) throw new Error(`records: git ${args.join(" ")} failed in ${path}: ${(r.stderr || "").trim()}`);
+    return r.stdout.split("\0").filter(Boolean).map((p) => p.replace(/^\.ai\//, ""));
+  };
+  const changed = /* @__PURE__ */ new Set([...list(["diff", "--name-only"]), ...list(["diff", "--cached", "--name-only"])]);
+  const clean = new Set(list(["ls-files"]).filter((p) => !changed.has(p)));
+  return (rel) => clean.has(rel);
+}
+function syncIn(root, b, id, path, slugs) {
   return withRecordsLock(join2(recordsDir(root, b), ".lock"), id, () => {
     const ignoreFile = join2(path, ".ai", ".gitignore");
     mkdirSync2(join2(path, ".ai"), { recursive: true });
@@ -1022,7 +1062,7 @@ function syncIn(root, b, id, path) {
     if (!tracked && !have.split(/\r?\n/).includes("*")) writeFileSync2(ignoreFile, WORKTREE_IGNORE);
     const manifest = loadManifest(manifestFile(root, b, id), id);
     manifest.worktree = path;
-    const res = recordsIn({ main: root, worktree: path, manifest, exclude: mainOwned(b) });
+    const res = recordsIn({ main: root, worktree: path, manifest, exclude: notCopiedIn(b, slugs), pristine: committedAs(path) });
     saveManifest(manifestFile(root, b, id), manifest, nowIso());
     const st = spawnSync("git", ["-C", path, "status", "--porcelain", "--untracked-files=all", "--", ".ai"], { encoding: "utf8", windowsHide: true });
     const visible = st.status === 0 ? st.stdout.split(/\r?\n/).filter((l) => l.startsWith("?? ")).map((l) => l.slice(3)) : ["(git status failed)"];
@@ -1074,6 +1114,7 @@ function worktreeStep(root, b, [key, action]) {
   if (!["add", "refresh", "sync", "remove"].includes(action)) throw new Error("worktree: the action is add, refresh, sync or remove");
   const local = isLocal(ledger);
   const holder = w ?? u;
+  const slugs = slugsOf(ledger, w, u);
   if (action !== "add") {
     if (!holder.worktree) return { ok: true, removed: false, synced: false, reason: local ? "no worktree: the drive wrote in the main checkout" : "no worktree" };
     if (action === "remove") {
@@ -1085,38 +1126,45 @@ function worktreeStep(root, b, [key, action]) {
       return res;
     }
     if (!local) return { ok: true, synced: false, reason: "the repo tracks .ai/: the records travel in commits" };
-    return { ok: true, records: action === "sync" ? syncOut(root, b, key, holder.worktree.path) : syncIn(root, b, key, holder.worktree.path) };
+    return { ok: true, records: action === "sync" ? syncOut(root, b, key, holder.worktree.path) : syncIn(root, b, key, holder.worktree.path, slugs) };
   }
   if (w) {
     if (!w.branch) throw new Error(`worktree: wave ${w.n} has no branch yet`);
-    const path2 = join2(worktreeRoot(root, ledger), key);
+    const path2 = w.worktree && existsSync2(w.worktree.path) ? w.worktree.path : join2(worktreeRoot(root, ledger), key);
     if (!existsSync2(path2)) {
       mkdirSync2(worktreeRoot(root, ledger), { recursive: true });
-      const r2 = spawnSync("git", ["-C", root, "worktree", "add", path2, w.branch], { encoding: "utf8", windowsHide: true });
+      const r2 = gitLong(root, ["worktree", "add", path2, w.branch]);
       if (r2.status !== 0) return { ok: false, error: `git worktree add failed: ${(r2.stderr || "").trim()}` };
     }
     w.worktree = { path: path2, branch: w.branch };
     saveLedger(root, b, ledger);
-    return { ok: true, ...w.worktree, ...local ? { records: syncIn(root, b, key, path2) } : {} };
+    return { ok: true, ...w.worktree, ...local ? { records: syncIn(root, b, key, path2, slugs) } : {} };
   }
   const iso = isolationOf(configOf(root));
   if (!iso) return { ok: false, error: "no usable isolation contract (campaign.isolation in .ai/sdlc-config.json): drive this slug in the main checkout at width 1" };
   const uw = ledger.waves.find((x) => x.n === u.wave);
   if (!uw || uw.state !== "running" || !uw.branch) throw new Error(`worktree: wave ${u.wave} of ${key} is not running`);
-  if (u.worktree && existsSync2(u.worktree.path)) return { ok: true, ...u.worktree, reused: true, ...local ? { records: syncIn(root, b, key, u.worktree.path) } : {} };
+  if (u.worktree && existsSync2(u.worktree.path)) return { ok: true, ...u.worktree, reused: true, ...local ? { records: syncIn(root, b, key, u.worktree.path, slugs) } : {} };
   const base = worktreeRoot(root, ledger);
   mkdirSync2(base, { recursive: true });
   const freeGb = statfsSync(base).bavail * statfsSync(base).bsize / 1024 ** 3;
   if (freeGb < iso["min-free-gb"]) return { ok: false, wait: true, error: `${freeGb.toFixed(1)} GB free, below min-free-gb ${iso["min-free-gb"]}: wait until a merged slug's worktree is removed` };
   const index = [...uw.units].sort((a, c) => (ledger.units[a].order ?? 0) - (ledger.units[c].order ?? 0)).indexOf(key);
   const branch = `campaign/${b}/wave-${uw.n}--${u.slug}`;
-  const path = join2(base, u.slug);
-  const r = spawnSync("git", ["-C", root, "worktree", "add", "-b", branch, path, uw.branch], { encoding: "utf8", windowsHide: true });
-  if (r.status !== 0) return { ok: false, error: `git worktree add failed: ${(r.stderr || "").trim()}` };
+  const path = join2(base, `w${uw.n}-${index + 1}`);
+  const had = commitOf(root, `refs/heads/${branch}`);
+  if (had && spawnSync("git", ["-C", root, "merge-base", "--is-ancestor", uw.branch, branch], { windowsHide: true }).status !== 0) {
+    return { ok: false, error: `the branch ${branch} exists and does not contain the wave branch ${uw.branch}, so it comes from another run. Ask the person: delete it, or rename it, then add again.` };
+  }
+  const r = gitLong(root, had ? ["worktree", "add", path, branch] : ["worktree", "add", "-b", branch, path, uw.branch]);
+  if (r.status !== 0) {
+    if (!had && commitOf(root, `refs/heads/${branch}`) === commitOf(root, uw.branch)) spawnSync("git", ["-C", root, "branch", "-D", branch], { encoding: "utf8", windowsHide: true });
+    return { ok: false, error: `git worktree add failed: ${(r.stderr || "").trim()}` };
+  }
   u.worktree = { path, branch, index, ports: portsFor(iso, index) };
   saveLedger(root, b, ledger);
   let records = null;
-  if (local) records = syncIn(root, b, key, path);
+  if (local) records = syncIn(root, b, key, path, slugs);
   else {
     const src = join2(root, ".ai", "workflows", u.slug);
     const dest = join2(path, ".ai", "workflows", u.slug);

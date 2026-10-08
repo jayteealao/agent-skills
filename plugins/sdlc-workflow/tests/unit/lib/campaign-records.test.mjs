@@ -165,6 +165,46 @@ test('the records lock admits one holder at a time and takes over a stale lock',
   } finally { rmSync(top, { recursive: true, force: true }); }
 });
 
+test('the records lock follows its process: a gone holder is taken over at once, a running one is not taken over after 15 minutes', () => {
+  const { top } = tree();
+  try {
+    const file = path.join(top, 'records', '.lock');
+    mkdirSync(path.dirname(file), { recursive: true });
+    const now = new Date().toISOString();
+    writeFileSync(file, JSON.stringify({ holder: 'W1', pid: 4242, at: now }));
+    assert.equal(R.withRecordsLock(file, 'W2', () => 'taken', { alive: () => false }), 'taken', 'the holder process is gone');
+    const old = new Date(Date.now() - 60 * 60_000).toISOString();
+    writeFileSync(file, JSON.stringify({ holder: 'W1', pid: process.pid, at: old }));
+    assert.throws(() => R.withRecordsLock(file, 'W2', () => 'no', { waitMs: 300 }), /held by W1 .*process \d+ still runs/, 'a long copy keeps its lock');
+    assert.equal(R.withRecordsLock(file, 'W2', () => 'taken', { liveStaleMs: 30 * 60_000 }), 'taken', 'past the live limit, a reused pid does not block for ever');
+  } finally { rmSync(top, { recursive: true, force: true }); }
+});
+
+test('a tracked file that the worktree holds as committed is never written over; out does not call it a conflict', () => {
+  const { top, main, wt } = tree();
+  try {
+    put(main, 'ship-plan.md', 'plan (main, uncommitted edit)');
+    put(wt, 'ship-plan.md', 'plan (committed)');
+    put(main, 'workflows/engine/00-index.md', 'index v1');
+    put(main, 'workflows/engine/.watch-state.json.4242.tmp', '{}');
+    const manifest = { files: {} };
+    const pristine = (rel) => rel === 'ship-plan.md';
+    const res = R.recordsIn({ main, worktree: wt, manifest, pristine });
+    assert.deepEqual(res.tracked, ['ship-plan.md']);
+    assert.equal(read(wt, 'ship-plan.md'), 'plan (committed)', 'a commit in the worktree cannot publish the main edit');
+    assert.ok(!has(wt, 'workflows/engine/.watch-state.json.4242.tmp'), 'a left-over watch temp file never travels');
+    put(main, 'ship-plan.md', 'plan (main, second edit)');
+    R.recordsIn({ main, worktree: wt, manifest, pristine });
+    assert.equal(read(wt, 'ship-plan.md'), 'plan (committed)', 'a refresh does not write over it either');
+    const out = R.recordsOut({ main, worktree: wt, manifest, conflictsDir: path.join(top, 'c') });
+    assert.deepEqual(out.conflicts, [], 'the worktree did not change it');
+    assert.equal(read(main, 'ship-plan.md'), 'plan (main, second edit)');
+    put(wt, 'ship-plan.md', 'plan (drive)');
+    const changed = R.recordsIn({ main, worktree: wt, manifest, pristine: () => false });
+    assert.deepEqual(changed.keptInWorktree, ['ship-plan.md'], 'a drive change stays');
+  } finally { rmSync(top, { recursive: true, force: true }); }
+});
+
 test('ignoredAtRisk: ignored files outside .ai/ that are not build folders or node_modules', () => {
   const porcelain = ['!! .ai/', '!! node_modules/', '!! target/', '!! .env.local', '!! notes/scratch.txt', '!! packages/web/node_modules/', '?? new.txt'].join('\n');
   assert.deepEqual(R.ignoredAtRisk(porcelain, ['target']), ['.env.local', 'notes/scratch.txt']);

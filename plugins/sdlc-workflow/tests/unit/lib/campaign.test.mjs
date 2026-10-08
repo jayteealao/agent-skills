@@ -238,13 +238,13 @@ test('a usage-limit failure is the rate_limit kind, status 429, or the limit tex
   assert.equal(C.isUsageLimitFailure({ text: 'the test failed: expected 3' }), false);
 });
 
-test('width: no isolation contract or parallel false is width 1; slow and unknown narrow to 1; pause is 0 (13, 17.3)', () => {
+test('width: no isolation contract or parallel false is width 1; slow narrows to 1; unknown keeps the width; pause is 0 (13, 17.3)', () => {
   const iso = { parallel: true, 'port-env': { PORT: 3000 }, 'build-dirs': ['target'], 'heavy-suites': ['npx playwright test'], 'min-free-gb': 20 };
   assert.equal(C.effectiveWidth({ width: 3, isolation: null, budget: 'ok' }), 1);
   assert.equal(C.effectiveWidth({ width: 3, isolation: { ...iso, parallel: false }, budget: 'ok' }), 1);
   assert.equal(C.effectiveWidth({ width: 3, isolation: iso, budget: 'ok' }), 3);
   assert.equal(C.effectiveWidth({ width: 3, isolation: iso, budget: 'slow' }), 1);
-  assert.equal(C.effectiveWidth({ width: 3, isolation: iso, budget: 'unknown' }), 1);
+  assert.equal(C.effectiveWidth({ width: 3, isolation: iso, budget: 'unknown' }), 3, 'no reading (the mod is off): the set width stands');
   assert.equal(C.effectiveWidth({ width: 3, isolation: iso, budget: 'pause' }), 0);
   assert.deepEqual(C.portsFor(iso, 2), { PORT: 3200 });
   assert.equal(C.isolationOf({ campaign: { isolation: iso } }).parallel, true);

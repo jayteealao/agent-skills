@@ -21,7 +21,8 @@ export const MANIFEST_VERSION = 1;
 export const REGISTRY = 'workflows/INDEX.md';
 /** Machine-local files. They never travel: each checkout keeps its own. */
 const MACHINE_LOCAL = new Set(['.watch-state.json']);
-const TEMP_RE = /\.records-\d+-[0-9a-f]+\.tmp$/;
+/** Temp files: the sync's own, and a watch-state write that a crash left behind. */
+const TEMP_RE = /\.records-\d+-[0-9a-f]+\.tmp$|^\.watch-state\.json\.\d+\.tmp$/;
 
 const posix = (p) => p.split('\\').join('/');
 
@@ -126,11 +127,16 @@ export function mergeRegistry(mainText, otherText) {
  * deleted it after an earlier copy. A file the worktree did not change since
  * the base takes the main version. A file the worktree changed stays: `out`
  * brings it back. `exclude(rel)` keeps folders that the main checkout owns.
+ * `pristine(rel)` is true for a tracked file that the worktree holds exactly as
+ * git committed it. The sync never writes over such a file: a different main
+ * version holds uncommitted edits, and a commit in the worktree would publish
+ * them. The worktree copy becomes the base, so `out` does not call it a
+ * conflict, and the file is named in `tracked` (the main edits stay in main).
  */
-export function recordsIn({ main, worktree, manifest, exclude = () => false }) {
+export function recordsIn({ main, worktree, manifest, exclude = () => false, pristine = () => false }) {
   const src = walk(join(main, '.ai'));
   const dst = walk(join(worktree, '.ai'));
-  const res = { copied: [], refreshed: [], same: 0, keptInWorktree: [], deletedInWorktree: [] };
+  const res = { copied: [], refreshed: [], same: 0, keptInWorktree: [], deletedInWorktree: [], tracked: [] };
   for (const [rel, abs] of src.files) {
     if (isSkipped(rel) || exclude(rel)) continue;
     const mh = hashFile(abs);
@@ -145,6 +151,12 @@ export function recordsIn({ main, worktree, manifest, exclude = () => false }) {
     }
     const wh = hashFile(dst.files.get(rel));
     if (wh === mh) { entryOf(manifest, rel).base = mh; res.same++; continue; }
+    if (pristine(rel)) {
+      const t = entryOf(manifest, rel);
+      if (!t.base) t.base = wh;
+      res.tracked.push(rel);
+      continue;
+    }
     if (e?.base && wh === e.base) {
       copyVerified(abs, target, mh);
       e.base = mh;
@@ -224,11 +236,20 @@ export function recordsPending({ main, worktree, manifest, exclude = () => false
   return pending;
 }
 
+/** True while the process `pid` runs. EPERM means it runs under another user. */
+export function pidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
+}
+
 /**
  * Run `fn` while holding the records lock of the main checkout. Two syncs into
- * the main checkout never interleave. A lock older than `staleMs` is taken over.
+ * the main checkout never interleave. The lock names its process. When that process
+ * is gone, the lock is taken over at once. While it runs, the lock is taken over only
+ * after `liveStaleMs`, because a large copy can run long and a pid can be reused.
+ * A lock without a pid is taken over after `staleMs`.
  */
-export function withRecordsLock(file, holder, fn, { waitMs = 60_000, staleMs = 15 * 60_000, now = () => new Date().toISOString() } = {}) {
+export function withRecordsLock(file, holder, fn, { waitMs = 60_000, staleMs = 15 * 60_000, liveStaleMs = 6 * 60 * 60_000, alive = pidAlive, now = () => new Date().toISOString() } = {}) {
   mkdirSync(dirname(file), { recursive: true });
   const until = Date.now() + waitMs;
   for (;;) {
@@ -240,8 +261,11 @@ export function withRecordsLock(file, holder, fn, { waitMs = 60_000, staleMs = 1
       let cur = null;
       try { cur = JSON.parse(readFileSync(file, 'utf8')); } catch { /* torn: judge it by its age below */ }
       const at = cur?.at ? Date.parse(cur.at) : statSync(file).mtimeMs;
-      if (Date.now() - at > staleMs) { rmSync(file, { force: true }); continue; }
-      if (Date.now() > until) throw new Error(`records: the records lock is held by ${cur?.holder ?? 'another sync'} since ${cur?.at ?? '?'}; try again`);
+      const hasPid = Number.isInteger(cur?.pid);
+      const running = hasPid && alive(cur.pid);
+      const stale = hasPid ? !running || Date.now() - at > liveStaleMs : Date.now() - at > staleMs;
+      if (stale) { rmSync(file, { force: true }); continue; }
+      if (Date.now() > until) throw new Error(`records: the records lock is held by ${cur?.holder ?? 'another sync'} since ${cur?.at ?? '?'}${running ? ` (process ${cur.pid} still runs)` : ''}; try again`);
       pause(250);
     }
   }
