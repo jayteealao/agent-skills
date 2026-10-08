@@ -161,5 +161,5 @@ Departures from the plan:
 - **A first watch skips the journal history.** It reads the history for the cadence only. `--since <seq>` emits the newest run's lines after that seq.
 - **`stopped`, not `paused`.** A pause returns `status: stopped` with `stopKind: pause`, and the driver ends with `stoppedAt: usage-pause`. The campaign plan (17.4) names the status `paused`; the campaign maps it when it is built.
 - **Usage.** The watch reads `~/.claude/sdlc/usage/<sessionId>.json` in the shape of the campaign plan 17.1. Nothing writes that file until the usage guard (campaign Stage D3) is built, so `usage` and `usage-reset` stay silent until then. The budget lines are the new `yolo.usageBudget` config.
-- **Q4 (a mod watch).** Not evaluated. The Monitor watch is the default.
+- **Q4 (a mod watch).** Not evaluated. The Monitor watch is the default. Closed by [WF-WATCH-MONITOR-PLAN.md](WF-WATCH-MONITOR-PLAN.md): the deadline-free options are not available in the Desktop app, and the watch stays a Monitor-tool watch.
 

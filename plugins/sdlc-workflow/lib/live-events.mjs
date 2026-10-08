@@ -14,6 +14,15 @@ export const STAGE_KINDS = Object.freeze(['plan', 'implement', 'verify', 'review
 export const STAGE_FILE = Object.freeze({ plan: '04-plan', implement: '05-implement', verify: '06-verify', review: '07-review', 'update-deps-exec': '06-verify' });
 /** The liveness floor: a silence under 20 minutes is never stale (_control-file-ownership.md). */
 export const STALE_FLOOR_MS = 20 * 60 * 1000;
+/**
+ * The silence of a running agent's own transcript that makes it stale. A
+ * working agent writes to its transcript at each tool call, and one tool call
+ * lasts 10 minutes at most. In 537 workflow agents of two campaigns and one yolo
+ * run, the only transcript silent for more than 16 minutes was a real hang (63
+ * minutes). The journal cannot tell a hang from a long agent: an implement agent
+ * ran 52 minutes at the median and 211 at the 95th percentile.
+ */
+export const AGENT_SILENT_MS = 15 * 60 * 1000;
 
 const iso = (ms) => new Date(ms).toISOString();
 
@@ -200,14 +209,19 @@ export function applyLines(slug, st, lines, { emitFrom = null, artifactOf = () =
  * Silence, judged against the run's own cadence. A silence whose newest line
  * is an agent-start is a stale driver; one whose newest line is an agent-end
  * means every agent returned, so the run ended.
+ *
+ * `activityMs` is the newest write to the running agent's own transcript, when
+ * the caller found it. With it, the agent is stale after AGENT_SILENT_MS of
+ * transcript silence, and the journal cadence does not count.
  */
-export function judgeSilence(slug, st, nowMs, watchStartMs) {
+export function judgeSilence(slug, st, nowMs, watchStartMs, activityMs = null) {
   if (st.ended || st.lastLineAt === null) return [];
   // A re-arm resets `ended` for a relaunch; a run whose newest line is its end is silent by design.
   if (st.newest && st.newest.event === 'run-end') return [];
-  const since = Math.max(st.lastLineAt, watchStartMs);
+  const byTranscript = Number.isFinite(activityMs) && st.newest && st.newest.event === 'agent-start';
+  const since = byTranscript ? Math.max(st.lastLineAt, activityMs) : Math.max(st.lastLineAt, watchStartMs);
   const silentMs = nowMs - since;
-  const limit = liveLimitMs(st);
+  const limit = byTranscript ? AGENT_SILENT_MS : liveLimitMs(st);
   if (silentMs <= limit) return [];
   if (st.newest && st.newest.event === 'agent-end') {
     st.ended = true;
@@ -218,7 +232,8 @@ export function judgeSilence(slug, st, nowMs, watchStartMs) {
   st.staleFor = key;
   return [{
     event: 'stale', slug, run: st.run, lastAgent: st.newest && st.newest.agent, lastLineAt: iso(st.lastLineAt),
-    silentMinutes: Math.round(silentMs / 60000), limitMinutes: Math.round(limit / 60000), at: iso(nowMs),
+    silentMinutes: Math.round(silentMs / 60000), limitMinutes: Math.round(limit / 60000),
+    signal: byTranscript ? 'transcript' : 'journal', at: iso(nowMs),
   }];
 }
 

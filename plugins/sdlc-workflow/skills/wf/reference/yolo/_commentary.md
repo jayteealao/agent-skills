@@ -2,7 +2,9 @@
 
 `/wf yolo` starts a watch on its own run and gives the person a running commentary. The main session follows this file when it starts the watch and when a watch event arrives. The person never builds or re-arms a watch.
 
-The watch is `scripts/yolo-watch.mjs`. It polls the driver journal, the git HEAD, the protected files, and the usage readings. It writes one JSON line per event, and it exits by itself after the run ends.
+The watch is `scripts/yolo-watch.mjs`. It polls the driver journal, the git HEAD, the protected files, and the usage readings. It writes one JSON line per event, and it exits by itself after the run ends. It also appends one line to `commentary.md` for each `stage-start` and `commit` event (R1).
+
+The Monitor tool stops a watch after 30 minutes at most. No watch without a deadline is available to the session today (WF-WATCH-MONITOR-PLAN, section 9), so the session starts the watch again when it expires.
 
 ## Start the watch
 
@@ -15,22 +17,26 @@ The watch is `scripts/yolo-watch.mjs`. It polls the driver journal, the git HEAD
    Set the description to `yolo <slug>`.
 2. When the Monitor tool is not available, do not start a watch. The run is unchanged.
 3. When a Monitor expires and the Workflow did not return, start the same command again. Say nothing in chat: a re-arm is not news (C3). The watch keeps its offsets in `.watch-state.json`, so it misses no event.
-4. On a relaunch of the same slug (yolo.md "Resuming"), start the same command. The person does not ask for the watch again.
+4. On a relaunch of the same slug (yolo.md "Resuming"), start the same command. The person does not ask for the watch again. The new watch replaces the old one: the old watch emits `watch-replaced` and exits.
+5. In a campaign, do not start a watch for a drive. The campaign watch reads the drive's journal and commits in its worktree (K1). A watch that is started anyway emits `watch-covered` and exits.
+6. When a `watch-replaced` or `watch-covered` event arrives, do not start that watch again, and say nothing in chat. Another watch reads the same journals.
 
 ## The events
 
 | Event | What happened | Chat | Push |
 |---|---|---|---|
-| `stage-start` | A stage agent started. | One line: the slice, the stage, the time. | no |
+| `stage-start` | A stage agent started. The watch already wrote the line to `commentary.md`. | One line: the slice, the stage, the time. | no |
 | `stage-end` | A stage agent ended. | The full stage note (C1). | no |
-| `commit` | A new commit is on the branch. | One or two sentences per commit. | no |
+| `commit` | A new commit is on the branch. The watch already wrote the hash and subject to `commentary.md`. | One or two sentences per commit. | no |
 | `decision` | The stage artifact waits for input, or records an `intent-bearing` decision. | A full note: the decision, the artifact, and what the person decides. | yes |
 | `protected-change` | A protected file changed. `dirtyAtStart: true` means the file held the person's uncommitted edits. | A full note: the file, the change, and the stage that ran. | yes |
-| `stale` | The journal is silent past the liveness limit, and its newest line is an `agent-start`. | A warning, worded per the staleness rule in [../_control-file-ownership.md](../_control-file-ownership.md). | yes |
+| `stale` | The running agent is silent. With `signal: transcript`, the agent's own transcript wrote nothing for 15 minutes: one tool call lasts 10 minutes at most, so the agent hangs. With `signal: journal`, no transcript was found, and the journal is silent past the liveness limit with an `agent-start` as its newest line. | A warning, worded per the staleness rule in [../_control-file-ownership.md](../_control-file-ownership.md). With `signal: transcript`, say that the agent hangs, and offer to stop the run and resume it. | yes |
 | `stop` | A stage agent returned `hard-stop`, or stopped on a stop request. | Why the run stopped, and the resume command. | yes |
 | `run-end` | The driver ended. `inferred: true` means that the journal went silent after an `agent-end`. | The run summary. | yes |
 | `usage` | A usage reading crossed a budget line. | One line with both windows and their reset times. At level `pause`, a full note. | at `pause` |
 | `usage-reset` | The window of a pause reset. | One line. | no |
+| `watch-replaced` | A newer watch reads the same journal. This watch exited. | Nothing. Do not start this watch again. | no |
+| `watch-covered` | A live campaign watch already reads this journal. This watch exited. | Nothing. Do not start this watch again. | no |
 
 Scout, classifier, and bookkeeping agents give no event.
 
@@ -43,7 +49,7 @@ Scout, classifier, and bookkeeping agents give no event.
   - what comes next.
 - **C2.** Use plain words and STE. Explain a term that the person did not see before.
 - **C3.** Say nothing when you re-arm the watch.
-- **C4.** Append each note to `.ai/workflows/<slug>/commentary.md` with the event kind:
+- **C4.** The watch writes the `stage-start` and `commit` lines to `commentary.md` itself (R1). Append each other note to `.ai/workflows/<slug>/commentary.md` with the event kind:
 
   ```
   node "<pluginRoot>/scripts/yolo-watch.mjs" note "<projectRoot>" <slug> --event <kind> <<'NOTE'
@@ -52,6 +58,8 @@ Scout, classifier, and bookkeeping agents give no event.
   ```
 
   The script adds the time. After a compaction, read the last notes in `commentary.md` before the next note, so the story continues.
+- **R1.** The watch appends one line per `stage-start` and per `commit` event, for example `- 2026-10-08 10:01 UTC · stage start · plan · slice auth`. It writes the line where the drive writes its records: in the worktree when the drive has one. In a campaign, the line also goes to `work/campaign/commentary.md`. Do not append a note for these two events.
+- **R2.** The chat reply for each event stays as the table says. The record no longer depends on the chat reply: in the two campaigns before R1, the notes were skipped, and `commentary.md` stayed empty.
 - **C5.** Send a push notification (the `PushNotification` tool) only for the events that the table marks. Lead with what the person acts on, for example "yolo engine-modules: plan stopped on decision D6".
 - **C6.** Answer the person's questions between events from the records: the artifacts, the journal, `commentary.md`, and git. Do not answer from memory. A watch event does not block the conversation.
 
@@ -114,13 +122,13 @@ The person can stop the run at a stage boundary, for example "stop after the cur
 
 `/wf campaign` uses the same watch, with these changes.
 
-- **K1. One watch per wave.** At the wave start, start one watch over every slug of the wave and the campaign journal:
+- **K1. One watch per wave.** At the wave start, start one watch over every slug of the wave and the campaign journal. Do not start a watch for each drive (step 5 of "Start the watch"):
 
   ```
   node "<pluginRoot>/scripts/yolo-watch.mjs" "<projectRoot>" <slug-1> <slug-2> ... --campaign <brainstorm-slug>
   ```
 
-  The source is the main checkout. A slug's `run-end` does not end this watch, because the boundary and the next slug still run. The campaign journal's `campaign-end` line ends it, and so does a `wave-end` line when no other started wave is still open (waves overlap: wave n ships while wave n+1 runs). To end it early, run `yolo-watch.mjs end "<projectRoot>" - --campaign <brainstorm-slug>`.
+  Every 20 seconds, the watch reads `work/campaign/ledger.json`. It follows each unit of a live wave to where its drive writes: the unit's worktree when it has one, else the main checkout. In a worktree, it reads the journal, the commits on the slug branch, and the protected files. A unit that a later wave adds is watched from that moment. When a worktree is removed after the merge, the merged journal in the main checkout is history, and its lines give no event again. A slug's `run-end` does not end this watch, because the boundary and the next slug still run. The campaign journal's `campaign-end` line ends it, and so does a `wave-end` line when no other started wave is still open (waves overlap: wave n ships while wave n+1 runs). To end it early, run `yolo-watch.mjs end "<projectRoot>" - --campaign <brainstorm-slug>`.
 - **K2. Parallel slugs.** A `stage-end` event carries `parallel`, the number of slugs with a stage open. When `parallel` is more than 1, give the stage end one line, not a full note. Give the full note at that slug's `run-end`.
 - **K3. Campaign events.** Each of these gets a full note:
 
@@ -141,7 +149,7 @@ The person can stop the run at a stage boundary, for example "stop after the cur
 | `paused`, `resumed` | why, and the reset time | `paused` only |
 | `wave-end`, `campaign-end` | the wave or the campaign summary | yes |
 
-- **K4. Where the notes go.** A campaign note goes to `work/campaign/commentary.md`. A slug's note goes there and to the slug's own `commentary.md`. Add `--campaign <brainstorm-slug>` to the `note` command; use `-` as the slug for a note about the campaign only.
+- **K4. Where the notes go.** A campaign note goes to `work/campaign/commentary.md`. A slug's note goes there and to the slug's own `commentary.md`. The watch's own lines (R1) go to both files too. Add `--campaign <brainstorm-slug>` to the `note` command; use `-` as the slug for a note about the campaign only.
 - **K5. Scoped stop requests.** A stop request can name one slug, the wave ("stop after this wave"), or the campaign:
 
   ```

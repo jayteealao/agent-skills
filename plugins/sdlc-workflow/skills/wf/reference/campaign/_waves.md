@@ -9,11 +9,13 @@ Each wave is one PR. With an isolation contract, up to `campaign.width` slugs of
 1. **Check.** Run `<cmd> status`. When `next.action` is `paused` or `ask`, do not start the wave.
 2. **Drift.** For wave 2 and later, read `drift/wave-<n>.md` (written at the end of the previous wave). For each unit in its stop list, run `<cmd> unit <key> stopped --route "drift: <the contract lines>"`, then ask the person to choose: amend that slug's shape, or add a fix packet before it through the brainstorm. The independent units continue.
 3. **Start.** Run `<cmd> wave <n> start`. It starts the wave with its prepared units and moves the others. Create the wave branch without a checkout: `git -C "<projectRoot>" branch <branch> <base>`, with `branch` and `base` from the result. `base` is the trunk, or with stacked PRs the wave branch below.
-4. **Watch.** Start the watch over the wave's slugs and the campaign journal ([../yolo/_commentary.md](../yolo/_commentary.md), "In a campaign"). A drive in a worktree also starts its own watch on that worktree (yolo.md Step 1).
+4. **Watch.** Start the watch over the wave's slugs and the campaign journal ([../yolo/_commentary.md](../yolo/_commentary.md), "In a campaign"). A drive starts no watch of its own: this watch reads each unit's journal and commits in its worktree (K1).
+   - At the first wave start of this session, send one push notification: `campaign <brainstorm-slug>: wave <n> started`. When the result says that the push was not sent because Remote Control is inactive, tell the person in one line: "Phone notifications need Remote Control. Run /rc to turn it on." Do not check again in this session.
 5. **Drive the units.** Before each drive starts, run `<cmd> budget`:
    - `width` 0: the budget asks for a pause. Run `<cmd> pause <until> <reason>` with the result's `until` and `reason`, and start nothing.
    - `width` 1: drive one unit at a time, in packet order: in its worktree with an isolation contract, in the main checkout without one. A budget without a reading (`unknown`, for example with the mod off) keeps the set width; only `slow` narrows to 1.
    - `width` above 1: start drives until `width` run at once, in packet order. Launch the Workflows of one batch in the same message, so they run at the same time.
+   - When `width` is less than the number of units that are ready to drive, say in chat which units wait and why: the budget's `reason`, or the set width. Say it again when a waiting unit starts.
 
    For each unit:
    1. With an isolation contract, run `<cmd> worktree <key> add`. The result gives the worktree `path`, its slug `branch`, and its `ports`; the prepared workflow folder is copied in. When the result has `wait: true`, the disk is too full: drive this unit after a merged slug's worktree is removed. Without a contract, skip this step.

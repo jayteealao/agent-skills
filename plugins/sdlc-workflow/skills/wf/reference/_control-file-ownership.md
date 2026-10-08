@@ -39,6 +39,8 @@ Three states, and only three:
 
 No journal at all → *"no driver journal — I can't tell whether one ran."* That is the honest answer, and it is not the same as "nothing is running".
 
+The watch (`scripts/yolo-watch.mjs`) has a better signal for a running agent: the agent's own transcript, which grows at each tool call. One tool call lasts 10 minutes at most. When the transcript of the agent in the newest `agent-start` wrote nothing for 15 minutes, the agent hangs, even when the journal is inside its cadence. A long agent that still writes its transcript is running, even past the journal's cadence. The watch uses the journal rule above only when it finds no transcript.
+
 Existence is not liveness: an artifact trail outlives the driver that wrote it, and the harness task registry can lose a task entirely. The same discipline applies to any claim about work you did not watch, including another session's (see [_chat-return.md](_chat-return.md)).
 
 ## Append-only files beside the index

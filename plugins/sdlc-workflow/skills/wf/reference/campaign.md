@@ -66,7 +66,7 @@ The campaign keeps its state inside the brainstorm, beside the packets.
 | `work/campaign/drift/wave-<n>.md` | the campaign script | The drift check before wave n |
 | `work/campaign/fidelity/wave-<n>.md` | the boundary | The fidelity checkpoint after wave n |
 | `work/campaign/waves/wave-<n>.md` | the boundary | The try-it note, for a person |
-| `work/campaign/commentary.md` | the watch's `note` command | The campaign commentary |
+| `work/campaign/commentary.md` | the watch, and its `note` command | The campaign commentary: one line per stage start and commit, and a note per other event |
 | `work/campaign/report.md` | the campaign session | The campaign report |
 
 Built outputs are not artifacts. They go to `<projectRoot>/.scratch/campaign/<run-id>/` (`wave-<n>/` and `slugs/<slug>/`).

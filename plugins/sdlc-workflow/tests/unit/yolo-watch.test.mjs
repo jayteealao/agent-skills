@@ -557,3 +557,216 @@ test('K4/K5: campaign notes and scoped stop requests', () => {
     assert.equal(JSON.parse(readFileSync(W.campaignControlPath(root, B), 'utf8')).scope, 'slug');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+// ---------------------------------------------------------------------------
+// WF-WATCH-MONITOR-PLAN — F2 to F6.
+// ---------------------------------------------------------------------------
+const tmpDir = (name) => mkdtempSync(path.join(os.tmpdir(), `${name} `));
+
+test('F3: a restart does not reset the silence; a long gap and a long silence across two restarts give stale', () => {
+  const root = makeRepo();
+  const projectsDir = tmpDir('projects');
+  const lockDir = tmpDir('locks');
+  try {
+    journal(root,
+      { at: at(0), seq: 1, event: 'agent-start', agent: 'implement:a', stage: 'implement', slice: 'a' },
+      { at: at(40), seq: 1, event: 'agent-end', agent: 'implement:a', status: 'complete' },
+      { at: at(41), seq: 2, event: 'agent-start', agent: 'verify:a', stage: 'verify', slice: 'a' },
+    );
+    const opts = { projectRoot: root, slugs: [SLUG], projectsDir, lockDir };
+    const a = W.createWatcher({ ...opts, now: () => T0 + 40 * 60000 });
+    a.pollJournals();
+    a.save();
+    const b = W.createWatcher({ ...opts, now: () => T0 + 71 * 60000 });
+    assert.deepEqual(b.pollJournals(), [], 'a restart alone gives no stale: 30 minutes is inside the 40-minute cadence');
+    b.save();
+    const c = W.createWatcher({ ...opts, now: () => T0 + 90 * 60000 });
+    const ev = c.pollJournals();
+    assert.deepEqual(ev.map((e) => e.event), ['stale'], '49 minutes of silence since the last line, across two restarts');
+    assert.equal(ev[0].lastAgent, 'verify:a');
+    assert.equal(ev[0].signal, 'journal');
+  } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
+});
+
+test('F3: a restart after the run ended counts from its own start', () => {
+  assert.equal(W.keptWatchFrom({ watchFrom: 100, lastLineAt: 200, newest: { event: 'agent-start' } }, 999), 100, 'the run wrote after the first watch: keep its start');
+  assert.equal(W.keptWatchFrom({ watchFrom: 300, lastLineAt: 200, newest: { event: 'agent-start' } }, 999), 999, 'no line since the first watch: a new launch');
+  assert.equal(W.keptWatchFrom({ watchFrom: 100, lastLineAt: 200, newest: { event: 'run-end' } }, 999), 999, 'the run ended');
+  assert.equal(W.keptWatchFrom({ lastLineAt: 200 }, 999), 999, 'a state from before F3');
+});
+
+function agentTranscript(projectsDir, root, label, mtimeMs) {
+  const dir = path.join(projectsDir, W.projectDirName(root), 'session-1', 'subagents', 'workflows', 'wf_1');
+  mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, `agent-${label.replace(/[^a-z0-9]/gi, '')}.jsonl`);
+  writeFileSync(file, '{}\n');
+  writeFileSync(file.replace(/\.jsonl$/, '.meta.json'), JSON.stringify({ agentType: 'workflow-subagent', description: label }));
+  utimesSync(file, mtimeMs / 1000, mtimeMs / 1000);
+  return file;
+}
+
+test('F6: a long agent that still writes its transcript is not stale; a silent transcript is', () => {
+  const root = makeRepo();
+  const projectsDir = tmpDir('projects');
+  const lockDir = tmpDir('locks');
+  try {
+    journal(root, { at: at(0), seq: 1, event: 'agent-start', agent: 'implement:auth', stage: 'implement', slice: 'auth' });
+    const file = agentTranscript(projectsDir, root, 'implement:auth', T0 + 25 * 60000);
+    let now = T0;
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], projectsDir, lockDir, now: () => now });
+    w.pollJournals();
+    now = T0 + 30 * 60000;
+    assert.deepEqual(w.pollJournals(), [], '30 minutes of journal silence, but the transcript wrote 5 minutes ago');
+    now = T0 + 41 * 60000;
+    const ev = w.pollJournals();
+    assert.deepEqual(ev.map((e) => e.event), ['stale'], '16 minutes of transcript silence');
+    assert.equal(ev[0].signal, 'transcript');
+    assert.equal(ev[0].limitMinutes, 15);
+    utimesSync(file, (T0 + 50 * 60000) / 1000, (T0 + 50 * 60000) / 1000);
+    now = T0 + 55 * 60000;
+    assert.deepEqual(w.pollJournals(), [], 'stale is said once per agent');
+  } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
+});
+
+test('F6: a transcript older than the agent start belongs to another agent, so the journal rule applies', () => {
+  const root = makeRepo();
+  const projectsDir = tmpDir('projects');
+  const lockDir = tmpDir('locks');
+  try {
+    agentTranscript(projectsDir, root, 'implement:auth', T0 - 120 * 60000);
+    journal(root, { at: at(0), seq: 1, event: 'agent-start', agent: 'implement:auth', stage: 'implement', slice: 'auth' });
+    let now = T0;
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], projectsDir, lockDir, now: () => now });
+    w.pollJournals();
+    now = T0 + 18 * 60000;
+    assert.deepEqual(w.pollJournals(), [], 'inside the 20-minute journal floor');
+    now = T0 + 21 * 60000;
+    assert.deepEqual(w.pollJournals().map((e) => `${e.event}:${e.signal}`), ['stale:journal']);
+  } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
+});
+
+function campaignLedger(root, waves, units) {
+  writeFileSync(path.join(root, '.ai', 'workflows', B, 'work', 'campaign', 'ledger.json'), JSON.stringify({ version: 1, waves, units }));
+}
+
+test('F2: the campaign watch reads a unit\'s journal and commits in its worktree, and picks up a unit added later', () => {
+  const root = makeRepo();
+  const projectsDir = tmpDir('projects');
+  const lockDir = tmpDir('locks');
+  const wtBase = tmpDir('worktrees');
+  const wt = path.join(wtBase, 'w1-1');
+  try {
+    makeCampaign(root);
+    git(root, 'worktree', 'add', '-q', '-b', 'campaign/realism/wave-1--engine', wt);
+    mkdirSync(path.join(wt, '.ai', 'workflows', 'engine'), { recursive: true });
+    campaignLedger(root, [{ n: 1, state: 'running', units: ['W1'] }], { W1: { slug: 'engine', wave: 1, worktree: { path: wt, branch: 'campaign/realism/wave-1--engine' } } });
+    let now = T0;
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], campaign: B, projectsDir, lockDir, now: () => now });
+    assert.deepEqual(w.pollJournals(), []);
+    assert.deepEqual(w.pollCommits(), [], 'the first look at the worktree records its HEAD');
+    appendFileSync(W.journalPath(wt, 'engine'), `${JSON.stringify({ run: 'r-e', at: at(1), seq: 1, event: 'agent-start', agent: 'plan:s1', stage: 'plan', slice: 's1' })}\n`);
+    now = T0 + 60000;
+    const ev = w.pollJournals();
+    assert.deepEqual(ev.map((e) => `${e.event}:${e.slug}`), ['stage-start:engine']);
+    writeFileSync(path.join(wt, 'engine.rs'), 'fn main() {}\n');
+    git(wt, 'add', 'engine.rs');
+    git(wt, 'commit', '-q', '-m', 'feat(engine): first module');
+    const commits = w.pollCommits();
+    assert.deepEqual(commits.map((e) => `${e.event}:${e.subject}:${e.slugs.join(',')}`), ['commit:feat(engine): first module:engine']);
+    // A unit added to the records after the watch started (a later wave start).
+    mkdirSync(path.join(root, '.ai', 'workflows', 'squads'), { recursive: true });
+    campaignLedger(root, [{ n: 1, state: 'running', units: ['W1', 'W2'] }], {
+      W1: { slug: 'engine', wave: 1, worktree: { path: wt, branch: 'campaign/realism/wave-1--engine' } },
+      W2: { slug: 'squads', wave: 1 },
+    });
+    now = T0 + 2 * 60000;
+    appendFileSync(W.journalPath(root, 'squads'), `${JSON.stringify({ run: 'r-s', at: at(2), seq: 1, event: 'agent-start', agent: 'plan:t1', stage: 'plan', slice: 't1' })}\n`);
+    assert.deepEqual(w.pollJournals().map((e) => `${e.event}:${e.slug}`), ['stage-start:squads']);
+  } finally {
+    try { git(root, 'worktree', 'remove', '--force', wt); } catch { /* already gone */ }
+    for (const d of [root, projectsDir, lockDir, wtBase]) rmSync(d, { recursive: true, force: true });
+  }
+});
+
+test('F2: when a worktree is removed after the merge, the merged journal in the main checkout is history', () => {
+  const root = makeRepo();
+  const projectsDir = tmpDir('projects');
+  const lockDir = tmpDir('locks');
+  const wtBase = tmpDir('worktrees');
+  const wt = path.join(wtBase, 'w1-1');
+  try {
+    makeCampaign(root);
+    mkdirSync(path.join(wt, '.ai', 'workflows', 'engine'), { recursive: true });
+    campaignLedger(root, [{ n: 1, state: 'running', units: ['W1'] }], { W1: { slug: 'engine', wave: 1, worktree: { path: wt } } });
+    let now = T0;
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], campaign: B, projectsDir, lockDir, now: () => now });
+    w.pollJournals();
+    rmSync(wt, { recursive: true, force: true });
+    campaignLedger(root, [{ n: 1, state: 'boundary', units: ['W1'] }], { W1: { slug: 'engine', wave: 1 } });
+    mkdirSync(path.join(root, '.ai', 'workflows', 'engine'), { recursive: true });
+    appendFileSync(W.journalPath(root, 'engine'), `${JSON.stringify({ run: 'r-e', at: at(1), seq: 1, event: 'agent-start', agent: 'plan:s1', stage: 'plan', slice: 's1' })}\n`);
+    now = T0 + 5 * 60000;
+    assert.deepEqual(w.pollJournals().filter((e) => e.slug === 'engine'), [], 'the merged lines are older than the move');
+  } finally { for (const d of [root, projectsDir, lockDir, wtBase]) rmSync(d, { recursive: true, force: true }); }
+});
+
+test('F4: the watch writes one commentary line per stage start and per commit, and never twice', () => {
+  const root = makeRepo();
+  const projectsDir = tmpDir('projects');
+  const lockDir = tmpDir('locks');
+  try {
+    makeCampaign(root);
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], campaign: B, projectsDir, lockDir, now: clockAt(0) });
+    w.recordFacts(w.pollJournals());
+    journal(root, { at: at(1), seq: 1, event: 'agent-start', agent: 'plan:auth', stage: 'plan', slice: 'auth' });
+    w.recordFacts(w.pollJournals());
+    writeFileSync(path.join(root, 'notes.txt'), 'v2\n');
+    git(root, 'commit', '-q', '-am', 'feat(auth): login form');
+    w.recordFacts(w.pollCommits());
+    w.recordFacts(w.pollJournals());
+    const slugText = readFileSync(W.commentaryPath(root, SLUG), 'utf8');
+    assert.match(slugText, /^- 2026-10-03 10:01 UTC · stage start · plan · slice auth$/m);
+    assert.match(slugText, /^- .+ · commit `[0-9a-f]{12}` · feat\(auth\): login form$/m);
+    assert.equal(slugText.match(/^- .+ · stage start · /gm).length, 1, 'a poll with no new line writes nothing');
+    assert.match(readFileSync(W.campaignCommentaryPath(root, B), 'utf8'), new RegExp(`^- 2026-10-03 10:01 UTC · ${SLUG} · stage start · plan · slice auth$`, 'm'));
+  } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
+});
+
+test('F5: a newer watch replaces an older one, and a slug watch yields to a live campaign watch', () => {
+  const root = makeRepo();
+  const projectsDir = tmpDir('projects');
+  const lockDir = tmpDir('locks');
+  try {
+    makeCampaign(root);
+    const opts = { projectRoot: root, slugs: [SLUG], projectsDir, lockDir, now: clockAt(0) };
+    const older = W.createWatcher({ ...opts, lockId: 'older' });
+    const newer = W.createWatcher({ ...opts, lockId: 'newer' });
+    assert.equal(newer.checkLocks(), null);
+    const replaced = older.checkLocks();
+    assert.equal(replaced.event, 'watch-replaced');
+    assert.equal(replaced.by, 'slug');
+    newer.releaseLocks();
+    const camp = W.createWatcher({ ...opts, campaign: B, lockId: 'camp' });
+    const slugWatch = W.createWatcher({ ...opts, lockId: 'late' });
+    assert.equal(slugWatch.covered.id, 'camp', 'the campaign watch already reads this journal');
+    assert.equal(camp.checkLocks(), null, 'a covered slug watch takes no lock');
+    camp.releaseLocks();
+    assert.equal(W.createWatcher({ ...opts, lockId: 'after' }).covered, null, 'a released campaign lock covers nothing');
+    // A lock whose holder died is taken again.
+    const survivor = W.createWatcher({ ...opts, lockId: 'survivor' });
+    writeFileSync(W.lockFileOf(W.journalPath(root, SLUG), lockDir), JSON.stringify({ id: 'dead', pid: 999999999, kind: 'slug' }));
+    assert.equal(survivor.checkLocks(), null);
+    assert.equal(JSON.parse(readFileSync(W.lockFileOf(W.journalPath(root, SLUG), lockDir), 'utf8')).id, 'survivor');
+  } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
+});
+
+test('F5: the CLI says watch-covered once and exits when a live campaign watch reads the journal', () => {
+  const root = makeRepo();
+  const lockDir = tmpDir('locks');
+  try {
+    writeFileSync(W.lockFileOf(W.journalPath(root, SLUG), lockDir), JSON.stringify({ id: 'camp', pid: process.pid, kind: 'campaign', campaign: B }));
+    const stdout = execFileSync(process.execPath, [SCRIPT, root, SLUG], { encoding: 'utf8', env: { ...process.env, SDLC_WATCH_LOCK_DIR: lockDir } });
+    const lines = stdout.trim().split('\n').map((l) => JSON.parse(l));
+    assert.deepEqual(lines.map((l) => `${l.event}:${l.campaign}`), [`watch-covered:${B}`]);
+  } finally { for (const d of [root, lockDir]) rmSync(d, { recursive: true, force: true }); }
+});
