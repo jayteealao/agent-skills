@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.183.0] - 2026-10-08
+
+### Fixed
+
+- **The campaign watch sees the drives in worktrees.** Every 20 seconds, the watch reads the campaign ledger and follows each unit of a live wave to where its drive writes: the journal, the commits on the slug branch, and the protected files in the unit's worktree. Before, the watch read only the main checkout, so a drive in a worktree gave it no event. A unit that a later wave adds is watched from that moment. A drive in a campaign no longer starts a watch of its own, so one watch replaces three.
+- **A hung agent raises `stale`.** The watch now reads the running agent's own transcript, which grows at each tool call. When it is silent for 15 minutes, the agent hangs, and `stale` says `signal: transcript`. The journal could not tell a hang from a long agent: an implement agent runs 52 minutes at the median and 211 minutes at the 95th percentile. When no transcript is found, the journal rule applies as before (`signal: journal`).
+- **A restart no longer hides a silence.** The Monitor tool stops a watch after 30 minutes, and each restart reset the silence count, so a run with gaps longer than 30 minutes could never be stale. A restart now keeps the first watch's start while the run is live.
+- **No event comes twice.** A newer watch takes over the journals of an older one, which says `watch-replaced` and exits. A slug watch under a live campaign watch says `watch-covered` and exits.
+
+### Added
+
+- **The watch writes the record of stage starts and commits.** Each `stage-start` and `commit` event also adds one line to `commentary.md` (and to the campaign commentary in a campaign), so the record is complete even when the session skips a note. The events still reach the session as before.
+- **Campaign notices.** The first wave start sends one push notification, and when Remote Control is off, the session says that phone notifications need `/rc`. When the budget holds units back, the session names them and says why.
+
 ## [9.182.0] - 2026-10-08
 
 ### Added
