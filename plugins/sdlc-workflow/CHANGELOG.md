@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.184.0] - 2026-10-10
+
+### Added
+
+- **Units of one wave can need each other.** A packet can name `needs`: a slice of another build unit that it needs before one of its own slices. The two units run in the same wave. At the wave start, the script writes each need as a wait into the ledger and into section 7 of the unit's context file. The drive stops at plan or implement before the slice that waits, and the unit is `waiting`. When the needed slice passed verify, `status` returns `merge-in`, and `campaign.mjs merge-in <key> <from>` merges that branch in with rerere on. Prepare proposes a `needs` entry when a slice doc names what another unit of the wave builds. Before, the coordinator wrote these merge gates as prose in `steer.md`.
+- **`steer`, `rule`, `away`, `decided`, `back` and `recap`.** `steer <key|wave-n|all> add|replace|remove|list` writes every copy of a steering file at once, and the script writes the time. `steer all` writes one campaign steering file that every drive reads beside its own. `rule` keeps the person's standing rules in the ledger, and every `status` prints them, so a compaction does not lose them. `away` records that the person left, `decided` records each answer taken for the person, and `back` returns a recap with the intent-bearing answers first. Away mode never pushes, merges, tags, releases or deletes.
+- **Timed checks on a quiet machine.** Verify can defer a timed check with `kind: quiet-window` when other drives loaded the machine. The boundary runs these checks alone, before the merges, and a failed check makes the unit `needs-fix`. A drive holds the new quiet lock (`lock quiet acquire`) for `quiet-suites`, and no heavy suite runs meanwhile.
+- **Folders outside the worktree.** With `campaign.isolation.outside-root`, each unit gets one outside folder for a second build folder or another checkout. `worktree remove` deletes it, and keeps it when it holds a link. The disk check at `worktree add` estimates the need from the sizes of the units removed earlier.
+- **Merge order at the boundary.** `merge-order <n>` gives the boundary order from the merge-ins. A unit that another unit carries at its tip is not merged again, and rerere replays a conflict that `merge-in` resolved.
+- **The plugin version during a campaign.** `status` reports a newer installed sdlc-workflow as `pluginUpdate`, and each wave records the version that ran it.
+
+### Changed
+
+- **Shorter worktree paths on Windows.** `campaign.isolation.worktree-root` moves the worktrees out of the repo, the run stamp in the path is 6 characters, and `worktree add` refuses a path that would pass 260 characters with the deepest build path (`build-depth`, default 140).
+
 ## [9.183.0] - 2026-10-08
 
 ### Fixed
