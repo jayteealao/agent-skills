@@ -22,12 +22,19 @@
  *   journal  <root> <brainstorm> <event> [<json>] append a campaign journal line (the watch reads it)
  *   forecast <root> <brainstorm> [--wave n --minutes m --tokens t]
  *   worktree <root> <brainstorm> <key|wave-<n>> <add|refresh|sync|remove>   (13; local records)
+ *   lock     <root> <brainstorm> [quiet] <acquire|release> <slug>  the heavy-suite lock, or the quiet lease (C4)
+ *   merge-in <root> <brainstorm> <key> <from>     merge a needed unit into a waiting unit (WF-CAMPAIGN-RUN-FIXES-PLAN N6)
+ *   merge-order <root> <brainstorm> <n>           the boundary merge order from the merge-ins (C7)
+ *   steer    <root> <brainstorm> <key|wave-<n>|all> <add|replace|remove|list> [--text t] [--match m] [--by who]   (C2)
+ *   rule     <root> <brainstorm> <add|list|remove> [<id>] [--text t]   standing rules (C9)
+ *   away     <root> <brainstorm> --words w [--until ISO]   |   back   |   recap [--since ISO]   (C3)
+ *   decided  <root> <brainstorm> <id> --question q --answer a --why w [--options json] [--intent-bearing true] [--unit key]
  *
  * Every command prints one JSON object on stdout. The ledger (work/campaign/ledger.json)
  * is the truth; every write regenerates ledger.md beside it.
  */
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statfsSync, writeFileSync } from 'node:fs';
+import { appendFileSync, cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statfsSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,13 +44,14 @@ import {
   newestReading, portsFor, waveBase, checkCampaignSet, classifyDrift, deferUnprepared, hotfixVersion,
   isBuildUnit, newLedger, nextWaveVersion, renderContext, renderForecast, renderLedgerMd, replan, rowTokens,
   SETUP_ANSWERS, stageMinutesFromJournals, unitOf, UNIT_STATES, WAVE_STATES,
+  boundaryMergeOrder, buildRecap, closeWaits, diskNeedGb, mergeInsReady, pathBudget, pluginUpdate, shortStamp, throughCovers, waveWaits,
 } from '../lib/campaign.mjs';
 import { ignoredAtRisk, loadManifest, recordsIn, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { missingBoardFiles, needsPictures } from '../lib/design-boards.mjs';
 import { designNeeded, designSettled } from '../lib/design-lane.mjs';
 
-const USAGE = 'Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|stack> <projectRoot> <brainstorm> ...';
+const USAGE = 'Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|stack|merge-in|merge-order|steer|rule|away|back|decided|recap> <projectRoot> <brainstorm> ...';
 
 // scripts/ and dist/ both sit one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -202,6 +210,11 @@ function orient(root, b) {
   const ledger = newLedger({ brainstorm: b, revision: ws.revision, units, now: nowIso() });
   ledger.records = ignored ? 'local' : 'tracked';
   if (ignored) check.warnings.push('the repo does not track .ai/: the records stay in the main checkout. Each worktree gets a copy, and its changes come back before the worktree is removed (local records). The wave PR text and the code are still public.');
+  // C5, C6: on Windows, short paths outside the repo keep deep build paths under the limit.
+  const iso = isolationOf(cfg);
+  if (iso && process.platform === 'win32' && (!iso['outside-root'] || !iso['worktree-root'])) {
+    check.warnings.push('Windows: ask the person at setup for short absolute paths in campaign.isolation: outside-root (the folders a unit needs outside its worktree, for example C:/co) and worktree-root (for example C:/cw). Without them, a drive keeps every build folder inside its worktree, and deep build paths can pass the 260-character limit.');
+  }
   ledger['ship-plan'] = shipPlan(root);
   ledger.trunk = trunkOf(root);
   ledger['run-id'] = `${nowIso().replace(/[-:]/g, '').replace(/\.\d+/, '')}-${b}`;
@@ -278,9 +291,64 @@ function budget(root, b) {
 /**
  * Keep the worktree path short. Windows limits a path to 260 characters unless git
  * has core.longpaths, and a long worktree root pushes deep repo files past it.
- * The run stamp (the run id up to its first dash) keeps two runs apart.
+ * The run stamp (the run time in base 36) keeps two runs apart. With
+ * `campaign.isolation.worktree-root`, the worktrees live outside the repo (C6).
  */
-const worktreeRoot = (root, ledger) => join(root, '.scratch', 'cw', String(ledger['run-id'] ?? 'run').split('-')[0]);
+const worktreeRoot = (root, ledger, iso = isolationOf(configOf(root))) => join(iso?.['worktree-root'] ?? join(root, '.scratch', 'cw'), shortStamp(ledger['run-id']));
+/** C5: the root of the per-unit folders outside the worktree, or null. */
+const outsideRoot = (root, ledger, iso = isolationOf(configOf(root))) => (iso?.['outside-root'] ? join(iso['outside-root'], shortStamp(ledger['run-id'])) : null);
+/** C6: the path check runs on Windows; SDLC_CAMPAIGN_PATH_CHECK=1 turns it on elsewhere (tests). */
+const pathCheckOn = () => process.platform === 'win32' || process.env.SDLC_CAMPAIGN_PATH_CHECK === '1';
+/** The longest tracked path of the repo: a worktree checks out the same files. */
+function longestTrackedPath(root) {
+  const r = spawnSync('git', ['-C', root, 'ls-files', '-z'], { encoding: 'utf8', windowsHide: true, maxBuffer: 256 * 1024 * 1024 });
+  if (r.status !== 0) return 0;
+  return r.stdout.split('\0').reduce((m, p) => Math.max(m, p.length), 0);
+}
+
+/**
+ * C5: the size of a folder in GB, walked without following links, within a time
+ * limit. `capped` is true when the walk stopped at the limit, so the size is a floor.
+ */
+function folderGb(dir, deadline) {
+  let bytes = 0;
+  let capped = false;
+  const stack = [dir];
+  while (stack.length) {
+    if (Date.now() > deadline) { capped = true; break; }
+    const d = stack.pop();
+    let entries = [];
+    try { entries = readdirSync(d, { withFileTypes: true }); } catch { continue; }
+    for (const e of entries) {
+      const p = join(d, e.name);
+      let st;
+      try { st = lstatSync(p); } catch { continue; }
+      if (st.isSymbolicLink()) continue;
+      if (st.isDirectory()) stack.push(p);
+      else bytes += st.size;
+    }
+  }
+  return { gb: Math.round((bytes / 1024 ** 3) * 100) / 100, capped };
+}
+
+/** C5: every link (a junction or a symbolic link) under a folder; a recursive delete can follow one. */
+function linksUnder(dir, limit = 20) {
+  const found = [];
+  const stack = [dir];
+  while (stack.length && found.length < limit) {
+    const d = stack.pop();
+    let entries = [];
+    try { entries = readdirSync(d, { withFileTypes: true }); } catch { continue; }
+    for (const e of entries) {
+      const p = join(d, e.name);
+      let st;
+      try { st = lstatSync(p); } catch { continue; }
+      if (st.isSymbolicLink()) found.push(relative(dir, p));
+      else if (st.isDirectory()) stack.push(p);
+    }
+  }
+  return found;
+}
 /** git, with long paths on: a no-op off Windows. */
 const gitLong = (root, args) => spawnSync('git', ['-c', 'core.longpaths=true', '-C', root, ...args], { encoding: 'utf8', windowsHide: true });
 const commitOf = (root, ref) => {
@@ -423,8 +491,22 @@ function worktreeStep(root, b, [key, action]) {
   if (action !== 'add') {
     if (!holder.worktree) return { ok: true, removed: false, synced: false, reason: local ? 'no worktree: the drive wrote in the main checkout' : 'no worktree' };
     if (action === 'remove') {
-      const res = removeWorktree(root, b, ledger, key, holder.worktree.path);
+      // C5: measure the unit's build folders and outside folder for the disk estimate, before git deletes them.
+      const wt = holder.worktree;
+      let size = null;
+      if (!w) {
+        const deadline = Date.now() + 60_000;
+        const dirs = [...(isolationOf(configOf(root))?.['build-dirs'] ?? []).map((d) => join(wt.path, d)), ...(wt.outside ? [wt.outside] : [])].filter((d) => existsSync(d));
+        size = dirs.reduce((acc, d) => { const s = folderGb(d, deadline); return { gb: acc.gb + s.gb, capped: acc.capped || s.capped }; }, { gb: 0, capped: false });
+      }
+      const res = removeWorktree(root, b, ledger, key, wt.path);
       if (res.ok) {
+        if (size && size.gb > 0) (ledger['disk-history'] ??= []).push({ key, gb: Math.round(size.gb * 100) / 100, capped: size.capped, at: nowIso() });
+        if (wt.outside && existsSync(wt.outside)) {
+          const links = linksUnder(wt.outside);
+          if (links.length) res.outsideKept = { path: wt.outside, links, reason: 'the outside folder holds links, and a recursive delete can follow a link into the folder it points to. Ask the person.' };
+          else { rmSync(wt.outside, { recursive: true, force: true }); res.outsideRemoved = wt.outside; }
+        }
         delete holder.worktree;
         saveLedger(root, b, ledger);
       }
@@ -450,13 +532,24 @@ function worktreeStep(root, b, [key, action]) {
   const uw = ledger.waves.find((x) => x.n === u.wave);
   if (!uw || uw.state !== 'running' || !uw.branch) throw new Error(`worktree: wave ${u.wave} of ${key} is not running`);
   if (u.worktree && existsSync(u.worktree.path)) return { ok: true, ...u.worktree, reused: true, ...(local ? { records: syncIn(root, b, key, u.worktree.path, slugs) } : {}) };
-  const base = worktreeRoot(root, ledger);
-  mkdirSync(base, { recursive: true });
-  const freeGb = statfsSync(base).bavail * statfsSync(base).bsize / 1024 ** 3;
-  if (freeGb < iso['min-free-gb']) return { ok: false, wait: true, error: `${freeGb.toFixed(1)} GB free, below min-free-gb ${iso['min-free-gb']}: wait until a merged slug's worktree is removed` };
+  const base = worktreeRoot(root, ledger, iso);
   const index = [...uw.units].sort((a, c) => (ledger.units[a].order ?? 0) - (ledger.units[c].order ?? 0)).indexOf(key);
   const branch = `campaign/${b}/wave-${uw.n}--${u.slug}`;
   const path = join(base, `w${uw.n}-${index + 1}`);
+  // C6: on Windows, the deepest path a build can make must stay under the limit that the linker keeps.
+  if (pathCheckOn()) {
+    const pb = pathBudget({ worktree: path, longestTracked: longestTrackedPath(root), buildDepth: iso['build-depth'] });
+    if (!pb.ok) return { ok: false, pathTooLong: pb, error: `the worktree path ${path} leaves too little room: ${pb.total} characters with the deepest build path, against the Windows limit of ${pb.limit}. Set campaign.isolation.worktree-root in .ai/sdlc-config.json to a short absolute path (for example C:/cw), then add again.` };
+  }
+  mkdirSync(base, { recursive: true });
+  const freeGb = statfsSync(base).bavail * statfsSync(base).bsize / 1024 ** 3;
+  // C5: the space for every unit of the wave that still needs a worktree, from the sizes of earlier units.
+  const toStart = uw.units.filter((k) => !ledger.units[k]?.worktree && ['prepared', 'running'].includes(ledger.units[k]?.state)).length || 1;
+  const need = diskNeedGb({ history: ledger['disk-history'] ?? [], toStart, minFreeGb: iso['min-free-gb'] });
+  if (freeGb < need.needGb) {
+    const why = need.from === 'history' ? `${toStart} unit(s) to start at up to ${need.perUnitGb} GB each (from earlier units), plus min-free-gb ${iso['min-free-gb']}` : `min-free-gb ${iso['min-free-gb']}`;
+    return { ok: false, wait: true, freeGb: Math.round(freeGb * 10) / 10, need, error: `${freeGb.toFixed(1)} GB free, below the ${need.needGb} GB needed (${why}): wait until a merged slug's worktree is removed` };
+  }
   // A branch left by an earlier attempt of this wave is reused: it holds the slug's commits, if any.
   // A branch that does not contain the wave tip comes from another run; the person decides.
   const had = commitOf(root, `refs/heads/${branch}`);
@@ -470,6 +563,12 @@ function worktreeStep(root, b, [key, action]) {
     return { ok: false, error: `git worktree add failed: ${(r.stderr || '').trim()}` };
   }
   u.worktree = { path, branch, index, ports: portsFor(iso, index) };
+  // C5: the unit's own folder outside the worktree, for a second build folder or another commit's checkout.
+  const outBase = outsideRoot(root, ledger, iso);
+  if (outBase) {
+    u.worktree.outside = join(outBase, `w${uw.n}-${index + 1}`);
+    mkdirSync(u.worktree.outside, { recursive: true });
+  }
   saveLedger(root, b, ledger);
   let records = null;
   if (local) records = syncIn(root, b, key, path, slugs);
@@ -485,18 +584,34 @@ function worktreeStep(root, b, [key, action]) {
 
 const LOCK_STALE_MS = 3 * 60 * 60 * 1000;
 
-/** 13: the heavy-suite lock. One holder at a time; a lock older than 3 hours is stale. */
-function lock(root, b, [action, holder]) {
+const lockFileOf = (root, kind) => join(root, '.scratch', 'campaign', `${kind}.lock`);
+/** A lock file whose holder is not `holder` and is younger than 3 hours, or null. */
+function otherHolder(file, holder) {
+  const cur = readJson(file);
+  return cur && cur.holder !== holder && Date.now() - Date.parse(cur.at) < LOCK_STALE_MS ? cur : null;
+}
+
+/**
+ * 13: the heavy-suite lock. One holder at a time; a lock older than 3 hours is stale.
+ * C4: `lock quiet acquire|release <slug>` is the quiet lease. It waits until no other
+ * unit holds the heavy lock, and while it is held, no other unit gets the heavy lock.
+ */
+function lock(root, b, args) {
+  const quiet = args[0] === 'quiet';
+  const [action, holder] = quiet ? args.slice(1) : args;
   if (!holder) throw new Error('lock: give the holder (the slug)');
-  const file = join(root, '.scratch', 'campaign', 'heavy.lock');
+  const file = lockFileOf(root, quiet ? 'quiet' : 'heavy');
   mkdirSync(join(file, '..'), { recursive: true });
   const cur = readJson(file);
   if (action === 'release') {
     if (!cur || cur.holder !== holder) return { ok: true, released: false, holder: cur?.holder ?? null };
     rmSync(file, { force: true });
-    return { ok: true, released: true };
+    return { ok: true, released: true, ...(quiet ? { quiet: true } : {}) };
   }
-  if (action !== 'acquire') throw new Error('lock: the action is acquire or release');
+  if (action !== 'acquire') throw new Error('lock: the action is acquire or release (lock quiet acquire|release for the quiet lease)');
+  // C4: the two locks exclude each other across units.
+  const blocker = otherHolder(lockFileOf(root, quiet ? 'heavy' : 'quiet'), holder);
+  if (blocker) return { ok: true, acquired: false, holder: blocker.holder, since: blocker.at, ...(quiet ? { heavy: blocker.holder } : { quiet: blocker.holder }) };
   if (cur && cur.holder !== holder && Date.now() - Date.parse(cur.at) < LOCK_STALE_MS) return { ok: true, acquired: false, holder: cur.holder, since: cur.at };
   if (!cur || cur.holder !== holder) {
     try {
@@ -527,7 +642,152 @@ function status(root, b) {
   const ledger = loadLedger(root, b);
   const ws = readWorkSet(root, b);
   const revision = ws.error ? null : ws.revision;
-  return { ok: true, next: campaignAction(ledger, { revision }), revision, ledger: ledger ? { waves: ledger.waves.map((w) => ({ n: w.n, state: w.state, units: w.units, moved: w.moved })), waiting: ledger.waiting, pause: ledger.pause } : null };
+  const mergeReady = ledger ? mergeInsReady(ledger, waitProgress(root, ledger)) : [];
+  const update = pluginUpdate(runningPluginVersion(), installedPluginVersion(root));
+  return {
+    ok: true,
+    next: campaignAction(ledger, { revision, mergeReady }),
+    revision,
+    // C9: the person's standing rules, in every status result, so that a compaction cannot lose them.
+    rules: ledger?.rules ?? [],
+    presence: ledger?.presence ?? { state: 'present' },
+    ...(update ? { pluginUpdate: update } : {}),
+    ledger: ledger ? {
+      waves: ledger.waves.map((w) => ({ n: w.n, state: w.state, units: w.units, moved: w.moved })),
+      waiting: ledger.waiting,
+      pause: ledger.pause,
+      units: Object.fromEntries(Object.entries(ledger.units).filter(([, u]) => u.wave && ledger.waves.find((x) => x.n === u.wave && x.state === 'running')).map(([k, u]) => [k, { state: u.state, route: u.route ?? null, openWaits: (u.waits ?? []).filter((x) => x.state === 'open').map((x) => ({ from: x.from, through: x.through, before: x.before })) }])),
+    } : null,
+  };
+}
+
+// ---------------------------------------------------------------- waits and merge-in (WF-CAMPAIGN-RUN-FIXES-PLAN 3.1)
+
+/** The folder of a unit's workflow: in its worktree when it has one. */
+const unitWorkflowDir = (root, u) => join(u.worktree?.path ?? root, '.ai', 'workflows', u.slug);
+
+/**
+ * How far a unit got: its slice list, the slices whose verify passed (`pass`, or
+ * `partial` with a deferral), and whether the unit finished.
+ */
+export function unitProgress(root, u) {
+  const dir = unitWorkflowDir(root, u);
+  const index = existsSync(join(dir, '00-index.md')) ? safeParseFrontmatter(readFileSync(join(dir, '00-index.md'), 'utf8')).data ?? {} : {};
+  const order = (Array.isArray(index.slices) ? index.slices : []).map((s) => (typeof s === 'string' ? s : s?.slug ?? s?.slice)).filter(Boolean);
+  const passed = order.filter((s) => {
+    const f = join(dir, `06-verify-${s}.md`);
+    if (!existsSync(f)) return false;
+    const fm = safeParseFrontmatter(readFileSync(f, 'utf8')).data ?? {};
+    return ['pass', 'partial'].includes(String(fm.result ?? ''));
+  });
+  return { order, passed, finished: ['finished', 'merged', 'shipped'].includes(u.state) };
+}
+
+/** The progress of every unit that an open wait names. */
+function waitProgress(root, ledger) {
+  const from = new Set(Object.values(ledger.units).flatMap((u) => (u.waits ?? []).filter((w) => w.state === 'open').map((w) => w.from)));
+  return Object.fromEntries([...from].filter((k) => ledger.units[k]).map((k) => [k, unitProgress(root, ledger.units[k])]));
+}
+
+const unitBranch = (b, u) => u.worktree?.branch ?? (u.wave ? `campaign/${b}/wave-${u.wave}--${u.slug}` : null);
+
+/**
+ * N6: merge the slug branch of `from` into the branch of `key`, while the drive of
+ * `key` is stopped. On a conflict, the merge is aborted and the files are listed.
+ */
+function mergeIn(root, b, [key, from]) {
+  const ledger = requireLedger(root, b);
+  const u = ledger.units[key];
+  const f = ledger.units[from];
+  if (!u) throw new Error(`merge-in: ${key} is not a build unit of this campaign`);
+  if (!f) throw new Error(`merge-in: ${from} is not a build unit of this campaign`);
+  if (u.state === 'running') return { ok: false, error: `the drive of ${key} runs. Merge only while it is stopped (D5): wait for its wait stop, or stop it first.` };
+  const open = (u.waits ?? []).filter((w) => w.state === 'open' && w.from === from);
+  if (!open.length) return { ok: false, error: `${key} has no open wait on ${from}` };
+  const p = unitProgress(root, f);
+  const reached = p.finished ? 'finished' : [...p.passed].sort((x, y) => p.order.indexOf(y) - p.order.indexOf(x))[0];
+  if (!reached || !open.some((w) => throughCovers(reached, w.through, p.order))) {
+    return { ok: false, error: `${from} has not passed verify for what ${key} needs (${open.map((w) => w.through).join(', ')}); it reached ${reached ?? 'no passed slice'}` };
+  }
+  const fromBranch = unitBranch(b, f);
+  if (!fromBranch || !commitOf(root, `refs/heads/${fromBranch}`)) return { ok: false, error: `the branch of ${from} (${fromBranch ?? 'unknown'}) does not exist` };
+  let dir = u.worktree?.path ?? null;
+  if (!dir) {
+    const want = unitBranch(b, u);
+    if (git(root, ['branch', '--show-current']) !== want) return { ok: false, error: `${key} has no worktree, and the main checkout is not on its branch ${want}. Check that branch out, or give the campaign an isolation contract.` };
+    dir = root;
+  }
+  const dirty = spawnSync('git', ['-C', dir, 'status', '--porcelain', '--untracked-files=no'], { encoding: 'utf8', windowsHide: true });
+  if (dirty.status !== 0 || dirty.stdout.trim()) return { ok: false, error: `the checkout of ${key} has uncommitted changes, so a merge could mix with them. Ask the person.`, dirty: dirty.stdout.trim().split(/\r?\n/).filter(Boolean) };
+  // C7: rerere records the resolution of a conflict here, so the boundary replays it. The setting is in the repo's common config, which every worktree shares.
+  spawnSync('git', ['-C', dir, 'config', 'rerere.enabled', 'true'], { windowsHide: true });
+  const fromSha = commitOf(root, `refs/heads/${fromBranch}`);
+  const m = spawnSync('git', ['-C', dir, 'merge', '--no-ff', '--no-edit', fromBranch], { encoding: 'utf8', windowsHide: true });
+  if (m.status !== 0) {
+    const files = (git(dir, ['diff', '--name-only', '--diff-filter=U']) ?? '').split(/\r?\n/).filter(Boolean);
+    spawnSync('git', ['-C', dir, 'merge', '--abort'], { windowsHide: true });
+    appendJournal(root, b, 'merge-in', { key, from, through: reached, result: 'conflict', files });
+    return { ok: false, conflict: files, error: `merging ${from} into ${key} conflicts in ${files.length} file(s). The merge is aborted. Ask the person, or run the boundary's merge rules on this one merge (_boundary.md "Merge"), then run merge-in again.` };
+  }
+  const at = nowIso();
+  const head = commitOf(dir, 'HEAD');
+  (u['merged-in'] ??= []).push({ from, through: reached, sha: fromSha, merge: head, at });
+  const closed = closeWaits(u.waits, { from, through: reached, order: p.order, at });
+  if (u.state === 'waiting') { u.state = 'prepared'; u.route = null; }
+  saveLedger(root, b, ledger);
+  appendJournal(root, b, 'merge-in', { key, from, through: reached, sha: fromSha, merge: head, closed: closed.length });
+  const ctx = context(root, b, [key]);
+  return { ok: true, key, from, through: reached, merge: head, closed: closed.map((w) => `${w.from} through ${w.through}`), stillOpen: (u.waits ?? []).filter((w) => w.state === 'open').map((w) => `${w.from} through ${w.through}`), state: u.state, context: ctx.path ?? null, rerere: 'enabled' };
+}
+
+/** C4: the open quiet-window deferrals of a unit: timed checks that the boundary runs alone. */
+function quietDeferrals(root, u) {
+  const idx = join(unitWorkflowDir(root, u), '00-index.md');
+  if (!existsSync(idx)) return [];
+  const list = safeParseFrontmatter(readFileSync(idx, 'utf8')).data?.['runtime-evidence-deferrals'];
+  return (Array.isArray(list) ? list : [])
+    .filter((d) => d && d.kind === 'quiet-window' && !d['cleared-by'])
+    .map((d) => ({ slice: d.slice ?? null, command: d['quiet-command'] ?? null, limit: d.limit ?? null, reason: d.reason ?? '' }));
+}
+
+/** C7: the boundary merge order of wave n, from each finished unit's merge-ins and branch tip. */
+function mergeOrder(root, b, [nText]) {
+  const ledger = requireLedger(root, b);
+  const w = ledger.waves.find((x) => x.n === Number(nText));
+  if (!w) throw new Error(`merge-order: no wave ${nText}`);
+  const finished = w.units.filter((k) => ledger.units[k]?.state === 'finished');
+  const units = finished.map((k) => {
+    const u = ledger.units[k];
+    const branch = unitBranch(b, u);
+    return { key: k, slug: u.slug, branch, worktree: u.worktree?.path ?? null, tip: branch ? commitOf(root, `refs/heads/${branch}`) : null, mergedIn: (u['merged-in'] ?? []).map((m) => ({ from: m.from, sha: m.sha })), quiet: quietDeferrals(root, u) };
+  });
+  const { order, through } = boundaryMergeOrder(units);
+  // `units` is the boundary driver's argument: the merge order first, then each carried unit with `through`.
+  const boundaryUnits = [...order.map((k) => units.find((x) => x.key === k)), ...Object.entries(through).map(([k, by]) => ({ ...units.find((x) => x.key === k), through: by }))];
+  return { ok: true, wave: w.n, order, through, units: boundaryUnits, carried: Object.entries(through).map(([k, by]) => ({ key: k, slug: ledger.units[k].slug, through: by })), quiet: units.filter((x) => x.quiet.length).map((x) => ({ key: x.key, checks: x.quiet.length })) };
+}
+
+// ---------------------------------------------------------------- the plugin version (3.8)
+
+/** The version of the plugin that runs this script. */
+function runningPluginVersion() {
+  return readJson(join(PLUGIN_ROOT, '.claude-plugin', 'plugin.json'))?.version ?? readJson(join(PLUGIN_ROOT, 'package.json'))?.version ?? null;
+}
+
+/** The newest installed sdlc-workflow for this project, from Claude Code's install record. */
+function installedPluginVersion(root) {
+  const file = process.env.SDLC_INSTALLED_PLUGINS || join(homedir(), '.claude', 'plugins', 'installed_plugins.json');
+  const rec = readJson(file);
+  const plugins = rec?.plugins ?? {};
+  let best = null;
+  for (const [name, entries] of Object.entries(plugins)) {
+    if (!/^sdlc-workflow@/.test(name) || !Array.isArray(entries)) continue;
+    for (const e of entries) {
+      if (e?.scope !== 'user' && !(e?.projectPath && resolve(e.projectPath) === resolve(root))) continue;
+      if (e?.version && (!best || pluginUpdate(best, e.version))) best = e.version;
+    }
+  }
+  return best;
 }
 
 function doReplan(root, b) {
@@ -600,6 +860,8 @@ function unit(root, b, [key, state], f) {
   }
   u.state = state;
   for (const k of ['route', 'reason', 'merge', 'output']) if (f[k] !== undefined) u[k] = f[k];
+  // N5: `unit <key> waiting --on <from>:<through>` records what the drive waits for.
+  if (state === 'waiting') u.route = `waits for ${f.on ?? (u.waits ?? []).filter((w) => w.state === 'open').map((w) => `${w.from}: ${w.through}`).join(', ')}`;
   // The yolo outcome's decision digest, kept for the as-built note (11.1).
   if (f.digest !== undefined) { try { u.digest = JSON.parse(f.digest); } catch { u.digest = f.digest; } }
   saveLedger(root, b, ledger);
@@ -643,12 +905,21 @@ function wave(root, b, [nText, action, state], f) {
     w.branch = `campaign/${b}/wave-${n}`;
     w.base = trunk;
     w['started-at'] = nowIso();
+    // C8: the plugin version that runs this wave, for the retro.
+    w['plugin-version'] = runningPluginVersion();
     for (const k of start) { ledger.units[k].state = 'prepared'; ledger.units[k].wave = n; }
+    // N3: the needs on another unit of this wave become open waits.
+    const waits = waveWaits(units, start);
+    for (const k of start) {
+      if (waits[k]) ledger.units[k].waits = waits[k];
+      else delete ledger.units[k].waits;
+      ledger.units[k]['merged-in'] = [];
+    }
     // The moved units go back to planning: they enter the earliest later wave their dependencies allow.
     if (moved.length) replan(ledger, units, { revision: ledger['work-revision'], now: nowIso() });
     saveLedger(root, b, ledger);
-    appendJournal(root, b, 'wave-start', { wave: n, branch: w.branch, base: trunk, units: start, slugs: start.map((k) => ledger.units[k].slug), moved });
-    return { ok: true, wave: n, branch: w.branch, base: trunk, units: start.map((k) => ({ key: k, slug: ledger.units[k].slug })), moved };
+    appendJournal(root, b, 'wave-start', { wave: n, branch: w.branch, base: trunk, units: start, slugs: start.map((k) => ledger.units[k].slug), moved, ...(Object.keys(waits).length ? { waits } : {}) });
+    return { ok: true, wave: n, branch: w.branch, base: trunk, units: start.map((k) => ({ key: k, slug: ledger.units[k].slug, ...(waits[k] ? { waits: waits[k].map((x) => `${x.from} through ${x.through} before ${x.before ?? 'the first slice'}`) } : {}) })), moved };
   }
   if (action === 'set') {
     if (!WAVE_STATES.includes(state)) throw new Error(`wave set: the state is one of ${WAVE_STATES.join(', ')}`);
@@ -729,7 +1000,7 @@ function context(root, b, [key]) {
   const wt = ledger.units[key]?.worktree;
   const iso = wt ? isolationOf(readJson(join(root, '.ai', 'sdlc-config.json')) ?? {}) : null;
   const isolation = wt && iso
-    ? isolationText(iso, { index: wt.index, worktree: wt.path, slug: u.slug, lockCmd: `node "${join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'campaign.mjs')}" lock "${root}" ${b}` })
+    ? isolationText(iso, { index: wt.index, worktree: wt.path, slug: u.slug, outside: wt.outside ?? null, lockCmd: `node "${join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'campaign.mjs')}" lock "${root}" ${b}` })
     : null;
   const text = renderContext({ unit: u, units, ledger, asBuilt: asBuiltNotes(root, b), drift, isolation, localRecords: isLocal(ledger) });
   const file = join(campDir(root, b), 'context', `${u.slug}.md`);
@@ -812,6 +1083,178 @@ function forecast(root, b, f) {
   return { ok: true, forecast: ledger.forecast };
 }
 
+// ---------------------------------------------------------------- steering (WF-CAMPAIGN-RUN-FIXES-PLAN 3.2)
+
+const STEER_HEAD = '# Standing steering\n';
+export const campaignSteerPath = (root, b) => join(campDir(root, b), 'steer.md');
+
+/** The files that a steer target names: each unit's steer.md in the main checkout and in its worktree, or the campaign file. */
+function steerFiles(root, b, ledger, target) {
+  if (target === 'all') return [{ target: 'campaign', path: campaignSteerPath(root, b) }];
+  const waveN = /^wave-(\d+)$/.exec(target ?? '')?.[1];
+  const keys = waveN ? (ledger.waves.find((x) => x.n === Number(waveN))?.units ?? null) : [target];
+  if (!keys) throw new Error(`steer: no wave ${waveN}`);
+  const files = [];
+  for (const k of keys) {
+    const u = ledger.units[k];
+    if (!u) throw new Error(`steer: ${k} is not a build unit of this campaign; the target is a packet key, wave-<n>, or all`);
+    files.push({ target: k, path: join(root, '.ai', 'workflows', u.slug, 'steer.md') });
+    if (u.worktree?.path) files.push({ target: k, path: join(u.worktree.path, '.ai', 'workflows', u.slug, 'steer.md') });
+  }
+  return files;
+}
+
+/** The top-level entries of a steer file: each `- ` line with the indented lines under it. */
+function steerEntries(text) {
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  const entries = [];
+  let cur = null;
+  lines.forEach((l, i) => {
+    if (/^- /.test(l)) { cur = { start: i, end: i, text: l }; entries.push(cur); }
+    else if (cur && (/^\s+\S/.test(l) || (l === '' && /^\s+\S/.test(lines[i + 1] ?? '')))) { cur.end = i; cur.text += `\n${l}`; }
+    else cur = null;
+  });
+  return { lines, entries };
+}
+
+/**
+ * C2: `steer <key|wave-<n>|all> add|replace|remove|list`. The script stamps the time
+ * (D2). Every copy must agree before anything is written: a `--match` that finds
+ * zero entries, or more than one, in any copy is an error.
+ */
+function steer(root, b, [target, action], f) {
+  const ledger = requireLedger(root, b);
+  if (!target) throw new Error('steer: give the target: a packet key, wave-<n>, or all');
+  const files = steerFiles(root, b, ledger, target);
+  const by = f.by ?? 'the person';
+  const at = nowIso();
+  const entry = (text) => `- ${String(text).trim()} (${by}, ${at})`;
+  const read = (p) => (existsSync(p) ? readFileSync(p, 'utf8') : STEER_HEAD);
+  if (action === 'list') {
+    const copies = files.map((x) => ({ ...x, exists: existsSync(x.path), entries: steerEntries(read(x.path)).entries.map((e) => e.text) }));
+    const differs = [];
+    for (const c of copies) {
+      const main = copies.find((x) => x.target === c.target);
+      if (c !== main && JSON.stringify(c.entries) !== JSON.stringify(main.entries)) differs.push(c.path);
+    }
+    return { ok: true, copies, differs };
+  }
+  if (!['add', 'replace', 'remove'].includes(action)) throw new Error('steer: the action is add, replace, remove or list');
+  if (action !== 'remove' && !String(f.text ?? '').trim()) throw new Error(`steer ${action}: give --text "<the entry>"`);
+  if (action !== 'add' && !String(f.match ?? '').trim()) throw new Error(`steer ${action}: give --match "<text of the entry>"`);
+  const plans = files.map((x) => {
+    const text = read(x.path);
+    if (action === 'add') return { ...x, next: `${text.replace(/\s*$/, '')}\n\n${entry(f.text)}\n` };
+    const { lines, entries } = steerEntries(text);
+    const hits = entries.filter((e) => e.text.toLowerCase().includes(String(f.match).toLowerCase()));
+    if (hits.length !== 1) return { ...x, error: `${hits.length} entries match "${f.match}" in ${x.path}` };
+    const h = hits[0];
+    const repl = action === 'replace' ? [entry(f.text)] : [];
+    return { ...x, next: [...lines.slice(0, h.start), ...repl, ...lines.slice(h.end + 1)].join('\n').replace(/\n{3,}/g, '\n\n') };
+  });
+  const bad = plans.filter((x) => x.error);
+  if (bad.length) return { ok: false, error: `steer ${action}: nothing written. ${bad.map((x) => x.error).join('; ')}` };
+  for (const x of plans) writeAtomic(x.path, x.next);
+  appendJournal(root, b, 'steer', { target, action, by, files: plans.length });
+  return { ok: true, target, action, at, written: plans.map((x) => x.path) };
+}
+
+// ---------------------------------------------------------------- standing rules (3.9)
+
+/** C9: `rule add --text`, `rule list`, `rule remove <id>`. The rules live in the ledger, and status prints them. */
+function rule(root, b, [action, id], f) {
+  const ledger = requireLedger(root, b);
+  ledger.rules ??= [];
+  if (action === 'list') return { ok: true, rules: ledger.rules };
+  if (action === 'add') {
+    if (!String(f.text ?? '').trim()) throw new Error('rule add: give --text "<the rule>"');
+    const n = ledger.rules.reduce((m, r) => Math.max(m, Number(String(r.id).replace(/^R/, '')) || 0), 0) + 1;
+    const r = { id: `R${n}`, text: String(f.text).trim(), by: f.by ?? 'the person', at: nowIso() };
+    ledger.rules.push(r);
+    saveLedger(root, b, ledger);
+    appendJournal(root, b, 'rule', { action, id: r.id });
+    return { ok: true, rule: r, rules: ledger.rules };
+  }
+  if (action === 'remove') {
+    const i = ledger.rules.findIndex((r) => r.id === id);
+    if (i < 0) throw new Error(`rule remove: no rule ${id}`);
+    const [r] = ledger.rules.splice(i, 1);
+    saveLedger(root, b, ledger);
+    appendJournal(root, b, 'rule', { action, id });
+    return { ok: true, removed: r, rules: ledger.rules };
+  }
+  throw new Error('rule: the action is add, list or remove');
+}
+
+// ---------------------------------------------------------------- away mode and the recap (3.3)
+
+/** D3: what away mode never does. The script prints it with every away and decided. */
+export const AWAY_LIMITS = Object.freeze([
+  'Never push, open a PR, merge into the trunk, tag, release or delete anything.',
+  'Never answer a question of the classes shared-env, external-party or irreversible: these wait for the person.',
+  'Answer an intent-bearing stop only when the person\'s away words cover escalations (D4); record it with decided --intent-bearing true.',
+]);
+
+function away(root, b, f) {
+  const ledger = requireLedger(root, b);
+  if (!String(f.words ?? '').trim()) throw new Error('away: give --words "<the person\'s words>"');
+  if (f.until && !Number.isFinite(Date.parse(f.until))) throw new Error('away: --until is an ISO 8601 time');
+  ledger.presence = { state: 'away', since: nowIso(), words: String(f.words).trim(), ...(f.until ? { until: new Date(Date.parse(f.until)).toISOString() } : {}) };
+  saveLedger(root, b, ledger);
+  appendJournal(root, b, 'away', { words: ledger.presence.words });
+  return { ok: true, presence: ledger.presence, limits: AWAY_LIMITS };
+}
+
+const decidedPath = (root, b) => join(campDir(root, b), 'decided-for-you.md');
+
+function decided(root, b, [id], f) {
+  const ledger = requireLedger(root, b);
+  if (!id) throw new Error('decided: give an id');
+  for (const k of ['question', 'answer', 'why']) if (!String(f[k] ?? '').trim()) throw new Error(`decided: give --${k}`);
+  let options = null;
+  if (f.options) { try { options = JSON.parse(f.options); } catch { options = f.options; } }
+  const d = {
+    id, at: nowIso(), question: f.question, ...(options ? { options } : {}), answer: f.answer, why: f.why,
+    ...(f['intent-bearing'] === 'true' ? { 'intent-bearing': true } : {}),
+    ...(f.unit ? { unit: f.unit } : {}),
+    presence: ledger.presence?.state ?? 'present',
+  };
+  (ledger.decided ??= []).push(d);
+  saveLedger(root, b, ledger);
+  const file = decidedPath(root, b);
+  const head = existsSync(file) ? '' : `# Decided for the person: ${b}\n\nThe campaign took these decisions while the person was away. Each one names the question, the answer, and why. The recap lists the intent-bearing ones first.\n`;
+  const opts = Array.isArray(options) ? options.map((o) => (typeof o === 'string' ? o : o?.label ?? JSON.stringify(o))).join('; ') : (options ?? '');
+  appendFileSync(file, `${head}\n## ${id} — ${d.at}${d['intent-bearing'] ? ' — intent-bearing' : ''}\n\n- Question: ${d.question}\n${opts ? `- Options: ${opts}\n` : ''}- Answer: ${d.answer}\n- Why: ${d.why}\n${d.unit ? `- Unit: ${d.unit}\n` : ''}`);
+  appendJournal(root, b, 'decided', { id, ...(d['intent-bearing'] ? { 'intent-bearing': true } : {}) });
+  return { ok: true, decided: d, path: file, limits: AWAY_LIMITS };
+}
+
+function recapOf(root, ledger, since) {
+  const journals = {};
+  for (const [k, u] of Object.entries(ledger.units)) {
+    const j = readJsonl(join(unitWorkflowDir(root, u), '.driver-journal.jsonl'));
+    if (j.length) journals[k] = j;
+  }
+  return buildRecap({ ledger, since, journals, campaign: readJsonl(journalPath(root, ledger.brainstorm)), now: nowIso() });
+}
+
+function recap(root, b, f) {
+  const ledger = requireLedger(root, b);
+  if (f.since && !Number.isFinite(Date.parse(f.since))) throw new Error('recap: --since is an ISO 8601 time');
+  // The default is the start of the current away, or of the last one.
+  const since = f.since ? new Date(Date.parse(f.since)).toISOString().replace(/\.\d{3}Z$/, 'Z') : (ledger.presence?.state === 'away' ? ledger.presence.since : ledger.presence?.['last-away'] ?? null);
+  return { ok: true, recap: recapOf(root, ledger, since) };
+}
+
+function back(root, b) {
+  const ledger = requireLedger(root, b);
+  const since = ledger.presence?.state === 'away' ? ledger.presence.since : null;
+  ledger.presence = { state: 'present', since: nowIso(), ...(since ? { 'last-away': since } : {}) };
+  saveLedger(root, b, ledger);
+  appendJournal(root, b, 'back', {});
+  return { ok: true, presence: ledger.presence, recap: recapOf(root, ledger, since) };
+}
+
 export function main(argv = process.argv.slice(2)) {
   const [cmd, rootArg, b, ...rest] = argv;
   if (!cmd || !rootArg || !b) { process.stderr.write(`${USAGE}\n`); return 2; }
@@ -841,6 +1284,14 @@ export function main(argv = process.argv.slice(2)) {
       case 'worktree': out = worktree(root, b, pos); break;
       case 'lock': out = lock(root, b, pos); break;
       case 'stack': out = stack(root, b, pos); break;
+      case 'merge-in': out = mergeIn(root, b, pos); break;
+      case 'merge-order': out = mergeOrder(root, b, pos); break;
+      case 'steer': out = steer(root, b, pos, f); break;
+      case 'rule': out = rule(root, b, pos, f); break;
+      case 'away': out = away(root, b, f); break;
+      case 'back': out = back(root, b); break;
+      case 'decided': out = decided(root, b, pos, f); break;
+      case 'recap': out = recap(root, b, f); break;
       default: process.stderr.write(`${USAGE}\n`); return 2;
     }
   } catch (e) {

@@ -165,6 +165,13 @@ function checkWorkSet(board, { isIgnored = null } = {}) {
   const cycle = findDependencyCycle(pieces);
   if (cycle) errors.push(`the dependencies form a cycle: ${cycle.join(" -> ")}.`);
   for (const piece of pieces) {
+    for (const n of piece.needs ?? []) {
+      if (n.from === piece.key) errors.push(`piece ${piece.key} needs itself.`);
+      else if (!pieceKeys.has(n.from)) errors.push(`piece ${piece.key} needs ${n.from}, which is not a piece of work.`);
+      else if (!isPacketPiece(pieceKeys.get(n.from))) errors.push(`piece ${piece.key} needs ${n.from}, which gets no packet: use depends-on.`);
+    }
+  }
+  for (const piece of pieces) {
     const closure = dependencyClosure(pieces, piece.key);
     for (const line of piece.expects ?? []) {
       const source = pieceKeys.get(line.from);
@@ -280,6 +287,7 @@ function packetFrontmatter(board, piece, { revision = 1, generatedAt = null } = 
     "depends-on": piece["depends-on"] ?? [],
     provides: piece.provides ?? [],
     expects: piece.expects ?? [],
+    ...piece.needs?.length ? { needs: piece.needs.map((n) => ({ from: n.from, through: n.through ?? "finished", before: n.before ?? null, ...n.why ? { why: n.why } : {} })) } : {},
     "carried-decisions": decisions.map((i) => ({
       key: i.key,
       text: i.text,
@@ -365,7 +373,9 @@ function renderPacket(board, piece, { revision = 1, generatedAt = null, research
   lines.push("## Depends on / needed by", "");
   const after = neededBy(pieces, piece.key);
   lines.push(`- Depends on: ${deps.length ? deps.map(linkTo).join("; ") : "nothing"}.`);
-  lines.push(`- Needed by: ${after.length ? after.map((p) => linkTo(p.key)).join("; ") : "nothing"}.`, "");
+  lines.push(`- Needed by: ${after.length ? after.map((p) => linkTo(p.key)).join("; ") : "nothing"}.`);
+  for (const n of piece.needs ?? []) lines.push(`- Needs ${linkTo(n.from)} through \`${n.through ?? "finished"}\` before ${n.before ? `the slice \`${n.before}\`` : "the first slice"}${n.why ? `: ${n.why}` : ""}. The two can run in one campaign wave.`);
+  lines.push("");
   lines.push("## Left for later and cut", "");
   const leftLines = [
     ...later.map((i) => `${itemLine(i)} Left for later.`),

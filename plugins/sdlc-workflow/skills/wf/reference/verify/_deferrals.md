@@ -58,4 +58,26 @@ runtime-evidence-deferrals:
 
 **Deferral stacking is a stop, not an absorption.** When a later slice would inherit an open deferral rather than clear it, append its slug to `absorbed-by`. Absorbing a deferral into a **third** slice is a **STOP**: verify surfaces it as a decision ("foundation gap: N slices now stack on unproven `<X>` — provision the clearing event now, or PO-accept explicitly") and records the resolution in `po-answers.md`. Do not silently let the stack grow. **Re-run the ownership triage at the STOP, do not inherit the original verdict**: a wall first classified `external` under time pressure is exactly the kind that turns out `code-owned` on a second look, and a stack of three is the loudest signal that the first classification deserves re-examination. "Provision the clearing event" is the default branch, not a co-equal option; PO-accept is for walls genuinely outside the team's reach.
 
+## The quiet-window deferral (campaign only)
+
+In a campaign, several drives can share one machine. A timed check (an AC with a time limit, for example "the 10-minute run ends in 12 minutes") can then fail only because another drive loaded the CPU. Such a check is not an environment wall, and the ladder does not apply to it.
+
+When the machine load during the timed run was above the check's own limit, defer the check with `kind: quiet-window`:
+
+```yaml
+runtime-evidence-deferrals:
+  - slice: <slice-slug>
+    kind: quiet-window
+    reason: "<the measured time, the limit, and the load: for example 15.3 min against 12 min, another drive at 65-100% CPU>"
+    quiet-command: "<the exact command that runs the timed check>"
+    limit: "<the limit of the AC, for example 12 min>"
+    deferred-at: "<iso-8601>"
+    cleared-by: null
+```
+
+- Use this kind only under a campaign (the stage prompt names a campaign context file). Outside a campaign, a timed check that the load breaks is a `fail` or a normal deferral.
+- Do not defer a timed check that failed on a quiet machine. That is a `fail`.
+- The clearing event is the campaign boundary. It runs every open `quiet-window` entry of the wave alone, before the merges ([../campaign/_boundary.md](../campaign/_boundary.md), "Quiet-window checks"). A passed run sets `cleared-by`. A failed run makes the unit `needs-fix`.
+- When `campaign.isolation['quiet-suites']` lists the command, take the quiet lock first (`campaign.mjs lock quiet acquire <slug>`) and run the check in the drive. Defer only when the lock does not come.
+
 **`needed-by` escalation.** External prerequisites and deferrals carry `needed-by: <slice>` (the consuming slice, set at plan time). When the `needed-by` slice reaches `complete` while the prerequisite is still unmet (`cleared-by: null`), the deferral escalates: a completed consumer standing on an unmet prerequisite is a surfaced decision, not a quiet carry-forward. `/wf status` and `/wf ship` read this list; `/wf ship` refuses to start while any entry has `cleared-by: null`.

@@ -1972,6 +1972,7 @@
               "depends-on": { "$ref": "#/$defs/stringArray", "description": "work[].key values that must be done first. A write-now piece is done when its state is written." },
               "provides": { "type": "array", "items": { "type": "object", "required": ["key", "text"], "properties": { "key": { "$ref": "#/$defs/brainstormKey" }, "text": { "type": "string" } } } },
               "expects": { "type": "array", "items": { "type": "object", "required": ["from", "key", "text"], "properties": { "from": { "$ref": "#/$defs/brainstormKey" }, "key": { "$ref": "#/$defs/brainstormKey" }, "text": { "type": "string" } } } },
+              "needs": { "type": "array", "description": "WF-CAMPAIGN-RUN-FIXES-PLAN N1: code of another build piece that this piece needs before one of its slices. Unlike depends-on, a need lets both pieces run in one campaign wave; the campaign merges the needed piece in while this piece waits.", "items": { "type": "object", "required": ["from"], "properties": { "from": { "$ref": "#/$defs/brainstormKey" }, "through": { "type": "string", "description": "A slice of `from`, or finished (the default)." }, "before": { "type": ["string", "null"], "description": "The slice of this piece that needs it; null is the first slice." }, "why": { "type": "string" } } } },
               "size": { "enum": ["small", "medium", "large", "too-large"], "description": "Counts carried decisions: more than 25 is large, more than 40 is too-large." },
               "shared": { "$ref": "#/$defs/stringArray", "description": "Kept decision keys that this piece shares with another piece (I6)." },
               "research": { "$ref": "#/$defs/stringArray" },
@@ -2030,6 +2031,7 @@
         "depends-on": { "$ref": "#/$defs/stringArray" },
         "provides": { "type": "array", "items": { "type": "object", "required": ["key", "text"], "properties": { "key": { "type": "string" }, "text": { "type": "string" } } } },
         "expects": { "type": "array", "items": { "type": "object", "required": ["from", "key", "text"], "properties": { "from": { "type": "string" }, "key": { "type": "string" }, "text": { "type": "string" } } } },
+        "needs": { "type": "array", "description": "WF-CAMPAIGN-RUN-FIXES-PLAN N1: code of another build packet that this packet needs before one of its slices; both may share a campaign wave.", "items": { "type": "object", "required": ["from"], "properties": { "from": { "type": "string" }, "through": { "type": "string" }, "before": { "type": ["string", "null"] }, "why": { "type": "string" } } } },
         "carried-decisions": {
           "type": "array",
           "description": "Each kept decision, verbatim. Intake shows these to the person for confirmation (I1a) and never re-words them (I1).",

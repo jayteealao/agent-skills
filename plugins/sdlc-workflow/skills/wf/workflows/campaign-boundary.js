@@ -102,13 +102,21 @@ async function slugOutput(u) {
 // ---------------------------------------------------------------------------
 // mode "wave" — 9.4 steps 6-10.
 // ---------------------------------------------------------------------------
+// WF-CAMPAIGN-RUN-FIXES-PLAN C7 — the order comes from `<cmd> merge-order`. A unit
+// with `through` was merged in at its tip by another unit: its code reaches the wave
+// branch with that unit, so it is not merged on its own.
+const toMerge = units.filter(u => !u.through)
+const carried = units.filter(u => u.through)
+
 async function merge() {
   phase('Merge')
   return await agent(
     `MERGE THE FINISHED SLUGS of wave ${wave} of campaign '${brainstorm}' into the wave branch ${waveBranch}. ` +
     common('Merge') +
-    `\n\nMerge these slug branches, in this order, each with \`--no-ff\`: ` +
-    `${JSON.stringify(units.map(u => ({ key: u.key, slug: u.slug, branch: u.branch })))}.` +
+    `\n\nMerge these slug branches, in this order, each with \`git -C <checkout> -c rerere.enabled=true merge --no-ff\`, ` +
+    `so that a conflict that a campaign merge-in already resolved is replayed from rerere: ` +
+    `${JSON.stringify(toMerge.map(u => ({ key: u.key, slug: u.slug, branch: u.branch })))}.` +
+    (carried.length ? ` Do not merge these slugs on their own: each one is inside the branch named by its "through", at its tip: ${JSON.stringify(carried.map(u => ({ key: u.key, slug: u.slug, through: u.through })))}. When "through" merges, report each of them as merged with the same merge commit.` : '') +
     STOP_CHECK + heartbeat('merge', 'merge') + event('merge', '"key":"<packet key>","slug":"<slug>","sha":"<merge commit>","result":"merged|stopped"') +
     ` Append that event once per slug.` +
     `\n\nReturn { status, merged: [{ key, slug, sha }] in merge order, notMerged: [{ key, slug, reason }] }.`,
@@ -119,6 +127,20 @@ async function merge() {
       }),
       label: 'merge', phase: 'Merge', ...OPUS,
     }
+  )
+}
+
+// C4 — run one unit's quiet-window checks alone, then record each result in its index.
+async function quietRun(u) {
+  return await agent(
+    `RUN THE QUIET-WINDOW CHECKS of slug '${u.slug}' (packet ${u.key}) of campaign '${brainstorm}', wave ${wave}. ` +
+    common('Quiet-window checks') +
+    `\n\nThe checks: ${JSON.stringify(u.quiet)}. ${u.worktree ? `Run them in the worktree ${u.worktree}, on branch ${u.branch}.` : `Run them on branch ${u.branch}.`} ` +
+    `No drive of this wave runs now, so the machine is idle: confirm it first.` +
+    STOP_CHECK + heartbeat(`quiet:${u.slug}`, 'quiet-window') +
+    event('quiet-window', `"key":"${u.key}","passed":<true|false>`) +
+    `\n\nReturn { status, passed (true when every check met its limit), results: [{ slice, command, limit, measured, passed }] }.`,
+    { schema: obj(['status', 'passed'], { passed: { type: 'boolean' }, results: { type: 'array', items: { type: 'object', properties: { slice: { type: 'string' }, command: { type: 'string' }, limit: { type: 'string' }, measured: { type: 'string' }, passed: { type: 'boolean' } } } } }), label: `quiet:${u.slug}`, phase: 'Verify', ...OPUS }
   )
 }
 
@@ -226,6 +248,34 @@ if (mode === 'drift') {
 if (mode !== 'wave') return { ok: false, stopped: true, reason: `campaign-boundary: unknown mode '${mode}'` }
 
 const outcome = { ok: false, mode, wave, branch: waveBranch }
+// C4 — 5b. The quiet-window checks: each timed check that a busy machine deferred
+// runs now, one at a time, while no drive runs. A unit whose check fails is not merged.
+const quietUnits = units.filter(u => Array.isArray(u.quiet) && u.quiet.length)
+if (quietUnits.length) {
+  phase('Verify')
+  outcome.quiet = []
+  for (const u of quietUnits) {
+    const q = await quietRun(u)
+    if (stoppedBy(q)) return { ...outcome, ...stoppedBy(q) }
+    outcome.quiet.push({ key: u.key, slug: u.slug, passed: !!(q && q.passed), results: (q && q.results) || [] })
+  }
+  const failed = outcome.quiet.filter(x => !x.passed)
+  if (failed.length) {
+    outcome.needsFix = failed.map(x => ({ key: x.key, slug: x.slug, reason: `a quiet-window timed check failed on an idle machine: ${(x.results || []).filter(r => !r.passed).map(r => `${r.slice || '?'} ${r.measured || ''}`.trim()).join('; ') || 'no detail'}` }))
+    const out = new Set(failed.map(x => x.key))
+    // A carrier holds the code of the units it carries, so a carrier of a failed unit cannot merge either.
+    for (const u of units) if (out.has(u.key) && u.through && !out.has(u.through)) {
+      out.add(u.through)
+      outcome.needsFix.push({ key: u.through, slug: (units.find(x => x.key === u.through) || {}).slug, reason: `it carries '${u.slug}', whose quiet-window check failed` })
+    }
+    // A unit carried by a unit that cannot merge comes back as its own merge.
+    for (const u of units) if (u.through && out.has(u.through) && !out.has(u.key)) u.through = null
+    for (let i = units.length - 1; i >= 0; i--) if (out.has(units[i].key)) units.splice(i, 1)
+    toMerge.splice(0, toMerge.length, ...units.filter(u => !u.through))
+    carried.splice(0, carried.length, ...units.filter(u => u.through))
+    log(`wave ${wave}: quiet-window checks failed for ${[...out].join(', ')}; those units are not merged`)
+  }
+}
 // 6. Merge.
 const m = await merge()
 if (stoppedBy(m)) return { ...outcome, ...stoppedBy(m) }

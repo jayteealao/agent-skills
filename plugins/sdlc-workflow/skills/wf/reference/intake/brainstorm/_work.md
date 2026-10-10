@@ -16,6 +16,7 @@ Agree these with the person, in plain words, and give your view with its reason.
 | `shape` | The form (table below). |
 | `target-slug` | For `extension`, `fix` and `hotfix`: the existing workflow slug. |
 | `depends-on` | The pieces that must be done first, by key. |
+| `needs` | A slice of another build piece that this piece needs before one of its own slices, when the two can still run in one campaign wave: `from` (the piece key), `through` (a slice of `from`, or `finished`), `before` (a slice of this piece, or empty), `why`. Use it only for a partial need. A piece that needs all of another piece before it starts uses `depends-on`. |
 | `provides` | What this piece makes true, one line each, for example "the engine exposes one module contract". |
 | `expects` | What this piece needs from an earlier piece's `provides` line: `from` (the piece key), `key` (the `provides` key), `text`. |
 | `items` | The kept items the piece carries. |
@@ -86,6 +87,7 @@ Run the commands from the project root. `<skill-dir>` resolves per [_host-invoca
    - an `expects` line with no matching `provides` line on a piece that this piece depends on;
    - a kept decision that lands in no piece, or in two pieces without `shared`;
    - a cycle in `depends-on`, or a `depends-on` key that is not a piece;
+   - a `needs` entry on the piece itself, on a key that is not a piece, or on a piece that gets no packet;
    - a piece with more than 40 carried decisions;
    - a packet piece with no `slug`, or an `extension`, `fix` or `hotfix` piece with no `target-slug`;
    - a citation of `.scratch/` or another gitignored path (see the sources rules in [_artifact.md](_artifact.md)).

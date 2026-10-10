@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { shortStamp } from '../../lib/campaign.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SCRIPT = path.join(pluginRoot, 'scripts', 'campaign.mjs');
@@ -257,7 +258,8 @@ test('worktree add keeps the path short, and a failed add leaves no branch behin
     const st = run(root, 'wave', '1', 'start');
     git(root, 'branch', st.branch, st.base);
     const runId = JSON.parse(readFileSync(path.join(root, '.ai', 'workflows', B, 'work', 'campaign', 'ledger.json'), 'utf8'))['run-id'];
-    const target = path.join(root, '.scratch', 'cw', runId.split('-')[0], 'w1-2');
+    const target = path.join(root, '.scratch', 'cw', shortStamp(runId), 'w1-2');
+    assert.ok(shortStamp(runId).length <= 7, `the stamp is short: ${shortStamp(runId)}`);
     // A file in the way makes git refuse the add.
     mkdirSync(target, { recursive: true });
     writeFileSync(path.join(target, 'in-the-way'), 'x');
@@ -268,7 +270,7 @@ test('worktree add keeps the path short, and a failed add leaves no branch behin
     const a = run(root, 'worktree', 'W2', 'add');
     assert.equal(a.ok, true, JSON.stringify(a));
     assert.equal(path.resolve(a.path), path.resolve(target));
-    assert.ok(path.relative(root, a.path).length < 40, `short path: ${a.path}`);
+    assert.ok(path.relative(root, a.path).length < 30, `short path: ${a.path}`);
     // A branch left by an earlier attempt (an older version, or a crash) is reused, never refused.
     git(root, 'worktree', 'remove', a.path);
     const ledgerFile = path.join(root, '.ai', 'workflows', B, 'work', 'campaign', 'ledger.json');

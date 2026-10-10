@@ -18,7 +18,9 @@ The boundary driver (`workflows/campaign-boundary.js`) runs these steps as agent
 ## Merge
 
 1. Check out the wave branch in the wave worktree, `.scratch/campaign/<run-id>/wt/wave-<n>`. The campaign session adds it with `campaign.mjs worktree wave-<n> add` before the boundary; add it with `git -C <projectRoot> worktree add <path> <wave branch>` only when it does not exist. Never remove a worktree: the campaign session does that, through its guarded `remove`. The main checkout stays on the trunk, where the rolling prepare writes. When a tracked file has uncommitted changes, return `status: failed`. Untracked files do not block.
-2. Merge each slug branch in the order that the prompt gives, one at a time: `git -C <projectRoot> merge --no-ff <slug branch> -m "<the slug's change in product language>"`.
+2. Merge each slug branch in the order that the prompt gives, one at a time: `git -C <checkout> -c rerere.enabled=true merge --no-ff <slug branch> -m "<the slug's change in product language>"`. The campaign session computes the order with `campaign.mjs merge-order <n>`: a unit that another unit merged in (`merge-in`) merges before that unit.
+   - The rerere cache is in the common git folder, which every worktree shares. A conflict that `merge-in` resolved earlier replays here, so do not resolve it a second time. Check the replayed files, then finish the merge.
+   - The prompt can name carried units. A carried unit is inside its carrier's branch at its own tip. Do not merge a carried unit. Report it as merged, with the carrier's merge commit sha.
 3. On a conflict, apply this table. Then either finish the merge, or run `git merge --abort` and record that slug as not merged.
 
 | File | Rule |
@@ -32,6 +34,19 @@ The boundary driver (`workflows/campaign-boundary.js`) runs these steps as agent
 
 4. Append one `merge` event per slug, as the prompt says, with `result` `merged` or `stopped`.
 5. Return `merged` (in merge order, each with the merge commit sha) and `notMerged` (each with the reason).
+
+## Quiet-window checks
+
+A drive defers a timed check with `kind: quiet-window` when the machine was too busy for the check's own limit (`reference/verify/_deferrals.md`, "The quiet-window deferral"). The boundary runs these checks after every drive of the wave ended, before the merges, one unit at a time. No drive runs, so the machine is quiet.
+
+1. Check out the slug branch, in its worktree when it has one. Do not change any tracked file.
+2. Run each check that the prompt gives, in the order of the prompt. The prompt takes them from the slug's `00-index.md` `runtime-evidence-deferrals`: each entry with `kind: quiet-window` and no `cleared-by`.
+3. Run the check's `command` once. Measure the time from the start to the end.
+4. Compare the result and the time with the check's `limit`. The check passes only when the command exits with 0 and the measured value is in the limit.
+5. For each passed check, set `cleared-by: boundary wave-<n> <UTC time>` on its entry in `00-index.md`, and commit the file on the slug branch by path.
+6. Return `status` (`complete`, or `failed` when a command could not run), `passed` (true only when every check passed), and `results`: one `{ slice, command, limit, measured, passed }` per check.
+
+A failed check makes the unit `needs-fix`, as a failed verify does. The boundary does not merge that unit.
 
 ## Wave verify
 

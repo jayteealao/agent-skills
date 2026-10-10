@@ -144,6 +144,25 @@ test('a clean work set passes the check, and the waves follow depends-on', () =>
   deepEqual(computeWaves(b), [['engine-modules'], ['replay-builder']]);
 });
 
+// WF-CAMPAIGN-RUN-FIXES-PLAN N1 — a need lets two pieces share a campaign wave.
+test('a need travels into the packet, validates, and is checked against the pieces', () => {
+  const base = board();
+  const needy = { ...base.work[1], 'depends-on': [], expects: [], needs: [{ from: 'engine-modules', through: 'contract-slice', before: 'replay-reader', why: 'the module contract' }] };
+  const b = { ...base, work: [base.work[0], needy, base.work[2]] };
+  ok(validateBrainstormBoard(b).valid, JSON.stringify(validateBrainstormBoard(b).errors));
+  deepEqual(checkWorkSet(b).errors, []);
+  const text = renderPacket(b, needy, { revision: 1 });
+  const fm = safeParseFrontmatter(text).data;
+  deepEqual(fm.needs, [{ from: 'engine-modules', through: 'contract-slice', before: 'replay-reader', why: 'the module contract' }]);
+  ok(validateFrontmatter(fm).valid, JSON.stringify(validateFrontmatter(fm).errors));
+  match(text, /- Needs \[Cut the engine into modules\]\(engine-modules\.md\) through `contract-slice` before the slice `replay-reader`: the module contract\. The two can run in one campaign wave\./);
+  equal(safeParseFrontmatter(renderPacket(b, b.work[0], { revision: 1 })).data.needs, undefined, 'no needs: no field');
+  const errs = (needs) => checkWorkSet({ ...b, work: [b.work[0], { ...needy, needs }, b.work[2]] }).errors.join('\n');
+  match(errs([{ from: 'replay-builder' }]), /needs itself/);
+  match(errs([{ from: 'ghost' }]), /needs ghost, which is not a piece of work/);
+  match(errs([{ from: 'design-doc-contract' }]), /gets no packet: use depends-on/);
+});
+
 test('an expects line with no matching provides line fails (X3)', () => {
   const b = board();
   b.work[1].expects = [{ from: 'engine-modules', key: 'event-schema', text: 'A published event schema.' }];

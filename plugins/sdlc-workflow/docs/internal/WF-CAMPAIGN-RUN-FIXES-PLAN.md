@@ -1,6 +1,6 @@
 # WF-CAMPAIGN-RUN-FIXES-PLAN — ten fixes from the SoccerManager campaign run
 
-Status **PLAN, nothing built. C6 and C10 are partly built already (see their rows)** · Date **2026-10-10** · Plugin **v9.183.0** · Owner **jayte**
+Status **BUILT 2026-10-10, not released: W1–W6 (C1–C9). W7, the live run, is open** · Date **2026-10-10** · Plugin **v9.183.0** · Owner **jayte**
 Follows: [WF-CAMPAIGN-PLAN.md](WF-CAMPAIGN-PLAN.md) (the campaign) and [WF-WATCH-MONITOR-PLAN.md](WF-WATCH-MONITOR-PLAN.md) (the watch). Evidence: SoccerManager session `29b05b7e-f1a2-5b7f-88f9-afd5170f1f0c`, `/wf campaign brainstorm-realism-additions-20260922`, waves 2 and 3, 2026-10-06 → 2026-10-10.
 
 ## 1. Why
@@ -29,15 +29,15 @@ The campaign shipped wave 2 and runs wave 3. In wave 3, three units run at the s
 
 | # | Problem | What this plan builds | Design | Wave | State |
 |---|---|---|---|---|---|
-| C1 | Units of one wave depend on each other | A `needs` packet field, waits that the script owns, a `wait` stop, a `merge-in` command | 3.1 | W2 | Not built |
-| C2 | Steering edits are hand work | `<cmd> steer`, plus one campaign-level steer file | 3.2 | W1 | Not built |
-| C3 | Overnight decisions exist only in chat | `<cmd> away`, `<cmd> back`, `<cmd> decided`, `<cmd> recap` | 3.3 | W1 | Not built |
-| C4 | Timed checks on a busy machine | A quiet-window deferral that the boundary runs, and a quiet lease | 3.4 | W5 | Not built |
-| C5 | Build output outside the worktree stays on disk | One outside folder per unit that the campaign owns, and a disk estimate | 3.5 | W4 | Not built |
-| C6 | The Windows path limit | A configurable worktree root and a path check at `worktree add` | 3.6 | W4 | **Partly built in v9.182.0** (`d50891fa`): worktrees are at `.scratch/cw/<stamp>/w<n>-<i>`, and git runs with `core.longpaths` |
-| C7 | A conflict resolved twice | Merge order from branch contents, and `rerere` from `merge-in` to the boundary | 3.7 | W3 | Not built |
-| C8 | An old plugin during the campaign | `status` reports a newer installed plugin, and the boundary offers the switch | 3.8 | W6 | Not built |
-| C9 | Rules live only in chat summaries | `<cmd> rule`, with the rules in the ledger and in every `status` result | 3.9 | W1 | Not built |
+| C1 | Units of one wave depend on each other | A `needs` packet field, waits that the script owns, a `wait` stop, a `merge-in` command | 3.1 | W2 | Built 2026-10-10, not released |
+| C2 | Steering edits are hand work | `<cmd> steer`, plus one campaign-level steer file | 3.2 | W1 | Built 2026-10-10, not released |
+| C3 | Overnight decisions exist only in chat | `<cmd> away`, `<cmd> back`, `<cmd> decided`, `<cmd> recap` | 3.3 | W1 | Built 2026-10-10, not released |
+| C4 | Timed checks on a busy machine | A quiet-window deferral that the boundary runs, and a quiet lease | 3.4 | W5 | Built 2026-10-10, not released |
+| C5 | Build output outside the worktree stays on disk | One outside folder per unit that the campaign owns, and a disk estimate | 3.5 | W4 | Built 2026-10-10, not released |
+| C6 | The Windows path limit | A configurable worktree root and a path check at `worktree add` | 3.6 | W4 | Built 2026-10-10 on top of v9.182.0 (`d50891fa`): worktrees are at `.scratch/cw/<stamp>/w<n>-<i>`, and git runs with `core.longpaths` |
+| C7 | A conflict resolved twice | Merge order from branch contents, and `rerere` from `merge-in` to the boundary | 3.7 | W3 | Built 2026-10-10, not released |
+| C8 | An old plugin during the campaign | `status` reports a newer installed plugin, and the boundary offers the switch | 3.8 | W6 | Built 2026-10-10, not released |
+| C9 | Rules live only in chat summaries | `<cmd> rule`, with the rules in the ledger and in every `status` result | 3.9 | W1 | Built 2026-10-10, not released |
 | C10 | Watch noise | No new code. Measure on the live run | 3.10 | W7 | **Mostly built in v9.183.0**: one campaign watch follows the worktrees (F2), locks remove duplicate watches (F5), and transcript-based staleness (F6) |
 
 ## 2. Decisions
@@ -228,6 +228,22 @@ Measure on the W7 run, and compare with SoccerManager waves 2 and 3.
 | Timed criteria deferred because of load, and never run again | 1 (wave 2, 15.3 min) | 0: the boundary runs them |
 | Restarts of the watch | about 300 Monitor calls | the target of WF-WATCH-MONITOR-PLAN section 8 |
 | Rules restated in compaction summaries | in 11 of 11 | 0: `status` prints them |
+
+## 6a. As built (2026-10-10)
+
+| Item | Where | Difference from the design |
+|---|---|---|
+| C1 | `lib/campaign.mjs` (`needsOf`, `planWaves`, `waveWaits`, `mergeInsReady`, `closeWaits`, `waitsText`), `scripts/campaign.mjs` (`merge-in`, `unit … waiting --on`), `yolo.js` (condition (d), `stopKind: 'wait'`, `stoppedAt: 'waits'`), `lib/work-packets.mjs` and `tests/frontmatter.schema.json` (`needs`) | The wait stop covers plan and implement, not plan only. `campaignAction` returns `{ action: 'merge-in', wave, merges: [{ key, from, through, waitingFor }] }`, one entry per ready merge. Without a worktree, `merge-in` needs the main checkout on the unit's branch. |
+| C2 | `scripts/campaign.mjs` `steer`, `yolo.js` `steeringClause` | The campaign steer file goes through `steeringClause`, not `campaignClause`. `lib/campaign-records.mjs` needs no change: the two copies are identical, so `sync` sees no conflict. |
+| C3 | `scripts/campaign.mjs` `away`, `back`, `decided`, `recap`; `lib/campaign.mjs` `buildRecap` | `AWAY_LIMITS` holds D3 and D4. |
+| C4 | `scripts/campaign.mjs` `lock quiet`, `quietDeferrals`; `campaign-boundary.js` `quietRun`; `_boundary.md` "Quiet-window checks"; `verify/_deferrals.md` | The checks reach the boundary through `merge-order` (`units[].quiet`). |
+| C5 | `scripts/campaign.mjs` `worktreeStep`; `lib/campaign.mjs` `diskNeedGb`, `isolationText` | The `min-free-gb` default was 20 already. |
+| C6 | `lib/campaign.mjs` `pathBudget`, `shortStamp`; `scripts/campaign.mjs` `worktreeRoot` | The check runs on Windows, or with `SDLC_CAMPAIGN_PATH_CHECK=1` for the tests. |
+| C7 | `lib/campaign.mjs` `boundaryMergeOrder`; `scripts/campaign.mjs` `merge-order`; `campaign-boundary.js` | The coordinator gets the order from `merge-order <n>` and passes its `units` to the boundary driver. |
+| C8 | `lib/campaign.mjs` `pluginUpdate`; `scripts/campaign.mjs` `status`, `wave start` | The running version comes from the plugin's own `plugin.json`, not from the path. `SDLC_INSTALLED_PLUGINS` overrides the install record for the tests. Q5 stays open. |
+| C9 | `scripts/campaign.mjs` `rule`; `renderLedgerMd` | — |
+
+Tests: `tests/unit/lib/campaign-run-fixes.test.mjs` and `tests/unit/campaign-run-fixes-cli.test.mjs` (new), and changes to `campaign-cli`, `yolo-campaign`, `yolo-stop-request` and `work-packets` tests.
 
 ## 7. Open questions
 

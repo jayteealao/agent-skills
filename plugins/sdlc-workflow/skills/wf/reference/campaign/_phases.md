@@ -9,6 +9,7 @@ This file belongs to [../campaign.md](../campaign.md). `<cmd>` stands for `node 
    - counts a dependency on a piece that the brainstorm already wrote (the `written:` list of `work/index.md`) as done, and its `expects` lines as met;
    - turns on local records for a repo that does not track `.ai/` (`artifactTracking: ignored`, or a gitignored `.ai/workflows`): the result has `records: local` and a warning ([_waves.md](_waves.md), "Local records");
    - computes the waves: a wave is every build packet whose dependencies are in earlier waves, and two packets that touch the same slug never share a wave;
+   - reads each packet's `needs` list: a need on another build packet puts the unit in the same wave as that packet or in a later wave, never in an earlier wave. A need on the unit itself, on an unknown packet, on a packet that is not a build packet, or on a packet that touches the same slug is an error. A cycle through `needs` is an error;
    - reads the version contract from `.ai/ship-plan.md` (`version-scheme`, `version-source-of-truth`, `version-bump-cmd`, `release-trigger`, `rollout-stages`);
    - writes `ledger.json`, `ledger.md`, and `forecast.md`.
 2. When the result has `single: true`, the work set has one build packet. Stop, and give the person the packet's start command (`start`).
@@ -47,7 +48,11 @@ For each tool gap from Phase 0, ask the person to fix it. The campaign does not 
 
 - `port-env`: each port variable with its base value. The drive with index i gets base + 100 × i.
 - `build-dirs`: the build folders each worktree keeps for itself.
-- `heavy-suites`: the test commands that only one worktree may run at a time.
+- `heavy-suites`: the test commands that only one worktree may run at a time. Ask the person to list every long local run here, for example a calibration or a benchmark, and not only the test suites.
+- `quiet-suites`: the timed checks that need an idle machine. A drive takes the quiet lock for them, and no heavy suite runs while it holds the lock.
+- `min-free-gb`: the free disk space to keep. The default is 20.
+- `outside-root` and `worktree-root`: short absolute paths outside the repo, for example `C:/co` and `C:/cw`. `outside-root` holds each unit's folders that cannot be in its worktree: a second build folder, or a checkout of another commit. `worktree-root` moves the worktrees out of `.scratch/cw`. On Windows, always ask the person for both: a folder at the drive root is the person's choice. Without them, a deep build path can pass the Windows limit of 260 characters.
+- `build-depth`: the length of the deepest build path inside a worktree, for the path check at `worktree add`. The default is 140, for a Rust `target/` folder.
 - `parallel: false`: keep width 1 for this project. Without a contract the width is 1, in the main checkout.
 
 ## Rolling prepare
@@ -57,7 +62,7 @@ Prepare runs one wave ahead, not all at once. The person decides every question.
 1. **Before wave 1,** prepare the units of wave 1. For each unit, in packet order:
    1. Run `/wf intake <packet path>` ([../intake/_packet.md](../intake/_packet.md)). Intake shows the carried decisions in groups of up to 8, each with its session and date, and the person keeps or changes each group. Do not skip this step.
    2. Run `/wf shape <slug>`. After shape, compare the shape with the packet's `provides` and `expects` lines. The person confirms each change. Write a confirmed change into the packet only through the brainstorm (`/wf brainstorm <brainstorm-slug> add`), because the brainstorm owns the packets.
-   3. Run `/wf slice <slug>`.
+   3. Run `/wf slice <slug>`. Then look for a need on another unit of the same wave. When a slice doc of this unit names a value, a type, a file or a sink that another unit of this wave builds, propose a `needs` entry: `{ from: <that packet key>, through: <the slice of that unit that builds it, or finished>, before: <the first slice of this unit that uses it>, why: <the thing, in a few words> }`. The person confirms each proposed entry. Write a confirmed entry into the packet only through the brainstorm (`/wf brainstorm <brainstorm-slug> add`), then run `<cmd> replan`. Do this before the wave starts: `wave <n> start` turns each `needs` entry into a wait.
    4. When the packet's `ux-impact` is not `none`, run the design lane per [../design/_lane.md](../design/_lane.md), with the person, in the main checkout. The design stage builds the boards, and `freeze` writes `design/r1/` (`design/_boards.md`).
    5. Set `branch-strategy: dedicated` in the slug's `00-index.md`. The wave start sets `branch` and `base-branch`.
    6. Run `<cmd> unit <key> prepared`. For a unit whose design is needed, the command refuses until the design is settled. For `visual` and `new-surface`, it also refuses until `02c-craft.md` names its frozen boards and every board exists. The result names the cause: finish the design with the person, then run the command again. `node "<pluginRoot>/skills/wf/scripts/design-boards.mjs" check "<projectRoot>" <slug>` lists the missing boards.

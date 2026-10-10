@@ -46,8 +46,36 @@ test('a writer reads the context file fresh and stops on a contract line', () =>
 });
 
 test('the clause rides on every steering clause, so every agent that reads steer.md reads the context', () => {
-  assert.match(src, /const steer = \(role\) => steeringClause\(STEER_PATH, role, `\$\{referenceRoot\}\/_steering\.md`\) \+ campaignClause\(CONTEXT_PATH, role\)/);
+  assert.match(src, /const steer = \(role\) => steeringClause\(STEER_PATH, role, `\$\{referenceRoot\}\/_steering\.md`, CAMPAIGN_STEER_PATH !== CONTEXT_PATH \? CAMPAIGN_STEER_PATH : null\) \+ campaignClause\(CONTEXT_PATH, role\)/);
   assert.match(src, /const CONTEXT_PATH = OPT\.contextPath/);
+});
+
+// WF-CAMPAIGN-RUN-FIXES-PLAN C2 — the campaign steer file, beside the context folder.
+test('in a campaign, every steering clause also reads the campaign steer file; the slug file wins a conflict', () => {
+  const steeringClause = new Function(`${extractFn('steeringClause')}; return steeringClause`)();
+  const derive = new Function('CONTEXT_PATH', `const CAMPAIGN_STEER_PATH = ${/const CAMPAIGN_STEER_PATH = (.+)/.exec(src)[1]}; return CAMPAIGN_STEER_PATH`);
+  const camp = derive('/r/.ai/workflows/b/work/campaign/context/engine.md');
+  assert.equal(camp, '/r/.ai/workflows/b/work/campaign/steer.md');
+  assert.equal(derive(null), null);
+  const c = steeringClause('/r/.ai/workflows/engine/steer.md', 'writer', '/ref/_steering.md', camp);
+  assert.match(c, /for every slug of the campaign in \/r\/\.ai\/workflows\/b\/work\/campaign\/steer\.md\. Read BOTH files NOW/);
+  assert.match(c, /this slug's\s+entry wins/);
+  assert.match(c, /If both files are absent or empty, there is no steering/);
+  assert.doesNotMatch(steeringClause('/s.md', 'writer', '/ref/_steering.md'), /BOTH/, 'outside a campaign, one file');
+});
+
+// WF-CAMPAIGN-RUN-FIXES-PLAN N4 — the wait stop.
+test('with a context file, the stop check stops plan and implement at an open wait for the slice', () => {
+  const plain = stopCheckClause('/r/s/.control.json', '/r/s/.driver-journal.jsonl', '/r/b/work/campaign/.control.json', 'engine');
+  assert.doesNotMatch(plain, /\(d\)/, 'no context file: no wait condition');
+  const c = stopCheckClause('/r/s/.control.json', '/r/s/.driver-journal.jsonl', '/r/b/work/campaign/.control.json', 'engine', '/r/b/work/campaign/context/engine.md');
+  assert.match(c, /\(d\) your stage is plan or implement, and section "7\. Waits" of \/r\/b\/work\/campaign\/context\/engine\.md \(read it fresh\)/);
+  assert.match(c, /\*\*Open\*\* line whose slice is the slice you were asked to run/);
+  assert.match(c, /'wait' for an open wait, with waitsFor "<unit>: <slice>"/);
+  assert.match(c, /never build a stand-in/);
+  assert.match(src, /const stopCheck = \(\) => stopCheckClause\(CONTROL_PATH, JOURNAL_PATH, CAMPAIGN_CONTROL_PATH, slug, CONTEXT_PATH\)/);
+  assert.match(src, /stopKind: \{ enum: \['stop', 'pause', 'wait'\] \}/);
+  assert.match(src, /if \(outcome\.stoppedAt === 'waits'\) \{[\s\S]*?outcome\.route = `waits for \$\{outcome\.waitsFor/);
 });
 
 test('class 6 is in the single source of decision classes', () => {

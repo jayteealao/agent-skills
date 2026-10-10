@@ -81,6 +81,16 @@ test('a pause ends the chain at usage-pause', async () => {
   assert.deepEqual(chain.ran.map((r) => r.stage), ['plan']);
 });
 
+// WF-CAMPAIGN-RUN-FIXES-PLAN N4 — a campaign wait ends the chain at 'waits' and carries what it waits for.
+test('a wait ends the chain at waits, before the plan runs, with waitsFor', async () => {
+  const h = chainHarness({ plan: { ...STOPPED('plan', 'wait'), waitsFor: 'W1: s1', stopReason: '**Open**: before the slice `auth`' } });
+  const chain = await h.driveChain(['plan', 'implement', 'verify'], 'auth', IDX);
+  assert.equal(chain.at, 'waits');
+  assert.equal(chain.waitsFor, 'W1: s1');
+  assert.deepEqual(chain.ran, []);
+  assert.deepEqual(h.writeBacks, []);
+});
+
 test('plan and implement dispatch with the stop check; a chain with no request runs to the end', async () => {
   const h = chainHarness({});
   const chain = await h.driveChain(['plan', 'implement', 'verify', 'review'], 'auth', IDX);

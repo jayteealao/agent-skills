@@ -153,11 +153,18 @@ const CONTROL_FILE_RULE =
 // Bookkeeping agents (branch, write-back, index write-back, ledger report) get no
 // clause: they change no code and judge nothing a steering entry governs.
 // ---------------------------------------------------------------------------
-function steeringClause(steerPath, role, contractPath) {
+function steeringClause(steerPath, role, contractPath, campaignSteerPath = null) {
+  // WF-CAMPAIGN-RUN-FIXES-PLAN C2: in a campaign, one more steer file applies to every slug of the campaign.
+  const files = campaignSteerPath
+    ? `${steerPath}, and for every slug of the campaign in ${campaignSteerPath}. Read BOTH files NOW, in full, with ` +
+      `the file-read tool — never from a copy in a prompt or from an earlier run: the user can edit them while this ` +
+      `run drives. Where an entry of this slug's own file and an entry of the campaign file conflict, this slug's ` +
+      `entry wins. If both files are absent or empty, there is no steering`
+    : `${steerPath}. Read that file NOW, in full, with the file-read tool — never from a copy in a prompt or from ` +
+      `an earlier run: the user can edit it while this run drives. If the file is absent or empty, there is no ` +
+      `steering`
   const head = `\n\nSTANDING STEERING (MANDATORY). The user keeps standing instructions for this workflow in ` +
-    `${steerPath}. Read that file NOW, in full, with the file-read tool — never from a copy in a prompt or from ` +
-    `an earlier run: the user can edit it while this run drives. If the file is absent or empty, there is no ` +
-    `steering: skip the rest of this block and return no steering fields. The contract is ${contractPath}. No ` +
+    `${files}: skip the rest of this block and return no steering fields. The contract is ${contractPath}. No ` +
     `human gate in this run repeats these entries, so the file is the user's voice here. A steering VETO ` +
     `outranks every autonomous-policy default in this prompt. Steering never overrides a mandatory gate (the ` +
     `External Output Boundary, sibling-fragment enforcement, AC verifiability, the constraint-resolution rule), ` +
@@ -232,7 +239,9 @@ function steeringDigest(o) {
 }
 
 const STEER_PATH = `${projectRoot}/.ai/workflows/${slug}/steer.md`
-const steer = (role) => steeringClause(STEER_PATH, role, `${referenceRoot}/_steering.md`) + campaignClause(CONTEXT_PATH, role)
+// The campaign steer file sits beside the context folder: <campaign>/context/<slug>.md → <campaign>/steer.md.
+const CAMPAIGN_STEER_PATH = CONTEXT_PATH ? CONTEXT_PATH.replace(/[\\/]context[\\/][^\\/]+$/, '/steer.md') : null
+const steer = (role) => steeringClause(STEER_PATH, role, `${referenceRoot}/_steering.md`, CAMPAIGN_STEER_PATH !== CONTEXT_PATH ? CAMPAIGN_STEER_PATH : null) + campaignClause(CONTEXT_PATH, role)
 
 // ---------------------------------------------------------------------------
 // CAMPAIGN CONTEXT (WF-CAMPAIGN-PLAN section 10). Under /wf campaign, each slug has
@@ -282,7 +291,16 @@ function campaignClause(contextPath, role) {
 // ---------------------------------------------------------------------------
 const CONTROL_PATH = `${projectRoot}/.ai/workflows/${slug}/.control.json`
 
-function stopCheckClause(controlPath, journalPath, campaignControlPath = null, slugName = '') {
+function stopCheckClause(controlPath, journalPath, campaignControlPath = null, slugName = '', contextPath = null) {
+  // WF-CAMPAIGN-RUN-FIXES-PLAN N4 — a wait for another unit of the wave. The campaign
+  // writes it into section 7 of the context file. It is a control signal like a stop
+  // request (D1), so the stage agent that would start the slice checks it.
+  const waitCondition = contextPath
+    ? `  (d) your stage is plan or implement, and section "7. Waits" of ${contextPath} (read it fresh) has an ` +
+      `**Open** line whose slice is the slice you were asked to run (a line that says "the first slice" names the ` +
+      `first slice of this slug's roster). The campaign merges the code that the wait names ` +
+      `while this drive is stopped; never build a stand-in for it.\n`
+    : ''
   const campaign = campaignControlPath
     ? ` Then read ${campaignControlPath} the same way. A request in that file applies to this run when its "scope" ` +
       `is "campaign", or when its "scope" is "slug" and its "slug" is "${slugName}". A request with "scope" "wave" ` +
@@ -299,15 +317,17 @@ function stopCheckClause(controlPath, journalPath, campaignControlPath = null, s
     `an "agent-end" line for that stage (its "stage" field, or its "agent" label before the first ':') whose "at" ` +
     `is later than the request's "requestedAt";\n` +
     `  (c) "action" is "pause" and "until" is absent or later than now.\n` +
+    waitCondition +
     `To stop: do no stage work, write no artifact, and edit no file except your heartbeat lines. Return ` +
-    `status 'stopped', stopKind ('stop' for a stop request, 'pause' for a pause), stopReason quoting the request, ` +
+    `status 'stopped', stopKind ('stop' for a stop request, 'pause' for a pause${waitCondition ? `, 'wait' for an open wait, with waitsFor "<unit>: <slice>" from the wait line` : ''}), stopReason quoting the request${waitCondition ? ' or the wait line' : ''}, ` +
     `the stage and slice you were asked to run, artifactPath '' and terminal {}. Never edit or delete a control ` +
     `file: the main session owns it. When no condition holds, continue normally and do not mention the file.`
 }
-const stopCheck = () => stopCheckClause(CONTROL_PATH, JOURNAL_PATH, CAMPAIGN_CONTROL_PATH, slug)
+const stopCheck = () => stopCheckClause(CONTROL_PATH, JOURNAL_PATH, CAMPAIGN_CONTROL_PATH, slug, CONTEXT_PATH)
 
-// stopKindOf() — the outcome's stoppedAt for an agent that honored a stop request.
+// stopKindOf() — the outcome's stoppedAt for an agent that honored a stop request or a wait.
 function stopKindOf(res) {
+  if (res && res.stopKind === 'wait') return 'waits'
   return res && res.stopKind === 'pause' ? 'usage-pause' : 'stop-request'
 }
 
@@ -666,10 +686,12 @@ const STAGE_RESULT = {
   properties: {
     stage: { type: 'string' },
     slice: { type: 'string' },
-    // 'stopped' — the agent found a stop or pause request in .control.json and did no work.
+    // 'stopped' — the agent found a stop or pause request in .control.json, or an open
+    // campaign wait for its slice (stopKind 'wait', waitsFor '<unit>: <slice>'), and did no work.
     status: { enum: ['complete', 'hard-stop', 'stopped'] },
-    stopKind: { enum: ['stop', 'pause'] },
+    stopKind: { enum: ['stop', 'pause', 'wait'] },
     stopReason: { type: 'string' },
+    waitsFor: { type: 'string' },
     artifactPath: { type: 'string' },
     terminal: {
       type: 'object',
@@ -1773,7 +1795,7 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     // G2 — the stage agent found a stop or pause request and did no work. The stage did
     // not run, so it joins neither ran nor the write-back; the resume runs it again.
     if (res && res.status === 'stopped') {
-      return { stopped: true, at: stopKindOf(res), slice: sliceArg, ran, stopRequest: true, reason: `${res.stopReason || 'stop request'} — stopped before ${stage}:${sliceArg}` }
+      return { stopped: true, at: stopKindOf(res), slice: sliceArg, ran, stopRequest: true, ...(res.waitsFor ? { waitsFor: res.waitsFor } : {}), reason: `${res.stopReason || 'stop request'} — stopped before ${stage}:${sliceArg}` }
     }
     // W3.3 — one corrective classification round for decisions the stage left
     // unstamped. Read-only and cheap; never re-runs the stage itself.
@@ -2361,7 +2383,7 @@ if (reconcileStop) {
   } else {
     route = idx.reviewScope === 'slug-wide' ? `/wf yolo ${slug}` : `/wf handoff ${slug}`   // last slice → finalizer
   }
-  outcome = { ok: !chain.stopped, mode: 'slice', slice: idx.targetSlice, reviewScope: idx.reviewScope, stopped: chain.stopped, stoppedAt: chain.at, reason: chain.reason, ran: chain.ran, route }
+  outcome = { ok: !chain.stopped, mode: 'slice', slice: idx.targetSlice, reviewScope: idx.reviewScope, stopped: chain.stopped, stoppedAt: chain.at, reason: chain.reason, ran: chain.ran, route, ...(chain.waitsFor ? { waitsFor: chain.waitsFor } : {}) }
 } else {
   // ---- Slug mode — sequential over the roster (mirrors /wf auto). --------
   // Cross-slice IMPLEMENT serializes on the shared tree (the governing
@@ -2461,7 +2483,7 @@ if (reconcileStop) {
       results.push(chain)
       if (chain.ran.length) workSinceCheckpoint = true
       if (chain.stopped) {
-        return { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: chain.at, stoppedSlice: s.slice, reason: chain.reason, results, route: `address the gate at '${chain.at}' on slice '${s.slice}', then re-run /wf yolo ${slug}` }
+        return { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: chain.at, stoppedSlice: s.slice, reason: chain.reason, results, route: `address the gate at '${chain.at}' on slice '${s.slice}', then re-run /wf yolo ${slug}`, ...(chain.waitsFor ? { waitsFor: chain.waitsFor } : {}) }
       }
       // W11.1 — charter fidelity checkpoint every K slices (not after the last, which the
       // slug-wide review + final scenario cover). A `broken` commitment stops the run.
@@ -2613,7 +2635,12 @@ if (steering) {
 }
 // G2/G3 — a stop request or a pause is a clean end, not a HARD-STOP. The resume command
 // is the route; the main session deletes the control file and reports the stop.
-if (outcome.stoppedAt === 'stop-request' || outcome.stoppedAt === 'usage-pause') {
+if (outcome.stoppedAt === 'waits') {
+  // N4 — a wait for another unit of the campaign wave is a clean end too. The campaign
+  // records `unit <key> waiting`, merges the needed unit, and launches this drive again.
+  outcome.route = `waits for ${outcome.waitsFor || 'another unit of the wave'}`
+  log(`yolo stopped at a campaign wait before slice '${outcome.stoppedSlice || outcome.slice || '?'}': ${outcome.route} — the campaign merges it, then resumes with /wf yolo ${slug}`)
+} else if (outcome.stoppedAt === 'stop-request' || outcome.stoppedAt === 'usage-pause') {
   outcome.stopRequest = { kind: outcome.stoppedAt, controlFile: CONTROL_PATH, slice: outcome.stoppedSlice || outcome.slice || null }
   outcome.route = `/wf yolo ${slug}${slice ? ' ' + slice : ''}`
   log(`yolo stopped on ${outcome.stoppedAt === 'usage-pause' ? 'a pause' : 'a stop request'}: ${outcome.reason} — resume with ${outcome.route}`)
