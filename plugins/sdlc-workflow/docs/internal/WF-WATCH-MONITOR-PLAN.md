@@ -220,3 +220,26 @@ Other facts that the build used:
 | Q1 | F7: is a check for Remote Control at the campaign start wanted? The only campaign push failed with "Mobile push not sent (Remote Control inactive)". | Yes. Check once, and tell the person that phone pushes need `/rc`. Find how the session reads the Remote Control state in W0; when it cannot, say the rule once at the campaign start. |
 | Q2 | When P7 fails, is a 60-second hold on `stage-start` and `commit` lines acceptable? | Yes. The lines still wake the model (D1), only grouped. |
 | Q3 | Codex and pi have no Workflow tool and no plugin monitor. | No change on those hosts. yolo and campaign are Claude Code only. |
+
+## 11. The live campaign audit of 2026-10-14
+
+The SoccerManager campaign session `29b05b7e` ran wave 3 on plugin 9.181.0: a session keeps the plugin version it started with, so F2–F9 did not reach it. The audit read the session's transcript (2026-10-13 20:27 to 2026-10-14 09:48), its 151 watch outputs, and the live processes.
+
+What happened:
+
+- **The session filtered out every `stale` event.** All 18 stale events from 2026-10-08 fired at the 20-minute journal limit while the agent was alive. The filter then hid a real death: the login expired at 03:59, the drive died at 04:04, and nothing woke the session until the person returned at 07:17. At about 08:52 a `stale` fired for a verify agent whose transcript was written 3.6 minutes before the check; the F6 rule gives no event there.
+- **The Monitor tool gave no output after a resume.** Not even `echo` gave an event. The session built a one-shot wrapper (`.scratch/campaign-prepare/u3-wait-event.mjs`) and ran it as a background PowerShell task, with six regular expressions to drop noise. A `--once` flag that the session tried did not exist, and that watch ran without end.
+- **Two orphans.** A campaign watch from 2026-10-10 (PID 83444) still ran four days later and rewrote the main checkout's watch states every 5 seconds: the Monitor stop on Windows did not stop its node process. The implement agent's `tail -f` script (PID 81072) ran from 2026-10-13. Both were stopped on 2026-10-14.
+- **Protected-file noise.** `tests/measures.rs` gave events while the slice was meant to edit it, four of them within 40 seconds. In a worktree, the dirty files at the watch start are an earlier run's work, and the watch protected them as the person's edits.
+- **A relaunch race.** A first watch with no state, over a journal whose newest line is the old run's `run-end`, ended at once (03:29, and three times at 07:18).
+
+The fixes, built 2026-10-14, each with a test that fails on the 9.183.0 code:
+
+| # | Fix | Where |
+|---|---|---|
+| B1 | A first watch takes the lines up to its start as history, and that history never ends the watch. A line after the start is news, also when the driver writes it before the first poll. | `pollJournals` |
+| B2 | A watch ends itself after its lifetime: 31 minutes by default, 110 minutes with `--once`, or `--max-minutes` / `SDLC_WATCH_MAX_MINUTES`. A closed stdout ends it too. | `lifetimeMs`, `watch` |
+| B3 | In a linked worktree, no file is protected as dirty at the start (`isLinkedWorktree`). A protected file gives one event per 10 minutes (`PROTECTED_QUIET_MS`). | `protectedSet`, `pollProtected` |
+| B4 | `--once`: the watch exits after the first poll that gives events, and prints `watch-timeout` at the end of its lifetime. `_commentary.md` "Start the watch" step 4 says when to use it. | `watch`, `_commentary.md` |
+
+Still open: the session must move to the new plugin version (start the campaign again from a new session) before any fix reaches it; the 30-minute Monitor cap; a dead shell after a resume; an expired login. A progress line during a long stage was not built: each line wakes the session.

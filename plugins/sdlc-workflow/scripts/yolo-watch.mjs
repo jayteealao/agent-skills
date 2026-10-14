@@ -7,8 +7,11 @@
  * becomes a chat notification, so the script writes nothing else to stdout.
  * Diagnostics go to stderr.
  *
- *   node yolo-watch.mjs <projectRoot> <slug> [<slug> ...] [--since <seq>]
- *       Watch the runs. Exit after the run-end event of every slug.
+ *   node yolo-watch.mjs <projectRoot> <slug> [<slug> ...] [--since <seq>] [--once] [--max-minutes <n>]
+ *       Watch the runs. Exit after the run-end event of every slug, or after the
+ *       lifetime (31 minutes; 110 with --once). --once: exit after the first poll
+ *       that gives events, for a background shell task when the Monitor tool gives
+ *       no output; a lifetime end then prints a watch-timeout line.
  *   node yolo-watch.mjs note <projectRoot> <slug> [--event <kind>]   < text
  *       Append one commentary note (stdin) to .ai/workflows/<slug>/commentary.md.
  *   node yolo-watch.mjs control <projectRoot> <slug> stop <current|plan|implement|verify|review>
@@ -300,12 +303,24 @@ export function dirtyFiles(root) {
     .filter((p) => p && !p.startsWith('.ai/') && !p.startsWith('.scratch/'));
 }
 
+/**
+ * A linked worktree (git worktree add) is a drive's checkout, never the person's.
+ * Its uncommitted files at a watch start are an earlier run's work.
+ */
+export function isLinkedWorktree(root) {
+  const gitDir = git(root, ['rev-parse', '--git-dir']);
+  const common = git(root, ['rev-parse', '--git-common-dir']);
+  if (!gitDir || !common) return false;
+  return path.resolve(root, gitDir).toLowerCase() !== path.resolve(root, common).toLowerCase();
+}
+
 export function protectedSet(root, slugs, cfg) {
   const set = new Set([...DEFAULT_PROTECTED, ...cfg.protectedFiles]);
   for (const slug of slugs) {
     try { for (const p of steerProtectedPaths(readFileSync(path.join(workflowDir(root, slug), 'steer.md'), 'utf8'))) set.add(p); } catch { /* no steer.md */ }
   }
-  const dirty = dirtyFiles(root);
+  // In a linked worktree, a file that is dirty at the start is not the person's edit.
+  const dirty = isLinkedWorktree(root) ? [] : dirtyFiles(root);
   for (const p of dirty) set.add(p);
   return { files: [...set].sort(), dirtyAtStart: dirty.sort() };
 }
@@ -408,6 +423,8 @@ export function keptWatchFrom(saved, nowMs) {
 }
 
 const UNITS_MS = 20 * 1000;
+/** B3 — one protected-change event per file in this window. */
+export const PROTECTED_QUIET_MS = 10 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
 // The watcher: one object, polled by a timer in main() and by tests directly.
@@ -640,9 +657,14 @@ export function createWatcher({
       let emitFrom = null;
       if (entry.first) {
         // A first watch with no state: the history sets the cadence and emits nothing,
-        // unless --since asks for the newest run's lines after that seq.
-        const newestRun = r.lines.length ? r.lines[r.lines.length - 1].run : null;
-        emitFrom = { run: newestRun, seq: since === null ? Infinity : since };
+        // unless --since asks for the newest run's lines after that seq. The history is
+        // the lines older than the watch start: a relaunched driver can write its first
+        // line before the first poll, and that line is news (B4).
+        if (since !== null) {
+          const newestRun = r.lines.length ? r.lines[r.lines.length - 1].run : null;
+          emitFrom = { run: newestRun, seq: since };
+        // A line stamped at the watch start itself counts as history: the old run-end can share that second.
+        } else if (entry.historyBefore === null) entry.historyBefore = watchStartMs + 1;
         entry.first = false;
       }
       let lines = r.lines;
@@ -653,10 +675,16 @@ export function createWatcher({
       entry.historyBefore = null;
       if (!emitFrom && cut !== null && lines.length) {
         const old = lines.filter((l) => Date.parse(l.at || '') < cut);
-        if (old.length) applyJournalLines(entry.root, slug, st, old, { emitFrom: { run: null, seq: Infinity } });
+        if (old.length) {
+          applyJournalLines(entry.root, slug, st, old, { emitFrom: { run: null, seq: Infinity } });
+          st.ended = false;
+        }
         lines = lines.filter((l) => !(Date.parse(l.at || '') < cut));
       }
       events.push(...applyJournalLines(entry.root, slug, st, lines, { emitFrom }));
+      // B1 — the history of a first watch is an earlier run. Its run-end must not end
+      // a watch that the session started for a relaunch whose first line is still to come.
+      if (emitFrom && emitFrom.seq === Infinity) st.ended = false;
       st.offset = r.offset;
       events.push(...judgeSilence(slug, st, now(), st.watchFrom ?? watchStartMs, activityOf(st)));
     }
@@ -722,11 +750,14 @@ export function createWatcher({
 
   function pollProtected() {
     const events = [];
-    const check = (dir, hashes, slugList, dirty) => {
+    const check = (dir, hashes, slugList, dirty, said) => {
       for (const [file, before] of Object.entries(hashes)) {
         const after = hashFile(path.join(dir, file));
         if (after === before) continue;
         hashes[file] = after;
+        // An agent that edits a file saves it many times. Say it once per quiet window.
+        if (now() - (said[file] ?? -Infinity) < PROTECTED_QUIET_MS) continue;
+        said[file] = now();
         events.push({
           event: 'protected-change', slugs: slugList, file,
           change: before === null ? 'created' : after === null ? 'deleted' : 'modified',
@@ -734,10 +765,10 @@ export function createWatcher({
         });
       }
     };
-    check(root, lead.repo.hashes, [...states.keys()], lead.repo.dirtyAtStart);
+    check(root, lead.repo.hashes, [...states.keys()], lead.repo.dirtyAtStart, lead.repo.protectedSaid ||= {});
     for (const [slug, entry] of states) {
       const wt = worktreeOf(slug, entry);
-      if (wt) check(entry.root, wt.hashes, [slug], []);
+      if (wt) check(entry.root, wt.hashes, [slug], [], wt.protectedSaid ||= {});
     }
     return events;
   }
@@ -889,15 +920,34 @@ function parseArgs(argv) {
   const flags = {};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a.startsWith('--')) { flags[a.slice(2)] = argv[i + 1]; i++; } else pos.push(a);
+    if (a === '--once') flags.once = true;
+    else if (a.startsWith('--')) { flags[a.slice(2)] = argv[i + 1]; i++; } else pos.push(a);
   }
   return { pos, flags };
 }
 
 const out = (ev) => process.stdout.write(`${JSON.stringify(ev)}\n`);
 
+/**
+ * B2 — a Monitor watch lives 30 minutes, but on Windows the Monitor's stop can
+ * leave the node process running. A watch therefore ends itself after its
+ * lifetime: 31 minutes by default, 110 minutes with --once (inside the 2-hour
+ * limit of a background shell task). --max-minutes or SDLC_WATCH_MAX_MINUTES sets it.
+ */
+export const DEFAULT_MAX_MINUTES = 31;
+export const ONCE_MAX_MINUTES = 110;
+export function lifetimeMs(flags, env = process.env) {
+  const given = Number(flags['max-minutes'] ?? env.SDLC_WATCH_MAX_MINUTES);
+  const minutes = Number.isFinite(given) && given > 0 ? given : (flags.once ? ONCE_MAX_MINUTES : DEFAULT_MAX_MINUTES);
+  return minutes * 60 * 1000;
+}
+
 async function watch(root, slugs, flags) {
   const ms = (name, dflt) => Math.max(10, Number(process.env[name]) || dflt);
+  const startedAt = Date.now();
+  const maxMs = lifetimeMs(flags);
+  // A reader that is gone (the Monitor stopped) ends the watch at the next write.
+  process.stdout.on('error', () => process.exit(0));
   const journalMs = ms('SDLC_WATCH_JOURNAL_MS', 5000);
   const gitMs = ms('SDLC_WATCH_GIT_MS', 20000);
   const usageMs = ms('SDLC_WATCH_USAGE_MS', 60000);
@@ -930,6 +980,14 @@ async function watch(root, slugs, flags) {
       for (const ev of events) out(ev);
       w.save();
       if (w.allEnded()) break;
+      // B4 — --once: the first poll with events ends the watch. The session reads the
+      // lines, acts, and starts the watch again; the offsets keep every later event.
+      if (flags.once && events.length) break;
+      if (Date.now() - startedAt >= maxMs) {
+        // With --once, the session waits on this process: say why it ends.
+        if (flags.once) out({ event: 'watch-timeout', minutes: Math.round(maxMs / 60000), slugs, at: new Date().toISOString() });
+        break;
+      }
       await new Promise((r) => setTimeout(r, journalMs));
     }
     w.save();

@@ -16,10 +16,20 @@ The Monitor tool stops a watch after 30 minutes at most. No watch without a dead
 
    Set the description to `yolo <slug>`.
 2. When the Monitor tool is not available, do not start a watch. The run is unchanged.
-3. When a Monitor expires and the Workflow did not return, start the same command again. Say nothing in chat: a re-arm is not news (C3). The watch keeps its offsets in `.watch-state.json`, so it misses no event.
-4. On a relaunch of the same slug (yolo.md "Resuming"), start the same command. The person does not ask for the watch again. The new watch replaces the old one: the old watch emits `watch-replaced` and exits.
-5. In a campaign, do not start a watch for a drive. The campaign watch reads the drive's journal and commits in its worktree (K1). A watch that is started anyway emits `watch-covered` and exits.
-6. When a `watch-replaced` or `watch-covered` event arrives, do not start that watch again, and say nothing in chat. Another watch reads the same journals.
+3. When a Monitor expires and the Workflow did not return, start the same command again. Say nothing in chat: a re-arm is not news (C3). The watch keeps its offsets in `.watch-state.json`, so it misses no event. The watch also ends itself after 31 minutes, so a watch that the Monitor stop leaves running does not run for days.
+4. When the Monitor tool gives no output, use the one-shot watch. To test, start a Monitor whose command is only `echo ok`. When no event arrives, the Monitor gives no output in this session. Then:
+   1. Start the watch with `--once` as a background shell task, with the longest timeout the tool allows (2 hours):
+
+      ```
+      node "<pluginRoot>/scripts/yolo-watch.mjs" "<projectRoot>" <slug> --once
+      ```
+
+   2. When the task ends, read its output. Each line is one event of the table below. Handle the events.
+   3. Start the same command again. The offsets in `.watch-state.json` keep every later event. Do not filter the output; the watch has no noise to remove.
+   4. A `watch-timeout` line means that 110 minutes passed with no event. Start the command again, and say nothing in chat.
+5. On a relaunch of the same slug (yolo.md "Resuming"), start the same command. The person does not ask for the watch again. The new watch replaces the old one: the old watch emits `watch-replaced` and exits.
+6. In a campaign, do not start a watch for a drive. The campaign watch reads the drive's journal and commits in its worktree (K1). A watch that is started anyway emits `watch-covered` and exits.
+7. When a `watch-replaced` or `watch-covered` event arrives, do not start that watch again, and say nothing in chat. Another watch reads the same journals.
 
 ## The events
 
@@ -29,7 +39,7 @@ The Monitor tool stops a watch after 30 minutes at most. No watch without a dead
 | `stage-end` | A stage agent ended. | The full stage note (C1). | no |
 | `commit` | A new commit is on the branch. The watch already wrote the hash and subject to `commentary.md`. | One or two sentences per commit. | no |
 | `decision` | The stage artifact waits for input, or records an `intent-bearing` decision. | A full note: the decision, the artifact, and what the person decides. | yes |
-| `protected-change` | A protected file changed. `dirtyAtStart: true` means the file held the person's uncommitted edits. | A full note: the file, the change, and the stage that ran. | yes |
+| `protected-change` | A protected file changed. `dirtyAtStart: true` means the file held the person's uncommitted edits. A file gives one event per 10 minutes, however often it is saved. In a worktree, uncommitted files at the watch start are an earlier run's work, not the person's, so they are not protected. | A full note: the file, the change, and the stage that ran. | yes |
 | `stale` | The running agent is silent. With `signal: transcript`, the agent's own transcript wrote nothing for 15 minutes: one tool call lasts 10 minutes at most, so the agent hangs. With `signal: journal`, no transcript was found, and the journal is silent past the liveness limit with an `agent-start` as its newest line. | A warning, worded per the staleness rule in [../_control-file-ownership.md](../_control-file-ownership.md). With `signal: transcript`, say that the agent hangs, and offer to stop the run and resume it. | yes |
 | `stop` | A stage agent returned `hard-stop`, or stopped on a stop request. | Why the run stopped, and the resume command. | yes |
 | `run-end` | The driver ended. `inferred: true` means that the journal went silent after an `agent-end`. | The run summary. | yes |
@@ -37,6 +47,7 @@ The Monitor tool stops a watch after 30 minutes at most. No watch without a dead
 | `usage-reset` | The window of a pause reset. | One line. | no |
 | `watch-replaced` | A newer watch reads the same journal. This watch exited. | Nothing. Do not start this watch again. | no |
 | `watch-covered` | A live campaign watch already reads this journal. This watch exited. | Nothing. Do not start this watch again. | no |
+| `watch-timeout` | A `--once` watch gave no event for 110 minutes. | Nothing. Start the `--once` watch again. | no |
 
 Scout, classifier, and bookkeeping agents give no event.
 

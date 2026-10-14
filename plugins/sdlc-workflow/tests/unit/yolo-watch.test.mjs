@@ -770,3 +770,114 @@ test('F5: the CLI says watch-covered once and exits when a live campaign watch r
     assert.deepEqual(lines.map((l) => `${l.event}:${l.campaign}`), [`watch-covered:${B}`]);
   } finally { for (const d of [root, lockDir]) rmSync(d, { recursive: true, force: true }); }
 });
+
+// ---------------------------------------------------------------------------
+// The live-campaign audit of 2026-10-14 — B1 to B4.
+// ---------------------------------------------------------------------------
+test('B1: a first watch over a journal that ends in the old run-end waits for the relaunch', () => {
+  const root = makeRepo();
+  const projectsDir = tmpDir('projects');
+  const lockDir = tmpDir('locks');
+  try {
+    journal(root,
+      { at: at(-30), run: 'r-old', seq: 1, event: 'agent-start', agent: 'plan:a', stage: 'plan', slice: 'a' },
+      { at: at(-29), run: 'r-old', seq: 1, event: 'agent-end', agent: 'plan:a', status: 'complete' },
+      { at: at(-28), run: 'r-old', event: 'run-end', agent: 'main-session' },
+    );
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], projectsDir, lockDir, now: clockAt(0) });
+    assert.deepEqual(w.pollJournals(), []);
+    assert.equal(w.allEnded(), false, 'the old run-end does not end the watch of the relaunch');
+    journal(root, { at: at(1), run: 'r-new', seq: 1, event: 'agent-start', agent: 'plan:b', stage: 'plan', slice: 'b' });
+    assert.deepEqual(w.pollJournals().map((e) => e.event), ['stage-start']);
+  } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
+});
+
+test('B3: a linked worktree has no dirty-at-start protection; the main checkout keeps it', () => {
+  const root = makeRepo();
+  const wtBase = tmpDir('worktrees');
+  const wt = path.join(wtBase, 'w1');
+  try {
+    git(root, 'worktree', 'add', '-q', '-b', 'drive', wt);
+    writeFileSync(path.join(wt, 'notes.txt'), 'an earlier run\n');
+    writeFileSync(path.join(root, 'notes.txt'), 'the person\n');
+    const cfg = W.readConfig(root);
+    assert.equal(W.isLinkedWorktree(wt), true);
+    assert.equal(W.isLinkedWorktree(root), false);
+    assert.deepEqual(W.protectedSet(wt, [SLUG], cfg).dirtyAtStart, [], 'a worktree holds no edits of the person');
+    assert.deepEqual(W.protectedSet(root, [SLUG], cfg).dirtyAtStart, ['notes.txt']);
+  } finally {
+    try { git(root, 'worktree', 'remove', '--force', wt); } catch { /* gone */ }
+    for (const d of [root, wtBase]) rmSync(d, { recursive: true, force: true });
+  }
+});
+
+test('B3: an agent that saves a protected file many times gives one event per quiet window', () => {
+  const root = makeRepo();
+  const projectsDir = tmpDir('projects');
+  const lockDir = tmpDir('locks');
+  try {
+    let now = T0;
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], projectsDir, lockDir, now: () => now });
+    writeFileSync(path.join(root, 'PRODUCT.md'), '# Product\nv2\n');
+    assert.deepEqual(w.pollProtected().map((e) => e.file), ['PRODUCT.md']);
+    now = T0 + 40 * 1000;
+    writeFileSync(path.join(root, 'PRODUCT.md'), '# Product\nv3\n');
+    assert.deepEqual(w.pollProtected(), [], 'a second save 40 seconds later is the same edit');
+    now = T0 + 11 * 60000;
+    writeFileSync(path.join(root, 'PRODUCT.md'), '# Product\nv4\n');
+    assert.deepEqual(w.pollProtected().map((e) => e.file), ['PRODUCT.md'], 'a save after the quiet window is news');
+  } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
+});
+
+test('B2: the lifetime is 31 minutes, 110 with --once, or the given minutes', () => {
+  assert.equal(W.lifetimeMs({}, {}), 31 * 60000);
+  assert.equal(W.lifetimeMs({ once: true }, {}), 110 * 60000);
+  assert.equal(W.lifetimeMs({ 'max-minutes': '5' }, {}), 5 * 60000);
+  assert.equal(W.lifetimeMs({}, { SDLC_WATCH_MAX_MINUTES: '2' }), 2 * 60000);
+});
+
+function runCli(args, env, { onSpawn = null, timeoutMs = 20000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [SCRIPT, ...args], { env: { ...process.env, SDLC_WATCH_JOURNAL_MS: '50', SDLC_WATCH_GIT_MS: '50', ...env } });
+    let stdout = '';
+    child.stdout.on('data', (d) => { stdout += d; });
+    const kill = setTimeout(() => { child.kill(); reject(new Error(`the CLI did not exit; stdout: ${stdout}`)); }, timeoutMs);
+    child.on('exit', (code) => { clearTimeout(kill); resolve({ code, lines: stdout.trim() ? stdout.trim().split('\n').map((l) => JSON.parse(l)) : [] }); });
+    if (onSpawn) onSpawn();
+  });
+}
+
+test('B2: a watch ends itself after its lifetime, silent without --once and with watch-timeout with it', async () => {
+  const root = makeRepo();
+  const lockDir = tmpDir('locks');
+  const projectsDir = tmpDir('projects');
+  try {
+    const env = { SDLC_WATCH_LOCK_DIR: lockDir, SDLC_CLAUDE_PROJECTS_DIR: projectsDir, SDLC_USAGE_DIR: projectsDir };
+    const plain = await runCli([root, SLUG, '--max-minutes', '0.01'], env);
+    assert.equal(plain.code, 0);
+    assert.deepEqual(plain.lines, []);
+    const once = await runCli([root, SLUG, '--once', '--max-minutes', '0.01'], env);
+    assert.deepEqual(once.lines.map((l) => l.event), ['watch-timeout']);
+  } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
+});
+
+test('B4: --once exits after the first poll that gives events, and the next watch goes on from there', async () => {
+  const root = makeRepo();
+  const lockDir = tmpDir('locks');
+  const projectsDir = tmpDir('projects');
+  try {
+    const env = { SDLC_WATCH_LOCK_DIR: lockDir, SDLC_CLAUDE_PROJECTS_DIR: projectsDir, SDLC_USAGE_DIR: projectsDir };
+    const stamp = (min) => new Date(Date.now() + min * 60000).toISOString();
+    // The line comes after the watch start: once the first poll saved the state.
+    const afterFirstPoll = (write) => () => { const t = setInterval(() => { if (existsSync(W.statePath(root, SLUG))) { clearInterval(t); write(); } }, 20); };
+    const first = await runCli([root, SLUG, '--once'], env, {
+      onSpawn: afterFirstPoll(() => journal(root, { at: stamp(0), seq: 1, event: 'agent-start', agent: 'plan:auth', stage: 'plan', slice: 'auth' })),
+    });
+    assert.equal(first.code, 0);
+    assert.deepEqual(first.lines.map((l) => l.event), ['stage-start']);
+    const second = await runCli([root, SLUG, '--once'], env, {
+      onSpawn: () => setTimeout(() => journal(root, { at: stamp(1), seq: 1, event: 'agent-end', agent: 'plan:auth', status: 'complete' }), 400),
+    });
+    assert.deepEqual(second.lines.map((l) => l.event), ['stage-end'], 'the stage start is not given again');
+  } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
+});
