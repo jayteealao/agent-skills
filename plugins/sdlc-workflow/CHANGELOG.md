@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.185.0] - 2026-10-14
+
+### Added
+
+- **A one-shot watch: `yolo-watch.mjs --once`.** The watch exits after the first poll that gives events. At the end of its lifetime (110 minutes) it prints a `watch-timeout` line. Use it as a background shell task when the Monitor tool gives no output, as after a resume in the SoccerManager campaign session. `_commentary.md` "Start the watch" step 4 says how: read the output, handle the events, and start the same command again. The offsets in `.watch-state.json` keep every later event.
+
+### Fixed
+
+- **A relaunch no longer ends its own watch at once.** A first watch takes the journal lines up to its start as history, and that history never ends the watch. Before, the old run's `run-end` ended a new watch before the relaunch wrote its first line. A line written after the start is news, also when the driver writes it before the first poll.
+- **A watch ends itself.** A watch exits after 31 minutes, or when its stdout closes. `--max-minutes` or `SDLC_WATCH_MAX_MINUTES` sets another lifetime. On Windows, a stopped Monitor left a campaign watch running for four days, and that watch rewrote the watch states every 5 seconds.
+- **Less protected-file noise.** In a linked worktree, the files that are dirty at the watch start are an earlier run's work, so they are not protected. A protected file gives one `protected-change` event per 10 minutes, however often an agent saves it.
+
 ## [9.184.0] - 2026-10-10
 
 ### Added
