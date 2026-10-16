@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.186.0] - 2026-10-17
+
+### Added
+
+- **A wave driver of its own: `workflows/campaign-wave.js`.** One Workflow run drives every unit of a campaign wave, then runs the boundary. Each unit walks its slices in its own worktree, and every stage agent carries the label `<stage>:<slice>@<slug>`. Implement, verify, review and merge agents hold a heavy slot; the number of slots follows the usage budget (an `ok` reading gives the set width, a `slow` reading gives 1, a `pause` stops the run with `usage-pause`). All plans of the wave run before the first implement. A cross-unit reconcile then turns each file that two units change into a derived needs entry on the later unit, and parks a unit that would change a contract line.
+- **Waits inside the run.** A unit that needs another unit's slice waits in the run. When the needed slice clears, `slice-done` marks the wait `ready` with its commit, and the driver merges that commit with `merge-in --at <sha>` before the implement that needs it. A conflict runs a merge agent; a merge that the agent cannot resolve parks the unit. Two waits that can never resolve park both units with kind `deadlock`.
+- **Questions while the run goes.** A unit that needs the person parks: it asks one question `w<n>-<key>-<k>` and waits, and the other units go on. A waiter agent waits for the answer with `campaign.mjs await`. `reply <id> --by person` answers it, and `reply --move` moves the unit out of the wave. The answer resumes the unit in the same run, with no relaunch. A free answer that a stage agent finds (`answered` in its result) resumes the unit too.
+- **A wave review.** After the merge and the wave verify, a review reads the whole wave diff. With no shared file, merge-in, needs entry or focus entry, it checks the contract and the steering only. A finding must show in two or more units. A `dont-ship` blocker on one unit that no other unit merged in reverts that unit, which becomes `needs-fix`; any other blocker asks a wave question. The record is `work/campaign/review/wave-<n>.md` and `.yaml`.
+- **New `campaign.mjs` commands.** `wave <n> launch` adds the worktrees, writes the context files and prints the driver args; it refuses with `isolation-required`, `run-live` or `paused`, and returns `blocked` for disk or path. `wave <n> record --outcome <path>` applies an outcome, also a held one. Also `slice-done`, `merge-in --at`, `needs <key> add|list|remove`, `contract <key> amend`, `await`, `question <id> consumed` and `owner <slug>`. `ask` takes `--unit`, `--kind`, `--stage` and `--slice`; `reply` takes `--by` and `--move`.
+- **The live run.** `launch` records `waves[n].run`. While the run is live, `status` gives `next.action: driving`, so a session after a compaction never launches the wave twice. `/wf yolo <slug>` stops when a live wave run owns the slug.
+- **The readers know the wave driver.** The watch gives the stage and slice of a `@<slug>` label, resumes a stopped unit with `/wf campaign <b>`, and keeps a parked unit's `waiting` silence quiet. The cost hook books a silent agent to the `@<slug>` of its label, and a silent wave agent to the campaign. The campaign view shows waiting and parked units with their route or question, and the units that hold a slot.
+
+### Changed
+
+- **Every campaign wave runs the wave driver.** The session no longer launches one yolo drive for each unit. yolo no longer takes `contextPath` or `campaignControlPath`, and has no campaign wait, contract scout or campaign steer file.
+- **A campaign needs an isolation contract.** `orient` records the tool gap `isolation` when `campaign.isolation` is absent, and the setup asks the person for it before wave 1. A contract with `parallel: false` runs the wave at width 1, still in worktrees.
+- **The stop request of one slug names what follows.** `yolo-watch.mjs control … stop --scope slug` requires `--then move` or `--then hold`.
+- **`stage-yolo-driver.mjs --driver campaign-wave`** stages the wave driver beside `yolo.js`.
+
+### Removed
+
+- **`workflows/campaign-boundary.js`.** The wave driver runs the boundary steps of `campaign/_boundary.md` itself.
+
 ## [9.185.1] - 2026-10-16
 
 ### Fixed
