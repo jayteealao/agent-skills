@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.185.1] - 2026-10-16
+
+### Fixed
+
+- **No lost ledger change.** Every `campaign.mjs` command that changes the ledger now holds a ledger lock (`work/campaign/ledger.lock`) while it reads, changes and writes the ledger. Before, two commands at the same time, for example the session's `reply` and a drive's `unit`, could overwrite each other's change. A lock of a process that is gone is taken over at once. A rename over a file that another process reads tries again on Windows (`EPERM`, `EBUSY`).
+- **A heavy lock of an ended drive is free.** `lock acquire` takes over a heavy or quiet lock when the holder's unit is `stopped`, `finished`, `merged`, `needs-fix` or `shipped`, or when its driver journal ends with `run-end` after the lock was taken. Before, the lock of a drive that died blocked every heavy suite for 3 hours.
+- **`decided <id>` answers the question.** A decision taken for the person while away also answers the open question of the same id, with `by: session`. Before, the question stayed open, and `status` asked it again.
+- **A repeated `ask` changes nothing.** `ask` with the id and the text of an open question returns that question. An open question with another text still fails.
+- **`merge-in` ignores the run-time files.** The dirty check leaves out `.watch-state.json`, `.driver-journal.jsonl`, `commentary.md`, `cost.jsonl` and `.read-ledger.jsonl` of each workflow. A drive writes them while it runs, so they blocked a merge-in after a records commit.
+- **The config schema takes the isolation keys that the code reads.** `quiet-suites`, `outside-root`, `worktree-root` and `build-depth` no longer give a config warning.
+- **The live view finds a unit journal in its worktree.** The campaign view read the journal at an old worktree path. It now reads the worktree path of the ledger.
+
 ## [9.185.0] - 2026-10-14
 
 ### Added
