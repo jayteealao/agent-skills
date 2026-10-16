@@ -54,7 +54,7 @@ export function unitOf(packet, { written = [] } = {}) {
     key: packet.key,
     title: packet.title ?? packet.key,
     form,
-    // An extension adds slices to the slug it extends, so yolo drives that slug.
+    // An extension adds slices to the slug it extends, so the wave driver drives that slug.
     slug: form === 'extension' && targetSlug ? targetSlug : workSlug,
     workSlug,
     targetSlug,
@@ -258,7 +258,7 @@ export function waveWaits(units, waveKeys) {
   const out = {};
   for (const key of waveKeys) {
     const u = units.find((x) => x.key === key);
-    const waits = needsOf(u ?? {}).filter((n) => inWave.has(n.from)).map((n) => ({ from: n.from, through: n.through, before: n.before, why: n.why, state: 'open' }));
+    const waits = needsOf(u ?? {}).filter((n) => inWave.has(n.from)).map((n) => ({ from: n.from, through: n.through, before: n.before, why: n.why, source: 'packet', state: 'open' }));
     if (waits.length) out[key] = waits;
   }
   return out;
@@ -279,59 +279,100 @@ export function throughCovers(merged, wanted, order = []) {
 }
 
 /**
- * N7: the merge-ins that can run now. `progress` maps a unit key to
- * { finished, passed: [slices whose verify passed], order: [slice list] }.
- * A unit that a drive runs is never merged into (D5): only `waiting`, `prepared`
- * and `stopped` units are offered.
+ * WF-CAMPAIGN-DRIVER-PLAN 5.6: the states of a wait. `open` until the needed slice
+ * clears, `ready` (with the sha of the cleared slice) until the merge-in, `met` after
+ * it, and `rejected` when the needed unit moves out of the wave.
  */
-export function mergeInsReady(ledger, progress = {}) {
-  const ready = [];
-  for (const w of ledger.waves.filter((x) => x.state === 'running')) {
-    for (const key of w.units) {
-      const u = ledger.units[key];
-      if (!u || !['waiting', 'prepared', 'stopped'].includes(u.state)) continue;
-      const seen = new Set();
-      for (const wt of (u.waits ?? []).filter((x) => x.state === 'open')) {
-        const p = progress[wt.from];
-        if (!p) continue;
-        const reached = p.finished ? 'finished' : [...(p.passed ?? [])].sort((a, b) => (p.order ?? []).indexOf(b) - (p.order ?? []).indexOf(a))[0];
-        if (!reached || !throughCovers(reached, wt.through, p.order)) continue;
-        if (seen.has(wt.from)) continue;
-        seen.add(wt.from);
-        ready.push({ key, from: wt.from, through: reached, waitingFor: wt.through });
-      }
-    }
-  }
-  return ready;
+export const WAIT_STATES = Object.freeze(['open', 'ready', 'met', 'rejected']);
+/** A wait that still keeps its unit from the slice `before`. */
+export const waitPending = (w) => w && (w.state === 'open' || w.state === 'ready');
+
+/** D21: the cleared slice of `from` that covers `through`, from the unit's `cleared` list, or null. */
+export function clearedCover(cleared = [], through, order = []) {
+  return [...(cleared ?? [])].reverse().find((c) => c && throughCovers(c.slice, through, order)) ?? null;
 }
 
-/** N6: close each open wait on `from` that a merge through `through` covers. Returns the closed waits. */
+/** N6: mark each pending wait on `from` that a merge through `through` covers as met. Returns those waits. */
 export function closeWaits(waits, { from, through, order = [], at }) {
   const closed = [];
   for (const w of waits ?? []) {
-    if (w.state !== 'open' || w.from !== from || !throughCovers(through, w.through, order)) continue;
-    w.state = 'closed';
-    w['closed-at'] = at;
+    if (!waitPending(w) || w.from !== from || !throughCovers(through, w.through, order)) continue;
+    w.state = 'met';
+    w['met-at'] = at;
     closed.push(w);
   }
   return closed;
 }
 
-/** Section 7 of the context file: the open waits and what is merged into this branch. */
+/** Section 7 of the context file: the waits and what is merged into this branch. */
 export function waitsText(unitLedger) {
   const waits = unitLedger?.waits ?? [];
   if (!waits.length) return null;
   const merged = unitLedger['merged-in'] ?? [];
+  const label = { open: '**Open**', ready: '**Ready**', met: 'Met', rejected: '**Rejected**' };
   const L = [];
   L.push(`- Merged into this branch: ${merged.length ? merged.map((m) => `${m.from} through \`${m.through}\` (${String(m.sha ?? '').slice(0, 7)}, ${m.at})`).join('; ') : 'none'}.`);
   for (const w of waits) {
     const slice = w.before ? `the slice \`${w.before}\`` : 'the first slice';
-    L.push(`- ${w.state === 'open' ? '**Open**' : 'Closed'}: before ${slice}, this branch needs ${w.from} through \`${w.through}\`${w.why ? ` (${w.why})` : ''}.`);
+    L.push(`- ${label[w.state] ?? w.state}: before ${slice}, this branch needs ${w.from} through \`${w.through}\`${w.why ? ` (${w.why})` : ''}${w.source && w.source !== 'packet' ? ` (found by the wave driver: ${w.source})` : ''}.`);
   }
-  L.push('- Until a merge brings the code of an open wait, the values and code that it names stay neutral, as the slices say. Do not build a stand-in for them.');
-  L.push('- The stop-request check stops the plan or the implement stage of a slice that an open wait names. The campaign merges the needed unit while this drive is stopped, closes the wait here, and starts the drive again.');
+  L.push('- Plan a slice that a wait names against the plan of the needed unit (its `04-plan-<slice>.yaml`). The wave driver merges the needed commit before the implement of that slice, and writes this section again.');
+  L.push('- Until the merge brings the code of a wait, the values and code that it names stay neutral, as the slices say. Do not build a stand-in for them.');
   L.push('- After a merge, the merged code can change behaviour. The next test that compares outputs expects that change: record it in the stage artifact.');
   return L.join('\n');
+}
+
+/**
+ * 5.7: a cycle at slice level. Each unit's slices follow in roster order, and each
+ * wait is an edge from `<from>:<through>` to `<key>:<before>` (`finished` is the
+ * last slice, `before: null` the first). `rosters` maps a key to its slice list;
+ * `waits` is [{ key, from, through, before }]. Returns the cycle as node names, or null.
+ */
+export function sliceCycle(rosters, waits) {
+  const node = (k, s, end) => {
+    const r = rosters[k] ?? [];
+    const name = s === 'finished' || (s == null && end) ? r[r.length - 1] : s ?? r[0];
+    return `${k}:${name ?? (end ? 'finished' : 'start')}`;
+  };
+  const edges = new Map();
+  const add = (a, b) => { if (!edges.has(a)) edges.set(a, new Set()); edges.get(a).add(b); };
+  for (const [k, r] of Object.entries(rosters)) for (let i = 1; i < r.length; i++) add(`${k}:${r[i - 1]}`, `${k}:${r[i]}`);
+  for (const w of waits) add(node(w.from, w.through ?? 'finished', true), node(w.key, w.before ?? null, false));
+  const state = new Map();
+  const stack = [];
+  const visit = (n) => {
+    if (state.get(n) === 'done') return null;
+    if (state.get(n) === 'open') return [...stack.slice(stack.indexOf(n)), n];
+    state.set(n, 'open');
+    stack.push(n);
+    for (const m of edges.get(n) ?? []) { const c = visit(m); if (c) return c; }
+    stack.pop();
+    state.set(n, 'done');
+    return null;
+  };
+  for (const n of edges.keys()) { const c = visit(n); if (c) return c; }
+  return null;
+}
+
+/** D25: a wave run's silence limit, the same as the watch's inferred run-end (judgeSilence). */
+export const RUN_SILENCE_MS = 20 * 60 * 1000;
+
+/**
+ * D25: is the run `run` ({ id, at }) of a wave live? `lines` are the journal lines of
+ * the campaign journal and of every unit journal; the lines of this run carry
+ * `campaignRun: <id>` (or `run: <id>` on campaign lines). The run is live while its
+ * newest line, or its start, is younger than the silence limit.
+ */
+export function runLive(run, lines = [], now = Date.now()) {
+  if (!run?.id) return { live: false };
+  let newest = Date.parse(run.at ?? '') || 0;
+  for (const l of lines) {
+    if (!l || (l.campaignRun !== run.id && l.run !== run.id)) continue;
+    const at = Date.parse(l.at ?? '');
+    if (Number.isFinite(at) && at > newest) newest = at;
+  }
+  const newestAt = newest ? new Date(newest).toISOString().replace(/\.\d{3}Z$/, 'Z') : null;
+  return { live: newest > 0 && now - newest < RUN_SILENCE_MS, newestAt, ageMinutes: newest ? Math.round((now - newest) / 60000) : null };
 }
 
 // ---------------------------------------------------------------- merge order at the boundary (3.7)
@@ -406,6 +447,9 @@ export function pluginUpdate(running, installed) {
 
 // ---------------------------------------------------------------- recap (3.3)
 
+/** D27: the campaign journal events of the wave driver's own decisions. */
+export const DRIVER_EVENTS = Object.freeze(['park', 'resume', 'derived-need', 'width', 'wave-revert']);
+
 /**
  * C3: the facts of a recap. `journals` maps a unit key to its driver journal lines;
  * `campaign` is the campaign journal. Lines at or after `since` count.
@@ -422,16 +466,23 @@ export function buildRecap({ ledger, since, journals = {}, campaign = [], now })
       key, slug: u.slug, state: u.state, route: u.route ?? null,
       stagesEnded: ends.map((l) => ({ agent: l.agent, status: l.status ?? null, at: l.at })),
       now: last ? { agent: last.agent, event: last.event, at: last.at } : null,
-      openWaits: (u.waits ?? []).filter((w) => w.state === 'open').map((w) => `${w.from} through ${w.through}`),
+      openWaits: (u.waits ?? []).filter(waitPending).map((w) => `${w.from} through ${w.through}`),
+      // D27: each wait with its state, and the unit's open questions.
+      waits: (u.waits ?? []).map((w) => ({ from: w.from, through: w.through, before: w.before ?? null, state: w.state, ...(w.source ? { source: w.source } : {}) })),
+      questions: (ledger.questions ?? []).filter((q) => q.unit === key && !q['answered-at']).map((q) => ({ id: q.id, kind: q.kind ?? null, text: q.text })),
     });
   }
   const decided = (ledger.decided ?? []).filter(after);
-  const events = campaign.filter(after).filter((l) => !['agent-start', 'agent-end'].includes(l.event)).map((l) => ({ at: l.at, event: l.event, ...(l.key ? { key: l.key } : {}), ...(l.wave ? { wave: l.wave } : {}) }));
+  const quiet = new Set(['agent-start', 'agent-end', 'waiter', ...DRIVER_EVENTS]);
+  const events = campaign.filter(after).filter((l) => !quiet.has(l.event)).map((l) => ({ at: l.at, event: l.event, ...(l.key ? { key: l.key } : {}), ...(l.wave ? { wave: l.wave } : {}) }));
+  // D27: the decisions that the wave driver took without the person, with their full fields.
+  const driver = campaign.filter(after).filter((l) => DRIVER_EVENTS.includes(l.event)).map((l) => ({ ...l }));
   const elapsedMinutes = since && now ? Math.round((Date.parse(now) - Date.parse(since)) / 60000) : null;
   return {
     since: since ?? null,
     // D4: the decisions taken for the person come first.
     decided: [...decided].sort((a, b) => Number(Boolean(b['intent-bearing'])) - Number(Boolean(a['intent-bearing']))),
+    driver,
     units,
     questions: (ledger.questions ?? []).filter((q) => !q['answered-at']),
     events,
@@ -585,6 +636,9 @@ export function newLedger({ brainstorm, revision, units, now = new Date().toISOS
   return ledger;
 }
 
+/** 5.7: two needs entries are the same when `from`, `through` and `before` match. */
+export const sameNeed = (a, b) => a && b && a.from === b.from && String(a.through ?? 'finished') === String(b.through ?? 'finished') && String(a.before ?? '') === String(b.before ?? '');
+
 /** Re-plan the waves that have not started, keeping the started ones (15.1). */
 export function replan(ledger, units, { revision = ledger['work-revision'], now = new Date().toISOString() } = {}) {
   for (const u of units) {
@@ -593,6 +647,15 @@ export function replan(ledger, units, { revision = ledger['work-revision'], now 
     } else if (!isBuildUnit(u) && !ledger.outside[u.key]) {
       ledger.outside[u.key] = { slug: u.workSlug, form: u.form, title: u.title, state: 'needs-you' };
     }
+  }
+  // 5.7 step 5: a derived needs entry that its packet now declares leaves the ledger.
+  for (const u of units) {
+    const lu = ledger.units[u.key];
+    if (!lu?.['derived-needs']?.length) continue;
+    const declared = (n) => (u.needs ?? []).some((p) => sameNeed(p, n));
+    lu['derived-needs'] = lu['derived-needs'].filter((n) => !declared(n));
+    for (const w of lu.waits ?? []) if (w.source && w.source !== 'packet' && declared(w)) w.source = 'packet';
+    if (!lu['derived-needs'].length) delete lu['derived-needs'];
   }
   const startedWaves = ledger.waves.filter((w) => w.state !== 'planned');
   const done = new Set(Object.entries(ledger.units).filter(([, x]) => ['merged', 'shipped'].includes(x.state)).map(([k]) => k));
@@ -621,16 +684,18 @@ export const openSetupAnswer = (ledger) => SETUP_ANSWERS.find((k) => ledger.answ
 
 /**
  * Section 6: what `/wf campaign <brainstorm>` does next, from the ledger and the
- * current work-revision of work/index.md.
+ * current work-revision of work/index.md. `driving` is the live wave run
+ * ({ wave, run, newestAt }) when one runs (D25): the session then never launches
+ * a second run and never changes a unit of that wave itself.
  */
-export function campaignAction(ledger, { revision = null, mergeReady = [] } = {}) {
+export function campaignAction(ledger, { revision = null, driving = null } = {}) {
   if (!ledger) return { action: 'orient' };
-  if (ledger.pause) return { action: 'paused', pause: ledger.pause };
+  if (ledger.pause) return { action: 'paused', pause: ledger.pause, ...(driving ? { driving } : {}) };
   const setup = openSetupAnswer(ledger);
   if (setup) return { action: 'setup', question: setup };
-  if (revision !== null && revision !== ledger['work-revision']) return { action: 'work-changed', from: ledger['work-revision'], to: revision };
+  if (revision !== null && revision !== ledger['work-revision']) return { action: 'work-changed', from: ledger['work-revision'], to: revision, ...(driving ? { driving } : {}) };
   const open = ledger.questions.filter((q) => !q['answered-at']);
-  if (open.length) return { action: 'ask', questions: open };
+  if (open.length) return { action: 'ask', questions: open, ...(driving ? { driving } : {}) };
   const unprepared = (w) => (w ? w.units.filter((k) => ledger.units[k]?.state === 'planned') : []);
   const lives = ledger.waves.filter((w) => LIVE_WAVE_STATES.includes(w.state));
   const live = lives[0];
@@ -645,8 +710,8 @@ export function campaignAction(ledger, { revision = null, mergeReady = [] } = {}
     const todo = unprepared(next);
     return todo.length ? { action: 'prepare', wave: next.n, units: todo } : { action: 'start-wave', wave: next.n, beside: lives.map((w) => w.n) };
   }
-  // N7: a waiting unit whose needed slice passed verify is merged into before anything else of the wave.
-  if (live && mergeReady.length) return { action: 'merge-in', wave: live.n, merges: mergeReady };
+  // D25: the wave driver runs the wave; the session prepares the next wave and answers questions.
+  if (driving) return { action: 'driving', ...driving, prepare: unprepared(next) };
   if (live) return { action: 'running', wave: live.n, state: live.state, prepare: unprepared(next) };
   const stopped = ledger.waves.find((w) => w.state === 'stopped');
   if (stopped) return { action: 'stopped', wave: stopped.n };
@@ -716,12 +781,25 @@ export function renderLedgerMd(ledger) {
 }
 
 /**
- * Section 10: the context file a yolo run reads fresh, by path. `asBuilt` maps a
+ * Section 10: the context file that each stage agent of the wave driver reads fresh, by path. `asBuilt` maps a
  * packet key to { path, lines } (after the refuter); `drift` is this unit's
  * implementation-detail drift lines. `localRecords` is true when the repo does
  * not track .ai/ (local records, 13).
  */
-export function renderContext({ unit, units, ledger, asBuilt = {}, drift = [], isolation = null, localRecords = false }) {
+export function renderContext({ unit: unit0, units: units0, ledger, asBuilt = {}, drift = [], isolation = null, localRecords = false }) {
+  // 5.5 kind contract: an approved change of a contract line replaces its text in every context file.
+  const amended = ledger?.['amended-contracts'] ?? {};
+  const amend = (owner, key, text) => {
+    const a = [...(amended[owner] ?? [])].reverse().find((x) => x.line === key);
+    return a ? `${a.text} (amended ${a.at}; was: ${text})` : text;
+  };
+  const withAmends = (u) => ({
+    ...u,
+    provides: (u.provides ?? []).map((p) => ({ ...p, text: amend(u.key, p.key, p.text) })),
+    expects: (u.expects ?? []).map((e) => ({ ...e, text: amend(e.from, e.key, e.text) })),
+  });
+  const units = units0.map(withAmends);
+  const unit = withAmends(unit0);
   const byKey = new Map(units.map((u) => [u.key, u]));
   const wave = ledger?.units?.[unit.key]?.wave ?? null;
   const pre = [...closure(byKey, unit.key)].map((k) => byKey.get(k)).filter(Boolean).sort(byOrder);

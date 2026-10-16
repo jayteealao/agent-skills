@@ -13,7 +13,7 @@ import { DASHBOARD_KEY, LIVE_KEY, PLUGIN_NAME } from '../names.ts'
 import { absorb, freshJournalState, livenessFrom } from '../live/model/journal.ts'
 import type { JournalState } from '../live/model/journal.ts'
 import { buildBrainstormModel } from '../live/model/brainstorm.ts'
-import { buildCampaignModel } from '../live/model/campaign.ts'
+import { buildCampaignModel, slotHoldersAfter } from '../live/model/campaign.ts'
 import { buildYoloModel } from '../live/model/yolo.ts'
 import type { RosterFact } from '../live/model/yolo.ts'
 import { usageOf } from '../live/model/usage.ts'
@@ -336,6 +336,40 @@ describe('live models (T1)', () => {
     expect(model.waves.map(wave => wave.n)).toEqual([1, 2])
     expect(model.waves[0]?.slugs.map(unit => unit.state)).toEqual(['running', 'finished'])
     expect(model.needs.some(need => need.kind === 'prepare')).toBe(true)
+  })
+
+  test('the campaign model shows the wave driver: slot holders, a waiting unit and a parked unit with its question (W5)', async () => {
+    const slots = slotHoldersAfter([], [
+      { event: 'agent-start', agent: 'implement:s1@alpha-auth', heavy: true },
+      { event: 'agent-start', agent: 'plan:s2@alpha-auth' },
+      { event: 'agent-start', agent: 'verify:s0@alpha-auth', heavy: true },
+      { event: 'agent-end', agent: 'verify:s0@alpha-auth' },
+    ])
+    expect(slots).toEqual(['implement:s1@alpha-auth'])
+    const model = buildCampaignModel({
+      slug: 'camp',
+      now: NOW,
+      ledger: {
+        waves: [{ n: 1, state: 'running', units: ['u1', 'u2', 'u3'] }],
+        units: {
+          u1: { slug: 'alpha-auth', state: 'running', wave: 1 },
+          u2: { slug: 'alpha-ui', state: 'waiting', wave: 1, route: 'merge-in u1 s1' },
+          u3: { slug: 'alpha-docs', state: 'stopped', wave: 1, route: 'stage: implement s1' },
+        },
+        questions: [{ id: 'w1-u3-1', unit: 'u3', kind: 'stage', text: 'which API?', wave: 1 }],
+      },
+      liveness: livenessFrom(freshJournalState(), NOW),
+      gates: {},
+      drives: {
+        'alpha-auth': { stage: 'implement', startedAt: NOW - 5 * 60_000, status: null, slots: slots.length },
+        'alpha-ui': { stage: 'plan', startedAt: null, status: 'complete', slots: 0 },
+      },
+      heavy: { holder: null, waiting: [] },
+      usage: usageOf(null),
+      control: null,
+      dismissed: [],
+    })
+    expect(model.waves[0]?.slugs.map(unit => unit.note)).toEqual(['implement · 5m · holds a slot', 'waiting · merge-in u1 s1', 'asks w1-u3-1'])
   })
 
   test('the brainstorm model reads the threads, the walk and the mode', async () => {

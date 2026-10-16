@@ -61,7 +61,7 @@ test('an unprepared needed unit takes its needing unit out of the wave', () => {
 
 test('waveWaits: a need inside the wave is an open wait; a need on an earlier wave is not', () => {
   const us = unitsOf(packet('A'), packet('B'), packet('C', { needs: [{ from: 'A', through: 's2', before: 'p1', why: 'the sink' }, { from: 'X' }] }), packet('X'));
-  assert.deepEqual(C.waveWaits(us, ['A', 'B', 'C']), { C: [{ from: 'A', through: 's2', before: 'p1', why: 'the sink', state: 'open' }] });
+  assert.deepEqual(C.waveWaits(us, ['A', 'B', 'C']), { C: [{ from: 'A', through: 's2', before: 'p1', why: 'the sink', source: 'packet', state: 'open' }] });
 });
 
 test('throughCovers follows the slice order; finished covers everything', () => {
@@ -74,31 +74,58 @@ test('throughCovers follows the slice order; finished covers everything', () => 
   assert.equal(C.throughCovers('other', 's1', order), false);
 });
 
-test('mergeInsReady offers a stopped or waiting unit whose need passed verify, never a running one', () => {
+test('D25: a live wave run gives driving, also with a ready wait; an open question gives ask with driving', () => {
   const ledger = {
-    waves: [{ n: 1, state: 'running', units: ['A', 'C', 'D'] }],
+    waves: [{ n: 1, state: 'running', units: ['A', 'C'], run: { id: 'r1', at: '2026-10-16T10:00:00Z' } }],
     units: {
-      A: { state: 'running' },
-      C: { state: 'waiting', waits: [{ from: 'A', through: 's2', state: 'open' }] },
-      D: { state: 'running', waits: [{ from: 'A', through: 's1', state: 'open' }] },
+      A: { state: 'running', wave: 1 },
+      C: { state: 'running', wave: 1, waits: [{ from: 'A', through: 's2', state: 'ready', sha: 'abc' }] },
     },
+    answers: Object.fromEntries(C.SETUP_ANSWERS.map((k) => [k, 'x'])), questions: [], outside: {},
   };
-  assert.deepEqual(C.mergeInsReady(ledger, { A: { order: ['s1', 's2'], passed: ['s1'], finished: false } }), []);
-  assert.deepEqual(C.mergeInsReady(ledger, { A: { order: ['s1', 's2'], passed: ['s1', 's2'], finished: false } }), [{ key: 'C', from: 'A', through: 's2', waitingFor: 's2' }]);
-  const act = C.campaignAction({ ...ledger, answers: Object.fromEntries(C.SETUP_ANSWERS.map((k) => [k, 'x'])), questions: [], outside: {} }, { mergeReady: [{ key: 'C', from: 'A' }] });
-  assert.equal(act.action, 'merge-in');
+  const driving = { wave: 1, run: 'r1', newestAt: '2026-10-16T10:05:00Z' };
+  const act = C.campaignAction(ledger, { driving });
+  assert.equal(act.action, 'driving');
+  assert.equal(act.run, 'r1');
+  ledger.questions.push({ id: 'w1-A-1', wave: 1, unit: 'A', text: 'which?', 'asked-at': '2026-10-16T10:06:00Z' });
+  const ask = C.campaignAction(ledger, { driving });
+  assert.equal(ask.action, 'ask');
+  assert.deepEqual(ask.driving, driving);
+});
+
+test('D25: runLive follows the newest line of the run, and the 20-minute silence limit', () => {
+  const run = { id: 'r1', at: '2026-10-16T10:00:00Z' };
+  const lines = [{ at: '2026-10-16T10:30:00Z', campaignRun: 'r1' }, { at: '2026-10-16T11:00:00Z', run: 'other' }, { at: '2026-10-16T10:40:00Z', event: 'waiter', run: 'r1' }];
+  assert.equal(C.runLive(run, lines, Date.parse('2026-10-16T10:45:00Z')).live, true);
+  assert.equal(C.runLive(run, lines, Date.parse('2026-10-16T10:45:00Z')).newestAt, '2026-10-16T10:40:00Z');
+  assert.equal(C.runLive(run, lines, Date.parse('2026-10-16T11:05:00Z')).live, false);
+  assert.equal(C.runLive(null, lines).live, false);
+});
+
+test('D21: clearedCover gives the newest cleared slice that covers the wait', () => {
+  const cleared = [{ slice: 's1', sha: 'a1' }, { slice: 's2', sha: 'b2' }];
+  assert.equal(C.clearedCover(cleared, 's1', ['s1', 's2']).sha, 'b2');
+  assert.equal(C.clearedCover([{ slice: 's1', sha: 'a1' }], 's2', ['s1', 's2']), null);
+  assert.equal(C.clearedCover([{ slice: 'finished', sha: 'f' }], 's2', ['s1', 's2']).sha, 'f');
+});
+
+test('5.7: sliceCycle finds a cycle at slice level, and none for a chain', () => {
+  const rosters = { A: ['a1', 'a2'], B: ['b1', 'b2'] };
+  assert.equal(C.sliceCycle(rosters, [{ key: 'B', from: 'A', through: 'a1', before: 'b2' }]), null);
+  const cyc = C.sliceCycle(rosters, [{ key: 'B', from: 'A', through: 'a2', before: 'b1' }, { key: 'A', from: 'B', through: 'b1', before: 'a2' }]);
+  assert.ok(Array.isArray(cyc) && cyc.length >= 3, JSON.stringify(cyc));
 });
 
 test('closeWaits closes the waits that a merge covers, and the context file shows them', () => {
   const u = { waits: [{ from: 'A', through: 's1', before: 'p1', state: 'open' }, { from: 'A', through: 'finished', before: 'p3', state: 'open' }], 'merged-in': [] };
   const closed = C.closeWaits(u.waits, { from: 'A', through: 's2', order: ['s1', 's2'], at: '2026-10-10T10:00:00Z' });
   assert.equal(closed.length, 1);
-  assert.deepEqual(u.waits.map((w) => w.state), ['closed', 'open']);
+  assert.deepEqual(u.waits.map((w) => w.state), ['met', 'open']);
   u['merged-in'].push({ from: 'A', through: 's2', sha: 'abcdef1234', at: '2026-10-10T10:00:00Z' });
   const text = C.waitsText(u);
   assert.match(text, /Merged into this branch: A through `s2` \(abcdef1/);
   assert.match(text, /\*\*Open\*\*: before the slice `p3`, this branch needs A through `finished`/);
-  assert.match(text, /Closed: before the slice `p1`/);
+  assert.match(text, /Met: before the slice `p1`/);
   const ctx = C.renderContext({ unit: C.unitOf(packet('C')), units: [], ledger: { brainstorm: 'b', units: { C: { wave: 1, ...u } } } });
   assert.match(ctx, /## 7\. Waits/);
 });
@@ -198,4 +225,36 @@ test('ledger.md shows the standing rules first, the presence, and the open waits
   assert.match(md, /\*\*R1\*\* — do not push without me/);
   assert.match(md, /The person is away since 2026-10-10T22:00:00Z/);
   assert.match(md, /waits for A through `finished`/);
+});
+
+test('D27: the recap lists the driver events with their full fields, leaves out the waiter, and lists each unit\'s questions and waits', () => {
+  const ledger = {
+    units: { A: { slug: 'a', state: 'stopped', route: 'parked: stage: x', waits: [{ from: 'B', through: 's1', before: 'p2', state: 'ready', source: 'cross-unit' }] }, B: { slug: 'b', state: 'running' } },
+    questions: [{ id: 'w1-A-1', unit: 'A', kind: 'stage', text: 'Which?', 'asked-at': '2026-10-16T01:00:00Z' }],
+    decided: [],
+  };
+  const campaign = [
+    { at: '2026-10-16T01:00:00Z', event: 'park', key: 'A', kind: 'stage', question: 'w1-A-1', reason: 'hard-stop' },
+    { at: '2026-10-16T01:10:00Z', event: 'derived-need', key: 'A', from: 'B', through: 's1', before: 'p2', why: 'src/x.ts', source: 'cross-unit' },
+    { at: '2026-10-16T01:20:00Z', event: 'width', from: 3, to: 1, state: 'slow' },
+    { at: '2026-10-16T01:30:00Z', event: 'waiter', run: 'r1', wave: 1 },
+    { at: '2026-10-16T01:40:00Z', event: 'asked', id: 'w1-A-1' },
+  ];
+  const r = C.buildRecap({ ledger, since: '2026-10-16T00:00:00Z', campaign, now: '2026-10-16T08:00:00Z' });
+  assert.deepEqual(r.driver.map((d) => d.event), ['park', 'derived-need', 'width']);
+  assert.equal(r.driver[0].question, 'w1-A-1');
+  assert.equal(r.driver[1].why, 'src/x.ts');
+  assert.equal(r.driver[2].to, 1);
+  assert.deepEqual(r.events.map((e) => e.event), ['asked']);
+  const a = r.units.find((u) => u.key === 'A');
+  assert.deepEqual(a.questions, [{ id: 'w1-A-1', kind: 'stage', text: 'Which?' }]);
+  assert.deepEqual(a.waits, [{ from: 'B', through: 's1', before: 'p2', state: 'ready', source: 'cross-unit' }]);
+});
+
+test('5.7: replan drops a derived needs entry once the packet declares it', () => {
+  const units = unitsOf(packet('A'), packet('B', { needs: [{ from: 'A', through: 's1', before: 'p2' }] }));
+  const ledger = C.newLedger({ brainstorm: 'b', revision: 1, units, now: '2026-10-16T00:00:00Z' });
+  ledger.units.B['derived-needs'] = [{ from: 'A', through: 's1', before: 'p2', by: 'driver', source: 'cross-unit' }, { from: 'A', through: 's2', before: 'p3', by: 'driver', source: 'cross-unit' }];
+  C.replan(ledger, units, { revision: 2, now: '2026-10-16T01:00:00Z' });
+  assert.deepEqual(ledger.units.B['derived-needs'].map((d) => d.through), ['s2']);
 });

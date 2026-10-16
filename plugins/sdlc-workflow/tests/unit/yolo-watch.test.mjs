@@ -552,8 +552,9 @@ test('K4/K5: campaign notes and scoped stop requests', () => {
     W.appendNote(root, '-', 'Wave 1 is ready to try.', 'wave-ready', T0, B);
     assert.doesNotMatch(readFileSync(W.commentaryPath(root, SLUG), 'utf8'), /ready to try/);
     assert.deepEqual(W.writeControl(root, '-', 'stop', ['current'], T0, { campaign: B, scope: 'wave' }), { action: 'stop', scope: 'wave', after: 'current', requestedAt: at(0) });
-    assert.deepEqual(W.writeControl(root, 'engine', 'stop', ['verify'], T0, { campaign: B, scope: 'slug' }), { action: 'stop', scope: 'slug', slug: 'engine', after: 'verify', requestedAt: at(0) });
-    assert.throws(() => W.writeControl(root, '-', 'stop', ['current'], T0, { campaign: B, scope: 'slug' }), /names the slug/);
+    assert.deepEqual(W.writeControl(root, 'engine', 'stop', ['verify'], T0, { campaign: B, scope: 'slug', then: 'move' }), { action: 'stop', scope: 'slug', slug: 'engine', after: 'verify', then: 'move', requestedAt: at(0) });
+    assert.throws(() => W.writeControl(root, 'engine', 'stop', ['verify'], T0, { campaign: B, scope: 'slug' }), /--then move/, 'D28: a slug stop says what follows');
+    assert.throws(() => W.writeControl(root, '-', 'stop', ['current'], T0, { campaign: B, scope: 'slug', then: 'hold' }), /names the slug/);
     assert.equal(JSON.parse(readFileSync(W.campaignControlPath(root, B), 'utf8')).scope, 'slug');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

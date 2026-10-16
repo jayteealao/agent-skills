@@ -30,7 +30,7 @@ import { isDarkThemeOf, nextViewStyle, paletteOf, viewStyleOf } from '../styles/
 import type { ViewStyle } from '../styles/tokens.ts'
 import { findProjectRoot, joinPath, listSlices } from '../workflows.ts'
 import { buildBrainstormModel, newestChangeOf } from './model/brainstorm.ts'
-import { buildCampaignModel, driveJournalPathsOf, gatesAfter, heavyHolderOf, lockWaitsAfter } from './model/campaign.ts'
+import { buildCampaignModel, driveJournalPathsOf, gatesAfter, heavyHolderOf, lockWaitsAfter, slotHoldersAfter } from './model/campaign.ts'
 import type { UnitDrive } from './model/campaign.ts'
 import { absorb, freshJournalState, judge, livenessFrom, openStagesOf } from './model/journal.ts'
 import type { JournalState } from './model/journal.ts'
@@ -98,7 +98,7 @@ type Tracker = {
   rosterAt: number
   gates: Record<string, string[]>
   lockWaits: string[]
-  drives: Map<string, { journal: JournalState }>
+  drives: Map<string, { journal: JournalState; slots: string[] }>
   boardAt: number | null
   boardBeats: number[]
   toasted: Set<string>
@@ -683,6 +683,9 @@ function firstLineOf(journal: JournalState): number | null {
   return journal.beats[0] ?? null
 }
 
+/** The unit states whose driver journal the campaign view reads (WF-CAMPAIGN-DRIVER-PLAN 5.3 item 8). */
+const DRIVEN_UNIT_STATES = new Set(['running', 'waiting', 'stopped'])
+
 async function pollCampaign(x: LiveEngine, tracker: Tracker, now: number): Promise<void> {
   if (reader === null || root === null) return
   const campDir = joinPath(root, '.ai', 'workflows', tracker.slug, 'work', 'campaign')
@@ -708,7 +711,7 @@ async function pollCampaign(x: LiveEngine, tracker: Tracker, now: number): Promi
       toast(x, tracker, `campaign:${String(line['event'])}:${String(line['at'])}`, text)
     }
   }
-  // The drives: each running unit's driver journal, in the main checkout or its worktree.
+  // The drives: the driver journal of each unit that runs, waits or is parked, in its worktree or the main checkout.
   const units = (ledger?.['units'] ?? {}) as Record<string, { slug?: unknown; state?: unknown; worktree?: { path?: unknown } }>
   const drives: Record<string, UnitDrive> = {}
   let lastLineAt = tracker.journal.run.lastLineAt
@@ -716,18 +719,21 @@ async function pollCampaign(x: LiveEngine, tracker: Tracker, now: number): Promi
   for (const unit of Object.values(units)) {
     const slug = typeof unit.slug === 'string' ? unit.slug : null
     if (slug === null) continue
-    const drive = tracker.drives.get(slug) ?? { journal: freshJournalState() }
+    const drive = tracker.drives.get(slug) ?? { journal: freshJournalState(), slots: [] }
     tracker.drives.set(slug, drive)
-    if (unit.state !== 'running') continue
+    if (!DRIVEN_UNIT_STATES.has(String(unit.state))) continue
     const candidates = driveJournalPathsOf(root, slug, typeof unit.worktree?.path === 'string' ? unit.worktree.path : null)
     for (const path of candidates) {
       const tail = await reader.tail(path)
       if (!tail.exists) continue
-      if (tail.lines.length > 0) drive.journal = absorb(slug, drive.journal, tail.lines).state
+      if (tail.lines.length > 0) {
+        drive.journal = absorb(slug, drive.journal, tail.lines).state
+        drive.slots = slotHoldersAfter(drive.slots, tail.lines)
+      }
       break
     }
     const open = openStagesOf(drive.journal)[0]
-    drives[slug] = { stage: open?.stage ?? drive.journal.lastStage?.stage ?? null, startedAt: open?.at ?? null, status: drive.journal.lastStage?.status ?? null }
+    drives[slug] = { stage: open?.stage ?? drive.journal.lastStage?.stage ?? null, startedAt: open?.at ?? null, status: drive.journal.lastStage?.status ?? null, slots: unit.state === 'running' ? drive.slots.length : 0 }
     if (drive.journal.run.lastLineAt !== null && (lastLineAt === null || drive.journal.run.lastLineAt > lastLineAt)) lastLineAt = drive.journal.run.lastLineAt
     beats.push(...drive.journal.beats)
   }

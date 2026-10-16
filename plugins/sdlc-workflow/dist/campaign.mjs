@@ -43,19 +43,19 @@ function unitOf(packet, { written = [] } = {}) {
   const exps = packet.expects ?? [];
   const workSlug = packet["work-slug"] ?? packet.key;
   const targetSlug = packet["target-slug"] ?? null;
-  const needs = (Array.isArray(packet.needs) ? packet.needs : []).filter((n) => n && n.from && !done.has(n.from)).map((n) => ({ from: String(n.from), through: n.through ? String(n.through) : "finished", before: n.before ? String(n.before) : null, why: n.why ? String(n.why) : "" }));
+  const needs2 = (Array.isArray(packet.needs) ? packet.needs : []).filter((n) => n && n.from && !done.has(n.from)).map((n) => ({ from: String(n.from), through: n.through ? String(n.through) : "finished", before: n.before ? String(n.before) : null, why: n.why ? String(n.why) : "" }));
   return {
     key: packet.key,
     title: packet.title ?? packet.key,
     form,
-    // An extension adds slices to the slug it extends, so yolo drives that slug.
+    // An extension adds slices to the slug it extends, so the wave driver drives that slug.
     slug: form === "extension" && targetSlug ? targetSlug : workSlug,
     workSlug,
     targetSlug,
     urgency: packet.urgency ?? "normal",
     order: Number.isFinite(Number(packet.order)) ? Number(packet.order) : 1,
     dependsOn: deps.filter((d) => !done.has(d)),
-    needs,
+    needs: needs2,
     provides: [...packet.provides ?? []],
     expects: exps.filter((e) => !done.has(e.from)),
     writtenDeps: deps.filter((d) => done.has(d)),
@@ -224,7 +224,7 @@ function waveWaits(units, waveKeys) {
   const out = {};
   for (const key of waveKeys) {
     const u = units.find((x) => x.key === key);
-    const waits = needsOf(u ?? {}).filter((n) => inWave.has(n.from)).map((n) => ({ from: n.from, through: n.through, before: n.before, why: n.why, state: "open" }));
+    const waits = needsOf(u ?? {}).filter((n) => inWave.has(n.from)).map((n) => ({ from: n.from, through: n.through, before: n.before, why: n.why, source: "packet", state: "open" }));
     if (waits.length) out[key] = waits;
   }
   return out;
@@ -237,32 +237,17 @@ function throughCovers(merged, wanted, order = []) {
   const b = order.indexOf(merged);
   return a >= 0 && b >= 0 && a <= b;
 }
-function mergeInsReady(ledger, progress = {}) {
-  const ready = [];
-  for (const w of ledger.waves.filter((x) => x.state === "running")) {
-    for (const key of w.units) {
-      const u = ledger.units[key];
-      if (!u || !["waiting", "prepared", "stopped"].includes(u.state)) continue;
-      const seen = /* @__PURE__ */ new Set();
-      for (const wt of (u.waits ?? []).filter((x) => x.state === "open")) {
-        const p = progress[wt.from];
-        if (!p) continue;
-        const reached = p.finished ? "finished" : [...p.passed ?? []].sort((a, b) => (p.order ?? []).indexOf(b) - (p.order ?? []).indexOf(a))[0];
-        if (!reached || !throughCovers(reached, wt.through, p.order)) continue;
-        if (seen.has(wt.from)) continue;
-        seen.add(wt.from);
-        ready.push({ key, from: wt.from, through: reached, waitingFor: wt.through });
-      }
-    }
-  }
-  return ready;
+var WAIT_STATES = Object.freeze(["open", "ready", "met", "rejected"]);
+var waitPending = (w) => w && (w.state === "open" || w.state === "ready");
+function clearedCover(cleared = [], through, order = []) {
+  return [...cleared ?? []].reverse().find((c) => c && throughCovers(c.slice, through, order)) ?? null;
 }
 function closeWaits(waits, { from, through, order = [], at }) {
   const closed = [];
   for (const w of waits ?? []) {
-    if (w.state !== "open" || w.from !== from || !throughCovers(through, w.through, order)) continue;
-    w.state = "closed";
-    w["closed-at"] = at;
+    if (!waitPending(w) || w.from !== from || !throughCovers(through, w.through, order)) continue;
+    w.state = "met";
+    w["met-at"] = at;
     closed.push(w);
   }
   return closed;
@@ -271,16 +256,63 @@ function waitsText(unitLedger) {
   const waits = unitLedger?.waits ?? [];
   if (!waits.length) return null;
   const merged = unitLedger["merged-in"] ?? [];
+  const label2 = { open: "**Open**", ready: "**Ready**", met: "Met", rejected: "**Rejected**" };
   const L = [];
   L.push(`- Merged into this branch: ${merged.length ? merged.map((m) => `${m.from} through \`${m.through}\` (${String(m.sha ?? "").slice(0, 7)}, ${m.at})`).join("; ") : "none"}.`);
   for (const w of waits) {
     const slice = w.before ? `the slice \`${w.before}\`` : "the first slice";
-    L.push(`- ${w.state === "open" ? "**Open**" : "Closed"}: before ${slice}, this branch needs ${w.from} through \`${w.through}\`${w.why ? ` (${w.why})` : ""}.`);
+    L.push(`- ${label2[w.state] ?? w.state}: before ${slice}, this branch needs ${w.from} through \`${w.through}\`${w.why ? ` (${w.why})` : ""}${w.source && w.source !== "packet" ? ` (found by the wave driver: ${w.source})` : ""}.`);
   }
-  L.push("- Until a merge brings the code of an open wait, the values and code that it names stay neutral, as the slices say. Do not build a stand-in for them.");
-  L.push("- The stop-request check stops the plan or the implement stage of a slice that an open wait names. The campaign merges the needed unit while this drive is stopped, closes the wait here, and starts the drive again.");
+  L.push("- Plan a slice that a wait names against the plan of the needed unit (its `04-plan-<slice>.yaml`). The wave driver merges the needed commit before the implement of that slice, and writes this section again.");
+  L.push("- Until the merge brings the code of a wait, the values and code that it names stay neutral, as the slices say. Do not build a stand-in for them.");
   L.push("- After a merge, the merged code can change behaviour. The next test that compares outputs expects that change: record it in the stage artifact.");
   return L.join("\n");
+}
+function sliceCycle(rosters, waits) {
+  const node = (k, s, end) => {
+    const r = rosters[k] ?? [];
+    const name = s === "finished" || s == null && end ? r[r.length - 1] : s ?? r[0];
+    return `${k}:${name ?? (end ? "finished" : "start")}`;
+  };
+  const edges = /* @__PURE__ */ new Map();
+  const add = (a, b) => {
+    if (!edges.has(a)) edges.set(a, /* @__PURE__ */ new Set());
+    edges.get(a).add(b);
+  };
+  for (const [k, r] of Object.entries(rosters)) for (let i = 1; i < r.length; i++) add(`${k}:${r[i - 1]}`, `${k}:${r[i]}`);
+  for (const w of waits) add(node(w.from, w.through ?? "finished", true), node(w.key, w.before ?? null, false));
+  const state = /* @__PURE__ */ new Map();
+  const stack2 = [];
+  const visit = (n) => {
+    if (state.get(n) === "done") return null;
+    if (state.get(n) === "open") return [...stack2.slice(stack2.indexOf(n)), n];
+    state.set(n, "open");
+    stack2.push(n);
+    for (const m of edges.get(n) ?? []) {
+      const c = visit(m);
+      if (c) return c;
+    }
+    stack2.pop();
+    state.set(n, "done");
+    return null;
+  };
+  for (const n of edges.keys()) {
+    const c = visit(n);
+    if (c) return c;
+  }
+  return null;
+}
+var RUN_SILENCE_MS = 20 * 60 * 1e3;
+function runLive(run, lines = [], now = Date.now()) {
+  if (!run?.id) return { live: false };
+  let newest = Date.parse(run.at ?? "") || 0;
+  for (const l of lines) {
+    if (!l || l.campaignRun !== run.id && l.run !== run.id) continue;
+    const at = Date.parse(l.at ?? "");
+    if (Number.isFinite(at) && at > newest) newest = at;
+  }
+  const newestAt = newest ? new Date(newest).toISOString().replace(/\.\d{3}Z$/, "Z") : null;
+  return { live: newest > 0 && now - newest < RUN_SILENCE_MS, newestAt, ageMinutes: newest ? Math.round((now - newest) / 6e4) : null };
 }
 function boundaryMergeOrder(units) {
   const byKey = new Map(units.map((u) => [u.key, u]));
@@ -336,6 +368,7 @@ function pluginUpdate(running, installed) {
   if (!a || !b) return null;
   return compareVersions(b, a) > 0 ? { running: a.text, installed: b.text } : null;
 }
+var DRIVER_EVENTS = Object.freeze(["park", "resume", "derived-need", "width", "wave-revert"]);
 function buildRecap({ ledger, since, journals = {}, campaign = [], now }) {
   const after = (l) => !since || String(l.at ?? "") >= since;
   const units = [];
@@ -351,16 +384,22 @@ function buildRecap({ ledger, since, journals = {}, campaign = [], now }) {
       route: u.route ?? null,
       stagesEnded: ends.map((l) => ({ agent: l.agent, status: l.status ?? null, at: l.at })),
       now: last ? { agent: last.agent, event: last.event, at: last.at } : null,
-      openWaits: (u.waits ?? []).filter((w) => w.state === "open").map((w) => `${w.from} through ${w.through}`)
+      openWaits: (u.waits ?? []).filter(waitPending).map((w) => `${w.from} through ${w.through}`),
+      // D27: each wait with its state, and the unit's open questions.
+      waits: (u.waits ?? []).map((w) => ({ from: w.from, through: w.through, before: w.before ?? null, state: w.state, ...w.source ? { source: w.source } : {} })),
+      questions: (ledger.questions ?? []).filter((q) => q.unit === key && !q["answered-at"]).map((q) => ({ id: q.id, kind: q.kind ?? null, text: q.text }))
     });
   }
   const decided2 = (ledger.decided ?? []).filter(after);
-  const events = campaign.filter(after).filter((l) => !["agent-start", "agent-end"].includes(l.event)).map((l) => ({ at: l.at, event: l.event, ...l.key ? { key: l.key } : {}, ...l.wave ? { wave: l.wave } : {} }));
+  const quiet = /* @__PURE__ */ new Set(["agent-start", "agent-end", "waiter", ...DRIVER_EVENTS]);
+  const events = campaign.filter(after).filter((l) => !quiet.has(l.event)).map((l) => ({ at: l.at, event: l.event, ...l.key ? { key: l.key } : {}, ...l.wave ? { wave: l.wave } : {} }));
+  const driver = campaign.filter(after).filter((l) => DRIVER_EVENTS.includes(l.event)).map((l) => ({ ...l }));
   const elapsedMinutes = since && now ? Math.round((Date.parse(now) - Date.parse(since)) / 6e4) : null;
   return {
     since: since ?? null,
     // D4: the decisions taken for the person come first.
     decided: [...decided2].sort((a, b) => Number(Boolean(b["intent-bearing"])) - Number(Boolean(a["intent-bearing"]))),
+    driver,
     units,
     questions: (ledger.questions ?? []).filter((q) => !q["answered-at"]),
     events,
@@ -470,6 +509,7 @@ function newLedger({ brainstorm, revision, units, now = (/* @__PURE__ */ new Dat
   }));
   return ledger;
 }
+var sameNeed = (a, b) => a && b && a.from === b.from && String(a.through ?? "finished") === String(b.through ?? "finished") && String(a.before ?? "") === String(b.before ?? "");
 function replan(ledger, units, { revision = ledger["work-revision"], now = (/* @__PURE__ */ new Date()).toISOString() } = {}) {
   for (const u of units) {
     if (isBuildUnit(u) && !ledger.units[u.key]) {
@@ -477,6 +517,14 @@ function replan(ledger, units, { revision = ledger["work-revision"], now = (/* @
     } else if (!isBuildUnit(u) && !ledger.outside[u.key]) {
       ledger.outside[u.key] = { slug: u.workSlug, form: u.form, title: u.title, state: "needs-you" };
     }
+  }
+  for (const u of units) {
+    const lu = ledger.units[u.key];
+    if (!lu?.["derived-needs"]?.length) continue;
+    const declared = (n) => (u.needs ?? []).some((p) => sameNeed(p, n));
+    lu["derived-needs"] = lu["derived-needs"].filter((n) => !declared(n));
+    for (const w of lu.waits ?? []) if (w.source && w.source !== "packet" && declared(w)) w.source = "packet";
+    if (!lu["derived-needs"].length) delete lu["derived-needs"];
   }
   const startedWaves = ledger.waves.filter((w) => w.state !== "planned");
   const done = new Set(Object.entries(ledger.units).filter(([, x]) => ["merged", "shipped"].includes(x.state)).map(([k]) => k));
@@ -507,14 +555,14 @@ function replan(ledger, units, { revision = ledger["work-revision"], now = (/* @
   return ledger;
 }
 var openSetupAnswer = (ledger) => SETUP_ANSWERS.find((k) => ledger.answers?.[k] === null || ledger.answers?.[k] === void 0) ?? null;
-function campaignAction(ledger, { revision = null, mergeReady = [] } = {}) {
+function campaignAction(ledger, { revision = null, driving = null } = {}) {
   if (!ledger) return { action: "orient" };
-  if (ledger.pause) return { action: "paused", pause: ledger.pause };
+  if (ledger.pause) return { action: "paused", pause: ledger.pause, ...driving ? { driving } : {} };
   const setup = openSetupAnswer(ledger);
   if (setup) return { action: "setup", question: setup };
-  if (revision !== null && revision !== ledger["work-revision"]) return { action: "work-changed", from: ledger["work-revision"], to: revision };
+  if (revision !== null && revision !== ledger["work-revision"]) return { action: "work-changed", from: ledger["work-revision"], to: revision, ...driving ? { driving } : {} };
   const open = ledger.questions.filter((q) => !q["answered-at"]);
-  if (open.length) return { action: "ask", questions: open };
+  if (open.length) return { action: "ask", questions: open, ...driving ? { driving } : {} };
   const unprepared = (w) => w ? w.units.filter((k) => ledger.units[k]?.state === "planned") : [];
   const lives = ledger.waves.filter((w) => LIVE_WAVE_STATES.includes(w.state));
   const live = lives[0];
@@ -524,7 +572,7 @@ function campaignAction(ledger, { revision = null, mergeReady = [] } = {}) {
     const todo = unprepared(next);
     return todo.length ? { action: "prepare", wave: next.n, units: todo } : { action: "start-wave", wave: next.n, beside: lives.map((w) => w.n) };
   }
-  if (live && mergeReady.length) return { action: "merge-in", wave: live.n, merges: mergeReady };
+  if (driving) return { action: "driving", ...driving, prepare: unprepared(next) };
   if (live) return { action: "running", wave: live.n, state: live.state, prepare: unprepared(next) };
   const stopped = ledger.waves.find((w) => w.state === "stopped");
   if (stopped) return { action: "stopped", wave: stopped.n };
@@ -587,7 +635,19 @@ function renderLedgerMd(ledger) {
   L.push("");
   return L.join("\n");
 }
-function renderContext({ unit: unit2, units, ledger, asBuilt = {}, drift: drift2 = [], isolation = null, localRecords = false }) {
+function renderContext({ unit: unit0, units: units0, ledger, asBuilt = {}, drift: drift2 = [], isolation = null, localRecords = false }) {
+  const amended = ledger?.["amended-contracts"] ?? {};
+  const amend = (owner2, key, text) => {
+    const a = [...amended[owner2] ?? []].reverse().find((x) => x.line === key);
+    return a ? `${a.text} (amended ${a.at}; was: ${text})` : text;
+  };
+  const withAmends = (u) => ({
+    ...u,
+    provides: (u.provides ?? []).map((p) => ({ ...p, text: amend(u.key, p.key, p.text) })),
+    expects: (u.expects ?? []).map((e) => ({ ...e, text: amend(e.from, e.key, e.text) }))
+  });
+  const units = units0.map(withAmends);
+  const unit2 = withAmends(unit0);
   const byKey = new Map(units.map((u) => [u.key, u]));
   const wave2 = ledger?.units?.[unit2.key]?.wave ?? null;
   const pre = [...closure(byKey, unit2.key)].map((k) => byKey.get(k)).filter(Boolean).sort(byOrder);
@@ -1021,7 +1081,7 @@ function ignoredAtRisk(porcelain, allow = []) {
 }
 
 // scripts/campaign.mjs
-var USAGE = "Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|stack|merge-in|merge-order|steer|rule|away|back|decided|recap> <projectRoot> <brainstorm> ...";
+var USAGE = "Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|stack|merge-in|merge-order|steer|rule|away|back|decided|recap|slice-done|needs|contract|await|question|owner> <projectRoot> <brainstorm> ...";
 var PLUGIN_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 var brainstormDir = (root, b) => join2(root, ".ai", "workflows", b);
 var workDir = (root, b) => join2(brainstormDir(root, b), "work");
@@ -1049,7 +1109,7 @@ function writeAtomic(file, text) {
   }
 }
 var ledgerLockPath = (root, b) => join2(campDir(root, b), "ledger.lock");
-var LEDGER_COMMANDS = /* @__PURE__ */ new Set(["orient", "replan", "answer", "unit", "outside", "wave", "ask", "reply", "pause", "resume", "forecast", "worktree", "stack", "merge-in", "rule", "away", "back", "decided"]);
+var LEDGER_COMMANDS = /* @__PURE__ */ new Set(["orient", "replan", "answer", "unit", "outside", "wave", "ask", "reply", "pause", "resume", "forecast", "worktree", "stack", "merge-in", "rule", "away", "back", "decided", "slice-done", "needs", "contract", "question"]);
 function git(root, args) {
   const r = spawnSync("git", ["-C", root, ...args], { encoding: "utf8", windowsHide: true });
   return r.status === 0 ? r.stdout.trim() : null;
@@ -1163,12 +1223,15 @@ function trunkOf(root) {
   for (const b of ["main", "master"]) if (git(root, ["rev-parse", "--verify", "--quiet", b]) !== null) return b;
   return "main";
 }
+var BOOLEAN_FLAGS = /* @__PURE__ */ new Set(["move", "final", "cancel"]);
 function flags(args) {
   const pos = [];
   const f = {};
   for (let i = 0; i < args.length; i++) {
-    if (args[i].startsWith("--")) {
-      f[args[i].slice(2)] = args[i + 1];
+    const name = args[i].startsWith("--") ? args[i].slice(2) : null;
+    if (name && BOOLEAN_FLAGS.has(name)) f[name] = true;
+    else if (name) {
+      f[name] = args[i + 1];
       i++;
     } else pos.push(args[i]);
   }
@@ -1191,6 +1254,7 @@ function orient(root, b) {
   ledger.records = ignored ? "local" : "tracked";
   if (ignored) check.warnings.push("the repo does not track .ai/: the records stay in the main checkout. Each worktree gets a copy, and its changes come back before the worktree is removed (local records). The wave PR text and the code are still public.");
   const iso = isolationOf(cfg);
+  if (!iso) ledger["tool-gaps"].push({ tool: "isolation", have: "none", need: "campaign.isolation in .ai/sdlc-config.json", fix: 'ask the person for the isolation contract (campaign/_phases.md, "Width")' });
   if (iso && process.platform === "win32" && (!iso["outside-root"] || !iso["worktree-root"])) {
     check.warnings.push("Windows: ask the person at setup for short absolute paths in campaign.isolation: outside-root (the folders a unit needs outside its worktree, for example C:/co) and worktree-root (for example C:/cw). Without them, a drive keeps every build folder inside its worktree, and deep build paths can pass the 260-character limit.");
   }
@@ -1555,11 +1619,11 @@ function status(root, b) {
   const ledger = loadLedger(root, b);
   const ws = readWorkSet(root, b);
   const revision = ws.error ? null : ws.revision;
-  const mergeReady = ledger ? mergeInsReady(ledger, waitProgress(root, ledger)) : [];
+  const driving = ledger ? liveRun(root, b, ledger) : null;
   const update = pluginUpdate(runningPluginVersion(), installedPluginVersion(root));
   return {
     ok: true,
-    next: campaignAction(ledger, { revision, mergeReady }),
+    next: campaignAction(ledger, { revision, driving }),
     revision,
     // C9: the person's standing rules, in every status result, so that a compaction cannot lose them.
     rules: ledger?.rules ?? [],
@@ -1569,7 +1633,7 @@ function status(root, b) {
       waves: ledger.waves.map((w) => ({ n: w.n, state: w.state, units: w.units, moved: w.moved })),
       waiting: ledger.waiting,
       pause: ledger.pause,
-      units: Object.fromEntries(Object.entries(ledger.units).filter(([, u]) => u.wave && ledger.waves.find((x) => x.n === u.wave && x.state === "running")).map(([k, u]) => [k, { state: u.state, route: u.route ?? null, openWaits: (u.waits ?? []).filter((x) => x.state === "open").map((x) => ({ from: x.from, through: x.through, before: x.before })) }]))
+      units: Object.fromEntries(Object.entries(ledger.units).filter(([, u]) => u.wave && ledger.waves.find((x) => x.n === u.wave && ["running", "boundary"].includes(x.state))).map(([k, u]) => [k, { state: u.state, route: u.route ?? null, openWaits: (u.waits ?? []).filter(waitPending).map((x) => ({ from: x.from, through: x.through, before: x.before, state: x.state })) }]))
     } : null
   };
 }
@@ -1586,29 +1650,36 @@ function unitProgress(root, u) {
   });
   return { order, passed, finished: ["finished", "merged", "shipped"].includes(u.state) };
 }
-function waitProgress(root, ledger) {
-  const from = new Set(Object.values(ledger.units).flatMap((u) => (u.waits ?? []).filter((w) => w.state === "open").map((w) => w.from)));
-  return Object.fromEntries([...from].filter((k) => ledger.units[k]).map((k) => [k, unitProgress(root, ledger.units[k])]));
-}
 var RUN_TIME_FILES = Object.freeze([".watch-state.json", ".driver-journal.jsonl", "commentary.md", "cost.jsonl", ".read-ledger.jsonl"]);
 var RUN_TIME_EXCLUDES = RUN_TIME_FILES.map((f) => `:(exclude,glob).ai/workflows/*/${f}`);
 var unitBranch = (b, u) => u.worktree?.branch ?? (u.wave ? `campaign/${b}/wave-${u.wave}--${u.slug}` : null);
-function mergeIn(root, b, [key, from]) {
+function mergeIn(root, b, [key, from], f = {}) {
   const ledger = requireLedger(root, b);
   const u = ledger.units[key];
-  const f = ledger.units[from];
+  const fu = ledger.units[from];
   if (!u) throw new Error(`merge-in: ${key} is not a build unit of this campaign`);
-  if (!f) throw new Error(`merge-in: ${from} is not a build unit of this campaign`);
+  if (!fu) throw new Error(`merge-in: ${from} is not a build unit of this campaign`);
   if (u.state === "running") return { ok: false, error: `the drive of ${key} runs. Merge only while it is stopped (D5): wait for its wait stop, or stop it first.` };
-  const open = (u.waits ?? []).filter((w) => w.state === "open" && w.from === from);
+  const open = (u.waits ?? []).filter((w) => waitPending(w) && w.from === from);
   if (!open.length) return { ok: false, error: `${key} has no open wait on ${from}` };
-  const p = unitProgress(root, f);
-  const reached = p.finished ? "finished" : [...p.passed].sort((x, y) => p.order.indexOf(y) - p.order.indexOf(x))[0];
-  if (!reached || !open.some((w) => throughCovers(reached, w.through, p.order))) {
-    return { ok: false, error: `${from} has not passed verify for what ${key} needs (${open.map((w) => w.through).join(", ")}); it reached ${reached ?? "no passed slice"}` };
+  const p = unitProgress(root, fu);
+  let reached;
+  let mergeRef;
+  if (f.at) {
+    const c = (fu.cleared ?? []).find((x) => x.sha === f.at || String(x.sha).startsWith(f.at));
+    if (!c) return { ok: false, error: `${f.at} is not a cleared commit of ${from}: a merge-in takes the sha that slice-done recorded` };
+    reached = c.slice;
+    if (!open.some((w) => throughCovers(reached, w.through, p.order))) return { ok: false, error: `the cleared slice ${reached} of ${from} does not cover what ${key} needs (${open.map((w) => w.through).join(", ")})` };
+    mergeRef = c.sha;
+  } else {
+    reached = p.finished ? "finished" : [...p.passed].sort((x, y) => p.order.indexOf(y) - p.order.indexOf(x))[0];
+    if (!reached || !open.some((w) => throughCovers(reached, w.through, p.order))) {
+      return { ok: false, error: `${from} has not passed verify for what ${key} needs (${open.map((w) => w.through).join(", ")}); it reached ${reached ?? "no passed slice"}` };
+    }
   }
-  const fromBranch = unitBranch(b, f);
-  if (!fromBranch || !commitOf(root, `refs/heads/${fromBranch}`)) return { ok: false, error: `the branch of ${from} (${fromBranch ?? "unknown"}) does not exist` };
+  const fromBranch = unitBranch(b, fu);
+  if (!mergeRef && (!fromBranch || !commitOf(root, `refs/heads/${fromBranch}`))) return { ok: false, error: `the branch of ${from} (${fromBranch ?? "unknown"}) does not exist` };
+  mergeRef ??= fromBranch;
   let dir = u.worktree?.path ?? null;
   if (!dir) {
     const want = unitBranch(b, u);
@@ -1617,9 +1688,9 @@ function mergeIn(root, b, [key, from]) {
   }
   const dirty = spawnSync("git", ["-C", dir, "status", "--porcelain", "--untracked-files=no", "--", ".", ...RUN_TIME_EXCLUDES], { encoding: "utf8", windowsHide: true });
   if (dirty.status !== 0 || dirty.stdout.trim()) return { ok: false, error: `the checkout of ${key} has uncommitted changes, so a merge could mix with them. Ask the person.`, dirty: dirty.stdout.trim().split(/\r?\n/).filter(Boolean) };
-  spawnSync("git", ["-C", dir, "config", "rerere.enabled", "true"], { windowsHide: true });
-  const fromSha = commitOf(root, `refs/heads/${fromBranch}`);
-  const m = spawnSync("git", ["-C", dir, "merge", "--no-ff", "--no-edit", fromBranch], { encoding: "utf8", windowsHide: true });
+  if (git(dir, ["config", "--get", "rerere.enabled"]) !== "true") spawnSync("git", ["-C", dir, "config", "rerere.enabled", "true"], { windowsHide: true });
+  const fromSha = commitOf(root, mergeRef);
+  const m = spawnSync("git", ["-C", dir, "merge", "--no-ff", "--no-edit", mergeRef], { encoding: "utf8", windowsHide: true });
   if (m.status !== 0) {
     const files = (git(dir, ["diff", "--name-only", "--diff-filter=U"]) ?? "").split(/\r?\n/).filter(Boolean);
     spawnSync("git", ["-C", dir, "merge", "--abort"], { windowsHide: true });
@@ -1630,7 +1701,7 @@ function mergeIn(root, b, [key, from]) {
   const head = commitOf(dir, "HEAD");
   (u["merged-in"] ??= []).push({ from, through: reached, sha: fromSha, merge: head, at });
   const closed = closeWaits(u.waits, { from, through: reached, order: p.order, at });
-  if (u.state === "waiting") {
+  if (u.state === "waiting" && !f.at) {
     u.state = "prepared";
     u.route = null;
   }
@@ -1658,6 +1729,408 @@ function mergeOrder(root, b, [nText]) {
   const { order, through } = boundaryMergeOrder(units);
   const boundaryUnits = [...order.map((k) => units.find((x) => x.key === k)), ...Object.entries(through).map(([k, by]) => ({ ...units.find((x) => x.key === k), through: by }))];
   return { ok: true, wave: w.n, order, through, units: boundaryUnits, carried: Object.entries(through).map(([k, by]) => ({ key: k, slug: ledger.units[k].slug, through: by })), quiet: units.filter((x) => x.quiet.length).map((x) => ({ key: x.key, checks: x.quiet.length })) };
+}
+var DRIVER_ROOT = join2(PLUGIN_ROOT, "skills", "wf", "workflows");
+var isMoved = (u) => u?.state === "stopped" && /^moved\b/.test(String(u.route ?? ""));
+var cancelPathOf = (root, runId, n) => join2(root, ".scratch", "campaign", runId, `wave-${n}`, "cancel");
+function waveRunLines(root, b, ledger, w) {
+  const lines = readJsonl(journalPath(root, b));
+  for (const k of w.units) {
+    const u = ledger.units[k];
+    if (u) lines.push(...readJsonl(join2(unitWorkflowDir(root, u), ".driver-journal.jsonl")));
+  }
+  return lines;
+}
+function liveRun(root, b, ledger) {
+  for (const w of ledger.waves ?? []) {
+    if (!w.run?.id) continue;
+    const r = runLive(w.run, waveRunLines(root, b, ledger, w), Date.now());
+    if (r.live) return { wave: w.n, run: w.run.id, newestAt: r.newestAt };
+  }
+  return null;
+}
+function setFrontmatterKeys(file, pairs) {
+  if (!existsSync2(file)) return false;
+  const text = readFileSync2(file, "utf8");
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!m) return false;
+  let fm = m[1];
+  for (const [k, v] of Object.entries(pairs)) {
+    const re = new RegExp(`^${k}:.*$`, "m");
+    const line = `${k}: ${v}`;
+    fm = re.test(fm) ? fm.replace(re, () => line) : `${fm}
+${line}`;
+  }
+  writeAtomic(file, text.replace(m[0], () => `---
+${fm}
+---`));
+  return true;
+}
+function reviewScopeOf(root, u) {
+  const idx = join2(unitWorkflowDir(root, u), "00-index.md");
+  const fm = existsSync2(idx) ? safeParseFrontmatter(readFileSync2(idx, "utf8")).data ?? {} : {};
+  return fm["review-scope"] === "slug-wide" ? "slug-wide" : "per-slice";
+}
+var answersOf = (ledger, n) => (ledger.questions ?? []).filter((q) => q.wave === n && q["answered-at"] && !q.consumed).map((q) => ({ id: q.id, unit: q.unit ?? null, kind: q.kind ?? null, answer: q.answer, by: q.by ?? "person", move: q.move === true }));
+var questionArgs = (q) => ({
+  id: q.id,
+  kind: q.kind ?? null,
+  stage: q.stage ?? null,
+  slice: q.slice ?? null,
+  text: q.text,
+  answer: q.answer ?? null,
+  by: q.by ?? null,
+  move: q.move === true,
+  consumed: q.consumed === true,
+  answered: Boolean(q["answered-at"])
+});
+function launch(root, b, n, f) {
+  let ledger = requireLedger(root, b);
+  const w = ledger.waves.find((x) => x.n === n);
+  if (f.mode === "drift") {
+    return {
+      ok: true,
+      wave: n,
+      mode: "drift",
+      stage: `node "${join2(PLUGIN_ROOT, "scripts", "stage-yolo-driver.mjs")}" "${root}" --driver campaign-wave`,
+      driver: join2(DRIVER_ROOT, "campaign-wave.js"),
+      args: { mode: "drift", projectRoot: root, referenceRoot: join2(PLUGIN_ROOT, "skills", "wf", "reference"), brainstorm: b, wave: n, campaignDir: campDir(root, b), campaignControlPath: controlPath(root, b), campaignSteerPath: campaignSteerPath(root, b), units: [] }
+    };
+  }
+  const cfg = configOf(root);
+  const iso = isolationOf(cfg);
+  if (!iso) return { ok: false, error: "isolation-required", detail: 'the wave driver runs every unit in its own worktree, and this project has no usable campaign.isolation in .ai/sdlc-config.json. Ask the person for one (_phases.md, "Width"); "parallel": false runs the wave at width 1, still in worktrees.' };
+  if (!["running", "boundary"].includes(w.state)) return { ok: false, error: `wave ${n} is ${w.state}: run wave ${n} start first` };
+  if (w.run?.id) {
+    const r = runLive(w.run, waveRunLines(root, b, ledger, w), Date.now());
+    if (r.live) return { ok: false, error: "run-live", run: w.run.id, newestAt: r.newestAt, detail: `the run ${w.run.id} of wave ${n} wrote its newest journal line at ${r.newestAt}. Do not launch it again: it drives the same worktrees. A run is live until wave ${n} record, or until its journals are silent for 20 minutes.` };
+  }
+  const bud = budget(root, b);
+  if (bud.width === 0) return { ok: false, paused: { until: bud.until ?? null, reason: bud.reason ?? "usage limit" } };
+  const keys = w.units.filter((k) => ledger.units[k] && !isMoved(ledger.units[k]));
+  const fresh = keys.filter((k) => !(ledger.units[k].worktree && existsSync2(ledger.units[k].worktree.path)));
+  const blocked = [];
+  if (fresh.length) {
+    const base = worktreeRoot(root, ledger, iso);
+    if (pathCheckOn()) {
+      const longest = longestTrackedPath(root);
+      const order = [...w.units].sort((a, c) => (ledger.units[a].order ?? 0) - (ledger.units[c].order ?? 0));
+      for (const k of fresh) {
+        const path = join2(base, `w${n}-${order.indexOf(k) + 1}`);
+        const pb = pathBudget({ worktree: path, longestTracked: longest, buildDepth: iso["build-depth"] });
+        if (!pb.ok) blocked.push({ key: k, cause: "path", detail: `${path}: ${pb.total} characters with the deepest build path, against the Windows limit of ${pb.limit}. Set campaign.isolation.worktree-root to a short absolute path.` });
+      }
+    }
+    mkdirSync2(base, { recursive: true });
+    const st = statfsSync(base);
+    const freeGb = st.bavail * st.bsize / 1024 ** 3;
+    const need = diskNeedGb({ history: ledger["disk-history"] ?? [], toStart: fresh.length, minFreeGb: iso["min-free-gb"] });
+    if (freeGb < need.needGb) for (const k of fresh) blocked.push({ key: k, cause: "disk", detail: `${freeGb.toFixed(1)} GB free, below the ${need.needGb} GB that ${fresh.length} new worktree(s) need` });
+    if (blocked.length) return { ok: false, blocked };
+  }
+  spawnSync("git", ["-C", root, "config", "rerere.enabled", "true"], { windowsHide: true });
+  for (const k of keys) {
+    const r = worktreeStep(root, b, [k, "add"]);
+    if (!r.ok) return { ok: false, key: k, error: `worktree ${k} add: ${r.error}`, ...r.records?.visibleToGit ? { visibleToGit: r.records.visibleToGit } : {} };
+    if (r.records?.visibleToGit?.length) return { ok: false, key: k, error: `git can stage ${r.records.visibleToGit.length} copied record(s) in the worktree of ${k}. Ask the person.`, visibleToGit: r.records.visibleToGit };
+  }
+  ledger = requireLedger(root, b);
+  const lw = ledger.waves.find((x) => x.n === n);
+  for (const k of keys) {
+    const u = ledger.units[k];
+    setFrontmatterKeys(join2(u.worktree.path, ".ai", "workflows", u.slug, "00-index.md"), { "branch-strategy": "dedicated", branch: u.worktree.branch, "base-branch": lw.branch });
+    if (!isLocal(ledger)) {
+      const rel = `.ai/workflows/${u.slug}/00-index.md`;
+      spawnSync("git", ["-C", u.worktree.path, "add", "--", rel], { windowsHide: true });
+      if (spawnSync("git", ["-C", u.worktree.path, "diff", "--cached", "--quiet", "--", rel], { windowsHide: true }).status === 1) {
+        spawnSync("git", ["-C", u.worktree.path, "commit", "-q", "-m", `chore(${u.slug}): record the branch`, "--", rel], { windowsHide: true });
+      }
+    }
+    if (["prepared", "waiting", "running"].includes(u.state)) {
+      u.state = "running";
+      u.route = null;
+    }
+  }
+  const campaignRunId = `${nowIso().replace(/[-:]/g, "").replace(/\.\d+/, "")}-${b}-w${n}`;
+  if (lw.run?.id) rmSync2(join2(root, ".scratch", "campaign", lw.run.id), { recursive: true, force: true });
+  lw.run = { id: campaignRunId, at: nowIso() };
+  saveLedger(root, b, ledger);
+  for (const k of keys) context(root, b, [k]);
+  const widthMax = effectiveWidth({ width: cfg.campaign?.width ?? DEFAULT_WIDTH, isolation: iso, budget: "ok" });
+  const width = Math.max(1, Math.min(widthMax, bud.width || widthMax));
+  const allDone = keys.every((k) => ledger.units[k].state === "finished");
+  const args = {
+    mode: allDone ? "boundary" : "wave",
+    projectRoot: root,
+    referenceRoot: join2(PLUGIN_ROOT, "skills", "wf", "reference"),
+    brainstorm: b,
+    wave: n,
+    campaignRunId,
+    waveBranch: lw.branch,
+    base: lw.base,
+    campaignDir: campDir(root, b),
+    campaignControlPath: controlPath(root, b),
+    campaignSteerPath: campaignSteerPath(root, b),
+    cancelPath: cancelPathOf(root, campaignRunId, n),
+    width,
+    widthMax,
+    stopBefore: f["stop-before"] === "boundary" ? "boundary" : null,
+    output: ledger.answers.output ?? null,
+    records: ledger.records ?? "tracked",
+    agentCeiling: 900,
+    moved: lw.moved ?? [],
+    units: keys.map((k) => {
+      const u = ledger.units[k];
+      return {
+        key: k,
+        slug: u.slug,
+        form: u.form,
+        order: u.order,
+        root: u.worktree.path,
+        branch: u.worktree.branch,
+        contextPath: join2(campDir(root, b), "context", `${u.slug}.md`),
+        reviewScope: reviewScopeOf(root, u),
+        state: u.state,
+        runId: u["wave-run-id"] ?? null,
+        cleared: u.cleared ?? [],
+        waits: (u.waits ?? []).map((x) => ({ from: x.from, through: x.through, before: x.before ?? null, why: x.why ?? "", source: x.source ?? "packet", state: x.state, sha: x.sha ?? null })),
+        questions: (ledger.questions ?? []).filter((q) => q.unit === k && q.wave === n).map(questionArgs)
+      };
+    }),
+    waveQuestions: (ledger.questions ?? []).filter((q) => q.wave === n && !q.unit).map(questionArgs)
+  };
+  appendJournal(root, b, "run-start", { run: campaignRunId, wave: n, units: keys, mode: args.mode });
+  const outcomeDir = join2(root, ".scratch", "campaign", campaignRunId, `wave-${n}`);
+  return {
+    ok: true,
+    wave: n,
+    run: campaignRunId,
+    mode: args.mode,
+    width,
+    widthMax,
+    stage: `node "${join2(PLUGIN_ROOT, "scripts", "stage-yolo-driver.mjs")}" "${root}" --driver campaign-wave`,
+    driver: join2(DRIVER_ROOT, "campaign-wave.js"),
+    outcomePath: join2(outcomeDir, "outcome.json"),
+    args
+  };
+}
+function record(root, b, n, f) {
+  if (!f.outcome) throw new Error("wave record: give --outcome <the outcome file>");
+  const out = readJson(resolve(f.outcome));
+  if (!out || typeof out !== "object") return { ok: false, error: `wave record: ${f.outcome} is not a JSON outcome` };
+  if (Number(out.wave) !== n) return { ok: false, error: `wave record: the outcome is of wave ${out.wave}, not ${n}` };
+  const ledger = requireLedger(root, b);
+  const w = ledger.waves.find((x) => x.n === n);
+  const ranId = w.run?.id ?? null;
+  delete w.run;
+  for (const ou of out.units ?? []) {
+    const lu = ledger.units[ou.key];
+    if (!lu) continue;
+    for (const c of ou.cleared ?? []) if (c?.slice && !(lu.cleared ?? []).some((x) => x.slice === c.slice && x.sha === c.sha)) (lu.cleared ??= []).push(c);
+    if (ou.decisionDigest) lu.digest = ou.decisionDigest;
+    if (ou.output) lu.output = ou.output;
+    if (ou.runId) lu["wave-run-id"] = ou.runId;
+    if (["finished", "stopped"].includes(ou.state) && !["merged", "needs-fix", "shipped"].includes(lu.state)) {
+      lu.state = ou.state;
+      lu.route = ou.state === "stopped" ? ou.route ?? lu.route ?? null : null;
+    }
+  }
+  const res = { ok: true, wave: n, run: ranId, held: out.held === true };
+  if (!res.held && out.boundary) {
+    const bd = out.boundary;
+    for (const m of bd.merged ?? []) if (ledger.units[m.key]) Object.assign(ledger.units[m.key], { state: "merged", merge: m.sha, route: null });
+    for (const x of bd.needsFix ?? []) if (ledger.units[x.key]) Object.assign(ledger.units[x.key], { state: "needs-fix", route: x.reason ?? null });
+    for (const x of bd.notMerged ?? []) if (ledger.units[x.key]) Object.assign(ledger.units[x.key], { state: "stopped", route: x.reason ?? null });
+    if (out.waveReview) w.review = { path: out.waveReview.path ?? null, verdict: out.waveReview.verdict ?? null, open: out.waveReview.open ?? [] };
+    if (bd.stopped) w.state = "stopped";
+    res.merged = (bd.merged ?? []).map((m) => m.key);
+    res.needsFix = bd.needsFix ?? [];
+    res.notMerged = bd.notMerged ?? [];
+    res.cleanup = (bd.merged ?? []).map((m) => ({ key: m.key, worktree: ledger.units[m.key]?.worktree?.path ?? null, branch: ledger.units[m.key]?.worktree?.branch ?? null })).filter((x) => x.worktree || x.branch);
+    if (bd.stopped) res.stopped = { at: bd.stoppedAt ?? "boundary", reason: bd.reason ?? null };
+  }
+  res.derivedNeeds = out.derivedNeeds ?? [];
+  if (out.stopBeforeNextWave) res.stopBeforeNextWave = out.reason ?? true;
+  saveLedger(root, b, ledger);
+  appendJournal(root, b, "wave-record", { wave: n, run: ranId, held: res.held, ...res.merged ? { merged: res.merged } : {} });
+  res.next = campaignAction(ledger, {});
+  return res;
+}
+function sliceDone(root, b, [key, slice], f) {
+  const ledger = requireLedger(root, b);
+  const u = ledger.units[key];
+  if (!u) throw new Error(`slice-done: ${key} is not a build unit of this campaign`);
+  const final = f.final === true;
+  if (!final && !slice) throw new Error("slice-done: give the slice, or --final");
+  const dir = u.worktree?.path;
+  if (!dir || !existsSync2(dir)) return { ok: false, error: `slice-done: ${key} has no worktree (D19)` };
+  let committed = false;
+  let records = null;
+  if (isLocal(ledger)) records = syncOut(root, b, key, dir);
+  else {
+    const keepOut = final ? [".watch-state.json"] : RUN_TIME_FILES;
+    const spec = [`.ai/workflows/${u.slug}`, ...keepOut.map((x) => `:(exclude,glob).ai/workflows/${u.slug}/${x}`)];
+    spawnSync("git", ["-C", dir, "add", "--", ...spec], { encoding: "utf8", windowsHide: true });
+    const staged = spawnSync("git", ["-C", dir, "diff", "--cached", "--quiet", "--", ...spec], { windowsHide: true });
+    if (staged.status === 1) {
+      const c = spawnSync("git", ["-C", dir, "commit", "-q", "-m", `chore(${u.slug}): ${final ? "record the drive" : `record ${slice}`}`, "--", ...spec], { encoding: "utf8", windowsHide: true });
+      if (c.status !== 0) return { ok: false, error: `slice-done: the records commit failed: ${(c.stderr || c.stdout || "").trim()}` };
+      committed = true;
+    }
+  }
+  const sha = commitOf(dir, "HEAD");
+  const at = nowIso();
+  const name = final ? "finished" : slice;
+  if (!(u.cleared ?? []).some((c) => c.slice === name && c.sha === sha)) (u.cleared ??= []).push({ slice: name, sha, at });
+  if (f.run) u["wave-run-id"] = f.run;
+  const order = unitProgress(root, u).order;
+  const ready = [];
+  for (const k of ledger.waves.find((x) => x.n === u.wave)?.units ?? []) {
+    for (const wt of ledger.units[k]?.waits ?? []) {
+      if (wt.from !== key || wt.state !== "open" || !throughCovers(name, wt.through, order)) continue;
+      wt.state = "ready";
+      wt.sha = sha;
+      wt["ready-at"] = at;
+      ready.push({ key: k, from: key, through: wt.through, sha });
+    }
+  }
+  saveLedger(root, b, ledger);
+  const bd = budget(root, b);
+  return { ok: true, key, slice: name, sha, committed, ...records ? { records } : {}, ready, budget: { state: bd.state, width: bd.width, until: bd.until ?? null, reason: bd.reason ?? null }, answered: answersOf(ledger, u.wave) };
+}
+function needs(root, b, [key, action], f) {
+  const ledger = requireLedger(root, b);
+  const u = ledger.units[key];
+  if (!u) throw new Error(`needs: ${key} is not a build unit of this campaign`);
+  const ws = readWorkSet(root, b);
+  const packet = ws.error ? null : unitsOf(ws).find((x) => x.key === key);
+  if (action === "list") return { ok: true, key, packet: packet?.needs ?? [], derived: u["derived-needs"] ?? [], waits: u.waits ?? [] };
+  const entry = { from: f.from, through: f.through ?? "finished", before: f.before ?? null };
+  if (!entry.from || !ledger.units[entry.from]) throw new Error(`needs ${action}: --from names a build unit of this campaign`);
+  if (action === "remove") {
+    const before = (u["derived-needs"] ?? []).length;
+    u["derived-needs"] = (u["derived-needs"] ?? []).filter((x) => !sameNeed(x, entry));
+    u.waits = (u.waits ?? []).filter((x) => !(sameNeed(x, entry) && x.source !== "packet" && x.state !== "met"));
+    if (!u["derived-needs"].length) delete u["derived-needs"];
+    saveLedger(root, b, ledger);
+    context(root, b, [key]);
+    appendJournal(root, b, "derived-need", { key, ...entry, removed: true });
+    return { ok: true, key, removed: before - (u["derived-needs"] ?? []).length };
+  }
+  if (action !== "add") throw new Error("needs: the action is add, list or remove");
+  if ((packet?.needs ?? []).some((x) => sameNeed(x, entry)) || (u["derived-needs"] ?? []).some((x) => sameNeed(x, entry))) return { ok: true, key, exists: true };
+  const w = ledger.waves.find((x) => x.n === u.wave);
+  if (!w || ledger.units[entry.from].wave !== u.wave) return { ok: false, error: `needs add: ${entry.from} is not in the wave of ${key}` };
+  const rosters = Object.fromEntries(w.units.map((k) => [k, unitProgress(root, ledger.units[k]).order]));
+  const waits = w.units.flatMap((k) => (ledger.units[k].waits ?? []).filter((x) => x.state !== "rejected").map((x) => ({ key: k, from: x.from, through: x.through, before: x.before ?? null })));
+  const cycle = sliceCycle(rosters, [...waits, { key, ...entry }]);
+  if (cycle) return { ok: false, cycle, error: `needs add: the entry closes a cycle: ${cycle.join(" -> ")}` };
+  const why = f.why ?? "";
+  const source = f.source ?? "cross-unit";
+  const dir = unitWorkflowDir(root, u);
+  const implemented = entry.before && ["05-implement-", "05-implement"].some((p) => {
+    const file = join2(dir, p.endsWith("-") ? `${p}${entry.before}.md` : `${p}.md`);
+    return existsSync2(file) && String(safeParseFrontmatter(readFileSync2(file, "utf8")).data?.status ?? "") === "complete";
+  });
+  if (implemented || (u.cleared ?? []).some((c) => c.slice === entry.before)) {
+    (w.focus ??= []).push({ a: entry.from, aSlice: entry.through, b: key, bSlice: entry.before, files: why });
+    saveLedger(root, b, ledger);
+    appendJournal(root, b, "derived-need", { key, ...entry, why, source, late: true });
+    return { ok: true, key, late: true };
+  }
+  const at = nowIso();
+  (u["derived-needs"] ??= []).push({ ...entry, why, by: f.by ?? "driver", at, source });
+  const fromU = ledger.units[entry.from];
+  const cover = clearedCover(fromU.cleared, entry.through, unitProgress(root, fromU).order);
+  const wait = { ...entry, why, source, state: cover ? "ready" : "open", ...cover ? { sha: cover.sha } : {} };
+  (u.waits ??= []).push(wait);
+  u["merged-in"] ??= [];
+  saveLedger(root, b, ledger);
+  context(root, b, [key]);
+  appendJournal(root, b, "derived-need", { key, ...entry, why, source });
+  return { ok: true, key, wait };
+}
+function contract(root, b, [key, action], f) {
+  if (action !== "amend") throw new Error("contract: the action is amend");
+  const ledger = requireLedger(root, b);
+  if (!ledger.units[key]) throw new Error(`contract: ${key} is not a build unit of this campaign`);
+  if (!String(f.line ?? "").trim() || !String(f.text ?? "").trim()) throw new Error('contract amend: give --line <line key> and --text "<the new text>"');
+  const a = { line: String(f.line).trim(), text: String(f.text).trim(), at: nowIso(), by: f.by ?? "the person" };
+  ((ledger["amended-contracts"] ??= {})[key] ??= []).push(a);
+  saveLedger(root, b, ledger);
+  const ws = readWorkSet(root, b);
+  const units = ws.error ? [] : unitsOf(ws);
+  const touched = units.filter((x) => x.key === key || x.expects.some((e) => e.from === key) || ledger.units[x.key]?.wave === ledger.units[key].wave).map((x) => x.key).filter((k) => ledger.units[k]?.wave);
+  const written = touched.map((k) => context(root, b, [k])).filter((r) => r.ok).map((r) => r.key);
+  appendJournal(root, b, "contract-amend", { key, line: a.line });
+  return { ok: true, key, amended: a, contexts: written };
+}
+function awaitCmd(root, b, f) {
+  const n = Number(f.wave);
+  if (!Number.isInteger(n) || n < 1) throw new Error("await: give --wave <n>");
+  const first = requireLedger(root, b);
+  const run = first.waves.find((x) => x.n === n)?.run?.id ?? null;
+  if (f.cancel === true) {
+    if (!run) return { ok: false, error: `await --cancel: wave ${n} has no run` };
+    const p = cancelPathOf(root, run, n);
+    writeAtomic(p, `${nowIso()}
+`);
+    return { ok: true, cancelled: true, path: p };
+  }
+  const max = Math.max(0, Math.min(540, Number(f.max ?? 540) || 0));
+  if (max > 0) appendJournal(root, b, "waiter", { run, wave: n, open: (first.questions ?? []).filter((q) => q.wave === n && !q["answered-at"]).map((q) => q.id) });
+  const seen = new Set(String(f.seen ?? "").split(",").map((s) => s.trim()).filter(Boolean));
+  const t0 = Date.now();
+  const check = () => {
+    const ledger = loadLedger(root, b) ?? first;
+    if (run && existsSync2(cancelPathOf(root, run, n))) return { cancelled: true };
+    const ctl = readJson(controlPath(root, b));
+    if (ctl?.action === "stop" && ctl.scope === "campaign") return { stopped: true, kind: "stop", reason: ctl.reason ?? "stop request" };
+    if (ctl?.action === "pause" && (!ctl.until || Date.parse(ctl.until) > Date.now())) return { stopped: true, kind: "pause", until: ctl.until ?? null, reason: ctl.reason ?? "pause" };
+    const bd = budget(root, b);
+    if (bd.width === 0) return { paused: { until: bd.until ?? null, reason: bd.reason ?? "usage limit" } };
+    const answered = answersOf(ledger, n).filter((a) => !seen.has(a.id));
+    if (answered.length) return { answered };
+    return null;
+  };
+  for (; ; ) {
+    const r = check();
+    if (r) return { ok: true, ...r, waitedS: Math.round((Date.now() - t0) / 1e3) };
+    const left = max * 1e3 - (Date.now() - t0);
+    if (left <= 0) return { ok: true, timeout: true, waitedS: Math.round((Date.now() - t0) / 1e3) };
+    sleepMs(Math.min(1e4, left));
+  }
+}
+function question(root, b, [id, action]) {
+  if (action !== "consumed") throw new Error("question: the action is consumed");
+  const ledger = requireLedger(root, b);
+  const q = (ledger.questions ?? []).find((x) => x.id === id);
+  if (!q) throw new Error(`question: no question ${id}`);
+  if (!q["answered-at"]) return { ok: false, error: `question ${id} has no answer yet` };
+  q.consumed = true;
+  q["consumed-at"] = nowIso();
+  saveLedger(root, b, ledger);
+  return { ok: true, id, consumed: true };
+}
+function owner(root, slug) {
+  const wf = join2(root, ".ai", "workflows");
+  let dirs = [];
+  try {
+    dirs = readdirSync2(wf, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+  } catch {
+  }
+  for (const b of dirs) {
+    const ledger = readJson(ledgerPath(root, b));
+    if (!ledger?.units) continue;
+    for (const w of ledger.waves ?? []) {
+      if (!w.run?.id) continue;
+      const key = w.units.find((k) => ledger.units[k]?.slug === slug);
+      if (!key) continue;
+      const r = runLive(w.run, waveRunLines(root, b, ledger, w), Date.now());
+      if (r.live) return { ok: true, owned: true, slug, brainstorm: b, wave: w.n, key, run: w.run.id, newestAt: r.newestAt, resume: `/wf campaign ${b}` };
+    }
+  }
+  return { ok: true, owned: false, slug };
 }
 function runningPluginVersion() {
   return readJson(join2(PLUGIN_ROOT, ".claude-plugin", "plugin.json"))?.version ?? readJson(join2(PLUGIN_ROOT, "package.json"))?.version ?? null;
@@ -1716,14 +2189,14 @@ function designBlocksPrepared(root, slug) {
   const index = read("00-index.md");
   if (!index) return null;
   if (!designNeeded(index, existsSync2(join2(dir, "02b-design.md")))) return null;
-  const contract = read("02c-craft.md");
-  const missing = contract ? missingBoardFiles(dir, contract) : null;
-  if (!designSettled(index, contract, missing)) {
+  const contract2 = read("02c-craft.md");
+  const missing = contract2 ? missingBoardFiles(dir, contract2) : null;
+  if (!designSettled(index, contract2, missing)) {
     if (missing?.length) return `the confirmed boards are missing: ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? ` and ${missing.length - 3} more` : ""}`;
     return `the design is not settled; run /wf design ${slug} with the person`;
   }
   const skipped = index.progress && typeof index.progress === "object" && index.progress.design === "skipped";
-  if (!skipped && needsPictures(index) && !String(contract?.boards ?? "").trim()) {
+  if (!skipped && needsPictures(index) && !String(contract2?.boards ?? "").trim()) {
     return `02c-craft.md names no boards: (ux-impact ${index["ux-impact"]}); run /wf design ${slug} amend or import to freeze the boards`;
   }
   return null;
@@ -1740,6 +2213,19 @@ function unit(root, b, [key, state], f) {
   u.state = state;
   for (const k of ["route", "reason", "merge", "output"]) if (f[k] !== void 0) u[k] = f[k];
   if (state === "waiting") u.route = `waits for ${f.on ?? (u.waits ?? []).filter((w) => w.state === "open").map((w) => `${w.from}: ${w.through}`).join(", ")}`;
+  if (state === "running" && f.route === void 0) u.route = null;
+  const rejected = [];
+  if (isMoved(u)) {
+    for (const k of ledger.waves.find((x) => x.n === u.wave)?.units ?? []) {
+      for (const wt of ledger.units[k]?.waits ?? []) {
+        if (wt.from === key && waitPending(wt)) {
+          wt.state = "rejected";
+          wt["rejected-at"] = nowIso();
+          rejected.push({ key: k, from: key, through: wt.through });
+        }
+      }
+    }
+  }
   if (f.digest !== void 0) {
     try {
       u.digest = JSON.parse(f.digest);
@@ -1749,7 +2235,7 @@ function unit(root, b, [key, state], f) {
   }
   saveLedger(root, b, ledger);
   appendJournal(root, b, "unit-state", { key, slug: u.slug, state, ...f.route ? { route: f.route } : {} });
-  return { ok: true, key, state };
+  return { ok: true, key, state, ...rejected.length ? { rejected } : {} };
 }
 function outside(root, b, [key, state]) {
   const ledger = requireLedger(root, b);
@@ -1812,7 +2298,9 @@ function wave(root, b, [nText, action, state], f) {
     appendJournal(root, b, state === "shipped" ? "wave-end" : "wave-state", { wave: n, state, ...f.pr ? { pr: f.pr } : {}, ...f.version ? { version: f.version } : {} });
     return { ok: true, wave: n, state };
   }
-  throw new Error("wave: the action is start or set");
+  if (action === "launch") return launch(root, b, n, f);
+  if (action === "record") return record(root, b, n, f);
+  throw new Error("wave: the action is start, set, launch or record");
 }
 function ask(root, b, args, f) {
   const [id, ...text] = args;
@@ -1820,19 +2308,32 @@ function ask(root, b, args, f) {
   const same = ledger.questions.find((q2) => q2.id === id && !q2["answered-at"]);
   if (same && same.text === text.join(" ")) return { ok: true, exists: true, question: same };
   if (same) throw new Error(`ask: question ${id} is open with another text`);
-  const q = { id, ...f.wave ? { wave: Number(f.wave) } : {}, text: text.join(" "), "asked-at": nowIso() };
+  if (f.unit && !ledger.units[f.unit]) throw new Error(`ask: ${f.unit} is not a build unit of this campaign`);
+  const q = {
+    id,
+    ...f.wave ? { wave: Number(f.wave) } : {},
+    ...f.unit ? { unit: f.unit } : {},
+    ...f.kind ? { kind: f.kind } : {},
+    ...f.stage ? { stage: f.stage } : {},
+    ...f.slice ? { slice: f.slice } : {},
+    text: text.join(" "),
+    "asked-at": nowIso()
+  };
   ledger.questions.push(q);
   saveLedger(root, b, ledger);
-  appendJournal(root, b, "asked", { id, wave: q.wave ?? null, text: q.text });
+  appendJournal(root, b, "asked", { id, wave: q.wave ?? null, ...q.unit ? { unit: q.unit, kind: q.kind ?? null } : {}, text: q.text });
   return { ok: true, question: q };
 }
-function reply(root, b, [id, ...text]) {
+function reply(root, b, [id, ...text], f = {}) {
   const ledger = requireLedger(root, b);
   const q = ledger.questions.find((x) => x.id === id && !x["answered-at"]);
   if (!q) throw new Error(`reply: no open question ${id}`);
   q.answer = text.join(" ");
   q["answered-at"] = nowIso();
+  q.by = f.by ?? "person";
+  if (f.move === true) q.move = true;
   saveLedger(root, b, ledger);
+  appendJournal(root, b, "answered", { id, by: q.by, ...q.unit ? { unit: q.unit } : {}, ...q.move ? { move: true } : {} });
   return { ok: true, question: q };
 }
 function pause2(root, b, [until, ...reason]) {
@@ -1899,8 +2400,8 @@ function drift(root, b, [nText]) {
     for (const l of r.lines) L.push(`- \`${l.from}/${l.key}\` (${l.text}): ${l.status} \u2192 **${l.class}**${l.note ? `. ${l.note}` : ""}`);
     L.push("");
   }
-  const contract = results.filter((r) => r.class === "contract").map((r) => r.key);
-  const stop = new Set(contract);
+  const contract2 = results.filter((r) => r.class === "contract").map((r) => r.key);
+  const stop = new Set(contract2);
   let grew = true;
   while (grew) {
     grew = false;
@@ -1909,9 +2410,9 @@ function drift(root, b, [nText]) {
       grew = true;
     }
   }
-  L.push("## Result", "", contract.length ? `Contract differences: ${contract.join(", ")}. These slugs and their dependents wait for the person: ${[...stop].join(", ")}.` : "No contract difference. The wave can start.", "");
+  L.push("## Result", "", contract2.length ? `Contract differences: ${contract2.join(", ")}. These slugs and their dependents wait for the person: ${[...stop].join(", ")}.` : "No contract difference. The wave can start.", "");
   writeAtomic(join2(campDir(root, b), "drift", `wave-${n}.md`), L.join("\n"));
-  appendJournal(root, b, "drift", { wave: n, contract, stop: [...stop], implementation: results.filter((r) => r.class === "implementation-detail").map((r) => r.key) });
+  appendJournal(root, b, "drift", { wave: n, contract: contract2, stop: [...stop], implementation: results.filter((r) => r.class === "implementation-detail").map((r) => r.key) });
   return { ok: true, wave: n, results: results.map((r) => ({ key: r.key, class: r.class })), stop: [...stop] };
 }
 function version(root, b, [kind], f) {
@@ -2132,13 +2633,26 @@ function recap(root, b, f) {
   const since = f.since ? new Date(Date.parse(f.since)).toISOString().replace(/\.\d{3}Z$/, "Z") : ledger.presence?.state === "away" ? ledger.presence.since : ledger.presence?.["last-away"] ?? null;
   return { ok: true, recap: recapOf(root, ledger, since) };
 }
+function waitedSteps(ledger) {
+  const steps = [];
+  for (const [k, u] of Object.entries(ledger.units)) {
+    if (u.state === "merged" && u.worktree?.path && existsSync2(u.worktree.path)) steps.push({ step: "cleanup", key: k, worktree: u.worktree.path, branch: u.worktree.branch ?? null });
+  }
+  for (const w of ledger.waves) {
+    if (!["running", "boundary"].includes(w.state) || w.run?.id) continue;
+    const states = w.units.map((k) => ledger.units[k]?.state);
+    if (states.some((s) => s === "merged") && states.every((s) => ["merged", "needs-fix", "stopped"].includes(s))) steps.push({ step: "handoff", wave: w.n, branch: w.branch ?? null });
+  }
+  for (const q of ledger.questions ?? []) if (!q["answered-at"]) steps.push({ step: "question", id: q.id, wave: q.wave ?? null, unit: q.unit ?? null, kind: q.kind ?? null, text: q.text });
+  return steps;
+}
 function back(root, b) {
   const ledger = requireLedger(root, b);
   const since = ledger.presence?.state === "away" ? ledger.presence.since : null;
   ledger.presence = { state: "present", since: nowIso(), ...since ? { "last-away": since } : {} };
   saveLedger(root, b, ledger);
   appendJournal(root, b, "back", {});
-  return { ok: true, presence: ledger.presence, recap: recapOf(root, ledger, since) };
+  return { ok: true, presence: ledger.presence, recap: recapOf(root, ledger, since), waited: waitedSteps(ledger) };
 }
 function main(argv = process.argv.slice(2)) {
   const [cmd, rootArg, b, ...rest] = argv;
@@ -2193,7 +2707,7 @@ function dispatch(cmd, root, b, pos, f) {
         out = ask(root, b, pos, f);
         break;
       case "reply":
-        out = reply(root, b, pos);
+        out = reply(root, b, pos, f);
         break;
       case "pause":
         out = pause2(root, b, pos);
@@ -2232,7 +2746,7 @@ function dispatch(cmd, root, b, pos, f) {
         out = stack(root, b, pos);
         break;
       case "merge-in":
-        out = mergeIn(root, b, pos);
+        out = mergeIn(root, b, pos, f);
         break;
       case "merge-order":
         out = mergeOrder(root, b, pos);
@@ -2255,6 +2769,25 @@ function dispatch(cmd, root, b, pos, f) {
       case "recap":
         out = recap(root, b, f);
         break;
+      case "slice-done":
+        out = sliceDone(root, b, pos, f);
+        break;
+      case "needs":
+        out = needs(root, b, pos, f);
+        break;
+      case "contract":
+        out = contract(root, b, pos, f);
+        break;
+      case "await":
+        out = awaitCmd(root, b, f);
+        break;
+      case "question":
+        out = question(root, b, pos);
+        break;
+      // `owner <root> <slug>`: the second argument is the slug, not a brainstorm.
+      case "owner":
+        out = owner(root, b);
+        break;
       default:
         return null;
     }
@@ -2273,6 +2806,7 @@ export {
   designBlocksPrepared,
   journalPath,
   main,
+  owner,
   readWorkSet,
   unitProgress
 };

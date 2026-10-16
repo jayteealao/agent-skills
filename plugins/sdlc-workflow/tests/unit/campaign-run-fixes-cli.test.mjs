@@ -93,7 +93,7 @@ test('one wave holds both units; the wave start writes the wait, and the context
     const st = startWave(root);
     assert.deepEqual(st.units.map((u) => u.key), ['W1', 'W2']);
     assert.deepEqual(st.units[1].waits, ['W1 through s1 before p2']);
-    assert.deepEqual(readLedger(root).units.W2.waits, [{ from: 'W1', through: 's1', before: 'p2', why: 'the tick', state: 'open' }]);
+    assert.deepEqual(readLedger(root).units.W2.waits, [{ from: 'W1', through: 's1', before: 'p2', why: 'the tick', source: 'packet', state: 'open' }]);
     assert.match(readLedger(root).waves.find((w) => w.n === 1)['plugin-version'],/^\d+\.\d+\.\d+/, 'C8: the wave records its plugin version');
     const ctx = readFileSync(run(root, 'context', 'W2').path, 'utf8');
     assert.match(ctx, /## 7\. Waits/);
@@ -117,9 +117,10 @@ test('merge-in: refused while the drive runs or before the slice passed; then it
     assert.match(run(root, 'merge-in', 'W2', 'W1').error, /has not passed verify/);
     assert.equal(run(root, 'status').next.action, 'running');
     driveW1(w1.path);
+    // The wave driver merges inside its run; status only shows the open wait.
     const s = run(root, 'status');
-    assert.equal(s.next.action, 'merge-in', JSON.stringify(s.next));
-    assert.deepEqual(s.next.merges, [{ key: 'W2', from: 'W1', through: 's1', waitingFor: 's1' }]);
+    assert.equal(s.next.action, 'running', JSON.stringify(s.next));
+    assert.deepEqual(s.ledger.units.W2.openWaits, [{ from: 'W1', through: 's1', before: 'p2', state: 'open' }]);
     const m = run(root, 'merge-in', 'W2', 'W1');
     assert.equal(m.ok, true, JSON.stringify(m));
     assert.deepEqual(m.closed, ['W1 through s1']);

@@ -29,7 +29,8 @@
  *            slug's run-end does not end it; the campaign journal's wave-end,
  *            campaign-end or run-end line does (`end <root> - --campaign <b>`).
  *   note     <slug> also writes to work/campaign/commentary.md; `-` writes there only.
- *   control  writes work/campaign/.control.json with --scope slug|wave|campaign.
+ *   control  writes work/campaign/.control.json with --scope slug|wave|campaign;
+ *            a slug stop also takes --then move|hold (WF-CAMPAIGN-DRIVER-PLAN D28).
  *
  * S1 Poll, never tail: the journal by byte offset every 5 s, git HEAD and the
  *    protected files every 20 s, the usage readings every 60 s. A poll needs no
@@ -879,7 +880,7 @@ export function writeFact(file, name, text, nowMs) {
   return file;
 }
 
-export function writeControl(root, slug, action, rest, nowMs = Date.now(), { campaign = null, scope = null } = {}) {
+export function writeControl(root, slug, action, rest, nowMs = Date.now(), { campaign = null, scope = null, then = null } = {}) {
   // K5 — in a campaign, the request goes to the campaign's control file with a
   // scope: one slug, the wave ("stop after this wave"), or the campaign.
   if (campaign && !['slug', 'wave', 'campaign'].includes(scope || 'slug')) throw new Error('control: --scope is slug, wave, or campaign');
@@ -892,7 +893,10 @@ export function writeControl(root, slug, action, rest, nowMs = Date.now(), { cam
   if (action === 'stop') {
     const after = rest[0] || 'current';
     if (!STOP_AFTER.includes(after)) throw new Error(`control stop: "after" must be one of ${STOP_AFTER.join(', ')}`);
-    value = { action: 'stop', ...tag, after, requestedAt: iso(nowMs) };
+    // D28: a stop of one slug in a campaign says what follows: move the unit out, or hold it.
+    const slugStop = campaign && (scope || 'slug') === 'slug';
+    if (slugStop && !['move', 'hold'].includes(then)) throw new Error('control stop --scope slug: give --then move (move the unit out of the wave) or --then hold (park it until the person says continue)');
+    value = { action: 'stop', ...tag, after, ...(slugStop ? { then } : {}), requestedAt: iso(nowMs) };
   } else if (action === 'pause') {
     const until = rest[0];
     if (!until || !Number.isFinite(Date.parse(until))) throw new Error('control pause: give the reset time as an ISO 8601 timestamp');
@@ -1007,7 +1011,7 @@ export async function main(argv = process.argv.slice(2)) {
   }
   if (first === 'control') {
     const [, root, slug, action, ...rest] = pos;
-    const v = writeControl(path.resolve(root), slug, action, rest, Date.now(), { campaign: flags.campaign || null, scope: flags.scope || null });
+    const v = writeControl(path.resolve(root), slug, action, rest, Date.now(), { campaign: flags.campaign || null, scope: flags.scope || null, then: flags.then || null });
     process.stderr.write(`yolo-watch: control ${action}: ${v ? JSON.stringify(v) : 'no control file'}\n`);
     return 0;
   }

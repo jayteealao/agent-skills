@@ -59,7 +59,10 @@ export function parseJsonLines(text) {
  */
 export function stageOf(line) {
   if (!line) return { stage: null, slice: null };
-  const label = String(line.agent || '');
+  // The wave driver labels a unit agent `<stage>:<slice>@<slug>` (WF-CAMPAIGN-DRIVER-PLAN 5.3 item 5).
+  const raw = String(line.agent || '');
+  const at = raw.lastIndexOf('@');
+  const label = at === -1 ? raw : raw.slice(0, at);
   const cut = label.indexOf(':');
   const head = cut === -1 ? label : label.slice(0, cut);
   const rest = cut === -1 ? null : label.slice(cut + 1) || null;
@@ -163,6 +166,8 @@ export function applyLines(slug, st, lines, { emitFrom = null, artifactOf = () =
       st.prevLineAt = at; st.lastLineAt = at;
     }
     st.newest = { event: line.event || null, agent: line.agent || null, status: line.status || null, at: line.at || null };
+    if (line.driver) st.driver = line.driver;
+    if (line.campaign) st.campaign = line.campaign;
     st.staleFor = null;
     const emit = emitFrom === null || (line.run === emitFrom.run && Number(line.seq) > emitFrom.seq);
     if (line.event === 'run-end') {
@@ -191,7 +196,7 @@ export function applyLines(slug, st, lines, { emitFrom = null, artifactOf = () =
       events.push({
         event: 'stop', slug, run: line.run || st.run, stage, slice,
         kind: line.status === 'stopped' ? 'stop-request' : 'hard-stop', at: line.at || null,
-        resume: `/wf yolo ${slug}`,
+        resume: resumeCommand(slug, st, line),
       });
     }
     if (artifact && artifact.signal) {
@@ -203,6 +208,16 @@ export function applyLines(slug, st, lines, { emitFrom = null, artifactOf = () =
     }
   }
   return events;
+}
+
+/**
+ * The command that resumes a stopped run. A unit of the wave driver resumes through
+ * its campaign, not through its own yolo drive.
+ */
+export function resumeCommand(slug, st, line = {}) {
+  const driver = line.driver || (st && st.driver);
+  const campaign = line.campaign || (st && st.campaign);
+  return driver === 'campaign-wave' && campaign ? `/wf campaign ${campaign}` : `/wf yolo ${slug}`;
 }
 
 /**
@@ -218,6 +233,8 @@ export function judgeSilence(slug, st, nowMs, watchStartMs, activityMs = null) {
   if (st.ended || st.lastLineAt === null) return [];
   // A re-arm resets `ended` for a relaunch; a run whose newest line is its end is silent by design.
   if (st.newest && st.newest.event === 'run-end') return [];
+  // A parked unit of the wave driver waits for an answer; its silence is by design too.
+  if (st.newest && st.newest.event === 'waiting') return [];
   const byTranscript = Number.isFinite(activityMs) && st.newest && st.newest.event === 'agent-start';
   const since = byTranscript ? Math.max(st.lastLineAt, activityMs) : Math.max(st.lastLineAt, watchStartMs);
   const silentMs = nowMs - since;

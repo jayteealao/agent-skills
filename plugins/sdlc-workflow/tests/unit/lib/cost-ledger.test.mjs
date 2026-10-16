@@ -233,6 +233,39 @@ test('collectTurn (claude): Workflow agents are read, and each sub-agent is book
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('collectTurn (claude): a silent wave driver agent is booked by the @slug of its label; a silent wave agent goes to the campaign', () => {
+  const dir = tmp();
+  try {
+    const sid = 'sess-wave';
+    const transcript = join(dir, `${sid}.jsonl`);
+    const subDir = join(dir, sid, 'subagents');
+    const wfDir = join(subDir, 'workflows', 'wf_w');
+    mkdirSync(wfDir, { recursive: true });
+    const use = (out) => ({ input_tokens: 1, output_tokens: out, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 });
+    const line = (requestId, out, content) => J(claudeLine({ requestId, isSidechain: true, message: { model: 'claude-sonnet-5-5', usage: use(out), content } }));
+    const meta = (id, description) => writeFileSync(join(wfDir, `agent-${id}.meta.json`), JSON.stringify({ description }));
+    writeFileSync(transcript, line('m1', 10, []));
+    // The writers: a stage agent of each unit in its worktree, and a wave agent in the campaign folder.
+    writeFileSync(join(wfDir, 'agent-b1.jsonl'), line('w1', 1, [writeBlock(join(dir, 'cw', 'w1-A', '.ai', 'workflows', 'alpha', '05-implement-s1.md'))]));
+    meta('b1', 'implement:s1@alpha');
+    writeFileSync(join(wfDir, 'agent-b2.jsonl'), line('w2', 2, [writeBlock(join(dir, 'cw', 'w1-B', '.ai', 'workflows', 'beta', '05-implement-p1.md'))]));
+    meta('b2', 'implement:p1@beta');
+    writeFileSync(join(wfDir, 'agent-b3.jsonl'), line('w3', 3, [writeBlock(join(dir, 'repo', '.ai', 'workflows', 'brain', 'work', 'campaign', 'ledger.json'))]));
+    meta('b3', 'cross-unit-reconcile');
+    // The silent agents: a scout of alpha (the run's last writer is the wave agent), and the waiter.
+    writeFileSync(join(wfDir, 'agent-c1.jsonl'), line('s1', 30, []));
+    meta('c1', 'scout:correctness:s1@alpha');
+    writeFileSync(join(wfDir, 'agent-c2.jsonl'), line('s2', 40, []));
+    meta('c2', 'waiter#1');
+    const t = collectTurn({ transcriptPath: transcript, subagentsDir: subDir, cursor: newCursor() });
+    const group = (slug) => t.groups.find((g) => g.attributed && g.attributed.slug === slug);
+    assert.deepEqual(group('alpha').subagents.map((s) => s.agent_id).sort(), ['b1', 'c1'], 'the silent scout goes to its own slug');
+    assert.equal(group('alpha').attributed.root, join(dir, 'cw', 'w1-A', '.ai', 'workflows').replace(/\\/g, '/'));
+    assert.deepEqual(group('beta').subagents.map((s) => s.agent_id), ['b2']);
+    assert.deepEqual(group('brain').subagents.map((s) => s.agent_id).sort(), ['b3', 'c2'], 'the silent waiter goes to the campaign');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('collectTurn (codex): the turn is the delta of cumulative totals; fields stay codex-named', () => {
   const dir = tmp();
   try {

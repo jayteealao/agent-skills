@@ -399,16 +399,40 @@ export function listClaudeAgentFiles(subagentsDir) {
 }
 
 /**
+ * The label of a Workflow sub-agent: the `description` of `agent-<id>.meta.json`
+ * beside its transcript, or null.
+ */
+export function agentLabelOf(file) {
+  try {
+    const meta = JSON.parse(readFileSync(file.replace(/\.jsonl$/, '.meta.json'), 'utf8'));
+    return typeof meta?.description === 'string' ? meta.description : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The `<slug>` of a wave driver label `<stage>:<slice>@<slug>`, or null. */
+export function labelSlugOf(label) {
+  const m = /@([a-z0-9][a-z0-9._-]*)$/i.exec(String(label ?? ''));
+  return m ? m[1] : null;
+}
+
+/**
  * Read the new lines of every sub-agent and give each one its own slug: the last
  * `.ai/workflows/<slug>/` it wrote (kept in the cursor across Stops). An agent
- * that never wrote takes the slug of its Workflow run; outside a run it stays
- * with the turn. A drive's agents write in their own slug, so a yolo run inside
- * another slug's session (a campaign) is booked to the slug it built.
+ * that never wrote takes the `@<slug>` of its label (the wave driver labels each
+ * unit agent so); a wave agent of a campaign run with no `@<slug>` takes the
+ * campaign; any other silent agent takes the slug of its Workflow run, and outside
+ * a run it stays with the turn. A unit agent writes in its own slug, so a wave run
+ * inside the campaign session is booked to the slugs it built.
  */
 function readClaudeAgents(subagentsDir, cursor) {
   cursor.agents ??= {};
   cursor.agentLast ??= {};
   cursor.workflowLast ??= {};
+  cursor.workflowCampaign ??= {};
+  cursor.slugRoot ??= {};
+  cursor.agentLabel ??= {};
   const read = [];
   for (const f of listClaudeAgentFiles(subagentsDir)) {
     const rr = readNewLines(f.file, cursor.agents[f.id] ?? 0);
@@ -417,14 +441,35 @@ function readClaudeAgents(subagentsDir, cursor) {
     const own = attributeWrites(pr.writes, cursor.agentLast[f.id] ?? null);
     if (own) {
       cursor.agentLast[f.id] = own;
+      cursor.slugRoot[own.slug] = own.root;
       if (f.workflow && pr.writes.length) cursor.workflowLast[f.workflow] = own;
+    }
+    if (f.workflow) {
+      for (const w of pr.writes) {
+        const parts = workflowPathParts(w.path);
+        if (parts && /\/\.ai\/workflows\/[^/]+\/work\/campaign\//.test(`/${String(w.path).replace(/\\/g, '/')}`)) {
+          cursor.workflowCampaign[f.workflow] = { slug: parts.slug, key: null, slice: null, root: parts.root };
+        }
+      }
+      if (!(f.id in cursor.agentLabel)) cursor.agentLabel[f.id] = agentLabelOf(f.file);
     }
     read.push({ ...f, usages: pr.usages.map((u) => ({ agent_id: f.id, model: u.model, ...u.usage })) });
   }
   // Second pass: a silent agent read before its run's writer still gets the run's slug.
+  const silent = (a) => {
+    if (!a.workflow) return null;
+    const runLast = cursor.workflowLast[a.workflow] ?? null;
+    const campaign = cursor.workflowCampaign[a.workflow] ?? null;
+    const slug = labelSlugOf(cursor.agentLabel[a.id]);
+    if (slug) {
+      const root = cursor.slugRoot[slug] ?? campaign?.root ?? runLast?.root ?? null;
+      return root ? { slug, key: null, slice: null, root } : runLast;
+    }
+    return campaign ?? runLast;
+  };
   return read.filter((a) => a.usages.length).map((a) => ({
     ...a,
-    attributed: cursor.agentLast[a.id] ?? (a.workflow ? cursor.workflowLast[a.workflow] ?? null : null),
+    attributed: cursor.agentLast[a.id] ?? silent(a),
   }));
 }
 

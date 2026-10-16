@@ -51,8 +51,25 @@ export function lockWaitsAfter(previous: readonly string[], lines: ReadonlyArray
   return waiting
 }
 
-/** Where one running unit's drive stands, from its own driver journal. */
-export type UnitDrive = { stage: string | null; startedAt: number | null; status: string | null }
+/**
+ * Where one unit's drive stands, from its own driver journal. `slots` is the number of
+ * the unit's agents that hold a heavy slot of the wave driver now (WF-CAMPAIGN-DRIVER-PLAN D18).
+ */
+export type UnitDrive = { stage: string | null; startedAt: number | null; status: string | null; slots?: number }
+
+/** The labels of the agents that hold a heavy slot after new journal lines: a start line with `"heavy":true` that has no end line yet. */
+export function slotHoldersAfter(previous: readonly string[], lines: ReadonlyArray<Record<string, unknown>>): string[] {
+  let held = [...previous]
+  for (const line of lines) {
+    const agent = typeof line['agent'] === 'string' ? line['agent'] : null
+    const event = String(line['event'] ?? '')
+    if (event === 'run-end') held = []
+    if (agent === null) continue
+    if (event === 'agent-start' && line['heavy'] === true && !held.includes(agent)) held.push(agent)
+    if (event === 'agent-end') held = held.filter(entry => entry !== agent)
+  }
+  return held
+}
 
 /**
  * W0a: where a unit's driver journal is. The ledger names the unit's worktree
@@ -78,7 +95,7 @@ export type CampaignFacts = {
 }
 
 type Wave = { n: number; state: string; units: string[]; version: string | null; label: string | null; pr: string | null }
-type Unit = { slug: string; state: string; wave: number | null; title: string | null }
+type Unit = { slug: string; state: string; wave: number | null; title: string | null; route: string | null; question: string | null }
 
 const LIVE_WAVE_STATES = new Set(['running', 'boundary', 'handoff', 'shipping'])
 
@@ -100,6 +117,14 @@ function wavesOf(ledger: Record<string, unknown> | null): Wave[] {
 function unitsOf(ledger: Record<string, unknown> | null): Record<string, Unit> {
   const raw = ledger?.['units']
   if (raw === null || typeof raw !== 'object') return {}
+  // The open question of each unit: the wave driver asks it with `--unit` when it parks the unit.
+  const asked: Record<string, string> = {}
+  for (const entry of Array.isArray(ledger?.['questions']) ? (ledger?.['questions'] as unknown[]) : []) {
+    if (entry === null || typeof entry !== 'object') continue
+    const question = entry as Record<string, unknown>
+    if (question['answered-at'] || typeof question['unit'] !== 'string') continue
+    asked[question['unit']] = String(question['id'] ?? '?')
+  }
   const out: Record<string, Unit> = {}
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     if (value === null || typeof value !== 'object') continue
@@ -109,6 +134,8 @@ function unitsOf(ledger: Record<string, unknown> | null): Record<string, Unit> {
       state: typeof unit['state'] === 'string' ? unit['state'] : 'planned',
       wave: typeof unit['wave'] === 'number' ? unit['wave'] : null,
       title: typeof unit['title'] === 'string' ? unit['title'] : null,
+      route: typeof unit['route'] === 'string' && unit['route'] !== '' ? unit['route'] : null,
+      question: asked[key] ?? null,
     }
   }
   return out
@@ -118,7 +145,7 @@ function marksOf(unit: Unit, drive: UnitDrive | undefined): SdlcStageMark[] {
   if (['finished', 'merged', 'shipped'].includes(unit.state)) return YOLO_STAGES.map(() => 'done')
   const at = drive?.stage === null || drive === undefined ? -1 : (YOLO_STAGES as readonly string[]).indexOf(drive.stage)
   if (unit.state === 'stopped' || unit.state === 'needs-fix') return YOLO_STAGES.map((_, i) => (i < at ? 'done' : i === at ? 'stop' : 'wait'))
-  if (unit.state !== 'running' || at === -1) return YOLO_STAGES.map(() => 'wait')
+  if ((unit.state !== 'running' && unit.state !== 'waiting') || at === -1) return YOLO_STAGES.map(() => 'wait')
   return YOLO_STAGES.map((_, i) => (i < at ? 'done' : i === at ? 'run' : 'wait'))
 }
 
@@ -126,10 +153,15 @@ function noteOf(unit: Unit, drive: UnitDrive | undefined, heavy: CampaignFacts['
   if (unit.state === 'running') {
     const parts = [drive?.stage ?? 'starting']
     if (drive?.startedAt != null) parts.push(`${Math.max(0, Math.round((now - drive.startedAt) / 60000))}m`)
-    if (heavy.holder === unit.slug) parts.push('holds lock')
+    const slots = drive?.slots ?? 0
+    if (slots > 0) parts.push(slots === 1 ? 'holds a slot' : `holds ${slots} slots`)
+    else if (heavy.holder === unit.slug) parts.push('holds lock')
     else if (heavy.waiting.includes(unit.slug)) parts.push('waits for lock')
     return parts.join(' · ')
   }
+  if (unit.state === 'waiting') return unit.route === null ? 'merges a dependency' : `waiting · ${unit.route}`
+  if (unit.state === 'stopped' && unit.question !== null) return `asks ${unit.question}`
+  if (unit.state === 'stopped' && unit.route !== null) return `stopped · ${unit.route}`
   if (needsPrepare) return 'needs prepare'
   if (unit.state === 'prepared') return 'prepared'
   if (unit.state === 'stopped' || unit.state === 'needs-fix') return unit.state
@@ -194,7 +226,7 @@ export function buildCampaignModel(facts: CampaignFacts): SdlcCampaignModel {
       version: wave.version,
       gates,
       slugs: wave.units.map(key => {
-        const unit = units[key] ?? { slug: key, state: 'planned', wave: wave.n, title: null }
+        const unit = units[key] ?? { slug: key, state: 'planned', wave: wave.n, title: null, route: null, question: null }
         const drive = facts.drives[unit.slug]
         return { key, slug: unit.slug, state: unit.state, marks: marksOf(unit, drive), note: noteOf(unit, drive, facts.heavy, now, needsPrepare(key)) }
       }),

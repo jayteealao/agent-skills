@@ -28,11 +28,11 @@
  * from the plugin cache and from the dev tree.
  *
  *   node scripts/stage-yolo-driver.mjs <absolute projectRoot>
- *   node scripts/stage-yolo-driver.mjs <absolute projectRoot> --driver campaign-boundary
+ *   node scripts/stage-yolo-driver.mjs <absolute projectRoot> --driver campaign-wave
  *
  * `--driver` stages another Workflow script of skills/wf/workflows/ the same
- * way: /wf campaign stages campaign-boundary.js beside yolo.js (WF-CAMPAIGN-PLAN
- * section 19).
+ * way: /wf campaign stages campaign-wave.js beside yolo.js (WF-CAMPAIGN-DRIVER-PLAN
+ * D2).
  *   → {"scriptPath":"…/.scratch/wf/yolo.js","version":"9.154.0","sha256":"…","overwroteHotPatch":false}
  */
 import { createHash } from 'node:crypto';
@@ -43,7 +43,7 @@ import { fileURLToPath } from 'node:url';
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DRIVER_SOURCE = path.join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', 'yolo.js');
 export const STAGE_REL = path.join('.scratch', 'wf', 'yolo.js');
-export const DRIVERS = Object.freeze(['yolo', 'campaign-boundary']);
+export const DRIVERS = Object.freeze(['yolo', 'campaign-wave']);
 
 function sha256(buf) {
   return createHash('sha256').update(buf).digest('hex');

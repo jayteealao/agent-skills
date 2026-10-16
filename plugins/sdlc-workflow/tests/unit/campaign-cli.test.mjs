@@ -89,6 +89,22 @@ test('a project with a ship plan has no ship-plan gap', () => {
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test('D19: a project without an isolation contract gets an isolation gap at orient; a project with one gets none', () => {
+  const root = makeRepo();
+  try {
+    const o = run(root, 'orient');
+    assert.equal(o.ok, true, JSON.stringify(o));
+    assert.deepEqual(o.toolGaps.find((g) => g.tool === 'isolation'), { tool: 'isolation', have: 'none', need: 'campaign.isolation in .ai/sdlc-config.json', fix: 'ask the person for the isolation contract (campaign/_phases.md, "Width")' });
+  } finally { rmSync(root, { recursive: true, force: true }); }
+  const other = makeRepo();
+  try {
+    writeFileSync(path.join(other, '.ai', 'sdlc-config.json'), JSON.stringify({ campaign: { isolation: { 'port-env': {}, 'build-dirs': [] } } }));
+    const o = run(other, 'orient');
+    assert.equal(o.ok, true, JSON.stringify(o));
+    assert.ok(!o.toolGaps.some((g) => g.tool === 'isolation'));
+  } finally { rmSync(other, { recursive: true, force: true }); }
+});
+
 test('a dependency on a piece the brainstorm already wrote is done: orient accepts it, and the context names it', () => {
   const root = makeRepo();
   try {

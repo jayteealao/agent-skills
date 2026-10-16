@@ -11,8 +11,10 @@
  *   outside  <root> <brainstorm> <key> <closed|needs-you>
  *   wave     <root> <brainstorm> <n> start [--trunk main]       start a wave (9.4 step 2; 9.3 step 6)
  *   wave     <root> <brainstorm> <n> set <state> [--pr url] [--version v] [--label l]
- *   ask      <root> <brainstorm> <id> [--wave n] <text...>      record a question (16.4)
- *   reply    <root> <brainstorm> <id> <answer...>               record the person's answer
+ *   wave     <root> <brainstorm> <n> launch [--stop-before boundary]   the args of the wave driver (WF-CAMPAIGN-DRIVER-PLAN 5.1)
+ *   wave     <root> <brainstorm> <n> record --outcome <file>         the wave driver's outcome into the ledger (5.11)
+ *   ask      <root> <brainstorm> <id> [--wave n] [--unit k --kind k --stage s --slice s] <text...>   record a question (16.4)
+ *   reply    <root> <brainstorm> <id> [--by person|session] [--move] <answer...>   record the answer
  *   pause    <root> <brainstorm> <until ISO> <reason...>        (17.4)
  *   resume   <root> <brainstorm>
  *   context  <root> <brainstorm> <key>            write context/<slug>.md (section 10)
@@ -23,12 +25,18 @@
  *   forecast <root> <brainstorm> [--wave n --minutes m --tokens t]
  *   worktree <root> <brainstorm> <key|wave-<n>> <add|refresh|sync|remove>   (13; local records)
  *   lock     <root> <brainstorm> [quiet] <acquire|release> <slug>  the heavy-suite lock, or the quiet lease (C4)
- *   merge-in <root> <brainstorm> <key> <from>     merge a needed unit into a waiting unit (WF-CAMPAIGN-RUN-FIXES-PLAN N6)
+ *   merge-in <root> <brainstorm> <key> <from> [--at sha]   merge a needed unit, or one cleared commit of it, into a waiting unit (N6, D21)
  *   merge-order <root> <brainstorm> <n>           the boundary merge order from the merge-ins (C7)
  *   steer    <root> <brainstorm> <key|wave-<n>|all> <add|replace|remove|list> [--text t] [--match m] [--by who]   (C2)
  *   rule     <root> <brainstorm> <add|list|remove> [<id>] [--text t]   standing rules (C9)
  *   away     <root> <brainstorm> --words w [--until ISO]   |   back   |   recap [--since ISO]   (C3)
  *   decided  <root> <brainstorm> <id> --question q --answer a --why w [--options json] [--intent-bearing true] [--unit key]
+ *   slice-done <root> <brainstorm> <key> <slice> [--final] [--run id]   the records commit, cleared, waits ready (5.6a)
+ *   needs    <root> <brainstorm> <key> add|list|remove [--from k --through s --before s --why w --by who --source s]   (5.7)
+ *   contract <root> <brainstorm> <key> amend --line <line key> --text t   (5.5, kind contract)
+ *   await    <root> <brainstorm> --wave n [--max seconds] [--seen id,id] | --cancel   the waiter of the wave driver (5.5a)
+ *   question <root> <brainstorm> <id> consumed
+ *   owner    <root> <slug>                       the live wave run that drives a slug (5.13)
  *
  * Every command prints one JSON object on stdout. The ledger (work/campaign/ledger.json)
  * is the truth; every write regenerates ledger.md beside it.
@@ -44,14 +52,14 @@ import {
   newestReading, portsFor, waveBase, checkCampaignSet, classifyDrift, deferUnprepared, hotfixVersion,
   isBuildUnit, newLedger, nextWaveVersion, renderContext, renderForecast, renderLedgerMd, replan, rowTokens,
   SETUP_ANSWERS, stageMinutesFromJournals, unitOf, UNIT_STATES, WAVE_STATES,
-  boundaryMergeOrder, buildRecap, closeWaits, diskNeedGb, mergeInsReady, pathBudget, pluginUpdate, shortStamp, throughCovers, waveWaits,
+  boundaryMergeOrder, buildRecap, clearedCover, closeWaits, diskNeedGb, pathBudget, pluginUpdate, runLive, sameNeed, shortStamp, sliceCycle, throughCovers, waitPending, waveWaits,
 } from '../lib/campaign.mjs';
 import { ignoredAtRisk, loadManifest, recordsIn, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { missingBoardFiles, needsPictures } from '../lib/design-boards.mjs';
 import { designNeeded, designSettled } from '../lib/design-lane.mjs';
 
-const USAGE = 'Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|stack|merge-in|merge-order|steer|rule|away|back|decided|recap> <projectRoot> <brainstorm> ...';
+const USAGE = 'Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|stack|merge-in|merge-order|steer|rule|away|back|decided|recap|slice-done|needs|contract|await|question|owner> <projectRoot> <brainstorm> ...';
 
 // scripts/ and dist/ both sit one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -89,7 +97,7 @@ function writeAtomic(file, text) {
  * process that is gone is taken over at once.
  */
 const ledgerLockPath = (root, b) => join(campDir(root, b), 'ledger.lock');
-const LEDGER_COMMANDS = new Set(['orient', 'replan', 'answer', 'unit', 'outside', 'wave', 'ask', 'reply', 'pause', 'resume', 'forecast', 'worktree', 'stack', 'merge-in', 'rule', 'away', 'back', 'decided']);
+const LEDGER_COMMANDS = new Set(['orient', 'replan', 'answer', 'unit', 'outside', 'wave', 'ask', 'reply', 'pause', 'resume', 'forecast', 'worktree', 'stack', 'merge-in', 'rule', 'away', 'back', 'decided', 'slice-done', 'needs', 'contract', 'question']);
 
 function git(root, args) {
   const r = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', windowsHide: true });
@@ -201,11 +209,16 @@ function trunkOf(root) {
   return 'main';
 }
 
+/** Flags that take no value: `reply --move`, `slice-done --final`, `await --cancel`. */
+const BOOLEAN_FLAGS = new Set(['move', 'final', 'cancel']);
+
 function flags(args) {
   const pos = [];
   const f = {};
   for (let i = 0; i < args.length; i++) {
-    if (args[i].startsWith('--')) { f[args[i].slice(2)] = args[i + 1]; i++; } else pos.push(args[i]);
+    const name = args[i].startsWith('--') ? args[i].slice(2) : null;
+    if (name && BOOLEAN_FLAGS.has(name)) f[name] = true;
+    else if (name) { f[name] = args[i + 1]; i++; } else pos.push(args[i]);
   }
   return { pos, f };
 }
@@ -232,6 +245,8 @@ function orient(root, b) {
   if (ignored) check.warnings.push('the repo does not track .ai/: the records stay in the main checkout. Each worktree gets a copy, and its changes come back before the worktree is removed (local records). The wave PR text and the code are still public.');
   // C5, C6: on Windows, short paths outside the repo keep deep build paths under the limit.
   const iso = isolationOf(cfg);
+  // D19: the wave driver runs every unit in its own worktree, so a campaign needs a contract before wave 1.
+  if (!iso) ledger['tool-gaps'].push({ tool: 'isolation', have: 'none', need: 'campaign.isolation in .ai/sdlc-config.json', fix: 'ask the person for the isolation contract (campaign/_phases.md, "Width")' });
   if (iso && process.platform === 'win32' && (!iso['outside-root'] || !iso['worktree-root'])) {
     check.warnings.push('Windows: ask the person at setup for short absolute paths in campaign.isolation: outside-root (the folders a unit needs outside its worktree, for example C:/co) and worktree-root (for example C:/cw). Without them, a drive keeps every build folder inside its worktree, and deep build paths can pass the 260-character limit.');
   }
@@ -680,11 +695,12 @@ function status(root, b) {
   const ledger = loadLedger(root, b);
   const ws = readWorkSet(root, b);
   const revision = ws.error ? null : ws.revision;
-  const mergeReady = ledger ? mergeInsReady(ledger, waitProgress(root, ledger)) : [];
+  // D25: a live wave run drives its units; the session must not launch it again.
+  const driving = ledger ? liveRun(root, b, ledger) : null;
   const update = pluginUpdate(runningPluginVersion(), installedPluginVersion(root));
   return {
     ok: true,
-    next: campaignAction(ledger, { revision, mergeReady }),
+    next: campaignAction(ledger, { revision, driving }),
     revision,
     // C9: the person's standing rules, in every status result, so that a compaction cannot lose them.
     rules: ledger?.rules ?? [],
@@ -694,7 +710,7 @@ function status(root, b) {
       waves: ledger.waves.map((w) => ({ n: w.n, state: w.state, units: w.units, moved: w.moved })),
       waiting: ledger.waiting,
       pause: ledger.pause,
-      units: Object.fromEntries(Object.entries(ledger.units).filter(([, u]) => u.wave && ledger.waves.find((x) => x.n === u.wave && x.state === 'running')).map(([k, u]) => [k, { state: u.state, route: u.route ?? null, openWaits: (u.waits ?? []).filter((x) => x.state === 'open').map((x) => ({ from: x.from, through: x.through, before: x.before })) }])),
+      units: Object.fromEntries(Object.entries(ledger.units).filter(([, u]) => u.wave && ledger.waves.find((x) => x.n === u.wave && ['running', 'boundary'].includes(x.state))).map(([k, u]) => [k, { state: u.state, route: u.route ?? null, openWaits: (u.waits ?? []).filter(waitPending).map((x) => ({ from: x.from, through: x.through, before: x.before, state: x.state })) }])),
     } : null,
   };
 }
@@ -721,12 +737,6 @@ export function unitProgress(root, u) {
   return { order, passed, finished: ['finished', 'merged', 'shipped'].includes(u.state) };
 }
 
-/** The progress of every unit that an open wait names. */
-function waitProgress(root, ledger) {
-  const from = new Set(Object.values(ledger.units).flatMap((u) => (u.waits ?? []).filter((w) => w.state === 'open').map((w) => w.from)));
-  return Object.fromEntries([...from].filter((k) => ledger.units[k]).map((k) => [k, unitProgress(root, ledger.units[k])]));
-}
-
 /**
  * W0a: the run-time files of a drive. A drive writes them while it runs, so they
  * can be dirty while the drive is stopped. A merge of another unit never touches
@@ -741,22 +751,34 @@ const unitBranch = (b, u) => u.worktree?.branch ?? (u.wave ? `campaign/${b}/wave
  * N6: merge the slug branch of `from` into the branch of `key`, while the drive of
  * `key` is stopped. On a conflict, the merge is aborted and the files are listed.
  */
-function mergeIn(root, b, [key, from]) {
+function mergeIn(root, b, [key, from], f = {}) {
   const ledger = requireLedger(root, b);
   const u = ledger.units[key];
-  const f = ledger.units[from];
+  const fu = ledger.units[from];
   if (!u) throw new Error(`merge-in: ${key} is not a build unit of this campaign`);
-  if (!f) throw new Error(`merge-in: ${from} is not a build unit of this campaign`);
+  if (!fu) throw new Error(`merge-in: ${from} is not a build unit of this campaign`);
   if (u.state === 'running') return { ok: false, error: `the drive of ${key} runs. Merge only while it is stopped (D5): wait for its wait stop, or stop it first.` };
-  const open = (u.waits ?? []).filter((w) => w.state === 'open' && w.from === from);
+  const open = (u.waits ?? []).filter((w) => waitPending(w) && w.from === from);
   if (!open.length) return { ok: false, error: `${key} has no open wait on ${from}` };
-  const p = unitProgress(root, f);
-  const reached = p.finished ? 'finished' : [...p.passed].sort((x, y) => p.order.indexOf(y) - p.order.indexOf(x))[0];
-  if (!reached || !open.some((w) => throughCovers(reached, w.through, p.order))) {
-    return { ok: false, error: `${from} has not passed verify for what ${key} needs (${open.map((w) => w.through).join(', ')}); it reached ${reached ?? 'no passed slice'}` };
+  const p = unitProgress(root, fu);
+  let reached;
+  let mergeRef;
+  if (f.at) {
+    // D21: merge exactly the commit of the cleared slice, not the branch tip.
+    const c = (fu.cleared ?? []).find((x) => x.sha === f.at || String(x.sha).startsWith(f.at));
+    if (!c) return { ok: false, error: `${f.at} is not a cleared commit of ${from}: a merge-in takes the sha that slice-done recorded` };
+    reached = c.slice;
+    if (!open.some((w) => throughCovers(reached, w.through, p.order))) return { ok: false, error: `the cleared slice ${reached} of ${from} does not cover what ${key} needs (${open.map((w) => w.through).join(', ')})` };
+    mergeRef = c.sha;
+  } else {
+    reached = p.finished ? 'finished' : [...p.passed].sort((x, y) => p.order.indexOf(y) - p.order.indexOf(x))[0];
+    if (!reached || !open.some((w) => throughCovers(reached, w.through, p.order))) {
+      return { ok: false, error: `${from} has not passed verify for what ${key} needs (${open.map((w) => w.through).join(', ')}); it reached ${reached ?? 'no passed slice'}` };
+    }
   }
-  const fromBranch = unitBranch(b, f);
-  if (!fromBranch || !commitOf(root, `refs/heads/${fromBranch}`)) return { ok: false, error: `the branch of ${from} (${fromBranch ?? 'unknown'}) does not exist` };
+  const fromBranch = unitBranch(b, fu);
+  if (!mergeRef && (!fromBranch || !commitOf(root, `refs/heads/${fromBranch}`))) return { ok: false, error: `the branch of ${from} (${fromBranch ?? 'unknown'}) does not exist` };
+  mergeRef ??= fromBranch;
   let dir = u.worktree?.path ?? null;
   if (!dir) {
     const want = unitBranch(b, u);
@@ -766,9 +788,10 @@ function mergeIn(root, b, [key, from]) {
   const dirty = spawnSync('git', ['-C', dir, 'status', '--porcelain', '--untracked-files=no', '--', '.', ...RUN_TIME_EXCLUDES], { encoding: 'utf8', windowsHide: true });
   if (dirty.status !== 0 || dirty.stdout.trim()) return { ok: false, error: `the checkout of ${key} has uncommitted changes, so a merge could mix with them. Ask the person.`, dirty: dirty.stdout.trim().split(/\r?\n/).filter(Boolean) };
   // C7: rerere records the resolution of a conflict here, so the boundary replays it. The setting is in the repo's common config, which every worktree shares.
-  spawnSync('git', ['-C', dir, 'config', 'rerere.enabled', 'true'], { windowsHide: true });
-  const fromSha = commitOf(root, `refs/heads/${fromBranch}`);
-  const m = spawnSync('git', ['-C', dir, 'merge', '--no-ff', '--no-edit', fromBranch], { encoding: 'utf8', windowsHide: true });
+  // D22: `wave launch` sets it once; two merge-ins never write the common config at the same time.
+  if (git(dir, ['config', '--get', 'rerere.enabled']) !== 'true') spawnSync('git', ['-C', dir, 'config', 'rerere.enabled', 'true'], { windowsHide: true });
+  const fromSha = commitOf(root, mergeRef);
+  const m = spawnSync('git', ['-C', dir, 'merge', '--no-ff', '--no-edit', mergeRef], { encoding: 'utf8', windowsHide: true });
   if (m.status !== 0) {
     const files = (git(dir, ['diff', '--name-only', '--diff-filter=U']) ?? '').split(/\r?\n/).filter(Boolean);
     spawnSync('git', ['-C', dir, 'merge', '--abort'], { windowsHide: true });
@@ -779,7 +802,8 @@ function mergeIn(root, b, [key, from]) {
   const head = commitOf(dir, 'HEAD');
   (u['merged-in'] ??= []).push({ from, through: reached, sha: fromSha, merge: head, at });
   const closed = closeWaits(u.waits, { from, through: reached, order: p.order, at });
-  if (u.state === 'waiting') { u.state = 'prepared'; u.route = null; }
+  // The yolo path relaunched a waiting unit; the wave driver sets the unit running itself.
+  if (u.state === 'waiting' && !f.at) { u.state = 'prepared'; u.route = null; }
   saveLedger(root, b, ledger);
   appendJournal(root, b, 'merge-in', { key, from, through: reached, sha: fromSha, merge: head, closed: closed.length });
   const ctx = context(root, b, [key]);
@@ -811,6 +835,443 @@ function mergeOrder(root, b, [nText]) {
   // `units` is the boundary driver's argument: the merge order first, then each carried unit with `through`.
   const boundaryUnits = [...order.map((k) => units.find((x) => x.key === k)), ...Object.entries(through).map(([k, by]) => ({ ...units.find((x) => x.key === k), through: by }))];
   return { ok: true, wave: w.n, order, through, units: boundaryUnits, carried: Object.entries(through).map(([k, by]) => ({ key: k, slug: ledger.units[k].slug, through: by })), quiet: units.filter((x) => x.quiet.length).map((x) => ({ key: x.key, checks: x.quiet.length })) };
+}
+
+// ---------------------------------------------------------------- the wave driver (WF-CAMPAIGN-DRIVER-PLAN)
+
+const DRIVER_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'workflows');
+const isMoved = (u) => u?.state === 'stopped' && /^moved\b/.test(String(u.route ?? ''));
+/** 5.10: the cancel marker of one wave run. */
+const cancelPathOf = (root, runId, n) => join(root, '.scratch', 'campaign', runId, `wave-${n}`, 'cancel');
+
+/** D25: every journal line of wave n's run: the campaign journal and each unit journal. */
+function waveRunLines(root, b, ledger, w) {
+  const lines = readJsonl(journalPath(root, b));
+  for (const k of w.units) {
+    const u = ledger.units[k];
+    if (u) lines.push(...readJsonl(join(unitWorkflowDir(root, u), '.driver-journal.jsonl')));
+  }
+  return lines;
+}
+
+/** D25: the live wave run, as { wave, run, newestAt }, or null. */
+function liveRun(root, b, ledger) {
+  for (const w of ledger.waves ?? []) {
+    if (!w.run?.id) continue;
+    const r = runLive(w.run, waveRunLines(root, b, ledger, w), Date.now());
+    if (r.live) return { wave: w.n, run: w.run.id, newestAt: r.newestAt };
+  }
+  return null;
+}
+
+/** Set keys in a frontmatter block; a key that is absent is added at its end. */
+function setFrontmatterKeys(file, pairs) {
+  if (!existsSync(file)) return false;
+  const text = readFileSync(file, 'utf8');
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!m) return false;
+  let fm = m[1];
+  for (const [k, v] of Object.entries(pairs)) {
+    const re = new RegExp(`^${k}:.*$`, 'm');
+    const line = `${k}: ${v}`;
+    fm = re.test(fm) ? fm.replace(re, () => line) : `${fm}\n${line}`;
+  }
+  writeAtomic(file, text.replace(m[0], () => `---\n${fm}\n---`));
+  return true;
+}
+
+/** A unit's review scope from its 00-index.md: per-slice unless it says slug-wide. */
+function reviewScopeOf(root, u) {
+  const idx = join(unitWorkflowDir(root, u), '00-index.md');
+  const fm = existsSync(idx) ? safeParseFrontmatter(readFileSync(idx, 'utf8')).data ?? {} : {};
+  return fm['review-scope'] === 'slug-wide' ? 'slug-wide' : 'per-slice';
+}
+
+/** 5.5a: the answers of wave n that no resume consumed yet. */
+const answersOf = (ledger, n) => (ledger.questions ?? [])
+  .filter((q) => q.wave === n && q['answered-at'] && !q.consumed)
+  .map((q) => ({ id: q.id, unit: q.unit ?? null, kind: q.kind ?? null, answer: q.answer, by: q.by ?? 'person', move: q.move === true }));
+
+const questionArgs = (q) => ({
+  id: q.id, kind: q.kind ?? null, stage: q.stage ?? null, slice: q.slice ?? null, text: q.text,
+  answer: q.answer ?? null, by: q.by ?? null, move: q.move === true, consumed: q.consumed === true, answered: Boolean(q['answered-at']),
+});
+
+/**
+ * 5.1: `wave <n> launch` — every worktree, context file and branch field of the wave,
+ * then the args of the wave driver. Safe to run again (D22). Refuses without an
+ * isolation contract (D19), while the wave's run is live (D25), at width 0, and,
+ * before it changes anything, when one unit cannot get a worktree (D15).
+ */
+function launch(root, b, n, f) {
+  let ledger = requireLedger(root, b);
+  const w = ledger.waves.find((x) => x.n === n);
+  // D3: mode drift is a separate run before wave n; it reads the as-built notes and adds no worktree.
+  if (f.mode === 'drift') {
+    return {
+      ok: true, wave: n, mode: 'drift',
+      stage: `node "${join(PLUGIN_ROOT, 'scripts', 'stage-yolo-driver.mjs')}" "${root}" --driver campaign-wave`,
+      driver: join(DRIVER_ROOT, 'campaign-wave.js'),
+      args: { mode: 'drift', projectRoot: root, referenceRoot: join(PLUGIN_ROOT, 'skills', 'wf', 'reference'), brainstorm: b, wave: n, campaignDir: campDir(root, b), campaignControlPath: controlPath(root, b), campaignSteerPath: campaignSteerPath(root, b), units: [] },
+    };
+  }
+  const cfg = configOf(root);
+  const iso = isolationOf(cfg);
+  if (!iso) return { ok: false, error: 'isolation-required', detail: 'the wave driver runs every unit in its own worktree, and this project has no usable campaign.isolation in .ai/sdlc-config.json. Ask the person for one (_phases.md, "Width"); "parallel": false runs the wave at width 1, still in worktrees.' };
+  if (!['running', 'boundary'].includes(w.state)) return { ok: false, error: `wave ${n} is ${w.state}: run wave ${n} start first` };
+  if (w.run?.id) {
+    const r = runLive(w.run, waveRunLines(root, b, ledger, w), Date.now());
+    if (r.live) return { ok: false, error: 'run-live', run: w.run.id, newestAt: r.newestAt, detail: `the run ${w.run.id} of wave ${n} wrote its newest journal line at ${r.newestAt}. Do not launch it again: it drives the same worktrees. A run is live until wave ${n} record, or until its journals are silent for 20 minutes.` };
+  }
+  const bud = budget(root, b);
+  if (bud.width === 0) return { ok: false, paused: { until: bud.until ?? null, reason: bud.reason ?? 'usage limit' } };
+  // D15: check every unit that has no worktree yet, before any worktree is added.
+  const keys = w.units.filter((k) => ledger.units[k] && !isMoved(ledger.units[k]));
+  const fresh = keys.filter((k) => !(ledger.units[k].worktree && existsSync(ledger.units[k].worktree.path)));
+  const blocked = [];
+  if (fresh.length) {
+    const base = worktreeRoot(root, ledger, iso);
+    if (pathCheckOn()) {
+      const longest = longestTrackedPath(root);
+      const order = [...w.units].sort((a, c) => (ledger.units[a].order ?? 0) - (ledger.units[c].order ?? 0));
+      for (const k of fresh) {
+        const path = join(base, `w${n}-${order.indexOf(k) + 1}`);
+        const pb = pathBudget({ worktree: path, longestTracked: longest, buildDepth: iso['build-depth'] });
+        if (!pb.ok) blocked.push({ key: k, cause: 'path', detail: `${path}: ${pb.total} characters with the deepest build path, against the Windows limit of ${pb.limit}. Set campaign.isolation.worktree-root to a short absolute path.` });
+      }
+    }
+    mkdirSync(base, { recursive: true });
+    const st = statfsSync(base);
+    const freeGb = (st.bavail * st.bsize) / 1024 ** 3;
+    const need = diskNeedGb({ history: ledger['disk-history'] ?? [], toStart: fresh.length, minFreeGb: iso['min-free-gb'] });
+    if (freeGb < need.needGb) for (const k of fresh) blocked.push({ key: k, cause: 'disk', detail: `${freeGb.toFixed(1)} GB free, below the ${need.needGb} GB that ${fresh.length} new worktree(s) need` });
+    if (blocked.length) return { ok: false, blocked };
+  }
+  // D22: rerere once, in the common config, before any merge-in can run.
+  spawnSync('git', ['-C', root, 'config', 'rerere.enabled', 'true'], { windowsHide: true });
+  for (const k of keys) {
+    const r = worktreeStep(root, b, [k, 'add']);
+    if (!r.ok) return { ok: false, key: k, error: `worktree ${k} add: ${r.error}`, ...(r.records?.visibleToGit ? { visibleToGit: r.records.visibleToGit } : {}) };
+    if (r.records?.visibleToGit?.length) return { ok: false, key: k, error: `git can stage ${r.records.visibleToGit.length} copied record(s) in the worktree of ${k}. Ask the person.`, visibleToGit: r.records.visibleToGit };
+  }
+  ledger = requireLedger(root, b);
+  const lw = ledger.waves.find((x) => x.n === n);
+  for (const k of keys) {
+    const u = ledger.units[k];
+    setFrontmatterKeys(join(u.worktree.path, '.ai', 'workflows', u.slug, '00-index.md'), { 'branch-strategy': 'dedicated', branch: u.worktree.branch, 'base-branch': lw.branch });
+    // With tracked records, the branch fields are committed, so no merge-in finds the index dirty.
+    if (!isLocal(ledger)) {
+      const rel = `.ai/workflows/${u.slug}/00-index.md`;
+      spawnSync('git', ['-C', u.worktree.path, 'add', '--', rel], { windowsHide: true });
+      if (spawnSync('git', ['-C', u.worktree.path, 'diff', '--cached', '--quiet', '--', rel], { windowsHide: true }).status === 1) {
+        spawnSync('git', ['-C', u.worktree.path, 'commit', '-q', '-m', `chore(${u.slug}): record the branch`, '--', rel], { windowsHide: true });
+      }
+    }
+    // D22: finished and stopped stay; a unit that waited or was prepared drives.
+    if (['prepared', 'waiting', 'running'].includes(u.state)) { u.state = 'running'; u.route = null; }
+  }
+  const campaignRunId = `${nowIso().replace(/[-:]/g, '').replace(/\.\d+/, '')}-${b}-w${n}`;
+  if (lw.run?.id) rmSync(join(root, '.scratch', 'campaign', lw.run.id), { recursive: true, force: true });
+  lw.run = { id: campaignRunId, at: nowIso() };
+  saveLedger(root, b, ledger);
+  for (const k of keys) context(root, b, [k]);
+  const widthMax = effectiveWidth({ width: cfg.campaign?.width ?? DEFAULT_WIDTH, isolation: iso, budget: 'ok' });
+  const width = Math.max(1, Math.min(widthMax, bud.width || widthMax));
+  const allDone = keys.every((k) => ledger.units[k].state === 'finished');
+  const args = {
+    mode: allDone ? 'boundary' : 'wave',
+    projectRoot: root,
+    referenceRoot: join(PLUGIN_ROOT, 'skills', 'wf', 'reference'),
+    brainstorm: b,
+    wave: n,
+    campaignRunId,
+    waveBranch: lw.branch,
+    base: lw.base,
+    campaignDir: campDir(root, b),
+    campaignControlPath: controlPath(root, b),
+    campaignSteerPath: campaignSteerPath(root, b),
+    cancelPath: cancelPathOf(root, campaignRunId, n),
+    width,
+    widthMax,
+    stopBefore: f['stop-before'] === 'boundary' ? 'boundary' : null,
+    output: ledger.answers.output ?? null,
+    records: ledger.records ?? 'tracked',
+    agentCeiling: 900,
+    moved: lw.moved ?? [],
+    units: keys.map((k) => {
+      const u = ledger.units[k];
+      return {
+        key: k, slug: u.slug, form: u.form, order: u.order,
+        root: u.worktree.path, branch: u.worktree.branch,
+        contextPath: join(campDir(root, b), 'context', `${u.slug}.md`),
+        reviewScope: reviewScopeOf(root, u),
+        state: u.state,
+        runId: u['wave-run-id'] ?? null,
+        cleared: u.cleared ?? [],
+        waits: (u.waits ?? []).map((x) => ({ from: x.from, through: x.through, before: x.before ?? null, why: x.why ?? '', source: x.source ?? 'packet', state: x.state, sha: x.sha ?? null })),
+        questions: (ledger.questions ?? []).filter((q) => q.unit === k && q.wave === n).map(questionArgs),
+      };
+    }),
+    waveQuestions: (ledger.questions ?? []).filter((q) => q.wave === n && !q.unit).map(questionArgs),
+  };
+  appendJournal(root, b, 'run-start', { run: campaignRunId, wave: n, units: keys, mode: args.mode });
+  const outcomeDir = join(root, '.scratch', 'campaign', campaignRunId, `wave-${n}`);
+  return {
+    ok: true, wave: n, run: campaignRunId, mode: args.mode, width, widthMax,
+    stage: `node "${join(PLUGIN_ROOT, 'scripts', 'stage-yolo-driver.mjs')}" "${root}" --driver campaign-wave`,
+    driver: join(DRIVER_ROOT, 'campaign-wave.js'),
+    outcomePath: join(outcomeDir, 'outcome.json'),
+    args,
+  };
+}
+
+/**
+ * 5.11: `wave <n> record --outcome <file>` — the wave driver's outcome into the ledger.
+ * Every outcome clears the wave's run (D25). A held outcome records only the unit
+ * facts, and the wave stays running for the next launch.
+ */
+function record(root, b, n, f) {
+  if (!f.outcome) throw new Error('wave record: give --outcome <the outcome file>');
+  const out = readJson(resolve(f.outcome));
+  if (!out || typeof out !== 'object') return { ok: false, error: `wave record: ${f.outcome} is not a JSON outcome` };
+  if (Number(out.wave) !== n) return { ok: false, error: `wave record: the outcome is of wave ${out.wave}, not ${n}` };
+  const ledger = requireLedger(root, b);
+  const w = ledger.waves.find((x) => x.n === n);
+  const ranId = w.run?.id ?? null;
+  delete w.run;
+  for (const ou of out.units ?? []) {
+    const lu = ledger.units[ou.key];
+    if (!lu) continue;
+    for (const c of ou.cleared ?? []) if (c?.slice && !(lu.cleared ?? []).some((x) => x.slice === c.slice && x.sha === c.sha)) (lu.cleared ??= []).push(c);
+    if (ou.decisionDigest) lu.digest = ou.decisionDigest;
+    if (ou.output) lu.output = ou.output;
+    if (ou.runId) lu['wave-run-id'] = ou.runId;
+    // The bookkeeping agents wrote these states during the run; the outcome is the safety net.
+    if (['finished', 'stopped'].includes(ou.state) && !['merged', 'needs-fix', 'shipped'].includes(lu.state)) {
+      lu.state = ou.state;
+      lu.route = ou.state === 'stopped' ? (ou.route ?? lu.route ?? null) : null;
+    }
+  }
+  const res = { ok: true, wave: n, run: ranId, held: out.held === true };
+  if (!res.held && out.boundary) {
+    const bd = out.boundary;
+    for (const m of bd.merged ?? []) if (ledger.units[m.key]) Object.assign(ledger.units[m.key], { state: 'merged', merge: m.sha, route: null });
+    for (const x of bd.needsFix ?? []) if (ledger.units[x.key]) Object.assign(ledger.units[x.key], { state: 'needs-fix', route: x.reason ?? null });
+    for (const x of bd.notMerged ?? []) if (ledger.units[x.key]) Object.assign(ledger.units[x.key], { state: 'stopped', route: x.reason ?? null });
+    if (out.waveReview) w.review = { path: out.waveReview.path ?? null, verdict: out.waveReview.verdict ?? null, open: out.waveReview.open ?? [] };
+    if (bd.stopped) w.state = 'stopped';
+    res.merged = (bd.merged ?? []).map((m) => m.key);
+    res.needsFix = bd.needsFix ?? [];
+    res.notMerged = bd.notMerged ?? [];
+    res.cleanup = (bd.merged ?? []).map((m) => ({ key: m.key, worktree: ledger.units[m.key]?.worktree?.path ?? null, branch: ledger.units[m.key]?.worktree?.branch ?? null })).filter((x) => x.worktree || x.branch);
+    if (bd.stopped) res.stopped = { at: bd.stoppedAt ?? 'boundary', reason: bd.reason ?? null };
+  }
+  res.derivedNeeds = out.derivedNeeds ?? [];
+  if (out.stopBeforeNextWave) res.stopBeforeNextWave = out.reason ?? true;
+  saveLedger(root, b, ledger);
+  appendJournal(root, b, 'wave-record', { wave: n, run: ranId, held: res.held, ...(res.merged ? { merged: res.merged } : {}) });
+  res.next = campaignAction(ledger, {});
+  return res;
+}
+
+/**
+ * 5.6a: `slice-done <key> <slice> [--final] [--run <id>]` — the end of a cleared slice,
+ * in this order: the records commit, the cleared commit, the waits that it meets,
+ * the budget, and the open answers.
+ */
+function sliceDone(root, b, [key, slice], f) {
+  const ledger = requireLedger(root, b);
+  const u = ledger.units[key];
+  if (!u) throw new Error(`slice-done: ${key} is not a build unit of this campaign`);
+  const final = f.final === true;
+  if (!final && !slice) throw new Error('slice-done: give the slice, or --final');
+  const dir = u.worktree?.path;
+  if (!dir || !existsSync(dir)) return { ok: false, error: `slice-done: ${key} has no worktree (D19)` };
+  let committed = false;
+  let records = null;
+  if (isLocal(ledger)) records = syncOut(root, b, key, dir);
+  else {
+    // The run-time files stay out until the end; the final commit carries the journal and the commentary.
+    const keepOut = final ? ['.watch-state.json'] : RUN_TIME_FILES;
+    const spec = [`.ai/workflows/${u.slug}`, ...keepOut.map((x) => `:(exclude,glob).ai/workflows/${u.slug}/${x}`)];
+    spawnSync('git', ['-C', dir, 'add', '--', ...spec], { encoding: 'utf8', windowsHide: true });
+    const staged = spawnSync('git', ['-C', dir, 'diff', '--cached', '--quiet', '--', ...spec], { windowsHide: true });
+    if (staged.status === 1) {
+      const c = spawnSync('git', ['-C', dir, 'commit', '-q', '-m', `chore(${u.slug}): ${final ? 'record the drive' : `record ${slice}`}`, '--', ...spec], { encoding: 'utf8', windowsHide: true });
+      if (c.status !== 0) return { ok: false, error: `slice-done: the records commit failed: ${(c.stderr || c.stdout || '').trim()}` };
+      committed = true;
+    }
+  }
+  const sha = commitOf(dir, 'HEAD');
+  const at = nowIso();
+  const name = final ? 'finished' : slice;
+  if (!(u.cleared ?? []).some((c) => c.slice === name && c.sha === sha)) (u.cleared ??= []).push({ slice: name, sha, at });
+  if (f.run) u['wave-run-id'] = f.run;
+  const order = unitProgress(root, u).order;
+  const ready = [];
+  for (const k of ledger.waves.find((x) => x.n === u.wave)?.units ?? []) {
+    for (const wt of ledger.units[k]?.waits ?? []) {
+      if (wt.from !== key || wt.state !== 'open' || !throughCovers(name, wt.through, order)) continue;
+      wt.state = 'ready';
+      wt.sha = sha;
+      wt['ready-at'] = at;
+      ready.push({ key: k, from: key, through: wt.through, sha });
+    }
+  }
+  saveLedger(root, b, ledger);
+  const bd = budget(root, b);
+  return { ok: true, key, slice: name, sha, committed, ...(records ? { records } : {}), ready, budget: { state: bd.state, width: bd.width, until: bd.until ?? null, reason: bd.reason ?? null }, answered: answersOf(ledger, u.wave) };
+}
+
+/** 5.7: `needs <key> add|list|remove` — the derived needs entries of the wave driver. */
+function needs(root, b, [key, action], f) {
+  const ledger = requireLedger(root, b);
+  const u = ledger.units[key];
+  if (!u) throw new Error(`needs: ${key} is not a build unit of this campaign`);
+  const ws = readWorkSet(root, b);
+  const packet = ws.error ? null : unitsOf(ws).find((x) => x.key === key);
+  if (action === 'list') return { ok: true, key, packet: packet?.needs ?? [], derived: u['derived-needs'] ?? [], waits: u.waits ?? [] };
+  const entry = { from: f.from, through: f.through ?? 'finished', before: f.before ?? null };
+  if (!entry.from || !ledger.units[entry.from]) throw new Error(`needs ${action}: --from names a build unit of this campaign`);
+  if (action === 'remove') {
+    const before = (u['derived-needs'] ?? []).length;
+    u['derived-needs'] = (u['derived-needs'] ?? []).filter((x) => !sameNeed(x, entry));
+    u.waits = (u.waits ?? []).filter((x) => !(sameNeed(x, entry) && x.source !== 'packet' && x.state !== 'met'));
+    if (!u['derived-needs'].length) delete u['derived-needs'];
+    saveLedger(root, b, ledger);
+    context(root, b, [key]);
+    appendJournal(root, b, 'derived-need', { key, ...entry, removed: true });
+    return { ok: true, key, removed: before - (u['derived-needs'] ?? []).length };
+  }
+  if (action !== 'add') throw new Error('needs: the action is add, list or remove');
+  if ((packet?.needs ?? []).some((x) => sameNeed(x, entry)) || (u['derived-needs'] ?? []).some((x) => sameNeed(x, entry))) return { ok: true, key, exists: true };
+  const w = ledger.waves.find((x) => x.n === u.wave);
+  if (!w || ledger.units[entry.from].wave !== u.wave) return { ok: false, error: `needs add: ${entry.from} is not in the wave of ${key}` };
+  // A cycle at slice level: each unit's slices in roster order, each wait an edge.
+  const rosters = Object.fromEntries(w.units.map((k) => [k, unitProgress(root, ledger.units[k]).order]));
+  const waits = w.units.flatMap((k) => (ledger.units[k].waits ?? []).filter((x) => x.state !== 'rejected').map((x) => ({ key: k, from: x.from, through: x.through, before: x.before ?? null })));
+  const cycle = sliceCycle(rosters, [...waits, { key, ...entry }]);
+  if (cycle) return { ok: false, cycle, error: `needs add: the entry closes a cycle: ${cycle.join(' -> ')}` };
+  const why = f.why ?? '';
+  const source = f.source ?? 'cross-unit';
+  // A slice that already passed its implement gets no wait: the wave review reads the pair.
+  const dir = unitWorkflowDir(root, u);
+  const implemented = entry.before && ['05-implement-', '05-implement'].some((p) => {
+    const file = join(dir, p.endsWith('-') ? `${p}${entry.before}.md` : `${p}.md`);
+    return existsSync(file) && String(safeParseFrontmatter(readFileSync(file, 'utf8')).data?.status ?? '') === 'complete';
+  });
+  if (implemented || (u.cleared ?? []).some((c) => c.slice === entry.before)) {
+    (w.focus ??= []).push({ a: entry.from, aSlice: entry.through, b: key, bSlice: entry.before, files: why });
+    saveLedger(root, b, ledger);
+    appendJournal(root, b, 'derived-need', { key, ...entry, why, source, late: true });
+    return { ok: true, key, late: true };
+  }
+  const at = nowIso();
+  (u['derived-needs'] ??= []).push({ ...entry, why, by: f.by ?? 'driver', at, source });
+  const fromU = ledger.units[entry.from];
+  const cover = clearedCover(fromU.cleared, entry.through, unitProgress(root, fromU).order);
+  const wait = { ...entry, why, source, state: cover ? 'ready' : 'open', ...(cover ? { sha: cover.sha } : {}) };
+  (u.waits ??= []).push(wait);
+  u['merged-in'] ??= [];
+  saveLedger(root, b, ledger);
+  context(root, b, [key]);
+  appendJournal(root, b, 'derived-need', { key, ...entry, why, source });
+  return { ok: true, key, wait };
+}
+
+/** 5.5 kind contract: `contract <key> amend --line <line key> --text <text>`. */
+function contract(root, b, [key, action], f) {
+  if (action !== 'amend') throw new Error('contract: the action is amend');
+  const ledger = requireLedger(root, b);
+  if (!ledger.units[key]) throw new Error(`contract: ${key} is not a build unit of this campaign`);
+  if (!String(f.line ?? '').trim() || !String(f.text ?? '').trim()) throw new Error('contract amend: give --line <line key> and --text "<the new text>"');
+  const a = { line: String(f.line).trim(), text: String(f.text).trim(), at: nowIso(), by: f.by ?? 'the person' };
+  ((ledger['amended-contracts'] ??= {})[key] ??= []).push(a);
+  saveLedger(root, b, ledger);
+  // Each context file that carries or expects the line, and every unit of a started wave, is written again.
+  const ws = readWorkSet(root, b);
+  const units = ws.error ? [] : unitsOf(ws);
+  const touched = units.filter((x) => x.key === key || x.expects.some((e) => e.from === key) || ledger.units[x.key]?.wave === ledger.units[key].wave).map((x) => x.key).filter((k) => ledger.units[k]?.wave);
+  const written = touched.map((k) => context(root, b, [k])).filter((r) => r.ok).map((r) => r.key);
+  appendJournal(root, b, 'contract-amend', { key, line: a.line });
+  return { ok: true, key, amended: a, contexts: written };
+}
+
+/**
+ * 5.5a: `await --wave <n> --max <seconds>` blocks until an answer, a stop, a pause,
+ * width 0 or the cancel marker, or until `max` seconds passed. `--max 0` checks once.
+ * `await --wave <n> --cancel` writes the cancel marker of the wave's run.
+ */
+function awaitCmd(root, b, f) {
+  const n = Number(f.wave);
+  if (!Number.isInteger(n) || n < 1) throw new Error('await: give --wave <n>');
+  const first = requireLedger(root, b);
+  const run = first.waves.find((x) => x.n === n)?.run?.id ?? null;
+  if (f.cancel === true) {
+    if (!run) return { ok: false, error: `await --cancel: wave ${n} has no run` };
+    const p = cancelPathOf(root, run, n);
+    writeAtomic(p, `${nowIso()}\n`);
+    return { ok: true, cancelled: true, path: p };
+  }
+  const max = Math.max(0, Math.min(540, Number(f.max ?? 540) || 0));
+  if (max > 0) appendJournal(root, b, 'waiter', { run, wave: n, open: (first.questions ?? []).filter((q) => q.wave === n && !q['answered-at']).map((q) => q.id) });
+  const seen = new Set(String(f.seen ?? '').split(',').map((s) => s.trim()).filter(Boolean));
+  const t0 = Date.now();
+  const check = () => {
+    const ledger = loadLedger(root, b) ?? first;
+    if (run && existsSync(cancelPathOf(root, run, n))) return { cancelled: true };
+    const ctl = readJson(controlPath(root, b));
+    if (ctl?.action === 'stop' && ctl.scope === 'campaign') return { stopped: true, kind: 'stop', reason: ctl.reason ?? 'stop request' };
+    if (ctl?.action === 'pause' && (!ctl.until || Date.parse(ctl.until) > Date.now())) return { stopped: true, kind: 'pause', until: ctl.until ?? null, reason: ctl.reason ?? 'pause' };
+    const bd = budget(root, b);
+    if (bd.width === 0) return { paused: { until: bd.until ?? null, reason: bd.reason ?? 'usage limit' } };
+    // The driver passes the ids it already saw, so an answer that waits for its resume does not return again.
+    const answered = answersOf(ledger, n).filter((a) => !seen.has(a.id));
+    if (answered.length) return { answered };
+    return null;
+  };
+  for (;;) {
+    const r = check();
+    if (r) return { ok: true, ...r, waitedS: Math.round((Date.now() - t0) / 1000) };
+    const left = max * 1000 - (Date.now() - t0);
+    if (left <= 0) return { ok: true, timeout: true, waitedS: Math.round((Date.now() - t0) / 1000) };
+    sleepMs(Math.min(10_000, left));
+  }
+}
+
+/** 5.5a step 5: `question <id> consumed` — the resumed step ran with this answer. */
+function question(root, b, [id, action]) {
+  if (action !== 'consumed') throw new Error('question: the action is consumed');
+  const ledger = requireLedger(root, b);
+  const q = (ledger.questions ?? []).find((x) => x.id === id);
+  if (!q) throw new Error(`question: no question ${id}`);
+  if (!q['answered-at']) return { ok: false, error: `question ${id} has no answer yet` };
+  q.consumed = true;
+  q['consumed-at'] = nowIso();
+  saveLedger(root, b, ledger);
+  return { ok: true, id, consumed: true };
+}
+
+/**
+ * 5.13: `owner <projectRoot> <slug>` — the live wave run that drives a slug, from the
+ * ledger of each brainstorm of the repo. `/wf yolo` stops on an owned slug.
+ */
+export function owner(root, slug) {
+  const wf = join(root, '.ai', 'workflows');
+  let dirs = [];
+  try { dirs = readdirSync(wf, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name); } catch { /* none */ }
+  for (const b of dirs) {
+    const ledger = readJson(ledgerPath(root, b));
+    if (!ledger?.units) continue;
+    for (const w of ledger.waves ?? []) {
+      if (!w.run?.id) continue;
+      const key = w.units.find((k) => ledger.units[k]?.slug === slug);
+      if (!key) continue;
+      const r = runLive(w.run, waveRunLines(root, b, ledger, w), Date.now());
+      if (r.live) return { ok: true, owned: true, slug, brainstorm: b, wave: w.n, key, run: w.run.id, newestAt: r.newestAt, resume: `/wf campaign ${b}` };
+    }
+  }
+  return { ok: true, owned: false, slug };
 }
 
 // ---------------------------------------------------------------- the plugin version (3.8)
@@ -908,11 +1369,22 @@ function unit(root, b, [key, state], f) {
   for (const k of ['route', 'reason', 'merge', 'output']) if (f[k] !== undefined) u[k] = f[k];
   // N5: `unit <key> waiting --on <from>:<through>` records what the drive waits for.
   if (state === 'waiting') u.route = `waits for ${f.on ?? (u.waits ?? []).filter((w) => w.state === 'open').map((w) => `${w.from}: ${w.through}`).join(', ')}`;
+  // A unit that runs again has no route of a wait or a park.
+  if (state === 'running' && f.route === undefined) u.route = null;
+  // 5.5a step 7: a unit that moves out of the wave rejects every wait on it.
+  const rejected = [];
+  if (isMoved(u)) {
+    for (const k of ledger.waves.find((x) => x.n === u.wave)?.units ?? []) {
+      for (const wt of ledger.units[k]?.waits ?? []) {
+        if (wt.from === key && waitPending(wt)) { wt.state = 'rejected'; wt['rejected-at'] = nowIso(); rejected.push({ key: k, from: key, through: wt.through }); }
+      }
+    }
+  }
   // The yolo outcome's decision digest, kept for the as-built note (11.1).
   if (f.digest !== undefined) { try { u.digest = JSON.parse(f.digest); } catch { u.digest = f.digest; } }
   saveLedger(root, b, ledger);
   appendJournal(root, b, 'unit-state', { key, slug: u.slug, state, ...(f.route ? { route: f.route } : {}) });
-  return { ok: true, key, state };
+  return { ok: true, key, state, ...(rejected.length ? { rejected } : {}) };
 }
 
 function outside(root, b, [key, state]) {
@@ -979,7 +1451,9 @@ function wave(root, b, [nText, action, state], f) {
     appendJournal(root, b, state === 'shipped' ? 'wave-end' : 'wave-state', { wave: n, state, ...(f.pr ? { pr: f.pr } : {}), ...(f.version ? { version: f.version } : {}) });
     return { ok: true, wave: n, state };
   }
-  throw new Error('wave: the action is start or set');
+  if (action === 'launch') return launch(root, b, n, f);
+  if (action === 'record') return record(root, b, n, f);
+  throw new Error('wave: the action is start, set, launch or record');
 }
 
 function ask(root, b, args, f) {
@@ -989,20 +1463,28 @@ function ask(root, b, args, f) {
   // W0a: a repeated ask of the same open question changes nothing, so an agent that runs twice does not fail.
   if (same && same.text === text.join(' ')) return { ok: true, exists: true, question: same };
   if (same) throw new Error(`ask: question ${id} is open with another text`);
-  const q = { id, ...(f.wave ? { wave: Number(f.wave) } : {}), text: text.join(' '), 'asked-at': nowIso() };
+  if (f.unit && !ledger.units[f.unit]) throw new Error(`ask: ${f.unit} is not a build unit of this campaign`);
+  const q = {
+    id, ...(f.wave ? { wave: Number(f.wave) } : {}),
+    ...(f.unit ? { unit: f.unit } : {}), ...(f.kind ? { kind: f.kind } : {}), ...(f.stage ? { stage: f.stage } : {}), ...(f.slice ? { slice: f.slice } : {}),
+    text: text.join(' '), 'asked-at': nowIso(),
+  };
   ledger.questions.push(q);
   saveLedger(root, b, ledger);
-  appendJournal(root, b, 'asked', { id, wave: q.wave ?? null, text: q.text });
+  appendJournal(root, b, 'asked', { id, wave: q.wave ?? null, ...(q.unit ? { unit: q.unit, kind: q.kind ?? null } : {}), text: q.text });
   return { ok: true, question: q };
 }
 
-function reply(root, b, [id, ...text]) {
+function reply(root, b, [id, ...text], f = {}) {
   const ledger = requireLedger(root, b);
   const q = ledger.questions.find((x) => x.id === id && !x['answered-at']);
   if (!q) throw new Error(`reply: no open question ${id}`);
   q.answer = text.join(' ');
   q['answered-at'] = nowIso();
+  q.by = f.by ?? 'person';
+  if (f.move === true) q.move = true;
   saveLedger(root, b, ledger);
+  appendJournal(root, b, 'answered', { id, by: q.by, ...(q.unit ? { unit: q.unit } : {}), ...(q.move ? { move: true } : {}) });
   return { ok: true, question: q };
 }
 
@@ -1298,13 +1780,32 @@ function recap(root, b, f) {
   return { ok: true, recap: recapOf(root, ledger, since) };
 }
 
+/**
+ * 5.13 "Overnight": the steps that waited for the person while the person was away —
+ * the cleanup of each merged unit, the handoff of each wave whose boundary ended, and
+ * each question that holds.
+ */
+function waitedSteps(ledger) {
+  const steps = [];
+  for (const [k, u] of Object.entries(ledger.units)) {
+    if (u.state === 'merged' && u.worktree?.path && existsSync(u.worktree.path)) steps.push({ step: 'cleanup', key: k, worktree: u.worktree.path, branch: u.worktree.branch ?? null });
+  }
+  for (const w of ledger.waves) {
+    if (!['running', 'boundary'].includes(w.state) || w.run?.id) continue;
+    const states = w.units.map((k) => ledger.units[k]?.state);
+    if (states.some((s) => s === 'merged') && states.every((s) => ['merged', 'needs-fix', 'stopped'].includes(s))) steps.push({ step: 'handoff', wave: w.n, branch: w.branch ?? null });
+  }
+  for (const q of ledger.questions ?? []) if (!q['answered-at']) steps.push({ step: 'question', id: q.id, wave: q.wave ?? null, unit: q.unit ?? null, kind: q.kind ?? null, text: q.text });
+  return steps;
+}
+
 function back(root, b) {
   const ledger = requireLedger(root, b);
   const since = ledger.presence?.state === 'away' ? ledger.presence.since : null;
   ledger.presence = { state: 'present', since: nowIso(), ...(since ? { 'last-away': since } : {}) };
   saveLedger(root, b, ledger);
   appendJournal(root, b, 'back', {});
-  return { ok: true, presence: ledger.presence, recap: recapOf(root, ledger, since) };
+  return { ok: true, presence: ledger.presence, recap: recapOf(root, ledger, since), waited: waitedSteps(ledger) };
 }
 
 export function main(argv = process.argv.slice(2)) {
@@ -1338,7 +1839,7 @@ function dispatch(cmd, root, b, pos, f) {
       case 'outside': out = outside(root, b, pos); break;
       case 'wave': out = wave(root, b, pos, f); break;
       case 'ask': out = ask(root, b, pos, f); break;
-      case 'reply': out = reply(root, b, pos); break;
+      case 'reply': out = reply(root, b, pos, f); break;
       case 'pause': out = pause(root, b, pos); break;
       case 'resume': out = resume(root, b); break;
       case 'context': out = context(root, b, pos); break;
@@ -1351,7 +1852,7 @@ function dispatch(cmd, root, b, pos, f) {
       case 'worktree': out = worktree(root, b, pos); break;
       case 'lock': out = lock(root, b, pos); break;
       case 'stack': out = stack(root, b, pos); break;
-      case 'merge-in': out = mergeIn(root, b, pos); break;
+      case 'merge-in': out = mergeIn(root, b, pos, f); break;
       case 'merge-order': out = mergeOrder(root, b, pos); break;
       case 'steer': out = steer(root, b, pos, f); break;
       case 'rule': out = rule(root, b, pos, f); break;
@@ -1359,6 +1860,13 @@ function dispatch(cmd, root, b, pos, f) {
       case 'back': out = back(root, b); break;
       case 'decided': out = decided(root, b, pos, f); break;
       case 'recap': out = recap(root, b, f); break;
+      case 'slice-done': out = sliceDone(root, b, pos, f); break;
+      case 'needs': out = needs(root, b, pos, f); break;
+      case 'contract': out = contract(root, b, pos, f); break;
+      case 'await': out = awaitCmd(root, b, f); break;
+      case 'question': out = question(root, b, pos); break;
+      // `owner <root> <slug>`: the second argument is the slug, not a brainstorm.
+      case 'owner': out = owner(root, b); break;
       default: return null;
     }
   }

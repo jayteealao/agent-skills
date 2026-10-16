@@ -324,10 +324,25 @@ function listClaudeAgentFiles(subagentsDir) {
   for (const run of runs) agentsIn(join(wfRoot, run), run);
   return out;
 }
+function agentLabelOf(file) {
+  try {
+    const meta = JSON.parse(readFileSync(file.replace(/\.jsonl$/, ".meta.json"), "utf8"));
+    return typeof meta?.description === "string" ? meta.description : null;
+  } catch {
+    return null;
+  }
+}
+function labelSlugOf(label) {
+  const m = /@([a-z0-9][a-z0-9._-]*)$/i.exec(String(label ?? ""));
+  return m ? m[1] : null;
+}
 function readClaudeAgents(subagentsDir, cursor) {
   cursor.agents ??= {};
   cursor.agentLast ??= {};
   cursor.workflowLast ??= {};
+  cursor.workflowCampaign ??= {};
+  cursor.slugRoot ??= {};
+  cursor.agentLabel ??= {};
   const read = [];
   for (const f of listClaudeAgentFiles(subagentsDir)) {
     const rr = readNewLines(f.file, cursor.agents[f.id] ?? 0);
@@ -336,13 +351,34 @@ function readClaudeAgents(subagentsDir, cursor) {
     const own = attributeWrites(pr.writes, cursor.agentLast[f.id] ?? null);
     if (own) {
       cursor.agentLast[f.id] = own;
+      cursor.slugRoot[own.slug] = own.root;
       if (f.workflow && pr.writes.length) cursor.workflowLast[f.workflow] = own;
+    }
+    if (f.workflow) {
+      for (const w of pr.writes) {
+        const parts = workflowPathParts(w.path);
+        if (parts && /\/\.ai\/workflows\/[^/]+\/work\/campaign\//.test(`/${String(w.path).replace(/\\/g, "/")}`)) {
+          cursor.workflowCampaign[f.workflow] = { slug: parts.slug, key: null, slice: null, root: parts.root };
+        }
+      }
+      if (!(f.id in cursor.agentLabel)) cursor.agentLabel[f.id] = agentLabelOf(f.file);
     }
     read.push({ ...f, usages: pr.usages.map((u) => ({ agent_id: f.id, model: u.model, ...u.usage })) });
   }
+  const silent = (a) => {
+    if (!a.workflow) return null;
+    const runLast = cursor.workflowLast[a.workflow] ?? null;
+    const campaign = cursor.workflowCampaign[a.workflow] ?? null;
+    const slug = labelSlugOf(cursor.agentLabel[a.id]);
+    if (slug) {
+      const root = cursor.slugRoot[slug] ?? campaign?.root ?? runLast?.root ?? null;
+      return root ? { slug, key: null, slice: null, root } : runLast;
+    }
+    return campaign ?? runLast;
+  };
   return read.filter((a) => a.usages.length).map((a) => ({
     ...a,
-    attributed: cursor.agentLast[a.id] ?? (a.workflow ? cursor.workflowLast[a.workflow] ?? null : null)
+    attributed: cursor.agentLast[a.id] ?? silent(a)
   }));
 }
 function groupBySlug(agents, turn) {
