@@ -47,7 +47,7 @@ Every key in the `wf` dispatch table runs under every host, with these limits:
 | Key | Hosts | Why |
 |---|---|---|
 | `yolo` | Claude Code only | Built on Claude Code's Workflow tool. Codex and pi have no equivalent. There is no Codex `$wf yolo` and no pi `/skill:wf yolo`. |
-| `campaign` | Every host; waves Claude Code only | Setup and the rolling prepare are interactive and run on every host. A wave launches yolo drives and the boundary driver (`workflows/campaign-boundary.js`) through Claude Code's Workflow tool, with the extra yolo args `contextPath` and `campaignControlPath`. Under Codex or pi, `/wf campaign` runs setup and prepare, then stops before a wave starts and says that the waves need Claude Code. |
+| `campaign` | Every host; waves Claude Code only | Setup and the rolling prepare are interactive and run on every host. A wave runs the wave driver (`workflows/campaign-wave.js`) through Claude Code's Workflow tool, not yolo drives: one run drives every unit and the boundary. Under Codex or pi, `/wf campaign` runs setup and prepare, then stops before a wave starts and says that the waves need Claude Code. |
 
 Under Codex or pi, treat `yolo` as an unknown key: name the restriction and point the user to `/wf auto`.
 

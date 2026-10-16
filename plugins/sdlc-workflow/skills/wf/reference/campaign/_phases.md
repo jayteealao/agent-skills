@@ -16,7 +16,7 @@ This file belongs to [../campaign.md](../campaign.md). `<cmd>` stands for `node 
 3. When the result has `errors`, stop and show each error. The person fixes the work set in the brainstorm session (`/wf brainstorm <brainstorm-slug>`), not here.
 4. Show the waves, the packets that wait (`waiting`), the packets that need the person (`outside`), the forecast, and each tool gap.
 
-The forecast estimates the run time from the driver journals of earlier yolo runs in this repo, and the tokens from their `cost.jsonl`. A slug with no history is "unknown". The forecast is an estimate, and `forecast.md` says so.
+The forecast estimates the run time from the driver journals of earlier runs in this repo, and the tokens from their `cost.jsonl`. A slug with no history is "unknown". The forecast is an estimate, and `forecast.md` says so.
 
 ## Phase 1 — Setup
 
@@ -38,22 +38,24 @@ For `output`, take the recipe from the first source that has one:
 
 CAUTION: the release question is about permanent tags. A pushed tag cannot be re-used: a fixed release takes a new version. Say this when you ask.
 
-For each tool gap from Phase 0, ask the person to fix it. The campaign does not change the person's tools. A `gh-stack` gap turns stacked wave PRs off (`<cmd> stack disable`) until the person upgrades it. A `ship-plan` gap needs `/wf ship-plan init` with the person before wave 1 reaches handoff: handoff and ship stop without a plan.
+For each tool gap from Phase 0, ask the person to fix it. The campaign does not change the person's tools. A `gh-stack` gap turns stacked wave PRs off (`<cmd> stack disable`) until the person upgrades it. A `ship-plan` gap needs `/wf ship-plan init` with the person before wave 1 reaches handoff: handoff and ship stop without a plan. An `isolation` gap needs the isolation contract of "Width" before wave 1: `wave <n> launch` refuses with `isolation-required` without one.
 
-**Width.** Slugs of one wave run at once only under an isolation contract, `campaign.isolation` in `.ai/sdlc-config.json`. When the project has none, ask the person for one, in the same batch, and write the answer there:
+**Width.** The wave driver runs every unit of a wave in its own worktree, so every campaign needs an isolation contract, `campaign.isolation` in `.ai/sdlc-config.json`. The driver never works in the main checkout. When the project has none, ask the person for one before wave 1, in the same batch, and write the answer there:
 
 ```json
 { "campaign": { "width": 3, "isolation": { "parallel": true, "port-env": { "PORT": 3000 }, "build-dirs": ["target"], "heavy-suites": ["npx playwright test"], "min-free-gb": 20 } } }
 ```
 
-- `port-env`: each port variable with its base value. The drive with index i gets base + 100 × i.
+- `port-env`: each port variable with its base value. The unit with index i gets base + 100 × i.
 - `build-dirs`: the build folders each worktree keeps for itself.
-- `heavy-suites`: the test commands that only one worktree may run at a time. Ask the person to list every long local run here, for example a calibration or a benchmark, and not only the test suites.
-- `quiet-suites`: the timed checks that need an idle machine. A drive takes the quiet lock for them, and no heavy suite runs while it holds the lock.
+- `heavy-suites`: the test commands that only one worktree may run at a time, also across sessions. Ask the person to list every long local run here, for example a calibration or a benchmark, and not only the test suites.
+- `quiet-suites`: the timed checks that need an idle machine. A unit takes the quiet lock for them, and no heavy suite runs while it holds the lock.
 - `min-free-gb`: the free disk space to keep. The default is 20.
 - `outside-root` and `worktree-root`: short absolute paths outside the repo, for example `C:/co` and `C:/cw`. `outside-root` holds each unit's folders that cannot be in its worktree: a second build folder, or a checkout of another commit. `worktree-root` moves the worktrees out of `.scratch/cw`. On Windows, always ask the person for both: a folder at the drive root is the person's choice. Without them, a deep build path can pass the Windows limit of 260 characters.
 - `build-depth`: the length of the deepest build path inside a worktree, for the path check at `worktree add`. The default is 140, for a Rust `target/` folder.
-- `parallel: false`: keep width 1 for this project. Without a contract the width is 1, in the main checkout.
+- `parallel: false`: keep width 1 for this project. The wave driver then drives one heavy step at a time, still with each unit in its own worktree.
+
+`campaign.width` is the most heavy steps that run at once, for example implements and verifies. Plans, review scouts, and bookkeeping agents take no heavy slot. During a run, the width follows the budget ([_waves.md](_waves.md), "The wave driver").
 
 ## Rolling prepare
 
@@ -64,7 +66,7 @@ Prepare runs one wave ahead, not all at once. The person decides every question.
    2. Run `/wf shape <slug>`. After shape, compare the shape with the packet's `provides` and `expects` lines. The person confirms each change. Write a confirmed change into the packet only through the brainstorm (`/wf brainstorm <brainstorm-slug> add`), because the brainstorm owns the packets.
    3. Run `/wf slice <slug>`. Then look for a need on another unit of the same wave. When a slice doc of this unit names a value, a type, a file or a sink that another unit of this wave builds, propose a `needs` entry: `{ from: <that packet key>, through: <the slice of that unit that builds it, or finished>, before: <the first slice of this unit that uses it>, why: <the thing, in a few words> }`. The person confirms each proposed entry. Write a confirmed entry into the packet only through the brainstorm (`/wf brainstorm <brainstorm-slug> add`), then run `<cmd> replan`. Do this before the wave starts: `wave <n> start` turns each `needs` entry into a wait.
    4. When the packet's `ux-impact` is not `none`, run the design lane per [../design/_lane.md](../design/_lane.md), with the person, in the main checkout. The design stage builds the boards, and `freeze` writes `design/r1/` (`design/_boards.md`).
-   5. Set `branch-strategy: dedicated` in the slug's `00-index.md`. The wave start sets `branch` and `base-branch`.
+   5. Set `branch-strategy: dedicated` in the slug's `00-index.md`. `wave <n> launch` sets `branch` and `base-branch` in the unit's worktree.
    6. Run `<cmd> unit <key> prepared`. For a unit whose design is needed, the command refuses until the design is settled. For `visual` and `new-surface`, it also refuses until `02c-craft.md` names its frozen boards and every board exists. The result names the cause: finish the design with the person, then run the command again. `node "<pluginRoot>/skills/wf/scripts/design-boards.mjs" check "<projectRoot>" <slug>` lists the missing boards.
 2. **While wave n runs,** prepare the units of wave n+1 (`next.prepare` in `status`). When the as-built notes of wave n exist, show the ones that a unit of wave n+1 depends on before its intake.
 3. **A wave starts with its prepared units.** `wave <n> start` moves each unprepared unit, and each unit of the wave that depends on it, to a later wave. Tell the person which units moved.
@@ -74,7 +76,7 @@ While the person prepares, the commentary gives one line per event and holds the
 
 ## Packets outside the waves
 
-yolo drives only the build forms. The other forms never enter a wave.
+The wave driver drives only the build forms. The other forms never enter a wave.
 
 | Form | Who runs it | When | Then |
 |---|---|---|---|
@@ -87,10 +89,14 @@ A packet outside the waves blocks only its dependents, not the wave. At each wav
 
 ## Design amend
 
-When the design of a unit reopens, run `<cmd> unit <key> stopped --route "design amend"`. List the unit as "needs you", with a push notification.
+When the design of a unit reopens, list the unit as "needs you", with a push notification. When a run of the unit's wave is live, stop the unit with `--scope slug --then hold` ([_waves.md](_waves.md), "Pause and resume"). Otherwise, run `<cmd> unit <key> stopped --route "design amend"`.
+
 1. The person runs `/wf design <slug> amend` in the main checkout. The amend freezes `design/r<N+1>/`.
 2. When the unit has a worktree, run `<cmd> worktree <key> refresh`. The refresh copies the new revision in.
-3. When the unit started a drive, relaunch the drive (yolo.md, "Resuming"). Otherwise, run step 6 of the rolling prepare again.
+3. Continue the unit:
+   - While a run of its wave is live, clear the stop request, then answer the `slug-stop` question with "continue" ([_waves.md](_waves.md), "Questions while the run goes").
+   - When its wave started and no run is live, launch the wave driver again ([_waves.md](_waves.md), "Run a wave", step 4).
+   - When its wave did not start, run step 6 of the rolling prepare again.
 
 ## Reopen pick-up
 
@@ -114,5 +120,6 @@ The person can reopen the brainstorm in the brainstorm session while the campaig
 | `pending-cut` of a started packet | Stop the units that depend on it. Ask the person: keep the work, or revert it (the revert of [_waves.md](_waves.md), "Revert search"). |
 | New `depends-on` that makes a prepared unit wait | `replan` moves it to a later wave. Say so in the commentary. |
 | A carried decision changed in prepare | Run the drift check over the units that carry or expect that decision. |
+| A derived needs entry of a wave outcome (`derivedNeeds` of `wave <n> record`) | The wave driver wrote it into the ledger only. Write it into its packet through `/wf brainstorm <brainstorm-slug> add`, then run `<cmd> replan`. `replan` drops the ledger copy that the packet now declares. |
 
 The ledger records each revision that it re-planned from, and the report lists what each revision added.

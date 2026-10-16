@@ -72,7 +72,7 @@ While a driver is running for a slug — or is presumed-dead and not yet reconci
 
 The full contract is [_control-file-ownership.md](_control-file-ownership.md).
 
-**Slice-complete write-back.** When a slice clears every gate, the driver writes the roster entry's `status: complete` and the index `progress` block at drive time. The driver is one of the write-back's writers.
+**Slice-complete write-back.** When a slice clears every gate, the driver writes the roster entry's `status: complete` and the index `progress` block at drive time.
 
 **Plan fan-out (`planFanout: true`).** Fan-out plan agents write only their own plan files. A bookkeeping agent then writes the master `04-plan.md` sibling table from each `04-plan-<slice>.yaml` and sets `reconcile-pending: true` in `00-index.md`. A reconcile agent returns the overlapping slices; the driver re-plans them in review-and-fix mode, then clears the marker. While the marker is set, every run reconciles first.
 
@@ -125,21 +125,22 @@ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-
    - `projectRoot` = the absolute root of the repo that owns `.ai/workflows/<slug>/` (the nearest ancestor containing `.ai/workflows`, capped at the git toplevel).
    - `pluginRoot` = the directory you loaded this reference from (`$CLAUDE_PLUGIN_ROOT` when set).
    - `referenceRoot` = `<pluginRoot>/skills/wf/reference`.
-4. **Stage the driver script inside the repo.** The Workflow tool refuses a `scriptPath` outside the working directory. Run it at every launch and every resume:
+4. **Campaign owner.** Run `node "<pluginRoot>/skills/wf/scripts/campaign.mjs" owner "<projectRoot>" <slug>`. On `owned: true`, a campaign wave drives the slug. Stop, and tell the person to use `/wf campaign <brainstorm>` or to wait for the wave.
+5. **Stage the driver script inside the repo.** The Workflow tool refuses a `scriptPath` outside the working directory. Run it at every launch and resume:
 
    ```
    node "<pluginRoot>/scripts/stage-yolo-driver.mjs" "<projectRoot>"
    ```
 
-   The script copies the driver to `<projectRoot>/.scratch/wf/yolo.js`, makes `.scratch/` ignore itself, and prints one JSON line that holds `scriptPath`. Every call overwrites the copy. A `CAUTION` on stderr means a hot-patched copy was overwritten.
+   The script copies the driver to `<projectRoot>/.scratch/wf/yolo.js`, makes `.scratch/` ignore itself, and prints one JSON line that holds `scriptPath`. A `CAUTION` on stderr means a hot-patched copy was overwritten.
 
 # Step 1 — Invoke the Workflow tool
 
-Call the **Workflow** tool with the staged script and the resolved args. Pass `slice` only in slice mode:
+Call the **Workflow** tool with the staged script and resolved args:
 
 ```
 Workflow({
-  scriptPath: "<projectRoot>/.scratch/wf/yolo.js",   // from Step 0.4
+  scriptPath: "<projectRoot>/.scratch/wf/yolo.js",   // from Step 0.5
   args: {
     projectRoot:   "<absolute repo root owning .ai/workflows>",
     referenceRoot: "<pluginRoot>/skills/wf/reference",
@@ -154,10 +155,8 @@ The workflow runs in the background. Right after this call, start the watch and 
 
 # Resuming — one sanctioned path
 
-When the model resumes a `yolo` run, it relaunches this script through the Workflow tool.
-
 - **Slash-command `/wf` stays user-only.** A human typing `/wf yolo <slug>` is the explicit opt-in that authorizes an unattended run.
-- **Relaunching the script is not a new opt-in** — it continues the run the user authorized. After a hand-back is answered, repeat Step 0.4, then the Step 1 Workflow call with the same args. Orientation skips every stage already terminal-clean.
+- **Relaunching the script is not a new opt-in** — it continues the run the user authorized. After a hand-back is answered, repeat Steps 0.4 and 0.5, then the Step 1 Workflow call with the same args. Orientation skips every stage already terminal-clean.
 - Say what you are doing: *"resuming the driver from `<slice>`"* — not *"run `/wf yolo <slug>` yourself"*.
 
 # Hot-patching the driver mid-run

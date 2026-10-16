@@ -28,7 +28,7 @@ The Monitor tool stops a watch after 30 minutes at most. No watch without a dead
    3. Start the same command again. The offsets in `.watch-state.json` keep every later event. Do not filter the output; the watch has no noise to remove.
    4. A `watch-timeout` line means that 110 minutes passed with no event. Start the command again, and say nothing in chat.
 5. On a relaunch of the same slug (yolo.md "Resuming"), start the same command. The person does not ask for the watch again. The new watch replaces the old one: the old watch emits `watch-replaced` and exits.
-6. In a campaign, do not start a watch for a drive. The campaign watch reads the drive's journal and commits in its worktree (K1). A watch that is started anyway emits `watch-covered` and exits.
+6. In a campaign, do not start a watch for one unit. The campaign watch reads the unit's journal and commits in its worktree (K1). A watch that is started anyway emits `watch-covered` and exits.
 7. When a `watch-replaced` or `watch-covered` event arrives, do not start that watch again, and say nothing in chat. Another watch reads the same journals.
 
 ## The events
@@ -133,13 +133,13 @@ The person can stop the run at a stage boundary, for example "stop after the cur
 
 `/wf campaign` uses the same watch, with these changes.
 
-- **K1. One watch per wave.** At the wave start, start one watch over every slug of the wave and the campaign journal. Do not start a watch for each drive (step 5 of "Start the watch"):
+- **K1. One watch per wave run.** One Workflow run of the wave driver, `workflows/campaign-wave.js`, drives every unit of the wave. Right after the Workflow call that launches the wave driver, start one watch over every slug of the wave and the campaign journal. Do not start a watch for each unit (step 6 of "Start the watch"):
 
   ```
   node "<pluginRoot>/scripts/yolo-watch.mjs" "<projectRoot>" <slug-1> <slug-2> ... --campaign <brainstorm-slug>
   ```
 
-  Every 20 seconds, the watch reads `work/campaign/ledger.json`. It follows each unit of a live wave to where its drive writes: the unit's worktree when it has one, else the main checkout. In a worktree, it reads the journal, the commits on the slug branch, and the protected files. A unit that a later wave adds is watched from that moment. When a worktree is removed after the merge, the merged journal in the main checkout is history, and its lines give no event again. A slug's `run-end` does not end this watch, because the boundary and the next slug still run. The campaign journal's `campaign-end` line ends it, and so does a `wave-end` line when no other started wave is still open (waves overlap: wave n ships while wave n+1 runs). To end it early, run `yolo-watch.mjs end "<projectRoot>" - --campaign <brainstorm-slug>`.
+  Every 20 seconds, the watch reads `work/campaign/ledger.json`. It follows each unit of a live wave to the unit's worktree, where the wave driver writes the records of that unit. In the worktree, it reads the journal, the commits on the slug branch, and the protected files. A unit that a later wave adds is watched from that moment. When a worktree is removed after the merge, the merged journal in the main checkout is history, and its lines give no event again. The `run-end` of one unit does not end this watch, because the other units and the boundary still run. The campaign journal's `campaign-end` line ends it, and so does a `wave-end` line when no other started wave is still open (waves overlap: wave n ships while wave n+1 runs). To end it early, run `yolo-watch.mjs end "<projectRoot>" - --campaign <brainstorm-slug>`.
 - **K2. Parallel slugs.** A `stage-end` event carries `parallel`, the number of slugs with a stage open. When `parallel` is more than 1, give the stage end one line, not a full note. Give the full note at that slug's `run-end`.
 - **K3. Campaign events.** Each of these gets a full note:
 
@@ -164,8 +164,12 @@ The person can stop the run at a stage boundary, for example "stop after the cur
 - **K5. Scoped stop requests.** A stop request can name one slug, the wave ("stop after this wave"), or the campaign:
 
   ```
-  node "<pluginRoot>/scripts/yolo-watch.mjs" control "<projectRoot>" <slug or -> stop <after> --campaign <brainstorm-slug> --scope <slug|wave|campaign>
+  node "<pluginRoot>/scripts/yolo-watch.mjs" control "<projectRoot>" <slug or -> stop <after> --campaign <brainstorm-slug> --scope <slug|wave|campaign> [--then move|hold]
   ```
 
-  A yolo run reads a `slug` request for its own slug and every `campaign` request. A `wave` request is for the campaign session: the running wave finishes, and the next wave does not start.
+  With `--scope slug`, `--then` is required. `move` moves the unit out of the wave with no question. `hold` parks the unit until the person says "continue". When the person does not say which, ask "move it out of the wave, or hold it until you say continue?" before you write the request. The wave driver reads a `slug` request for each of its units and every `campaign` request. A `campaign` request stops the wave run. A `wave` request is for the campaign session: the running wave finishes, and the next wave does not start.
 - **K6. While the person prepares.** The watch runs only in the campaign session. While the person prepares slugs there, give one line per event, and hold the full notes until the prepare batch ends. Push the events that the tables mark at once.
+- **K7. The unit lines.** Each line that the wave driver writes to the journal of a unit has `"driver":"campaign-wave"` and `"campaign":"<brainstorm-slug>"`. The agent label is `<stage>:<slice>@<slug>`, because two units can have slices of the same name. The watch removes `@<slug>` from the label: an event gives the stage and the slice, and its `slug` field names the unit.
+  - A `stop` event gives `/wf campaign <brainstorm-slug>` as the resume command, not `/wf yolo <slug>`. Give the person that command.
+  - When a unit parks, the park agent writes a `waiting` line with the question id. The unit then stays silent until the person answers, so the watch gives no `stale` event for that unit. The `asked` event of K3 gives the question.
+  - The unit end agent appends the run-end note of the unit to the unit's `commentary.md`. Do not append that note again.

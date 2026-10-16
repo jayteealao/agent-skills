@@ -1,79 +1,104 @@
-# Campaign waves: drive, boundary, handoff, ship, and the end
+# Campaign waves: launch, run, record, handoff, ship, and the end
 
 This file belongs to [../campaign.md](../campaign.md). `<cmd>` stands for `node "<pluginRoot>/skills/wf/scripts/campaign.mjs"`, followed by the command, `"<projectRoot>"`, and the brainstorm slug. `<watch>` stands for `node "<pluginRoot>/scripts/yolo-watch.mjs"`.
 
-Each wave is one PR. With an isolation contract, up to `campaign.width` slugs of a wave run at once, each in its own worktree; without one, one slug runs at a time in the main checkout. With stacked PRs (`ledger.stack.enabled`), the next wave starts on the wave branch below while that wave waits in handoff or ship ([_gh-stack.md](_gh-stack.md)); without them, the next wave starts after the previous wave merged.
+Each wave is one PR, and one run of the wave driver drives every unit of the wave. Each unit runs in its own worktree, so the wave needs an isolation contract ([_phases.md](_phases.md), "Width"). With stacked PRs (`ledger.stack.enabled`), the next wave starts on the wave branch below while that wave waits in handoff or ship ([_gh-stack.md](_gh-stack.md)). Without them, the next wave starts after the previous wave merged.
 
 ## Run a wave
 
-1. **Check.** Run `<cmd> status`. When `next.action` is `paused` or `ask`, do not start the wave.
-2. **Drift.** For wave 2 and later, read `drift/wave-<n>.md` (written at the end of the previous wave). For each unit in its stop list, run `<cmd> unit <key> stopped --route "drift: <the contract lines>"`, then ask the person to choose: amend that slug's shape, or add a fix packet before it through the brainstorm. The independent units continue.
+1. **Check.** Run `<cmd> status`. When `next.action` is `paused`, `ask`, or `driving`, do not start the wave.
+2. **Drift.** For wave 2 and later, read `drift/wave-<n>.md` (written at the end of the previous wave). For each unit in its stop list, run `<cmd> unit <key> stopped --route "drift: <the contract lines>"`. Then ask the person to choose: amend that slug's shape, or add a fix packet before it through the brainstorm. The independent units continue.
 3. **Start.** Run `<cmd> wave <n> start`. It starts the wave with its prepared units and moves the others. Create the wave branch without a checkout: `git -C "<projectRoot>" branch <branch> <base>`, with `branch` and `base` from the result. `base` is the trunk, or with stacked PRs the wave branch below.
    - A unit with `waits` in the result needs another unit of this wave (its packet's `needs`). The script writes each wait into the ledger and into section 7 of the unit's context file. Do not write a wait into `steer.md`. Tell the person the waits in one line per unit.
-4. **Watch.** Start the watch over the wave's slugs and the campaign journal ([../yolo/_commentary.md](../yolo/_commentary.md), "In a campaign"). A drive starts no watch of its own: this watch reads each unit's journal and commits in its worktree (K1).
+4. **Launch.** Run `<cmd> wave <n> launch`. The command checks every unit before it changes a file. Then it adds each worktree, writes each context file, sets `branch` and `base-branch` in each slug's `00-index.md`, and sets each unit `running`. The result has `args`, `stage`, `outcomePath`, `width`, and `widthMax`. When the result has `ok: false`:
+   - `error: isolation-required`: the project has no isolation contract. Ask the person for one ([_phases.md](_phases.md), "Width"), then launch again.
+   - `blocked`: one or more units cannot get a worktree, and the command added no worktree. Show each `key`, `cause`, and `detail` to the person. For `disk`, the person frees disk space. For `path`, ask the person for a short absolute `campaign.isolation.worktree-root` (for example `C:/cw`), and write it to `.ai/sdlc-config.json`. Then launch again.
+   - `paused`: the budget width is 0. Run `<cmd> pause <until> <reason>` with the result's `until` and `reason`, and start nothing.
+   - `error: run-live`: a run of this wave is live (`run`, `newestAt`). Do not launch again, because a second run drives the same worktrees. Follow the `driving` row of [../campaign.md](../campaign.md).
+   - `visibleToGit`: git can stage a copied record in a worktree. Ask the person (see "Local records").
+
+   When `width` is less than `widthMax`, tell the person in one line that the budget narrows the wave, and give the budget's reason.
+5. **Run.** Stage the wave driver with the `stage` command of the result:
+
+   ```
+   node "<pluginRoot>/scripts/stage-yolo-driver.mjs" "<projectRoot>" --driver campaign-wave
+   ```
+
+   The command prints one JSON line with `scriptPath`. Launch that script with the `args` of the launch result, as they are, the same way as [../yolo.md](../yolo.md) Step 1 launches its driver. The run goes on in the background.
+6. **Watch.** Start the watch over the wave's slugs and the campaign journal ([../yolo/_commentary.md](../yolo/_commentary.md), "In a campaign"). The wave driver starts no watch of its own. The watch reads each unit's journal and commits in its worktree (K1).
    - At the first wave start of this session, send one push notification: `campaign <brainstorm-slug>: wave <n> started`. When the result says that the push was not sent because Remote Control is inactive, tell the person in one line: "Phone notifications need Remote Control. Run /rc to turn it on." Do not check again in this session.
-5. **Drive the units.** Before each drive starts, run `<cmd> budget`:
-   - `width` 0: the budget asks for a pause. Run `<cmd> pause <until> <reason>` with the result's `until` and `reason`, and start nothing.
-   - `width` 1: drive one unit at a time, in packet order: in its worktree with an isolation contract, in the main checkout without one. A budget without a reading (`unknown`, for example with the mod off) keeps the set width; only `slow` narrows to 1.
-   - `width` above 1: start drives until `width` run at once, in packet order. Launch the Workflows of one batch in the same message, so they run at the same time.
-   - When `width` is less than the number of units that are ready to drive, say in chat which units wait and why: the budget's `reason`, or the set width. Say it again when a waiting unit starts.
+7. **While the run goes.** Answer each question of the run (see "Questions while the run goes"). Prepare the units of `next.prepare` with the person ([_phases.md](_phases.md), "Rolling prepare"). Do not run `launch`, `merge-in`, or `unit <key> <state>` for a unit of the wave. The wave driver owns these steps.
+8. **Record.** When the run returns, write its outcome as JSON to the `outcomePath` of the launch result. Then run `<cmd> wave <n> record --outcome <outcomePath>`. Run `record` for every outcome, also for an outcome with `held: true`. For a held outcome, `record` writes only the unit states, the cleared slices, and the questions, and the wave stays `running`. Then:
+   - `stoppedAt: usage-pause`: run `<cmd> pause <until> <reason>` with the outcome's `until` and `reason`. After the reset, run `<cmd> resume`, then launch the wave again (step 4).
+   - `stoppedAt: agent-ceiling` or `unit-fault`: launch the wave again (step 4). The launch keeps the state of each unit. When every unit is finished, the new run runs only the boundary.
+   - `stoppedAt: stop-request`: the person stopped the campaign. Launch the wave again only when the person asks.
+   - The record result has `stopped`: the boundary stopped, and the wave is `stopped`. Run `<cmd> ask` with the reason, and stop here.
+   - When the run ended on an agent that returned nothing, or the session saw a usage-limit error (kind `rate_limit`, status 429, or "You've reached your … limit"), run `<cmd> budget`. When its state is `pause`, or the newest reading is 95% or more, this is a usage pause and not a failure. Run `<cmd> pause` with the reset time, and launch the wave again after the reset. A 529 Overloaded is not a usage limit.
+9. **Derived needs entries.** The wave driver adds a needs entry to the ledger when two units change the same file and no packet declares the need. The brainstorm owns the packets. For each entry of `derivedNeeds` in the record result, write the entry into its packet through `/wf brainstorm <brainstorm-slug> add`. Then run `<cmd> replan`. `replan` drops each ledger copy that a packet now declares.
+10. **Clean up.** For each entry of `cleanup` in the record result:
+    1. Run `<cmd> worktree <key> remove`. Git does not delete a branch that a worktree has checked out. The command measures the unit's build folders and `outside` folder for the disk estimate, then deletes the `outside` folder. When the result has `outsideKept`, the folder holds a link: show the person its `links` and ask. Do not delete the folder yourself.
+    2. Delete the slug branch in the wave worktree: `git -C "<wave worktree>" branch -d <slug branch>`. `<cmd> worktree wave-<n> add` gives the `path` of the wave worktree, and it reuses the worktree that exists. The wave branch holds the slug's merge now. After a squash merge of the wave PR, and after a stack rebase, `-d` refuses every slug branch, because the trunk and the rebased wave branch hold other commits.
 
-   For each unit:
-   1. With an isolation contract, run `<cmd> worktree <key> add`. The result gives the worktree `path`, its slug `branch`, its `ports`, and, with `campaign.isolation.outside-root`, its `outside` folder; the prepared workflow folder is copied in. Without a contract, skip this step.
-      - When the result has `wait: true`, the disk is too full for one more unit. The script estimates the need from the sizes of the units removed earlier (`disk-history`), times the units still to start, plus `min-free-gb`. Drive this unit after a merged slug's worktree is removed.
-      - When the result has `pathTooLong`, the worktree path and the deepest build path pass the Windows limit of 260 characters. Ask the person for a short absolute `campaign.isolation.worktree-root` (for example `C:/cw`), write it to `.ai/sdlc-config.json`, and add again.
-      - The context file tells the drive where its files go: a second build folder or a checkout of another commit in `outside`, and run output, logs and temporary files in the worktree's `.scratch/`. Do not write this as steering.
-   2. Run `<cmd> context <key>`.
-   3. In the slug's `00-index.md` (inside the worktree when there is one), set `branch: campaign/<brainstorm-slug>/wave-<n>--<slug>` and `base-branch: <wave branch>`. Re-read the file immediately before the edit.
-   4. Run `<cmd> unit <key> running`.
-   5. Launch yolo per [../yolo.md](../yolo.md) Steps 0 and 1, with `projectRoot` set to the worktree path when there is one, and two more args: `contextPath` (the absolute path of `context/<slug>.md`) and `campaignControlPath` (the absolute path of `work/campaign/.control.json`), both in the main checkout. Every stage agent then reads both fresh.
-   6. When the run reaches its endpoint, run `<cmd> unit <key> finished --digest '<outcome.decisionDigest as JSON>'`. When the run stopped with `stoppedAt: 'waits'`, run `<cmd> unit <key> waiting --on "<outcome.waitsFor>"`: the unit waits for another unit of the wave, and "Merge in" below starts it again. When the run stopped for another reason, run `<cmd> unit <key> stopped --route "<outcome.route>"` and continue with the next unit (12.1). A unit that depends on a stopped unit stays in the wave list but is not driven: mark it `stopped` with `--route "waits for <key>"`.
-   7. When the run stopped on an agent that returned nothing, or the session saw a usage-limit error (kind `rate_limit`, status 429, or "You've reached your … limit"), run `<cmd> budget`. When its state is `pause`, or the newest reading is 95% or more, this is a usage pause and not a failure: run `<cmd> pause` with the reset time, and resume the drive later. A 529 Overloaded is not a usage limit.
-   8. Run `<watch> end "<projectRoot>" <slug>` with `--stopped-at` when the run stopped. With a worktree, `<projectRoot>` is the worktree path. Then append the hand-back narrative to the slug's `commentary.md` (`--event run-end`).
-   9. After the run-end note, commit the slug's records on the slug branch (in the worktree when there is one). The drive leaves its verify and review records uncommitted, and the wave merge carries only commits. Stage `.ai/workflows/<slug>/` by path, unstage its `.watch-state.json`, and commit with `chore(<slug>): record the drive`. With local records, do not commit: when the unit has a worktree, run `<cmd> worktree <key> sync` instead (see "Local records").
-   10. Build the slug output: launch the boundary driver (below) with `mode: "slug-output"` and this one unit, with its `worktree` path when there is one. When the output does not build, the slug failed its verify: mark it `stopped` with the failure as its route.
-6. **Boundary.** Run `<cmd> wave <n> set boundary`. Run `<cmd> worktree wave-<n> add`; the boundary merges in that wave worktree. Run `<cmd> merge-order <n>`. Launch the boundary driver with `mode: "wave"` and the result's `units`, in that order, each with its `digest` and `output` added. A unit with `through` is carried: its carrier's branch holds it at its tip, so the boundary does not merge it again. A unit with `quiet` checks runs them alone before the merges ([_boundary.md](_boundary.md), "Quiet-window checks"). Then record its outcome:
-   - each `merged` unit: `<cmd> unit <key> merged --merge <sha>`;
-   - each `needsFix` unit: `<cmd> unit <key> needs-fix --route "<reason>"`;
-   - each `notMerged` unit: `<cmd> unit <key> stopped --route "<reason>"`;
-   - when the outcome is `stopped`, run `<cmd> wave <n> set stopped`, then `<cmd> ask` with the reason, and stop here.
-   - CAUTION: do not use `git branch -D` on a slug branch. A slug branch that `-d` refuses holds commits that are not merged, so ask the person.
-   - then run `<cmd> worktree <key> remove` for each merged unit with a worktree. Git does not delete a branch that a worktree has checked out. The command measures the unit's build folders and `outside` folder for the disk estimate, then deletes the `outside` folder. When the result has `outsideKept`, the folder holds a link: show the person its `links` and ask. Do not delete the folder yourself.
-   - then, when `status` has `pluginUpdate`, tell the person in one line: the campaign runs `running`, and `installed` is newer. A new session loads the new version; the resume command is `/wf campaign <brainstorm-slug>`. The person decides. A drive that runs keeps its staged driver.
-   - then, in the wave worktree, delete each merged slug branch with `git -C "<wave worktree>" branch -d <slug branch>`. The wave branch holds the slug's merge now. After a squash merge of the wave PR, and after a stack rebase, `-d` refuses every slug branch, because the trunk and the rebased wave branch hold other commits.
-   - The main checkout stays on the trunk. The rolling prepare writes the board and the packets there.
-7. **Handoff and ship** (below).
-8. **Pick up changes.** When `status` returns `work-changed`, follow [_phases.md](_phases.md), "Reopen pick-up".
-9. **Drift for the next wave.** Launch the boundary driver with `mode: "drift"` and `wave: <n+1>`. Its agent classifies each changed contract line and runs `<cmd> drift <n+1>`.
-10. **Forecast.** Run `<cmd> forecast --wave <n> --minutes <m> --tokens <t>`, with the wave's real run time from the journals and its tokens from the slugs' `cost.jsonl`.
-11. **Clean up.** After the wave shipped, run `<cmd> worktree wave-<n> remove`.
+    CAUTION: do not use `git branch -D` on a slug branch. A slug branch that `-d` refuses holds commits that are not merged, so ask the person.
+
+    When `status` has `pluginUpdate`, tell the person in one line: the campaign runs `running`, and `installed` is newer. A new session loads the new version, and the resume command is `/wf campaign <brainstorm-slug>`. The person decides. The main checkout stays on the trunk. The rolling prepare writes the board and the packets there.
+11. **Handoff and ship** (below).
+12. **Pick up changes.** When `status` returns `work-changed`, follow [_phases.md](_phases.md), "Reopen pick-up".
+13. **Drift for the next wave.** Run `<cmd> wave <n+1> launch --mode drift`. The result gives the args of the drift check only, and the command adds no worktree. Stage and launch the driver as in step 5, with these args. Its agent classifies each changed contract line and runs `<cmd> drift <n+1>`.
+14. **Forecast.** Run `<cmd> forecast --wave <n> --minutes <m> --tokens <t>`, with the wave's real run time from the journals and its tokens from the slugs' `cost.jsonl`.
+15. **Remove the wave worktree.** After the wave shipped, run `<cmd> worktree wave-<n> remove`.
     - CAUTION: do not run `git worktree remove` yourself, and do not run it with `--force`. Git deletes the ignored files of a worktree without asking, and `--force` also deletes through a linked folder (a `node_modules` junction) into the files it points to. When `<cmd> worktree … remove` refuses, show the person its `pending` and `ignored` lists and ask.
-12. **F3.** When the boundary outcome has `stopBeforeNextWave`, record the question with `<cmd> ask` and do not start the next wave. The wave itself still ships.
+16. **F3.** When the record result has `stopBeforeNextWave`, record the question with `<cmd> ask` and do not start the next wave. The wave itself still ships.
 
-### The boundary driver
+While the person is away, do not run steps 10, 11, and 15, because a deletion and a push need the person. `<cmd> back` lists these steps for the person (`waited`).
 
-Stage it the same way as the yolo driver, then launch it the same way (yolo.md Step 1):
+### The wave driver
 
-```
-node "<pluginRoot>/scripts/stage-yolo-driver.mjs" "<projectRoot>" --driver campaign-boundary
-```
+The wave driver (`workflows/campaign-wave.js`) is one Workflow run for one wave, with each unit in its own worktree:
 
-Args: `projectRoot`, `referenceRoot`, `brainstorm`, `mode`, `wave`, `waveBranch`, `runId` (the ledger's `run-id`), `output` (the setup answer), `moved` (the wave's moved units), and `units`: one `{ key, slug, branch, worktree, digest, output }` per unit (`worktree` is the path, or absent). Its agents follow [_boundary.md](_boundary.md). It never edits the ledger: the campaign session records its outcome.
+1. One orient for each unit, then the plan of every slice of every unit.
+2. One cross-unit reconcile. It compares the files of every plan of every unit. A shared file becomes a derived needs entry. A shared `provides` or `expects` line parks the unit with kind `contract`.
+3. Each unit walks its slices: implement, verify, and its review. Before the implement of a slice with a wait, the driver merges the cleared commit of the other unit in (see "Merge in").
+4. When every unit finished, or the person moved it out, the boundary runs: merge, wave verify, revert search, the wave review, the as-built notes, the fidelity checkpoint, and the wave output.
+
+The run starts with `width` heavy slots, and the slots follow the budget during the run: 1 at `slow`, and the set width again at `ok`. `widthMax` is the set width: `campaign.width`, or 1 with `"parallel": false`. A width of 0 stops the run as a usage pause. A heavy suite also takes the heavy-suite lock (`<cmd> lock`), because a slot does not reach another session.
+
+Its agents follow [_drive.md](_drive.md) and [_boundary.md](_boundary.md). The driver changes the ledger only through `<cmd>`. It never pushes, opens a PR, or ships. The session records its outcome with `wave <n> record`.
+
+## Questions while the run goes
+
+A unit that needs the person parks: it asks one question, and the other units continue. The answer reaches the unit in the same run. [_drive.md](_drive.md) lists the kinds of a park and the resume of each kind.
+
+1. At each `asked` event of the watch, and at each `status` with `next.action: ask`, ask the person. Give the full context: the unit, the kind, the stage, the slice, and the question.
+2. Record the answer with `<cmd> reply <id> --by person "<answer>"`. When the person moves the unit out of the wave, run `<cmd> reply <id> --by person --move "<answer>"`. The driver reads the ledger every 10 seconds, and the unit continues.
+3. When the person answers a `slug-stop` question with "continue", clear the stop request first: `<watch> control "<projectRoot>" <slug> clear --campaign <brainstorm-slug>`. Then run `reply`. Without the clear, the request still applies, and the unit stops again at its next stage agent.
+4. When the person is away, answer by the away answer of the question's kind (table below). Record each answer with `<cmd> decided <id> … --why "away: <the rule of the table>"`. `decided` also answers the open question. A question that holds gets no answer: send one push notification with the question id, the unit, and the question.
+
+| Kind | Cause | Away answer |
+|---|---|---|
+| `stage` | A stage returned a hard-stop, a stage gate failed, an intent-bearing decision stopped a stage, or a verify did not converge | For a decision with options, the recommended option. An intent-bearing decision gets it only when the away words cover escalated decisions. For a verify that did not converge, one more verify round, with the diagnosis as the answer. For a hard-stop or a failed stage gate, hold. |
+| `review` | A `dont-ship` unit review, or an open blocker after the fix loop | One more fix loop, with the open blockers as the answer. Do not accept a finding as it is: an override is the person's decision. |
+| `contract` | A plan changes a `provides` or `expects` line | Refuse the change, so that the plan keeps the contract, only when the away words cover escalated decisions. Otherwise hold. Do not approve a contract change. |
+| `orient` | The unit's orient failed | Run the orient again. |
+| `driver-fault` | The unit's walk failed in the driver | Resume the unit. |
+| `merge-conflict`, `needs-cycle`, `deadlock`, `moved-dependency`, `slug-stop`, `wave-review` | A merge-in conflict, a needs cycle, two waits that cannot resolve, a needed unit that moved out, the person's stop request, or a wave review question | Hold. |
+
+An away answer runs once for each unit and kind. When the unit parks again with the same kind, the question holds. A question of the classes `shared-env`, `external-party`, or `irreversible` always holds. A question that holds waits for the person, and the boundary waits with it.
 
 ## Merge in
 
-A unit can need a slice of another unit of the same wave (its packet's `needs`). Its drive stops before the slice that needs the code, and the unit is `waiting`. The campaign merges the code in when the other unit's slice passed verify.
+A unit can need a slice of another unit of the same wave: its packet's `needs`, or a derived needs entry. The wave driver merges the code in, inside the run.
 
-1. At each `stage-end` of a verify in the watch, run `<cmd> status`. When `next.action` is `merge-in`, `next.merges` lists each `{ key, from }` that is ready.
-2. For each entry, run `<cmd> merge-in <key> <from>`. The command merges the branch of `from` into the branch of `key`, in the worktree of `key`, with rerere on. It refuses while the drive of `key` runs (D5), when the needed slice did not pass verify, and when the checkout has uncommitted changes.
-3. When the result has `conflict`, the merge is aborted. Ask the person, or launch the boundary driver's merge rules on this one merge ([_boundary.md](_boundary.md), "Merge"). Use `git -c rerere.enabled=true merge`, so that the boundary replays the resolution later. Then run `<cmd> merge-in <key> <from>` again to record it.
-4. When the result is `ok`, the waits in `closed` are closed and the context file is written again. When `stillOpen` is empty, the unit is `prepared`: relaunch its drive (yolo.md, "Resuming"). The drive continues at the slice that waited.
-5. When the needed unit stops for good, the waiting unit cannot continue. Ask the person: drop the `needs` through the brainstorm, or move the unit to a later wave.
+1. A slice clears when its verify passed and its per-slice review (when the unit has one) is clean. The driver then records the commit of the slice (`slice-done`).
+2. Before the implement of the slice that needs the code, the driver runs `merge-in <key> <from> --at <sha>`. The command merges the cleared commit, not the branch tip, with rerere on.
+3. A conflict that the merge agent cannot resolve parks the unit with kind `merge-conflict`. A needed unit that moves out of the wave parks each unit that waits on it with kind `moved-dependency`. Each park asks one question (see "Questions while the run goes").
+
+Do not run `merge-in` yourself while the wave run is live.
 
 ## Failure paths
 
-- **12.1 A slug stops.** The wave ships with the slugs that finished. The stopped slug keeps its branch. Its dependents move to a later wave at the next `replan`. The wave PR and the try-it note list it as moved. When the person answers the stop, set it back to `prepared`; it joins the earliest wave its dependencies allow.
-- **12.2 A merged slug breaks the wave verify.** The boundary runs up to 2 fix rounds, then reverts the merges one at a time, newest first, and runs the verify after each revert. The first green verify names the breaker. The slugs reverted before it are merged again, so the other slugs stay merged. The breaker becomes `needs-fix`, and its branch stays. When the verify stays red with every slug reverted, the fault is in the wave branch base: the wave stops and the campaign asks the person. The wave branch is not pushed before its verify passes, so a revert changes nothing that another person can see.
+- **12.1 A unit parks.** The unit asks one question, and the other units continue. The boundary waits until the person answers or moves the unit out of the wave. A unit that moved out keeps its branch. Its dependents move to a later wave at the next `replan`. The wave PR and the try-it note list it as moved. When the person answers the stop later, set it back to `prepared`. It joins the earliest wave that its dependencies allow.
+- **12.2 A merged slug breaks the wave verify.** The boundary runs up to 2 fix rounds, then reverts the merges one at a time, newest first, and runs the verify after each revert. The first green verify names the breaker. The slugs reverted before it are merged again, so the other slugs stay merged. The breaker becomes `needs-fix`, and its branch stays. When the verify stays red with every slug reverted, the fault is in the wave branch base: the wave stops and the campaign asks the person. The wave branch is not pushed before its verify passes, so a revert changes nothing that another person can see. A `dont-ship` wave review whose blockers name one unit reverts that unit the same way.
 - **12.3 A merge conflict.** The merge agent follows [_boundary.md](_boundary.md), "Merge". A conflict it may not resolve stops that slug's merge only. A conflict that `merge-in` resolved earlier replays from the rerere cache.
 - **12.4 A change lands on a lower wave.** With stacked PRs, move the higher waves at the next wave boundary, never while their slugs run ([_gh-stack.md](_gh-stack.md)).
 - **12.5 Stack height.** At most `max-unshipped` waves (default 2) wait unshipped above the trunk. At the limit, `wave <n> start` refuses: continue the rolling prepare and ask the person about the waves that wait in handoff or ship.
@@ -82,9 +107,9 @@ A unit can need a slice of another unit of the same wave (its packet's `needs`).
 
 A repo that does not track `.ai/` keeps the records in the main checkout. Orient records `records: local` in the ledger. Branches carry only code, so no wave PR carries a workflow file.
 
-- `<cmd> worktree <key|wave-<n>> add` copies the main `.ai/` tree into the worktree. The campaign folder stays in the main checkout, because the drives read it there by absolute path. The evidence folders (`*-evidence/`) and the design boards (`design/`) of a workflow that the worktree does not drive also stay in the main checkout. A drive reads the frozen boards of its own slug and writes only `design/captures/`; `sync` brings the captures back. A tracked `.ai/` file (for example `ship-plan.md`) keeps its committed version in the worktree, and the result names it in `records.tracked`. An uncommitted main edit to that file does not reach the drive, so that no worktree commit can publish it. The worktree gets its own `.ai/.gitignore` with `*`, so no `git add` in the worktree can stage a record. The main `.gitignore` can be untracked, and then a worktree does not have it. When git can still see a copied record, `add` and `refresh` return `ok: false` with `visibleToGit`: do not drive, hand off or ship in that worktree, and ask the person.
+- `<cmd> worktree <key|wave-<n>> add` copies the main `.ai/` tree into the worktree. The campaign folder stays in the main checkout, because the wave driver's agents read it there by absolute path. The evidence folders (`*-evidence/`) and the design boards (`design/`) of a workflow that the worktree does not drive also stay in the main checkout. A unit reads the frozen boards of its own slug and writes only `design/captures/`; `sync` brings the captures back. A tracked `.ai/` file (for example `ship-plan.md`) keeps its committed version in the worktree, and the result names it in `records.tracked`. An uncommitted main edit to that file does not reach the unit, so that no worktree commit can publish it. The worktree gets its own `.ai/.gitignore` with `*`, so no `git add` in the worktree can stage a record. The main `.gitignore` can be untracked, and then a worktree does not have it. When git can still see a copied record, `add`, `refresh` and `wave <n> launch` return `ok: false` with `visibleToGit`: do not run, hand off or ship in that worktree, and ask the person.
 - `refresh` copies the main changes in. A file that the worktree changed or deleted stays as the worktree has it.
-- `sync` copies every file that the worktree created or changed back to the main checkout. It never deletes a file in the main checkout, and it never overwrites a main change.
+- `sync` copies every file that the worktree created or changed back to the main checkout. It never deletes a file in the main checkout, and it never overwrites a main change. With local records, the slice write-back of the wave driver runs this sync at the end of each slice.
 - `remove` runs `sync` first. The worktree stays when a file exists only in the worktree (`pending`), or when git would delete an ignored file outside `.ai/` that is not in `campaign.isolation.build-dirs` or `node_modules` (`ignored`).
 
 The sync compares content hashes with the base, the version that both sides last agreed on. The base of each file is in `work/campaign/records/<key>.json`. Each copy goes to a temp file, the hash is checked, and a rename puts it in place. Watch cursors (`.watch-state.json`) and render caches (`_view/`) never travel.
@@ -150,11 +175,14 @@ A packet with `form: hotfix` and `urgency: urgent` runs before the next planned 
 
 The campaign pauses on the usage guard, on a usage-limit error, and on the person's word.
 
-1. **The usage guard.** The sdlc mod reads the 5-hour and 7-day windows of each session and writes them to `~/.claude/sdlc/usage/`. When a window crosses the budget's pause line, the guard writes the pause into `work/campaign/.control.json` itself, so the next agent of every running drive stops at its stage boundary. The drive then ends with `stoppedAt: usage-pause`: record it with `<cmd> pause <until> <reason>` from the control file. When the reset time passes, the guard clears its pause and submits "Resume the run with /wf campaign <brainstorm-slug>" as a prompt; it also shows the same text as a toast.
-2. **A usage-limit error.** When an agent of a drive or of the boundary fails on a usage limit (step 5.7 of "Run a wave"), run `<cmd> pause <reset time> <window>`. Take the reset time from `<cmd> budget` (`until`). When neither the reading nor the error gives one, ask the person.
-3. **The person's word.** "Pause the campaign" runs the same command with the time the person gives. "Stop after this wave" writes `{"action":"stop","scope":"wave"}` to the control file: the running wave finishes, and the next wave does not start. "Stop <slug>" writes `{"action":"stop","scope":"slug","slug":"<slug>","after":"current"}`. Use `<watch> control "<projectRoot>" <slug> stop <after> --campaign <brainstorm-slug> --scope <slug|wave|campaign>`.
+1. **The usage guard.** The sdlc mod reads the 5-hour and 7-day windows of each session and writes them to `~/.claude/sdlc/usage/`. When a window crosses the budget's pause line, the guard writes the pause into `work/campaign/.control.json` itself. The next stage agent of the wave run then stops, and the run returns `stoppedAt: usage-pause`. Record it with `wave <n> record`, then `<cmd> pause <until> <reason>` ("Run a wave", step 8). When the reset time passes, the guard clears its pause and submits "Resume the run with /wf campaign <brainstorm-slug>" as a prompt; it also shows the same text as a toast.
+2. **A usage-limit error.** When an agent of the wave run fails on a usage limit ("Run a wave", step 8), run `<cmd> pause <reset time> <window>`. Take the reset time from `<cmd> budget` (`until`). When neither the reading nor the error gives one, ask the person.
+3. **The person's word.** "Pause the campaign" runs the same command with the time the person gives. Write each stop request with `<watch> control "<projectRoot>" <slug> stop <after> --campaign <brainstorm-slug> --scope <slug|wave|campaign>`. For the wave and campaign scopes, write `-` for `<slug>`.
+   - "Stop after this wave" (`--scope wave`): the run finishes the wave, and the next wave does not start.
+   - "Stop the campaign" (`--scope campaign`): the run stops with `held: true`, and the questions stay in the ledger.
+   - "Stop <slug>" (`--scope slug`) also needs `--then move` or `--then hold`. With `move`, the unit moves out of the wave with no question. With `hold`, the unit parks with kind `slug-stop` until the person says "continue". When the person does not say which, ask "Move it out of the wave, or hold it until you say continue?" before you write the request.
 4. During a pause, give no notes: each note uses the same limits.
-5. **Resume** when the guard submits the resume prompt, when the reset time passed (through a one-shot scheduled task in this session), or on the person's word: run `<cmd> resume`, then relaunch the drive that stopped (yolo.md, "Resuming"). Resume is free: orient skips the stages that are done.
+5. **Resume** when the guard submits the resume prompt, when the reset time passed (through a one-shot scheduled task in this session), or on the person's word. Run `<cmd> resume`, then launch the wave again ("Run a wave", step 4). Resume is free: the launch keeps each unit's state, and each unit orient skips the stages that are done.
 
 ## End
 
@@ -162,7 +190,7 @@ When the last wave shipped (`next.action` is `end`):
 
 1. When the waves merged without tags, or shipped as pre-releases, ask the person whether to release the target version as a final release, by the ship plan's rollout stages. A final release is the person's decision.
 2. Write `work/campaign/report.md`:
-   - each wave: its slugs, its PR, its version or label, the slugs that moved, and its try-it note;
+   - each wave: its slugs, its PR, its version or label, the slugs that moved, its wave review verdict, and its try-it note;
    - every carried decision of the campaign: honoured, narrowed (with the person's answer), dropped (with the ratification), changed at prepare, or not built yet (with its slug);
    - each work revision that the campaign re-planned from, and what it added;
    - the forecast against the real numbers;
