@@ -54,6 +54,16 @@ export function lockWaitsAfter(previous: readonly string[], lines: ReadonlyArray
 /** Where one running unit's drive stands, from its own driver journal. */
 export type UnitDrive = { stage: string | null; startedAt: number | null; status: string | null }
 
+/**
+ * W0a: where a unit's driver journal is. The ledger names the unit's worktree
+ * (`worktree-root`, or `.scratch/cw` since v9.182.0); the journal is there first,
+ * then in the main checkout.
+ */
+export function driveJournalPathsOf(root: string, slug: string, worktree: string | null): string[] {
+  const at = (base: string): string => `${base.replace(/[\\/]+$/u, '')}/.ai/workflows/${slug}/.driver-journal.jsonl`
+  return [...(worktree === null ? [] : [at(worktree)]), at(root)]
+}
+
 export type CampaignFacts = {
   slug: string
   now: number

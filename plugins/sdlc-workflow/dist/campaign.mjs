@@ -1030,12 +1030,26 @@ var ledgerPath = (root, b) => join2(campDir(root, b), "ledger.json");
 var journalPath = (root, b) => join2(campDir(root, b), ".campaign-journal.jsonl");
 var controlPath = (root, b) => join2(campDir(root, b), ".control.json");
 var nowIso = () => (/* @__PURE__ */ new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
+var sleepMs = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 function writeAtomic(file, text) {
   mkdirSync2(join2(file, ".."), { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
   writeFileSync2(tmp, text);
-  renameSync2(tmp, file);
+  for (let i = 0; ; i++) {
+    try {
+      renameSync2(tmp, file);
+      return;
+    } catch (e) {
+      if (!["EPERM", "EBUSY", "EACCES"].includes(e.code) || i >= 19) {
+        rmSync2(tmp, { force: true });
+        throw e;
+      }
+      sleepMs(100);
+    }
+  }
 }
+var ledgerLockPath = (root, b) => join2(campDir(root, b), "ledger.lock");
+var LEDGER_COMMANDS = /* @__PURE__ */ new Set(["orient", "replan", "answer", "unit", "outside", "wave", "ask", "reply", "pause", "resume", "forecast", "worktree", "stack", "merge-in", "rule", "away", "back", "decided"]);
 function git(root, args) {
   const r = spawnSync("git", ["-C", root, ...args], { encoding: "utf8", windowsHide: true });
   return r.status === 0 ? r.stdout.trim() : null;
@@ -1485,9 +1499,18 @@ function worktreeStep(root, b, [key, action]) {
 }
 var LOCK_STALE_MS = 3 * 60 * 60 * 1e3;
 var lockFileOf = (root, kind) => join2(root, ".scratch", "campaign", `${kind}.lock`);
-function otherHolder(file, holder) {
+var DRIVE_ENDED = /* @__PURE__ */ new Set(["stopped", "finished", "merged", "needs-fix", "shipped"]);
+function holderGone(root, b, cur) {
+  const ledger = loadLedger(root, b);
+  const u = ledger ? Object.values(ledger.units ?? {}).find((x) => x.slug === cur.holder) : null;
+  if (!u) return false;
+  if (DRIVE_ENDED.has(u.state)) return true;
+  const last = readJsonl(join2(unitWorkflowDir(root, u), ".driver-journal.jsonl")).at(-1);
+  return last?.event === "run-end" && String(last.at ?? "") > String(cur.at ?? "");
+}
+function otherHolder(root, b, file, holder) {
   const cur = readJson(file);
-  return cur && cur.holder !== holder && Date.now() - Date.parse(cur.at) < LOCK_STALE_MS ? cur : null;
+  return cur && cur.holder !== holder && Date.now() - Date.parse(cur.at) < LOCK_STALE_MS && !holderGone(root, b, cur) ? cur : null;
 }
 function lock(root, b, args) {
   const quiet = args[0] === "quiet";
@@ -1502,9 +1525,10 @@ function lock(root, b, args) {
     return { ok: true, released: true, ...quiet ? { quiet: true } : {} };
   }
   if (action !== "acquire") throw new Error("lock: the action is acquire or release (lock quiet acquire|release for the quiet lease)");
-  const blocker = otherHolder(lockFileOf(root, quiet ? "heavy" : "quiet"), holder);
+  const blocker = otherHolder(root, b, lockFileOf(root, quiet ? "heavy" : "quiet"), holder);
   if (blocker) return { ok: true, acquired: false, holder: blocker.holder, since: blocker.at, ...quiet ? { heavy: blocker.holder } : { quiet: blocker.holder } };
-  if (cur && cur.holder !== holder && Date.now() - Date.parse(cur.at) < LOCK_STALE_MS) return { ok: true, acquired: false, holder: cur.holder, since: cur.at };
+  if (otherHolder(root, b, file, holder)) return { ok: true, acquired: false, holder: cur.holder, since: cur.at };
+  const takenOver = cur && cur.holder !== holder ? cur.holder : null;
   if (!cur || cur.holder !== holder) {
     try {
       writeFileSync2(file, JSON.stringify({ holder, at: nowIso() }), { flag: cur ? "w" : "wx" });
@@ -1513,7 +1537,7 @@ function lock(root, b, args) {
       return { ok: true, acquired: false, holder: now?.holder ?? null, since: now?.at ?? null };
     }
   }
-  return { ok: true, acquired: true, holder };
+  return { ok: true, acquired: true, holder, ...takenOver ? { takenOver } : {} };
 }
 function stack(root, b, [action, value]) {
   const ledger = requireLedger(root, b);
@@ -1566,6 +1590,8 @@ function waitProgress(root, ledger) {
   const from = new Set(Object.values(ledger.units).flatMap((u) => (u.waits ?? []).filter((w) => w.state === "open").map((w) => w.from)));
   return Object.fromEntries([...from].filter((k) => ledger.units[k]).map((k) => [k, unitProgress(root, ledger.units[k])]));
 }
+var RUN_TIME_FILES = Object.freeze([".watch-state.json", ".driver-journal.jsonl", "commentary.md", "cost.jsonl", ".read-ledger.jsonl"]);
+var RUN_TIME_EXCLUDES = RUN_TIME_FILES.map((f) => `:(exclude,glob).ai/workflows/*/${f}`);
 var unitBranch = (b, u) => u.worktree?.branch ?? (u.wave ? `campaign/${b}/wave-${u.wave}--${u.slug}` : null);
 function mergeIn(root, b, [key, from]) {
   const ledger = requireLedger(root, b);
@@ -1589,7 +1615,7 @@ function mergeIn(root, b, [key, from]) {
     if (git(root, ["branch", "--show-current"]) !== want) return { ok: false, error: `${key} has no worktree, and the main checkout is not on its branch ${want}. Check that branch out, or give the campaign an isolation contract.` };
     dir = root;
   }
-  const dirty = spawnSync("git", ["-C", dir, "status", "--porcelain", "--untracked-files=no"], { encoding: "utf8", windowsHide: true });
+  const dirty = spawnSync("git", ["-C", dir, "status", "--porcelain", "--untracked-files=no", "--", ".", ...RUN_TIME_EXCLUDES], { encoding: "utf8", windowsHide: true });
   if (dirty.status !== 0 || dirty.stdout.trim()) return { ok: false, error: `the checkout of ${key} has uncommitted changes, so a merge could mix with them. Ask the person.`, dirty: dirty.stdout.trim().split(/\r?\n/).filter(Boolean) };
   spawnSync("git", ["-C", dir, "config", "rerere.enabled", "true"], { windowsHide: true });
   const fromSha = commitOf(root, `refs/heads/${fromBranch}`);
@@ -1791,7 +1817,9 @@ function wave(root, b, [nText, action, state], f) {
 function ask(root, b, args, f) {
   const [id, ...text] = args;
   const ledger = requireLedger(root, b);
-  if (ledger.questions.some((q2) => q2.id === id && !q2["answered-at"])) throw new Error(`ask: question ${id} is open`);
+  const same = ledger.questions.find((q2) => q2.id === id && !q2["answered-at"]);
+  if (same && same.text === text.join(" ")) return { ok: true, exists: true, question: same };
+  if (same) throw new Error(`ask: question ${id} is open with another text`);
   const q = { id, ...f.wave ? { wave: Number(f.wave) } : {}, text: text.join(" "), "asked-at": nowIso() };
   ledger.questions.push(q);
   saveLedger(root, b, ledger);
@@ -2065,6 +2093,12 @@ function decided(root, b, [id], f) {
     presence: ledger.presence?.state ?? "present"
   };
   (ledger.decided ??= []).push(d);
+  const q = (ledger.questions ?? []).find((x) => x.id === id && !x["answered-at"]);
+  if (q) {
+    q.answer = d.answer;
+    q["answered-at"] = d.at;
+    q.by = "session";
+  }
   saveLedger(root, b, ledger);
   const file = decidedPath(root, b);
   const head = existsSync2(file) ? "" : `# Decided for the person: ${b}
@@ -2082,7 +2116,7 @@ ${opts ? `- Options: ${opts}
 ${d.unit ? `- Unit: ${d.unit}
 ` : ""}`);
   appendJournal(root, b, "decided", { id, ...d["intent-bearing"] ? { "intent-bearing": true } : {} });
-  return { ok: true, decided: d, path: file, limits: AWAY_LIMITS };
+  return { ok: true, decided: d, path: file, ...q ? { answered: q.id } : {}, limits: AWAY_LIMITS };
 }
 function recapOf(root, ledger, since) {
   const journals = {};
@@ -2117,6 +2151,22 @@ function main(argv = process.argv.slice(2)) {
   const { pos, f } = flags(rest);
   let out;
   try {
+    out = LEDGER_COMMANDS.has(cmd) && existsSync2(workDir(root, b)) ? withRecordsLock(ledgerLockPath(root, b), `${cmd} ${pos[0] ?? ""}`.trim(), () => dispatch(cmd, root, b, pos, f), { waitMs: 12e4, liveStaleMs: 30 * 6e4 }) : dispatch(cmd, root, b, pos, f);
+  } catch (e) {
+    out = { ok: false, error: e.message };
+  }
+  if (out === null) {
+    process.stderr.write(`${USAGE}
+`);
+    return 2;
+  }
+  process.stdout.write(`${JSON.stringify(out, null, 2)}
+`);
+  return out.ok ? 0 : 1;
+}
+function dispatch(cmd, root, b, pos, f) {
+  let out;
+  {
     switch (cmd) {
       case "orient":
         out = orient(root, b);
@@ -2206,22 +2256,17 @@ function main(argv = process.argv.slice(2)) {
         out = recap(root, b, f);
         break;
       default:
-        process.stderr.write(`${USAGE}
-`);
-        return 2;
+        return null;
     }
-  } catch (e) {
-    out = { ok: false, error: e.message };
   }
-  process.stdout.write(`${JSON.stringify(out, null, 2)}
-`);
-  return out.ok ? 0 : 1;
+  return out;
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   process.exitCode = main();
 }
 export {
   AWAY_LIMITS,
+  RUN_TIME_FILES,
   appendJournal,
   campaignSteerPath,
   controlPath,

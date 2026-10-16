@@ -340,6 +340,27 @@
               "minimum": 0,
               "default": 20,
               "description": "The free disk space a new worktree needs."
+            },
+            "quiet-suites": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "C4: the timed checks that need an idle machine. A drive takes the quiet lock for them."
+            },
+            "outside-root": {
+              "type": "string",
+              "description": "C5: a short absolute path outside the repo for each unit's folders that cannot be in its worktree, for example C:/co."
+            },
+            "worktree-root": {
+              "type": "string",
+              "description": "C6: a short absolute path outside the repo for the worktrees, for example C:/cw. The default is .scratch/cw."
+            },
+            "build-depth": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 140,
+              "description": "C6: the length of the deepest build path inside a worktree, for the Windows path check."
             }
           },
           "required": ["port-env", "build-dirs"]

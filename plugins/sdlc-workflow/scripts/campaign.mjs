@@ -64,12 +64,32 @@ export const controlPath = (root, b) => join(campDir(root, b), '.control.json');
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
+const sleepMs = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+/**
+ * D20: a rename over a file that another process reads fails on Windows with EPERM
+ * or EBUSY for a moment. The write tries again, up to 20 times in 2 seconds.
+ */
 function writeAtomic(file, text) {
   mkdirSync(join(file, '..'), { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
   writeFileSync(tmp, text);
-  renameSync(tmp, file);
+  for (let i = 0; ; i++) {
+    try { renameSync(tmp, file); return; } catch (e) {
+      if (!['EPERM', 'EBUSY', 'EACCES'].includes(e.code) || i >= 19) { rmSync(tmp, { force: true }); throw e; }
+      sleepMs(100);
+    }
+  }
 }
+
+/**
+ * D20: every command that changes the ledger holds this lock while it reads,
+ * changes and writes the ledger, so the session and the wave driver's agents
+ * never overwrite each other's changes. The lock names its process: a lock of a
+ * process that is gone is taken over at once.
+ */
+const ledgerLockPath = (root, b) => join(campDir(root, b), 'ledger.lock');
+const LEDGER_COMMANDS = new Set(['orient', 'replan', 'answer', 'unit', 'outside', 'wave', 'ask', 'reply', 'pause', 'resume', 'forecast', 'worktree', 'stack', 'merge-in', 'rule', 'away', 'back', 'decided']);
 
 function git(root, args) {
   const r = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', windowsHide: true });
@@ -585,10 +605,27 @@ function worktreeStep(root, b, [key, action]) {
 const LOCK_STALE_MS = 3 * 60 * 60 * 1000;
 
 const lockFileOf = (root, kind) => join(root, '.scratch', 'campaign', `${kind}.lock`);
-/** A lock file whose holder is not `holder` and is younger than 3 hours, or null. */
-function otherHolder(file, holder) {
+
+/**
+ * W0a: the holder of a lock is gone when its drive ended. The process that ran
+ * `lock acquire` ends at once, so its pid says nothing; the drive's state does.
+ * A holder is gone when its unit is in a state that a drive ends in, or when its
+ * driver journal ends with `run-end` after the lock was taken.
+ */
+const DRIVE_ENDED = new Set(['stopped', 'finished', 'merged', 'needs-fix', 'shipped']);
+function holderGone(root, b, cur) {
+  const ledger = loadLedger(root, b);
+  const u = ledger ? Object.values(ledger.units ?? {}).find((x) => x.slug === cur.holder) : null;
+  if (!u) return false;
+  if (DRIVE_ENDED.has(u.state)) return true;
+  const last = readJsonl(join(unitWorkflowDir(root, u), '.driver-journal.jsonl')).at(-1);
+  return last?.event === 'run-end' && String(last.at ?? '') > String(cur.at ?? '');
+}
+
+/** A lock file whose holder is not `holder`, is younger than 3 hours, and whose drive still runs; or null. */
+function otherHolder(root, b, file, holder) {
   const cur = readJson(file);
-  return cur && cur.holder !== holder && Date.now() - Date.parse(cur.at) < LOCK_STALE_MS ? cur : null;
+  return cur && cur.holder !== holder && Date.now() - Date.parse(cur.at) < LOCK_STALE_MS && !holderGone(root, b, cur) ? cur : null;
 }
 
 /**
@@ -610,9 +647,10 @@ function lock(root, b, args) {
   }
   if (action !== 'acquire') throw new Error('lock: the action is acquire or release (lock quiet acquire|release for the quiet lease)');
   // C4: the two locks exclude each other across units.
-  const blocker = otherHolder(lockFileOf(root, quiet ? 'heavy' : 'quiet'), holder);
+  const blocker = otherHolder(root, b, lockFileOf(root, quiet ? 'heavy' : 'quiet'), holder);
   if (blocker) return { ok: true, acquired: false, holder: blocker.holder, since: blocker.at, ...(quiet ? { heavy: blocker.holder } : { quiet: blocker.holder }) };
-  if (cur && cur.holder !== holder && Date.now() - Date.parse(cur.at) < LOCK_STALE_MS) return { ok: true, acquired: false, holder: cur.holder, since: cur.at };
+  if (otherHolder(root, b, file, holder)) return { ok: true, acquired: false, holder: cur.holder, since: cur.at };
+  const takenOver = cur && cur.holder !== holder ? cur.holder : null;
   if (!cur || cur.holder !== holder) {
     try {
       writeFileSync(file, JSON.stringify({ holder, at: nowIso() }), { flag: cur ? 'w' : 'wx' });
@@ -621,7 +659,7 @@ function lock(root, b, args) {
       return { ok: true, acquired: false, holder: now?.holder ?? null, since: now?.at ?? null };
     }
   }
-  return { ok: true, acquired: true, holder };
+  return { ok: true, acquired: true, holder, ...(takenOver ? { takenOver } : {}) };
 }
 
 /** 16.1: the stack of wave PRs — on, off, or its number on GitHub. */
@@ -689,6 +727,14 @@ function waitProgress(root, ledger) {
   return Object.fromEntries([...from].filter((k) => ledger.units[k]).map((k) => [k, unitProgress(root, ledger.units[k])]));
 }
 
+/**
+ * W0a: the run-time files of a drive. A drive writes them while it runs, so they
+ * can be dirty while the drive is stopped. A merge of another unit never touches
+ * them: each unit writes only its own workflow folder.
+ */
+export const RUN_TIME_FILES = Object.freeze(['.watch-state.json', '.driver-journal.jsonl', 'commentary.md', 'cost.jsonl', '.read-ledger.jsonl']);
+const RUN_TIME_EXCLUDES = RUN_TIME_FILES.map((f) => `:(exclude,glob).ai/workflows/*/${f}`);
+
 const unitBranch = (b, u) => u.worktree?.branch ?? (u.wave ? `campaign/${b}/wave-${u.wave}--${u.slug}` : null);
 
 /**
@@ -717,7 +763,7 @@ function mergeIn(root, b, [key, from]) {
     if (git(root, ['branch', '--show-current']) !== want) return { ok: false, error: `${key} has no worktree, and the main checkout is not on its branch ${want}. Check that branch out, or give the campaign an isolation contract.` };
     dir = root;
   }
-  const dirty = spawnSync('git', ['-C', dir, 'status', '--porcelain', '--untracked-files=no'], { encoding: 'utf8', windowsHide: true });
+  const dirty = spawnSync('git', ['-C', dir, 'status', '--porcelain', '--untracked-files=no', '--', '.', ...RUN_TIME_EXCLUDES], { encoding: 'utf8', windowsHide: true });
   if (dirty.status !== 0 || dirty.stdout.trim()) return { ok: false, error: `the checkout of ${key} has uncommitted changes, so a merge could mix with them. Ask the person.`, dirty: dirty.stdout.trim().split(/\r?\n/).filter(Boolean) };
   // C7: rerere records the resolution of a conflict here, so the boundary replays it. The setting is in the repo's common config, which every worktree shares.
   spawnSync('git', ['-C', dir, 'config', 'rerere.enabled', 'true'], { windowsHide: true });
@@ -939,7 +985,10 @@ function wave(root, b, [nText, action, state], f) {
 function ask(root, b, args, f) {
   const [id, ...text] = args;
   const ledger = requireLedger(root, b);
-  if (ledger.questions.some((q) => q.id === id && !q['answered-at'])) throw new Error(`ask: question ${id} is open`);
+  const same = ledger.questions.find((q) => q.id === id && !q['answered-at']);
+  // W0a: a repeated ask of the same open question changes nothing, so an agent that runs twice does not fail.
+  if (same && same.text === text.join(' ')) return { ok: true, exists: true, question: same };
+  if (same) throw new Error(`ask: question ${id} is open with another text`);
   const q = { id, ...(f.wave ? { wave: Number(f.wave) } : {}), text: text.join(' '), 'asked-at': nowIso() };
   ledger.questions.push(q);
   saveLedger(root, b, ledger);
@@ -1220,13 +1269,16 @@ function decided(root, b, [id], f) {
     presence: ledger.presence?.state ?? 'present',
   };
   (ledger.decided ??= []).push(d);
+  // W0a: a decision taken for the person also answers the open question of the same id.
+  const q = (ledger.questions ?? []).find((x) => x.id === id && !x['answered-at']);
+  if (q) { q.answer = d.answer; q['answered-at'] = d.at; q.by = 'session'; }
   saveLedger(root, b, ledger);
   const file = decidedPath(root, b);
   const head = existsSync(file) ? '' : `# Decided for the person: ${b}\n\nThe campaign took these decisions while the person was away. Each one names the question, the answer, and why. The recap lists the intent-bearing ones first.\n`;
   const opts = Array.isArray(options) ? options.map((o) => (typeof o === 'string' ? o : o?.label ?? JSON.stringify(o))).join('; ') : (options ?? '');
   appendFileSync(file, `${head}\n## ${id} — ${d.at}${d['intent-bearing'] ? ' — intent-bearing' : ''}\n\n- Question: ${d.question}\n${opts ? `- Options: ${opts}\n` : ''}- Answer: ${d.answer}\n- Why: ${d.why}\n${d.unit ? `- Unit: ${d.unit}\n` : ''}`);
   appendJournal(root, b, 'decided', { id, ...(d['intent-bearing'] ? { 'intent-bearing': true } : {}) });
-  return { ok: true, decided: d, path: file, limits: AWAY_LIMITS };
+  return { ok: true, decided: d, path: file, ...(q ? { answered: q.id } : {}), limits: AWAY_LIMITS };
 }
 
 function recapOf(root, ledger, since) {
@@ -1262,6 +1314,21 @@ export function main(argv = process.argv.slice(2)) {
   const { pos, f } = flags(rest);
   let out;
   try {
+    // Without a work folder, no ledger can exist, and the lock would leave an empty folder.
+    out = LEDGER_COMMANDS.has(cmd) && existsSync(workDir(root, b))
+      ? withRecordsLock(ledgerLockPath(root, b), `${cmd} ${pos[0] ?? ''}`.trim(), () => dispatch(cmd, root, b, pos, f), { waitMs: 120_000, liveStaleMs: 30 * 60_000 })
+      : dispatch(cmd, root, b, pos, f);
+  } catch (e) {
+    out = { ok: false, error: e.message };
+  }
+  if (out === null) { process.stderr.write(`${USAGE}\n`); return 2; }
+  process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
+  return out.ok ? 0 : 1;
+}
+
+function dispatch(cmd, root, b, pos, f) {
+  let out;
+  {
     switch (cmd) {
       case 'orient': out = orient(root, b); break;
       case 'status': out = status(root, b); break;
@@ -1292,13 +1359,10 @@ export function main(argv = process.argv.slice(2)) {
       case 'back': out = back(root, b); break;
       case 'decided': out = decided(root, b, pos, f); break;
       case 'recap': out = recap(root, b, f); break;
-      default: process.stderr.write(`${USAGE}\n`); return 2;
+      default: return null;
     }
-  } catch (e) {
-    out = { ok: false, error: e.message };
   }
-  process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
-  return out.ok ? 0 : 1;
+  return out;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

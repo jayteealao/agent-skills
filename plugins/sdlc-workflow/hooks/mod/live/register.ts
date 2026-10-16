@@ -30,7 +30,7 @@ import { isDarkThemeOf, nextViewStyle, paletteOf, viewStyleOf } from '../styles/
 import type { ViewStyle } from '../styles/tokens.ts'
 import { findProjectRoot, joinPath, listSlices } from '../workflows.ts'
 import { buildBrainstormModel, newestChangeOf } from './model/brainstorm.ts'
-import { buildCampaignModel, gatesAfter, heavyHolderOf, lockWaitsAfter } from './model/campaign.ts'
+import { buildCampaignModel, driveJournalPathsOf, gatesAfter, heavyHolderOf, lockWaitsAfter } from './model/campaign.ts'
 import type { UnitDrive } from './model/campaign.ts'
 import { absorb, freshJournalState, judge, livenessFrom, openStagesOf } from './model/journal.ts'
 import type { JournalState } from './model/journal.ts'
@@ -709,7 +709,7 @@ async function pollCampaign(x: LiveEngine, tracker: Tracker, now: number): Promi
     }
   }
   // The drives: each running unit's driver journal, in the main checkout or its worktree.
-  const units = (ledger?.['units'] ?? {}) as Record<string, { slug?: unknown; state?: unknown }>
+  const units = (ledger?.['units'] ?? {}) as Record<string, { slug?: unknown; state?: unknown; worktree?: { path?: unknown } }>
   const drives: Record<string, UnitDrive> = {}
   let lastLineAt = tracker.journal.run.lastLineAt
   const beats = [...tracker.journal.beats]
@@ -719,8 +719,7 @@ async function pollCampaign(x: LiveEngine, tracker: Tracker, now: number): Promi
     const drive = tracker.drives.get(slug) ?? { journal: freshJournalState() }
     tracker.drives.set(slug, drive)
     if (unit.state !== 'running') continue
-    const runId = typeof ledger?.['run-id'] === 'string' ? (ledger['run-id'] as string) : 'run'
-    const candidates = [joinPath(root, '.ai', 'workflows', slug, '.driver-journal.jsonl'), joinPath(root, '.scratch', 'campaign', runId, 'wt', slug, '.ai', 'workflows', slug, '.driver-journal.jsonl')]
+    const candidates = driveJournalPathsOf(root, slug, typeof unit.worktree?.path === 'string' ? unit.worktree.path : null)
     for (const path of candidates) {
       const tail = await reader.tail(path)
       if (!tail.exists) continue
