@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.187.0] - 2026-10-17
+
+### Removed
+
+- **Stages no longer write files that only the viewer reads.** No stage writes an explainer (`<stem>.explainer.html.fragment`) or a free narrative fragment (`<stem>.<label>.html.fragment`). Consult no longer embeds its panel as a fragment. In SoccerManager, these files and the viewer-only `.yaml` were about 4–6% of the output tokens of a workflow, before the thinking that composed them.
+- **The viewer-only sibling `.yaml` is gone** for rca, simplify-run, profile, benchmark, experiment, instrument, design, design-contract, design-audit, design-critique, ship-run, sync-report (`00-sync.yaml`) and docs-index (`08b-docs-index.yaml`). No agent read them. Their pages render from the `.md`.
+- **`_story-arc.md` and `_fragment-authoring.md` are deleted.** Each stage and each sub-agent loaded about 15 KB less.
+- **The write hook no longer nudges** for a missing explainer or a missing `.html.fragment`, and no longer runs the explainer check. `lib/explainer-check.mjs` is deleted, and `scripts/verify-fragment.mjs` treats an old explainer as a free fragment.
+
+### Changed
+
+- **The chat narrative is the explanation.** The story rules (explain the thing, not the progress; words and counts; the focus for each stage; the brainstorm beats) are now *The narrative* in `_chat-return.md`. `_workflow-rules.md` says to write no explainer, no `.html.fragment` and no sibling `.yaml` unless the stage reference names that file.
+- **The plan `.yaml` is reduced** to `artifact`, `slice`, `files` (`path`, `status`), `edges` (`from`, `to`, `kind`) and `risks`. The sibling-plan table, the yolo bookkeeping agent and the campaign wave driver read it. `siblingYamlSchemas.plan` requires only `files`. In one SoccerManager plan, the dropped `planned_change` blocks were 24 KB of 45 KB.
+- **The plan page groups files by folder** when the `.yaml` has no `modules`.
+- **The write hook blocks a missing sibling `.yaml` only for review, review-command and plan**, the files that later stages read, and validates the schema only for review and plan. `hooks.remindMissingFragments` gates only that block.
+- **Recap reads the frontmatter and the bodies** of the stage files. It no longer reads explainers.
+- **Design audit and design critique keep their findings in the `.md`.** The audit report has a `## Findings` table, and each critique issue carries an ID, a severity and a dimension, because implement and verify read them there.
+
+The hub, the renderer, the explainer snippets and `view.narrativeFragments` stay. Existing artifacts keep their explainers, fragments and `.yaml`, and their pages render as before. The design boards and the imagery and uiproto fragments are unchanged. Plan: `docs/internal/VIEW-AUTHORING-REMOVAL-PLAN.md`.
+
 ## [9.186.0] - 2026-10-17
 
 ### Added
