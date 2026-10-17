@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.188.0] - 2026-10-17
+
+### Changed
+
+- **The campaign owns the dependency graph.** `depends-on`, `needs`, `provides` and `expects` of each unit live in the campaign ledger under `deps`, with the reason, the source (`seed`, `serial`, `scout`, `person`, `prepare` or `driver`) and the time of each edge. The campaign never writes the graph into a packet.
+- **The brainstorm agrees a sequence, not a graph.** Step 3.3 records a strict `order` 1..n over every piece and a `why-here` note on each piece after the first. It no longer asks for `depends-on`, `needs`, `provides` or `expects`. The write-now pieces run in sequence order. `checkWorkSet` refuses an order with a gap or a repeat, and a piece after the first with no `why-here`.
+- **One checker and one planner.** `computeWaves`, `findDependencyCycle`, `dependencyClosure` and `neededBy` are deleted from `lib/work-packets.mjs`. `work/index.md` has no `waves:`, no Contracts and no Waves section; it has a "Why here" column. A packet says "Comes after: <the piece before it>, because <why-here>."
+- **The serial chain is the default graph.** With no evidence, each unit depends on the piece before it in the sequence. A drop of a serial edge needs evidence that the two units are independent, and the person confirms it.
+- **A graph change found in prepare goes through `campaign.mjs deps`, not through the brainstorm.** Rolling prepare records a contract change with `deps <key> provides set` or `deps <key> expects set`, and a slice need with `deps <key> needs add`, each `--by prepare`, then `replan`. A derived needs entry of a wave outcome stays in the ledger.
+- **The serial path asks about earlier pieces.** Step 1.3 of a packet intake asks "start anyway?" about each piece with a lower order that is not done. It skips the question when a campaign ledger lists the packet.
+
+### Added
+
+- **Phase 0b — Deps.** After `orient`, a read-only deps scout reads the packets and the code, and proposes the graph, the contract lines and the paths each unit likely touches (`campaign/_deps.md`). The person confirms each unit. There is no way to skip the confirmation. `answer`, `unit <key> prepared` and `wave start` refuse while a unit has no confirmation, and `status` gives `next.action: deps`.
+- **`campaign.mjs deps`.** `deps show`, `deps plan` (the waves that a confirmation would give, the dropped serial edges and the shared paths) and `deps confirm [<key>...]`. The edits are `deps <key> depends-on add|remove`, `needs add|remove`, `provides set|remove`, `expects set|remove` and `paths --set`, each with `--why` and `--by`. An edit refuses a unit of a started wave. The journal records `deps-confirm` and `deps-change`.
+- **Shared paths give a warning, and the person decides.** When two units of one wave cite one path, `deps plan` warns. The person adds an edge, or keeps the two units in one wave. A kept pair is stored as `expected-shared` on the planned wave, reaches the wave driver as `args.expectedShared`, and the cross-unit reconcile checks those pairs first.
+
+### Migration
+
+- **Old work sets still run.** `orient` reads the old packet fields as the seed of the graph. A ledger with no `deps` gets them on first load, from the packets; the units of a started wave are confirmed. The `campaign-packets` eval fixture keeps the old form.
+- The graph and the waves do not use `campaign.width`. A wave holds every unit whose dependencies are met; the width limits only the heavy slots at run time.
+
+Plan: `docs/internal/WF-CAMPAIGN-ORDER-PLAN.md`.
+
 ## [9.187.0] - 2026-10-17
 
 ### Removed
