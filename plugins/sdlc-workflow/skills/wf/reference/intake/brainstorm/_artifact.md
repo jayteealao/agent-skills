@@ -162,7 +162,7 @@ The body names everything in words. It carries no key, no internal number, and n
 # Brainstorm: <topic>
 
 ## The Brainstorm
-<!-- STORY SECTION — first, and self-sufficient. It is the summary of what we believe now, rewritten at every check-in. Follow `../../_story-arc.md`: the thought we started from; what we now believe, with the reasons; what is still open and the sharpest tension. Language follows `../../_ste-procedural.md` sections 1 and 3. 1–3 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. It is the summary of what we believe now, rewritten at every check-in. Write the thought we started from; what we now believe, with the reasons; what is still open and the sharpest tension. Language follows `../../_ste-procedural.md` sections 1 and 3. 1–3 short paragraphs. -->
 
 ## Map
 ### <area in words> — <problem side or solution side> — <open, touched, or explored>

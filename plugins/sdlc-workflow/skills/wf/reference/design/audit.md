@@ -97,6 +97,11 @@ Format as a structured report:
 ## Critical issues (score 0–1 in any dimension)
 [List with file:line references]
 
+## Findings
+| ID | Severity | Rule | Where | Observation | Recommendation | Status |
+|---|---|---|---|---|---|---|
+| A1 | blocker/high/medium/low | token name or audit rule | file, component, or board key | specific problem | specific fix | open/in-progress/fixed/deferred |
+
 ## Recommended fixes
 [Ordered by impact, with specific commands to address each:
  - `/wf design harden` for accessibility issues
@@ -110,7 +115,7 @@ Format as a structured report:
 When invoked as `/wf design <slug> audit`:
 - Write report to `.ai/workflows/<slug>/07-design-audit.md`
 - Register `design-audit` under `augmentations:` in `00-index.md` per [_output.md](_output.md)
-- When `02c-craft.md` names `boards:`, compare each board PNG with its capture in `06-verify-*.md` `## Design Comparison` (`design/_boards.md`). Name the board key in `where:`. A board without a capture is a gap; do not score it as a pass.
+- When `02c-craft.md` names `boards:`, compare each board PNG with its capture in `06-verify-*.md` `## Design Comparison` (`design/_boards.md`). Name the board key in the `Where` column of `## Findings`. A board without a capture is a gap; do not score it as a pass.
 - Use this frontmatter:
 
 ```yaml
@@ -139,28 +144,4 @@ recommended-routes: [{invocation: "/wf review <slug>", reason: "fold the finding
 ---
 ```
 
-- **Required — write the sibling YAML** to
-  `.ai/workflows/<slug>/07-design-audit.yaml`:
-
-```yaml
-artifact: design-audit
-verdict: <pass|fail|conditional>
-audited-against: [02b-design.md, 02c-craft.md, design/r<N>/boards.json]   # boards.json only when 02c-craft.md names boards:
-remediation-state: <none|in-progress|complete|deferred>
-run_at: <timestamp>
-violations:
-  - id: A1
-    severity: <blocker|high|medium|low>
-    token-or-rule: <token name or audit rule>
-    where: <file/component/area>
-    observation: <specific problem>
-    remediation-status: <open|in-progress|fixed|deferred>
-    recommendation: <specific fix>
-```
-
-- Write the explainer `07-design-audit.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-- Do not write the typed `07-design-audit.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../_fragment-authoring.md) Step F1.
-
-## Step — Write free narrative fragments
-
-Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
+- Write one `## Findings` row for each violation. Later stages read the severity of each finding from this table.

@@ -9,11 +9,8 @@
  * - Lint 00-index.md (warn only, never blocks): over 20 KB, YAML comment prose
  *   in the frontmatter, `current-stage:` outside the first 4000 characters.
  * - Run deep schema validation against tests/frontmatter.schema.json (native Ajv).
- * - Enforce sibling fragments: a rich-tier artifact `.md` written without its
- *   mandatory sibling `.yaml` BLOCKS (exit 2); see enforceSiblingFragments.
- * - Nudge (warn only, never blocks) when a stage agent file lands without its
- *   `<stem>.explainer.html.fragment`, and run the explainer check on a write
- *   to an explainer (see EXPLAINER_STEM_PATTERNS, lib/explainer-check.mjs).
+ * - Enforce sibling .yaml: a review, review-command, or plan `.md` written
+ *   without its sibling `.yaml` BLOCKS (exit 2); see enforceSiblingFragments.
  * - Silent exit 0 on success.
  * - Exit 2 + stderr when validation fails or a mandatory sibling .yaml is absent.
  *
@@ -30,7 +27,6 @@ import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { validateBrainstormBoardFile, validateFrontmatterFile, validateSiblingYamlFile, formatValidationErrors } from '../lib/schema-validator.mjs';
 import { findUncitedLimitationClaims, findUnmarkedSuppressions, findUnownedMechanisms } from '../lib/limitation-lexicon.mjs';
-import { checkExplainer, EXPLAINER_SUFFIX, isExplainerFragmentPath } from '../lib/explainer-check.mjs';
 import {
   collectToolInputPaths,
   hasFrontmatterFence,
@@ -47,64 +43,19 @@ import {
   resolveProjectPath,
 } from '../lib/hook-utils.mjs';
 
-// S-1 (2026-06-04): a fragment-owning artifact drives its structured +
-// interactive output from a sibling `.yaml` and `.html.fragment` co-located with
-// the artifact `.md`. Those siblings are easy to forget at write-time, and
-// nothing previously surfaced their absence — so in practice they were never
-// authored and every rich page fell back to plain prose.
-//
-// v9.41 (Gap B): v9.39.0 made fragment authoring MANDATORY for benchmark /
-// experiment / instrument / profile / simplify-run whenever their sibling YAML
-// is written, but this reminder still nudged only the original 5 rich-tier
-// types — so a skipped now-required fragment got no runtime signal (the S-1
-// failure, reintroduced). The set below is the effective *fragment* type for
-// every artifact that owns a contract. benchmark / experiment / instrument ride
-// `type: augmentation` with an `augmentation-type:` discriminator, which
-// `fragmentOwningType()` resolves below, so they are listed here by fragment
-// name rather than by their literal `type:`.
-//
-// v9.48 (coverage): added the three remaining agent-authored fragment-owning
-// types whose renderers degrade to renderSimple without a sibling but which the
-// gate previously ignored — `review-command` (the per-dimension review files
-// rendered by `review-dimension.mjs`), `design-audit`, and `design-critique`.
-// Entries are the literal frontmatter `type:` value (so review-dimension is
-// listed as `review-command`). The two automation-regenerable snapshots that
-// also render rich — `sync-report` (/wf status deep) and `docs-index` (/wf docs) —
-// are intentionally NOT gated: they are rewritten by automation each run, so a
-// hard block would wedge the regenerator rather than prompt an author.
-const RICH_TIER_TYPES = new Set([
-  'review', 'plan', 'design', 'ship-run', 'rca',
-  'benchmark', 'experiment', 'instrument', 'profile', 'simplify-run',
-  'review-command', 'design-audit', 'design-critique',
-  // v9.71 — craft's visual contract gains its own rich layer (02c-craft.yaml +
-  // .html.fragment, type: design-contract). Reverses the Gap-D "no interactive
-  // layer" call now that craft authors a coverage-grid fragment. Reminder-gated
-  // only; NOT in SIBLING_YAML_VALIDATED_TYPES (no real corpus to hard-validate yet).
-  'design-contract',
-]);
+// The types whose sibling `.yaml` agents read (v9.187.0,
+// VIEW-AUTHORING-REMOVAL-PLAN): `review` and `review-command` (the findings
+// ledger, _findings-ledger.md) and `plan` (files and edges, read by the master
+// `## Sibling Plans` table, the yolo bookkeeping agent, and the campaign wave
+// driver). Every other type writes no `.yaml`; its page renders from the `.md`.
+const RICH_TIER_TYPES = new Set(['review', 'review-command', 'plan']);
 
-// Types whose siblingYamlSchemas.<type> is reconciled to the live convention
-// AND validated against the real artifact corpus, so a present `.yaml` can be
-// hard-validated at write time without false-positives. CRITICAL: this hook
-// keys the schema by the `.md`'s `type:` (fragmentOwningType), NOT by the
-// `.yaml`'s own `artifact:` field — so a type belongs here only if some real
-// `.md` actually carries that `type:` AND its sibling `.yaml` validates against
-// that schema across the WHOLE corpus (never n=1). Per-dimension reviews are
-// `type: review-command` with an `artifact: review-dimension` sibling, so the
-// hook can never reach the review-dimension schema and it is intentionally
-// absent (its schema is still reconciled for other consumers, just not enforced
-// here).
-//
-// Validated against the real corpus across the registered repos (v9.66.0): plan
-// 12/12, review 3/3, design 1/1, simplify-run 1/1, ship-run 2/2. The other
-// types — description, rca, design-critique, design-audit, profile, benchmark,
-// experiment, instrument, sync-report — have no validatable sibling corpus (no
-// `.md`, or `.md` with zero siblings), so a guessed schema would arm a
-// write-time BLOCK on the first author. They join only when a real sibling
-// proves the schema. Gated by config.hooks.validateSiblingYaml.
-const SIBLING_YAML_VALIDATED_TYPES = new Set([
-  'plan', 'review', 'design', 'simplify-run', 'ship-run',
-]);
+// Types whose siblingYamlSchemas.<type> is validated at write time. The hook
+// keys the schema by the `.md`'s `type:` (fragmentOwningType), not by the
+// `.yaml`'s `artifact:` field. A per-dimension review is `type: review-command`
+// with an `artifact: review-dimension` sibling, so it is not validated here.
+// Gated by config.hooks.validateSiblingYaml.
+const SIBLING_YAML_VALIDATED_TYPES = new Set(['plan', 'review']);
 
 /**
  * Cheap frontmatter fragment-type read (avoids a full YAML parse for the
@@ -138,23 +89,16 @@ function fragmentEscaped(text) {
 }
 
 /**
- * Write-time sibling-fragment enforcement. When a rich-tier artifact `.md` lands:
- *   - missing its sibling `.yaml` — the load-bearing structured data the renderer
- *     gates the ENTIRE rich tier on — BLOCK (exit 2). Without it the page
- *     silently degrades to plain prose, so a soft reminder (shipped through
- *     v9.46) was empirically ignored and the rich tier stayed dark in
- *     production. The block forces authoring while the artifact is in context.
- *   - `.yaml` present but `.html.fragment` missing — non-blocking nudge. The
- *     fragment is the optional interactive layer; the page already renders rich
- *     from the YAML, so this stays a reminder, not a gate.
- * Opt out globally with `hooks.remindMissingFragments: false`; opt out a single
+ * Write-time sibling `.yaml` enforcement. When a RICH_TIER_TYPES `.md` lands
+ * without its sibling `.yaml`, BLOCK (exit 2): agents read that file, so a
+ * missing one breaks a later stage. The block forces the write while the
+ * artifact is in context. Opt out globally with `hooks.remindMissingFragments: false`; opt out a single
  * artifact with `fragment: none` in its frontmatter. A contract-compliant agent
  * writes the `.yaml` before the `.md`, so it never trips the block.
  */
 async function enforceSiblingFragments(paths, config) {
   if (config.hooks?.remindMissingFragments === false) return;
   const blocking = [];   // missing the mandatory .yaml — hard gate
-  const nudges = [];     // .yaml present, only .html.fragment missing — soft
   for (const path of paths) {
     if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
     const text = await readTextIfExists(path.absolute);
@@ -163,43 +107,21 @@ async function enforceSiblingFragments(paths, config) {
     if (fragmentEscaped(text)) continue;
     const stem = path.absolute.replace(/\.md$/, '');
     const fileStem = path.original.replace(/\\/g, '/').split('/').at(-1).replace(/\.md$/, '');
-    const hasYaml = existsSync(`${stem}.yaml`);
-    const hasFragment = existsSync(`${stem}.html.fragment`);
-    if (!hasYaml) {
-      const missing = [`${fileStem}.yaml`];
-      if (!hasFragment) missing.push(`${fileStem}.html.fragment`);
-      blocking.push({ rel: path.original, type, missing });
-    } else if (!hasFragment) {
-      nudges.push({ rel: path.original, type, missing: [`${fileStem}.html.fragment`] });
-    }
+    if (!existsSync(`${stem}.yaml`)) blocking.push({ rel: path.original, type, missing: [`${fileStem}.yaml`] });
   }
 
   if (blocking.length) {
     const lines = blocking.map((r) => `  - ${r.rel} (type: ${r.type}) — missing ${r.missing.join(' + ')}`);
     process.stderr.write(
-      `wf-postwrite-verify: rich-tier artifact written without its mandatory sibling .yaml:\n\n${lines.join('\n')}\n\n` +
-      'The sunflower view GATES the whole rich page (file-change topology, files-touched\n' +
-      'table, verdict heatmap, risk callouts, etc.) on the sibling .yaml — without it the\n' +
-      'page silently degrades to plain prose. Author the siblings NOW, while this artifact\n' +
-      'is still in context:\n' +
-      '  1. Write <stem>.yaml — the structured data (schema: siblingYamlSchemas.<type> in\n' +
-      '     plugins/sdlc-workflow/tests/frontmatter.schema.json).\n' +
-      '  2. Write <stem>.html.fragment — the body-only interactive layer.\n' +
-      'Full contract: plugins/sdlc-workflow/reference/fragment-author-contract.md.\n' +
-      'If this artifact legitimately has no structured data to project, set\n' +
-      '`fragment: none` in its frontmatter to opt out.\n',
+      `wf-postwrite-verify: artifact written without its mandatory sibling .yaml:\n\n${lines.join('\n')}\n\n` +
+      'Later stages read this .yaml: the review .yaml is the findings ledger, and the plan\n' +
+      '.yaml carries the files and edges that the sibling-plan table and the campaign read.\n' +
+      'Write <stem>.yaml NOW, while this artifact is still in context. The schema is\n' +
+      'siblingYamlSchemas.<type> in plugins/sdlc-workflow/tests/frontmatter.schema.json.\n' +
+      'If this artifact has no findings or no file changes, set `fragment: none` in its\n' +
+      'frontmatter to opt out.\n',
     );
     blockToolCall();
-  }
-
-  if (nudges.length) {
-    const lines = nudges.map((r) => `  - ${r.rel} (type: ${r.type}) — missing ${r.missing.join(' + ')}`);
-    outputSystemMessage(
-      `wf: rich-tier artifact(s) have their sibling .yaml but no .html.fragment:\n${lines.join('\n')}\n` +
-      'The page already renders rich from the .yaml; the .html.fragment only adds the ' +
-      'interactive layer (collapsible rows, filters, copy controls). Author it per ' +
-      'reference/fragment-author-contract.md if this artifact warrants interactivity.',
-    );
   }
 }
 
@@ -651,79 +573,6 @@ async function enforceIndexLint(paths, config) {
   outputSystemMessage(`wf: index lint (advisory):\n${lines.join('\n')}\nOpt out: hooks.indexLint: false.`);
 }
 
-// Explainer nudges (ARTIFACT-SPLIT-PLAN S2; _story-arc.md A1). Warn only.
-// The stems below are every stage template that says "Write the explainer to
-// <stem>.explainer.html.fragment" (grep skills/wf/reference for that line).
-// Not listed, so never nudged: 00-index.md, po-answers.md, 01-brainstorm.md
-// (brainstorm keeps `## The Brainstorm`), the 04-plan.md / 05-implement.md /
-// 06-verify.md masters (the templates name only the per-slice stems), history/
-// snapshots, and per-dimension review files (`type: review-command`).
-export const EXPLAINER_STEM_PATTERNS = Object.freeze([
-  /^01-(?:intake|fix|hotfix|refactor|update-deps|rca|discover|investigate|ideate|adopt|audit|task|simplify|profile)$/,
-  /^02-shape$/,
-  /^02c-craft$/,
-  /^03-slice(?:-.+)?$/,
-  /^04-plan-.+$/,
-  /^04b-instrument$/,
-  /^04c-experiment$/,
-  /^05-implement-.+$/,
-  /^05c-benchmark$/,
-  /^06-verify-.+$/,
-  /^07-review(?:-.+)?$/,
-  /^07-design-(?:audit|critique)$/,
-  /^08-handoff$/,
-  /^09-ship-run-.+$/,
-  /^10-retro$/,
-  /^99-close$/,
-]);
-
-const STAGE_FILE_RE = /(?:^|\/)\.ai\/(?:workflows\/[^/]+|simplify(?:\/[^/]+)*|profiles(?:\/[^/]+)*)\/([^/]+)\.md$/;
-
-/**
- * The explainer stem a stage agent file must carry, or null. `type` is the
- * file's frontmatter `type:` (a per-dimension review is `review-command`).
- */
-export function explainerStemFor(filePath, type = null) {
-  const normalized = normalizePathForMatch(filePath);
-  if (/(?:^|\/)history\//.test(normalized)) return null;
-  const m = STAGE_FILE_RE.exec(normalized);
-  if (!m) return null;
-  const stem = m[1];
-  if (!EXPLAINER_STEM_PATTERNS.some((re) => re.test(stem))) return null;
-  if (type === 'review-command') return null;
-  return stem;
-}
-
-async function enforceExplainerPresence(paths, config) {
-  if (config.hooks?.remindMissingFragments === false) return;
-  const missing = [];
-  for (const path of paths) {
-    const text = await readTextIfExists(path.absolute);
-    const stem = explainerStemFor(path.original, fragmentOwningType(text));
-    if (!stem) continue;
-    if (existsSync(path.absolute.replace(/\.md$/, EXPLAINER_SUFFIX))) continue;
-    missing.push(`Write the explainer ${stem}${EXPLAINER_SUFFIX} per _story-arc.md before you finish the stage.`);
-  }
-  if (!missing.length) return;
-  outputSystemMessage(`wf: ${missing.join('\n')}\nOpt out: hooks.remindMissingFragments: false.`);
-}
-
-async function lintExplainers(paths, config) {
-  if (config.hooks?.remindMissingFragments === false) return;
-  const lines = [];
-  for (const path of paths) {
-    const text = await readTextIfExists(path.absolute);
-    if (text === null) continue;
-    const { errs, warns } = checkExplainer(text, path.original);
-    for (const w of [...errs, ...warns]) lines.push(`  - ${path.original}: ${w}`);
-  }
-  if (!lines.length) return;
-  outputSystemMessage(
-    `wf: explainer check (advisory, rules in _story-arc.md):\n${lines.join('\n')}\n` +
-    'Opt out: hooks.remindMissingFragments: false.',
-  );
-}
-
 const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 export async function run(input) {
@@ -760,19 +609,11 @@ export async function run(input) {
     .filter(({ absolute }) => absolute && existsSync(absolute));
   if (boardPaths.length) await validateBrainstormBoards(boardPaths, config, schemaPath);
 
-  // A write to an explainer fragment gets the explainer check as a nudge.
-  const explainerPaths = collectToolInputPaths(input)
-    .filter((path) => isExplainerFragmentPath(path) && /(?:^|\/)\.ai\//.test(normalizePathForMatch(path)))
-    .map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) }))
-    .filter(({ absolute }) => absolute && existsSync(absolute));
-  if (explainerPaths.length) await lintExplainers(explainerPaths, config);
-
   if (!paths.length) return;
 
-  // Index lint and the explainer nudge warn only; they run before the schema
-  // pass so a warning is not lost when the schema check blocks.
+  // Index lint warns only; it runs before the schema pass so a warning is not
+  // lost when the schema check blocks.
   await enforceIndexLint(paths, config);
-  await enforceExplainerPresence(paths, config);
 
   const failures = [];
   for (const path of paths) {
@@ -792,8 +633,7 @@ export async function run(input) {
     // `verify` artifact whose `result: pass` contradicts its acceptance evidence
     // (may exit 2; warns on prose-only deferrals). Then validate present sibling
     // YAML shape (reconciled types only; may exit 2), then enforce sibling
-    // presence (blocks on a missing rich-tier .yaml, nudges on a missing
-    // .html.fragment; may exit 2).
+    // presence (blocks on a missing review or plan .yaml; may exit 2).
     await enforceVerifyResultGate(paths, config);
     await enforceIntakeLedgerLint(paths, config);
     await enforceNamedMechanismLint(paths, config);

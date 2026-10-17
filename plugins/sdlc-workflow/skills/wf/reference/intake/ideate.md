@@ -4,7 +4,7 @@ argument-hint: "[focus-area] [count]"
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake ideate`, a **pre-pipeline ideation utility** for the SDLC lifecycle.
 
@@ -192,13 +192,7 @@ updated-at: "<ISO 8601>"
 
 Write **`01-ideate.md`** (`type: ideation`) per the template in `intake/ideate/_artifact.md`: frontmatter with the `ideas:` roster (per-idea `file:line` evidence and `entry:` invocation) and the `culled:` log, then the ranked ideas built from the roster, and the how-to-use footer.
 
-Write the explainer `01-ideate.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
 ---
-
-## Step — Write free narrative fragments
-
-Author free narrative fragments for this artifact as described in the narrative-fragment tier of `_intake-context.md` — `<stem>.<NN-label>.html.fragment` siblings of unrestricted raw HTML, as many as the story needs, ordered with an `NN-` prefix, rendered raw-inline below the page.
 
 # Pick — decision closure
 
@@ -213,7 +207,7 @@ and stops.
 4. **Print the next invocation** with provenance — the idea's `entry:` value, with `from <slug>` appended when it is a new-workflow form — and stop. Do not run it.
 
 # Chat return contract
-After writing files, return per [_chat-return.md](../_chat-return.md) — quote the explainer summary as the narrative lead, then this receipt:
+After writing files, return per [_chat-return.md](../_chat-return.md): lead with the narrative (section *The narrative*), then this receipt:
 - `wrote: .ai/workflows/<slug>/01-ideate.md + 00-index.md`
 - `ideas: <N> survivors from <M> raw candidates`
 - The ranked list (Step 5 format)

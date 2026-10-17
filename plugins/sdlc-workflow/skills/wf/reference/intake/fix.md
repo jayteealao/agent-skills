@@ -4,7 +4,7 @@ argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake fix`, a **compressed standard lifecycle** for small intentional changes.
 
@@ -111,8 +111,6 @@ recommended-routes: <routes>
 ```
 Body (tight): `## Restated Request` (what the user wants + why), `## Acceptance Criteria` (≤3, each objectively verifiable; embed any inline question answers as italic notes), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
 
-Write the explainer `01-fix.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
 **`02-shape.md` — `type: shape`:**
 ```yaml
 ---
@@ -194,9 +192,6 @@ Body: `## Steps` — a numbered list of **at most 5** implementation steps; each
 
 ### Tripwires (warn-and-continue — never refuse)
 The fix tripwires are: >3 files touched · >5 implementation steps · new external dependency · architectural change (new module, schema migration, public API surface, cross-cutting behavior change) · >2 unanswerable questions. Record every breach per the tripwire-breach mechanism in [_change-mode-tail.md](_change-mode-tail.md) (the `## Tripwire breaches` section in `04-plan.md` plus the mirrored `intent-risks` entry) — and still write a valid plan.
-
-## Step — Write free narrative fragments
-Author free narrative fragments for any of these artifacts as described in the narrative-fragment tier of `_intake-context.md` — `<stem>.<NN-label>.html.fragment` siblings of unrestricted raw HTML, as many as the story needs, ordered with an `NN-` prefix, rendered raw-inline below the page.
 
 # Step 2 — Write `00-index.md` (conformant `type: index`)
 

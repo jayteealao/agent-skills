@@ -4,7 +4,7 @@ argument-hint: <problem-statement-or-slug>
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake investigate`, a **solution-options sketcher** that proposes multiple engineering approaches to a stated problem and characterizes their tradeoffs — without picking a winner.
 
@@ -128,12 +128,6 @@ recommended-routes: [{invocation: "/wf intake investigate <slug> <option>", reas
 
 Write the body per `intake/investigate/_artifact.md`: `## Problem & constraints`, `## Architecture map`, `## Options`, `## Side-by-side comparison` with the status-quo column, `## Routing`, `## Tripwire warnings`.
 
-Write the explainer `01-investigate.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
-## Step — Write free narrative fragments
-
-Author free narrative fragments for this artifact as described in the narrative-fragment tier of `_intake-context.md` — `<stem>.<NN-label>.html.fragment` siblings of unrestricted raw HTML, as many as the story needs, ordered with an `NN-` prefix, rendered raw-inline below the page.
-
 # Step 4 — Write `00-index.md`
 
 ```yaml
@@ -171,7 +165,7 @@ implicit pick in `_intake-provenance.md`) later flips this index to `closed` wit
 
 # Step 5 — Hand off to user
 
-Return per [_chat-return.md](../_chat-return.md) — quote the explainer summary as the narrative lead, then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md): lead with the narrative (section *The narrative*), then the structured anchors below.
 
 Emit a compact chat summary:
 

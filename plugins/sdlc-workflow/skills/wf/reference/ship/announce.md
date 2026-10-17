@@ -164,10 +164,6 @@ Read `<latest-run-path>` frontmatter. Update ONLY:
 
 Do not change any other field. This closes the ship→announce loop: the run artifact records which channels received the announcement, visible to retro analysis. If the legacy `09-ship.md` was used instead of a run artifact, skip this step.
 
-## Step — Write free narrative fragments
-
-Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
-
 # Step 6 — Update index
 
 Read `00-index.md` frontmatter. Update ONLY:

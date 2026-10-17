@@ -10,7 +10,7 @@ argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|re
 You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per key. Identify the key, load `reference/<key>.md`, and follow it. Three contracts bind every key and every sub-agent you spawn:
 
 - Apply [_output-boundary.md](reference/_output-boundary.md) to every external-facing output.
-- Write every text per [_ste-procedural.md](reference/_ste-procedural.md). Write explainers and chat narratives per [_story-arc.md](reference/_story-arc.md). A reference's own writing spec adds to this contract and never replaces it.
+- Write every text per [_ste-procedural.md](reference/_ste-procedural.md). Write chat narratives per [_chat-return.md](reference/_chat-return.md). A reference's own writing spec adds to this contract and never replaces it.
 - Read [_host-invocation.md](reference/_host-invocation.md) first and apply its host contract to every reference you load. Under Codex or pi, `yolo` ends at Step 0 with the redirect to `/wf auto <slug>` that file prescribes; do not load `reference/yolo.md`.
 - Before a stage artifact write, read its `## Requires` inputs per [_requires.md](reference/_requires.md).
 
@@ -116,5 +116,5 @@ Next: <one concrete invocation, or "Done">
 
 - Name the key and the scope on the first line.
 - `Artifacts` lists every path this run wrote. Read-only keys write `none`; `status` may still reconcile `INDEX.md` and `recap` writes `90-recap.md`, so name those.
-- Write the narrative per [_story-arc.md](reference/_story-arc.md) rule A6. Omit it only for a read-only run with nothing to narrate. A reference that says to return only a receipt names the receipt's fields; it does not waive this narrative.
+- Write the narrative per [_chat-return.md](reference/_chat-return.md) section *The narrative*. Omit it only for a read-only run with nothing to narrate. A reference that says to return only a receipt names the receipt's fields; it does not waive this narrative.
 - `Next` is one invocation, or `Done` after `ship`, `retro`, or `close`. Paths under `.ai/` are allowed in this block; outside it the output boundary applies.

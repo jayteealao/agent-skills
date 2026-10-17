@@ -73,7 +73,7 @@ Then STOP — do not continue to the full review workflow.
 Apply [_workflow-rules.md](../_workflow-rules.md). Review-specific: the review files are an accumulating ledger — merge in place, never overwrite.
 
 # Chat return contract
-After writing files, return per [_chat-return.md](../_chat-return.md). Quote the explainer's summary paragraph as the narrative lead, then give this receipt:
+After writing files, return per [_chat-return.md](../_chat-return.md). Lead with the narrative per that file (section *The narrative*), then give this receipt:
 - `slug: <slug>`
 - `wrote: <paths>` (list all review files written)
 - `verdict: <Ship / Ship with caveats / Don't Ship>`
@@ -201,21 +201,13 @@ Write (merge into) the master artifact. Filename depends on `review-scope`: **pe
 
 When the file already exists, **edit in place** — preserve sections not changing (especially `## Triage Decisions` rows not re-triaged), update finding rows by ID, append net-new findings in severity-sorted position, mark resolved findings, and **append one entry to `runs:`**. Never overwrite the file wholesale.
 
-# Step 5a: Write the explainer
-
-Write the explainer `07-review[-<slice-slug>].explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
 # Step 5b: Write the rich `.yaml` (do not skip)
 
-For each review `.md` written, write the sibling `<stem>.yaml` (`siblingYamlSchemas.review`; `findings:` and `counts:` = OPEN findings only; bump `rev:` each run) per [_artifact.md](_artifact.md) Step 5b. Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../_fragment-authoring.md) Step F1. Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) **BLOCKS the `.md` write when the sibling `.yaml` is missing** — author the `.yaml` first (or in the same turn) while findings are in context.
+For each review `.md` written, write the sibling `<stem>.yaml` (`siblingYamlSchemas.review`; `findings:` and `counts:` = OPEN findings only; bump `rev:` each run) per [_artifact.md](_artifact.md) Step 5b. Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`. Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) **BLOCKS the `.md` write when the sibling `.yaml` is missing** — author the `.yaml` first (or in the same turn) while findings are in context.
 
 # Step 5c: Write per-dimension rich `.yaml` (do not skip)
 
 Each per-dimension file (`07-review-<command>.md` slug-wide, `07-review-<slice-slug>-<command>.md` per-slice) needs its own `<stem>.yaml` (`siblingYamlSchemas.review-dimension`). The Step-3 review sub-agent authors it; confirm every per-dimension `.md` has its `.yaml` (or `fragment: none` for a clean dimension) and author any the sub-agent missed, per [_artifact.md](_artifact.md) Step 5c.
-
-## Step — Write free narrative fragments
-
-Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 # Step 6: Update Index and Return
 

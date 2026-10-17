@@ -4,7 +4,7 @@ argument-hint: <concern> [paths…] | <slug> (re-run) | lenses=<a>,<b> override
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake audit`, a **subsystem defect hunt**. It exists for the request every adjacent surface refuses: review existing code for bugs, wrong assumptions, and mistakes when there is no symptom (`rca` needs one), no stated hypothesis (`discover` needs one), no decided problem (`investigate` needs one), and no diff (the review stage needs one). The output is an **accumulating findings ledger** — the same `07-review*` family the review stage owns, governed by the same merge law.
 
@@ -113,16 +113,11 @@ A plausible-but-wrong finding costs more here than in the review stage — nobod
 
 Write the `07-review*` family under `.ai/workflows/<slug>/`, applying [_findings-ledger.md](../_findings-ledger.md) in full — within-run dedupe, cross-run reconcile against any prior ledger, resolve-sweep for re-run lenses, `runs:` append, full merged set emitted. Timestamps per [_timestamp.md](../_timestamp.md).
 
-1. **Per-lens files** — `07-review-<lens>.md`, `type: review-command`, `review-scope: slug-wide`, the same frontmatter/metric shape the review stage's dimension files carry. Author the sibling `.yaml` (schema `siblingYamlSchemas.review-dimension`; OPEN findings only) per [_fragment-authoring.md](../_fragment-authoring.md) Step F1, and no typed `.html.fragment` (the renderer generates it) — the managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) BLOCKS a `type: review-command` write without its sibling `.yaml`; a clean lens sets `fragment: none` instead.
+1. **Per-lens files** — `07-review-<lens>.md`, `type: review-command`, `review-scope: slug-wide`, the same frontmatter/metric shape the review stage's dimension files carry. Author the sibling `.yaml` (schema `siblingYamlSchemas.review-dimension`; OPEN findings only), and no typed `.html.fragment` (the renderer generates it) — the managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) BLOCKS a `type: review-command` write without its sibling `.yaml`; a clean lens sets `fragment: none` instead.
 2. **Master ledger** — `07-review.md`, `type: review`, `review-scope: slug-wide`, with `## All Findings`, `## Findings (Detailed)`, `## Refuted` (this mode's addition — candidate, killing refutation, refuter lens), `## Triage Decisions` (routes recorded in Step 6), and a verdict line stating ledger state, not shippability: `N open / N resolved / N refuted across <lenses>`. Sibling `.yaml` per the review shape.
-2a. Write the explainer `07-review.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 3. **Edits are additive** per [_additive-write.md](../_additive-write.md) — a re-run edits in place and appends; it never rewrites history.
 4. **`01-audit.md`** (`type: intake`, satisfies the intake required set: `status: complete`, `stage-number: 1`, `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`, `recommended-routes` from Step 6) carries the brief under fixed headings: `## Concern` (exact), `## Surface` (with counts), `## Exclusions` (with reasons), `## Lenses` (with reasons), `## Not observable` (what static reading could not decide), and `## Surface revisions` (the re-run log).
-4a. Write the explainer `01-audit.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 5. **`00-index.md`** (`type: workflow-index`) — `workflow-type: audit`, `status: active` (an audit stays open for accumulating re-runs), `current-stage: audit`, `review-scope: slug-wide`, `branch-strategy: none`, progress map `{audit: complete}`, `recommended-routes` from Step 6. Register the row in `.ai/workflows/INDEX.md` per `_intake-context.md`.
-
-## Step — Write free narrative fragments
-Author free narrative fragments for any artifact as described in the narrative-fragment tier of `_intake-context.md` — a surface map, a findings heatmap, a refutation flow — as many as the story needs.
 
 # Step 6 — Route (terminal; route-don't-fix)
 
@@ -141,7 +136,7 @@ Do not fix anything. Do not open a fix loop. Each accepted finding seeds its **o
 
 # Chat return
 
-Return per [_chat-return.md](../_chat-return.md) — quote the `01-audit` explainer summary as the narrative lead, then:
+Return per [_chat-return.md](../_chat-return.md). Lead with the narrative per *The narrative* in that file, then:
 
 ```
 wf intake audit complete: <slug>

@@ -218,12 +218,11 @@ test('W5.3 — handoff reconciles a stale roster instead of reporting "no implem
 
 // ── W6 — ship artifact ceremony ─────────────────────────────────────────────
 
-test('W6.1 — Step Z inlines the ship-run sibling schema instead of citing a path', () => {
+test('W6.1 — the ship-run writes no sibling .yaml (v9.187.0)', () => {
   for (const { name, root } of trees) {
     const src = ref(root, 'ship/_run-artifact.md');
-    assert.match(src, /\*\*Required top-level keys:\*\* `release`, `run_at`, `stages`, `checks`, `rollback`/,
-      `${name}: the ship-run required fields are no longer inlined`);
-    assert.match(src, /artifact: ship-run/, `${name}: the minimal valid skeleton is gone`);
+    assert.ok(!/Step Z/.test(src), `${name}: the ship-run still names Step Z`);
+    assert.ok(!/09-ship-run-<run-id>\.yaml/.test(src), `${name}: the ship-run still writes its .yaml`);
   }
 });
 

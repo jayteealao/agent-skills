@@ -166,11 +166,9 @@ from `01-intake.md` (Known Constraints, Restated Request, Risks-if-Misunderstood
 One row per intake **Known Constraint / directive** and per numbered item of the Restated Request: `directive | disposition (honored / narrowed / dropped) | how | authority`. A `narrowed` row needs `authority`: a quoted PO answer whose **scope covers the requirement** (the scope-of-authority rule of [_question-craft.md](_question-craft.md)) or a PO ratification in this stage. A **`dropped` row needs a gate-question ratification in this stage** ([_gate-question.md](_gate-question.md)), because a drop is always a fresh decision; cite the new `po-answers.md` entry. "Consequence of another answer" is NOT authority: ask the PO one more question. When `00-index.md` records `origin-items`, add one row per carried brainstorm decision, its key and text word for word (`intake/_packet.md`); then set `state: routed` on its piece in the origin board and on its packet.
 
 # Step 10 — Write the artifacts
-Write `.ai/workflows/<slug>/02-shape.md` per `# Artifacts` below. If Step 5a applied, also write `.ai/workflows/<slug>/02b-design.md`; its structure and sibling `.yaml` are defined in [design/shape.md](design/shape.md).
-Write the explainer `02-shape.explainer.html.fragment` per [_story-arc.md](_story-arc.md). It names the highest-severity RIM carried from intake and how shape disposed of it.
-
+Write `.ai/workflows/<slug>/02-shape.md` per `# Artifacts` below. If Step 5a applied, also write `.ai/workflows/<slug>/02b-design.md`; its structure is defined in [design/shape.md](design/shape.md).
 # Chat return contract
-After writing files, return per [_chat-return.md](_chat-return.md): quote the explainer summary as the narrative lead, then this receipt:
+After writing files, return per [_chat-return.md](_chat-return.md). Lead with the narrative (section *The narrative*). Name the highest-severity RIM from intake and how shape disposed of it. Then give this receipt:
 - `slug: <slug>`
 - `wrote: <path>`
 - `fidelity:` — REQUIRED. The Intake Fidelity + RIM outcome in one line: `<n> honored · <m> narrowed (each: directive → authority) · <k> dropped (each: directive → authority) · RIMs: <a> adjudicated, <b> carried`; all-clear form: `fidelity: all directives honored; all RIMs adjudicated`.
@@ -236,10 +234,8 @@ Body sections, in order:
 - `## Augmentation Plan` (required even when none): per flagged augmentation — **instrument** → signals and dark paths (`plan` folds signal design in; `implement` wires it); **experiment** → hypothesis, mechanism (A/B / flag / canary), metrics + rollback; **benchmark** → what to measure and the perf budget (`verify` compares against the tripwires); **profile** → the hotspot. If none: "None required — [reason]" and `augmentations-needed: []`.
 - `## Freshness Research`: Source / Why it matters / Takeaway per entry.
 
-Author free narrative fragments for any beat the structured page cannot tell, per [_fragment-authoring.md](_fragment-authoring.md) Step F2 (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
-
 # Additive-write contract
 `02-shape.md` is a revisable artifact. When `/wf shape` re-runs on a slug that already has one, follow [_additive-write.md](_additive-write.md): snapshot, rewrite the body to current truth (do not stack `## Revision N` sections), and add one ledger entry.
-- Snapshot: `.ai/workflows/<slug>/history/02-shape-<rev>.md` (sibling `02-shape.yaml` per the shared YAML rule).
+- Snapshot: `.ai/workflows/<slug>/history/02-shape-<rev>.md` (snapshot a sibling `02-shape.yaml` only when one exists from an older run).
 - Ledger entry: `trigger: scope-change` (or `answers-returned` when the reshape resolves open questions), `because:` naming what prompted the reshape, `changed:` naming what moved in the spec.
 - `regenerable: true` applies only when `/wf shape` wraps an auto-derived shape (post-amendment regeneration); then there is no ledger entry. History view paths are stable (`<slug>/shape/history/<rev>/INDEX.html`).

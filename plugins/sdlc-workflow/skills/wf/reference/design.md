@@ -13,8 +13,6 @@ You are running `/wf design`. It has three jobs:
 2. **The design record.** The project-level design memory: identity, system, current design, direction. [design/record.md](design/record.md) defines it and its upkeep commands.
 3. **On-demand design review.** `audit` and `critique` run the same logic as the `design-audit` and `design-critique` review dimensions.
 
-> **Narrative fragments.** Any artifact may ship free narrative fragments — a token swatch board, an annotated drawing, a live component preview. Rules: [_fragment-authoring.md](_fragment-authoring.md) Step F2.
-
 ## Requires
 
 Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
@@ -109,7 +107,7 @@ Emit the summary last, per [design/_output.md](design/_output.md) Step 6:
 ```
 wf design <job> complete: <slug-or-"freestanding">
 
-<Narrative — quote the explainer summary, per _story-arc.md A6.>
+<Narrative — lead with the narrative per _chat-return.md, section The narrative.>
 
 Register: <brand|product>
 Image gate: <pass | skipped:<reason> | n/a>

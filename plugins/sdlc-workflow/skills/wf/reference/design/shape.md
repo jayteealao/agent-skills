@@ -111,24 +111,7 @@ just the conceptual state of an unwritten gate.)
 When `shape` runs this procedure (`../shape.md` Step 5a):
 - Write the brief to `.ai/workflows/<slug>/02b-design.md` (type `design`), with
   `recommended-references:` populated and **no** resolved `image-gate` (it stays unresolved for the design stage).
-- Write the sibling `02b-design.yaml` (see below).
 - Leave `00-index.md` `current-stage: shape` (the brief is part of shape).
 - Continue the normal shape flow (documentation plan, routing). Shape routes to `/wf design <slug>`;
   the design stage reads `02b-design.md`, resolves the direction gates with the person, and authors
   the visual contract `02c-craft.md`.
-
-## Step — Write the rich `.yaml` for `02b-design.md` (do not skip)
-
-The sunflower view renders the design page from a sibling `.yaml` written next to
-`02b-design.md`. **Without the `.yaml` the page silently degrades to plain prose**:
-the swatch matrix, the token table, and the annotated specs never appear
-(`design.mjs` gates the rich body on the sibling YAML). Managed-artifact enforcement
-([_host-invocation.md](../_host-invocation.md)) blocks the `.md` write if you forget;
-write it here, now.
-
-For the `02b-design.md` you just wrote, write the sibling **`02b-design.yaml`**, the
-structured data: `component:`, `themes:`, `states:`, `sizes:` (id, height, padx,
-pady), `tokens:` (name, category, value), `specs:` (reference, annotate). Schema:
-`siblingYamlSchemas.design` in `tests/frontmatter.schema.json`. Do not write the
-typed `02b-design.html.fragment`: the renderer generates it from the `.yaml`, per
-[_fragment-authoring.md](../_fragment-authoring.md) Step F1.

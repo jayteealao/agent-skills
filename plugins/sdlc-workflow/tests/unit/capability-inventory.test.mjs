@@ -187,7 +187,7 @@ test('measure-load: 24 keys, core ⊆ instructed ⊆ referenced, targets derive 
 
 test('tests/helpers/capabilities.mjs answers per-file and tree-wide lookups', () => {
   assert.ok(hasCapability('*', 'invocations', '/wf intake fix'));
-  assert.ok(hasCapability('*', 'fields', 'status:')); // W4: the rubric `args:` block retired with the 11-rubric shape
+  assert.ok(hasCapability('*', 'fields', 'class:')); // 9.187.0: `status:` left with the viewer-only .yaml schemas
   const stops = capabilitiesOf('skills/wf/reference/plan.md', 'stops');
   assert.ok(stops.length > 0);
   assert.ok(hasCapability('skills/wf/reference/plan.md', 'stops', stops[0]));

@@ -37,7 +37,6 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | Input | Kind | When | Sections |
 |---|---|---|---|
 | `augment/profile/_artifact.md` | procedure | always | |
-| `_story-arc.md` | procedure | always | |
 | `/.ai/profiles/*/01-profile.md` | writes | | |
 
 # Core discipline
@@ -160,13 +159,9 @@ Then write the frontmatter `recommended-routes`. Pick the default from this tabl
 | Hotspots found but no clear improvement path | Run dynamic profiling with `<tool>` to get runtime data before deciding |
 | No significant hotspots found | Domain appears healthy — consider profiling a different area or accepting current performance |
 
-# Step 4a — Write the explainer
-
-Write the explainer `01-profile.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
 # Step 5 — Hand off to user
 
-Return per [_chat-return.md](../_chat-return.md) — a narrative lead that quotes the explainer's summary paragraph, then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md). Lead with the narrative (section *The narrative*), then the structured anchors below.
 
 Emit a compact chat summary:
 
@@ -201,13 +196,3 @@ Artifact: .ai/profiles/<run-id>/01-profile.md
 - **Not a workflow stage** — profiling results do not advance any workflow. They are inputs to a decision about which workflow to start next.
 - **Not a substitute for APM** — it cannot see distributed traces, database query plans, or real production traffic without external tooling.
 - **Not a full call-graph profiler** — it cannot see OS-level context switches or kernel time without external instrumentation.
-
----
-
-## Step — Sibling YAML `profile`
-
-Write the sibling `01-profile.yaml` per [profile/_artifact.md](profile/_artifact.md) → *Sibling YAML*.
-
-## Step — Write free narrative fragments
-
-Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

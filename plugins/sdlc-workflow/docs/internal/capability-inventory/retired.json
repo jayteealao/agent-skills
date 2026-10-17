@@ -532,5 +532,317 @@
     "reason": "ARTIFACT-SPLIT-PLAN R7/W5: the renderer generates the typed `<stem>.html.fragment` from the sibling `.yaml` (_fragment-authoring.md Step F1), so references no longer tell agents to hand-write it; the hand-authoring pointers to the fragment author contract were deleted with the rules they served.",
     "release": "9.173.1",
     "category": "citations"
+  },
+  {
+    "entry": "01-consult.html.fragment",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/consult/SKILL.md"
+  },
+  {
+    "entry": "05c-benchmark.yaml",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/augment/benchmark.md"
+  },
+  {
+    "entry": "04c-experiment.yaml",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/augment/experiment.md"
+  },
+  {
+    "entry": "04b-instrument.yaml",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/augment/instrument.md"
+  },
+  {
+    "entry": "01-profile.yaml",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/augment/profile.md"
+  },
+  {
+    "entry": "07-design-audit.html.fragment",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/design/audit.md"
+  },
+  {
+    "entry": "07-design-audit.yaml",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/design/audit.md"
+  },
+  {
+    "entry": "02c-craft.html.fragment",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/design/contract.md"
+  },
+  {
+    "entry": "02c-craft.yaml",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/design/contract.md"
+  },
+  {
+    "entry": "07-design-critique.html.fragment",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/design/critique.md"
+  },
+  {
+    "entry": "07-design-critique.yaml",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/design/critique.md"
+  },
+  {
+    "entry": "02b-design.html.fragment",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/design/shape.md"
+  },
+  {
+    "entry": "02b-design.yaml",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/design/shape.md"
+  },
+  {
+    "entry": "08b-docs-index.yaml",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/docs.md"
+  },
+  {
+    "entry": "09-ship-run-<X>.yaml",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/ship.md"
+  },
+  {
+    "entry": "09-ship-run.md",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/ship.md"
+  },
+  {
+    "entry": "01-simplify.yaml",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/simplify.md"
+  },
+  {
+    "entry": "00-sync.yaml",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the stage no longer writes this viewer-only file (sibling .yaml or .html.fragment). No agent read it; the page renders from the .md.",
+    "release": "9.187.0",
+    "category": "artifacts",
+    "file": "skills/wf/reference/status.md"
+  },
+  {
+    "entry": "anti-patterns:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "based-on:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "chain:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "comparisons:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "component:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "contract:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "direction:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "docs:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "flag:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "heatmap:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "history:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "hotspot:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "incident:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "kind:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "lanes:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "module:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "modules:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "role:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "sizes:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "specs:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "states:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "status:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "summary:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "themes:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "timeline:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "title:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "tokens:",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: the viewer-only .yaml schemas (rca, design, design-contract, design-audit, design-critique, ship-run, sync, docs-index, augmentations) left the prompts, and the plan .yaml is reduced to files, edges and risks.",
+    "release": "9.187.0",
+    "category": "fields"
+  },
+  {
+    "entry": "reference/artifact-interop.md",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: _story-arc.md and _fragment-authoring.md are deleted; the authoring steps that cited them and the narrative-fragment docs are gone. The chat rules are in _chat-return.md (The narrative).",
+    "release": "9.187.0",
+    "category": "citations"
+  },
+  {
+    "entry": "reference/narrative-fragments.md",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: _story-arc.md and _fragment-authoring.md are deleted; the authoring steps that cited them and the narrative-fragment docs are gone. The chat rules are in _chat-return.md (The narrative).",
+    "release": "9.187.0",
+    "category": "citations"
+  },
+  {
+    "entry": "skills/wf/reference/_fragment-authoring.md",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: _story-arc.md and _fragment-authoring.md are deleted; the authoring steps that cited them and the narrative-fragment docs are gone. The chat rules are in _chat-return.md (The narrative).",
+    "release": "9.187.0",
+    "category": "citations"
+  },
+  {
+    "entry": "skills/wf/reference/_story-arc.md",
+    "reason": "VIEW-AUTHORING-REMOVAL-PLAN: _story-arc.md and _fragment-authoring.md are deleted; the authoring steps that cited them and the narrative-fragment docs are gone. The chat rules are in _chat-return.md (The narrative).",
+    "release": "9.187.0",
+    "category": "citations"
   }
 ]

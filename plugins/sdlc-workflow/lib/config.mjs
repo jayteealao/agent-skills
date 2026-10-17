@@ -69,8 +69,8 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
     costLedger: true,
     validateOnWrite: true,
     verifyOnWrite: true,
-    // When true, post-write-verify BLOCKS a rich-tier .md written without its
-    // mandatory sibling .yaml (and nudges on a missing .html.fragment). Opt out
+    // When true, post-write-verify BLOCKS a review, review-command, or plan .md
+    // written without its sibling .yaml, which later stages read. Opt out
     // globally here, or per-artifact with `fragment: none` in its frontmatter.
     remindMissingFragments: true,
     // When true, post-write-verify validates a present sibling .yaml against

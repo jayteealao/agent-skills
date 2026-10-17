@@ -4,7 +4,7 @@ argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md`: the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Apply `intake/_intake-context.md`: the External Output Boundary, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake rca`, a **root-cause analysis workflow** that investigates an issue and recommends the right downstream command, without writing a fix.
 
@@ -38,7 +38,6 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `intake/_intake-provenance.md` | procedure | always | |
 | `intake/rca/_research.md` | procedure | always | |
 | `intake/rca/_artifact.md` | procedure | always | |
-| `intake/rca/_view.md` | procedure | always | |
 | `_compressed-slice.md` | procedure | mode:slug | |
 | `01-rca.md` | writes | | |
 | `02-shape.md` | writes | | |
@@ -100,10 +99,6 @@ next-invocation: "/wf intake rca <slug> <route>"
 recommended-routes: [{invocation: "/wf intake rca <slug> <route>", reason: "<one phrase>", default: true}]
 ---
 ```
-
-# Step 3a — Write the explainer
-
-Write the explainer `01-rca.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 # Step 4 — Synthesize `02-shape.md`
 
@@ -179,13 +174,9 @@ updated-at: <timestamp>
 
 Body: one-line description + a short pointer to `01-rca.md` and the routing recommendation. No `selected-slice`: an rca has no slice roster, and a key naming a slice that never exists misleads every reader. `progress` is the stage→status **object** form; the renderer silently drops a YAML list.
 
-## Step 5b — Write the rich `.yaml` (do not skip)
-
-Author the sibling `01-rca.yaml` (diagnosis set: `incident:`, `title:`, `chain:`, `timeline:`; the resolution set and `heatmap:` only for a post-incident RCA) per `intake/rca/_view.md`, which also holds the optional `five_whys[]` block. Without the `.yaml` the page degrades to plain prose. Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../_fragment-authoring.md) Step F1.
-
 # Step 6 — Hand off to user
 
-Return per [_chat-return.md](../_chat-return.md): quote the explainer summary as the narrative lead, then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md): lead with the narrative (section *The narrative*), then the structured anchors below.
 
 ```
 wf intake rca complete: <slug>
@@ -226,7 +217,3 @@ Runs only from Step 0 route mode (`/wf intake rca <slug> <plan|fix|hotfix|human-
 - **Not a fixer**: `/wf intake rca` produces an RCA artifact and a routing recommendation. It does not edit application code, run mutating commands, commit, push, or open a PR.
 - **Not a hotfix**: `/wf intake hotfix` is what you run *after* `/wf intake rca` recommends it. `/wf intake rca` decides whether the situation warrants the hotfix path.
 - **Not an explainer**: `/wf recap <slug> <focus>` (or a plain research conversation outside `/wf`) explains existing code or artifacts on demand. `/wf intake rca` is for *finding* a cause that is not yet explained.
-
-## Step — Write free narrative fragments
-
-Author free narrative fragments for this artifact as described in the narrative-fragment tier of `_intake-context.md`: `<stem>.<NN-label>.html.fragment` siblings of unrestricted raw HTML, as many as the story needs, ordered with an `NN-` prefix, rendered raw-inline below the page.

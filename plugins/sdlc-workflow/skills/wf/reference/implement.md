@@ -40,7 +40,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `05c-benchmark.md` | artifact | if-present | |
 | `implement/_artifact.md` | procedure | always | |
 | `implement/_research.md` | procedure | always | |
-| `_story-arc.md` | procedure | always | |
 | `design/_design-context.md` | procedure | mode:ui | |
 | `implement/_reviews-mode.md` | procedure | mode:reviews | |
 | `07-review-<slice>.md` | artifact | mode:reviews | |
@@ -134,7 +133,7 @@ When this slice builds UI, the build is held to the design floor in [design/_des
 
 # Chat return contract
 
-After writing files, return per [_chat-return.md](_chat-return.md): a narrative lead that quotes the explainer's summary paragraph, then this receipt:
+After writing files, return per [_chat-return.md](_chat-return.md). Lead with the narrative per that file (section *The narrative*), then give this receipt:
 - `slug: <slug>`
 - `wrote: <paths>` (per-slice file + master update)
 - `options:` (all viable next options per Adaptive routing)
@@ -149,7 +148,6 @@ Do this in order:
 6. Update tests, docs, types, configs, or migrations only where required for this slice.
 7. Summarize the exact change set.
 8. **Write `05-implement-<slice-slug>.md`** per [implement/_artifact.md](implement/_artifact.md). Ground the record per [_grounded-progress.md](_grounded-progress.md): every `## Verification Seams Built` and `## Visual Contract Honored` entry cites a file:line you **re-opened after editing**, not memory of your own edits.
-8a. Write the explainer `05-implement-<slice-slug>.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
 9. **Write or update `05-implement.md`** (master index, same file).
 10. **Evaluate adaptive routing.** Write ALL viable options into frontmatter `recommended-routes`.
 11. Update `00-index.md` and add files to `workflow-files`. Do not edit the slice or plan files; their `refs:` already name this record. **Then write the slice's status back to the roster**: `03-slice.md`'s `slices:` entry for `<slice-slug>` gets `status: in-progress`. Implement writes only `in-progress`. `/wf verify` is the one writer of `complete` (yolo only mirrors it), and `close.md` Step S3 is the one writer of `skipped`. Set only this slice's entry; do not touch siblings and do not renumber. Change-modes (`fix` / `hotfix` / `refactor` and any single-scope workflow) write an un-suffixed one-slice `03-slice.md`; the same rule applies to its single entry. A workflow with no `03-slice.md` at all (a forwarded `rca`) has no roster to update; skip silently.

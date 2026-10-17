@@ -156,12 +156,6 @@ Write `.ai/workflows/<slug>/03-slice-probe-<descriptor>.md` from the frontmatter
 
 A slug-less sweep writes `.ai/surface-sweep-<utc-date>.md` from the sweep template in the same file.
 
-Write the explainer `03-slice-probe-<descriptor>.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
-
-## Step — Write free narrative fragments
-
-Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
-
 # Step 7 — Clear deferrals (when applicable)
 
 If `runtime-evidence-deferrals` in `00-index.md` contains entries whose `cleared-by: null` and whose `slice` appears in `target-resolution.matched-slices`:
@@ -190,7 +184,7 @@ Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progres
 
 # Step 9 — Hand off to user
 
-Quote the explainer's summary paragraph as the narrative lead, then give the structured anchors below. Emit a compact chat summary:
+Lead with the narrative per [_chat-return.md](_chat-return.md) (section *The narrative*). Then give the structured anchors below. Emit a compact chat summary:
 
 ```
 wf probe complete: <slug>

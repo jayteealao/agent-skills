@@ -55,7 +55,6 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `04-plan-*.md` | artifact | if-present | |
 | `05c-benchmark.md` | artifact | mode:compare | |
 | `augment/benchmark/_artifact.md` | procedure | always | |
-| `_story-arc.md` | procedure | always | |
 | `05c-benchmark.md` | writes | | |
 
 # Measurement discipline
@@ -122,10 +121,6 @@ If benchmarks fail to run (missing dependency, build error, missing test fixture
 
 Write `05c-benchmark.md` with the baseline frontmatter and body sections in [benchmark/_artifact.md](benchmark/_artifact.md) → *Baseline Step 3*.
 
-## Baseline Step 3a — Write the explainer
-
-Write the explainer `05c-benchmark.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
 ## Baseline Step 4 — Update `00-index.md` augmentations registry
 
 Add to `augmentations:` list:
@@ -170,11 +165,11 @@ For each measured target, calculate:
 
 ## Compare Step 4 — Update `05c-benchmark.md` with comparison data
 
-Add the `## Comparison Results` section and the comparison frontmatter per [benchmark/_artifact.md](benchmark/_artifact.md) → *Compare Step 4*. Do not overwrite baseline data. Rewrite the explainer with the verdict.
+Add the `## Comparison Results` section and the comparison frontmatter per [benchmark/_artifact.md](benchmark/_artifact.md) → *Compare Step 4*. Do not overwrite baseline data.
 
 # Step 5 — Hand off to user
 
-**Baseline mode summary.** Return per [_chat-return.md](../_chat-return.md) — a narrative lead that quotes the explainer's summary paragraph, then the structured anchors:
+**Baseline mode summary.** Return per [_chat-return.md](../_chat-return.md). Lead with the narrative (section *The narrative*), then the structured anchors:
 ```
 wf-benchmark baseline complete: <slug>
 Language: <language>, framework: <framework>
@@ -185,7 +180,7 @@ Re-baseline: re-run `plan` (it re-authors the baseline), or load this file in ba
 Artifact: .ai/workflows/<slug>/05c-benchmark.md
 ```
 
-**Compare mode summary.** Return per [_chat-return.md](../_chat-return.md) — a narrative lead that quotes the explainer's summary paragraph, then the structured anchors:
+**Compare mode summary.** Return per [_chat-return.md](../_chat-return.md). Lead with the narrative (section *The narrative*), then the structured anchors:
 ```
 wf-benchmark compare complete: <slug>
 Targets compared: <N>
@@ -207,64 +202,3 @@ If regressions found, prefix compare summary with:
 - **Not a load tester** — it measures single-request or single-operation performance. For concurrency and throughput under load, `wf-load-test` is needed (not yet available).
 - **Not a CI gate** — it is a developer workflow tool. Integrating benchmark regression detection into CI is a separate infrastructure concern.
 - **Not a profiling substitute** — if a regression is found but the cause is unclear, run the `augment/profile.md` sub-procedure (or `/wf probe`) to find the hotspot before attempting to fix it.
-
----
-
-## Step — Sibling YAML `benchmark`
-
-After writing `.ai/workflows/<slug>/05c-benchmark.md`, write the sibling
-`05c-benchmark.yaml` next to it with `artifact: benchmark`. The view-layer renderer
-projects this as a metric-comparison table with per-row improvement/
-regression tone driven by `direction:` + delta sign.
-
-Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../_fragment-authoring.md) Step F1.
-
-Shape:
-
-```yaml
-# 05c-benchmark.yaml
-artifact:        benchmark
-target:          "POST /api/checkout"
-language:        "typescript"
-framework:       "vitest-bench"
-mode:            compare           # baseline | compare | complete
-measured_at:     "2026-05-20T14:30:00Z"
-baseline_commit: "a3f7d12"
-metrics:
-  - name:      "p50_ms"
-    before:    124
-    after:     92
-    unit:      ms
-    delta_pct: -25.8
-    direction: lower-is-better     # → tone "improved" when delta is negative
-  - name:      "p99_ms"
-    before:    480
-    after:     395
-    unit:      ms
-    delta_pct: -17.7
-    direction: lower-is-better
-  - name:      "cold_start_ms"
-    before:    180
-    after:     205
-    unit:      ms
-    delta_pct: 13.9
-    direction: lower-is-better     # → tone "regressed" when delta is positive
-regressions:  ["cold_start_ms"]
-improvements: ["p50_ms", "p99_ms"]
-notes: "Cold-start regression is the cost of the new memo cache warmup."
-```
-
-Authoring rules:
-- `metrics[]` must include at least one entry with `name` + `after`.
-  `before` is required for `mode: compare` and recommended for
-  `mode: complete`.
-- `direction:` is the **goal** of the metric, not the observed change.
-  The renderer combines it with the delta sign to color the row.
-- `regressions[]` and `improvements[]` are name-lists matching
-  `metrics[].name`. Keep them in sync with the rows or omit both —
-  the renderer can derive them but reads them when present for the
-  banner summary.
-
-## Step — Write free narrative fragments
-
-Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

@@ -48,7 +48,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `_fix-loop.md` | procedure | always | |
 | `runtime-adapters.md` | procedure | always | |
 | `runtime-adapters/_ladder.md` | procedure | always | |
-| `_story-arc.md` | procedure | always | |
 | `06-verify-<slice>.md` | writes | | |
 
 Change-mode and single-scope workflows use the un-suffixed names, for example `06-verify.md`. In `mode:rca`, `02-shape.md` is the synthesized forwarding contract.
@@ -104,7 +103,7 @@ Merge all results. For each check, record the command and pass/fail in the artif
 
 # Chat return contract
 
-Apply the early-stop guard in [_autonomy-guards.md](_autonomy-guards.md) before ending the turn. After writing files, return per [_chat-return.md](_chat-return.md): a narrative lead that quotes the explainer's summary paragraph, then this receipt:
+Apply the early-stop guard in [_autonomy-guards.md](_autonomy-guards.md) before ending the turn. After writing files, return per [_chat-return.md](_chat-return.md). Lead with the narrative per that file (section *The narrative*), then give this receipt:
 - `slug: <slug>`
 - `wrote: <path>`
 - `result: <pass | fail | partial | blocked-runtime-evidence-missing>`
@@ -123,7 +122,6 @@ Do this in order:
 7.5. **Apply the user-observable AC gate** (below). Partition AC into `code-only` and `user-observable`. Every `user-observable` AC needs a matching `interactive-verification-results` entry. If any has none and no `interactive-verification: deferred` annotation, write `result: blocked-runtime-evidence-missing` and list the AC in `## Issues Found`.
 7.6. **Single-round verify-owned fix loop** (below). Snapshot `metric-issues-found-initial`; auto-fix mechanical classes; triage each remaining failure as a gate question per [_gate-question.md](_gate-question.md); `Fix` choices spawn parallel write-isolated sub-agents; re-run only affected checks once. Record `fix-rounds-run`, `convergence`, `metric-issues-found-final`. ONE round only; if anything still fails, finalize with `convergence: escalated` and route to re-invoke verify or `/wf implement`.
 8. **Write `06-verify-<slice-slug>.md`** per [verify/_artifact.md](verify/_artifact.md).
-8a. Write the explainer `06-verify-<slice-slug>.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
 9. **Write or update `06-verify.md`** (the master index linking every per-slice verify file).
 10. Update `00-index.md` and add files to `workflow-files`. **Then promote the slice's roster status**: in `03-slice.md`'s `slices:` entry for this slice, `result: pass` sets `status: complete`; any other result (`fail`, `partial`, `blocked-runtime-evidence-missing`) leaves it at `status: in-progress`. A deferral-only `partial` is **not** complete; the AC still owes runtime evidence, and `/wf ship` blocks on it. Set only this slice's entry; do not touch siblings, do not renumber, and never move an entry that `close.md` set to `skipped`. Only verify writes `complete`; yolo mirrors a recorded `result: pass`.
 
@@ -211,4 +209,4 @@ Dispatch a fix sub-agent for **every** issue triaged `Fix` **in parallel** (one 
 
 # Artifacts
 
-Write `06-verify.md` (master index) and `06-verify-<slice-slug>.md` (per-slice) per the schemas in [verify/_artifact.md](verify/_artifact.md), which also defines the `result:` and `interactive-verification:` semantics, the `## Acceptance Criteria Status` rows with their `evidence-rung`, the `## Verify-Owned Fixes` table, and the free narrative fragments step.
+Write `06-verify.md` (master index) and `06-verify-<slice-slug>.md` (per-slice) per the schemas in [verify/_artifact.md](verify/_artifact.md), which also defines the `result:` and `interactive-verification:` semantics, the `## Acceptance Criteria Status` rows with their `evidence-rung`, and the `## Verify-Owned Fixes` table.

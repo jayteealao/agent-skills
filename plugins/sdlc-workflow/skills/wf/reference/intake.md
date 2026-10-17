@@ -92,7 +92,7 @@ Propose **at most one** mode, **once**, as a gate question per [_gate-question.m
 
 # Step 1 — Load shared context
 
-Apply `intake/_intake-context.md`: the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug semantics. Do not restate or fork its rules. In **slug-mode** (branch 1), `_compressed-slice.md` governs the slice output and overrides any standalone "create workflow / branch / top-level index" step in the mode reference. **Extension mode (branch 2) does NOT use `_compressed-slice.md`** — it writes full slice files per `intake/extend.md`.
+Apply `intake/_intake-context.md`: the External Output Boundary and the workflow-registry / slug semantics. Do not restate or fork its rules. In **slug-mode** (branch 1), `_compressed-slice.md` governs the slice output and overrides any standalone "create workflow / branch / top-level index" step in the mode reference. **Extension mode (branch 2) does NOT use `_compressed-slice.md`** — it writes full slice files per `intake/extend.md`.
 
 # Step 2 — Resolve mode → flow span
 
@@ -155,7 +155,7 @@ After the mode's logic completes, emit a chat summary as the LAST output before 
 ```
 wf intake <mode> complete: <slug-or-scope>     (slug-mode: wf intake <mode> → compressed slice <slice-slug> on <slug>)
 
-<Narrative — quote the explainer summary of the lead artifact, per _story-arc.md A6.>
+<Narrative of the lead artifact, per *The narrative* in _chat-return.md.>
 
 Artifacts: <comma-separated paths, or "none">
 Next: <recommended command, or "Done">

@@ -29,12 +29,11 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | Input | Kind | When | Sections |
 |---|---|---|---|
 | `00-index.md` | artifact | always | |
-| `*.explainer.html.fragment` | artifact | if-present | |
 | `po-answers.md` | artifact | if-present | |
 | `steer.md` | artifact | if-present | |
 | `90-recap.md` | writes | | |
 
-Recap reads the explainers and the stage frontmatter, not every body. `90-recap.md` stays the agent file; the renderer builds the slug's story page from it.
+Recap reads the stage frontmatter and the body sections it needs. `90-recap.md` stays the agent file; the renderer builds the slug's story page from it.
 
 # Role
 You are a **storyteller of the work done**, not a problem solver.
@@ -84,19 +83,19 @@ Read what actually exists — do not infer from filenames.
 
 **Whole-workflow recap (slug only):**
 1. `00-index.md` — parse `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice`, `open-questions`, `recommended-next-invocation`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
-2. For every stage file in `workflow-files`, use its frontmatter and its explainer (`<stem>.explainer.html.fragment`). Take from them: the scope and acceptance criteria (intake/shape), how the work was split (slice), the approach (plan), what was built and any deviations (implement), what was checked (verify), findings still open (review `07-review-*.yaml`), what shipped (handoff/ship), and lessons (retro). Read a body only when the stage has no explainer (an artifact from before explainers).
+2. For every stage file in `workflow-files`, use its frontmatter and the body sections that answer each point below. Take from them: the scope and acceptance criteria (intake/shape), how the work was split (slice), the approach (plan), what was built and any deviations (implement), what was checked (verify), findings still open (review `07-review-*.yaml`), what shipped (handoff/ship), and lessons (retro).
 3. `po-answers.md` — the product-owner decisions that constrain the work. Keep the ones that still matter; drop superseded ones.
 3b. `steer.md` (see `_steering.md`) — the standing constraints. Surface them; do not act on them (recap advances nothing).
 4. If slices exist, list `03-slice-*.md` / `04-plan-*.md` / `05-implement-*.md` / `06-verify-*.md` / `07-review-*.md` to build the slice-by-slice progress picture.
 5. When `design/index.html` exists in the workflow folder, give its path in `## Where it stands now`. It is the contact sheet of the design boards.
 
-**Slice recap (slug + slice):** use `00-index.md` and the `02-shape` explainer for context, then the frontmatter and explainers of that slice's own trail — `03-slice-<slice>.md`, `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md` (whichever exist). Read `po-answers.md` entries tagged to this slice. Ignore the other slices except where this slice depends on them.
+**Slice recap (slug + slice):** use `00-index.md` and `02-shape.md` for context, then the frontmatter and bodies of that slice's own trail — `03-slice-<slice>.md`, `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md` (whichever exist). Read `po-answers.md` entries tagged to this slice. Ignore the other slices except where this slice depends on them.
 
 **Branch state** (if `branch-strategy: dedicated`): run `git branch --show-current`; note if the user is on the wrong branch.
 
 # Step 2 — Write the recap
 
-Write it under the controlled-language rules in [_ste-procedural.md](_ste-procedural.md): word discipline (section 1) and descriptive structure (S4) throughout, beats in arc order per [_story-arc.md](_story-arc.md) — where the work started, the decisions with reasons, where it stands and what remains. No "This stage implements…" openings. The reader should be able to read top to bottom and come away understanding the work — not decode a status table.
+Write it under the controlled-language rules in [_ste-procedural.md](_ste-procedural.md): word discipline (section 1) and descriptive structure (S4) throughout, beats in arc order — where the work started, the decisions with reasons, where it stands and what remains. No "This stage implements…" openings. The reader should be able to read top to bottom and come away understanding the work — not decode a status table.
 
 **Structure — whole-workflow recap:**
 

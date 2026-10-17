@@ -14,8 +14,8 @@ notes, PR bodies, announcements), and the chat summary each stage returns.
 Nothing is exempt. Each passage follows the sections that govern its kind of
 text: section 1 (word discipline) everywhere; sections 2–3 wherever the text
 gives steps, commands, or warnings. Story sections and chat summaries MUST
-additionally follow the structure contract in [_story-arc.md](_story-arc.md);
-that file defines structure only, and the language rules here still apply.
+additionally follow *The narrative* in [_chat-return.md](_chat-return.md);
+that section defines structure only, and the language rules here still apply.
 
 Citing sites reference the section they need, not the whole file.
 

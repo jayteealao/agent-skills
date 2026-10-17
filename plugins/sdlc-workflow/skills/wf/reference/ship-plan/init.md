@@ -176,10 +176,6 @@ Schema split:
 
 Write the file with the frontmatter and body in [init/_artifact.md](init/_artifact.md).
 
-# Step 6a — Write the explainer
-
-Write the explainer `.ai/ship-plan.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
 ---
 
 # Step 7 — Chat return

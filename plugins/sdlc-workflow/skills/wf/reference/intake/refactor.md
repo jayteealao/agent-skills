@@ -4,7 +4,7 @@ argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake refactor`, a **behavior-preserving refactoring standard lifecycle**.
 
@@ -95,8 +95,6 @@ recommended-routes: <routes>
 ---
 ```
 Body: `## Target` (what), `## Why` (the structural problem), `## Frozen` (must-not-change APIs/behaviors), `## Target Structure`.
-
-Write the explainer `01-refactor.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 # Step 2 — Baseline → `02-shape.md` (the most important step)
 The baseline captures ground truth before any code change — it IS the shape. Launch parallel sub-agents.
@@ -192,9 +190,6 @@ recommended-routes: <routes>
 ---
 ```
 Body `## Steps` — each step: **What changes** (specific files), **What does NOT change** (preserved surface), **Verify green** (test command after this step), **Why before the next** (dependency or "independent"). Then `## Pattern` (the named refactoring pattern) and `## API Surface Delta` (must be `none` unless API simplification is the explicit goal).
-
-## Step — Write free narrative fragments
-Author free narrative fragments for any artifact per the narrative-fragment tier of `_intake-context.md` (a before/after structure diagram or a call-graph tells a refactor story well).
 
 # Step 5 — Write `00-index.md` (conformant `type: index`)
 Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `refactor` column values (`branch` empty when the user kept the current branch; `stack.user-confirmed: true` after the Step 1 confirm). Then register the slug in `.ai/workflows/INDEX.md` per the tail.

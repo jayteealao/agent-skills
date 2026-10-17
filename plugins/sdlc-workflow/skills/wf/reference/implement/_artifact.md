@@ -81,7 +81,3 @@ Body, as `# Implement: <slice-name>`, in order:
 - `## Known Risks / Caveats` — any `sdlc-debt:` shortcut whose ceiling is live in shipped code (global lock, O(n²) scan, naive heuristic, hard-coded value).
 - `## Freshness Research` — source, relevance, takeaway.
 - `## Review Fixes Applied` — reviews mode only: `<finding ID> — fixed | could-not-fix: <reason>`, one line per finding.
-
-## Free narrative fragments
-
-Author **free narrative fragments** for any beat the structured page cannot tell. Follow [../_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

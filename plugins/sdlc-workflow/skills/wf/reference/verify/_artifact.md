@@ -130,5 +130,3 @@ recommended-routes:            # Adaptive routing options A–G, when applicable
 ## `verify-evidence/<slice-slug>/checks.md` (check output)
 
 No frontmatter. No stage reads it; it is the audit record. Write, in order: the raw output of each automated check; per user-observable criterion, the platform, tool, steps performed, evidence paths, and observation; the security scan output (CVE, secret detection, SAST); the cross-slice regression runs; the longitudinal delta per surface; the failure mode probes (`| Probe | Result | Finding |` over slow response, concurrent session, session expiry). Put each finding from these checks in `## Issues Found` as well.
-
-Then author free narrative fragments for any beat the structured page cannot tell, per [../_fragment-authoring.md](../_fragment-authoring.md) **Step F2** (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

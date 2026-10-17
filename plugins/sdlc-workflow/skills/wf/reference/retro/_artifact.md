@@ -94,13 +94,13 @@ slug that already has one, follow the shared additive-write contract in
 - Snapshot: `.ai/workflows/<slug>/history/10-retro-<rev>.md`.
 - **Rewrite the body** so the retro reads as current truth — fold the revisit's
   findings into the relevant sections rather than appending a `## Revision N`
-  block. Rewrite the explainer to carry the arc (what we said at close
-  vs. what actually happened 30 days later).
+  block. Make the body carry the arc. State what the retro said at close and
+  what happened later.
 - **Ledger entry**: append one `revisions:` entry with `trigger: manual` (or
   `scope-change` for an incident-driven revisit), `because:` naming the revisit
   ("30-day check-in", "post-incident follow-up", "quarterly review"), and
   `changed:` naming what moved.
 
 A retro's value is largely *historical* — the point of the revisit is to compare
-original intent against later reality. That comparison lives in the explainer
+original intent against later reality. That comparison lives in the body
 and in the exact history snapshots, not in a stack of body sections.

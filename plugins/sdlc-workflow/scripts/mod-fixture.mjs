@@ -8,8 +8,7 @@
 // two minutes old, and a ship-plan audit with open and acknowledged
 // findings. Each stage artifact follows the split templates
 // (docs/internal/ARTIFACT-SPLIT-PLAN.md): route keys in frontmatter
-// (`recommended-routes`), and the story in a sibling
-// `<stem>.explainer.html.fragment` instead of a `## The <Stage>` section. Nothing here reaches the hub or any real project.
+// (`recommended-routes`), and no explainer (VIEW-AUTHORING-REMOVAL-PLAN). Nothing here reaches the hub or any real project.
 //
 //   node scripts/mod-fixture.mjs <dir>        create or refresh <dir>
 //   node scripts/mod-fixture.mjs <dir> --dead  the same, with a driver journal
@@ -454,23 +453,6 @@ write(join(alpha, '03-slice-ui.md'), sliceFile('ui', 'defined', 'm', 'auth',
   `- Given two stored tokens, When the status view renders, Then both are listed.
   <!-- observable: true — a unit test renders to a string -->
   verify: { method: node --test, env: node 20+, fixture: two signIn calls, rung: 1 }`));
-// The explainers (S2): the human story of each stage, next to its agent file.
-const explainer = (summary, recap) => `<p>${summary}</p>\n<p>Recap: ${recap}</p>\n`;
-write(join(alpha, '01-intake.explainer.html.fragment'), explainer(
-  'The fixture repository has one module and one test. The PO wants a sign-in that stores a session token, and a small status view over the tokens.',
-  'the stack is Node with the built-in test runner, and the PO confirmed it.'));
-write(join(alpha, '02-shape.explainer.html.fragment'), explainer(
-  'Intake handed over one problem: nothing signs a user in. Shape keeps two outcomes, a sign-in function and a status view, and drops password storage per charter commitment C1.',
-  'the next stage cuts the two outcomes into slices.'));
-write(join(alpha, '03-slice.explainer.html.fragment'), explainer(
-  'Shape handed over two outcomes. Two slices carry them: auth first, because the status view reads the store auth lands.',
-  'the next stage plans auth.'));
-for (const [slice, goal] of [['auth', 'A sign-in function that returns a token and stores it.'], ['ui', 'A status view that lists the stored tokens.']]) {
-  write(join(alpha, `03-slice-${slice}.explainer.html.fragment`), explainer(goal, `slice ${slice} is one outcome from shape.`));
-}
-write(join(alpha, '04-plan-auth.explainer.html.fragment'), explainer(
-  'The plan adds the session store and the sign-in function, then the test.',
-  'two steps, two files.'));
 write(join(alpha, '04-plan-auth.md'), `
 ---
 schema: sdlc/v1

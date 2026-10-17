@@ -157,7 +157,7 @@ findings:
 ---
 
 ## The Audit
-<Story section — must follow ../_story-arc.md (heading `## The Audit`): the state audited, then the
+<Story section (heading `## The Audit`): the state audited, then the
 verdict and the finding that most threatens production debuggability, then the route forward. Name what an
 on-call engineer would fail to see, not a checklist. STE language throughout.>
 
@@ -181,8 +181,7 @@ on-call engineer would fail to see, not a checklist. STE language throughout.>
 ```
 
 The ledger is a plain markdown file (like `.ai/observability.md` itself) — it takes **no sibling `.yaml`
-fragment** (those belong to rich-tier artifacts under `.ai/workflows/`). It may ship a free narrative fragment
-only if a bespoke visual genuinely tells the story better than prose.
+fragment** (those belong to rich-tier artifacts under `.ai/workflows/`).
 
 # Step 5 — Triage the blockers and highs (interactive)
 

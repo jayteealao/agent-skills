@@ -80,7 +80,7 @@ You are a workflow orchestrator, not a problem solver. Apply [_workflow-rules.md
 9. **Carry forward** `open-questions` from the index (union across roster slugs in batch mode).
 
 # Chat return contract
-Apply the early-stop guard in [_autonomy-guards.md](_autonomy-guards.md) before ending the turn. After writing files, return per [_chat-return.md](_chat-return.md). Quote the explainer's summary paragraph as the narrative lead, then give this receipt:
+Apply the early-stop guard in [_autonomy-guards.md](_autonomy-guards.md) before ending the turn. After writing files, return per [_chat-return.md](_chat-return.md). Lead with the narrative per that file (section *The narrative*), then give this receipt:
 - `scope: <slug|branch>`, `slug: <slug>` (the lead in batch mode) and, in batch mode, the roster report (one row per slug: package / skip-unchanged / not-ready)
 - `wrote: <path>` (one line per slug packaged)
 - `pr: <url>` and `pr-readiness-verdict: <ready|awaiting-input|blocked>`
@@ -145,7 +145,6 @@ Do this in order:
 8. **Evaluate adaptive routing** (below) and write ALL viable options into the `recommended-routes` frontmatter.
 9. Update `00-index.md` for each roster slug: `current-stage`, next-command/invocation, and (batch) `handoff-lead`. Followers also record `readiness-via`.
 10. Write `.ai/workflows/<slug>/08-handoff.md` for each packaged slug (additive-write + ledger + `handoff-fingerprint`). The lead's artifact carries the readiness keys and `pr-readiness-verdict`; followers carry `readiness-via` and the copied `pr-readiness-verdict`. Skip-unchanged and not-ready slugs are not written.
-11. Write the explainer `08-handoff.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
 
 # Adaptive routing — evaluate what is actually next
 Present ALL viable options:
@@ -231,14 +230,12 @@ recommended-routes:                  # every viable Adaptive routing option; one
 ---
 ```
 
-Build the explainer from `## Summary`, `## Problem` and `## Solution`. The T3.5–T5.3 outcomes live only in the frontmatter keys. Body sections, in order:
+The T3.5–T5.3 outcomes live only in the frontmatter keys. Body sections, in order:
 - `## PR Title Options` (numbered), `## Summary`, `## Problem`, `## Solution`.
 - `## Augmentations Applied` (only if `augmentations:` is non-empty): every augmentation in user-facing language, grouped as **Design improvements**, **Observability**, **Experimentation**, **Performance**, each with the user-visible effect and the verification evidence path. Do not cite workflow artifact paths or sub-command names.
 - `## Affected Areas`, `## Verification Evidence`, `## Manual Test Notes`, `## Migration / Config / Rollout Notes`, `## Risks / Caveats`, `## Documentation Changes` (per doc: **Type** reference / how-to / tutorial / explanation / readme, **Path**, **What it covers**; or "None — [reason from shape docs plan]"), `## Follow-Up Work`, `## Reviewer Focus Areas` (name any unresolvable `actions/setup-*` pin here).
 - `## Reviewer Comments Triaged` (populated by T5.1; empty when `branch-strategy: none` or no PR exists): a table `| Source | File:Line | Severity | Summary | Action |` where `Action` is `fixed (sha=<short-sha>)`, `applied (sha=<short-sha>)`, `deferred`, `declined`, or `noted`. Cite commit SHAs only.
 - `## Freshness Research` (Source / Why it matters / Takeaway per entry).
-
-Author free narrative fragments for any beat the structured page cannot tell, per [_fragment-authoring.md](_fragment-authoring.md) Step F2 (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 # Additive-write contract
 `08-handoff.md` is revisable. On re-invocation, follow [_additive-write.md](_additive-write.md):

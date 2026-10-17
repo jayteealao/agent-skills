@@ -320,3 +320,28 @@ test('plan renderer: topology colors by `status`, not the category `role`', () =
   // appears if status:new was honored.
   match(out.bodyHtml, /var\(--low-bg\)/);
 });
+
+// v9.187.0 (VIEW-AUTHORING-REMOVAL-PLAN W4): the reduced plan .yaml carries no
+// `modules:`. The topology buckets files by their first two folders.
+test('plan renderer: a reduced .yaml without modules buckets files by folder', () => {
+  const out = renderPlan(artifact({
+    path: '04-plan-reduced.md',
+    frontmatter: { type: 'plan', status: 'complete' },
+    body: '## Plan\nprose',
+    siblingYaml: {
+      artifact: 'plan',
+      slice: 'reduced',
+      files: [
+        { path: 'src/auth/token.ts', status: 'new' },
+        { path: 'src/auth/store.ts', status: 'modified' },
+        { path: 'tests/auth.test.ts', status: 'new' },
+      ],
+      edges: [{ from: 'src/auth/token.ts', to: 'src/auth/store.ts', kind: 'calls' }],
+      risks: [{ title: 'Token leak', severity: 'high', body: 'b', mitigation: 'm' }],
+    },
+  }));
+  match(out.bodyHtml, /SRC\/AUTH/);
+  match(out.bodyHtml, /TESTS/);
+  match(out.bodyHtml, /token\.ts/);
+  match(out.bodyHtml, /prose/);
+});

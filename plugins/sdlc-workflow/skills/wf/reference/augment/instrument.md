@@ -50,7 +50,6 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `04-plan-*.md` | artifact | if-present | |
 | `/.ai/observability.md` | artifact | if-present | |
 | `augment/instrument/_artifact.md` | procedure | always | |
-| `_story-arc.md` | procedure | always | |
 | `04b-instrument.md` | writes | | |
 
 # Scope discipline
@@ -128,10 +127,6 @@ Merge findings from both sub-agents into the instrumentation plan artifact.
 
 Write `04b-instrument.md` with the frontmatter and the five body sections in [instrument/_artifact.md](instrument/_artifact.md). The body is direction, not a plan.
 
-# Step 2a — Write the explainer
-
-Write the explainer `04b-instrument.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
 # Step 3 — Update `00-index.md` augmentations registry
 
 Read `00-index.md`, then add or update the `augmentations:` field in its YAML frontmatter:
@@ -150,7 +145,7 @@ Also update `updated-at` to the current timestamp.
 
 # Step 4 — Hand off to user
 
-Return per [_chat-return.md](../_chat-return.md) — a narrative lead that quotes the explainer's summary paragraph, then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md). Lead with the narrative (section *The narrative*), then the structured anchors below.
 
 Emit a compact chat summary:
 
@@ -176,13 +171,3 @@ If dark paths are zero, note:
 - **Not the project-wide foundation** — it does not set up the schema, emit layer, sampling, pipeline, backend, or dashboards. That is `/wf observability` (`init`/`build`/`audit`). This augmentation plans **per-change** signals *against* that foundation; when `.ai/observability.md` exists it designs to that contract's schema and pipeline.
 - **Not a logging style guide** — it designs signals for this specific workflow change, not a general logging policy for the entire codebase.
 - **Not a prerequisite** — instrumentation is optional. `wf-implement` works without it. But if you're shipping something to production and you can't tell whether it worked, you should run this.
-
----
-
-## Step — Sibling YAML `instrument`
-
-Write the sibling `04b-instrument.yaml` per [instrument/_artifact.md](instrument/_artifact.md) → *Sibling YAML*.
-
-## Step — Write free narrative fragments
-
-Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

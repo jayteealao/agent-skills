@@ -1,6 +1,6 @@
 # Status — Deep Mode (`/wf status <slug> deep`)
 
-Load this file from `status.md` when Step 0 set deep-mode. It holds the reality-drift procedure and the `00-sync.md` / `00-sync.yaml` write.
+Load this file from `status.md` when Step 0 set deep-mode. It holds the reality-drift procedure and the `00-sync.md` write.
 
 `deep` runs a reality reconciliation: it checks whether
 referenced code, tests, PRs, branches, and dependencies actually exist or have drifted, and writes a
@@ -33,10 +33,7 @@ read-only detail view.
    `in-sync` (no ✗, ≤2 ⚠) · `minor-drift` (no ✗, 3+ ⚠) · `significant-drift` (any ✗) · `stale` (>7d old AND drift).
 6. **Write `.ai/workflows/<slug>/00-sync.md`** (`type: sync-report`, `regenerable: true`, `health: <rating>`)
    with the summary table, per-category tables, drift details, and recommended actions. **Overwrite
-   freely** each run (no history append). Also write the sibling **`00-sync.yaml`** (`artifact: sync`,
-   with `branch`/`base_branch`/`ahead_count`/`behind_count`/`conflict_risk` REQUIRED, optional
-   `diverged_files[]`/`recommendation`) — without it the rich sync page degrades to plain prose. Schema:
-   `siblingYamlSchemas["sync-report"]` in `tests/frontmatter.schema.json`.
+   freely** each run (no history append).
 7. **Bookkeeping touch:** add `00-sync.md` to `workflow-files` and set `updated-at` in `00-index.md`
    (and the matching `updated-at` column in `INDEX.md`). Do not change `status`/`current-stage`.
 

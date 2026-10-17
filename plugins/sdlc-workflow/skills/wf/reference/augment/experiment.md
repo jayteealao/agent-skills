@@ -41,7 +41,6 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `02-shape.md` | artifact | always | |
 | `04b-instrument.md` | artifact | if-present | |
 | `augment/experiment/_artifact.md` | procedure | always | |
-| `_story-arc.md` | procedure | always | |
 | `04c-experiment.md` | writes | | |
 
 # Scope discipline
@@ -106,10 +105,6 @@ Return as structured text: full experiment design covering all 6 elements above,
 
 Write `04c-experiment.md` with the frontmatter and the seven body sections in [experiment/_artifact.md](experiment/_artifact.md).
 
-# Step 2a — Write the explainer
-
-Write the explainer `04c-experiment.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
 # Step 3 — Update `00-index.md` augmentations registry
 
 Read `00-index.md`, then add or update the `augmentations:` field in its YAML frontmatter:
@@ -128,7 +123,7 @@ Also update `updated-at` to the current timestamp.
 
 # Step 4 — Hand off to user
 
-Return per [_chat-return.md](../_chat-return.md) — a narrative lead that quotes the explainer's summary paragraph, then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md). Lead with the narrative (section *The narrative*), then the structured anchors below.
 
 Emit a compact chat summary:
 
@@ -156,13 +151,3 @@ If `04b-instrument.md` was not found, prefix with:
 - **Not a stats engine** — sample size and significance calculations are directional guidelines, not rigorous statistical analysis. For high-stakes experiments, run a proper power calculation.
 - **Not a rollout orchestrator** — it does not flip flags, monitor rollouts, or trigger rollbacks automatically. Those are operational tasks.
 - **Not a substitute for product judgment** — it designs the experiment framework; deciding whether the hypothesis is worth testing, and what constitutes a meaningful result, requires human judgment.
-
----
-
-## Step — Sibling YAML `experiment`
-
-Write the sibling `04c-experiment.yaml` per [experiment/_artifact.md](experiment/_artifact.md) → *Sibling YAML*.
-
-## Step — Write free narrative fragments
-
-Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

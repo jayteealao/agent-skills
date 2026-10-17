@@ -4,7 +4,7 @@ argument-hint: <topic> | <slug> (resume) | <slug> add <text> | <slug> (existing 
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake brainstorm`, a **person-led thinking loop**. It exists for the thought that has no request yet: `ideate` scans the codebase and generates, `investigate` needs a stated problem, `shape` needs a request. Here the person leads, and you think beside the person.
 
@@ -230,9 +230,6 @@ Propose a first split, then change it as the person directs. Continue until the 
 A second `done` on a distilled board shows the recorded scope and asks what to change. It walks the areas the person names and every decision or idea with no `scope` value.
 
 **Link-back.** A successor started from a packet, or `from <slug>`, applies [_intake-provenance.md](_intake-provenance.md): it records `origin-brainstorm`, sets the piece of work's `state` (`prepared`, then `routed`) and `routed-to` on the board and on the packet, and sets each of its threads to `routed` when no other piece of work draws on the thread. An item with `scope: cut` never seeds a successor. The board is never superseded.
-
-## Step — Write free narrative fragments
-Author free narrative fragments for this artifact as described in the narrative-fragment tier of `_intake-context.md` — `<stem>.<NN-label>.html.fragment` siblings of unrestricted raw HTML, as many as the story needs, ordered with an `NN-` prefix, rendered raw-inline below the page.
 
 # What this command is NOT
 - Not `ideate`: no lens scan, no ranked backlog. The person leads and you think beside the person.

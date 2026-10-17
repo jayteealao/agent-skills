@@ -117,5 +117,3 @@ Body structure:
 ## Review Notes
 - ...
 ```
-
-Also write sibling `08b-docs-index.yaml` beside the docs-index artifact with a `docs:` array of `{path, type, action, status}` so the view layer can render the docs table in both workflow and project/path mode.

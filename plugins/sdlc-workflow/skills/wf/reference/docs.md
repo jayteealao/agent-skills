@@ -13,8 +13,6 @@ Two modes of operation:
 - **Orchestrator** (`/wf docs`, `/wf docs <slug>`, `/wf docs --audit-only`, `/wf docs <path>`) — run the full pipeline. Discover existing docs, audit them against the codebase and Diátaxis principles, plan what to create/update/remove, generate using the appropriate primitive references, and spot-review the output.
 - **Primitive** (`/wf docs <primitive> <args>`) — load one Diátaxis reference and write a single document. The primitive is responsible for its own quadrant discipline; this key simply loads and follows the matching `docs/<primitive>.md`.
 
-> **Narrative fragments.** Any docs artifact may ship free narrative fragments whenever a bespoke diagram, flow, comparison, or interactive example tells the story better than prose. Rules: [_fragment-authoring.md](_fragment-authoring.md) Step F2.
-
 > **Controlled language (mandatory for every document either mode writes).** Apply
 > [_ste-procedural.md](_ste-procedural.md): section 1 (word discipline) to all documentation text;
 > sections 2–3 (instruction and warning rules) to every step sequence in tutorials, how-tos, and
@@ -148,7 +146,7 @@ Launch one fresh-context, read-only sub-agent (per [_subagents.md](_subagents.md
 
 Write a `## Review Notes` section to `generate.md` with any issues found. For any accuracy issue found at review: fix it immediately before completing this step.
 
-**Write the docs-index artifact:** Before committing, write a compact index of this documentation run — `08b-docs-index.md` (`type: docs-index`; in `mode: workflow` under `.ai/workflows/<target-slug>/`, otherwise under `.ai/docs/<run-id>/`) with its Generated or Updated Docs table, Remaining Gaps, and Review Notes, plus the sibling `08b-docs-index.yaml` (`docs:` array of `{path, type, action, status}`) so the view layer can render the docs table. Templates in [docs/_artifacts.md](docs/_artifacts.md).
+**Write the docs-index artifact:** Before committing, write a compact index of this documentation run — `08b-docs-index.md` (`type: docs-index`; in `mode: workflow` under `.ai/workflows/<target-slug>/`, otherwise under `.ai/docs/<run-id>/`) with its Generated or Updated Docs table, Remaining Gaps, and Review Notes. Templates in [docs/_artifacts.md](docs/_artifacts.md).
 
 **Commit all documentation changes:**
 `docs: update documentation via wf docs run <run-id>`

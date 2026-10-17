@@ -8,7 +8,7 @@
 // a mock `agent` that answers by label, so the tests watch the real dispatch order.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -255,21 +255,19 @@ test('_requires.md defines the table, the checklist, the modes, the ledger and t
   ]) assert.ok(src.includes(needle), `_requires.md lost: ${needle}`);
 });
 
-test('_story-arc.md is the explainer contract with the eight snippet names', () => {
-  const src = ref('_story-arc.md');
-  for (const name of ['sequence', 'comparison', 'cycle', 'dependency', 'layout', 'trend', 'states', 'steps']) {
-    assert.ok(src.includes(`@include explainer/${name}`), `missing snippet explainer/${name}`);
-  }
-  assert.match(src, /<stem>\.explainer\.html\.fragment/);
+test('the chat narrative holds the story rules, and no stage writes an explainer (v9.187.0)', () => {
+  const src = ref('_chat-return.md');
+  assert.match(src, /## The narrative/);
+  assert.match(src, /Explain the thing, not the progress/);
   assert.match(src, /`## The Brainstorm`/);
-  assert.match(src, /A6 — Chat-summary form/);
-  assert.match(src, /A2 — Explain the thing, not the progress/);
-  for (const attr of ['data-ex-steps', 'data-ex-toggle', 'data-ex-slider', 'data-ex-frames']) assert.ok(src.includes(attr), `missing interaction markup ${attr}`);
+  assert.match(ref('_workflow-rules.md'), /Write no explainer, no `\.html\.fragment`, and no sibling `\.yaml`/);
+  assert.ok(!existsSync(path.join(pluginRoot, 'skills', 'wf', 'reference', '_story-arc.md')), '_story-arc.md is deleted');
+  assert.ok(!existsSync(path.join(pluginRoot, 'skills', 'wf', 'reference', '_fragment-authoring.md')), '_fragment-authoring.md is deleted');
 });
 
-test('the explainer reaches the chat return, the additive-write snapshot, and the ownership table', () => {
-  assert.match(ref('_chat-return.md'), /quote\s+the summary paragraph of the explainer/);
-  assert.match(ref('_additive-write.md'), /history\/<stem>-<rev>\.explainer\.html\.fragment/);
+test('the chat return, the additive-write snapshot, and the ownership table', () => {
+  assert.doesNotMatch(ref('_chat-return.md'), /explainer this run wrote/);
+  assert.doesNotMatch(ref('_additive-write.md'), /explainer/);
   const own = ref('_control-file-ownership.md');
   assert.match(own, /index-history\.jsonl/);
   assert.match(own, /Do not write `\.read-ledger\.jsonl`\. The mod owns it, and it is never `\.driver-journal\.jsonl`/);

@@ -120,21 +120,12 @@ if `deferred`/`superseded`: *"To resume, restore `status: in-progress` in `00-in
 `/wf status <slug>` for the next command, or `/wf intake <slug> <scope>` to extend; all prior artifacts
 are intact at `.ai/workflows/<slug>/`"*; otherwise "Not applicable — closed permanently").
 
-## Step W3a — Write the explainer
-Write the explainer `99-close.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
-
-### Step — Write free narrative fragments
-Beyond the structured page, this artifact may ship free **narrative fragments**:
-`<stem>.<NN-label>.html.fragment` siblings of raw HTML (a timeline, a before/after, a decision map) —
-no contract, no sibling `.yaml`, ordered by an `NN-` prefix, injected raw-inline below the page. See
-[_fragment-authoring.md](_fragment-authoring.md) Step F2 and `../../../reference/narrative-fragments.md`.
-
 ## Step W4 — Update `00-index.md`
 Update `status: closed`, `close-reason`, `superseded-by`, `closed-at`, `next-command: none`,
 `next-invocation: none`, `updated-at`. Append `99-close.md` to `workflow-files`. Do not change `current-stage` — it reflects the last stage reached.
 
 ## Step W5 — Hand off
-Quote the explainer summary as the narrative lead, then a compact receipt (reason, last
+Lead with the narrative per [_chat-return.md](_chat-return.md) (section *The narrative*), then a compact receipt (reason, last
 stage, stages completed, `99-close.md` path, "artifacts preserved"). Then a manual-actions checklist:
 close PR at `<pr-url>` (if open), delete branch `git branch -d <branch>` (if unneeded), cherry-pick
 `<N>` unmerged commits (if any). If `deferred`: *"To resume: `/wf status <slug>` or `/wf intake <slug>
@@ -190,9 +181,6 @@ Body: `# Slice skipped: <slice>` — **Reason**, **What was bypassed** (what thi
 3. Recompute any author-written slice **count** in `03-slice.md`'s body only if it stated an
    *active/remaining* total; the roster-derived figures (header, figure, metric row) recompute
    themselves. This is clerical, not a roster change.
-
-### Step — Write free narrative fragments
-The skip record may ship free narrative fragments — same contract as above.
 
 ## Step S4 — Update `00-index.md`
 Update `updated-at`; add `skip-slice-<slice>.md` (and any stub) to `workflow-files`. If `<slice>` was

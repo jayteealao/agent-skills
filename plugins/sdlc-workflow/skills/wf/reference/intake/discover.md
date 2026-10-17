@@ -4,7 +4,7 @@ argument-hint: <hypothesis-or-slug>
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, and the workflow-registry / slug rules. Do not restate them here.
 
 You are running `/wf intake discover`, a **hypothesis-test workflow** that adjudicates a code-level claim against the codebase and returns a verdict with cited evidence.
 
@@ -171,12 +171,6 @@ For each fired tripwire: `[tripwire-name]: <what specifically tripped it>`. Clos
 
 > One or more wf-discover tripwires fired. The verdict is still recorded, but review the warnings before acting on it.
 
-## Step — Write the explainer and free narrative fragments
-
-Write the explainer `01-discover.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
-Author free narrative fragments for this artifact as described in the narrative-fragment tier of `_intake-context.md` — `<stem>.<NN-label>.html.fragment` siblings of unrestricted raw HTML, as many as the story needs, ordered with an `NN-` prefix, rendered raw-inline below the page.
-
 # Step 4 — Write `00-index.md` (closed at write time)
 
 A verdict is terminal by construction — nothing is left to choose, so the workflow closes the moment its index is written. No re-invocation, no parked Active row:
@@ -215,7 +209,7 @@ Register the slug's row in `.ai/workflows/INDEX.md` as `closed`. Body: one-line 
 
 # Step 5 — Hand off to user
 
-Return per [_chat-return.md](../_chat-return.md) — quote the explainer summary as the narrative lead, then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md): lead with the narrative (section *The narrative*), then the structured anchors below.
 
 Emit a compact chat summary:
 

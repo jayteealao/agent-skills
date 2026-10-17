@@ -180,7 +180,7 @@ findings:
 ---
 
 ## The Audit
-<Story section — must follow ../_story-arc.md (heading `## The Audit`): the state audited, then the
+<Story section (heading `## The Audit`): the state audited, then the
 verdict and the finding that most threatens a real release, then the route forward. Name what a release would
 actually get wrong, not a checklist. STE language throughout.>
 
@@ -204,8 +204,7 @@ actually get wrong, not a checklist. STE language throughout.>
 ```
 
 The ledger is a plain markdown file (like `.ai/ship-plan.md` itself) — it takes **no sibling `.yaml` fragment**
-(those belong to rich-tier artifacts under `.ai/workflows/`). It may ship a free narrative fragment only if a
-bespoke visual genuinely tells the pipeline's story better than prose.
+(those belong to rich-tier artifacts under `.ai/workflows/`).
 
 # Step 5 — Triage the blockers and highs (interactive)
 

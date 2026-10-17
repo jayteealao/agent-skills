@@ -38,12 +38,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
-        "input": "_story-arc.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
         "input": "05c-benchmark.md",
         "kind": "writes",
         "when": "",
@@ -75,12 +69,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
       },
       {
         "input": "augment/experiment/_artifact.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
-        "input": "_story-arc.md",
         "kind": "procedure",
         "when": "always",
         "sections": []
@@ -128,12 +116,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
-        "input": "_story-arc.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
         "input": "04b-instrument.md",
         "kind": "writes",
         "when": "",
@@ -147,12 +129,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
     "rows": [
       {
         "input": "augment/profile/_artifact.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
-        "input": "_story-arc.md",
         "kind": "procedure",
         "when": "always",
         "sections": []
@@ -605,12 +581,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
       },
       {
         "input": "implement/_research.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
-        "input": "_story-arc.md",
         "kind": "procedure",
         "when": "always",
         "sections": []
@@ -1415,12 +1385,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
-        "input": "intake/rca/_view.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
         "input": "_compressed-slice.md",
         "kind": "procedure",
         "when": "mode:slug",
@@ -1753,18 +1717,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
-        "input": "_fragment-authoring.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
-        "input": "_story-arc.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
         "input": "augment/instrument.md",
         "kind": "procedure",
         "when": "mode:augment",
@@ -1882,12 +1834,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "input": "00-index.md",
         "kind": "artifact",
         "when": "always",
-        "sections": []
-      },
-      {
-        "input": "*.explainer.html.fragment",
-        "kind": "artifact",
-        "when": "if-present",
         "sections": []
       },
       {
@@ -2457,18 +2403,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
-        "input": "_fragment-authoring.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
-        "input": "_story-arc.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
         "input": "01-simplify.md",
         "kind": "writes",
         "when": "",
@@ -2544,12 +2478,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "input": "design/polish.md",
         "kind": "procedure",
         "when": "mode:design",
-        "sections": []
-      },
-      {
-        "input": "_story-arc.md",
-        "kind": "procedure",
-        "when": "always",
         "sections": []
       },
       {
@@ -2829,12 +2757,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
       },
       {
         "input": "runtime-adapters/_ladder.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
-        "input": "_story-arc.md",
         "kind": "procedure",
         "when": "always",
         "sections": []

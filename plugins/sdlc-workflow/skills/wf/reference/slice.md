@@ -34,7 +34,6 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `design/_design-context.md` | procedure | mode:design | |
 | `design/onboard.md` | procedure | mode:design | |
 | `design/polish.md` | procedure | mode:design | |
-| `_story-arc.md` | procedure | always | |
 | `03-slice-<slice>.md` | writes | | |
 | `03-slice.md` | writes | | |
 
@@ -71,7 +70,7 @@ Apply [_workflow-rules.md](_workflow-rules.md).
 
 # Chat return contract
 
-After writing files, return per [_chat-return.md](_chat-return.md): a narrative lead that quotes the master explainer's summary paragraph, then this receipt:
+After writing files, return per [_chat-return.md](_chat-return.md): lead with the narrative (section *The narrative*), then this receipt:
 - `slug: <slug>`
 - `wrote: <paths>` (every slice file written)
 - `options:` (all viable next options per Adaptive routing)
@@ -97,9 +96,7 @@ Do this in order:
 6b. **Charter-scenario coverage (when `02-shape.md` carries a `## Charter Scenario`).** The **visible-milestone slice** (the first slice at which a user sees the core loop working end-to-end) and the **final slice** each carry a standing acceptance criterion, `charter scenario executes through step N`: the milestone slice proves the steps built so far, the final slice proves ALL steps. Tag it `observable: true` (verify runs it interactively, on the same ladder as any user-observable AC) and attach a `verify:` stub like any other. Skip when the shape authored no Charter Scenario.
 6c. **Confirm review scope (the roster is now known; intake deliberately did not ask this).** `00-index.md` carries the provisional default `review-scope: per-slice` with `review-scope-confirmed: false`, because the PO cannot judge review layout before slicing exists. Ask ONE gate question per [_gate-question.md](_gate-question.md) with the recommendation informed by the roster: a 1-slice roster recommends `Slug-wide` ("One `07-review.md` against the cumulative branch diff"); a >1-slice roster recommends `Per slice (Recommended)` ("Each slice gets its own `07-review-<slice>.md`; handoff aggregates per-slice verdicts"). Offer both options either way, per [_question-craft.md](_question-craft.md). Record the answer in `po-answers.md` (`stage: slice`); set `review-scope:` to the choice and `review-scope-confirmed: true` in `00-index.md` (step 10 carries it). Skip ONLY if `review-scope-confirmed` is already `true` (a re-run, or an older workflow asked at intake).
 7. **Write one `03-slice-<slice-slug>.md` per slice** (template below).
-7a. Write the explainer `03-slice-<slice-slug>.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
 8. **Write the master `03-slice.md`** (template below) with links to every per-slice file.
-8a. Write the explainer `03-slice.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
 9. **Evaluate adaptive routing.** Write ALL viable options into the master frontmatter `recommended-routes`.
 10. Update `00-index.md` with the recommended default option and add all slice files to `workflow-files`.
 
@@ -211,8 +208,6 @@ Body of `03-slice-<slice-slug>.md`, as `# Slice: <slice-name>`, in order:
 - `## Acceptance Criteria` — each criterion authored WITH its verification path per the discipline above. `- Given ... When ... Then ...`, then `<!-- observable: true|false — one-line justification of the partition -->`, then, only for `observable: true`, `verify: { method: <tool/technique>, env: <target env / what must be installed or booted>, fixture: <seed data / deterministic state>, rung: <constraint-ladder rung> }`. The visible-milestone slice and the final slice also carry the standing charter-scenario AC (step 6b) when `02-shape.md` has a `## Charter Scenario`.
 - `## Dependencies on Other Slices` — `<other-slice-slug>`: what this slice needs from it.
 - `## Risks`.
-
-Then author free narrative fragments for any beat the structured page cannot tell, per [_fragment-authoring.md](_fragment-authoring.md) **Step F2** (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 # Additive-write contract
 

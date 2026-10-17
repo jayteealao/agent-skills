@@ -4,7 +4,7 @@ argument-hint: "[package-name|--security-only|--audit-only|<existing-run-slug to
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake update-deps`, a **dependency maintenance standard lifecycle**.
 
@@ -93,8 +93,6 @@ recommended-routes: <routes>
 ---
 ```
 Body: `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (count only).
-
-Write the explainer `01-update-deps.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 # Step 2 — Research + prioritize → `02-shape.md`
 For each package that needs updating, launch parallel web-research sub-agents in batches of 3–5.
@@ -187,9 +185,6 @@ recommended-routes: <routes>
 ---
 ```
 Body: `## P0 — Security` / `## P1 — Major+migration` / `## P2 — Safe batch` / `## Hold` — each package with the exact update command, test command, what to verify, and rollback command (Hold: reason + revisit condition). Then `## Tripwire breaches` (only if any fired — per `_change-mode-tail.md`; the update-deps tripwires are: a P1 migration without a cited changelog · a Hold entry without a revisit condition · mixed tiers forced into one commit by tooling).
-
-## Step — Write free narrative fragments
-Author free narrative fragments for any artifact per the narrative-fragment tier of `_intake-context.md` (a per-tier update table or a CVE-burndown chart tells a deps story well).
 
 # Step 5 — Write `00-index.md` (conformant `type: index`)
 Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `update-deps` column values (`mode: <all|single|security-only|audit-only>` mirrored onto the index frontmatter as an extra key; `origin-update-deps` when Step 0 consumed a prior run; `stack.user-confirmed: false`). Then register the slug in `.ai/workflows/INDEX.md` per the tail.

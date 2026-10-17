@@ -74,10 +74,6 @@ Update only the changed block's frontmatter and corresponding markdown section. 
 
 **Re-derive after a Block H or C amendment.** Block H's enabled code-quality gates are the canonical source of the pre-merge check list; Block C's `ci-pipeline.pre-merge-checks[]` and Block J's `governance.branch-protection.required-checks[]` are *derived* from them. So when the amended block is **H** (gate added/removed/renamed) or **C** (pre-merge-checks edited directly), recompute the other two derived lists to match and write them in the same amendment. This is not "touching an unrelated block" — it keeps a single source of truth consistent. Note the cross-block update in the chat return.
 
-## Step S4a — Write the explainer
-
-Write the explainer `.ai/ship-plan.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
 ## Step S5 — Chat return
 
 Return per [_chat-return.md](../_chat-return.md) — narrative lead, then only this receipt:

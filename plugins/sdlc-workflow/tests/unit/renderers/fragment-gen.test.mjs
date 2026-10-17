@@ -12,12 +12,15 @@ import {
 
 const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
-test('RICH_TIER_TYPES matches the hook list in hooks/post-write-verify.mjs', () => {
+// v9.187.0: the hook blocks only the types whose .yaml agents read; the
+// renderer still generates fragments from the old .yaml of every rich type.
+test('the hook list in hooks/post-write-verify.mjs is a subset of RICH_TIER_TYPES', () => {
   const src = readFileSync(join(PLUGIN_ROOT, 'hooks', 'post-write-verify.mjs'), 'utf-8');
   const block = src.match(/const RICH_TIER_TYPES = new Set\(\[([\s\S]*?)\]\);/);
   assert.ok(block, 'hook list found');
   const hookTypes = [...block[1].replace(/\/\/.*$/gm, '').matchAll(/'([a-z-]+)'/g)].map((m) => m[1]);
-  assert.deepEqual([...hookTypes].sort(), [...RICH_TIER_TYPES].sort());
+  assert.deepEqual([...hookTypes].sort(), ['plan', 'review', 'review-command']);
+  for (const type of hookTypes) assert.ok(RICH_TIER_TYPES.includes(type), type);
 });
 
 test('freshness rule: generate when the .yaml exists and the fragment is absent or older', () => {

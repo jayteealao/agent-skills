@@ -41,7 +41,7 @@ artifact lets `/wf review` and `/wf handoff` see exactly what design augmentatio
 - **First line.** Name the command and the slug; no-slug runs that created a slug name the new
   slug; truly standalone runs use `"freestanding"`.
 - **Narrative — the heart of the summary, REQUIRED for any command that produces an artifact.**
-  Quote the summary paragraph of the artifact's explainer when one exists; otherwise write a short
+  Lead with the narrative per [_chat-return.md](../_chat-return.md) (section *The narrative*). Write a short
   **prose paragraph** (no bullets, no field labels) that *tells the user what happened*: for the design stage, what the person confirmed and how many boards
   were frozen; for `audit`/`critique`, the verdict and top findings; for `extract`, what
   was reverse-engineered; for the other upkeep commands, what the design record now says. Weave in the

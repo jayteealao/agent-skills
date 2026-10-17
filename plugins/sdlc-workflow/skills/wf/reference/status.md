@@ -160,9 +160,9 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 
 # Deep Mode (`/wf status <slug> deep`) — reality-drift check
 
-`deep` checks whether referenced code, tests, PRs, branches, and dependencies still exist or have drifted, and writes `00-sync.md` plus `00-sync.yaml`. Plain `/wf status <slug>` does **not** run it.
+`deep` checks whether referenced code, tests, PRs, branches, and dependencies still exist or have drifted, and writes `00-sync.md`. Plain `/wf status <slug>` does **not** run it.
 
-Load [status/_deep.md](status/_deep.md) and run its seven steps: inventory references, check code reality, check git reality, check dependency reality, check steering reality (a contradiction between a stage artifact and a steering entry is a `⚠ steering-violation`; the file's presence is never a finding), check intent-risk reality (an `intent-risks` entry still `status: open` after shape is complete is a `⚠ intent-risk-open`), assess health (`in-sync` / `minor-drift` / `significant-drift` / `stale`), write `00-sync.md` + `00-sync.yaml` (overwrite freely), then the bookkeeping touch (`workflow-files`, `updated-at`; never `status`/`current-stage`).
+Load [status/_deep.md](status/_deep.md) and run its seven steps: inventory references, check code reality, check git reality, check dependency reality, check steering reality (a contradiction between a stage artifact and a steering entry is a `⚠ steering-violation`; the file's presence is never a finding), check intent-risk reality (an `intent-risks` entry still `status: open` after shape is complete is a `⚠ intent-risk-open`), assess health (`in-sync` / `minor-drift` / `significant-drift` / `stale`), write `00-sync.md` (overwrite freely), then the bookkeeping touch (`workflow-files`, `updated-at`; never `status`/`current-stage`).
 
 # Advise Mode (`/wf status advise [branch|pr#N | fast]`) — cross-slug sequencing
 

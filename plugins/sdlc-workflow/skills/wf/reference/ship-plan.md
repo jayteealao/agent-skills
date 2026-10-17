@@ -25,7 +25,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `ship-plan/audit.md` | procedure | mode:audit | |
 | `/.ai/ship-plan.md` | writes | | |
 
-The plan reads no workflow artifacts. `init` and `edit` also write `.ai/ship-plan.explainer.html.fragment`.
+The plan reads no workflow artifacts.
 
 # Step 0 — Resolve the sub-command
 

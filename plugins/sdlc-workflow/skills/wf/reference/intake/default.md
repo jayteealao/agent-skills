@@ -112,7 +112,7 @@ Apply [_workflow-rules.md](../_workflow-rules.md) in full. Intake-specific rules
 - `po-answers.md` is the only home of PO answers. `01-intake.md` refers to answers and does not copy them.
 
 # Chat return contract
-After writing files, return per [_chat-return.md](../_chat-return.md): quote the explainer summary as the narrative lead, then this receipt:
+After writing files, return per [_chat-return.md](../_chat-return.md): lead with the narrative (section *The narrative*), then this receipt:
 - `slug: <slug>`
 - `wrote: <path>`
 - `options:` (list all viable next options; see Adaptive Routing below)
@@ -134,7 +134,6 @@ Do this in order:
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into the `01-intake.md` `recommended-routes`.
 8. Update `00-index.md` with the recommended default option.
 9. Write `.ai/workflows/<slug>/01-intake.md` per the template in `intake/default/_artifact.md`.
-9a. Write the explainer `01-intake.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 10. **Register this workflow in `.ai/workflows/INDEX.md`** (additive bootstrap). After `00-index.md` is finalized, ensure the registry contains a row for this slug. Re-read the just-written `00-index.md` frontmatter so the row reflects the *final* values (branch/status/workflow-type can change between Step 0 and now based on Batch A answers).
     - **If `.ai/workflows/INDEX.md` does NOT exist**, create it with the header comment (exactly from the [`/wf status` reconcile spec](../status.md)) followed by exactly one row for this workflow. Use the canonical column order: `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`. Header line:
       ```
@@ -160,10 +159,6 @@ Use when: Required PO answers are still missing. Mark `Status: Awaiting input`.
 **Design path note:** When `ux-impact` is `visual`, `flow`, or `new-surface`, give the shape route a `reason` that names the design path per `design/_lane.md`: `shape` writes the design brief (`02b-design.md`), the human-only design stage (`/wf design <slug>`) draws the changed surfaces and writes `02c-craft.md` after the person confirms, and only then can `slice`, `plan`, `/wf auto`, or `/wf yolo` run. Keep `shape` as the immediate next command. This is a path heads-up only, consistent with intake staying descriptive.
 
 Write ALL viable options (not just the default) into `recommended-routes` so the user can choose.
-
-## Step — Write free narrative fragments
-
-Author **free narrative fragments** for any beat the structured page cannot tell, as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 ## Additive-write contract
 

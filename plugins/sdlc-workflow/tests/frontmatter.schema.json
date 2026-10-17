@@ -2546,7 +2546,7 @@
 
     "plan": {
       "type": "object",
-      "required": ["modules", "files"],
+      "required": ["files"],
       "properties": {
         "artifact": { "const": "plan" },
         "schema":   { "type": "string" },

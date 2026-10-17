@@ -88,9 +88,9 @@ node "<skill-dir>/scripts/dispatch.mjs" read-only <repoRoot> <promptFile> [provi
 - Exit `0` = well-formed (per-provider failures are inside `results`); `2` = usage
   error.
 
-# Step 3 — Synthesize and embed
+# Step 3 — Synthesize
 
-Build the panel per [panel.md](panel.md): one entry per `ok` provider with its evidence-scope badge, one-line verdict, and key points; every `skipped` or failed provider named with its reason and, for `auth`, its `remedy`. When fewer providers returned than were requested, lead with the degradation (**Panel of 1** — treat it as one opinion, not a consensus); an `auth` failure is not an environmental wall, it is a login, and the dispatcher says which one. Add the consensus/divergence line, weighted by evidence scope. When the question targets a workflow artifact, write the panel as a `<stem>.NN-consult.html.fragment` next to it per panel.md.
+Build the panel per [panel.md](panel.md): one entry per `ok` provider with its evidence-scope badge, one-line verdict, and key points; every `skipped` or failed provider named with its reason and, for `auth`, its `remedy`. When fewer providers returned than were requested, lead with the degradation (**Panel of 1** — treat it as one opinion, not a consensus); an `auth` failure is not an environmental wall, it is a login, and the dispatcher says which one. Add the consensus/divergence line, weighted by evidence scope.
 
 # Step 4 — Emit the result
 
@@ -104,7 +104,6 @@ CONSULT_RESULT:
   panel-size: <N of M requested>                # N < M ⇒ degraded; say so in the narrative too
   remedies: <provider: command, … | none>       # actionable fixes for auth failures
   verdict: <one-line synthesis — consensus, or the material divergence>
-  fragment: <path to the .html.fragment | none>
   cost: <per-token note, see below>
 ```
 

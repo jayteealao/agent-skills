@@ -146,33 +146,3 @@ Body sections, in order, under these exact `##` headings (later stages cite them
 Record the reference list authoritatively in the `references-loaded:` frontmatter array as the **union** of the brief's `recommended-references:` (from `02b-design.md`) and each reference you loaded while authoring the contract. Names omit `.md` and resolve to `skills/wf/reference/design/<name>.md`. `/wf implement` re-reads this field, not the prose: a reference only in `## Implementation references` is not loaded, so keep the two in sync.
 
 **How the later stages carry the contract.** The contract is a design-stage artifact. `slice` maps its surfaces to slices; `plan` turns every `## Mock fidelity inventory` item into a concrete plan step and every `## Implementation contract` token/component/motion decision into a plan-step pointer; `implement` applies them ([_lane.md](_lane.md) → One duty per stage). Update `00-index.md` per [stage.md](stage.md) Step 6. A later stage that cannot build the contract as drawn routes to `/wf design <slug> amend`; it never edits the contract itself.
-
-## Step 5a: Write the explainer
-
-Write the explainer `02c-craft.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
----
-
-## Step 6: Write the contract's rich `.yaml` (do not skip)
-
-The visual contract page (`02c-craft.md`, `type: design-contract`) renders from a
-sibling `.yaml`. `design-contract.mjs` gates its interactive coverage grid on it;
-**without the `.yaml` the page silently degrades to the static frontmatter matrix**
-and managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md))
-hard-blocks the write. Write it now, while the contract is in context. If this
-contract genuinely has no structured coverage to project, set `fragment: none` in
-the `02c-craft.md` frontmatter to opt out.
-
-For the `02c-craft.md` you just wrote, write the sibling **`02c-craft.yaml`**, the
-authoritative structured data: `artifact: design-contract`, `component:`,
-`based-on:`, `summary:`, the coverage axes `tokens:` / `states:` / `sizes:` /
-`themes:` (string lists, mirroring the frontmatter), an optional `contract:` array
-of per-element rows (`element`, `tokens`, `states`, `requirement`), and optional
-`anti-patterns:`. Schema: `siblingYamlSchemas.design-contract` in
-`tests/frontmatter.schema.json`. Do not write `02c-craft.html.fragment`: the
-renderer generates it from the `.yaml`, per
-[_fragment-authoring.md](../_fragment-authoring.md) Step F1.
-
-## Step — Write free narrative fragments
-
-Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

@@ -1,4 +1,4 @@
-# Consult — the panel, the consensus line, and the embedded fragment (`consult/SKILL.md` Step 3)
+# Consult — the panel and the consensus line (`consult/SKILL.md` Step 3)
 
 Load this file from `SKILL.md` Step 3 after the runner returns.
 
@@ -30,17 +30,6 @@ Load this file from `SKILL.md` Step 3 after the runner returns.
    dissent** — weight `repo-aware` opinions more heavily on repo-specific claims,
    and say so when a divergence looks like an evidence artifact rather than a true
    difference of judgment.
-
-3. **Embed (only when consulting ON an artifact).** If the question targets a
-   workflow artifact `<stem>.md`, write the panel as a free narrative fragment
-   next to it: `<stem>.NN-consult.html.fragment` (e.g.
-   `04-plan.01-consult.html.fragment`). It is raw-inlined below the rendered page
-   with `@scope` CSS containment (no contract, no sibling `.yaml`) — see
-   [narrative-fragments.md](../../reference/narrative-fragments.md), and read
-   [artifact-interop.md](../../reference/artifact-interop.md) before embedding an
-   opinion into an `.ai/` artifact. Keep it self-contained — semantic HTML, one
-   small scoped `<style>` if needed. For a standalone consult with no artifact
-   target, skip the fragment.
 
 `panel-size` is what makes a degraded run auditable after the fact: a reader
 scanning recorded consults can see which critiques were actually panels and

@@ -1,6 +1,6 @@
 # Simplify — artifact templates
 
-Load this file from `simplify.md` Step 4 and Step 5. It holds the routing-assignment record, the proposed-deltas block, the two standalone artifact templates, the additive-write contract, and the sibling YAML shape.
+Load this file from `simplify.md` Step 4 and Step 5. It holds the routing-assignment record, the proposed-deltas block, the two standalone artifact templates, and the additive-write contract.
 
 ## What to record per accepted finding (Step 4)
 
@@ -182,49 +182,3 @@ A standalone `simplify-run` **roots its own `type: workflow-index` slug workflow
 4. **Cross-run linking is by `refs:`**, not by appending to prior files. Set `refs.prior-run` to the earlier lead when this run was triggered by one. The renderer surfaces lineage as a backlink, not a `## Revision <n>` chain.
 
 The renderer emits each in-slug simplify-run at `.ai/_view/<slug>/simplify/INDEX.html`. **Legacy** off-pipeline runs at `.ai/simplify/<run-id>.md` still render at `.ai/_view/simplify/<run-id>/INDEX.html` — old URLs stay stable.
-
-## Sibling YAML `simplify-run`
-
-The renderer projects `01-simplify.yaml` (`artifact: simplify-run`) as a finding-table page — categorical chips (reuse/quality/efficiency), optional code-deltas summary, no verdict block. Without it the page falls back to a plain frontmatter card. (Legacy off-pipeline runs wrote the sibling at `.ai/simplify/<run-id>.yaml`.)
-
-Shape:
-
-```yaml
-# .ai/simplify/20260520T1430Z.yaml
-artifact: simplify-run
-run_id:   "20260520T1430Z"
-scope:    branch          # branch | commit | plan | codebase
-target:   "feat/checkout-v2..master"
-rev:      1
-run_at:   "2026-05-20T14:30:00Z"
-summary:  "Eight findings: 5 reuse, 2 quality, 1 efficiency. Five routed to /wf intake refactor."
-counts:
-  reuse: 5
-  quality: 2
-  efficiency: 1
-  accepted: 7
-  skipped: 0
-  deferred: 1
-findings:
-  - id:       reuse-1         # same id as the .md body: reuse-<n> | quality-<n> | efficiency-<n> | debt-<n>
-    category: reuse           # reuse | quality | efficiency
-    action:   accept          # accept | skip | defer (matches the routing decision)
-    file:     "src/cart/total.ts"
-    line:     42
-    msg:      "Duplicate validator implementation — see src/lib/validate.ts."
-    fix:      "Replace inline impl with the shared validator."
-  - id:       quality-1
-    category: quality
-    action:   defer
-    msg:      "Naming inconsistency between cart and checkout modules."
-deltas:
-  - file:    "src/cart/total.ts"
-    add:     0
-    rem:     24
-    summary: "Removed inline validator; imports from src/lib/validate.ts."
-```
-
-Authoring rules:
-- One YAML per `01-simplify.md`. Per-finding `id` / `category` / `action` mirrors the MD body; the `id` is the agent id (`reuse-1`), never a separate scheme. A `debt-<n>` finding carries `category: quality`.
-- `deltas[]` is optional. Include when the run identified concrete file-level changes downstream commands will make.
-- `counts` is authoritative — renderer reads it directly, not recomputed from `findings[]`. Keep them in sync.

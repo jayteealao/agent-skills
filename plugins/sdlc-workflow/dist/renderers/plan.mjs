@@ -89,6 +89,11 @@ function changeRole(f) {
   if (CHANGE_TYPES.has(f?.role)) return f.role;
   return "modified";
 }
+function folderOf(path) {
+  if (typeof path !== "string") return "";
+  const dirs = path.replace(/\\/g, "/").split("/").slice(0, -1);
+  return dirs.slice(0, 2).join("/") || ".";
+}
 function fileTopologySvg(sy) {
   const modules = (sy.modules ?? []).map(normalizeModule);
   const files = sy.files ?? [];
@@ -98,7 +103,7 @@ function fileTopologySvg(sy) {
   const buckets = /* @__PURE__ */ new Map();
   for (const m of modules) buckets.set(m.key, { label: m.label, files: [] });
   for (const f of files) {
-    const key = f.module != null && f.module !== "" ? String(f.module) : modules.find((m) => typeof f.path === "string" && f.path.startsWith(m.key))?.key ?? modules[0]?.key ?? "";
+    const key = f.module != null && f.module !== "" ? String(f.module) : modules.length === 0 ? folderOf(f.path) : modules.find((m) => typeof f.path === "string" && f.path.startsWith(m.key))?.key ?? modules[0]?.key ?? "";
     moduleByFile.set(f.path, key);
     if (!buckets.has(key)) buckets.set(key, { label: key, files: [] });
     buckets.get(key).files.push(f);

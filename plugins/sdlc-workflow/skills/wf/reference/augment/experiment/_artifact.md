@@ -1,6 +1,6 @@
-# Experiment — artifact template and sibling YAML (`augment/experiment.md` Step 2 and the Sibling YAML step)
+# Experiment — artifact template (`augment/experiment.md` Step 2)
 
-Load this file from `experiment.md` when you write `04c-experiment.md` and its sibling `04c-experiment.yaml`.
+Load this file from `experiment.md` when you write `04c-experiment.md`.
 
 ## `04c-experiment.md` (Step 2)
 
@@ -102,54 +102,3 @@ List any design decisions that require human input before the experiment can go 
 - Rollout timeline: "How long do we want to run this before forcing a decision?"
 
 If all decisions are made: write "None — experiment design is complete."
-
-## Step — Sibling YAML `experiment`
-
-After writing `.ai/workflows/<slug>/04c-experiment.md`, write the sibling
-`04c-experiment.yaml` next to it with `artifact: experiment`. The view-layer renderer
-projects this as an arm-allocation figure (horizontal bar split by
-`allocated_pct`) plus a guardrail-threshold table.
-
-Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../../_fragment-authoring.md) Step F1.
-
-Shape:
-
-```yaml
-# 04c-experiment.yaml
-artifact:        experiment
-experiment_type: a-b-test          # feature-flag | a-b-test | canary | shadow
-flag:            "checkout.board-virtualization"
-framework:       "growthbook"
-hypothesis:      "Virtualizing the board cuts initial-render time by ≥30% with no change to interaction error rate."
-split:           "50/50 by user-id hash"
-status:          ready             # ready | running | completed | abandoned
-arms:
-  - id:            control
-    description:   "Existing render path (DOM-virtualised list only)."
-    allocated_pct: 50
-  - id:            treatment
-    description:   "Full virtual-scroller for boards >200 cards."
-    allocated_pct: 50
-guardrails:
-  - name:      "p95_render_ms"
-    threshold: 250
-    direction: lower-is-better
-    unit:      ms
-  - name:      "drag_error_rate"
-    threshold: 0.005
-    direction: lower-is-better
-  - name:      "board_engagement_min_per_session"
-    threshold: 4.2
-    direction: higher-is-better
-    unit:      min
-```
-
-Authoring rules:
-- `arms[]` must have at least 2 entries. Sum of `allocated_pct` should
-  be 100; the renderer does not enforce but the arm bar visually
-  expects it.
-- `guardrails[]` is optional but strongly recommended — without it the
-  experiment page documents the hypothesis but gives no shape to the
-  decision criteria.
-- `flag:` is required for `experiment_type: feature-flag | canary | shadow`
-  and recommended for `a-b-test` when implemented via a flag library.

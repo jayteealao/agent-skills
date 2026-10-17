@@ -1,7 +1,7 @@
 # Intake shared context
 
-The single source of truth for the rules every `/wf intake` mode shares — the output boundary,
-the narrative-fragment tier, and the workflow-registry / slug semantics. The dispatcher
+The single source of truth for the rules every `/wf intake` mode shares — the output boundary
+and the workflow-registry / slug semantics. The dispatcher
 (`reference/intake.md`), `intake/default.md`, and every mode reference under `intake/` defer to
 this file rather than restating it. (Mirrors how the design commands defer to
 `design/_design-context.md`.)
@@ -13,14 +13,6 @@ this operation produces: translate workflow context to product language and leak
 > **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
 > exists and apply the contract in [_steering.md](../_steering.md): honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
-
-# Narrative fragments — any artifact
-Beyond the typed `.html.fragment` the rich stages project from a sibling `.yaml`, *any* artifact a
-mode writes may also ship free **narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings
-of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required —
-rendered raw-inline below the page. Author one whenever a bespoke diagram, flow, comparison, or
-widget tells the story better than prose. Full guidance:
-`../../../../reference/narrative-fragments.md`.
 
 # Workflow registry & slug semantics
 

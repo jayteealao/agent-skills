@@ -4,7 +4,7 @@ argument-hint: "<existing-slug> amend <what to change> [dry-run]"
 ---
 
 # Output boundary & shared context
-The External Output Boundary, the narrative-fragment tier, and the workflow-registry/slug
+The External Output Boundary and the workflow-registry/slug
 semantics come from `_intake-context.md`, which the `intake` dispatcher loaded before this
 reference — apply them; do not restate or fork those rules here.
 

@@ -91,7 +91,8 @@ Judge the work against the design record:
 
 ### Issues — ordered by impact
 
-1. **[Issue title]** — Impact: High/Medium/Low
+1. **C1 [Issue title]** — Severity: blocker/high/medium/low/nit
+   Dimension: [critique dimension]
    What: [specific problem]
    Where: [file:component or visual area]
    Why it matters: [effect on user or design quality]
@@ -107,7 +108,7 @@ Judge the work against the design record:
 
 When invoked as `/wf design <slug> critique`:
 - Write to `.ai/workflows/<slug>/07-design-critique.md`
-- When `02c-craft.md` names `boards:`, judge the board and capture pairs in `06-verify-*.md` `## Design Comparison` (`design/_boards.md`). Name the board key in `where:`.
+- When `02c-craft.md` names `boards:`, judge the board and capture pairs in `06-verify-*.md` `## Design Comparison` (`design/_boards.md`). Name the board key in the `Where` line of the issue.
 - Do not reopen a board that the person confirmed. Write a finding against a confirmed board as a question for `/wf design <slug> amend`. Do not redraw the board.
 - Use this frontmatter:
 
@@ -136,26 +137,4 @@ recommended-routes: [{invocation: "/wf review <slug>", reason: "fold the finding
 ---
 ```
 
-- **Required — write the sibling YAML** to
-  `.ai/workflows/<slug>/07-design-critique.yaml`:
-
-```yaml
-artifact: design-critique
-scope: <surface|flow|system|narrative>
-summary: <one-sentence summary>
-run_at: <timestamp>
-findings:
-  - id: C1
-    severity: <blocker|high|medium|low|nit>
-    dimension: <dimension>
-    where: <file/component/area>
-    observation: <specific problem>
-    recommendation: <specific fix>
-```
-
-- Write the explainer `07-design-critique.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-- Do not write the typed `07-design-critique.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../_fragment-authoring.md) Step F1.
-
-## Step — Write free narrative fragments
-
-Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
+- Give each issue an ID, a severity, and a dimension. Later stages read the severity of each finding from the issue list.

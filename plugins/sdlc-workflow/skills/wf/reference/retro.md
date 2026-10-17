@@ -182,7 +182,7 @@ misfired, a gate was wrong, a reference misled). The two go different places:
 Apply [_workflow-rules.md](_workflow-rules.md).
 
 # Chat return contract
-Apply [_grounded-progress.md](_grounded-progress.md): every count this stage reports (checks run/passed, commits, findings) names the artifact or tool result it came from. After writing files, return per [_chat-return.md](_chat-return.md). Quote the explainer's summary paragraph as the narrative lead, then give this receipt:
+Apply [_grounded-progress.md](_grounded-progress.md): every count this stage reports (checks run/passed, commits, findings) names the artifact or tool result it came from. After writing files, return per [_chat-return.md](_chat-return.md). Lead with the narrative per that file (section *The narrative*), then give this receipt:
 - `slug: <slug>`
 - `wrote: <path>`
 - `next: workflow complete` (or options if follow-up is warranted)
@@ -196,7 +196,6 @@ Do this in order:
 3. **Evaluate adaptive routing** (see below) and write options into the `recommended-routes` frontmatter.
 4. Mark the workflow as complete in `00-index.md` unless follow-up work is being opened.
 5. Write `.ai/workflows/<slug>/10-retro.md`.
-6. Write the explainer `10-retro.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
 
 # Adaptive routing — evaluate what's actually next
 After completing the retro, evaluate whether the workflow is truly done:
@@ -216,8 +215,3 @@ Use when: The retro identified quick-win improvements to repo instructions, hook
 Write ALL viable options into `recommended-routes` so the user can choose.
 
 Write `10-retro.md` with the frontmatter and body sections in [retro/_artifact.md](retro/_artifact.md). On a re-run over an existing `10-retro.md`, follow the additive-write contract in the same file.
-
-## Step — Write free narrative fragments
-
-Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
-

@@ -4,7 +4,7 @@ argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake hotfix`, an **accelerated incident-response standard lifecycle**.
 
@@ -94,8 +94,6 @@ recommended-routes: <routes>
 ---
 ```
 Body: `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Acceptance Criteria` (≤2, each objectively verifiable; embed any inline question answers as italic notes — verify and review read the criteria from this lead, so a hotfix without them cannot pass its own quality tail; the incident is over when these are observably true, e.g. "checkout returns 200 for the repro request" + "no new occurrences of the error signature for 30 minutes"), `## Recent Changes` (or "none known").
-
-Write the explainer `01-hotfix.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
 
 # Step 2 — Diagnose → `02-shape.md`
 Launch parallel sub-agents to identify root cause. Do not proceed until both complete.
@@ -187,9 +185,6 @@ recommended-routes: <routes>
 ---
 ```
 Body: `## Steps` (each names file(s)+change+verification), `## Rollback` (exact revert), `## Data remediation` (if needed), `## Verification` (reproduce the symptom; regression suite; adjacent-path spot-check), `## Tripwire breaches` (only if any fired — per `_change-mode-tail.md`).
-
-## Step — Write free narrative fragments
-Author free narrative fragments for any artifact per the narrative-fragment tier of `_intake-context.md` (a root-cause flow or a before/after diagram tells an incident story well).
 
 # Step 5 — Write `00-index.md` (conformant `type: index`)
 Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `hotfix` column values (branch `hotfix/<slug>` off the production branch; `stack.user-confirmed: false` per the stack policy). **Seed `intent-risks` from `## Impact`:** write two entries (`id: RIM-1`/`RIM-2`, `severity` from the incident severity, `status: open`) — one for the incident's user/data impact, one for the blast-radius or data-remediation risk — so handoff/ship must adjudicate the incident severity instead of inheriting a hardcoded-empty list. Then register the slug in `.ai/workflows/INDEX.md` per the tail.

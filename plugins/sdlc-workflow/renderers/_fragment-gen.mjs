@@ -17,8 +17,10 @@
 import { escapeHtml } from './_validator.mjs';
 
 /**
- * The rich-tier types — keep in step with RICH_TIER_TYPES in
- * hooks/post-write-verify.mjs (a unit test compares the two lists).
+ * The rich-tier types the renderer builds a fragment for. Since v9.187.0 the
+ * write hook requires a .yaml only for review, review-command and plan; the
+ * other types keep rendering from the .yaml of older artifacts (a unit test
+ * checks that the hook list is a subset).
  */
 export const RICH_TIER_TYPES = Object.freeze([
   'review', 'plan', 'design', 'ship-run', 'rca',

@@ -15,9 +15,6 @@
  *
  * Exit code 0 = pass, 1 = at least one fragment failed.
  *
- * A `<stem>.explainer.html.fragment` gets the explainer check instead
- * (lib/explainer-check.mjs): warnings only; exit 1 only when it does not parse.
- *
  * Usage:
  *   node plugins/sdlc-workflow/scripts/verify-fragment.mjs [<file-or-dir> ...]
  *                                                          [--root .ai/workflows]
@@ -33,7 +30,6 @@ import yaml from 'js-yaml';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import { classifyFragmentName } from '../renderers/_paths.mjs';
-import { checkExplainer, isExplainerFragmentPath } from '../lib/explainer-check.mjs';
 
 /**
  * Classify a `*.html.fragment` against the `.md` artifacts beside it:
@@ -154,14 +150,6 @@ function detectInlineSnippets(text) {
   return warnings;
 }
 
-// The explainer check (W5) lives in lib/explainer-check.mjs so the write hook
-// shares it; re-exported here for the existing callers and tests.
-export {
-  parseFragmentTree, checkExplainer, countSentences, countWords, isExplainerFragmentPath,
-  SUMMARY_MAX_SENTENCES, SUMMARY_MAX_WORDS, EXPLAINER_SNIPPETS, BODY_MIN_WORDS, MIN_VISUALS,
-  explainerKind, isMostlyNumbers,
-} from '../lib/explainer-check.mjs';
-
 function normalizeYamlScalars(value) {
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) return value.map((item) => normalizeYamlScalars(item));
@@ -176,13 +164,6 @@ function normalizeYamlScalars(value) {
 function validateFragment(absPath, ajv, siblingSchemas) {
   const errs = [];
   const warns = [];
-
-  // The explainer is a free fragment with a light shape check (warnings only;
-  // an unparseable file is the one error). It is checked by its name, even
-  // before its agent file exists (the stage may write the explainer first).
-  if (isExplainerFragmentPath(absPath)) {
-    return checkExplainer(readFileSync(absPath, 'utf-8'), absPath);
-  }
 
   // Tier 2 — free narrative fragments (`<stem>.<label>.html.fragment`) are
   // UNRESTRICTED raw HTML; the envelope contract below does not apply to them.

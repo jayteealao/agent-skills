@@ -42,7 +42,7 @@ test('every roster surface names brainstorm', () => {
   assert.match(read('workflows', 'yolo.js'), /ideate, brainstorm\}/, 'yolo.js terminal-analysis class lost brainstorm');
   assert.match(read('reference', 'auto.md'), /`workflow-type: brainstorm`/, 'auto.md lost the brainstorm pause arm');
   assert.match(read('reference', 'status.md'), /`audit`, `brainstorm`/, 'status.md workflow-type vocabulary lost brainstorm');
-  assert.match(read('reference', '_story-arc.md'), /`## The Brainstorm`/, '_story-arc.md lost the brainstorm heading');
+  assert.match(read('reference', '_chat-return.md'), /`## The Brainstorm`/, '_chat-return.md lost the brainstorm heading');
 });
 
 test('the reference names no question tool and delivers batches through the ladder', () => {

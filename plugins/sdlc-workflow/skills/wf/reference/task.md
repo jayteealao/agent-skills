@@ -81,8 +81,6 @@ Author the brief. Ask at most **2 questions** in chat; answers go inline into th
 - `## Acceptance Criteria` — each naming **how it will be observed** (the concrete read-back), not just what should be true.
 - `## Assumptions / Open Questions`, and `## Gate Decision` (written at the gate).
 
-Write the explainer `01-task.explainer.html.fragment` per [_story-arc.md](_story-arc.md).
-
 `00-index.md` is a fully-conformant `type: index` (the heavy 22-field set from `intake/default.md`) plus `workflow-type: task`. `progress:` marks `shape`, `slice`, `plan` as `skipped`; `review`, `handoff`, `ship` as `skipped` (revisited at Step 4); `intake: complete`. Register the row in `.ai/workflows/INDEX.md` per `intake/_intake-context.md`.
 
 **[Gate]** — apply the blast-radius table as a gate question per [_gate-question.md](_gate-question.md) (Proceed / Adjust / Escalate). `repo-local` may auto-proceed low-risk at your discretion — record `auto-proceeded-low-risk` in the brief. The bottom three rows always stop; their **non-interactive default is STOP** (record the missing authorization; do not proceed). For `irreversible`, the confirmation must echo exactly what will happen.
@@ -106,7 +104,7 @@ Set `result: pass` only when every AC closes at `live` or `attested`; otherwise 
 1. Update `00-index.md`: `current-stage: verify` → close the loop honestly — a task whose ACs all closed sets `status: closed`, `close-reason: completed`, `closed-at` (a completed task has nothing left to drive; `/wf close <slug>` is not required). A task with open ACs stays `active` with `next-invocation` naming the missing observation.
 2. **If the task produced a repo diff worth reviewing or merging**, flip `review`/`handoff` from `skipped` to `not-started` and recommend ad-hoc `/wf review <dimension>` or `/wf handoff <slug>`. Otherwise they stay `skipped` — marked honestly, not silently absent.
 3. `10-retro.md` on request only.
-4. Return per [_chat-return.md](_chat-return.md) — quote the explainer summary as the narrative lead, then:
+4. Return per [_chat-return.md](_chat-return.md): lead with the narrative (section *The narrative*), then:
 
 ```
 wf task complete: <slug>
@@ -117,9 +115,6 @@ Evidence: <per-AC rungs, e.g. live 3 / attested 1>
 Artifacts: .ai/workflows/<slug>/01-task.md, 05-implement.md, 06-verify.md
 Next: Done | <the missing observation> | /wf review <dimension> (diff left on <branch>)
 ```
-
-## Step — Write free narrative fragments
-Any artifact may ship free narrative fragments (`<stem>.<NN-label>.html.fragment`) per [_fragment-authoring.md](_fragment-authoring.md) Step F2 — a before/after, a rollback map, a coordination timeline.
 
 # Crash-safe / resume
 

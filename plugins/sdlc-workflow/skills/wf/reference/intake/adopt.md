@@ -4,7 +4,7 @@ argument-hint: "[description]"
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md` — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake adopt`, the **reverse-entry** mode. Where `fix`/`hotfix`/`refactor` author a plan and then drive execution *forward*, adopt reconstructs the record *backward* from a diff that already exists, then hands the result to the standard verification chain.
 
@@ -123,11 +123,6 @@ options:
 # Step 3 — Write the reconstructed artifacts (each schema-conformant, each `provenance: adopted`)
 
 Write the five reconstructed artifacts per [intake/adopt/_artifacts.md](adopt/_artifacts.md): `01-adopt.md` (`type: intake`, the adoption record with the Step A0 surface evidence), `02-shape.md`, `03-slice.md` (`type: slice-index`, one slice unless separable concerns were confirmed), `04-plan.md` (retrospective observation plus the forward `## Verification Strategy`, whose `proxy+deferral` resolutions also land in the index's `runtime-evidence-deferrals`), and `05-implement.md` (synthesized from the diff; `next: 06-verify.md`). Every frontmatter block carries `provenance: adopted`. Use real timestamps per [_timestamp.md](../_timestamp.md) and write each artifact atomically (temp path → rename).
-
-Write the explainer `01-adopt.explainer.html.fragment` per [_story-arc.md](../_story-arc.md).
-
-## Step — Write free narrative fragments
-Author free narrative fragments for any of these artifacts as described in the narrative-fragment tier of `_intake-context.md` — a before/after behavior sketch or a changed-surface map often tells the adoption story better than prose. `<stem>.<NN-label>.html.fragment` siblings of unrestricted raw HTML, ordered with an `NN-` prefix.
 
 # Step 4 — Write `00-index.md` (conformant `type: index`)
 

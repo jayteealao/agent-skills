@@ -163,7 +163,7 @@ For each review `.md` written (`07-review.md` slug-wide, or `07-review-<slice-sl
 
 Write **`<stem>.yaml`** — structured data: `dimensions:` (severity × dimension heatmap matrix), `verdict:`, `findings:` (id, severity, dimension, file, line, message, evidence/diff, triage, **status**, **surfaced-at**), and metric counts. Schema: `siblingYamlSchemas.review` in `tests/frontmatter.schema.json`. **`findings:` and `counts:` = OPEN findings only** (open|deferred|could-not-fix) — resolved/fixed/dismissed history lives in the `.md` body. Bump `rev:` by 1 each run (first write = 1).
 
-Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../_fragment-authoring.md) Step F1.
+Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`.
 
 ---
 
@@ -175,4 +175,4 @@ Per-dimension siblings are authored by the **Step-3 review sub-agent** (which ho
 
 Write **`<stem>.yaml`** — schema `siblingYamlSchemas.review-dimension` in `tests/frontmatter.schema.json`: `artifact: review-dimension`, `dimension`, `parent` (the sweep `07-review.md`), `rev`, `verdict` (`ship|caveats|no`), `summary`, `counts` (blocker/high/med/low/nit), `findings` (id, severity, file, line, confidence, action, msg, evidence, fix, **status**, **surfaced-at**) — scoped to this dimension only. `findings:` + `counts:` = OPEN findings only; bump `rev:` by 1 each run.
 
-Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`, per [_fragment-authoring.md](../_fragment-authoring.md) Step F1.
+Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`.
