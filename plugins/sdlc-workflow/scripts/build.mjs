@@ -79,6 +79,8 @@ const SCRIPT_ENTRIES = [
   'work-packets',            // brainstorm done: check + write the work set; run via skills/wf/scripts/work-packets.mjs (BRAINSTORM-WORK-PACKETS-PLAN)
   'campaign',                // /wf campaign: ledger, waves, context files, drift, versions; run via skills/wf/scripts/campaign.mjs (WF-CAMPAIGN-PLAN)
   'design-boards',           // /wf design: render, contact sheet, freeze, check the boards; run via skills/wf/scripts/design-boards.mjs (DESIGN-BOARDS-PLAN)
+  'goal',                    // /wf goal: the contract, the check that prints the GOAL: line, park, clear; run via skills/wf/scripts/goal.mjs (WF-GOAL-PLAN)
+  'optimize',                // /wf optimize: baseline, trials, branch rounds, checkpoints, finish; run via skills/wf/scripts/optimize.mjs (WF-OPTIMIZE-PLAN)
 ];
 
 // Public renderers are loaded at runtime by render-sunflower's loadRenderer()

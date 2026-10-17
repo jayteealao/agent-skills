@@ -53,6 +53,7 @@ export const PRODUCERS = [
   { match: /^01-intake\.md$/, templates: ['intake/default/_artifact.md'] },
   { match: /^01-rca\.md$/, templates: ['intake/rca/_artifact.md', 'intake/rca.md'] },
   { match: /^01-fix\.md$/, templates: ['intake/fix.md', 'intake/_change-mode-tail.md'] },
+  { match: /^01-optimize\.md$|^02-optimize-spec\.md$/, templates: ['intake/optimize.md'] },
   { match: /^01-hotfix\.md$/, templates: ['intake/hotfix.md', 'intake/_change-mode-tail.md'] },
   { match: /^01-refactor\.md$/, templates: ['intake/refactor.md', 'intake/_change-mode-tail.md'] },
   { match: /^01-update-deps\.md$/, templates: ['intake/update-deps.md', 'intake/_change-mode-tail.md'] },

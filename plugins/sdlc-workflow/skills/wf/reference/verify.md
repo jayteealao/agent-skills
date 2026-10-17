@@ -77,7 +77,7 @@ Apply [_workflow-rules.md](_workflow-rules.md). Two verify-specific rules:
    - `investigate` → **terminal analysis, not verified in place.** Direct the user to `/wf intake <option>`.
    - `fix` / `hotfix` / `refactor` → **change-mode.** Verify as standard mode with the un-suffixed files. The lead `01-<mode>.md` holds the acceptance criteria, not `03-slice.md`. Hotfix: reproduce the incident symptom and run the regression suite. Refactor: re-run the literal `## Baseline Command` from `02-shape.md`, diff its pass/fail/skip counts against `## Baseline Test Result`, confirm every `## Public API Surface` name keeps its signature and its callers work; any unplanned deviation is a FAIL.
    - `update-deps` → **self-managed**; it authors its own `06-verify.md`. STOP and direct the user back to `/wf intake update-deps <slug>`.
-   - `feature` or unset → **standard mode**. The slice file holds the acceptance criteria.
+   - `feature`/`optimize` or unset → **standard mode**. The slice file holds the acceptance criteria.
 5. **Check prerequisites.** The mode's implement record must exist.
    - All modes: if implement record shows `Status: Awaiting input` → STOP.
    - If `06-verify-<slice-slug>.md` (or `06-verify.md` in compressed mode) already exists → note the re-run in chat and proceed; [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger.

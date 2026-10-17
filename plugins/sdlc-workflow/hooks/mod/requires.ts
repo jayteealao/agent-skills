@@ -1339,6 +1339,66 @@ export const REQUIRES: readonly RequiresEntry[] = [
     ]
   },
   {
+    "reference": "intake/optimize.md",
+    "stage": "intake:optimize",
+    "rows": [
+      {
+        "input": "00-index.md",
+        "kind": "artifact",
+        "when": "on-resume",
+        "sections": []
+      },
+      {
+        "input": "01-optimize.md",
+        "kind": "artifact",
+        "when": "on-resume",
+        "sections": []
+      },
+      {
+        "input": "02-optimize-spec.md",
+        "kind": "artifact",
+        "when": "on-resume",
+        "sections": []
+      },
+      {
+        "input": "steer.md",
+        "kind": "artifact",
+        "when": "if-present",
+        "sections": []
+      },
+      {
+        "input": "intake/_intake-context.md",
+        "kind": "procedure",
+        "when": "always",
+        "sections": []
+      },
+      {
+        "input": "intake/_change-mode-tail.md",
+        "kind": "procedure",
+        "when": "always",
+        "sections": []
+      },
+      {
+        "input": "intake/_intake-provenance.md",
+        "kind": "procedure",
+        "when": "always",
+        "sections": []
+      },
+      {
+        "input": "01-optimize.md",
+        "kind": "writes",
+        "when": "",
+        "sections": []
+      },
+      {
+        "input": "02-optimize-spec.md",
+        "kind": "writes",
+        "when": "",
+        "sections": []
+      }
+    ]
+  },
+  {
     "reference": "intake/rca.md",
     "stage": "intake:rca",
     "rows": [
@@ -1964,6 +2024,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
       },
       {
         "input": "09-ship.md",
+        "kind": "artifact",
+        "when": "if-present",
+        "sections": []
+      },
+      {
+        "input": "optimize/results.jsonl",
         "kind": "artifact",
         "when": "if-present",
         "sections": []

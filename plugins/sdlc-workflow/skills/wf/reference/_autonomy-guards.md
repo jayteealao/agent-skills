@@ -1,6 +1,6 @@
 # Shared autonomy guards (single source)
 
-Two guards for stages and drivers that run with autonomy. Consumers reference
+Three guards for stages and drivers that run with autonomy. Consumers reference
 this file. Do not paste the guards into other files.
 
 ## Early-stop guard
@@ -26,3 +26,7 @@ When the prompt, an existing artifact, or the codebase already answers a
 question, do not ask the question. Record the answer and the source of the
 answer, then continue. The recorded source keeps the audit trail that the
 question existed to create.
+
+## Goal park
+
+While the slug's `goal.md` has `state: armed` (the `goal` key), a human gate ends the goal. Run `goal.mjs park <root> <slug> <gate-id>`, then `goal.mjs check`, which prints `GOAL: BLOCKED gate <gate-id>`. Do not answer the gate to keep the goal alive.

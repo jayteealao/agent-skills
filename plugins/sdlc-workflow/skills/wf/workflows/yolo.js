@@ -853,6 +853,15 @@ async function orient() {
     `complete, set ok=true and workflowType='update-deps', then PROCEED to step 6 (the single-slice roster: ` +
     `implement→05-implement.md, verify→06-verify.md, both un-suffixed; reviewScope slug-wide). Do NOT fall through ` +
     `to 5d.\n` +
+    `   5c2. OPTIMIZE loop — workflow-type 'optimize'. The metric loop belongs to /wf optimize: a person confirms ` +
+    `its spec (02-optimize-spec.md, confirmed-by), and the loop runs under its own driver. yolo never runs a trial. ` +
+    `READINESS: 05-implement-optimize.md exists with status: complete (the loop's finish wrote it, with ` +
+    `03-slice.md and 03-slice-optimize.md). If it is absent or not complete, set ok=false, blockReason='the ` +
+    `optimize loop has not finished', route='/wf optimize ${slug}'. When it is complete, set ok=true and ` +
+    `workflowType='optimize'; the roster is the one slice 'optimize', fileConvention 'suffixed' ` +
+    `(06-verify-optimize.md, 07-review-optimize.md), reviewScope from 00-index.md (per-slice). In step 6, mark ` +
+    `plan 'done' for that slice: the confirmed spec replaces the plan. yolo then drives verify and review only. ` +
+    `Do NOT fall through to 5d.\n` +
     `   5d. STANDARD build lifecycle — everything else (standard/feature, plus the compressed change-modes fix / ` +
     `hotfix / refactor; 00-index.md type: index). Apply the readiness check: the stage-1 intake artifact must exist ` +
     `and not be status: awaiting-input; 02-shape.md must exist; 03-slice.md must exist (UNLESS singleScope was ` +

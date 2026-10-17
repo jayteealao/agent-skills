@@ -1,8 +1,8 @@
 ---
 name: wf
-description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) plus design, brainstorm, the drivers (probe, simplify, auto, yolo, campaign), the minimal lifecycle (task), navigation (status, recap), lifecycle control (close), and the routers (ship-plan, docs, observability) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also dispatches the compressed entry modes and extension; `review` is the whole review surface.
+description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) plus design, brainstorm, the drivers (probe, simplify, auto, yolo, campaign), the loops (goal, optimize), the minimal lifecycle (task), navigation (status, recap), lifecycle control (close), and the routers (ship-plan, docs, observability) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also dispatches the compressed entry modes and extension; `review` is the whole review surface.
 disable-model-invocation: true
-argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|brainstorm|probe|simplify|auto|yolo|campaign|task|status|recap|close|ship-plan|docs|observability> [args...]"
+argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|brainstorm|probe|simplify|auto|yolo|campaign|task|status|recap|close|ship-plan|docs|observability|goal|optimize> [args...]"
 ---
 
 # Role
@@ -11,7 +11,7 @@ You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per ke
 
 - Apply [_output-boundary.md](reference/_output-boundary.md) to every external-facing output.
 - Write every text per [_ste-procedural.md](reference/_ste-procedural.md). Write chat narratives per [_chat-return.md](reference/_chat-return.md). A reference's own writing spec adds to this contract and never replaces it.
-- Read [_host-invocation.md](reference/_host-invocation.md) first and apply its host contract to every reference you load. Under Codex or pi, `yolo` ends at Step 0 with the redirect to `/wf auto <slug>` that file prescribes; do not load `reference/yolo.md`.
+- Read [_host-invocation.md](reference/_host-invocation.md) first and apply its host contract to every reference you load.
 - Before a stage artifact write, read its `## Requires` inputs per [_requires.md](reference/_requires.md).
 
 # Step 0 — Dispatch check
@@ -20,7 +20,7 @@ Run this check before any read or write. Its result is your first visible output
 
 1. Split `$ARGUMENTS` on whitespace. The first token is the key candidate. The remaining tokens are the key's `$ARGUMENTS`, unchanged.
 2. If `$ARGUMENTS` is empty, render the key tables and ask which key the user wants. STOP.
-3. If the key candidate is not one of the 24 keys, STOP. Tell the user: *"`<token>` is not a known wf key. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, brainstorm, probe, simplify, auto, yolo, campaign, task, status, recap, close, ship-plan, docs, observability."* Do not treat the token as a slug or as an intake mode. Do not pick a slug for the user. Do not load a reference.
+3. If the key candidate is not one of the 26 keys, STOP. Tell the user: *"`<token>` is not a known wf key. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, brainstorm, probe, simplify, auto, yolo, campaign, task, status, recap, close, ship-plan, docs, observability, goal, optimize."* Do not treat the token as a slug or as an intake mode. Do not pick a slug for the user. Do not load a reference.
 4. If the key candidate is `yolo` under Codex or pi, answer with the host redirect. STOP.
 5. State the dispatch on one line: `wf dispatch: key=<key> · args=<remaining tokens, or (none)> · reference=reference/<key>.md`
 
@@ -28,7 +28,7 @@ Run this check before any read or write. Its result is your first visible output
 
 | Key | Arguments | Does | Writes |
 |---|---|---|---|
-| `intake` | `[slug] [mode] <description>` | Entry dispatcher. A description starts stage 1. A mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`) runs a compressed entry flow. An existing slug plus a mode attaches a compressed slice; a slug plus free scope extends the workflow. `amend` and `modernize` edit a workflow's recorded config. | per mode |
+| `intake` | `[slug] [mode] <description>` | Entry dispatcher. A description starts stage 1. A mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`) runs a compressed entry flow. An existing slug plus a mode attaches a compressed slice; a slug plus free scope extends the workflow. `amend` and `modernize` edit a workflow's recorded config. | per mode |
 | `shape` | `[slug] [hint]` | Product-owner discovery. Authors the documentation plan and `augmentations-needed`. | `02-shape.md` |
 | `design` | `[slug] [move\|amend\|import\|audit\|critique]` · `setup\|teach\|extract\|direction\|sync` | Human-only: the person confirms the boards before drivers run. | `02c-craft.md` |
 | `slice` | `<slug>` | Decompose the shape into shippable slices. | `03-slice.md`, `03-slice-<slug>.md` |
@@ -50,6 +50,8 @@ Run this check before any read or write. Its result is your first visible output
 | `auto` | `<slug> [<slice>]` | Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff. | none |
 | `yolo` | `<slug> [<slice>]` | Autonomous driver. Resolves each gate by written policy. Stops before handoff. Claude Code only. | none |
 | `campaign` | `<brainstorm-slug>` | Drive a brainstorm's work packets in dependency waves, one PR per wave. | `work/campaign/` |
+| `goal` | `<slug> [objective\|resume\|status\|clear]` | Hand the slug to the host goal; `goal.mjs check` judges it. | `goal.md` |
+| `optimize` | `<slug>` · `<description>` | Metric loop: measure, then keep or revert. | `optimize/` |
 
 ### Minimal lifecycle
 
@@ -84,7 +86,7 @@ Step 0.5 applies to `shape`, `slice`, `plan`, `implement`, `verify`, and `close`
 
 Skip this step when Step 0 ended at the menu or at an unknown key. Run `git rev-parse --show-toplevel` from the project root. On success, continue to Step 0.8.
 
-If it fails, the hub cannot register the repo: every registration returns `skipped-not-git`, queued renders never drain, and slug branches cannot exist. Ask first, per [_gate-question.md](reference/_gate-question.md):
+If it fails, the hub cannot register the repo, and slug branches cannot exist. Ask first, per [_gate-question.md](reference/_gate-question.md):
 
 > This directory is not a git repository. `/wf` needs git — the hub registers repos by git identity, and slug branches live in git. Run `git init` now?
 > - **Yes — run `git init` (Recommended):** initialize the repo, then continue.
@@ -94,7 +96,7 @@ On consent, run `git init` only; do not stage or commit the user's files. On dec
 
 # Step 0.8 — Source study
 
-When the work turns on how a dependency behaves (a signature, an edge case, an error string, a version change), use the `study-sources` skill instead of recalled API shapes. It reads installed sources first and fetches into a gitignored `.scratch/` only when none are present. It is read-only. `intake rca`, `intake investigate`, `plan`, `implement`, `verify`, `review`, and `intake update-deps` name it; any other key may use it.
+When the work turns on how a dependency behaves, use the `study-sources` skill instead of recalled API shapes. It reads installed sources first and fetches into a gitignored `.scratch/` only when none are present. It is read-only. `intake rca`, `intake investigate`, `plan`, `implement`, `verify`, `review`, and `intake update-deps` name it; any other key may use it.
 
 # Step 1 — Execute
 
@@ -114,7 +116,5 @@ Artifacts: <paths created or modified, or "none">
 Next: <one concrete invocation, or "Done">
 ```
 
-- Name the key and the scope on the first line.
-- `Artifacts` lists every path this run wrote. Read-only keys write `none`; `status` may still reconcile `INDEX.md` and `recap` writes `90-recap.md`, so name those.
-- Write the narrative per [_chat-return.md](reference/_chat-return.md) section *The narrative*. Omit it only for a read-only run with nothing to narrate. A reference that says to return only a receipt names the receipt's fields; it does not waive this narrative.
-- `Next` is one invocation, or `Done` after `ship`, `retro`, or `close`. Paths under `.ai/` are allowed in this block; outside it the output boundary applies.
+- Name the key and the scope on the first line. `Artifacts` lists every path this run wrote. Read-only keys write `none`; `status` may still reconcile `INDEX.md` and `recap` writes `90-recap.md`, so name those.
+- Write the narrative per [_chat-return.md](reference/_chat-return.md) section *The narrative*. Omit it only for a read-only run with nothing to narrate. A reference that says to return only a receipt names the receipt's fields; it does not waive this narrative. `Next` is one invocation, or `Done` after `ship`, `retro`, or `close`. Paths under `.ai/` are allowed in this block; outside it the output boundary applies.

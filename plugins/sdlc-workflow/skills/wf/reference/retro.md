@@ -46,6 +46,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `08-handoff.md` | artifact | if-present | |
 | `09-ship-run-*.md` | artifact | if-present | |
 | `09-ship.md` | artifact | if-present | |
+| `optimize/results.jsonl` | artifact | if-present | |
 | `retro/_artifact.md` | procedure | always | |
 | `design/record.md` | procedure | mode:design | |
 | `10-retro.md` | writes | | |
@@ -139,7 +140,7 @@ Zero learnings is a legitimate outcome; do not pad. A **repeated runtime-evidenc
 prime candidate ("<wall> blocks all interactive ACs; the one-time harness that retires it = …",
 category `testing` or `gotcha`). A **standing-steering entry that recurs across workflows** (from this or prior slugs'
 `steer.md`; see `_steering.md`) is likewise a candidate (usually `process` or the category matching its
-subject); the durability filter still applies.
+subject); the durability filter still applies. For an optimize slug, read `optimize/results.jsonl`, the trials of deleted round branches included. Record which hypotheses moved the metric and which did not as one learning tagged `optimize`, with `status: active`: the next optimize loop reads it.
 
 **Dedupe before write:** read `.ai/solutions/INDEX.md` (if it exists) and check for overlapping
 tags/titles. On overlap, UPDATE the existing file — refresh the evidence, extend

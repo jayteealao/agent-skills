@@ -26,7 +26,7 @@ test('the mode reference and its artifact template exist', () => {
 
 test('every roster surface names brainstorm', () => {
   const skill = read('SKILL.md');
-  assert.match(skill, /`ideate`, `brainstorm`, `adopt`\)/, 'SKILL.md intake row lost brainstorm');
+  assert.match(skill, /`ideate`, `brainstorm`, `adopt`, `optimize`\)/, 'SKILL.md intake row lost brainstorm');
 
   const intake = read('reference', 'intake.md');
   assert.match(intake, /The \*\*mode keyword set\*\* is: .*`brainstorm`/, 'intake.md keyword set lost brainstorm');

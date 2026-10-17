@@ -205,7 +205,8 @@
           "enum": [
             "feature", "fix", "quick", "rca", "investigate",
             "rf", "refactor", "hotfix", "dep-update", "update-deps",
-            "docs", "discover", "standard", "adopt", "task", "audit", "brainstorm"
+            "docs", "discover", "standard", "adopt", "task", "audit", "brainstorm",
+            "optimize"
           ]
         },
         "public-surface": {},
@@ -2075,6 +2076,98 @@
         "generated-at": { "$ref": "#/$defs/iso8601" }
       }
     },
+    "optimizeSpecFrontmatter": {
+      "type": "object",
+      "description": "02-optimize-spec.md — the confirmed spec of a /wf optimize loop (WF-OPTIMIZE-PLAN section 3). scripts/optimize.mjs reads it and refuses a baseline until confirmed-by names the person who confirmed it. The loop never edits this file.",
+      "required": ["schema", "type", "slug", "objective", "metric", "guard", "allowed-paths"],
+      "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean"},
+        "read-waiver": {"type":"string"},
+        "type": { "const": "optimize-spec" },
+        "status": { "enum": ["draft", "confirmed"] },
+        "objective": { "type": "string", "minLength": 1 },
+        "confirmed-by": { "type": ["string", "null"] },
+        "confirmed-at": { "anyOf": [{ "$ref": "#/$defs/iso8601" }, { "type": "null" }] },
+        "metric": {
+          "type": "object",
+          "required": ["command"],
+          "properties": {
+            "command": { "type": "string", "minLength": 1 },
+            "key": { "type": ["string", "null"] },
+            "direction": { "enum": ["lower", "higher"] },
+            "unit": { "type": "string" },
+            "target": { "type": ["number", "null"] },
+            "repeat": { "type": "integer", "minimum": 1 },
+            "min-gain": { "type": ["number", "string"] }
+          }
+        },
+        "guard": { "type": "object", "required": ["command"], "properties": { "command": { "type": "string", "minLength": 1 } } },
+        "holdout": {
+          "type": ["object", "null"],
+          "properties": {
+            "command": { "type": ["string", "null"] },
+            "tolerance": { "type": ["number", "string"] },
+            "direction": { "enum": ["lower", "higher"] }
+          }
+        },
+        "setup": { "type": ["string", "null"] },
+        "allowed-paths": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "off-limits": { "$ref": "#/$defs/stringArray" },
+        "budget": {
+          "type": "object",
+          "properties": {
+            "trials": { "type": "integer", "minimum": 1 },
+            "plateau": { "type": "integer", "minimum": 1 },
+            "wall-clock": { "type": ["string", "number", "null"] },
+            "tokens": { "type": ["number", "null"] },
+            "trial-timeout": { "type": ["string", "number"] }
+          }
+        },
+        "branch-rounds": {
+          "type": "object",
+          "properties": {
+            "at": { "type": "array", "items": { "type": ["string", "number"] } },
+            "branches": { "type": "integer", "minimum": 2 },
+            "branch-trials": { "type": ["integer", "null"], "minimum": 1 },
+            "max-extra": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "width": { "type": "integer", "minimum": 1 },
+        "checkpoint-every": { "type": "integer", "minimum": 1 },
+        "worktree": { "type": ["string", "null"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" },
+        "next-command": { "type": "string" },
+        "next-invocation": { "type": "string" }
+      }
+    },
+    "goalFrontmatter": {
+      "type": "object",
+      "description": "goal.md — the goal contract of /wf goal (WF-GOAL-PLAN section 3). scripts/goal.mjs writes it; the host goal carries the turns and only goal.mjs check decides that the goal is met. A human gate parks it (parked.gate).",
+      "required": ["schema", "type", "slug", "objective", "kind", "max-checks", "state"],
+      "properties": {
+        "type": { "const": "goal" },
+        "objective": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["lifecycle", "optimize", "proofs"] },
+        "proofs": { "type": "array", "items": { "type": "string" } },
+        "max-checks": { "type": "integer", "minimum": 1 },
+        "arming": { "type": "integer", "minimum": 0 },
+        "armed-at": { "anyOf": [{ "$ref": "#/$defs/iso8601" }, { "type": "null" }] },
+        "host": { "enum": ["claude-code", "codex", "pi"] },
+        "state": { "enum": ["armed", "met", "blocked", "cleared"] },
+        "parked": {
+          "type": ["object", "null"],
+          "properties": {
+            "gate": { "type": "string" },
+            "reason": { "type": "string" },
+            "at": { "type": "string" }
+          }
+        }
+      }
+    },
     "brainstormFrontmatter": {
       "type": "object",
       "description": "01-brainstorm.md — the board of a thinking-partner brainstorm (/wf intake brainstorm). Rooted in a type:workflow-index slug workflow with workflow-type brainstorm. The person's document; the agent's board is the sibling brainstorm-board.json (see $defs.brainstormBoard). A legacy board carries threads, claims, assumptions, contradictions, and candidates in this frontmatter instead, and stays valid until its first resume converts it. The workflow stays open until /wf close.",
@@ -2329,6 +2422,8 @@
         { "$ref": "#/$defs/docsGenerateFrontmatter" },
         { "$ref": "#/$defs/ideationFrontmatter" },
         { "$ref": "#/$defs/brainstormFrontmatter" },
+        { "$ref": "#/$defs/optimizeSpecFrontmatter" },
+        { "$ref": "#/$defs/goalFrontmatter" },
         { "$ref": "#/$defs/workPacketFrontmatter" },
         { "$ref": "#/$defs/workSetFrontmatter" },
         { "$ref": "#/$defs/depScanFrontmatter" },

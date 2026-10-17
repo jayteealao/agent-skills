@@ -62,6 +62,12 @@ const PHASE_BY_BASENAME = {
   // `01-brainstorm` (/wf intake brainstorm) is the board of a rubber-duck
   // brainstorm on a `type: workflow-index` slug — terminal, named dir, no build.
   '01-brainstorm':         ['brainstorm', null],
+  // `01-optimize` (/wf intake optimize) is a change-mode lead with `type: intake`;
+  // its overview is a full `type: index`, so it lands at intake/ like 01-fix.
+  // The confirmed spec of the loop renders beside it under optimize/.
+  '01-optimize':           ['intake', null],
+  '02-optimize-spec':      ['optimize', null],
+  'goal':                  ['goal', null],
   '02-shape':              ['shape', null],
   // The brief (02b) renders under design-brief/ and the confirmed contract (02c)
   // under design/, the design stage's own folder (DESIGN-BOARDS-PLAN W7). Before

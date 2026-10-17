@@ -1,8 +1,8 @@
 {
-  "keys": 24,
-  "intakeModes": 13,
+  "keys": 26,
+  "intakeModes": 14,
   "reviewRubrics": 11,
   "aggregates": 7,
-  "artifactStems": 70,
-  "frontmatterTypes": 71
+  "artifactStems": 75,
+  "frontmatterTypes": 73
 }

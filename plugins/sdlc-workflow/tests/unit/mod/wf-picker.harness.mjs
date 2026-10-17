@@ -30,8 +30,8 @@ const SLICES = [
   { slug: 'docs', status: 'defined', complexity: 'xs', stage: 'defined' },
 ];
 
-test('the catalog holds the 24 keys in lifecycle order', () => {
-  assert.equal(CATALOG.length, 24);
+test('the catalog holds the 26 keys in lifecycle order', () => {
+  assert.equal(CATALOG.length, 26);
   assert.deepEqual(CATALOG.slice(0, 11).map((e) => e.key), ['intake', 'shape', 'design', 'slice', 'plan', 'implement', 'verify', 'review', 'handoff', 'ship', 'retro']);
 });
 
@@ -66,7 +66,7 @@ test('stepFor: complete arguments, no-argument keys, and unknown keys open nothi
 });
 
 test('the option lists carry the status, stage, and slice information', () => {
-  assert.equal(keyOptions().length, 24);
+  assert.equal(keyOptions().length, 26);
   assert.equal(keyOptions()[4].label, 'plan  Plan one or more workflow slices.');
 
   const slugs = slugOptions({ kind: 'slug', key: 'plan' }, WORKFLOWS);
@@ -106,17 +106,17 @@ test('pick walks key → slug → slice and ends in a fill', () => {
 
 test('pageOf slices the options into pages that wrap, never wider than nine rows', () => {
   const keys = keyOptions();
-  assert.equal(keys.length, 24);
+  assert.equal(keys.length, 26);
   const first = pageOf(keys, 0, 9);
   assert.deepEqual({ page: first.page, pages: first.pages, length: first.items.length }, { page: 0, pages: 3, length: 9 });
   assert.equal(first.items[0].value, 'intake');
   const last = pageOf(keys, 2, 9);
-  assert.deepEqual({ page: last.page, length: last.items.length }, { page: 2, length: 6 });
-  assert.equal(last.items[5].value, 'observability');
+  assert.deepEqual({ page: last.page, length: last.items.length }, { page: 2, length: 8 });
+  assert.equal(last.items[7].value, 'observability');
   assert.equal(pageOf(keys, 3, 9).page, 0, 'a page past the last wraps to the first');
   assert.equal(pageOf(keys, -1, 9).page, 2, 'a page before the first wraps to the last');
   const one = pageOf(keys, 0, 0);
-  assert.deepEqual({ pages: one.pages, length: one.items.length }, { pages: 24, length: 1 }, 'a width below one is one');
+  assert.deepEqual({ pages: one.pages, length: one.items.length }, { pages: 26, length: 1 }, 'a width below one is one');
   const empty = pageOf([], 4, 9);
   assert.deepEqual(empty, { items: [], page: 0, pages: 1 });
 });
@@ -152,7 +152,7 @@ test('a bare digit in the filter is a pick or a page turn, never a filter', () =
 
 test('filterOptions keeps the rows whose value or label holds every word, case-insensitively', () => {
   const keys = keyOptions();
-  assert.equal(filterOptions(keys, '').length, 24, 'no text keeps every row');
+  assert.equal(filterOptions(keys, '').length, 26, 'no text keeps every row');
   const pl = filterOptions(keys, 'PL').map(o => o.value);
   assert.ok(pl.includes('plan') && pl.includes('implement') && pl.includes('ship-plan'), pl.join(' '));
   assert.ok(!pl.includes('intake') && !pl.includes('shape'), pl.join(' '));

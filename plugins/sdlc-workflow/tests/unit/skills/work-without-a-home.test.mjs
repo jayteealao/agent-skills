@@ -105,7 +105,7 @@ test('drivers refuse both: auto pauses, yolo refuses (main tree only for yolo)',
       `${name}: auto.md lost the audit pause-and-route arm`);
   }
   const yolo = read(pluginRoot, 'reference', 'yolo.md');
-  assert.match(yolo, /Five classes/, 'main: yolo.md class count did not grow to five');
+  assert.match(yolo, /Six classes/, 'main: yolo.md class count did not grow to six (optimize)');
   assert.match(yolo, /`ideate`, `audit`/, 'main: yolo.md terminal-analysis class lost audit');
   assert.match(yolo, /Task \(minimal lifecycle\) — a second genuine refusal/,
     'main: yolo.md lost the task refusal class');

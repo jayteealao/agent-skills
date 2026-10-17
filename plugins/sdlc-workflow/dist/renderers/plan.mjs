@@ -7,7 +7,7 @@ import {
   md2html,
   renderHistoryBlock,
   renderRevisionLedger
-} from "../chunk-VNXAWS4C.mjs";
+} from "../chunk-EQQBEB4F.mjs";
 import {
   figureCanvas
 } from "../chunk-RFW2L66D.mjs";
@@ -16,7 +16,7 @@ import {
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-P62FLZNA.mjs";
+} from "../chunk-RXMUMGSA.mjs";
 import {
   escapeHtml
 } from "../chunk-3RXHOXIK.mjs";

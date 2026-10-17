@@ -1,0 +1,38 @@
+{
+  "name": "optimize-intake",
+  "order": 140,
+  "fixture": "node-cli",
+  "prompt": "/wf intake optimize cut the wall time of npm test; the guard is npm test itself",
+  "maxTurns": 60,
+  "assertions": [
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/01-optimize.md",
+      "min": 1,
+      "max": 1
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/*/01-optimize.md"
+    },
+    {
+      "type": "exists",
+      "glob": ".ai/workflows/*/02-optimize-spec.md",
+      "min": 1,
+      "max": 1
+    },
+    {
+      "type": "frontmatter-valid",
+      "glob": ".ai/workflows/*/02-optimize-spec.md"
+    },
+    {
+      "type": "file-contains",
+      "path": ".ai/workflows/INDEX.md",
+      "pattern": "optimize"
+    },
+    {
+      "type": "changes-only-under",
+      "prefix": ".ai/"
+    }
+  ]
+}

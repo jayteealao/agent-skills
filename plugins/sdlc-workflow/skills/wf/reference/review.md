@@ -93,7 +93,7 @@ Reached from Step 00 branch 2. Two modes over one of five scopes (`pr` / `worktr
 
 | Rubric | Invocation | Sections (aliases) |
 |---|---|---|
-| `correctness` | `/wf review correctness` | correctness, testing, data-integrity, backend-concurrency, reliability |
+| `correctness` | `/wf review correctness` | correctness, testing, metric-gaming, data-integrity, backend-concurrency, reliability |
 | `security` | `/wf review security` | security, infra-security, supply-chain, privacy |
 | `performance` | `/wf review performance` | performance, frontend-performance, scalability, cost |
 | `architecture` | `/wf review architecture` | architecture, maintainability, overengineering, code-simplification, style-consistency, refactor-safety |
@@ -105,7 +105,7 @@ Reached from Step 00 branch 2. Two modes over one of five scopes (`pr` / `worktr
 | `infra` | `/wf review infra` | infra, ci, release, dx |
 | `intent-fidelity` | `/wf review intent-fidelity` | intent-fidelity |
 
-**Alias keys** — each alias below is a valid dimension name. An alias resolves to its rubric with `focus: <alias>`: the reviewer reads that section plus `# Severity calibration`, so `/wf review logging` reviews only that section. The 24 aliases: `/wf review testing`, `/wf review data-integrity`, `/wf review backend-concurrency`, `/wf review reliability`, `/wf review infra-security`, `/wf review supply-chain`, `/wf review privacy`, `/wf review frontend-performance`, `/wf review scalability`, `/wf review cost`, `/wf review maintainability`, `/wf review overengineering`, `/wf review code-simplification`, `/wf review style-consistency`, `/wf review refactor-safety`, `/wf review migrations`, `/wf review frontend-accessibility`, `/wf review motion`, `/wf review ux-copy`, `/wf review ste-compliance`, `/wf review logging`, `/wf review ci`, `/wf review release`, `/wf review dx`.
+**Alias keys** — each alias below is a valid dimension name. An alias resolves to its rubric with `focus: <alias>`: the reviewer reads that section plus `# Severity calibration`, so `/wf review logging` reviews only that section. The 25 aliases: `/wf review testing`, `/wf review metric-gaming`, `/wf review data-integrity`, `/wf review backend-concurrency`, `/wf review reliability`, `/wf review infra-security`, `/wf review supply-chain`, `/wf review privacy`, `/wf review frontend-performance`, `/wf review scalability`, `/wf review cost`, `/wf review maintainability`, `/wf review overengineering`, `/wf review code-simplification`, `/wf review style-consistency`, `/wf review refactor-safety`, `/wf review migrations`, `/wf review frontend-accessibility`, `/wf review motion`, `/wf review ux-copy`, `/wf review ste-compliance`, `/wf review logging`, `/wf review ci`, `/wf review release`, `/wf review dx`.
 
 **Aggregate keys** (reached via `/wf review sweep <aggregate>`) — each dispatches one reviewer sub-agent per rubric in its composition:
 

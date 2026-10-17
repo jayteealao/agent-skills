@@ -62,7 +62,7 @@ Column semantics (all pulled from each workflow's `00-index.md` YAML frontmatter
 |---|---|---|
 | `slug` | `slug` (must equal the directory name) | The lookup key. |
 | `status` | `status` | e.g. `defined`, `shaped`, `sliced`, `planned`, `implementing`, `verifying`, `reviewing`, `handed-off`, `shipped`, `closed`, `abandoned`. |
-| `workflow-type` | `workflow-type` | The schema enum: `standard`, `feature`, `fix`, `quick`, `rca`, `investigate`, `discover`, `rf`, `refactor`, `hotfix`, `dep-update`, `update-deps`, `docs`, `adopt`, `task`, `audit`, `brainstorm` — plus `ideate` (workflow-index workflows) and legacy `compressed`. Use `standard` if missing on legacy indexes. |
+| `workflow-type` | `workflow-type` | The schema enum: `standard`, `feature`, `fix`, `quick`, `rca`, `investigate`, `discover`, `rf`, `refactor`, `hotfix`, `dep-update`, `update-deps`, `docs`, `adopt`, `task`, `audit`, `brainstorm`, `optimize` — plus `ideate` (workflow-index workflows) and legacy `compressed`. Use `standard` if missing on legacy indexes. |
 | `branch` | `branch` | The git branch (informational; not used for routing). |
 | `updated-at` | `updated-at` | ISO 8601 UTC. |
 
@@ -157,6 +157,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 8. **Driver liveness** — read the tail of `.ai/workflows/<slug>/.driver-journal.jsonl` if it exists (append-only JSONL heartbeats written by every autonomous-driver subagent) and apply the staleness rule single-sourced in [_control-file-ownership.md](_control-file-ownership.md), rendering the `## Driver` row from its three states. **Never report a driver as running because the journal exists**: the journal outlives the driver. No journal → omit the section; a missing journal does not prove that no driver ran.
 9. **Clearing-event tripwire** — for each open `runtime-evidence-deferrals` entry (`cleared-by: null`) that carries a `clearing-probe`, **execute that one command** with a short timeout. Render every hit as the ⚠ line in the detail render, routing to `/wf probe <slug>`. Rules: one recorded command per deferral, never an improvised one; **never clear the deferral or edit `00-index.md`** — this is a tripwire, not a gate, and the probe stage still owns evidence. Skip PO-authorized entries (settled) and entries with no recorded probe (nothing to run — not a finding). Cost is milliseconds per open deferral.
 10. **Cost** — read `.ai/workflows/<slug>/cost.jsonl` when it exists and aggregate per `key`: turns (rows with a `turn`), sub-agents, input, output, cache read, cache write, external in / out. Render `## Cost` from the detail render. Copy every integer as written; never estimate or price. No ledger → omit the section.
+11. **Goal and loop** — add one `## Driver` line from `goal.mjs status` when `goal.md` exists, and one from `optimize.mjs status` for an optimize slug.
 
 # Deep Mode (`/wf status <slug> deep`) — reality-drift check
 

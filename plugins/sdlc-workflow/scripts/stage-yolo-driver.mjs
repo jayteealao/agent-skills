@@ -43,7 +43,7 @@ import { fileURLToPath } from 'node:url';
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DRIVER_SOURCE = path.join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', 'yolo.js');
 export const STAGE_REL = path.join('.scratch', 'wf', 'yolo.js');
-export const DRIVERS = Object.freeze(['yolo', 'campaign-wave']);
+export const DRIVERS = Object.freeze(['yolo', 'campaign-wave', 'optimize']);
 
 function sha256(buf) {
   return createHash('sha256').update(buf).digest('hex');

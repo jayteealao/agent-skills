@@ -109,6 +109,7 @@ import type { SdlcDashboard, SdlcHub, SdlcPicker, SdlcWorkflows } from '../../ty
 import { bandCard, bandView, pageSizeOf, rowKeyOf, stack } from './views.tsx'
 import { PROBE_FILE, ProbeJournal, surfaceAfterAttach } from './probe.ts'
 import type { ProbeIdentity } from './probe.ts'
+import { armHowOf, armRequestPathOf, armToastOf, armedRequestOf, pendingArmOf } from './goal.ts'
 import { findProjectRoot, joinPath, listSlices, listWorkflows } from './workflows.ts'
 import type { Reader, SliceEntry, WorkflowEntry } from './workflows.ts'
 import {
@@ -208,7 +209,7 @@ type Host = {
   /** The plugin's store, kept across sessions and reloads. */
   storeGet: (key: string) => Promise<unknown>
   storeSet: (key: string, value: unknown) => Promise<void>
-  /** Writes the whole text of a file, making its directories; the probe journal alone uses it. */
+  /** Writes the whole text of a file, making its directories; the probe journal and the goal arm request use it. */
   writeFile: (path: string, text: string) => Promise<void>
   /**
    * Adds text to the end of a file, making it and its directories: a read of
@@ -735,6 +736,36 @@ export function register(on: On, options: PluginOptions = {}) {
     }
     journal?.callFailed('fill', refusal === undefined ? FILL_REFUSED_TEXT.trim() : `${FILL_REFUSED_TEXT.trim()} (${refusal})`)
     return `${FILL_REFUSED_TEXT}${text}`
+  }
+
+  /**
+   * The goal arm action (hooks/mod/goal.ts). Once this dispatch is over, the
+   * `/goal` line goes into the prompt box, or, on the Desktop app, out as the
+   * person's prompt. The request records how, so it is handed over once.
+   */
+  async function armGoal(engine: Host, root: string, slug: string): Promise<void> {
+    const path = armRequestPathOf(root, slug)
+    let text: string | null = null
+    try {
+      text = (await engine.reader.exists(path)) ? await engine.reader.read(path) : null
+    } catch (error) {
+      journal?.callFailed('read', messageOf(error))
+      return
+    }
+    const request = pendingArmOf(text, slug)
+    if (request === null || request.command === null) return
+    const command = request.command
+    engine.later(() => {
+      void (async () => {
+        const how = armHowOf(await fill(engine, command), RUN_TEXT, SUBMIT_TEXT)
+        try {
+          await engine.writeFile(path, armedRequestOf(request, how, new Date(await engine.now()).toISOString()))
+        } catch (error) {
+          journal?.callFailed('writeFile', messageOf(error))
+        }
+        engine.toast(armToastOf(how))
+      })()
+    })
   }
 
   /** What a pick does: the next step, or the command into the prompt box. */
@@ -1538,6 +1569,10 @@ export function register(on: On, options: PluginOptions = {}) {
     bracket = null
     if (!engine || turn === null) return result
     const command = turn.command
+    // WF-GOAL-PLAN W3: the turn of `/wf goal <slug>` left an arm request; hand the `/goal` line over.
+    if (command !== null && command.key === 'goal' && command.slug !== null && e.reason === 'answer' && model.root !== null) {
+      await armGoal(engine, model.root, command.slug)
+    }
     // The main model answered while its background sub-agents still run: the
     // stage is not over. Park it; the check and the compaction wait for the
     // turn that ends with no sub-agent of the stage running.

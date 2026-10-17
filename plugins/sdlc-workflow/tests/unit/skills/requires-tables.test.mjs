@@ -31,7 +31,7 @@ const STAGE_REFERENCES = [
   'brainstorm.md', 'close.md', 'design.md', 'docs.md', 'handoff.md', 'implement.md', 'intake.md',
   'intake/adopt.md', 'intake/audit.md', 'intake/brainstorm.md', 'intake/default.md', 'intake/discover.md',
   'intake/extend.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/ideate.md', 'intake/investigate.md',
-  'intake/rca.md', 'intake/refactor.md', 'intake/update-deps.md', 'observability.md', 'plan.md', 'probe.md',
+  'intake/optimize.md', 'intake/rca.md', 'intake/refactor.md', 'intake/update-deps.md', 'observability.md', 'plan.md', 'probe.md',
   'recap.md', 'retro.md', 'review.md', 'shape.md', 'ship-plan.md', 'ship.md', 'simplify.md', 'slice.md',
   'status.md', 'task.md', 'verify.md',
 ];
@@ -46,7 +46,7 @@ const NO_WRITES = new Map([
 // References without a table. `_*.md` sub-procedures never carry one (S1); these
 // are the other files, each loaded by a stage reference that owns the table.
 const NO_TABLE = [
-  [/^auto\.md$|^yolo\.md$|^campaign\.md$/, 'lifecycle drivers: they run stage references, which carry the tables'],
+  [/^auto\.md$|^yolo\.md$|^campaign\.md$|^goal\.md$|^optimize\.md$/, 'lifecycle drivers and loops: they run stage references and scripts; intake/optimize.md carries the optimize table'],
   [/^intake\/amend\.md$/, 'edits 00-index.md only; writes no stage artifact'],
   [/^intake\/modernize\.md$/, 'backfills fields of existing artifacts; writes no stage artifact'],
   [/^design\/[^/]+\.md$/, 'design moves and sub-steps, loaded by design.md (and by shape, slice, plan, retro)'],

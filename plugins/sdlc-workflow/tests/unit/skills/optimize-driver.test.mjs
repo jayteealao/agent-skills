@@ -1,0 +1,119 @@
+// WF-OPTIMIZE-PLAN W3 — the optimize driver (skills/wf/workflows/optimize.js), run as a
+// whole script with a mock `agent` that answers by label. A small fake of optimize.mjs
+// decides the next action: an opening branch round of 4 branch trials, the round-close,
+// then trunk trials until the target is reached, then finish.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const src = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'workflows', 'optimize.js'), 'utf8');
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+const driver = new AsyncFunction('args', 'agent', 'log', 'phase', 'parallel', src.replace('export const meta', 'const meta'));
+const ARGS = { projectRoot: '/repo', referenceRoot: '/plugin/skills/wf/reference', slug: 's' };
+
+function fakeLoop({ stopAt = null, trunkTrials = 2 } = {}) {
+  const S = { trials: 0, opened: false, round: null, trunk: 0 };
+  const next = () => {
+    if (!S.opened) return { action: 'round-open', point: 0, why: 'scheduled at 0%' };
+    if (S.round && S.round.done < 4) return { action: 'trial', on: `optimize/s--r1b${(S.round.done % 2) + 1}` };
+    if (S.round) return { action: 'round-close' };
+    if (S.trunk < trunkTrials) return { action: 'trial', on: 'optimize/s' };
+    return null;
+  };
+  const status = () => {
+    if (stopAt !== null && S.trials >= stopAt) return { ok: true, state: 'stopped', reason: 'stop-request', detail: 'the person asked', next: { action: 'person' }, counters: { trials: S.trials } };
+    const n = next();
+    const common = { ok: true, counters: { trials: S.trials }, budget: { trials: 8, roundsMax: 2, width: 2 }, best: { value: 1 }, baseline: { median: 9 } };
+    return n ? { ...common, state: 'running', next: n } : { ...common, state: 'complete', reason: 'complete', next: { action: 'finish' } };
+  };
+  const calls = [];
+  const agent = async (prompt, opts) => {
+    const label = opts.label;
+    calls.push({ label, prompt, model: opts.model });
+    const base = label.split(':')[0];
+    if (base === 'status') return { ok: true, result: status() };
+    if (base === 'round-open') { S.opened = true; S.round = { done: 0 }; return { ok: true, result: { ok: true, round: 1, next: next() } }; }
+    if (base === 'round-close') { S.round = null; return { ok: true, result: { ...status(), winner: { name: 'optimize/s--r1b1' } } }; }
+    if (base === 'propose') {
+      const many = /2 different hypotheses/.test(prompt);
+      return { hypotheses: (many ? [1, 2] : [1]).map((i) => ({ text: `idea ${calls.length}.${i}`, expected: '1 s', plan: 'edit src/a.js' })), lane: 'x', worktree: '/wt' };
+    }
+    if (base === 'edit') return { ok: true, changed: ['src/a.js'] };
+    if (base === 'trial') {
+      S.trials++;
+      const lane = S.round ? `optimize/s--r1b${(S.round.done % 2) + 1}` : 'optimize/s';
+      if (S.round) S.round.done++; else S.trunk++;
+      return { ok: true, result: { ok: true, trial: S.trials, lane, verdict: 'kept', median: 1, next: status().next } };
+    }
+    if (base === 'finish') return { ok: true, result: { ok: true, commit: 'abc123' } };
+    throw new Error(`no answer for ${label}`);
+  };
+  return { agent, calls, S };
+}
+const run = (args, agent) => driver(args, agent, () => {}, () => {}, async (fns) => Promise.all(fns.map((f) => f())));
+
+test('the driver runs the round, the round-close, the trunk trials, and finish at the target', async () => {
+  const { agent, calls } = fakeLoop();
+  const out = await run(ARGS, agent);
+  assert.equal(out.ok, true, JSON.stringify(out));
+  assert.equal(out.state, 'finished');
+  assert.equal(out.next, '/wf verify s optimize');
+  const labels = calls.map((c) => c.label);
+  assert.equal(labels[0], 'status');
+  assert.equal(labels.filter((l) => l.startsWith('trial:')).length, 6);
+  assert.ok(labels.indexOf('round-close') > labels.indexOf('trial:4') && labels.indexOf('round-close') < labels.indexOf('trial:5'));
+  assert.ok(labels.includes('finish'));
+});
+
+test('a branch proposer writes one hypothesis; the trunk proposer writes width hypotheses and the queue serves the next trunk trial', async () => {
+  const { agent, calls } = fakeLoop();
+  await run(ARGS, agent);
+  const proposers = calls.filter((c) => c.label.startsWith('propose:'));
+  assert.equal(proposers.length, 5, '4 branch trials with their own proposer, and one proposer for the 2 trunk trials');
+  assert.ok(proposers.slice(0, 4).every((c) => /one hypothesis/.test(c.prompt)));
+  assert.match(proposers[4].prompt, /2 different hypotheses/);
+  assert.ok(proposers.every((c) => c.model === 'claude-opus-5-5'));
+  assert.ok(calls.filter((c) => c.label.startsWith('edit:')).every((c) => c.model === 'claude-sonnet-5-5' && /The optimize worktree is \/wt/.test(c.prompt)));
+});
+
+test('D13: the proposer reads only the digest, and never the ledger or the history of other branches', async () => {
+  const { agent, calls } = fakeLoop();
+  await run(ARGS, agent);
+  const p = calls.find((c) => c.label === 'propose:1').prompt;
+  assert.match(p, /propose-context "\/repo" s/);
+  assert.match(p, /Do NOT read the optimize folder of the workflow, the results ledger, or the git history of other branches/);
+  assert.equal(/different approach/.test(p), false, 'no diversity directive (arXiv 2610.07447: no measured effect)');
+});
+
+test('the trial bookkeeping writes the hypothesis to a file and passes it with --hypothesis-file', async () => {
+  const { agent, calls } = fakeLoop();
+  await run(ARGS, agent);
+  const t = calls.find((c) => c.label === 'trial:1').prompt;
+  assert.match(t, /\/repo\/\.scratch\/optimize\/s\/h1\.txt/);
+  assert.match(t, /optimize\.mjs" trial "\/repo" s h1 --hypothesis-file/);
+});
+
+test('a stop request read by status ends the loop at the next boundary, with no finish', async () => {
+  const { agent, calls } = fakeLoop({ stopAt: 2 });
+  const out = await run(ARGS, agent);
+  assert.equal(out.ok, false);
+  assert.equal(out.stoppedAt, 'stop-request');
+  assert.equal(calls.filter((c) => c.label.startsWith('trial:')).length, 2);
+  assert.equal(calls.some((c) => c.label === 'finish'), false);
+});
+
+test('the agent ceiling stops a runaway run', async () => {
+  const { agent } = fakeLoop({ trunkTrials: 50 });
+  const out = await run({ ...ARGS, agentCeiling: 12 }, agent);
+  assert.equal(out.stoppedAt, 'agent-ceiling');
+  assert.ok(out.agentsUsed <= 13);
+});
+
+test('missing args return a stop, not a throw', async () => {
+  const out = await run({ projectRoot: '/repo' }, async () => ({}));
+  assert.equal(out.ok, false);
+  assert.match(out.reason, /required arg 'referenceRoot'/);
+});
