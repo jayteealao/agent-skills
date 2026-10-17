@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.189.0] - 2026-10-18
+
+### Added
+
+- **`/wf goal` — a goal contract that the host carries.** `/wf goal <slug> [objective]` writes `goal.md` and hands the slug to the host goal, which starts a new turn while work remains. `goal.mjs check` prints the evidence and a last line `GOAL: MET`, `GOAL: NOT-MET <reason>` or `GOAL: BLOCKED <reason>`; the condition tells the host's judge to trust only that line. Three kinds: `lifecycle` (the stop rules of `/wf auto`, now code in `lib/lifecycle-done.mjs`), `optimize`, and `proofs` (named commands that exit 0). The script counts its checks and blocks past `max-checks` (default 30). A human gate parks the goal (`goal.mjs park`, `_autonomy-guards.md` "Goal park"); `/wf goal <slug> resume` arms it again. On the Claude Code Desktop app the sdlc mod submits the `/goal` line after the arming turn; on the CLI it fills the prompt box. Codex arms with `create_goal`; pi has no host goal and runs the loop in the session.
+- **`/wf optimize` and `/wf intake optimize` — a metric loop with its own slug lifecycle.** The intake writes `01-optimize.md` and `02-optimize-spec.md` (the metric, its direction, the guard, `allowed-paths`, the budget and the branch rounds), and the person confirms the spec. `scripts/optimize.mjs` makes every git write, measurement, and keep or revert in a separate worktree; the model only proposes and edits. A trial is kept only when its gain beats `max(min-gain, 2 × noise)` and a confirm run agrees. Branch rounds (fork and flush, after arXiv 2610.07447) fork the best code into four branches at 0%, 33% and 66% of the trial budget; each branch proposer reads only its own branch's trials. A plateau opens a round early and stops the loop only when that round finds no gain. `finish` squashes the kept trials onto the slug branch and writes the `optimize` slice for verify and review. On Claude Code the Workflow-tool driver `workflows/optimize.js` runs the trials, each in a fresh agent; elsewhere `/wf goal` carries the loop.
+- **The metric-gaming check.** `review/correctness.md` has a `metric-gaming` section (alias `/wf review metric-gaming`), always on for an optimize slice: constants that match evaluator inputs, branches on test or benchmark names, and removed work that the metric does not see.
+- **Schema.** Frontmatter types `optimize-spec` and `goal`; `workflow-type: optimize`. Eval cases `optimize-intake` and `goal-unknown-slug`.
+
+### Changed
+
+- `auto`, `yolo`, `verify`, `implement`, review and `status` know the optimize slug: the drivers pause until the loop finishes, then drive verify and review of the one slice `optimize`. `/wf status` shows the goal and the loop in the driver line. Retro records the loop's hypotheses as a solution tagged `optimize`, which the next loop's trunk digest reads.
+- The surface pins rise: keys 24 → 26, intake modes 13 → 14, artifact stems 70 → 75, frontmatter types 71 → 73.
+
 ## [9.188.0] - 2026-10-17
 
 ### Changed
