@@ -65,12 +65,13 @@ matters: if nothing listens right now, the job waits instead of getting lost.</l
 <li><strong>The hub drains the queue.</strong> The daemon picks up pending jobs and runs the
 render engine. The render engine walks <code>.ai/workflows/</code>, dispatches each artifact to a
 renderer for its <code>type</code>, and emits the HTML site under <code>.ai/_view/</code>. A
-review renders differently from a plan or a ship run. When a stage artifact has an explainer
-fragment, its page opens with the explainer, then shows what waits for you, the stage's
+review renders differently from a plan or a ship run. Since 9.187.0, stages write no explainer
+fragment, so only an older artifact carries one. Its page opens with the explainer, then shows what waits for you, the stage's
 contract as a table, and a collapsed part with the evidence, the history, and the full agent
 file. The explainer's step-throughs, toggles, and sliders run on one script that the view
-serves itself, and the page follows the light or the dark theme. An older artifact without an
-explainer keeps its earlier page. The default mode is additive: the render
+serves itself, and the page follows the light or the dark theme. An artifact without an
+explainer renders from its agent file as plain prose. Review and plan pages also draw on their
+sibling <code>.yaml</code>. The default mode is additive: the render
 engine only re-renders an artifact whose sources are newer than its rendered counterpart.</li>
 <li><strong>The browser reloads.</strong> The SSE live-reload channel tells any open view to
 refresh.</li>
@@ -114,7 +115,7 @@ blocks or acts in the background.</p>
 <tr><td>Session start</td><td>Seeds a fenced block of <code>/wf</code> rules into <code>AGENTS.md</code> and an import into <code>CLAUDE.md</code>. The hook owns only its own fence, and the hook fails open.</td><td>No</td></tr>
 <tr><td>Before a Write</td><td>Validates workflow artifacts: filename shape, required frontmatter, and a slug that matches the directory. The hook rejects a malformed artifact before the artifact touches disk.</td><td><strong>Yes</strong></td></tr>
 <tr><td>Before Write/Edit and Bash</td><td>The optional leak guard: watches public docs, commit messages, and PR text for internal workflow references that cross the External Output Boundary. The guard is off by default, and it is advisory when on.</td><td>No (advisory)</td></tr>
-<tr><td>After a write</td><td>Auto-stages artifact writes in git; validates the structured sibling YAML that rich artifact types must ship; and hard-blocks a verify artifact that claims a pass while its own criteria are unmet.</td><td><strong>Yes</strong> (the verify result gate)</td></tr>
+<tr><td>After a write</td><td>Auto-stages artifact writes in git; validates the structured sibling YAML that the review and plan artifacts must ship; and hard-blocks a verify artifact that claims a pass while its own criteria are unmet.</td><td><strong>Yes</strong> (the verify result gate)</td></tr>
 <tr><td>After a write</td><td>Render dispatch: enqueues the render job that the hub will drain.</td><td>No</td></tr>
 </table>
 

@@ -128,13 +128,10 @@ try to fix the environment (boot the emulator, start the service). Only after th
 exhausted may an AC become a deferral.</dd>
 
 <dt>explainer</dt>
-<dd>The HTML fragment (<code>&lt;stem&gt;.explainer.html.fragment</code>) that each stage
-writes next to its agent file to explain what the stage built or decided: what it is, how it
-works, why it is this way, and what it means for you. It has a plain summary, text and visuals in
-turn (flows, layouts, trends, states, step-throughs), and a recap. Some visuals are interactive,
-and all of them work in the light and the dark theme. The workflow view puts it at the top of the stage's page, and
-the chat summary quotes its summary paragraph. It replaces the story section that older
-artifacts opened with. Agents do not read it, except recap.</dd>
+<dd>The HTML fragment (<code>&lt;stem&gt;.explainer.html.fragment</code>) that a stage
+wrote next to its agent file before 9.187.0. It explains what the stage built or decided, with
+text and visuals in turn. Stages no longer write explainers. The workflow view still puts an
+existing explainer at the top of the stage's page. Agents do not read it.</dd>
 
 <dt>External Output Boundary</dt>
 <dd>The rule that anything leaving the repo (PR bodies, commit messages, announcements)
@@ -173,7 +170,9 @@ RIM stands for "risk-if-misunderstood".</dd>
 <dd>A free-form HTML file (<code>&lt;stem&gt;.&lt;NN-label&gt;.html.fragment</code>) placed
 next to any artifact to add a custom diagram or widget to the artifact's rendered page. The
 fragment is unrestricted raw HTML, injected below the page body in label order. The one
-exception is the fragment with the label <code>explainer</code>, which opens the page.</dd>
+exception is the fragment with the label <code>explainer</code>, which opens the page. Since
+9.187.0, stages write no narrative fragment. The imagery and uiproto skills still write one as a
+design deliverable, and the workflow view still shows the fragments of older artifacts.</dd>
 
 <dt>perturbation</dt>
 <dd>Probe's controlled break: disable exactly one dependency, observe how the app behaves,

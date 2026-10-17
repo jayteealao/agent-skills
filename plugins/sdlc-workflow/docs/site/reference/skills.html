@@ -43,7 +43,7 @@
 
 <h3 id="consult-readonly">The read-only guarantee</h3>
 
-<p>Consult is advisory only. The dispatched sub-agents can read the repository (Read, Glob, Grep) but cannot edit, write, or run shell commands. The runner spawns the CLI oracles isolated and read-only. The runner script itself enforces this restriction, not only the skill's prose. A consult never writes code and never proposes a patch that it could apply. A consult run produces only its own ephemeral prompt files under <code>.ai/consult/</code>. When the question targets a workflow artifact, the run can also write an optional narrative fragment that embeds the panel beside that artifact.</p>
+<p>Consult is advisory only. The dispatched sub-agents can read the repository (Read, Glob, Grep) but cannot edit, write, or run shell commands. The runner spawns the CLI oracles isolated and read-only. The runner script itself enforces this restriction, not only the skill's prose. A consult never writes code and never proposes a patch that it could apply. A consult run produces only its own ephemeral prompt files under <code>.ai/consult/</code>.</p>
 
 <h3 id="consult-panel">The panel</h3>
 

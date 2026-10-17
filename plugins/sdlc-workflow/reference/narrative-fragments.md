@@ -1,5 +1,7 @@
 # Narrative fragments — the free (unrestricted) fragment tier (v9.70.0)
 
+> **Status (9.187.0):** Agents no longer write narrative fragments or explainers. The renderer still draws the existing ones. The imagery and uiproto skills still write their fragments as design deliverables. The text below describes the format that the renderer reads.
+
 There are now **two tiers** of `.html.fragment` siblings. They coexist; an
 artifact may ship either, both, or neither.
 

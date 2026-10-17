@@ -217,13 +217,13 @@ reference</a>).</p>
 <li><strong>Deep frontmatter schema validation</strong> against the artifact schema: the full
 check beyond what the pre-write gate enforced.</li>
 <li><strong>Sibling-fragment enforcement</strong> (<code>hooks.remindMissingFragments</code>):
-a rich-tier artifact <code>.md</code> written without its mandatory sibling <code>.yaml</code>
-blocks. A missing <code>.html.fragment</code> only nudges. Without the sibling, the workflow
-view renders that page as plain prose. The per-artifact opt-out is <code>fragment: none</code>
+a review, review-command, or plan artifact <code>.md</code> written without its mandatory
+sibling <code>.yaml</code> blocks. No other type needs a sibling <code>.yaml</code>, and the hook
+does not check for an explainer or an <code>.html.fragment</code>. The per-artifact opt-out is <code>fragment: none</code>
 in frontmatter.</li>
 <li><strong>Sibling-YAML schema validation</strong> (<code>hooks.validateSiblingYaml</code>):
 a present sibling <code>.yaml</code> is validated against its per-type schema, for the
-reconciled types (plan, review, design, simplify-run, ship-run).</li>
+reconciled types (plan and review).</li>
 <li><strong>The verify result gate</strong> (<code>hooks.verifyResultGate</code>): a verify
 artifact that claims <code>result: pass</code> while acceptance criteria are unmet, or while
 interactive verification is deferred, is a contradiction and blocks.</li>

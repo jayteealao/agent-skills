@@ -1,5 +1,7 @@
 # Fragment author contract (phase 1 — v9.20.0)
 
+> **Status (9.187.0):** Agents no longer write typed fragments. The renderer draws review and plan pages from their `.yaml`, and it still draws the existing fragments. The text below describes the format that the renderer reads.
+
 Shared template referenced by the fragment-bearing skills (`review`,
 `wf/shape` (design brief), `wf/plan` (plan + visual contract), `wf/ship`,
 `wf/intake/rca`). Each of those

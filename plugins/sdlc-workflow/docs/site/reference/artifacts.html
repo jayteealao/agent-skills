@@ -65,14 +65,14 @@ file sit beside it, each for a different reader:</p>
 <thead><tr><th>Kind</th><th>Path</th><th>Who reads it</th></tr></thead>
 <tbody>
 <tr><td>Agent file</td><td><code>04-plan-auth.md</code></td><td>Later stages and the drivers. Frontmatter holds the state; the body holds the contract and the working record under fixed <code>##</code> headings.</td></tr>
-<tr><td>Explainer</td><td><code>04-plan-auth.explainer.html.fragment</code></td><td>You. An HTML fragment that explains the thing the stage built or decided: what it is, how it works, why it is this way, and what it means for you. A plain summary comes first, then text and visuals in turn (a flow, a screen layout, a trend, a state machine, a dependency graph), then a recap. A visual can be interactive: a step-through, a toggle, or a slider. Every visual works in the light and the dark theme. The rendered view puts it at the top of the artifact's page, and the chat summary quotes its summary paragraph. Agents do not read it, except recap and the same stage on a re-run.</td></tr>
+<tr><td>Explainer</td><td><code>04-plan-auth.explainer.html.fragment</code></td><td>You, on an older artifact only. Since 9.187.0, stages write no explainer. An existing explainer is an HTML fragment that explains the thing the stage built or decided, with text and visuals in turn. The rendered view puts it at the top of the artifact's page. Agents do not read it.</td></tr>
 <tr><td>Evidence</td><td><code>verify-evidence/&lt;slice&gt;/checks.md</code>, <code>probe-evidence/</code></td><td>Anyone who wants the raw proof: test runner output, probe logs, screenshots. These folders need no frontmatter and no numbered names, and the renderer and the stale check skip them.</td></tr>
 <tr><td>History</td><td><code>index-history.jsonl</code></td><td>Anyone who wants the past of the control file. See <a href="#index-history">the control file</a>.</td></tr>
 </tbody>
 </table>
 
-<p>The explainer replaces the story section (<code>## The Plan</code>, <code>## The Verify</code>,
-and so on) that artifacts used to open with. The agent file keeps no story section. Brainstorm
+<p>The agent file keeps no story section (<code>## The Plan</code>, <code>## The Verify</code>,
+and so on). The explanation for you is the narrative of the chat summary. Brainstorm
 is the one exception: <code>01-brainstorm.md</code> keeps <code>## The Brainstorm</code>, because
 the board is your document.</p>
 
@@ -270,30 +270,41 @@ few: <code>po-answers.md</code> (a frontmatter-less prose log), files under
 <code>verify-evidence/</code> and <code>probe-evidence/</code> (free-form evidence), and
 <code>design-notes/</code> (operation-named files that carry the design add-on type instead).
 All machine-readable state belongs in frontmatter. The body of the agent file is the contract
-that later stages read. The explanation for you is in the explainer.</p>
+that later stages read. The explanation for you is the narrative of the chat summary.</p>
 
 <h2>Sibling YAML and fragments</h2>
 
-<p>Rich artifact types must ship a sibling <code>&lt;stem&gt;.yaml</code> file next to the
-Markdown file. The rich types are review, plan, design, ship-run, rca, simplify-run,
-benchmark, experiment, instrument, and the design audit/critique/contract family. The sibling
-file holds the structured data that the rendered workflow view builds its figures and tables
-from. A PostToolUse hook hard-blocks a rich artifact written without a sibling file. A rich
-artifact with genuinely no structured data may opt out. To opt out, declare
+<p>Three artifact types must ship a sibling <code>&lt;stem&gt;.yaml</code> file next to the
+Markdown file: review, review-command, and plan. Agents read these files. The review
+<code>.yaml</code> (<code>07-review*.yaml</code>) is the findings ledger. The plan
+<code>.yaml</code> (<code>04-plan-&lt;slice&gt;.yaml</code>) holds only <code>artifact</code>,
+<code>slice</code>, <code>files</code> (each with <code>path</code> and <code>status</code>),
+<code>edges</code> (each with <code>from</code>, <code>to</code>, and <code>kind</code>), and
+<code>risks</code>. A PostToolUse hook hard-blocks one of these artifacts written without a sibling file. An artifact
+with genuinely no structured data may opt out. To opt out, declare
 <code>fragment: none</code> in the artifact's frontmatter.</p>
+
+<p>Since 9.187.0, no other stage writes a sibling <code>.yaml</code>. The removed types are
+rca, simplify-run, profile, benchmark, experiment, instrument, design, design-contract,
+design-audit, design-critique, ship-run, sync-report (<code>00-sync.yaml</code>), and
+docs-index (<code>08b-docs-index.yaml</code>). An older artifact keeps its <code>.yaml</code>,
+and the rendered view still builds figures from it. A new artifact of these types renders from
+its <code>.md</code> as plain prose.</p>
 
 <p>Two kinds of HTML fragment can also sit beside an artifact. The <em>typed</em> fragment
 (<code>&lt;stem&gt;.html.fragment</code>) is the contract-bound interactive layer projected
-from the sibling YAML. An artifact can carry at most one typed fragment, and only rich types
-can carry one. A typed fragment is one scoped <code>&lt;section&gt;</code> with inline assets
+from the sibling YAML. An artifact can carry at most one typed fragment, and only the types
+with a sibling <code>.yaml</code> can carry one. Since 9.187.0, agents write no typed fragment. A typed fragment is one scoped <code>&lt;section&gt;</code> with inline assets
 only. <em>Free narrative fragments</em>
 (<code>&lt;stem&gt;.&lt;NN-label&gt;.html.fragment</code>) are unrestricted raw HTML, injected
-below the rendered page body in label order. Any artifact can carry any number of them. Use a
-free narrative fragment for a bespoke diagram or widget that the structured page cannot tell.
-The <code>NN-</code> prefix on the label controls the order.</p>
+below the rendered page body in label order. Any artifact can carry any number of them.
+The <code>NN-</code> prefix on the label controls the order. Since 9.187.0, stages write no
+free narrative fragment. The imagery and uiproto skills still write their fragments, because
+these fragments are design deliverables. The renderer still injects the free narrative
+fragments of older artifacts.</p>
 
-<p>The explainer is the free fragment with the reserved label <code>explainer</code>. Every
-stage artifact has one. The renderer puts it at the top of the page, not at the foot. The page
+<p>The explainer is the free fragment with the reserved label <code>explainer</code>. Only
+older stage artifacts carry one. The renderer puts it at the top of the page, not at the foot. The page
 then shows what waits for you (open questions, gates, the verdict, the next step), the
 stage's contract as a table, and a collapsed part with the evidence, the prior revisions, and
 the full agent file.</p>

@@ -66,13 +66,12 @@ gets the missing list, reads the inputs, and writes the artifact again. The mode
 <code>.read-ledger.jsonl</code>. The mod setting <code>readCheck</code> selects the mode. A host
 without the mod runs no check: the stage reads every row the same way and writes
 <code>reads-checked: false</code> in the artifact frontmatter.</p>
-<p>Each stage writes two files for two readers. The <strong>agent file</strong>
-(<code>NN-&lt;stage&gt;[-&lt;slice&gt;].md</code>) holds state in its frontmatter and the
-contract that later stages read in its body. The <strong>explainer</strong>
-(<code>&lt;stem&gt;.explainer.html.fragment</code>, next to the agent file) explains what
-the stage built or decided: a plain summary first, then text and visuals in turn, then a recap. The rendered
-workflow view puts the explainer at the top of the stage's page, and the chat summary quotes its
-summary paragraph. Agents do not read explainers. The next step is in the agent file's
+<p>Each stage writes one <strong>agent file</strong>
+(<code>NN-&lt;stage&gt;[-&lt;slice&gt;].md</code>). It holds state in its frontmatter and the
+contract that later stages read in its body. The explanation for you is the narrative of the chat
+summary: two or three plain sentences about what the stage built or decided. Since 9.187.0,
+stages write no explainer (<code>&lt;stem&gt;.explainer.html.fragment</code>). The rendered
+workflow view still shows the explainers of older artifacts. The next step is in the agent file's
 frontmatter: <code>next-invocation</code> and a <code>recommended-routes</code> list with every
 option and its reason. See <a href="../reference/artifacts.html">Artifact files</a>.</p>
 
