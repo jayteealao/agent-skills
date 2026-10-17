@@ -16,7 +16,7 @@ You are running `/wf campaign <brainstorm-slug>`. A brainstorm that ends in many
 - **The person decides every intake and shape question.** The campaign prepares each slug with the person (intake, shape, slice, and the design lane when the packet needs one). It never makes an intake or shape decision.
 - **The waves are autonomous.** One run of the wave driver drives every unit of a wave, then runs the boundary steps. The yolo rules all stay: an intent-bearing decision stops the unit, a steering veto outranks every auto-resolve, and the charter checkpoint runs every 3 slices. A unit that stops parks with one question, and the other units continue.
 - **The campaign asks the person** at each handoff or ship issue and each ambiguity. It never guesses past one.
-- **The brainstorm owns the board and the packets.** The campaign only reads them. The campaign owns `work/campaign/` and, while it is live, the main checkout's `INDEX.md` ([_control-file-ownership.md](_control-file-ownership.md)).
+- **The brainstorm owns the board and the packets.** The campaign only reads them. The campaign owns `work/campaign/`, the dependency graph ([campaign/_deps.md](campaign/_deps.md)), and, while it is live, the main checkout's `INDEX.md` ([_control-file-ownership.md](_control-file-ownership.md)).
 - **One session runs the campaign.** It announces in chat that it is the campaign session. The person reopens the brainstorm in another session. When the person opens the brainstorm here, say once that it belongs in another session, and continue.
 
 Each wave is one PR. Every unit of a wave runs in its own worktree, so the wave driver needs an isolation contract ([campaign/_phases.md](campaign/_phases.md), "Width"). With stacked PRs, the next wave starts on the wave branch below before that wave merged ([campaign/_gh-stack.md](campaign/_gh-stack.md)). A usage budget narrows or pauses the campaign before a limit stops it.
@@ -36,14 +36,15 @@ Each wave is one PR. Every unit of a wave runs in its own worktree, so the wave 
 
 | `next.action` | Do |
 |---|---|
-| `orient` | Phase 0, then Phase 1 ([campaign/_phases.md](campaign/_phases.md)). |
+| `orient` | Phase 0, then Phase 0b and Phase 1 ([campaign/_phases.md](campaign/_phases.md)). |
+| `deps` | Phase 0b for `next.units` (`_phases.md`), before anything else. |
 | `setup` | Continue Phase 1 at `next.question`. |
 | `work-changed` | The brainstorm changed its work set. Pick it up (`_phases.md`, "Reopen pick-up"). |
 | `ask` | Show each open question again, with its context. Record the answer with `reply`, then continue the step that asked. With `next.driving`, use only `reply` or `decided`: the wave driver continues the unit ([campaign/_waves.md](campaign/_waves.md), "Questions while the run goes"). |
 | `paused` | Show the reason and the reset time. Resume when the person asks, or when the reset time passed (`_waves.md`, "Pause and resume"). |
 | `prepare` | Prepare `next.units` with the person (`_phases.md`, "Rolling prepare"). |
 | `start-wave` | Show the forecast and the wave plan. Ask the person to start, then run the wave (`_waves.md`). |
-| `driving` | A run of wave `next.wave` is live. Show where the wave stands, and prepare `next.prepare`. Do not run `launch`, `merge-in`, or `unit <key> <state>` for a unit of the wave: the driver owns them. |
+| `driving` | A run of wave `next.wave` is live. Show where the wave stands, and prepare `next.prepare`. Run Phase 0b first for `next.deps`. Do not run `launch`, `merge-in`, or `unit <key> <state>` for a unit of the wave: the driver owns them. |
 | `running` | No run of the wave is live. When its units are `merged`, continue at `_waves.md`, "Run a wave", step 10. Otherwise, launch the wave again (step 4). Prepare `next.prepare`. |
 | `stopped` | Show why the wave stopped and what waits on which answer. When the person answered, resume the wave. |
 | `blocked` | No wave can start. List what waits on which packet, and the packets that need the person. |
@@ -95,7 +96,9 @@ A build packet (form `intake`, `extension`, `fix`, `hotfix`) is a unit. A `task`
 
 | Command | Does |
 |---|---|
-| `orient` | Phase 0: check the work set, compute the waves, write the ledger and the forecast |
+| `orient` | Phase 0: check the work set, seed the graph, write the ledger and the forecast |
+| `deps show\|plan\|confirm` | Show, plan, or confirm the graph |
+| `deps <key> <field> ...` | Change the graph ([campaign/_deps.md](campaign/_deps.md), "The deps commands") |
 | `status` | The next action and the ledger summary |
 | `replan` | Re-read the packets; re-plan the waves that did not start |
 | `answer <key> <json>` | Record a setup answer: `forecast`, `target-version`, `release-each-wave`, `output`, `budget` |
@@ -146,7 +149,7 @@ Change steering only through the script. The script writes the time, and it writ
 
 CAUTION: do not edit a `steer.md` copy by hand or with a script of your own. The two copies then differ, and a hand-written time can be wrong.
 
-Do not write a wait between units as steering. A wait comes from the packet's `needs` ([campaign/_waves.md](campaign/_waves.md), "Merge in").
+Do not write a wait between units as steering. A wait comes from the unit's `needs` in the ledger ([campaign/_waves.md](campaign/_waves.md), "Merge in").
 
 ## Stop one slug
 
@@ -170,7 +173,7 @@ CAUTION: while the person is away, do not answer a question of the classes `shar
 
 ## Where the rest is
 
-- Phase 0, Phase 1, the rolling prepare, the packet forms, and the reopen pick-up: [campaign/_phases.md](campaign/_phases.md).
+- Phase 0, Phase 0b, Phase 1, the rolling prepare, the packet forms, and the reopen pick-up: [campaign/_phases.md](campaign/_phases.md).
 - The waves, the questions of a run, the failure paths, versions and outputs, handoff and ship per wave, pause and resume, and the end: [campaign/_waves.md](campaign/_waves.md).
 - The stacked wave PRs and every `gh stack` command: [campaign/_gh-stack.md](campaign/_gh-stack.md).
 - The wave driver's own agents and the parks: [campaign/_drive.md](campaign/_drive.md).

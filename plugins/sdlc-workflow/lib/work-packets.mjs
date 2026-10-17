@@ -107,67 +107,27 @@ export function findIgnoredCitations(board, { isIgnored = null } = {}) {
   return hits;
 }
 
-/** A cycle in the depends-on graph, as a list of keys, or null. */
-export function findDependencyCycle(pieces) {
-  const graph = new Map(pieces.map((p) => [p.key, p['depends-on'] ?? []]));
-  const state = new Map();
-  const stack = [];
-  const visit = (key) => {
-    if (state.get(key) === 'done') return null;
-    if (state.get(key) === 'open') return [...stack.slice(stack.indexOf(key)), key];
-    state.set(key, 'open');
-    stack.push(key);
-    for (const next of graph.get(key) ?? []) {
-      if (!graph.has(next)) continue;
-      const cycle = visit(next);
-      if (cycle) return cycle;
+/**
+ * The sequence of the pieces (WF-CAMPAIGN-ORDER-PLAN 4.1): every piece has an
+ * `order`, the orders are 1 to n with no gap and no repeat, and each piece after
+ * order 1 has a `why-here` note. The brainstorm agrees no dependency graph: the
+ * campaign owns it. Returns the errors.
+ */
+export function sequenceErrors(pieces) {
+  const errors = [];
+  const seen = new Map();
+  for (const piece of pieces) {
+    if (!Number.isInteger(piece.order) || piece.order < 1) {
+      errors.push(`piece ${piece.key}: no order. Agree its place in the sequence with the person (3.3).`);
+      continue;
     }
-    stack.pop();
-    state.set(key, 'done');
-    return null;
-  };
-  for (const key of graph.keys()) {
-    const cycle = visit(key);
-    if (cycle) return cycle;
+    if (seen.has(piece.order)) errors.push(`pieces ${seen.get(piece.order)} and ${piece.key} have the same order ${piece.order}: the sequence is strict.`);
+    else seen.set(piece.order, piece.key);
+    if (piece.order > 1 && !String(piece['why-here'] ?? '').trim()) errors.push(`piece ${piece.key} (order ${piece.order}): no why-here. Record why it comes after the pieces before it, in the person's words (3.3).`);
   }
-  return null;
-}
-
-/** Every key a piece depends on, directly or through other pieces. */
-export function dependencyClosure(pieces, key) {
-  const graph = byKey(pieces);
-  const seen = new Set();
-  const walk = (k) => {
-    for (const next of graph.get(k)?.['depends-on'] ?? []) {
-      if (seen.has(next)) continue;
-      seen.add(next);
-      walk(next);
-    }
-  };
-  walk(key);
-  return seen;
-}
-
-/** The pieces that list `key` in their depends-on (X2 "needed by"). */
-export function neededBy(pieces, key) {
-  return ordered(pieces.filter((p) => (p['depends-on'] ?? []).includes(key)));
-}
-
-/** The packet pieces in waves: each wave depends only on earlier waves. */
-export function computeWaves(board) {
-  const pieces = ordered((board.work ?? []).filter(isPacketPiece));
-  const keys = new Set(pieces.map((p) => p.key));
-  const placed = new Map();
-  const waves = [];
-  let remaining = pieces;
-  while (remaining.length) {
-    const wave = remaining.filter((p) => (p['depends-on'] ?? []).filter((k) => keys.has(k)).every((k) => placed.has(k)));
-    if (!wave.length) break; // a cycle; checkWorkSet reports it
-    for (const p of wave) placed.set(p.key, waves.length);
-    waves.push(wave.map((p) => p.slug ?? p.key));
-    remaining = remaining.filter((p) => !placed.has(p.key));
-  }
-  return waves;
+  const n = pieces.length;
+  for (let i = 1; i <= n; i++) if (!seen.has(i) && seen.size) errors.push(`the sequence has no piece with order ${i}: the orders are 1 to ${n}, each used once.`);
+  return errors;
 }
 
 /**
@@ -178,7 +138,6 @@ export function checkWorkSet(board, { isIgnored = null } = {}) {
   const errors = [];
   const warnings = [];
   const pieces = board.work ?? [];
-  const pieceKeys = byKey(pieces);
   const items = byKey(board.items);
 
   const shape = validateBrainstormBoard(board);
@@ -197,37 +156,8 @@ export function checkWorkSet(board, { isIgnored = null } = {}) {
     }
   }
 
-  // Dependencies: known keys, no cycle.
-  for (const piece of pieces) {
-    for (const dep of piece['depends-on'] ?? []) {
-      if (dep === piece.key) errors.push(`piece ${piece.key} depends on itself.`);
-      else if (!pieceKeys.has(dep)) errors.push(`piece ${piece.key} depends on ${dep}, which is not a piece of work.`);
-    }
-  }
-  const cycle = findDependencyCycle(pieces);
-  if (cycle) errors.push(`the dependencies form a cycle: ${cycle.join(' -> ')}.`);
-  // N1: a need names another packet piece; the campaign checks the cycle across needs and depends-on.
-  for (const piece of pieces) {
-    for (const n of piece.needs ?? []) {
-      if (n.from === piece.key) errors.push(`piece ${piece.key} needs itself.`);
-      else if (!pieceKeys.has(n.from)) errors.push(`piece ${piece.key} needs ${n.from}, which is not a piece of work.`);
-      else if (!isPacketPiece(pieceKeys.get(n.from))) errors.push(`piece ${piece.key} needs ${n.from}, which gets no packet: use depends-on.`);
-    }
-  }
-
-  // Contracts (X3): each expects line names a provides line on a piece this one depends on.
-  for (const piece of pieces) {
-    const closure = dependencyClosure(pieces, piece.key);
-    for (const line of piece.expects ?? []) {
-      const source = pieceKeys.get(line.from);
-      const provided = source?.provides?.some((p) => p.key === line.key);
-      if (!source || !provided) {
-        errors.push(`piece ${piece.key} expects ${line.from}/${line.key} ("${line.text}"), and no piece provides it.`);
-      } else if (!closure.has(line.from)) {
-        errors.push(`piece ${piece.key} expects ${line.from}/${line.key}, but ${line.from} does not come earlier: add it to depends-on.`);
-      }
-    }
-  }
+  // The sequence (WF-CAMPAIGN-ORDER-PLAN 4.1). The dependency graph is the campaign's.
+  errors.push(...sequenceErrors(pieces));
 
   // Coverage (I6, K10): every kept decision lands in exactly one piece, or is shared.
   const homes = new Map();
@@ -355,10 +285,8 @@ export function packetFrontmatter(board, piece, { revision = 1, generatedAt = nu
     revision,
     'origin-brainstorm': board.slug,
     order: piece.order ?? 1,
-    'depends-on': piece['depends-on'] ?? [],
-    provides: piece.provides ?? [],
-    expects: piece.expects ?? [],
-    ...(piece.needs?.length ? { needs: piece.needs.map((n) => ({ from: n.from, through: n.through ?? 'finished', before: n.before ?? null, ...(n.why ? { why: n.why } : {}) })) } : {}),
+    // WF-CAMPAIGN-ORDER-PLAN 4.1: the packet carries its place in the sequence, not a dependency graph.
+    ...(piece['why-here'] ? { 'why-here': piece['why-here'] } : {}),
     'carried-decisions': decisions.map((i) => ({
       key: i.key,
       text: i.text,
@@ -417,8 +345,9 @@ export function renderPacket(board, piece, { revision = 1, generatedAt = null, r
 
   lines.push('## Start', '');
   lines.push(`Form: \`${piece.shape}\`${piece['target-slug'] ? ` on \`${piece['target-slug']}\`` : ''}. Order: ${piece.order ?? 1}. Size: ${fm.size}, carried decisions: ${decisions.length}.`, '');
-  const deps = piece['depends-on'] ?? [];
-  if (deps.length) lines.push(`Start after: ${deps.map(linkTo).join('; ')}.`, '');
+  // 4.1: the piece before it in the sequence, and why this piece comes after it.
+  const before = (piece.order ?? 1) > 1 ? pieces.find((p) => p.order === piece.order - 1) : null;
+  if (before) lines.push(`Comes after: ${linkTo(before.key)}, because ${String(piece['why-here'] ?? '').trim().replace(/\.$/, '')}.`, '');
   lines.push('```', startCommand(board.slug, piece), '```', '');
 
   lines.push('## What the person decided', '');
@@ -443,21 +372,6 @@ export function renderPacket(board, piece, { revision = 1, generatedAt = null, r
   const assumeLines = [...assumptions.map((i) => itemLine(i)), ...risks.map((i) => `- Accepted risk with **${i.key}**: ${i['accepted-risk']}`)];
   lines.push(...(assumeLines.length ? assumeLines : [none]), '');
 
-  lines.push('## Provides and expects', '');
-  const contract = [
-    ...(piece.provides ?? []).map((p) => `- Provides \`${p.key}\`: ${p.text}`),
-    ...(piece.expects ?? []).map((e) => `- Expects \`${e.key}\` from ${linkTo(e.from)}: ${e.text}`),
-  ];
-  lines.push(...(contract.length ? contract : [none]), '');
-
-  lines.push('## Depends on / needed by', '');
-  const after = neededBy(pieces, piece.key);
-  lines.push(`- Depends on: ${deps.length ? deps.map(linkTo).join('; ') : 'nothing'}.`);
-  lines.push(`- Needed by: ${after.length ? after.map((p) => linkTo(p.key)).join('; ') : 'nothing'}.`);
-  // N1: a need on a piece that can run in the same campaign wave.
-  for (const n of piece.needs ?? []) lines.push(`- Needs ${linkTo(n.from)} through \`${n.through ?? 'finished'}\` before ${n.before ? `the slice \`${n.before}\`` : 'the first slice'}${n.why ? `: ${n.why}` : ''}. The two can run in one campaign wave.`);
-  lines.push('');
-
   lines.push('## Left for later and cut', '');
   const leftLines = [
     ...later.map((i) => `${itemLine(i)} Left for later.`),
@@ -480,7 +394,6 @@ export function renderWorkIndex(board, { revision = 1, generatedAt = null } = {}
   const pieces = ordered(board.work ?? []);
   const packets = pieces.filter(isPacketPiece);
   const writeNow = pieces.filter(isWriteNowPiece);
-  const waves = computeWaves(board);
   const fm = {
     schema: 'sdlc/v1',
     type: 'work-set',
@@ -488,7 +401,6 @@ export function renderWorkIndex(board, { revision = 1, generatedAt = null } = {}
     'work-set': packets.length > 1 ? 'multi' : packets.length === 1 ? 'single' : 'none',
     'work-revision': revision,
     slugs: packets.map((p) => p.slug ?? p.key),
-    waves,
     written: writeNow.filter((p) => p.state === 'written').map((p) => p.key),
     ...(generatedAt ? { 'generated-at': generatedAt } : {}),
   };
@@ -498,10 +410,10 @@ export function renderWorkIndex(board, { revision = 1, generatedAt = null } = {}
 
   lines.push('## Packets', '');
   if (packets.length) {
-    lines.push('| Order | Packet | Form | Size | State | Depends on |', '|---|---|---|---|---|---|');
+    lines.push('| Order | Packet | Form | Size | State | Why here |', '|---|---|---|---|---|---|');
     for (const p of packets) {
       const size = sizeOf(carriedDecisionItems(board, p).length);
-      lines.push(`| ${p.order ?? ''} | [${p.title}](${packetFileName(p)}) | ${p.shape}${p['target-slug'] ? ` on \`${p['target-slug']}\`` : ''} | ${size} | ${isStartedState(p.state) ? p.state : 'proposed'} | ${(p['depends-on'] ?? []).join(', ') || '—'} |`);
+      lines.push(`| ${p.order ?? ''} | [${p.title}](${packetFileName(p)}) | ${p.shape}${p['target-slug'] ? ` on \`${p['target-slug']}\`` : ''} | ${size} | ${isStartedState(p.state) ? p.state : 'proposed'} | ${String(p['why-here'] ?? '').trim() || '—'} |`);
     }
   } else lines.push('- None.');
   lines.push('');
@@ -515,27 +427,12 @@ export function renderWorkIndex(board, { revision = 1, generatedAt = null } = {}
   } else lines.push('- None.');
   lines.push('');
 
-  lines.push('## Contracts', '');
-  const rows = [];
-  for (const p of packets) {
-    for (const e of p.expects ?? []) {
-      const source = pieces.find((x) => x.key === e.from);
-      const provided = source?.provides?.find((x) => x.key === e.key);
-      rows.push(`| ${p.key} | ${e.text} | ${e.from} | ${provided ? provided.text : '**no match**'} |`);
-    }
-  }
-  if (rows.length) lines.push('| Packet | Expects | From | Provides |', '|---|---|---|---|', ...rows);
-  else lines.push('- None.');
-  lines.push('');
-
-  lines.push('## Waves', '');
-  if (waves.length) waves.forEach((wave, i) => lines.push(`${i + 1}. ${wave.map((s) => `\`${s}\``).join(', ')}`));
-  else lines.push('- None.');
-  lines.push('');
-
   lines.push('## Start commands', '');
   if (packets.length) {
-    lines.push('In order. A packet starts after every packet it depends on is done.', '');
+    // 4.1: the serial path follows the sequence; the campaign plans the parallel waves.
+    lines.push(packets.length > 1
+      ? `In order. Start a packet after every packet above it is done. To build them in parallel waves, run \`/wf campaign ${board.slug}\`.`
+      : 'One packet. Start it with its command.', '');
     for (const p of packets) lines.push(`${p.order ?? ''}. \`${startCommand(board.slug, p)}\``);
   } else lines.push('- None.');
   lines.push('');

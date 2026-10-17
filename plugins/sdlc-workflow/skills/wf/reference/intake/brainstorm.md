@@ -214,14 +214,15 @@ Go through the map one area at a time, in the order the areas were explored. The
 ## 3.3 Shape the work
 When every area has an answer, talk through how the kept items become work. Load [brainstorm/_work.md](brainstorm/_work.md) now: it lists what to agree for each piece, the forms, and the size limits. Ask in batches, and give your view with its reason:
 - What comes first: the smallest piece that shows the thinking is right.
-- How the kept items group into pieces of work, their order, dependencies, slugs, and sizes, and the split of a piece that is too large; what each piece provides to later pieces and expects from earlier ones. Propose these; the person confirms them.
+- How the kept items group into pieces of work, their slugs, forms and sizes, and the split of a piece that is too large.
+- The sequence: one strict order of every piece, write-now pieces included (`order` 1, 2, 3, and so on), and a `why-here` note on each piece after the first. Piece N may use anything that pieces 1 to N−1 built. Propose the sequence and each note with its reason; the person confirms them. Do not agree a dependency graph: the campaign builds it from the packets and the code.
 - A stale piece of work (2.8): propose the piece that brings it up to date.
 - The form of each piece. A piece that changes only documents is `write-now`: this session writes it after the person confirms ([brainstorm/_work.md](brainstorm/_work.md) says when it stays a `task`). A design focus adds `design` or `design-direction` to the piece it serves (`brainstorm/_design.md`).
 
 Propose a first split, then change it as the person directs. Continue until the person says that the split holds.
 
 ## 3.4 Confirm and record
-1. Write the agreed scope in plain words: each piece of work in order, with its kept items and its form; then the items left for later; then the cut items with their reasons. Name each write-now piece and the documents it changes.
+1. Write the agreed scope in plain words: each piece of work in sequence order, with its kept items, its form, and its `why-here` note; then the items left for later; then the cut items with their reasons. Name each write-now piece and the documents it changes.
 2. Put that scope in the text of a question that asks the person to confirm it or to change it. Say that a confirmation also starts the write-now pieces. A change returns to 3.2 or 3.3.
 3. After the person confirms, write one piece of work per agreed piece into the board's `work` list, with the fields of [brainstorm/_work.md](brainstorm/_work.md), and mark them `selected`. Then check the work set, run each write-now piece, and write the work set, per that file's "Check and write the work set". Run no command that starts a successor.
 4. A thread with no kept item becomes `parked` when any of its items is `later`, and `dropped` with the person's reason when all are `cut`.

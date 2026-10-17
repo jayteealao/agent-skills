@@ -3,7 +3,7 @@
  * scripts/campaign.mjs — the disk side of /wf campaign (WF-CAMPAIGN-PLAN, Stage C).
  * Bundled to dist/campaign.mjs; skills/wf/scripts/campaign.mjs runs the bundle.
  *
- *   orient   <root> <brainstorm>                 Phase 0: check, waves, forecast, ledger (9.1)
+ *   orient   <root> <brainstorm>                 Phase 0: check, the graph seed, forecast, ledger (9.1); next is deps
  *   status   <root> <brainstorm>                 the next action (section 6) and the ledger summary
  *   replan   <root> <brainstorm>                 re-read the packets; re-plan the waves not started (15)
  *   answer   <root> <brainstorm> <key> <json>    record a setup answer (9.2)
@@ -36,6 +36,9 @@
  *   contract <root> <brainstorm> <key> amend --line <line key> --text t   (5.5, kind contract)
  *   await    <root> <brainstorm> --wave n [--max seconds] [--seen id,id] | --cancel   the waiter of the wave driver (5.5a)
  *   question <root> <brainstorm> <id> consumed
+ *   deps     <root> <brainstorm> show|plan|confirm   the dependency graph: show it, check and plan it, confirm it (WF-CAMPAIGN-ORDER-PLAN 4.4)
+ *   deps     <root> <brainstorm> <key> depends-on add|remove <from> --why w [--by who]   |   needs add|remove --from k [--through s --before s] --why w
+ *            |   provides set|remove --line k [--text t]   |   expects set|remove --from k --line k [--text t]   |   paths --set p1,p2   (4.6)
  *   owner    <root> <slug>                       the live wave run that drives a slug (5.13)
  *
  * Every command prints one JSON object on stdout. The ledger (work/campaign/ledger.json)
@@ -53,13 +56,14 @@ import {
   isBuildUnit, newLedger, nextWaveVersion, renderContext, renderForecast, renderLedgerMd, replan, rowTokens,
   SETUP_ANSWERS, stageMinutesFromJournals, unitOf, UNIT_STATES, WAVE_STATES,
   boundaryMergeOrder, buildRecap, clearedCover, closeWaits, diskNeedGb, pathBudget, pluginUpdate, runLive, sameNeed, shortStamp, sliceCycle, throughCovers, waitPending, waveWaits,
+  DEPS_BY, ensureDeps, hasGraphFields, migrateDeps, seedDeps, serialWaves, sharedPaths, startedKeys, startEntry, syncDepsState, unconfirmedKeys,
 } from '../lib/campaign.mjs';
 import { ignoredAtRisk, loadManifest, recordsIn, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { missingBoardFiles, needsPictures } from '../lib/design-boards.mjs';
 import { designNeeded, designSettled } from '../lib/design-lane.mjs';
 
-const USAGE = 'Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|stack|merge-in|merge-order|steer|rule|away|back|decided|recap|slice-done|needs|contract|await|question|owner> <projectRoot> <brainstorm> ...';
+const USAGE = 'Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|stack|merge-in|merge-order|steer|rule|away|back|decided|recap|slice-done|needs|contract|await|question|deps|owner> <projectRoot> <brainstorm> ...';
 
 // scripts/ and dist/ both sit one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -97,7 +101,7 @@ function writeAtomic(file, text) {
  * process that is gone is taken over at once.
  */
 const ledgerLockPath = (root, b) => join(campDir(root, b), 'ledger.lock');
-const LEDGER_COMMANDS = new Set(['orient', 'replan', 'answer', 'unit', 'outside', 'wave', 'ask', 'reply', 'pause', 'resume', 'forecast', 'worktree', 'stack', 'merge-in', 'rule', 'away', 'back', 'decided', 'slice-done', 'needs', 'contract', 'question']);
+const LEDGER_COMMANDS = new Set(['orient', 'replan', 'answer', 'unit', 'outside', 'wave', 'ask', 'reply', 'pause', 'resume', 'forecast', 'worktree', 'stack', 'merge-in', 'rule', 'away', 'back', 'decided', 'slice-done', 'needs', 'contract', 'question', 'deps']);
 
 function git(root, args) {
   const r = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', windowsHide: true });
@@ -124,15 +128,28 @@ export function readWorkSet(root, b) {
   return { revision: Number(index['work-revision']) || 0, index, packets, written };
 }
 
-/** The campaign units of a work set; a dependency on a written piece is done (see unitOf). */
-const unitsOf = (ws) => ws.packets.map((p) => unitOf(p, { written: ws.written }));
+/**
+ * The campaign units of a work set: the single seam of every reader of the graph
+ * (WF-CAMPAIGN-ORDER-PLAN 4.3). Each packet's frontmatter, with the four graph fields
+ * from its entry in the ledger `deps`. A packet with no entry yet gets its starting
+ * entry (the old fields, or the serial chain). A dependency on a written piece is done.
+ */
+const unitsOf = (ws, ledger) => ws.packets.map((p) => unitOf(p, { written: ws.written, deps: ledger?.deps?.units?.[p.key] ?? startEntry(p, ws.packets) }));
 
 function loadLedger(root, b) {
   const p = ledgerPath(root, b);
-  return existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null;
+  if (!existsSync(p)) return null;
+  const ledger = JSON.parse(readFileSync(p, 'utf8'));
+  // 4.8 step 2: a ledger of the old form gets its graph from the packets on first load.
+  if (!ledger.deps) {
+    const ws = readWorkSet(root, b);
+    if (!ws.error) migrateDeps(ledger, ws.packets, nowIso());
+  }
+  return ledger;
 }
 
 function saveLedger(root, b, ledger) {
+  syncDepsState(ledger, nowIso());
   ledger['updated-at'] = nowIso();
   writeAtomic(ledgerPath(root, b), `${JSON.stringify(ledger, null, 2)}\n`);
   writeAtomic(join(campDir(root, b), 'ledger.md'), renderLedgerMd(ledger));
@@ -229,8 +246,13 @@ function orient(root, b) {
   if (loadLedger(root, b)) return { ok: false, error: 'a ledger exists: use status (the campaign infers its phase from the ledger)' };
   const ws = readWorkSet(root, b);
   if (ws.error) return { ok: false, error: ws.error };
-  const units = unitsOf(ws);
-  const check = checkCampaignSet(units);
+  // 4.4 step 1: the graph starts as the old packet fields (seed) or the serial chain.
+  const deps = seedDeps(ws.packets);
+  const units = unitsOf(ws, { deps });
+  // The graph errors wait for the deps phase, where the person fixes them in this
+  // session. The errors of the work set itself (two packets on one slug, too many
+  // carried decisions) need the brainstorm.
+  const check = checkCampaignSet(units.map((u) => ({ ...u, dependsOn: [], needs: [], expects: [] })));
   if (check.single) {
     const only = units.find(isBuildUnit);
     return { ok: false, single: true, error: 'the work set has one build packet: that is not a campaign.', start: only ? `/wf intake .ai/workflows/${b}/${only.file}` : null };
@@ -240,7 +262,7 @@ function orient(root, b) {
   // does not, the records stay in the main checkout (local records, 13).
   const cfg = readJson(join(root, '.ai', 'sdlc-config.json')) ?? {};
   const ignored = cfg.artifactTracking === 'ignored' || git(root, ['check-ignore', '-q', '.ai/workflows']) !== null;
-  const ledger = newLedger({ brainstorm: b, revision: ws.revision, units, now: nowIso() });
+  const ledger = newLedger({ brainstorm: b, revision: ws.revision, units, now: nowIso(), deps });
   ledger.records = ignored ? 'local' : 'tracked';
   if (ignored) check.warnings.push('the repo does not track .ai/: the records stay in the main checkout. Each worktree gets a copy, and its changes come back before the worktree is removed (local records). The wave PR text and the code are still public.');
   // C5, C6: on Windows, short paths outside the repo keep deep build paths under the limit.
@@ -269,8 +291,15 @@ function orient(root, b) {
   ledger.forecast = { minutes: fc.minutes, tokens: fc.tokens, unknown: fc.unknown, journals: history.journals };
   saveLedger(root, b, ledger);
   writeAtomic(join(campDir(root, b), 'forecast.md'), renderForecast(fc, { brainstorm: b, now: nowIso() }));
-  appendJournal(root, b, 'campaign-orient', { revision: ws.revision, waves: ledger.waves.length });
-  return { ok: true, records: ledger.records, waves: ledger.waves.map((w) => w.units), waiting: ledger.waiting, outside: Object.keys(ledger.outside), warnings: check.warnings, forecast: ledger.forecast, toolGaps: ledger['tool-gaps'], next: campaignAction(ledger, { revision: ws.revision }) };
+  appendJournal(root, b, 'campaign-orient', { revision: ws.revision, waves: 0 });
+  const seeded = new Set(ws.packets.filter(hasGraphFields).map((p) => p.key));
+  const keys = Object.keys(deps.units);
+  return {
+    ok: true, records: ledger.records, waves: [], outside: Object.keys(ledger.outside), warnings: check.warnings, forecast: ledger.forecast, toolGaps: ledger['tool-gaps'],
+    // 4.4: the deps phase comes next. `seeded` units start from their old packet fields (D8), `serial` units from the serial chain.
+    deps: { state: ledger.deps.state, units: keys, seeded: keys.filter((k) => seeded.has(k)), serial: keys.filter((k) => !seeded.has(k)) },
+    next: campaignAction(ledger, { revision: ws.revision }),
+  };
 }
 
 function claudeVersionGap() {
@@ -706,6 +735,7 @@ function status(root, b) {
     rules: ledger?.rules ?? [],
     presence: ledger?.presence ?? { state: 'present' },
     ...(update ? { pluginUpdate: update } : {}),
+    ...(ledger?.deps ? { deps: { state: ledger.deps.state, unconfirmed: unconfirmedKeys(ledger) } } : {}),
     ledger: ledger ? {
       waves: ledger.waves.map((w) => ({ n: w.n, state: w.state, units: w.units, moved: w.moved })),
       waiting: ledger.waiting,
@@ -998,6 +1028,8 @@ function launch(root, b, n, f) {
     records: ledger.records ?? 'tracked',
     agentCeiling: 900,
     moved: lw.moved ?? [],
+    // WF-CAMPAIGN-ORDER-PLAN 4.5: the pairs that the deps phase expects to share a path.
+    expectedShared: (lw['expected-shared'] ?? []).filter((s) => keys.includes(s.a) && keys.includes(s.b)),
     units: keys.map((k) => {
       const u = ledger.units[k];
       return {
@@ -1129,8 +1161,8 @@ function needs(root, b, [key, action], f) {
   const u = ledger.units[key];
   if (!u) throw new Error(`needs: ${key} is not a build unit of this campaign`);
   const ws = readWorkSet(root, b);
-  const packet = ws.error ? null : unitsOf(ws).find((x) => x.key === key);
-  if (action === 'list') return { ok: true, key, packet: packet?.needs ?? [], derived: u['derived-needs'] ?? [], waits: u.waits ?? [] };
+  const packet = ws.error ? null : unitsOf(ws, ledger).find((x) => x.key === key);
+  if (action === 'list') return { ok: true, key, graph: packet?.needs ?? [], derived: u['derived-needs'] ?? [], waits: u.waits ?? [] };
   const entry = { from: f.from, through: f.through ?? 'finished', before: f.before ?? null };
   if (!entry.from || !ledger.units[entry.from]) throw new Error(`needs ${action}: --from names a build unit of this campaign`);
   if (action === 'remove') {
@@ -1190,7 +1222,7 @@ function contract(root, b, [key, action], f) {
   saveLedger(root, b, ledger);
   // Each context file that carries or expects the line, and every unit of a started wave, is written again.
   const ws = readWorkSet(root, b);
-  const units = ws.error ? [] : unitsOf(ws);
+  const units = ws.error ? [] : unitsOf(ws, ledger);
   const touched = units.filter((x) => x.key === key || x.expects.some((e) => e.from === key) || ledger.units[x.key]?.wave === ledger.units[key].wave).map((x) => x.key).filter((k) => ledger.units[k]?.wave);
   const written = touched.map((k) => context(root, b, [k])).filter((r) => r.ok).map((r) => r.key);
   appendJournal(root, b, 'contract-amend', { key, line: a.line });
@@ -1297,12 +1329,149 @@ function installedPluginVersion(root) {
   return best;
 }
 
+// ---------------------------------------------------------------- the dependency graph (WF-CAMPAIGN-ORDER-PLAN 4.4-4.6)
+
+const depKey = (d) => (typeof d === 'string' ? d : d?.key);
+
+/**
+ * 4.4 step 5: the waves, the errors and the shared paths that the graph gives, with
+ * no state change. Every unit is in the plan, also a unit that waits for its
+ * confirmation. `serial` is the plan of the serial chain, for the side-by-side view.
+ */
+function depsPlanOf(ledger, ws) {
+  const units = unitsOf(ws, ledger);
+  const check = checkCampaignSet(units, { written: ws.written });
+  const copy = JSON.parse(JSON.stringify(ledger));
+  for (const e of Object.values(copy.deps?.units ?? {})) e['confirmed-at'] ??= 'plan';
+  replan(copy, units, { revision: copy['work-revision'], now: nowIso() });
+  const planned = copy.waves.filter((w) => w.state === 'planned');
+  return {
+    errors: check.errors,
+    warnings: check.warnings,
+    waves: copy.waves.map((w) => ({ n: w.n, state: w.state, units: w.units })),
+    waiting: copy.waiting,
+    serial: serialWaves(units.filter(isBuildUnit)),
+    shared: planned.flatMap((w) => (w['expected-shared'] ?? []).map((s) => ({ wave: w.n, ...s }))),
+    dropped: Object.entries(ledger.deps.units).flatMap(([k, e]) => (e.dropped ?? []).map((d) => ({ unit: k, from: d.key, why: d.why, by: d.by, at: d.at }))),
+    unconfirmed: unconfirmedKeys(ledger),
+  };
+}
+
+/**
+ * `deps show|plan|confirm`, and `deps <key> <field> <action> ...` (4.6). Each change
+ * writes the ledger only, writes the unit's context file again, and appends a
+ * journal line. A unit of a started wave changes only through `needs` and `contract`.
+ */
+function depsCmd(root, b, pos, f) {
+  const ledger = requireLedger(root, b);
+  const ws = readWorkSet(root, b);
+  if (ws.error) return { ok: false, error: ws.error };
+  const added = ensureDeps(ledger, ws.packets);
+  const [sub, field, action, arg] = pos;
+  if (sub === 'show' || sub === 'plan') {
+    const plan = depsPlanOf(ledger, ws);
+    if (sub === 'plan') return { ok: true, ...plan, ...(added.length ? { added } : {}) };
+    return { ok: true, state: ledger.deps.state, revision: ledger.deps.revision, unconfirmed: plan.unconfirmed, units: ledger.deps.units, waves: plan.waves, errors: plan.errors, ...(added.length ? { added } : {}) };
+  }
+  if (sub === 'confirm') {
+    const units = unitsOf(ws, ledger);
+    const check = checkCampaignSet(units, { written: ws.written });
+    if (check.errors.length) return { ok: false, errors: check.errors, warnings: check.warnings };
+    const at = nowIso();
+    const shown = unconfirmedKeys(ledger);
+    for (const k of shown) ledger.deps.units[k]['confirmed-at'] = at;
+    ledger.deps.revision = (ledger.deps.revision ?? 1) + 1;
+    // A packet that is prepared or routed counts as prepared for a unit still planned.
+    for (const u of units) if (ledger.units[u.key]?.state === 'planned' && ['prepared', 'routed'].includes(u.packetState)) ledger.units[u.key].state = 'prepared';
+    replan(ledger, units, { revision: ledger['work-revision'], now: at });
+    saveLedger(root, b, ledger);
+    const planned = ledger.waves.filter((w) => w.state === 'planned');
+    appendJournal(root, b, 'deps-confirm', { units: shown, revision: ledger.deps.revision, waves: planned.map((w) => w.units) });
+    return {
+      ok: true, confirmed: shown, waves: ledger.waves.map((w) => w.units), waiting: ledger.waiting, warnings: check.warnings,
+      shared: planned.flatMap((w) => (w['expected-shared'] ?? []).map((s) => ({ wave: w.n, ...s }))),
+      next: campaignAction(ledger, { revision: ws.revision }),
+    };
+  }
+  const key = sub;
+  const entry = ledger.deps.units[key];
+  if (!entry) throw new Error(`deps: ${key ?? '(none)'} is not a packet of this work set. The form is deps show, deps plan, deps confirm, or deps <key> <field> <action>`);
+  if (startedKeys(ledger).has(key)) return { ok: false, key, error: `deps: ${key} is in a started wave, and its graph does not change any more. Use needs ${key} add for a derived needs entry, or contract ${key} amend for a contract line.` };
+  const by = f.by ?? 'person';
+  if (!DEPS_BY.includes(by)) throw new Error(`deps: --by is one of ${DEPS_BY.join(', ')}`);
+  const packetKeys = new Set(ws.packets.map((p) => p.key));
+  const why = f.why ? String(f.why) : '';
+  const at = nowIso();
+  let change;
+  if (field === 'depends-on') {
+    if (!arg || !(packetKeys.has(arg) || ws.written.includes(arg))) throw new Error(`deps ${key} depends-on ${action ?? ''}: name a packet of this work set, or a written piece`);
+    if (arg === key) throw new Error(`deps ${key} depends-on: a unit does not depend on itself`);
+    if (!why) throw new Error(`deps ${key} depends-on ${action}: give --why with the evidence`);
+    const list = entry['depends-on'] ??= [];
+    if (action === 'add') {
+      if (list.some((d) => depKey(d) === arg)) return { ok: true, key, exists: true };
+      list.push({ key: arg, why, by, at });
+    } else if (action === 'remove') {
+      if (!list.some((d) => depKey(d) === arg)) return { ok: false, key, error: `deps ${key}: there is no edge from ${arg}` };
+      entry['depends-on'] = list.filter((d) => depKey(d) !== arg);
+      // The removal and its reason stay: `deps plan` shows each dropped edge with its evidence.
+      (entry.dropped ??= []).push({ key: arg, why, by, at });
+    } else throw new Error('deps <key> depends-on: the action is add or remove');
+    change = { field, action, from: arg, why };
+  } else if (field === 'needs') {
+    const n = { from: f.from, through: f.through ?? 'finished', before: f.before ?? null };
+    if (!n.from || !packetKeys.has(n.from)) throw new Error(`deps ${key} needs ${action ?? ''}: --from names a packet of this work set`);
+    if (n.from === key) throw new Error(`deps ${key} needs: a unit does not need itself`);
+    entry.needs ??= [];
+    if (action === 'add') {
+      if (!why) throw new Error(`deps ${key} needs add: give --why with the thing that it needs`);
+      if (entry.needs.some((x) => sameNeed(x, n))) return { ok: true, key, exists: true };
+      entry.needs.push({ ...n, why, by, at });
+    } else if (action === 'remove') {
+      const before = entry.needs.length;
+      entry.needs = entry.needs.filter((x) => !sameNeed(x, n));
+      if (entry.needs.length === before) return { ok: false, key, error: `deps ${key}: no such needs entry` };
+    } else throw new Error('deps <key> needs: the action is add or remove');
+    change = { field, action, ...n, why };
+  } else if (field === 'provides' || field === 'expects') {
+    const line = f.line ? String(f.line) : '';
+    if (!line) throw new Error(`deps ${key} ${field}: give --line <the line key>`);
+    if (field === 'expects' && !(f.from && (packetKeys.has(f.from) || ws.written.includes(f.from)))) throw new Error(`deps ${key} expects: --from names a packet of this work set, or a written piece`);
+    const same = (x) => x.key === line && (field === 'provides' || x.from === f.from);
+    const list = entry[field] ??= [];
+    if (action === 'set') {
+      if (!String(f.text ?? '').trim()) throw new Error(`deps ${key} ${field} set: give --text with the line`);
+      const v = { ...(field === 'expects' ? { from: String(f.from) } : {}), key: line, text: String(f.text).trim(), by, at };
+      const i = list.findIndex(same);
+      if (i >= 0) list[i] = v;
+      else list.push(v);
+    } else if (action === 'remove') {
+      if (!list.some(same)) return { ok: false, key, error: `deps ${key}: no ${field} line ${line}` };
+      entry[field] = list.filter((x) => !same(x));
+    } else throw new Error(`deps <key> ${field}: the action is set or remove`);
+    change = { field, action, line, ...(field === 'expects' ? { from: f.from } : {}) };
+  } else if (field === 'paths') {
+    if (f.set === undefined) throw new Error(`deps ${key} paths: give --set <path,path>`);
+    entry.paths = String(f.set).split(',').map((s) => s.trim()).filter(Boolean);
+    change = { field, paths: entry.paths };
+  } else throw new Error('deps <key>: the field is depends-on, needs, provides, expects, or paths');
+  entry['changed-at'] = at;
+  ledger.deps.revision = (ledger.deps.revision ?? 1) + 1;
+  saveLedger(root, b, ledger);
+  const u = unitsOf(ws, ledger).find((x) => x.key === key);
+  if (u && existsSync(join(campDir(root, b), 'context', `${u.slug}.md`))) context(root, b, [key]);
+  appendJournal(root, b, 'deps-change', { key, by, ...change });
+  const confirmed = Boolean(entry['confirmed-at']);
+  return { ok: true, key, entry, ...(confirmed ? { replan: true, note: `the entry of ${key} is confirmed: run replan, so that the waves follow the change` } : {}) };
+}
+
 function doReplan(root, b) {
   const ledger = requireLedger(root, b);
   const ws = readWorkSet(root, b);
   if (ws.error) return { ok: false, error: ws.error };
-  const units = unitsOf(ws);
-  const check = checkCampaignSet(units);
+  ensureDeps(ledger, ws.packets);
+  const units = unitsOf(ws, ledger);
+  const check = checkCampaignSet(units, { written: ws.written });
   if (check.errors.length) return { ok: false, errors: check.errors };
   const before = new Set([...Object.keys(ledger.units), ...Object.keys(ledger.outside)]);
   // A packet that is prepared or routed counts as prepared for a unit still planned.
@@ -1317,6 +1486,9 @@ function doReplan(root, b) {
 function answer(root, b, [key, ...rest]) {
   if (!SETUP_ANSWERS.includes(key)) throw new Error(`answer: the key is one of ${SETUP_ANSWERS.join(', ')}`);
   const ledger = requireLedger(root, b);
+  // 4.3: setup waits for the confirmed graph (Q2: no way to skip it).
+  const pending = unconfirmedKeys(ledger);
+  if (pending.length) return { ok: false, error: `the dependency graph is not confirmed (${pending.join(', ')}): run the deps phase first (campaign/_phases.md, "Phase 0b — Deps")`, next: campaignAction(ledger, {}) };
   const raw = rest.join(' ');
   let value;
   try { value = JSON.parse(raw); } catch { value = raw; }
@@ -1362,6 +1534,7 @@ function unit(root, b, [key, state], f) {
   const u = ledger.units[key];
   if (!u) throw new Error(`unit: ${key} is not a build unit of this campaign`);
   if (state === 'prepared') {
+    if (unconfirmedKeys(ledger).includes(key)) return { ok: false, key, state: u.state, error: `unit ${key} is not prepared: the person has not confirmed its dependency graph. Run the deps phase first.` };
     const why = designBlocksPrepared(root, u.slug);
     if (why) return { ok: false, key, state: u.state, error: `unit ${key} is not prepared: ${why}` };
   }
@@ -1411,8 +1584,11 @@ function wave(root, b, [nText, action, state], f) {
     if (lives.length && !ledger.stack?.enabled) throw new Error(`wave ${lives[0].n} is ${lives[0].state}: without stacked PRs a wave starts after the previous wave merged`);
     const max = ledger.stack?.['max-unshipped'] ?? DEFAULT_MAX_UNSHIPPED;
     if (lives.length >= max) throw new Error(`${lives.length} unshipped waves wait above the trunk (max-unshipped ${max}): ship one first`);
+    // 4.3: a unit joins a started wave only with its confirmed graph.
+    const pending = unconfirmedKeys(ledger).filter((k) => w.units.includes(k));
+    if (pending.length) return { ok: false, error: `wave ${n} has units whose dependency graph is not confirmed: ${pending.join(', ')}. Run the deps phase first.`, unconfirmed: pending };
     const ws = readWorkSet(root, b);
-    const units = ws.error ? [] : unitsOf(ws);
+    const units = ws.error ? [] : unitsOf(ws, ledger);
     const prepared = new Set(w.units.filter((k) => ledger.units[k]?.state === 'prepared'));
     const { start, moved } = deferUnprepared(w.units, units, prepared);
     if (!start.length) return { ok: false, error: `no unit of wave ${n} is prepared`, moved };
@@ -1523,7 +1699,7 @@ function context(root, b, [key]) {
   const ledger = requireLedger(root, b);
   const ws = readWorkSet(root, b);
   if (ws.error) return { ok: false, error: ws.error };
-  const units = unitsOf(ws);
+  const units = unitsOf(ws, ledger);
   const u = units.find((x) => x.key === key);
   if (!u) throw new Error(`context: no packet ${key}`);
   const driftFile = join(campDir(root, b), 'drift', `${key}.json`);
@@ -1545,7 +1721,7 @@ function drift(root, b, [nText]) {
   const w = ledger.waves.find((x) => x.n === n);
   if (!w) throw new Error(`drift: no wave ${nText}`);
   const ws = readWorkSet(root, b);
-  const units = ws.error ? [] : unitsOf(ws);
+  const units = ws.error ? [] : unitsOf(ws, ledger);
   const notes = asBuiltNotes(root, b);
   const results = w.units.map((k) => units.find((u) => u.key === k)).filter(Boolean).map((u) => classifyDrift(u, notes));
   const L = [`# Drift check before wave ${n}`, '', 'Each waiting slug\'s expects lines against the as-built notes of the slugs it names, after the refuter (11.2).', ''];
@@ -1602,7 +1778,7 @@ function journal(root, b, [event, json]) {
 function forecast(root, b, f) {
   const ledger = requireLedger(root, b);
   const ws = readWorkSet(root, b);
-  const units = ws.error ? [] : unitsOf(ws);
+  const units = ws.error ? [] : unitsOf(ws, ledger);
   ledger['forecast-actual'] ??= [];
   if (f.wave) ledger['forecast-actual'].push({ wave: Number(f.wave), minutes: f.minutes ? Number(f.minutes) : null, tokens: f.tokens ? Number(f.tokens) : null });
   const history = forecastHistory(root);
@@ -1865,6 +2041,7 @@ function dispatch(cmd, root, b, pos, f) {
       case 'contract': out = contract(root, b, pos, f); break;
       case 'await': out = awaitCmd(root, b, f); break;
       case 'question': out = question(root, b, pos); break;
+      case 'deps': out = depsCmd(root, b, pos, f); break;
       // `owner <root> <slug>`: the second argument is the slug, not a brainstorm.
       case 'owner': out = owner(root, b); break;
       default: return null;

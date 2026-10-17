@@ -2106,6 +2106,17 @@ const CROSS_RESULT = {
   },
 }
 
+// WF-CAMPAIGN-ORDER-PLAN 4.5: the pairs that the deps phase expected to share a path. The
+// reconcile checks them first; a match becomes a derived needs entry, as any other pair.
+const EXPECTED_SHARED = Array.isArray(OPT.expectedShared) ? OPT.expectedShared.filter(s => s && s.a && s.b) : []
+function expectedSharedClause(planned) {
+  const keys = new Set(planned.map(u => u.key))
+  const pairs = EXPECTED_SHARED.filter(s => keys.has(s.a) && keys.has(s.b))
+  if (!pairs.length) return ''
+  return `\n\nEXPECTED SHARED PATHS (check these pairs first): the deps phase found that these units cite the same ` +
+    `path, and the person kept them in one wave:\n` + pairs.map(s => `- ${s.a} and ${s.b}: ${s.path}`).join('\n')
+}
+
 async function crossUnitReconcile() {
   const planned = U.filter(u => u.idx && !u.ended)
   if (planned.length < 2 || STOP) return null
@@ -2114,11 +2125,12 @@ async function crossUnitReconcile() {
     `${DRIVE_PROC}, section "Cross-unit reconcile".\n\n` +
     `The units, in packet order:\n` +
     planned.map(u => `- ${u.key} '${u.slug}': plans ${u.wf}/04-plan-<slice>.yaml; context ${u.contextPath}`).join('\n') +
+    expectedSharedClause(planned) +
     `\n\nRead every 04-plan-<slice>.yaml of every unit in full (its \`files\` and \`edges\`), and the provides and ` +
     `expects lines of every context file. Return pairs: each pair of slices of two DIFFERENT units that change the ` +
     `same file, as { a, aSlice, b, bSlice, files, kind } — kind 'contract' when the shared change would change a ` +
     `provides or expects line of either unit, 'order' otherwise. Return pairs: [] when no two units share a file. ` +
-    `A pair that a needs entry of a packet already orders (section 7 of the later unit's context file) is not ` +
+    `A pair that a needs entry of the graph already orders (section 7 of the later unit's context file) is not ` +
     `returned.` + waveHeartbeat('cross-unit-reconcile', 'plan'),
     { schema: CROSS_RESULT, label: 'cross-unit-reconcile', phase: 'Plan', ...SONNET }
   )

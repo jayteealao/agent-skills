@@ -64,6 +64,9 @@ function makeRepo({ isolation = ISOLATION } = {}) {
 function startWave(root) {
   const o = run(root, 'orient');
   assert.equal(o.ok, true, JSON.stringify(o));
+  // WF-CAMPAIGN-ORDER-PLAN 4.4: the person confirms the graph before setup.
+  const c = run(root, 'deps', 'confirm');
+  assert.equal(c.ok, true, JSON.stringify(c));
   for (const [k, v] of [['forecast', 'continue'], ['target-version', 'none'], ['release-each-wave', 'false'], ['output', 'none'], ['budget', 'default']]) run(root, 'answer', k, v);
   run(root, 'unit', 'W1', 'prepared');
   run(root, 'unit', 'W2', 'prepared');

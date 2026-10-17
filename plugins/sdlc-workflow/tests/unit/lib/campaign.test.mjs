@@ -297,3 +297,133 @@ test('the context file names the ports, the build folders, and the heavy-suite l
   assert.match(text, /node campaign\.mjs lock acquire/);
   assert.match(text, /lock-wait/);
 });
+
+// ---------------------------------------------------------------- the dependency graph (WF-CAMPAIGN-ORDER-PLAN)
+
+// A packet of the new form: the brainstorm sequence and why-here, and no graph field.
+function newPacket(key, over = {}) {
+  const p = packet(key, over);
+  for (const f of C.GRAPH_FIELDS) delete p[f];
+  return { ...p, ...(over['why-here'] ? { 'why-here': over['why-here'] } : {}) };
+}
+
+test('graph: a seed of the old fields gives the waves of today', () => {
+  const ps = [packet('A', { order: 1 }), packet('B', { order: 2 }), packet('C', { order: 3, 'depends-on': ['A'] })];
+  const deps = C.seedDeps(ps);
+  assert.equal(deps.state, 'proposed');
+  assert.deepEqual(deps.units.C['depends-on'], [{ key: 'A', why: 'from the packet', by: 'seed' }]);
+  const seeded = ps.map((p) => C.unitOf(p, { deps: deps.units[p.key] }));
+  assert.deepEqual(keysOf(C.planWaves(seeded).waves), keysOf(C.planWaves(units(...ps)).waves));
+  assert.deepEqual(keysOf(C.planWaves(seeded).waves), [['A', 'B'], ['C']]);
+});
+
+test('graph: with no seed, the serial chain gives one unit per wave, in the brainstorm sequence', () => {
+  const ps = [newPacket('B', { order: 2, 'why-here': 'billing waits until the limits ship' }), newPacket('A', { order: 1 }), newPacket('C', { order: 3 })];
+  assert.equal(C.hasGraphFields(ps[0]), false);
+  const deps = C.seedDeps(ps);
+  assert.deepEqual(Object.keys(deps.units), ['A', 'B', 'C'], 'the entries follow the sequence');
+  assert.deepEqual(deps.units.A['depends-on'], []);
+  assert.deepEqual(deps.units.B['depends-on'], [{ key: 'A', why: 'billing waits until the limits ship', by: 'serial' }]);
+  assert.equal(deps.units.C['depends-on'][0].why, 'the piece before it in the brainstorm sequence');
+  const u = ps.map((p) => C.unitOf(p, { deps: deps.units[p.key] }));
+  assert.deepEqual(C.planWaves(u).waves, [['A'], ['B'], ['C']]);
+  assert.deepEqual(C.serialWaves(u), [['A'], ['B'], ['C']]);
+});
+
+test('graph: a dropped edge puts two units in one wave', () => {
+  const ps = [newPacket('A', { order: 1 }), newPacket('B', { order: 2 })];
+  const deps = C.seedDeps(ps);
+  deps.units.B['depends-on'] = [];
+  const u = ps.map((p) => C.unitOf(p, { deps: deps.units[p.key] }));
+  assert.deepEqual(C.planWaves(u).waves, [['A', 'B']]);
+});
+
+test('graph: the ledger entry wins over a packet field; a null entry is an empty graph', () => {
+  const p = packet('B', { 'depends-on': ['A'], provides: [{ key: 'api', text: 'old text' }] });
+  const u = C.unitOf(p, { deps: { 'depends-on': [{ key: 'Z', why: 'x', by: 'person' }], provides: [{ key: 'api', text: 'new text', by: 'person' }], paths: ['src/a.ts'] } });
+  assert.deepEqual(u.dependsOn, ['Z']);
+  assert.deepEqual(u.provides, [{ key: 'api', text: 'new text' }]);
+  assert.deepEqual(u.paths, ['src/a.ts']);
+  const empty = C.unitOf(p, { deps: null });
+  assert.deepEqual([empty.dependsOn, empty.provides, empty.expects, empty.needs], [[], [], [], []]);
+});
+
+test('graph: a shared path gives a warning pair, and the plan keeps both units in one wave', () => {
+  const ps = [newPacket('A', { order: 1 }), newPacket('B', { order: 2 }), newPacket('C', { order: 3 })];
+  const entries = {
+    A: { paths: ['src/billing/limits.ts', 'src/a.ts'] },
+    B: { paths: ['./src/billing/limits.ts'] },
+    C: { paths: ['src\\c.ts'] },
+  };
+  const u = ps.map((p) => C.unitOf(p, { deps: entries[p.key] }));
+  assert.deepEqual(C.sharedPaths(u), [{ a: 'A', b: 'B', path: 'src/billing/limits.ts' }]);
+  assert.deepEqual(C.planWaves(u).waves, [['A', 'B', 'C']], 'a shared path never refuses and never splits a wave');
+});
+
+test('graph: a unit with no confirmed entry joins no wave; the action is deps until the person confirms', () => {
+  const ps = [packet('A', { order: 1 }), packet('B', { order: 2 })];
+  const deps = C.seedDeps(ps);
+  const u = ps.map((p) => C.unitOf(p, { deps: deps.units[p.key] }));
+  const ledger = C.newLedger({ brainstorm: 'b', revision: 1, units: u, deps });
+  assert.deepEqual(ledger.waves, [], 'with deps, newLedger plans no wave');
+  assert.deepEqual(C.campaignAction(ledger, { revision: 1 }), { action: 'deps', units: ['A', 'B'] });
+  deps.units.A['confirmed-at'] = '2026-10-17T10:00:00Z';
+  C.replan(ledger, u, { revision: 1 });
+  assert.deepEqual(ledger.waves.map((w) => w.units), [['A']]);
+  assert.deepEqual(ledger.waiting, [{ key: 'B', on: [], reason: 'deps' }]);
+  assert.equal(C.syncDepsState(ledger), 'proposed');
+  deps.units.B['confirmed-at'] = '2026-10-17T10:00:00Z';
+  C.replan(ledger, u, { revision: 1 });
+  assert.equal(C.syncDepsState(ledger, '2026-10-17T10:01:00Z'), 'confirmed');
+  assert.equal(ledger.deps['confirmed-at'], '2026-10-17T10:01:00Z');
+  assert.deepEqual(ledger.waves.map((w) => w.units), [['A', 'B']]);
+  assert.equal(C.campaignAction(ledger, { revision: 1 }).action, 'setup');
+});
+
+test('graph: replan writes the expected-shared pairs of each planned wave', () => {
+  const ps = [packet('A', { order: 1 }), packet('B', { order: 2 })];
+  const deps = C.seedDeps(ps);
+  deps.units.A.paths = ['src/x.ts'];
+  deps.units.B.paths = ['src/x.ts'];
+  for (const e of Object.values(deps.units)) e['confirmed-at'] = '2026-10-17T10:00:00Z';
+  const u = ps.map((p) => C.unitOf(p, { deps: deps.units[p.key] }));
+  const ledger = C.newLedger({ brainstorm: 'b', revision: 1, units: u, deps });
+  C.replan(ledger, u, { revision: 1 });
+  assert.deepEqual(ledger.waves[0]['expected-shared'], [{ a: 'A', b: 'B', path: 'src/x.ts' }]);
+  assert.match(C.renderLedgerMd(ledger), /A and B both cite `src\/x\.ts`/);
+  assert.match(C.renderLedgerMd(ledger), /## Dependency graph/);
+});
+
+test('graph: a changed sequence moves the serial edges of unconfirmed entries; a confirmed or dropped edge stays', () => {
+  const ps = [newPacket('A', { order: 1 }), newPacket('B', { order: 2 }), newPacket('C', { order: 3 })];
+  const ledger = { waves: [], units: {}, deps: C.seedDeps(ps) };
+  ledger.deps.units.B['confirmed-at'] = '2026-10-17T10:00:00Z';
+  ledger.deps.units.C['depends-on'].push({ key: 'A', why: 'reads A', by: 'scout' });
+  // The brainstorm swaps B and C.
+  const swapped = [newPacket('A', { order: 1 }), newPacket('C', { order: 2 }), newPacket('B', { order: 3 }), newPacket('D', { order: 4 })];
+  assert.deepEqual(C.ensureDeps(ledger, swapped), ['D']);
+  assert.deepEqual(ledger.deps.units.B['depends-on'].map((d) => d.key), ['A'], 'a confirmed entry does not change');
+  assert.deepEqual(ledger.deps.units.C['depends-on'].map((d) => `${d.key}:${d.by}`), ['A:scout'], 'the serial edge to B goes; the scout edge to A stays');
+  assert.deepEqual(ledger.deps.units.D['depends-on'].map((d) => `${d.key}:${d.by}`), ['B:serial']);
+  ledger.deps.units.D.dropped = [{ key: 'B', why: 'independent', by: 'scout' }];
+  ledger.deps.units.D['depends-on'] = [];
+  C.ensureDeps(ledger, swapped);
+  assert.deepEqual(ledger.deps.units.D['depends-on'], [], 'a dropped edge does not come back');
+  C.ensureDeps(ledger, swapped.filter((p) => p.key !== 'D'));
+  assert.equal('D' in ledger.deps.units, false, 'the entry of a packet that left the work set goes');
+});
+
+test('graph: a ledger of the old form gets its deps; a started wave keeps its graph, the other units wait', () => {
+  const ps = [packet('A', { order: 1 }), packet('B', { order: 2 }), packet('C', { order: 3, 'depends-on': ['A'] })];
+  const u = units(...ps);
+  const ledger = C.newLedger({ brainstorm: 'b', revision: 1, units: u });
+  ledger.waves[0].state = 'running';
+  for (const k of ['A', 'B']) ledger.units[k].state = 'running';
+  assert.equal(C.migrateDeps(ledger, ps, '2026-10-17T10:00:00Z'), true);
+  assert.equal(ledger.deps.units.A['confirmed-at'], '2026-10-17T10:00:00Z');
+  assert.equal(ledger.deps.units.C['confirmed-at'], null);
+  assert.deepEqual(ledger.deps.units.C['depends-on'], [{ key: 'A', why: 'from the packet', by: 'seed' }]);
+  assert.deepEqual(C.unconfirmedKeys(ledger), ['C']);
+  assert.deepEqual(ledger.waves.map((w) => w.units), [['A', 'B'], ['C']], 'the waves do not change at the migration');
+  assert.equal(C.migrateDeps(ledger, ps, 'later'), false, 'a second migration changes nothing');
+});

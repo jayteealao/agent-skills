@@ -194,8 +194,8 @@ After every unit planned, and before any implement, one agent compares the plans
 
 1. Read every `04-plan-<slice>.yaml` of every unit of the prompt in full: its `files` and its `edges`.
 2. Read the `provides` and `expects` lines of every context file.
-3. Find each pair of slices of two different units that change the same file.
-4. Leave out a pair that a packet `needs` entry already orders. Section 7 of the later unit's context file lists those entries.
+3. Find each pair of slices of two different units that change the same file. Check first the `expected-shared` pairs that the prompt names: the deps phase expected those two units to share a path (`_phases.md`, "Shared paths").
+4. Leave out a pair that a `needs` entry of the graph already orders. Section 7 of the later unit's context file lists those entries.
 5. Give each pair its kind:
    - `contract`: the shared change would change a `provides` or `expects` line of either unit;
    - `order`: every other pair.

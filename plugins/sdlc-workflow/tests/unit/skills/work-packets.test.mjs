@@ -14,7 +14,7 @@ import { validateBrainstormBoard, validateFrontmatter } from '../../../lib/schem
 import { safeParseFrontmatter } from '../../../lib/frontmatter.mjs';
 import {
   checkWorkSet,
-  computeWaves,
+  sequenceErrors,
   findIgnoredCitations,
   renderPacket,
   sizeOf,
@@ -51,9 +51,9 @@ function board(overrides = {}) {
       { key: 'design-doc-update', kind: 'decision', thread: 'module-shape', text: 'The design document names the module contract.', source: 'person', scope: 'keep' },
     ],
     work: [
-      { key: 'engine-modules', order: 1, title: 'Cut the engine into modules', shape: 'intake', slug: 'engine-modules', items: ['one-module-contract', 'events-are-facts', 'events-row-per-tick'], threads: ['module-shape'], provides: [{ key: 'module-contract', text: 'The engine exposes one module contract.' }], entry: `/wf intake engine-modules from ${SLUG}`, state: 'proposed' },
-      { key: 'replay-builder', order: 2, title: 'Build replays from events', shape: 'intake', slug: 'replay-builder', items: ['replay-from-events'], threads: ['replay'], 'depends-on': ['engine-modules'], expects: [{ from: 'engine-modules', key: 'module-contract', text: 'One module contract to read events from.' }], entry: `/wf intake replay-builder from ${SLUG}`, state: 'proposed' },
-      { key: 'design-doc-contract', order: 0 + 1, title: 'Name the contract in the design document', shape: 'write-now', items: ['design-doc-update'], entry: 'written in the brainstorm session', state: 'written', 'written-files': [{ path: 'docs/design/engine.md', section: 'Module contract' }], 'written-at': '2026-10-03T09:00:00Z' },
+      { key: 'engine-modules', order: 2, 'why-here': 'the modules follow the contract that the design document names', title: 'Cut the engine into modules', shape: 'intake', slug: 'engine-modules', items: ['one-module-contract', 'events-are-facts', 'events-row-per-tick'], threads: ['module-shape'], entry: `/wf intake engine-modules from ${SLUG}`, state: 'proposed' },
+      { key: 'replay-builder', order: 3, 'why-here': 'replays read the events of the modules', title: 'Build replays from events', shape: 'intake', slug: 'replay-builder', items: ['replay-from-events'], threads: ['replay'], entry: `/wf intake replay-builder from ${SLUG}`, state: 'proposed' },
+      { key: 'design-doc-contract', order: 1, title: 'Name the contract in the design document', shape: 'write-now', items: ['design-doc-update'], entry: 'written in the brainstorm session', state: 'written', 'written-files': [{ path: 'docs/design/engine.md', section: 'Module contract' }], 'written-at': '2026-10-03T09:00:00Z' },
     ],
     log: [],
     ...overrides,
@@ -89,7 +89,8 @@ test('schema: a packet and a work-set validate as frontmatter types', () => {
   equal(fm.slug, SLUG, 'a packet carries its folder slug, so the write hooks accept it');
   equal(fm['work-slug'], 'engine-modules');
   equal(validateFrontmatter({ ...fm, form: 'design' }).valid, false, 'design is a flag, not a packet form');
-  ok(validateFrontmatter({ schema: 'sdlc/v1', type: 'work-set', slug: SLUG, 'work-set': 'multi', 'work-revision': 1, slugs: ['a', 'b'], waves: [['a'], ['b']] }).valid);
+  ok(validateFrontmatter({ schema: 'sdlc/v1', type: 'work-set', slug: SLUG, 'work-set': 'multi', 'work-revision': 1, slugs: ['a', 'b'] }).valid);
+  ok(validateFrontmatter({ ...fm, 'depends-on': ['x'], provides: [], expects: [] }).valid, 'a packet of the old form still validates (WF-CAMPAIGN-ORDER-PLAN D8)');
 });
 
 test('decisions travel verbatim, with their keys, sessions, and dates (I1)', () => {
@@ -104,13 +105,16 @@ test('decisions travel verbatim, with their keys, sessions, and dates (I1)', () 
   match(text, /\/wf intake \.ai\/workflows\/brainstorm-match-engine-20261003\/work\/engine-modules\.md/);
   match(text, /The board wins where this packet and the board differ/);
   match(text, /\.\.\/brainstorm-board\.json#one-module-contract/, 'X1: every item links to the board');
-  for (const h of ['What the person decided', 'What is still open', 'What we found', 'What we assume', 'Provides and expects', 'Depends on / needed by', 'Left for later and cut', 'Sources']) {
+  for (const h of ['What the person decided', 'What is still open', 'What we found', 'What we assume', 'Left for later and cut', 'Sources']) {
     match(text, new RegExp(`## ${h.replace(/\//g, '\\/')}\\n`));
   }
   const second = renderPacket(b, b.work[1], { revision: 1 });
   match(second, /Left for later/);
   match(second, /replay-camera\*\* — A free camera in replays\..*Cut: Too costly/);
-  match(renderPacket(b, b.work[0]), /Needed by: \[Build replays from events\]\(replay-builder\.md\)/, 'X2: needed by is computed');
+  // WF-CAMPAIGN-ORDER-PLAN 4.1: the packet names the piece before it, with its why-here; the campaign owns the graph.
+  match(renderPacket(b, b.work[1]), /Comes after: \[Cut the engine into modules\]\(engine-modules\.md\), because replays read the events of the modules\./);
+  match(text, /Comes after: Name the contract in the design document \(written in the brainstorm session; state written\), because the modules follow/);
+  doesNotMatch(text, /## Provides and expects|## Depends on \/ needed by|Start after:/);
 });
 
 test('a packet carries its sketches with their files; a packet without sketches has no field (DESIGN-BOARDS W5b)', () => {
@@ -137,39 +141,38 @@ test('a packet carries its sketches with their files; a packet without sketches 
   equal('sketches' in plain, false);
 });
 
-test('a clean work set passes the check, and the waves follow depends-on', () => {
+test('a clean work set passes the check', () => {
   const b = board();
-  const r = checkWorkSet(b);
-  deepEqual(r.errors, []);
-  deepEqual(computeWaves(b), [['engine-modules'], ['replay-builder']]);
-});
-
-// WF-CAMPAIGN-RUN-FIXES-PLAN N1 — a need lets two pieces share a campaign wave.
-test('a need travels into the packet, validates, and is checked against the pieces', () => {
-  const base = board();
-  const needy = { ...base.work[1], 'depends-on': [], expects: [], needs: [{ from: 'engine-modules', through: 'contract-slice', before: 'replay-reader', why: 'the module contract' }] };
-  const b = { ...base, work: [base.work[0], needy, base.work[2]] };
-  ok(validateBrainstormBoard(b).valid, JSON.stringify(validateBrainstormBoard(b).errors));
   deepEqual(checkWorkSet(b).errors, []);
-  const text = renderPacket(b, needy, { revision: 1 });
-  const fm = safeParseFrontmatter(text).data;
-  deepEqual(fm.needs, [{ from: 'engine-modules', through: 'contract-slice', before: 'replay-reader', why: 'the module contract' }]);
-  ok(validateFrontmatter(fm).valid, JSON.stringify(validateFrontmatter(fm).errors));
-  match(text, /- Needs \[Cut the engine into modules\]\(engine-modules\.md\) through `contract-slice` before the slice `replay-reader`: the module contract\. The two can run in one campaign wave\./);
-  equal(safeParseFrontmatter(renderPacket(b, b.work[0], { revision: 1 })).data.needs, undefined, 'no needs: no field');
-  const errs = (needs) => checkWorkSet({ ...b, work: [b.work[0], { ...needy, needs }, b.work[2]] }).errors.join('\n');
-  match(errs([{ from: 'replay-builder' }]), /needs itself/);
-  match(errs([{ from: 'ghost' }]), /needs ghost, which is not a piece of work/);
-  match(errs([{ from: 'design-doc-contract' }]), /gets no packet: use depends-on/);
 });
 
-test('an expects line with no matching provides line fails (X3)', () => {
+// WF-CAMPAIGN-ORDER-PLAN 4.1 — the brainstorm agrees one strict sequence and a why-here note; the campaign owns the graph.
+test('the sequence check fails on a gap, on a repeat, and on a piece after order 1 with no why-here', () => {
+  deepEqual(sequenceErrors(board().work), []);
+  const gap = board();
+  gap.work[1].order = 4;
+  match(checkWorkSet(gap).errors.join('\n'), /no piece with order 3: the orders are 1 to 3/);
+  const repeat = board();
+  repeat.work[1].order = 2;
+  match(checkWorkSet(repeat).errors.join('\n'), /pieces engine-modules and replay-builder have the same order 2/);
+  const none = board();
+  delete none.work[0].order;
+  match(checkWorkSet(none).errors.join('\n'), /piece engine-modules: no order/);
+  const quiet = board();
+  quiet.work[1]['why-here'] = '  ';
+  match(checkWorkSet(quiet).errors.join('\n'), /piece replay-builder \(order 3\): no why-here/);
+  ok(!checkWorkSet(board()).errors.some((e) => /design-doc-contract/.test(e)), 'order 1 needs no why-here');
+});
+
+test('the graph fields of an old board are not checked and do not reach the packet', () => {
   const b = board();
-  b.work[1].expects = [{ from: 'engine-modules', key: 'event-schema', text: 'A published event schema.' }];
-  match(checkWorkSet(b).errors.join('\n'), /expects engine-modules\/event-schema .* no piece provides it/);
-  const notEarlier = board();
-  notEarlier.work[1]['depends-on'] = [];
-  match(checkWorkSet(notEarlier).errors.join('\n'), /does not come earlier/);
+  b.work[1] = { ...b.work[1], 'depends-on': ['ghost'], provides: [{ key: 'api', text: 'an API' }], expects: [{ from: 'ghost', key: 'x', text: 'y' }], needs: [{ from: 'ghost' }] };
+  ok(validateBrainstormBoard(b).valid, 'the board keeps the four fields as deprecated');
+  deepEqual(checkWorkSet(b).errors, [], 'the campaign checks the graph, not the brainstorm');
+  const fm = safeParseFrontmatter(renderPacket(b, b.work[1], { revision: 1 })).data;
+  for (const f of ['depends-on', 'needs', 'provides', 'expects']) equal(f in fm, false, `${f} stays out of the packet`);
+  equal(fm['why-here'], 'replays read the events of the modules');
+  ok(validateFrontmatter(fm).valid, JSON.stringify(validateFrontmatter(fm).errors));
 });
 
 test('a board that cites .scratch/ fails the check (F4)', () => {
@@ -190,9 +193,6 @@ test('coverage, cycles, and size (I6, K10, Q5)', () => {
   twice.work[0].shared = ['one-module-contract'];
   twice.work[1].shared = ['one-module-contract'];
   equal(checkWorkSet(twice).errors.length, 0, 'a shared decision is covered');
-  const loop = board();
-  loop.work[0]['depends-on'] = ['replay-builder'];
-  match(checkWorkSet(loop).errors.join('\n'), /cycle/);
   equal(sizeOf(25), 'medium');
   equal(sizeOf(26), 'large');
   equal(sizeOf(41), 'too-large');
@@ -220,6 +220,11 @@ test('write: packets, research index, work index last, changes log; a write-now 
     equal(index['work-revision'], 1);
     deepEqual(index.written, ['design-doc-contract']);
     ok(validateFrontmatter(index).valid);
+    equal('waves' in index, false, 'the campaign plans the waves (WF-CAMPAIGN-ORDER-PLAN 4.1)');
+    const indexText = readFileSync(join(dir, 'work', 'index.md'), 'utf8');
+    doesNotMatch(indexText, /## Contracts|## Waves/);
+    match(indexText, /\| Order \| Packet \| Form \| Size \| State \| Why here \|/);
+    match(indexText, /In order\. Start a packet after every packet above it is done\. To build them in parallel waves, run `\/wf campaign brainstorm-match-engine-20261003`\./);
     match(readFileSync(join(dir, 'work', 'changes.md'), 'utf8'), /Written in the session: `design-doc-contract` — `docs\/design\/engine\.md`/);
     match(readFileSync(join(dir, 'research', 'index.md'), 'utf8'), /\[R01\]\(R01-tick-rate\.md\) — How often does the engine tick\?/);
     const again = writeWorkSet(dir, { now: NOW });
@@ -273,12 +278,12 @@ test('a cut proposed packet moves to history; a cut started packet waits for the
 
 test('the CLI refuses to write a work set that fails the check', () => {
   const b = board();
-  b.work[1].expects = [{ from: 'engine-modules', key: 'nothing', text: 'x' }];
+  delete b.work[1]['why-here'];
   const { root, dir } = workflowDir(b);
   try {
     const out = [];
     equal(main(['check', dir], { log: (l) => out.push(l) }), 1);
-    match(out.join('\n'), /error: piece replay-builder expects/);
+    match(out.join('\n'), /error: piece replay-builder \(order 3\): no why-here/);
     equal(main(['write', dir], { log: (l) => out.push(l) }), 1);
     ok(!existsSync(join(dir, 'work')), 'nothing is written');
   } finally {

@@ -1,26 +1,50 @@
-# Campaign phases: orient, setup, prepare, and reopen pick-up
+# Campaign phases: orient, deps, setup, prepare, and reopen pick-up
 
 This file belongs to [../campaign.md](../campaign.md). `<cmd>` stands for `node "<pluginRoot>/skills/wf/scripts/campaign.mjs"`, followed by the command, `"<projectRoot>"`, and the brainstorm slug.
 
 ## Phase 0 — Orient
 
 1. Run `<cmd> orient`. The script reads `work/index.md` and every packet, and then:
-   - refuses a work set with a dependency cycle, an `expects` line with no matching `provides` line, an unknown dependency, or a packet with more than 40 carried decisions;
-   - counts a dependency on a piece that the brainstorm already wrote (the `written:` list of `work/index.md`) as done, and its `expects` lines as met;
+   - refuses a work set in which two packets open the same slug, or a packet carries more than 40 carried decisions;
+   - seeds the dependency graph in the ledger, under `deps`: the old packet fields when a packet has them (`by: seed`), otherwise the serial chain of the brainstorm sequence (`by: serial`);
    - turns on local records for a repo that does not track `.ai/` (`artifactTracking: ignored`, or a gitignored `.ai/workflows`): the result has `records: local` and a warning ([_waves.md](_waves.md), "Local records");
-   - computes the waves: a wave is every build packet whose dependencies are in earlier waves, and two packets that touch the same slug never share a wave;
-   - reads each packet's `needs` list: a need on another build packet puts the unit in the same wave as that packet or in a later wave, never in an earlier wave. A need on the unit itself, on an unknown packet, on a packet that is not a build packet, or on a packet that touches the same slug is an error. A cycle through `needs` is an error;
    - reads the version contract from `.ai/ship-plan.md` (`version-scheme`, `version-source-of-truth`, `version-bump-cmd`, `release-trigger`, `rollout-stages`);
-   - writes `ledger.json`, `ledger.md`, and `forecast.md`.
+   - writes `ledger.json`, `ledger.md`, and `forecast.md`. It plans no wave yet, and returns `next: deps`.
 2. When the result has `single: true`, the work set has one build packet. Stop, and give the person the packet's start command (`start`).
 3. When the result has `errors`, stop and show each error. The person fixes the work set in the brainstorm session (`/wf brainstorm <brainstorm-slug>`), not here.
-4. Show the waves, the packets that wait (`waiting`), the packets that need the person (`outside`), the forecast, and each tool gap.
+4. Show the packets that need the person (`outside`), the forecast, and each tool gap. Then continue at Phase 0b.
 
 The forecast estimates the run time from the driver journals of earlier runs in this repo, and the tokens from their `cost.jsonl`. A slug with no history is "unknown". The forecast is an estimate, and `forecast.md` says so.
 
+## Phase 0b — Deps
+
+The campaign owns the dependency graph. The person confirms it before setup, and before a new unit joins a wave. There is no way to skip the confirmation. `status` returns `next: deps` while a unit outside a started wave has no confirmed entry.
+
+1. Run the deps scout, and record its proposal ([_deps.md](_deps.md)).
+2. Run `<cmd> deps plan`. It runs the graph check and the wave planner over the proposal, and changes no state. It returns:
+   - `errors`: a cycle through `depends-on` or `needs`, an unknown dependency, an `expects` line with no matching `provides` line on a unit that it depends on, and each `needs` entry on the unit itself, on a packet that is not a build packet, or on a packet that touches the same slug;
+   - `waves`: the waves of the proposal. A wave is every build unit whose dependencies are in earlier waves. A `needs` entry lets a unit share the wave of the unit that it needs. Two units that touch the same slug never share a wave;
+   - `serial`: the waves of the serial chain;
+   - `shared`: each path that two units of one wave cite (see "Shared paths");
+   - `dropped`: each edge that was removed, with its evidence.
+3. Ask the person in one batch, per [../_gate-question.md](../_gate-question.md). Show the serial waves and the proposed waves side by side, each dropped edge with its evidence, each shared path, and each error. The options are:
+   - confirm the proposal;
+   - change some lines (free text). A person who wants the serial chain says so here, and each dropped edge goes back.
+4. Record each change with the `deps` commands, `--by person` ([../campaign.md](../campaign.md), "Commands"). Fix each error here, in the campaign session. Go back to the brainstorm only to change the pieces themselves: their split, their decisions, their slugs, or their sequence.
+5. Run `<cmd> deps confirm`. It refuses while the graph has an error. On success, it writes the waves, confirms each unit that waited, and appends `deps-confirm` to the campaign journal. Show the waves, the units that wait (`waiting`), and each shared path.
+
+The graph and the waves do not use `campaign.width`. A wave holds every unit whose dependencies are met, with no size limit, and `deps plan` gives no warning for a wide wave.
+
+### Shared paths
+
+`deps plan` and `deps confirm` compare the `paths` of each pair of units that one wave holds. A path is an estimate before the plans exist, so a shared path is a warning, never a refusal. For each shared path, the person chooses one answer:
+
+- Add a `depends-on` edge from the later unit in the sequence to the earlier one. The later unit moves to a later wave.
+- Keep the two units in one wave. `deps confirm` writes the pair into the wave's `expected-shared` list. The cross-unit reconcile of the wave driver reads that list first ([_drive.md](_drive.md), "Cross-unit reconcile").
+
 ## Phase 1 — Setup
 
-Ask the setup questions in one batch, per [../_gate-question.md](../_gate-question.md). Record each answer with `<cmd> answer <key> <json>`.
+Ask the setup questions in one batch, per [../_gate-question.md](../_gate-question.md). Record each answer with `<cmd> answer <key> <json>`. The command refuses while the dependency graph is not confirmed: finish Phase 0b first.
 
 | Key | Question | Answer |
 |---|---|---|
@@ -63,8 +87,8 @@ Prepare runs one wave ahead, not all at once. The person decides every question.
 
 1. **Before wave 1,** prepare the units of wave 1. For each unit, in packet order:
    1. Run `/wf intake <packet path>` ([../intake/_packet.md](../intake/_packet.md)). Intake shows the carried decisions in groups of up to 8, each with its session and date, and the person keeps or changes each group. Do not skip this step.
-   2. Run `/wf shape <slug>`. After shape, compare the shape with the packet's `provides` and `expects` lines. The person confirms each change. Write a confirmed change into the packet only through the brainstorm (`/wf brainstorm <brainstorm-slug> add`), because the brainstorm owns the packets.
-   3. Run `/wf slice <slug>`. Then look for a need on another unit of the same wave. When a slice doc of this unit names a value, a type, a file or a sink that another unit of this wave builds, propose a `needs` entry: `{ from: <that packet key>, through: <the slice of that unit that builds it, or finished>, before: <the first slice of this unit that uses it>, why: <the thing, in a few words> }`. The person confirms each proposed entry. Write a confirmed entry into the packet only through the brainstorm (`/wf brainstorm <brainstorm-slug> add`), then run `<cmd> replan`. Do this before the wave starts: `wave <n> start` turns each `needs` entry into a wait.
+   2. Run `/wf shape <slug>`. After shape, compare the shape with the unit's `provides` and `expects` lines in `<cmd> deps show`. The person confirms each change. Record a confirmed change with `<cmd> deps <key> provides set` or `<cmd> deps <key> expects set`, `--by prepare`, then run `<cmd> replan`.
+   3. Run `/wf slice <slug>`. Then look for a need on another unit of the same wave. When a slice doc of this unit names a value, a type, a file or a sink that another unit of this wave builds, propose a `needs` entry: `{ from: <that packet key>, through: <the slice of that unit that builds it, or finished>, before: <the first slice of this unit that uses it>, why: <the thing, in a few words> }`. The person confirms each proposed entry. Record a confirmed entry with `<cmd> deps <key> needs add --by prepare`, then run `<cmd> replan`. Do this before the wave starts: `wave <n> start` turns each `needs` entry into a wait.
    4. When the packet's `ux-impact` is not `none`, run the design lane per [../design/_lane.md](../design/_lane.md), with the person, in the main checkout. The design stage builds the boards, and `freeze` writes `design/r1/` (`design/_boards.md`).
    5. Set `branch-strategy: dedicated` in the slug's `00-index.md`. `wave <n> launch` sets `branch` and `base-branch` in the unit's worktree.
    6. Run `<cmd> unit <key> prepared`. For a unit whose design is needed, the command refuses until the design is settled. For `visual` and `new-surface`, it also refuses until `02c-craft.md` names its frozen boards and every board exists. The result names the cause: finish the design with the person, then run the command again. `node "<pluginRoot>/skills/wf/scripts/design-boards.mjs" check "<projectRoot>" <slug>` lists the missing boards.
@@ -108,7 +132,8 @@ The person can reopen the brainstorm in the brainstorm session while the campaig
 
 | Change | Action |
 |---|---|
-| New `intake` packet | It joins the rolling prepare, and enters the earliest wave its dependencies allow. |
+| New packet of any form | It gets a serial edge to the piece before it in the sequence (`by: serial`). `status` returns `next: deps` until the person confirms its entry (Phase 0b). It joins no wave before that. |
+| New `intake` packet | After Phase 0b, it joins the rolling prepare, and enters the earliest wave its dependencies allow. |
 | New `task`, `investigate`, or `discover` packet | It runs with the person outside the waves. Its dependents wait. |
 | New `write-now` entry in `work/changes.md` | Run the drift check over each unit that carries or expects a changed document. |
 | `extension` of a merged slug | A new unit on that slug, in a later wave. |
@@ -116,10 +141,8 @@ The person can reopen the brainstorm in the brainstorm session while the campaig
 | `extension` of a slug that is prepared but not started | The person prepares the slug again (shape and slice) with the new scope. |
 | `fix` | Prepare is the compressed fix intake, with the person. It enters the next wave. When it changes a `provides` line, run the drift check over the waiting units. |
 | `hotfix` with `urgency: urgent` | It runs before the next planned wave ([_waves.md](_waves.md), "Hotfix"). |
-| Changed `provides` or `expects` lines | Run the drift check over every waiting unit. |
+| A changed sequence | The serial edges of each unit whose graph is not confirmed follow the new sequence. Confirmed edges do not change. Say so in the commentary. |
 | `pending-cut` of a started packet | Stop the units that depend on it. Ask the person: keep the work, or revert it (the revert of [_waves.md](_waves.md), "Revert search"). |
-| New `depends-on` that makes a prepared unit wait | `replan` moves it to a later wave. Say so in the commentary. |
 | A carried decision changed in prepare | Run the drift check over the units that carry or expect that decision. |
-| A derived needs entry of a wave outcome (`derivedNeeds` of `wave <n> record`) | The wave driver wrote it into the ledger only. Write it into its packet through `/wf brainstorm <brainstorm-slug> add`, then run `<cmd> replan`. `replan` drops the ledger copy that the packet now declares. |
 
 The ledger records each revision that it re-planned from, and the report lists what each revision added.

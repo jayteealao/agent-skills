@@ -6,8 +6,6 @@ work-set: single
 work-revision: 1
 slugs:
   - reading-time
-waves:
-  - - reading-time
 written: []
 generated-at: "2026-10-03T09:00:00Z"
 ---
@@ -18,7 +16,7 @@ The board wins where this file and the board differ: [brainstorm-board.json](../
 
 ## Packets
 
-| Order | Packet | Form | Size | State | Depends on |
+| Order | Packet | Form | Size | State | Why here |
 |---|---|---|---|---|---|
 | 1 | [Show a reading-time estimate on each docs page](reading-time.md) | intake | small | proposed | — |
 
@@ -26,16 +24,8 @@ The board wins where this file and the board differ: [brainstorm-board.json](../
 
 - None.
 
-## Contracts
-
-- None.
-
-## Waves
-
-1. `reading-time`
-
 ## Start commands
 
-In order. A packet starts after every packet it depends on is done.
+One packet. Start it with its command.
 
 1. `/wf intake .ai/workflows/brainstorm-reading-time-20261003/work/reading-time.md`

@@ -2,8 +2,9 @@
 //
 // The campaign reads the brainstorm's work packets (work/<slug>.md, written by
 // work-packets.mjs) and drives the build packets in dependency waves. It never
-// writes the board or a packet: the brainstorm owns them (section 15). Its own
-// state is work/campaign/ledger.json; ledger.md is generated from it.
+// writes the board or a packet: the brainstorm owns them (section 15). The campaign
+// owns the dependency graph (WF-CAMPAIGN-ORDER-PLAN): it lives in the ledger, under
+// `deps`. Its own state is work/campaign/ledger.json; ledger.md is generated from it.
 //
 // Everything here is pure, so the tests and scripts/campaign.mjs share one
 // source: the waves, the same-slug rule, the partial-wave and revert rules, the
@@ -32,24 +33,27 @@ const CONTEXT_LONG_LINES = 200;
 // ---------------------------------------------------------------- units
 
 /**
- * One campaign unit from a packet's frontmatter. `written` is the `written:`
- * list of work/index.md: the write-now pieces the brainstorm session already
- * wrote. A dependency on one of them is done before the campaign starts, and
- * its expects lines are met (the brainstorm checked them, 3.4 step 1), so they
- * leave dependsOn and expects and are kept apart for the context file.
+ * One campaign unit from a packet's frontmatter and its entry in the dependency
+ * graph (WF-CAMPAIGN-ORDER-PLAN). `deps` is the unit's entry of the ledger `deps`;
+ * the four graph fields (`depends-on`, `needs`, `provides`, `expects`) come only
+ * from it. With no `deps` option, the entry is the seed of the packet's own fields
+ * (seedEntry), so a caller that has only packets gets the graph of the old form.
+ * `written` is the `written:` list of work/index.md: the write-now pieces the
+ * brainstorm session already wrote. A dependency on one of them is done before the
+ * campaign starts, and its expects lines are met, so they leave dependsOn and
+ * expects and are kept apart for the context file.
  */
-export function unitOf(packet, { written = [] } = {}) {
+export function unitOf(packet, { written = [], deps } = {}) {
   const form = packet.form ?? 'intake';
   const done = new Set(written);
-  const deps = packet['depends-on'] ?? [];
-  const exps = packet.expects ?? [];
+  const g = graphOf(deps === undefined ? seedEntry(packet) : deps);
   const workSlug = packet['work-slug'] ?? packet.key;
   const targetSlug = packet['target-slug'] ?? null;
   // N1: a need on another packet does not move this unit to a later wave. A need on
   // a written piece is met before the campaign starts, so it drops out.
-  const needs = (Array.isArray(packet.needs) ? packet.needs : [])
-    .filter((n) => n && n.from && !done.has(n.from))
-    .map((n) => ({ from: String(n.from), through: n.through ? String(n.through) : 'finished', before: n.before ? String(n.before) : null, why: n.why ? String(n.why) : '' }));
+  const needs = g.needs.filter((n) => !done.has(n.from));
+  const deps0 = g.dependsOn;
+  const exps = g.expects;
   return {
     key: packet.key,
     title: packet.title ?? packet.key,
@@ -60,11 +64,13 @@ export function unitOf(packet, { written = [] } = {}) {
     targetSlug,
     urgency: packet.urgency ?? 'normal',
     order: Number.isFinite(Number(packet.order)) ? Number(packet.order) : 1,
-    dependsOn: deps.filter((d) => !done.has(d)),
+    whyHere: packet['why-here'] ? String(packet['why-here']) : null,
+    dependsOn: deps0.filter((d) => !done.has(d)),
     needs,
-    provides: [...(packet.provides ?? [])],
+    provides: g.provides,
     expects: exps.filter((e) => !done.has(e.from)),
-    writtenDeps: deps.filter((d) => done.has(d)),
+    paths: g.paths,
+    writtenDeps: deps0.filter((d) => done.has(d)),
     writtenExpects: exps.filter((e) => done.has(e.from)),
     decisions: [...(packet['carried-decisions'] ?? [])],
     uxImpact: packet['ux-impact'] ?? 'none',
@@ -84,6 +90,164 @@ export function touchedSlugs(u) {
 const byOrder = (a, b) => a.order - b.order || String(a.key).localeCompare(String(b.key));
 
 const needsOf = (u) => u.needs ?? [];
+
+// ---------------------------------------------------------------- the dependency graph (WF-CAMPAIGN-ORDER-PLAN)
+//
+// The campaign owns the graph: `depends-on`, `needs`, `provides` and `expects` of each
+// unit live in the ledger under `deps.units[key]`. The brainstorm gives only the
+// sequence (`order` 1..n) and the `why-here` note of each piece. With no evidence,
+// the graph is the serial chain (D5). The person confirms each unit's entry before
+// it joins a wave (Q2).
+
+/** The four fields that moved from the packet to the ledger. */
+export const GRAPH_FIELDS = Object.freeze(['depends-on', 'needs', 'provides', 'expects']);
+/** Who wrote a line of the graph (4.3). */
+export const DEPS_BY = Object.freeze(['seed', 'serial', 'scout', 'person', 'prepare', 'driver']);
+
+/** A packet of the old form carries at least one graph field: its fields seed the graph (D8). */
+export const hasGraphFields = (packet) => GRAPH_FIELDS.some((f) => Object.prototype.hasOwnProperty.call(packet ?? {}, f));
+
+const keyOf = (d) => (typeof d === 'string' ? d : d?.key);
+
+/** The plain graph of one ledger entry, without the `by` and `why` notes. A null entry is an empty graph. */
+export function graphOf(entry) {
+  const e = entry ?? {};
+  return {
+    dependsOn: (e['depends-on'] ?? []).map(keyOf).filter(Boolean).map(String),
+    needs: (Array.isArray(e.needs) ? e.needs : []).filter((n) => n && n.from)
+      .map((n) => ({ from: String(n.from), through: n.through ? String(n.through) : 'finished', before: n.before ? String(n.before) : null, why: n.why ? String(n.why) : '' })),
+    provides: (e.provides ?? []).filter((p) => p && p.key).map((p) => ({ key: String(p.key), text: String(p.text ?? '') })),
+    expects: (e.expects ?? []).filter((x) => x && x.from && x.key).map((x) => ({ from: String(x.from), key: String(x.key), text: String(x.text ?? '') })),
+    paths: (e.paths ?? []).map(String),
+  };
+}
+
+/** The ledger entry that a packet's own graph fields give (`by: seed`). */
+export function seedEntry(packet, by = 'seed') {
+  const g = graphOf({ ...packet, paths: [] });
+  return {
+    'depends-on': g.dependsOn.map((key) => ({ key, why: 'from the packet', by })),
+    needs: g.needs.map((n) => ({ ...n, by })),
+    provides: g.provides.map((p) => ({ ...p, by })),
+    expects: g.expects.map((x) => ({ ...x, by })),
+    paths: [],
+    'confirmed-at': null,
+  };
+}
+
+/** The packets in the brainstorm sequence: `order`, then the key. */
+export const sequenceOf = (packets) => [...packets].sort((a, b) => (Number(a.order) || 1) - (Number(b.order) || 1) || String(a.key).localeCompare(String(b.key)));
+
+/** The serial entry of a packet: it depends on the packet before it in the sequence (D5, `by: serial`). */
+export function serialEntry(packet, packets) {
+  const seq = sequenceOf(packets);
+  const prev = seq[seq.findIndex((p) => p.key === packet.key) - 1] ?? null;
+  const why = packet['why-here'] ? String(packet['why-here']) : 'the piece before it in the brainstorm sequence';
+  return { 'depends-on': prev ? [{ key: prev.key, why, by: 'serial' }] : [], needs: [], provides: [], expects: [], paths: [], 'confirmed-at': null };
+}
+
+/** The starting entry of a packet: its old fields when it has them (D8), the serial chain otherwise. */
+export const startEntry = (packet, packets) => (hasGraphFields(packet) ? seedEntry(packet) : serialEntry(packet, packets));
+
+/** A new `deps` for a work set (4.4 step 1). */
+export function seedDeps(packets) {
+  return { state: 'proposed', revision: 1, 'confirmed-at': null, units: Object.fromEntries(sequenceOf(packets).map((p) => [p.key, startEntry(p, packets)])) };
+}
+
+/** The keys of the units of a started wave: their graph does not change any more. */
+export function startedKeys(ledger) {
+  const out = new Set();
+  for (const w of ledger?.waves ?? []) if (w.state !== 'planned') for (const k of w.units ?? []) out.add(k);
+  for (const [k, u] of Object.entries(ledger?.units ?? {})) if (['running', 'waiting', 'finished', 'merged', 'needs-fix', 'shipped'].includes(u.state)) out.add(k);
+  return out;
+}
+
+/** The units whose entry the person has not confirmed, outside a started wave (4.3). */
+export function unconfirmedKeys(ledger) {
+  if (!ledger?.deps?.units) return [];
+  const started = startedKeys(ledger);
+  return Object.entries(ledger.deps.units).filter(([k, e]) => !started.has(k) && !e?.['confirmed-at']).map(([k]) => k);
+}
+
+/** Set `deps.state` from the entries: `confirmed` when no unit outside a started wave waits for its confirmation. */
+export function syncDepsState(ledger, now = null) {
+  if (!ledger?.deps) return null;
+  const state = unconfirmedKeys(ledger).length ? 'proposed' : 'confirmed';
+  if (state === 'confirmed' && ledger.deps.state !== 'confirmed') ledger.deps['confirmed-at'] = now ?? ledger.deps['confirmed-at'] ?? null;
+  ledger.deps.state = state;
+  return state;
+}
+
+/**
+ * Give every packet of the work set an entry, and drop the entry of a packet that
+ * left the work set (unless its wave started). A new packet gets its starting entry
+ * (4.7). Returns the keys that got an entry.
+ */
+export function ensureDeps(ledger, packets) {
+  ledger.deps ??= seedDeps([]);
+  ledger.deps.units ??= {};
+  const keys = new Set(packets.map((p) => p.key));
+  const started = startedKeys(ledger);
+  const added = [];
+  for (const p of sequenceOf(packets)) {
+    const e = ledger.deps.units[p.key];
+    if (!e) {
+      ledger.deps.units[p.key] = startEntry(p, packets);
+      added.push(p.key);
+      continue;
+    }
+    // 4.7, a changed sequence: the serial edge of an unconfirmed entry follows the new
+    // sequence. A confirmed edge, an edge of another source, and a dropped edge stay.
+    if (e['confirmed-at'] || started.has(p.key) || hasGraphFields(p)) continue;
+    const serial = serialEntry(p, packets)['depends-on'][0] ?? null;
+    const kept = (e['depends-on'] ?? []).filter((d) => d?.by !== 'serial');
+    const dropped = new Set((e.dropped ?? []).map((d) => d.key));
+    if (serial && !kept.some((d) => keyOf(d) === serial.key) && !dropped.has(serial.key)) kept.unshift(serial);
+    e['depends-on'] = kept;
+  }
+  for (const k of Object.keys(ledger.deps.units)) if (!keys.has(k) && !started.has(k)) delete ledger.deps.units[k];
+  syncDepsState(ledger);
+  return added;
+}
+
+/**
+ * 4.8 step 2: a ledger of the old form gets its `deps` from the packets (`by: seed`).
+ * Each unit of a started wave is confirmed, so a running wave keeps its graph. Every
+ * other unit waits for the deps phase.
+ */
+export function migrateDeps(ledger, packets, now) {
+  if (!ledger || ledger.deps) return false;
+  ledger.deps = { state: 'proposed', revision: 1, 'confirmed-at': null, units: Object.fromEntries(sequenceOf(packets).map((p) => [p.key, seedEntry(p)])) };
+  const started = startedKeys(ledger);
+  for (const [k, e] of Object.entries(ledger.deps.units)) if (started.has(k)) e['confirmed-at'] = now;
+  syncDepsState(ledger, now);
+  return true;
+}
+
+const normPath = (p) => String(p).replace(/\\/g, '/').replace(/^\.\//, '').trim();
+
+/**
+ * 4.5: each path that two units of one wave cite, as { a, b, path }. `a` comes first
+ * in the sequence. A path is an estimate before the plans exist, so this is a warning.
+ */
+export function sharedPaths(units) {
+  const sorted = [...units].filter(Boolean).sort(byOrder);
+  const out = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const mine = new Set((sorted[i].paths ?? []).map(normPath).filter(Boolean));
+    for (let j = i + 1; j < sorted.length; j++) {
+      for (const p of new Set((sorted[j].paths ?? []).map(normPath).filter(Boolean))) if (mine.has(p)) out.push({ a: sorted[i].key, b: sorted[j].key, path: p });
+    }
+  }
+  return out;
+}
+
+/** The waves of the serial chain: each unit depends on the unit before it in the sequence (4.4 step 6). */
+export function serialWaves(units) {
+  const seq = [...units].sort(byOrder);
+  const chain = seq.map((u, i) => ({ ...u, dependsOn: i ? [seq[i - 1].key] : [], needs: [] }));
+  return planWaves(chain).waves;
+}
 
 function findCycle(units) {
   const graph = new Map(units.map((u) => [u.key, [...u.dependsOn, ...needsOf(u).map((n) => n.from)]]));
@@ -601,8 +765,12 @@ export function buildLabel({ wave, slug = null, sha }) {
 
 // ---------------------------------------------------------------- ledger
 
-export function newLedger({ brainstorm, revision, units, now = new Date().toISOString(), stage = 'C' }) {
-  const plan = planWaves(units);
+/**
+ * A new ledger. With `deps` (the script's orient), the ledger plans no wave: the
+ * waves wait for `deps confirm` (4.4). Without it, the waves come from the units.
+ */
+export function newLedger({ brainstorm, revision, units, now = new Date().toISOString(), stage = 'C', deps = null }) {
+  const plan = deps ? { waves: [], waiting: [] } : planWaves(units);
   const ledger = {
     version: LEDGER_VERSION,
     brainstorm,
@@ -620,6 +788,7 @@ export function newLedger({ brainstorm, revision, units, now = new Date().toISOS
     pause: null,
     stack: null,
     revisions: [{ revision, at: now, note: 'planned from this revision' }],
+    ...(deps ? { deps } : {}),
   };
   for (const u of units) {
     if (isBuildUnit(u)) {
@@ -663,14 +832,23 @@ export function replan(ledger, units, { revision = ledger['work-revision'], now 
   const outsideDone = new Set(Object.entries(ledger.outside).filter(([, x]) => x.state === 'closed').map(([k]) => k));
   // Units of a started wave that did not finish there (moved, stopped) leave it.
   const started = startedWaves.map((w) => w.units.filter((k) => !(w.moved ?? []).some((m) => m.key === k)));
-  const plan = planWaves(units, { done, started, stopped, outsideDone });
-  const next = plan.waves.slice(startedWaves.length).map((keys, i) => ({
-    n: startedWaves.length + i + 1, revision, units: keys, state: 'planned', branch: null, pr: null, version: null, label: null, moved: [],
-  }));
+  // 4.7: a unit whose graph entry the person has not confirmed joins no wave yet.
+  const pending = new Set(unconfirmedKeys(ledger));
+  const plan = planWaves(units.filter((u) => !pending.has(u.key)), { done, started, stopped, outsideDone });
+  const byKey = new Map(units.map((u) => [u.key, u]));
+  const next = plan.waves.slice(startedWaves.length).map((keys, i) => {
+    const w = { n: startedWaves.length + i + 1, revision, units: keys, state: 'planned', branch: null, pr: null, version: null, label: null, moved: [] };
+    // 4.5: two units of the wave that cite one path; the cross-unit reconcile reads these first.
+    const shared = sharedPaths(keys.map((k) => byKey.get(k)));
+    if (shared.length) w['expected-shared'] = shared;
+    return w;
+  });
   ledger.waves = [...startedWaves, ...next];
   for (const w of next) for (const k of w.units) ledger.units[k].wave = w.n;
-  for (const w of plan.waiting) if (ledger.units[w.key] && !['stopped', 'needs-fix'].includes(ledger.units[w.key].state)) ledger.units[w.key].wave = null;
-  ledger.waiting = plan.waiting;
+  const waiting = [...plan.waiting];
+  for (const k of pending) if (ledger.units[k] && byKey.has(k)) waiting.push({ key: k, on: [], reason: 'deps' });
+  for (const w of waiting) if (ledger.units[w.key] && !['stopped', 'needs-fix'].includes(ledger.units[w.key].state)) ledger.units[w.key].wave = null;
+  ledger.waiting = waiting;
   if (revision !== ledger['work-revision']) {
     ledger.revisions.push({ revision, at: now, note: 're-planned the waves that had not started' });
     ledger['work-revision'] = revision;
@@ -691,6 +869,10 @@ export const openSetupAnswer = (ledger) => SETUP_ANSWERS.find((k) => ledger.answ
 export function campaignAction(ledger, { revision = null, driving = null } = {}) {
   if (!ledger) return { action: 'orient' };
   if (ledger.pause) return { action: 'paused', pause: ledger.pause, ...(driving ? { driving } : {}) };
+  // 4.4: the person confirms the dependency graph before setup, and before a new unit joins a wave.
+  // While a wave run drives, the session answers the run first, and `driving` carries the units.
+  const unconfirmed = unconfirmedKeys(ledger);
+  if (unconfirmed.length && !driving) return { action: 'deps', units: unconfirmed };
   const setup = openSetupAnswer(ledger);
   if (setup) return { action: 'setup', question: setup };
   if (revision !== null && revision !== ledger['work-revision']) return { action: 'work-changed', from: ledger['work-revision'], to: revision, ...(driving ? { driving } : {}) };
@@ -711,7 +893,7 @@ export function campaignAction(ledger, { revision = null, driving = null } = {})
     return todo.length ? { action: 'prepare', wave: next.n, units: todo } : { action: 'start-wave', wave: next.n, beside: lives.map((w) => w.n) };
   }
   // D25: the wave driver runs the wave; the session prepares the next wave and answers questions.
-  if (driving) return { action: 'driving', ...driving, prepare: unprepared(next) };
+  if (driving) return { action: 'driving', ...driving, prepare: unprepared(next), ...(unconfirmed.length ? { deps: unconfirmed } : {}) };
   if (live) return { action: 'running', wave: live.n, state: live.state, prepare: unprepared(next) };
   const stopped = ledger.waves.find((w) => w.state === 'stopped');
   if (stopped) return { action: 'stopped', wave: stopped.n };
@@ -749,6 +931,20 @@ export function renderLedgerMd(ledger) {
     L.push(`- ${k}: ${v === null || v === undefined ? '_open_' : typeof v === 'object' ? `\`${JSON.stringify(v)}\`` : v}`);
   }
   L.push('');
+  if (ledger.deps) {
+    // 4.3: the graph that the campaign owns, with the source of each line.
+    L.push('## Dependency graph', '', `State: **${ledger.deps.state}**, revision ${ledger.deps.revision ?? 1}.`, '');
+    for (const [k, e] of Object.entries(ledger.deps.units ?? {})) {
+      const parts = [
+        ...(e['depends-on'] ?? []).map((d) => `depends on ${keyOf(d)} (${d.by ?? '?'})`),
+        ...(e.needs ?? []).map((n) => `needs ${n.from} through \`${n.through ?? 'finished'}\` (${n.by ?? '?'})`),
+        ...(e.provides ?? []).map((p) => `provides \`${p.key}\` (${p.by ?? '?'})`),
+        ...(e.expects ?? []).map((x) => `expects ${x.from}/\`${x.key}\` (${x.by ?? '?'})`),
+      ];
+      L.push(`- **${k}** — ${parts.length ? parts.join('; ') : 'no edge'}. ${e['confirmed-at'] ? `Confirmed ${e['confirmed-at']}.` : '_Not confirmed._'}`);
+    }
+    L.push('');
+  }
   L.push('## Waves', '');
   if (!ledger.waves.length) L.push('- None.');
   for (const w of ledger.waves) {
@@ -762,6 +958,8 @@ export function renderLedgerMd(ledger) {
     }
     for (const m of w.moved ?? []) L.push(`| ${m.key} | | | moved | ${m.reason} |`);
     L.push('');
+    for (const s of w['expected-shared'] ?? []) L.push(`- ${s.a} and ${s.b} both cite \`${s.path}\`: the cross-unit reconcile reads this pair first.`);
+    if ((w['expected-shared'] ?? []).length) L.push('');
   }
   L.push('## Waiting', '');
   const waiting = ledger.waiting ?? [];

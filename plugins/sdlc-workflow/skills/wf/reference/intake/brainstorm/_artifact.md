@@ -75,12 +75,13 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
   - `was` holds a legacy id after a conversion.
 - **`log[].kind`** is `reflection`, `probe`, `fork`, `widen`, `choice`, `talk`, `story`, `check-in`, `close`, `cohere`, `brief`, `control`, or `walk`.
 
-A **piece of work** (one per agreed piece at `done`, in order):
+A **piece of work** (one per agreed piece at `done`, in sequence order):
 ```json
-{ "key": "spending-limit", "order": 1, "title": "Add a warning-only spending limit per project", "shape": "intake", "slug": "spending-limit", "depends-on": [], "provides": [{ "key": "project-limit", "text": "Each project has a spending limit that warns." }], "expects": [], "threads": ["limit-per-project"], "items": ["limit-warns-only", "cost-rows-per-run"], "research": ["R01"], "references": ["F02"], "entry": "/wf intake .ai/workflows/<slug>/work/spending-limit.md", "state": "proposed", "routed-to": null, "stale": false }
+{ "key": "spending-limit", "order": 2, "why-here": "the limit reads the cost rows of the first piece", "title": "Add a warning-only spending limit per project", "shape": "intake", "slug": "spending-limit", "threads": ["limit-per-project"], "items": ["limit-warns-only", "cost-rows-per-run"], "research": ["R01"], "references": ["F02"], "entry": "/wf intake .ai/workflows/<slug>/work/spending-limit.md", "state": "proposed", "routed-to": null, "stale": false }
 ```
 - `shape` is the form: `intake`, `investigate`, `discover`, `fix`, `hotfix`, `task`, `extension`, or `write-now` ([_work.md](_work.md)). Older boards also hold `design` and `design-direction` pieces; a new board records those as `design-form` on the piece they serve.
-- `slug`, `target-slug`, `depends-on`, `needs`, `provides`, `expects`, `shared`, `research`, `references`, `amends`, and `urgency` are agreed in 3.3 ([_work.md](_work.md)). `size` is `small`, `medium`, `large`, or `too-large`, from the count of carried decisions.
+- `slug`, `target-slug`, `order`, `why-here`, `shared`, `research`, `references`, `amends`, and `urgency` are agreed in 3.3 ([_work.md](_work.md)). `order` is the strict sequence 1 to n over every piece. `why-here` is required on each piece after order 1. `size` is `small`, `medium`, `large`, or `too-large`, from the count of carried decisions.
+- An older board also holds `depends-on`, `needs`, `provides`, and `expects` on a piece. The campaign owns the dependency graph now, so the brainstorm does not agree these fields, and the `write` command does not put them into a packet.
 - A piece of work that carries design items also records `ux-impact` (the proposed value) and `sketches` (the keys of its carried sketches). Its packet `work/<slug>.md` carries `sketches:`: each key with its `path`, `link`, and `caption` from `sketches[]`.
 - `state` is `proposed`, `prepared` (intake read its packet), `routed` (a successor workflow started), or `written` (a write-now piece the session wrote). A written piece records `written-files` (each `path` with its `section`) and `written-at`.
 - `stale: true` with `stale-because` marks a piece of work that a later area changed.

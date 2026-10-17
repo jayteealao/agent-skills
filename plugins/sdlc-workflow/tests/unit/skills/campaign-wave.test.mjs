@@ -475,6 +475,18 @@ test('W3: the cross-unit reconcile turns a shared file into a derived entry on t
   assert.ok(first(mock.calls, /^wait:A@b/));
 });
 
+test('WF-CAMPAIGN-ORDER-PLAN 4.5: the cross-unit reconcile prompt names the expected-shared pairs first', async () => {
+  const plain = makeMock({ rosters: { a: ['s1'], b: ['p1'] } });
+  await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b')]), plain);
+  assert.doesNotMatch(first(plain.calls, /^cross-unit-reconcile$/).prompt, /EXPECTED SHARED PATHS/);
+  const mock = makeMock({ rosters: { a: ['s1'], b: ['p1'] } });
+  await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b')], { expectedShared: [{ a: 'A', b: 'B', path: 'src/billing/rows.ts' }, { a: 'A', b: 'Z', path: 'gone.ts' }] }), mock);
+  const prompt = first(mock.calls, /^cross-unit-reconcile$/).prompt;
+  assert.match(prompt, /EXPECTED SHARED PATHS \(check these pairs first\)/);
+  assert.match(prompt, /- A and B: src\/billing\/rows\.ts/);
+  assert.doesNotMatch(prompt, /gone\.ts/, 'a pair with a unit outside the run is left out');
+});
+
 test('W3: a contract pair parks the later unit with kind contract and creates no entry', async () => {
   const mock = makeMock({
     rosters: { a: ['s1'], b: ['p1'] },

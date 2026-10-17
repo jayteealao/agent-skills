@@ -12,11 +12,6 @@ urgency: normal
 revision: 1
 origin-brainstorm: brainstorm-reading-time-20261003
 order: 1
-depends-on: []
-provides:
-  - key: page-minutes
-    text: Each docs page shows its reading time.
-expects: []
 carried-decisions:
   - key: minutes-at-top
     text: Each docs page shows its reading time in whole minutes under the title.
@@ -75,15 +70,6 @@ Intake re-verifies each finding against the current code. A contradicted finding
 ## What we assume
 
 - None.
-
-## Provides and expects
-
-- Provides `page-minutes`: Each docs page shows its reading time.
-
-## Depends on / needed by
-
-- Depends on: nothing.
-- Needed by: nothing.
 
 ## Left for later and cut
 

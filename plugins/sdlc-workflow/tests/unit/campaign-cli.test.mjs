@@ -28,6 +28,16 @@ function run(root, ...args) {
   }
 }
 
+/**
+ * Orient, then confirm the dependency graph as the deps phase proposes it
+ * (WF-CAMPAIGN-ORDER-PLAN 4.4). The result carries the waves of the confirm.
+ */
+function orient(root) {
+  const o = run(root, 'orient');
+  if (!o.ok) return o;
+  const c = run(root, 'deps', 'confirm');
+  return { ...o, ...c, ok: o.ok && c.ok, warnings: [...(o.warnings ?? []), ...(c.warnings ?? [])] };
+}
 function packetFile(root, fm) {
   const dir = path.join(root, '.ai', 'workflows', B, 'work');
   mkdirSync(dir, { recursive: true });
@@ -65,7 +75,16 @@ function makeRepo() {
 test('orient writes the ledger, ledger.md and forecast.md, with the waves and the packets that need the person', () => {
   const root = makeRepo();
   try {
-    const o = run(root, 'orient');
+    // WF-CAMPAIGN-ORDER-PLAN 4.4: orient plans no wave; the deps phase comes next.
+    const first = run(root, 'orient');
+    assert.equal(first.ok, true, JSON.stringify(first));
+    assert.deepEqual(first.waves, []);
+    assert.deepEqual(first.next, { action: 'deps', units: ['W1', 'W2', 'W3', 'W4', 'W5'] });
+    assert.deepEqual(first.deps.seeded, ['W1', 'W2', 'W3', 'W4', 'W5'], 'the old packet fields seed the graph (D8)');
+    assert.deepEqual(first.deps.serial, []);
+    assert.equal(run(root, 'answer', 'forecast', 'continue').ok, false, 'setup refuses while the graph is proposed');
+    // A seed of the old fields gives the waves of before.
+    const o = { ...first, ...run(root, 'deps', 'confirm') };
     assert.equal(o.ok, true, JSON.stringify(o));
     assert.deepEqual(o.waves, [['W1', 'W2'], ['W3']]);
     assert.deepEqual(o.outside, ['W4']);
@@ -83,7 +102,7 @@ test('a project with a ship plan has no ship-plan gap', () => {
   const root = makeRepo();
   try {
     writeFileSync(path.join(root, '.ai', 'ship-plan.md'), '---\nschema: sdlc/v1\ntype: ship-plan\nship-meaning: merge-only\nversion-scheme: none\n---\n');
-    const o = run(root, 'orient');
+    const o = orient(root);
     assert.equal(o.ok, true, JSON.stringify(o));
     assert.ok(!o.toolGaps.some((g) => g.tool === 'ship-plan'));
   } finally { rmSync(root, { recursive: true, force: true }); }
@@ -92,14 +111,14 @@ test('a project with a ship plan has no ship-plan gap', () => {
 test('D19: a project without an isolation contract gets an isolation gap at orient; a project with one gets none', () => {
   const root = makeRepo();
   try {
-    const o = run(root, 'orient');
+    const o = orient(root);
     assert.equal(o.ok, true, JSON.stringify(o));
     assert.deepEqual(o.toolGaps.find((g) => g.tool === 'isolation'), { tool: 'isolation', have: 'none', need: 'campaign.isolation in .ai/sdlc-config.json', fix: 'ask the person for the isolation contract (campaign/_phases.md, "Width")' });
   } finally { rmSync(root, { recursive: true, force: true }); }
   const other = makeRepo();
   try {
     writeFileSync(path.join(other, '.ai', 'sdlc-config.json'), JSON.stringify({ campaign: { isolation: { 'port-env': {}, 'build-dirs': [] } } }));
-    const o = run(other, 'orient');
+    const o = orient(other);
     assert.equal(o.ok, true, JSON.stringify(o));
     assert.ok(!o.toolGaps.some((g) => g.tool === 'isolation'));
   } finally { rmSync(other, { recursive: true, force: true }); }
@@ -110,9 +129,12 @@ test('a dependency on a piece the brainstorm already wrote is done: orient accep
   try {
     packetFile(root, { key: 'W6', 'work-slug': 'runtime', order: 6, 'depends-on': ['charter'], expects: [{ from: 'charter', key: 'doc', text: 'the product charter' }] });
     workIndex(root, 1);
-    assert.ok(run(root, 'orient').errors.some((e) => /W6 depends on charter, which is not a packet of this work set and not in the written list/.test(e)));
+    // The graph errors come at the deps phase, in the campaign session (4.4 step 7).
+    assert.equal(run(root, 'orient').ok, true);
+    assert.ok(run(root, 'deps', 'plan').errors.some((e) => /W6 depends on charter, which is not a packet of this work set and not in the written list/.test(e)));
+    assert.ok(run(root, 'deps', 'confirm').errors.some((e) => /W6 depends on charter/.test(e)), 'confirm refuses a graph error');
     workIndex(root, 1, { written: ['charter'] });
-    const o = run(root, 'orient');
+    const o = run(root, 'deps', 'confirm');
     assert.equal(o.ok, true, JSON.stringify(o));
     assert.deepEqual(o.waves, [['W1', 'W2', 'W6'], ['W3']]);
     const text = readFileSync(run(root, 'context', 'W6').path, 'utf8');
@@ -127,12 +149,12 @@ test('a single build packet is not a campaign; a gitignored .ai/ turns on local 
     git(root, 'init', '-q');
     packetFile(root, { key: 'W1', 'work-slug': 'engine' });
     workIndex(root, 1);
-    const o = run(root, 'orient');
+    const o = orient(root);
     assert.equal(o.single, true);
     assert.match(o.start, /\/wf intake \.ai\/workflows\/realism\/work\/engine\.md/);
     packetFile(root, { key: 'W2', 'work-slug': 'squads' });
     writeFileSync(path.join(root, '.gitignore'), '.ai/\n');
-    const local = run(root, 'orient');
+    const local = orient(root);
     assert.equal(local.ok, true, JSON.stringify(local));
     assert.equal(local.records, 'local');
     assert.ok(local.warnings.some((w) => /records stay in the main checkout/.test(w)));
@@ -155,7 +177,7 @@ function makeLocalRepo() {
 test('local records: a worktree gets the main .ai/, its records come back, and remove loses no file (13)', () => {
   const root = makeLocalRepo();
   try {
-    const o = run(root, 'orient');
+    const o = orient(root);
     assert.equal(o.records, 'local', JSON.stringify(o));
     setupDone(root);
     run(root, 'unit', 'W1', 'prepared');
@@ -211,7 +233,7 @@ test('local records: a worktree gets the evidence of its own slug only; the wave
       writeFileSync(path.join(ev(slug), 'checks.md'), `checks of ${slug}`);
     }
     writeFileSync(path.join(root, '.ai', 'workflows', 'old-finished', '06-verify.md'), 'verified');
-    run(root, 'orient');
+    orient(root);
     setupDone(root);
     run(root, 'unit', 'W1', 'prepared');
     run(root, 'unit', 'W2', 'prepared');
@@ -241,7 +263,7 @@ test('local records: a tracked .ai/ file keeps its committed version in the work
     git(root, 'add', '.gitignore', '.ai/ship-plan.md');
     git(root, 'commit', '-q', '-m', 'track the ship plan');
     writeFileSync(path.join(root, '.ai', 'ship-plan.md'), 'plan (uncommitted edit)\n');
-    run(root, 'orient');
+    orient(root);
     setupDone(root);
     run(root, 'unit', 'W1', 'prepared');
     run(root, 'unit', 'W2', 'prepared');
@@ -266,7 +288,7 @@ test('local records: a tracked .ai/ file keeps its committed version in the work
 test('worktree add keeps the path short, and a failed add leaves no branch behind (13)', () => {
   const root = makeRepo();
   try {
-    run(root, 'orient');
+    orient(root);
     setupDone(root);
     writeFileSync(path.join(root, '.ai', 'sdlc-config.json'), JSON.stringify({ campaign: { isolation: ISOLATION } }));
     run(root, 'unit', 'W1', 'prepared');
@@ -319,7 +341,7 @@ test('local records: with an untracked .gitignore, the worktree still hides ever
     writeFileSync(path.join(root, '.gitignore'), '.ai/*\n');
     writeFileSync(path.join(root, '.ai', 'sdlc-config.json'), JSON.stringify({ artifactTracking: 'ignored', campaign: { isolation: ISOLATION } }));
     writeFileSync(path.join(root, '.ai', '.gitignore'), '# managed by sdlc-workflow\n_view/\n');
-    assert.equal(run(root, 'orient').records, 'local');
+    assert.equal(orient(root).records, 'local');
     setupDone(root);
     run(root, 'unit', 'W1', 'prepared');
     run(root, 'unit', 'W2', 'prepared');
@@ -340,7 +362,7 @@ test('local records: with an untracked .gitignore, the worktree still hides ever
 test('local records: the wave worktree takes the main records for handoff, and its changes come back (13)', () => {
   const root = makeLocalRepo();
   try {
-    run(root, 'orient');
+    orient(root);
     setupDone(root);
     run(root, 'unit', 'W1', 'prepared');
     run(root, 'unit', 'W2', 'prepared');
@@ -374,7 +396,7 @@ test('local records: a worktree gets the design boards of its own slug only; a P
       mkdirSync(board(slug), { recursive: true });
       writeFileSync(path.join(board(slug), 'squad-list--default.png'), png);
     }
-    run(root, 'orient');
+    orient(root);
     setupDone(root);
     run(root, 'unit', 'W1', 'prepared');
     run(root, 'unit', 'W2', 'prepared');
@@ -397,7 +419,7 @@ test('local records: a worktree gets the design boards of its own slug only; a P
 test('unit prepared refuses a unit whose needed design has no confirmed boards on disk (DESIGN-BOARDS-PLAN W5b)', () => {
   const root = makeRepo();
   try {
-    run(root, 'orient');
+    orient(root);
     const dir = path.join(root, '.ai', 'workflows', 'squads');
     mkdirSync(path.join(dir, 'design', 'r1', 'boards'), { recursive: true });
     writeFileSync(path.join(dir, '00-index.md'), '---\nslug: squads\nux-impact: new-surface\n---\n');
@@ -421,7 +443,7 @@ test('unit prepared refuses a unit whose needed design has no confirmed boards o
 test('setup, rolling prepare, and a wave that starts with its prepared units', () => {
   const root = makeRepo();
   try {
-    run(root, 'orient');
+    orient(root);
     assert.equal(run(root, 'answer', 'forecast', 'continue').next.action, 'setup');
     run(root, 'answer', 'target-version', '"0.3.0"');
     run(root, 'answer', 'release-each-wave', 'false');
@@ -447,7 +469,7 @@ test('setup, rolling prepare, and a wave that starts with its prepared units', (
 test('the context file names the carried decisions, the succeeding expects lines and the as-built differences', () => {
   const root = makeRepo();
   try {
-    run(root, 'orient');
+    orient(root);
     const c = run(root, 'context', 'W1');
     assert.equal(c.ok, true);
     const text = readFileSync(c.path, 'utf8');
@@ -465,7 +487,7 @@ test('the context file names the carried decisions, the succeeding expects lines
 test('the drift check: an implementation-detail change continues; a contract change stops the slug and its dependents', () => {
   const root = makeRepo();
   try {
-    run(root, 'orient');
+    orient(root);
     const camp = path.join(root, '.ai', 'workflows', B, 'work', 'campaign');
     mkdirSync(path.join(camp, 'as-built'), { recursive: true });
     writeFileSync(path.join(camp, 'as-built', 'engine.json'), JSON.stringify({ key: 'W1', lines: [{ key: 'tick', status: 'changed', class: 'implementation-detail', note: 'renamed' }] }));
@@ -483,7 +505,7 @@ test('the drift check: an implementation-detail change continues; a contract cha
 test('versions at ship time follow the tags; no target means build labels only (V2, V6)', () => {
   const root = makeRepo();
   try {
-    run(root, 'orient');
+    orient(root);
     assert.equal(run(root, 'version', 'wave').version, null, 'no ship plan: no versioning');
     run(root, 'answer', 'target-version', '"0.3.0"');
     assert.equal(run(root, 'version', 'wave').version, '0.3.0-beta.1');
@@ -496,7 +518,7 @@ test('versions at ship time follow the tags; no target means build labels only (
 test('questions, the pause, and the re-plan when the brainstorm adds a packet', () => {
   const root = makeRepo();
   try {
-    run(root, 'orient');
+    orient(root);
     for (const [k, v] of [['forecast', 'continue'], ['target-version', '"0.3.0"'], ['release-each-wave', 'false'], ['output', '{"build-cmd":"make","artifacts":["out"],"try":"open out"}'], ['budget', '{"fiveHourPause":85}']]) run(root, 'answer', k, v);
     run(root, 'ask', 'q1', '--wave', '1', 'CI', 'is', 'red', 'on', 'the', 'wave', 'PR');
     assert.equal(run(root, 'status').next.action, 'ask');
@@ -513,7 +535,12 @@ test('questions, the pause, and the re-plan when the brainstorm adds a packet', 
     assert.equal(run(root, 'status').next.action, 'work-changed');
     const r = run(root, 'replan');
     assert.deepEqual(r.added, ['W6']);
-    assert.deepEqual(r.waves.map((w) => w.units), [['W1', 'W2'], ['W3', 'W6']].map((x) => x), 'R1: the fix of engine never shares a wave with engine');
+    // WF-CAMPAIGN-ORDER-PLAN 4.7: a new packet joins no wave before the person confirms its graph.
+    assert.deepEqual(r.waves.map((w) => w.units), [['W1', 'W2'], ['W3']]);
+    assert.deepEqual(run(root, 'status').next, { action: 'deps', units: ['W6'] });
+    const c = run(root, 'deps', 'confirm');
+    assert.deepEqual(c.confirmed, ['W6']);
+    assert.deepEqual(c.waves, [['W1', 'W2'], ['W3', 'W6']], 'R1: the fix of engine never shares a wave with engine');
     run(root, 'outside', 'W4', 'closed');
     const after = run(root, 'status');
     assert.ok(after.ledger.waves.some((w) => w.units.includes('W5')), 'a closed investigate releases its dependents');
@@ -540,7 +567,7 @@ test('budget reads the newest usage reading and gives the state and the width (1
   const root = makeRepo();
   const usage = mkdtempSync(path.join(os.tmpdir(), 'campaign usage '));
   try {
-    run(root, 'orient');
+    orient(root);
     setupDone(root);
     const env = { SDLC_USAGE_DIR: usage };
     let r = runEnv(root, env, 'budget');
@@ -565,7 +592,7 @@ test('budget reads the newest usage reading and gives the state and the width (1
 test('worktree add gives each slug its own checkout, branch, ports and workflow folder; remove never forces (13)', () => {
   const root = makeRepo();
   try {
-    run(root, 'orient');
+    orient(root);
     setupDone(root);
     assert.match(run(root, 'worktree', 'W1', 'add').error, /isolation/, 'no contract: drive in the main checkout');
     writeFileSync(path.join(root, '.ai', 'sdlc-config.json'), JSON.stringify({ campaign: { isolation: ISOLATION } }));
@@ -597,7 +624,7 @@ test('worktree add gives each slug its own checkout, branch, ports and workflow 
 test('the heavy-suite lock admits one holder; a stale lock is taken over (13)', () => {
   const root = makeRepo();
   try {
-    run(root, 'orient');
+    orient(root);
     assert.equal(run(root, 'lock', 'acquire', 'engine').acquired, true);
     assert.equal(run(root, 'lock', 'acquire', 'engine').acquired, true, 'the holder may ask again');
     const busy = run(root, 'lock', 'acquire', 'squads');
@@ -615,7 +642,7 @@ test('the heavy-suite lock admits one holder; a stale lock is taken over (13)', 
 test('stacked waves: the next wave starts on the wave branch below, up to max-unshipped (D2)', () => {
   const root = makeRepo();
   try {
-    run(root, 'orient');
+    orient(root);
     setupDone(root);
     run(root, 'stack', 'disable');
     run(root, 'unit', 'W1', 'prepared');

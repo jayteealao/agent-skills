@@ -20,7 +20,7 @@
     { "key": "pages-are-markdown", "kind": "finding", "thread": "estimate-rule", "text": "Every docs page is a markdown file under docs/.", "source": "code", "evidence": "docs/guide.md:1", "check": "verified" }
   ],
   "work": [
-    { "key": "reading-time", "order": 1, "title": "Show a reading-time estimate on each docs page", "shape": "intake", "slug": "reading-time", "threads": ["estimate-rule"], "items": ["minutes-at-top", "two-hundred-wpm", "pages-are-markdown"], "provides": [{ "key": "page-minutes", "text": "Each docs page shows its reading time." }], "entry": "/wf intake .ai/workflows/brainstorm-reading-time-20261003/work/reading-time.md", "state": "proposed", "routed-to": null }
+    { "key": "reading-time", "order": 1, "title": "Show a reading-time estimate on each docs page", "shape": "intake", "slug": "reading-time", "threads": ["estimate-rule"], "items": ["minutes-at-top", "two-hundred-wpm", "pages-are-markdown"], "entry": "/wf intake .ai/workflows/brainstorm-reading-time-20261003/work/reading-time.md", "state": "proposed", "routed-to": null }
   ],
   "selected": ["reading-time"],
   "log": []

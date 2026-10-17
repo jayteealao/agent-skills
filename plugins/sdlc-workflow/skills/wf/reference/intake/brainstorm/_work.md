@@ -15,17 +15,17 @@ Agree these with the person, in plain words, and give your view with its reason.
 | `slug` | The workflow slug the piece opens, in kebab form. For an extension, the new scope's descriptor. |
 | `shape` | The form (table below). |
 | `target-slug` | For `extension`, `fix` and `hotfix`: the existing workflow slug. |
-| `depends-on` | The pieces that must be done first, by key. |
-| `needs` | A slice of another build piece that this piece needs before one of its own slices, when the two can still run in one campaign wave: `from` (the piece key), `through` (a slice of `from`, or `finished`), `before` (a slice of this piece, or empty), `why`. Use it only for a partial need. A piece that needs all of another piece before it starts uses `depends-on`. |
-| `provides` | What this piece makes true, one line each, for example "the engine exposes one module contract". |
-| `expects` | What this piece needs from an earlier piece's `provides` line: `from` (the piece key), `key` (the `provides` key), `text`. |
+| `order` | The place of the piece in the sequence. Every piece has one, write-now pieces included. The orders are 1 to n, each used once. The sequence is the safe serial order: piece N may use anything that pieces 1 to N−1 built. |
+| `why-here` | On each piece after order 1: why the piece comes after the pieces before it, in the person's words, for example "billing waits until the limits ship". When the position has no reason other than value, the note says so, for example "less urgent than the pieces before it". |
 | `items` | The kept items the piece carries. |
 | `shared` | A kept decision that two pieces carry. List it on each piece that carries it. |
 | `research`, `references` | The research notes (`R<NN>`) and references (`F<NN>`, or a repo path) the piece draws on. |
 | `design-form` | `design` or `design-direction` when a design focus adds the design stage to the piece ([_design.md](_design.md)); otherwise `none`. |
 | `sketches` | With a design focus: the carried sketches, by key. The packet carries each key with its path under this board's `design/sketches/`. |
 
-Propose the contract lines yourself. The person confirms them, changes them, or removes them.
+Propose the sequence and each `why-here` note yourself, with the reason. Put first the smallest piece that shows the thinking is right. The person confirms them or changes them.
+
+Do not ask for `depends-on`, `needs`, `provides`, or `expects`. The campaign owns the dependency graph: it reads the packets and the code, proposes the graph, and the person confirms it in the deps phase of `/wf campaign`. The `why-here` notes are its evidence.
 
 ### Forms
 
@@ -66,14 +66,14 @@ The person decides.
 
 ### Run a write-now piece
 
-Run each write-now piece after the board write in 3.4, before the packets are written. Run the pieces in `order`. A piece that another write-now piece depends on runs first.
+Run each write-now piece after the board write in 3.4, before the packets are written. Run the pieces in sequence order.
 1. Copy each document that the piece changes to `history/`, with the session number in the name: `history/<name>.s<session>.<ext>`.
 2. Write the changes. Each changed section names the item keys that it carries, in an HTML comment: `<!-- brainstorm: <slug>#<item-key>, ... -->`.
 3. Read back each changed section. Every carried decision key of the piece must appear in the changed text. A missing key is a failed check.
 4. When a check fails, fix the text and read it back again. When the check fails a second time, stop and ask the person. Do not change the piece's form to `task` without the person.
 5. Record the piece on the board: `state: written`, `written-files` (each path with its section), and `written-at`.
 
-The `write` command (below) adds the entry to `work/changes.md` that lists the changed documents. A packet may list a write-now piece in `depends-on`. The dependency is met when the piece's `state` is `written`.
+The `write` command (below) adds the entry to `work/changes.md` that lists the changed documents. A write-now piece earlier in the sequence is done when its `state` is `written`.
 
 ## Check and write the work set (3.4)
 
@@ -84,10 +84,9 @@ Run the commands from the project root. `<skill-dir>` resolves per [_host-invoca
    node "<skill-dir>/scripts/work-packets.mjs" check .ai/workflows/<slug>
    ```
    The check fails on each of these:
-   - an `expects` line with no matching `provides` line on a piece that this piece depends on;
+   - a piece with no `order`, or a sequence with a gap or a repeat: the orders are 1 to n, each used once;
+   - a piece after order 1 with no `why-here` note;
    - a kept decision that lands in no piece, or in two pieces without `shared`;
-   - a cycle in `depends-on`, or a `depends-on` key that is not a piece;
-   - a `needs` entry on the piece itself, on a key that is not a piece, or on a piece that gets no packet;
    - a piece with more than 40 carried decisions;
    - a packet piece with no `slug`, or an `extension`, `fix` or `hotfix` piece with no `target-slug`;
    - a citation of `.scratch/` or another gitignored path (see the sources rules in [_artifact.md](_artifact.md)).
@@ -106,7 +105,7 @@ A packet says at its top that the board wins on a difference.
 ## Next
 
 - One packet: print its start command as `Next`.
-- Two or more packets: print the start commands of the first wave in `work/index.md` as `Next`, and the path of `work/index.md`.
+- Two or more packets: print the start command of the packet with the lowest order as `Next`, then `/wf campaign <slug>` to build the packets in parallel waves, and the path of `work/index.md`. The person may also start the packets one after the other, in sequence order.
 - No packet (only write-now pieces): print the resume command, or `/wf close <slug>` when no thread is live.
 
 Never print a write-now piece as a `/wf task` command.
@@ -130,7 +129,7 @@ A person can resume a brainstorm at any time, also while the packets run.
 `/wf brainstorm <brainstorm-slug> add <text>` records one new piece of work without a full session, for example a bug that the person found while trying a built piece.
 1. Record the text on the board as an item on the thread it belongs to: a `decision` when the person states what to do, an `idea` otherwise.
 2. Ask one batch per [_gate-question.md](../../_gate-question.md): the form (`fix`, `hotfix`, `extension`, or `intake`), the target slug, and the urgency.
-3. Add the piece to the board's `work` list, run the check, then run the `write` command.
+3. Add the piece to the board's `work` list as the last piece of the sequence (the next `order`), with a `why-here` note that the person confirms. Run the check, then run the `write` command.
 4. Return the new packet's start command as `Next`.
 
 A reopened brainstorm and the `add` capture run in a brainstorm session. The brainstorm session writes the board and the packets. No other session writes them.
@@ -138,3 +137,5 @@ A reopened brainstorm and the `add` capture run in a brainstorm session. The bra
 ## An older board
 
 A board from before work packets gets the folders on its next `done`. The coherence pass ([_cohere.md](_cohere.md)) lists each citation of `.scratch/` or another gitignored path, and asks the person whether to copy each file into `references/` or to record a pointer row.
+
+A board from before the sequence fails the next check when its orders are not 1 to n, or when a piece after order 1 has no `why-here` note. Propose the sequence and the notes, and ask the person to confirm them. Its `depends-on`, `needs`, `provides` and `expects` fields stay on the board, but the `write` command no longer puts them into a packet.

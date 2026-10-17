@@ -78,6 +78,9 @@ function makeRepo({ isolation = ISOLATION } = {}) {
 function startWave(root) {
   const o = run(root, 'orient');
   assert.equal(o.ok, true, JSON.stringify(o));
+  // WF-CAMPAIGN-ORDER-PLAN 4.4: the person confirms the graph before setup.
+  const c = run(root, 'deps', 'confirm');
+  assert.equal(c.ok, true, JSON.stringify(c));
   for (const [k, v] of [['forecast', 'continue'], ['target-version', 'none'], ['release-each-wave', 'false'], ['output', 'none'], ['budget', 'default']]) run(root, 'answer', k, v);
   run(root, 'unit', 'W1', 'prepared');
   run(root, 'unit', 'W2', 'prepared');
@@ -168,6 +171,27 @@ test('5.1: launch adds each worktree, writes the context and the branch fields, 
     assert.equal(git(root, 'config', '--get', 'rerere.enabled'), 'true');
     const start = readJournal(root).find((x) => x.event === 'run-start');
     assert.equal(start.run, r.run);
+    assert.deepEqual(a.expectedShared, [], 'no shared path: no pair');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('WF-CAMPAIGN-ORDER-PLAN 4.5: a shared path that the person kept in one wave reaches the wave driver as expectedShared', () => {
+  const root = makeRepo();
+  try {
+    assert.equal(run(root, 'orient').ok, true);
+    run(root, 'deps', 'W1', 'paths', '--set', 'src/engine/tick.rs');
+    run(root, 'deps', 'W2', 'paths', '--set', 'src/squads/mod.rs,src/engine/tick.rs');
+    assert.deepEqual(run(root, 'deps', 'plan').shared, [{ wave: 1, a: 'W1', b: 'W2', path: 'src/engine/tick.rs' }]);
+    assert.equal(run(root, 'deps', 'confirm').ok, true);
+    for (const [k, v] of [['forecast', 'continue'], ['target-version', 'none'], ['release-each-wave', 'false'], ['output', 'none'], ['budget', 'default']]) run(root, 'answer', k, v);
+    run(root, 'unit', 'W1', 'prepared');
+    run(root, 'unit', 'W2', 'prepared');
+    const st = run(root, 'wave', '1', 'start');
+    assert.equal(st.ok, true, JSON.stringify(st));
+    git(root, 'branch', st.branch, st.base);
+    const r = run(root, 'wave', '1', 'launch');
+    assert.equal(r.ok, true, JSON.stringify(r));
+    assert.deepEqual(r.args.expectedShared, [{ a: 'W1', b: 'W2', path: 'src/engine/tick.rs' }]);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -288,7 +312,7 @@ test('5.7: needs add writes a derived entry and opens its wait; a match exists; 
     assert.ok(Array.isArray(cyc.cycle), JSON.stringify(cyc));
     const list = run(root, 'needs', 'W2', 'list');
     assert.equal(list.derived.length, 1);
-    assert.equal(list.packet.length, 1);
+    assert.equal(list.graph.length, 1, "the needs entry of the ledger graph");
     const ctx = readFileSync(path.join(root, '.ai', 'workflows', B, 'work', 'campaign', 'context', 'squads.md'), 'utf8');
     assert.match(ctx, /found by the wave driver: cross-unit/);
     assert.equal(readJournal(root).filter((x) => x.event === 'derived-need').length, 1);

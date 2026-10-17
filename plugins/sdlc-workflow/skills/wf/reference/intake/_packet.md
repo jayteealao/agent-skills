@@ -12,11 +12,12 @@ The packet carries the person's decisions word for word. A decision is the perso
 
 1. Read the packet in full, and read `work/index.md` beside it.
 2. When the packet's `state` is `prepared` or `routed`, do not continue. Tell the person: *"This packet already started `<routed-to>`. Continue that workflow, or ask the brainstorm for a new packet."*
-3. Check each `depends-on` key in `work/index.md`:
-   - a packet dependency is done when the `00-index.md` of its `routed-to` workflow has `status: complete` or `status: closed`;
-   - a write-now dependency is done when its piece on the board has `state: written`.
-
-   When a dependency is not done, name it in plain words and ask the person whether to start anyway, per [_gate-question.md](../_gate-question.md). The person decides.
+3. Check the pieces that come earlier in the sequence:
+   1. When `.ai/workflows/<brainstorm-slug>/work/campaign/ledger.json` exists and lists this packet under `units` or `outside`, skip this step. The campaign owns the order of its units, and its prepare runs one wave ahead.
+   2. Otherwise, check each piece with a lower `order` in `work/index.md` and on the board:
+      - a packet is done when the `00-index.md` of its `routed-to` workflow has `status: complete` or `status: closed`;
+      - a write-now piece is done when its state on the board is `written`.
+   3. When a piece is not done, name it in plain words and ask the person whether to start anyway, per [_gate-question.md](../_gate-question.md). The person decides.
 4. The new workflow's slug is the packet's `work-slug`. Do not derive another slug. When `.ai/workflows/<work-slug>/` exists, ask the person for a new slug, per the collision rule in [_intake-context.md](_intake-context.md).
 5. Run the packet's `form` with that slug. The token `from <origin-brainstorm>` is implied: apply [_intake-provenance.md](_intake-provenance.md) with the packet's piece of work as the routed piece.
 
