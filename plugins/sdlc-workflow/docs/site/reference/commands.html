@@ -14,7 +14,7 @@
 <div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
 
 <h2 id="dispatcher">The dispatcher</h2>
-<p>All plugin operations run through one command: <code>/wf &lt;key&gt; [args…]</code>. The first token must be one of the 24 keys on this page. Everything after the first token passes verbatim to that key. The dispatcher itself has this behavior:</p>
+<p>All plugin operations run through one command: <code>/wf &lt;key&gt; [args…]</code>. The first token must be one of the 26 keys on this page. Everything after the first token passes verbatim to that key. The dispatcher itself has this behavior:</p>
 <ul>
   <li><strong>Empty invocation.</strong> <code>/wf</code> with no arguments renders the key menu and asks which operation you want.</li>
   <li><strong>Unknown key.</strong> A first token that is not a known key is an error. The dispatcher never treats the token as a slug or as an intake mode. The dispatcher lists the 23 valid keys and stops. The table under <a href="#renamed">Renamed commands</a> maps every retired command name to its current spelling.</li>
@@ -88,7 +88,7 @@
 <p>Retro is the post-mortem stage. It extracts reusable lessons and turns them into concrete improvements to prompts, hooks, repo instructions, tests, and automation. Batch mode retrospects every slug on the branch, one retro each, and skips slugs with nothing to retro. Batch mode also synthesizes the cross-slug lessons that span the whole branch.</p>
 <p><strong>Writes:</strong> <code>10-retro.md</code> (one per slug in batch mode).</p>
 
-<h2 id="other">The other thirteen keys</h2>
+<h2 id="other">The other fifteen keys</h2>
 <p>The keys below are in alphabetical order. They are standalone commands, drivers, navigation, lifecycle control, and routers.</p>
 
 <h3 id="auto"><code>/wf auto</code></h3>
@@ -122,10 +122,22 @@
 <p>Docs is the documentation router. Orchestrator mode (no argument, a slug, a path, or <code>--audit-only</code>) runs the full pipeline: discover existing docs, audit them, plan, generate, and review. Slug mode fulfills the shape's Documentation Plan. Primitive mode (<code>plan</code>, <code>tutorial</code>, <code>how-to</code>, <code>reference</code>, <code>explanation</code>, <code>readme</code>, <code>review</code>) writes a single Diátaxis document in place.</p>
 <p><strong>Writes:</strong> documentation output at project doc paths; pipeline artifacts under <code>.ai/docs/&lt;run-id&gt;/</code>.</p>
 
+<h3 id="goal"><code>/wf goal</code></h3>
+<pre><code>/wf goal &lt;slug&gt; [objective]
+/wf goal &lt;slug&gt; resume|status|clear</code></pre>
+<p>Goal writes a goal contract for one slug and hands it to the host goal, which keeps the work going over many turns. The host carries the turns: its own continuation, pause, and resume. A script decides when the goal is done. <code>goal.mjs check</code> prints the evidence and then one last line: <code>GOAL: MET</code>, <code>GOAL: NOT-MET &lt;reason&gt;</code>, or <code>GOAL: BLOCKED &lt;reason&gt;</code>. The condition that the host's judge reads says to trust only that line, so a claim without output is not evidence. A goal has one of three kinds. <code>lifecycle</code> (the default) is met when the slug is ready for handoff, by the same stop rules as <code>/wf auto</code>. <code>optimize</code> is met when the metric loop of an optimize slug is complete. <code>proofs</code> is met when every named command exits 0. A human gate ends the goal: the agent parks the goal at the gate and never answers the gate itself. You answer the gate, then run <code>/wf goal &lt;slug&gt; resume</code>. The script counts its checks and blocks the goal after <code>max-checks</code> (default 30). On Claude Code, the model cannot type the built-in <code>/goal</code> command: on the Desktop app the sdlc mod submits it, and on the CLI the mod puts it into the prompt box for your Enter. On Codex, the model calls the goal tool. pi has no host goal, so the loop runs in the session.</p>
+<p><strong>Writes:</strong> <code>goal.md</code> (the contract), <code>goal/checks.jsonl</code> (one line per check), and <code>goal/arm.json</code> (the arming request that the mod reads).</p>
+
 <h3 id="observability"><code>/wf observability</code></h3>
 <pre><code>/wf observability &lt;init|build|audit&gt; [args]</code></pre>
 <p>Observability is the project observability router. <code>init</code> inventories the codebase's current logging, telemetry, and analytics, reads the ship plan, and consultatively authors the project contract. The contract covers schema, sampling, redaction, pipeline, backend, and dashboards, and is language-agnostic. <code>build</code> realizes the contract: emit-layer adapters, collector and pipeline config, backend IaC, and dashboards-as-code. <code>build</code> gates every remote or billable step. <code>audit</code> is a read-only soundness sweep across seven lenses. <code>audit</code> routes findings and fixes nothing. There is no <code>edit</code> sub-key. To change the contract, amend the contract file by hand.</p>
 <p><strong>Writes:</strong> <code>init</code> writes <code>.ai/observability.md</code>; <code>build</code> writes the config and code it emits; <code>audit</code> writes only its accumulating ledger <code>.ai/observability-audit.md</code>.</p>
+
+<h3 id="optimize"><code>/wf optimize</code></h3>
+<pre><code>/wf optimize &lt;slug&gt;
+/wf optimize &lt;description&gt;</code></pre>
+<p>Optimize runs a metric loop on an optimize slug: change the code, measure one number, and keep or revert the change. A description starts a new optimize slug through <code>/wf intake optimize</code>, where you confirm the metric spec: the metric command, its direction, a guard command that must pass after every change, the paths that a trial may change, and the budget. The script <code>optimize.mjs</code> makes every git write, every measurement, and every keep or revert; the agent only proposes and edits. The trials run in a separate worktree, so your own working tree is never reset. The baseline runs the metric several times, and the spread of those runs is the noise floor. A change is kept only when its gain is larger than twice the noise and a confirm run agrees. On a fixed share of the budget, a branch round forks the best code into four fresh branches. Each branch proposer reads only the trials of its own branch, and the best branch becomes the trunk. A plateau opens a round early, and the loop stops on a plateau only when that round finds no gain. This follows the fork-and-flush result of arXiv 2610.07447. When the loop ends, the kept trials are squashed into one commit on the slug branch, as one slice for <code>/wf verify &lt;slug&gt; optimize</code> and <code>/wf review</code>. Review adds a metric-gaming check. The driver runs on Claude Code only; on another host, <code>/wf goal &lt;slug&gt;</code> carries the loop, one trial per turn.</p>
+<p><strong>Writes:</strong> <code>optimize/state.json</code> and <code>optimize/results.jsonl</code> (the ledger) during the loop; <code>03-slice.md</code>, <code>03-slice-optimize.md</code>, and <code>05-implement-optimize.md</code> at the finish.</p>
 
 <h3 id="probe"><code>/wf probe</code></h3>
 <pre><code>/wf probe &lt;slug&gt; [target|sweep]
@@ -192,7 +204,7 @@
   <h2>Related</h2>
   <ul>
     <li><a href="intake-modes.html">Intake modes</a> — the full catalog of entry flows behind <code>/wf intake</code>.</li>
-    <li><a href="review-dimensions.html">Review dimensions</a> — the 11 rubrics, their 24 aliases, and the 7 sweeps behind <code>/wf review</code>.</li>
+    <li><a href="review-dimensions.html">Review dimensions</a> — the 11 rubrics, their 25 aliases, and the 7 sweeps behind <code>/wf review</code>.</li>
     <li><a href="artifacts.html">Artifacts</a> — where every file named on this page lives and what it contains.</li>
     <li><a href="../guides/choose-your-entry.html">Choose your entry</a> — which command fits which situation.</li>
   </ul>

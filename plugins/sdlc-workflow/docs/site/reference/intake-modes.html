@@ -10,7 +10,7 @@
 <aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
 <main>
 <h1>Intake modes</h1>
-<p class="lede">This page lists the fourteen ways work can enter the lifecycle through <code>/wf intake</code>: each mode, how the arguments resolve, what each mode authors, its branch convention, and where each mode ends.</p>
+<p class="lede">This page lists the fifteen ways work can enter the lifecycle through <code>/wf intake</code>: each mode, how the arguments resolve, what each mode authors, its branch convention, and where each mode ends.</p>
 <div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
 
 <h2 id="resolution">How the arguments resolve</h2>
@@ -107,6 +107,12 @@
 <pre><code>/wf intake adopt</code></pre>
 <p><code>adopt</code> is the reverse entry. Every other mode assumes the change lies ahead. Adopt reads the change you already made in the working tree and reconstructs the planning-and-execution artifacts from what the code does. It stamps each artifact <code>provenance: adopted</code>, behind a confirm-before-write gate. The workflow lands at verify, so the quality tail (verify, review, handoff) runs over work done outside the pipeline. Adopt is standalone only: it can never attach to a slug, and it is never auto-proposed. It records the current branch and never creates a branch.</p>
 <p><strong>Authors:</strong> <code>01-adopt.md</code> → <code>02-shape.md</code> → <code>03-slice.md</code> → <code>04-plan.md</code> → <code>05-implement.md</code>, all reconstructed. <strong>Branch:</strong> records the current one; never creates one. <strong>Terminus:</strong> <code>/wf verify &lt;slug&gt;</code>.</p>
+
+<h3 id="optimize">optimize</h3>
+<pre><code>/wf intake optimize &lt;description&gt;
+/wf intake optimize &lt;optimize-slug&gt;       # resume the spec</code></pre>
+<p><code>optimize</code> starts a metric loop. The intake asks for the objective, the metric command, the direction (lower or higher is better), and a guard command that must pass after every change. It runs the metric once and the guard once: the metric's last output line must parse as a number, and the guard must exit 0. It then proposes the paths that a trial may change, the budget, and the branch rounds, and asks whether a holdout command exists. You confirm the spec before the first trial, because the choice of metric is the largest risk of the loop. Like <code>adopt</code>, optimize is standalone only: it never attaches to an existing slug.</p>
+<p><strong>Authors:</strong> <code>01-optimize.md</code> → <code>02-optimize-spec.md</code>, on a full <code>00-index.md</code> with <code>workflow-type: optimize</code>. <strong>Branch:</strong> <code>optimize-run/&lt;slug&gt;</code> (opt-in); the loop's own branches are <code>optimize/&lt;slug&gt;</code> and its round branches. <strong>Terminus:</strong> <code>/wf optimize &lt;slug&gt;</code>.</p>
 
 <h3 id="extension">extension (keywordless)</h3>
 <pre><code>/wf intake &lt;existing-slug&gt; &lt;new scope&gt;

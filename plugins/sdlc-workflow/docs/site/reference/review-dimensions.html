@@ -10,7 +10,7 @@
 <aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
 <main>
 <h1>Review dimensions</h1>
-<p class="lede">This page lists the 11 review rubrics, the 24 alias names that keep every former dimension reachable, the 7 sweep aggregates that bundle the rubrics, and the rules for ad-hoc invocation. Use this page to pick the right rubric for the review you want.</p>
+<p class="lede">This page lists the 11 review rubrics, the 25 alias names that keep every former dimension reachable, the 7 sweep aggregates that bundle the rubrics, and the rules for ad-hoc invocation. Use this page to pick the right rubric for the review you want.</p>
 <div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
 
 <h2 id="invocation">Invocation and scope</h2>
@@ -32,7 +32,7 @@
 <h2 id="dimensions">The 11 rubrics</h2>
 <p>Each rubric is one file of at most 100 lines that the reviewer follows. A rubric has four parts: a role, a <em>What to look for</em> list with one section per alias, a shared severity calibration, and the output shape. Each entry below describes one rubric and names its sections:</p>
 <dl class="cmd-grid">
-<dt><code>correctness</code></dt><dd>Reviews logic flaws, broken invariants, edge cases, test quality, data integrity, concurrency, and reliability under failure. Sections: correctness, testing, data-integrity, backend-concurrency, reliability.</dd>
+<dt><code>correctness</code></dt><dd>Reviews logic flaws, broken invariants, edge cases, test quality, data integrity, concurrency, and reliability under failure. Sections: correctness, testing, metric-gaming, data-integrity, backend-concurrency, reliability.</dd>
 <dt><code>security</code></dt><dd>Reviews code, infrastructure, dependencies, and data handling for vulnerabilities, insecure defaults, supply-chain risk, and privacy exposure. Sections: security, infra-security, supply-chain, privacy.</dd>
 <dt><code>performance</code></dt><dd>Reviews algorithmic and system performance, frontend rendering and bundle cost, behavior at scale, and cloud spend. Sections: performance, frontend-performance, scalability, cost.</dd>
 <dt><code>architecture</code></dt><dd>Reviews structure and simplicity: boundaries and dependencies, maintainability, overengineering, missed reuse, style consistency, and refactor safety. Sections: architecture, maintainability, overengineering, code-simplification, style-consistency, refactor-safety.</dd>
@@ -45,12 +45,12 @@
 <dt><code>intent-fidelity</code></dt><dd>Reviews whether the diff advances the intake's product or a simplified imitation of it. This code-to-intake fidelity is the thing every other rubric misses. Section: intent-fidelity.</dd>
 </dl>
 
-<h2 id="aliases">The 24 aliases</h2>
+<h2 id="aliases">The 25 aliases</h2>
 <p>Every former dimension name stays a valid key. An alias resolves to its rubric with a focus: the reviewer reads that one section plus the severity calibration, so <code>/wf review logging</code> stays as narrow as it was. In the workflow stage, a selection rule that names an alias dispatches the rubric once with the triggered sections as its focus.</p>
 <table>
 <thead><tr><th>Alias</th><th>Rubric</th></tr></thead>
 <tbody>
-<tr><td><code>testing</code>, <code>data-integrity</code>, <code>backend-concurrency</code>, <code>reliability</code></td><td><code>correctness</code></td></tr>
+<tr><td><code>testing</code>, <code>metric-gaming</code>, <code>data-integrity</code>, <code>backend-concurrency</code>, <code>reliability</code></td><td><code>correctness</code></td></tr>
 <tr><td><code>infra-security</code>, <code>supply-chain</code>, <code>privacy</code></td><td><code>security</code></td></tr>
 <tr><td><code>frontend-performance</code>, <code>scalability</code>, <code>cost</code></td><td><code>performance</code></td></tr>
 <tr><td><code>maintainability</code>, <code>overengineering</code>, <code>code-simplification</code>, <code>style-consistency</code>, <code>refactor-safety</code></td><td><code>architecture</code></td></tr>
