@@ -105,6 +105,9 @@
 <h2 id="optimize">/wf optimize — a metric loop</h2>
 <p><code>/wf intake optimize &lt;description&gt;</code> writes the metric spec with you: the command that prints the number, its direction, the guard that must pass after every change, the paths a trial may change, and the budget. <code>/wf optimize &lt;slug&gt;</code> then runs the loop in a separate worktree. Each trial is a fresh proposer and a fresh editor, and a script measures the change and keeps it only when the gain beats the noise of the baseline. Branch rounds fork the best code into fresh branches that read only their own history, so the loop does not settle in its first approach. When the loop ends, the kept trials become one commit and one slice, and <code>/wf verify &lt;slug&gt; optimize</code> measures them again. On a host with no driver, <code>/wf goal &lt;slug&gt;</code> carries the same loop.</p>
 
+<h2 id="prototype">/wf prototype — not driven</h2>
+<p><code>/wf prototype</code> is a loop that only you run. Each round starts with your words, and the agent runs that one round and returns. <code>auto</code>, <code>yolo</code>, <code>goal</code>, and <code>campaign</code> refuse a prototype slug and print the command for the next round. When the prototype proves its pipeline, <code>/wf prototype &lt;slug&gt; exit graduate</code> prints the intake command for a real workflow, and the drivers can run that workflow.</p>
+
 <div class="related">
   <h2>Related</h2>
   <ul>
