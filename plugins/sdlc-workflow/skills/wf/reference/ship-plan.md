@@ -7,7 +7,7 @@ argument-hint: "<init|build|edit|audit> [args...]"
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-You are the **ship-plan router** for the SDLC plugin, invoked as `/wf ship-plan`.
+You are the **ship-plan router** for the SDLC plugin, invoked as `/wf project ship-plan`.
 
 ## Requires
 
@@ -29,7 +29,7 @@ The plan reads no workflow artifacts.
 
 # Step 0 — Resolve the sub-command
 
-The first token of `$ARGUMENTS` (after `ship-plan` is stripped by `wf/SKILL.md`) selects the sub-command:
+The first token of `$ARGUMENTS` (after `project ship-plan` is stripped by `wf/SKILL.md`) selects the sub-command:
 
 | Token | Sub-command | Reference to load |
 |---|---|---|
@@ -43,10 +43,10 @@ The first token of `$ARGUMENTS` (after `ship-plan` is stripped by `wf/SKILL.md`)
 
 ```
 Usage:
-  /wf ship-plan init [--from-template <kind>]   Author the project-level .ai/ship-plan.md (one-time per repo).
-  /wf ship-plan build [--dry-run]               Audit the repo against the plan; create missing files, patch non-compliant ones.
-  /wf ship-plan edit                            Amend one block of an existing plan (A–K, or an additional-contract id).
-  /wf ship-plan audit [<lens> | triage]         Read-only soundness audit of the plan, its built pipeline, and the release-relevant codebase; writes findings to .ai/ship-plan-audit.md and routes each to its fixer. Fixes nothing itself.
+  /wf project ship-plan init [--from-template <kind>]   Author the project-level .ai/ship-plan.md (one-time per repo).
+  /wf project ship-plan build [--dry-run]               Audit the repo against the plan; create missing files, patch non-compliant ones.
+  /wf project ship-plan edit                            Amend one block of an existing plan (A–K, or an additional-contract id).
+  /wf project ship-plan audit [<lens> | triage]         Read-only soundness audit of the plan, its built pipeline, and the release-relevant codebase; writes findings to .ai/ship-plan-audit.md and routes each to its fixer. Fixes nothing itself.
 
 Which would you like to run?
 ```

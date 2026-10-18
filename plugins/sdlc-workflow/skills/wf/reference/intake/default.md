@@ -45,7 +45,7 @@ You are a **workflow orchestrator**, not a problem solver.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
 
 # Step 0 — Orient (do this before all other steps)
-1. **Derive the slug** from `$ARGUMENTS`. Use the task description to create a lowercase kebab-case slug. If `$ARGUMENTS` looks like an existing slug, use it.
+1. **Derive the slug** from `$ARGUMENTS`. Use the task description to create a lowercase kebab-case slug. If `$ARGUMENTS` looks like an existing slug, use it. When the slug is a reserved name ([_intake-context.md](_intake-context.md)), STOP and ask for another slug: *"`<slug>` is a `/wf` command word, so it cannot name a workflow. Re-run `/wf intake <new-slug> <description>`."*
 2. **Registry collision check.** Before touching disk, consult `.ai/workflows/INDEX.md` if it exists:
    - **If `INDEX.md` does NOT exist**, no collision detection is possible at this step (the disk check in sub-step 3 still gates the fresh-vs-resume decision). Do not bail out: Step 10 bootstraps `.ai/workflows/INDEX.md` with a header line + this workflow's row at the end of intake, so the *next* intake gets full collision detection. Intake only does additive "append self if absent"; `/wf status` owns the full reconcile.
    - **If `INDEX.md` exists**, search for an exact slug match: `grep -P "^<derived-slug>\t" .ai/workflows/INDEX.md`. Three branches based on the result:
@@ -54,7 +54,7 @@ You are a **workflow orchestrator**, not a problem solver.
        question: "Slug `<slug>` is already an open workflow (status: <status>). What do you want to do?"
        options:
          - label: "Catch up on the existing workflow"
-           description: "Run `/wf recap <slug>` to see what's been done, or `/wf status <slug>` for where it stands and the next command."
+           description: "Run `/wf status recap <slug>` to see what's been done, or `/wf status <slug>` for where it stands and the next command."
          - label: "Add new scope to it"
            description: "Run `/wf intake <slug> <new scope>` to add net-new slice(s) (extension). Corrections to already-built work land as a new slice; `/wf intake <slug> amend` changes only recorded config (branch, base, review scope, title, tags)."
          - label: "Pick a different slug for this new workflow"
@@ -70,7 +70,7 @@ You are a **workflow orchestrator**, not a problem solver.
          - label: "Pick a different slug for this new workflow"
            description: "Pass a different slug as the first argument and re-run `/wf intake <new-slug> <description>`."
          - label: "Add new scope to the closed workflow"
-           description: "Run `/wf intake <slug> <new scope>` to extend it with net-new slice(s); the closed workflow's artifacts stay intact. Run `/wf recap <slug>` first to review what it did."
+           description: "Run `/wf intake <slug> <new scope>` to extend it with net-new slice(s); the closed workflow's artifacts stay intact. Run `/wf status recap <slug>` first to review what it did."
          - label: "Cancel — don't start anything"
            description: "Abort intake."
        ```
@@ -139,7 +139,7 @@ Do this in order:
       ```
       # .ai/workflows/INDEX.md — global workflow registry. Reconciled by /wf status (bootstrap+refresh) and additively touched by slug-mode compressed-slice writes from /wf intake/probe/simplify (updated-at only) and by /wf intake (append self if absent). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.
       ```
-      Surface in the chat return: *"Bootstrapped `.ai/workflows/INDEX.md` with this workflow's row. Positional slug detection (compressed-slice attach via `/wf intake`/`/wf probe`/`/wf simplify`) is now enabled."*
+      Surface in the chat return: *"Bootstrapped `.ai/workflows/INDEX.md` with this workflow's row. Positional slug detection (compressed-slice attach via `/wf intake`/`/wf probe`/`/wf intake simplify`) is now enabled."*
     - **If `.ai/workflows/INDEX.md` exists AND the slug is already present**, do nothing. Reaching Step 10 with a matching row means this is a resume on a row written by an earlier intake run; leave the existing row in place so sync owns updates.
     - **If `.ai/workflows/INDEX.md` exists AND the slug is missing**, append a single new row for this workflow, then **re-sort the file alphabetically by slug** (preserving the header line at the top). Surface in the chat return: *"Added `<slug>` to `.ai/workflows/INDEX.md`."*
     - **Mutate no other row.** Status/branch/updated-at drift on other workflows is sync's responsibility, not intake's. Intake's contract here is strictly *append self if absent*.

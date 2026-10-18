@@ -7,7 +7,7 @@ argument-hint: "[--dry-run]"
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-You are running `wf ship-plan build`. Your job: read the ship plan as the specification, measure the gap between what exists and what is required, confirm with the user, then implement only what is missing.
+You are running `wf project ship-plan build`. Your job: read the ship plan as the specification, measure the gap between what exists and what is required, confirm with the user, then implement only what is missing.
 
 # Design contract
 
@@ -27,14 +27,14 @@ You are running `wf ship-plan build`. Your job: read the ship plan as the specif
 - It does not set secrets — it lists the required ones for the user to set via `gh secret set`.
 - It does not install dependencies — generated hooks/CI reference dev-deps recorded in `deps-to-install`; the user installs them.
 - It does not mutate any remote state beyond the three gated settings above, and never without an explicit confirm + a print-only fallback.
-- It does not author or edit `.ai/ship-plan.md` — that is `/wf ship-plan init` / `/wf ship-plan edit`. This command only *reads* the plan and closes the repo gap against it.
+- It does not author or edit `.ai/ship-plan.md` — that is `/wf project ship-plan init` / `/wf project ship-plan edit`. This command only *reads* the plan and closes the repo gap against it.
 
 ---
 
 # Step 0 — Orient
 
 1. Parse `$ARGUMENTS` for `--dry-run`. If present, run all audit steps and generate the full gap report but write nothing. Label every planned change `[DRY RUN — not written]`.
-2. **Read `.ai/ship-plan.md`.** STOP if missing: *"No ship plan found at `.ai/ship-plan.md`. Run `/wf ship-plan init` first."* Parse all blocks A–K into in-memory state. (Plans authored before a given inbound block simply lack its key — `code-quality` / `local-dx` / `governance` / `security` plus the `ship-environments[].protection` and `ci-pipeline.ci-ergonomics` extensions — and the matching audits among K–S then skip.)
+2. **Read `.ai/ship-plan.md`.** STOP if missing: *"No ship plan found at `.ai/ship-plan.md`. Run `/wf project ship-plan init` first."* Parse all blocks A–K into in-memory state. (Plans authored before a given inbound block simply lack its key — `code-quality` / `local-dx` / `governance` / `security` plus the `ship-environments[].protection` and `ci-pipeline.ci-ergonomics` extensions — and the matching audits among K–S then skip.)
 3. **Detect the language/runtime ecosystem** from the plan's `version-source-of-truth[]` paths and `publish-cmd` content:
 
    | Signal | Ecosystem |
@@ -148,6 +148,6 @@ Return per [_chat-return.md](../_chat-return.md) — narrative lead (what this r
   - For any `*-applied` field that is `printed`/`skipped`/`failed`, run the `gh api` command from the compliance artifact (needs repo-admin auth)
   - Push a PR to trigger the pre-merge workflow (build/test/lint/type-check/coverage + commitlint + PR-title + security gates)
   - Create a test tag or trigger `workflow_dispatch` to test the release workflow end-to-end
-  - `/wf ship-plan build --dry-run` to re-check compliance after making changes
-  - `/wf ship-plan audit` for a read-only **soundness** pass over the plan and the pipeline you just built — compliance means "matches the plan"; audit asks whether the plan (and the workflows realizing it) are actually *correct* before a real release
+  - `/wf project ship-plan build --dry-run` to re-check compliance after making changes
+  - `/wf project ship-plan audit` for a read-only **soundness** pass over the plan and the pipeline you just built — compliance means "matches the plan"; audit asks whether the plan (and the workflows realizing it) are actually *correct* before a real release
   - `/wf ship <slug>` when ready for the first real release

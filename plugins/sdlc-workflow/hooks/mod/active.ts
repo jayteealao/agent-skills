@@ -3,7 +3,7 @@
  * next-step suggestion, the stage-landed check, the post-stage compaction,
  * the driver status, and the dashboard read. Nothing here touches the engine.
  */
-import { entryOf } from './catalog.ts'
+import { entryAt } from './catalog.ts'
 import { readCheckModeOf } from './readledger.ts'
 import type { ReadCheckMode } from './readledger.ts'
 import type { SliceEntry, WorkflowEntry } from './workflows.ts'
@@ -84,21 +84,21 @@ export type WfCommand = { key: string; slug: string | null; slice: string | null
 /**
  * The `/wf <key> [slug] [slice]` a prompt starts with, or null. A
  * `/wf-<key> ...` command and the namespaced `/sdlc-workflow:wf` form parse
- * the same way. An unknown key is null: the dispatcher refuses it.
+ * the same way. A key with a sub-key (`/wf loop goal <slug>`) gives the
+ * sub-key's name (`goal`) as the key. An unknown key is null: the dispatcher
+ * refuses it.
  */
 export function wfCommandOf(text: string): WfCommand | null {
   const match = /^\s*\/(?:sdlc-workflow:)?wf(?:-([a-z-]+))?(?:\s+(.*))?$/su.exec(text)
   if (match === null) return null
   const rest = (match[2] ?? '').trim()
-  const tokens = rest === '' ? [] : rest.split(/\s+/u)
-  let key = match[1] ?? null
-  if (key === null) {
-    key = tokens.shift() ?? null
-  }
-  if (key === null || entryOf(key) === null) return null
-  const slug = tokens[0] ?? null
-  const slice = tokens[1] ?? null
-  return { key, slug: slug === undefined ? null : slug, slice: slice === undefined ? null : slice }
+  const words = rest === '' ? [] : rest.split(/\s+/u)
+  const tokens = match[1] === undefined ? words : [match[1], ...words]
+  const found = entryAt(tokens)
+  if (found === null) return null
+  const slug = tokens[found.words] ?? null
+  const slice = tokens[found.words + 1] ?? null
+  return { key: found.entry.name, slug, slice }
 }
 
 /**

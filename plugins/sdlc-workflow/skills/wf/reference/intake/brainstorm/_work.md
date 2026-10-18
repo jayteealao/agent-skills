@@ -107,9 +107,9 @@ A packet says at its top that the board wins on a difference.
 
 - One packet: print its start command as `Next`.
 - Two or more packets: print the start command of the packet with the lowest order as `Next`, then `/wf campaign <slug>` to build the packets in parallel waves, and the path of `work/index.md`. The person may also start the packets one after the other, in sequence order.
-- No packet (only write-now pieces): print the resume command, or `/wf close <slug>` when no thread is live.
+- No packet (only write-now pieces): print the resume command, or `/wf intake <slug> close` when no thread is live.
 
-Never print a write-now piece as a `/wf task` command.
+Never print a write-now piece as a `/wf intake task` command.
 
 ## Reopening a work set
 
@@ -127,7 +127,7 @@ A person can resume a brainstorm at any time, also while the packets run.
 
 ## Quick capture: `add`
 
-`/wf brainstorm <brainstorm-slug> add <text>` records one new piece of work without a full session, for example a bug that the person found while trying a built piece.
+`/wf intake brainstorm <brainstorm-slug> add <text>` records one new piece of work without a full session, for example a bug that the person found while trying a built piece.
 1. Record the text on the board as an item on the thread it belongs to: a `decision` when the person states what to do, an `idea` otherwise.
 2. Ask one batch per [_gate-question.md](../../_gate-question.md): the form (`fix`, `hotfix`, `extension`, or `intake`), the target slug, and the urgency.
 3. Add the piece to the board's `work` list as the last piece of the sequence (the next `order`), with a `why-here` note that the person confirms. Run the check, then run the `write` command.

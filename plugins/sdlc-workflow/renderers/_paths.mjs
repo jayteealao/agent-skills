@@ -31,7 +31,7 @@ const PHASE_BY_BASENAME = {
   // filename → here. Separate axes — see the file header.)
   // `01-adopt` (/wf intake adopt) is the reverse-entry lead — same `type: intake`,
   // same intake-card placement rule as the change-mode leads above.
-  // `01-task` (/wf task) drives a minimal `type: index` lifecycle — its overview's
+  // `01-task` (/wf intake task) drives a minimal `type: index` lifecycle — its overview's
   // intake card links the same fixed STAGE_NAV.intake.dir, so it MUST land at
   // intake/ (NOT its own dir — that is the terminal-analysis block below).
   '01-fix':                ['intake', null],
@@ -47,7 +47,7 @@ const PHASE_BY_BASENAME = {
   '01-rca':                ['rca', null],
   '01-probe':              ['probe', null],
   '01-investigate':        ['investigate', null],
-  // Terminal analysis modes (/wf intake ideate, /wf simplify, /wf probe) now root
+  // Terminal analysis modes (/wf intake ideate, /wf intake simplify, /wf probe) now root
   // in a `type: workflow-index` slug workflow with an `01-<mode>.md` lead instead
   // of writing off-pipeline (.ai/ideation/, .ai/simplify/). The lead keeps its
   // analysis type (ideation / simplify-run) but lands in its own named view dir.
@@ -68,7 +68,7 @@ const PHASE_BY_BASENAME = {
   '01-optimize':           ['intake', null],
   '02-optimize-spec':      ['optimize', null],
   'goal':                  ['goal', null],
-  // `01-prototype` (/wf prototype) is the accepted pipeline of a person-steered proof
+  // `01-prototype` (/wf loop prototype) is the accepted pipeline of a person-steered proof
   // loop on a `type: workflow-index` slug in a POC worktree — terminal, named dir, no build.
   '01-prototype':          ['prototype', null],
   '02-shape':              ['shape', null],
@@ -93,7 +93,7 @@ const PHASE_BY_BASENAME = {
   '08-handoff':            ['handoff', null],
   '09-ship-runs-index':    ['ship', null],
   '10-retro':              ['retro', null],
-  '90-recap':              ['recap', null],              // /wf recap catch-up/explain (successor to resume)
+  '90-recap':              ['recap', null],              // /wf status recap catch-up/explain (successor to resume)
   '90-resume':             ['resume', null],             // legacy alias — one release
   'RESUME':                ['resume', null],
   'announce':              ['announce', null],

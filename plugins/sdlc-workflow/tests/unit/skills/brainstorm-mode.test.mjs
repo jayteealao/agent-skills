@@ -26,7 +26,7 @@ test('the mode reference and its artifact template exist', () => {
 
 test('every roster surface names brainstorm', () => {
   const skill = read('SKILL.md');
-  assert.match(skill, /`ideate`, `brainstorm`, `adopt`, `optimize`\)/, 'SKILL.md intake row lost brainstorm');
+  assert.match(skill, /`ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`\)/, 'SKILL.md intake row lost brainstorm');
 
   const intake = read('reference', 'intake.md');
   assert.match(intake, /The \*\*mode keyword set\*\* is: .*`brainstorm`/, 'intake.md keyword set lost brainstorm');
@@ -64,7 +64,7 @@ test('the reference carries the seven control words', () => {
 test('the terminus stays open and never picks', () => {
   const src = read('reference', 'intake', 'brainstorm.md');
   assert.match(src, /\*\*stays open\*\*/, 'brainstorm.md lost the stays-open terminus');
-  assert.match(src, /\/wf close <slug>/, 'brainstorm.md never names the retire command');
+  assert.match(src, /\/wf intake <slug> close/, 'brainstorm.md never names the retire command');
   assert.ok(!src.includes('# Pick — decision closure'), 'brainstorm.md grew a pick closure — the board is never superseded');
   assert.ok(!/_fix-loop\.md/.test(src), 'brainstorm.md cites the fix loop — the mode writes no code');
 });

@@ -34,13 +34,13 @@
 <p>Ship does not improvise a release. Ship executes <code>.ai/ship-plan.md</code>, a project-level document that records how this codebase ships. One plan exists per repository, and every workflow shares it. The plan records where the version lives, what secrets the pipeline needs, what a dry-run looks like, what to check after publishing, and what to do when things go wrong. Four sub-commands manage the plan:</p>
 
 <dl class="cmd-grid">
-<dt><code>/wf ship-plan init</code></dt>
+<dt><code>/wf project ship-plan init</code></dt>
 <dd>Author the plan, once per repo. Templates seed sensible defaults for common shapes: <code>kotlin-maven-central</code>, <code>npm-public</code>, <code>pypi</code>, <code>container-image</code>, <code>server-deploy</code>, <code>library-internal</code>.</dd>
-<dt><code>/wf ship-plan build</code></dt>
+<dt><code>/wf project ship-plan build</code></dt>
 <dd>Bring the repo's actual pipeline into compliance with the plan: create missing files, and patch non-compliant files. The command supports <code>--dry-run</code>.</dd>
-<dt><code>/wf ship-plan edit</code></dt>
+<dt><code>/wf project ship-plan edit</code></dt>
 <dd>Amend one block of the plan at a time. Every edit bumps the plan's version.</dd>
-<dt><code>/wf ship-plan audit</code></dt>
+<dt><code>/wf project ship-plan audit</code></dt>
 <dd>A read-only soundness review of the plan, the built pipeline, and the release-relevant codebase. Findings accumulate in <code>.ai/ship-plan-audit.md</code>. Each finding is routed to the command that can fix it; the audit itself fixes nothing.</dd>
 </dl>
 

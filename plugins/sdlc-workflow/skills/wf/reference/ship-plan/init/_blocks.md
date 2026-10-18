@@ -8,7 +8,7 @@ Hypothesis from `inferred.ship-meaning`. Confirm:
 - `ship-meaning` (one of: `publish`, `merge-only`, `deploy-immutable`, `deploy-rolling`, `feature-flag-flip`, or freeform)
 - `ship-environments[]` — present discovered deploy targets first (e.g., from `k8s/`, `fly.toml`, multiple workflow envs); multi-select, with order capturing the promotion path.
 - For each environment, ask: `auto-promote: <true | false>`.
-- For each environment, optionally capture GitHub **`protection`** (seeded from `inferred.environments`): `{ required-reviewers: [<@team>], wait-timer-minutes: <int>, deployment-branch-policy: <protected | custom | any> }`. Leave empty when the env has no gate. `/wf ship-plan build` applies these via `gh api` (gated, like branch protection).
+- For each environment, optionally capture GitHub **`protection`** (seeded from `inferred.environments`): `{ required-reviewers: [<@team>], wait-timer-minutes: <int>, deployment-branch-policy: <protected | custom | any> }`. Leave empty when the env has no gate. `/wf project ship-plan build` applies these via `gh api` (gated, like branch protection).
 - `ship-cadence` (on-demand, per-merge, weekly, release-train, or freeform).
 
 ## Block B — Versioning contract
@@ -36,7 +36,7 @@ Hypothesis from `inferred.ci`. Confirm:
 - `publish-cmd` — capture even if it only ever runs in CI; it's useful for reference and recovery.
 - `required-secrets[]` — pre-fill from `inferred.ci.secret-refs-seen`. For each, ask the user for a one-sentence `purpose`. Allow freeform additions.
 - `secrets-staleness-threshold-days` — default `90`, freeform override.
-- `ci-ergonomics` — how the generated workflows should be tuned: `{ dep-cache: <true|false>, matrix: { os: [<runner>, ...], versions: [<version>, ...] }, release-concurrency: <true|false>, path-filters: <true|false> }`. Defaults: `dep-cache: true`, single-target matrix (no fan-out), `release-concurrency: true`, `path-filters: false`. `/wf ship-plan build` folds these into the workflows it generates/patches.
+- `ci-ergonomics` — how the generated workflows should be tuned: `{ dep-cache: <true|false>, matrix: { os: [<runner>, ...], versions: [<version>, ...] }, release-concurrency: <true|false>, path-filters: <true|false> }`. Defaults: `dep-cache: true`, single-target matrix (no fan-out), `release-concurrency: true`, `path-filters: false`. `/wf project ship-plan build` folds these into the workflows it generates/patches.
 
 ## Block D — Post-publish verification contract
 
@@ -66,7 +66,7 @@ Seed from `inferred.recovery-playbook-seeds` *plus* any defaults the chosen `tem
 - `triggers[]` (regex strings — case-insensitive, designed to match CI failure logs)
 - `steps[]` (numbered, executable)
 
-If no seeds and no template defaults, leave the list empty. The list grows as runs hit failures and `/wf ship-plan edit` adds new playbooks.
+If no seeds and no template defaults, leave the list empty. The list grows as runs hit failures and `/wf project ship-plan edit` adds new playbooks.
 
 ## Block G — Stakeholder + announcement contract
 
@@ -115,7 +115,7 @@ Hypothesis from `inferred.inbound-dx`. These are the gates that must pass before
 - `lint` — `{ tool, cmd }` (e.g. `eslint .`, `ruff check .`, `golangci-lint run`, `cargo clippy -- -D warnings`).
 - `type-check` — `{ tool, cmd }` (e.g. `tsc --noEmit`, `mypy .`, `pyright`). `n/a` for untyped languages.
 - `test-coverage` — `{ min-percent, cmd }`. Pre-fill `min-percent` from a discovered threshold; if none, ask whether to set one (default `none` — do not impose a gate the repo lacks).
-- `commit-convention` — `{ spec, config-path, enforce }`. `spec` ∈ {`conventional`, `gitmoji`, `custom`, `none`}. `enforce` is a multi-select of `[local, ci]` — where the convention is checked. If a commitlint config was discovered, pre-fill `spec: conventional` and the path. **This is the field `/wf handoff`'s local commit-lint gate already honors via config-file detection; CI enforcement is added by `/wf ship-plan build`.**
+- `commit-convention` — `{ spec, config-path, enforce }`. `spec` ∈ {`conventional`, `gitmoji`, `custom`, `none`}. `enforce` is a multi-select of `[local, ci]` — where the convention is checked. If a commitlint config was discovered, pre-fill `spec: conventional` and the path. **This is the field `/wf handoff`'s local commit-lint gate already honors via config-file detection; CI enforcement is added by `/wf project ship-plan build`.**
 - `pr-title-convention` — `{ spec, enforce }`. `spec` ∈ {`conventional`, `none`}. Typically `enforce: [ci]` via a PR-title-lint action.
 
 After confirming, **derive `ci-pipeline.pre-merge-checks[]` (Block C) from the enabled gates here** — every gate with a non-empty `cmd` and every enforced convention becomes a named pre-merge check. Block H is the canonical source of each check's command; Block C holds the derived name list. Tell the user this linkage so they don't double-enter.
@@ -138,12 +138,12 @@ Hypothesis from `inferred.governance`. The collaboration + protection rules. Con
   - `require-conversation-resolution`, `require-linear-history` — defaults `true` / `false`; confirm.
   - `allow-force-pushes`, `allow-deletions` — defaults `false` / `false` (locked).
   - `mechanism` ∈ {`branch-protection`, `ruleset`} — which GitHub control to apply. Default `branch-protection` (universal); pre-fill `ruleset` only if discovery saw the repo already governs via rulesets.
-  - `apply-via` ∈ {`gh-api`, `manual`} — **whether `/wf ship-plan build` is permitted to apply these settings to the remote repo via `gh api` (behind its own confirm gate), or only print the commands.** Default `gh-api` only if the user explicitly opts in; otherwise `manual`.
+  - `apply-via` ∈ {`gh-api`, `manual`} — **whether `/wf project ship-plan build` is permitted to apply these settings to the remote repo via `gh api` (behind its own confirm gate), or only print the commands.** Default `gh-api` only if the user explicitly opts in; otherwise `manual`.
 - `codeowners` — `[{ path, owners[] }]`. Ownership rules. Seed from a discovered `CODEOWNERS`; freeform additions allowed. Empty list = don't ship one.
 - `pr-template` — `<true | false>`. Whether to ship/maintain `.github/PULL_REQUEST_TEMPLATE.md`.
 - `issue-templates` — `<true | false>`. Whether to ship `.github/ISSUE_TEMPLATE/`.
 - `dependency-automation` — `{ tool, ecosystems[], schedule }`. `tool` ∈ {`dependabot`, `renovate`, `none`}. `ecosystems[]` from the project's package managers (e.g. `npm`, `pip`, `gradle`, `github-actions`). When `inferred.repo-topology.monorepo` is true, seed one ecosystem entry per workspace. `schedule` freeform (default `weekly`).
-- `merge` — `{ method, auto-merge, merge-queue }`. `method` ∈ {`squash`, `merge`, `rebase`, `any`} (pre-fill from `inferred.governance.merge-current`). `auto-merge` `<true|false>`. `merge-queue` `<true|false>` — note it requires specific GitHub plan tiers; `/wf ship-plan build` detects and warns if unavailable.
+- `merge` — `{ method, auto-merge, merge-queue }`. `method` ∈ {`squash`, `merge`, `rebase`, `any`} (pre-fill from `inferred.governance.merge-current`). `auto-merge` `<true|false>`. `merge-queue` `<true|false>` — note it requires specific GitHub plan tiers; `/wf project ship-plan build` detects and warns if unavailable.
 
 ## Block K — Security & supply-chain gates
 
@@ -154,4 +154,4 @@ Hypothesis from `inferred.security`. The scanning + policy layer (align to `../r
 - `sbom` — `{ tool, format, publish-with-release }`. `tool` ∈ {`syft`, `cyclonedx`, `none`}; `format` ∈ {`spdx`, `cyclonedx`}; `publish-with-release` attaches the SBOM to the GitHub release.
 - `license-check` — `{ tool, allow[], deny[] }`. Allowed/denied SPDX license lists enforced in CI.
 
-These become pre-merge and/or scheduled CI gates built by `/wf ship-plan build` (Audit P). Enabled PR-time gates also feed `ci-pipeline.pre-merge-checks[]` (Block C), same as Block H.
+These become pre-merge and/or scheduled CI gates built by `/wf project ship-plan build` (Audit P). Enabled PR-time gates also feed `ci-pipeline.pre-merge-checks[]` (Block C), same as Block H.

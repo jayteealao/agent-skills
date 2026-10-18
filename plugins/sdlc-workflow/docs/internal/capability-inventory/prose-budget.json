@@ -70,10 +70,15 @@
         "skills/wf/reference/slice.md": {
           "when design is needed and not settled, stop": "DESIGN-LANE-PLAN (9.167.0) human rule: a terminal condition of the new human-only design stage, added after the W0 baseline"
         },
-        "skills/wf/reference/brainstorm.md": {
-          "- status: closed stop: \"workflow <slug is closed.": "BRAINSTORM-DESIGN-PLAN (9.168.0): a terminal condition of the new /wf brainstorm key router, added after the W0 baseline",
-          "with no idea, stop and render the usage": "BRAINSTORM-DESIGN-PLAN (9.168.0): a terminal condition of the new /wf brainstorm key router, added after the W0 baseline",
-          "with no token, stop and render the usage": "BRAINSTORM-DESIGN-PLAN (9.168.0): a terminal condition of the new /wf brainstorm key router, added after the W0 baseline"
+        "skills/wf/reference/intake/brainstorm.md": {
+          "- first token matches a workflow-type: brainstorm slug": "WF-KEY-SURFACE-PLAN A3: the closed-board stop moved here from the deleted /wf brainstorm key router (BRAINSTORM-DESIGN-PLAN 9.168.0)",
+          "with no token, stop and show the forms:": "WF-KEY-SURFACE-PLAN A3: the no-topic stop moved here from the deleted /wf brainstorm key router (BRAINSTORM-DESIGN-PLAN 9.168.0)"
+        },
+        "skills/wf/reference/intake.md": {
+          "- if token0 is close and token1 exactly": "WF-KEY-SURFACE-PLAN A7: close is a slug-first maintenance word; the slug-second order stops with the right order"
+        },
+        "skills/wf/reference/intake/default.md": {
+          "when the slug is a reserved name (_intake-context.md),": "WF-KEY-SURFACE-PLAN section 6.8: a new slug cannot be a /wf command word"
         }
       }
     },
@@ -97,20 +102,20 @@
   "rubricFenceExceptions": {},
   "wordBudgets": {
     "skills/wf/SKILL.md": {
-      "words": 1718,
-      "reason": "The 27-key tables (Arguments / Does / Writes cells) and the Step 0, 0.5, 0.7 STOP rules are the dispatcher's capability surface; 120 lines at 14 words per line. Cutting to 1,320 words would delete table cells that name invocations and artifacts. The prototype key (WF-PROTOTYPE-PLAN W1) added its row and its name in the key lists; a redundant Step 0.8 sentence was cut to pay for most of it."
+      "words": 1715,
+      "reason": "The 19-key tables (Arguments / Does / Writes cells), the sub-key table, and the Step 0, 0.5, 0.7 STOP rules with the sub-key and intake fast-path rules are the dispatcher's capability surface; 115 lines at 15 words per line. Cutting to 1,320 words would delete table cells that name invocations and artifacts. WF-KEY-SURFACE-PLAN removed eight rows and added the sub-key table, the fast path, and the loop and project rows."
     },
     "skills/wf/reference/handoff.md": {
-      "words": 4817,
-      "reason": "The 60-field frontmatter template (about 600 words), the T3.5-T5.3 readiness procedure with 11 inventoried STOP sentences, and the per-slug/per-branch batch contract are capability; rationale and restatements were cut from 5,760 words to this count."
+      "words": 4819,
+      "reason": "The 60-field frontmatter template (about 600 words), the T3.5-T5.3 readiness procedure with 11 inventoried STOP sentences, and the per-slug/per-branch batch contract are capability; rationale and restatements were cut from 5,760 words to this count. WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     },
     "skills/wf/reference/implement.md": {
-      "words": 3085,
-      "reason": "WIDE-VIEW-REPAIR-PLAN §16: implement.md holds 22 artifact keys, 6 stops, 2 dispatches, the suppressionDebtLint/limitationClaimLint config entries, and the pinned build-discipline phrases; the 2,731-word share is unreachable without deleting capability. §4.3 cuts (rationale, history, restatements) landed first."
+      "words": 3086,
+      "reason": "WIDE-VIEW-REPAIR-PLAN §16: implement.md holds 22 artifact keys, 6 stops, 2 dispatches, the suppressionDebtLint/limitationClaimLint config entries, and the pinned build-discipline phrases; the 2,731-word share is unreachable without deleting capability. §4.3 cuts (rationale, history, restatements) landed first. WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     },
     "skills/wf/reference/intake.md": {
-      "words": 3099,
-      "reason": "The five-branch shape resolution with its STOPs, the nine-row auto-route signal table with six discriminators, the 15-row mode→span map, and the 15-row mode→file map are the intake dispatcher capability surface; §4.3 cuts removed only rationale and restatements (3,498 → 3,092 words). The optimize mode (WF-OPTIMIZE-PLAN W2) added 34 words: its keyword, its row in each map, and the slug-mode refusal. Ideate with sources (WF-IDEATE-SOURCES-PLAN S1, S4) added 13 words: the source shape in the proposal row, and the packet pick in the span row."
+      "words": 3362,
+      "reason": "The five-branch shape resolution with its STOPs, the nine-row auto-route signal table with six discriminators, the 15-row mode→span map, and the 15-row mode→file map are the intake dispatcher capability surface; §4.3 cuts removed only rationale and restatements (3,498 → 3,092 words). The optimize mode (WF-OPTIMIZE-PLAN W2) added 34 words: its keyword, its row in each map, and the slug-mode refusal. Ideate with sources (WF-IDEATE-SOURCES-PLAN S1, S4) added 13 words: the source shape in the proposal row, and the packet pick in the span row. WF-KEY-SURFACE-PLAN (A4, A5, A7) added 263 words: the simplify and task modes and the close maintenance word in the keyword set, the branch-0 rules for close, and their rows in each map. The intake fast path takes this file out of every explicit-mode run."
     },
     "skills/wf/reference/plan.md": {
       "words": 4743,
@@ -125,16 +130,16 @@
       "reason": "The 20-question floor with its Ambiguity Inventory and coverage gate (PO directive: never scale down), two sub-agent charters, Round 3b, the blind pre-mortem generator, the RIM adjudication gate, the Intake Fidelity table, and the AC direction/named-mechanism rules are each a capability surface; §4.3 cuts removed only rationale, examples, and restatements (5,236 → 4,932 words)."
     },
     "skills/wf/reference/ship.md": {
-      "words": 3970,
-      "reason": "The polymorphic Step 0 with two hard-block gates (runtime-evidence deferrals, RIMs) and the pre-sequence question table, the 13 idempotent steps with their exact gh/git commands and per-step idempotency checks, the four-class dirty-tree triage, and the batch-ship contract are each a capability surface; §4.3 cuts removed only history anecdotes and rationale (4,390 → 4,104 words)."
+      "words": 3975,
+      "reason": "The polymorphic Step 0 with two hard-block gates (runtime-evidence deferrals, RIMs) and the pre-sequence question table, the 13 idempotent steps with their exact gh/git commands and per-step idempotency checks, the four-class dirty-tree triage, and the batch-ship contract are each a capability surface; §4.3 cuts removed only history anecdotes and rationale (4,390 → 4,104 words). WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     },
     "skills/wf/reference/verify.md": {
       "words": 3929,
       "reason": "WIDE-VIEW-REPAIR-PLAN §16: verify.md holds 22 artifact keys, 4 gates, 5 stops, 7 dispatches, the mockEvidenceGate/verifyResultGate/verifyDeferralLint config entries, the AC-gate semantics and the verbatim fix-sub-agent prompt; the 2,731-word share is unreachable without deleting capability. §4.3 cuts (anecdote, rationale, examples) landed first."
     },
     "skills/wf/reference/yolo.md": {
-      "words": 3725,
-      "reason": "The Autonomous Decision Policy table (about 650 words of gate definitions with 10 inventoried STOP sentences), the six intake classes (the optimize class, WF-OPTIMIZE-PLAN W2, added 32 words), and the 16-line hand-back template are capability; rationale, history, and restatements were cut from 6,434 words to this count."
+      "words": 3728,
+      "reason": "The Autonomous Decision Policy table (about 650 words of gate definitions with 10 inventoried STOP sentences), the six intake classes (the optimize class, WF-OPTIMIZE-PLAN W2, added 32 words), and the 16-line hand-back template are capability; rationale, history, and restatements were cut from 6,434 words to this count. WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     }
   },
   "load": {}

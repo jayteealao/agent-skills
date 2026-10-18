@@ -3,7 +3,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   optimizeStatus
-} from "./chunk-BAMRJSCP.mjs";
+} from "./chunk-VIYQJTHD.mjs";
 import {
   designNeeded,
   designSettled
@@ -82,12 +82,12 @@ function clearPlan(host) {
   return "Run /goal clear in Claude Code. /clear also removes the goal.";
 }
 function precheck(contract, count) {
-  if (!contract) return { verdict: "BLOCKED", reason: "no goal contract: run /wf goal <slug> first" };
-  if (contract.state === "cleared") return { verdict: "BLOCKED", reason: "the goal is cleared: run /wf goal <slug> resume to arm it again" };
+  if (!contract) return { verdict: "BLOCKED", reason: "no goal contract: run /wf loop goal <slug> first" };
+  if (contract.state === "cleared") return { verdict: "BLOCKED", reason: "the goal is cleared: run /wf loop goal <slug> resume to arm it again" };
   const parked = contract.parked;
   if (parked && str(parked.gate)) return { verdict: "BLOCKED", reason: `gate ${str(parked.gate)}${str(parked.reason) ? `: ${str(parked.reason)}` : ""}` };
   const max = Number(contract["max-checks"]) || DEFAULT_MAX_CHECKS;
-  if (count + 1 > max) return { verdict: "BLOCKED", reason: `budget: ${max} checks used. Run /wf goal <slug> resume, with a new max-checks when more are needed` };
+  if (count + 1 > max) return { verdict: "BLOCKED", reason: `budget: ${max} checks used. Run /wf loop goal <slug> resume, with a new max-checks when more are needed` };
   return null;
 }
 function fromLifecycle(l) {
@@ -143,13 +143,13 @@ import { join } from "node:path";
 var CHANGE_MODES = Object.freeze(["fix", "hotfix", "refactor"]);
 var NOT_DRIVEN = Object.freeze({
   "update-deps": "/wf intake update-deps <slug>",
-  task: "/wf task <slug>",
+  task: "/wf intake task <slug>",
   audit: "/wf intake audit <slug>",
   brainstorm: "/wf intake brainstorm <slug>",
   investigate: "the pick recorded in 01-investigate.md",
   discover: "the verdict recorded in 01-discover.md",
   // A prototype is steered by the person, one round at a time (WF-PROTOTYPE-PLAN P4).
-  prototype: "/wf prototype <slug> <request>, one round per request of the person"
+  prototype: "/wf loop prototype <slug> <request>, one round per request of the person"
 });
 var VERIFY_CLEAN_CONVERGENCE = Object.freeze(["not-needed", "converged"]);
 var REVIEW_CLEAN_VERDICTS = Object.freeze(["ship", "ship-with-caveats"]);
@@ -396,7 +396,7 @@ function park(root, slug, gate, f) {
   if (!c) throw new Error("no goal contract: nothing to park");
   const parked = { gate: String(gate), reason: String(f.reason ?? "").trim(), at: nowIso() };
   saveContract(root, slug, { ...c, parked });
-  return { ok: true, parked, next: "run check: it prints GOAL: BLOCKED, and the host goal ends. After the person answers, run /wf goal <slug> resume." };
+  return { ok: true, parked, next: "run check: it prints GOAL: BLOCKED, and the host goal ends. After the person answers, run /wf loop goal <slug> resume." };
 }
 function status(root, slug) {
   const c = readContract(root, slug);

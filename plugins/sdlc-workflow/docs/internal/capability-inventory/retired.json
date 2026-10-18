@@ -844,5 +844,107 @@
     "reason": "VIEW-AUTHORING-REMOVAL-PLAN: _story-arc.md and _fragment-authoring.md are deleted; the authoring steps that cited them and the narrative-fragment docs are gone. The chat rules are in _chat-return.md (The narrative).",
     "release": "9.187.0",
     "category": "citations"
+  },
+  {
+    "entry": "/wf close",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf intake <slug> close`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf close <X>",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf intake <X> close`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf observability",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf project observability`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf observability audit",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf project observability audit`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf observability build",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf project observability build`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf observability init",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf project observability init`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf recap",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf status recap`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf recap <X>",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf status recap <X>`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf ship-plan",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf project ship-plan`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf ship-plan audit",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf project ship-plan audit`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf ship-plan build",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf project ship-plan build`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf ship-plan edit",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf project ship-plan edit`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf ship-plan init",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf project ship-plan init`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf simplify",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf intake simplify`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf simplify codebase",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf intake simplify codebase`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf task",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf intake task`.",
+    "release": "9.190.0"
+  },
+  {
+    "entry": "/wf task <X>",
+    "category": "invocations",
+    "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf intake task <X>`.",
+    "release": "9.190.0"
   }
 ]

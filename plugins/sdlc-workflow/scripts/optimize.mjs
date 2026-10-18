@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/optimize.mjs — the disk side of /wf optimize (WF-OPTIMIZE-PLAN 4.2, D4).
+ * scripts/optimize.mjs — the disk side of /wf loop optimize (WF-OPTIMIZE-PLAN 4.2, D4).
  * Bundled to dist/optimize.mjs; skills/wf/scripts/optimize.mjs runs the bundle.
  *
  *   baseline        <root> <slug>                     the worktree, the guard, the metric `repeat` times, the holdout
@@ -228,7 +228,7 @@ function requireNext(root, slug, action) {
 // baseline
 // ---------------------------------------------------------------------------
 function baseline(root, slug) {
-  if (readState(root, slug)) throw new Error('the baseline exists: run status, or /wf optimize <slug> to continue');
+  if (readState(root, slug)) throw new Error('the baseline exists: run status, or /wf loop optimize <slug> to continue');
   const { spec } = loadSpec(root, slug);
   if (!spec.confirmedBy) throw new Error(`${SPEC_FILE} has no confirmed-by: the person confirms the spec before the first trial (D3)`);
   const index = indexOf(root, slug);

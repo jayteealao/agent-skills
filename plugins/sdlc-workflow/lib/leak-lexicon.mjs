@@ -22,11 +22,12 @@ export const BOUNDARY_PATH = resolve(
 );
 const DEFAULT_ROOTS = ['.ai/', '.claude/'];
 
-// The 27 live /wf keys + retired skill suffixes that may still leak from
-// prompts or old artifacts.
+// The 19 live /wf keys, plus the keys that WF-KEY-SURFACE-PLAN removed (brainstorm, simplify,
+// task, close, goal, optimize, prototype, recap, ship-plan, observability) and
+// retired skill suffixes, because prompts and old artifacts still print them.
 const WF_KEYS =
   'intake|shape|slice|plan|implement|verify|review|handoff|ship-plan|ship|retro|' +
-  'design|brainstorm|probe|simplify|auto|yolo|campaign|goal|optimize|prototype|status|recap|close|docs|observability|task';
+  'design|brainstorm|probe|simplify|auto|yolo|campaign|loop|goal|optimize|prototype|status|recap|project|close|docs|observability|task';
 const SKILL_SUFFIXES = `${WF_KEYS}|meta|quick|next|resume|amend|extend|announce`;
 // Stage tokens that appear in NN-stage artifact stems (06-verify-core.md, 02b-design.md…).
 const STAGE_NAMES =
@@ -63,7 +64,7 @@ export function buildLexicon({ boundaryPath = BOUNDARY_PATH } = {}) {
     patterns: [
       // A concrete internal path: .ai/workflows/foo/06-verify.md, .claude/settings…
       { kind: 'internal-path', re: new RegExp(`(?:^|[^\\w./\\\\-])((?:${rootAlt})[\\w./-]+)`, 'g') },
-      // A workflow command string: "/wf verify", "/wf ship-plan init".
+      // A workflow command string: "/wf verify", "/wf project ship-plan init".
       { kind: 'wf-command', re: new RegExp(`(?:^|[^\\w])(/wf\\s+(?:${WF_KEYS})\\b)`, 'g') },
       // A skill/stage token: wf-verify, wf-meta.
       { kind: 'skill-token', re: new RegExp(`\\b(wf-(?:${SKILL_SUFFIXES}))\\b`, 'g') },

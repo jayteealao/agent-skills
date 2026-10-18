@@ -98,6 +98,6 @@ For each `gates-to-activate:` entry: what it gates, what infrastructure it is bl
 
 After setting secrets and pushing, re-run this command to verify full compliance:
 ```
-/wf ship-plan build --dry-run
+/wf project ship-plan build --dry-run
 ```
 ```

@@ -79,7 +79,7 @@ announcement:
   channels: ["<channel>", ...]
   template-path: ".ai/release-announcement-template.md"
 
-# === Inbound half — read by /wf ship-plan build (and the local gate in /wf handoff) ===
+# === Inbound half — read by /wf project ship-plan build (and the local gate in /wf handoff) ===
 
 # Block H — code-quality gates
 code-quality:

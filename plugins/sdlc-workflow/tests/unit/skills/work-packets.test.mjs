@@ -291,14 +291,14 @@ test('the CLI refuses to write a work set that fails the check', () => {
   }
 });
 
-test('procedure: a document-only piece is written in the session and never printed as /wf task (K5-K8)', () => {
+test('procedure: a document-only piece is written in the session and never printed as /wf intake task (K5-K8)', () => {
   const src = read(`${REF}/intake/brainstorm.md`);
   const work = read(`${REF}/intake/brainstorm/_work.md`);
   match(src, /A piece that changes only documents is `write-now`: this session writes it after the person confirms/);
-  match(src, /Never a write-now piece as a `\/wf task` command/);
+  match(src, /Never a write-now piece as a `\/wf intake task` command/);
   doesNotMatch(src, /a document or other deliverable that is not code \(`task`\)/);
   doesNotMatch(src, /a `task` that revises its design document/);
-  match(work, /Never print a write-now piece as a `\/wf task` command\./);
+  match(work, /Never print a write-now piece as a `\/wf intake task` command\./);
   match(work, /Read back each changed section\. Every carried decision key of the piece must appear in the changed text/);
   match(work, /When the check fails a second time, stop and ask the person/);
   match(work, /This session's context is more than 70 % used/);
@@ -340,6 +340,6 @@ test('procedure: reopening keeps started packets and captures with add (V1-V7)',
   match(work, /`scope: pending-cut`/);
   match(work, /## Quick capture: `add`/);
   match(work, /\*\*Changed decisions come back\.\*\*/);
-  match(read(`${REF}/brainstorm.md`), /\/wf brainstorm <brainstorm-slug> add <text>/);
+  match(read(`${REF}/intake/brainstorm.md`), /\/wf intake brainstorm <brainstorm-slug> \[design \| add <text>\]/);
   match(read(`${REF}/intake/brainstorm.md`), /next token is `add` → \*\*quick capture\*\*/);
 });

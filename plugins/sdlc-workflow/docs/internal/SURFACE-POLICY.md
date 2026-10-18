@@ -12,8 +12,8 @@ from the tree and fails when a count exceeds its pin.
 
 | Pin | Counted from | 2026-09-07 |
 |---|---|---|
-| `keys` | rows of the four key tables in `skills/wf/SKILL.md` | 22 → 23 (2026-09-24, `brainstorm`; earn rule in BRAINSTORM-DESIGN-PLAN.md §7) → 24 (2026-10-03, `campaign`; earn rule in WF-CAMPAIGN-PLAN.md section 23) → 26 (2026-10-17, `goal` and `optimize`; WF-GOAL-PLAN.md and WF-OPTIMIZE-PLAN.md) → 27 (2026-10-18, `prototype`; earn rule in WF-PROTOTYPE-PLAN.md section 10) |
-| `intakeModes` | the mode keyword set that `reference/intake.md` names | 12 → 13 (2026-09-22, `brainstorm`) → 14 (2026-10-17, `optimize`) |
+| `keys` | rows of the three key tables in `skills/wf/SKILL.md` (the sub-key table, headed "Sub-key", does not count) | 22 → 23 (2026-09-24, `brainstorm`; earn rule in BRAINSTORM-DESIGN-PLAN.md §7) → 24 (2026-10-03, `campaign`; earn rule in WF-CAMPAIGN-PLAN.md section 23) → 26 (2026-10-17, `goal` and `optimize`; WF-GOAL-PLAN.md and WF-OPTIMIZE-PLAN.md) → 27 (2026-10-18, `prototype`; earn rule in WF-PROTOTYPE-PLAN.md section 10) → 19 (2026-10-18, the moves of WF-KEY-SURFACE-PLAN.md: six sub-keys under `loop`, `status` and `project`, four intake modes; §2a) |
+| `intakeModes` | the mode keyword set that `reference/intake.md` names | 12 → 13 (2026-09-22, `brainstorm`) → 14 (2026-10-17, `optimize`) → 17 (2026-10-18, `simplify`, `task` and the maintenance word `close` moved in by WF-KEY-SURFACE-PLAN.md; §2a) |
 | `reviewRubrics` | `reference/review/<rubric>.md`, underscore files excluded | 11 |
 | `aggregates` | rows of the aggregate table in `reference/review.md` | 7 |
 | `artifactStems` | distinct artifact names in the capability inventory's `artifacts` union | 93 → 95 (2026-09-22, `01-brainstorm`, `03-slice-brainstorm-*`) → 92 (2026-09-29, hand-written typed fragment names left the references); the counter later read 70 → 75 (2026-10-17, `01-optimize`, `02-optimize-spec`, `03-slice-optimize`, `05-implement-optimize`, `06-verify-optimize`) → 76 (2026-10-18, `01-prototype`) |
@@ -37,6 +37,15 @@ artifact stem, or a frontmatter type must carry all five items:
 A pull request that lacks one item does not raise a pin. The reviewer checks
 the five items against the diff.
 
+## 2a. A move is not an addition
+
+A pull request that moves a key into an intake mode or into a sub-key of
+another key lowers the `keys` pin by one for each moved key, in the same pull
+request. The `intakeModes` pin rises by one for each key that becomes an intake
+mode. The earn rule does not apply to the move, because no new job enters the
+surface. A sub-key that names a new job is an addition, and the earn rule
+applies to it.
+
 ## 3. How long the freeze holds
 
 The freeze holds until `npm run measure:load` meets every §1.1 target of the
@@ -57,6 +66,12 @@ into separate skills. The plan declines, for three reasons:
 The freeze and the earn rule deliver the value of extraction without the
 churn. The PO can override this decision; the override is a plan edit, not a
 code change.
+
+On 2026-10-18 the PO kept this decision and grouped two routers inside `/wf`
+(WF-KEY-SURFACE-PLAN.md section 6.7). `ship-plan` and `observability` are the
+sub-keys of the `project` key: `/wf project ship-plan …` and
+`/wf project observability …`. A later project-level contract becomes a
+sub-key of `project`, under the earn rule. `docs` stays a key.
 
 ## 5. Raising a pin
 

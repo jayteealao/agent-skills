@@ -3,7 +3,7 @@
  * options each step offers, and what a pick does (the next step, or the
  * command text to fill into the prompt).
  */
-import { CATALOG, entryOf } from './catalog.ts'
+import { CATALOG, entryAt, entryOf } from './catalog.ts'
 import type { ArgumentNeed } from './catalog.ts'
 import type { SliceEntry, WorkflowEntry } from './workflows.ts'
 
@@ -37,12 +37,11 @@ export function stepFor(key: string | null, args: string): Step | null {
   const tokens = args.trim() === '' ? [] : args.trim().split(/\s+/u)
   if (key === null) {
     if (tokens.length === 0) return { kind: 'key' }
-    const typed = tokens[0] as string
-    const entry = entryOf(typed)
-    if (entry === null) return null
+    const found = entryAt(tokens)
+    if (found === null) return null
     // A typed `/wf status` is complete: a key whose slug is optional runs without one.
-    if (tokens.length === 1 && entry.need === 'slug-optional') return null
-    return stepFor(typed, tokens.slice(1).join(' '))
+    if (tokens.length === found.words && found.entry.need === 'slug-optional') return null
+    return stepFor(found.entry.key, tokens.slice(found.words).join(' '))
   }
   const entry = entryOf(key)
   if (entry === null) return null
@@ -270,11 +269,19 @@ export function draftStepOf(draft: string): { step: Step; filter: string } | nul
     if (filter !== '' && !keyOptions().some(option => option.value.startsWith(filter))) return null
     return { step: { kind: 'key' }, filter }
   }
-  const key = done[0] as string
-  const entry = entryOf(key)
-  if (entry === null || entry.need === 'none') return null
-  if (done.length === 1) return { step: { kind: 'slug', key }, filter }
-  if (done.length === 2 && takesSlice(entry.need)) return { step: { kind: 'slice', key, slug: done[1] as string }, filter }
+  const found = entryAt(done)
+  if (found === null) {
+    // `/wf loop go`: the first word of a two-word row stays on the key step, filtered by both words.
+    const prefix = done.join(' ')
+    if (!keyOptions().some(option => option.value.startsWith(`${prefix} `))) return null
+    return { step: { kind: 'key' }, filter: `${prefix} ${filter}`.trim() }
+  }
+  const { entry } = found
+  const key = entry.key
+  const after = done.slice(found.words)
+  if (entry.need === 'none') return null
+  if (after.length === 0) return { step: { kind: 'slug', key }, filter }
+  if (after.length === 1 && takesSlice(entry.need)) return { step: { kind: 'slice', key, slug: after[0] as string }, filter }
   return null
 }
 

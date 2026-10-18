@@ -71,7 +71,7 @@
     {
       "id": "wf-task-description",
       "purpose": "task — the minimal-lifecycle key for work whose deliverable is not a code change. A description roots a new task workflow; an existing non-closed slug as the first token would attach a compressed slice instead.",
-      "invocation": "/wf task rotate the leaked Stripe key",
+      "invocation": "/wf intake task rotate the leaked Stripe key",
       "expectedReferencePath": "skills/wf/reference/task.md"
     },
     {
@@ -89,7 +89,7 @@
     {
       "id": "wf-simplify-branch",
       "purpose": "simplify is its own /wf key (review-and-route triage); first positional is a scope keyword, not a slug.",
-      "invocation": "/wf simplify branch",
+      "invocation": "/wf intake simplify branch",
       "expectedReferencePath": "skills/wf/reference/simplify.md"
     },
     {
@@ -181,19 +181,19 @@
     {
       "id": "wf-recap-slug",
       "purpose": "recap navigation key (renamed from resume, absorbs how explain modes).",
-      "invocation": "/wf recap oauth-callback",
+      "invocation": "/wf status recap oauth-callback",
       "expectedReferencePath": "skills/wf/reference/recap.md"
     },
     {
       "id": "wf-close-slug",
       "purpose": "close lifecycle key (absorbs skip, slice-scoped). Workflow close with a reason.",
-      "invocation": "/wf close oauth-callback cancelled",
+      "invocation": "/wf intake oauth-callback close cancelled",
       "expectedReferencePath": "skills/wf/reference/close.md"
     },
     {
       "id": "wf-ship-plan-router",
       "purpose": "ship-plan router key (init/build/edit/audit). Resolves the sub-key inside the router.",
-      "invocation": "/wf ship-plan init",
+      "invocation": "/wf project ship-plan init",
       "expectedReferencePath": "skills/wf/reference/ship-plan.md"
     },
     {
@@ -205,7 +205,7 @@
     {
       "id": "wf-observability-router",
       "purpose": "observability router key (init/build/audit). Resolves the sub-key inside the router. Dissolved the standalone setup-wide-logging command; init inventories the codebase + reads the ship-plan and authors .ai/observability.md, build realizes it, audit sweeps it.",
-      "invocation": "/wf observability init",
+      "invocation": "/wf project observability init",
       "expectedReferencePath": "skills/wf/reference/observability.md"
     },
     {

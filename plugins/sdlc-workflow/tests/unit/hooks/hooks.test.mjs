@@ -527,7 +527,7 @@ function auditLedger({ triageStatus, triage, severity = 'HIGH', status = 'open',
     `    status: ${status}`,
     '    surfaced-at: 1',
     '    last-seen: 1',
-    '    route: /wf ship-plan edit C',
+    '    route: /wf project ship-plan edit C',
   ];
   if (triage) finding.push(`    triage: ${triage}`);
   return `---\n${head.join('\n')}\nfindings:\n${finding.join('\n')}\n---\n## The Audit\nbody\n`;

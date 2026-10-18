@@ -209,7 +209,7 @@ The body names everything in words. It carries no key, no internal number, and n
 ## How to continue
 - Resume: `/wf intake brainstorm <slug>`
 - Control words: `park <thread>` · `pull <thread>` · `drop <thread>` · `board` · `look it up` · `second opinion` · `cohere` · `pause` · `done`
-- Retire when no thread is live: `/wf close <slug>`
+- Retire when no thread is live: `/wf intake <slug> close`
 ```
 
 ## Converting a legacy board

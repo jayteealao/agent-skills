@@ -1,6 +1,6 @@
 # Design focus (`intake/brainstorm/_design.md`)
 
-Load this file when the board's `focus` is `design`: `/wf brainstorm design <idea>`, `/wf brainstorm <slug> design`, or `/wf intake brainstorm design <idea>`. It adds to the loop in [../brainstorm.md](../brainstorm.md) and replaces nothing. Every rule of that loop still applies, the Plain words invariant included.
+Load this file when the board's `focus` is `design`: `/wf intake brainstorm design <idea>`, `/wf intake brainstorm <slug> design`, or `/wf intake brainstorm design <idea>`. It adds to the loop in [../brainstorm.md](../brainstorm.md) and replaces nothing. Every rule of that loop still applies, the Plain words invariant included.
 
 A design brainstorm thinks through how an idea looks and behaves: the surfaces, what a person does on them, and how they feel. The design stage (`design/stage.md`) later presents these thoughts again as its starting direction (`design/_carried.md`).
 
@@ -38,7 +38,7 @@ The walk (3.2) and the split (3.3) run as usual. These additions apply:
 
 ## On a feature workflow
 
-`/wf brainstorm <feature-slug> design` brainstorms the design of a workflow that exists, before or after its design stage.
+`/wf intake brainstorm <feature-slug> design` brainstorms the design of a workflow that exists, before or after its design stage.
 
 1. **Files.** Write the board to `.ai/workflows/<slug>/brainstorm-board-design.json` and the person's document to `.ai/workflows/<slug>/design-notes/brainstorm-design.md`, per the templates in [_artifact.md](_artifact.md), with `board: brainstorm-board-design.json`. When both files exist, resume them as Step 0 resumes a board. Write no `00-index.md` of a new workflow and no slice. Add the two files to `workflow-files` in the workflow's `00-index.md`, and change no other index field during the loop.
 2. **At `done`**, the kept design items become one piece of work: `shape: design`, `state: routed`, `routed-to: <slug>`.

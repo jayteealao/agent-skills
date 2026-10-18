@@ -19,7 +19,7 @@ this operation produces: translate workflow context to product language and leak
 > exactly where plausible-but-wrong audit findings come from. Inject the same instruction into every lens
 > sub-agent. Read-only — reads land in gitignored `.scratch/`, never in the audit ledger or the repo.
 
-You are running `wf ship-plan audit`. Your job is **not** to fix anything. It is to **question the pipeline**:
+You are running `wf project ship-plan audit`. Your job is **not** to fix anything. It is to **question the pipeline**:
 to read `.ai/ship-plan.md`, the CI/CD that realizes it, and the release-relevant codebase, and surface every
 blunder, oversight, logical hazard, misconception, and bug that would make a real release go wrong — then
 route each to the command that can fix it. This is the read-only, adversarial counterpart to `build`.
@@ -44,8 +44,8 @@ version. Valid YAML, compliant with the plan, and wrong. Drift detection is blin
 
 # What this command does NOT do
 
-- It does **not** edit `.ai/ship-plan.md` — that is `/wf ship-plan edit`. It reports what to change and routes there.
-- It does **not** create, patch, or mutate any repo file, workflow, or remote setting — that is `/wf ship-plan build`.
+- It does **not** edit `.ai/ship-plan.md` — that is `/wf project ship-plan edit`. It reports what to change and routes there.
+- It does **not** create, patch, or mutate any repo file, workflow, or remote setting — that is `/wf project ship-plan build`.
 - It does **not** push, open PRs, tag, or run a release.
 - It does **not** re-run the deep code-correctness sweep. Its codebase lens is scoped to **release-relevant
   surface** (version integrity, packaged contents, tested-vs-shipped artifact, secrets in the tree). For a
@@ -61,7 +61,7 @@ version. Valid YAML, compliant with the plan, and wrong. Drift detection is blin
    instead of the full fan-out) or `triage` (re-surface `acknowledged` findings for a fresh decision — see
    Step 5). No token → full fan-out across all seven lenses (the default).
 2. **Read `.ai/ship-plan.md`.** STOP if missing: *"No ship plan at `.ai/ship-plan.md`. There is nothing to
-   audit yet — run `/wf ship-plan init` first."* Parse every block A–K (and any `additional-contracts[]`) into
+   audit yet — run `/wf project ship-plan init` first."* Parse every block A–K (and any `additional-contracts[]`) into
    memory. Note `plan-version` and `updated-at`.
 3. **Read the existing ledger** `.ai/ship-plan-audit.md` if it exists. Parse `runs[]` and `findings[]` — this
    run will merge into it, not overwrite it (Step 4). If absent, this is run 1.
@@ -144,7 +144,7 @@ against the parsed prior `findings[]`:
   resolve it, noting the target vanished. Never silently delete a finding — resolution is recorded, so the
   ledger tells the story of what got fixed.
 - **Acknowledged** findings (Step 5) stay `acknowledged` until they either disappear (→ resolved) or the user
-  re-triages them (`/wf ship-plan audit triage`).
+  re-triages them (`/wf project ship-plan audit triage`).
 - **Accepted** findings (`triage: accept`) keep that field while the id is still present. Step 5 re-asks only
   for ids that have no decision yet.
 
@@ -239,9 +239,9 @@ re-write the ledger and emit the summary.
 
 | Finding is about… | Route to |
 |---|---|
-| The **plan's content** — a block is wrong, missing, self-contradictory, or a field is incoherent | `/wf ship-plan edit <block>` (name the block letter) |
-| A **pipeline gap the plan implies but the repo lacks** — a missing job/step/permission/concurrency that `build` would add mechanically | `/wf ship-plan build` |
-| A pipeline defect whose **root cause is the plan** (so `build` would faithfully build the wrong thing) | `/wf ship-plan edit <block>` **first**, then `/wf ship-plan build` |
+| The **plan's content** — a block is wrong, missing, self-contradictory, or a field is incoherent | `/wf project ship-plan edit <block>` (name the block letter) |
+| A **pipeline gap the plan implies but the repo lacks** — a missing job/step/permission/concurrency that `build` would add mechanically | `/wf project ship-plan build` |
+| A pipeline defect whose **root cause is the plan** (so `build` would faithfully build the wrong thing) | `/wf project ship-plan edit <block>` **first**, then `/wf project ship-plan build` |
 | A **release-relevant codebase** issue — version desync, packaged-contents leak, committed secret, tested≠shipped | `/wf intake fix <scope>` (or direct guidance for a one-line fix) |
 | **Deep code-correctness/security** beyond the release surface | `/wf review sweep pre-merge` (pointer — `audit` does not own it) |
 
@@ -258,5 +258,5 @@ that most threatens a release), then this receipt:
 - `verdict: <sound | ship-with-caveats | unsound>`
 - `findings (open): BLOCKER <n> | HIGH <n> | MED <n> | LOW <n> | NIT <n>`
 - `resolved-this-run: <n>` · `acknowledged: <n>`
-- `Next:` the single highest-leverage route from Step 6 (e.g. `/wf ship-plan edit E` to fix the rollback block,
-  then `/wf ship-plan build`), or `Done` if the verdict is `sound` and nothing is open.
+- `Next:` the single highest-leverage route from Step 6 (e.g. `/wf project ship-plan edit E` to fix the rollback block,
+  then `/wf project ship-plan build`), or `Done` if the verdict is `sound` and nothing is open.

@@ -493,7 +493,7 @@ describe('register', () => {
     await $.session.start(SESSION)
     await run($, 'wf')
     await pickShown($, 'ship-plan')
-    expect(world.filled).toEqual(['/wf ship-plan '])
+    expect(world.filled).toEqual(['/wf project ship-plan '])
   })
 
   test('an optional-slug key offers "(no slug)" first', async ($, on) => {

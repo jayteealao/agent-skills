@@ -1,5 +1,5 @@
 ---
-description: Author the project-level `.ai/ship-plan.md` — a one-time, repo-scoped contract that captures the project's *entire* CI/CD + developer-experience pipeline. The outbound half is what "ship" means (publishing, version scheme, release CI/CD wiring, post-publish verification, rollout/rollback, recovery playbooks, announcements). The inbound half is the contributor experience (code-quality gates: commit-message + PR-title convention, format/lint/type-check/coverage; local developer experience: git hooks, editorconfig, runtime-version files, task runner; repo governance: branch protection, CODEOWNERS, PR/issue templates, dependency automation). Works by **discovery → hypothesis → confirm**: reads what's already in the repo (CI workflows, infra-as-code, package manifests, runbooks, linters, hook frameworks, governance files), proposes a pipeline-shape hypothesis, then lets the user confirm or correct each contract. Optional `--from-template <kind>` biases the hypothesis toward a known shape; the template is a *seed*, not a control-flow branch. Read by every subsequent `/wf ship <slug>` invocation and built by `/wf ship-plan build`.
+description: Author the project-level `.ai/ship-plan.md` — a one-time, repo-scoped contract that captures the project's *entire* CI/CD + developer-experience pipeline. The outbound half is what "ship" means (publishing, version scheme, release CI/CD wiring, post-publish verification, rollout/rollback, recovery playbooks, announcements). The inbound half is the contributor experience (code-quality gates: commit-message + PR-title convention, format/lint/type-check/coverage; local developer experience: git hooks, editorconfig, runtime-version files, task runner; repo governance: branch protection, CODEOWNERS, PR/issue templates, dependency automation). Works by **discovery → hypothesis → confirm**: reads what's already in the repo (CI workflows, infra-as-code, package manifests, runbooks, linters, hook frameworks, governance files), proposes a pipeline-shape hypothesis, then lets the user confirm or correct each contract. Optional `--from-template <kind>` biases the hypothesis toward a known shape; the template is a *seed*, not a control-flow branch. Read by every subsequent `/wf ship <slug>` invocation and built by `/wf project ship-plan build`.
 argument-hint: "[--from-template <kotlin-maven-central|npm-public|pypi|container-image|server-deploy|library-internal>]"
 ---
 
@@ -7,11 +7,11 @@ argument-hint: "[--from-template <kotlin-maven-central|npm-public|pypi|container
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-You are running `wf ship-plan init`, a **one-time project-level setup utility**. The plan you author here is consumed by every `/wf ship <slug>` invocation thereafter.
+You are running `wf project ship-plan init`, a **one-time project-level setup utility**. The plan you author here is consumed by every `/wf ship <slug>` invocation thereafter.
 
 # Design intent
 
-The plan is a *contract* between this project and the pipeline commands (`/wf ship` reads the outbound half; `/wf ship-plan build` builds both halves). Authoring it well means **understanding how this specific repo actually ships *and* how a contributor actually works in it** — not picking the nearest preset and filling blanks.
+The plan is a *contract* between this project and the pipeline commands (`/wf ship` reads the outbound half; `/wf project ship-plan build` builds both halves). Authoring it well means **understanding how this specific repo actually ships *and* how a contributor actually works in it** — not picking the nearest preset and filling blanks.
 
 The contract has two halves. The **outbound** half (Blocks A–G) is the release: what ship means, versioning, release CI/CD, post-publish, rollout/rollback, recovery, announce. The **inbound** half (Blocks H–K) is the developer experience hit on every commit and PR: code-quality gates, local git hooks + dev-setup, repo governance, and security/supply-chain gates. Both are authored here so the pipeline is built whole.
 
@@ -33,13 +33,13 @@ A single file: **`.ai/ship-plan.md`** at the **repo root** (not under `.ai/workf
 - It does not author `09-ship-run-*.md` files (those are written per-release by `/wf ship`).
 - It does not duplicate work already in `08-handoff.md` (handoff is per-PR readiness; this plan is per-release).
 - It does not run any of the commands it discovers (no `gradle publish --dry-run`, no `terraform plan`, etc.). Discovery is read-only.
-- It does not **apply** anything to the repo or remote. Authoring the contract is all this command does; generating workflows/config and applying remote settings (branch protection, environment protection, merge settings) is `/wf ship-plan build`'s job, behind its own confirm gates.
+- It does not **apply** anything to the repo or remote. Authoring the contract is all this command does; generating workflows/config and applying remote settings (branch protection, environment protection, merge settings) is `/wf project ship-plan build`'s job, behind its own confirm gates.
 
 # Role
 
 You are a **plan author**, not a problem solver; respect the stated order only where a step consumes an earlier step's output or crosses a gate.
 - Do not make code changes, run builds, or modify CI files.
-- Do not overwrite an existing `.ai/ship-plan.md`. If one exists, STOP and tell the user: *"Plan exists at `.ai/ship-plan.md`. Use `/wf ship-plan edit` to edit one block."*
+- Do not overwrite an existing `.ai/ship-plan.md`. If one exists, STOP and tell the user: *"Plan exists at `.ai/ship-plan.md`. Use `/wf project ship-plan edit` to edit one block."*
 - Do not skip discovery (Step 1) even when `--from-template` is passed. The template biases the hypothesis; discovery decides whether the hypothesis is actually right for this repo.
 
 ---
@@ -188,15 +188,15 @@ Return per [_chat-return.md](../_chat-return.md) — narrative lead (what this r
 - `announcement-template-created: <true | false | skipped>` (from Block G follow-up)
 - `inbound-coverage:` one line summarizing Blocks H–K — e.g. `gates: lint+type-check+coverage(80%); commit-convention: conventional (local+ci); hooks: husky; branch-protection: gh-api (1 approval, code-owner req); merge: squash+auto; security: codeql+npm-audit(high)+gitleaks; deps: renovate; topology: monorepo(pnpm,4)`
 - `next-steps:`
-  - `/wf ship-plan build` — audit and implement the **entire** pipeline from this plan: release + pre-merge workflows, code-quality + commit/PR-title CI, local git hooks, dev-experience files, and repo governance (CODEOWNERS, templates, dependency automation, and branch protection via `gh api` when `apply-via: gh-api`). Creates missing files, patches non-compliant ones.
+  - `/wf project ship-plan build` — audit and implement the **entire** pipeline from this plan: release + pre-merge workflows, code-quality + commit/PR-title CI, local git hooks, dev-experience files, and repo governance (CODEOWNERS, templates, dependency automation, and branch protection via `gh api` when `apply-via: gh-api`). Creates missing files, patches non-compliant ones.
   - `/wf ship <slug>` — run a release using this plan (requires the pipeline to be in place)
-  - `/wf ship-plan edit` — edit any block
+  - `/wf project ship-plan edit` — edit any block
 
 ---
 
 # Notes on amendment vs. init
 
 - **init**: this command. One-time. Errors if a plan exists. Always runs discovery first.
-- **edit**: `/wf ship-plan edit` — opens the existing plan, lets the user pick which block to edit (A–K, or an additional-contract `id`), runs the relevant questions for that block only, bumps `plan-version`. Used when CI/CD changes, secrets rotate, post-publish checks evolve, recovery playbooks are added, code-quality/security gates or governance rules change, or a new additional-contract is introduced.
+- **edit**: `/wf project ship-plan edit` — opens the existing plan, lets the user pick which block to edit (A–K, or an additional-contract `id`), runs the relevant questions for that block only, bumps `plan-version`. Used when CI/CD changes, secrets rotate, post-publish checks evolve, recovery playbooks are added, code-quality/security gates or governance rules change, or a new additional-contract is introduced.
 
 The plan is intentionally project-scoped — every workflow on the same repo ships through the same pipeline, so the plan only needs to be authored once per project. Run history accumulates per workflow under `.ai/workflows/<slug>/09-ship-run-*.md`.

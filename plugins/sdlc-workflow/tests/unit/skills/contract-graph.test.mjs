@@ -47,7 +47,7 @@ const REF_DIR = path.join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 export const PRODUCERS = [
   // The index template, the other intake modes' index templates, and the optional
   // handoff config keys (`public-surface`, `review-bots`, `pre-push-checks`, ...).
-  { match: /^00-index\.md$/, templates: ['intake/default/_artifact.md', '_handoff-config.md', 'intake/rca.md', 'intake/adopt.md', 'intake/brainstorm.md', 'intake/ideate.md', 'intake/investigate.md', 'intake/discover.md', 'intake/_change-mode-tail.md', 'simplify/_artifact.md'] },
+  { match: /^00-index\.md$/, templates: ['intake/default/_artifact.md', '_handoff-config.md', 'intake/rca.md', 'intake/adopt.md', 'intake/brainstorm.md', 'intake/ideate.md', 'intake/investigate.md', 'intake/discover.md', 'intake/_change-mode-tail.md', 'intake/simplify/_artifact.md'] },
   { match: /^po-answers\.md$/, templates: ['intake/default/_artifact.md'] },
   // Intake mode leads (01-<mode>.md).
   { match: /^01-intake\.md$/, templates: ['intake/default/_artifact.md'] },
@@ -63,11 +63,11 @@ export const PRODUCERS = [
   { match: /^01-discover\.md$/, templates: ['intake/discover.md', 'intake/discover/_research.md'] },
   { match: /^01-ideate\.md$/, templates: ['intake/ideate/_artifact.md'] },
   { match: /^01-investigate\.md$/, templates: ['intake/investigate.md', 'intake/investigate/_artifact.md'] },
-  { match: /^01-task\.md$/, templates: ['task.md'] },
-  { match: /^01-simplify\.md$/, templates: ['simplify/_artifact.md'] },
+  { match: /^01-task\.md$/, templates: ['intake/task.md'] },
+  { match: /^01-simplify\.md$/, templates: ['intake/simplify/_artifact.md'] },
   { match: /^01-prototype\.md$|^prototype-ledger\.json$/, templates: ['prototype.md'] },
   // A `01-*` / `01-<mode>` citation means "the lead of whichever intake mode ran": every lead template.
-  { match: /^01-\*\.md$/, templates: ['intake/default/_artifact.md', 'intake/rca/_artifact.md', 'intake/rca.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/_change-mode-tail.md', 'intake/adopt/_artifacts.md', 'task.md'] },
+  { match: /^01-\*\.md$/, templates: ['intake/default/_artifact.md', 'intake/rca/_artifact.md', 'intake/rca.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/_change-mode-tail.md', 'intake/adopt/_artifacts.md', 'intake/task.md'] },
   // Shape: the standard template, then each producer that synthesizes a shape.
   { match: /^02-shape\.md$/, templates: ['shape.md', 'intake/rca/_artifact.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/_change-mode-tail.md', 'intake/adopt/_artifacts.md'] },
   { match: /^02b-design\.md$/, templates: ['design/shape.md'] },
@@ -75,15 +75,15 @@ export const PRODUCERS = [
   // Slices: the master index and the per-slice files (standard, extension, probe, simplify).
   { match: /^03-slice\.md$/, templates: ['slice.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/adopt/_artifacts.md', 'intake/extend/_artifacts.md'] },
   { match: /^03-slice-probe-.*\.md$/, templates: ['probe/_artifact.md'] },
-  { match: /^03-slice-simplify-.*\.md$/, templates: ['simplify/_artifact.md'] },
+  { match: /^03-slice-simplify-.*\.md$/, templates: ['intake/simplify/_artifact.md'] },
   { match: /^03-slice-.+\.md$/, templates: ['slice.md', 'intake/extend/_artifacts.md', 'probe/_artifact.md'] },
   // Plans, implement and verify records (master and per slice; update-deps self-authors 05/06).
   { match: /^04-plan(-.+)?\.md$/, templates: ['plan.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/adopt/_artifacts.md'] },
   { match: /^04b-instrument\.md$/, templates: ['augment/instrument/_artifact.md'] },
   { match: /^04c-experiment\.md$/, templates: ['augment/experiment/_artifact.md'] },
-  { match: /^05-implement(-.+)?\.md$/, templates: ['implement/_artifact.md', 'intake/update-deps/_exec-artifacts.md', 'intake/adopt/_artifacts.md', 'task.md'] },
+  { match: /^05-implement(-.+)?\.md$/, templates: ['implement/_artifact.md', 'intake/update-deps/_exec-artifacts.md', 'intake/adopt/_artifacts.md', 'intake/task.md'] },
   { match: /^05c-benchmark\.md$/, templates: ['augment/benchmark/_artifact.md'] },
-  { match: /^06-verify(-.+)?\.md$/, templates: ['verify/_artifact.md', 'intake/update-deps/_exec-artifacts.md', 'task.md'] },
+  { match: /^06-verify(-.+)?\.md$/, templates: ['verify/_artifact.md', 'intake/update-deps/_exec-artifacts.md', 'intake/task.md'] },
   // Reviews: the sweep ledger (slug-wide or per slice) and the design reviews.
   { match: /^07-design-audit\.md$/, templates: ['design/audit.md'] },
   { match: /^07-design-critique\.md$/, templates: ['design/critique.md'] },
@@ -95,8 +95,8 @@ export const PRODUCERS = [
   { match: /^09-ship-runs\.md$/, templates: ['ship/_run-artifact.md'] },
   { match: /^10-retro\.md$/, templates: ['retro/_artifact.md'] },
   { match: /^90-recap\.md$/, templates: ['recap.md'] },
-  { match: /^99-close\.md$/, templates: ['close.md'] },
-  { match: /^skip-slice-.+\.md$/, templates: ['close.md'] },
+  { match: /^99-close\.md$/, templates: ['intake/close.md'] },
+  { match: /^skip-slice-.+\.md$/, templates: ['intake/close.md'] },
   // Project-level files.
   { match: /^\/\.ai\/ship-plan\.md$/, templates: ['ship-plan/init/_artifact.md'] },
   { match: /^\/\.ai\/observability\.md$/, templates: ['observability/init/_artifact.md', 'observability/build/_artifact.md'] },

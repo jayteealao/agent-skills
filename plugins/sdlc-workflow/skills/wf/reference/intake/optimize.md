@@ -1,22 +1,22 @@
 ---
-description: Optimize intake. Roots an optimize slug on a full type:index overview (01-optimize → 02-optimize-spec → [the person confirms the spec]). The spec names one metric command, its direction, a guard that must pass after every change, the paths a trial may change, the budget and the branch rounds. The person confirms the spec before the first trial; then /wf optimize runs the loop, and the kept trials become one slice for verify and review.
+description: Optimize intake. Roots an optimize slug on a full type:index overview (01-optimize → 02-optimize-spec → [the person confirms the spec]). The spec names one metric command, its direction, a guard that must pass after every change, the paths a trial may change, the budget and the branch rounds. The person confirms the spec before the first trial; then /wf loop optimize runs the loop, and the kept trials become one slice for verify and review.
 argument-hint: <description> | <optimize-slug>
 ---
 
 # Output boundary & shared context
 Apply `intake/_intake-context.md`: the External Output Boundary and the workflow-registry and slug rules. Do not restate them here.
 
-You are running `/wf intake optimize`. An optimize slug changes code toward one number. Its lifecycle replaces shape and plan with a metric spec, and the loop of `/wf optimize` writes the slice and the implement artifacts.
+You are running `/wf intake optimize`. An optimize slug changes code toward one number. Its lifecycle replaces shape and plan with a metric spec, and the loop of `/wf loop optimize` writes the slice and the implement artifacts.
 
 # Pipeline
-`01-optimize` (intake) → `02-optimize-spec` → **[the person confirms the spec]** → `/wf optimize` (the loop → `03-slice`, `05-implement-optimize`) → `/wf verify <slug> optimize` → `/wf review` → `/wf handoff` → `/wf ship` → `/wf retro`
+`01-optimize` (intake) → `02-optimize-spec` → **[the person confirms the spec]** → `/wf loop optimize` (the loop → `03-slice`, `05-implement-optimize`) → `/wf verify <slug> optimize` → `/wf review` → `/wf handoff` → `/wf ship` → `/wf retro`
 
 | | Detail |
 |---|---|
 | Requires | See [## Requires](#requires). |
 | Produces (this command) | `01-optimize.md` (`type: intake`, the brief), `02-optimize-spec.md` (`type: optimize-spec`), a conformant `00-index.md` (`type: index`, `workflow-type: optimize`), and the registry row. |
 | Gate | The person confirms the spec. The choice of metric is the largest risk of the loop. |
-| Next | `/wf optimize <slug>`. |
+| Next | `/wf loop optimize <slug>`. |
 
 Optimize is standalone only. It roots its own slug, so it never attaches to an existing slug as a compressed slice.
 
@@ -74,7 +74,7 @@ refs:
   index: 00-index.md
   next: 02-optimize-spec.md
 next-command: wf-optimize
-next-invocation: "/wf optimize <slug>"
+next-invocation: "/wf loop optimize <slug>"
 ---
 ```
 
@@ -151,7 +151,7 @@ refs:
   index: 00-index.md
   intake: 01-optimize.md
 next-command: wf-optimize
-next-invocation: "/wf optimize <slug>"
+next-invocation: "/wf loop optimize <slug>"
 ---
 ```
 
@@ -167,10 +167,10 @@ Write `00-index.md` from the index template of `_change-mode-tail.md`, with thes
 - `workflow-files`: `00-index.md`, `01-optimize.md`, `02-optimize-spec.md`.
 - `progress`: `intake: complete`, `shape: skipped`, `design: skipped`, `slice: not-started`, `plan: skipped`, and every later stage `not-started`.
 - `design-skip-reason: "an optimize loop changes code toward a metric; it draws no surface"`.
-- `next-command: wf-optimize` and `next-invocation: "/wf optimize <slug>"`.
+- `next-command: wf-optimize` and `next-invocation: "/wf loop optimize <slug>"`.
 
 Then register the slug in `.ai/workflows/INDEX.md` per `intake/default.md` Step 10.
 
 # Step 5 — Hand off
 
-End with the dispatcher's summary block. The narrative says the metric and its baseline run, the guard, the allowed paths, the budget and the branch rounds, and that the person confirmed the spec. `Next: /wf optimize <slug>`.
+End with the dispatcher's summary block. The narrative says the metric and its baseline run, the guard, the allowed paths, the budget and the branch rounds, and that the person confirmed the spec. `Next: /wf loop optimize <slug>`.

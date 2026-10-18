@@ -26,7 +26,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | `<package-name>` | Focus on a single named package. |
 | `<existing-run-slug>` | **Resume** — a bare token that exactly matches an existing `workflow-type: update-deps` slug (e.g. `update-deps-20260619`) resumes that run from its first unwritten artifact. Any other bare token is a package name. |
 | `--security-only` | Prioritize and update only CVE-affected packages. |
-| `--audit-only` | Run scan + research + plan only — STOP at the gate after `04-plan`, do not implement. The lawful terminus is `/wf close <slug> deferred` (see Step 6). |
+| `--audit-only` | Run scan + research + plan only — STOP at the gate after `04-plan`, do not implement. The lawful terminus is `/wf intake <slug> close deferred` (see Step 6). |
 | Exception | update-deps is the one change-mode that **self-authors `05`/`06`** (tier-ordered exec is specialized). `/wf implement` and `/wf verify` redirect it back here; only `/wf review` accepts it. |
 
 ## Requires
@@ -201,8 +201,8 @@ options:
 ```
 **Record the gate decision in `01-update-deps.md` on every branch** (full plan / P0-only / audit-only / adjusted), per the tail. **If `mode: audit-only`** (or the user picks Audit-only) → the run ends lawfully, not in a deadlock:
 1. Push every Hold-tier entry onto the index's `open-questions` as `"revisit <package>: <condition>"` — the research survives as machine-readable revisit triggers.
-2. Self-report to `00-index.md`: `updated-at`, `mode: audit-only`, `next-command: wf-close`, `next-invocation: "/wf close <slug> deferred"`. Touch the registry row's `updated-at`.
-3. STOP, printing: *"Audit saved. Close the run with `/wf close <slug> deferred` — the plan stays revivable; a future run seeds from its Hold list via provenance."* Do not point at `/wf review` (it refuses without `05-implement.md`) and do NOT leave `next-command` pointing at implementation that will never run.
+2. Self-report to `00-index.md`: `updated-at`, `mode: audit-only`, `next-command: wf-close`, `next-invocation: "/wf intake <slug> close deferred"`. Touch the registry row's `updated-at`.
+3. STOP, printing: *"Audit saved. Close the run with `/wf intake <slug> close deferred` — the plan stays revivable; a future run seeds from its Hold list via provenance."* Do not point at `/wf review` (it refuses without `05-implement.md`) and do NOT leave `next-command` pointing at implementation that will never run.
 
 # Step 7 — Self-author `05-implement.md` (tier-ordered execution)
 Execute the plan in tier order. **Never mix tiers in a single commit.**

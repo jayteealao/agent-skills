@@ -264,7 +264,7 @@ function discoverProjectArtifacts({ projectRoot }) {
     { rel: 'PRODUCT.md', type: 'project-context', title: 'Product context', siblingRoot: projectRoot },
     { rel: 'DESIGN.md', type: 'project-context', title: 'Design context', siblingRoot: projectRoot },
     { rel: '.ai/ship-plan.md', type: 'ship-plan', title: 'Ship plan', siblingRoot: projectRoot },
-    // Project-root observability artifacts (/wf observability init|build) — same
+    // Project-root observability artifacts (/wf project observability init|build) — same
     // family as ship-plan. Absent from discovery v9.132.0–v9.150.0, so they were
     // written but never rendered; the e2e's missing-renderer signal surfaced it.
     { rel: '.ai/observability.md', type: 'observability-plan', title: 'Observability plan', siblingRoot: projectRoot },

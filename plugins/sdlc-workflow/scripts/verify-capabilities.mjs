@@ -92,7 +92,9 @@ export function compareInventories(baseline, current, { moved = [], retired = []
       for (const entry of cats[category] ?? []) {
         if (has(file, category, entry)) continue;
         if (category === 'rubric-checks' && filesInGroup(file).some((f) => has(f, category, entry))) continue;
-        if (movedTargets(file, category, entry).some((to) => has(to, category, entry))) continue;
+        // A moved sentence survives at its destination, in its words or in the reworded words
+        // recorded for that destination (the prose gate reads reworded.json the same way).
+        if (movedTargets(file, category, entry).some((to) => has(to, category, entry) || rewordedTo(to, category, entry).some((w) => has(to, category, w)))) continue;
         if (rewordedTo(file, category, entry).some((to) => has(file, category, to))) continue;
         if (isRetired(file, category, entry)) continue;
         missing.push({ file, category, entry });

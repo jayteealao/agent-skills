@@ -1,5 +1,5 @@
 ---
-description: The single review surface — workflow stage AND ad-hoc, resolved by the first token (like `/wf simplify`). `/wf review <slug>` runs the lifecycle review STAGE (stage 7 of 10) — reads workflow artifacts + diff, dispatches one sub-agent per selected dimension, and maintains an ACCUMULATING LEDGER (re-runs dedupe + merge in place, mark cleared findings resolved, never overwrite). `/wf review <dimension>` runs one rubric inline and `/wf review sweep <aggregate>` fans out one reviewer per dimension — the AD-HOC path (no slug). Re-run the stage with "triage" to revisit deferred findings.
+description: The single review surface — workflow stage AND ad-hoc, resolved by the first token (like `/wf intake simplify`). `/wf review <slug>` runs the lifecycle review STAGE (stage 7 of 10) — reads workflow artifacts + diff, dispatches one sub-agent per selected dimension, and maintains an ACCUMULATING LEDGER (re-runs dedupe + merge in place, mark cleared findings resolved, never overwrite). `/wf review <dimension>` runs one rubric inline and `/wf review sweep <aggregate>` fans out one reviewer per dimension — the AD-HOC path (no slug). Re-run the stage with "triage" to revisit deferred findings.
 argument-hint: "<slug> [slice | triage] | <dimension> | sweep <aggregate>"
 ---
 
@@ -69,7 +69,7 @@ Stage mode only: ad-hoc review writes no stage artifact. In slug-wide mode, rows
 # Step 00 — Resolve scope: workflow stage vs ad-hoc (mandatory, before everything)
 
 `/wf review` is the single review surface — it spans the **workflow stage** (a slug) and **ad-hoc**
-review (a dimension or a sweep, no slug), the way `/wf simplify` unifies its scopes. Resolve the first token BEFORE any stage logic:
+review (a dimension or a sweep, no slug), the way `/wf intake simplify` unifies its scopes. Resolve the first token BEFORE any stage logic:
 
 1. **Exact slug match** — `.ai/workflows/<token>/00-index.md` exists → **stage mode**. Read
    `review/_stage.md` in full and follow it exactly. The optional second token is `<slice>` or `triage`.

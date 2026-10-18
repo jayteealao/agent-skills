@@ -180,7 +180,7 @@ export function isProjectContextMarkdownPath(filePath) {
     /(?:^|\/)\.ai\/ship-plan\.md$/.test(normalized) ||
     // Project-root observability artifacts: .ai/observability.md (type:
     // observability-plan) and .ai/observability-build.md (type:
-    // observability-build), authored/realized by /wf observability. The optional
+    // observability-build), authored/realized by /wf project observability. The optional
     // -build keeps .ai/observability-audit.md OUT — that ledger is kind-keyed
     // (kind: observability-audit, no sdlc/v1 type) and must not be schema-gated.
     // Added in v9.132.0 (OBSERVABILITY-ROUTER-PLAN).

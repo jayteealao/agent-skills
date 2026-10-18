@@ -55,7 +55,7 @@ Every workflow artifact carries `schema: sdlc/v1` in its YAML frontmatter. Both 
 Continuity across sessions — on either host — comes from reading artifacts directly:
 
 - `/wf status [slug]` reads `00-index.md` and stage artifacts to report current state, and derives the next stage from `current-stage` as its quick-action.
-- `/wf recap [slug]` reads the workflow tree, retells where the work stands, and recommends the next action.
+- `/wf status recap [slug]` reads the workflow tree, retells where the work stands, and recommends the next action.
 
 The `next-command`, `next-invocation`, and `recommended-next-*` fields written into `00-index.md` by stage executors are written in the neutral `/wf …` spelling (for example `next-invocation: /wf implement <slug> <slice>`); each host substitutes its own sigil per `skills/wf/reference/_host-invocation.md`.
 
@@ -63,7 +63,7 @@ Producer provenance (which host wrote an artifact) is diagnostic-only. Either ho
 
 ## Workflow lease
 
-Mutating commands (any stage that writes to `.ai/workflows/<slug>/`) acquire the workflow lease at `.ai/workflows/<slug>/.locks/workflow.json` before writing and release it after. Read-only commands (`/wf status`, `/wf recap`, and so on) take no lease.
+Mutating commands (any stage that writes to `.ai/workflows/<slug>/`) acquire the workflow lease at `.ai/workflows/<slug>/.locks/workflow.json` before writing and release it after. Read-only commands (`/wf status`, `/wf status recap`, and so on) take no lease.
 
 The `.locks/` directory is ignored by the render pipeline and must not be committed to git. It coordinates concurrent access within a single machine — for cross-machine coordination, rely on branch-per-workflow convention and git merge discipline.
 

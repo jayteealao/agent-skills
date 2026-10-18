@@ -15,7 +15,7 @@ You are running `/wf status`, the **dashboard, detail view, and router** for all
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
 
-`status` does NOT advance any workflow. It reads state, renders it, tells you the exact next command, and keeps the global registry honest. Its **only** write is the low-risk, idempotent reconcile of `.ai/workflows/INDEX.md` in Step -1 (and, in `deep` mode, a `00-sync.md` drift report). It never touches a stage artifact or application code.
+`status` does NOT advance any workflow. It reads state, renders it, tells you the exact next command, and keeps the global registry honest (its writes are listed under Role).
 
 ## Requires
 
@@ -45,7 +45,7 @@ You are a **dashboard + router + registry keeper**, not a problem solver.
 
 This step runs **unconditionally on every invocation, before Step 0**, even with a slug argument. The repair is idempotent: running it twice produces an identical file.
 
-**One-time advisory — artifact-tracking policy unset.** While reconciling, if `.ai/sdlc-config.json` has no `artifactTracking` key AND at least one workflow exists, append one advisory line to the status report (never a gate, never a prompt): "artifact-tracking policy unset — `.ai/` tracked-vs-ignored is currently decided ad hoc at ship time; record it via `/wf ship-plan edit` (or init Step 3.5) to give ship's clean-tree gate a policy to read." Print it at most once per invocation; a repo that has recorded the key never sees it again.
+**One-time advisory — artifact-tracking policy unset.** While reconciling, if `.ai/sdlc-config.json` has no `artifactTracking` key AND at least one workflow exists, append one advisory line to the status report (never a gate, never a prompt): "artifact-tracking policy unset — `.ai/` tracked-vs-ignored is currently decided ad hoc at ship time; record it via `/wf project ship-plan edit` (or init Step 3.5) to give ship's clean-tree gate a policy to read." Print it at most once per invocation; a repo that has recorded the key never sees it again.
 
 **One-time advisory — design record ignored.** While reconciling, when at least one workflow has a `design/` folder, run `node "<skill-dir>/scripts/design-boards.mjs" track "<projectRoot>"` (read-only without `--write`). When the result has `change: true`, append one advisory line (never a gate, never a prompt): "git ignores the design record — `design-boards.mjs track` shows the `.gitignore` lines that keep `.ai/design/` and `.ai/workflows/*/design/r*/` tracked; add `--write` after the person approves." Print it at most once per invocation.
 
@@ -72,6 +72,7 @@ Column semantics (all pulled from each workflow's `00-index.md` YAML frontmatter
 3. If `.ai/workflows/INDEX.md` does **not** exist → **bootstrap**: write it fresh (header + one sorted row per discovered workflow). Note in the chat return: *"Bootstrapped `.ai/workflows/INDEX.md` with N workflows — positional slug detection is now enabled."*
 4. If it **does** exist → **refresh**: rewrite with the current sorted set. Report a one-line diff: *"Reconciled INDEX.md: A added, R removed (stale dirs), U status/branch updates."* If nothing changed, say nothing about the registry (it was already in sync).
 5. If a previous row references a slug whose `.ai/workflows/<slug>/00-index.md` is missing on disk → omit it from the rewritten file and flag *"Removed stale row: `<slug>` (directory missing)."* Keep a `prototype` row whose `branch` has a worktree in `git worktree list`; read that worktree's `00-index.md`.
+6. A reserved slug name (`intake/_intake-context.md`) → flag *"Slug `<slug>` is a `/wf` command word, so `<the form>` does not reach it."* (A slug `recap` blocks `/wf status recap`.) Rename nothing.
 
 The render below runs after this step, against the reconciled set.
 
@@ -138,7 +139,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 
 **Staleness:** if `updated-at` is >7 days ago, append `(stale)` to the status (epoch seconds per [_timestamp.md](_timestamp.md) vs parsed `updated-at`).
 
-**Render the dashboard** from the dashboard render in [status/_renders.md](status/_renders.md): the Active / Blocked / Completed tables (the Runtime column appears in every table because the deferral mechanism is orthogonal to lifecycle stage), then the `## Quick Actions` section (continue most recent, `/wf auto <slug>`, `/wf status <slug>`, `/wf recap <slug>`), then a `## Branch Summary` table when any workflow has `branch-strategy: dedicated`, then the `## Cost` table.
+**Render the dashboard** from the dashboard render in [status/_renders.md](status/_renders.md): the Active / Blocked / Completed tables (the Runtime column appears in every table because the deferral mechanism is orthogonal to lifecycle stage), then the `## Quick Actions` section (continue most recent, `/wf auto <slug>`, `/wf status <slug>`, `/wf status recap <slug>`), then a `## Branch Summary` table when any workflow has `branch-strategy: dedicated`, then the `## Cost` table.
 
 **Cost (exact tokens).** For each slug, read `.ai/workflows/<slug>/cost.jsonl` when it exists. Sum the rows: `main` and every `subagents[]` entry into input / output / cache read / cache write; `external[]` entries into a separate in / out pair. Copy every integer as written; never estimate or price. Omit a slug that has no ledger. Omit the table when no slug has one.
 
@@ -167,7 +168,7 @@ Load [status/_deep.md](status/_deep.md) and run its seven steps: inventory refer
 
 # Advise Mode (`/wf status advise [branch|pr#N | fast]`) — cross-slug sequencing
 
-Advise answers the question the dashboard **cannot**: given every open workflow, *what should I do next, in what order, and what should I stop doing.* It is the portfolio-level counterpart to `/wf status <slug>`'s `## Next` — that routes one slug; advise routes the whole set. It is **read-only and route-don't-act**: it recommends commands (including `/wf close`), never runs them, and never advances a workflow. Its **only** write is the Step -1 registry reconcile shared by every mode — advise writes no artifact of its own; advice is about *now*, and re-running is cheap.
+Advise answers the question the dashboard **cannot**: given every open workflow, *what should I do next, in what order, and what should I stop doing.* It is the portfolio-level counterpart to `/wf status <slug>`'s `## Next` — that routes one slug; advise routes the whole set. It is **read-only and route-don't-act**: it recommends commands (including `/wf intake <slug> close`), never runs them, and never advances a workflow. Its **only** write is the Step -1 registry reconcile shared by every mode — advise writes no artifact of its own; advice is about *now*, and re-running is cheap.
 
 Load [status/_advise.md](status/_advise.md), run its steps A1–A5 in order, and render its Portfolio Advice block. Every row has a one-line rationale and a concrete next command.
 

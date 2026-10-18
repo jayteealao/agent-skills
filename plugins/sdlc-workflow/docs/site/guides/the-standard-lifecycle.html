@@ -229,7 +229,7 @@ to <code>/wf shape</code> to adjudicate the entry rather than package around it.
 carried risks are legal, but the PR body surfaces them so the human reviewer sees them. Handoff
 also pre-checks the project's ship plan (<code>.ai/ship-plan.md</code>), the release contract.
 If the ship plan is missing or drifted from the repo, the run stops and routes to
-<code>/wf ship-plan</code> before any PR is declared ship-ready.</p>
+<code>/wf project ship-plan</code> before any PR is declared ship-ready.</p>
 <p>Then handoff pushes the branch, opens the PR, and waits for CI to reach a terminal state; a
 pending snapshot is not an answer. It writes <code>08-handoff.md</code> with the result of the
 readiness check in frontmatter keys (<code>readiness-verdict</code>,

@@ -1547,7 +1547,9 @@ export function register(on: On, options: PluginOptions = {}) {
     parked = null
     bracket = resumed ?? { turnId: e.turnId, startedAt, command, costAtStart: await engine.costUsd(), writes: [], questions: 0, background: new Set(), readMark: readMarkOf() }
     if (command?.slug) setActive(engine, command.slug)
-    if (command !== null) await live.started(command.key, command.slug).catch(error => engine.log(messageOf(error)))
+    // `/wf intake brainstorm <slug>` resumes a board: the live view follows the board's slug.
+    const isBoard = command?.key === 'intake' && command.slug === 'brainstorm'
+    if (command !== null) await live.started(isBoard ? 'brainstorm' : command.key, isBoard ? command.slice : command.slug).catch(error => engine.log(messageOf(error)))
     return result
   })
 
@@ -1569,7 +1571,7 @@ export function register(on: On, options: PluginOptions = {}) {
     bracket = null
     if (!engine || turn === null) return result
     const command = turn.command
-    // WF-GOAL-PLAN W3: the turn of `/wf goal <slug>` left an arm request; hand the `/goal` line over.
+    // WF-GOAL-PLAN W3: the turn of `/wf loop goal <slug>` left an arm request; hand the `/goal` line over.
     if (command !== null && command.key === 'goal' && command.slug !== null && e.reason === 'answer' && model.root !== null) {
       await armGoal(engine, model.root, command.slug)
     }

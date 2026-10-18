@@ -28,22 +28,22 @@ Infer a `--from-template <kind>` suggestion from the ecosystem (npm→`npm-publi
   question: "No ship plan at .ai/ship-plan.md. Ship is plan-driven and cannot run without it. Author one now?"
   header: "Ship plan"
   options:
-    - { label: "Create it (Recommended)", description: "STOP here; run /wf ship-plan init --from-template <kind>, then re-run /wf ship." }
+    - { label: "Create it (Recommended)", description: "STOP here; run /wf project ship-plan init --from-template <kind>, then re-run /wf ship." }
     - { label: "Cancel",                  description: "Abort this ship run; leave everything unchanged." }
   multiSelect: false
   ```
-  Either way STOP — do not run the release. On "Create it", print the exact command `/wf ship-plan init --from-template <kind>` and set `ship-plan-readiness: missing`.
+  Either way STOP — do not run the release. On "Create it", print the exact command `/wf project ship-plan init --from-template <kind>` and set `ship-plan-readiness: missing`.
 - **Caller = `handoff`**: a repo may legitimately ship outside this workflow (CI/CD auto-deploy on merge, release owned elsewhere, `branch-strategy: none`). Offer the not-applicable path:
   ```yaml
   question: "No ship plan at .ai/ship-plan.md. /wf ship will require one. Author it now, or is shipping handled outside this workflow?"
   header: "Ship plan"
   options:
-    - { label: "Create it now (Recommended)", description: "STOP; run /wf ship-plan init --from-template <kind> before shipping, then re-run handoff." }
+    - { label: "Create it now (Recommended)", description: "STOP; run /wf project ship-plan init --from-template <kind> before shipping, then re-run handoff." }
     - { label: "Shipping is external",        description: "This work ships outside /wf ship (auto-deploy/owned elsewhere). Proceed; record ship-plan-readiness: not-applicable." }
     - { label: "Cancel",                      description: "Abort the handoff; leave everything unchanged." }
   multiSelect: false
   ```
-  - "Create it now" → STOP; print `/wf ship-plan init --from-template <kind>`; set `ship-plan-readiness: missing`. This fires before packaging, so do not emit a partial `08-handoff.md`; point the slug's `00-index.md` `recommended-next-*` at `/wf ship-plan init` and resume handoff after the plan exists.
+  - "Create it now" → STOP; print `/wf project ship-plan init --from-template <kind>`; set `ship-plan-readiness: missing`. This fires before packaging, so do not emit a partial `08-handoff.md`; point the slug's `00-index.md` `recommended-next-*` at `/wf project ship-plan init` and resume handoff after the plan exists.
   - "Shipping is external" → set `ship-plan-readiness: not-applicable`; note the reason in the handoff's `## Risks / Caveats`; return to the caller and continue.
   - "Cancel" → STOP.
 
@@ -57,7 +57,7 @@ Infer a `--from-template <kind>` suggestion from the ecosystem (npm→`npm-publi
 - `clears-on: merge`, or `clears-on: repo` where the repo has not moved, and still present — **do not gate.** The amendment could never have cleared these, and the user has already paid its cost. Write a ledger entry per finding with `via: amendment`, `fingerprint-scope: branch`, and `reason: "plan v<N> was amended for block(s) <blocks> in response to this finding; it cannot clear until <merge|the repo action>"`; report each as one advisory line and continue.
 - If nothing gating survives this partition, the verdict is `ok`: return to the caller with no prompt at all.
 
-This guard exists because its absence was reported from the field. A branch hit the gate with `release-surface-touched` + `plan-stale`, chose *Amend the plan*, ran `/wf ship-plan edit` on block C (correctly, and it improved the plan), bumped `plan-version` 4→5, which wiped the ledger, and re-ran handoff twelve minutes later into the identical question. `plan-stale` had genuinely cleared; `release-surface-touched` could not have, by construction. Guard 2 plus the scoped invalidation in R2.5 is what ends that loop.
+This guard exists because its absence was reported from the field. A branch hit the gate with `release-surface-touched` + `plan-stale`, chose *Amend the plan*, ran `/wf project ship-plan edit` on block C (correctly, and it improved the plan), bumped `plan-version` 4→5, which wiped the ledger, and re-ran handoff twelve minutes later into the identical question. `plan-stale` had genuinely cleared; `release-surface-touched` could not have, by construction. Guard 2 plus the scoped invalidation in R2.5 is what ends that loop.
 
 ## Drift gate — remedy menu
 
@@ -70,7 +70,7 @@ question: "The ship plan drifted from the repo (<N> gating finding(s)). Amend it
 header: "Plan drift"
 options:
   - { label: "Amend now and continue (Recommended)", description: "Amend block(s) <blocks> here, re-check drift, and carry on in THIS run — no restart." }
-  - { label: "Amend separately — stop here",         description: "STOP; run /wf ship-plan edit yourself, then re-run this stage." }
+  - { label: "Amend separately — stop here",         description: "STOP; run /wf project ship-plan edit yourself, then re-run this stage." }
   - { label: "Acknowledge and proceed",              description: "The drift is known/intentional. Record a reason and continue on the current plan." }
   - { label: "Cancel",                               description: "Abort; leave everything unchanged." }
 multiSelect: false
@@ -88,11 +88,11 @@ options:
 multiSelect: false
 ```
 
-Drop the middle option when no finding is `clears-on: repo`: a two-option gate is honest; a third option that matches no finding is noise. If the user still wants to amend the plan for its own sake, that is `/wf ship-plan edit` on their own terms, not this gate's remedy; say so in the acknowledgement's advisory line.
+Drop the middle option when no finding is `clears-on: repo`: a two-option gate is honest; a third option that matches no finding is noise. If the user still wants to amend the plan for its own sake, that is `/wf project ship-plan edit` on their own terms, not this gate's remedy; say so in the acknowledgement's advisory line.
 
 ## Drift gate — what each answer does
 
-- **Amend now and continue** → the user's answer *is* the authorization; a second invocation adds ceremony, not consent. Run `/wf ship-plan edit` as a **sub-step of this stage**, then re-verify. Five rules keep it honest:
+- **Amend now and continue** → the user's answer *is* the authorization; a second invocation adds ceremony, not consent. Run `/wf project ship-plan edit` as a **sub-step of this stage**, then re-verify. Five rules keep it honest:
   1. **Scoped.** The inline amendment may touch **only** the block letters named by the *amendable* findings' `suggested-block`. It is not an open editing session: a drift about a missing secret does not license rewriting the rollback contract.
   2. **The editor still owns authoring.** Load `edit.md` in this directory and follow it for the named blocks (it re-runs those blocks' questions pre-filled with current values, and bumps `plan-version`). The pre-check still never writes the plan itself; it *invokes* the sanctioned editor rather than only printing its name.
   3. **Re-check, don't assume.** After the edit, re-run Step R2 against the plan's new `updated-at`/`plan-version`. Only a re-run with no surviving **gating** finding continues the caller into its next step. The `plan-version` bump invalidates the *plan-scoped* half of the ledger by design (R2.5); branch-scoped entries survive, which is what keeps the re-check from re-raising what rule 4 just settled.
@@ -100,7 +100,7 @@ Drop the middle option when no finding is `clears-on: repo`: a two-option gate i
   5. **Still dirty → fall back to STOP.** If the re-check still reports a gating finding, or if the amendment needs judgment the repo cannot supply (an org's signing policy, a human approval chain), do not continue on an unverified amendment. Fall through to the STOP path below, carrying what the inline attempt learned.
 
   On a clean re-check: set `ship-plan-readiness: ok`, clear any `pending-amend`, record the amendment (blocks touched, old→new `plan-version`) in the caller's artifact, and return to the caller to continue.
-- **Amend separately — stop here** → STOP. Print `/wf ship-plan edit` and the block letters from the **amendable** findings' `suggested-block`. Say explicitly which findings the amendment will *not* clear and why (`clears-on: merge` / `repo`); a user who returns expecting a clean gate and meets the same question has been misled by the STOP message, not by the gate. Set `ship-plan-readiness: drift` and record `pending-amend: { signals, plan-version, at }` in `.ai/ship-plan-acks.yaml`, stamping the plan-version the amendment is expected to move; that is what lets Guard 2 tell "landed" from "not yet". For `handoff`, point the slug's `00-index.md` `recommended-next-*` at `/wf ship-plan edit` and resume after the amendment (no partial package); for `ship`, do not start the run. **Before stopping, preserve the orientation work** so the resumed run is cheap (Step R3.5, Preserving orientation across a STOP).
+- **Amend separately — stop here** → STOP. Print `/wf project ship-plan edit` and the block letters from the **amendable** findings' `suggested-block`. Say explicitly which findings the amendment will *not* clear and why (`clears-on: merge` / `repo`); a user who returns expecting a clean gate and meets the same question has been misled by the STOP message, not by the gate. Set `ship-plan-readiness: drift` and record `pending-amend: { signals, plan-version, at }` in `.ai/ship-plan-acks.yaml`, stamping the plan-version the amendment is expected to move; that is what lets Guard 2 tell "landed" from "not yet". For `handoff`, point the slug's `00-index.md` `recommended-next-*` at `/wf project ship-plan edit` and resume after the amendment (no partial package); for `ship`, do not start the run. **Before stopping, preserve the orientation work** so the resumed run is cheap (Step R3.5, Preserving orientation across a STOP).
 - **Acknowledge and proceed** → capture a freeform reason. Append it to `po-answers.md` with `stage: <handoff|ship>` and the finding signals, AND append a ledger entry to `.ai/ship-plan-acks.yaml` (`{ signals, fingerprint, fingerprint-scope, branch, plan-version, stage, at, via: ack, reason }` per finding, fingerprinted and scoped per Step R2.5; clear any `pending-amend` covering these signals). Set `ship-plan-readiness: acknowledged` and record the reason and finding signals in the artifact (handoff: `## Risks / Caveats`; ship: `## Pre-flight`). Return to the caller and continue. The acknowledgement persists via the ledger (a plan-scoped entry until the next `plan-version` bump, a branch-scoped one for the life of the branch) while new drift always still gates.
 - **Cancel** → STOP.
 

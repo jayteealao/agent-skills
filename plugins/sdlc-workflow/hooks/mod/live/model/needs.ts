@@ -149,7 +149,7 @@ export function splitNeedOf(brainstorm: string, key: string, size: number): Sdlc
     section: 'packets',
     tone: 'stop',
     actions: [
-      { key: 'split', label: 'Split it', kind: 'fill', prompt: `/wf brainstorm ${brainstorm} split ${key} ` },
+      { key: 'split', label: 'Split it', kind: 'fill', prompt: `/wf intake brainstorm ${brainstorm} split ${key} ` },
       { key: 'later', label: 'Later', kind: 'dismiss' },
     ],
   }

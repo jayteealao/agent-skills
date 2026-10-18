@@ -5,7 +5,7 @@ Load this file from `status.md` when Step 0 set advise-mode. It holds the cross-
 Advise answers the question the dashboard **cannot**: given every open workflow, *what should I do
 next, in what order, and what should I stop doing.* It is the portfolio-level counterpart to `/wf
 status <slug>`'s `## Next` — that routes one slug; advise routes the whole set. It is **read-only and
-route-don't-act**: it recommends commands (including `/wf close`), never runs them, and never advances
+route-don't-act**: it recommends commands (including `/wf intake <slug> close`), never runs them, and never advances
 a workflow. Its **only** write is the Step -1 registry reconcile shared by every mode — advise writes
 no artifact of its own (see the render note at the end for why it stays ephemeral).
 
@@ -107,7 +107,7 @@ for autonomous where the host offers it — [_host-invocation.md](../_host-invoc
 | <slug> | awaiting-input: "<question>" | <Nd> | answer it, then <next stage> |
 
 ### Decisions for you (advise won't make these silently)
-- <slug> — <Nd> stale at <stage>, nothing depends on it → `/wf close <slug>` or `/wf <stage> <slug>`
+- <slug> — <Nd> stale at <stage>, nothing depends on it → `/wf intake <slug> close` or `/wf <stage> <slug>`
 - <slugA> + <slugB> share branch <b> and module <m> → serialize; <slugA> first (<why>)
 
 ### Carried risk

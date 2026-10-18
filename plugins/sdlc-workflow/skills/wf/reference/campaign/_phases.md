@@ -11,7 +11,7 @@ This file belongs to [../campaign.md](../campaign.md). `<cmd>` stands for `node 
    - reads the version contract from `.ai/ship-plan.md` (`version-scheme`, `version-source-of-truth`, `version-bump-cmd`, `release-trigger`, `rollout-stages`);
    - writes `ledger.json`, `ledger.md`, and `forecast.md`. It plans no wave yet, and returns `next: deps`.
 2. When the result has `single: true`, the work set has one build packet. Stop, and give the person the packet's start command (`start`).
-3. When the result has `errors`, stop and show each error. The person fixes the work set in the brainstorm session (`/wf brainstorm <brainstorm-slug>`), not here.
+3. When the result has `errors`, stop and show each error. The person fixes the work set in the brainstorm session (`/wf intake brainstorm <brainstorm-slug>`), not here.
 4. Show the packets that need the person (`outside`), the forecast, and each tool gap. Then continue at Phase 0b.
 
 The forecast estimates the run time from the driver journals of earlier runs in this repo, and the tokens from their `cost.jsonl`. A slug with no history is "unknown". The forecast is an estimate, and `forecast.md` says so.
@@ -62,7 +62,7 @@ For `output`, take the recipe from the first source that has one:
 
 CAUTION: the release question is about permanent tags. A pushed tag cannot be re-used: a fixed release takes a new version. Say this when you ask.
 
-For each tool gap from Phase 0, ask the person to fix it. The campaign does not change the person's tools. A `gh-stack` gap turns stacked wave PRs off (`<cmd> stack disable`) until the person upgrades it. A `ship-plan` gap needs `/wf ship-plan init` with the person before wave 1 reaches handoff: handoff and ship stop without a plan. An `isolation` gap needs the isolation contract of "Width" before wave 1: `wave <n> launch` refuses with `isolation-required` without one.
+For each tool gap from Phase 0, ask the person to fix it. The campaign does not change the person's tools. A `gh-stack` gap turns stacked wave PRs off (`<cmd> stack disable`) until the person upgrades it. A `ship-plan` gap needs `/wf project ship-plan init` with the person before wave 1 reaches handoff: handoff and ship stop without a plan. An `isolation` gap needs the isolation contract of "Width" before wave 1: `wave <n> launch` refuses with `isolation-required` without one.
 
 **Width.** The wave driver runs every unit of a wave in its own worktree, so every campaign needs an isolation contract, `campaign.isolation` in `.ai/sdlc-config.json`. The driver never works in the main checkout. When the project has none, ask the person for one before wave 1, in the same batch, and write the answer there:
 
@@ -104,8 +104,8 @@ The wave driver drives only the build forms. The other forms never enter a wave.
 
 | Form | Who runs it | When | Then |
 |---|---|---|---|
-| `task` | the person, through `/wf task <slug>` in this session | between waves, never inside one | `<cmd> outside <key> closed` when the task is closed |
-| `investigate` | the person, through `/wf intake <packet path>` | before the packets that depend on it are prepared | The pick goes back to the brainstorm (`/wf brainstorm <brainstorm-slug> add`), which writes the next packet. Then `outside <key> closed`. |
+| `task` | the person, through `/wf intake task <slug>` in this session | between waves, never inside one | `<cmd> outside <key> closed` when the task is closed |
+| `investigate` | the person, through `/wf intake <packet path>` | before the packets that depend on it are prepared | The pick goes back to the brainstorm (`/wf intake brainstorm <brainstorm-slug> add`), which writes the next packet. Then `outside <key> closed`. |
 | `discover` | the person, in prepare | before the packets that depend on it | A verdict that changes a carried decision goes back to the brainstorm, and the drift check runs. Then `outside <key> closed`. |
 | `write-now` | the brainstorm session, at `done` | never reaches the campaign | Its `work/changes.md` entry starts the drift check. |
 

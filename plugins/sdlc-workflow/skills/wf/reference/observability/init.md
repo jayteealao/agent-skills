@@ -1,5 +1,5 @@
 ---
-description: Author the project-level `.ai/observability.md` — a one-time, repo-scoped contract that captures the project's *entire* observability posture, language-agnostically. Works by **discovery → hypothesis → confirm**: first inventories what observability already exists in the codebase (loggers, structured vs unstructured, metrics, tracing, error-tracking, product analytics, and existing collector/dashboard/IaC config — across every language present), then reads `.ai/ship-plan.md` if present to tailor the backend to the real deploy target, then consultatively presents the gap and 2–3 real paths (backend/platform, sampling, schema, PII posture, dashboards, how far to provision) and lets the user choose. Writes a decisions contract — schema + emit + redaction + sampling + pipeline + backend + dashboards + provisioning (Blocks A–H) — never code or infra. Read by `/wf observability build`, `/wf observability audit`, and by `augment/instrument` (which designs against this schema when it exists).
+description: Author the project-level `.ai/observability.md` — a one-time, repo-scoped contract that captures the project's *entire* observability posture, language-agnostically. Works by **discovery → hypothesis → confirm**: first inventories what observability already exists in the codebase (loggers, structured vs unstructured, metrics, tracing, error-tracking, product analytics, and existing collector/dashboard/IaC config — across every language present), then reads `.ai/ship-plan.md` if present to tailor the backend to the real deploy target, then consultatively presents the gap and 2–3 real paths (backend/platform, sampling, schema, PII posture, dashboards, how far to provision) and lets the user choose. Writes a decisions contract — schema + emit + redaction + sampling + pipeline + backend + dashboards + provisioning (Blocks A–H) — never code or infra. Read by `/wf project observability build`, `/wf project observability audit`, and by `augment/instrument` (which designs against this schema when it exists).
 argument-hint: ""
 ---
 
@@ -13,8 +13,8 @@ this operation produces: translate workflow context to product language and leak
 > schema). A contract grounded in the real stack beats one grounded in a recalled API. Read-only — reads land in
 > gitignored `.scratch/`, never in the contract or the repo.
 
-You are running `wf observability init`, a **one-time project-level setup utility**. The contract you author here
-is consumed by every `/wf observability build` and `/wf observability audit` invocation thereafter, and by
+You are running `wf project observability init`, a **one-time project-level setup utility**. The contract you author here
+is consumed by every `/wf project observability build` and `/wf project observability audit` invocation thereafter, and by
 `augment/instrument` when it designs per-change signals.
 
 # Design intent — the reframe
@@ -49,7 +49,7 @@ per-project, not per-workflow. Its sibling audit ledger is `.ai/observability-au
 # What this command does NOT do
 
 - It does **not** write application code, emit config, or stand up any infrastructure — that is
-  `/wf observability build`'s job, behind its own confirm gates.
+  `/wf project observability build`'s job, behind its own confirm gates.
 - It does **not** run or modify any logger, collector, or dashboard. Discovery is read-only.
 - It does **not** enter a vendor credential, API key, or account secret — ever. Choosing a backend records a
   *decision*; authenticating to it is the user's action.
@@ -61,7 +61,7 @@ per-project, not per-workflow. Its sibling audit ledger is `.ai/observability-au
 
 You are a **contract author**, not an implementer.
 - Do not write code, emit config, or provision anything.
-- Do not overwrite an existing `.ai/observability.md`. If one exists, STOP: *"Observability contract exists at `.ai/observability.md`. Amend it by hand, then re-run `/wf observability build` or `/wf observability audit`."*
+- Do not overwrite an existing `.ai/observability.md`. If one exists, STOP: *"Observability contract exists at `.ai/observability.md`. Amend it by hand, then re-run `/wf project observability build` or `/wf project observability audit`."*
 - Do not skip discovery (Step 1) — the whole point is to prescribe *against the real stack*, not a template.
 
 ---
@@ -120,7 +120,7 @@ Step 3 **specific**, not generic:
 | plain server / VM | a host agent (Grafana Alloy / vendor agent) or direct SDK export to a self-hosted or vendor backend |
 | a vendor already in the tree | extend it rather than introduce a second backend |
 
-If **no ship-plan exists**, note it and offer `/wf ship-plan init` as a companion (do **not** require it — the
+If **no ship-plan exists**, note it and offer `/wf project ship-plan init` as a companion (do **not** require it — the
 deploy-context hint from Step 1 still lets you present sensible options).
 
 ---
@@ -169,7 +169,7 @@ Which analyses matter — the canonical wide-event queries materialized as dashb
 Record the **dashboard-as-code target** (Grafana JSON / vendor dashboard API / Terraform).
 
 ## Decision G — Provisioning approach (the ceiling `build` must not exceed)
-How far `/wf observability build` should go, recorded so `build` never over-reaches:
+How far `/wf project observability build` should go, recorded so `build` never over-reaches:
 - **local compose only** — a `docker-compose` self-hosted stack for local/dev.
 - **emit IaC files** — Helm/Terraform/collector config written to the repo; the user applies them. *(Recommended
   default.)*
@@ -217,8 +217,8 @@ risk — e.g. cardinality/cost or a stack with no adapter yet), then this receip
 - `ship-plan-read: <true | false>`
 - `dashboards-planned: <N>`
 - `next-steps:`
-  - `/wf observability build` — realize the contract: emit-layer adapters for each unit, pipeline config, backend
+  - `/wf project observability build` — realize the contract: emit-layer adapters for each unit, pipeline config, backend
     IaC, and dashboards-as-code (files by default; every remote/billable step confirm-gated).
-  - `/wf observability audit` — read-only soundness sweep once the surface is built.
-  - (if no ship-plan) `/wf ship-plan init` — author the release contract so the backend choice can be tied to the
+  - `/wf project observability audit` — read-only soundness sweep once the surface is built.
+  - (if no ship-plan) `/wf project ship-plan init` — author the release contract so the backend choice can be tied to the
     real deploy target.

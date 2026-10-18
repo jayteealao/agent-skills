@@ -18,7 +18,7 @@
 alternative ways a piece of work comes in. You do not need to memorize the modes, because the
 plain form works everywhere. Describe the task, and intake either runs the default flow or
 proposes a better mode and asks before it switches. The situations below save you a round-trip.
-A few kinds of work (visual polish, brainstorming, runtime checks, cleanup triage) have their own keys.</p>
+A few kinds of work (visual polish, runtime checks) have their own keys.</p>
 
 <h2>You are building something new</h2>
 
@@ -124,8 +124,8 @@ partner: it maps the areas the topic touches, asks question batches in plain wor
 ideas of its own, names the assumptions inside your thought, and keeps a plain document of the
 thinking beside its own board. Only you end the session, with <code>done</code>. Then you walk back through the discussion together,
 keep or cut each item, and agree how the kept items split into pieces of work.
-<code>/wf brainstorm &lt;topic&gt;</code> runs the same loop under its own key. Add <code>design</code>,
-as in <code>/wf brainstorm design &lt;idea&gt;</code>, to think through how an idea looks and behaves,
+Add <code>design</code>,
+as in <code>/wf intake brainstorm design &lt;idea&gt;</code>, to think through how an idea looks and behaves,
 with rough sketches that travel to the design stage.</dd>
 <dt><code>/wf intake audit &lt;concern&gt; [paths…]</code></dt>
 <dd>Use this mode to hunt <em>unknown</em> defects across a named subsystem, for example "audit
@@ -148,9 +148,9 @@ default flow rather than guess.
 
 <h2>The work is not a code change</h2>
 
-<pre><code>/wf task rotate the leaked Stripe key</code></pre>
+<pre><code>/wf intake task rotate the leaked Stripe key</code></pre>
 
-<p><code>/wf task</code> is the minimal lifecycle for work whose deliverable is not a code
+<p><code>/wf intake task</code> is the minimal lifecycle for work whose deliverable is not a code
 change verified by executing software: a repo chore (archive old plan documents), an environment
 or infrastructure operation (rotate a key, add a CI secret, set a DNS record), a non-code
 deliverable (an RFC, a license audit, a runbook), coordination (file an upstream issue, get
@@ -159,7 +159,7 @@ criteria that each name how the outcome will be <em>observed</em>, classifies th
 and gates before acting — anything touching shared infrastructure or an external party stops
 for your explicit authorization, always. After acting, task re-observes: an outcome the agent
 merely claims, with no read-back, cannot close a criterion. Mid-feature, name the slug first
-(<code>/wf task reports-export rotate the API key first</code>) and the task attaches as one
+(<code>/wf intake task reports-export rotate the API key first</code>) and the task attaches as one
 slice instead of a new workflow.</p>
 
 <h2>The work is already done and sits uncommitted in your tree</h2>
@@ -232,9 +232,9 @@ writes code.</p>
 
 <h2>You want cleanup candidates, not cleanup</h2>
 
-<pre><code>/wf simplify branch</code></pre>
+<pre><code>/wf intake simplify branch</code></pre>
 
-<p><code>/wf simplify</code> sends three parallel reviewers over a scope you pick: a branch, a
+<p><code>/wf intake simplify</code> sends three parallel reviewers over a scope you pick: a branch, a
 commit, a plan, or a directory of the codebase. The reviewers cover reuse, quality, and
 efficiency. The command classifies what the reviewers find and routes each finding to the
 correct downstream home. Like probe, simplify never fixes anything itself.</p>

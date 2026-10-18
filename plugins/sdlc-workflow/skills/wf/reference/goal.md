@@ -7,7 +7,7 @@ argument-hint: <slug> [objective] | <slug> resume|status|clear
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-You are running `/wf goal <slug> …`. A goal is an objective that the host keeps pursuing over many turns, until a judge says that it is done. The host carries the loop: its own continuation, pause, resume and budget. `/wf` owns the evidence. `goal.mjs check` runs the rule of the goal and prints the evidence, then one last line:
+You are running `/wf loop goal <slug> …`. A goal is an objective that the host keeps pursuing over many turns, until a judge says that it is done. The host carries the loop: its own continuation, pause, resume and budget. `/wf` owns the evidence. `goal.mjs check` runs the rule of the goal and prints the evidence, then one last line:
 
 - `GOAL: MET`: the objective is met.
 - `GOAL: NOT-MET <reason>`: work remains; the reason names the next unit.
@@ -19,7 +19,7 @@ The condition that the host judge reads says to trust only that line. A claim wi
 
 ## What a goal is, and is not
 
-- **The goal does not answer gates.** A human gate ends the goal ([_autonomy-guards.md](_autonomy-guards.md), "Goal park"). The person answers the gate, then runs `/wf goal <slug> resume`. This is why `yolo` and the campaign waves do not use goals: they answer gates by written policy, and they own their own loop.
+- **The goal does not answer gates.** A human gate ends the goal ([_autonomy-guards.md](_autonomy-guards.md), "Goal park"). The person answers the gate, then runs `/wf loop goal <slug> resume`. This is why `yolo` and the campaign waves do not use goals: they answer gates by written policy, and they own their own loop.
 - **The goal adds no stop hook.** The host goal is the only continuation. A second continuation would compete with it.
 - **The contract lives in the slug.** `goal.md` and `goal/checks.jsonl` stay when the host goal is cleared, so `resume` arms the same contract again.
 
@@ -67,7 +67,7 @@ The condition that the host judge reads says to trust only that line. A claim wi
    - `goal-command`: show `arm.command` in a fenced block. Say what happens next, from `arm.instruction`. Do not try to run the command yourself.
    - `create_goal`: call the host's goal tool with the condition as the objective. When the host's goals feature is off, show `arm.instruction` and end the run.
    - `in-session`: run the loop of Step 2 in this session, one stage at a time, until `check` prints `GOAL: MET` or `GOAL: BLOCKED`.
-5. End the arming turn with the `wf goal complete` summary. The host goal starts the first worker turn.
+5. End the arming turn with the `wf loop goal complete` summary. The host goal starts the first worker turn.
 
 ## Step 2 — The worker's turn
 

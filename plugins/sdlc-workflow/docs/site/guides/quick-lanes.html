@@ -150,7 +150,7 @@ through the package manager's own commands.</p>
 <p>Arguments narrow the run. A package name focuses the run on one dependency.
 <code>--security-only</code> updates only CVE-affected packages. <code>--audit-only</code>
 produces the scan, the research, and the plan, then stops at the gate without implementation —
-the run then ends lawfully with <code>/wf close &lt;slug&gt; deferred</code>, and every Hold entry
+the run then ends lawfully with <code>/wf intake &lt;slug&gt; close deferred</code>, and every Hold entry
 becomes a recorded revisit trigger the next run seeds from. A bare token that matches an
 existing run slug resumes that run.
 The gate itself is tier-aware: you can proceed with the full plan, proceed with P0 security

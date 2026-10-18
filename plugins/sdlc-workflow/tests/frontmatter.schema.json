@@ -1165,7 +1165,7 @@
 
     "recapFrontmatter": {
       "type": "object",
-      "description": "Plain-language catch-up / explain artifact written by /wf recap (formerly resume). scope: workflow (whole run), slice (one slice), or explain (a focus artifact). focus is the explained artifact when scope=explain.",
+      "description": "Plain-language catch-up / explain artifact written by /wf status recap (formerly resume). scope: workflow (whole run), slice (one slice), or explain (a focus artifact). focus is the explained artifact when scope=explain.",
       "required": [
         "schema", "type", "slug", "scope", "generated-at",
         "current-stage", "stage-number", "status", "refs"
@@ -1569,7 +1569,7 @@
 
     "observabilityPlanFrontmatter": {
       "type": "object",
-      "description": ".ai/observability.md — the project-level observability contract authored by `/wf observability init` and read by `/wf observability build`, `/wf observability audit`, and the per-slice `instrument` augmentation. Language-agnostic: a canonical wide-event schema, sampling, redaction, emit layer, pipeline, backend, and dashboards. Like `.ai/ship-plan.md` this is a project-root `.ai/` artifact, not a per-slug workflow file. The branch stays open (no additionalProperties:false) — the rich block content (schema-core, schema-domain, emit[], additional-contracts[]) is documented here but its inner shapes live in the observability/init reference. Added in v9.132.0 (OBSERVABILITY-ROUTER-PLAN).",
+      "description": ".ai/observability.md — the project-level observability contract authored by `/wf project observability init` and read by `/wf project observability build`, `/wf project observability audit`, and the per-slice `instrument` augmentation. Language-agnostic: a canonical wide-event schema, sampling, redaction, emit layer, pipeline, backend, and dashboards. Like `.ai/ship-plan.md` this is a project-root `.ai/` artifact, not a per-slug workflow file. The branch stays open (no additionalProperties:false) — the rich block content (schema-core, schema-domain, emit[], additional-contracts[]) is documented here but its inner shapes live in the observability/init reference. Added in v9.132.0 (OBSERVABILITY-ROUTER-PLAN).",
       "required": ["schema", "type", "slug", "plan-version"],
       "properties": {
         "type": { "const": "observability-plan" },
@@ -1590,7 +1590,7 @@
 
     "observabilityBuildFrontmatter": {
       "type": "object",
-      "description": ".ai/observability-build.md — the run record written by `/wf observability build` when it realizes the contract (emit adapters, collection-pipeline config, backend/IaC, dashboards-as-code). Records which output classes were made compliant, what was created/patched, and the gated provisioning outcome. Project-root `.ai/` artifact; open branch (no additionalProperties:false). Added in v9.132.0.",
+      "description": ".ai/observability-build.md — the run record written by `/wf project observability build` when it realizes the contract (emit adapters, collection-pipeline config, backend/IaC, dashboards-as-code). Records which output classes were made compliant, what was created/patched, and the gated provisioning outcome. Project-root `.ai/` artifact; open branch (no additionalProperties:false). Added in v9.132.0.",
       "required": ["schema", "type"],
       "properties": {
         "type": { "const": "observability-build" },
@@ -2151,7 +2151,7 @@
     },
     "optimizeSpecFrontmatter": {
       "type": "object",
-      "description": "02-optimize-spec.md — the confirmed spec of a /wf optimize loop (WF-OPTIMIZE-PLAN section 3). scripts/optimize.mjs reads it and refuses a baseline until confirmed-by names the person who confirmed it. The loop never edits this file.",
+      "description": "02-optimize-spec.md — the confirmed spec of a /wf loop optimize loop (WF-OPTIMIZE-PLAN section 3). scripts/optimize.mjs reads it and refuses a baseline until confirmed-by names the person who confirmed it. The loop never edits this file.",
       "required": ["schema", "type", "slug", "objective", "metric", "guard", "allowed-paths"],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
@@ -2219,7 +2219,7 @@
     },
     "goalFrontmatter": {
       "type": "object",
-      "description": "goal.md — the goal contract of /wf goal (WF-GOAL-PLAN section 3). scripts/goal.mjs writes it; the host goal carries the turns and only goal.mjs check decides that the goal is met. A human gate parks it (parked.gate).",
+      "description": "goal.md — the goal contract of /wf loop goal (WF-GOAL-PLAN section 3). scripts/goal.mjs writes it; the host goal carries the turns and only goal.mjs check decides that the goal is met. A human gate parks it (parked.gate).",
       "required": ["schema", "type", "slug", "objective", "kind", "max-checks", "state"],
       "properties": {
         "type": { "const": "goal" },
@@ -2243,7 +2243,7 @@
     },
     "prototypeFrontmatter": {
       "type": "object",
-      "description": "01-prototype.md — the accepted pipeline of a /wf prototype, in plain words, for the person (WF-PROTOTYPE-PLAN section 5). The agent's memory is the sibling prototype-ledger.json ($defs.prototypeLedger). The file lives in the POC worktree, on the poc/<slug> branch.",
+      "description": "01-prototype.md — the accepted pipeline of a /wf loop prototype, in plain words, for the person (WF-PROTOTYPE-PLAN section 5). The agent's memory is the sibling prototype-ledger.json ($defs.prototypeLedger). The file lives in the POC worktree, on the poc/<slug> branch.",
       "required": ["schema", "type", "slug", "idea", "status"],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
@@ -2277,7 +2277,7 @@
     },
     "prototypeLedger": {
       "type": "object",
-      "description": "prototype-ledger.json — the proof ledger of a /wf prototype (WF-PROTOTYPE-PLAN section 3). The memory of the prototype; the chat is not. Validated on every write by post-write-verify, with the ledger rules of lib/prototype.mjs. scripts/prototype.mjs writes the commit ids and the exit status.",
+      "description": "prototype-ledger.json — the proof ledger of a /wf loop prototype (WF-PROTOTYPE-PLAN section 3). The memory of the prototype; the chat is not. Validated on every write by post-write-verify, with the ledger rules of lib/prototype.mjs. scripts/prototype.mjs writes the commit ids and the exit status.",
       "required": ["schema", "artifact", "slug", "idea", "status", "branch", "rounds", "proofs", "decisions", "pipeline", "rejected"],
       "properties": {
         "schema": { "const": "sdlc/v1" },
@@ -2407,7 +2407,7 @@
     },
     "brainstormFrontmatter": {
       "type": "object",
-      "description": "01-brainstorm.md — the board of a thinking-partner brainstorm (/wf intake brainstorm). Rooted in a type:workflow-index slug workflow with workflow-type brainstorm. The person's document; the agent's board is the sibling brainstorm-board.json (see $defs.brainstormBoard). A legacy board carries threads, claims, assumptions, contradictions, and candidates in this frontmatter instead, and stays valid until its first resume converts it. The workflow stays open until /wf close.",
+      "description": "01-brainstorm.md — the board of a thinking-partner brainstorm (/wf intake brainstorm). Rooted in a type:workflow-index slug workflow with workflow-type brainstorm. The person's document; the agent's board is the sibling brainstorm-board.json (see $defs.brainstormBoard). A legacy board carries threads, claims, assumptions, contradictions, and candidates in this frontmatter instead, and stays valid until its first resume converts it. The workflow stays open until /wf intake <slug> close.",
       "required": ["schema", "type", "slug", "topic", "status", "created-at"],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},

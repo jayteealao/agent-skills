@@ -7,7 +7,7 @@ argument-hint: "<init|build|audit> [args...]"
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-You are the **observability router** for the SDLC plugin, invoked as `/wf observability`.
+You are the **observability router** for the SDLC plugin, invoked as `/wf project observability`.
 
 > **Foundation, not per-change.** This router sets up and audits the **project-wide** observability foundation
 > and analysis surface — the schema, emit layer, sampling, pipeline, backend, and dashboards that instrumentation
@@ -33,7 +33,7 @@ The router reads no workflow artifacts.
 
 # Step 0 — Resolve the sub-command
 
-The first token of `$ARGUMENTS` (after `observability` is stripped by `wf/SKILL.md`) selects the sub-command:
+The first token of `$ARGUMENTS` (after `project observability` is stripped by `wf/SKILL.md`) selects the sub-command:
 
 | Token | Sub-command | Reference to load |
 |---|---|---|
@@ -46,9 +46,9 @@ The first token of `$ARGUMENTS` (after `observability` is stripped by `wf/SKILL.
 
 ```
 Usage:
-  /wf observability init                  Inventory the codebase's current logging/telemetry/analytics, read the ship-plan if present, discuss options, and author the project-level .ai/observability.md (one-time per repo).
-  /wf observability build [--dry-run]     Realize the contract: emit-layer adapters (multi-language), collection-pipeline config, backend IaC, and dashboards-as-code. Files by default; every remote or billable step is confirm-gated.
-  /wf observability audit [<lens> | triage]   Read-only soundness sweep of the contract, its built surface, and the codebase; writes findings to .ai/observability-audit.md and routes each to its fixer. Fixes nothing itself.
+  /wf project observability init                  Inventory the codebase's current logging/telemetry/analytics, read the ship-plan if present, discuss options, and author the project-level .ai/observability.md (one-time per repo).
+  /wf project observability build [--dry-run]     Realize the contract: emit-layer adapters (multi-language), collection-pipeline config, backend IaC, and dashboards-as-code. Files by default; every remote or billable step is confirm-gated.
+  /wf project observability audit [<lens> | triage]   Read-only soundness sweep of the contract, its built surface, and the codebase; writes findings to .ai/observability-audit.md and routes each to its fixer. Fixes nothing itself.
 
 Which would you like to run?
 ```

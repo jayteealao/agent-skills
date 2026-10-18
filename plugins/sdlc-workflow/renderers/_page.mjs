@@ -365,18 +365,20 @@ const GATE_CLEAR = /^(pass|passed|clear|cleared|resolved|none|n\/a|approved|comp
 // Stages only a person runs; no driver (`/wf auto`, `/wf yolo`) runs them.
 // design: skills/wf/reference/design/_lane.md ("only a person runs it").
 // brainstorm: a talk with the person, which only the person ends.
+// prototype: the person starts every round (skills/wf/reference/prototype.md).
 const HUMAN_ONLY_STAGES = Object.freeze({
   design: 'to confirm the drawn surfaces',
   brainstorm: 'to talk the idea through',
+  prototype: 'to ask for the next round',
 });
 
 /**
  * The human-only stage an invocation routes to (`/wf design <slug>`,
- * `/wf brainstorm …`, `/wf intake brainstorm …`), or null.
+ * `/wf intake brainstorm …`, `/wf loop prototype …`), or null.
  * @returns {{ key: string, ask: string } | null}
  */
 export function humanOnlyStage(invocation) {
-  const m = /^\s*\/?wf\s+(?:intake\s+)?([a-z][a-z0-9-]*)\b/i.exec(String(invocation ?? ''))
+  const m = /^\s*\/?wf\s+(?:(?:intake|loop)\s+)?([a-z][a-z0-9-]*)\b/i.exec(String(invocation ?? ''))
     ?? /^\s*([a-z][a-z0-9-]*)\s*$/i.exec(String(invocation ?? ''));
   if (!m) return null;
   const key = m[1].toLowerCase();

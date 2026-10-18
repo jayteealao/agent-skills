@@ -64,7 +64,7 @@ test('resolveViewPath: compressed change-mode leads all land at intake/', () => 
   // 01-adopt (/wf intake adopt) is the reverse-entry lead — same type:intake,
   // same intake-card placement as the change-mode leads above.
   strictEqual(resolveViewPath('01-adopt.md').viewRel, 'intake/INDEX.html');
-  // 01-task (/wf task) drives a minimal type:index lifecycle — its overview's
+  // 01-task (/wf intake task) drives a minimal type:index lifecycle — its overview's
   // intake card links the fixed STAGE_NAV.intake.dir, so the lead MUST land at
   // intake/ (NOT a named dir — that is the terminal-analysis test below).
   strictEqual(resolveViewPath('01-task.md').viewRel, 'intake/INDEX.html');

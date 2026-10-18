@@ -1,5 +1,5 @@
 // renderers/observability-build.mjs — .ai/observability-build.md, the run
-// record written by /wf observability build when it realizes the contract.
+// record written by /wf project observability build when it realizes the contract.
 // Sibling of observability-plan.mjs; same titled-simple-page shape.
 import { renderSimple } from './_simple.mjs';
 import { escapeHtml } from './_validator.mjs';

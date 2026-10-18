@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/goal.mjs — the disk side of /wf goal (WF-GOAL-PLAN 4.2).
+ * scripts/goal.mjs — the disk side of /wf loop goal (WF-GOAL-PLAN 4.2).
  * Bundled to dist/goal.mjs; skills/wf/scripts/goal.mjs runs the bundle.
  *
  *   arm       <root> <slug> [--objective t] [--kind lifecycle|optimize|proofs] [--proof cmd]... [--max-checks n] [--host h]
@@ -162,7 +162,7 @@ function park(root, slug, gate, f) {
   if (!c) throw new Error('no goal contract: nothing to park');
   const parked = { gate: String(gate), reason: String(f.reason ?? '').trim(), at: nowIso() };
   saveContract(root, slug, { ...c, parked });
-  return { ok: true, parked, next: 'run check: it prints GOAL: BLOCKED, and the host goal ends. After the person answers, run /wf goal <slug> resume.' };
+  return { ok: true, parked, next: 'run check: it prints GOAL: BLOCKED, and the host goal ends. After the person answers, run /wf loop goal <slug> resume.' };
 }
 
 function status(root, slug) {

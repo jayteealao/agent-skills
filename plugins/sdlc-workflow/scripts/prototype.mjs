@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/prototype.mjs — the disk side of /wf prototype (WF-PROTOTYPE-PLAN 4–7).
+ * scripts/prototype.mjs — the disk side of /wf loop prototype (WF-PROTOTYPE-PLAN 4–7).
  * Bundled to dist/prototype.mjs; skills/wf/scripts/prototype.mjs runs the bundle.
  *
  *   start   <root> <slug> --idea t [--branch b] [--base b] [--worktree p]
@@ -95,7 +95,7 @@ function locate(root, slug) {
 
 function needWorktree(root, slug) {
   const wt = locate(root, slug);
-  if (!wt) throw new Error(`no prototype ${slug}: start one with /wf prototype <idea>`);
+  if (!wt) throw new Error(`no prototype ${slug}: start one with /wf loop prototype <idea>`);
   return wt;
 }
 
@@ -233,7 +233,7 @@ function start(root, slug, f) {
   // Scratch is ignored by its own .gitignore, so the repo's ignore rules do not change.
   mkdirSync(join(wt, SCRATCH_DIR), { recursive: true });
   if (!existsSync(join(wt, '.scratch', '.gitignore'))) writeFileSync(join(wt, '.scratch', '.gitignore'), '*\n');
-  const next = `/wf prototype ${slug} <request>`;
+  const next = `/wf loop prototype ${slug} <request>`;
   if (!existsSync(join(dir, '00-index.md'))) writeFileSync(join(dir, '00-index.md'), indexFile({ slug, idea, branch, baseBranch, worktree: wt, status: 'open', at, next }));
   if (!existsSync(ledgerPath(wt, slug))) saveLedger(wt, slug, newLedger({ slug, idea, branch, baseBranch, worktree: toPosix(wt), at }));
   if (!existsSync(join(dir, DOC_FILE))) writeFileSync(join(dir, DOC_FILE), docFile({ slug, idea, at }));
@@ -366,7 +366,7 @@ function exitPrototype(root, slug, how) {
   ledger.status = statusOf;
   ledger['updated-at'] = nowIso();
   saveLedger(wt, slug, ledger);
-  const next = how === 'graduate' ? `/wf intake ${ledger.idea} from ${slug}` : how === 'close' ? `/wf close ${slug}` : `/wf prototype ${slug} <request>`;
+  const next = how === 'graduate' ? `/wf intake ${ledger.idea} from ${slug}` : how === 'close' ? `/wf intake ${slug} close` : `/wf loop prototype ${slug} <request>`;
   setIndexStatus(wt, slug, statusOf, next);
   upsertIndexRow(mainCheckout(wt), { slug, status: statusOf, branch: ledger.branch, at: ledger['updated-at'] });
   const out = { ok: true, slug, status: statusOf, worktree: wt, branch: ledger.branch, next };

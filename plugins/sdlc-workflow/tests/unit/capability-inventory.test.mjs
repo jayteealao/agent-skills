@@ -150,9 +150,10 @@ test('retired.json entries name a reason and a release', () => {
   }
 });
 
-test('measure-load: 27 keys, core ⊆ instructed ⊆ referenced, targets derive from §4.1, baseline covers every key', () => {
+test('measure-load: 23 dispatch units, core ⊆ instructed ⊆ referenced, targets derive from §4.1, baseline covers every unit', () => {
+  // 17 keys with a reference file (loop and project have none) + 6 sub-keys.
   const keys = listKeys(pluginRoot);
-  assert.equal(keys.length, 27, `keys: ${keys.join(', ')}`);
+  assert.equal(keys.length, 23, `keys: ${keys.join(', ')}`);
   const load = measureLoad(pluginRoot);
   for (const k of keys) {
     const { core, instructed, referenced, target } = load.keys[k];

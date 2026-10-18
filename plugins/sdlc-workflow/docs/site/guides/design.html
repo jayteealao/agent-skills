@@ -93,11 +93,11 @@
 
 <p>The design stage confirms a design. It does not explore one. To think through how an idea looks and behaves before you confirm anything, run a design brainstorm:</p>
 
-<pre><code>/wf brainstorm design &lt;idea&gt;                Think through a new idea on a new board.
-/wf brainstorm &lt;brainstorm-slug&gt; design      Resume a board and switch its focus to design.
-/wf brainstorm &lt;feature-slug&gt; design [idea] Brainstorm the design of a workflow that exists.</code></pre>
+<pre><code>/wf intake brainstorm design &lt;idea&gt;                Think through a new idea on a new board.
+/wf intake brainstorm &lt;brainstorm-slug&gt; design      Resume a board and switch its focus to design.
+/wf intake brainstorm &lt;feature-slug&gt; design [idea] Brainstorm the design of a workflow that exists.</code></pre>
 
-<p><code>/wf brainstorm</code> runs the same loop as <code>/wf intake brainstorm</code>: question batches on a board that stays open until you say <code>done</code>. The <code>design</code> focus adds to the loop and replaces nothing. It does these things:</p>
+<p><code>/wf intake brainstorm</code> runs the same loop as <code>/wf intake brainstorm</code>: question batches on a board that stays open until you say <code>done</code>. The <code>design</code> focus adds to the loop and replaces nothing. It does these things:</p>
 
 <ul>
   <li>It reads the design record at the start. On a feature workflow, it also reads <code>02-shape.md</code>, <code>02b-design.md</code>, and <code>02c-craft.md</code> when they exist. A missing file is a gap to name, not a stop.</li>

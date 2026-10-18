@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The disk side of /wf optimize (reference/optimize.md): the baseline, the trials, the
+// The disk side of /wf loop optimize (reference/optimize.md): the baseline, the trials, the
 // branch rounds, the checkpoints, the finish, and the ledger. The model proposes and
 // edits; this script makes every git write, every measurement, and every keep or revert.
 //   node "<skill-dir>/scripts/optimize.mjs" <command> <projectRoot> <slug> ...

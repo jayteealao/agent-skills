@@ -29,4 +29,4 @@ question existed to create.
 
 ## Goal park
 
-While the slug's `goal.md` has `state: armed` (the `goal` key), a human gate ends the goal. Run `goal.mjs park <root> <slug> <gate-id>`, then `goal.mjs check`, which prints `GOAL: BLOCKED gate <gate-id>`. Do not answer the gate to keep the goal alive.
+While the slug's `goal.md` has `state: armed` (the `loop goal` sub-key), a human gate ends the goal. Run `goal.mjs park <root> <slug> <gate-id>`, then `goal.mjs check`, which prints `GOAL: BLOCKED gate <gate-id>`. Do not answer the gate to keep the goal alive.

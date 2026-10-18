@@ -1,4 +1,4 @@
-// Roster drift guards for the WORK-WITHOUT-A-HOME release (/wf task — the 22nd
+// Roster drift guards for the WORK-WITHOUT-A-HOME release (/wf intake task — the 22nd
 // key — and /wf intake audit — the fourth read-only terminal intake mode).
 // The surfaces that enumerate the roster have no other automated guard: a key
 // or mode that exists on disk but is missing from a dispatch table is invisible
@@ -19,22 +19,22 @@ const read = (root, ...rel) => readFileSync(path.join(root, 'skills', 'wf', ...r
 
 test('both references exist in both trees', () => {
   for (const { name, root } of trees) {
-    assert.ok(existsSync(path.join(root, 'skills', 'wf', 'reference', 'task.md')),
-      `${name}: missing reference/task.md`);
+    assert.ok(existsSync(path.join(root, 'skills', 'wf', 'reference', 'intake', 'task.md')),
+      `${name}: missing reference/intake/task.md`);
     assert.ok(existsSync(path.join(root, 'skills', 'wf', 'reference', 'intake', 'audit.md')),
       `${name}: missing reference/intake/audit.md`);
   }
 });
 
-test('SKILL.md dispatch surface names task everywhere the roster is enumerated', () => {
+test('SKILL.md names task as an intake mode, not a key (WF-KEY-SURFACE-PLAN A5)', () => {
   for (const { name, root } of trees) {
     const skill = read(root, 'SKILL.md');
-    assert.match(skill, /### Minimal lifecycle/,
-      `${name}: SKILL.md lost the Minimal lifecycle dispatch section`);
-    assert.match(skill, /\| `task`\s+\|/, `${name}: SKILL.md dispatch table lost the task row`);
-    // The not-a-known-key error roster — the last-resort discovery surface.
-    assert.match(skill, /auto, yolo, campaign, task, status|auto, yolo, task, status|auto, task, status/,
-      `${name}: SKILL.md not-a-known-key roster does not name task`);
+    assert.match(skill, /`simplify`, `task`\) runs an entry flow/,
+      `${name}: SKILL.md intake row lost the task mode`);
+    assert.ok(!/^\| `task`\s+\|/m.test(skill), `${name}: SKILL.md still has a task key row`);
+    // The not-a-known-key error roster names keys only.
+    assert.ok(!/Pick one of: [^"]*\btask\b/.test(skill),
+      `${name}: SKILL.md not-a-known-key roster still names task`);
     // Step 0.5 exclusion — task resolves its own first token, so the applies-to list omits it.
     const applies = /Step 0\.5 applies to ([^.]+)\./.exec(skill)?.[1] ?? '';
     assert.ok(applies.length > 0, `${name}: SKILL.md lost the Step 0.5 applies-to sentence`);
@@ -74,7 +74,7 @@ test('audit.md cites the findings ledger and never cites the fix loop', () => {
 
 test('task.md carries the blast-radius gate and the asserted rung rule', () => {
   for (const { name, root } of trees) {
-    const task = read(root, 'reference', 'task.md');
+    const task = read(root, 'reference', 'intake', 'task.md');
     for (const cls of ['repo-local', 'local-env', 'shared-env', 'external-party', 'irreversible']) {
       assert.ok(task.includes(`\`${cls}\``), `${name}: task.md lost blast-radius class ${cls}`);
     }

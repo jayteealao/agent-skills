@@ -47,7 +47,7 @@ codex plugin add sdlc-workflow@agent-skills-marketplace</code></pre>
 <h2>Confirm that the plugin runs</h2>
 <p>Make two checks: one inside your host and one in your browser. First, run the command with no arguments:</p>
 <pre><code>/wf</code></pre>
-<p>The command must show a menu of all 22 keys: the ten lifecycle stages plus the standalone commands. The command then asks which key you want. If you see that menu, the plugin is installed and dispatches correctly. Under Codex, the menu shows the same keys; only <code>yolo</code> is unavailable there.</p>
+<p>The command must show a menu of all 19 keys: the ten lifecycle stages plus design, probe, the drivers, the loops, and the routers. The command then asks which key you want. If you see that menu, the plugin is installed and dispatches correctly. Under Codex, the menu shows the same keys; only <code>yolo</code> is unavailable there.</p>
 <p>Second, open the hub in your browser:</p>
 <pre><code>http://127.0.0.1:4173</code></pre>
 <p>The dashboard must list your registered repository. The hub also exposes a plain health endpoint at <code>http://127.0.0.1:4173/__sdlc/health</code>. The endpoint is useful for scripts, or for a quick check from the terminal that the hub is up.</p>

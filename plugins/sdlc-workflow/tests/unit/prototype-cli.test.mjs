@@ -208,6 +208,6 @@ test('goal refuses a prototype slug: a script cannot say a prototype is done', (
     const { worktree: wt } = run(root, 'start', '--idea', 'faces');
     const r = lifecycleDone(wt, S);
     assert.equal(r.state ?? r.verdict ?? r.status, 'blocked', JSON.stringify(r));
-    assert.match(JSON.stringify(r), /\/wf prototype/);
+    assert.match(JSON.stringify(r), /\/wf loop prototype/);
   } finally { rmSync(base, { recursive: true, force: true }); }
 });

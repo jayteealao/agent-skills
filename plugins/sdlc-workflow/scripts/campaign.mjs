@@ -277,7 +277,7 @@ function orient(root, b) {
   ledger['run-id'] = `${nowIso().replace(/[-:]/g, '').replace(/\.\d+/, '')}-${b}`;
   if (ledger['ship-plan'] === null || ledger['ship-plan']['version-scheme'] === 'none') ledger.answers['target-version'] = 'none';
   // Handoff and ship both stop without a ship plan, so name the gap before wave 1, not at its PR.
-  if (ledger['ship-plan'] === null) ledger['tool-gaps'].push({ tool: 'ship-plan', have: 'none', need: '.ai/ship-plan.md', fix: '/wf ship-plan init' });
+  if (ledger['ship-plan'] === null) ledger['tool-gaps'].push({ tool: 'ship-plan', have: 'none', need: '.ai/ship-plan.md', fix: '/wf project ship-plan init' });
   const cliOk = claudeVersionGap();
   if (cliOk) ledger['tool-gaps'].push(cliOk);
   // 16.0: stacked wave PRs need gh-stack v0.1.0 (merge). The campaign never upgrades a tool itself.

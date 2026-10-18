@@ -1,5 +1,5 @@
 // renderers/observability-plan.mjs — .ai/observability.md, the project-level
-// observability contract authored by /wf observability init. Same shape as the
+// observability contract authored by /wf project observability init. Same shape as the
 // ship-plan renderer: a titled simple page (the contract body is the content;
 // the frontmatter blocks render as structured sections via renderSimple).
 import { renderSimple } from './_simple.mjs';

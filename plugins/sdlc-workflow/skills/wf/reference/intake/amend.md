@@ -39,7 +39,7 @@ Nothing else. In particular:
   index starts lying about a workflow. If they are wrong, the artifacts on disk are the truth —
   `/wf status <slug> deep` reconciles.
 - **The ship plan** → `.ai/ship-plan.md` is a project-level contract, not a per-slug field.
-  `/wf ship-plan edit` owns it.
+  `/wf project ship-plan edit` owns it.
 - **`workflow-type`** → not amendable. The type decides which references drive the slug; changing it
   mid-flight re-interprets artifacts that were authored under different rules. A workflow that turned
   out to be a different kind of work is a new workflow.

@@ -1,4 +1,4 @@
-// lib/prototype.mjs — the pure side of /wf prototype (WF-PROTOTYPE-PLAN).
+// lib/prototype.mjs — the pure side of /wf loop prototype (WF-PROTOTYPE-PLAN).
 //
 // A prototype is a series of rounds that the person starts. The proof ledger
 // (prototype-ledger.json) is its memory; the chat is not. This module holds the

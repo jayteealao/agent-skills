@@ -24,7 +24,7 @@ If neither applies, proceed standalone below.
 | Requires | See [## Requires](#requires). Pass a concern (plus optional paths), or an existing audit slug to re-run. |
 | Produces | `00-index.md` (`type: workflow-index`), `01-audit.md` (`type: intake`, the brief), `07-review.md` (master ledger, `type: review`), `07-review-<lens>.md` per lens (`type: review-command`) |
 | Skips | No `02-shape.md`, no `04-plan.md` — for an audit, scoping and briefing are one motion. No branch. |
-| Next | Terminal → each accepted finding routes to its own command (Step 6 table). The workflow **stays open** for accumulating re-runs; close it with `/wf close <slug>` when the concern is retired. |
+| Next | Terminal → each accepted finding routes to its own command (Step 6 table). The workflow **stays open** for accumulating re-runs; close it with `/wf intake <slug> close` when the concern is retired. |
 | Escalate | A finding that static reading cannot settle is recorded at `confidence: low` with `needs-runtime-evidence` and the exact experiment named → `/wf probe` (see Step 4). |
 
 ## Requires
@@ -130,9 +130,9 @@ For each OPEN finding, record a route in `## Triage Decisions`:
 | Needs restructuring; several viable approaches | `/wf intake investigate <problem> from <slug>` |
 | Genuine feature-sized work | `/wf intake <scope> from <slug>` |
 | Needs runtime proof to confirm at all (`needs-runtime-evidence`) | `/wf probe <slug> "<the named experiment>"` |
-| Not a code change at all (rotate the leaked key, file the upstream issue) | `/wf task <outcome>` |
+| Not a code change at all (rotate the leaked key, file the upstream issue) | `/wf intake task <outcome>` |
 
-Do not fix anything. Do not open a fix loop. Each accepted finding seeds its **own** follow-up workflow via the `from <slug>` provenance token (`_intake-provenance.md`); the audit workflow itself stays open as the ledger of record until `/wf close <slug>`.
+Do not fix anything. Do not open a fix loop. Each accepted finding seeds its **own** follow-up workflow via the `from <slug>` provenance token (`_intake-provenance.md`); the audit workflow itself stays open as the ledger of record until `/wf intake <slug> close`.
 
 # Chat return
 
@@ -147,7 +147,7 @@ Findings: <O open / R resolved / X refuted>   (this run: A net-new, B re-confirm
 Not observable statically: <N — see 01-audit.md ## Not observable>
 Routes: <top routes, one per open BLOCKER/HIGH>
 Artifacts: .ai/workflows/<slug>/01-audit.md, 07-review.md, 07-review-<lens>.md …
-Next: <top route> | /wf intake audit <slug> (re-run) | /wf close <slug> (retire the concern)
+Next: <top route> | /wf intake audit <slug> (re-run) | /wf intake <slug> close (retire the concern)
 ```
 
 # Crash-safe / resume

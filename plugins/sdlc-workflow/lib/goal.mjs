@@ -1,4 +1,4 @@
-// lib/goal.mjs — the goal contract of /wf goal (WF-GOAL-PLAN W2), pure parts.
+// lib/goal.mjs — the goal contract of /wf loop goal (WF-GOAL-PLAN W2), pure parts.
 //
 // The host carries the loop (Claude Code `/goal`, Codex goals). /wf owns the
 // evidence: `scripts/goal.mjs check` runs the rule of the contract's `kind` and
@@ -100,12 +100,12 @@ export function clearPlan(host) {
  * checks of this arming before this one.
  */
 export function precheck(contract, count) {
-  if (!contract) return { verdict: 'BLOCKED', reason: 'no goal contract: run /wf goal <slug> first' };
-  if (contract.state === 'cleared') return { verdict: 'BLOCKED', reason: 'the goal is cleared: run /wf goal <slug> resume to arm it again' };
+  if (!contract) return { verdict: 'BLOCKED', reason: 'no goal contract: run /wf loop goal <slug> first' };
+  if (contract.state === 'cleared') return { verdict: 'BLOCKED', reason: 'the goal is cleared: run /wf loop goal <slug> resume to arm it again' };
   const parked = contract.parked;
   if (parked && str(parked.gate)) return { verdict: 'BLOCKED', reason: `gate ${str(parked.gate)}${str(parked.reason) ? `: ${str(parked.reason)}` : ''}` };
   const max = Number(contract['max-checks']) || DEFAULT_MAX_CHECKS;
-  if (count + 1 > max) return { verdict: 'BLOCKED', reason: `budget: ${max} checks used. Run /wf goal <slug> resume, with a new max-checks when more are needed` };
+  if (count + 1 > max) return { verdict: 'BLOCKED', reason: `budget: ${max} checks used. Run /wf loop goal <slug> resume, with a new max-checks when more are needed` };
   return null;
 }
 

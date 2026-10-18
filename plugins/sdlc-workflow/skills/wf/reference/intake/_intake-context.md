@@ -30,6 +30,18 @@ proceeds. **This is distinct from slug-mode:** when the dispatcher detects that 
 positional token* is an exact existing-slug match, that is an *intentional* attach handled by
 `../_compressed-slice.md` — no collision prompt fires.
 
+**Reserved slug names.** `wf/SKILL.md` reads a command word before it reads a slug, so a new
+workflow's slug must not be one of these words:
+- the keys: `intake`, `shape`, `slice`, `plan`, `implement`, `verify`, `review`, `handoff`, `ship`,
+  `retro`, `design`, `probe`, `auto`, `yolo`, `campaign`, `loop`, `status`, `project`, `docs`;
+- the sub-keys: `goal`, `optimize`, `prototype`, `recap`, `ship-plan`, `observability`;
+- the intake mode words: `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`,
+  `update-deps`, `ideate`, `brainstorm`, `adopt`, `simplify`, `task`, `amend`, `modernize`, `close`.
+
+When a derived or given slug is in this set, ask for another slug with the "Pick a different slug"
+option of the `intake/default.md` collision prompt. Every mode that creates a workflow applies this
+rule. An existing slug keeps its name, and `/wf status` flags it.
+
 **Additive bootstrap.** A mode that creates a new workflow must ensure `.ai/workflows/INDEX.md`
 contains a row for its slug after `00-index.md` is finalized (create the file with the header line
 if absent; append-and-resort if the slug is missing; never mutate other rows). The full procedure
@@ -50,7 +62,7 @@ per-mode body (what `01-<mode>`/`02-shape`/etc. carry).
   must satisfy the **intake** required set: `status` ∈ `{complete, awaiting-input}`, `stage-number: 1`,
   `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`.
 - **The authoritative `workflow-type` discriminator lives on `00-index.md`** (mirror it onto the lead
-  for readability, but the index is canonical — the standard stage commands and `/wf recap` read it there).
+  for readability, but the index is canonical — the standard stage commands and `/wf status recap` read it there).
 - **`00-index.md` is a fully-conformant `type: index`** — the heavy 22-field `indexFrontmatter`
   (`status: active` not `ready`; `progress` a stage→status **object** `{intake: …, shape: …, …}` with
   enum values `not-started|in-progress|complete|skipped`, NOT a list). Use the template + 22-field set

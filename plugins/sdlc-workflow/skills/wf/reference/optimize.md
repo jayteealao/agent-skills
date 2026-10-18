@@ -7,7 +7,7 @@ argument-hint: <slug> | <description>
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-You are running `/wf optimize <slug>`. An optimize slug has its own lifecycle: intake and the metric spec (`/wf intake optimize`), then the loop, then verify, review, handoff, ship and retro as for any slug. This key runs the loop. The loop changes code toward one number: the metric of `02-optimize-spec.md`.
+You are running `/wf loop optimize <slug>`. An optimize slug has its own lifecycle: intake and the metric spec (`/wf intake optimize`), then the loop, then verify, review, handoff, ship and retro as for any slug. This sub-key runs the loop. The loop changes code toward one number: the metric of `02-optimize-spec.md`.
 
 > **Hosts.** The script and the ledger are the same on every host. The driver (`workflows/optimize.js`) is Claude Code only. On a host with no driver, the goal contract carries the loop in the session, one trial for each turn ([goal.md](goal.md)).
 
@@ -44,7 +44,7 @@ CAUTION: do not delete the optimize worktree with a recursive delete. A `node_mo
 | `running` · any action | Step 2. |
 | `complete` · `finish` | Step 3. |
 | `stopped` · `person` | Show `reason`, `detail` and `next.why`. The person chooses. A raised `budget` or `branch-rounds.max-extra` in the spec continues the loop when `status` then shows `running`. Otherwise the choice is `finish` (Step 3) or a new optimize slug. For `state-error`, report and do not repair. |
-| `stopped` · `wait` | A usage pause or a stop request holds the loop. Show the reason. The loop continues at the next `/wf optimize <slug>` after the hold clears. |
+| `stopped` · `wait` | A usage pause or a stop request holds the loop. Show the reason. The loop continues at the next `/wf loop optimize <slug>` after the hold clears. |
 | `finished` · `verify` | The loop is done. The next step is `/wf verify <slug> optimize`. |
 
 ## Step 1 — Baseline
@@ -62,11 +62,11 @@ When your host has the driver (Claude Code only):
 3. Start the watch and the running commentary per [yolo/_commentary.md](yolo/_commentary.md). The driver journal is `.ai/workflows/<slug>/.driver-journal.jsonl`.
 4. When the driver returns, end the watch and go to Step 4.
 
-To resume, run `/wf optimize <slug>` again. The script continues from `state.json`, inside an open round too.
+To resume, run `/wf loop optimize <slug>` again. The script continues from `state.json`, inside an open round too.
 
 ### Without the driver
 
-On a host with no driver, the goal contract carries the loop: `/wf goal <slug>` arms `kind: optimize` ([goal.md](goal.md)). Each worker turn runs one action:
+On a host with no driver, the goal contract carries the loop: `/wf loop goal <slug>` arms `kind: optimize` ([goal.md](goal.md)). Each worker turn runs one action:
 
 1. Run `status`. When `next.action` is `round-open`, `round-close` or `checkpoint`, run that command, then run `check` of the goal and end the turn.
 2. For a `trial`, run `propose-context`. Its `digest` is all that you may know about the run. Do not read `optimize/` or other branches' history.

@@ -67,7 +67,7 @@ entry itself (id, files, rationale, severity) travels in the invocation text per
    source is not decision-shaped as a whole and is never superseded: the successor sets
    the piece of work's `state` (`prepared` at intake, `routed` at shape) and `routed-to: <new-slug>` in `brainstorm-board.json`, and on its packet when it has one, and
    each of its threads to `routed` when no other piece of work draws on the thread. Updating those fields on an open
-   board is additive; the board stays open until `/wf close <slug>`.
+   board is additive; the board stays open until `/wf intake <slug> close`.
 3. If a decision-shaped source is still **open** (the user routed without recording the
    pick/route), this IS the implicit decision: apply the source mode's decision-closure
    section (investigate `# Pick`, ideate `# Pick`, rca `# Route`) first, with

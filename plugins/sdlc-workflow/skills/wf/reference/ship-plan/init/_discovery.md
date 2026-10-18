@@ -66,7 +66,7 @@ Group H — **Security & supply-chain tooling** (align categories to `../review/
 Group I — **Repo topology** (one read; affects ecosystems, lint scoping, matrix):
 - Detect monorepo/workspaces: `workspaces` in `package.json`, `pnpm-workspace.yaml`, `nx.json`, `turbo.json`, `lerna.json`, Gradle `settings.gradle*` `include(...)`, Cargo `[workspace]`, `go.work`. Record `{ monorepo: bool, tool, workspaces: [...] }`.
 
-**Remote reads only.** Groups G–I issue read-only `gh api` calls and config reads; **none of them ever writes.** Applying remote settings is `/wf ship-plan build`'s job.
+**Remote reads only.** Groups G–I issue read-only `gh api` calls and config reads; **none of them ever writes.** Applying remote settings is `/wf project ship-plan build`'s job.
 
 ## 1.2 What to extract
 

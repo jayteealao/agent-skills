@@ -61,7 +61,7 @@ You are a **scope expander**, not a problem solver; respect the stated order onl
    - `from-review` — extract new scope from `07-review-*.md` findings (every per-slice review file is read; missing capability typically spans slices).
    - `from-retro` — extract new scope from `10-retro.md` findings.
    - `from-probe` — extract new scope from the workflow's probe slices (`03-slice-probe-*.md`): findings whose remediation is net-new capability rather than a fix of built work.
-   - `from-simplify` — extract new scope from `/wf simplify` findings routed here (the finding entry — id, files, rationale, severity — travels in the invocation text).
+   - `from-simplify` — extract new scope from `/wf intake simplify` findings routed here (the finding entry — id, files, rationale, severity — travels in the invocation text).
    - **Free scope text** (or nothing) — general extension; the user describes the new scope (the free text after the slug is your starting description; if empty, the Step 2 interview elicits it).
 3. **Parse `00-index.md`** — `title`, `slug`, `current-stage`, `status`, `selected-slice`, `workflow-files`, `workflow-type`.
 3b. **Shape pre-flight (entry guard).** Extension requires a slice roster, and the dispatcher's branch 2 routes ANY on-disk slug here — including workflows that cannot have one. Check before reading further:

@@ -1,4 +1,4 @@
-// WF-PROTOTYPE-PLAN W4 — the guard tests of /wf prototype, red first:
+// WF-PROTOTYPE-PLAN W4 — the guard tests of /wf loop prototype, red first:
 //   - the person starts every round: auto, yolo, goal and campaign refuse a prototype slug;
 //   - a commit happens only on a decide round, through the script, by explicit path;
 //   - no write lands outside the worktree; the report reads with scripts off.
@@ -18,7 +18,7 @@ const REF = 'skills/wf/reference';
 
 test('each of the four drivers refuses a prototype slug', () => {
   assert.match(read(`${REF}/auto.md`), /`workflow-type: prototype`[^\n]*a driver runs none[^\n]*PAUSE/);
-  assert.match(read(`${REF}/yolo.md`), /`prototype` \(the person starts every round; route `\/wf prototype <slug> <request>`\)/);
+  assert.match(read(`${REF}/yolo.md`), /`prototype` \(the person starts every round; route `\/wf loop prototype <slug> <request>`\)/);
   assert.match(read('skills/wf/workflows/yolo.js'), /5b2\. PROTOTYPE — workflow-type 'prototype'[^]*yolo drives NOTHING here/);
   assert.ok(NOT_DRIVEN.prototype, 'goal: lifecycle-done refuses a prototype');
   assert.ok(!PACKET_FORMS.includes('prototype'), 'campaign: no packet can start a prototype');
@@ -40,19 +40,20 @@ test('the key reference: person-only rounds, one round per run, decide-only comm
 
 test('the dispatcher, the picker, and the host contract name the key', () => {
   const skill = read('skills/wf/SKILL.md');
-  assert.match(skill, /one of the 27 keys/);
-  assert.match(skill, /\| `prototype` \| `<idea>` · `<slug> \[request\]` \|/);
-  assert.match(skill, /observability, goal, optimize, prototype\."\*/);
-  assert.match(read('hooks/mod/catalog.ts'), /key: 'prototype'/);
+  assert.match(skill, /one of the 19 keys/);
+  assert.match(skill, /^\| `loop` \| .*`prototype <idea>` · `prototype <slug> \[request\]`/m);
+  assert.match(skill, /loop, status, project, docs\."\*/);
+  assert.match(skill, /^\| `loop goal`, `loop optimize`, `loop prototype` \|/m);
+  assert.match(read('hooks/mod/catalog.ts'), /key: 'loop prototype'/);
   assert.match(read(`${REF}/_host-invocation.md`), /\| Published page \(brainstorm, prototype\) \|/);
-  assert.equal(JSON.parse(read('docs/internal/surface-policy.json')).keys, 27);
+  assert.equal(JSON.parse(read('docs/internal/surface-policy.json')).keys, 19);
 });
 
 test('status, recap and close find a prototype in its worktree', () => {
   assert.match(read(`${REF}/status.md`), /Keep a `prototype` row whose `branch` has a worktree in `git worktree list`/);
   assert.match(read(`${REF}/status.md`), /one from `prototype\.mjs status` for a prototype slug/);
   assert.match(read(`${REF}/recap.md`), /A `prototype` row of `INDEX\.md` is a slug too/);
-  assert.match(read(`${REF}/close.md`), /Run `prototype\.mjs exit <slug> close` first/);
+  assert.match(read(`${REF}/intake/close.md`), /Run `prototype\.mjs exit <slug> close` first/);
 });
 
 test('the schema knows the prototype: the workflow type, the person document, and the ledger', () => {

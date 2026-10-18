@@ -176,7 +176,7 @@ test('a shared master file matches only the stage the writer runs; none leaves t
   const ledger = new Map();
   readRef(ledger, 'I', 'implement.md');
   const implementStages = writerStagesOf(requires, ledger.get('I'), null);
-  // The yolo implement agent writes the master 05-implement.md: not checked against /wf task.
+  // The yolo implement agent writes the master 05-implement.md: not checked against /wf intake task.
   assert.equal(matchWrite(requires, '05-implement.md', implementStages, undefined, implementStages), null);
   assert.equal(matchWrite(requires, '06-verify.md', implementStages, undefined, implementStages), null);
   readRef(ledger, 'T', 'task.md');

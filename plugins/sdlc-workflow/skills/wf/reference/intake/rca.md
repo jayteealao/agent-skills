@@ -60,7 +60,7 @@ You are a **diagnostician**, not a fixer.
      - **`01-rca.md` is incomplete** → **resume mode**: pick up from the missing section.
    - Otherwise → **new RCA**. Derive a slug: `rca-<short-symptom>` (kebab-case, max 5 words, for example `rca-checkout-double-charge`). This is an ordinary `.ai/workflows/<slug>/` directory; there is no synthetic `__rca__` slug. The renderer discovers it via the standard workflow walk and projects `01-rca.md` through the `01-rca` → rca route.
    - **Inbound provenance:** apply `_intake-provenance.md` on an explicit `from <source-slug>` token. A `discover` verdict routed here carries ranked counter-hypotheses that are literally candidate root causes; seed Step 2's sub-agent prompts with them and record `origin-discover` on the index.
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `rca`, WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf recap <slug>` to continue the existing workflow." Stop.
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `rca`, WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf status recap <slug>` to continue the existing workflow." Stop.
 3. **Branch posture (do not switch branches):** investigation is read-only; create no branch and switch no branch. Record the current branch in the index as `branch` and `base-branch` so the eventual fix workflow knows where the diagnosis was performed.
 4. **Read project context (lightweight):** `README.md` (top 100 lines) for project shape; `AGENTS.md` if present for conventions; `.ai/workflows/*/00-index.md` filenames to spot related active workflows the symptom might be tied to.
 
@@ -216,4 +216,4 @@ Runs only from Step 0 route mode (`/wf intake rca <slug> <plan|fix|hotfix|human-
 
 - **Not a fixer**: `/wf intake rca` produces an RCA artifact and a routing recommendation. It does not edit application code, run mutating commands, commit, push, or open a PR.
 - **Not a hotfix**: `/wf intake hotfix` is what you run *after* `/wf intake rca` recommends it. `/wf intake rca` decides whether the situation warrants the hotfix path.
-- **Not an explainer**: `/wf recap <slug> <focus>` (or a plain research conversation outside `/wf`) explains existing code or artifacts on demand. `/wf intake rca` is for *finding* a cause that is not yet explained.
+- **Not an explainer**: `/wf status recap <slug> <focus>` (or a plain research conversation outside `/wf`) explains existing code or artifacts on demand. `/wf intake rca` is for *finding* a cause that is not yet explained.

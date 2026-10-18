@@ -2,7 +2,7 @@
   "name": "brainstorm-design",
   "order": 116,
   "fixture": "docs-repo",
-  "prompt": "/wf brainstorm design a reading-progress bar at the top of each page",
+  "prompt": "/wf intake brainstorm design a reading-progress bar at the top of each page",
   "maxTurns": 40,
   "assertions": [
     {

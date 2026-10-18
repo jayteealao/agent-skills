@@ -111,7 +111,7 @@ Charter: read the plan, implement, and verify artifacts plus the git log, and re
 
 **Deferred-debt harvest (this workflow only):**
 - Collect every intentional-simplification marker this workflow introduced: grep the workflow's commits for `sdlc-debt:` (`git log -p <base-branch>..HEAD | grep -nE 'sdlc-debt:'`) and read each slice's `05-implement-<slice>.md` → `## Anything Deferred` / `## Known Risks / Caveats`.
-- For each marker, record: file:line, the ceiling, the upgrade path, and where it was recorded. **Scope to THIS workflow's debt — do NOT grep the whole repo** (that is `/wf simplify codebase`'s sweep).
+- For each marker, record: file:line, the ceiling, the upgrade path, and where it was recorded. **Scope to THIS workflow's debt — do NOT grep the whole repo** (that is `/wf intake simplify codebase`'s sweep).
 - Classify each as **act-now** (worth its own follow-up workflow this sprint) or **accept** (a deliberate, acceptable ceiling that just needs to stay visible). The act-now items drive `## Deferred Debt` and Option B routing below.
 
 ### Analysis sub-agent 2 — Review & Handoff Quality

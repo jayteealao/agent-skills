@@ -28,19 +28,18 @@ const REF_DIR = path.join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 // The stage references: each owns a stage run and carries a Requires table.
 const STAGE_REFERENCES = [
   'augment/benchmark.md', 'augment/experiment.md', 'augment/instrument.md', 'augment/profile.md',
-  'brainstorm.md', 'close.md', 'design.md', 'docs.md', 'handoff.md', 'implement.md', 'intake.md',
-  'intake/adopt.md', 'intake/audit.md', 'intake/brainstorm.md', 'intake/default.md', 'intake/discover.md',
+  'design.md', 'docs.md', 'handoff.md', 'implement.md', 'intake.md',
+  'intake/adopt.md', 'intake/audit.md', 'intake/brainstorm.md', 'intake/close.md', 'intake/default.md', 'intake/discover.md',
   'intake/extend.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/ideate.md', 'intake/investigate.md',
-  'intake/optimize.md', 'intake/rca.md', 'intake/refactor.md', 'intake/update-deps.md', 'observability.md', 'plan.md', 'probe.md',
-  'prototype.md', 'recap.md', 'retro.md', 'review.md', 'shape.md', 'ship-plan.md', 'ship.md', 'simplify.md', 'slice.md',
-  'status.md', 'task.md', 'verify.md',
+  'intake/optimize.md', 'intake/rca.md', 'intake/refactor.md', 'intake/simplify.md', 'intake/task.md', 'intake/update-deps.md', 'observability.md', 'plan.md', 'probe.md',
+  'prototype.md', 'recap.md', 'retro.md', 'review.md', 'shape.md', 'ship-plan.md', 'ship.md', 'slice.md',
+  'status.md', 'verify.md',
 ];
 
 // Stage references with a table but no `writes` row.
 const NO_WRITES = new Map([
   ['status.md', 'a reader: it writes no stage artifact'],
   ['intake.md', 'the intake dispatcher: the mode reference it loads writes the lead'],
-  ['brainstorm.md', 'a router to intake/brainstorm.md, which writes 01-brainstorm.md'],
 ]);
 
 // References without a table. `_*.md` sub-procedures never carry one (S1); these

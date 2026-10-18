@@ -182,8 +182,8 @@ test('update-deps has a lawful audit-only terminus and self-reports to the index
   for (const { name, root } of trees) {
     const src = readMode(root, 'update-deps.md');
     assert.ok(
-      /[/$]wf close <slug> deferred/.test(src),
-      `${name}: update-deps.md audit-only branch lacks the lawful terminus \`wf close <slug> deferred\``,
+      /[/$]wf intake <slug> close deferred/.test(src),
+      `${name}: update-deps.md audit-only branch lacks the lawful terminus \`wf intake <slug> close deferred\``,
     );
     assert.ok(
       src.includes('self-report to `00-index.md`'),

@@ -2,7 +2,7 @@
   "name": "prototype",
   "order": 150,
   "fixture": "node-cli",
-  "prompt": "/wf prototype can the built-in node test runner run this suite faster than the current one",
+  "prompt": "/wf loop prototype can the built-in node test runner run this suite faster than the current one",
   "maxTurns": 60,
   "assertions": [
     {

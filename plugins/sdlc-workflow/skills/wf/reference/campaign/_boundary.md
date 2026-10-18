@@ -140,7 +140,7 @@ Write `fidelity/wave-<n>.md`. For every carried decision of each merged slug, on
    - how to install or run the output (the recipe's `try`);
    - what to try first, taken from the slugs' acceptance criteria;
    - known limits: deferrals, `partial` verify results, `unverified` refuter lines, the open wave review findings, and open risks;
-   - how to report a bug: `/wf brainstorm <brainstorm-slug> add <text>`, in the brainstorm session.
+   - how to report a bug: `/wf intake brainstorm <brainstorm-slug> add <text>`, in the brainstorm session.
 3. Append the `wave-ready` event.
 
 ## Drift check

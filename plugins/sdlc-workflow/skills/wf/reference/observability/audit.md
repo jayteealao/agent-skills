@@ -14,7 +14,7 @@ this operation produces: translate workflow context to product language and leak
 > in a recalled API — the latter is exactly where plausible-but-wrong findings come from. Inject the same
 > instruction into every lens sub-agent. Read-only — reads land in gitignored `.scratch/`.
 
-You are running `wf observability audit`. Your job is **not** to fix anything. It is to **question the
+You are running `wf project observability audit`. Your job is **not** to fix anything. It is to **question the
 observability surface**: to read `.ai/observability.md`, the emit code / pipeline / backend / dashboards that
 realize it, and the codebase, and surface every blind spot, schema drift, PII leak, sampling blunder, and
 disconnected-pipeline hazard that would make production debugging fail when it matters — then route each to the
@@ -36,7 +36,7 @@ code, present in the repo, and useless when you page someone at 2am. `audit` is 
 # What this command does NOT do
 
 - It does **not** edit `.ai/observability.md` — amend it by hand. It reports what to change and routes there.
-- It does **not** create, patch, or provision anything — that is `/wf observability build`.
+- It does **not** create, patch, or provision anything — that is `/wf project observability build`.
 - It does **not** re-run the deep code-correctness sweep. Its codebase lens is scoped to the **observability
   surface** (dark paths, schema consistency, PII in events, sampling). For a general bug-hunt it points at
   `/wf review sweep pre-merge`.
@@ -49,7 +49,7 @@ code, present in the repo, and useless when you page someone at 2am. `audit` is 
 1. **Parse `$ARGUMENTS`.** The first token, if present, is either a **lens key** (run that one lens inline) or
    `triage` (re-surface `acknowledged` findings — see Step 5). No token → full fan-out across all seven lenses.
 2. **Read `.ai/observability.md`.** STOP if missing: *"No observability contract at `.ai/observability.md`. There
-   is nothing to audit yet — run `/wf observability init` first."* Parse Blocks A–H (+ `additional-contracts[]`).
+   is nothing to audit yet — run `/wf project observability init` first."* Parse Blocks A–H (+ `additional-contracts[]`).
    Note `plan-version` and `updated-at`.
 3. **Read the existing ledger** `.ai/observability-audit.md` if it exists. Parse `runs[]` and `findings[]` — this
    run merges into it, not overwrites it (Step 4). If absent, this is run 1.
@@ -126,7 +126,7 @@ against the parsed prior `findings[]`:
   `status: resolved`, `resolved-at: <this run>`. If the target itself is gone, resolve it noting the target
   vanished. Never silently delete — resolution is recorded.
 - **Acknowledged** findings stay `acknowledged` until they disappear (→ resolved) or the user re-triages
-  (`/wf observability audit triage`).
+  (`/wf project observability audit triage`).
 
 Write the ledger with this shape (frontmatter carries machine-readable state; the body tells the story):
 
@@ -202,7 +202,7 @@ use this mapping:
 | Finding is about… | Route to |
 |---|---|
 | The **contract's content** — a block is wrong, missing, or a policy is incoherent | amend `.ai/observability.md` block X by hand (name the block; an `edit` sub-key is the sanctioned future addition) |
-| A **missing scaffold the contract implies but the repo lacks** — no emit path, no collector config, no dashboard | `/wf observability build` |
+| A **missing scaffold the contract implies but the repo lacks** — no emit path, no collector config, no dashboard | `/wf project observability build` |
 | A **code-level leak or schema desync** — a call site emits the wrong key, a field the policy should redact | `/wf intake fix <scope>` (or direct guidance for a one-line fix) |
 | **Deep code-correctness/security** beyond the observability surface | `/wf review sweep pre-merge` (pointer — `audit` does not own it) |
 
@@ -219,4 +219,4 @@ that most threatens debuggability), then this receipt:
 - `findings (open): BLOCKER <n> | HIGH <n> | MED <n> | LOW <n> | NIT <n>`
 - `resolved-this-run: <n>` · `acknowledged: <n>`
 - `Next:` the single highest-leverage route from Step 6 (e.g. amend `.ai/observability.md` Block A then
-  `/wf observability build`), or `Done` if the verdict is `sound` and nothing is open.
+  `/wf project observability build`), or `Done` if the verdict is `sound` and nothing is open.

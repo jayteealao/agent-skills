@@ -23,10 +23,10 @@ test('brainstorm/_work.md names none of the four graph fields as a thing to agre
   assert.doesNotMatch(read('intake/brainstorm.md'), /their order, dependencies, slugs/);
 });
 
-test('the campaign sends no graph change through /wf brainstorm', () => {
+test('the campaign sends no graph change through /wf intake brainstorm', () => {
   for (const rel of ['campaign/_phases.md', 'campaign/_waves.md']) {
     const text = read(rel);
-    for (const line of text.split('\n').filter((l) => /\/wf brainstorm <brainstorm-slug> add/.test(l))) {
+    for (const line of text.split('\n').filter((l) => /\/wf intake brainstorm <brainstorm-slug> add/.test(l))) {
       assert.doesNotMatch(line, /needs|provides|expects|depends-on|derived/, `${rel}: ${line.slice(0, 120)}`);
     }
   }

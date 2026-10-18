@@ -19,7 +19,7 @@
 
 <p>This separation is deliberate. Each investigation ends with an artifact and a recommendation. The fix, when there is one, goes through its own lifecycle with its own planning, verification, and review. That keeps the evidence trail honest: the diagnosis is never contaminated by pressure to make the fix look easy, and no code change slips through a side door that bypasses review.</p>
 
-<p>Six of these commands are intake modes: <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>ideate</code>, <code>audit</code>, and <code>brainstorm</code>. The six modes are <em>terminal</em>: they end in an artifact and a routing decision rather than flow into a build. They create no branch. The other two commands, <code>probe</code> and <code>simplify</code>, are standalone keys with the same read-only posture. All seven can also attach to an existing workflow: pass a slug first, and the result lands as a quick-lane slice inside that workflow's directory instead of a new workflow.</p>
+<p>Seven of these commands are intake modes: <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>ideate</code>, <code>audit</code>, <code>brainstorm</code>, and <code>simplify</code>. The seven modes are <em>terminal</em>: they end in an artifact and a routing decision rather than flow into a build. They create no branch. The other command, <code>probe</code>, is a standalone key with the same read-only posture. All seven can also attach to an existing workflow: pass a slug first, and the result lands as a quick-lane slice inside that workflow's directory instead of a new workflow.</p>
 
 <h2 id="rca">rca — find out why it broke</h2>
 
@@ -73,9 +73,8 @@
 <p>The board is two files. <code>01-brainstorm.md</code> is your document: the summary, the map, the decisions with their reasons, the open ideas, the findings with their sources, the assumptions, the tensions, and the questions for the plan. <code>brainstorm-board.json</code> is the agent's working board, validated on every write. Both are rewritten after every batch, so a session that dies loses at most one batch. When you state something about the codebase that one read can check, the agent runs that one read and records the finding with a file and line. It sends a research sub-agent only when you say <code>look it up</code>. It writes no plan and no code. On <code>done</code>, you and the agent walk back through the discussion one area at a time: you keep, cut, or leave for later each area or each item. Then you agree how the kept items become work, and nothing is written until you confirm. A piece that only changes documents is written in the same session. Every other piece gets a work packet in <code>work/</code> that carries your decisions word for word; <code>/wf intake</code> with the packet's path starts it. The successor inherits only what you kept, and the items you left for later as what it must not re-widen.</p>
 
 <pre><code>/wf intake brainstorm a per-slug cost budget
-/wf intake brainstorm brainstorm-a-per-slug-cost-budget-20260922   # resume
-/wf brainstorm a per-slug cost budget                              # the same loop under its own key</code></pre>
-<p>To think through how an idea looks and behaves, add <code>design</code>: <code>/wf brainstorm design &lt;idea&gt;</code>. See <a href="design.html#brainstorm">Design</a>.</p>
+/wf intake brainstorm brainstorm-a-per-slug-cost-budget-20260922   # resume</code></pre>
+<p>To think through how an idea looks and behaves, add <code>design</code>: <code>/wf intake brainstorm design &lt;idea&gt;</code>. See <a href="design.html#brainstorm">Design</a>.</p>
 
 <h2 id="audit">audit — hunt the defects nobody has named yet</h2>
 
@@ -108,7 +107,7 @@ runtime". Those are recorded at low confidence as <code>needs-runtime-evidence</
 exact experiment named, and they route to <code>/wf probe</code>. Everything else routes too:
 a mechanical defect to <code>fix</code>, an unexplained symptom to <code>rca</code>, a
 restructuring question to <code>investigate</code>, and a non-code outcome (rotate the leaked
-key, file the upstream issue) to <code>/wf task</code>. audit fixes nothing, ever. A
+key, file the upstream issue) to <code>/wf intake task</code>. audit fixes nothing, ever. A
 zero-finding run is a valid result, written legibly enough that the next audit knows what was
 covered.</p>
 
@@ -151,10 +150,10 @@ covered.</p>
 
 <p>simplify is triage for code quality. It dispatches three reviewers in parallel. <strong>Reuse</strong> asks whether new code duplicates an existing helper. <strong>Quality</strong> looks for redundant state, copy-paste variation, leaky abstractions, and stringly-typed code. <strong>Efficiency</strong> looks for redundant work, missed concurrency, hot-path bloat, and memory leaks. The reviewers run across one of four scopes:</p>
 
-<pre><code>/wf simplify                      # the current branch's diff (default)
-/wf simplify commit &lt;sha&gt;         # one commit or a range
-/wf simplify plan &lt;slug&gt; &lt;slice&gt;  # a plan's prose, not a diff
-/wf simplify codebase [path]      # a whole subtree</code></pre>
+<pre><code>/wf intake simplify                      # the current branch's diff (default)
+/wf intake simplify commit &lt;sha&gt;         # one commit or a range
+/wf intake simplify plan &lt;slug&gt; &lt;slice&gt;  # a plan's prose, not a diff
+/wf intake simplify codebase [path]      # a whole subtree</code></pre>
 
 <p>Independently of the reviewers, simplify harvests <code>sdlc-debt:</code> markers, the shortcuts that implementation flagged with a ceiling and an upgrade path, and folds them in as pre-classified findings. Markers exist for routing, not rediscovery. simplify's codebase scope is the repo-wide sweep of that declared debt backlog.</p>
 
@@ -179,7 +178,7 @@ covered.</p>
   <dt><code>/wf intake ideate</code></dt><dd>You do not have a question yet; you want to know what is <em>worth doing</em>. ideate starts from nothing.</dd>
   <dt><code>/wf intake brainstorm</code></dt><dd>You have a half-formed thought and want to <em>think it through</em>. brainstorm starts from your thought; the agent asks, you generate.</dd>
   <dt><code>/wf probe</code></dt><dd>You need to know what the <em>running product actually does</em>, versus what was promised.</dd>
-  <dt><code>/wf simplify</code></dt><dd>You want the code reviewed for reuse, quality, and efficiency, with each finding sent to the correct fix lane.</dd>
+  <dt><code>/wf intake simplify</code></dt><dd>You want the code reviewed for reuse, quality, and efficiency, with each finding sent to the correct fix lane.</dd>
 </dl>
 
 <div class="related">

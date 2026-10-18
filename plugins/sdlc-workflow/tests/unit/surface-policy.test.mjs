@@ -28,11 +28,12 @@ test('surface-policy.json pins equal the working tree counts', () => {
 
 test('the counters see the surface the docs name', () => {
   const m = surfaceMembers(pluginRoot);
-  for (const k of ['intake', 'shape', 'slice', 'plan', 'implement', 'verify', 'review', 'handoff', 'ship', 'retro', 'status', 'task', 'auto', 'yolo']) {
+  for (const k of ['intake', 'shape', 'slice', 'plan', 'implement', 'verify', 'review', 'handoff', 'ship', 'retro', 'status', 'loop', 'project', 'auto', 'yolo']) {
     assert.ok(m.keys.includes(k), `keys lacks ${k}`);
   }
   assert.equal(new Set(m.keys).size, m.keys.length, 'a key appears twice in the SKILL.md tables');
-  for (const mode of ['fix', 'rca', 'audit', 'adopt', 'amend', 'modernize']) assert.ok(m.intakeModes.includes(mode), `intakeModes lacks ${mode}`);
+  for (const k of ['task', 'brainstorm', 'recap', 'close']) assert.ok(!m.keys.includes(k), `keys still has ${k}`);
+  for (const mode of ['fix', 'rca', 'audit', 'adopt', 'amend', 'modernize', 'simplify', 'task', 'close']) assert.ok(m.intakeModes.includes(mode), `intakeModes lacks ${mode}`);
   for (const r of ['correctness', 'security', 'intent-fidelity']) assert.ok(m.reviewRubrics.includes(r), `reviewRubrics lacks ${r}`);
   for (const a of ['all', 'pre-merge', 'quick']) assert.ok(m.aggregates.includes(a), `aggregates lacks ${a}`);
   for (const s of ['00-index.md', '04-plan-<X>.md', '09-ship-run-<X>.md']) assert.ok(m.artifactStems.includes(s), `artifactStems lacks ${s}`);

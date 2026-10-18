@@ -1,6 +1,6 @@
 export const meta = {
   name: 'wf-optimize',
-  description: 'The driver of /wf optimize. It runs the metric loop of one optimize slug: each trial is a fresh proposer that reads only the digest of its trunk or branch, a fresh editor, and a bookkeeping agent that runs optimize.mjs trial. optimize.mjs owns every git write, measurement and keep or revert; this script only sequences agents. Branch rounds open on the fixed schedule and on a plateau. Never pushes, never opens a PR.',
+  description: 'The driver of /wf loop optimize. It runs the metric loop of one optimize slug: each trial is a fresh proposer that reads only the digest of its trunk or branch, a fresh editor, and a bookkeeping agent that runs optimize.mjs trial. optimize.mjs owns every git write, measurement and keep or revert; this script only sequences agents. Branch rounds open on the fixed schedule and on a plateau. Never pushes, never opens a PR.',
   phases: [
     { title: 'Orient', detail: 'the status of the loop and the agent ceiling' },
     { title: 'Loop', detail: 'trials on the trunk and on the branches of each round; round-open, round-close and checkpoints when optimize.mjs names them' },
@@ -9,7 +9,7 @@ export const meta = {
 }
 
 // ===========================================================================
-// /wf optimize — the Workflow driver (docs/internal/WF-OPTIMIZE-PLAN.md section 5).
+// /wf loop optimize — the Workflow driver (docs/internal/WF-OPTIMIZE-PLAN.md section 5).
 //
 // The script has no file access, no clock and no Node API. Every command is an agent.
 // `optimize.mjs status` decides the next action (4.6): a trial on the trunk or on the

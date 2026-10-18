@@ -18,7 +18,7 @@ The packet carries the person's decisions word for word. A decision is the perso
       - a packet is done when the `00-index.md` of its `routed-to` workflow has `status: complete` or `status: closed`;
       - a write-now piece is done when its state on the board is `written`.
    3. When a piece is not done, name it in plain words and ask the person whether to start anyway, per [_gate-question.md](../_gate-question.md). The person decides.
-4. The new workflow's slug is the packet's `work-slug`. Do not derive another slug. When `.ai/workflows/<work-slug>/` exists, ask the person for a new slug, per the collision rule in [_intake-context.md](_intake-context.md).
+4. The new workflow's slug is the packet's `work-slug`. Do not derive another slug. When `.ai/workflows/<work-slug>/` exists, or `<work-slug>` is a reserved slug name, ask the person for a new slug, per the collision rule and the reserved slug names in [_intake-context.md](_intake-context.md).
 5. Run the packet's `form` with that slug. The token `from <origin-brainstorm>` is implied: apply [_intake-provenance.md](_intake-provenance.md) with the packet's piece of work as the routed piece.
 
 | `form` | Run |

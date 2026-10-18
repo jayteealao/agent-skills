@@ -379,7 +379,7 @@ describe('read check', () => {
   test('the main loop is checked against the stage its /wf command names', async ($, on) => {
     const world = seat(on, MASTERS)
     await $.session.start(SESSION)
-    await $.turn.start({ text: '/wf task alpha-flow', turnId: 't1' })
+    await $.turn.start({ text: '/wf intake task alpha-flow', turnId: 't1' })
     expect(contextOf(await write($, `${W}/05-implement.md`, '# Task\n'))).toContain('fixture/context.md')
     expect(ledgerRows(world).map(row => row['stage'])).toEqual(['task'])
   })

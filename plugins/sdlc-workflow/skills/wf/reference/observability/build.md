@@ -13,7 +13,7 @@ this operation produces: translate workflow context to product language and leak
 > library's signatures is the difference between working instrumentation and a plausible-but-broken one.
 > Read-only; reads land in gitignored `.scratch/`.
 
-You are running `wf observability build`. Your job: read `.ai/observability.md` as the specification, measure the
+You are running `wf project observability build`. Your job: read `.ai/observability.md` as the specification, measure the
 gap between what exists and what the contract requires, confirm with the user, then implement **only what is
 missing** — code, pipeline, backend, and dashboards — under strict no-overwrite and remote-gating rules.
 
@@ -61,7 +61,7 @@ missing** — code, pipeline, backend, and dashboards — under strict no-overwr
 
 # What this command does NOT do
 
-- It does not author or edit `.ai/observability.md` — that is `/wf observability init`. It only *reads* the
+- It does not author or edit `.ai/observability.md` — that is `/wf project observability init`. It only *reads* the
   contract and closes the repo gap against it.
 - It does not push commits, open PRs, or set secrets — it lists the deps/secrets the user must handle.
 - It does not rip out existing scattered logs (see Step 6 — migration is advisory).
@@ -74,7 +74,7 @@ missing** — code, pipeline, backend, and dashboards — under strict no-overwr
 1. Parse `$ARGUMENTS` for `--dry-run`. If present, run all audit steps and produce the full gap report but write
    nothing. Label every planned change `[DRY RUN — not written]`.
 2. **Read `.ai/observability.md`.** STOP if missing: *"No observability contract found at `.ai/observability.md`.
-   Run `/wf observability init` first."* Parse Blocks A–H (+ `additional-contracts[]`) into memory. Note
+   Run `/wf project observability init` first."* Parse Blocks A–H (+ `additional-contracts[]`) into memory. Note
    `plan-version` and `provisioning.ceiling`.
 3. **Read `.ai/ship-plan.md` if present** — for env → endpoint mapping and deploy target, to make IaC concrete.
 4. **Index the repo's current observability surface** (a focused re-run of `init`'s Step 1, but comparing against
@@ -246,4 +246,4 @@ receipt:
   - Install the emit deps: `<install cmd>` per unit — the adapters are inert until installed.
   - Set backend credentials yourself: `<how>` — this command never enters them.
   - For any `*-applied`/`*-published` that is `printed`/`skipped`, run the command from `.ai/observability-build.md`.
-  - `/wf observability audit` — soundness sweep across code + pipeline + dashboards.
+  - `/wf project observability audit` — soundness sweep across code + pipeline + dashboards.

@@ -27,9 +27,9 @@ tags: []
 refs:
   index: 00-index.md
 next-command: recap                # Option A: the workflow is complete
-next-invocation: "/wf recap <slug>"   # the default route
+next-invocation: "/wf status recap <slug>"   # the default route
 recommended-routes:                # every viable option from retro.md Adaptive routing; one default
-  - invocation: "/wf recap <slug>"
+  - invocation: "/wf status recap <slug>"
     reason: "workflow complete"
     default: true
   - invocation: "/wf intake <follow-up>"

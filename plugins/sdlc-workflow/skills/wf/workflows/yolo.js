@@ -855,12 +855,12 @@ async function orient() {
     `to 5d.\n` +
     `   5b2. PROTOTYPE — workflow-type 'prototype'. A person-steered proof loop: the person starts every round, ` +
     `and no driver runs one. yolo drives NOTHING here. Set ok=false, blockReason='a prototype is steered by the ` +
-    `person, one round at a time', route='/wf prototype ${slug} <request>'. Do NOT fall through to 5d.\n` +
-    `   5c2. OPTIMIZE loop — workflow-type 'optimize'. The metric loop belongs to /wf optimize: a person confirms ` +
+    `person, one round at a time', route='/wf loop prototype ${slug} <request>'. Do NOT fall through to 5d.\n` +
+    `   5c2. OPTIMIZE loop — workflow-type 'optimize'. The metric loop belongs to /wf loop optimize: a person confirms ` +
     `its spec (02-optimize-spec.md, confirmed-by), and the loop runs under its own driver. yolo never runs a trial. ` +
     `READINESS: 05-implement-optimize.md exists with status: complete (the loop's finish wrote it, with ` +
     `03-slice.md and 03-slice-optimize.md). If it is absent or not complete, set ok=false, blockReason='the ` +
-    `optimize loop has not finished', route='/wf optimize ${slug}'. When it is complete, set ok=true and ` +
+    `optimize loop has not finished', route='/wf loop optimize ${slug}'. When it is complete, set ok=true and ` +
     `workflowType='optimize'; the roster is the one slice 'optimize', fileConvention 'suffixed' ` +
     `(06-verify-optimize.md, 07-review-optimize.md), reviewScope from 00-index.md (per-slice). In step 6, mark ` +
     `plan 'done' for that slice: the confirmed spec replaces the plan. yolo then drives verify and review only. ` +

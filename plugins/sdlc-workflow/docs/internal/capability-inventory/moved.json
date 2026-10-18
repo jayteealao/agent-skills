@@ -349,7 +349,7 @@
   },
   {
     "from": "skills/wf/reference/simplify.md",
-    "to": "skills/wf/reference/simplify/_research.md",
+    "to": "skills/wf/reference/intake/simplify/_research.md",
     "category": "dispatches",
     "entry": "dispatch shape three parallel sub-agents same"
   },
@@ -455,5 +455,191 @@
     "category": "artifacts",
     "entry": "07-design-critique.md",
     "reason": "ARTIFACT-SPLIT-PLAN S1/R3: the review inputs moved from the review/_stage.md read order into the ## Requires table of review.md, the reference that owns the stage run."
+  },
+  {
+    "from": "skills/wf/reference/simplify.md",
+    "to": "skills/wf/reference/intake/simplify.md",
+    "category": "dispatches",
+    "entry": "mandatory : dispatch all three sub-agents in one"
+  },
+  {
+    "from": "skills/wf/SKILL.md",
+    "to": "skills/wf/reference/intake/task.md",
+    "category": "artifacts",
+    "entry": "01-task.md"
+  },
+  {
+    "from": "skills/wf/SKILL.md",
+    "to": "skills/wf/reference/intake/close.md",
+    "category": "artifacts",
+    "entry": "99-close.md"
+  },
+  {
+    "from": "skills/wf/reference/close.md",
+    "to": "skills/wf/reference/intake/close.md",
+    "category": "artifacts",
+    "entry": "00-index.md"
+  },
+  {
+    "from": "skills/wf/reference/close.md",
+    "to": "skills/wf/reference/intake/close.md",
+    "category": "artifacts",
+    "entry": "03-slice-<X>.md"
+  },
+  {
+    "from": "skills/wf/reference/close.md",
+    "to": "skills/wf/reference/intake/close.md",
+    "category": "artifacts",
+    "entry": "03-slice.md"
+  },
+  {
+    "from": "skills/wf/reference/close.md",
+    "to": "skills/wf/reference/intake/close.md",
+    "category": "artifacts",
+    "entry": "99-close.md"
+  },
+  {
+    "from": "skills/wf/reference/close.md",
+    "to": "skills/wf/reference/intake/close.md",
+    "category": "stops",
+    "entry": "validate the slug: if .ai/workflows/<slug /00-index.md does not"
+  },
+  {
+    "from": "skills/wf/reference/close.md",
+    "to": "skills/wf/reference/intake/close.md",
+    "category": "dispatches",
+    "entry": "above a mandatory gate, and inject the relevant"
+  },
+  {
+    "from": "skills/wf/reference/simplify.md",
+    "to": "skills/wf/reference/intake/simplify.md",
+    "category": "artifacts",
+    "entry": "00-index.md"
+  },
+  {
+    "from": "skills/wf/reference/simplify.md",
+    "to": "skills/wf/reference/intake/simplify.md",
+    "category": "artifacts",
+    "entry": "01-simplify.md"
+  },
+  {
+    "from": "skills/wf/reference/simplify.md",
+    "to": "skills/wf/reference/intake/simplify.md",
+    "category": "artifacts",
+    "entry": "03-slice-simplify-<X>.md"
+  },
+  {
+    "from": "skills/wf/reference/simplify.md",
+    "to": "skills/wf/reference/intake/simplify.md",
+    "category": "artifacts",
+    "entry": "03-slice.md"
+  },
+  {
+    "from": "skills/wf/reference/simplify.md",
+    "to": "skills/wf/reference/intake/simplify.md",
+    "category": "artifacts",
+    "entry": "04-plan-<X>.md"
+  },
+  {
+    "from": "skills/wf/reference/simplify.md",
+    "to": "skills/wf/reference/intake/simplify.md",
+    "category": "artifacts",
+    "entry": "04-plan.md"
+  },
+  {
+    "from": "skills/wf/reference/simplify.md",
+    "to": "skills/wf/reference/intake/simplify.md",
+    "category": "gates",
+    "entry": "present the table to the user as gate"
+  },
+  {
+    "from": "skills/wf/reference/simplify.md",
+    "to": "skills/wf/reference/intake/simplify.md",
+    "category": "stops",
+    "entry": "if missing, stop: \"no plan found at <path"
+  },
+  {
+    "from": "skills/wf/reference/simplify.md",
+    "to": "skills/wf/reference/intake/simplify.md",
+    "category": "dispatches",
+    "entry": "1·resolve-scope 2·dispatch (3 sub-agents in parallel) 3·aggregate +"
+  },
+  {
+    "from": "skills/wf/reference/simplify.md",
+    "to": "skills/wf/reference/intake/simplify.md",
+    "category": "dispatches",
+    "entry": "above a mandatory gate, and inject the relevant"
+  },
+  {
+    "from": "skills/wf/reference/simplify.md",
+    "to": "skills/wf/reference/intake/simplify.md",
+    "category": "dispatches",
+    "entry": "dispatches three parallel sub-agents (code reuse, code quality,"
+  },
+  {
+    "from": "skills/wf/reference/simplify.md",
+    "to": "skills/wf/reference/intake/simplify.md",
+    "category": "dispatches",
+    "entry": "step 2 dispatch three sub-agents in parallel"
+  },
+  {
+    "from": "skills/wf/reference/task.md",
+    "to": "skills/wf/reference/intake/task.md",
+    "category": "artifacts",
+    "entry": "00-index.md"
+  },
+  {
+    "from": "skills/wf/reference/task.md",
+    "to": "skills/wf/reference/intake/task.md",
+    "category": "artifacts",
+    "entry": "01-task.md"
+  },
+  {
+    "from": "skills/wf/reference/task.md",
+    "to": "skills/wf/reference/intake/task.md",
+    "category": "artifacts",
+    "entry": "03-slice-task-<X>.md"
+  },
+  {
+    "from": "skills/wf/reference/task.md",
+    "to": "skills/wf/reference/intake/task.md",
+    "category": "artifacts",
+    "entry": "05-implement.md"
+  },
+  {
+    "from": "skills/wf/reference/task.md",
+    "to": "skills/wf/reference/intake/task.md",
+    "category": "artifacts",
+    "entry": "06-verify.md"
+  },
+  {
+    "from": "skills/wf/reference/task.md",
+    "to": "skills/wf/reference/intake/task.md",
+    "category": "artifacts",
+    "entry": "10-retro.md"
+  },
+  {
+    "from": "skills/wf/reference/task.md",
+    "to": "skills/wf/reference/intake/task.md",
+    "category": "gates",
+    "entry": "[gate] apply the blast-radius table as a gate"
+  },
+  {
+    "from": "skills/wf/reference/task.md",
+    "to": "skills/wf/reference/intake/task.md",
+    "category": "stops",
+    "entry": "no written policy resolves these unattended the non-interactive"
+  },
+  {
+    "from": "skills/wf/reference/task.md",
+    "to": "skills/wf/reference/intake/task.md",
+    "category": "stops",
+    "entry": "the bottom three rows always stop; their non-interactive"
+  },
+  {
+    "from": "skills/wf/reference/task.md",
+    "to": "skills/wf/reference/intake/task.md",
+    "category": "dispatches",
+    "entry": "above a mandatory gate, and inject the relevant"
   }
 ]

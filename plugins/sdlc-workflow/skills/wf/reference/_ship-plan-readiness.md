@@ -1,5 +1,5 @@
 ---
-description: Shared single-source procedure — the ship-plan readiness pre-check run by `/wf handoff` and `/wf ship`. Detects a missing `.ai/ship-plan.md` and drift between the plan and how the code ships (version sources, secrets, workflow files, release-relevant change surface, plan staleness), then gates: route to the sanctioned editor (`/wf ship-plan init` | `/wf ship-plan edit`) or record an explicit acknowledgement. Every finding carries a `clears-on: amend | repo | merge` tag and the gate offers only remedies that can clear it. It never edits the plan itself; authoring stays in the ship-plan skill.
+description: Shared single-source procedure — the ship-plan readiness pre-check run by `/wf handoff` and `/wf ship`. Detects a missing `.ai/ship-plan.md` and drift between the plan and how the code ships (version sources, secrets, workflow files, release-relevant change surface, plan staleness), then gates: route to the sanctioned editor (`/wf project ship-plan init` | `/wf project ship-plan edit`) or record an explicit acknowledgement. Every finding carries a `clears-on: amend | repo | merge` tag and the gate offers only remedies that can clear it. It never edits the plan itself; authoring stays in the ship-plan skill.
 ---
 
 # Ship-plan readiness pre-check (shared, single source)
@@ -10,8 +10,8 @@ description: Shared single-source procedure — the ship-plan readiness pre-chec
 
 ## Boundary — this check never authors the plan itself
 
-The plan is a contract authored by `/wf ship-plan init` and amended, one block at a time, by `/wf ship-plan edit` (which bumps `plan-version`). This pre-check **detects and routes**; it never opens, rewrites, or bumps the plan **by hand**. Three outcomes are available when a fix is needed:
-- **Route + STOP** — print the exact `/wf ship-plan …` command; the caller resumes after the user has run it.
+The plan is a contract authored by `/wf project ship-plan init` and amended, one block at a time, by `/wf project ship-plan edit` (which bumps `plan-version`). This pre-check **detects and routes**; it never opens, rewrites, or bumps the plan **by hand**. Three outcomes are available when a fix is needed:
+- **Route + STOP** — print the exact `/wf project ship-plan …` command; the caller resumes after the user has run it.
 - **Route + run inline** — with the user's explicit choice, invoke `ship-plan edit` as a sub-step **scoped to the drifted blocks**, then re-verify and continue the same run. The editor still does the authoring; this check only decides that it should run and confirms afterwards that it worked. A re-check that is not clean falls back to STOP.
 - **Acknowledge** — proceed with known drift, recorded, never silent.
 
@@ -42,7 +42,7 @@ Run the three groups in the signals file: Group 1, version sources, secrets, and
 | `clears-on` | Meaning | Signals |
 |---|---|---|
 | `amend` | An edit to the named block ends it — the plan is wrong about the repo. | `version-source-missing`, `version-source-new`, `secret-unplanned`, `secret-orphaned`, `workflow-missing`, `workflow-new`, `migration-without-rollback`, `plan-stale` |
-| `repo` | A change **to the repository**, not to the plan, ends it — the plan is right and the repo is behind. | `version-already-released` (bump the working-tree version or cut from a new base), `compliance-stale` (re-run `/wf ship-plan build --dry-run`) |
+| `repo` | A change **to the repository**, not to the plan, ends it — the plan is right and the repo is behind. | `version-already-released` (bump the working-tree version or cut from a new base), `compliance-stale` (re-run `/wf project ship-plan build --dry-run`) |
 | `merge` | Nothing ends it while the branch is open — it is a true statement about the branch that stays true until the branch lands. | `release-surface-touched`, `dependencies-changed` |
 
 `clears-on` and fingerprint scope (R2.5) are **separate axes** and neither implies the other: `migration-without-rollback` fingerprints on the branch yet clears on an amendment, because adding the missing playbook to block F makes it false. Tag each finding from the table when you raise it; do not derive it.

@@ -2,7 +2,7 @@
   "name": "goal-unknown-slug",
   "order": 6,
   "fixture": "node-cli",
-  "prompt": "/wf goal no-such-slug",
+  "prompt": "/wf loop goal no-such-slug",
   "maxTurns": 10,
   "assertions": [
     {

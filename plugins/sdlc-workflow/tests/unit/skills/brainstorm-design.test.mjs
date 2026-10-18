@@ -1,13 +1,13 @@
-// BRAINSTORM-DESIGN-PLAN guard tests: `/wf brainstorm` is a key, `design`
+// BRAINSTORM-DESIGN-PLAN guard tests: `/wf intake brainstorm` is an intake mode, `design`
 // focuses a brainstorm on how an idea looks and behaves, sketches stay ideas,
 // and the design thoughts travel to the design stage, which presents them again
 // as its starting direction.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { equal, match, ok } from 'node:assert/strict';
+import { doesNotMatch, equal, match, ok } from 'node:assert/strict';
 
 import { validateBrainstormBoard, defaultFrontmatterSchemaPath, validateFrontmatter } from '../../../lib/schema-validator.mjs';
 
@@ -16,17 +16,19 @@ const PLUGIN_ROOT = resolve(__dirname, '..', '..', '..');
 const read = (rel) => readFileSync(join(PLUGIN_ROOT, rel), 'utf8');
 const REF = 'skills/wf/reference';
 
-test('brainstorm is a key: SKILL.md row, key list, router, picker, surface pin', () => {
+test('brainstorm is an intake mode, not a key: no row, no router, the merged invocation rules', () => {
   const skill = read('skills/wf/SKILL.md');
-  match(skill, /\| `brainstorm` \| `\[slug\] \[design\] \[idea\]` \|/);
-  match(skill, /one of the 27 keys/);
-  match(skill, /retro, design, brainstorm, probe/);
-  const router = read(`${REF}/brainstorm.md`);
-  match(router, /Follow \[intake\/brainstorm\.md\]\(intake\/brainstorm\.md\)/);
-  match(router, /`workflow-type: brainstorm` → \*\*resume\*\*/);
-  match(router, /\*\*design on a workflow\*\*/);
-  match(read('hooks/mod/catalog.ts'), /key: 'brainstorm'/);
-  equal(JSON.parse(read('docs/internal/surface-policy.json')).keys, 27);
+  doesNotMatch(skill, /^\| `brainstorm` \|/m);
+  match(skill, /one of the 19 keys/);
+  match(skill, /retro, design, probe, auto/);
+  ok(!existsSync(join(PLUGIN_ROOT, REF, 'brainstorm.md')), 'the router file is gone');
+  const mode = read(`${REF}/intake/brainstorm.md`);
+  match(mode, /whose index has `status: closed` → STOP/);
+  match(mode, /When the next token is `design`, set the board's `focus: design`/);
+  match(mode, /`design` as the first token sets `focus: design`/);
+  doesNotMatch(mode, /same loop under its own key/);
+  doesNotMatch(read('hooks/mod/catalog.ts'), /key: 'brainstorm'/);
+  equal(JSON.parse(read('docs/internal/surface-policy.json')).keys, 19);
 });
 
 test('the design focus: record first, sketches are ideas, design items marked', () => {

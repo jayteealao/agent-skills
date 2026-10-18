@@ -142,66 +142,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
     ]
   },
   {
-    "reference": "brainstorm.md",
-    "stage": "brainstorm",
-    "rows": [
-      {
-        "input": "intake/brainstorm.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
-        "input": "intake/brainstorm/_design.md",
-        "kind": "procedure",
-        "when": "mode:design",
-        "sections": []
-      }
-    ]
-  },
-  {
-    "reference": "close.md",
-    "stage": "close",
-    "rows": [
-      {
-        "input": "00-index.md",
-        "kind": "artifact",
-        "when": "always",
-        "sections": []
-      },
-      {
-        "input": "steer.md",
-        "kind": "artifact",
-        "when": "if-present",
-        "sections": []
-      },
-      {
-        "input": "03-slice.md",
-        "kind": "artifact",
-        "when": "mode:slice",
-        "sections": []
-      },
-      {
-        "input": "03-slice-<slice>.md",
-        "kind": "artifact",
-        "when": "mode:slice",
-        "sections": []
-      },
-      {
-        "input": "99-close.md",
-        "kind": "writes",
-        "when": "",
-        "sections": []
-      },
-      {
-        "input": "skip-slice-<slice>.md",
-        "kind": "writes",
-        "when": "",
-        "sections": []
-      }
-    ]
-  },
-  {
     "reference": "design.md",
     "stage": "design",
     "rows": [
@@ -857,6 +797,48 @@ export const REQUIRES: readonly RequiresEntry[] = [
       },
       {
         "input": "01-brainstorm.md",
+        "kind": "writes",
+        "when": "",
+        "sections": []
+      }
+    ]
+  },
+  {
+    "reference": "intake/close.md",
+    "stage": "intake:close",
+    "rows": [
+      {
+        "input": "00-index.md",
+        "kind": "artifact",
+        "when": "always",
+        "sections": []
+      },
+      {
+        "input": "steer.md",
+        "kind": "artifact",
+        "when": "if-present",
+        "sections": []
+      },
+      {
+        "input": "03-slice.md",
+        "kind": "artifact",
+        "when": "mode:slice",
+        "sections": []
+      },
+      {
+        "input": "03-slice-<slice>.md",
+        "kind": "artifact",
+        "when": "mode:slice",
+        "sections": []
+      },
+      {
+        "input": "99-close.md",
+        "kind": "writes",
+        "when": "",
+        "sections": []
+      },
+      {
+        "input": "skip-slice-<slice>.md",
         "kind": "writes",
         "when": "",
         "sections": []
@@ -1548,6 +1530,108 @@ export const REQUIRES: readonly RequiresEntry[] = [
       },
       {
         "input": "04-plan.md",
+        "kind": "writes",
+        "when": "",
+        "sections": []
+      }
+    ]
+  },
+  {
+    "reference": "intake/simplify.md",
+    "stage": "intake:simplify",
+    "rows": [
+      {
+        "input": "04-plan-<slice>.md",
+        "kind": "artifact",
+        "when": "mode:plan",
+        "sections": []
+      },
+      {
+        "input": "intake/simplify/_research.md",
+        "kind": "procedure",
+        "when": "always",
+        "sections": []
+      },
+      {
+        "input": "intake/simplify/_artifact.md",
+        "kind": "procedure",
+        "when": "always",
+        "sections": []
+      },
+      {
+        "input": "_compressed-slice.md",
+        "kind": "procedure",
+        "when": "mode:slug",
+        "sections": []
+      },
+      {
+        "input": "01-simplify.md",
+        "kind": "writes",
+        "when": "",
+        "sections": []
+      },
+      {
+        "input": "03-slice-simplify-*.md",
+        "kind": "writes",
+        "when": "",
+        "sections": []
+      }
+    ]
+  },
+  {
+    "reference": "intake/task.md",
+    "stage": "intake:task",
+    "rows": [
+      {
+        "input": "00-index.md",
+        "kind": "artifact",
+        "when": "on-resume",
+        "sections": []
+      },
+      {
+        "input": "01-task.md",
+        "kind": "artifact",
+        "when": "on-resume",
+        "sections": []
+      },
+      {
+        "input": "05-implement.md",
+        "kind": "artifact",
+        "when": "on-resume",
+        "sections": []
+      },
+      {
+        "input": "steer.md",
+        "kind": "artifact",
+        "when": "if-present",
+        "sections": []
+      },
+      {
+        "input": "intake/_intake-context.md",
+        "kind": "procedure",
+        "when": "always",
+        "sections": []
+      },
+      {
+        "input": "_compressed-slice.md",
+        "kind": "procedure",
+        "when": "mode:slug",
+        "sections": []
+      },
+      {
+        "input": "01-task.md",
+        "kind": "writes",
+        "when": "",
+        "sections": []
+      },
+      {
+        "input": "05-implement.md",
+        "kind": "writes",
+        "when": "",
+        "sections": []
+      },
+      {
+        "input": "06-verify.md",
         "kind": "writes",
         "when": "",
         "sections": []
@@ -2483,48 +2567,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
     ]
   },
   {
-    "reference": "simplify.md",
-    "stage": "simplify",
-    "rows": [
-      {
-        "input": "04-plan-<slice>.md",
-        "kind": "artifact",
-        "when": "mode:plan",
-        "sections": []
-      },
-      {
-        "input": "simplify/_research.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
-        "input": "simplify/_artifact.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
-        "input": "_compressed-slice.md",
-        "kind": "procedure",
-        "when": "mode:slug",
-        "sections": []
-      },
-      {
-        "input": "01-simplify.md",
-        "kind": "writes",
-        "when": "",
-        "sections": []
-      },
-      {
-        "input": "03-slice-simplify-*.md",
-        "kind": "writes",
-        "when": "",
-        "sections": []
-      }
-    ]
-  },
-  {
     "reference": "slice.md",
     "stage": "slice",
     "rows": [
@@ -2670,66 +2712,6 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "input": "_control-file-ownership.md",
         "kind": "procedure",
         "when": "mode:detail",
-        "sections": []
-      }
-    ]
-  },
-  {
-    "reference": "task.md",
-    "stage": "task",
-    "rows": [
-      {
-        "input": "00-index.md",
-        "kind": "artifact",
-        "when": "on-resume",
-        "sections": []
-      },
-      {
-        "input": "01-task.md",
-        "kind": "artifact",
-        "when": "on-resume",
-        "sections": []
-      },
-      {
-        "input": "05-implement.md",
-        "kind": "artifact",
-        "when": "on-resume",
-        "sections": []
-      },
-      {
-        "input": "steer.md",
-        "kind": "artifact",
-        "when": "if-present",
-        "sections": []
-      },
-      {
-        "input": "intake/_intake-context.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
-        "input": "_compressed-slice.md",
-        "kind": "procedure",
-        "when": "mode:slug",
-        "sections": []
-      },
-      {
-        "input": "01-task.md",
-        "kind": "writes",
-        "when": "",
-        "sections": []
-      },
-      {
-        "input": "05-implement.md",
-        "kind": "writes",
-        "when": "",
-        "sections": []
-      },
-      {
-        "input": "06-verify.md",
-        "kind": "writes",
-        "when": "",
         "sections": []
       }
     ]

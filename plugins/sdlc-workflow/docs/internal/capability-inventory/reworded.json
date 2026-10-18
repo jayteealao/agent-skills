@@ -90,7 +90,7 @@
     "to": "step 6 gate before implement apply the gate"
   },
   {
-    "file": "skills/wf/reference/simplify.md",
+    "file": "skills/wf/reference/intake/simplify.md",
     "category": "dispatches",
     "from": "mandatory : dispatch all three sub-agents in one",
     "to": "dispatch all three sub-agents in one parallel wave"
@@ -118,5 +118,17 @@
     "category": "gates",
     "from": "ask 4 8 targeted questions as gate questions",
     "to": "ask targeted gate questions per _gate-question.md (up to"
+  },
+  {
+    "file": "skills/wf/reference/ship-plan/_readiness-gate.md",
+    "category": "stops",
+    "from": "- \"create it now\" stop; print /wf ship-plan",
+    "to": "- \"create it now\" stop; print /wf project"
+  },
+  {
+    "file": "skills/wf/reference/intake.md",
+    "category": "stops",
+    "from": "- if token0 does not match a slug,",
+    "to": "- if token0 is amend or modernize and"
   }
 ]

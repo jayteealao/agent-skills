@@ -7,7 +7,7 @@ import {
   splitStorySection,
   stageKeyFor,
   viewHref
-} from "./chunk-ZC4MVT5P.mjs";
+} from "./chunk-QTWRR75H.mjs";
 import {
   boardsGallery
 } from "./chunk-FHZLIB5Q.mjs";
@@ -18,7 +18,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-PRVWQLUM.mjs";
+} from "./chunk-UW3C7ZAM.mjs";
 import {
   EVIDENCE_DIRS,
   NO_PAGE_DIRS,
@@ -30,7 +30,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-G57PRACS.mjs";
+} from "./chunk-AUY2HYM2.mjs";
 import {
   aggregateCost,
   readCostRows
@@ -44,17 +44,17 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-WB2FM5VY.mjs";
+} from "./chunk-3AKK7WBO.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-M5LWJW4L.mjs";
+} from "./chunk-QZWRAAAQ.mjs";
 import {
   frozenBoardsOf
 } from "./chunk-5QUQXL7Q.mjs";
-import "./chunk-RYYEEV4S.mjs";
+import "./chunk-523C7UE2.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -85,7 +85,7 @@ import {
   upsertRegistryEntry,
   viewMtimeForSlug,
   writePidFile
-} from "./chunk-I652ARYO.mjs";
+} from "./chunk-GUVQYSNY.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -656,7 +656,7 @@ function discoverProjectArtifacts({ projectRoot }) {
     { rel: "PRODUCT.md", type: "project-context", title: "Product context", siblingRoot: projectRoot },
     { rel: "DESIGN.md", type: "project-context", title: "Design context", siblingRoot: projectRoot },
     { rel: ".ai/ship-plan.md", type: "ship-plan", title: "Ship plan", siblingRoot: projectRoot },
-    // Project-root observability artifacts (/wf observability init|build) — same
+    // Project-root observability artifacts (/wf project observability init|build) — same
     // family as ship-plan. Absent from discovery v9.132.0–v9.150.0, so they were
     // written but never rendered; the e2e's missing-renderer signal surfaced it.
     { rel: ".ai/observability.md", type: "observability-plan", title: "Observability plan", siblingRoot: projectRoot },

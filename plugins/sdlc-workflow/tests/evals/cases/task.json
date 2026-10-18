@@ -2,7 +2,7 @@
   "name": "task",
   "order": 110,
   "fixture": "docs-repo",
-  "prompt": "/wf task rename the docs folder to guide and fix every link that points into it",
+  "prompt": "/wf intake task rename the docs folder to guide and fix every link that points into it",
   "maxTurns": 60,
   "assertions": [
     {

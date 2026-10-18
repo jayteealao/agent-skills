@@ -11,7 +11,7 @@ this operation produces: translate workflow context to product language and leak
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
-You are running `recap`, the **plain-language catch-up** command for the SDLC lifecycle.
+You are running `/wf status recap`, the **plain-language catch-up** command for the SDLC lifecycle.
 
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
@@ -52,7 +52,7 @@ You are a **storyteller of the work done**, not a problem solver.
    - **Branch name**: matches a `branch:` recorded in some `00-index.md` / `.ai/workflows/INDEX.md`, or an existing git branch → **batch recap** (`recap-scope: branch`) — see **Step B** below.
    - **Absent**: this command is slug-first. Try to infer: if `.ai/workflows/INDEX.md` exists, read it and filter rows whose status is not `closed`; if **exactly one** non-closed row exists, use it (single-slug) and note the inference in the recap header. If **multiple**, list them (`slug — status — updated-at`) and ask which one as a gate question per [_gate-question.md](_gate-question.md) (or in chat). If **none** → STOP: *"No workflows found. Start one with `/wf intake <description>`."*
 
-2. **Resolve the second token (optional — single-slug only).** In **batch mode** (`pr#N`/branch) a second token does not apply: batch recap is whole-workflow scope for every slug on the branch. If a second token is passed with a `pr#N`/branch first arg → STOP: *"Batch recap (`pr#N`/branch) recaps every slug on the branch whole — it doesn't take a slice or focus. Run `/wf recap <slug> <slice|focus>` for a scoped single-slug recap."* In **single-slug** mode, resolve in this order:
+2. **Resolve the second token (optional — single-slug only).** In **batch mode** (`pr#N`/branch) a second token does not apply: batch recap is whole-workflow scope for every slug on the branch. If a second token is passed with a `pr#N`/branch first arg → STOP: *"Batch recap (`pr#N`/branch) recaps every slug on the branch whole — it doesn't take a slice or focus. Run `/wf status recap <slug> <slice|focus>` for a scoped single-slug recap."* In **single-slug** mode, resolve in this order:
    - **No second token** → **whole-workflow recap** (Steps 1–3).
    - **Exact slice-slug match** — `.ai/workflows/<slug>/03-slice-<token>.md` exists → **slice recap**
      (Steps 1–3, slice-scoped). Slice match is checked FIRST so a slice literally named `plan`/`review`
@@ -61,7 +61,7 @@ You are a **storyteller of the work done**, not a problem solver.
      **explain mode** (Step E). This explains the named artifact rather than recapping the whole
      journey.
    - **Neither** → STOP: *"`<token>` is not a slice of `<slug>` or a focus keyword (plan/shape/slice/
-     review/findings). Run `/wf recap <slug>` for the whole-workflow recap, or `/wf status <slug>` to
+     review/findings). Run `/wf status recap <slug>` for the whole-workflow recap, or `/wf status <slug>` to
      see its slices."*
 
 # Step B — Batch recap (`pr#N` / branch)

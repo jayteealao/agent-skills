@@ -9,7 +9,7 @@ when_to_use: When designing logging/observability systems, debugging production 
 You are an observability architect implementing **wide events / canonical log lines** with **tail sampling** to transform logging from "grep text files" to "query structured events with business context."
 
 > **Shared knowledge base.** This is the single source of wide-event / sampling / redaction doctrine for the
-> plugin. Both `/wf observability` (the project-level foundation router) and `augment/instrument` (per-change
+> plugin. Both `/wf project observability` (the project-level foundation router) and `augment/instrument` (per-change
 > signal design) reference it, so the schema, sampling, and redaction rules never drift. When `.ai/observability.md`
 > exists, it is the project's *instantiation* of this doctrine — design against its Block-A schema, not from
 > scratch.

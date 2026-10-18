@@ -1393,7 +1393,7 @@ function orient(root, b) {
   ledger.trunk = trunkOf(root);
   ledger["run-id"] = `${nowIso().replace(/[-:]/g, "").replace(/\.\d+/, "")}-${b}`;
   if (ledger["ship-plan"] === null || ledger["ship-plan"]["version-scheme"] === "none") ledger.answers["target-version"] = "none";
-  if (ledger["ship-plan"] === null) ledger["tool-gaps"].push({ tool: "ship-plan", have: "none", need: ".ai/ship-plan.md", fix: "/wf ship-plan init" });
+  if (ledger["ship-plan"] === null) ledger["tool-gaps"].push({ tool: "ship-plan", have: "none", need: ".ai/ship-plan.md", fix: "/wf project ship-plan init" });
   const cliOk = claudeVersionGap();
   if (cliOk) ledger["tool-gaps"].push(cliOk);
   const stackVersion = ghStackVersion();

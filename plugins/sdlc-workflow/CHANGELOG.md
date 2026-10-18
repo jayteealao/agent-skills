@@ -9,16 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`/wf prototype` — a proof loop that the person steers.** `/wf prototype <idea>` makes a worktree at `<parent>/<repo>.poc/<slug>` on `poc/<slug>`, with the workflow folder inside it, and adds one row to the main checkout's `INDEX.md`. `/wf prototype <slug> <request>` runs one round (`research`, `prove`, `compare`, `diagnose`, `decide`, `generalize`, `document` or `talk`) and returns. `scripts/prototype.mjs` (`start`, `status`, `check`, `report`, `decide`, `exit park|graduate|close`, `cleanup`) keeps `prototype-ledger.json`: proof cards with the question, setup, evidence, a fresh-process repeat, a verdict and the licenses. Only `decide` commits, by explicit path, and it refuses an ignored file, a file over 10 MB, and a staged file that the decision does not name. `report.html` has no script, embeds its media and stays under 1 MB. `cleanup` refuses an open prototype and a worktree that holds a link, and keeps the branch. A post-write hook checks the ledger (opt out with `hooks.validatePrototypeLedger: false`).
+- **`/wf loop prototype` — a proof loop that the person steers.** `/wf loop prototype <idea>` makes a worktree at `<parent>/<repo>.poc/<slug>` on `poc/<slug>`, with the workflow folder inside it, and adds one row to the main checkout's `INDEX.md`. `/wf loop prototype <slug> <request>` runs one round (`research`, `prove`, `compare`, `diagnose`, `decide`, `generalize`, `document` or `talk`) and returns. `scripts/prototype.mjs` (`start`, `status`, `check`, `report`, `decide`, `exit park|graduate|close`, `cleanup`) keeps `prototype-ledger.json`: proof cards with the question, setup, evidence, a fresh-process repeat, a verdict and the licenses. Only `decide` commits, by explicit path, and it refuses an ignored file, a file over 10 MB, and a staged file that the decision does not name. `report.html` has no script, embeds its media and stays under 1 MB. `cleanup` refuses an open prototype and a worktree that holds a link, and keeps the branch. A post-write hook checks the ledger (opt out with `hooks.validatePrototypeLedger: false`).
 - **Ideate reads sources.** `/wf intake ideate` takes URLs, files, `package@version`, GitHub issue links, `issues`, `issues:<search>` and `research`; `scripts/ideate-sources.mjs args` gives each argument its kind, and a quoted word is a topic. Each source is read into `references/` with a hash. Lens 7 (source fit) matches every source item to the code, and Challenge 6 asks whether the item is stable and available. Every item gets exactly one result (`applies`, `already-used`, `not-applicable`, `blocked-by-version`, `needs-verification`, `already-fixed`, `duplicate-of`, or `withdrawn` after a refresh); the schema and a post-write hook refuse an item without one (opt out with `hooks.ideateSourceCoverage: false`). Issues come through `gh` only, nothing is written to GitHub, and the saved copy keeps no author, body or comments. `research` allows at most 8 web acts in one run.
 - **Ideate remembers, packets, and refreshes.** An earlier cull in the same area stays culled until its evidence changes (`seen-in:`). An idea has a `confidence`. A pick writes `ideate-work.json` and one work packet per picked idea, closes the workflow with `close-reason: ideas-packeted`, and prints the intake commands or `/wf campaign <slug>`. `/wf intake ideate <slug> refresh` reads the sources again and marks the ideas whose evidence changed.
 
 ### Changed
 
+- **The key surface falls from 27 keys to 19 (WF-KEY-SURFACE-PLAN).** Ten keys become sub-keys or intake modes. This is a clean break: an old command gets the unknown-key error, with no redirect. Use the new form:
+
+  | Removed | Now |
+  |---|---|
+  | `/wf goal …` | `/wf loop goal …` |
+  | `/wf optimize <slug>` | `/wf loop optimize <slug>` |
+  | `/wf prototype …` | `/wf loop prototype …` |
+  | `/wf recap …` | `/wf status recap …` |
+  | `/wf ship-plan …` | `/wf project ship-plan …` |
+  | `/wf observability …` | `/wf project observability …` |
+  | `/wf brainstorm …` | `/wf intake brainstorm …` (the `/wf brainstorm` router is deleted) |
+  | `/wf simplify …` | `/wf intake simplify …` |
+  | `/wf task …` | `/wf intake task …` |
+  | `/wf close <slug> …` | `/wf intake <slug> close …` |
+
+  A sub-key loads its own reference directly (`SKILL.md` Step 0, the sub-key table); `/wf loop` or `/wf project` alone lists its sub-keys. `task.md`, `close.md`, `simplify.md` and `simplify/` move under `reference/intake/`. `close` is a slug-first maintenance word beside `amend` and `modernize`: `/wf intake close <slug>` prints the right order, and a first token `close` with no slug is a description. Old artifacts in other repos (for example a `next-invocation` of `/wf recap …`) still print the old commands; run the new form.
+- **The intake fast path.** `/wf intake <mode> …` with no slug first loads `intake/_intake-context.md` and `intake/<mode>.md` and skips `intake.md` (about 3,300 words). Every other intake form still runs `intake.md`.
+- **Reserved slug names.** A new workflow cannot take a key, a sub-key or an intake mode word as its slug (`intake/_intake-context.md`); intake asks for another slug, and a work packet's `work-slug` follows the same rule. `/wf status` flags an existing slug with such a name and renames nothing.
+- The `/wf` picker lists 23 rows: 17 keys with a reference and the 6 sub-keys as two-word rows (`loop goal`, `status recap`, …). `SURFACE-POLICY.md` §2a: a move is not an addition.
 - `/wf campaign <slug>` takes any workflow whose `work/index.md` lists packets: a brainstorm or an ideate pick. `scripts/work-packets.mjs write` accepts a board file path, and a packet links the board file it came from. `rca` is a packet form that runs with the person outside the waves.
-- `auto`, `yolo`, `goal` and `campaign` refuse a prototype slug. `status`, `recap` and `close` find a prototype in its worktree.
+- `auto`, `yolo`, `loop goal` and `campaign` refuse a prototype slug. `status`, `status recap` and `intake <slug> close` find a prototype in its worktree.
 - The ideation page shows a confidence column and the sources tables only when the artifact has them.
-- The surface pins rise: keys 26 → 27, artifact stems 75 → 76, frontmatter types 73 → 74.
+- The surface pins: keys 26 → 19 (the prototype key, then the key-surface cut below), intake modes 14 → 17, artifact stems 75 → 76, frontmatter types 73 → 74.
 
 ## [9.189.0] - 2026-10-18
 

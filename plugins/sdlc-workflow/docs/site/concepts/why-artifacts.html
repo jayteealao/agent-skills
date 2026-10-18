@@ -30,7 +30,7 @@ future stage, write the instructions in <code>steer.md</code>.</p>
 <p>The payoff is that any session can pick up a workflow cold: your session tomorrow, a teammate's
 session, or an autonomous driver's session. Nobody needs to explain the history again, because
 each stage reads each decision from the artifact that recorded the decision.
-<code>/wf recap</code> exists because the files are the memory. The command reads the files back
+<code>/wf status recap</code> exists because the files are the memory. The command reads the files back
 to you in plain language.</p>
 
 <h2>Numbered artifacts are the contract between stages</h2>
@@ -52,7 +52,7 @@ and only specific stages may update it.</p>
 <h2>Ledgers are additive-only</h2>
 
 <p>Commands never overwrite or delete artifacts. When you re-run a stage, the stage appends a new
-revision to the same file. When you close a workflow, <code>/wf close</code> archives the workflow
+revision to the same file. When you close a workflow, <code>/wf intake &lt;slug&gt; close</code> archives the workflow
 with <code>99-close.md</code>. The command never deletes files, branches, or PRs.</p>
 
 <p>The record-keeping structures that grow over time follow the same rule with more force. These
@@ -68,7 +68,7 @@ artifacts tell you the whole story, including the parts where the first answer w
 <h2>Reviewers route findings; they never write code</h2>
 
 <p>The plugin draws a hard line between commands that observe and commands that change things.
-<code>/wf review</code>, <code>/wf simplify</code>, <code>/wf probe</code>,
+<code>/wf review</code>, <code>/wf intake simplify</code>, <code>/wf probe</code>,
 <code>/wf status</code>, and the audit modes of <code>ship-plan</code> and
 <code>observability</code> are all orchestrators. Each one investigates, classifies what it finds,
 and routes each finding to the command that may fix it. That command is usually

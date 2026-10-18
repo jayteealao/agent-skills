@@ -26,7 +26,7 @@ Every planning artifact (`01-<mode>` to `04-plan`) carries the same `next-comman
 
 If `.ai/workflows/<slug>/00-index.md` already exists and its `workflow-type` is not this
 mode (or its documented legacy alias) → WARN: "Workflow `<slug>` already exists with type
-`<existing-type>`. Choose a different description, or run `/wf recap <slug>` to continue
+`<existing-type>`. Choose a different description, or run `/wf status recap <slug>` to continue
 the existing workflow." Stop. (An exact slug match in the *first positional* is the
 dispatcher's intentional attach and never reaches this check — see `_intake-context.md`.)
 

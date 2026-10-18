@@ -46,6 +46,6 @@ credential the USER must set — never printed here as a value>
 <the OTel SDKs / logging libs the generated code references, per unit, with install commands>
 
 ## Re-run
-After installing deps and setting credentials, re-run `/wf observability build --dry-run` to re-check, then
-`/wf observability audit` for a soundness pass.
+After installing deps and setting credentials, re-run `/wf project observability build --dry-run` to re-check, then
+`/wf project observability audit` for a soundness pass.
 ```

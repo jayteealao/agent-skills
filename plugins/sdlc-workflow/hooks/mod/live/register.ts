@@ -1,5 +1,5 @@
 /**
- * The live views of `/wf yolo`, `/wf campaign` and `/wf brainstorm`
+ * The live views of `/wf yolo`, `/wf campaign` and `/wf intake brainstorm`
  * (WF-LIVE-VIEWS-PLAN.md): one pane, `wf-live`, that answers at a glance
  * whether the run is alive, where it is, what it decided, what it needs from
  * the person, and what it costs.
@@ -178,7 +178,7 @@ function newTracker(kind: Kind, slug: string, now: number): Tracker {
   }
 }
 
-/** The kind of live view a `/wf` command starts, or null. */
+/** The kind of live view a `/wf` command starts, or null. `brainstorm` comes from `/wf intake brainstorm <slug>`. */
 export function liveKindOf(key: string): Kind | null {
   if (key === 'yolo' || key === 'campaign' || key === 'brainstorm') return key
   return null
@@ -1088,7 +1088,7 @@ async function startLive(x: LiveEngine, cwd: string): Promise<void> {
   }
 }
 
-/** O1: a `/wf yolo`, `/wf campaign` or `/wf brainstorm` turn follows its run (`turn.start` in `register.ts`). */
+/** O1: a `/wf yolo`, `/wf campaign` or `/wf intake brainstorm` turn follows its run (`turn.start` in `register.ts`). */
 async function liveTurnStarted(x: LiveEngine, key: string, slug: string | null): Promise<void> {
   try {
     const kind = liveKindOf(key)

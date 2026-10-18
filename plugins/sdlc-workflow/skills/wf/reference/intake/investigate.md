@@ -73,7 +73,7 @@ You are an **options sketcher**, not a chooser, planner, or implementer.
      - **`01-investigate.md` is complete and no pick token is present** → tell the user the option set is ready and how to record a pick — `/wf intake investigate <slug> <option-id-or-label> [one-line reason]` — and stop.
      - **`01-investigate.md` is incomplete** → **resume mode**: pick up from the missing section.
    - Otherwise → **new investigate**. Derive a slug: `investigate-<short-problem>` (kebab-case, max 5 words, e.g., `investigate-checkout-latency`).
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `investigate` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf recap <slug>` to continue it." Stop.
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `investigate` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf status recap <slug>` to continue it." Stop.
 3. **Branch posture (do NOT switch branches):**
    - This is read-only — do not create or switch branches.
    - Record the current branch in the index.
@@ -223,5 +223,5 @@ slice — no option-card write-back.
 - **Not a chooser** — this command sketches options; the user picks. Recording the pick (`# Pick — decision closure`) is bookkeeping so the decision has provenance, not choosing. If you want a single recommended approach with acceptance criteria, that is `/wf shape <slug>` after `/wf intake`.
 - **Not a problem validator** — this command assumes the problem is real and worth solving. If you're not sure whether the problem is genuine, that requires runtime data, telemetry, or user signal that this command doesn't gather. Run a measurement step first.
 - **Not a diagnostician** — if there is a specific symptom (error, crash, slow request) and you want to know *why*, that is `/wf intake rca <symptom>`. Investigate proposes *how to solve*; rca finds *why it's broken*.
-- **Not an explainer** — if you want to understand how the area works before forming options yourself, that is `/wf recap <slug> <focus>` or a plain research conversation outside `/wf`. Investigate already does a light architecture map, but it is in service of options, not as a standalone explanation.
+- **Not an explainer** — if you want to understand how the area works before forming options yourself, that is `/wf status recap <slug> <focus>` or a plain research conversation outside `/wf`. Investigate already does a light architecture map, but it is in service of options, not as a standalone explanation.
 - **Not a substitute for `/wf shape`** — `/wf shape` produces a chosen design with acceptance criteria, attached to a workflow. `investigate` produces an option set with no chosen winner, attached to nothing yet. After you pick, `/wf intake` → `/wf shape` deepens the chosen option into an implementable spec.

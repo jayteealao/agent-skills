@@ -30,8 +30,11 @@ const SLICES = [
   { slug: 'docs', status: 'defined', complexity: 'xs', stage: 'defined' },
 ];
 
-test('the catalog holds the 27 keys in lifecycle order', () => {
-  assert.equal(CATALOG.length, 27);
+test('the catalog holds the 17 keys with a reference and the 6 sub-keys, in lifecycle order', () => {
+  assert.equal(CATALOG.length, 23);
+  assert.deepEqual(CATALOG.slice(15).map((e) => e.key), ['loop goal', 'loop optimize', 'loop prototype', 'status', 'status recap', 'project ship-plan', 'project observability', 'docs']);
+  assert.deepEqual(CATALOG.slice(15).map((e) => e.name), ['goal', 'optimize', 'prototype', 'status', 'recap', 'ship-plan', 'observability', 'docs']);
+  for (const gone of ['brainstorm', 'simplify', 'task', 'close', 'goal', 'recap', 'ship-plan']) assert.ok(!CATALOG.some((e) => e.key === gone), `${gone} is not a row`);
   assert.deepEqual(CATALOG.slice(0, 11).map((e) => e.key), ['intake', 'shape', 'design', 'slice', 'plan', 'implement', 'verify', 'review', 'handoff', 'ship', 'retro']);
 });
 
@@ -60,13 +63,16 @@ test('openedTextOf: the opened picker names the whole command to send, and the o
 test('stepFor: complete arguments, no-argument keys, and unknown keys open nothing', () => {
   assert.equal(stepFor('plan', 'alpha auth'), null);
   assert.equal(stepFor('ship', 'alpha'), null);
-  assert.equal(stepFor('ship-plan', ''), null);
+  assert.equal(stepFor(null, 'project ship-plan'), null);
+  assert.deepEqual(stepFor(null, 'loop goal'), { kind: 'slug', key: 'loop goal' });
+  assert.deepEqual(stepFor(null, 'status recap'), { kind: 'slug', key: 'status recap' });
+  assert.equal(stepFor(null, 'loop'), null, 'loop alone is no row');
   assert.equal(stepFor(null, 'unknown-key'), null);
   assert.equal(stepFor(null, 'intake fix a bounded change'), null);
 });
 
 test('the option lists carry the status, stage, and slice information', () => {
-  assert.equal(keyOptions().length, 27);
+  assert.equal(keyOptions().length, 23);
   assert.equal(keyOptions()[4].label, 'plan  Plan one or more workflow slices.');
 
   const slugs = slugOptions({ kind: 'slug', key: 'plan' }, WORKFLOWS);
@@ -93,7 +99,9 @@ test('the option lists carry the status, stage, and slice information', () => {
 test('pick walks key → slug → slice and ends in a fill', () => {
   const hasSlices = (slug) => slug === 'alpha';
   assert.deepEqual(pick({ kind: 'key' }, 'plan', hasSlices), { kind: 'step', step: { kind: 'slug', key: 'plan' } });
-  assert.deepEqual(pick({ kind: 'key' }, 'ship-plan', hasSlices), { kind: 'fill', text: '/wf ship-plan ' });
+  assert.deepEqual(pick({ kind: 'key' }, 'project ship-plan', hasSlices), { kind: 'fill', text: '/wf project ship-plan ' });
+  assert.deepEqual(pick({ kind: 'key' }, 'loop goal', hasSlices), { kind: 'step', step: { kind: 'slug', key: 'loop goal' } });
+  assert.deepEqual(pick({ kind: 'slug', key: 'loop goal' }, 'alpha', hasSlices), { kind: 'fill', text: '/wf loop goal alpha ' });
   assert.deepEqual(pick({ kind: 'slug', key: 'plan' }, 'alpha', hasSlices), { kind: 'step', step: { kind: 'slice', key: 'plan', slug: 'alpha' } });
   assert.deepEqual(pick({ kind: 'slug', key: 'plan' }, 'gamma', hasSlices), { kind: 'fill', text: '/wf plan gamma ' });
   assert.deepEqual(pick({ kind: 'slug', key: 'ship' }, 'alpha', hasSlices), { kind: 'fill', text: '/wf ship alpha ' });
@@ -106,17 +114,17 @@ test('pick walks key → slug → slice and ends in a fill', () => {
 
 test('pageOf slices the options into pages that wrap, never wider than nine rows', () => {
   const keys = keyOptions();
-  assert.equal(keys.length, 27);
+  assert.equal(keys.length, 23);
   const first = pageOf(keys, 0, 9);
   assert.deepEqual({ page: first.page, pages: first.pages, length: first.items.length }, { page: 0, pages: 3, length: 9 });
   assert.equal(first.items[0].value, 'intake');
   const last = pageOf(keys, 2, 9);
-  assert.deepEqual({ page: last.page, length: last.items.length }, { page: 2, length: 9 });
-  assert.equal(last.items[8].value, 'observability');
+  assert.deepEqual({ page: last.page, length: last.items.length }, { page: 2, length: 5 });
+  assert.equal(last.items[4].value, 'docs');
   assert.equal(pageOf(keys, 3, 9).page, 0, 'a page past the last wraps to the first');
   assert.equal(pageOf(keys, -1, 9).page, 2, 'a page before the first wraps to the last');
   const one = pageOf(keys, 0, 0);
-  assert.deepEqual({ pages: one.pages, length: one.items.length }, { pages: 27, length: 1 }, 'a width below one is one');
+  assert.deepEqual({ pages: one.pages, length: one.items.length }, { pages: 23, length: 1 }, 'a width below one is one');
   const empty = pageOf([], 4, 9);
   assert.deepEqual(empty, { items: [], page: 0, pages: 1 });
 });
@@ -145,20 +153,21 @@ test('a bare digit in the filter is a pick or a page turn, never a filter', () =
   const second = pageOf(options, 1, 9);
   assert.deepEqual(submitActionOf('3', second, options), { kind: 'pick', value: options[11].value });
   assert.deepEqual(submitActionOf('0', second, options), { kind: 'more' });
-  assert.equal(submitActionOf('9', pageOf(options.slice(0, 26), 2, 9), options), null, 'a digit past the rows of a short page picks nothing');
+  assert.equal(submitActionOf('9', pageOf(options, 2, 9), options), null, 'a digit past the rows of a short page picks nothing');
   assert.deepEqual(submitActionOf('yo', second, options), { kind: 'pick', value: 'yolo' });
   assert.equal(submitActionOf('zzz', second, options), null);
 });
 
 test('filterOptions keeps the rows whose value or label holds every word, case-insensitively', () => {
   const keys = keyOptions();
-  assert.equal(filterOptions(keys, '').length, 27, 'no text keeps every row');
+  assert.equal(filterOptions(keys, '').length, 23, 'no text keeps every row');
   const pl = filterOptions(keys, 'PL').map(o => o.value);
-  assert.ok(pl.includes('plan') && pl.includes('implement') && pl.includes('ship-plan'), pl.join(' '));
+  assert.ok(pl.includes('plan') && pl.includes('implement') && pl.includes('project ship-plan'), pl.join(' '));
   assert.ok(!pl.includes('intake') && !pl.includes('shape'), pl.join(' '));
-  assert.deepEqual(filterOptions(keys, 'ship plan').map(o => o.value), ['ship', 'ship-plan'], 'every word must match, in catalog order');
+  assert.deepEqual(filterOptions(keys, 'ship plan').map(o => o.value), ['ship', 'project ship-plan'], 'every word must match, in catalog order');
+  assert.deepEqual(filterOptions(keys, 'loop go').map(o => o.value), ['loop goal']);
   assert.deepEqual(filterOptions(keys, 'zzz'), []);
-  assert.equal(filterOptions(keys, 'status').length, 1, 'a word with an s inside stays one word');
+  assert.deepEqual(filterOptions(keys, 'status').map(o => o.value), ['status', 'status recap'], 'a word with an s inside stays one word');
 });
 
 test('frontmatterOf and rosterOf read the index and slice-roster fields', () => {
@@ -252,6 +261,12 @@ test('wfCommandOf parses the dispatcher, the per-key command, and the namespaced
   assert.equal(wfCommandOf('/wf bogus alpha'), null);
   assert.equal(wfCommandOf('hello /wf plan'), null);
   assert.equal(wfCommandOf('/wf'), null);
+  // A sub-key: the two words name one row, and the key is the row's internal name.
+  assert.deepEqual(wfCommandOf('/wf loop goal alpha-flow'), { key: 'goal', slug: 'alpha-flow', slice: null });
+  assert.deepEqual(wfCommandOf('/wf status recap alpha-flow auth'), { key: 'recap', slug: 'alpha-flow', slice: 'auth' });
+  assert.deepEqual(wfCommandOf('/wf status alpha-flow'), { key: 'status', slug: 'alpha-flow', slice: null });
+  assert.equal(wfCommandOf('/wf brainstorm idea'), null, 'a removed key is unknown');
+  assert.equal(wfCommandOf('/wf loop alpha'), null, 'loop alone is no row');
 });
 
 test('expectedArtifactOf names the stage file, or null for keys without one', () => {
@@ -471,6 +486,10 @@ test('draftStepOf reads the step and the filter a draft asks for', () => {
   assert.deepEqual(draftStepOf('/wf plan alpha au'), { step: { kind: 'slice', key: 'plan', slug: 'alpha' }, filter: 'au' });
   assert.equal(draftStepOf('/wf plan alpha auth '), null);
   assert.deepEqual(draftStepOf('/wf-plan '), { step: { kind: 'slug', key: 'plan' }, filter: '' });
+  assert.deepEqual(draftStepOf('/wf loop '), { step: { kind: 'key' }, filter: 'loop' });
+  assert.deepEqual(draftStepOf('/wf loop go'), { step: { kind: 'key' }, filter: 'loop go' });
+  assert.deepEqual(draftStepOf('/wf loop goal '), { step: { kind: 'slug', key: 'loop goal' }, filter: '' });
+  assert.equal(draftStepOf('/wf project ship-plan '), null);
   assert.deepEqual(draftStepOf('/sdlc-workflow:wf '), { step: { kind: 'key' }, filter: '' });
   assert.equal(draftStepOf('/wf-live'), null);
   assert.equal(draftStepOf('/wfx'), null);

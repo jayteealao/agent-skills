@@ -34,7 +34,7 @@ stage — a `Completed` workflow can still carry `deferrals: <N>`, a `Blocked` o
 - Continue most recent: `<next-invocation of the most recently updated active workflow>`
 - Drive it to done: `/wf auto <slug>`  (or `/wf yolo <slug>` for autonomous, where the host offers it)
 - See detail + exact next command for <slug>: `/wf status <slug>`
-- Catch up on what a workflow did: `/wf recap <slug>`
+- Catch up on what a workflow did: `/wf status recap <slug>`
 ```
 
 If any workflow has `branch-strategy: dedicated`, add a branch summary:
@@ -102,6 +102,6 @@ If any slug has a `cost.jsonl`, add the cost table (one row per slug with a ledg
 - **Default:** `<next-invocation>` — <the default route's reason>
 - **Options:** (every entry of the current stage file's `recommended-routes`, or of its legacy `## Recommended Next Stage` section — present ALL, do not pick silently)
 - If `Status: Awaiting input`: resolve the listed open questions first.
-- If the workflow is complete/closed: say so, and offer `/wf recap <slug>` or `/wf intake <slug> <new scope>` (extend).
+- If the workflow is complete/closed: say so, and offer `/wf status recap <slug>` or `/wf intake <slug> <new scope>` (extend).
 - If on the wrong branch: ⚠ You are on `<current>` — switch to `<branch>` before the next command.
 ```

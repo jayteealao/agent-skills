@@ -7,7 +7,7 @@ argument-hint: "<idea> | <poc-branch> <idea> | <slug> [request]"
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-You are running `/wf prototype`. A prototype answers an open question by running code. The person starts every round. You run one round, return, and end the run. You never start the next round.
+You are running `/wf loop prototype`. A prototype answers an open question by running code. The person starts every round. You run one round, return, and end the run. You never start the next round.
 
 ## Requires
 
@@ -43,15 +43,15 @@ CAUTION: do not stage with `git add -A` in the worktree. A proof writes model we
    - When `prototype.mjs status` finds a prototype with that slug, **resume** it. The other tokens are the person's request.
    - When the first token is a branch that exists (local or `origin/`), the other tokens are the idea. **Start** on that branch: pass `--branch <token>`.
    - Otherwise all the tokens are the idea. **Start** on a new `poc/<slug>` branch.
-   - When `.ai/workflows/<token>/00-index.md` exists with another `workflow-type`, end the run: *"`<token>` is a `<type>` workflow. Start a prototype with `/wf prototype <idea>`."*
+   - When `.ai/workflows/<token>/00-index.md` exists with another `workflow-type`, end the run: *"`<token>` is a `<type>` workflow. Start a prototype with `/wf loop prototype <idea>`."*
    - With no token, end the run and show the invocation forms below.
 3. **Start:** derive the slug from the idea (lower-case words joined by dashes, at most 5 words). Run `start <slug> --idea "<idea>" [--branch <b>]`. Show the branch, the worktree, and the scratch folder. Then go to Step 1 with the idea as the first request.
 4. **Resume with no request:** show the accepted pipeline, the open proofs, the last round, and the report link from `status`. End the run.
 
 ```
-/wf prototype <idea>                 Start a prototype on a new poc/<slug> branch.
-/wf prototype <poc-branch> <idea>    Start a prototype on an existing POC branch.
-/wf prototype <slug> [request]       Resume a prototype and run one round.
+/wf loop prototype <idea>                 Start a prototype on a new poc/<slug> branch.
+/wf loop prototype <poc-branch> <idea>    Start a prototype on an existing POC branch.
+/wf loop prototype <slug> [request]       Resume a prototype and run one round.
 ```
 
 ## Step 1 — Name the round
@@ -112,7 +112,7 @@ A decide round accepts a component only from the person's words.
 
 Return a short summary, the numbers (measured and estimated kept apart), and the report link. End the run. The next round starts only when the person asks for it.
 
-End with the dispatcher's summary block (SKILL.md Step 2). `Next` is `/wf prototype <slug> <request>`.
+End with the dispatcher's summary block (SKILL.md Step 2). `Next` is `/wf loop prototype <slug> <request>`.
 
 ## Exit
 
@@ -120,7 +120,7 @@ Only the person ends a prototype. Run `exit <slug> park|graduate|close` with the
 
 - **park**: the prototype stays open. The branch and the worktree stay.
 - **graduate**: `01-prototype.md` becomes the brief. The script prints `/wf intake <idea> from <slug>`; give it to the person. The POC branch stays as the reference implementation.
-- **close**: the script lists the links in the worktree. Then `/wf close <slug>` archives the workflow.
+- **close**: the script lists the links in the worktree. Then `/wf intake <slug> close` archives the workflow.
 
 WARNING: before you remove a worktree, look for `node_modules` junctions. `git worktree remove --force` deletes through a junction into the main checkout. Run `cleanup` only after the person agrees. It refuses while the worktree holds a link, and it keeps the branch.
 

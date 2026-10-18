@@ -5,7 +5,7 @@ import {
   PLUGIN_ROOT,
   main,
   optimizeStatus
-} from "./chunk-BAMRJSCP.mjs";
+} from "./chunk-VIYQJTHD.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";

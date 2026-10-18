@@ -52,7 +52,7 @@ You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: discover` → **resume mode**. Read that index. If `01-discover.md` is complete, tell the user and stop. If incomplete, pick up from the missing section.
    - Otherwise → **new discover**. Derive a slug: `discover-<short-hypothesis>` (kebab-case, max 5 words, e.g., `discover-auth-uses-jwt`).
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `discover` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf recap <slug>` to continue it." Stop.
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `discover` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf status recap <slug>` to continue it." Stop.
 3. **Branch posture (do NOT switch branches):**
    - This is read-only — do not create or switch branches.
    - Record the current branch in the index.
