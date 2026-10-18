@@ -32,7 +32,7 @@ const STAGE_REFERENCES = [
   'intake/adopt.md', 'intake/audit.md', 'intake/brainstorm.md', 'intake/default.md', 'intake/discover.md',
   'intake/extend.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/ideate.md', 'intake/investigate.md',
   'intake/optimize.md', 'intake/rca.md', 'intake/refactor.md', 'intake/update-deps.md', 'observability.md', 'plan.md', 'probe.md',
-  'recap.md', 'retro.md', 'review.md', 'shape.md', 'ship-plan.md', 'ship.md', 'simplify.md', 'slice.md',
+  'prototype.md', 'recap.md', 'retro.md', 'review.md', 'shape.md', 'ship-plan.md', 'ship.md', 'simplify.md', 'slice.md',
   'status.md', 'task.md', 'verify.md',
 ];
 

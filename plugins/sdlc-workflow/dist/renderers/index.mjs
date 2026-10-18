@@ -2,19 +2,19 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   storyLink
-} from "../chunk-VWD42BBN.mjs";
+} from "../chunk-ZC4MVT5P.mjs";
 import {
   md2html,
   renderHistoryBlock,
   renderRevisionLedger
-} from "../chunk-EQQBEB4F.mjs";
+} from "../chunk-PRVWQLUM.mjs";
 import {
   costRowsFor,
   costSectionHtml
 } from "../chunk-NTW5AJRR.mjs";
 import {
   humanRelative
-} from "../chunk-DPWGBEVK.mjs";
+} from "../chunk-ZGJU5UFZ.mjs";
 import {
   evenX,
   figureCanvas
@@ -24,7 +24,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-RXMUMGSA.mjs";
+} from "../chunk-G57PRACS.mjs";
 import "../chunk-SQWQDGCF.mjs";
 import {
   escapeHtml

@@ -7,15 +7,18 @@ import {
   splitStorySection,
   stageKeyFor,
   viewHref
-} from "./chunk-VWD42BBN.mjs";
+} from "./chunk-ZC4MVT5P.mjs";
 import {
   boardsGallery
 } from "./chunk-FHZLIB5Q.mjs";
 import {
+  expand
+} from "./chunk-OD4U4WLL.mjs";
+import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-EQQBEB4F.mjs";
+} from "./chunk-PRVWQLUM.mjs";
 import {
   EVIDENCE_DIRS,
   NO_PAGE_DIRS,
@@ -27,7 +30,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-RXMUMGSA.mjs";
+} from "./chunk-G57PRACS.mjs";
 import {
   aggregateCost,
   readCostRows
@@ -41,17 +44,17 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-RAR4M7RO.mjs";
+} from "./chunk-WB2FM5VY.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-I7IBKMH6.mjs";
+} from "./chunk-M5LWJW4L.mjs";
 import {
   frozenBoardsOf
 } from "./chunk-5QUQXL7Q.mjs";
-import "./chunk-VDBU23EK.mjs";
+import "./chunk-RYYEEV4S.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -82,7 +85,7 @@ import {
   upsertRegistryEntry,
   viewMtimeForSlug,
   writePidFile
-} from "./chunk-J4EY6FXU.mjs";
+} from "./chunk-I652ARYO.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -90,10 +93,10 @@ import "./chunk-SGA7NFMW.mjs";
 
 // scripts/render-sunflower.mjs
 import {
-  existsSync as existsSync3,
+  existsSync as existsSync2,
   mkdirSync,
   readdirSync,
-  readFileSync as readFileSync2,
+  readFileSync,
   writeFileSync,
   statSync as statSync2,
   rmSync,
@@ -102,7 +105,7 @@ import {
   copyFileSync
 } from "node:fs";
 import { spawn } from "node:child_process";
-import { dirname, resolve, join as join3, relative, basename } from "node:path";
+import { dirname, resolve, join as join2, relative, basename } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 // renderers/_fragment-gen.mjs
@@ -283,662 +286,17 @@ function globToRegex(glob) {
   return new RegExp("^" + esc + "$");
 }
 
-// components/_components.mjs
-import { readFileSync, existsSync as existsSync2 } from "node:fs";
-import { join } from "node:path";
-
-// components/explainer/_prepare.mjs
-var TONES = {
-  accent: "var(--accent)",
-  ok: "var(--low)",
-  good: "var(--low)",
-  warn: "var(--med)",
-  bad: "var(--high)",
-  risk: "var(--blocker)",
-  muted: "var(--ink-3)"
-};
-function tone(t) {
-  return TONES[String(t ?? "").toLowerCase()] ?? TONES.accent;
-}
-var TONE_BGS = {
-  accent: "var(--accent-soft)",
-  ok: "var(--low-bg)",
-  good: "var(--low-bg)",
-  warn: "var(--med-bg)",
-  bad: "var(--high-bg)",
-  risk: "var(--blocker-bg)",
-  muted: "var(--paper-2)"
-};
-function toneBg(t) {
-  return TONE_BGS[String(t ?? "").toLowerCase()] ?? TONE_BGS.accent;
-}
-function clampInt(v, lo, hi, dflt) {
-  const n = Math.round(Number(v));
-  if (!Number.isFinite(n)) return dflt;
-  return Math.max(lo, Math.min(hi, n));
-}
-function str(v) {
-  return v == null ? "" : String(v);
-}
-function round1(n) {
-  return Math.round(n * 10) / 10;
-}
-function hashId(value) {
-  const text = JSON.stringify(value ?? null);
-  let h = 2166136261;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 16777619) >>> 0;
-  }
-  return h.toString(36);
-}
-function opt(v) {
-  return v == null || v === "" ? [] : [v];
-}
-function wrapLabel(label, width = 16, maxLines = 2) {
-  const words = str(label).split(/\s+/).filter(Boolean);
-  const lines = [];
-  let cur = "";
-  for (const w of words) {
-    if (!cur) cur = w;
-    else if ((cur + " " + w).length <= width) cur += ` ${w}`;
-    else {
-      lines.push(cur);
-      cur = w;
-    }
-  }
-  if (cur) lines.push(cur);
-  if (lines.length > maxLines) {
-    const kept = lines.slice(0, maxLines);
-    kept[maxLines - 1] = `${kept[maxLines - 1].slice(0, width - 1)}\u2026`;
-    return kept;
-  }
-  return lines.length ? lines : [""];
-}
-function labelLines(label, x, y, width) {
-  const lines = wrapLabel(label, width);
-  const lineH = 14;
-  const first = y - (lines.length - 1) * lineH / 2 + 4;
-  return lines.map((t, i) => ({ t, x: round1(x), y: round1(first + i * lineH) }));
-}
-function prepareSequence(data = {}) {
-  const steps = Array.isArray(data.steps) ? data.steps : [];
-  return {
-    title: str(data.title),
-    title_list: opt(data.title),
-    steps: steps.map((s, i) => {
-      const o = typeof s === "object" && s ? s : { label: s };
-      return {
-        n: i + 1,
-        label: str(o.label),
-        text_list: opt(o.text),
-        lane_list: opt(o.lane)
-      };
-    })
-  };
-}
-function prepareComparison(data = {}) {
-  const bars = Array.isArray(data.bars) ? data.bars : [];
-  const values = bars.map((b) => Number(b?.value) || 0);
-  const max = Number(data.max) > 0 ? Number(data.max) : Math.max(0, ...values);
-  const unit = str(data.unit);
-  return {
-    title: str(data.title),
-    title_list: opt(data.title),
-    bars: bars.map((b, i) => {
-      const v = values[i];
-      const pct = max > 0 ? Math.max(0, Math.min(100, round1(v / max * 100))) : 0;
-      return {
-        label: str(b?.label),
-        pct,
-        color: tone(b?.tone),
-        value_text: `${str(b?.value ?? v)}${unit ? ` ${unit}` : ""}`,
-        note_list: opt(b?.note)
-      };
-    })
-  };
-}
-function prepareCycle(data = {}) {
-  const raw = Array.isArray(data.states) ? data.states : [];
-  const states = raw.map((s) => typeof s === "object" && s ? s : { label: s });
-  const n = states.length;
-  const R = Math.max(90, n * 26);
-  const nodeW = 120;
-  const nodeH = 40;
-  const W = 2 * R + nodeW + 40;
-  const H = 2 * R + nodeH + 40;
-  const cx = W / 2;
-  const cy = H / 2;
-  const angle = (i) => -Math.PI / 2 + 2 * Math.PI * i / Math.max(n, 1);
-  const nodes = states.map((s, i) => {
-    const a = angle(i);
-    const x = cx + R * Math.cos(a);
-    const y = cy + R * Math.sin(a);
-    return {
-      n: i + 1,
-      label: str(s.label),
-      rx: round1(x - nodeW / 2),
-      ry: round1(y - nodeH / 2),
-      w: nodeW,
-      h: nodeH,
-      stroke: tone(s.tone),
-      lines: labelLines(s.label, x, y, 15),
-      note_list: s.note ? [{ n: i + 1, label: str(s.label), text: str(s.note) }] : []
-    };
-  });
-  const trim = Math.min(2 * Math.PI / Math.max(n, 1) * 0.3, 70 / R);
-  const arcs = n < 2 ? [] : states.map((_, i) => {
-    const a0 = angle(i) + trim;
-    const a1 = angle(i + 1) - trim;
-    const x0 = round1(cx + R * Math.cos(a0));
-    const y0 = round1(cy + R * Math.sin(a0));
-    const x1 = round1(cx + R * Math.cos(a1));
-    const y1 = round1(cy + R * Math.sin(a1));
-    return { d: `M ${x0} ${y0} A ${R} ${R} 0 0 1 ${x1} ${y1}` };
-  });
-  return {
-    title: str(data.title),
-    title_list: opt(data.title),
-    id: `xpl-cyc-${hashId(data)}`,
-    width: round1(W),
-    height: round1(H),
-    nodes,
-    arcs
-  };
-}
-function layerColumns(nodes, edges) {
-  const order = new Map(nodes.map((n, i) => [n.id, i]));
-  const out = new Map(nodes.map((n) => [n.id, []]));
-  for (const e of edges) out.get(e.from).push(e.to);
-  const state = /* @__PURE__ */ new Map();
-  const back = /* @__PURE__ */ new Set();
-  const visit = (id) => {
-    state.set(id, 1);
-    for (const to of out.get(id)) {
-      if (state.get(to) === 1) back.add(`${id}->${to}`);
-      else if (!state.get(to)) visit(to);
-    }
-    state.set(id, 2);
-  };
-  for (const n of nodes) if (!state.get(n.id)) visit(n.id);
-  const layer = new Map(nodes.map((n) => [n.id, 0]));
-  for (let pass = 0; pass < nodes.length; pass++) {
-    let changed = false;
-    for (const e of edges) {
-      if (back.has(`${e.from}->${e.to}`)) continue;
-      const want = layer.get(e.from) + 1;
-      if (layer.get(e.to) < want) {
-        layer.set(e.to, want);
-        changed = true;
-      }
-    }
-    if (!changed) break;
-  }
-  const columns = [];
-  for (const n of nodes) {
-    const l = layer.get(n.id);
-    (columns[l] ??= []).push(n.id);
-  }
-  for (const col of columns) col?.sort((a, b) => order.get(a) - order.get(b));
-  return { columns, back };
-}
-function prepareDependency(data = {}) {
-  const rawNodes = Array.isArray(data.nodes) ? data.nodes : [];
-  const nodes = rawNodes.map((n) => typeof n === "object" && n ? n : { id: n, label: n }).map((n) => ({ ...n, id: str(n.id ?? n.label), label: str(n.label ?? n.id) }));
-  const ids = new Set(nodes.map((n) => n.id));
-  const edges = (Array.isArray(data.edges) ? data.edges : []).map((e) => Array.isArray(e) ? { from: e[0], to: e[1] } : e).filter((e) => e && ids.has(str(e.from)) && ids.has(str(e.to)) && str(e.from) !== str(e.to)).map((e) => ({ from: str(e.from), to: str(e.to), label: str(e.label) }));
-  const { columns, back } = layerColumns(nodes, edges);
-  const nodeW = 140;
-  const nodeH = 44;
-  const gapX = 70;
-  const gapY = 22;
-  const pad = 20;
-  const rows = Math.max(1, ...columns.map((c) => c?.length ?? 0));
-  const cols = Math.max(1, columns.length);
-  const W = pad * 2 + cols * nodeW + (cols - 1) * gapX;
-  const hasBack = back.size > 0;
-  const H = pad * 2 + rows * nodeH + (rows - 1) * gapY + (hasBack ? 40 : 0);
-  const pos = /* @__PURE__ */ new Map();
-  columns.forEach((col, ci) => (col ?? []).forEach((id, ri) => {
-    pos.set(id, { x: pad + ci * (nodeW + gapX), y: pad + ri * (nodeH + gapY) });
-  }));
-  const outNodes = nodes.map((n) => {
-    const p = pos.get(n.id);
-    return {
-      id: n.id,
-      label: n.label,
-      rx: p.x,
-      ry: p.y,
-      w: nodeW,
-      h: nodeH,
-      stroke: tone(n.tone),
-      lines: labelLines(n.label, p.x + nodeW / 2, p.y + nodeH / 2, 18),
-      note_list: n.note ? [{ label: n.label, text: str(n.note) }] : []
-    };
-  });
-  const outEdges = edges.map((e) => {
-    const a = pos.get(e.from);
-    const b = pos.get(e.to);
-    const isBack = back.has(`${e.from}->${e.to}`) || b.x <= a.x;
-    let d;
-    let lx;
-    let ly;
-    if (!isBack) {
-      const x0 = a.x + nodeW;
-      const y0 = a.y + nodeH / 2;
-      const x1 = b.x - 4;
-      const y1 = b.y + nodeH / 2;
-      const mx = round1((x0 + x1) / 2);
-      d = `M ${x0} ${y0} C ${mx} ${y0} ${mx} ${y1} ${x1} ${y1}`;
-      lx = mx;
-      ly = round1((y0 + y1) / 2 - 6);
-    } else {
-      const x0 = a.x + nodeW / 2;
-      const y0 = a.y + nodeH;
-      const x1 = b.x + nodeW / 2;
-      const y1 = b.y + nodeH + 4;
-      const low = H - pad / 2;
-      d = `M ${x0} ${y0} C ${x0} ${low} ${x1} ${low} ${x1} ${y1}`;
-      lx = round1((x0 + x1) / 2);
-      ly = round1(low - 4);
-    }
-    return { d, label_list: e.label ? [{ t: e.label, x: lx, y: ly }] : [], dash: isBack ? "5 4" : "none" };
-  });
-  return {
-    title: str(data.title),
-    title_list: opt(data.title),
-    id: `xpl-dep-${hashId(data)}`,
-    width: W,
-    height: H,
-    nodes: outNodes,
-    edges: outEdges
-  };
-}
-function prepareLayout(data = {}) {
-  const raw = Array.isArray(data.regions) ? data.regions : [];
-  const regs = raw.map((r) => typeof r === "object" && r ? r : { label: r });
-  const need = (pos, span, cap) => Math.max(1, ...regs.map((r) => clampInt(r[pos], 1, cap, 1) + clampInt(r[span], 1, cap, 1) - 1));
-  const cols = clampInt(data.cols, 1, 24, Math.min(24, need("col", "w", 24)));
-  const rows = clampInt(data.rows, 1, 48, Math.min(48, need("row", "h", 48)));
-  const title = str(data.title);
-  return {
-    title,
-    title_list: opt(data.title),
-    aria: title || "Layout",
-    cols,
-    rows,
-    regions: regs.map((r) => {
-      const col = clampInt(r.col, 1, cols, 1);
-      const row = clampInt(r.row, 1, rows, 1);
-      const w = clampInt(r.w, 1, cols - col + 1, 1);
-      const h = clampInt(r.h, 1, rows - row + 1, 1);
-      return {
-        label: str(r.label),
-        area: `${row} / ${col} / span ${h} / span ${w}`,
-        stroke: tone(r.tone),
-        bg: toneBg(r.tone),
-        note_list: opt(r.note)
-      };
-    }),
-    caption_list: opt(data.caption)
-  };
-}
-var SERIES_TONES = ["accent", "ok", "warn", "risk", "bad", "muted"];
-var SERIES_DASH = ["none", "7 4", "2 3"];
-var SERIES_BORDER = ["solid", "dashed", "dotted"];
-function niceStep(span, count) {
-  const raw = span / Math.max(1, count);
-  const mag = 10 ** Math.floor(Math.log10(raw));
-  const f = raw / mag;
-  const nf = f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10;
-  return nf * mag;
-}
-function numText(v) {
-  return String(Math.round(v * 1e6) / 1e6);
-}
-function numOrNull(v) {
-  if (v == null || v === "" || typeof v === "boolean") return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-function prepareTrend(data = {}) {
-  const xs = (Array.isArray(data.x) ? data.x : []).map(str);
-  const rawSeries = (Array.isArray(data.series) ? data.series : []).map((s) => typeof s === "object" && s ? s : {});
-  const n = Math.max(xs.length, 0, ...rawSeries.map((s) => Array.isArray(s.values) ? s.values.length : 0));
-  const labels = Array.from({ length: n }, (_, i) => xs[i] ?? String(i + 1));
-  const unit = str(data.unit);
-  const series = rawSeries.map((s, si) => ({
-    label: str(s.label ?? `Series ${si + 1}`),
-    values: Array.from({ length: n }, (_, i) => numOrNull(Array.isArray(s.values) ? s.values[i] : null)),
-    tone: s.tone ?? SERIES_TONES[si % SERIES_TONES.length]
-  }));
-  const all = series.flatMap((s) => s.values).filter((v) => v != null);
-  const autoLo = numOrNull(data.min) == null;
-  const autoHi = numOrNull(data.max) == null;
-  let lo = autoLo ? all.length ? Math.min(...all) : 0 : numOrNull(data.min);
-  let hi = autoHi ? all.length ? Math.max(...all) : 1 : numOrNull(data.max);
-  if (hi < lo) [lo, hi] = [hi, lo];
-  if (hi === lo) {
-    const padV = Math.abs(hi) * 0.1 || 1;
-    if (autoLo) lo -= padV;
-    if (autoHi) hi += padV;
-    if (hi === lo) hi = lo + 1;
-  }
-  const step = niceStep(hi - lo, 4);
-  if (autoLo) lo = Math.floor(lo / step + 1e-9) * step;
-  if (autoHi) hi = Math.ceil(hi / step - 1e-9) * step;
-  const W = 460;
-  const H = 260;
-  const padL = 50;
-  const padR = 24;
-  const padT = 28;
-  const padB = 44;
-  const plotW = W - padL - padR;
-  const plotH = H - padT - padB;
-  const inset = 18;
-  const xAt = (i) => round1(padL + (n <= 1 ? plotW / 2 : inset + i * (plotW - 2 * inset) / (n - 1)));
-  const yAt = (v) => round1(padT + plotH - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * plotH);
-  const ticks = [];
-  for (let k = Math.ceil(lo / step - 1e-9); k * step <= hi + step * 1e-9; k++) {
-    const v = k * step;
-    ticks.push({ y: yAt(v), ty: round1(yAt(v) + 4), x: padL - 8, text: numText(v) });
-  }
-  const every = Math.max(1, Math.ceil(n / 10));
-  const xTicks = labels.map((t, i) => ({ t, i })).filter(({ i }) => i % every === 0).map(({ t, i }) => ({ x: xAt(i), y: padT + plotH + 18, t }));
-  const totalPoints = series.reduce((acc, s) => acc + s.values.filter((v) => v != null).length, 0);
-  const labelAll = totalPoints <= 24;
-  const unitSuffix = unit ? ` ${unit}` : "";
-  const outSeries = series.map((s, si) => {
-    const color = tone(s.tone);
-    let d = "";
-    let pen = false;
-    s.values.forEach((v, i) => {
-      if (v == null) {
-        pen = false;
-        return;
-      }
-      d += `${d ? " " : ""}${pen ? "L" : "M"} ${xAt(i)} ${yAt(v)}`;
-      pen = true;
-    });
-    const present = s.values.map((v, i) => ({ v, i })).filter((p) => p.v != null);
-    const lastI = present.length ? present[present.length - 1].i : -1;
-    const dash = SERIES_DASH[si % SERIES_DASH.length];
-    const points = present.map(({ v, i }) => ({
-      cx: xAt(i),
-      cy: yAt(v),
-      color,
-      tip: `${s.label}: ${labels[i]} = ${numText(v)}${unitSuffix}`,
-      label_list: labelAll || i === lastI ? [{ x: xAt(i), y: round1(yAt(v) - 9), t: numText(v) }] : []
-    }));
-    return {
-      label: s.label,
-      color,
-      dash,
-      border: SERIES_BORDER[si % SERIES_BORDER.length],
-      d_list: d ? [{ d, color, dash }] : [],
-      points
-    };
-  });
-  const desc = series.map((s) => {
-    const present = s.values.map((v, i) => ({ v, i })).filter((p) => p.v != null);
-    if (!present.length) return `${s.label}: no data`;
-    const a = present[0];
-    const b = present[present.length - 1];
-    return `${s.label}: ${numText(a.v)}${unitSuffix} at ${labels[a.i]} to ${numText(b.v)}${unitSuffix} at ${labels[b.i]}`;
-  }).join("; ");
-  const title = str(data.title);
-  return {
-    title,
-    title_list: opt(data.title),
-    svg_title: title || "Trend chart",
-    desc: desc || "No data",
-    id: `xpl-trd-${hashId(data)}`,
-    width: W,
-    height: H,
-    axis_x0: padL,
-    axis_x1: padL + plotW,
-    axis_y0: padT,
-    axis_y1: padT + plotH,
-    unit_list: unit ? [{ x: padL, y: padT - 12, t: unit }] : [],
-    ticks,
-    x_ticks: xTicks,
-    series: outSeries,
-    legend_list: outSeries.length >= 2 ? [{ items: outSeries }] : []
-  };
-}
-function prepareStates(data = {}) {
-  const raw = Array.isArray(data.states) ? data.states : [];
-  const states = raw.map((s) => typeof s === "object" && s ? s : { id: s, label: s }).map((s) => ({ ...s, id: str(s.id ?? s.label), label: str(s.label ?? s.id) }));
-  const ids = new Set(states.map((s) => s.id));
-  const all = (Array.isArray(data.transitions) ? data.transitions : []).map((e) => Array.isArray(e) ? { from: e[0], to: e[1], label: e[2] } : e).filter((e) => e && ids.has(str(e.from)) && ids.has(str(e.to))).map((e) => ({ from: str(e.from), to: str(e.to), label: str(e.label) }));
-  const moves = all.filter((e) => e.from !== e.to);
-  const selfs = all.filter((e) => e.from === e.to);
-  const { columns, back } = layerColumns(states, moves);
-  const nodeW = 116;
-  const nodeH = 44;
-  const gapX = 76;
-  const gapY = 50;
-  const pad = 20;
-  const padTop = selfs.length ? 46 : pad;
-  const rows = Math.max(1, ...columns.map((c) => c?.length ?? 0));
-  const cols = Math.max(1, columns.length);
-  const pos = /* @__PURE__ */ new Map();
-  columns.forEach((col, ci) => (col ?? []).forEach((id, ri) => {
-    pos.set(id, { x: pad + ci * (nodeW + gapX), y: padTop + ri * (nodeH + gapY) });
-  }));
-  const isBack = (e) => back.has(`${e.from}->${e.to}`) || pos.get(e.to).x <= pos.get(e.from).x;
-  const backMoves = moves.filter(isBack);
-  const nodesBottom = padTop + rows * nodeH + (rows - 1) * gapY;
-  const W = pad * 2 + cols * nodeW + (cols - 1) * gapX;
-  const H = nodesBottom + pad + (backMoves.length ? 18 * backMoves.length + 8 : 0);
-  const outNodes = states.map((s, i) => {
-    const p = pos.get(s.id);
-    return {
-      label: s.label,
-      rx: p.x,
-      ry: p.y,
-      w: nodeW,
-      h: nodeH,
-      stroke: tone(s.tone),
-      bg: toneBg(s.tone),
-      width_px: i === 0 ? 2.6 : 1.6,
-      lines: labelLines(s.label, p.x + nodeW / 2, p.y + nodeH / 2, 15),
-      note_list: s.note ? [{ label: s.label, text: str(s.note) }] : []
-    };
-  });
-  let backIndex = 0;
-  const edges = moves.map((e) => {
-    const a = pos.get(e.from);
-    const b = pos.get(e.to);
-    let d;
-    let lx;
-    let ly;
-    if (!isBack(e)) {
-      const x0 = a.x + nodeW;
-      const y0 = a.y + nodeH / 2;
-      const x1 = b.x - 4;
-      const y1 = b.y + nodeH / 2;
-      const mx = round1((x0 + x1) / 2);
-      d = `M ${x0} ${y0} C ${mx} ${y0} ${mx} ${y1} ${x1} ${y1}`;
-      lx = mx;
-      ly = round1((y0 + y1) / 2 - 7);
-    } else {
-      const low = nodesBottom + 18 + 18 * backIndex++;
-      const x0 = a.x + nodeW / 2 + 10;
-      const y0 = a.y + nodeH;
-      const x1 = b.x + nodeW / 2 - 10;
-      const y1 = b.y + nodeH + 4;
-      d = `M ${x0} ${y0} C ${x0} ${low} ${x1} ${low} ${x1} ${y1}`;
-      lx = round1((x0 + x1) / 2);
-      ly = round1(low - 2);
-    }
-    return { d, label_list: e.label ? [{ t: e.label, x: lx, y: ly }] : [] };
-  });
-  for (const e of selfs) {
-    const p = pos.get(e.from);
-    const cx = p.x + nodeW / 2;
-    edges.push({
-      d: `M ${cx - 16} ${p.y} C ${cx - 30} ${p.y - 36} ${cx + 30} ${p.y - 36} ${cx + 16} ${p.y - 4}`,
-      label_list: e.label ? [{ t: e.label, x: cx, y: p.y - 32 }] : []
-    });
-  }
-  const title = str(data.title);
-  return {
-    title,
-    title_list: opt(data.title),
-    svg_title: title || "State machine",
-    desc: moves.concat(selfs).map((e) => {
-      const lab = (id) => states.find((s) => s.id === id)?.label ?? id;
-      return `${lab(e.from)} to ${lab(e.to)}${e.label ? ` on ${e.label}` : ""}`;
-    }).join("; ") || "No transitions",
-    id: `xpl-sta-${hashId(data)}`,
-    width: W,
-    height: H,
-    nodes: outNodes,
-    edges
-  };
-}
-function prepareSteps(data = {}) {
-  const steps = Array.isArray(data.steps) ? data.steps : [];
-  const title = str(data.title);
-  return {
-    title,
-    title_list: opt(data.title),
-    aria: title || "Steps",
-    steps: steps.map((s, i) => {
-      const o = typeof s === "object" && s ? s : { label: s };
-      return {
-        n: i + 1,
-        label: str(o.label),
-        color: tone(o.tone),
-        text_list: opt(o.text)
-      };
-    })
-  };
-}
-
-// components/_components.mjs
-var INCLUDE_RE = /<!--\s*@include\s+([a-z][a-z0-9-]*(?:\/[a-z][a-z0-9-]*)*)\s+([\s\S]*?)\s*-->/g;
-var PREPARERS = {
-  "explainer/sequence": prepareSequence,
-  "explainer/comparison": prepareComparison,
-  "explainer/cycle": prepareCycle,
-  "explainer/dependency": prepareDependency,
-  "explainer/layout": prepareLayout,
-  "explainer/trend": prepareTrend,
-  "explainer/states": prepareStates,
-  "explainer/steps": prepareSteps
-};
-function stripDocComments(text) {
-  return text.replace(/\{\{!--[\s\S]*?--\}\}\s*/g, "");
-}
-var snippetCache = /* @__PURE__ */ new Map();
-function loadSnippet(componentsRoot, name) {
-  const cacheKey = `${componentsRoot}::${name}`;
-  if (snippetCache.has(cacheKey)) return snippetCache.get(cacheKey);
-  const path2 = join(componentsRoot, `${name}.html.snippet`);
-  if (!existsSync2(path2)) {
-    throw new Error(`@include: snippet not found: ${name}.html.snippet`);
-  }
-  const text = readFileSync(path2, "utf-8");
-  snippetCache.set(cacheKey, text);
-  return text;
-}
-function escapeHtml2(s) {
-  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-function renderSnippet(body, data) {
-  let out = "";
-  let i = 0;
-  const eachOpenRe = /\{\{#each\s+([a-z0-9_.-]+)\s*\}\}/g;
-  const blockRe = /\{\{(#each\s+[a-z0-9_.-]+\s*|\/each)\}\}/g;
-  while (i < body.length) {
-    eachOpenRe.lastIndex = i;
-    const open = eachOpenRe.exec(body);
-    if (!open) {
-      out += body.slice(i);
-      break;
-    }
-    out += body.slice(i, open.index);
-    const innerStart = open.index + open[0].length;
-    blockRe.lastIndex = innerStart;
-    let depth = 1, innerEnd = -1, blockEnd = -1;
-    let m;
-    while ((m = blockRe.exec(body)) !== null) {
-      if (m[1].startsWith("#each")) depth++;
-      else {
-        depth--;
-        if (depth === 0) {
-          innerEnd = m.index;
-          blockEnd = blockRe.lastIndex;
-          break;
-        }
-      }
-    }
-    if (innerEnd < 0) throw new Error("unbalanced {{#each}} \u2026 {{/each}} in snippet");
-    const inner = body.slice(innerStart, innerEnd);
-    const list = resolvePath(data, open[1]);
-    if (Array.isArray(list)) {
-      for (const item of list) {
-        out += renderSnippet(inner, { ...data, this: item });
-      }
-    }
-    i = blockEnd;
-  }
-  out = out.replace(/\{\{\{([a-z0-9_.-]+)\}\}\}/g, (_, key) => {
-    const v = resolvePath(data, key);
-    return v == null ? "" : String(v);
-  });
-  out = out.replace(/\{\{([a-z0-9_.-]+)\}\}/g, (_, key) => {
-    const v = resolvePath(data, key);
-    return v == null ? "" : escapeHtml2(v);
-  });
-  return out;
-}
-function resolvePath(obj, dotted) {
-  if (!obj) return void 0;
-  return dotted.split(".").reduce((acc, k) => acc == null ? void 0 : acc[k], obj);
-}
-function expand(html, ctx) {
-  if (!html || typeof html !== "string") return html ?? "";
-  const componentsRoot = ctx?.componentsRoot;
-  if (!componentsRoot) throw new Error("expand: ctx.componentsRoot required");
-  const maxDepth = ctx?.maxDepth ?? 4;
-  let current = html;
-  for (let depth = 0; depth <= maxDepth; depth++) {
-    if (!INCLUDE_RE.test(current)) return current;
-    INCLUDE_RE.lastIndex = 0;
-    if (depth === maxDepth) {
-      throw new Error(`@include: expansion exceeded maxDepth=${maxDepth} (possible cycle)`);
-    }
-    current = current.replace(INCLUDE_RE, (match, name, payloadRaw) => {
-      let data;
-      try {
-        data = payloadRaw.trim() ? JSON.parse(payloadRaw.trim()) : {};
-      } catch (err) {
-        throw new Error(`@include ${name}: invalid JSON payload \u2014 ${err.message}`);
-      }
-      const snippet = loadSnippet(componentsRoot, name);
-      if (PREPARERS[name]) {
-        return renderSnippet(stripDocComments(snippet), PREPARERS[name](data)).trim();
-      }
-      return renderSnippet(stripDocComments(snippet), data);
-    });
-  }
-  return current;
-}
-
 // lib/serve-lifecycle.mjs
 import { request } from "node:http";
-import { join as join2 } from "node:path";
+import { join } from "node:path";
 var RUNTIME = runtimeIdentity();
 function servePidPath(projectRoot) {
-  return join2(projectRoot, ".ai", "_view", ".serve.pid");
+  return join(projectRoot, ".ai", "_view", ".serve.pid");
 }
 async function ensureServeLifecycle({
   projectRoot = process.cwd(),
   pluginRoot,
-  viewRoot = join2(projectRoot, ".ai", "_view"),
+  viewRoot = join(projectRoot, ".ai", "_view"),
   configHash: configHash2 = "",
   log = () => {
   }
@@ -1180,7 +538,7 @@ function parseArgs(argv) {
     else if (a === "--schema") args.schema = resolve(argv[++i]);
     else if (a === "--no-shared-output") args.sharedOutput = false;
   }
-  args.schema ??= join3(args.pluginRoot, "tests", "frontmatter.schema.json");
+  args.schema ??= join2(args.pluginRoot, "tests", "frontmatter.schema.json");
   return args;
 }
 var cachedAssetBase = null;
@@ -1190,7 +548,7 @@ function defaultAssetBase(args) {
   return cachedAssetBase;
 }
 function* walkStorage(root) {
-  if (!existsSync3(root)) return;
+  if (!existsSync2(root)) return;
   const stack = [root];
   while (stack.length) {
     const dir = stack.pop();
@@ -1201,7 +559,7 @@ function* walkStorage(root) {
       continue;
     }
     for (const e of entries) {
-      const abs = join3(dir, e.name);
+      const abs = join2(dir, e.name);
       if (e.isDirectory()) {
         if (e.name.startsWith(".") && e.name !== ".ai") continue;
         if (e.name === "node_modules") continue;
@@ -1232,7 +590,7 @@ function discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot, docsRoot, 
       kind: "workflow"
     });
   }
-  if (existsSync3(simplifyRoot)) {
+  if (existsSync2(simplifyRoot)) {
     for (const abs of walkStorage(simplifyRoot)) {
       if (!abs.endsWith(".md")) continue;
       const rel = relative(simplifyRoot, abs).replace(/\\/g, "/");
@@ -1244,7 +602,7 @@ function discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot, docsRoot, 
       });
     }
   }
-  if (existsSync3(profilesRoot)) {
+  if (existsSync2(profilesRoot)) {
     for (const abs of walkStorage(profilesRoot)) {
       if (!abs.endsWith(".md")) continue;
       const rel = relative(profilesRoot, abs).replace(/\\/g, "/");
@@ -1256,14 +614,14 @@ function discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot, docsRoot, 
       });
     }
   }
-  if (depUpdatesRoot && existsSync3(depUpdatesRoot)) {
+  if (depUpdatesRoot && existsSync2(depUpdatesRoot)) {
     for (const abs of walkStorage(depUpdatesRoot)) {
       if (!abs.endsWith(".md")) continue;
       const rel = relative(depUpdatesRoot, abs).replace(/\\/g, "/");
       artifacts.push({ mdAbs: abs, slug: "__deps__", storageRel: rel, kind: "deps" });
     }
   }
-  if (ideationRoot && existsSync3(ideationRoot)) {
+  if (ideationRoot && existsSync2(ideationRoot)) {
     for (const abs of walkStorage(ideationRoot)) {
       if (!abs.endsWith(".md")) continue;
       const rel = relative(ideationRoot, abs).replace(/\\/g, "/");
@@ -1278,7 +636,7 @@ function discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot, docsRoot, 
 }
 function discoverDocsArtifacts({ docsRoot }) {
   const out = [];
-  if (!existsSync3(docsRoot)) return out;
+  if (!existsSync2(docsRoot)) return out;
   for (const abs of walkStorage(docsRoot)) {
     if (!abs.endsWith(".md")) continue;
     const rel = relative(docsRoot, abs).replace(/\\/g, "/");
@@ -1304,8 +662,8 @@ function discoverProjectArtifacts({ projectRoot }) {
     { rel: ".ai/observability.md", type: "observability-plan", title: "Observability plan", siblingRoot: projectRoot },
     { rel: ".ai/observability-build.md", type: "observability-build", title: "Observability build", siblingRoot: projectRoot }
   ];
-  const aiDir = join3(projectRoot, ".ai");
-  if (existsSync3(aiDir)) {
+  const aiDir = join2(projectRoot, ".ai");
+  if (existsSync2(aiDir)) {
     for (const name of readdirSync(aiDir).sort()) {
       const rel = `.ai/${name}`;
       if (!SURFACE_SWEEP_RE.test(rel)) continue;
@@ -1313,8 +671,8 @@ function discoverProjectArtifacts({ projectRoot }) {
     }
   }
   for (const candidate of candidates) {
-    const mdAbs = join3(projectRoot, candidate.rel);
-    if (!existsSync3(mdAbs)) continue;
+    const mdAbs = join2(projectRoot, candidate.rel);
+    if (!existsSync2(mdAbs)) continue;
     out.push({
       mdAbs,
       slug: "__project__",
@@ -1330,9 +688,9 @@ function discoverProjectArtifacts({ projectRoot }) {
 var rendererCache = /* @__PURE__ */ new Map();
 async function loadRenderer(type, pluginRoot) {
   if (rendererCache.has(type)) return rendererCache.get(type);
-  const rendererDir = RUNNING_FROM_DIST ? join3(pluginRoot, "dist", "renderers") : join3(pluginRoot, "renderers");
-  const path2 = join3(rendererDir, `${type}.mjs`);
-  if (!existsSync3(path2)) {
+  const rendererDir = RUNNING_FROM_DIST ? join2(pluginRoot, "dist", "renderers") : join2(pluginRoot, "renderers");
+  const path2 = join2(rendererDir, `${type}.mjs`);
+  if (!existsSync2(path2)) {
     rendererCache.set(type, null);
     return null;
   }
@@ -1347,19 +705,19 @@ async function loadRenderer(type, pluginRoot) {
   }
 }
 function assetUpToDate(src, dst) {
-  if (!existsSync3(dst)) return false;
+  if (!existsSync2(dst)) return false;
   try {
     if (statSync2(src).size !== statSync2(dst).size) return false;
-    return readFileSync2(src).equals(readFileSync2(dst));
+    return readFileSync(src).equals(readFileSync(dst));
   } catch {
     return false;
   }
 }
 function copyBoardImages(designBoards, pageDir) {
-  const dir = join3(pageDir, "boards");
+  const dir = join2(pageDir, "boards");
   mkdirSync(dir, { recursive: true });
   for (const b of designBoards.boards) {
-    const dst = join3(dir, b.file);
+    const dst = join2(dir, b.file);
     if (assetUpToDate(b.abs, dst)) continue;
     try {
       copyFileSync(b.abs, dst);
@@ -1382,7 +740,7 @@ function writeFileAtomic(absPath, content) {
   }
 }
 function* walkViewIndexes(dir) {
-  if (!existsSync3(dir)) return;
+  if (!existsSync2(dir)) return;
   const stack = [dir];
   while (stack.length) {
     const d = stack.pop();
@@ -1393,7 +751,7 @@ function* walkViewIndexes(dir) {
       continue;
     }
     for (const e of entries) {
-      const abs = join3(d, e.name);
+      const abs = join2(d, e.name);
       if (e.isDirectory()) stack.push(abs);
       else if (e.isFile() && e.name === "INDEX.html") yield abs;
     }
@@ -1426,7 +784,7 @@ function discoverFreeFragments(mdAbs) {
   const out = [];
   for (const name of names) {
     const c = classifyFragmentName(name, stem);
-    if (c?.tier === "free") out.push({ label: c.label, abs: join3(dir, name) });
+    if (c?.tier === "free") out.push({ label: c.label, abs: join2(dir, name) });
   }
   return out.sort((a, b) => a.label < b.label ? -1 : a.label > b.label ? 1 : 0);
 }
@@ -1434,7 +792,7 @@ function loadFreeFragments(mdAbs, expandCtx) {
   return discoverFreeFragments(mdAbs).map(({ label, abs }) => {
     let html = "";
     try {
-      html = readFileSync2(abs, "utf-8");
+      html = readFileSync(abs, "utf-8");
     } catch (err) {
       console.warn(`[nfrag] ${abs}: ${err.message}`);
       return null;
@@ -1495,7 +853,7 @@ function listEvidenceFiles(dirAbs) {
       continue;
     }
     for (const e of entries) {
-      const abs = join3(d, e.name);
+      const abs = join2(d, e.name);
       if (e.isDirectory()) stack.push(abs);
       else if (e.isFile()) out.push(abs);
     }
@@ -1537,7 +895,7 @@ async function renderMain(args) {
   mkdirSync(viewRoot, { recursive: true });
   if (args.mode !== "clean") {
     const active = runtimeIdentity();
-    const prior = readRenderedIdentity(join3(viewRoot, ".last-render"));
+    const prior = readRenderedIdentity(join2(viewRoot, ".last-render"));
     if ((prior.version || prior.buildId || prior.rendererBuildId) && !renderIdentityMatches(prior, active)) {
       const label = (rb, b, v) => rb ? `renderer ${rb.slice(0, 12)}` : b ? `build ${b.slice(0, 12)}` : `v${v}`;
       const was = label(prior.rendererBuildId, prior.buildId, prior.version);
@@ -1549,15 +907,15 @@ async function renderMain(args) {
   if (args.mode === "clean") {
     for (const entry of readdirSync(viewRoot, { withFileTypes: true })) {
       if (entry.isDirectory() && entry.name !== "_assets") {
-        rmSync(join3(viewRoot, entry.name), { recursive: true, force: true });
+        rmSync(join2(viewRoot, entry.name), { recursive: true, force: true });
       }
     }
     try {
-      rmSync(join3(viewRoot, "_assets"), { recursive: true, force: true });
+      rmSync(join2(viewRoot, "_assets"), { recursive: true, force: true });
     } catch {
     }
     for (const f of ["INDEX.html", "INDEX.yaml", ".last-render"]) {
-      rmSync(join3(viewRoot, f), { force: true });
+      rmSync(join2(viewRoot, f), { force: true });
     }
   }
   const artifacts = discoverArtifacts({
@@ -1577,9 +935,9 @@ async function renderMain(args) {
   const parsed = [];
   for (const a of artifacts) {
     const siblings = siblingPaths(a.storageRel);
-    const siblingRoot = a.kind === "workflow" ? join3(storageRoot, a.slug) : a.kind === "simplify" ? simplifyRoot : a.kind === "profile" ? profilesRoot : a.kind === "docs" ? a.siblingRoot : a.kind === "project" ? a.siblingRoot : a.kind === "deps" ? depUpdatesRoot : a.kind === "ideation" ? ideationRoot : null;
-    const yamlAbs = siblingRoot ? join3(siblingRoot, siblings.yaml) : null;
-    const fragmentAbs = siblingRoot ? join3(siblingRoot, siblings.fragment) : null;
+    const siblingRoot = a.kind === "workflow" ? join2(storageRoot, a.slug) : a.kind === "simplify" ? simplifyRoot : a.kind === "profile" ? profilesRoot : a.kind === "docs" ? a.siblingRoot : a.kind === "project" ? a.siblingRoot : a.kind === "deps" ? depUpdatesRoot : a.kind === "ideation" ? ideationRoot : null;
+    const yamlAbs = siblingRoot ? join2(siblingRoot, siblings.yaml) : null;
+    const fragmentAbs = siblingRoot ? join2(siblingRoot, siblings.fragment) : null;
     let loaded;
     try {
       loaded = loadArtifact(a.mdAbs, yamlAbs);
@@ -1590,7 +948,7 @@ async function renderMain(args) {
     if (a.kind === "project") {
       loaded.frontmatter = synthesizeProjectFrontmatter(a, loaded.frontmatter);
     }
-    let fragmentHtml = fragmentAbs && existsSync3(fragmentAbs) ? readFileSync2(fragmentAbs, "utf-8") : null;
+    let fragmentHtml = fragmentAbs && existsSync2(fragmentAbs) ? readFileSync(fragmentAbs, "utf-8") : null;
     let fragmentGenerated = false;
     const fmType = loaded.frontmatter?.type;
     if (loaded.siblingYaml && typeof loaded.siblingYaml === "object" && loaded.frontmatter?.fragment !== "none" && shouldGenerateFragment({
@@ -1612,7 +970,7 @@ async function renderMain(args) {
     if (fragmentHtml) {
       try {
         fragmentHtml = expand(fragmentHtml, {
-          componentsRoot: join3(args.pluginRoot, "components"),
+          componentsRoot: join2(args.pluginRoot, "components"),
           maxDepth: 4
         });
       } catch (err) {
@@ -1620,7 +978,7 @@ async function renderMain(args) {
       }
     }
     const allFree = loadFreeFragments(a.mdAbs, {
-      componentsRoot: join3(args.pluginRoot, "components"),
+      componentsRoot: join2(args.pluginRoot, "components"),
       maxDepth: 4
     });
     const explainer = fmType !== "brainstorm" ? allFree.find((f) => f.label === "explainer") ?? null : null;
@@ -1629,7 +987,7 @@ async function renderMain(args) {
     if (explainer && a.kind === "workflow") {
       const stage = stageKeyFor({ type: fmType, frontmatter: loaded.frontmatter ?? {}, path: a.storageRel });
       const dir = evidenceDirFor({ stage, frontmatter: loaded.frontmatter ?? {}, path: a.storageRel });
-      if (dir) evidenceFiles = listEvidenceFiles(join3(storageRoot, a.slug, dir));
+      if (dir) evidenceFiles = listEvidenceFiles(join2(storageRoot, a.slug, dir));
     }
     const history = loadHistory(a.mdAbs);
     parsed.push({
@@ -1654,7 +1012,7 @@ async function renderMain(args) {
     const r = resolveViewPath(a.storageRel, { kind: a.kind });
     if (!r) continue;
     const viewRel = r.viewRel;
-    const viewAbs = a.kind === "workflow" ? join3(viewRoot, a.slug, viewRel) : join3(viewRoot, viewRel);
+    const viewAbs = a.kind === "workflow" ? join2(viewRoot, a.slug, viewRel) : join2(viewRoot, viewRel);
     if (viewAbsSeen.has(viewAbs)) {
       console.warn(`[render] path collision: ${a.slug}/${a.storageRel} and ${viewAbsSeen.get(viewAbs)} both map to ${viewRel} \u2014 keeping the first`);
       continue;
@@ -1694,13 +1052,13 @@ async function renderMain(args) {
     const displaySlug = a.kind === "docs" ? "docs" : a.slug;
     const effectiveAssetBase = defaultAssetBase(args);
     const fourPart = Boolean(a.explainer) && config?.view?.narrativeFragments !== false;
-    const designBoards = type === "design-contract" && a.kind === "workflow" && !/(?:^|\/)history\//.test(a.storageRel) ? frozenBoardsOf(join3(storageRoot, a.slug), a.frontmatter ?? {}) : null;
+    const designBoards = type === "design-contract" && a.kind === "workflow" && !/(?:^|\/)history\//.test(a.storageRel) ? frozenBoardsOf(join2(storageRoot, a.slug), a.frontmatter ?? {}) : null;
     const ctx = {
       designBoards,
       fourPart,
       slug: displaySlug,
-      slugRoot: a.kind === "workflow" ? join3(storageRoot, a.slug) : null,
-      viewRoot: a.kind === "workflow" ? join3(viewRoot, a.slug) : viewRoot,
+      slugRoot: a.kind === "workflow" ? join2(storageRoot, a.slug) : null,
+      viewRoot: a.kind === "workflow" ? join2(viewRoot, a.slug) : viewRoot,
       assetBase: effectiveAssetBase,
       allArtifacts,
       pathMap: pathMaps.get(a.slug),
@@ -1732,7 +1090,7 @@ async function renderMain(args) {
     if (fourPart) {
       const pageDir = dirname(a.viewAbs);
       const evidence = (a.evidenceFiles ?? []).map((abs) => ({
-        label: relative(join3(storageRoot, a.slug), abs).replace(/\\/g, "/"),
+        label: relative(join2(storageRoot, a.slug), abs).replace(/\\/g, "/"),
         href: relative(pageDir, abs).replace(/\\/g, "/")
       }));
       const stem = basename(a.storageRel, ".md");
@@ -1782,7 +1140,7 @@ async function renderMain(args) {
       if (result.children?.length) {
         for (const child of result.children) {
           if (child.viewRel && child.html) {
-            const childAbs = join3(viewRoot, a.slug, child.viewRel);
+            const childAbs = join2(viewRoot, a.slug, child.viewRel);
             mkdirSync(dirname(childAbs), { recursive: true });
             writeFileAtomic(childAbs, child.html);
             renderedCount++;
@@ -1797,7 +1155,7 @@ async function renderMain(args) {
     const touchedSlugs = new Set(workSet.filter((a) => a.kind === "workflow").map((a) => a.slug));
     for (const slug of touchedSlugs) {
       const expected = new Set((slugArtifacts.get(slug) ?? []).map((a) => a.viewAbs));
-      for (const abs of walkViewIndexes(join3(viewRoot, slug))) {
+      for (const abs of walkViewIndexes(join2(viewRoot, slug))) {
         if (!expected.has(abs)) {
           try {
             rmSync(abs, { force: true });
@@ -1817,7 +1175,7 @@ async function renderMain(args) {
           const indexArt = list.find((x) => x.frontmatter?.type === "index" || x.frontmatter?.type === "workflow-index") ?? list.find((x) => /(?:^|[\\/])00-index\.md$/.test(x.storageRel ?? ""));
           let cost = null;
           try {
-            cost = aggregateCost(readCostRows(join3(storageRoot, slug)));
+            cost = aggregateCost(readCostRows(join2(storageRoot, slug)));
           } catch {
             cost = null;
           }
@@ -1844,7 +1202,7 @@ async function renderMain(args) {
           upHref: "./",
           liveReload
         });
-        writeFileAtomic(join3(viewRoot, "INDEX.html"), html);
+        writeFileAtomic(join2(viewRoot, "INDEX.html"), html);
         renderedCount++;
       } catch (err) {
         console.warn(`[dashboard] ${err.message}`);
@@ -1858,10 +1216,10 @@ async function renderMain(args) {
         artifacts: (slugArtifacts.get(slug) ?? []).length
       }))
     };
-    writeFileAtomic(join3(viewRoot, "INDEX.yaml"), `# sdlc view manifest
+    writeFileAtomic(join2(viewRoot, "INDEX.yaml"), `# sdlc view manifest
 ${toYaml(manifest)}`);
     const rt = runtimeIdentity();
-    writeFileAtomic(join3(viewRoot, ".last-render"), `${JSON.stringify({
+    writeFileAtomic(join2(viewRoot, ".last-render"), `${JSON.stringify({
       version: rt.runtimeVersion,
       buildId: rt.buildId,
       rendererBuildId: rt.rendererBuildId,
@@ -1895,7 +1253,7 @@ async function bootstrapMain(args) {
   const configMeta = await loadConfigWithMeta(cwd);
   const config = configMeta.config;
   const hash = configHash(config);
-  const logPath = join3(viewRoot, ".bootstrap.log");
+  const logPath = join2(viewRoot, ".bootstrap.log");
   mkdirSync(viewRoot, { recursive: true });
   const log = (line) => logBootstrap(logPath, line);
   for (const warning of configMeta.warnings) log(`[config] ${warning}`);
@@ -1903,11 +1261,11 @@ async function bootstrapMain(args) {
     log("[bootstrap] disabled by config");
     return;
   }
-  if (existsSync3(join3(viewRoot, ".render-suppress"))) {
+  if (existsSync2(join2(viewRoot, ".render-suppress"))) {
     log("[bootstrap] skipped: .render-suppress present");
     return;
   }
-  const pidPath = join3(viewRoot, ".bootstrap.pid");
+  const pidPath = join2(viewRoot, ".bootstrap.pid");
   const status = await pidFileStatus(pidPath);
   if (status.alive) {
     log(`[bootstrap] skipped: already running pid ${status.record.pid}`);
@@ -1940,7 +1298,7 @@ async function bootstrapMain(args) {
       const projectArtifacts = discoverProjectArtifacts({ projectRoot: cwd });
       if (projectArtifacts.length) {
         const latestProjectMtime = await latestMtimeMs(projectArtifactInputs(projectArtifacts));
-        const projectViewMtime = await latestTreeMtimeMs(join3(viewRoot, "project"));
+        const projectViewMtime = await latestTreeMtimeMs(join2(viewRoot, "project"));
         const projectState = classifyRenderState({
           latestArtifactMtime: latestProjectMtime,
           viewMtime: projectViewMtime,
@@ -1956,7 +1314,7 @@ async function bootstrapMain(args) {
     const docsArtifacts = discoverDocsArtifacts({ docsRoot });
     if (docsArtifacts.length) {
       const latestDocsMtime = await latestMtimeMs(artifactInputs(docsArtifacts));
-      const docsViewMtime = await latestTreeMtimeMs(join3(viewRoot, "docs"));
+      const docsViewMtime = await latestTreeMtimeMs(join2(viewRoot, "docs"));
       const docsState = classifyRenderState({
         latestArtifactMtime: latestDocsMtime,
         viewMtime: docsViewMtime,
@@ -1970,11 +1328,11 @@ async function bootstrapMain(args) {
     }
     for (const [kind, bucket] of Object.entries(OFF_PIPELINE_BUCKET)) {
       const root = { simplify: simplifyRoot, profile: profilesRoot, deps: depUpdatesRoot, ideation: ideationRoot }[kind];
-      if (!root || !existsSync3(root)) continue;
+      if (!root || !existsSync2(root)) continue;
       const mdFiles = [...walkStorage(root)].filter((p) => p.endsWith(".md"));
       if (!mdFiles.length) continue;
       const latestArtifactMtime = await latestMtimeMs(offPipelineInputs(root, mdFiles));
-      const offViewMtime = await latestTreeMtimeMs(join3(viewRoot, bucket));
+      const offViewMtime = await latestTreeMtimeMs(join2(viewRoot, bucket));
       const offState = classifyRenderState({
         latestArtifactMtime,
         viewMtime: offViewMtime,
@@ -2029,8 +1387,8 @@ function artifactInputs(artifacts) {
   for (const artifact of artifacts) {
     inputs.push(artifact.mdAbs);
     const siblings = siblingPaths(artifact.storageRel);
-    inputs.push(join3(artifact.siblingRoot, siblings.yaml));
-    inputs.push(join3(artifact.siblingRoot, siblings.fragment));
+    inputs.push(join2(artifact.siblingRoot, siblings.yaml));
+    inputs.push(join2(artifact.siblingRoot, siblings.fragment));
     for (const f of discoverFreeFragments(artifact.mdAbs)) inputs.push(f.abs);
   }
   return inputs;
@@ -2040,8 +1398,8 @@ function offPipelineInputs(root, mdAbsList) {
   for (const mdAbs of mdAbsList) {
     inputs.push(mdAbs);
     const siblings = siblingPaths(relative(root, mdAbs).replace(/\\/g, "/"));
-    inputs.push(join3(root, siblings.yaml));
-    inputs.push(join3(root, siblings.fragment));
+    inputs.push(join2(root, siblings.yaml));
+    inputs.push(join2(root, siblings.fragment));
     for (const f of discoverFreeFragments(mdAbs)) inputs.push(f.abs);
   }
   return inputs;
@@ -2119,7 +1477,7 @@ function runRenderJob(job, { args, cwd, log, sharedOutput = true }) {
 function logBootstrap(logPath, line) {
   const entry = `[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}`;
   try {
-    if (existsSync3(logPath) && statSync2(logPath).size > 1024 * 1024) {
+    if (existsSync2(logPath) && statSync2(logPath).size > 1024 * 1024) {
       renameSync(logPath, `${logPath}.1`);
     }
   } catch {

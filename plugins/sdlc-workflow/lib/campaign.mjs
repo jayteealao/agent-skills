@@ -12,7 +12,7 @@
 // command takes next, the context file, and the forecast.
 
 export const BUILD_FORMS = Object.freeze(['intake', 'extension', 'fix', 'hotfix']);
-export const OUTSIDE_FORMS = Object.freeze(['task', 'investigate', 'discover']);
+export const OUTSIDE_FORMS = Object.freeze(['task', 'investigate', 'discover', 'rca']);
 export const MAX_CARRIED = 40;
 export const LEDGER_VERSION = 1;
 export const WAVE_STATES = Object.freeze(['planned', 'running', 'boundary', 'handoff', 'shipping', 'shipped', 'stopped']);

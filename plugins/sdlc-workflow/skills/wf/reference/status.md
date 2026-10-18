@@ -43,7 +43,7 @@ You are a **dashboard + router + registry keeper**, not a problem solver.
 
 # Step -1 — Reconcile the global registry (`.ai/workflows/INDEX.md`) — always, first
 
-This step runs **unconditionally on every invocation, before Step 0**, even with a slug argument. It is the read-side guarantee that positional slug detection (compressed-slice attach via `/wf intake`/`/wf probe`/`/wf simplify`) has a fresh registry to consult. The repair is **idempotent and low-risk** — running it twice produces an identical file — so `status` self-heals the registry rather than merely warning about drift.
+This step runs **unconditionally on every invocation, before Step 0**, even with a slug argument. The repair is idempotent: running it twice produces an identical file.
 
 **One-time advisory — artifact-tracking policy unset.** While reconciling, if `.ai/sdlc-config.json` has no `artifactTracking` key AND at least one workflow exists, append one advisory line to the status report (never a gate, never a prompt): "artifact-tracking policy unset — `.ai/` tracked-vs-ignored is currently decided ad hoc at ship time; record it via `/wf ship-plan edit` (or init Step 3.5) to give ship's clean-tree gate a policy to read." Print it at most once per invocation; a repo that has recorded the key never sees it again.
 
@@ -62,7 +62,7 @@ Column semantics (all pulled from each workflow's `00-index.md` YAML frontmatter
 |---|---|---|
 | `slug` | `slug` (must equal the directory name) | The lookup key. |
 | `status` | `status` | e.g. `defined`, `shaped`, `sliced`, `planned`, `implementing`, `verifying`, `reviewing`, `handed-off`, `shipped`, `closed`, `abandoned`. |
-| `workflow-type` | `workflow-type` | The schema enum: `standard`, `feature`, `fix`, `quick`, `rca`, `investigate`, `discover`, `rf`, `refactor`, `hotfix`, `dep-update`, `update-deps`, `docs`, `adopt`, `task`, `audit`, `brainstorm`, `optimize` — plus `ideate` (workflow-index workflows) and legacy `compressed`. Use `standard` if missing on legacy indexes. |
+| `workflow-type` | `workflow-type` | The schema enum: `standard`, `feature`, `fix`, `quick`, `rca`, `investigate`, `discover`, `rf`, `refactor`, `hotfix`, `dep-update`, `update-deps`, `docs`, `adopt`, `task`, `audit`, `brainstorm`, `optimize`, `prototype` — plus `ideate` (workflow-index workflows) and legacy `compressed`. Use `standard` if missing on legacy indexes. |
 | `branch` | `branch` | The git branch (informational; not used for routing). |
 | `updated-at` | `updated-at` | ISO 8601 UTC. |
 
@@ -71,7 +71,7 @@ Column semantics (all pulled from each workflow's `00-index.md` YAML frontmatter
 2. For each, parse YAML frontmatter and extract the five columns.
 3. If `.ai/workflows/INDEX.md` does **not** exist → **bootstrap**: write it fresh (header + one sorted row per discovered workflow). Note in the chat return: *"Bootstrapped `.ai/workflows/INDEX.md` with N workflows — positional slug detection is now enabled."*
 4. If it **does** exist → **refresh**: rewrite with the current sorted set. Report a one-line diff: *"Reconciled INDEX.md: A added, R removed (stale dirs), U status/branch updates."* If nothing changed, say nothing about the registry (it was already in sync).
-5. If a previous row references a slug whose `.ai/workflows/<slug>/00-index.md` is missing on disk → omit it from the rewritten file and flag *"Removed stale row: `<slug>` (directory missing)."*
+5. If a previous row references a slug whose `.ai/workflows/<slug>/00-index.md` is missing on disk → omit it from the rewritten file and flag *"Removed stale row: `<slug>` (directory missing)."* Keep a `prototype` row whose `branch` has a worktree in `git worktree list`; read that worktree's `00-index.md`.
 
 The render below runs after this step, against the reconciled set.
 
@@ -157,7 +157,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 8. **Driver liveness** — read the tail of `.ai/workflows/<slug>/.driver-journal.jsonl` if it exists (append-only JSONL heartbeats written by every autonomous-driver subagent) and apply the staleness rule single-sourced in [_control-file-ownership.md](_control-file-ownership.md), rendering the `## Driver` row from its three states. **Never report a driver as running because the journal exists**: the journal outlives the driver. No journal → omit the section; a missing journal does not prove that no driver ran.
 9. **Clearing-event tripwire** — for each open `runtime-evidence-deferrals` entry (`cleared-by: null`) that carries a `clearing-probe`, **execute that one command** with a short timeout. Render every hit as the ⚠ line in the detail render, routing to `/wf probe <slug>`. Rules: one recorded command per deferral, never an improvised one; **never clear the deferral or edit `00-index.md`** — this is a tripwire, not a gate, and the probe stage still owns evidence. Skip PO-authorized entries (settled) and entries with no recorded probe (nothing to run — not a finding). Cost is milliseconds per open deferral.
 10. **Cost** — read `.ai/workflows/<slug>/cost.jsonl` when it exists and aggregate per `key`: turns (rows with a `turn`), sub-agents, input, output, cache read, cache write, external in / out. Render `## Cost` from the detail render. Copy every integer as written; never estimate or price. No ledger → omit the section.
-11. **Goal and loop** — add one `## Driver` line from `goal.mjs status` when `goal.md` exists, and one from `optimize.mjs status` for an optimize slug.
+11. **Goal and loop** — add one `## Driver` line from `goal.mjs status` when `goal.md` exists, one from `optimize.mjs status` for an optimize slug, and one from `prototype.mjs status` for a prototype slug.
 
 # Deep Mode (`/wf status <slug> deep`) — reality-drift check
 

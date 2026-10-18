@@ -3,10 +3,12 @@
  * scripts/work-packets.mjs — check and write a brainstorm's work set
  * (BRAINSTORM-WORK-PACKETS-PLAN, `done` 3.4).
  *
- *   node work-packets.mjs check <workflow-dir> [--json]
- *   node work-packets.mjs write <workflow-dir> [--json] [--dry-run]
+ *   node work-packets.mjs check <workflow-dir|board-file> [--json]
+ *   node work-packets.mjs write <workflow-dir|board-file> [--json] [--dry-run]
  *
- * <workflow-dir> is .ai/workflows/<brainstorm-slug>. `check` reports the
+ * <workflow-dir> is .ai/workflows/<slug>; its board is brainstorm-board.json, or
+ * ideate-work.json for an ideate run. A path to a board file names the board
+ * itself (WF-IDEATE-SOURCES-PLAN 8.1). `check` reports the
  * contract, coverage, cycle, size, and source errors (exit 1 on an error).
  * `write` runs the check, then writes each packet, research/index.md, and
  * work/index.md last. Bundled to dist/work-packets.mjs; the skill wrapper
@@ -14,11 +16,21 @@
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 
 import { checkWorkSet, writeWorkSet } from '../lib/work-packets.mjs';
 
-const USAGE = 'Usage: work-packets.mjs <check|write> <workflow-dir> [--json] [--dry-run]';
+const USAGE = 'Usage: work-packets.mjs <check|write> <workflow-dir|board-file> [--json] [--dry-run]';
+
+/** The workflow folder and the board file of an argument: a board path, or a folder with one board. */
+export function resolveBoard(arg) {
+  const abs = resolve(arg);
+  if (abs.endsWith('.json')) return { dir: dirname(abs), boardFile: basename(abs) };
+  for (const name of ['brainstorm-board.json', 'ideate-work.json']) {
+    if (existsSync(join(abs, name))) return { dir: abs, boardFile: name };
+  }
+  return { dir: abs, boardFile: 'brainstorm-board.json' };
+}
 
 function gitIgnoredCheck(projectRoot) {
   const probe = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: projectRoot, encoding: 'utf8' });
@@ -45,10 +57,10 @@ export function main(argv = process.argv.slice(2), { log = console.log, now = nu
     log(USAGE);
     return 2;
   }
-  const dir = resolve(dirArg);
-  const boardPath = join(dir, 'brainstorm-board.json');
+  const { dir, boardFile } = resolveBoard(dirArg);
+  const boardPath = join(dir, boardFile);
   if (!existsSync(boardPath)) {
-    log(`work-packets: no brainstorm-board.json in ${dir}`);
+    log(`work-packets: no ${boardFile} in ${dir}`);
     return 2;
   }
   const isIgnored = gitIgnoredCheck(projectRootOf(dir));
@@ -66,7 +78,7 @@ export function main(argv = process.argv.slice(2), { log = console.log, now = nu
     return result.errors.length ? 1 : 0;
   }
 
-  const result = writeWorkSet(dir, { now, isIgnored, dryRun: flags.has('--dry-run') });
+  const result = writeWorkSet(dir, { now, isIgnored, dryRun: flags.has('--dry-run'), boardFile });
   if (json) log(JSON.stringify(result, null, 2));
   else if (!result.ok) {
     for (const e of result.errors) log(`error: ${e}`);

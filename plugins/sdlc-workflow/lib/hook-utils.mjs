@@ -203,10 +203,18 @@ export function isShipPlanAuditPath(filePath) {
 
 // A brainstorm's agent board (brainstorm-board.json, or brainstorm-board-<descriptor>.json
 // beside a compressed brainstorm slice) is JSON, not a frontmatter artifact. It has its own
-// write-time validation in post-write-verify (validateBrainstormBoards).
+// write-time validation in post-write-verify (validateBrainstormBoards). An ideate run's
+// work board (ideate-work.json) has the same shape, so the same validation runs on it.
 export function isBrainstormBoardPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
-  return /(?:^|\/)\.ai\/workflows\/[^/]+\/brainstorm-board(?:-[a-z0-9-]+)?\.json$/.test(normalized);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:brainstorm-board(?:-[a-z0-9-]+)?|ideate-work)\.json$/.test(normalized);
+}
+
+// A prototype's proof ledger (prototype-ledger.json) is JSON, not a frontmatter artifact.
+// post-write-verify validates it on every write (validatePrototypeLedgers).
+export function isPrototypeLedgerPath(filePath) {
+  const normalized = normalizePathForMatch(filePath);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/prototype-ledger\.json$/.test(normalized);
 }
 
 export function isDocsIndexMarkdownPath(filePath) {

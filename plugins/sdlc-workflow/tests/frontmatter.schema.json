@@ -206,7 +206,7 @@
             "feature", "fix", "quick", "rca", "investigate",
             "rf", "refactor", "hotfix", "dep-update", "update-deps",
             "docs", "discover", "standard", "adopt", "task", "audit", "brainstorm",
-            "optimize"
+            "optimize", "prototype"
           ]
         },
         "public-surface": {},
@@ -1809,7 +1809,80 @@
         "survivor-count": { "type": "integer", "minimum": 0 },
         "shown-count": { "type": "integer", "minimum": 0 },
         "created-at": { "$ref": "#/$defs/iso8601" },
-        "updated-at": { "$ref": "#/$defs/iso8601" }
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "sources": {
+          "type": "array",
+          "description": "WF-IDEATE-SOURCES-PLAN section 7: every outside source the run read (intake/ideate/_sources.md).",
+          "items": {
+            "type": "object",
+            "required": ["id", "kind", "origin", "state"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^S[0-9]{2,}$" },
+              "kind": { "enum": ["web", "document", "dependency", "issues", "research"] },
+              "origin": { "type": "string", "minLength": 1 },
+              "reference": { "type": ["string", "null"] },
+              "state": { "enum": ["read", "unavailable"] },
+              "reason": { "type": "string" },
+              "items": { "type": "integer", "minimum": 0 }
+            },
+            "if": { "properties": { "state": { "const": "unavailable" } } },
+            "then": { "required": ["reason"] }
+          }
+        },
+        "source-items": {
+          "type": "array",
+          "description": "Every announced item of every source, each with exactly one result (the coverage guarantee, section 4.2). An item with no result fails the write.",
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "result"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^S[0-9]{2,}-(I[0-9]{2,}|#[0-9]+)$" },
+              "title": { "type": "string", "minLength": 1 },
+              "result": { "enum": ["applies", "already-used", "not-applicable", "blocked-by-version", "needs-verification", "already-fixed", "duplicate-of", "withdrawn"] },
+              "idea": { "type": "string" },
+              "evidence": { "$ref": "#/$defs/stringArray" },
+              "reason": { "type": "string" },
+              "installed": { "type": "string" },
+              "ships-in": { "type": "string" },
+              "check": { "type": "string" },
+              "duplicate-of": { "type": "string" }
+            },
+            "allOf": [
+              { "if": { "properties": { "result": { "const": "applies" } } }, "then": { "required": ["idea"] } },
+              { "if": { "properties": { "result": { "enum": ["already-used", "already-fixed"] } } }, "then": { "required": ["evidence"] } },
+              { "if": { "properties": { "result": { "const": "not-applicable" } } }, "then": { "required": ["reason"] } },
+              { "if": { "properties": { "result": { "const": "blocked-by-version" } } }, "then": { "required": ["installed", "ships-in"] } },
+              { "if": { "properties": { "result": { "const": "needs-verification" } } }, "then": { "required": ["check"] } },
+              { "if": { "properties": { "result": { "const": "duplicate-of" } } }, "then": { "required": ["duplicate-of"] } }
+            ]
+          }
+        },
+        "research": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "trigger", "note"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^R[0-9]{2,}$" },
+              "trigger": { "enum": ["keyword", "agent"] },
+              "note": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "ideas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "confidence": { "enum": ["high", "medium", "low"] },
+              "source-items": { "$ref": "#/$defs/stringArray" },
+              "seen-in": { "type": "string" },
+              "changed": { "type": "string" },
+              "refresh": { "enum": ["still-valid", "stale", "done-elsewhere", "new"] }
+            }
+          }
+        }
       }
     },
 
@@ -1966,7 +2039,7 @@
               "order": { "type": "integer", "minimum": 1, "description": "The brainstorm sequence (WF-CAMPAIGN-ORDER-PLAN 4.1): every piece has one, and the orders are 1 to n, each used once. Piece N may use anything that pieces 1 to N-1 built." },
               "why-here": { "type": "string", "description": "Why the piece comes after the pieces before it, in the person's words. Required on each piece after order 1; the campaign reads it as evidence for the dependency graph." },
               "title": { "type": "string" },
-              "shape": { "enum": ["intake", "investigate", "fix", "hotfix", "discover", "task", "extension", "design", "design-direction", "write-now"], "description": "write-now: a piece that changes only documents, written by the brainstorm in the same session (BRAINSTORM-WORK-PACKETS-PLAN K5). It gets no packet." },
+              "shape": { "enum": ["intake", "investigate", "rca", "fix", "hotfix", "discover", "task", "extension", "design", "design-direction", "write-now"], "description": "write-now: a piece that changes only documents, written by the brainstorm in the same session (BRAINSTORM-WORK-PACKETS-PLAN K5). It gets no packet." },
               "slug": { "$ref": "#/$defs/brainstormKey", "description": "The workflow slug the packet opens. For an extension, the new scope's descriptor." },
               "target-slug": { "type": ["string", "null"], "description": "extension, fix and hotfix: the existing workflow slug." },
               "amends": { "type": ["string", "null"], "description": "The work[].key of the started packet that this packet amends (V3)." },
@@ -2023,7 +2096,7 @@
         "key": { "$ref": "#/$defs/brainstormKey" },
         "work-slug": { "$ref": "#/$defs/brainstormKey" },
         "title": { "type": "string" },
-        "form": { "enum": ["intake", "investigate", "discover", "fix", "hotfix", "task", "extension"] },
+        "form": { "enum": ["intake", "investigate", "discover", "rca", "fix", "hotfix", "task", "extension"] },
         "target-slug": { "type": ["string", "null"] },
         "amends": { "type": ["string", "null"] },
         "urgency": { "enum": ["normal", "urgent"] },
@@ -2164,6 +2237,170 @@
             "gate": { "type": "string" },
             "reason": { "type": "string" },
             "at": { "type": "string" }
+          }
+        }
+      }
+    },
+    "prototypeFrontmatter": {
+      "type": "object",
+      "description": "01-prototype.md — the accepted pipeline of a /wf prototype, in plain words, for the person (WF-PROTOTYPE-PLAN section 5). The agent's memory is the sibling prototype-ledger.json ($defs.prototypeLedger). The file lives in the POC worktree, on the poc/<slug> branch.",
+      "required": ["schema", "type", "slug", "idea", "status"],
+      "properties": {
+        "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
+        "reads-checked": {"type":"boolean"},
+        "read-waiver": {"type":"string"},
+        "next-command": {"type":"string"},
+        "next-invocation": {"type":"string"},
+        "type": { "const": "prototype" },
+        "idea": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["open", "parked", "graduated", "closed"] },
+        "ledger": { "const": "prototype-ledger.json" },
+        "report": { "type": "string" },
+        "report-url": { "type": ["string", "null"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+    "prototypeQuantity": {
+      "type": "object",
+      "description": "One number of a prototype. kind says whether it was measured or estimated; the report shows the two differently.",
+      "required": ["value"],
+      "properties": {
+        "name": { "type": "string" },
+        "value": { "type": ["number", "string"] },
+        "unit": { "type": "string" },
+        "kind": { "enum": ["measured", "estimated"] },
+        "basis": { "type": "string", "description": "How an estimated value was estimated." }
+      }
+    },
+    "prototypeLedger": {
+      "type": "object",
+      "description": "prototype-ledger.json — the proof ledger of a /wf prototype (WF-PROTOTYPE-PLAN section 3). The memory of the prototype; the chat is not. Validated on every write by post-write-verify, with the ledger rules of lib/prototype.mjs. scripts/prototype.mjs writes the commit ids and the exit status.",
+      "required": ["schema", "artifact", "slug", "idea", "status", "branch", "rounds", "proofs", "decisions", "pipeline", "rejected"],
+      "properties": {
+        "schema": { "const": "sdlc/v1" },
+        "artifact": { "const": "prototype-ledger" },
+        "slug": { "type": "string" },
+        "idea": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["open", "parked", "graduated", "closed"] },
+        "branch": { "type": "string", "minLength": 1 },
+        "base-branch": { "type": ["string", "null"] },
+        "worktree": { "type": "string" },
+        "report": {
+          "type": "object",
+          "properties": {
+            "file": { "type": "string" },
+            "url": { "type": ["string", "null"], "description": "The artifact link. A republish goes to the same link, so the link the person shares stays the same." }
+          }
+        },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "rounds": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "kind", "request", "question"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^R-[0-9]{2,}$" },
+              "kind": { "enum": ["research", "prove", "compare", "diagnose", "decide", "generalize", "document", "talk"] },
+              "request": { "type": "string", "minLength": 1, "description": "The person's words that started the round. Only the person starts a round." },
+              "question": { "type": "string", "minLength": 1 },
+              "at": { "type": "string" },
+              "proofs": { "$ref": "#/$defs/stringArray" },
+              "summary": { "type": "string" },
+              "files": { "$ref": "#/$defs/stringArray" },
+              "agents": { "type": "integer", "minimum": 0, "description": "Sub-agents that ran independent proofs inside this round." }
+            }
+          }
+        },
+        "proofs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "round", "question", "setup", "evidence", "repro", "verdict", "licenses", "files"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^P-[0-9]{2,}$" },
+              "round": { "type": "string" },
+              "question": { "type": "string", "minLength": 1 },
+              "setup": {
+                "type": "object",
+                "description": "Inputs, seeds, model revisions, hardware.",
+                "properties": {
+                  "inputs": {}, "seeds": {}, "models": {}, "hardware": {}, "settings": {}, "notes": { "type": "string" }
+                }
+              },
+              "evidence": {
+                "type": "object",
+                "required": ["measured", "estimated"],
+                "properties": {
+                  "measured": { "type": "array", "items": { "$ref": "#/$defs/prototypeQuantity" } },
+                  "estimated": { "type": "array", "items": { "$ref": "#/$defs/prototypeQuantity" } }
+                }
+              },
+              "repro": {
+                "type": "object",
+                "required": ["same-process", "fresh-process"],
+                "properties": {
+                  "same-process": { "enum": ["pass", "fail", "not-run"] },
+                  "fresh-process": { "enum": ["pass", "fail", "not-run"] },
+                  "note": { "type": "string" }
+                }
+              },
+              "verdict": { "enum": ["pass", "mixed", "fail", "unresolved"] },
+              "licenses": {
+                "type": "array",
+                "items": { "type": "object", "required": ["item", "license"], "properties": { "item": { "type": "string" }, "license": { "type": "string" } } }
+              },
+              "files": { "$ref": "#/$defs/stringArray" },
+              "media": { "$ref": "#/$defs/stringArray" }
+            }
+          }
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "round", "component", "proofs", "generalized", "words"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^D-[0-9]{2,}$" },
+              "round": { "type": "string" },
+              "component": { "type": "string", "minLength": 1 },
+              "proofs": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+              "generalized": { "type": "boolean", "description": "false when the person accepted the component before a generalize check ran." },
+              "generalize-proof": { "type": ["string", "null"] },
+              "words": { "type": "string", "minLength": 1, "description": "The person's words that accepted the component." },
+              "at": { "type": "string" },
+              "commit": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "pipeline": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["stage", "component", "decision"],
+            "properties": {
+              "stage": { "type": "string", "minLength": 1 },
+              "component": { "type": "string", "minLength": 1 },
+              "settings": { "type": "string" },
+              "decision": { "type": "string" },
+              "time": { "$ref": "#/$defs/prototypeQuantity" },
+              "cost": { "$ref": "#/$defs/prototypeQuantity" }
+            }
+          }
+        },
+        "rejected": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "reason"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "reason": { "type": "string", "minLength": 1 },
+              "proofs": { "$ref": "#/$defs/stringArray" }
+            }
           }
         }
       }
@@ -2424,6 +2661,7 @@
         { "$ref": "#/$defs/brainstormFrontmatter" },
         { "$ref": "#/$defs/optimizeSpecFrontmatter" },
         { "$ref": "#/$defs/goalFrontmatter" },
+        { "$ref": "#/$defs/prototypeFrontmatter" },
         { "$ref": "#/$defs/workPacketFrontmatter" },
         { "$ref": "#/$defs/workSetFrontmatter" },
         { "$ref": "#/$defs/depScanFrontmatter" },

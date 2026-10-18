@@ -34,6 +34,7 @@ Do not ask for `depends-on`, `needs`, `provides`, or `expects`. The campaign own
 | `intake` | A feature to build. |
 | `investigate` | A problem to investigate first. |
 | `discover` | A yes-or-no question to check. |
+| `rca` | A defect whose cause is not known. |
 | `fix` | A correction to what a workflow built. Set `target-slug`. |
 | `hotfix` | An urgent correction to a version that people already use. Set `target-slug` and `urgency: urgent`. |
 | `task` | A deliverable that is not code and that a write-now piece cannot hold (below). |

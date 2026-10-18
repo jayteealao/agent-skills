@@ -68,6 +68,9 @@ const PHASE_BY_BASENAME = {
   '01-optimize':           ['intake', null],
   '02-optimize-spec':      ['optimize', null],
   'goal':                  ['goal', null],
+  // `01-prototype` (/wf prototype) is the accepted pipeline of a person-steered proof
+  // loop on a `type: workflow-index` slug in a POC worktree — terminal, named dir, no build.
+  '01-prototype':          ['prototype', null],
   '02-shape':              ['shape', null],
   // The brief (02b) renders under design-brief/ and the confirmed contract (02c)
   // under design/, the design stage's own folder (DESIGN-BOARDS-PLAN W7). Before

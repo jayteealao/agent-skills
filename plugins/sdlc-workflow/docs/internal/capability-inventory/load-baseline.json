@@ -12,8 +12,8 @@
   },
   "wordBudgets": {
     "skills/wf/SKILL.md": {
-      "words": 1714,
-      "reason": "The 26-key tables (Arguments / Does / Writes cells) and the Step 0, 0.5, 0.7 STOP rules are the dispatcher's capability surface; 120 lines at 14 words per line. Cutting to 1,320 words would delete table cells that name invocations and artifacts."
+      "words": 1718,
+      "reason": "The 27-key tables (Arguments / Does / Writes cells) and the Step 0, 0.5, 0.7 STOP rules are the dispatcher's capability surface; 120 lines at 14 words per line. Cutting to 1,320 words would delete table cells that name invocations and artifacts. The prototype key (WF-PROTOTYPE-PLAN W1) added its row and its name in the key lists; a redundant Step 0.8 sentence was cut to pay for most of it."
     },
     "skills/wf/reference/handoff.md": {
       "words": 4817,
@@ -24,8 +24,8 @@
       "reason": "WIDE-VIEW-REPAIR-PLAN §16: implement.md holds 22 artifact keys, 6 stops, 2 dispatches, the suppressionDebtLint/limitationClaimLint config entries, and the pinned build-discipline phrases; the 2,731-word share is unreachable without deleting capability. §4.3 cuts (rationale, history, restatements) landed first."
     },
     "skills/wf/reference/intake.md": {
-      "words": 3086,
-      "reason": "The five-branch shape resolution with its STOPs, the nine-row auto-route signal table with six discriminators, the 15-row mode→span map, and the 15-row mode→file map are the intake dispatcher capability surface; §4.3 cuts removed only rationale and restatements (3,498 → 3,092 words). The optimize mode (WF-OPTIMIZE-PLAN W2) added 34 words: its keyword, its row in each map, and the slug-mode refusal."
+      "words": 3099,
+      "reason": "The five-branch shape resolution with its STOPs, the nine-row auto-route signal table with six discriminators, the 15-row mode→span map, and the 15-row mode→file map are the intake dispatcher capability surface; §4.3 cuts removed only rationale and restatements (3,498 → 3,092 words). The optimize mode (WF-OPTIMIZE-PLAN W2) added 34 words: its keyword, its row in each map, and the slug-mode refusal. Ideate with sources (WF-IDEATE-SOURCES-PLAN S1, S4) added 13 words: the source shape in the proposal row, and the packet pick in the span row."
     },
     "skills/wf/reference/plan.md": {
       "words": 4743,
@@ -48,7 +48,7 @@
       "reason": "WIDE-VIEW-REPAIR-PLAN §16: verify.md holds 22 artifact keys, 4 gates, 5 stops, 7 dispatches, the mockEvidenceGate/verifyResultGate/verifyDeferralLint config entries, the AC-gate semantics and the verbatim fix-sub-agent prompt; the 2,731-word share is unreachable without deleting capability. §4.3 cuts (anecdote, rationale, examples) landed first."
     },
     "skills/wf/reference/yolo.md": {
-      "words": 3727,
+      "words": 3725,
       "reason": "The Autonomous Decision Policy table (about 650 words of gate definitions with 10 inventoried STOP sentences), the six intake classes (the optimize class, WF-OPTIMIZE-PLAN W2, added 32 words), and the 16-line hand-back template are capability; rationale, history, and restatements were cut from 6,434 words to this count."
     }
   },
@@ -56,7 +56,7 @@
     "auto": {
       "core": {
         "files": 2,
-        "words": 4461,
+        "words": 4488,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/auto.md"
@@ -64,7 +64,7 @@
       },
       "instructed": {
         "files": 7,
-        "words": 7170,
+        "words": 7198,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_autonomy-guards.md",
@@ -79,7 +79,7 @@
       },
       "referenced": {
         "files": 26,
-        "words": 23326,
+        "words": 23354,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -121,7 +121,7 @@
     "brainstorm": {
       "core": {
         "files": 2,
-        "words": 2228,
+        "words": 2232,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/brainstorm.md"
@@ -129,7 +129,7 @@
       },
       "instructed": {
         "files": 13,
-        "words": 16410,
+        "words": 16426,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_compressed-slice.md",
@@ -149,8 +149,8 @@
         "allFiles": 13
       },
       "referenced": {
-        "files": 33,
-        "words": 36398,
+        "files": 36,
+        "words": 38870,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -180,6 +180,9 @@
           "skills/wf/reference/intake/brainstorm/_talk.md",
           "skills/wf/reference/intake/brainstorm/_work.md",
           "skills/wf/reference/intake/default/_artifact.md",
+          "skills/wf/reference/intake/ideate/_artifact.md",
+          "skills/wf/reference/intake/ideate/_lenses.md",
+          "skills/wf/reference/intake/ideate/_sources.md",
           "skills/wf/reference/status.md",
           "skills/wf/reference/status/_advise.md",
           "skills/wf/reference/status/_deep.md",
@@ -199,7 +202,7 @@
     "campaign": {
       "core": {
         "files": 2,
-        "words": 4458,
+        "words": 4464,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/campaign.md"
@@ -207,7 +210,7 @@
       },
       "instructed": {
         "files": 4,
-        "words": 6239,
+        "words": 6246,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_host-invocation.md",
@@ -218,8 +221,8 @@
         "allFiles": 4
       },
       "referenced": {
-        "files": 52,
-        "words": 69938,
+        "files": 55,
+        "words": 72410,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -266,6 +269,9 @@
           "skills/wf/reference/intake/brainstorm/_talk.md",
           "skills/wf/reference/intake/brainstorm/_work.md",
           "skills/wf/reference/intake/default/_artifact.md",
+          "skills/wf/reference/intake/ideate/_artifact.md",
+          "skills/wf/reference/intake/ideate/_lenses.md",
+          "skills/wf/reference/intake/ideate/_sources.md",
           "skills/wf/reference/status.md",
           "skills/wf/reference/status/_advise.md",
           "skills/wf/reference/status/_deep.md",
@@ -287,7 +293,7 @@
     "close": {
       "core": {
         "files": 2,
-        "words": 3344,
+        "words": 3380,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/close.md"
@@ -295,7 +301,7 @@
       },
       "instructed": {
         "files": 5,
-        "words": 5635,
+        "words": 5672,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_host-invocation.md",
@@ -308,7 +314,7 @@
       },
       "referenced": {
         "files": 14,
-        "words": 12562,
+        "words": 12599,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -338,7 +344,7 @@
     "design": {
       "core": {
         "files": 2,
-        "words": 2670,
+        "words": 2674,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/design.md"
@@ -346,7 +352,7 @@
       },
       "instructed": {
         "files": 11,
-        "words": 10908,
+        "words": 10913,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -371,7 +377,7 @@
       },
       "referenced": {
         "files": 24,
-        "words": 20385,
+        "words": 20390,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -411,7 +417,7 @@
     "docs": {
       "core": {
         "files": 2,
-        "words": 3922,
+        "words": 3926,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/docs.md"
@@ -419,7 +425,7 @@
       },
       "instructed": {
         "files": 9,
-        "words": 10465,
+        "words": 10470,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_chat-return.md",
@@ -442,7 +448,7 @@
       },
       "referenced": {
         "files": 17,
-        "words": 14479,
+        "words": 14484,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -475,7 +481,7 @@
     "goal": {
       "core": {
         "files": 2,
-        "words": 2916,
+        "words": 2920,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/goal.md"
@@ -483,7 +489,7 @@
       },
       "instructed": {
         "files": 4,
-        "words": 4697,
+        "words": 4702,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_host-invocation.md",
@@ -494,8 +500,8 @@
         "allFiles": 4
       },
       "referenced": {
-        "files": 50,
-        "words": 58172,
+        "files": 53,
+        "words": 60665,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -539,6 +545,9 @@
           "skills/wf/reference/intake/brainstorm/_talk.md",
           "skills/wf/reference/intake/brainstorm/_work.md",
           "skills/wf/reference/intake/default/_artifact.md",
+          "skills/wf/reference/intake/ideate/_artifact.md",
+          "skills/wf/reference/intake/ideate/_lenses.md",
+          "skills/wf/reference/intake/ideate/_sources.md",
           "skills/wf/reference/optimize.md",
           "skills/wf/reference/status.md",
           "skills/wf/reference/status/_advise.md",
@@ -561,7 +570,7 @@
     "handoff": {
       "core": {
         "files": 2,
-        "words": 6531,
+        "words": 6535,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/handoff.md"
@@ -569,7 +578,7 @@
       },
       "instructed": {
         "files": 13,
-        "words": 15330,
+        "words": 15335,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -590,7 +599,7 @@
       },
       "referenced": {
         "files": 29,
-        "words": 32564,
+        "words": 32569,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -636,7 +645,7 @@
     "implement": {
       "core": {
         "files": 2,
-        "words": 4799,
+        "words": 4803,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/implement.md"
@@ -644,7 +653,7 @@
       },
       "instructed": {
         "files": 14,
-        "words": 15053,
+        "words": 15058,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_chat-return.md",
@@ -666,7 +675,7 @@
       },
       "referenced": {
         "files": 34,
-        "words": 29196,
+        "words": 29201,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -705,7 +714,7 @@
         ]
       },
       "target": {
-        "core": 4800,
+        "core": 4850,
         "instructed": 23100,
         "raised": [
           "skills/wf/SKILL.md",
@@ -717,7 +726,7 @@
     "intake": {
       "core": {
         "files": 2,
-        "words": 4800,
+        "words": 4817,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/intake.md"
@@ -725,7 +734,7 @@
       },
       "instructed": {
         "files": 13,
-        "words": 16191,
+        "words": 16209,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -751,8 +760,8 @@
         "allFiles": 15
       },
       "referenced": {
-        "files": 54,
-        "words": 56148,
+        "files": 55,
+        "words": 57737,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -792,6 +801,7 @@
           "skills/wf/reference/intake/extend/_artifacts.md",
           "skills/wf/reference/intake/ideate/_artifact.md",
           "skills/wf/reference/intake/ideate/_lenses.md",
+          "skills/wf/reference/intake/ideate/_sources.md",
           "skills/wf/reference/intake/investigate/_artifact.md",
           "skills/wf/reference/intake/investigate/_research.md",
           "skills/wf/reference/intake/rca/_artifact.md",
@@ -811,7 +821,7 @@
         ]
       },
       "target": {
-        "core": 4800,
+        "core": 4850,
         "instructed": 21650,
         "raised": [
           "skills/wf/SKILL.md",
@@ -823,7 +833,7 @@
     "observability": {
       "core": {
         "files": 2,
-        "words": 2260,
+        "words": 2264,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/observability.md"
@@ -831,7 +841,7 @@
       },
       "instructed": {
         "files": 7,
-        "words": 7665,
+        "words": 7670,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -852,7 +862,7 @@
       },
       "referenced": {
         "files": 19,
-        "words": 17290,
+        "words": 17295,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -887,7 +897,7 @@
     "optimize": {
       "core": {
         "files": 2,
-        "words": 3031,
+        "words": 3035,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/optimize.md"
@@ -895,7 +905,7 @@
       },
       "instructed": {
         "files": 9,
-        "words": 9821,
+        "words": 9826,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_host-invocation.md",
@@ -911,8 +921,8 @@
         "allFiles": 9
       },
       "referenced": {
-        "files": 50,
-        "words": 54140,
+        "files": 53,
+        "words": 56633,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -955,6 +965,9 @@
           "skills/wf/reference/intake/brainstorm/_talk.md",
           "skills/wf/reference/intake/brainstorm/_work.md",
           "skills/wf/reference/intake/default/_artifact.md",
+          "skills/wf/reference/intake/ideate/_artifact.md",
+          "skills/wf/reference/intake/ideate/_lenses.md",
+          "skills/wf/reference/intake/ideate/_sources.md",
           "skills/wf/reference/intake/optimize.md",
           "skills/wf/reference/optimize.md",
           "skills/wf/reference/status.md",
@@ -978,7 +991,7 @@
     "plan": {
       "core": {
         "files": 2,
-        "words": 6457,
+        "words": 6461,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/plan.md"
@@ -986,7 +999,7 @@
       },
       "instructed": {
         "files": 10,
-        "words": 13679,
+        "words": 13684,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -1010,7 +1023,7 @@
       },
       "referenced": {
         "files": 32,
-        "words": 30823,
+        "words": 30828,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -1059,7 +1072,7 @@
     "probe": {
       "core": {
         "files": 2,
-        "words": 4947,
+        "words": 4951,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/probe.md"
@@ -1067,7 +1080,7 @@
       },
       "instructed": {
         "files": 6,
-        "words": 7585,
+        "words": 7590,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_host-invocation.md",
@@ -1081,7 +1094,7 @@
       },
       "referenced": {
         "files": 24,
-        "words": 29361,
+        "words": 29366,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1110,7 +1123,7 @@
         ]
       },
       "target": {
-        "core": 4950,
+        "core": 5000,
         "instructed": 10900,
         "raised": [
           "skills/wf/SKILL.md",
@@ -1119,10 +1132,60 @@
         ]
       }
     },
+    "prototype": {
+      "core": {
+        "files": 2,
+        "words": 3313,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/prototype.md"
+        ]
+      },
+      "instructed": {
+        "files": 4,
+        "words": 5095,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/prototype.md"
+        ],
+        "branches": [],
+        "allFiles": 4
+      },
+      "referenced": {
+        "files": 14,
+        "words": 12532,
+        "fileList": [
+          "skills/wf/SKILL.md",
+          "skills/wf/reference/_additive-write.md",
+          "skills/wf/reference/_chat-return.md",
+          "skills/wf/reference/_control-file-ownership.md",
+          "skills/wf/reference/_decision-classes.md",
+          "skills/wf/reference/_gate-question.md",
+          "skills/wf/reference/_host-invocation.md",
+          "skills/wf/reference/_output-boundary.md",
+          "skills/wf/reference/_requires.md",
+          "skills/wf/reference/_ste-procedural.md",
+          "skills/wf/reference/_steering.md",
+          "skills/wf/reference/_subagents.md",
+          "skills/wf/reference/_timestamp.md",
+          "skills/wf/reference/prototype.md"
+        ]
+      },
+      "target": {
+        "core": 4500,
+        "instructed": 6250,
+        "raised": [
+          "skills/wf/SKILL.md",
+          "skills/wf/SKILL.md"
+        ]
+      }
+    },
     "recap": {
       "core": {
         "files": 2,
-        "words": 4239,
+        "words": 4262,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/recap.md"
@@ -1130,7 +1193,7 @@
       },
       "instructed": {
         "files": 5,
-        "words": 6530,
+        "words": 6554,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_host-invocation.md",
@@ -1143,7 +1206,7 @@
       },
       "referenced": {
         "files": 14,
-        "words": 13457,
+        "words": 13481,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1173,7 +1236,7 @@
     "retro": {
       "core": {
         "files": 2,
-        "words": 4390,
+        "words": 4394,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/retro.md"
@@ -1181,7 +1244,7 @@
       },
       "instructed": {
         "files": 7,
-        "words": 7372,
+        "words": 7377,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_grounded-progress.md",
@@ -1196,7 +1259,7 @@
       },
       "referenced": {
         "files": 29,
-        "words": 25081,
+        "words": 25086,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -1241,7 +1304,7 @@
     "review": {
       "core": {
         "files": 2,
-        "words": 3366,
+        "words": 3370,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/review.md"
@@ -1249,7 +1312,7 @@
       },
       "instructed": {
         "files": 14,
-        "words": 16475,
+        "words": 16480,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_findings-ledger.md",
@@ -1271,7 +1334,7 @@
       },
       "referenced": {
         "files": 23,
-        "words": 23232,
+        "words": 23237,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1310,7 +1373,7 @@
     "shape": {
       "core": {
         "files": 2,
-        "words": 6303,
+        "words": 6307,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/shape.md"
@@ -1318,7 +1381,7 @@
       },
       "instructed": {
         "files": 7,
-        "words": 9837,
+        "words": 9842,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1333,7 +1396,7 @@
       },
       "referenced": {
         "files": 33,
-        "words": 32107,
+        "words": 32112,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -1383,7 +1446,7 @@
     "ship": {
       "core": {
         "files": 2,
-        "words": 5684,
+        "words": 5688,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/ship.md"
@@ -1391,7 +1454,7 @@
       },
       "instructed": {
         "files": 8,
-        "words": 11753,
+        "words": 11758,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_host-invocation.md",
@@ -1413,7 +1476,7 @@
       },
       "referenced": {
         "files": 25,
-        "words": 29981,
+        "words": 29986,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1455,7 +1518,7 @@
     "ship-plan": {
       "core": {
         "files": 2,
-        "words": 2168,
+        "words": 2172,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/ship-plan.md"
@@ -1463,7 +1526,7 @@
       },
       "instructed": {
         "files": 8,
-        "words": 9273,
+        "words": 9278,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -1485,7 +1548,7 @@
       },
       "referenced": {
         "files": 25,
-        "words": 26786,
+        "words": 26791,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1526,7 +1589,7 @@
     "simplify": {
       "core": {
         "files": 2,
-        "words": 4169,
+        "words": 4173,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/simplify.md"
@@ -1534,7 +1597,7 @@
       },
       "instructed": {
         "files": 7,
-        "words": 8121,
+        "words": 8126,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_compressed-slice.md",
@@ -1548,8 +1611,8 @@
         "allFiles": 7
       },
       "referenced": {
-        "files": 35,
-        "words": 39850,
+        "files": 38,
+        "words": 42322,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1578,6 +1641,9 @@
           "skills/wf/reference/intake/brainstorm/_talk.md",
           "skills/wf/reference/intake/brainstorm/_work.md",
           "skills/wf/reference/intake/default/_artifact.md",
+          "skills/wf/reference/intake/ideate/_artifact.md",
+          "skills/wf/reference/intake/ideate/_lenses.md",
+          "skills/wf/reference/intake/ideate/_sources.md",
           "skills/wf/reference/simplify.md",
           "skills/wf/reference/simplify/_artifact.md",
           "skills/wf/reference/simplify/_research.md",
@@ -1600,7 +1666,7 @@
     "slice": {
       "core": {
         "files": 2,
-        "words": 4368,
+        "words": 4372,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/slice.md"
@@ -1608,7 +1674,7 @@
       },
       "instructed": {
         "files": 8,
-        "words": 9044,
+        "words": 9049,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1624,7 +1690,7 @@
       },
       "referenced": {
         "files": 32,
-        "words": 29412,
+        "words": 29417,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -1672,7 +1738,7 @@
     "status": {
       "core": {
         "files": 2,
-        "words": 4496,
+        "words": 4489,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/status.md"
@@ -1680,7 +1746,7 @@
       },
       "instructed": {
         "files": 8,
-        "words": 9638,
+        "words": 9632,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_control-file-ownership.md",
@@ -1696,7 +1762,7 @@
       },
       "referenced": {
         "files": 17,
-        "words": 16118,
+        "words": 16112,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1729,7 +1795,7 @@
     "task": {
       "core": {
         "files": 2,
-        "words": 3786,
+        "words": 3790,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/task.md"
@@ -1737,7 +1803,7 @@
       },
       "instructed": {
         "files": 8,
-        "words": 8312,
+        "words": 8317,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_compressed-slice.md",
@@ -1753,7 +1819,7 @@
       },
       "referenced": {
         "files": 15,
-        "words": 13902,
+        "words": 13907,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1784,7 +1850,7 @@
     "verify": {
       "core": {
         "files": 2,
-        "words": 5643,
+        "words": 5647,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/verify.md"
@@ -1792,7 +1858,7 @@
       },
       "instructed": {
         "files": 9,
-        "words": 10178,
+        "words": 10183,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_autonomy-guards.md",
@@ -1809,7 +1875,7 @@
       },
       "referenced": {
         "files": 42,
-        "words": 48710,
+        "words": 48715,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -1868,7 +1934,7 @@
     "yolo": {
       "core": {
         "files": 2,
-        "words": 5441,
+        "words": 5443,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/yolo.md"
@@ -1876,7 +1942,7 @@
       },
       "instructed": {
         "files": 7,
-        "words": 9084,
+        "words": 9087,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_autonomy-guards.md",
@@ -1891,7 +1957,7 @@
       },
       "referenced": {
         "files": 26,
-        "words": 26603,
+        "words": 26606,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",

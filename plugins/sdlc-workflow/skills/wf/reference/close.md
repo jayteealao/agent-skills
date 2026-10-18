@@ -43,7 +43,9 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 1. **Parse `$ARGUMENTS`:** first token is the **slug**; the optional second token is either a
    **slice-slug** or a **close reason**.
 2. **Validate the slug:** if `.ai/workflows/<slug>/00-index.md` does not exist → STOP: "No workflow
-   `<slug>` found."
+   `<slug>` found." A `prototype` row of `INDEX.md` is the exception: its folder is in its POC
+   worktree, which `prototype.mjs status` names. Run `prototype.mjs exit <slug> close` first, then
+   close the workflow in that worktree.
 3. **Resolve the second token** (resolution mirrors `/wf recap`; slice match is checked FIRST so a
    slice literally named like a reason still resolves to the slice):
    - **Exact slice match** — `.ai/workflows/<slug>/03-slice-<token>.md` exists, OR `<token>` is a

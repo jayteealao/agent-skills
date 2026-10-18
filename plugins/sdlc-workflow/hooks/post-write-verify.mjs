@@ -19,18 +19,21 @@
  * standalone entry below stays one release.
  */
 
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../lib/config.mjs';
 import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
-import { validateBrainstormBoardFile, validateFrontmatterFile, validateSiblingYamlFile, formatValidationErrors } from '../lib/schema-validator.mjs';
+import { validateBrainstormBoardFile, validateFrontmatterFile, validatePrototypeLedgerFile, validateSiblingYamlFile, formatValidationErrors } from '../lib/schema-validator.mjs';
+import { ledgerProblems } from '../lib/prototype.mjs';
+import { sourceItemProblems } from '../lib/ideate.mjs';
 import { findUncitedLimitationClaims, findUnmarkedSuppressions, findUnownedMechanisms } from '../lib/limitation-lexicon.mjs';
 import {
   collectToolInputPaths,
   hasFrontmatterFence,
   isBrainstormBoardPath,
+  isPrototypeLedgerPath,
   isManagedArtifactMarkdownPath,
   isFreeFormWorkflowPath,
   isProjectContextMarkdownPath,
@@ -504,6 +507,63 @@ async function validateBrainstormBoards(paths, config, schemaPath) {
   blockToolCall();
 }
 
+/**
+ * Write-time validation of a prototype's proof ledger (prototype-ledger.json).
+ * The ledger is the prototype's memory across rounds and compaction, so a file that
+ * does not parse, does not match $defs.prototypeLedger, or breaks a ledger rule
+ * (lib/prototype.mjs) BLOCKS (exit 2). Opt out with hooks.validatePrototypeLedger: false.
+ */
+async function validatePrototypeLedgers(paths, config, schemaPath) {
+  if (config.hooks?.validatePrototypeLedger === false) return;
+  const failures = [];
+  for (const path of paths) {
+    const result = await validatePrototypeLedgerFile(path.absolute, { schemaPath });
+    let rules = [];
+    if (result.valid) {
+      try { rules = ledgerProblems(JSON.parse(readFileSync(path.absolute, 'utf-8'))); } catch { rules = []; }
+    }
+    if (!result.valid || rules.length) failures.push({ path, result, rules });
+  }
+  if (!failures.length) return;
+  for (const f of failures) {
+    process.stderr.write(`wf-postwrite-verify: proof ledger validation FAILED for ${f.path.original}\n\n`);
+    if (!f.result.valid) process.stderr.write(`${formatValidationErrors(f.result.errors)}\n\n`);
+    for (const r of f.rules) process.stderr.write(`  - ${r}\n`);
+  }
+  process.stderr.write('The ledger does not conform to $defs.prototypeLedger and the ledger rules\n');
+  process.stderr.write('(see plugins/sdlc-workflow/tests/frontmatter.schema.json and\n');
+  process.stderr.write('skills/wf/reference/prototype.md). Fix the ledger, then continue.\n');
+  blockToolCall();
+}
+
+/**
+ * The coverage guarantee of ideate with sources (WF-IDEATE-SOURCES-PLAN 4.2): every
+ * source item of 01-ideate.md has exactly one result, and its ids resolve. A write
+ * that leaves an item without a result BLOCKS (exit 2) and names the items.
+ * Opt out with hooks.ideateSourceCoverage: false.
+ */
+async function enforceSourceCoverage(paths, config) {
+  if (config.hooks?.ideateSourceCoverage === false) return;
+  const failures = [];
+  for (const path of paths) {
+    if (!/(?:^|\/)01-ideate\.md$/.test(normalizePathForMatch(path.original))) continue;
+    const text = await readTextIfExists(path.absolute);
+    if (!text) continue;
+    const fm = safeParseFrontmatter(text).data;
+    if (fm?.type !== 'ideation' || (!fm.sources && !fm['source-items'])) continue;
+    const problems = sourceItemProblems(fm);
+    if (problems.length) failures.push({ path, problems });
+  }
+  if (!failures.length) return;
+  for (const f of failures) {
+    process.stderr.write(`wf-postwrite-verify: source coverage FAILED for ${f.path.original}\n`);
+    for (const p of f.problems) process.stderr.write(`  - ${p}\n`);
+  }
+  process.stderr.write('Every source item needs exactly one result (skills/wf/reference/intake/ideate/_sources.md).\n');
+  process.stderr.write('Give each named item its result, then continue.\n');
+  blockToolCall();
+}
+
 // Index lint (ARTIFACT-SPLIT-PLAN S4, D7). 00-index.md is read by every stage,
 // so history commentary there costs every reader. Warn only, never block.
 export const INDEX_SIZE_WARN_BYTES = 20480;
@@ -609,6 +669,12 @@ export async function run(input) {
     .filter(({ absolute }) => absolute && existsSync(absolute));
   if (boardPaths.length) await validateBrainstormBoards(boardPaths, config, schemaPath);
 
+  const ledgerPaths = collectToolInputPaths(input)
+    .filter((path) => isPrototypeLedgerPath(path))
+    .map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) }))
+    .filter(({ absolute }) => absolute && existsSync(absolute));
+  if (ledgerPaths.length) await validatePrototypeLedgers(ledgerPaths, config, schemaPath);
+
   if (!paths.length) return;
 
   // Index lint warns only; it runs before the schema pass so a warning is not
@@ -635,6 +701,7 @@ export async function run(input) {
     // YAML shape (reconciled types only; may exit 2), then enforce sibling
     // presence (blocks on a missing review or plan .yaml; may exit 2).
     await enforceVerifyResultGate(paths, config);
+    await enforceSourceCoverage(paths, config);
     await enforceIntakeLedgerLint(paths, config);
     await enforceNamedMechanismLint(paths, config);
     await validateSiblingYamls(paths, config, schemaPath);

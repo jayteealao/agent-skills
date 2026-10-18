@@ -1,8 +1,8 @@
 ---
 name: wf
-description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) plus design, brainstorm, the drivers (probe, simplify, auto, yolo, campaign), the loops (goal, optimize), the minimal lifecycle (task), navigation (status, recap), lifecycle control (close), and the routers (ship-plan, docs, observability) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also dispatches the compressed entry modes and extension; `review` is the whole review surface.
+description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) plus design, brainstorm, the drivers (probe, simplify, auto, yolo, campaign), the loops (goal, optimize, prototype), the minimal lifecycle (task), navigation (status, recap), lifecycle control (close), and the routers (ship-plan, docs, observability) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also dispatches the compressed entry modes and extension; `review` is the whole review surface.
 disable-model-invocation: true
-argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|brainstorm|probe|simplify|auto|yolo|campaign|task|status|recap|close|ship-plan|docs|observability|goal|optimize> [args...]"
+argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|brainstorm|probe|simplify|auto|yolo|campaign|task|status|recap|close|ship-plan|docs|observability|goal|optimize|prototype> [args...]"
 ---
 
 # Role
@@ -20,7 +20,7 @@ Run this check before any read or write. Its result is your first visible output
 
 1. Split `$ARGUMENTS` on whitespace. The first token is the key candidate. The remaining tokens are the key's `$ARGUMENTS`, unchanged.
 2. If `$ARGUMENTS` is empty, render the key tables and ask which key the user wants. STOP.
-3. If the key candidate is not one of the 26 keys, STOP. Tell the user: *"`<token>` is not a known wf key. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, brainstorm, probe, simplify, auto, yolo, campaign, task, status, recap, close, ship-plan, docs, observability, goal, optimize."* Do not treat the token as a slug or as an intake mode. Do not pick a slug for the user. Do not load a reference.
+3. If the key candidate is not one of the 27 keys, STOP. Tell the user: *"`<token>` is not a known wf key. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, brainstorm, probe, simplify, auto, yolo, campaign, task, status, recap, close, ship-plan, docs, observability, goal, optimize, prototype."* Do not treat the token as a slug or as an intake mode. Do not pick a slug for the user. Do not load a reference.
 4. If the key candidate is `yolo` under Codex or pi, answer with the host redirect. STOP.
 5. State the dispatch on one line: `wf dispatch: key=<key> · args=<remaining tokens, or (none)> · reference=reference/<key>.md`
 
@@ -49,9 +49,10 @@ Run this check before any read or write. Its result is your first visible output
 | `simplify` | `branch [<base>] \| commit <range> \| plan <slug> <slice> \| codebase [<path>]` | Three parallel sub-agents review one scope, classify findings, and route them. Writes no code. | none |
 | `auto` | `<slug> [<slice>]` | Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff. | none |
 | `yolo` | `<slug> [<slice>]` | Autonomous driver. Resolves each gate by written policy. Stops before handoff. Claude Code only. | none |
-| `campaign` | `<brainstorm-slug>` | Drive a brainstorm's work packets in dependency waves, one PR per wave. | `work/campaign/` |
+| `campaign` | `<slug>` | Drive a workflow's work packets in dependency waves, one PR per wave. | `work/campaign/` |
 | `goal` | `<slug> [objective\|resume\|status\|clear]` | Hand the slug to the host goal; `goal.mjs check` judges it. | `goal.md` |
 | `optimize` | `<slug>` · `<description>` | Metric loop: measure, then keep or revert. | `optimize/` |
+| `prototype` | `<idea>` · `<slug> [request]` | Prove an idea by running code; the person starts each round. | `prototype-ledger.json` |
 
 ### Minimal lifecycle
 
@@ -96,7 +97,7 @@ On consent, run `git init` only; do not stage or commit the user's files. On dec
 
 # Step 0.8 — Source study
 
-When the work turns on how a dependency behaves, use the `study-sources` skill instead of recalled API shapes. It reads installed sources first and fetches into a gitignored `.scratch/` only when none are present. It is read-only. `intake rca`, `intake investigate`, `plan`, `implement`, `verify`, `review`, and `intake update-deps` name it; any other key may use it.
+When the work turns on how a dependency behaves, use the `study-sources` skill instead of recalled API shapes. It reads installed sources first and fetches into a gitignored `.scratch/` only when none are present. It is read-only.
 
 # Step 1 — Execute
 
@@ -116,5 +117,4 @@ Artifacts: <paths created or modified, or "none">
 Next: <one concrete invocation, or "Done">
 ```
 
-- Name the key and the scope on the first line. `Artifacts` lists every path this run wrote. Read-only keys write `none`; `status` may still reconcile `INDEX.md` and `recap` writes `90-recap.md`, so name those.
-- Write the narrative per [_chat-return.md](reference/_chat-return.md) section *The narrative*. Omit it only for a read-only run with nothing to narrate. A reference that says to return only a receipt names the receipt's fields; it does not waive this narrative. `Next` is one invocation, or `Done` after `ship`, `retro`, or `close`. Paths under `.ai/` are allowed in this block; outside it the output boundary applies.
+- Name the key and the scope on the first line. `Artifacts` lists every path this run wrote. Read-only keys write `none`; `status` may still reconcile `INDEX.md` and `recap` writes `90-recap.md`, so name those. Write the narrative per [_chat-return.md](reference/_chat-return.md) section *The narrative*. Omit it only for a read-only run with nothing to narrate. A reference that says to return only a receipt names the receipt's fields; it does not waive this narrative. `Next` is one invocation, or `Done` after `ship`, `retro`, or `close`. Paths under `.ai/` are allowed in this block; outside it the output boundary applies.

@@ -336,7 +336,7 @@ test('the document has a short front, and the page presents the board where the 
   assert.match(artifact, /<!-- The front ends here\. The record follows\. -->/, 'the template no longer separates the front from the record');
   assert.match(src, /^## 2\.9 The page$/m, 'the loop lost the page');
   assert.match(src, /row "Published page"/, 'the page does not defer its mechanics to the host contract');
-  assert.match(host, /^\| Published page \(brainstorm\) \| When the session lists the Artifact tool: load the `artifact-design` skill/m, '_host-invocation.md lost the published-page row');
+  assert.match(host, /^\| Published page \(brainstorm, prototype\) \| When the session lists the Artifact tool: load the `artifact-design` skill/m, '_host-invocation.md lost the published-page row');
   assert.match(src, /The page presents the board and never replaces it\. Write every change to the two files first/, 'the page can become the source of truth');
   assert.match(src, /Republish it to the same link at each check-in, each area close, each `board`, and at `done`/, 'the page is no longer kept current');
   assert.match(src, /Where the host has no published page, the person reads `01-brainstorm\.md`/, 'a host with no page has no fallback');

@@ -1,6 +1,6 @@
 ---
 description: Drive the many workflow slugs that one brainstorm ended in, in dependency waves. Setup and the rolling prepare run with the person on every host. One wave driver run drives every slug of a wave in its own worktree, then merges, verifies and reviews the wave. Handoff and ship open one PR per wave. The ledger in the brainstorm's work/campaign/ folder holds the state, so one command resumes at any point.
-argument-hint: <brainstorm-slug>
+argument-hint: <slug>
 ---
 
 # External Output Boundary
@@ -23,7 +23,7 @@ Each wave is one PR. Every unit of a wave runs in its own worktree, so the wave 
 
 ## Step 0 — Resolve
 
-1. The slug is the brainstorm's slug. When it is empty, list the brainstorm workflows that have `work/index.md` and ask which one.
+1. The slug is the workflow whose `work/index.md` lists the packets. When it is empty, list the workflows that have one and ask which.
 2. Resolve `projectRoot` (the repo root that owns `.ai/workflows`) and `pluginRoot` as yolo.md Step 0 does.
 3. Every ledger change goes through the campaign script, which prints one JSON object and regenerates `ledger.md`:
 

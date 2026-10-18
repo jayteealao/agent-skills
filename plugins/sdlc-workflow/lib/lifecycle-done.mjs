@@ -36,6 +36,8 @@ export const NOT_DRIVEN = Object.freeze({
   brainstorm: '/wf intake brainstorm <slug>',
   investigate: 'the pick recorded in 01-investigate.md',
   discover: 'the verdict recorded in 01-discover.md',
+  // A prototype is steered by the person, one round at a time (WF-PROTOTYPE-PLAN P4).
+  prototype: '/wf prototype <slug> <request>, one round per request of the person',
 });
 
 export const VERIFY_CLEAN_CONVERGENCE = Object.freeze(['not-needed', 'converged']);

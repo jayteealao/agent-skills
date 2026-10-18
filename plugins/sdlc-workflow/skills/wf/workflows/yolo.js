@@ -853,6 +853,9 @@ async function orient() {
     `complete, set ok=true and workflowType='update-deps', then PROCEED to step 6 (the single-slice roster: ` +
     `implement→05-implement.md, verify→06-verify.md, both un-suffixed; reviewScope slug-wide). Do NOT fall through ` +
     `to 5d.\n` +
+    `   5b2. PROTOTYPE — workflow-type 'prototype'. A person-steered proof loop: the person starts every round, ` +
+    `and no driver runs one. yolo drives NOTHING here. Set ok=false, blockReason='a prototype is steered by the ` +
+    `person, one round at a time', route='/wf prototype ${slug} <request>'. Do NOT fall through to 5d.\n` +
     `   5c2. OPTIMIZE loop — workflow-type 'optimize'. The metric loop belongs to /wf optimize: a person confirms ` +
     `its spec (02-optimize-spec.md, confirmed-by), and the loop runs under its own driver. yolo never runs a trial. ` +
     `READINESS: 05-implement-optimize.md exists with status: complete (the loop's finish wrote it, with ` +

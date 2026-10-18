@@ -1,0 +1,18 @@
+{
+  "name": "prototype",
+  "order": 150,
+  "fixture": "node-cli",
+  "prompt": "/wf prototype can the built-in node test runner run this suite faster than the current one",
+  "maxTurns": 60,
+  "assertions": [
+    {
+      "type": "file-contains",
+      "path": ".ai/workflows/INDEX.md",
+      "pattern": "\tprototype\tpoc/"
+    },
+    {
+      "type": "changes-only-under",
+      "prefix": ".ai/"
+    }
+  ]
+}

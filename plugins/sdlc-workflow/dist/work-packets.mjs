@@ -4,8 +4,8 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   checkWorkSet,
   writeWorkSet
-} from "./chunk-G655NHKM.mjs";
-import "./chunk-7IP54LOR.mjs";
+} from "./chunk-MUV6QL7A.mjs";
+import "./chunk-GKIHU4J2.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -14,8 +14,16 @@ import "./chunk-SGA7NFMW.mjs";
 // scripts/work-packets.mjs
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-var USAGE = "Usage: work-packets.mjs <check|write> <workflow-dir> [--json] [--dry-run]";
+import { basename, dirname, join, resolve } from "node:path";
+var USAGE = "Usage: work-packets.mjs <check|write> <workflow-dir|board-file> [--json] [--dry-run]";
+function resolveBoard(arg) {
+  const abs = resolve(arg);
+  if (abs.endsWith(".json")) return { dir: dirname(abs), boardFile: basename(abs) };
+  for (const name of ["brainstorm-board.json", "ideate-work.json"]) {
+    if (existsSync(join(abs, name))) return { dir: abs, boardFile: name };
+  }
+  return { dir: abs, boardFile: "brainstorm-board.json" };
+}
 function gitIgnoredCheck(projectRoot) {
   const probe = spawnSync("git", ["rev-parse", "--is-inside-work-tree"], { cwd: projectRoot, encoding: "utf8" });
   if (probe.status !== 0) return null;
@@ -38,10 +46,10 @@ function main(argv = process.argv.slice(2), { log = console.log, now = null } = 
     log(USAGE);
     return 2;
   }
-  const dir = resolve(dirArg);
-  const boardPath = join(dir, "brainstorm-board.json");
+  const { dir, boardFile } = resolveBoard(dirArg);
+  const boardPath = join(dir, boardFile);
   if (!existsSync(boardPath)) {
-    log(`work-packets: no brainstorm-board.json in ${dir}`);
+    log(`work-packets: no ${boardFile} in ${dir}`);
     return 2;
   }
   const isIgnored = gitIgnoredCheck(projectRootOf(dir));
@@ -57,7 +65,7 @@ function main(argv = process.argv.slice(2), { log = console.log, now = null } = 
     }
     return result2.errors.length ? 1 : 0;
   }
-  const result = writeWorkSet(dir, { now, isIgnored, dryRun: flags.has("--dry-run") });
+  const result = writeWorkSet(dir, { now, isIgnored, dryRun: flags.has("--dry-run"), boardFile });
   if (json) log(JSON.stringify(result, null, 2));
   else if (!result.ok) {
     for (const e of result.errors) log(`error: ${e}`);
@@ -76,5 +84,6 @@ if (invoked && !/skills\/wf\/scripts\//.test(process.argv[1].replace(/\\/g, "/")
   process.exitCode = main();
 }
 export {
-  main
+  main,
+  resolveBoard
 };

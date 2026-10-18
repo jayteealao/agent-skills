@@ -65,6 +65,7 @@ export const PRODUCERS = [
   { match: /^01-investigate\.md$/, templates: ['intake/investigate.md', 'intake/investigate/_artifact.md'] },
   { match: /^01-task\.md$/, templates: ['task.md'] },
   { match: /^01-simplify\.md$/, templates: ['simplify/_artifact.md'] },
+  { match: /^01-prototype\.md$|^prototype-ledger\.json$/, templates: ['prototype.md'] },
   // A `01-*` / `01-<mode>` citation means "the lead of whichever intake mode ran": every lead template.
   { match: /^01-\*\.md$/, templates: ['intake/default/_artifact.md', 'intake/rca/_artifact.md', 'intake/rca.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/refactor.md', 'intake/update-deps.md', 'intake/_change-mode-tail.md', 'intake/adopt/_artifacts.md', 'task.md'] },
   // Shape: the standard template, then each producer that synthesizes a shape.

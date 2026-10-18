@@ -81,6 +81,8 @@ const SCRIPT_ENTRIES = [
   'design-boards',           // /wf design: render, contact sheet, freeze, check the boards; run via skills/wf/scripts/design-boards.mjs (DESIGN-BOARDS-PLAN)
   'goal',                    // /wf goal: the contract, the check that prints the GOAL: line, park, clear; run via skills/wf/scripts/goal.mjs (WF-GOAL-PLAN)
   'optimize',                // /wf optimize: baseline, trials, branch rounds, checkpoints, finish; run via skills/wf/scripts/optimize.mjs (WF-OPTIMIZE-PLAN)
+  'prototype',               // /wf prototype: the POC worktree, the ledger check, the report, decide commits, exit; run via skills/wf/scripts/prototype.mjs (WF-PROTOTYPE-PLAN)
+  'ideate-sources',          // /wf intake ideate with sources: argument kinds, gh issues, reference rows, coverage check; run via skills/wf/scripts/ideate-sources.mjs (WF-IDEATE-SOURCES-PLAN)
 ];
 
 // Public renderers are loaded at runtime by render-sunflower's loadRenderer()

@@ -12,12 +12,12 @@ from the tree and fails when a count exceeds its pin.
 
 | Pin | Counted from | 2026-09-07 |
 |---|---|---|
-| `keys` | rows of the four key tables in `skills/wf/SKILL.md` | 22 → 23 (2026-09-24, `brainstorm`; earn rule in BRAINSTORM-DESIGN-PLAN.md §7) → 24 (2026-10-03, `campaign`; earn rule in WF-CAMPAIGN-PLAN.md section 23) → 26 (2026-10-17, `goal` and `optimize`; WF-GOAL-PLAN.md and WF-OPTIMIZE-PLAN.md) |
+| `keys` | rows of the four key tables in `skills/wf/SKILL.md` | 22 → 23 (2026-09-24, `brainstorm`; earn rule in BRAINSTORM-DESIGN-PLAN.md §7) → 24 (2026-10-03, `campaign`; earn rule in WF-CAMPAIGN-PLAN.md section 23) → 26 (2026-10-17, `goal` and `optimize`; WF-GOAL-PLAN.md and WF-OPTIMIZE-PLAN.md) → 27 (2026-10-18, `prototype`; earn rule in WF-PROTOTYPE-PLAN.md section 10) |
 | `intakeModes` | the mode keyword set that `reference/intake.md` names | 12 → 13 (2026-09-22, `brainstorm`) → 14 (2026-10-17, `optimize`) |
 | `reviewRubrics` | `reference/review/<rubric>.md`, underscore files excluded | 11 |
 | `aggregates` | rows of the aggregate table in `reference/review.md` | 7 |
-| `artifactStems` | distinct artifact names in the capability inventory's `artifacts` union | 93 → 95 (2026-09-22, `01-brainstorm`, `03-slice-brainstorm-*`) → 92 (2026-09-29, hand-written typed fragment names left the references); the counter later read 70 → 75 (2026-10-17, `01-optimize`, `02-optimize-spec`, `03-slice-optimize`, `05-implement-optimize`, `06-verify-optimize`) |
-| `frontmatterTypes` | distinct `type` values the frontmatter schema's `oneOf` branches accept | 66 → 67 (2026-09-22, `brainstorm`) → 69 (2026-10-03, `work-packet`, `work-set`; earn rule in BRAINSTORM-WORK-PACKETS-PLAN.md section 13) → 71 (2026-10-08, `design-current`, `design-direction`: the design record files had a documented type and no schema branch; DESIGN-BOARDS-PLAN W1) → 73 (2026-10-17, `optimize-spec`, `goal`) |
+| `artifactStems` | distinct artifact names in the capability inventory's `artifacts` union | 93 → 95 (2026-09-22, `01-brainstorm`, `03-slice-brainstorm-*`) → 92 (2026-09-29, hand-written typed fragment names left the references); the counter later read 70 → 75 (2026-10-17, `01-optimize`, `02-optimize-spec`, `03-slice-optimize`, `05-implement-optimize`, `06-verify-optimize`) → 76 (2026-10-18, `01-prototype`) |
+| `frontmatterTypes` | distinct `type` values the frontmatter schema's `oneOf` branches accept | 66 → 67 (2026-09-22, `brainstorm`) → 69 (2026-10-03, `work-packet`, `work-set`; earn rule in BRAINSTORM-WORK-PACKETS-PLAN.md section 13) → 71 (2026-10-08, `design-current`, `design-direction`: the design record files had a documented type and no schema branch; DESIGN-BOARDS-PLAN W1) → 73 (2026-10-17, `optimize-spec`, `goal`) → 74 (2026-10-18, `prototype`) |
 
 A count under its pin is slack. The gate reports slack and does not fail on
 it. Lower a pin when a surface is deleted, so the file states the tree.

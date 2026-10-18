@@ -1271,6 +1271,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
+        "input": "intake/ideate/_sources.md",
+        "kind": "procedure",
+        "when": "mode:sources",
+        "sections": []
+      },
+      {
         "input": "_compressed-slice.md",
         "kind": "procedure",
         "when": "mode:slug",
@@ -1880,6 +1886,42 @@ export const REQUIRES: readonly RequiresEntry[] = [
       },
       {
         "input": "03-slice-probe-*.md",
+        "kind": "writes",
+        "when": "",
+        "sections": []
+      }
+    ]
+  },
+  {
+    "reference": "prototype.md",
+    "stage": "prototype",
+    "rows": [
+      {
+        "input": "prototype-ledger.json",
+        "kind": "artifact",
+        "when": "on-resume",
+        "sections": []
+      },
+      {
+        "input": "01-prototype.md",
+        "kind": "artifact",
+        "when": "on-resume",
+        "sections": []
+      },
+      {
+        "input": "steer.md",
+        "kind": "artifact",
+        "when": "if-present",
+        "sections": []
+      },
+      {
+        "input": "prototype-ledger.json",
+        "kind": "writes",
+        "when": "",
+        "sections": []
+      },
+      {
+        "input": "01-prototype.md",
         "kind": "writes",
         "when": "",
         "sections": []

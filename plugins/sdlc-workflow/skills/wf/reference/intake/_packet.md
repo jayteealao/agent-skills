@@ -1,6 +1,6 @@
 # Intake from a work packet
 
-A brainstorm's `done` writes one work packet per piece of work ([brainstorm/_work.md](brainstorm/_work.md)). This file starts the piece's workflow from its packet:
+A brainstorm's `done` writes one work packet per piece of work ([brainstorm/_work.md](brainstorm/_work.md)). An ideate pick writes one per selected idea ([ideate.md](ideate.md)). This file starts the piece's workflow from its packet:
 
 ```
 /wf intake .ai/workflows/<brainstorm-slug>/work/<work-slug>.md
@@ -24,7 +24,7 @@ The packet carries the person's decisions word for word. A decision is the perso
 | `form` | Run |
 |---|---|
 | `intake` | [default.md](default.md) |
-| `investigate`, `discover`, `fix`, `hotfix` | `intake/<form>.md`, standalone. For `fix` and `hotfix`, the brief names `target-slug` as the workflow whose work is corrected, and reads its artifacts as context. |
+| `investigate`, `discover`, `rca`, `fix`, `hotfix` | `intake/<form>.md`, standalone. For `fix` and `hotfix`, the brief names `target-slug` as the workflow whose work is corrected, and reads its artifacts as context. |
 | `task` | [../task.md](../task.md) |
 | `extension` | [extend.md](extend.md) on `target-slug`, with the packet as the scope. |
 
@@ -48,6 +48,6 @@ Do this before the mode's own questions.
 
 ## Step 4 — Link back
 
-When the mode completes, set the packet's `state: prepared` and `routed-to: <work-slug>`. Change no other field of the packet: the write hook refuses any other change to a started packet. Set the same two fields on the piece in `brainstorm-board.json`. Shape sets both to `routed` (`shape.md`, Step 9b).
+When the mode completes, set the packet's `state: prepared` and `routed-to: <work-slug>`. Change no other field of the packet: the write hook refuses any other change to a started packet. Set the same two fields on the piece in the board file that the packet names (`brainstorm-board.json`, or `ideate-work.json` for an ideate pick). Shape sets both to `routed` (`shape.md`, Step 9b).
 
 The older form `/wf intake <description> from <brainstorm-slug>` keeps working, through [_intake-provenance.md](_intake-provenance.md).

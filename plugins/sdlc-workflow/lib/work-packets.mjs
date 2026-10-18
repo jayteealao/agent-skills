@@ -14,7 +14,7 @@ import { safeParseFrontmatter } from './frontmatter.mjs';
 import { validateBrainstormBoard, validateFrontmatter } from './schema-validator.mjs';
 
 // The forms that open or extend a workflow slug get a packet (K1).
-export const PACKET_FORMS = Object.freeze(['intake', 'investigate', 'discover', 'fix', 'hotfix', 'task', 'extension']);
+export const PACKET_FORMS = Object.freeze(['intake', 'investigate', 'discover', 'rca', 'fix', 'hotfix', 'task', 'extension']);
 // Forms that target an existing workflow slug.
 export const TARGETED_FORMS = Object.freeze(['extension', 'fix', 'hotfix']);
 // A packet in one of these states is never rewritten (K4, V3).
@@ -29,6 +29,16 @@ const SIZE_SMALL_LIMIT = 10;
 const SCRATCH_RE = /(?:^|[\s`'"(/\\])\.scratch[/\\]/;
 
 const SIGNATURE_LINE_RE = /^(?:revision|generated-at):.*$/gm;
+
+// The board a work set is generated from, and the lead document beside it. A brainstorm's
+// board is brainstorm-board.json; an ideate run's board is ideate-work.json, in the same
+// shape (WF-IDEATE-SOURCES-PLAN 8.1). Packet links name the board they came from.
+export const DEFAULT_FILES = Object.freeze({ board: 'brainstorm-board.json', lead: '01-brainstorm.md' });
+export const IDEATE_FILES = Object.freeze({ board: 'ideate-work.json', lead: '01-ideate.md' });
+export function filesFor(boardFile = DEFAULT_FILES.board) {
+  if (boardFile === IDEATE_FILES.board) return IDEATE_FILES;
+  return { board: boardFile, lead: DEFAULT_FILES.lead };
+}
 
 export function isPacketPiece(piece) {
   return PACKET_FORMS.includes(piece?.shape);
@@ -219,12 +229,12 @@ function dump(data) {
   return yaml.dump(data, { lineWidth: -1, noRefs: true, quotingType: '"' }).trimEnd();
 }
 
-function itemLine(item, { withWhy = false } = {}) {
+function itemLine(item, { withWhy = false, boardFile = DEFAULT_FILES.board } = {}) {
   const parts = [`- **${item.key}** — ${item.text}`];
   if (withWhy && item.why) parts.push(` Why: ${item.why}`);
   if (item['accepted-risk']) parts.push(` Accepted risk: ${item['accepted-risk']}`);
   if (item.evidence) parts.push(` Evidence: \`${item.evidence}\`.`);
-  parts.push(` ([board](../brainstorm-board.json#${item.key}))`);
+  parts.push(` ([board](../${boardFile}#${item.key}))`);
   return parts.join('');
 }
 
@@ -315,7 +325,7 @@ export function packetFrontmatter(board, piece, { revision = 1, generatedAt = nu
 }
 
 /** The full text of a piece's packet (section 5.2). */
-export function renderPacket(board, piece, { revision = 1, generatedAt = null, researchFiles = [] } = {}) {
+export function renderPacket(board, piece, { revision = 1, generatedAt = null, researchFiles = [], files = DEFAULT_FILES } = {}) {
   const fm = packetFrontmatter(board, piece, { revision, generatedAt });
   const pieces = board.work ?? [];
   const pieceKeys = byKey(pieces);
@@ -341,7 +351,7 @@ export function renderPacket(board, piece, { revision = 1, generatedAt = null, r
   const lines = [];
   lines.push('---', dump(fm), '---', '');
   lines.push(`# ${piece.title}`, '');
-  lines.push(`The board wins where this packet and the board differ: [brainstorm-board.json](../brainstorm-board.json), [01-brainstorm.md](../01-brainstorm.md). The work set: [index.md](index.md).`, '');
+  lines.push(`The board wins where this packet and the board differ: [${files.board}](../${files.board}), [${files.lead}](../${files.lead}). The work set: [index.md](index.md).`, '');
 
   lines.push('## Start', '');
   lines.push(`Form: \`${piece.shape}\`${piece['target-slug'] ? ` on \`${piece['target-slug']}\`` : ''}. Order: ${piece.order ?? 1}. Size: ${fm.size}, carried decisions: ${decisions.length}.`, '');
@@ -355,27 +365,27 @@ export function renderPacket(board, piece, { revision = 1, generatedAt = null, r
   if (decisions.length) {
     for (const item of decisions) {
       const when = [item.session ? `session ${item.session}` : null, item['decided-at'] ?? null].filter(Boolean).join(', ');
-      lines.push(`${itemLine(item, { withWhy: true })}${when ? ` (${when})` : ''}${(piece.shared ?? []).includes(item.key) ? ' Shared with another packet.' : ''}`);
+      lines.push(`${itemLine(item, { withWhy: true, boardFile: files.board })}${when ? ` (${when})` : ''}${(piece.shared ?? []).includes(item.key) ? ' Shared with another packet.' : ''}`);
     }
   } else lines.push(none);
   lines.push('');
 
   lines.push('## What is still open', '');
   const openAll = [...open, ...openQuestions, ...openTensions];
-  lines.push(...(openAll.length ? openAll.map((i) => itemLine(i)) : [none]), '');
+  lines.push(...(openAll.length ? openAll.map((i) => itemLine(i, { boardFile: files.board })) : [none]), '');
 
   lines.push('## What we found', '');
   lines.push('Intake re-verifies each finding against the current code. A contradicted finding becomes a known unknown.', '');
-  lines.push(...(findings.length ? findings.map((i) => itemLine(i)) : [none]), '');
+  lines.push(...(findings.length ? findings.map((i) => itemLine(i, { boardFile: files.board })) : [none]), '');
 
   lines.push('## What we assume', '');
-  const assumeLines = [...assumptions.map((i) => itemLine(i)), ...risks.map((i) => `- Accepted risk with **${i.key}**: ${i['accepted-risk']}`)];
+  const assumeLines = [...assumptions.map((i) => itemLine(i, { boardFile: files.board })), ...risks.map((i) => `- Accepted risk with **${i.key}**: ${i['accepted-risk']}`)];
   lines.push(...(assumeLines.length ? assumeLines : [none]), '');
 
   lines.push('## Left for later and cut', '');
   const leftLines = [
-    ...later.map((i) => `${itemLine(i)} Left for later.`),
-    ...cut.map((i) => `${itemLine(i)} Cut${i.reason ? `: ${i.reason}` : ''}.`),
+    ...later.map((i) => `${itemLine(i, { boardFile: files.board })} Left for later.`),
+    ...cut.map((i) => `${itemLine(i, { boardFile: files.board })} Cut${i.reason ? `: ${i.reason}` : ''}.`),
   ];
   lines.push(...(leftLines.length ? leftLines : [none]), '');
 
@@ -390,7 +400,7 @@ export function renderPacket(board, piece, { revision = 1, generatedAt = null, r
 }
 
 /** The text of work/index.md (K2). */
-export function renderWorkIndex(board, { revision = 1, generatedAt = null } = {}) {
+export function renderWorkIndex(board, { revision = 1, generatedAt = null, files = DEFAULT_FILES } = {}) {
   const pieces = ordered(board.work ?? []);
   const packets = pieces.filter(isPacketPiece);
   const writeNow = pieces.filter(isWriteNowPiece);
@@ -406,7 +416,7 @@ export function renderWorkIndex(board, { revision = 1, generatedAt = null } = {}
   };
   const lines = ['---', dump(fm), '---', ''];
   lines.push(`# Work set: ${board.topic ?? board.slug}`, '');
-  lines.push('The board wins where this file and the board differ: [brainstorm-board.json](../brainstorm-board.json). Changes by revision: [changes.md](changes.md).', '');
+  lines.push(`The board wins where this file and the board differ: [${files.board}](../${files.board}). Changes by revision: [changes.md](changes.md).`, '');
 
   lines.push('## Packets', '');
   if (packets.length) {
@@ -517,8 +527,9 @@ function stamp(now) {
  * each packet, then research/index.md, then work/index.md last. A started
  * packet is kept; its regenerated body goes to history/ (K4). Returns a summary.
  */
-export function writeWorkSet(dir, { now = null, isIgnored = null, dryRun = false } = {}) {
-  const boardPath = join(dir, 'brainstorm-board.json');
+export function writeWorkSet(dir, { now = null, isIgnored = null, dryRun = false, boardFile = DEFAULT_FILES.board } = {}) {
+  const files = filesFor(boardFile);
+  const boardPath = join(dir, files.board);
   const board = readJson(boardPath);
   const check = checkWorkSet(board, { isIgnored });
   if (check.errors.length) return { ok: false, ...check };
@@ -540,7 +551,7 @@ export function writeWorkSet(dir, { now = null, isIgnored = null, dryRun = false
   const writes = [];
   const packets = ordered((board.work ?? []).filter(isPacketPiece));
   for (const piece of packets) {
-    const text = renderPacket(board, piece, { revision, generatedAt: at, researchFiles });
+    const text = renderPacket(board, piece, { revision, generatedAt: at, researchFiles, files });
     const fm = packetFrontmatter(board, piece, { revision, generatedAt: at });
     const shape = validateFrontmatter(fm);
     if (!shape.valid) return { ok: false, errors: shape.errors.map((e) => `packet ${piece.key}: ${e.path} ${e.message}`), warnings: check.warnings };
@@ -608,7 +619,7 @@ export function writeWorkSet(dir, { now = null, isIgnored = null, dryRun = false
     const changesPath = join(workDir, 'changes.md');
     if (!existsSync(changesPath)) writeFileSync(changesPath, '# Work set changes\n\nOne entry per revision of the work set. The campaign reads this file.\n\n');
     appendFileSync(changesPath, entry);
-    writeFileSync(indexPath, renderWorkIndex(board, { revision: finalRevision, generatedAt: at }));
+    writeFileSync(indexPath, renderWorkIndex(board, { revision: finalRevision, generatedAt: at, files }));
   }
 
   return { ok: true, revision: finalRevision, added, changed, kept, cut: cut.map((c) => c.key), pendingCut, writtenNow: writtenNow.map((p) => p.key), warnings: check.warnings };

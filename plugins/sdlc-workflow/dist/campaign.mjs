@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 
 // lib/campaign.mjs
 var BUILD_FORMS = Object.freeze(["intake", "extension", "fix", "hotfix"]);
-var OUTSIDE_FORMS = Object.freeze(["task", "investigate", "discover"]);
+var OUTSIDE_FORMS = Object.freeze(["task", "investigate", "discover", "rca"]);
 var MAX_CARRIED = 40;
 var LEDGER_VERSION = 1;
 var WAVE_STATES = Object.freeze(["planned", "running", "boundary", "handoff", "shipping", "shipped", "stopped"]);

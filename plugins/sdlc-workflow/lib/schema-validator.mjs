@@ -209,6 +209,30 @@ export async function validateBrainstormBoardFile(filePath, { schemaPath = DEFAU
   return { path: filePath, ...validateBrainstormBoard(data, { schemaPath }) };
 }
 
+/**
+ * Validate a prototype's proof ledger (prototype-ledger.json) against
+ * $defs.prototypeLedger. post-write-verify calls it on every write of the file;
+ * lib/prototype.mjs ledgerProblems() adds the rules between ids.
+ */
+export function validatePrototypeLedger(data, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { valid: false, errors: [{ path: '/', message: 'the proof ledger is not a JSON object', keyword: 'type' }] };
+  }
+  const validate = compileValidator({ schemaPath, kind: 'def', name: 'prototypeLedger' });
+  const valid = validate(data);
+  return { valid, errors: valid ? [] : normalizeAjvErrors(validate.errors) };
+}
+
+export async function validatePrototypeLedgerFile(filePath, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
+  let data;
+  try {
+    data = JSON.parse(await readFile(filePath, 'utf-8'));
+  } catch (err) {
+    return { path: filePath, valid: false, errors: [{ path: '/', message: err.message ?? 'JSON parse error', keyword: 'parse' }] };
+  }
+  return { path: filePath, ...validatePrototypeLedger(data, { schemaPath }) };
+}
+
 export async function validateFrontmatterFile(filePath, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
   const loaded = await safeLoadFrontmatterFile(filePath);
   if (loaded.parseError) {

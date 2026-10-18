@@ -1,5 +1,5 @@
 /**
- * The 26 `/wf` keys as the picker offers them: the one-line description each
+ * The 27 `/wf` keys as the picker offers them: the one-line description each
  * row shows, the dim argument hint, and what the picker has to ask for before
  * the command is complete. The mod registers no `/wf-<key>` command: `/wf`
  * is the one way in.
@@ -42,9 +42,10 @@ export const CATALOG: readonly CatalogEntry[] = [
   { key: 'simplify', description: 'Review a bounded scope for simplification.', argumentHint: '[branch [base]|commit range|plan slug slice|codebase [path]]', need: 'none' },
   { key: 'auto', description: 'Drive stages until the pre-handoff boundary.', argumentHint: '<slug> [slice]', need: 'slug-slice-optional' },
   { key: 'yolo', description: 'Run policy-governed autonomy with an external grant.', argumentHint: '<slug> [slice]', need: 'slug-slice-optional' },
-  { key: 'campaign', description: "Drive a brainstorm's work packets in waves.", argumentHint: '<brainstorm-slug>', need: 'slug' },
+  { key: 'campaign', description: "Drive a workflow's work packets in waves.", argumentHint: '<slug>', need: 'slug' },
   { key: 'goal', description: 'Hand a slug to the host goal; a script judges done.', argumentHint: '<slug> [objective|resume|status|clear]', need: 'slug' },
   { key: 'optimize', description: 'Run the metric loop of an optimize slug.', argumentHint: '<slug> | <description>', need: 'slug' },
+  { key: 'prototype', description: 'Prove an idea by running code, one round per request.', argumentHint: '<idea> | <poc-branch> <idea> | <slug> [request]', need: 'slug-optional' },
   { key: 'task', description: 'Run the minimal non-code lifecycle.', argumentHint: '<description|task-slug|existing-slug description>', need: 'none' },
   { key: 'status', description: 'Inspect workflow state and next actions.', argumentHint: '[slug|pr#N|#N|N|branch] [deep] | advise [scope|fast]', need: 'slug-optional' },
   { key: 'recap', description: 'Explain recorded workflow context.', argumentHint: '<slug|pr#N|#N|N|branch> [slice|focus]', need: 'slug-slice-optional' },

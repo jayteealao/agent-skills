@@ -1,6 +1,6 @@
 # WF-PROTOTYPE-PLAN — `/wf prototype`, a person-steered proof loop
 
-Status **Plan, nothing built** · Date **2026-09-28** · Plugin **v9.171.0** · Owner **jayte**
+Status **BUILT 2026-10-18, not released** (W0 to W5; the live run and the Desktop probe are open) · Date **2026-09-28** · Plugin **v9.171.0** · Checked against **v9.189.0** on **2026-10-18** (section 13) · Owner **jayte**
 
 ## 1. Why
 
@@ -26,14 +26,21 @@ starts committed lifecycle work. `probe` checks built work against AC.
 The `experiment` and `benchmark` augmentations plan a rollout inside a
 lifecycle. None of them runs code to answer an open question.
 
+Two keys of v9.189.0 come near this job, but they do not cover it.
+`optimize` runs trials in a worktree, but only against one metric that a
+script measures, and the model proposes each trial without the person.
+`goal` hands a slug to the host goal, which runs turns until a script says
+the goal is met. A prototype has no single metric and no script that can say
+"done", and the person starts every round.
+
 ## 2. PO decisions (2026-09-28)
 
 | # | Decision |
 |---|---|
-| P1 | `prototype` is a **new key** (the 24th). |
+| P1 | `prototype` is a **new key** (the 24th when decided; the 27th at v9.189.0). |
 | P2 | The work runs in a **POC worktree on its own branch**. The loop **commits at each accepted decision**. |
 | P3 | **One rolling report**, unless the person asks for a separate page. The report is an HTML page that explains the work properly, with visualisations. It can be a shareable Claude artifact page. |
-| P4 | **Always steered by the person.** No driver (`auto`, `yolo`) runs a prototype round. |
+| P4 | **Always steered by the person.** No driver (`auto`, `yolo`, `goal`, `campaign`) runs a prototype round. |
 
 ## 3. The loop
 
@@ -142,7 +149,7 @@ round.
 - All content is readable with scripts disabled. Interactive controls are an addition, never the only way to see a result.
 - Media is embedded. The page loads no external resource.
 - The page stays under 1 MB. Video goes on a separate small page, or into the artifact's asset store.
-- Each visual has one sentence before it that says what to look at. The visuals reuse the explainer snippet set from ARTIFACT-SPLIT-PLAN S2 (sequence, comparison bar, state cycle, dependency graph).
+- Each visual has one sentence before it that says what to look at. The visuals reuse the snippet code in `components/explainer/` (sequence, comparison bar, state cycle, dependency graph). The report builder calls that code directly. Since v9.187.0 no stage writes an explainer fragment, and the prototype does not bring that step back.
 - Measured numbers and estimated numbers look different on the page.
 
 **Where it goes:**
@@ -181,23 +188,39 @@ and the report link, then stops.
 
 - `skills/wf/SKILL.md`: key row, key list, argument hint, description.
 - The picker catalog and the plugin descriptions.
-- `auto` and `yolo`: refuse a slug with `workflow-type: prototype` (P4).
+- The drivers refuse a slug with `workflow-type: prototype` (P4):
+  - `auto`: a PAUSE row in `auto.md` Step 0, as for `brainstorm`.
+  - `yolo`: a refusal class in `yolo.md`, as for `task`.
+  - `goal`: a `prototype` entry in `NOT_DRIVEN` in `lib/lifecycle-done.mjs`, so `goal.mjs` prints `GOAL: BLOCKED`.
+  - `campaign`: `prototype` stays out of `PACKET_FORMS` in `lib/work-packets.mjs`, so no packet can start a prototype.
 - Frontmatter schema: `type: prototype`; `$defs.prototypeLedger`; a
   post-write validation for the ledger, as for `brainstorm-board.json`.
 - Renderer: a report builder for `report.html`, built from the ledger and
   the proof media.
 - `status` and `recap`: read the ledger and `01-prototype.md`.
-- Surface pins: `keys` 23 → 24, plus `artifactStems` and `frontmatterTypes`.
+- Surface pins in `docs/internal/surface-policy.json`: `keys` 26 → 27, plus
+  `artifactStems` (75 at v9.189.0) and `frontmatterTypes` (73 at v9.189.0).
+  Record each raise in the history of `SURFACE-POLICY.md`.
+- Prose budget: `SKILL.md` and `_host-invocation.md` count in every key
+  load. The v9.189.0 release left about 3 words of headroom on `probe` and
+  `implement`. The new key row must net about 0 words in those two files.
 
 ## 10. Earn rule (SURFACE-POLICY §2)
 
 1. **The job:** answer an open technical question by running code, with the
    person steering each round, and keep an accepted pipeline and a shareable
    report as the answers arrive. No key covers it (§1).
-2. **Three workaround invocations:** Codex session `01a0e28f` (this plan's
-   source). **Open:** find two more. Candidates are the sessions that built
-   the eight earlier iterations on `poc/regen-faces`, and session
-   `01a0e3c0-0f06-7b10-8ca3-0bb9c2509201` (motion research).
+2. **Three workaround invocations:** found 2026-10-18.
+   - Codex session `01a0e28f` (this plan's source).
+   - Codex session `01a0e8d6-5d68-7c62-af2e-b192890ecf0d` (SoccerManager,
+     `poc/gnm-seasonal-kits` and `poc/regen-faces-r420s8`, 2026-09-28 to
+     2026-09-30, about 74 person turns). The person steered each round, nothing
+     was committed, and the state lived only in chat.
+   - Codex session `01a0e822-822a-7de0-a860-4b632a8e980f` (SoccerManager,
+     `poc/simd-sleef`, SIMD benchmarks, 11 turns). Nothing was committed.
+   - Session `01a0e3c0-0f06-7b10-8ca3-0bb9c2509201` does not qualify: it is web
+     research only. Claude Code session `0f932fd4` does not qualify: it had
+     workflow support.
 3. **Budget:** `reference/prototype.md` within its class budget.
 4. **Eval:** `tests/evals/cases/prototype.json`.
 5. **Pin:** raised in the same pull request.
@@ -209,13 +232,14 @@ and the report link, then stops.
 | W0 | Earn-rule evidence (two more sessions), eval case | — |
 | W1 | `reference/prototype.md`, SKILL rows, picker, `auto`/`yolo` refusal | W0 |
 | W2 | Ledger schema and validation hook | W1 |
-| W3 | Report builder and artifact publish | ARTIFACT-SPLIT W5 (explainer snippets) |
-| W4 | Guard tests, red first: person-only round start, commit only on decide, no writes outside the worktree, report without scripts | W1–W3 |
+| W3 | Report builder and artifact publish | W2 (the snippets in `components/explainer/` exist) |
+| W4 | Guard tests, red first: person-only round start, commit only on decide, no writes outside the worktree, report without scripts, each of the four drivers refuses a prototype slug | W1–W3 |
 | W5 | Live test on the SoccerManager face pipeline | W4 |
 
-**Sequencing.** The artifact-split build is in progress (2026-09-28). It
-changes `SKILL.md`, the renderers, the schema and the hooks. Start W1 only
-after that build lands on `origin/master`.
+**Sequencing.** The artifact-split build shipped in v9.172.0, so W1 does not
+wait for it. Several sessions edit this tree. Before W1, read the current
+key tables in `SKILL.md`, the surface pins and the prose budget, because each
+key release changes them.
 
 ## 12. Open questions
 
@@ -223,3 +247,23 @@ after that build lands on `origin/master`.
 - **Q2.** Do the round kinds need the person to see them, or are they for the agent only? The plan shows the kind in the first line.
 - **Q3.** Can a round fan out sub-agents for independent proofs (the session ran seven proofs in one round)? The plan allows it inside one round; the person still starts every round.
 - **Q4.** How large may a proof's media be before it goes to the artifact asset store instead of the page?
+
+## 13. Recheck 2026-10-18 (v9.189.0)
+
+The plan was checked against the code of v9.189.0. Nothing of the plan is
+built. No `reference/prototype.md`, no `type: prototype` in the schema, and
+no `prototype` key in `SKILL.md` exist. The job in section 1 is still open.
+
+These releases change code or rules that the plan uses:
+
+| Release | Change | Effect on the plan |
+|---|---|---|
+| v9.172.0 | The artifact split shipped | Section 11: W1 does not wait for it. |
+| v9.178.0 | `campaign` key (24th) | P4 and section 9: the campaign must not start a prototype. |
+| v9.186.0, v9.188.0 | The campaign wave driver; the campaign owns the dependency graph | None beyond P4. A prototype is not a packet form. |
+| v9.187.0 | No stage writes explainer fragments | Section 6 and W3: the report builder calls the snippet code in `components/explainer/` directly. |
+| v9.189.0 | `goal` and `optimize` keys (25th, 26th) | Section 1 names the difference. P1: the key is the 27th. P4 and section 9: `goal` refuses through `NOT_DRIVEN`. |
+| v9.189.0 | The prose budget counts `SKILL.md` and `_host-invocation.md` in every key load | Section 9: the new key row must net about 0 words there. |
+
+The earn rule (section 10) still has one workaround session of the three it
+needs. W0 is still the first wave.
