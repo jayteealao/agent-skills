@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.192.1] - 2026-10-20
+
+### Changed
+
+- **A Haiku reader does the look-in.** On `look-in`, the session read the journals, the git log, the changed files and the agent transcripts itself, and every 15 minutes that reading filled its context. Rule C7 now sends the reading to one read-only research sub-agent at the new summary tier. The session tells the person the sub-agent's answer of at most six sentences. The summary tier maps to `haiku` (Haiku 5.5) on Claude Code, its only use; Codex takes low effort, and pi keeps `sonnet`. The look-in event now gives each running agent's `root`, `journal` and `transcript` path.
+
 ## [9.192.0] - 2026-10-19
 
 ### Added
