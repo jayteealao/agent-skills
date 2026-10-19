@@ -45,7 +45,8 @@ Add based on brief needs:
 - `animate.md` — if transitions or motion
 - `colorize.md` — if significant color work
 - `layout.md` — if layout-heavy
-- `harden.md` — if accessibility is critical
+- `harden.md` — if accessibility is critical, or when a worst-case board is drawn
+- `adapt.md` — if the surface targets a phone, a native platform, or desktop
 - `optimize.md` — if performance is critical
 
 ## Step 2: Load codebase context
@@ -92,6 +93,8 @@ List the visible ingredients from the approved boards or scene sentence that mus
 - Color strategy execution (which elements carry which colors)
 - Distinctive visual moves (the things that made the mock look non-generic)
 
+For each worst-case board (`<surface>--worst`), list how the surface holds the worst content: what wraps, what truncates and where, what falls back, and what the empty or error state shows.
+
 These are the implementation contract. Code that loses them has regressed.
 
 ---
@@ -126,6 +129,7 @@ canvas: <canvas mirror link, or "none">
 direction-confirmed-by: <in-session|product-md|teach>
 confirmed-at: <timestamp>
 surfaces: [every surface drawn]
+directions: [<name>: <axis>]   # only when design stage Step 3b ran
 references-loaded: [union of the brief's recommended-references + any references loaded while authoring the contract — authoritative; wf-plan and wf-implement re-read this]
 next-command: wf-slice
 next-invocation: "/wf slice <slug>"
@@ -136,10 +140,11 @@ recommended-routes: [{invocation: "/wf slice <slug>", reason: "the person confir
 Body sections, in order, under these exact `##` headings (later stages cite them):
 
 - `## Visual direction confirmed` — one paragraph on the approved direction: the chosen probe (if any) and each deviation from the brief.
+- `## Directions considered` — only when design stage Step 3b ran: one row per direction, `| Name | Axis | Kept or rejected | The person's reason |`, so a later amend does not reopen a rejected direction by accident.
 - `## North-star mock` — the north-star board path (or "none — text-only direction"), the scene sentence (always), and 5–10 annotated callouts, each with a short description and an implementation note.
 - `## Boards` — one row per frozen board: `| Key | Surface | State | Viewport | PNG |`, from `design/r<N>/boards.json`.
 - `## Mock fidelity inventory` — the non-negotiable visible ingredients, one numbered line each: `<ingredient> — <board key and where on it> — <why non-negotiable>`.
-- `## Implementation contract` — the decisions `/wf implement` follows: **token choices** (existing tokens, new tokens); **component decisions** (extend X or create Y); **layout structure** (grid, breakpoints); **type scale**; **color application**; **motion** (timing, easing, and for anything frequently seen, whether it animates at all; `animate.md` carries the rules); **finish & detail** (concentric radius, optical alignment, shadows versus borders, hit-area minimums; `polish.md`); **state coverage** per interactive element.
+- `## Implementation contract` — the decisions `/wf implement` follows: **token choices** (existing tokens, new tokens); **component decisions** (extend X or create Y); **layout structure** (grid, breakpoints); **type scale**; **color application**; **motion** (each animation's gate result — frequency tier and named purpose — its curve token and duration or spring, and the rejected candidates that stay still; `animate.md` carries the rules and `_platforms.md` the platform forms); **finish & detail** (concentric radius, optical alignment, shadows versus borders, hit-area minimums; `polish.md`); **state coverage** per interactive element.
 - `## Anti-patterns to avoid` — from the brief's anti-goals plus the absolute bans in `_design-context.md`, specific to this feature.
 - `## Implementation references` — the reference docs `/wf implement` consults (`typeset.md`, `animate.md`, `harden.md`, and so on).
 

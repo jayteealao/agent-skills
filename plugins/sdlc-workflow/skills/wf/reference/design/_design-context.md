@@ -78,12 +78,12 @@ Check each result against the Absolute bans below and the reflex-reject list in 
 - Empty states teach and guide; they are not error states.
 
 ### Accessibility
-- `@media (prefers-reduced-motion: reduce)` for all animations — design for motion first.
+- Every animation honors the reduced-motion setting: fewer and gentler motion, not zero — keep opacity and color, remove movement. Never set every duration to 0 globally.
 - Focus rings visible, meeting 3:1 contrast ratio against adjacent background.
 - Color is never the only indicator for any state.
 
 ### Motion & interface detail
-- Motion craft lives in `animate.md`: the frequency framework (match motion to how often it's seen; never animate keyboard / 100+-per-day actions), strong custom easing (never `ease-in` on an entrance), sub-300ms product UI, origin-aware popovers, never `scale(0)`, interruptible transitions/springs, GPU-only (`transform`/`opacity`), `bounce: 0` for product.
+- Motion craft lives in `animate.md`: the frequency and purpose gates (never animate keyboard / 100+-per-day actions), strong curve tokens (never ease-in on UI, entering or exiting), sub-300ms product UI, the trigger origin for popovers, never scale from 0, retargetable animations and springs, cheap properties only, the 8.3 ms frame budget, the hover-pointer gate, `bounce: 0` for product. Platform forms of each term live in `_platforms.md` (web, iOS, Android Compose, desktop); recipes in `_motion-recipes.md`.
 - Interface-detail craft lives in `polish.md`: concentric radius (`outer = inner + padding`), optical alignment, shadows-over-borders for elevation, pure-black/white image outlines, ≥40–44px hit areas.
 - These two files are the single source of truth for craft — the summary above is a pointer, not the canon itself. `plan`, `implement`, and every design transform that touches motion or component detail must load the relevant home (`animate.md` / `polish.md`) for the full rules before deciding; the visual contract (`02c-craft.md`, written at the design stage) draws from them too.
 - Building a *reusable* component (a design-system primitive or library, not a one-off screen)? See `_component-craft.md` — DX-first API, excellent defaults, memorable naming, a touchable example.

@@ -47,11 +47,11 @@ Every interactive element needs all its states. Audit the following for each int
 ### Transition quality
 - Animate only the state changes that pass the frequency gate in `animate.md` — no instant property switches on those (except `display`)
 - Transition property should be specific, not `all` (avoid accidental transitions)
-- `ease-out` for entering elements, `ease-in` for leaving elements
+- ease-out for entering and leaving elements; never ease-in on UI
 - Duration: use the timing table in `animate.md`
-- For the motion mechanics behind these — custom easing curves, interruptibility, icon/enter-exit choreography, gesture physics — see `animate.md` (this directory)
+- For the motion mechanics behind these — curve tokens, retargetable animations, icon/enter-exit choreography, gesture physics — see `animate.md` (this directory); platform forms are in `_platforms.md`
 
-Implement `@media (prefers-reduced-motion: reduce)` for all animations — but design for motion first.
+Every animation honors the reduced-motion setting: fewer and gentler motion, not zero.
 
 ### Empty and loading states
 - Empty states should explain what will appear here and give the user a path forward

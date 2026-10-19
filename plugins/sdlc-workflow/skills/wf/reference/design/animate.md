@@ -1,239 +1,238 @@
-> **Additional context needed**: performance constraints, target devices.
+> **Additional context needed**: the target platform, performance constraints, target devices.
 
-Analyze a feature and strategically add animations and micro-interactions that enhance understanding, provide feedback, and create delight.
+Decide where motion earns its place, reject the rest, and build what remains so it survives a strict review. The rules use the generic terms of [_platforms.md](_platforms.md); that file maps each term to its form on the web, iOS, Android (Compose) and desktop. Values stay platform-neutral: durations in ms, curves as four control points, springs as a duration and a bounce. Recipes live in [_motion-recipes.md](_motion-recipes.md).
 
 ---
 
 ## Register
 
-Brand: orchestrated page-load sequences, staggered reveals, scroll-driven animation. Motion is part of the brand voice; one well-rehearsed entrance beats scattered micro-interactions. Cinematic and theatrical motion is available and expected.
+Brand: orchestrated entrances, staggered reveals, scroll-driven motion. Motion is part of the brand voice; one rehearsed entrance beats scattered micro-interactions. Longer, cinematic timing is available on brand surfaces.
 
-Product: 150–250 ms on most transitions. Motion conveys state — feedback, reveal, loading, transitions between views. No page-load choreography; users are in a task and won't wait for it. Functional, not decorative.
+Product: motion conveys state — feedback, reveal, loading, transitions between views. No page-load choreography; people are in a task and will not wait for it. Functional, not decorative.
 
 ---
 
-## Motion-first stance
+## Hard rules
 
-Design for motion first. `@media (prefers-reduced-motion: reduce)` is the accessibility handling — it is not the design default. Users who need reduced motion get it via the media query; users who don't get the full designed experience. Do not let the reduced-motion case dictate the designed case.
+1. **Run the gates in order.** Gates 1 and 2 decide whether anything animates. Do not choose a curve before they pass.
+2. **No approximated values.** Every curve, duration and spring comes from this file. Do not invent a curve because it looks familiar.
+3. **Extend the project's motion tokens.** When the project already has an ease or duration scale, use it. A parallel set is a defect.
+4. **The reduced-motion form and the hover-pointer gate ship with the motion**, never as a follow-up.
+5. **Use the cheapest tool that works.** Do not add an animation library for a fade.
+6. **"This should not animate" is a valid result.** Say it plainly and offer the non-motion alternative: an instant state change or a static affordance.
 
-Purposeful motion improves comprehension, communicates state, and expresses brand personality. "Animate sparingly" is not a design principle — it is anxiety about motion. Animate exactly as much as the experience requires, then reduce via the media query.
-
-## Should it animate at all? (product register)
-
-Motion-first is the *brand* default. In the **product** register the prior question is whether a given interaction should animate at all — match motion to how often a user sees it:
+## Gate 1 — Frequency
 
 | Frequency | Decision |
 |---|---|
-| 100+ times/day (keyboard shortcuts, command-palette toggle) | **No animation. Ever.** |
-| Tens/day (hover effects, list navigation) | Remove or drastically reduce |
-| Occasional (modals, drawers, toasts) | Standard animation |
-| Rare / first-time (onboarding, celebrations) | Can add delight |
+| 100+ times/day (keyboard shortcuts, command-palette toggle, core navigation) | **No animation. Ever.** Stop here. |
+| Tens/day (hover, list navigation, frequent toggles) | Near-imperceptible only — fast and subtle, or nothing |
+| Occasional (modals, drawers, toasts, settings) | Standard animation |
+| Rare / first-time (onboarding, success, celebration) | The delight budget lives here |
 
-**Never animate keyboard-initiated actions** — they repeat hundreds of times daily, and animation makes them feel slow and disconnected from the keypress. (Raycast has no open/close animation; that is the correct call for something opened hundreds of times a day.) Every animation must answer *"why does this animate?"* — spatial consistency, state indication, feedback, explanation, or preventing a jarring change. "It looks cool" on a frequently-seen product element is a reason to delete it. This gate does not apply to genuine brand surfaces, where motion is the message.
+**Keyboard-initiated actions are a disqualifier, not a judgment call.** They repeat hundreds of times a day, and motion makes them feel slow and disconnected from the key press. (Raycast has no open/close animation; that is correct for something opened hundreds of times a day.) On a genuine brand surface, where motion is the message, this gate relaxes; the performance, accessibility and interruption rules never relax.
 
-## Assess Animation Opportunities
+## Gate 2 — Purpose and function
 
-1. **Missing feedback**: actions without visual acknowledgment (button clicks, form submission)
-2. **Jarring transitions**: instant state changes that feel abrupt (show/hide, route changes)
-3. **Unclear relationships**: spatial or hierarchical relationships that aren't obvious
-4. **Lack of delight**: functional but joyless interactions
-5. **Missed guidance**: opportunities to direct attention or explain behavior
+Name the purpose in one of these words before you continue:
 
-## Plan Animation Strategy
+- **Feedback** — confirms the interface heard the person.
+- **Spatial consistency** — shows where something came from or went.
+- **State indication** — makes a state change legible.
+- **Preventing a jarring change** — bridges content that would otherwise teleport.
+- **Explanation** — shows how something works (marketing and onboarding only).
+- **Delight** — allowed only at the rare / first-time tier.
 
-One well-orchestrated experience beats scattered animations everywhere. Identify:
-- **Hero moment**: the ONE signature animation (page load? hero? key interaction?)
-- **Feedback layer**: which interactions need acknowledgment
-- **Transition layer**: which state changes need smoothing
-- **Delight layer**: where to surprise and delight without noise
+No named purpose, no motion. "It looks cool" on a frequently seen element is a reason to stop.
 
-## Implement Animations
+**Function check.** Data that a person reads or acts on does not move for style. A decorative pointer-tracking effect belongs on a marketing page, not on a chart in a banking app.
 
-### Entrance Animations (brand: use freely; product: use at page/view level only)
-- Page load choreography: stagger element reveals (100–150 ms delays), fade + slide combinations
-- Hero section: dramatic entrance for primary content (scale, parallax, or creative effects)
-- Content reveals: scroll-triggered via Intersection Observer
-- Modal/drawer entry: slide + fade, backdrop fade, focus management
+## The opportunity sweep
 
-### Micro-interactions
-- Button hover: subtle scale (1.02–1.05), color shift, shadow increase
-- Button click: subtle scale down on press — `transform: scale(0.96–0.97)` on `:active`, release snaps back (~150ms ease-out). Stay at `0.96–0.97`; below `0.95` reads as exaggerated. Optional ripple. Give the button component a `static` prop that turns the press-scale *off* where the motion would distract — a toolbar of rapidly-clicked controls, or a destructive action that should feel deliberate rather than springy. Not every button should bounce.
-- Toggle: smooth slide + color transition (200–300 ms)
-- Checkbox/radio: check mark animation, ripple effect
-- Like/favorite: scale + rotation, particle effect, color transition
+When the job is to find where motion belongs, sweep the interface before you build. Expect to reject most candidates.
 
-### State Transitions
-- Show/hide: fade + slide (not instant); 200–300 ms typical
-- Expand/collapse: height transition with overflow handling, icon rotation
-- Loading: skeleton screen fades, spinner animations, progress bars
-- Success/error: color transitions, icon animations, gentle scale pulse
-- Enable/disable: opacity transitions
+Hunt these six seams:
+1. **Feedback gaps** — pressable elements with no press feedback; destructive actions that fire on a plain tap where a hold-to-confirm fill would prevent slips.
+2. **Teleporting state** — content that appears, swaps or vanishes with no bridge; sections that snap open.
+3. **Missing spatial story** — panels and menus with no link to their trigger; surfaces that exit on a different path than they entered.
+4. **Group entrances** — a list or grid that pops in at once on a screen seen occasionally.
+5. **Gesture seams** — draggable elements that snap with no physics.
+6. **The delight budget** — rare, high-emotion moments rendered flat: first run, empty states, success.
 
-### Navigation and Flow
-- Page transitions: crossfade between routes, shared element transitions
-- Tab switching: slide indicator, content fade/slide
-- Carousel: smooth transforms, snap points
+Rules:
+- Run every candidate through Gates 1 and 2, and check that it fits the duration budget below.
+- Keep at most 5–7 opportunities for a whole app, fewer for one screen, ordered by leverage.
+- List 2–5 **rejected candidates**, each with the gate that rejected it. The rejected list separates this sweep from a wishlist.
+- "The motion here is already right" is a valid result.
 
-### Scroll Effects (brand: use freely; product: use with restraint)
-- Parallax layers
-- Sticky headers with state changes
-- Scroll progress indicators
+## The tool ladder
 
-## Timing and Easing
+Use the first that works:
 
-| Use case | Duration |
+1. A **retargetable animation** on a state change (hover, press, a toggled state).
+2. An **entry without a mount flag** for an element that appears.
+3. A **render-thread animation** for predetermined motion that must stay smooth while the app is busy.
+4. The platform's **programmatic animation API** for code control without a library.
+5. An **animation library** for springs, shared-element and layout animation, exit animations of removed elements, and gesture-driven values.
+
+When the job needs a component rather than an animation — a toast, a drawer, a command menu — use the platform's or the design system's component. Do not hand-roll one for its motion.
+
+## Properties
+
+- **Cheap properties only**: offset, scale, rotation, opacity. Clip is the sanctioned extra: on most renderers it repaints, but it never re-lays out, and it enables reveals no cheap property can draw. A layout property is tolerated only for an accordion, where no cheap equivalent exists; keep it short.
+- **Never scale from 0.** Nothing in the real world appears from nothing. Start from scale 0.9–0.97 with opacity 0.
+- **Scale from the trigger origin** for popovers, menus, dropdowns and tooltips. **Modals are exempt**: they are not anchored to a trigger, so they stay centered.
+- **Offsets relative to the element's own size** (100% of its height, not a fixed number) adapt to content.
+- **Scale scales children too** — label and icons come along, which is what makes a press read as physical.
+
+## Easing and duration
+
+| Situation | Easing |
 |---|---|
-| Micro-interaction (hover, click) | 100–200 ms |
-| State transition (show/hide, expand) | 200–300 ms |
-| Page-level (modal, drawer) | 250–400 ms |
+| Entering or exiting | ease-out |
+| Moving or morphing on screen | ease-in-out |
+| Hover or color change | ease |
+| Constant motion (marquee, progress) | linear |
+| Default | ease-out |
+
+**Never ease-in on UI**, on an entrance or on an exit. It starts slow and delays the exact moment the person is watching. ease-out at 200 ms *feels* faster than ease-in at 200 ms.
+
+The built-in curves are too weak for deliberate motion. Use these curve tokens (four cubic Bézier control points):
+
+| Token | Control points | Use |
+|---|---|---|
+| `ease-out` | 0.23, 1, 0.32, 1 | UI interactions, entrances and exits |
+| `ease-in-out` | 0.77, 0, 0.175, 1 | On-screen movement |
+| `ease-drawer` | 0.32, 0.72, 0, 1 | Drawers and sheets (iOS-like, from Ionic) |
+
+Need another curve? Take it from [easing.dev](https://easing.dev/) or [easings.co](https://easings.co/). Do not hand-roll one.
+
+| Element | Duration |
+|---|---|
+| Press feedback | 100–160 ms |
+| Tooltips, small popovers | 125–200 ms |
+| Dropdowns, selects | 150–250 ms |
+| Modals, drawers | 200–500 ms |
 | Brand entrance (hero, scroll reveal) | 400–800 ms |
-| Cinematic brand sequence | 800–1200 ms |
+| Marketing / explanatory | Can be longer |
 
-Easing:
-- `ease-out` for entrances (fast start, slow finish — feels natural)
-- `ease-in` for exits (slow start, fast finish — gets out of the way)
-- `ease-in-out` for reversible transitions
-- Custom cubic-bezier for signature brand motion
-- **Never `ease-in` on an entrance or interaction** — it delays the exact frame the user is watching most and feels sluggish (`ease-out` at 200ms *feels* faster than `ease-in` at the same 200ms). Reserve `ease-in` strictly for exits that get out of the way.
+**Product UI motion stays under 300 ms.** A 180 ms dropdown feels more responsive than a 400 ms one. A faster spinner makes a load feel faster at the same real time.
 
-The built-in CSS easings are too weak for deliberate motion — reach for strong custom curves:
-
-```css
---ease-out: cubic-bezier(0.23, 1, 0.32, 1);        /* strong ease-out for UI interactions */
---ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);    /* strong ease-in-out for on-screen movement */
---ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);     /* iOS-like drawer curve (Ionic) */
-```
-
-Find curves at [easing.dev](https://easing.dev/) or [easings.co](https://easings.co/) rather than hand-rolling from scratch.
-
-**Asymmetric timing.** Slow the phase where the user is deciding, snap the phase where the system responds — a hold-to-delete runs slow (e.g. 2s linear) while its release returns fast (~200ms ease-out). Symmetric timing on a press-and-release or hold interaction feels wrong.
-
-## Interruptibility
-
-CSS **transitions** can be interrupted and retargeted mid-animation; **keyframes** restart from zero. For anything triggered rapidly (toasts being added, toggles) or gesture-driven, use transitions or springs — not keyframes. `@starting-style` animates entry without JS.
-
-```css
-.toast { transition: transform 400ms ease; }   /* interruptible — good for dynamic UI */
-/* avoid for rapid/dynamic UI — restarts from zero on re-trigger: */
-@keyframes slideIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
-```
-
-## Physicality — origin & scale
-
-- **Never animate from `scale(0)`** — nothing in the real world appears from nothing. Start from `scale(0.9–0.97)` + `opacity: 0`.
-- **Origin-aware popovers** — dropdowns/popovers/tooltips scale from their trigger, not center:
-  ```css
-  .popover { transform-origin: var(--radix-popover-content-transform-origin); } /* Radix */
-  .popover { transform-origin: var(--transform-origin); }                       /* Base UI */
-  ```
-  **Modals are exempt** — they appear centered in the viewport; keep `transform-origin: center`.
+**Asymmetric timing.** Slow the phase where the person decides; snap the phase where the system responds. A hold-to-delete fills over 2 s linear; its release returns in 200 ms ease-out. Symmetric timing on a press-and-release or a hold feels wrong.
 
 ## Springs
 
-Springs simulate physics and have no fixed duration — they settle on their parameters and preserve velocity when interrupted, so a gesture the user reverses mid-motion stays smooth. Use them for drag-with-momentum, "alive" elements, and interruptible gestures.
+Springs simulate physics. They settle on their parameters, have no fixed duration, and keep velocity when interrupted. Use them for drag with momentum, elements that should feel alive, gestures a person can reverse, and decorative pointer tracking.
 
-```js
-{ type: "spring", duration: 0.5, bounce: 0.2 }            // Apple-style — easier to reason about
-{ type: "spring", mass: 1, stiffness: 100, damping: 10 }  // traditional physics — more control
-```
+Express a spring as a **duration and a bounce** (`duration 0.5 s, bounce 0.2`); the map converts it, for example to a damping ratio of 1 − bounce.
 
-Keep `bounce: 0` for product UI — that is the spring equivalent of the no-`bounce`/`elastic`-easing ban in [_design-context.md](_design-context.md). A subtle `0.1–0.3` is reserved for brand surfaces when the brand direction calls for play, including brand drag-to-dismiss. Never use it in dashboards or data UI.
+- **Product UI: bounce 0.** This is the spring form of the no-bounce, no-elastic ban in [_design-context.md](_design-context.md).
+- **Brand surfaces: bounce 0.1–0.3**, when the brand direction calls for play, including brand drag-to-dismiss. Never in dashboards or data UI.
 
-**Decorative mouse-tracking.** For an element that responds to the cursor — a card that tilts toward the pointer, a glow that trails it — don't bind the transform directly to mouse position; it feels artificial because it has no momentum. Interpolate the value through a spring (Motion's `useSpring`) so it lags and settles like a physical thing. Reserve this for genuinely *decorative* motion on an "alive" element; on a functional control or a data chart, no motion beats decorative motion.
+**Decorative pointer tracking.** Do not bind a transform directly to the pointer position; it has no momentum and feels artificial. Interpolate it through a spring so it lags and settles. Reserve this for decorative motion; on a functional control or a chart, no motion beats decorative motion.
 
-## Icon & state micro-animations
+## Interruption and exit
 
-When an icon appears, disappears, or swaps on a state change (play→pause, like→liked, a contextual toolbar action), animate it with `opacity` + `scale` + `blur` rather than toggling visibility. The values are precise — deviate and it reads as either too subtle to register or cartoonish:
+- **Retargetable animations for anything triggered fast** — toasts, toggles, anything a person can fire twice in a second. A restarting animation jumps back to its start value.
+- **Springs for gestures**, because they carry velocity through an interruption.
+- **Exit on the entry path.** A toast that enters from the bottom leaves through the bottom. Symmetric paths make swipe-to-dismiss obvious.
+- **An exit is softer and faster than its enter.** Attention has moved on: travel less (a small fixed offset on the same path, not the full height) and take about half the time (≈150 ms against ≈300 ms), with ease-out. Do not drop the exit entirely; an element that just vanishes loses its spatial context.
+- **Skip the enter on first paint.** Elements already in their default state at launch do not animate in; only later state changes do. The exception is a deliberate first-run entrance that relies on it.
 
-- `scale`: `0.25 → 1` (not `0.5`/`0.6` — too tame to feel intentional)
-- `opacity`: `0 → 1`
-- `filter`: `blur(4px) → blur(0)`
-- spring: `{ type: "spring", duration: 0.3, bounce: 0 }` — **bounce stays `0`** in product; this is the spring form of the no-`bounce` rule.
+## Choreography
 
-If the project already has `motion`/`framer-motion` in `package.json`, use that spring via `AnimatePresence`. If it does **not**, don't add the dependency for this — keep both icons in the DOM (one absolutely positioned over the other) and cross-fade them with a CSS transition on `opacity, filter, scale` using `cubic-bezier(0.2, 0, 0, 1)`; because neither icon unmounts, both the enter and the exit animate. Animate only *contextual* icons (appear on hover, change with state, live in a toolbar) — leave static navigation and decorative icons alone.
+- **Stagger a group entrance 30–80 ms per item.** Longer feels slow. A stagger is decorative: never block interaction while it plays.
+- **Split a large entrance into semantic chunks** (title, description, actions) rather than moving one big container; combine opacity, a small offset (≈12 px) and, where cheap, a light blur (≈4 px) per chunk.
+- **Contextual icon swaps** (play → pause, like → liked): opacity 0 → 1, scale 0.25 → 1, blur 4 px → 0, spring `duration 0.3 s, bounce 0`. Animate only contextual icons; leave navigation and decorative icons alone. When no library is present, keep both icons mounted and cross-fade them with a retargetable animation on the curve `0.2, 0, 0, 1`.
+- **Mask a crossfade that will not settle** with a brief 2 px blur during the transition; it blends two states into one perceived change. Keep animated blur under 20 px.
+- **Tooltips: delay the first, open the rest instantly** with no animation once one is open.
 
-## Enter & exit choreography
+## Reduced motion and the hover pointer
 
-Don't animate one big container in and out. **Split** the content into semantic chunks (title, description, actions) and **stagger** them ~100 ms apart; for a hero title, splitting into individual words at ~80 ms reads beautifully. Combine `opacity` + `translateY(12px → 0)` + `blur(4px → 0)` per chunk.
+Both ship with the motion, every time.
 
-Exits are not enters played backwards. The user's attention is already moving on, so an exit should be **softer and faster** than its enter: a small fixed `translateY(-12px)` (not the full element height), a shorter duration (≈150 ms vs ≈300 ms), `ease-in` so it gets out of the way. Don't drop the exit entirely — an element that just vanishes loses spatial context — and don't make it dramatic, which steals focus from whatever is arriving.
+- **Reduced motion means fewer and gentler, not zero.** When the reduced-motion setting is on, keep opacity and color transitions that aid comprehension; remove movement, scale, parallax and position changes. Never set every duration to 0 globally.
+- **Hover motion only for a hover pointer.** Touch fires a false hover on tap. Gate every hover animation behind the platform's hover-pointer check.
+- **No content flashes more than 3 times a second.**
 
-**Skip the enter on first paint.** Elements already in their default state on load shouldn't animate in — only on later state changes. With Motion, `initial={false}` on `AnimatePresence` does this. The exception is a deliberate first-run entrance (a staggered hero, a loading reveal) that *relies* on its initial animation; there `initial={false}` would skip the whole entrance, so verify on a full refresh.
+## Gestures
 
-## Advanced motion techniques
+Physics beats thresholds:
 
-Reach for these when a transition needs to feel engineered rather than default:
-
-- **`clip-path: inset(t r b l)`** is an animation engine, not just a mask — each value eats in from one side. Reveal-on-scroll (`inset(0 0 100% 0)` → `inset(0 0 0 0)`), hold-to-delete fills, comparison sliders, and *seamless tab color transitions* (duplicate the label, style the copy as active, clip it on tab change — timing individual color transitions can never match it) all fall out of it, GPU-cheap.
-- **`translate` percentages are relative to the element's own size** — `translateY(100%)` moves an element exactly its own height regardless of dimensions (how Sonner positions toasts, how Vaul hides a drawer before sliding it in). Prefer over hardcoded px; it adapts to content.
-- **`scale()` scales children too** (font, icons, padding) — which is exactly what you want for a press state.
-- **3D** — `rotateX/Y` under `transform-style: preserve-3d` gives real depth, coin-flips, and orbits with no JS.
-- **`@starting-style`** animates entry with no JS mounted-flag; **WAAPI** (`element.animate([...], { duration, easing, fill })`) gives JS control at CSS performance — hardware-accelerated, interruptible, no library.
-- **Mask an imperfect crossfade with blur.** When two states overlap visibly during a crossfade despite tuning easing and duration, a brief `filter: blur(2px)` blends them into one perceived transformation. Keep blur < 20px (expensive, especially in Safari).
-- **Tooltips: delay the first, instant the rest.** A tooltip should delay before appearing (prevents accidental triggers), but once one is open, adjacent tooltips should open instantly with no animation — the toolbar feels faster without losing the initial guard.
-
-## Gestures & drag
-
-For swipe-to-dismiss, drawers, and draggable surfaces, physics beats thresholds:
-
-- **Momentum dismissal** — don't require crossing a fixed distance; compute velocity (`Math.abs(distance) / elapsedMs`) and dismiss on a flick (`> ~0.11`) even when the distance is short.
-- **Damping at boundaries** — past a natural edge, move less the further they drag; real things slow before they stop.
-- **Friction over a hard wall** — allow the over-drag with rising resistance instead of an invisible stop.
-- **Pointer capture** once the drag starts, so it continues when the pointer leaves the element bounds.
-- **Multi-touch protection** — ignore extra touch points after the drag begins (`if (isDragging) return`), or the element jumps to the new finger.
-
-Gesture motion must be interruptible — springs that preserve velocity, not keyframes that restart from zero (see Interruptibility and Springs above).
-
-## Accessibility
-
-```css
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-```
-
-This handles all users who opt out of motion. Design the animated experience first; the media query is the safety net, not the template.
+- **Velocity dismissal** — dismiss on a flick (speed above ≈0.11 px/ms) even when the distance is short; do not require a fixed distance.
+- **Velocity handoff** — when the finger lifts, start the settling spring with the gesture's velocity, so there is no seam between drag and animation.
+- **Momentum projection** — settle where the gesture is going, not where the finger stopped: project the release velocity forward and snap to the nearest valid resting point.
+- **Rubber-banding** — past a natural edge, move less the further the drag goes; real things slow before they stop. Prefer rising resistance to a hard wall.
+- **Pointer capture** once the drag starts, so it continues when the pointer leaves the element.
+- **Multi-touch protection** — ignore extra touch points once a drag begins, or the element jumps to the new finger.
+- **1:1 tracking** — during a drag the element follows the finger exactly; no easing, no lag.
 
 ## Performance
-- Animate only `transform` and `opacity` for GPU-composited animations (no layout thrash)
-- Use `will-change` only on compositor-friendly properties (`transform`, `opacity`, `filter`, `clip-path`) and only when you actually see first-frame stutter — each layer costs GPU memory, so never `will-change: all` and never add it preemptively to every animated element
-- Avoid animating `width`, `height`, `top`, `left`, `margin` — these trigger layout
-- **Framer Motion shorthands (`x`/`y`/`scale`) are not hardware-accelerated** — they run on the main thread via `requestAnimationFrame` and drop frames while the page is busy loading or scripting. Use the full string form `transform: "translateX(100px)"` for any motion that plays during load
-- **CSS animations beat JS under load** — CSS runs off the main thread, so predetermined motion stays smooth while rAF-driven motion stutters during a page load. Use CSS / `@starting-style` / WAAPI for predetermined motion, JS / springs for dynamic interruptible motion
-- **Don't drive a child transform from a CSS variable on the parent** — changing `--swipe-amount` on a container recalculates styles for every child; set `transform` directly on the moving element instead
-- Check for dropped frames on target devices before shipping complex animations
 
-## Never
+**The frame budget** is 16.7 ms at 60 Hz and 8.3 ms at 120 Hz. Design against 8.3 ms; most phones and many laptops now run at 120 Hz. A fast development machine hides almost every problem below, so never conclude "smooth" from it. Say which findings come from code and which need a recording on a real mid-range device.
 
-Apply the ban list in [_design-context.md](_design-context.md).
+**What you animate.** Three tiers, an order of magnitude apart:
 
-- `animation-duration: 0` as the default (design for motion, reduce via media query)
-- Animating layout properties (`width`, `height`, `margin`)
-- Loading animations that block interaction
-- Infinite background animations on the main content thread
-- Gratuitous motion that doesn't serve communication, state, or brand expression
+| Tier | Properties | Cost |
+|---|---|---|
+| Cheap | offset, scale, rotation, opacity (and, on some renderers, filter) | Compositing only |
+| Paint | color, background color, shadow, corner radius, clip | A redraw every frame |
+| Layout | size, padding, margin, position in the layout | Re-measures, and moves the elements around it |
+
+Swap down a tier: a size change becomes scale; a position change becomes an offset; a show/hide becomes opacity; an animated shadow becomes the opacity of a pre-rendered shadow. A layout animation that looks fine on one element can re-lay out a whole screen beside it.
+
+**Where it runs.** Motion on the render thread stays smooth while the app works; motion on the app thread drops frames during navigation, loading, data fetching or start-up. Move predetermined motion that plays during heavy work to the render thread.
+
+**Per-frame values never go through component state.** A handler that sets state on every frame rebuilds the view each frame, and the rebuild alone blows the budget. Write the moving element's own property, or a value the renderer reads in the layout or draw phase.
+
+**One inherited value must not drive one child's motion.** When a parent value that every child inherits drives the moving child, every child recalculates each frame, and the drag slows as content grows. Set the moving element's property directly.
+
+**Animated blur stays under 20 px**; 2–5 px is enough to soften a crossfade.
+
+**A layer hint comes last.** Add it only after you see a one-pixel shift or measured dropped frames, only on the element that animates, never on a large container. Each layer costs GPU memory.
+
+**Diagnose before you fix**, in this order: (1) which properties animate; (2) does the jank coincide with heavy work; (3) does the view rebuild per frame; (4) does it get worse as content grows; (5) is an inherited value animated; (6) is blur above 20 px; (7) only then a layer hint. Every fix names the cause it addresses. Confirm with a recording, not by feel.
+
+## Never ship
+
+| Never | Instead |
+|---|---|
+| Animating every property at once | Name the exact properties |
+| Scale from 0 | Scale 0.95 with opacity 0 |
+| ease-in on UI | ease-out or a strong curve token |
+| A built-in curve on a deliberate animation | The `ease-out` token |
+| Motion on a keyboard shortcut or a 100+/day action | No motion |
+| Product UI motion over 300 ms with no reason | 150–250 ms |
+| Center origin on a trigger-anchored popover | The trigger origin (modals exempt) |
+| A restarting animation on a toast, toggle or other fast-fired element | A retargetable animation |
+| Animating a layout property | A cheap property |
+| App-thread motion that plays during heavy work | Render-thread motion |
+| Hover motion with no hover-pointer gate | The platform's hover-pointer check |
+| No reduced-motion form | Gentler, not zero |
+| A group that enters all at once | A 30–80 ms stagger |
+| Bounce or elastic easing in product UI | Bounce 0 |
 
 ## Cohesion
 
-Motion should match the personality of the thing it animates and the rest of the product. A playful brand component can be bouncier (`bounce` 0.1–0.3 when the brand direction calls for play); a professional dashboard stays crisp and fast. Sonner (13M weekly downloads) feels right partly because its easing, duration, visual design — even its name — are in harmony: slightly slower than typical UI, `ease` rather than `ease-out`, to read as elegant. Choose animation values for the component's mood, not by reflex. And when you genuinely can't tell whether a motion improves the experience, the strongest move is usually to **delete it**.
+Motion matches the personality of the thing it animates and of the rest of the product. A playful brand component can be bouncier; a professional dashboard stays crisp and fast. Sonner feels right partly because its easing, duration, visual design and name agree: slightly slower than typical UI, `ease` rather than ease-out, to read as elegant. Opacity and height in an entering list have no formula; adjust until it feels right. When you cannot tell whether a motion improves the experience, delete it.
 
-## Reviewing motion before you ship
+## Feel check
 
-Motion bugs hide at full speed. Before calling an animation done:
-- **Slow it down** — bump the duration 2–5× (or use the DevTools animation inspector) and watch: do colors crossfade cleanly, or do two states overlap? Does the easing stop abruptly? Is the `transform-origin` right? Are coordinated properties (opacity + transform + color) in sync?
-- **Step frame-by-frame** (Chrome DevTools → Animations) to catch timing drift between coordinated properties.
-- **Test gestures on a real device**, not just a desktop pointer — connect a phone to the dev server and feel the drag.
-- **Look again the next day with fresh eyes** — imperfections invisible during development surface later.
+Motion bugs hide at full speed. Before you call an animation done:
+- **Slow it down** to 2–5 times its duration, or use the platform's slow-animation tool. Do two states overlap? Does the easing stop abruptly? Is the origin right? Do coordinated properties stay in sync?
+- **Step it frame by frame** to catch drift between coordinated properties.
+- **Test gestures on a real device**, not with a desktop pointer.
+- **Look again the next day.**
 
 ## In the workflow
 
-This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.
+This file is a move, not a stage.
+- **Design not confirmed:** `/wf design <slug> animate` focuses the design stage and its contract `02c-craft.md` on motion.
+- **Design confirmed:** `/wf design <slug> animate` runs the gates and the opportunity sweep against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) Step 0).
+- `plan` cites this file as a step pointer; `implement` applies it.
+- Every run writes `design-notes/animate-<timestamp>.md` per [_output.md](_output.md) with: the gate result for each animation (frequency tier and named purpose), the ingredients (tool, properties, curve token, duration or spring), the rejected candidates and the gate that rejected each, and the feel checks that code alone cannot settle.
+- The absolute bans in [_design-context.md](_design-context.md) apply.
 
 ---
 
-> *The frequency framework, custom easing curves, interruptibility, physicality, springs, gesture physics, the `clip-path`/WAAPI techniques, cohesion, and the motion-review methodology here are adapted from Emil Kowalski's design-engineering philosophy ([animations.dev](https://animations.dev/)). The icon micro-animation values, split-and-stagger enters, subtle exits, and skip-on-load guidance are adapted from Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)). Both used under MIT license.*
+> *The gates, the opportunity sweep, the tool ladder, the curve tokens and durations, springs, interruption, gesture physics, the performance diagnosis, the never-ship table, cohesion and the feel check are adapted from Emil Kowalski's skills `animate`, `find-animation-opportunities`, `animation-performance`, `review-animations` and `apple-design` ([github.com/emilkowalski/skills](https://github.com/emilkowalski/skills), commit `2d22863`, 2026-10-11). The icon micro-animation values, split-and-stagger entrances and skip-on-first-paint guidance are adapted from Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)). Both used under MIT license.*

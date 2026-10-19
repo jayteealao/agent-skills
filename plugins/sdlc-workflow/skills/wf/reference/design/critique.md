@@ -67,12 +67,14 @@ Would someone say "AI made this"?
 ### 8. Motion & interaction feel
 
 When the surface has motion in scope:
-- Does each animation earn its place? Frequently-seen and keyboard-triggered actions shouldn't animate; occasional and first-time moments can.
-- Does it *feel* responsive — `ease-out` or strong custom curves on entrances (never `ease-in`), inside the product durations in the `animate.md` timing table, popovers scaling from their trigger not center, nothing appearing from `scale(0)`?
-- Is rapidly-triggered or gesture motion interruptible (transitions/springs, not keyframes that restart)?
+- Does each animation pass the gates of `animate.md` — a frequency tier that allows it and a named purpose? Frequently-seen and keyboard-triggered actions do not animate; occasional and first-time moments can.
+- Does it *feel* responsive — ease-out or a strong curve token on entrances and exits (never ease-in), inside the durations of `animate.md`, popovers scaling from their trigger origin, nothing scaling from 0?
+- Is fast-fired or gesture motion retargetable (a retargetable animation or a spring, not a restarting animation)?
 - Does the motion cohere with the component's personality, or does it feel borrowed?
 
-Motion bugs hide at full speed — review animations in slow motion or frame-by-frame, and with fresh eyes the next day, before judging them. The full rubric is `animate.md` (and the `motion` review dimension).
+Then run the opportunity sweep of `animate.md` once: list at most 5–7 places that should move but do not, and 2–5 rejected candidates with the gate that rejected each. "The motion here is already right" is a valid result. For the sweep alone on a confirmed design, run `/wf design <slug> animate`.
+
+Motion bugs hide at full speed — review animations in slow motion or frame-by-frame, and with fresh eyes the next day, before judging them. The full rubric is `animate.md` (and the `motion` review dimension); platform forms live in `_platforms.md`.
 
 ### 9. Identity and direction
 

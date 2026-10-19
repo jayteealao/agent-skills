@@ -520,6 +520,7 @@
         "surfaces": { "$ref": "#/$defs/stringArray" },
         "move": { "type": "string", "description": "The move (design/<move>.md) the design stage focused on, when the person named one." },
         "carried-from": { "$ref": "#/$defs/stringArray", "description": "The brainstorm boards whose design thoughts the design stage presented as its starting direction, as `<board path>#<piece-of-work key>` (design/_carried.md)." },
+        "directions": { "$ref": "#/$defs/stringArray", "description": "The directions the design stage drew at Step 3b, as `<name>: <axis>` (DESIGN-CRAFT-PORT-PLAN C10). Omitted when the step did not run; ## Directions considered gives each reason." },
         "boards": { "type": "string", "pattern": "^design/r[0-9]+/boards[.]json$", "description": "The frozen board manifest the person confirmed, relative to the workflow folder: design/r<N>/boards.json (DESIGN-BOARDS-PLAN section 4). For ux-impact visual or new-surface, the design is settled only when every board it lists exists." },
         "design-revision": { "type": "integer", "minimum": 1, "description": "The confirmed board revision N; equals the r<N> folder that `boards` names." },
         "regenerable": { "type": "boolean" }

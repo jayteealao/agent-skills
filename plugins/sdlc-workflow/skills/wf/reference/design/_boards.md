@@ -20,6 +20,10 @@ Every workflow keeps its drawings in one folder, `.ai/workflows/<slug>/design/`:
 
 A **board key** is `<surface>--<state>`, plus `--<viewport>` when a surface has more than one viewport: `squad-list--default`, `squad-list--sorted--phone`. Use lower case, digits, and single dashes. `<surface>` is a name from `surfaces:` in `02c-craft.md`.
 
+Two names have a fixed meaning:
+- **`<surface>--worst`** is the worst-case board: the surface drawn with the worst-case content of [harden.md](harden.md). [stage.md](stage.md) Step 4 says which surfaces get one.
+- **`sketches/direction-<name>.html`** is a direction sketch of [stage.md](stage.md) Step 3b. It is not a board, the manifest does not list it, and `freeze` does not copy it. `render` turns it into a PNG, and the working contact sheet shows it under "Directions".
+
 `design-notes/` keeps its own job (move notes). `design/` holds only drawings and their sources. The write hooks do not check file names in `design/`.
 
 ## The tool
@@ -82,8 +86,8 @@ For `ux-impact: visual` or `new-surface`, the design is settled only when every 
 
 - **Sub-agents** get board paths (`design/r<N>/boards/<key>.png`), never a canvas link. A sub-agent cannot open a canvas link.
 - **Plan** cites the board keys in the steps that build each surface.
-- **Implement** reads the board PNGs of the surfaces in its slice.
-- **Verify** captures each built surface to the path that `capture-name` gives. `## Design Comparison` pairs each board with its capture and lists the differences. With no boards, it records `design-comparison: no-boards` and reports no visual pass.
+- **Implement** reads the board PNGs of the surfaces in its slice. For each `<surface>--worst` board, it makes the worst-case content loadable in development with the stack's own means (a fixture, a story, a preview, a seed), never in production code paths.
+- **Verify** captures each built surface to the path that `capture-name` gives. `## Design Comparison` pairs each board with its capture and lists the differences. With no boards, it records `design-comparison: no-boards` and reports no visual pass. For a `--worst` board, it loads the worst-case content and captures that state; when the content cannot load, it records `worst-case: not-captured:<reason>` for that key.
 - **Retro** links the newest board of each surface in `.ai/design/current.md`.
 
 ## Tracking

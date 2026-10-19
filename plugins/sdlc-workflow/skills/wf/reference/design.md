@@ -63,6 +63,7 @@ The 15 moves: `adapt`, `animate`, `bolder`, `clarify`, `colorize`, `delight`, `d
 ```
 Usage:
   /wf design <slug> [move] [instructions]   Run the design stage: draw, confirm, write 02c-craft.md.
+                                            On a confirmed design, a move runs its checks and draws nothing.
   /wf design <slug> amend [instructions]    Reopen a confirmed design.
   /wf design <slug> import <link|path>...   Turn outside design work into boards, then confirm.
   /wf design [slug] audit|critique          Run a design review dimension now.
@@ -80,7 +81,7 @@ Record the resolved job, slug, command, and instructions before you continue.
 
 ## Stage and amend
 
-Follow [design/stage.md](design/stage.md) exactly. The boards follow [design/_boards.md](design/_boards.md).
+Follow [design/stage.md](design/stage.md) exactly. The boards follow [design/_boards.md](design/_boards.md). A move on a confirmed design runs [design/stage.md](design/stage.md) → Move pass. The moves use the generic terms of [design/_platforms.md](design/_platforms.md).
 
 ## Import
 

@@ -10,9 +10,9 @@ Product: performance IS the user experience. Every millisecond of delay costs en
 
 ---
 
-## Motion-first, reduce via media query
+## Smooth motion, not less motion
 
-When optimizing animations, the goal is to make them run at 60fps — not to remove them. `@media (prefers-reduced-motion: reduce)` handles users who need less motion. Design for the animated experience; optimize for smooth playback.
+When optimizing animations, the goal is to make every frame land inside its budget (8.3 ms at 120 Hz) — not to remove motion that passed the gates of `animate.md`. The reduced-motion setting handles people who need less motion: fewer and gentler, not zero.
 
 The correct optimization question is "why is this animation dropping frames?" not "should we keep this animation?"
 
@@ -44,36 +44,14 @@ DevTools → Network tab → check:
 
 ## Step 2: Animation performance
 
-**GPU-composited properties only** — these are fast (no layout, no paint):
-- `transform: translate/scale/rotate`
-- `opacity`
+The motion-performance rules are single-sourced in [animate.md](animate.md) → Performance: the 8.3 ms frame budget, the three property tiers (cheap, paint, layout) and the swaps between them, render thread against app thread, per-frame values outside component state, the inherited-value trap, blur cost, the layer hint, and the diagnosis order. [_platforms.md](_platforms.md) gives each term's form on the web, iOS, Android (Compose) and desktop. Load both before you change motion code; do not restate them here.
 
-**Layout-triggering properties** — avoid animating these:
-- `width`, `height`, `margin`, `padding`, `top`, `left`, `bottom`, `right`
-- `font-size`, `line-height`
-
-**Paint-triggering** — animate carefully, use sparingly:
-- `background-color`, `color`
-- `border-color`, `box-shadow`
-- `filter`, `clip-path` (expensive per-frame, use with `will-change` and test carefully)
+**Transition only what changes.** Never animate every property at once — it watches every property, animates ones you never intended (colors, padding, shadows), and blocks optimization. Name the properties.
 
 ```css
-/* Fast: GPU composited */
-.card:hover { transform: translateY(-4px); transition: transform 200ms ease-out; }
-
-/* Slow: triggers layout */
-.card:hover { margin-top: -4px; } /* don't do this */
+/* Web: never `transition: all`, nor Tailwind's bare `transition` class (it maps to `transition-property: all`). */
+transition-property: transform, opacity;   /* Tailwind: transition-transform, or transition-[transform,opacity] */
 ```
-
-**`will-change`**: Add only to elements that will animate. Adds GPU layer. Overuse wastes GPU memory.
-
-```css
-.animated-element { will-change: transform; }
-```
-
-**Transition only what changes.** Never `transition: all` (or Tailwind's bare `transition`, which maps to `transition-property: all`) — it forces the browser to watch every property, animates ones you never intended (colors, padding, shadows), and blocks optimization. Name them: `transition-property: transform, opacity`. (Tailwind's `transition-transform` already covers `transform, translate, scale, rotate`; for an arbitrary set use `transition-[transform,opacity]`.)
-
-**Keep animation off the main thread under load** — Framer Motion `x`/`y`/`scale` shorthands (not hardware-accelerated), JS-vs-CSS under load, WAAPI, and the parent-CSS-variable recalc trap are the usual janky-under-load culprits. These motion-performance rules are single-sourced in `animate.md` (Performance) — load it for the full treatment rather than duplicating it here.
 
 ## Step 3: Loading performance
 
@@ -139,4 +117,4 @@ This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) 
 
 ---
 
-> *The animation-performance guidance here — GPU-composited properties, `will-change` discipline, transition specificity, and the main-thread rules pointed to above — is adapted from Emil Kowalski's design-engineering philosophy ([animations.dev](https://animations.dev/)) and Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)); the full craft lives in `animate.md` / `polish.md`. Used under MIT license.*
+> *The animation-performance guidance pointed to above is adapted from Emil Kowalski's `animation-performance` skill ([github.com/emilkowalski/skills](https://github.com/emilkowalski/skills), commit `2d22863`, 2026-10-11) and Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)); the full craft lives in `animate.md` / `polish.md`. Used under MIT license.*

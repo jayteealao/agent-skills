@@ -66,10 +66,10 @@ Improve the accessibility and robustness of a UI — ensuring it works for users
 
 ### 9. Motion and animation
 
-- `@media (prefers-reduced-motion: reduce)` implemented for all animations — reduced means *gentler*, not *zero*: keep opacity/color transitions that aid comprehension, drop movement and position/parallax animation
+- Every animation honors the reduced-motion setting ([_platforms.md](_platforms.md)) — reduced means *gentler*, not *zero*: keep opacity/color transitions that aid comprehension, drop movement and position/parallax animation
 - No content that flashes more than 3 times per second (seizure risk)
 - Parallax effects must be disabled under reduced motion
-- Gate hover-triggered motion behind `@media (hover: hover) and (pointer: fine)` — touch devices fire a hover on tap, so ungated `:hover` animation triggers a false positive on every touch
+- Hover-triggered motion runs only for a hover pointer (the platform's hover-pointer check in [_platforms.md](_platforms.md)) — touch fires a hover on tap, so ungated hover animation triggers a false positive on every touch
 
 ### 10. Error states
 
@@ -77,6 +77,39 @@ Improve the accessibility and robustness of a UI — ensuring it works for users
 - Error messages are associated with their field via `aria-describedby`
 - Required fields are indicated before submission (not just after failure)
 - Errors are announced to screen readers via `aria-live="polite"` or `role="alert"`
+
+### 11. Worst-case content
+
+Load each surface with the worst data a real person or system can produce, and record what breaks. The values are platform-neutral; the breaks are the same on the web, iOS, Android and desktop.
+
+**Workflow.**
+1. **Map the surface.** List every field the surface renders and where each value comes from.
+2. **Build the worst case.** For each field, pick the rows below that apply. Keep the values realistic: each one is something a real person could produce. Use `example.com`, `example.org` or `.test` for emails and URLs.
+3. **Make it switchable.** Load the worst case through the stack's own development means — a fixture, a story, a preview, a seed — beside the normal demo data. Never change production data or production code paths for it.
+4. **Break it.** Render the worst case at the narrowest supported width and with the environment rows applied. Record every break.
+5. **Report, then stop.** Fix only on request.
+
+**People and names** — very long and hyphenated (`Aleksandra Wiśniewska-Kowalczyk`); long with a suffix (`Christopher Alexander Montgomery III`, naive initials give `CI`); two letters and one letter (`Jo`, `J`); a leading accented capital (`Ólafur Darri Ólafsson`); stacked diacritics clipped by a tight line height (`Đặng Thị Ngọc Hân`); CJK with no spaces (`王秀英`); right-to-left (`نور الهدى عبد الرحمن`); apostrophes and lowercase particles (`Seán O'Brien-Ó Súilleabháin`, `María José de la Cruz y Fernández`); all lowercase (`dana`); an emoji first or a joined emoji sequence (`🦊 Fox`, `👩🏽‍💻 Priya`), which naive character slicing splits; leading, trailing and repeated spaces; no name at all.
+
+**Emails, URLs and identifiers** — unbreakable strings with nowhere to wrap: a 60-character email, the shortest realistic email (`a@b.co`), plus-addressing, many subdomains with a two-part TLD, a long URL whose differing part is at the end, a UUID, a long file name whose version and extension end-truncation hides, a camera file name, handle extremes (`@a`, a 35-character handle).
+
+**Labels, titles and copy from data** — a three-line job title in a secondary slot; a long status badge; a 30-character compound word (`Benachrichtigungseinstellungen`); a translation about 30% longer than English; twelve tags on one item (needs a `+8` overflow); one tag wider than its container; a missing, empty or blank title; markup and entities that must render as literal text; a newline in a single-line field; a 2,000-character pasted description.
+
+**Numbers and money** — `0` (zero states, division by zero); `1` (plurals); `1284` (thousands separator); `1000000` (badge width, compact form); a large currency total; a negative value; floating-point noise (`0.30000000000000004`); a percentage past its bounds (`142%`, `-3%`); `null`, `undefined` or `NaN` rendered literally; locale separators (`1.284` against `1,284`); a value that changes live (width jitter without tabular figures).
+
+**Collections** — 0 items (does an empty state exist?); 1 item; exactly the page size and one more; 1,000+ items unpaginated; one item 10× the size of the others; items with identical names.
+
+**Time** — now ("just now", not "0 seconds ago"); thresholds (12 days, 11 months, 3 years ago); a future date; a zero timestamp (`1970-01-01`); a time that falls on a different day in another time zone; a very long duration that never rolls up. Use the platform's locale-aware date and relative-time formatters, not hand-built strings.
+
+**Images and media** — an image URL that fails; no image at all (the fallback); a 4000×200 panorama and a 200×4000 tall image (distortion, blown-out height); a transparent or dark logo on a dark theme; a slow image (layout shift without fixed dimensions).
+
+**States** — loading (skeletons that do not match the final layout); an error from the API (no error state, or a raw error message); partial data in one list; every status value at once; no permission; the current person in the list ("You").
+
+**Environment** — the narrowest supported width (320 px on the web, the smallest phone, a split-screen window); a narrow side column; a very wide window; the largest system text size or 200% zoom; dark theme; a right-to-left language; touch (hover-only actions are unreachable).
+
+**Report.** One table, one row per break: the surface and field, the worst value, what broke (`file:line` when code exists), and the fix. Then list the decisions that belong to the person (for example, truncate or wrap a name), and what held up.
+
+**In the design stage.** A worst-case board `<surface>--worst` draws the surface with these values. The stage draws one for every surface the person asks for, and otherwise for every new surface that shows data ([stage.md](stage.md) Step 4).
 
 ## Output Format
 
@@ -91,6 +124,9 @@ Improve the accessibility and robustness of a UI — ensuring it works for users
 
 ### Improvements (WCAG AAA or best practice)
 [List]
+
+### Worst-case content
+[One row per break: surface and field, worst value, what broke, fix]
 
 ### Changes made
 [Summary of changes applied]
@@ -107,4 +143,6 @@ Apply the ban list in [_design-context.md](_design-context.md).
 
 ## In the workflow
 
-This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.
+This file is a move, not a stage. Before the design is confirmed, `/wf design <slug> harden` focuses the visual contract `02c-craft.md` on it. After the design is confirmed, the same command runs the checks above, including the worst-case pass, against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) Step 0). `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.
+
+> *The worst-case catalog is adapted from Emil Kowalski's `break-ui` skill ([github.com/emilkowalski/skills](https://github.com/emilkowalski/skills), commit `2d22863`, 2026-10-11). MIT license.*

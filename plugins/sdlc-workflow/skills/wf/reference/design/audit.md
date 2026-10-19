@@ -24,8 +24,8 @@ Score: 0=Inaccessible (fails WCAG A), 1=Major gaps, 2=Partial (some effort, sign
 ### 2. Performance
 
 - **Layout thrashing**: Reading/writing layout properties in loops
-- **Expensive animations**: Layout-property animation (`width`/`height`/`top`/`left`/`margin`), `transition: all`, unbounded blur/filter/shadow, Framer Motion `x`/`y`/`scale` shorthands running on the main thread, visible frame drops
-- **Missing optimization**: Images without lazy loading, unoptimized assets, missing will-change
+- **Expensive animations** (terms of `animate.md` → Performance; platform forms in `_platforms.md`): a layout property animated, every property animated at once, app-thread motion during heavy work, a per-frame value routed through component state, one inherited value driving a child's motion, animated blur above 20 px, an animated shadow, visible frame drops at the 8.3 ms budget
+- **Missing optimization**: Images without lazy loading, unoptimized assets, a layer hint missing where a measured shift exists (and a layer hint added with no measured need)
 - **Bundle size**: Unnecessary imports, unused dependencies
 - **Render performance**: Unnecessary re-renders, missing memoization
 
@@ -47,6 +47,7 @@ Score: 0=No theming, 1=Minimal tokens, 2=Partial, 3=Good (minor hard-coded value
 - **Horizontal scroll**: Content overflow on narrow viewports
 - **Text scaling**: Layouts that break when text size increases
 - **Missing breakpoints**: No mobile/tablet variants
+- **Worst-case content**: the surface with the worst-case content of `harden.md` → Worst-case content (long names, unbreakable strings, extreme numbers, 0 and 1,000+ items, missing fields, right-to-left text) at the narrowest supported width. Report each break with its fix. This check scores inside this dimension; the 0–4 scale does not change. For the worst-case pass alone on a confirmed design, run `/wf design <slug> harden`.
 
 Score: 0=Desktop-only, 1=Major issues, 2=Works on mobile but rough, 3=Good (minor issues), 4=Excellent (all viewports)
 

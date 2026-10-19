@@ -35,6 +35,8 @@ Body sections: (1) **What changed** — bullets per file; (2) **Why** — design
 none of the absolute bans were introduced (and, for transforms, the `register:` field). This
 artifact lets `/wf review` and `/wf handoff` see exactly what design augmentations were applied.
 
+**Move-pass note** (`/wf design <slug> <move>` on a confirmed design, [stage.md](stage.md) → Move pass): the same frontmatter with `files-modified: []`. Body sections: (1) **Findings** — one row per finding: surface, board key or `file:line`, what is wrong, the fix; (2) **Rejected candidates** — for `animate`, each candidate and the gate that rejected it; (3) **Reference followed**; (4) **Feel checks needed** — what code alone cannot settle; (5) **Decision** — amend now, or kept for later.
+
 ## Step 6 — final-summary rules
 
 **Rules:**
