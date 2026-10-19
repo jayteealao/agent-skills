@@ -747,3 +747,91 @@ test('a slug-stop question open at launch: "continue" resumes the unit, any othe
     assert.equal(outcome.ok, !moved, outcome.reason);
   }
 });
+
+// ---------------------------------------------------------------- the waiter skips answers no question holds
+
+// The SoccerManager wave 3 run (2026-10-19): `await` returned an answered, unconsumed question of an
+// earlier run at once, the driver ignored it, and a new waiter started every 30 seconds.
+const seenOf = (prompt) => ((/--seen (\S+)/.exec(prompt) || [])[1] || '').split(',').filter(Boolean);
+
+test('waiter: an answer for an id that no question holds is held and skipped; no waiter loop', async () => {
+  let stops = 0;
+  const mock = makeMock({
+    rosters: { a: ['s1'] },
+    answer: (label, prompt) => {
+      if (/^plan:s1@a/.test(label) && stops++ === 0) return { stage: 'plan', slice: 's1', status: 'hard-stop', hardStopReason: 'scope', artifactPath: '', terminal: {} };
+      // Like `await`: the stale answer comes back until the driver passes it in --seen.
+      if (/^waiter/.test(label) && !seenOf(prompt).includes('w1-old')) return { result: 'answered', answered: [{ id: 'w1-old', answer: 'old answer', by: 'person' }] };
+      return undefined;
+    },
+  });
+  const { outcome } = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  const waiters = all(mock.calls, /^waiter/);
+  assert.equal(waiters.length, 2, `one waiter returns the stale answer, the next one skips it (${waiters.length} waiters)`);
+  assert.ok(seenOf(waiters[1].prompt).includes('w1-old'));
+  assert.match(all(mock.calls, /^plan:s1@a/)[1].prompt, /ANSWERED ESCALATION/);
+});
+
+test('waiter: a carried wave answer of an earlier run is in --seen from the first waiter', async () => {
+  let stops = 0;
+  const mock = makeMock({
+    rosters: { a: ['s1'] },
+    answer: (label, prompt) => {
+      if (/^plan:s1@a/.test(label) && stops++ === 0) return { stage: 'plan', slice: 's1', status: 'hard-stop', hardStopReason: 'scope', artifactPath: '', terminal: {} };
+      if (/^waiter/.test(label) && !seenOf(prompt).includes('w1-order')) return { result: 'answered', answered: [{ id: 'w1-order', answer: 'start', by: 'person' }] };
+      return undefined;
+    },
+  });
+  const waveQuestions = [{ id: 'w1-order', text: 'which order?', answer: 'start', by: 'person', answered: true, consumed: false }];
+  const { outcome } = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1, waveQuestions }), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  const waiters = all(mock.calls, /^waiter/);
+  assert.equal(waiters.length, 1);
+  assert.ok(seenOf(waiters[0].prompt).includes('w1-order'));
+});
+
+// ---------------------------------------------------------------- an answered verify that accepts the misses
+
+const failedVerify = { stage: 'verify', slice: 's1', status: 'complete', artifactPath: '/x/06-s1.md', terminal: { convergence: 'escalated', result: 'fail', deferrals: [], substantiveResidual: true } };
+
+test('verify: an answer that accepts a failed slice passes it with no new fix round', async () => {
+  const mock = makeMock({
+    rosters: { a: ['s1'] },
+    answer: (label, prompt) => {
+      if (!/^verify:s1@a/.test(label)) return undefined;
+      return /ANSWERED ESCALATION/.test(prompt) ? { ...failedVerify, acceptedByPerson: true } : failedVerify;
+    },
+  });
+  const { outcome } = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  const verifies = all(mock.calls, /^verify:s1@a/);
+  // Two rounds before the park, then one answered round that accepts.
+  assert.equal(verifies.length, 3, verifies.map((c) => c.label).join(', '));
+  assert.match(verifies[2].prompt, /When the answer ACCEPTS this slice/);
+  assert.equal(all(mock.calls, /^park:stage@a/).length, 1, 'the accepted slice does not park again');
+  assert.ok(first(mock.calls, /^review:s1@a/), 'the slice goes on to its review');
+});
+
+test('verify: an answer that does not accept reaches the fix round too, and the next answer can accept', async () => {
+  const mock = makeMock({
+    rosters: { a: ['s1'] },
+    answer: (label, prompt) => {
+      if (!/^verify:s1@a/.test(label)) return undefined;
+      return / w1-A-2 consumed/.test(prompt) ? { ...failedVerify, acceptedByPerson: true } : { ...failedVerify, acceptedByPerson: false };
+    },
+  });
+  const { outcome } = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  const verifies = all(mock.calls, /^verify:s1@a/);
+  assert.equal(verifies.length, 5, verifies.map((c) => c.label).join(', '));
+  // Rounds 1 and 2 after the first answer both carry it.
+  assert.match(verifies[2].prompt, / w1-A-1 consumed/);
+  assert.match(verifies[3].prompt, /fix ROUND 2/);
+  assert.match(verifies[3].prompt, / w1-A-1 consumed/);
+  assert.equal(all(mock.calls, /^park:stage@a/).length, 2);
+});
+
+test('verify: the orient counts a verify that a person accepted as done', () => {
+  assert.match(src, /OR its frontmatter carries ` \+\s*`accepted-by: a person accepted the slice with its recorded misses\)/);
+});

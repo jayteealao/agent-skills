@@ -609,6 +609,8 @@ const STAGE_RESULT = {
       items: { type: 'object', properties: { what: { type: 'string' }, recovered: { type: 'boolean' } } },
     },
     hardStopReason: { type: 'string' },
+    // A verify that ran with an answer which accepts the slice with its failing or residual items.
+    acceptedByPerson: { type: 'boolean' },
     steeringHonored: { type: 'array', items: { type: 'string' } },
     steeringConflict: { type: 'string' },
     // Section 5.7 item 1: a file this slice shares with a slice of another unit.
@@ -834,8 +836,9 @@ async function orientUnit(u, opts = {}) {
     `6. For ALL roster slices, in roster order, mark plan/implement/verify/review 'done' | 'todo':\n` +
     `   - plan: artifact present AND status: complete\n` +
     `   - implement: artifact present AND status: complete\n` +
-    `   - verify: artifact present AND convergence ∈ {not-needed, converged} AND (result: pass, OR result: partial ` +
-    `where EVERY open deferral of this slice in priorDeferrals has authorized=true)\n` +
+    `   - verify: artifact present AND (convergence ∈ {not-needed, converged} AND (result: pass, OR result: partial ` +
+    `where EVERY open deferral of this slice in priorDeferrals has authorized=true), OR its frontmatter carries ` +
+    `accepted-by: a person accepted the slice with its recorded misses)\n` +
     `   - review: artifact present AND verdict ∈ {ship, ship-with-caveats} AND metric-findings-blocker == 0\n` +
     `   In slug-wide review scope, mark every per-slice 'review' as 'n-a'.\n` +
     `6b. reverifyReason for each slice: 'new-work' (a stage is todo for a real reason), 'deferral-rechallenge' (every ` +
@@ -896,12 +899,21 @@ function parallelUnitsClause(u) {
 }
 
 // ANSWERED ESCALATION (section 5.5a step 6): the stage runs again with the person's answer.
-function answeredClause(a) {
+function answeredClause(a, stage) {
   if (!a) return ''
   return `\n\nANSWERED ESCALATION (MANDATORY). This stage stopped earlier in this run and asked the person ` +
     `(question ${a.id}): ${q(a.question || '')}. The answer, by ${a.by || 'person'}: ${q(a.answer || '')}. Settle the ` +
     `stopped decision by this answer, and record it as a decision with class 'intent-bearing', the answer quoted, ` +
     `and by: '${a.by || 'person'}'.` +
+    // A verify that a person accepts with its misses passes on that answer, not on a new check round.
+    (stage === 'verify'
+      ? ` When the answer ACCEPTS this slice with its failing or residual items (for example "accept it", "record ` +
+        `the miss", "continue to the next slice"), run no fix and no check round to make it pass: keep the result ` +
+        `as it is, write accepted-by: '${a.by || 'person'}', accepted-at (UTC now) and accepted-items (each failing AC ` +
+        `or residual, one line each) in the verify frontmatter, set its status: complete, and return ` +
+        `acceptedByPerson: true. When the answer asks for a change, make it, verify again, and return ` +
+        `acceptedByPerson: false.`
+      : '') +
     (a.startSha
       ? ` The stopped implement began at ${a.startSha}: read \`git diff ${a.startSha}..HEAD\` and \`git status\` for ` +
         `the work it left, then revise or undo that work to fit the answer.`
@@ -969,7 +981,7 @@ async function runStage(u, stage, sliceArg, extra = {}) {
     `artifact(s) under ${u.wf}/ — with ONE override: wherever the reference tells you ` +
     `to ask the user (AskUserQuestion) or pause for a human, DO NOT. Resolve it yourself by this policy:\n\n` +
     `${POLICY[stage]}${roundClause}${probeClause}${reChallenge}${scopeHint}${noIndexClause}${fanoutClause}` +
-    `${reconcileClause}` + steer(u, 'writer') + parallelUnitsClause(u) + answeredClause(extra.answered) +
+    `${reconcileClause}` + steer(u, 'writer') + parallelUnitsClause(u) + answeredClause(extra.answered, stage) +
     (extra.stopCheck === true ? stopCheckClause(u, stage, sliceArg) : '') +
     requiresClause(`${referenceRoot}/${stage}.md`) + `\n\n` +
     `Operating rules:\n` +
@@ -1105,9 +1117,16 @@ async function driveVerify(u, sliceArg, extra = {}) {
   let last
   let probeCorrection = null
   for (let round = 1; round <= 2; round++) {
-    last = absorb(await heavy(() => runStage(u, 'verify', sliceArg, { round, probeAcs: probeCorrection, stopCheck: round === 1 && !probeCorrection, heavy: true, answered: round === 1 ? extra.answered : null })))
+    // The answer goes to every round: a fix round that drops it would undo the person's decision.
+    last = absorb(await heavy(() => runStage(u, 'verify', sliceArg, { round, probeAcs: probeCorrection, stopCheck: round === 1 && !probeCorrection, heavy: true, answered: extra.answered || null })))
     if (!last) return { stage: 'verify', slice: sliceArg, status: 'hard-stop', artifactPath: '', terminal: {}, transient: true, hardStopReason: 'verify did not return (subagent skipped or hit a transient API error)' }
     if (last.status === 'hard-stop' || last.status === 'stopped') return last
+    // The person accepted the slice with its failing or residual items: it passes on that answer.
+    // Only an answered verify can accept; no fix round runs after it.
+    if (extra.answered && last.acceptedByPerson === true) {
+      log(`verify:${sliceArg}@${u.slug} accepted by ${extra.answered.by || 'person'} (question ${extra.answered.id}) with result=${(last.terminal || {}).result}`)
+      return { ...last, accepted: true }
+    }
     const t = last.terminal || {}
     if (verifyClean(t, last.residual)) {
       const sliceAuthorized = Array.isArray(idx.priorDeferrals) &&
@@ -1725,6 +1744,11 @@ function stopRun(at, reason, until = null) {
 // One state for each question: open, seen (an answer arrived; its resume runs),
 // consumed. The first source that reports an answer moves it to seen.
 const Q = new Map()
+// An answer that arrived for an id that no question of this run holds: an answered,
+// unconsumed question of an earlier run, or an answer that came before its park opened
+// the question. It is held here, and the waiter skips it, so `await` does not return
+// it again at once. A question that opens later with that id takes the held answer.
+const HELD = new Map()
 function openQuestion(id, unitKey, kind, text, ctx = {}) {
   if (Q.has(id)) return Q.get(id)
   let resolve
@@ -1732,13 +1756,17 @@ function openQuestion(id, unitKey, kind, text, ctx = {}) {
   const e = { id, unit: unitKey, kind, question: text, ctx, state: 'open', resolve, promise }
   Q.set(id, e)
   if (STOP) { e.state = 'stopped'; resolve({ stopped: true }) }
+  else if (HELD.has(id)) { const a = HELD.get(id); HELD.delete(id); onAnswered([a]) }
   return e
 }
 const openQuestions = () => [...Q.values()].filter(e => e.state === 'open')
+// The ids the waiter must not return: the answers this run already saw, and the held ones.
+const waiterSeen = () => [...[...Q.values()].filter(e => e.state !== 'open').map(e => e.id), ...HELD.keys()]
 function onAnswered(list) {
   for (const a of list || []) {
     const e = a && Q.get(a.id)
-    if (!e || e.state !== 'open') continue
+    if (!e) { if (a && a.id) HELD.set(a.id, a); continue }
+    if (e.state !== 'open') continue
     e.state = 'seen'
     e.resolve({ id: e.id, kind: e.kind, answer: a.answer, by: a.by || 'person', move: a.move === true, question: e.question, startSha: e.ctx.startSha || null, stage: e.ctx.stage || null, slice: e.ctx.slice || null })
   }
@@ -1771,7 +1799,7 @@ function ensureWaiter() {
       while (!STOP && openQuestions().length) {
         if (!reserve(1, 'waiter')) break
         WAITERS++
-        const seen = [...Q.values()].filter(e => e.state !== 'open').map(e => e.id)
+        const seen = waiterSeen()
         const r = await call(
           `WAITER for wave ${wave} of campaign '${brainstorm}'. You wait for the person's answers; you judge nothing ` +
           `and write nothing.\n\nRun this command through Bash, with a Bash timeout of 600000 ms:\n` +
@@ -2341,7 +2369,8 @@ async function walkSlice(u, s, bounded) {
       if (stage === 'implement' && res && res.startSha) { u.sliceStart = u.sliceStart || {}; u.sliceStart[sliceArg] = res.startSha }
       if (res && Array.isArray(res.decisions) && res.decisions.length) res = await classifyDecisions(u, res)
       if (res) { ran.push(res); u.results.push(res) }
-      const bad = !res || res.status === 'hard-stop' || evaluateGate(stage, res) === 'hard-stop'
+      const accepted = stage === 'verify' && !!res && res.accepted === true
+      const bad = !res || res.status === 'hard-stop' || (!accepted && evaluateGate(stage, res) === 'hard-stop')
       if (!bad) { ranStages.push(stage); break }
       const kind = stage === 'review' ? 'review' : 'stage'
       const reason = (res && res.hardStopReason) || (res ? `${stage} terminal state did not clear the gate: ${JSON.stringify(res.terminal || {})}` : `${stage} did not return`)
@@ -3160,6 +3189,8 @@ for (const u of U) {
 for (const qq of Array.isArray(OPT.waveQuestions) ? OPT.waveQuestions : []) {
   if (!qq || !qq.id || qq.consumed || !qq.answered) continue
   WAVE_CARRY = { id: qq.id, answer: qq.answer, by: qq.by || 'person', question: qq.text || '' }
+  // The wave review reads the carried answer itself; the waiter must not return it.
+  HELD.set(qq.id, { id: qq.id, answer: qq.answer, by: qq.by || 'person', move: qq.move === true })
 }
 for (const u of U) for (const w of u.waits) addWait(u.key, w)
 

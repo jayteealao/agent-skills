@@ -90,7 +90,7 @@ A stage agent or a writer that runs again with the answer marks the answer consu
 
 1. The resume agent runs.
 2. A resume orient runs, with the same run id.
-3. The stopped stage runs again, with the ANSWERED ESCALATION clause. For implement, the clause gives the start sha of the stopped implement. For verify, the clause goes to the first round.
+3. The stopped stage runs again, with the ANSWERED ESCALATION clause. For implement, the clause gives the start sha of the stopped implement. For verify, the clause goes to every round. When the answer accepts the slice with its failing items, the verify writes `accepted-by` in its frontmatter and returns `acceptedByPerson: true`, and the slice passes with no fix round. The orient counts that verify as done.
 4. The stage agent runs `<cmd> question <id> consumed` as its last command.
 
 When the park came from a charter checkpoint, no stage runs again: the walk continues with the next slice. When the question was open at launch, its answer goes to the stage and the slice that asked.
@@ -243,7 +243,7 @@ While one or more questions of the wave are open, the driver keeps one waiter ag
    - `cancelled`.
 4. After the last timeout, return `timeout`. Also return `calls`: the number of times that you ran the command.
 
-`--seen` lists the question ids that the driver already has, so a seen answer does not return again. `--max` is in seconds, at most 540. The driver gives 270 and at most 12 calls, so each wake finds the prompt cache. At each call, `await` appends a `waiter` line to the campaign journal, so the run stays live. Every 10 seconds, it reads the cancel marker, the campaign control file, the budget, and the answers of the wave that are not consumed.
+`--seen` lists the question ids that the driver already has, so a seen answer does not return again. It also lists the held answers: an answer for an id that no question of this run holds, such as an unconsumed answer of an earlier run. A question that opens later with that id takes the held answer. `--max` is in seconds, at most 540. The driver gives 270 and at most 12 calls, so each wake finds the prompt cache. At each call, `await` appends a `waiter` line to the campaign journal, so the run stays live. Every 10 seconds, it reads the cancel marker, the campaign control file, the budget, and the answers of the wave that are not consumed.
 
 | Result | What the driver does |
 |---|---|
