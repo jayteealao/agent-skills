@@ -16,7 +16,7 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-QZWRAAAQ.mjs";
+} from "./chunk-C4UYE42W.mjs";
 import "./chunk-523C7UE2.mjs";
 import {
   readRenderedIdentity,

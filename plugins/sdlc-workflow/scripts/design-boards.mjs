@@ -5,7 +5,7 @@
  *
  *   init    <root> <slug> [--method m] [--viewport name=WxH]...  create or update design/boards.json
  *   render  <root> <slug> [key...]                 register boards/<key>.html|png, render HTML to PNG (and sketches/*.html), write the sheet
- *   sheet   <root> <slug>                          write design/index.html (the contact sheet)
+ *   sheet   <root> <slug>                          write design/index.html (the contact sheet, with any direction sketches)
  *   freeze  <root> <slug> [--by who] [--canvas link] [--canvas-version v]   copy the boards to r<N>/ and record the confirmation
  *   check   <root> <slug>                          the board files that 02c-craft.md boards: lists but that are missing
  *   capture-name <root> <slug> <slice> <key>       the verify capture path of a board
@@ -23,7 +23,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   DESIGN_DIR, MANIFEST, METHODS, REVISION_WARN_BYTES, SHEET,
-  boardFiles, capturePath, emptyManifest, frozenManifestPath, ignoreAdvice, missingBoardFiles, needsPictures,
+  boardFiles, capturePath, directionSketches, emptyManifest, frozenManifestPath, ignoreAdvice, missingBoardFiles, needsPictures,
   parseBoardKey, parseViewport, readManifest, renderSheet, revisionDir,
 } from '../lib/design-boards.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
@@ -326,8 +326,9 @@ async function render(root, slug, keys) {
       htmlOnly.push({ key: b.key, reason });
     }
   }
-  // Brainstorm sketches (sketches/<key>.html) render to sketches/<key>.png at the main
-  // viewport. They are ideas, not boards, so the manifest does not list them.
+  // Brainstorm sketches and direction sketches (sketches/<key>.html) render to
+  // sketches/<key>.png at the main viewport. They are ideas, not boards, so the manifest
+  // does not list them; the sheet shows the direction sketches in their own section.
   const sketches = [];
   const sketchDir = join(dir, 'sketches');
   if (!want && existsSync(sketchDir)) {
@@ -357,7 +358,9 @@ async function render(root, slug, keys) {
 
 function writeSheet(root, slug, m, into = designDir(root, slug)) {
   const file = join(into, SHEET);
-  writeAtomic(file, renderSheet(m, { generatedAt: nowIso() }));
+  const sketchDir = join(designDir(root, slug), 'sketches');
+  const directions = existsSync(sketchDir) ? directionSketches(readdirSync(sketchDir)) : [];
+  writeAtomic(file, renderSheet(m, { generatedAt: nowIso(), directions }));
   return file;
 }
 

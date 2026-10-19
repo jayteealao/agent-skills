@@ -146,7 +146,19 @@ function frozenBoardsOf(workflowDir, contract) {
 var ENTITIES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 var esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ENTITIES[c]);
 var safeHref = (s) => /^https?:\/\//i.test(String(s ?? "")) || isInsidePath(s) ? esc(s) : "#";
-function renderSheet(m, { generatedAt = "", frozen = false } = {}) {
+function directionSketches(fileNames) {
+  const found = /* @__PURE__ */ new Map();
+  for (const file of fileNames ?? []) {
+    const m = /^direction-([a-z0-9]+(?:-[a-z0-9]+)*)\.(html|png)$/i.exec(String(file));
+    if (!m) continue;
+    const name = m[1].toLowerCase();
+    const rec = found.get(name) ?? { name, html: null, png: null };
+    rec[m[2].toLowerCase()] = `sketches/${file}`;
+    found.set(name, rec);
+  }
+  return [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+function renderSheet(m, { generatedAt = "", frozen = false, directions = [] } = {}) {
   const last = (m.confirmed ?? []).at(-1) ?? null;
   const groups = /* @__PURE__ */ new Map();
   for (const b of m.boards ?? []) {
@@ -158,7 +170,13 @@ function renderSheet(m, { generatedAt = "", frozen = false } = {}) {
     const meta = [b.state, b.viewport, b.sketch ? `from sketch ${b.sketch}` : null].filter(Boolean).map(esc).join(" \xB7 ");
     return `<figure id="${esc(b.key)}">${pic}<figcaption><b>${esc(b.caption ?? b.key)}</b><span>${meta}</span><code>${esc(b.key)}</code></figcaption></figure>`;
   };
-  const sections = [...groups.entries()].map(([s, list]) => `<section><h2>${esc(s)}</h2><div class="grid">${list.map(board).join("")}</div></section>`).join("\n");
+  const direction = (d) => {
+    const pic = d.png ? `<a href="${safeHref(d.png)}"><img src="${safeHref(d.png)}" alt="${esc(`direction ${d.name}`)}" loading="lazy"></a>` : `<div class="none">No PNG.${d.html ? ` Open <a href="${safeHref(d.html)}">${esc(d.html)}</a>.` : ""}</div>`;
+    return `<figure id="direction-${esc(d.name)}">${pic}<figcaption><b>${esc(d.name)}</b><span>direction</span></figcaption></figure>`;
+  };
+  const directionSection = !frozen && directions.length ? `<section><h2>Directions</h2><div class="grid">${directions.map(direction).join("")}</div></section>
+` : "";
+  const sections = directionSection + [...groups.entries()].map(([s, list]) => `<section><h2>${esc(s)}</h2><div class="grid">${list.map(board).join("")}</div></section>`).join("\n");
   const status = last ? `Revision ${esc(last.revision)} confirmed ${esc(last.at)} (${esc(last.by)})${frozen ? " \xB7 frozen copy" : ""}` : "Working boards \xB7 not confirmed yet";
   const canvas = last?.canvas ? ` \xB7 <a href="${safeHref(last.canvas)}">canvas</a>${last["canvas-version"] ? ` v${esc(last["canvas-version"])}` : ""}` : "";
   const viewports = Object.entries(m.viewports ?? {}).map(([k, v]) => `${esc(k)} ${esc(v)}`).join(", ");
@@ -233,6 +251,7 @@ export {
   boardFiles,
   missingBoardFiles,
   frozenBoardsOf,
+  directionSketches,
   renderSheet,
   ignoreAdvice
 };

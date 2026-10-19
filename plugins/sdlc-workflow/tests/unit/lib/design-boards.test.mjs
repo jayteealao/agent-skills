@@ -11,7 +11,7 @@ import { test } from 'node:test';
 import { deepEqual, equal, match, ok, throws } from 'node:assert/strict';
 
 import {
-  BOARDS_SCHEMA, boardKey, capturePath, emptyManifest, ignoreAdvice, isBoardKey, isInsidePath,
+  BOARDS_SCHEMA, boardKey, capturePath, directionSketches, emptyManifest, ignoreAdvice, isBoardKey, isInsidePath,
   missingBoardFiles, needsPictures, parseBoardKey, parseViewport, renderSheet, validateManifest,
 } from '../../../lib/design-boards.mjs';
 
@@ -95,6 +95,33 @@ test('renderSheet: groups by surface, escapes text, and never links outside the 
   match(html, /Revision 2 confirmed/);
   match(html, /href="https:\/\/claude\.ai\/a\/1">canvas<\/a> v4/);
   ok(!html.includes('../../secret.png'));
+});
+
+test('worst-case boards: <surface>--worst is a board key (DESIGN-CRAFT-PORT-PLAN C8)', () => {
+  equal(boardKey({ surface: 'Squad List', state: 'worst' }), 'squad-list--worst');
+  deepEqual(parseBoardKey('squad-list--worst--phone'), { surface: 'squad-list', state: 'worst', viewport: 'phone' });
+  equal(capturePath('squad', 'squad-list--worst'), 'design/captures/squad/squad-list--worst.png');
+});
+
+test('directionSketches: one entry per direction-<name> file, sorted (C10)', () => {
+  deepEqual(directionSketches(['direction-quiet.html', 'direction-quiet.png', 'direction-dense.html', 'idea-1.html', 'direction-.html', 'Direction-Bold.PNG']), [
+    { name: 'bold', html: null, png: 'sketches/Direction-Bold.PNG' },
+    { name: 'dense', html: 'sketches/direction-dense.html', png: null },
+    { name: 'quiet', html: 'sketches/direction-quiet.html', png: 'sketches/direction-quiet.png' },
+  ]);
+  deepEqual(directionSketches(undefined), []);
+});
+
+test('renderSheet: the working sheet shows directions first; the frozen copy never does (C10)', () => {
+  const m = { ...emptyManifest('demo'), boards: [{ key: 'cart--empty', surface: 'cart', state: 'empty', png: 'boards/cart--empty.png' }] };
+  const directions = [{ name: 'quiet', html: 'sketches/direction-quiet.html', png: 'sketches/direction-quiet.png' }, { name: '<x>', html: null, png: null }];
+  const working = renderSheet(m, { directions });
+  match(working, /<h2>Directions<\/h2>/);
+  ok(working.indexOf('<h2>Directions</h2>') < working.indexOf('<h2>cart</h2>'));
+  match(working, /src="sketches\/direction-quiet\.png"/);
+  match(working, /&lt;x&gt;/);
+  ok(!renderSheet(m, { directions, frozen: true }).includes('Directions'));
+  ok(!renderSheet(m).includes('Directions'));
 });
 
 test('ignoreAdvice: the D9 exception block for each way a repo ignores .ai/', () => {

@@ -44,16 +44,16 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-3AKK7WBO.mjs";
+} from "./chunk-5BN2G45E.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-QZWRAAAQ.mjs";
+} from "./chunk-C4UYE42W.mjs";
 import {
   frozenBoardsOf
-} from "./chunk-5QUQXL7Q.mjs";
+} from "./chunk-T5YC5F32.mjs";
 import "./chunk-523C7UE2.mjs";
 import {
   readRenderedIdentity,

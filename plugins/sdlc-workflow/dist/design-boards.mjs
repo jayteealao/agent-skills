@@ -9,6 +9,7 @@ import {
   SHEET,
   boardFiles,
   capturePath,
+  directionSketches,
   emptyManifest,
   frozenManifestPath,
   ignoreAdvice,
@@ -19,7 +20,7 @@ import {
   readManifest,
   renderSheet,
   revisionDir
-} from "./chunk-5QUQXL7Q.mjs";
+} from "./chunk-T5YC5F32.mjs";
 import {
   safeParseFrontmatter
 } from "./chunk-5U76735W.mjs";
@@ -376,7 +377,9 @@ async function render(root, slug, keys) {
 }
 function writeSheet(root, slug, m, into = designDir(root, slug)) {
   const file = join(into, SHEET);
-  writeAtomic(file, renderSheet(m, { generatedAt: nowIso() }));
+  const sketchDir = join(designDir(root, slug), "sketches");
+  const directions = existsSync(sketchDir) ? directionSketches(readdirSync(sketchDir)) : [];
+  writeAtomic(file, renderSheet(m, { generatedAt: nowIso(), directions }));
   return file;
 }
 function sheet(root, slug) {

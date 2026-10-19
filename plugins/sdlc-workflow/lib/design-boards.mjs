@@ -217,7 +217,26 @@ const safeHref = (s) => (/^https?:\/\//i.test(String(s ?? '')) || isInsidePath(s
  * paths are relative to the folder of the manifest, so the frozen copy in r<N>/
  * works the same.
  */
-export function renderSheet(m, { generatedAt = '', frozen = false } = {}) {
+/**
+ * The direction sketches of the design stage (DESIGN-CRAFT-PORT-PLAN C10): the files
+ * `sketches/direction-<name>.html|png`, one entry per name, sorted. They are not boards,
+ * so the manifest does not list them; the working contact sheet shows them.
+ * @param {string[]} fileNames - the file names in `design/sketches/`
+ */
+export function directionSketches(fileNames) {
+  const found = new Map();
+  for (const file of fileNames ?? []) {
+    const m = /^direction-([a-z0-9]+(?:-[a-z0-9]+)*)\.(html|png)$/i.exec(String(file));
+    if (!m) continue;
+    const name = m[1].toLowerCase();
+    const rec = found.get(name) ?? { name, html: null, png: null };
+    rec[m[2].toLowerCase()] = `sketches/${file}`;
+    found.set(name, rec);
+  }
+  return [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function renderSheet(m, { generatedAt = '', frozen = false, directions = [] } = {}) {
   const last = (m.confirmed ?? []).at(-1) ?? null;
   const groups = new Map();
   for (const b of m.boards ?? []) {
@@ -231,7 +250,16 @@ export function renderSheet(m, { generatedAt = '', frozen = false } = {}) {
     const meta = [b.state, b.viewport, b.sketch ? `from sketch ${b.sketch}` : null].filter(Boolean).map(esc).join(' · ');
     return `<figure id="${esc(b.key)}">${pic}<figcaption><b>${esc(b.caption ?? b.key)}</b><span>${meta}</span><code>${esc(b.key)}</code></figcaption></figure>`;
   };
-  const sections = [...groups.entries()]
+  const direction = (d) => {
+    const pic = d.png
+      ? `<a href="${safeHref(d.png)}"><img src="${safeHref(d.png)}" alt="${esc(`direction ${d.name}`)}" loading="lazy"></a>`
+      : `<div class="none">No PNG.${d.html ? ` Open <a href="${safeHref(d.html)}">${esc(d.html)}</a>.` : ''}</div>`;
+    return `<figure id="direction-${esc(d.name)}">${pic}<figcaption><b>${esc(d.name)}</b><span>direction</span></figcaption></figure>`;
+  };
+  const directionSection = !frozen && directions.length
+    ? `<section><h2>Directions</h2><div class="grid">${directions.map(direction).join('')}</div></section>\n`
+    : '';
+  const sections = directionSection + [...groups.entries()]
     .map(([s, list]) => `<section><h2>${esc(s)}</h2><div class="grid">${list.map(board).join('')}</div></section>`)
     .join('\n');
   const status = last

@@ -4,11 +4,11 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   designNeeded,
   designSettled
-} from "./chunk-UBOP6VUB.mjs";
+} from "./chunk-U4PRGBEI.mjs";
 import {
   missingBoardFiles,
   needsPictures
-} from "./chunk-5QUQXL7Q.mjs";
+} from "./chunk-T5YC5F32.mjs";
 import {
   safeParseFrontmatter
 } from "./chunk-5U76735W.mjs";
