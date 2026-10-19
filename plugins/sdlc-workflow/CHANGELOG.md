@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.192.0] - 2026-10-19
+
+### Added
+
+- **The session looks in every 15 minutes.** The yolo and campaign watch reported only on events, so a long stage gave no word for an hour. The watch now emits `look-in` when 15 minutes pass with no full note. The event lists each running stage agent and its minutes. The session then reads the journal, the commits, the changed files and the agent's transcript (and the open questions in a campaign), and tells the person what each stage is doing, what changed, what comes next, and what waits on them (`_commentary.md` rule C7). A full note restarts the clock, and a watch restart keeps it. `--look-in <minutes>` or `SDLC_WATCH_LOOK_IN_MINUTES` sets the time; `0` turns it off.
+
 ## [9.191.1] - 2026-10-19
 
 ### Fixed
