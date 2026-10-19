@@ -203,8 +203,7 @@ export function createActivityFinder({ projectsDir, roots, now = () => Date.now(
     }
     files = found;
   };
-  /** The newest write to the transcript of the agent with this label, started at `startMs`; null when none is found. */
-  return (label, startMs) => {
+  const newest = (label, startMs) => {
     if (!label) return null;
     if (now() - listedAt >= RELIST_MS) { listedAt = now(); list(); }
     let best = null;
@@ -212,11 +211,16 @@ export function createActivityFinder({ projectsDir, roots, now = () => Date.now(
       if (f.label !== label) continue;
       let m;
       try { m = statSync(f.file).mtimeMs; } catch { continue; }
-      if (best === null || m > best) best = m;
+      if (best === null || m > best.m) best = { file: f.file, m };
     }
     // A transcript older than the agent's start belongs to an earlier agent with the same label.
-    return best !== null && best >= startMs - 60 * 1000 ? best : null;
+    return best !== null && best.m >= startMs - 60 * 1000 ? best : null;
   };
+  /** The newest write to the transcript of the agent with this label, started at `startMs`; null when none is found. */
+  const find = (label, startMs) => { const b = newest(label, startMs); return b ? b.m : null; };
+  /** The path of that transcript; null when none is found. */
+  find.fileOf = (label, startMs) => { const b = newest(label, startMs); return b ? b.file : null; };
+  return find;
 }
 
 // ---------------------------------------------------------------------------
@@ -840,11 +844,13 @@ export function createWatcher({
     const since = lead.repo.lookInAt;
     lead.repo.lookInAt = t;
     const running = [];
-    for (const [slug, { st }] of states) {
+    for (const [slug, { st, root: slugRoot }] of states) {
       for (const [agent, startedAt] of Object.entries(st.openStages || {})) {
         const { stage, slice } = stageOf({ agent });
         const startMs = Date.parse(startedAt || '');
-        running.push({ slug, agent, stage: stage || null, slice: slice || null, startedAt: startedAt || null, minutes: Number.isFinite(startMs) ? Math.round((t - startMs) / 60000) : null });
+        // C7 — the look-in reader reads these paths and does not search for them.
+        running.push({ slug, agent, stage: stage || null, slice: slice || null, startedAt: startedAt || null, minutes: Number.isFinite(startMs) ? Math.round((t - startMs) / 60000) : null,
+          root: slugRoot, journal: st.source || journalPath(slugRoot, slug), transcript: Number.isFinite(startMs) ? activity.fileOf(agent, startMs) : null });
       }
     }
     return [{ event: 'look-in', slugs: [...states.keys()], ...(campaign ? { campaign } : {}), running, sinceMinutes: Math.round((t - since) / 60000), at: iso(t) }];

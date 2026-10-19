@@ -907,7 +907,7 @@ test('look-in: 15 quiet minutes give one look-in with the running agents; a stag
     assert.equal(ev.length, 1);
     assert.equal(ev[0].event, 'look-in');
     assert.equal(ev[0].sinceMinutes, 15);
-    assert.deepEqual(ev[0].running, [{ slug: SLUG, agent: 'implement:board', stage: 'implement', slice: 'board', startedAt: at(2), minutes: 13 }]);
+    assert.deepEqual(ev[0].running, [{ slug: SLUG, agent: 'implement:board', stage: 'implement', slice: 'board', startedAt: at(2), minutes: 13, root, journal: W.journalPath(root, SLUG), transcript: null }]);
     now = T0 + 29 * 60000;
     assert.deepEqual(w.pollLookIn([]), [], 'the next look-in comes 15 minutes after this one');
     now = T0 + 30 * 60000;

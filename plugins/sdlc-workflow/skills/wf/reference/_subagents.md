@@ -38,7 +38,10 @@ pass** is one wave of them.
   (inventories, structured reads, per-package research) and for rubric-driven
   review dimensions; **medium** for standard research, the judgment-heavy
   review rubrics (`architecture`, `security`), and fix
-  dispatch; **high** only for judge, verify, and causal-reasoning children. A child must not silently
+  dispatch; **high** only for judge, verify, and causal-reasoning children;
+  **summary** only for the look-in reader of the watch (C7 of
+  [yolo/_commentary.md](yolo/_commentary.md)): a read-only child that reads
+  the run and returns a few sentences. A child must not silently
   inherit an expensive parent configuration for mechanical work.
 - **Waves bounded by the host's concurrency.** Batch a larger fan-out (for
   example the 11-rubric review `all` aggregate) into waves of at most the
@@ -66,7 +69,7 @@ pass** is one wave of them.
 |---|---|---|---|
 | Dispatch call | The `Agent` tool, one call per child; independent children in one message run concurrently | `spawn_agent` per child, then `wait_agent` on the wave | The `Agent` tool, one call per child. Children run in the background by default; collect each wave with `get_subagent_result` |
 | Agent types | Built-in `general-purpose`; `Explore` for read-only research | Built-in `explorer` (read-heavy), `worker` (bounded execution), `default`. Never a custom `.codex/agents/*.toml` agent by name | Built-in `general-purpose`; `Explore` for read-only research |
-| Effort tier → host setting | Pass `model:` on the call: low and medium = `sonnet`, high = `opus` (`haiku` is not used; re-evaluate when Haiku 5.5 ships). The `/wf yolo` Workflow driver takes a full model id, so it pins orient, the stage agents, the review writer and update-deps exec to `claude-opus-5-5` at `medium` effort, and every other agent to `claude-sonnet-5-5` at `high` effort (`OPUS` and `SONNET` in `workflows/yolo.js`). Never use `opus` below high, and never omit the pin — a child must not inherit the parent's model | Pass the reasoning effort on the spawn: low, medium, high | Pass `model:` on the call with the same tier aliases as Claude Code: low and medium = `sonnet`, high = `opus`. Never omit the pin |
+| Effort tier → host setting | Pass `model:` on the call: low and medium = `sonnet`, high = `opus`, summary = `haiku` (Haiku 5.5; the summary tier is its only use). The `/wf yolo` Workflow driver takes a full model id, so it pins orient, the stage agents, the review writer and update-deps exec to `claude-opus-5-5` at `medium` effort, and every other agent to `claude-sonnet-5-5` at `high` effort (`OPUS` and `SONNET` in `workflows/yolo.js`). Never use `opus` below high, and never omit the pin — a child must not inherit the parent's model | Pass the reasoning effort on the spawn: low, medium, high; the summary tier is low | Pass `model:` on the call with the same tier aliases as Claude Code: low, medium and summary = `sonnet`, high = `opus`. Never omit the pin |
 | Write isolation for a child that edits files | Pass `isolation: worktree` on the call; the coordinator merges the child's branch result | Partition the work by disjoint files; there is no worktree flag | Pass `isolation: worktree` on the call; the coordinator merges the child's branch result |
 | Wave ceiling | Cost only; keep waves at 6 | The advertised concurrency of the session (`max_threads`, default 6) | Cost only; keep waves at 6. The host runs at most 10 children at once and queues the rest |
 | Depth | Do not give a child the `Agent` tool | `max_depth` 1 | Do not give a child the `Agent` tool; the host allows one nesting level |
