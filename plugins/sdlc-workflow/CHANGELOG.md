@@ -5,6 +5,26 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.191.0] - 2026-10-19
+
+### Added
+
+- **One platform map for the design lane.** `design/_platforms.md` gives each generic motion and input term (cheap property, render thread, retargetable animation, curve token, spring, trigger origin, reduced-motion setting, hover pointer, system back, insets, largest text size, and more) its form on the web, iOS, Android (Compose) and desktop. The motion rules name only the generic terms; a guard test fails when a platform API appears in them.
+- **Directions for an open surface.** When a new surface has no settled direction, the design stage draws two or three `sketches/direction-<name>.html` before the boards, and the contract records `directions:` and `## Directions considered`. The contact sheet shows a Directions section on the working sheet.
+- **Worst-case boards.** A `<surface>--worst` board shows the surface with worst-case content: long names, long identifiers, large numbers, empty and huge collections, odd times, missing media, error states and the largest text size. The stage draws one on request, and otherwise for each new surface that shows data. Implement makes that content loadable; verify captures it or records `worst-case: not-captured:<reason>`.
+- **The move pass.** `/wf design <slug> <move>` on a confirmed design runs the checks of that move, draws nothing, freezes nothing, and writes `design-notes/<move>-<timestamp>.md`.
+- `design/_motion-recipes.md`: 14 motion recipes with their ingredients. `design/harden.md` gains the worst-case content catalog (nine groups). `design/adapt.md` gains native-feel checklists for a web app on a phone, iOS, Android (Compose) and desktop.
+
+### Changed
+
+- **`design/animate.md` is rewritten** from the current Emil Kowalski skills (`emilkowalski/skills` `2d22863`): a frequency gate and a purpose gate, an opportunity sweep that also records rejected candidates, a tool ladder, three curve tokens, springs as a duration and a bounce, an 8.3 ms frame budget with a diagnosis order, gesture physics, and a never-ship table. Six old conflicts are fixed: no ease-in on exits, reduced motion is gentler and not zero, a 30–80 ms stagger, durations per element, hover motion only for a hover pointer, and exits on the entry path. `polish.md`, `optimize.md`, `audit.md`, `critique.md` and `implement.md` follow the same rules.
+- **The interface-craft and performance rubrics** check motion in the generic terms: a purpose for frequent motion, app-thread motion during heavy work, a restarting animation, an ungated hover, the trigger origin, an inherited value, a layout-property animation, and a per-frame value routed through component state.
+- **The review rubrics get back the checks that the 35 → 11 merge dropped**: the BLOCKER lists, the testing severity ladder, and the high-risk checks (SSRF, unsafe deserialization, retry caps, lossy migrations, tenant isolation, SHA-pinned Actions, and others).
+
+### Removed
+
+- The `ste-compliance` review dimension and its alias (24 aliases now). The ambiguous-copy class stays.
+
 ## [9.190.0] - 2026-10-18
 
 ### Added
