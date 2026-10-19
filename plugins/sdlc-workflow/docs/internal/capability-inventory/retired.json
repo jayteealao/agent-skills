@@ -946,5 +946,40 @@
     "category": "invocations",
     "reason": "WF-KEY-SURFACE-PLAN (clean break, no redirect): the key became a sub-key or an intake mode; the form is now `/wf intake task <X>`.",
     "release": "9.190.0"
+  },
+  {
+    "entry": "ambiguity that can change what a",
+    "reason": "ste-compliance removed as a review dimension (PO 2026-10-19): the `docs` rubric no longer audits controlled-language compliance; the `ambiguous-copy` surface-defect class and the `ux-copy` terminology check remain",
+    "release": "9.191.0",
+    "file": "skills/wf/reference/review/ste-compliance.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "non-imperative instructions in procedures are med",
+    "reason": "ste-compliance removed as a review dimension (PO 2026-10-19): the `docs` rubric no longer audits controlled-language compliance; the `ambiguous-copy` surface-defect class and the `ux-copy` terminology check remain",
+    "release": "9.191.0",
+    "file": "skills/wf/reference/review/ste-compliance.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "propose the rewrite : every finding",
+    "reason": "ste-compliance removed as a review dimension (PO 2026-10-19): the `docs` rubric no longer audits controlled-language compliance; the `ambiguous-copy` surface-defect class and the `ux-copy` terminology check remain",
+    "release": "9.191.0",
+    "file": "skills/wf/reference/review/ste-compliance.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "register mechanics are low/nit (w3 w6,",
+    "reason": "ste-compliance removed as a review dimension (PO 2026-10-19): the `docs` rubric no longer audits controlled-language compliance; the `ambiguous-copy` surface-defect class and the `ux-copy` terminology check remain",
+    "release": "9.191.0",
+    "file": "skills/wf/reference/review/ste-compliance.md",
+    "category": "rubric-checks"
+  },
+  {
+    "entry": "terminology drift is med (w1, s5):",
+    "reason": "ste-compliance removed as a review dimension (PO 2026-10-19): the `docs` rubric no longer audits controlled-language compliance; the `ambiguous-copy` surface-defect class and the `ux-copy` terminology check remain",
+    "release": "9.191.0",
+    "file": "skills/wf/reference/review/ste-compliance.md",
+    "category": "rubric-checks"
   }
 ]

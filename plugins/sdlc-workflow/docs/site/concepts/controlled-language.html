@@ -79,13 +79,9 @@ section, which tells the talk in three beats: origin, road, destination.</p>
 
 <h2>How the contract is enforced</h2>
 
-<p>Three audit surfaces check the same rules from three directions:</p>
+<p>Two audit surfaces check the same rules from two directions:</p>
 
 <ul>
-<li>The <code>ste-compliance</code> section of the <code>docs</code> review rubric (<code>/wf review ste-compliance</code>) audits text at rest. Every finding cites the
-rule that it violates (W1–W8, I1–I9, S1–S5) and carries the corrected sentence. Severity follows
-reader consequence: ambiguity that can change what a reader does is HIGH, and register mechanics
-are batched LOW.</li>
 <li>The <code>/wf docs</code> orchestrator audit grades each document against the contract
 alongside its accuracy, quadrant, completeness, and freshness checks.</li>
 <li>The <code>ambiguous-copy</code> surface-defect class records the same failures when a live
@@ -104,7 +100,7 @@ dictionary.</p>
 <div class="related">
   <h2>Related</h2>
   <ul>
-    <li><a href="../reference/review-dimensions.html">Review dimensions</a> — the 11 rubrics, the alias table that keeps <code>ste-compliance</code> reachable, and the sweep aggregates.</li>
+    <li><a href="../reference/review-dimensions.html">Review dimensions</a> — the 11 rubrics, their aliases, and the sweep aggregates.</li>
     <li><a href="why-artifacts.html">Why artifacts</a> — the design bet that decisions live in files, which this contract extends to the sentences inside those files.</li>
     <li><a href="evidence-and-gates.html">Evidence and gates</a> — how findings and severities flow through the review ledger.</li>
   </ul>

@@ -22,14 +22,24 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - Errors: reported to an error tracker with grouping keys and context, not only logged; no swallowed exceptions on a critical path.
 - Alerts: every user-facing failure mode has a symptom-based alert with a threshold an operator can defend.
 - Runbooks: each alert links to a runbook; the runbook names the dashboard and the first three commands.
+- Severity: a missing log, metric, error report, or alert on a critical path is HIGH; missing tracing or a missing runbook is MED.
+- Check all six categories on auth, payments, external integrations, and background jobs.
+- Metric labels never carry user IDs, request IDs, or timestamps; label combinations are bounded.
+- Sampling: tail sampling keeps errors, slow requests, and VIP requests; no path logs 100% of high-volume traffic.
+- Error reports carry the release that introduced the error, and breadcrumbs.
+- Alerts cover business metrics (checkout drop-off, payment success rate) and p95/p99 latency regressions; an alert fires fewer than 5 times a week.
 ### logging
 - **Category**: every finding names one checklist category (Safety, Privacy, Quality, Levels, Noise, Structure).
 - Safety: a secret, credential, token, or key in a log statement is BLOCKER; check interpolated objects and error payloads, not only literals.
 - Privacy: PII (email, name, address, IDs, payment data) in logs is HIGH unless redacted or hashed at the call site.
-- Quality: string concatenation instead of structured fields, missing correlation IDs, and inconsistent field names are MED.
+- Quality: string concatenation instead of structured fields, and missing correlation IDs are HIGH; inconsistent field names are MED.
 - Levels: ERROR for failures needing action, WARN for degraded-but-handled, INFO for business events, DEBUG for diagnostics; a wrong level is MED.
-- Noise: per-item logging inside hot loops, duplicate logs across layers, and unconditional DEBUG in production paths are MED.
+- Noise: per-item logging inside hot loops, duplicate logs across layers, and unconditional DEBUG in production paths are HIGH.
 - Structure: many scattered lines for one request instead of one wide event with the full context is MED; propose the wide event.
+- No full request body or payload over 1 KB in a log line; high-volume endpoints sample per-request logs.
+- Secrets include Authorization headers, connection strings, full JWTs, and session cookies.
+- IP addresses, geolocation, and user content are PII; logs fall under the right to deletion.
+- ERROR is not used for an expected failure such as a 404; emit the wide event at the end of the request.
 
 # Severity calibration
 - **Evidence-first**: Every finding includes `file:line` + the quoted code, config, or text that shows the defect.

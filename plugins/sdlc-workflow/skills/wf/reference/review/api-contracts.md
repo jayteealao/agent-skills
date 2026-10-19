@@ -26,6 +26,13 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - **Is there a compatibility test suite?** (Do tests verify old clients still work?)
 - **What is the breaking change process?** (RFC required? Changelog? Migration guide?)
 - **Are there API docs?** (OpenAPI/Swagger spec? Generated or manual?)
+- **A breaking request or behavior change without a version bump is BLOCKER**: a new required field, stricter validation, a changed default, a renamed field (`user_id` → `userId`), a changed path or method, a changed status code for the same error, or a changed auth or pagination scheme.
+- **Spec drift is HIGH**: the spec marks a field required that the code omits, the code returns undocumented fields, or nullability differs (null against a missing key).
+- Protobuf: a removed field is marked `reserved`; no field type change (int32 → int64), message rename, or optional → required.
+- GraphQL: removed enum values, union or interface changes, input-type changes, and nullability changes.
+- Clients that parse error strings break when the message text or an error detail field changes.
+- Deprecation: `@deprecated` states a removal date and a replacement, emits a runtime warning, and the docs mark it.
+- Versioning is uniform across endpoints, and the version in code matches the route. Error codes, rate-limit headers, and the auth flow are documented.
 - Check breaking-change detection, versioning, backwards compatibility, deprecation, request/response validation, error contracts, semver, GraphQL schemas, and gRPC/protobuf field numbering.
 ### migrations
 - **Locking migrations on large tables are BLOCKER**: ALTER TABLE without `ALGORITHM=INPLACE` on >1M row tables
@@ -40,6 +47,14 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - **Is zero-downtime required?** (Production requirements for online migrations)
 - **What is the rollback strategy?** (Can migrations be rolled back? How?)
 - **What is the application deployment order?** (Code-first vs schema-first)
+- **An unbatched backfill on a large table is BLOCKER** under the locking rule: a large `UPDATE` inside the schema migration. An `UPDATE` with no `WHERE` is a finding at any size.
+- **A lossy transformation is HIGH**: `ROUND(price)`, `DECIMAL` → `VARCHAR`, or a `DROP COLUMN` or `DROP TABLE` with no backup. A down migration does not bring lost data back.
+- A NOT NULL column on an existing table takes three steps: add it nullable, backfill it, then set NOT NULL.
+- A column rename takes expand, dual-write, then contract, so old code keeps working during a rolling deploy.
+- CHECK and FK constraints are added `NOT VALID`, then validated in a separate step.
+- Postgres: no `ALTER TYPE … ADD VALUE` inside a transaction; no enum value removed while rows still use it.
+- Migration timestamps do not collide; `REINDEX` and `VACUUM FULL` run `CONCURRENTLY` or offline; redundant indexes are dropped.
+- Partitioning an existing table needs a rebuild; partitions have automated maintenance.
 - Check table locking, reversibility, breaking schema changes, index creation (`CONCURRENTLY`), data transformations, constraints, ordering, defaults and auto-increment, enum and type changes, and partitioning.
 
 # Severity calibration

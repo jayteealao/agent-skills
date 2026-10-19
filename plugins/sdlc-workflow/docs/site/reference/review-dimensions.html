@@ -10,7 +10,7 @@
 <aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
 <main>
 <h1>Review dimensions</h1>
-<p class="lede">This page lists the 11 review rubrics, the 25 alias names that keep every former dimension reachable, the 7 sweep aggregates that bundle the rubrics, and the rules for ad-hoc invocation. Use this page to pick the right rubric for the review you want.</p>
+<p class="lede">This page lists the 11 review rubrics, the 24 alias names that keep every former dimension reachable, the 7 sweep aggregates that bundle the rubrics, and the rules for ad-hoc invocation. Use this page to pick the right rubric for the review you want.</p>
 <div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
 
 <h2 id="invocation">Invocation and scope</h2>
@@ -39,13 +39,13 @@
 <dt><code>api-contracts</code></dt><dd>Reviews API contracts and database migrations for stability, compatibility, and safe operation in production. Sections: api-contracts, migrations.</dd>
 <dt><code>accessibility</code></dt><dd>Reviews UI changes for keyboard and assistive-technology usability, ARIA correctness, and SPA-specific accessibility. Sections: accessibility, frontend-accessibility.</dd>
 <dt><code>interface-craft</code></dt><dd>Reviews the static visual detail and the motion that make an interface feel polished: radii, alignment, shadows, tabular numbers, hit areas, easing, timing, interruptibility. Sections: interface-craft, motion.</dd>
-<dt><code>docs</code></dt><dd>Reviews documentation completeness and Diátaxis fit, user-facing copy, and controlled-language compliance of text at rest. Sections: docs, ux-copy, ste-compliance.</dd>
+<dt><code>docs</code></dt><dd>Reviews documentation completeness and Diátaxis fit, and user-facing copy. Sections: docs, ux-copy.</dd>
 <dt><code>observability</code></dt><dd>Reviews observability and logging: wide events, metrics, tracing, error reporting, alertability, runbook hooks, and secrets or PII in logs. Sections: observability, logging.</dd>
 <dt><code>infra</code></dt><dd>Reviews infrastructure, CI/CD pipelines, release safety, and developer tooling for safety, least privilege, and operational clarity. Sections: infra, ci, release, dx.</dd>
 <dt><code>intent-fidelity</code></dt><dd>Reviews whether the diff advances the intake's product or a simplified imitation of it. This code-to-intake fidelity is the thing every other rubric misses. Section: intent-fidelity.</dd>
 </dl>
 
-<h2 id="aliases">The 25 aliases</h2>
+<h2 id="aliases">The 24 aliases</h2>
 <p>Every former dimension name stays a valid key. An alias resolves to its rubric with a focus: the reviewer reads that one section plus the severity calibration, so <code>/wf review logging</code> stays as narrow as it was. In the workflow stage, a selection rule that names an alias dispatches the rubric once with the triggered sections as its focus.</p>
 <table>
 <thead><tr><th>Alias</th><th>Rubric</th></tr></thead>
@@ -57,7 +57,7 @@
 <tr><td><code>migrations</code></td><td><code>api-contracts</code></td></tr>
 <tr><td><code>frontend-accessibility</code></td><td><code>accessibility</code></td></tr>
 <tr><td><code>motion</code></td><td><code>interface-craft</code></td></tr>
-<tr><td><code>ux-copy</code>, <code>ste-compliance</code></td><td><code>docs</code></td></tr>
+<tr><td><code>ux-copy</code></td><td><code>docs</code></td></tr>
 <tr><td><code>logging</code></td><td><code>observability</code></td></tr>
 <tr><td><code>ci</code>, <code>release</code>, <code>dx</code></td><td><code>infra</code></td></tr>
 </tbody>

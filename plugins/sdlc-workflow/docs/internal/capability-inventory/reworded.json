@@ -130,5 +130,17 @@
     "category": "stops",
     "from": "- if token0 does not match a slug,",
     "to": "- if token0 is amend or modernize and"
+  },
+  {
+    "file": "skills/wf/reference/review/accessibility.md",
+    "category": "rubric-checks",
+    "from": "missing form labels is high :",
+    "to": "missing form labels is blocker :"
+  },
+  {
+    "file": "skills/wf/reference/review/accessibility.md",
+    "category": "rubric-checks",
+    "from": "color-only information conveyance is med :",
+    "to": "color-only information conveyance is blocker :"
   }
 ]

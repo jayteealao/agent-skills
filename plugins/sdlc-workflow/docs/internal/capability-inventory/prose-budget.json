@@ -97,7 +97,11 @@
     }
   },
   "exceptions": {
-    "skills/wf/reference/augment/wide-event-observability.md": 456
+    "skills/wf/reference/augment/wide-event-observability.md": 456,
+    "skills/wf/reference/review/architecture.md": 115,
+    "skills/wf/reference/review/correctness.md": 130,
+    "skills/wf/reference/review/infra.md": 107,
+    "skills/wf/reference/review/performance.md": 110
   },
   "rubricFenceExceptions": {},
   "wordBudgets": {

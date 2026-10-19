@@ -23,6 +23,12 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - **What's the latency budget?** (p50, p95, p99 targets)
 - **What's already slow?** (Existing performance issues, user complaints)
 - **What's the concurrency?** (Single user, 1000 concurrent users)
+- **Per-user data cached under a global key is HIGH**: it serves one user's data to another.
+- Cache correctness: the key covers every input; stale data has an invalidation path; a miss does not stampede.
+- A read-modify-write, or a balance or inventory check-then-act, with no lock or version check (see `correctness`, focus backend-concurrency).
+- Every external call has a timeout; every queue has backpressure.
+- Allocations: a whole file read into memory, all results collected before processing, and string concatenation in a loop.
+- Each finding estimates its latency, throughput, or resource impact. A performance defect alone is rarely BLOCKER; an optimization with no measurement is NIT.
 - Check algorithmic complexity, query shape, memory, serial I/O, caching, thread-pool exhaustion, payload size, and whether a measurement backs each optimization.
 ### frontend-performance
 - **Bundle size**: judge from `metric-bundle-size-delta-pct` in `06-verify-*.md` (≥20% in any chunk is HIGH, per verify); apply that threshold here only when verify did not run
@@ -37,6 +43,11 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - **What are target devices?** (Mobile-first, desktop, both — affects performance thresholds)
 - **What are current metrics?** (Baseline LCP, INP, CLS, bundle sizes)
 - **Is there performance monitoring?** (Real User Monitoring, Lighthouse CI, WebPageTest)
+- When verify did not run: whole-library imports (lodash, moment), duplicate libraries, dev code in the production bundle, and broken tree-shaking.
+- A large list is virtualized.
+- CLS: images and iframes have dimensions; injected content reserves its space. Fonts load without FOIT; offscreen images load lazily.
+- Re-renders: inline object or array props, a context value recreated on each render, and an array index used as `key`.
+- Scroll and touch listeners are passive; no CSS or JS blocks render; critical origins have preconnect hints.
 - Check Core Web Vitals, JavaScript execution, network waterfalls, CSS cost, state-management churn, third-party scripts, and mobile devices.
 ### scalability
 - **Unbounded growth with data size in user-facing paths is BLOCKER**: Quadratic/exponential complexity on user operations
@@ -51,6 +62,14 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - **What is the multi-tenancy model?** (Shared database, isolated databases, schema-per-tenant, hybrid)
 - **What is the caching strategy?** (Redis, Memcached, CDN, application-level, database query cache)
 - **What database technology is used?** (PostgreSQL, MySQL, MongoDB, DynamoDB — affects scaling patterns)
+- Multi-tenancy: every query and cache key is scoped to a tenant (row-level security or an explicit filter); tenants have rate limits and quotas.
+- Background jobs: retry logic, a job timeout, a dead-letter queue so failed jobs are not lost, and bounded concurrency.
+- Circuit breakers, backpressure, and concurrency limits stop a cascading failure.
+- Scale-out: no local lock, in-memory semaphore, sticky session, or server-local cache that breaks with two instances; the load balancer has health checks.
+- Pagination uses a cursor, not a large `OFFSET`; composite indexes match the query.
+- Cache: stampede, a cold cache after deploy, and an invalidation strategy.
+- Recursion has a depth limit; `setInterval` timers and streams are released.
+- Each finding estimates its impact at 10× and at 100× the current load.
 - Check rate limiting, connection pooling, background-job throughput, and API design for scale.
 ### cost
 - **Unbounded resource creation is BLOCKER**: Loops creating cloud resources without limits (instances, storage, API calls)
@@ -65,6 +84,11 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - **Are there cost budgets?** (Monthly budget, cost per user, cost per request)
 - **What is the cost monitoring setup?** (CloudWatch, Datadog, cost anomaly detection)
 - **Are there reserved instances/commitments?** (Reserved capacity that affects marginal costs)
+- **Retries without backoff that create duplicate resources are HIGH**; a retry storm drives runaway autoscaling.
+- Autoscaling has a budget alarm and does not thrash between scale-up and scale-down.
+- No resource per user (a bucket or a database each); endpoints that create resources are rate-limited.
+- Log groups have retention; snapshots expire; stopped instances do not keep billed volumes; cross-AZ traffic is counted.
+- Each finding estimates its cost impact.
 - Check autoscaling upper bounds, third-party API overuse, query cost, and storage tiers.
 
 # Severity calibration

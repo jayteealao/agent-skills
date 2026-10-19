@@ -23,6 +23,13 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - **What coupling is acceptable?** (Shared types, shared utilities, shared interfaces)
 - **What are the extension points?** (How to add new features without touching existing code)
 - **What are the invariants?** (Rules that must hold across the system)
+- Map the intended architecture first: docs, ADRs, directory layout, and the architectural style.
+- State held in several places that drift apart; events with no clear cause and effect.
+- Temporal coupling (A must run before B, never stated); shared mutable state and global singletons.
+- Aggregates enforce their invariants; callers do not reach into an aggregate's internals.
+- `Date.now()` or `process.env` read inside business logic instead of injected.
+- Import cycles include transitive (A→B→C→A) and type-only cycles. Fan-out above 10 is HIGH.
+- Primitive obsession, missing value objects, files over 1000 lines, and `utils` dumping grounds.
 - Check layering, dependency direction, cohesion, missing and leaky abstractions, cross-cutting concerns, injection and testability, open/closed fragility, data flow, and domain-model placement.
 ### maintainability
 - **Change scenario**: Show what kind of change becomes difficult
@@ -32,6 +39,11 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - How easy is it to change this code without breaking other parts?
 - How easy is it to add new features without touching many files?
 - Are conventions consistent enough that patterns are predictable?
+- A stale comment that contradicts the code; a name that says X while the code does Y; one concept under several names.
+- An invariant checked in many places instead of one.
+- Thresholds: nesting deeper than 3, a function over 50 lines, boolean-flag parameters, and high cyclomatic complexity.
+- Magic numbers; config values and feature flags scattered across files.
+- Do not propose a refactor of working code for a speculative need; duplication beats the wrong abstraction.
 - Check cohesion, coupling, complexity, naming, duplication, encapsulation, comments, change amplification, and internal API ergonomics.
 ### overengineering
 - **Smallest fix first**: Provide the smallest acceptable fix, then propose larger refactors
@@ -41,6 +53,7 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - What parts are speculative (YAGNI) or ceremonial (KISS violation)?
 - Where did we add new concepts (types/classes/modules/config) without net clarity?
 - Smells: single-use abstractions, a framework inside the app, wrappers on wrappers, premature generalization or optimization, over-decomposition, dependency bloat, hidden coupling.
+- For each new abstraction, record its justification, how many callers use it, and the simplest alternative. A premature optimization is one with no measurement.
 ### code-simplification
 - **Before-after sketch**: Show what the simpler version would look like (conceptual, not a full patch)
 - **No auto-fixing**: Report only — the user decides what to address
@@ -49,6 +62,10 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - Quality lens: redundant state, parameter sprawl, copy-paste variation, leaky abstractions, stringly-typed code, dead branches, comments that narrate WHAT.
 - Efficiency lens: redundant work, missed concurrency, hot-path bloat, unconditional no-op updates, TOCTOU existence checks, unbounded memory, over-broad reads.
 - Duplicate logic that will diverge is BLOCKER; an ignored existing utility or O(n) work that should be O(1) is HIGH; cold-path inefficiency is LOW.
+- Missing cleanup: event listeners, subscriptions, and timers that leak.
+- N+1 queries, repeated file reads, and duplicate network calls.
+- Severity follows the path: a missed utility on a hot path is HIGH, in a one-off script LOW; duplication across modules is worse than inside one function.
+- Unused variables, always-true or always-false conditions, and comments that narrate the change or name the task.
 ### style-consistency
 - **Show the pattern**: Include examples of existing codebase pattern being violated
 - **Autofix when possible**: Provide exact replacement for mechanical changes
@@ -57,6 +74,9 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - Is the new code consistent with those patterns?
 - If inconsistent, which pattern should we standardize on?
 - Can this be automated with linter/formatter?
+- Method: read the linter and formatter config, sample the codebase, count the dominant pattern for each category, and flag only deviations from it.
+- Severity: a public API inconsistency that breaks callers' expectations is BLOCKER; a visible inconsistency (function naming, error handling) is HIGH; an internal one (variable names, loop style) is MED; import order or formatting is LOW; quote style is NIT.
+- Confidence comes from the sample: High when more than 90% of samples use the other pattern, Med at 80–90%, Low below 80%. When no pattern dominates, propose the idiomatic choice as the standard.
 - Check naming, error-handling idioms, nullability, async patterns, collection idioms, imports, type usage, public API shape, formatting, and language idioms.
 ### refactor-safety
 - **Behavior drift proof**: Show concrete input where old and new code diverge
@@ -67,6 +87,13 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - **Are side effects exactly the same (order, conditions, data)?**
 - **Do error paths behave identically?**
 - **Are performance characteristics equivalent?**
+- **These are BLOCKER**: a changed public API contract, altered side effects (writes, external calls, logging), changed error semantics (throws against returns, a different exception), changed data mutations, diverged control flow (branches, loops, early returns), changed defaults, and a radical performance change (O(n) → O(n²), new blocking).
+- State the refactor's goal and what it may change first; any undocumented behavior change is a finding.
+- Map each old code path to its new home; logic lost in a move is a finding.
+- Type coercion: null against undefined, truthy and falsy checks, and `parseInt` behavior.
+- Side effects now duplicated or removed; loop bounds or iteration counts changed; switch fallthrough reordered; try/catch boundaries moved.
+- Validation now accepts or rejects other inputs; normalization (case, whitespace, encoding) changed; an idempotent operation is no longer idempotent.
+- Propose an equivalence test that exposes each drift.
 - Check changed defaults, moved early returns, narrowed or widened error handling, side-effect order and conditions, public API drift, sync-to-async and N+1 surprises, ordering and determinism, and filter or transform changes.
 
 # Severity calibration

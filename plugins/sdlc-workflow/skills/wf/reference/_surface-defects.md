@@ -1,6 +1,6 @@
 # Surface defect taxonomy (shared)
 
-Platform-generic defect classes for **runtime observation** of a user-facing surface, plus the decidability boundary that says when observing is a valid way to know at all. Read by `/wf probe` (target mode and `sweep` mode), by `/wf verify`'s runtime sub-agent, and cited by the `reliability`, `correctness`, `ux-copy`, and `ste-compliance` review dimensions. Adapters supply *how to reach* a surface (`runtime-adapters.md`); this file supplies *what to ask once you are looking at it*.
+Platform-generic defect classes for **runtime observation** of a user-facing surface, plus the decidability boundary that says when observing is a valid way to know at all. Read by `/wf probe` (target mode and `sweep` mode), by `/wf verify`'s runtime sub-agent, and cited by the `reliability`, `correctness`, and `ux-copy` review dimensions. Adapters supply *how to reach* a surface (`runtime-adapters.md`); this file supplies *what to ask once you are looking at it*.
 
 The questions are **surface-shaped, not app-shaped**: "is there a control whose handler does nothing?" needs no domain knowledge, which is why the same rubric works on an Android screen, a web page, a CLI command, and an HTTP route. Anything that needs domain knowledge comes from the workflow's `charter:` constraints instead, not from here.
 
@@ -20,7 +20,7 @@ Each class carries a detection question and a severity anchor. Record the class 
 | `boundary-overflow` | Does layout or output exceed the real target dimension? | `low`; `medium` when it makes a control unreachable or truncates meaning |
 | `env-interference` | Could ambient state, not the artifact, have produced what I just saw? | Not a product finding by default; it explains a withdrawn or downgraded finding |
 
-The `ambiguous-copy` check method is the word-discipline section (section 1) of [_ste-procedural.md](_ste-procedural.md); cite the W-rule on every such finding. It is the runtime counterpart of the `ste-compliance` review dimension, which audits text at rest.
+The `ambiguous-copy` check method is the word-discipline section (section 1) of [_ste-procedural.md](_ste-procedural.md); cite the W-rule on every such finding. Its text-at-rest counterpart is the terminology check in the `ux-copy` section of the `docs` review rubric.
 
 ## Severity discipline
 
