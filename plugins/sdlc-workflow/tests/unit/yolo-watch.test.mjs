@@ -882,3 +882,79 @@ test('B4: --once exits after the first poll that gives events, and the next watc
     assert.deepEqual(second.lines.map((l) => l.event), ['stage-end'], 'the stage start is not given again');
   } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
 });
+
+// ---------------------------------------------------------------- the look-in
+// The PO, 2026-10-19: the campaign session reported only on events, so a long stage gave
+// no word for an hour. After 15 minutes with no full note, the watch asks the session to look in.
+
+test('look-in: 15 quiet minutes give one look-in with the running agents; a stage start does not restart the clock', () => {
+  const root = makeRepo();
+  const lockDir = tmpDir('locks');
+  const projectsDir = tmpDir('projects');
+  try {
+    let now = T0;
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: () => now, lookInMs: 15 * 60000, lockDir, projectsDir, usageDir: projectsDir });
+    assert.deepEqual(w.pollLookIn([]), [], 'the first poll starts the clock');
+    now = T0 + 2 * 60000;
+    journal(root, { at: at(2), seq: 1, event: 'agent-start', agent: 'implement:board', stage: 'implement', slice: 'board' });
+    const started = w.pollJournals();
+    assert.deepEqual(started.map((e) => e.event), ['stage-start']);
+    assert.deepEqual(w.pollLookIn(started), [], 'a stage start is one line, not a full note');
+    now = T0 + 14 * 60000;
+    assert.deepEqual(w.pollLookIn([]), []);
+    now = T0 + 15 * 60000;
+    const ev = w.pollLookIn([]);
+    assert.equal(ev.length, 1);
+    assert.equal(ev[0].event, 'look-in');
+    assert.equal(ev[0].sinceMinutes, 15);
+    assert.deepEqual(ev[0].running, [{ slug: SLUG, agent: 'implement:board', stage: 'implement', slice: 'board', startedAt: at(2), minutes: 13 }]);
+    now = T0 + 29 * 60000;
+    assert.deepEqual(w.pollLookIn([]), [], 'the next look-in comes 15 minutes after this one');
+    now = T0 + 30 * 60000;
+    assert.deepEqual(w.pollLookIn([]).map((e) => e.event), ['look-in']);
+  } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
+});
+
+test('look-in: a full note restarts the clock, the clock survives a restart, and 0 turns it off', () => {
+  const root = makeRepo();
+  const lockDir = tmpDir('locks');
+  const projectsDir = tmpDir('projects');
+  try {
+    let now = T0;
+    const opts = { projectRoot: root, slugs: [SLUG], now: () => now, lockDir, projectsDir, usageDir: projectsDir };
+    const a = W.createWatcher({ ...opts, lookInMs: 15 * 60000 });
+    a.pollLookIn([]);
+    now = T0 + 10 * 60000;
+    assert.deepEqual(a.pollLookIn([{ event: 'stage-end' }]), [], 'the session gives a full note now');
+    a.save();
+    // A re-armed watch keeps the clock: the look-in comes 15 minutes after the stage end.
+    now = T0 + 24 * 60000;
+    const b = W.createWatcher({ ...opts, lookInMs: 15 * 60000 });
+    assert.deepEqual(b.pollLookIn([]), []);
+    now = T0 + 25 * 60000;
+    assert.deepEqual(b.pollLookIn([]).map((e) => e.event), ['look-in']);
+    const off = W.createWatcher({ ...opts, lookInMs: 0 });
+    now = T0 + 300 * 60000;
+    assert.deepEqual(off.pollLookIn([]), []);
+  } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
+});
+
+test('look-in: 15 minutes by default, or the given minutes; 0 turns it off', () => {
+  assert.equal(W.lookInMsOf({}, {}), 15 * 60000);
+  assert.equal(W.lookInMsOf({ 'look-in': '5' }, {}), 5 * 60000);
+  assert.equal(W.lookInMsOf({ 'look-in': '0' }, {}), 0);
+  assert.equal(W.lookInMsOf({}, { SDLC_WATCH_LOOK_IN_MINUTES: '30' }), 30 * 60000);
+  assert.equal(W.lookInMsOf({ 'look-in': 'soon' }, {}), 15 * 60000, 'a bad value keeps the default');
+});
+
+test('look-in: a quiet --once watch wakes the session with a look-in, not after 110 minutes', async () => {
+  const root = makeRepo();
+  const lockDir = tmpDir('locks');
+  const projectsDir = tmpDir('projects');
+  try {
+    const env = { SDLC_WATCH_LOCK_DIR: lockDir, SDLC_CLAUDE_PROJECTS_DIR: projectsDir, SDLC_USAGE_DIR: projectsDir };
+    const r = await runCli([root, SLUG, '--once', '--look-in', '0.01'], env);
+    assert.equal(r.code, 0);
+    assert.deepEqual(r.lines.map((l) => l.event), ['look-in']);
+  } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
+});

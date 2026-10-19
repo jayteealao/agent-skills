@@ -42,6 +42,7 @@ The Monitor tool stops a watch after 30 minutes at most. No watch without a dead
 | `protected-change` | A protected file changed. `dirtyAtStart: true` means the file held the person's uncommitted edits. A file gives one event per 10 minutes, however often it is saved. In a worktree, uncommitted files at the watch start are an earlier run's work, not the person's, so they are not protected. | A full note: the file, the change, and the stage that ran. | yes |
 | `stale` | The running agent is silent. With `signal: transcript`, the agent's own transcript wrote nothing for 15 minutes: one tool call lasts 10 minutes at most, so the agent hangs. With `signal: journal`, no transcript was found, and the journal is silent past the liveness limit with an `agent-start` as its newest line. | A warning, worded per the staleness rule in [../_control-file-ownership.md](../_control-file-ownership.md). With `signal: transcript`, say that the agent hangs, and offer to stop the run and resume it. | yes |
 | `stop` | A stage agent returned `hard-stop`, or stopped on a stop request. | Why the run stopped, and the resume command. | yes |
+| `look-in` | 15 minutes passed with no full note (`--look-in <minutes>` changes it; 0 turns it off). `running` lists each open stage agent and its minutes. | Look in, and tell the person what is happening (C7). | no |
 | `run-end` | The driver ended. `inferred: true` means that the journal went silent after an `agent-end`. | The run summary. | yes |
 | `usage` | A usage reading crossed a budget line. | One line with both windows and their reset times. At level `pause`, a full note. | at `pause` |
 | `usage-reset` | The window of a pause reset. | One line. | no |
@@ -73,6 +74,13 @@ Scout, classifier, and bookkeeping agents give no event.
 - **R2.** The chat reply for each event stays as the table says. The record no longer depends on the chat reply: in the two campaigns before R1, the notes were skipped, and `commentary.md` stayed empty.
 - **C5.** Send a push notification (the `PushNotification` tool) only for the events that the table marks. Lead with what the person acts on, for example "yolo engine-modules: plan stopped on decision D6".
 - **C6.** Answer the person's questions between events from the records: the artifacts, the journal, `commentary.md`, and git. Do not answer from memory. A watch event does not block the conversation.
+- **C7.** For `look-in`, look at the run before you say anything. For each agent in `running`:
+  1. Read the newest lines of its journal.
+  2. Read the commits on its branch since the last note (`git -C <its root> log`).
+  3. Read the files that the stage changed (`git -C <its root> status --short`).
+  4. Read the newest part of the agent's transcript, when you find it: the `agent-<id>.meta.json` whose `description` is the agent label.
+
+  In a campaign, also run `node "<pluginRoot>/skills/wf/scripts/campaign.mjs" status "<projectRoot>" <brainstorm-slug>` for the open questions. Then tell the person, in at most six sentences: what each running stage is doing now and for how long, what changed since the last note, what comes next, and what waits on the person. When nothing changed, say so in one line. Append the note with `--event look-in`.
 
 ## Quiet
 

@@ -7,11 +7,12 @@
  * becomes a chat notification, so the script writes nothing else to stdout.
  * Diagnostics go to stderr.
  *
- *   node yolo-watch.mjs <projectRoot> <slug> [<slug> ...] [--since <seq>] [--once] [--max-minutes <n>]
+ *   node yolo-watch.mjs <projectRoot> <slug> [<slug> ...] [--since <seq>] [--once] [--max-minutes <n>] [--look-in <n>]
  *       Watch the runs. Exit after the run-end event of every slug, or after the
  *       lifetime (31 minutes; 110 with --once). --once: exit after the first poll
  *       that gives events, for a background shell task when the Monitor tool gives
- *       no output; a lifetime end then prints a watch-timeout line.
+ *       no output; a lifetime end then prints a watch-timeout line. --look-in: the
+ *       minutes with no full note before a look-in event (15; 0 turns it off).
  *   node yolo-watch.mjs note <projectRoot> <slug> [--event <kind>]   < text
  *       Append one commentary note (stdin) to .ai/workflows/<slug>/commentary.md.
  *   node yolo-watch.mjs control <projectRoot> <slug> stop <current|plan|implement|verify|review>
@@ -87,6 +88,8 @@ export const CAMPAIGN_EVENTS = Object.freeze([
   'merged', 'released', 'asked', 'paused', 'resumed', 'wave-end', 'campaign-end',
 ]);
 const CAMPAIGN_END_EVENTS = Object.freeze(['wave-end', 'campaign-end', 'run-end']);
+// The events whose chat reply is a full note (_commentary.md). One of them restarts the look-in clock.
+export const FULL_NOTE_EVENTS = Object.freeze(['stage-end', 'decision', 'protected-change', 'stale', 'stop', 'run-end', 'look-in']);
 const STATE_VERSION = 1;
 
 const workflowDir = (root, slug) => path.join(root, '.ai', 'workflows', slug);
@@ -432,7 +435,7 @@ export const PROTECTED_QUIET_MS = 10 * 60 * 1000;
 // ---------------------------------------------------------------------------
 export function createWatcher({
   projectRoot, slugs, since = null, usageDir = null, campaign = null, now = () => Date.now(),
-  projectsDir = null, lockDir = null, lockId = null,
+  projectsDir = null, lockDir = null, lockId = null, lookInMs = 0,
 }) {
   const root = path.resolve(projectRoot);
   const watchStartMs = now();
@@ -825,9 +828,31 @@ export function createWatcher({
     }
   }
 
+  // The look-in: when the session gave no full note for lookInMs, the watch asks it to
+  // look in and tell the person what is happening. The clock lives in the saved state,
+  // so a watch restart does not reset it. A poll that gives a full note restarts it.
+  function pollLookIn(events) {
+    if (!(lookInMs > 0)) return [];
+    const t = now();
+    const noted = events.some((ev) => FULL_NOTE_EVENTS.includes(ev.event));
+    if (noted || !Number.isFinite(lead.repo.lookInAt)) { lead.repo.lookInAt = t; return []; }
+    if (t - lead.repo.lookInAt < lookInMs) return [];
+    const since = lead.repo.lookInAt;
+    lead.repo.lookInAt = t;
+    const running = [];
+    for (const [slug, { st }] of states) {
+      for (const [agent, startedAt] of Object.entries(st.openStages || {})) {
+        const { stage, slice } = stageOf({ agent });
+        const startMs = Date.parse(startedAt || '');
+        running.push({ slug, agent, stage: stage || null, slice: slice || null, startedAt: startedAt || null, minutes: Number.isFinite(startMs) ? Math.round((t - startMs) / 60000) : null });
+      }
+    }
+    return [{ event: 'look-in', slugs: [...states.keys()], ...(campaign ? { campaign } : {}), running, sinceMinutes: Math.round((t - since) / 60000), at: iso(t) }];
+  }
+
   // In a campaign, a slug's run-end does not end the watch: the next slug of the
   // wave still runs. The campaign journal's wave-end or run-end does.
-  const allEnded = () => (camp ? camp.ended : [...states.values()].every(({ st }) => st.ended));
+  const allEnded =() => (camp ? camp.ended : [...states.values()].every(({ st }) => st.ended));
 
   function finish() {
     lead.repo.runEnded = allEnded();
@@ -840,7 +865,7 @@ export function createWatcher({
 
   return {
     root, states, covered, pollJournals, pollCommits, pollProtected, pollUsage, pollUsageReset, pollWorkRevision,
-    recordFacts, checkLocks, releaseLocks, allEnded, save: finish,
+    pollLookIn, recordFacts, checkLocks, releaseLocks, allEnded, save: finish,
   };
 }
 
@@ -946,6 +971,19 @@ export function lifetimeMs(flags, env = process.env) {
   return minutes * 60 * 1000;
 }
 
+/**
+ * The look-in: after this many minutes with no full note, the watch emits `look-in`, and
+ * the session looks at the run and tells the person what is happening. 15 minutes by
+ * default; --look-in or SDLC_WATCH_LOOK_IN_MINUTES sets it, and 0 turns it off.
+ */
+export const DEFAULT_LOOK_IN_MINUTES = 15;
+export function lookInMsOf(flags, env = process.env) {
+  const raw = flags['look-in'] ?? env.SDLC_WATCH_LOOK_IN_MINUTES;
+  const given = raw === undefined || raw === '' ? NaN : Number(raw);
+  const minutes = Number.isFinite(given) && given >= 0 ? given : DEFAULT_LOOK_IN_MINUTES;
+  return minutes * 60 * 1000;
+}
+
 async function watch(root, slugs, flags) {
   const ms = (name, dflt) => Math.max(10, Number(process.env[name]) || dflt);
   const startedAt = Date.now();
@@ -956,7 +994,7 @@ async function watch(root, slugs, flags) {
   const gitMs = ms('SDLC_WATCH_GIT_MS', 20000);
   const usageMs = ms('SDLC_WATCH_USAGE_MS', 60000);
   const since = flags.since !== undefined ? Number(flags.since) : null;
-  const w = createWatcher({ projectRoot: root, slugs, since: Number.isFinite(since) ? since : null, usageDir: process.env.SDLC_USAGE_DIR || null, campaign: flags.campaign || null });
+  const w = createWatcher({ projectRoot: root, slugs, since: Number.isFinite(since) ? since : null, usageDir: process.env.SDLC_USAGE_DIR || null, campaign: flags.campaign || null, lookInMs: lookInMsOf(flags) });
   // F5 — a live campaign watch already reads these journals: say so once and stop.
   if (w.covered) {
     out({ event: 'watch-covered', by: 'campaign', campaign: w.covered.campaign || null, slugs, at: new Date().toISOString() });
@@ -980,6 +1018,7 @@ async function watch(root, slugs, flags) {
       events.push(...w.pollUsageReset());
       // The journal goes last, so a run-end follows the commits the run made.
       events.push(...w.pollJournals());
+      events.push(...w.pollLookIn(events));
       w.recordFacts(events);
       for (const ev of events) out(ev);
       w.save();
