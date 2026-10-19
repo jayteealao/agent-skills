@@ -5,6 +5,13 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.191.1] - 2026-10-19
+
+### Fixed
+
+- **The campaign waiter no longer starts again every 30 seconds.** `await` returned an answered, unconsumed question of an earlier run at once, and the wave driver ignored it, so it started a new waiter agent each time. The driver now holds an answer that no question of the run holds, lists it in `--seen`, and gives it to a question that opens later with the same id. A carried wave answer is held from launch.
+- **A person can accept a slice that fails verify.** When the answer to a verify park accepted the slice with its misses, the answered verify still failed the gate, the fix round ran without the answer, and the unit parked again. The answer now goes to every verify round. A verify that the answer accepts writes `accepted-by` in its frontmatter and returns `acceptedByPerson: true`, and the slice passes with no fix round. The orient counts that verify as done, so a new launch does not verify the slice again.
+
 ## [9.191.0] - 2026-10-19
 
 ### Added
