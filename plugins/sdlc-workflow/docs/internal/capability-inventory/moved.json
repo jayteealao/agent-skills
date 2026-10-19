@@ -641,5 +641,65 @@
     "to": "skills/wf/reference/intake/task.md",
     "category": "dispatches",
     "entry": "above a mandatory gate, and inject the relevant"
+  },
+  {
+    "from": "skills/wf/reference/review/motion.md",
+    "to": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "entry": "animating layout properties ( width /"
+  },
+  {
+    "from": "skills/wf/reference/review/motion.md",
+    "to": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "entry": "are any of these gesture-driven? (drawers,"
+  },
+  {
+    "from": "skills/wf/reference/review/motion.md",
+    "to": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "entry": "ease-in on a ui interaction is"
+  },
+  {
+    "from": "skills/wf/reference/review/motion.md",
+    "to": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "entry": "how often will a user see"
+  },
+  {
+    "from": "skills/wf/reference/review/motion.md",
+    "to": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "entry": "is there a prefers-reduced-motion strategy?"
+  },
+  {
+    "from": "skills/wf/reference/review/motion.md",
+    "to": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "entry": "keyframes on a rapidly-triggered or gesture-driven"
+  },
+  {
+    "from": "skills/wf/reference/review/motion.md",
+    "to": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "entry": "missing prefers-reduced-motion handling on movement/position animation"
+  },
+  {
+    "from": "skills/wf/reference/review/motion.md",
+    "to": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "entry": "scale(0) or pure- opacity entrance with"
+  },
+  {
+    "from": "skills/wf/reference/review/motion.md",
+    "to": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "entry": "ui duration 300ms with no stated"
+  },
+  {
+    "from": "skills/wf/reference/review/motion.md",
+    "to": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "entry": "what motion library is in play?"
   }
 ]

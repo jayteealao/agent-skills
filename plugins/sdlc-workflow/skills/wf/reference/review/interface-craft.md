@@ -33,26 +33,26 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - One shadow per elevation tier across similar components; spacing stays on the 4px/8px scale.
 - Check concentric radius, optical alignment, shadows instead of borders, image outlines, tabular numbers, text wrapping, font smoothing, hit area, spacing scale, and transition specificity with `will-change`.
 ### motion
-- **`ease-in` on a UI interaction is HIGH**: it delays the exact moment the user is watching most; it feels sluggish.
-- **Animation on a keyboard-initiated or 100×/day action is HIGH**: command-palette toggles, keyboard shortcuts, list navigation should not animate at all.
-- **`scale(0)` or pure-`opacity` entrance with no initial transform is MED**: start from `scale(0.9–0.97)` + `opacity`.
-- **Animating layout properties (`width`/`height`/`top`/`left`/`margin`/`padding`) where `transform`/`opacity` would serve is HIGH**: it runs off-GPU and triggers layout + paint.
-- **Keyframes on a rapidly-triggered or gesture-driven element is MED**: toasts, toggles, drags must be interruptible (transitions or springs that retarget from current state).
-- **Missing `prefers-reduced-motion` handling on movement/position animation is MED** (reduced motion means gentler, not zero).
-- **UI duration > 300ms with no stated reason is MED**: a 180ms dropdown feels more responsive than a 400ms one.
-- **How often will a user see each animation?** (Determines whether it should exist.)
-- **What is the register — brand or product?**
-- **What motion library is in play?** (CSS transitions/keyframes, Web Animations API, Motion/Framer Motion, React Spring — affects the failure modes.)
-- **Are any of these gesture-driven?** (Drawers, swipe-to-dismiss, drag — these need interruptibility, velocity, and pointer-capture review.)
-- **Is there a `prefers-reduced-motion` strategy?**
-- Gestures: pointer capture once a drag starts, extra touch points ignored mid-drag, dismiss on flick velocity instead of a distance threshold, and damped over-drag at boundaries.
-- Hover motion sits behind `@media (hover: hover) and (pointer: fine)`; touch devices fire false hovers on tap.
-- A popover scales from its trigger (`transform-origin`), not from its center; a modal is exempt.
-- Framer Motion `x`, `y`, and `scale` shorthands run on the main thread and drop frames when the page is busy; a CSS variable on a parent that drives a child's transform recalculates style for every child.
-- Easing: ease-out for enter and exit, ease-in-out for on-screen movement, ease for hover, and linear for constant motion.
-- A press-and-hold is slow in its deliberate phase and snaps in its response; no `bounce` or `elastic` easing in product UI; a group enters with a 30–80ms stagger.
-- Every animation answers "why does this animate?"; the default is to flag it. The brand-surface relaxation never relaxes the GPU, accessibility, or interruptibility rules.
-- Remedy in this order: remove the animation, shorten it, re-ease it, then re-implement it. When feel is uncertain, describe the intended feel and ask; do not guess a curve.
+The terms and values come from `design/animate.md`; `design/_platforms.md` gives each term's form on the web, iOS, Android (Compose) and desktop.
+- **Motion with no named purpose on a surface seen tens of times a day or more is HIGH**: every animation answers "why does this animate?"; the default is to flag it.
+- **Animation on a keyboard-initiated or 100×/day action is HIGH**: command-palette toggles, keyboard shortcuts, list navigation do not animate at all.
+- **ease-in on UI, entering or exiting, is HIGH**: it delays the exact moment the person is watching; it feels sluggish.
+- **A layout property animated where a cheap property would serve is HIGH**: it re-lays out every frame and moves the elements around it.
+- **App-thread motion that plays during navigation, loading or start-up is HIGH**: move it to the render thread.
+- **Scaling from 0, or an entrance with opacity alone where movement is expected, is MED**: start from scale 0.9–0.97 with opacity 0.
+- **A restarting animation on a fast-fired or gesture-driven element is MED**: toasts, toggles, drags use a retargetable animation or a spring.
+- **No reduced-motion form for movement or position is MED** (reduced motion means gentler, not zero).
+- **Hover motion with no hover-pointer gate is MED**: touch fires a false hover on tap.
+- **Center origin on a trigger-anchored popover is MED**: scale from the trigger origin; a modal is exempt.
+- **One inherited value driving a child's motion is MED**: every child recalculates each frame.
+- **Product UI duration over 300 ms with no stated reason is MED**: a 180 ms dropdown feels more responsive than a 400 ms one.
+- **Symmetric timing on a press-and-hold is LOW**: slow in the deliberate phase, snap in the response.
+- **A built-in curve on a deliberate animation, or a group that enters at once where a 30–80 ms stagger belongs, is LOW.**
+- **What is the register — brand or product?** The brand relaxation never relaxes the performance, accessibility, or retargeting rules.
+- **What platform and motion library are in play?** (They decide the platform forms and the failure modes.)
+- **Are any of these gesture-driven?** Gestures: pointer capture once a drag starts, extra touch points ignored, dismiss on flick velocity, velocity handed to the settling spring, and rubber-banding past an edge.
+- Easing: ease-out for enter and exit, ease-in-out for on-screen movement, ease for hover, linear for constant motion; no bounce or elastic easing in product UI.
+- Remedy in this order: delete the animation, reduce it, fix the easing, fix the origin, make it retargetable, move it to cheap properties, make the timing asymmetric, polish, then reduced motion and cohesion. When feel is uncertain, describe the intended feel and ask; do not guess a curve.
 
 # Severity calibration
 - **Evidence-first**: Every finding includes `file:line` + the quoted code, config, or text that shows the defect.

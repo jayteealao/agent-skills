@@ -142,5 +142,65 @@
     "category": "rubric-checks",
     "from": "color-only information conveyance is med :",
     "to": "color-only information conveyance is blocker :"
+  },
+  {
+    "file": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "from": "animating layout properties ( width /",
+    "to": "a layout property animated where a"
+  },
+  {
+    "file": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "from": "are any of these gesture-driven? (drawers,",
+    "to": "are any of these gesture-driven? gestures:"
+  },
+  {
+    "file": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "from": "ease-in on a ui interaction is",
+    "to": "ease-in on ui, entering or exiting,"
+  },
+  {
+    "file": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "from": "how often will a user see",
+    "to": "motion with no named purpose on"
+  },
+  {
+    "file": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "from": "is there a prefers-reduced-motion strategy?",
+    "to": "no reduced-motion form for movement or"
+  },
+  {
+    "file": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "from": "keyframes on a rapidly-triggered or gesture-driven",
+    "to": "a restarting animation on a fast-fired"
+  },
+  {
+    "file": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "from": "missing prefers-reduced-motion handling on movement/position animation",
+    "to": "no reduced-motion form for movement or"
+  },
+  {
+    "file": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "from": "scale(0) or pure- opacity entrance with",
+    "to": "scaling from 0, or an entrance"
+  },
+  {
+    "file": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "from": "ui duration 300ms with no stated",
+    "to": "product ui duration over 300 ms"
+  },
+  {
+    "file": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "from": "what motion library is in play?",
+    "to": "what platform and motion library are"
   }
 ]

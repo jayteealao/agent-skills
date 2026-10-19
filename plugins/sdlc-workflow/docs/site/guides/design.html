@@ -76,6 +76,7 @@
 <p>The <code>/wf design</code> key has six forms:</p>
 
 <pre><code>/wf design &lt;slug&gt; [move] [instructions]      Run the design stage: draw, confirm, write 02c-craft.md.
+                                             On a confirmed design, a move runs its checks and draws nothing.
 /wf design &lt;slug&gt; amend [instructions]       Reopen a confirmed design.
 /wf design &lt;slug&gt; import &lt;link|path&gt;...      Turn outside design work into boards, then confirm.
 /wf design [slug] audit|critique             Run a design review dimension now.
@@ -88,6 +89,10 @@
 <p><strong>amend</strong> reopens a confirmed design. Use it when a later stage found that it cannot build the design as drawn, or when you changed your mind. Amend changes only the surfaces that the reason names, asks for your confirmation again, keeps a snapshot of the prior contract, and names every plan that cites a changed surface. Run <code>/wf plan &lt;slug&gt; &lt;slice&gt;</code> again for each of those plans. The confirmed boards freeze as a new revision, <code>design/r&lt;N+1&gt;/</code>, and the earlier revision stays as it was.</p>
 
 <p><strong>import</strong> brings in design work made outside <code>/wf</code>: a design canvas link, a claude.ai/design project, a folder, a zip, or image files. The source is copied into <code>design/source/import-&lt;n&gt;/</code>. You map each screen to a surface and a state, and each screen becomes a board. An import never confirms by itself: it ends at the question approve, adjust, or stop.</p>
+
+<p><strong>Directions.</strong> When the work adds a new surface and no direction is confirmed yet, the stage asks whether to draw three directions of the main surface first. Each direction has a name and one named axis: layout, density, personality, motion, or interaction model. No two directions differ only in color or copy. The contact sheet shows them under "Directions". You pick one, or ask for another round around one of them. The contract records each direction and your reason in <code>## Directions considered</code>.</p>
+
+<p><strong>Worst-case boards.</strong> Each new surface that shows data gets one more board, <code>&lt;surface&gt;--worst</code>: the surface with the worst content a real person or system can produce, such as long names, unbreakable emails, 0 or 1,000+ items, missing fields, and right-to-left text. Any other surface gets one when you ask. Implement makes that content loadable in development, and verify captures it beside its board.</p>
 
 <h2 id="brainstorm">Brainstorm a design</h2>
 
@@ -173,14 +178,14 @@
 <table>
 <thead><tr><th>Move</th><th>What it focuses on</th></tr></thead>
 <tbody>
-<tr><td><code>adapt</code></td><td>Context adaptation: responsive, platform, theme, print</td></tr>
-<tr><td><code>animate</code></td><td>Purposeful motion and micro-interactions</td></tr>
+<tr><td><code>adapt</code></td><td>Context adaptation: responsive, platform, theme, print; native feel on the web, iOS, Android, and desktop</td></tr>
+<tr><td><code>animate</code></td><td>Motion through the frequency and purpose gates; the opportunity sweep with its rejected candidates</td></tr>
 <tr><td><code>bolder</code></td><td>Visual presence and hierarchy</td></tr>
 <tr><td><code>clarify</code></td><td>Less cognitive load and better scannability</td></tr>
 <tr><td><code>colorize</code></td><td>Strategic use of color</td></tr>
 <tr><td><code>delight</code></td><td>Moments of joy and personality</td></tr>
 <tr><td><code>distill</code></td><td>Removal of complexity down to the essential core</td></tr>
-<tr><td><code>harden</code></td><td>Accessibility and robustness</td></tr>
+<tr><td><code>harden</code></td><td>Accessibility and robustness, including the worst-case content pass</td></tr>
 <tr><td><code>layout</code></td><td>Spatial structure, grid, and alignment</td></tr>
 <tr><td><code>onboard</code></td><td>Empty states and the first-run experience</td></tr>
 <tr><td><code>optimize</code></td><td>Performance, with profiling before optimizing</td></tr>
@@ -194,7 +199,8 @@
 <p>Use a move in one of two ways:</p>
 
 <ul>
-  <li><strong>With a slug</strong>, <code>/wf design &lt;slug&gt; &lt;move&gt;</code> runs the design stage focused on that move. The move focuses the contract. It does not widen the scope of <code>02-shape.md</code>.</li>
+  <li><strong>With a slug, before the design is confirmed</strong>, <code>/wf design &lt;slug&gt; &lt;move&gt;</code> runs the design stage focused on that move. The move focuses the contract. It does not widen the scope of <code>02-shape.md</code>.</li>
+  <li><strong>With a slug, after the design is confirmed</strong>, the same command runs the move's checks against the frozen boards and the built UI. It draws nothing and freezes nothing, and writes its findings to <code>design-notes/&lt;move&gt;-&lt;timestamp&gt;.md</code>. For example, <code>animate</code> runs the motion gates and the opportunity sweep, and <code>harden</code> runs the worst-case content pass. When a finding changes a confirmed board, the command asks whether to amend now or keep the note for later.</li>
   <li><strong>Without a slug</strong>, <code>/wf design &lt;move&gt; &lt;instructions&gt;</code> starts a new workflow. It runs intake with your instructions and records the move and a <code>ux-impact</code> of at least <code>visual</code>. You confirm <code>ux-impact</code> in intake. The workflow then runs shape, and the design stage focuses on the recorded move.</li>
 </ul>
 
@@ -202,6 +208,8 @@
 /wf design polish tighten the settings page hierarchy</code></pre>
 
 <p>Plan cites the moves as step pointers. Implement applies them and records what changed in <code>design-notes/&lt;move&gt;-&lt;timestamp&gt;.md</code>.</p>
+
+<p><strong>Every platform.</strong> The moves use generic terms, such as "cheap property", "retargetable animation", "reduced-motion setting", and "hover pointer". A platform map, <code>design/_platforms.md</code>, gives each term its form on the web, iOS, Android with Jetpack Compose, and desktop (macOS and Windows). Values stay plain numbers: durations in ms, curves as four control points, and springs as a duration and a bounce. A platform that the map does not cover still gets the generic rules.</p>
 
 <h2 id="audit-critique">audit and critique</h2>
 

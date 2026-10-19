@@ -32,8 +32,8 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - Check algorithmic complexity, query shape, memory, serial I/O, caching, thread-pool exhaustion, payload size, and whether a measurement backs each optimization.
 ### frontend-performance
 - **Bundle size**: judge from `metric-bundle-size-delta-pct` in `06-verify-*.md` (≥20% in any chunk is HIGH, per verify); apply that threshold here only when verify did not run
-- **Blocking main thread >50ms is HIGH**: Long-running synchronous operations causing jank
-- **Excessive re-renders are HIGH**: Components re-rendering unnecessarily (>10x per interaction)
+- **Blocking main thread >50ms is HIGH**: Long-running synchronous operations causing jank. **A layout-property animation, or app-thread motion during navigation, loading or hydration, is HIGH** (`design/animate.md` → Performance; platform forms in `design/_platforms.md`)
+- **Excessive re-renders are HIGH**: Components re-rendering unnecessarily (>10x per interaction). **A per-frame value routed through component state, so the view rebuilds every frame, is HIGH**: write the moving element's property, or read the value in the layout or draw phase
 - **Missing code-splitting for routes is HIGH**: All routes bundled together instead of lazy-loaded
 - **Unoptimized images are MED**: Large images without compression, modern formats (WebP/AVIF), responsive sizes
 - **Missing memoization in loops is MED**: Expensive computations repeated unnecessarily

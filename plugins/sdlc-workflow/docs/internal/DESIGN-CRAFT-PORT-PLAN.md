@@ -1,6 +1,6 @@
 # DESIGN-CRAFT-PORT-PLAN — current motion and robustness craft, for every platform
 
-Status **BUILT W0–W7 on 2026-10-19 (section 12); the doc-site pages, the two rubrics and the release wait for a peer commit; W8 live runs open** · Date **2026-10-19** · Plugin **v9.190.0** · Owner **jayte**
+Status **BUILT W0–W7 on 2026-10-19 (section 12); C6, C7 and the doc-site pages BUILT after peer commit `683368ce`; the board-code commit and the release wait for `lib/hub-config.mjs`; W8 live runs open** · Date **2026-10-19** · Plugin **v9.190.0** · Owner **jayte**
 Source: Emil Kowalski, `emilkowalski/skills`, commit `2d22863` (2026-10-11), MIT license.
 Depends on: the design lane (archived/DESIGN-LANE-PLAN.md) and DESIGN-BOARDS-PLAN.md. Neither changes its rules here.
 
@@ -300,4 +300,4 @@ None. The PO answered Q1–Q4 on 2026-10-19 (D3–D6).
 - W6: `design.md`, `design/_commands.md`, `design/audit.md`, `design/critique.md`.
 - W7 (part): `tests/unit/skills/design-craft-port.test.mjs` (new), `tests/unit/lib/design-boards.test.mjs`.
 
-**What waits.** Another session owns uncommitted edits to `review/interface-craft.md`, `review/performance.md`, `docs/site/reference/commands.html`, `docs/site/reference/review-dimensions.html` and `capability-inventory/prose-budget.json`. C6, C7 and the doc-site part of C12 wait for that commit. `dist/` and `runtime-manifest.json` also hold a second session's uncommitted build, so the bundle commit waits for the owner of `lib/hub-config.mjs`.
+**What waits.** C6, C7 and the doc-site part of C12 landed after the peer commit `683368ce`. The 10 old `motion.md` rubric checks are recorded in `capability-inventory/moved.json` and `reworded.json`. `dist/` and `runtime-manifest.json` hold a second session's uncommitted build, so the board-code commit waits for the owner of `lib/hub-config.mjs`.

@@ -44,6 +44,7 @@ test('motion rules name no platform API outside code examples', () => {
   const sources = {
     'animate.md': prose(read(`${DESIGN}/animate.md`)),
     '_motion-recipes.md (rules part)': prose(read(`${DESIGN}/_motion-recipes.md`).split('## Web snippets')[0]),
+    'review/interface-craft.md (motion)': read('skills/wf/reference/review/interface-craft.md').split('### motion')[1].split('# Severity calibration')[0],
   };
   for (const [name, text] of Object.entries(sources)) {
     const leaks = [...text.matchAll(/`([^`]+)`/g)].map((m) => m[1].trim()).filter((t) => tokens.has(t));
@@ -85,6 +86,17 @@ test('animate carries the gates, the sweep with rejected candidates, and the sou
   match(animate, /rejected candidates/i);
   match(animate, /commit `2d22863`/);
   match(read(`${DESIGN}/critique.md`), /rejected candidates/);
+});
+
+test('the review rubrics carry the motion triggers and the motion performance rules', () => {
+  const craft = read('skills/wf/reference/review/interface-craft.md');
+  match(craft, /Motion with no named purpose on a surface seen tens of times a day or more is HIGH/);
+  match(craft, /App-thread motion that plays during navigation, loading or start-up is HIGH/);
+  match(craft, /Remedy in this order: delete the animation, reduce it, fix the easing/);
+  doesNotMatch(craft, /shorthands run on the main thread/, 'W0: Motion x/y/scale are hardware-accelerated');
+  const perf = read('skills/wf/reference/review/performance.md');
+  match(perf, /A per-frame value routed through component state/);
+  match(perf, /app-thread motion during navigation, loading or hydration, is HIGH/);
 });
 
 test('a move on a confirmed design runs the move pass, not the stage', () => {
