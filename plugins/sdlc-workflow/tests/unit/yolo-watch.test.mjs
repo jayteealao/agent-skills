@@ -1022,3 +1022,73 @@ test('a campaign watch starts with no unit slug, or with -', async () => {
     assert.equal(bad.code, 2, 'with no slug and no campaign, the watch refuses');
   } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
 });
+
+test('a replaced or truncated journal repeats no event: its lines up to now are history', () => {
+  const root = makeRepo();
+  try {
+    let now = T0;
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: () => now });
+    w.pollJournals();
+    journal(root,
+      { at: at(1), seq: 1, event: 'agent-start', agent: 'plan:auth', stage: 'plan', slice: 'auth' },
+      { at: at(2), seq: 1, event: 'agent-end', agent: 'plan:auth', status: 'complete' },
+      { at: at(3), seq: 2, event: 'agent-start', agent: 'implement:auth', stage: 'implement', slice: 'auth' },
+    );
+    now = T0 + 3 * 60000;
+    assert.deepEqual(w.pollJournals().map((e) => e.event), ['stage-start', 'stage-end', 'stage-start']);
+    // A merge or a checkout writes a shorter journal in its place.
+    writeFileSync(W.journalPath(root, SLUG), line({ at: at(1), seq: 1, event: 'agent-start', agent: 'plan:auth', stage: 'plan', slice: 'auth' }));
+    now = T0 + 4 * 60000;
+    assert.deepEqual(w.pollJournals(), [], 'the old lines say nothing again');
+    journal(root, { at: at(5), seq: 1, event: 'agent-end', agent: 'plan:auth', status: 'complete' });
+    now = T0 + 5 * 60000;
+    assert.deepEqual(w.pollJournals().map((e) => e.event), ['stage-end'], 'a new line is news');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('K3: a replaced or truncated campaign journal repeats no campaign event', () => {
+  const root = makeRepo();
+  try {
+    makeCampaign(root);
+    let now = T0;
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], campaign: B, now: () => now });
+    w.pollJournals();
+    campLine(root, { at: at(1), event: 'wave-start', wave: 3 });
+    campLine(root, { at: at(2), event: 'merge', wave: 3, unit: 'u1' });
+    now = T0 + 2 * 60000;
+    const first = w.pollJournals().map((e) => e.event);
+    assert.ok(first.includes('wave-start') && first.includes('merge'), first.join(','));
+    writeFileSync(W.campaignJournalPath(root, B), `${JSON.stringify({ at: at(1), event: 'wave-start', wave: 3 })}\n`);
+    now = T0 + 3 * 60000;
+    assert.deepEqual(w.pollJournals().filter((e) => e.campaign), [], 'the old campaign lines say nothing again');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('look-in: a run that ended is not running, even with an agent that never ended', () => {
+  const root = makeRepo();
+  const lockDir = tmpDir('locks');
+  const projectsDir = tmpDir('projects');
+  try {
+    let now = T0;
+    const opts = { projectRoot: root, slugs: [SLUG], now: () => now, lookInMs: 15 * 60000, lockDir, projectsDir, usageDir: projectsDir };
+    const a = W.createWatcher(opts);
+    a.pollJournals();
+    a.pollLookIn([]);
+    journal(root, { at: at(1), seq: 1, event: 'agent-start', agent: 'implement:auth', stage: 'implement', slice: 'auth' });
+    now = T0 + 1 * 60000;
+    a.pollJournals();
+    // The run is stopped mid-stage: the agent never writes its end.
+    W.appendRunEnd(root, SLUG, 'stop-request', T0 + 2 * 60000);
+    now = T0 + 2 * 60000;
+    assert.deepEqual(a.pollJournals().map((e) => e.event), ['run-end']);
+    a.save();
+    now = T0 + 30 * 60000;
+    const b = W.createWatcher(opts);
+    b.pollJournals();
+    assert.deepEqual(b.pollLookIn([]), [], 'a watch after the run end starts a new clock');
+    now = T0 + 45 * 60000;
+    const ev = b.pollLookIn([]);
+    assert.deepEqual(ev.map((e) => e.event), ['look-in']);
+    assert.deepEqual(ev[0].running, [], 'the stopped agent is not running');
+  } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
+});

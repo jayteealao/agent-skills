@@ -232,13 +232,15 @@ export function readJournalFrom(file, offset) {
   try { fd = openSync(file, 'r'); } catch { return { lines: [], offset: 0, missing: true }; }
   try {
     const size = fstatSync(fd).size;
-    // A shorter file was replaced or truncated: read it again from the start.
-    const start = offset > size ? 0 : offset;
-    if (size === start) return { lines: [], offset: start };
+    // A shorter file was replaced or truncated: read it again from the start. The
+    // caller treats the lines it read before as history (`reset`), so no event repeats.
+    const reset = offset > size;
+    const start = reset ? 0 : offset;
+    if (size === start) return { lines: [], offset: start, ...(reset ? { reset } : {}) };
     const buf = Buffer.alloc(size - start);
     readSync(fd, buf, 0, buf.length, start);
     const lastNl = buf.lastIndexOf(0x0a);
-    if (lastNl === -1) return { lines: [], offset: start };
+    if (lastNl === -1) return { lines: [], offset: start, ...(reset ? { reset } : {}) };
     const text = buf.subarray(0, lastNl + 1).toString('utf8');
     const lines = [];
     for (const raw of text.split('\n')) {
@@ -246,7 +248,7 @@ export function readJournalFrom(file, offset) {
       if (!t) continue;
       try { lines.push(JSON.parse(t)); } catch { /* a torn or hand-edited line: skip it */ }
     }
-    return { lines, offset: start + lastNl + 1 };
+    return { lines, offset: start + lastNl + 1, ...(reset ? { reset } : {}) };
   } finally {
     closeSync(fd);
   }
@@ -599,6 +601,8 @@ export function createWatcher({
     const r = readJournalFrom(campaignJournalPath(root, campaign), camp.offset);
     const skip = camp.first;
     camp.first = false;
+    // A replaced or truncated campaign journal: the lines up to now are history.
+    const resetCut = r.reset ? now() + 1 : null;
     for (const line of r.lines) {
       const at = Date.parse(line.at || '');
       if (Number.isFinite(at)) {
@@ -620,6 +624,7 @@ export function createWatcher({
         if (!camp.openWaves.length) camp.ended = true;
       } else if (CAMPAIGN_END_EVENTS.includes(line.event)) camp.ended = true;
       if (skip && !(Number.isFinite(at) && at >= watchStartMs - CAMPAIGN_FIRST_WINDOW_MS)) continue;
+      if (resetCut !== null && !(Number.isFinite(at) && at >= resetCut)) continue;
       if (CAMPAIGN_EVENTS.includes(line.event)) {
         const { at: lineAt, event: name, ...rest } = line;
         events.push({ ...rest, event: name, campaign, at: lineAt || iso(now()) });
@@ -663,6 +668,8 @@ export function createWatcher({
     for (const [slug, entry] of states) {
       const { st } = entry;
       const r = readJournalFrom(journalPath(entry.root, slug), st.offset);
+      // A replaced or truncated journal: the lines up to now are history.
+      if (r.reset) entry.historyBefore = now() + 1;
       let emitFrom = null;
       if (entry.first) {
         // A first watch with no state: the history sets the cadence and emits nothing,
@@ -846,6 +853,8 @@ export function createWatcher({
     lead.repo.lookInAt = t;
     const running = [];
     for (const [slug, { st, root: slugRoot }] of states) {
+      // A run that ended runs nothing: an agent-start with no agent-end is a stopped agent.
+      if (st.ended || (st.run && st.endedRun === st.run)) continue;
       for (const [agent, startedAt] of Object.entries(st.openStages || {})) {
         const { stage, slice } = stageOf({ agent });
         const startMs = Date.parse(startedAt || '');
