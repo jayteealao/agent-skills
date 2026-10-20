@@ -57,3 +57,12 @@ for (const name of SHARED) {
     assert.equal(normalize(extractFn(wave, name, 'campaign-wave.js')), normalize(extractFn(yolo, name, 'yolo.js')));
   });
 }
+
+// Lantern, 2026-10-20: a verify agent opened Terminal tabs, and each one held the run
+// until the person approved it. Every stage agent of both drivers gets the same rule.
+test('driver parity: both drivers forbid tools that wait for the person, in the same words', () => {
+  const rule = (src) => src.split('\n').filter((l) => /NO PROMPTS|Terminal panel tools|stops the whole run|background, write its output|a command line; pass it/.test(l)).join('\n');
+  assert.match(rule(yolo), /NO PROMPTS: run without a person/);
+  assert.match(rule(yolo), /run_in_terminal/);
+  assert.equal(rule(wave), rule(yolo));
+});

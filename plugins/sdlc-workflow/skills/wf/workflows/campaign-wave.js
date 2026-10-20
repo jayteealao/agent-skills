@@ -994,6 +994,11 @@ async function runStage(u, stage, sliceArg, extra = {}) {
     `- EARLY-STOP GUARD (${referenceRoot}/_autonomy-guards.md): before ending, check your last paragraph — if it ` +
     `is a plan, a question, or a promise about work you have not done, do that work now; end only when the stage ` +
     `contract is complete or the policy hard-stopped you.\n` +
+    `- NO PROMPTS: run without a person. Never call a tool that opens a tab or a window on the person's screen ` +
+    `or waits for the person's approval: the Terminal panel tools (run_in_terminal), the browser pane, desktop control. ` +
+    `Each such call stops the whole run until a person answers it. Run a live process through the shell in the ` +
+    `background, write its output to a file under .scratch/, and read that file. Never put a secret or a token on ` +
+    `a command line; pass it in an environment variable or a file.\n` +
     `- Your mandate is ONLY the '${stage}' stage for ${sliceArg ? `slice '${sliceArg}'` : `slug '${u.slug}'`}. Do ` +
     `NOT run other stages, do NOT claim completion of other slices or of the whole workflow, and do NOT recommend ` +
     `routes beyond what this stage's reference itself returns.\n` +

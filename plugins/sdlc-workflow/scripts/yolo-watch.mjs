@@ -220,7 +220,40 @@ export function createActivityFinder({ projectsDir, roots, now = () => Date.now(
   const find = (label, startMs) => { const b = newest(label, startMs); return b ? b.m : null; };
   /** The path of that transcript; null when none is found. */
   find.fileOf = (label, startMs) => { const b = newest(label, startMs); return b ? b.file : null; };
+  /** The newest tool call of that transcript with no result yet; null when none waits. */
+  find.pendingOf = (label, startMs) => { const b = newest(label, startMs); return b ? pendingToolOf(b.file) : null; };
   return find;
+}
+
+// A tool call with no result: the agent waits on the tool, most often for the
+// person's approval of a prompt (Lantern, 2026-10-20: three Terminal tab calls held
+// a verify agent for 2.5 hours, and the watch called the agent hung). The transcript
+// tail is enough: a result always follows its call.
+const PENDING_TAIL_BYTES = 512 * 1024;
+export function pendingToolOf(file) {
+  let text;
+  try {
+    const fd = openSync(file, 'r');
+    try {
+      const size = fstatSync(fd).size;
+      const len = Math.min(size, PENDING_TAIL_BYTES);
+      const buf = Buffer.alloc(len);
+      readSync(fd, buf, 0, len, size - len);
+      text = buf.toString('utf8');
+    } finally { closeSync(fd); }
+  } catch { return null; }
+  const open = new Map();
+  for (const raw of text.split('\n')) {
+    let o;
+    try { o = JSON.parse(raw); } catch { continue; }
+    const content = o && o.message && Array.isArray(o.message.content) ? o.message.content : [];
+    for (const b of content) {
+      if (b && b.type === 'tool_use' && b.id) open.set(b.id, { tool: b.name || null, since: o.timestamp || null });
+      else if (b && b.type === 'tool_result' && b.tool_use_id) open.delete(b.tool_use_id);
+    }
+  }
+  const waiting = [...open.values()];
+  return waiting.length ? waiting[waiting.length - 1] : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -586,6 +619,13 @@ export function createWatcher({
   const activityOf = (s) => (s.newest && s.newest.event === 'agent-start' && s.lastLineAt !== null && now() - s.lastLineAt > AGENT_SILENT_MS
     ? activity(s.newest.agent, s.lastLineAt) : null);
 
+  /** A stale agent whose transcript has a tool call with no result waits on that tool, not hangs. */
+  const withPendingTool = (ev, s) => {
+    if (ev.event !== 'stale' || !s.newest || s.newest.event !== 'agent-start') return ev;
+    const p = activity.pendingOf(s.newest.agent, s.lastLineAt);
+    return p ? { ...ev, signal: 'pending-tool', tool: p.tool, toolSince: p.since } : ev;
+  };
+
   // K1/K3 — the campaign journal and the work revision, in a campaign only.
   let camp = null;
   if (campaign) {
@@ -645,7 +685,7 @@ export function createWatcher({
       const limit = act !== null ? AGENT_SILENT_MS : Math.max(STALE_FLOOR_MS, camp.longestGapMs || 0);
       if (silentMs > limit && camp.staleFor !== String(camp.lastLineAt)) {
         camp.staleFor = String(camp.lastLineAt);
-        events.push({ event: 'stale', campaign, lastAgent: camp.newest.agent, lastLineAt: iso(camp.lastLineAt), silentMinutes: Math.round(silentMs / 60000), limitMinutes: Math.round(limit / 60000), signal: act !== null ? 'transcript' : 'journal', at: iso(now()) });
+        events.push(withPendingTool({ event: 'stale', campaign, lastAgent: camp.newest.agent, lastLineAt: iso(camp.lastLineAt), silentMinutes: Math.round(silentMs / 60000), limitMinutes: Math.round(limit / 60000), signal: act !== null ? 'transcript' : 'journal', at: iso(now()) }, camp));
       }
     }
     return events;
@@ -702,7 +742,7 @@ export function createWatcher({
       // a watch that the session started for a relaunch whose first line is still to come.
       if (emitFrom && emitFrom.seq === Infinity) st.ended = false;
       st.offset = r.offset;
-      events.push(...judgeSilence(slug, st, now(), st.watchFrom ?? watchStartMs, activityOf(st)));
+      events.push(...judgeSilence(slug, st, now(), st.watchFrom ?? watchStartMs, activityOf(st)).map((ev) => withPendingTool(ev, st)));
     }
     // K2 — the number of slugs with a stage open right now. Above 1, the
     // commentary gives a stage end one line and keeps the full note for the run end.

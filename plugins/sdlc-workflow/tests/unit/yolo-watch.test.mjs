@@ -1092,3 +1092,44 @@ test('look-in: a run that ended is not running, even with an agent that never en
     assert.deepEqual(ev[0].running, [], 'the stopped agent is not running');
   } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
 });
+
+// ---------------------------------------------------------------- a tool call that waits
+// Lantern, 2026-10-20: a verify agent sent two tool calls in one message. One returned;
+// the other opened a Terminal tab and waited 113 minutes for the person's approval. The
+// watch said the agent hangs, and the session offered to stop the run three times.
+
+const toolUse = (id, name, ts) => JSON.stringify({ type: 'assistant', timestamp: ts, message: { content: [{ type: 'tool_use', id, name, input: {} }] } });
+const toolResult = (id, ts) => JSON.stringify({ type: 'user', timestamp: ts, message: { content: [{ type: 'tool_result', tool_use_id: id, content: 'ok' }] } });
+
+test('pendingToolOf: the newest tool call with no result; null when every call returned', () => {
+  const dir = tmpDir('transcript');
+  try {
+    const file = path.join(dir, 'agent-x.jsonl');
+    writeFileSync(file, [toolUse('a', 'Bash', at(1)), toolUse('b', 'mcp__terminal__run_in_terminal', at(1)), toolResult('a', at(2)), 'torn {'].join('\n') + '\n');
+    assert.deepEqual(W.pendingToolOf(file), { tool: 'mcp__terminal__run_in_terminal', since: at(1) });
+    appendFileSync(file, toolResult('b', at(90)) + '\n');
+    assert.equal(W.pendingToolOf(file), null);
+    assert.equal(W.pendingToolOf(path.join(dir, 'missing.jsonl')), null);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('F6: a silent agent with a tool call that has no result is pending-tool, not hung', () => {
+  const root = makeRepo();
+  const projectsDir = tmpDir('projects');
+  const lockDir = tmpDir('locks');
+  try {
+    journal(root, { at: at(0), seq: 1, event: 'agent-start', agent: 'verify:auth', stage: 'verify', slice: 'auth' });
+    const file = agentTranscript(projectsDir, root, 'verify:auth', T0 + 25 * 60000);
+    writeFileSync(file, [toolUse('a', 'Bash', at(24)), toolUse('b', 'mcp__terminal__run_in_terminal', at(24)), toolResult('a', at(25))].join('\n') + '\n');
+    utimesSync(file, (T0 + 25 * 60000) / 1000, (T0 + 25 * 60000) / 1000);
+    let now = T0;
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], projectsDir, lockDir, now: () => now });
+    w.pollJournals();
+    now = T0 + 41 * 60000;
+    const ev = w.pollJournals();
+    assert.deepEqual(ev.map((e) => e.event), ['stale']);
+    assert.equal(ev[0].signal, 'pending-tool');
+    assert.equal(ev[0].tool, 'mcp__terminal__run_in_terminal');
+    assert.equal(ev[0].toolSince, at(24));
+  } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
+});
