@@ -5,6 +5,16 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.193.2] - 2026-10-20
+
+### Fixed
+
+- **A campaign slice goes back to its plan or implement when an answer needs it.** When a person answered a verify stop with a change to the slice's design, the wave driver ran verify again with the answer. Verify cannot plan or build, so it stopped again, and every answer looped verify. An answered implement, verify or review now returns `routeBack: 'plan'` when the answer changes the design, the acceptance criteria or the plan. An answered verify or review returns `routeBack: 'implement'` when the answer needs new code that the plan describes. The stage writes `route-back` in its frontmatter and changes no code, and the driver runs that stage and every later stage of the slice again, with the answer. A slice routes back at most twice in one run; the next stop parks as before.
+
+### Removed
+
+- **The NO PROMPTS rule of 9.193.1.** It also banned the browser pane and desktop control, which verify needs for the runtime evidence of web and desktop interfaces. The watch still reports a stage agent that waits for an approval as `pending-tool`, not as hung.
+
 ## [9.193.1] - 2026-10-20
 
 ### Fixed
