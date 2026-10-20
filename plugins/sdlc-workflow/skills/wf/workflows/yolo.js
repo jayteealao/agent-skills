@@ -58,9 +58,11 @@ for (const [k, v] of Object.entries({ projectRoot, referenceRoot, slug })) {
 
 // Model and reasoning effort for every agent() call. Explicit ids, because an alias
 // can lag a new release. OPUS: orient, the plan/implement/verify stages, the
-// review writer, and update-deps exec. SONNET: every other agent.
+// review writer, and update-deps exec. HAIKU: the bookkeeping agents, which run
+// fixed commands or copy data and judge nothing. SONNET: every other agent.
 const SONNET = { model: 'claude-sonnet-5-5', effort: 'high' }
 const OPUS = { model: 'claude-opus-5-5', effort: 'medium' }
+const HAIKU = { model: 'claude-haiku-5-5', effort: 'medium' }
 
 // ---------------------------------------------------------------------------
 // External Output Boundary — re-asserted to every fresh-context subagent.
@@ -988,7 +990,7 @@ async function ensureBranch(idx) {
           reason: { type: 'string' },
         },
       },
-      label: 'branch', phase: 'Orient', ...SONNET, // mechanical git; pinned per _subagents.md
+      label: 'branch', phase: 'Orient', ...HAIKU, // mechanical git; pinned per _subagents.md
     }
   )
 }
@@ -1179,7 +1181,7 @@ async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
           note: { type: 'string' },
         },
       },
-      label: `writeback:${sliceArg}`, phase: 'Drive', ...SONNET, // mechanical index edit; pinned per _subagents.md
+      label: `writeback:${sliceArg}`, phase: 'Drive', ...HAIKU, // mechanical index edit; pinned per _subagents.md
     }
   )
 }
@@ -2164,7 +2166,7 @@ async function reconcilePlans(idx) {
     CONTROL_FILE_RULE +
     `\n\nReturn { ok, wrote: [<files changed>], note }.` +
     heartbeatClause('plan-reconcile-clear', 'Drive', 'plan-reconcile', null),
-    { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-reconcile-clear', phase: 'Drive', ...SONNET }
+    { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-reconcile-clear', phase: 'Drive', ...HAIKU }
   )
   const markerCleared = !!(cleared && cleared.ok)
   if (!markerCleared) log(`plan reconcile: the reconcile-pending marker did not confirm cleared${cleared && cleared.note ? `: ${cleared.note}` : ''} — the next run repeats the (now clean) comparison`)
@@ -2234,7 +2236,7 @@ async function readLedgerReport(runStartAt) {
     `${runStartAt || 'the start of this run'}, copied verbatim, clean rows (empty missing and partial) included ` +
     `— the driver uses them to see whether a later write closed a gap. Omit a field the row lacks.` +
     heartbeatClause('read-check-report', 'Drive', 'read-check', null),
-    { schema: READ_LEDGER_RESULT, label: 'read-check-report', phase: 'Drive', ...SONNET } // mechanical read; pinned per _subagents.md
+    { schema: READ_LEDGER_RESULT, label: 'read-check-report', phase: 'Drive', ...HAIKU } // mechanical read; pinned per _subagents.md
   )
 }
 
@@ -2366,7 +2368,7 @@ if (reconcileStop) {
           CONTROL_FILE_RULE +
           `\n\nReturn { ok, wrote: [<files changed>], note }.` +
           heartbeatClause('plan-index-writeback', 'Drive', 'plan', null),
-          { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-index-writeback', phase: 'Drive', ...SONNET }
+          { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-index-writeback', phase: 'Drive', ...HAIKU }
         )
       }
       idx = await orient()                          // re-snapshot so driveChain sees the new plans as done

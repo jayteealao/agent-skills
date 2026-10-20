@@ -43,9 +43,11 @@ if (!Number.isInteger(wave) || wave < 1) return { ok: false, stopped: true, reas
 if (!['wave', 'boundary', 'drift'].includes(mode)) return { ok: false, stopped: true, reason: `campaign-wave: unknown mode '${mode}'` }
 
 // Models, as in yolo.js: Opus for orient, the stages, the writers and the boundary
-// merge and verify; Sonnet for every other agent. No haiku.
+// merge and verify; Haiku for the bookkeeping agents, which run fixed commands or
+// copy data and judge nothing; Sonnet for every other agent.
 const SONNET = { model: 'claude-sonnet-5-5', effort: 'high' }
 const OPUS = { model: 'claude-opus-5-5', effort: 'medium' }
+const HAIKU = { model: 'claude-haiku-5-5', effort: 'medium' }
 
 const CAMP = OPT.campaignDir || `${projectRoot}/.ai/workflows/${brainstorm}/work/campaign`
 const CAMPAIGN_JOURNAL = `${CAMP}/.campaign-journal.jsonl`
@@ -781,7 +783,7 @@ async function flushBatch() {
     `order, and change nothing else.\n` +
     batch.map(e => `- \`${cmd('journal', `${e.event} ${q(JSON.stringify({ run: RUN, wave, ...e.fields }))}`)}\``).join('\n') +
     `\n\nReturn { ok, note }.` + waveHeartbeat(tag, 'event'),
-    { schema: OK_SCHEMA, label: tag, phase: 'Drive', ...SONNET }
+    { schema: OK_SCHEMA, label: tag, phase: 'Drive', ...HAIKU }
   )
 }
 
@@ -1061,7 +1063,7 @@ async function writeBackSliceStatus(u, sliceArg, stagesRun) {
     controlFileRule(u) + deadDriverClause(u.priorDriver) + `\n\n` +
     `Return { ok, wrote: [<the files you actually changed>], note, sliceDone }.` +
     heartbeat(u, `writeback:${sliceArg}`, 'Drive', 'writeback', sliceArg),
-    { schema: SLICE_DONE, label: lbl(u, `writeback:${sliceArg}`), phase: 'Drive', ...SONNET }
+    { schema: SLICE_DONE, label: lbl(u, `writeback:${sliceArg}`), phase: 'Drive', ...HAIKU }
   )
 }
 
@@ -1657,7 +1659,7 @@ async function reconcilePlans(u) {
     `NOTHING else.` + controlFileRule(u) +
     `\n\nReturn { ok, wrote: [<files changed>], note }.` +
     heartbeat(u, 'plan-reconcile-clear', 'Plan', 'plan-reconcile', null),
-    { schema: OK_SCHEMA, label: lbl(u, 'plan-reconcile-clear'), phase: 'Plan', ...SONNET }
+    { schema: OK_SCHEMA, label: lbl(u, 'plan-reconcile-clear'), phase: 'Plan', ...HAIKU }
   )
   return { ok: true, stopped: false, overlaps: targets, ran, markerCleared: !!(cleared && cleared.ok) }
 }
@@ -1720,7 +1722,7 @@ async function readLedgerReport(u, runStartAt) {
     `file is absent or empty. Otherwise report present: true and rows: every row whose \`at\` is at or after ` +
     `${runStartAt || 'the start of this run'}, copied verbatim, clean rows included. Omit a field the row lacks.` +
     heartbeat(u, 'read-check-report', 'Drive', 'read-check', null),
-    { schema: READ_LEDGER_RESULT, label: lbl(u, 'read-check-report'), phase: 'Drive', ...SONNET }
+    { schema: READ_LEDGER_RESULT, label: lbl(u, 'read-check-report'), phase: 'Drive', ...HAIKU }
   )
 }
 
@@ -1809,7 +1811,7 @@ function ensureWaiter() {
           `list, 'stopped' with kind, until and reason, 'paused' with until and reason (copy them from its "paused" ` +
           `field), or 'cancelled'. After ${WAIT_RUNS} timeouts, return result 'timeout'. Return calls: the number of times you ` +
           `ran the command.` + waveHeartbeat(`waiter#${WAITERS}`, 'waiter'),
-          { schema: WAITER_RESULT, label: `waiter#${WAITERS}`, phase: 'Drive', ...SONNET }
+          { schema: WAITER_RESULT, label: `waiter#${WAITERS}`, phase: 'Drive', ...HAIKU }
         )
         if (!r) { if (++dead >= 3) { stopRun('waiter-failed', 'three waiter agents in a row returned nothing; the open questions stay in the ledger for the next launch'); break } continue }
         dead = 0
@@ -1937,7 +1939,7 @@ async function park(u, kind, reason, ctx = {}) {
     `"driver":"campaign-wave","campaign":"${brainstorm}","campaignRun":"${RUN}"}\n` +
     `4. \`${cmd('journal', `park ${q(JSON.stringify({ run: RUN, wave, key: u.key, kind, question: id, reason: String(reason || '').slice(0, 300) }))}`)}\`\n` +
     `Return { ok, note }.` + heartbeat(u, `park:${kind}`, 'Drive', 'park', ctx.slice || null),
-    { schema: PARK_RESULT, label: lbl(u, `park:${kind}`), phase: 'Drive', ...SONNET }
+    { schema: PARK_RESULT, label: lbl(u, `park:${kind}`), phase: 'Drive', ...HAIKU }
   )
   events.push({ event: 'park', fields: { key: u.key, kind, question: id, reason: String(reason || '').slice(0, 300) } })
   u.parks.push({ kind, question: id, reason: String(reason || '').slice(0, 300), stage: ctx.stage || null, slice: ctx.slice || null })
@@ -1958,7 +1960,7 @@ async function moveOut(u, why) {
     `MOVE unit ${u.key} (slug '${u.slug}') out of wave ${wave}. Bookkeeping only: run ` +
     `\`${cmd('unit', `${u.key} stopped --route ${q(`moved by the person${why ? `: ${why}` : ''}`)}`)}\` and change ` +
     `nothing else. Return { ok, note }.` + heartbeat(u, 'move', 'Drive', 'move', null),
-    { schema: OK_SCHEMA, label: lbl(u, 'move'), phase: 'Drive', ...SONNET }
+    { schema: OK_SCHEMA, label: lbl(u, 'move'), phase: 'Drive', ...HAIKU }
   )
   u.moved = true
   u.ended = true
@@ -1985,7 +1987,7 @@ async function onAnswer(u, a, opts = {}) {
     `2. \`${cmd('journal', `resume ${q(JSON.stringify({ run: RUN, wave, key: u.key, question: a.id, by: a.by }))}`)}\`\n` +
     (consume ? `3. \`${cmd('question', `${a.id} consumed`)}\`\n` : '') +
     `Return { ok, note }.` + heartbeat(u, 'resume', 'Drive', 'resume', null),
-    { schema: OK_SCHEMA, label: lbl(u, 'resume'), phase: 'Drive', ...SONNET }
+    { schema: OK_SCHEMA, label: lbl(u, 'resume'), phase: 'Drive', ...HAIKU }
   )
   events.push({ event: 'resume', fields: { key: u.key, question: a.id, by: a.by } })
   return 'resume'
@@ -2200,7 +2202,7 @@ async function waitAgent(u, e, sha) {
     `2. \`${cmd('merge-in', `${u.key} ${e.from} --at ${sha}`)}\` — it prints one JSON object.\n` +
     `3. Only when step 2 returned "ok": true, run \`${cmd('unit', `${u.key} running`)}\`.\n` +
     `Return { ok, conflict, error, closed } from the object of step 2.` + heartbeat(u, `wait:${e.from}`, 'Drive', 'wait', waitSlice(u, e)),
-    { schema: MERGE_IN_RESULT, label: lbl(u, `wait:${e.from}`), phase: 'Drive', ...SONNET }
+    { schema: MERGE_IN_RESULT, label: lbl(u, `wait:${e.from}`), phase: 'Drive', ...HAIKU }
   )
 }
 
@@ -2580,7 +2582,7 @@ async function unitEnd(u) {
     `4. \`${cmd('slice-done', `${u.key} --final --run ${u.runId}`)}\` — return its JSON object as sliceDone.\n` +
     `5. \`${cmd('unit', `${u.key} finished --digest ${q(JSON.stringify(digest))}`)}\`\n` +
     `Return { ok, note, sliceDone }.` + heartbeat(u, 'unit-end', 'Drive', 'unit-end', null),
-    { schema: UNIT_END, label: lbl(u, 'unit-end'), phase: 'Drive', ...SONNET }
+    { schema: UNIT_END, label: lbl(u, 'unit-end'), phase: 'Drive', ...HAIKU }
   )
   const sd = r && r.sliceDone
   if (sd && sd.sha) {
@@ -2637,7 +2639,7 @@ async function planPhase(u) {
         `\`workflow-files\` (skip any already listed); (2) set \`current-stage\` to plan if it names an earlier stage; ` +
         `(3) set \`reconcile-pending: true\`; (4) refresh \`updated-at\`. Change NOTHING else.` + controlFileRule(u) +
         `\n\nReturn { ok, wrote: [<files changed>], note }.` + heartbeat(u, 'plan-index-writeback', 'Plan', 'plan', null),
-        { schema: OK_SCHEMA, label: lbl(u, 'plan-index-writeback'), phase: 'Plan', ...SONNET }
+        { schema: OK_SCHEMA, label: lbl(u, 'plan-index-writeback'), phase: 'Plan', ...HAIKU }
       )
       const o2 = await orientUnit(u, { resume: true })
       if (o2 && o2.ok) u.idx = o2
@@ -2725,7 +2727,7 @@ async function slugOutput(u) {
     `the branch out anywhere else. Output folder: ${OUT}/slugs/${u.slug}/. The recipe: ${JSON.stringify(OPT.output || null)}.` +
     STOP_CHECK + heartbeat(u, 'slug-output', 'Output', 'slug-output', null, true) +
     `\n\nReturn { status, label, path, built (true when the build command passed), failure (the failing output tail) }.`,
-    { schema: obj(['status'], { label: { type: 'string' }, path: { type: 'string' }, built: { type: 'boolean' }, failure: { type: 'string' } }), label: lbl(u, 'slug-output'), phase: 'Output', ...SONNET }
+    { schema: obj(['status'], { label: { type: 'string' }, path: { type: 'string' }, built: { type: 'boolean' }, failure: { type: 'string' } }), label: lbl(u, 'slug-output'), phase: 'Output', ...HAIKU }
   )
 }
 
@@ -2755,7 +2757,7 @@ async function boundarySetup() {
     `worktree, tip, quiet, and through for a carried unit).\n` +
     `When a command fails, return status 'failed' with error quoting it.` +
     STOP_CHECK + waveHeartbeat('boundary-setup', 'boundary') + `\n\nReturn { status, worktree, units, error }.`,
-    { schema: SETUP_RESULT, label: 'boundary-setup', phase: 'Merge', ...SONNET }
+    { schema: SETUP_RESULT, label: 'boundary-setup', phase: 'Merge', ...HAIKU }
   )
 }
 

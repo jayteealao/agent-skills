@@ -183,15 +183,26 @@ test('_subagents.md pins the effort-tier → host mapping', () => {
   const src = read('skills', 'wf', 'reference', '_subagents.md');
   assert.match(src, /low and medium = `sonnet`, high = `opus`/);
   assert.doesNotMatch(src, /(low|medium)( and (medium|high))? = `opus`/, 'opus is the high tier only');
-  assert.match(src, /to `claude-opus-5-5` at `medium` effort, and every other agent to `claude-sonnet-5-5` at `high` effort/);
+  assert.match(src, /to `claude-opus-5-5` at `medium` effort, the bookkeeping agents .* to `claude-haiku-5-5` at `medium` effort, and every other agent to `claude-sonnet-5-5` at `high` effort/);
   const yolo = read('skills', 'wf', 'workflows', 'yolo.js');
   assert.match(yolo, /const SONNET = \{ model: 'claude-sonnet-5-5', effort: 'high' \}/, 'yolo low/medium agents: Sonnet 5.5 at high effort');
   assert.match(yolo, /const OPUS = \{ model: 'claude-opus-5-5', effort: 'medium' \}/, 'yolo other agents: Opus 5.5 at medium effort');
+  assert.match(yolo, /const HAIKU = \{ model: 'claude-haiku-5-5', effort: 'medium' \}/, 'yolo bookkeeping agents: Haiku 5.5 at medium effort');
   const calls = (yolo.match(/\bagent\(\s*\n/g) || []).length;
-  const spreads = (yolo.match(/\.\.\.(SONNET|OPUS)\b/g) || []).length;
+  const spreads = (yolo.match(/\.\.\.(SONNET|OPUS|HAIKU)\b/g) || []).length;
   assert.ok(calls > 0, 'yolo agent() calls were found');
-  assert.equal(spreads, calls, 'every yolo agent() call spreads SONNET or OPUS');
-  assert.equal((yolo.match(/model: '/g) || []).length, 2, 'yolo pins a model only in the SONNET and OPUS presets');
+  assert.equal(spreads, calls, 'every yolo agent() call spreads SONNET, OPUS or HAIKU');
+  assert.equal((yolo.match(/model: '/g) || []).length, 3, 'yolo pins a model only in the SONNET, OPUS and HAIKU presets');
+  // Haiku runs only the agents that run fixed commands or copy data (PO 2026-10-20).
+  const haikuLabels = (src) => [...src.matchAll(/label: ((?:(?!label: )[^\n])+?), phase: '[A-Za-z]+', \.\.\.HAIKU\b/g)].map((m) => m[1]).sort();
+  assert.deepEqual(haikuLabels(yolo), ["'branch'", "'plan-index-writeback'", "'plan-reconcile-clear'", "'read-check-report'", '`writeback:${sliceArg}`']);
+  const wave = read('skills', 'wf', 'workflows', 'campaign-wave.js');
+  assert.match(wave, /const HAIKU = \{ model: 'claude-haiku-5-5', effort: 'medium' \}/);
+  assert.deepEqual(haikuLabels(wave), [
+    "'boundary-setup'", "lbl(u, 'move')", "lbl(u, 'plan-index-writeback')", "lbl(u, 'plan-reconcile-clear')",
+    "lbl(u, 'read-check-report')", "lbl(u, 'resume')", "lbl(u, 'slug-output')", "lbl(u, 'unit-end')",
+    'lbl(u, `park:${kind}`)', 'lbl(u, `wait:${e.from}`)', 'lbl(u, `writeback:${sliceArg}`)', 'tag', '`waiter#${WAITERS}`',
+  ].sort());
   assert.doesNotMatch(src, /low = `haiku`/, 'haiku is not a tier target until Haiku 5.5 is re-evaluated');
   assert.match(src, /Never use `opus` below high/);
   assert.match(src, /Pass the reasoning effort on the spawn: low, medium, high/);
