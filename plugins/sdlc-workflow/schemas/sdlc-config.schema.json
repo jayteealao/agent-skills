@@ -354,7 +354,7 @@
             },
             "worktree-root": {
               "type": "string",
-              "description": "C6: a short absolute path outside the repo for the worktrees, for example C:/cw. The default is .scratch/cw."
+              "description": "C6: a short absolute path outside the repo for the worktrees, for example C:/cw. The default is ~/.sdlc/cw/<repo tag>."
             },
             "build-depth": {
               "type": "integer",

@@ -73,7 +73,8 @@ export function slotHoldersAfter(previous: readonly string[], lines: ReadonlyArr
 
 /**
  * W0a: where a unit's driver journal is. The ledger names the unit's worktree
- * (`worktree-root`, or `.scratch/cw` since v9.182.0); the journal is there first,
+ * (`worktree-root`, or by default `~/.sdlc/cw/<repo tag>`; older ledgers name
+ * `.scratch/cw`); the journal is there first,
  * then in the main checkout.
  */
 export function driveJournalPathsOf(root: string, slug: string, worktree: string | null): string[] {

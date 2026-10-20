@@ -598,6 +598,20 @@ export function shortStamp(runId) {
   return Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) / 1000).toString(36);
 }
 
+/**
+ * A short, stable tag for a repo root: FNV-1a over the path, in base 36. The
+ * default worktree folder `~/.sdlc/cw` is shared by every repo, and two campaigns
+ * that start in the same second get the same run stamp; the tag keeps them apart.
+ * Windows paths compare without case, so the tag does too.
+ */
+export function repoTag(root, platform = process.platform) {
+  let p = String(root ?? '').replace(/\\/g, '/').replace(/\/+$/, '');
+  if (platform === 'win32') p = p.toLowerCase();
+  let h = 0x811c9dc5;
+  for (let i = 0; i < p.length; i++) { h ^= p.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(36).padStart(7, '0');
+}
+
 // ---------------------------------------------------------------- plugin version (3.8)
 
 /** C8: the newer installed plugin, or null. */

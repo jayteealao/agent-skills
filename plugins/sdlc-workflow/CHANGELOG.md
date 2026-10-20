@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Campaign worktrees default to `~/.sdlc/cw`.** Without `campaign.isolation.worktree-root`, the worktrees of a wave are now in `~/.sdlc/cw/<repo tag>/<run stamp>/w<n>-<i>`, outside every repo, in place of `<repo>/.scratch/cw`. The 7-character repo tag keeps the campaigns of different repos apart in the shared folder. The path is shorter for most repos, so fewer Windows builds meet the 260-character limit. `SDLC_HOME` moves the folder, and `worktree-root` still overrides it. A live campaign keeps the worktrees it already made. On Windows, setup now asks only for `outside-root`, and asks for `worktree-root` only when `worktree add` reports a path that is too long.
+
 ## [9.194.2] - 2026-10-20
 
 ### Fixed

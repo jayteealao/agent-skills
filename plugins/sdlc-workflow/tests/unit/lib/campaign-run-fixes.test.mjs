@@ -171,6 +171,16 @@ test('shortStamp is short and keeps two runs apart', () => {
   assert.equal(C.shortStamp('odd-run'), 'odd');
 });
 
+test('repoTag is short, stable, and keeps two repos apart in the shared worktree folder', () => {
+  const a = C.repoTag('C:/Users/me/dev/SoccerManager', 'linux');
+  assert.equal(a.length, 7);
+  assert.equal(C.repoTag('C:/Users/me/dev/SoccerManager', 'linux'), a, 'the same root gives the same tag');
+  assert.notEqual(C.repoTag('C:/Users/me/dev/Isometric', 'linux'), a, 'another root gives another tag');
+  assert.equal(C.repoTag('C:\\Users\\me\\dev\\SoccerManager\\', 'linux'), a, 'separators and a trailing slash do not count');
+  assert.equal(C.repoTag('c:/users/me/dev/soccermanager', 'win32'), C.repoTag('C:/Users/me/dev/SoccerManager', 'win32'), 'Windows ignores case');
+  assert.notEqual(C.repoTag('/home/me/App', 'linux'), C.repoTag('/home/me/app', 'linux'), 'other systems keep case');
+});
+
 test('isolationOf reads the new fields and refuses a relative root', () => {
   const iso = C.isolationOf({ campaign: { isolation: { 'port-env': {}, 'build-dirs': ['target'], 'quiet-suites': ['cargo run -- timed'], 'outside-root': 'C:/co', 'worktree-root': 'rel/cw', 'build-depth': 100 } } });
   assert.deepEqual(iso['quiet-suites'], ['cargo run -- timed']);

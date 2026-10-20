@@ -10,6 +10,9 @@ import {
   needsPictures
 } from "./chunk-T5YC5F32.mjs";
 import {
+  sdlcHomeDir
+} from "./chunk-OVD25SAL.mjs";
+import {
   safeParseFrontmatter
 } from "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -466,6 +469,16 @@ function shortStamp(runId) {
   const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/.exec(String(runId ?? ""));
   if (!m) return String(runId ?? "run").split("-")[0].slice(0, 8);
   return Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) / 1e3).toString(36);
+}
+function repoTag(root, platform = process.platform) {
+  let p = String(root ?? "").replace(/\\/g, "/").replace(/\/+$/, "");
+  if (platform === "win32") p = p.toLowerCase();
+  let h = 2166136261;
+  for (let i = 0; i < p.length; i++) {
+    h ^= p.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h.toString(36).padStart(7, "0");
 }
 function pluginUpdate(running, installed) {
   if (!running || !installed) return null;
@@ -1386,8 +1399,8 @@ function orient(root, b) {
   if (ignored) check.warnings.push("the repo does not track .ai/: the records stay in the main checkout. Each worktree gets a copy, and its changes come back before the worktree is removed (local records). The wave PR text and the code are still public.");
   const iso = isolationOf(cfg);
   if (!iso) ledger["tool-gaps"].push({ tool: "isolation", have: "none", need: "campaign.isolation in .ai/sdlc-config.json", fix: 'ask the person for the isolation contract (campaign/_phases.md, "Width")' });
-  if (iso && process.platform === "win32" && (!iso["outside-root"] || !iso["worktree-root"])) {
-    check.warnings.push("Windows: ask the person at setup for short absolute paths in campaign.isolation: outside-root (the folders a unit needs outside its worktree, for example C:/co) and worktree-root (for example C:/cw). Without them, a drive keeps every build folder inside its worktree, and deep build paths can pass the 260-character limit.");
+  if (iso && process.platform === "win32" && !iso["outside-root"]) {
+    check.warnings.push("Windows: ask the person at setup for a short absolute path in campaign.isolation.outside-root (the folders a unit needs outside its worktree, for example C:/co). Without it, a drive keeps every build folder inside its worktree, and deep build paths can pass the 260-character limit. The worktrees default to ~/.sdlc/cw; when worktree add reports a path that is too long, ask for a shorter worktree-root (for example C:/cw).");
   }
   ledger["ship-plan"] = shipPlan(root);
   ledger.trunk = trunkOf(root);
@@ -1459,7 +1472,8 @@ function budget(root, b) {
   const width = effectiveWidth({ width: cfg.campaign?.width ?? DEFAULT_WIDTH, isolation, budget: st.state });
   return { ok: true, ...st, width, readingAt: reading?.at ?? null, isolation: isolation !== null };
 }
-var worktreeRoot = (root, ledger, iso = isolationOf(configOf(root))) => join2(iso?.["worktree-root"] ?? join2(root, ".scratch", "cw"), shortStamp(ledger["run-id"]));
+var defaultWorktreeBase = (root) => join2(sdlcHomeDir(), "cw", repoTag(resolve(root)));
+var worktreeRoot = (root, ledger, iso = isolationOf(configOf(root))) => join2(iso?.["worktree-root"] ?? defaultWorktreeBase(root), shortStamp(ledger["run-id"]));
 var outsideRoot = (root, ledger, iso = isolationOf(configOf(root))) => iso?.["outside-root"] ? join2(iso["outside-root"], shortStamp(ledger["run-id"])) : null;
 var pathCheckOn = () => process.platform === "win32" || process.env.SDLC_CAMPAIGN_PATH_CHECK === "1";
 function longestTrackedPath(root) {

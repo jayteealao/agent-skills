@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url';
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SCRIPT = path.join(pluginRoot, 'scripts', 'campaign.mjs');
 const B = 'realism';
+// The worktrees default to <SDLC_HOME>/cw. Keep them out of the real ~/.sdlc when this file runs alone.
+if (!process.env.SDLC_HOME?.trim()) process.env.SDLC_HOME = mkdtempSync(path.join(os.tmpdir(), 'campaign-home-'));
 
 const git = (root, ...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 

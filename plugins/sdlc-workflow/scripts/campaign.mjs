@@ -55,10 +55,11 @@ import {
   newestReading, portsFor, waveBase, checkCampaignSet, classifyDrift, deferUnprepared, hotfixVersion,
   isBuildUnit, newLedger, nextWaveVersion, renderContext, renderForecast, renderLedgerMd, replan, rowTokens,
   SETUP_ANSWERS, stageMinutesFromJournals, unitOf, UNIT_STATES, WAVE_STATES,
-  boundaryMergeOrder, buildRecap, clearedCover, closeWaits, diskNeedGb, pathBudget, pluginUpdate, runLive, sameNeed, shortStamp, sliceCycle, throughCovers, waitPending, waveWaits,
+  boundaryMergeOrder, buildRecap, clearedCover, closeWaits, diskNeedGb, pathBudget, pluginUpdate, repoTag, runLive, sameNeed, shortStamp, sliceCycle, throughCovers, waitPending, waveWaits,
   DEPS_BY, ensureDeps, hasGraphFields, migrateDeps, seedDeps, serialWaves, sharedPaths, startedKeys, startEntry, syncDepsState, unconfirmedKeys,
 } from '../lib/campaign.mjs';
 import { ignoredAtRisk, loadManifest, recordsIn, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
+import { sdlcHomeDir } from '../lib/registry.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { missingBoardFiles, needsPictures } from '../lib/design-boards.mjs';
 import { designNeeded, designSettled } from '../lib/design-lane.mjs';
@@ -269,8 +270,8 @@ function orient(root, b) {
   const iso = isolationOf(cfg);
   // D19: the wave driver runs every unit in its own worktree, so a campaign needs a contract before wave 1.
   if (!iso) ledger['tool-gaps'].push({ tool: 'isolation', have: 'none', need: 'campaign.isolation in .ai/sdlc-config.json', fix: 'ask the person for the isolation contract (campaign/_phases.md, "Width")' });
-  if (iso && process.platform === 'win32' && (!iso['outside-root'] || !iso['worktree-root'])) {
-    check.warnings.push('Windows: ask the person at setup for short absolute paths in campaign.isolation: outside-root (the folders a unit needs outside its worktree, for example C:/co) and worktree-root (for example C:/cw). Without them, a drive keeps every build folder inside its worktree, and deep build paths can pass the 260-character limit.');
+  if (iso && process.platform === 'win32' && !iso['outside-root']) {
+    check.warnings.push('Windows: ask the person at setup for a short absolute path in campaign.isolation.outside-root (the folders a unit needs outside its worktree, for example C:/co). Without it, a drive keeps every build folder inside its worktree, and deep build paths can pass the 260-character limit. The worktrees default to ~/.sdlc/cw; when worktree add reports a path that is too long, ask for a shorter worktree-root (for example C:/cw).');
   }
   ledger['ship-plan'] = shipPlan(root);
   ledger.trunk = trunkOf(root);
@@ -355,10 +356,12 @@ function budget(root, b) {
 /**
  * Keep the worktree path short. Windows limits a path to 260 characters unless git
  * has core.longpaths, and a long worktree root pushes deep repo files past it.
- * The run stamp (the run time in base 36) keeps two runs apart. With
- * `campaign.isolation.worktree-root`, the worktrees live outside the repo (C6).
+ * The run stamp (the run time in base 36) keeps two runs apart. The worktrees
+ * live outside the repo: in `campaign.isolation.worktree-root` (C6), or by
+ * default in `~/.sdlc/cw/<repo tag>` (SDLC_HOME moves it).
  */
-const worktreeRoot = (root, ledger, iso = isolationOf(configOf(root))) => join(iso?.['worktree-root'] ?? join(root, '.scratch', 'cw'), shortStamp(ledger['run-id']));
+const defaultWorktreeBase = (root) => join(sdlcHomeDir(), 'cw', repoTag(resolve(root)));
+const worktreeRoot = (root, ledger, iso = isolationOf(configOf(root))) => join(iso?.['worktree-root'] ?? defaultWorktreeBase(root), shortStamp(ledger['run-id']));
 /** C5: the root of the per-unit folders outside the worktree, or null. */
 const outsideRoot = (root, ledger, iso = isolationOf(configOf(root))) => (iso?.['outside-root'] ? join(iso['outside-root'], shortStamp(ledger['run-id'])) : null);
 /** C6: the path check runs on Windows; SDLC_CAMPAIGN_PATH_CHECK=1 turns it on elsewhere (tests). */
