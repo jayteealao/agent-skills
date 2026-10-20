@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   isEntry,
   runStandalone
-} from "./chunk-JZ7FCJ3B.mjs";
+} from "./chunk-BHLXNNOH.mjs";
 import {
   loadConfig
 } from "./chunk-QUEAOP62.mjs";
@@ -13,7 +13,7 @@ import {
   isInsideWorkflowArtifacts,
   projectRootFromInput,
   scanWorkflowIndexes
-} from "./chunk-GUVQYSNY.mjs";
+} from "./chunk-OVD25SAL.mjs";
 
 // hooks/post-write-auto-stage.mjs
 import { existsSync } from "node:fs";

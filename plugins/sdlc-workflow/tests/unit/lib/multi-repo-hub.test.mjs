@@ -37,7 +37,9 @@ import { createHubServer, parseHubArgs } from '../../../scripts/hub-serve.mjs';
 import { enqueue as enqueueRender, countPending } from '../../../lib/render-queue.mjs';
 import { renderHubLanding, inboxItems } from '../../../renderers/hub-dashboard.mjs';
 import { resolveRequestPath } from '../../../lib/resolve-request-path.mjs';
-import { computeBranchState, refreshEntriesLiveness } from '../../../lib/branch-liveness.mjs';
+import {
+  computeBranchState, computeBranchStateAsync, refreshEntriesLiveness, refreshEntriesLivenessAsync,
+} from '../../../lib/branch-liveness.mjs';
 import { readHubConfig, hubConfigPath, HUB_CONFIG_DEFAULTS } from '../../../lib/hub-config.mjs';
 import { ensureHubLifecycle } from '../../../lib/hub-lifecycle.mjs';
 import { ensureServeLifecycle, servePidPath } from '../../../lib/serve-lifecycle.mjs';
@@ -1358,6 +1360,47 @@ test('branch-liveness: refreshEntriesLiveness stamps branchState across entries,
   // Garbage input never throws.
   refreshEntriesLiveness(null);
   refreshEntriesLiveness([{ no: 'slugMeta' }]);
+});
+
+test('branch-liveness: the async refresh gives the sync results without blocking, and stops on request', async () => {
+  const root = tmp('sdlc-liveness-async-');
+  const repo = join(root, 'repo');
+  initRepo(repo, 'main');
+  gitQuiet(repo, ['checkout', '-b', 'feat/live']);
+  writeFileSync(join(repo, 'a.txt'), 'a'); gitQuiet(repo, ['add', '.']); gitQuiet(repo, ['commit', '-m', 'wip']);
+  gitQuiet(repo, ['checkout', 'main']);
+  gitQuiet(repo, ['branch', 'feat/merged', 'main']);
+  const cases = [
+    { branch: 'feat/live', baseBranch: 'main' },
+    { branch: 'feat/merged', baseBranch: 'main' },
+    { branch: 'feat/ghost', baseBranch: 'main' },
+    { branch: 'feat/ghost', baseBranch: 'main', currentStage: 'plan' },
+    { branch: null, baseBranch: 'main' },
+  ];
+  for (const c of cases) {
+    equal(await computeBranchStateAsync({ repoRoot: repo, ...c }), computeBranchState({ repoRoot: repo, ...c }), JSON.stringify(c));
+  }
+  equal(await computeBranchStateAsync({ repoRoot: join(root, 'not-a-repo'), branch: 'x' }), 'unknown');
+  equal(await computeBranchStateAsync(), 'unknown');
+
+  const entries = [{ id: 'x', repoRoot: repo, slugMeta: cases.map((c, i) => ({ slug: `s${i}`, prNumber: null, ...c })) }];
+  // The event loop keeps turning while the probes run: a timer fires before the refresh ends.
+  let ticks = 0;
+  const timer = setInterval(() => { ticks++; }, 1);
+  const res = await refreshEntriesLivenessAsync(entries, { concurrency: 2 });
+  clearInterval(timer);
+  equal(res.slugs, cases.length);
+  ok(ticks > 0, 'timers ran during the refresh');
+  deepEqual(entries[0].slugMeta.map((s) => s.branchState), ['live', 'merged', 'gone', 'planned', 'unknown']);
+
+  // shouldStop ends the run before the next slug.
+  const fresh = [{ id: 'y', repoRoot: repo, slugMeta: cases.map((c) => ({ ...c })) }];
+  await refreshEntriesLivenessAsync(fresh, { concurrency: 1, shouldStop: () => true });
+  ok(fresh[0].slugMeta.every((s) => s.branchState === undefined), 'no slug probed after a stop');
+
+  // Garbage input never rejects.
+  deepEqual(await refreshEntriesLivenessAsync(null), { slugs: 0 });
+  deepEqual(await refreshEntriesLivenessAsync([{ no: 'slugMeta' }]), { slugs: 0 });
 });
 
 test('inbox: surfaces merged / branch-gone active slugs as a 4th attention reason (§4.4)', () => {

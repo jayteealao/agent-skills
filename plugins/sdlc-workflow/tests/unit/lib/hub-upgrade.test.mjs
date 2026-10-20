@@ -73,8 +73,11 @@ async function probeUntil(port, pred, tries = 40) {
   return null;
 }
 
-/** Build a runtime root carrying the full real payload but a rewritten identity. */
-async function makeRuntimeRoot({ version, buildId, breakHub = false }) {
+/**
+ * Build a runtime root carrying the full real payload but a rewritten identity.
+ * `delayMs` makes its hub wait that long before it listens (a slow start).
+ */
+async function makeRuntimeRoot({ version, buildId, breakHub = false, delayMs = 0 }) {
   const root = mkdtempSync(join(tmpdir(), 'rt-'));
   await copyRuntimePayload(CLAUDE_ROOT, root);
   const manifest = JSON.parse(readFileSync(join(root, 'runtime-manifest.json'), 'utf-8'));
@@ -86,6 +89,13 @@ async function makeRuntimeRoot({ version, buildId, breakHub = false }) {
     // green → the upgrade must roll back. verifyRuntimeStore still passes (the
     // required entries exist + the manifest buildId matches).
     writeFileSync(join(root, 'dist', 'hub-serve.mjs'), 'process.exit(0);\n', 'utf-8');
+  }
+  if (delayMs) {
+    // A top-level await after the shebang holds the module before main() runs.
+    const file = join(root, 'dist', 'hub-serve.mjs');
+    const [first, ...rest] = readFileSync(file, 'utf-8').split('\n');
+    const pause = `await new Promise((r) => setTimeout(r, ${delayMs}));`;
+    writeFileSync(file, first.startsWith('#!') ? [first, pause, ...rest].join('\n') : [pause, first, ...rest].join('\n'), 'utf-8');
   }
   return root;
 }
@@ -162,12 +172,67 @@ test('a failed upgrade rolls the hub back to the previous runtime', async () => 
     // Upgrade to a build whose hub never binds → must roll back to V0.
     const broken = await makeRuntimeRoot({ version: '99.0.0', buildId: FAKE_B1, breakHub: true });
     roots.push(broken);
-    const up1 = await controlledUpgrade({ pluginRoot: broken, log: () => {} });
+    const up1 = await controlledUpgrade({ pluginRoot: broken, log: () => {}, confirmTimeoutMs: 3000 });
     assert.equal(up1.action, 'rolled-back', `expected rollback: ${JSON.stringify(up1)}`);
 
     const h1 = await probeUntil(PORT, (h) => h?.hub?.buildId === b0);
     assert.ok(h1, 'hub is back on the previous build after rollback');
     assert.equal(h1.hub.buildId, b0);
+  } finally {
+    await cleanup(home, roots, PORT);
+  }
+});
+
+// ── live: a hub that listens after the 2.5 s start wait is still an upgrade ──────
+
+test('a hub that starts slower than the start wait is confirmed, not rolled back', async () => {
+  const PORT = 41992;
+  const home = sandbox(PORT);
+  const roots = [];
+  try {
+    const up0 = await controlledUpgrade({ pluginRoot: CLAUDE_ROOT, log: () => {} });
+    assert.equal(up0.action, 'upgraded', `initial start: ${JSON.stringify(up0)}`);
+    assert.ok(await probeUntil(PORT, (h) => h?.hub?.buildId), 'V0 hub healthy');
+
+    const slow = await makeRuntimeRoot({ version: '99.0.0', buildId: FAKE_B1, delayMs: 5000 });
+    roots.push(slow);
+    const up1 = await controlledUpgrade({ pluginRoot: slow, log: () => {}, confirmTimeoutMs: 20000 });
+    assert.equal(up1.action, 'upgraded', `slow start: ${JSON.stringify(up1)}`);
+    assert.equal(up1.to, '99.0.0');
+    const active = JSON.parse(readFileSync(join(home, 'active-runtime.json'), 'utf-8'));
+    assert.equal(active.buildId, FAKE_B1, 'the active runtime record names the new build');
+    assert.ok(await probeUntil(PORT, (h) => h?.hub?.buildId === FAKE_B1), 'the slow hub serves the new build');
+  } finally {
+    await cleanup(home, roots, PORT);
+  }
+});
+
+// ── live: a rollback leaves one hub on the port when the new hub binds late ──────
+
+test('a rollback leaves exactly the previous hub when the new hub binds after it', async () => {
+  const PORT = 41993;
+  const home = sandbox(PORT);
+  const roots = [];
+  try {
+    const up0 = await controlledUpgrade({ pluginRoot: CLAUDE_ROOT, log: () => {} });
+    assert.equal(up0.action, 'upgraded', `initial start: ${JSON.stringify(up0)}`);
+    const h0 = await probeUntil(PORT, (h) => h?.hub?.buildId);
+    assert.ok(h0, 'V0 hub healthy');
+    const b0 = h0.hub.buildId;
+
+    // The new hub listens after 8 s; the upgrade gives up after 2.5 s + 1 s.
+    const late = await makeRuntimeRoot({ version: '99.0.0', buildId: FAKE_B1, delayMs: 8000 });
+    roots.push(late);
+    const up1 = await controlledUpgrade({ pluginRoot: late, log: () => {}, confirmTimeoutMs: 1000 });
+    assert.equal(up1.action, 'rolled-back', `expected rollback: ${JSON.stringify(up1)}`);
+
+    // Past the late hub's bind time, the port still serves the previous build:
+    // the late hub found the port held (or was stopped) and never replaced it.
+    await sleep(7000);
+    const h1 = await probe(PORT);
+    assert.equal(h1?.hub?.buildId, b0, 'the previous hub still holds the port');
+    const active = JSON.parse(readFileSync(join(home, 'active-runtime.json'), 'utf-8'));
+    assert.equal(active.buildId, b0, 'the active runtime record names the previous build');
   } finally {
     await cleanup(home, roots, PORT);
   }

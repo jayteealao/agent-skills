@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   ensureHubLifecycle,
   stopHub
-} from "./chunk-5BN2G45E.mjs";
+} from "./chunk-GC4Q2V2L.mjs";
 import {
   portHeld,
   portOwner
@@ -13,12 +13,12 @@ import {
   hubConfigPath,
   readHubConfig,
   writeHubConfig
-} from "./chunk-C4UYE42W.mjs";
+} from "./chunk-RLA7BOVL.mjs";
 import {
   hubPidPath,
   readPidFile,
   sdlcHomeDir
-} from "./chunk-GUVQYSNY.mjs";
+} from "./chunk-OVD25SAL.mjs";
 
 // lib/tray-actions.mjs
 import { spawn, spawnSync } from "node:child_process";

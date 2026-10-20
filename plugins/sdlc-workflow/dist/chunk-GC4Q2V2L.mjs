@@ -9,7 +9,7 @@ import {
   effectiveCodeBrowserConfig,
   hubConfigHash,
   readHubConfig
-} from "./chunk-C4UYE42W.mjs";
+} from "./chunk-RLA7BOVL.mjs";
 import {
   LockTimeoutError,
   atomicWriteJson,
@@ -19,7 +19,7 @@ import {
   verifyRuntimeStore,
   withLock,
   writeActiveRuntime
-} from "./chunk-523C7UE2.mjs";
+} from "./chunk-G4VG2HNC.mjs";
 import {
   compareVersions,
   runtimeIdentity
@@ -38,7 +38,7 @@ import {
   removePidFile,
   sdlcHomeDir,
   writePidFile
-} from "./chunk-GUVQYSNY.mjs";
+} from "./chunk-OVD25SAL.mjs";
 
 // lib/hub-lifecycle.mjs
 import { randomBytes } from "node:crypto";
@@ -100,6 +100,7 @@ function tailscaleDnsName({ log = () => {
 
 // lib/hub-lifecycle.mjs
 var RUNTIME = runtimeIdentity();
+var UPGRADE_CONFIRM_MS = 3e4;
 var STARTED_BY_HOST = process.env.SDLC_HOST || "claude";
 function hubLockPath() {
   return join(sdlcHomeDir(), "hub.lock");
@@ -348,8 +349,17 @@ function upgradeDecision({ requested, prev, aliveSameBuild, allowDowngrade, conf
   }
   return "proceed";
 }
-async function controlledUpgrade({ pluginRoot, allowDowngrade = false, confirm = false, log = () => {
-} } = {}) {
+async function controlledUpgrade({
+  pluginRoot,
+  allowDowngrade = false,
+  confirm = false,
+  log = () => {
+  },
+  // How long a started hub has to answer with its build before the upgrade
+  // counts as failed. The 2.5 s start wait alone declared a healthy 9.191.0 hub
+  // dead on 2026-10-19 (it listened after 13 s). Injectable for tests.
+  confirmTimeoutMs = UPGRADE_CONFIRM_MS
+} = {}) {
   const cfg = readHubConfig();
   const host = cfg.host ?? "127.0.0.1";
   const port = Number(cfg.port ?? HUB_DEFAULT_PORT);
@@ -384,7 +394,7 @@ async function controlledUpgrade({ pluginRoot, allowDowngrade = false, confirm =
     };
   }
   try {
-    return await withLock(hubUpgradePath(), { ownerHost: STARTED_BY_HOST, ttlMs: 12e4, timeoutMs: 2e4, log }, async () => {
+    return await withLock(hubUpgradePath(), { ownerHost: STARTED_BY_HOST, ttlMs: 2 * confirmTimeoutMs + 6e4, timeoutMs: 2e4, log }, async () => {
       let newRoot;
       try {
         const mat = await materializeRuntime(pluginRoot, { manifest: { buildId: requested.buildId } });
@@ -395,19 +405,24 @@ async function controlledUpgrade({ pluginRoot, allowDowngrade = false, confirm =
       if (!await verifyRuntimeStore(newRoot, requested.buildId)) {
         return { action: "upgrade-aborted", reason: "requested runtime failed verification after materialization" };
       }
-      return await withLock(hubLockPath(), { ownerHost: STARTED_BY_HOST, ttlMs: 3e4, timeoutMs: 15e3, log }, async () => {
+      return await withLock(hubLockPath(), { ownerHost: STARTED_BY_HOST, ttlMs: 2 * confirmTimeoutMs + 15e3, timeoutMs: 15e3, log }, async () => {
         if (prev) await atomicWriteJson(upgradeRecordPath(), { ...prev, host, port, at: (/* @__PURE__ */ new Date()).toISOString() });
         if (status.alive && rec?.pid) stopPid(rec.pid, log);
         await removePidFile(pidPath);
         await waitForGone({ host, port, timeoutMs: 3e3 });
         await writeActiveRuntime({ buildId: requested.buildId, runtimeRoot: newRoot, runtimeVersion: requested.runtimeVersion });
         const started = await startHubFromRuntimeRoot({ runtimeRoot: newRoot, identity: requested, cfg, host, port, pidPath, log });
-        const ok = started.action === "started" && await confirmHub({ host, port, expectBuildId: requested.buildId });
+        const ok = Boolean(started.pid) && await waitForHub({ host, port, expectBuildId: requested.buildId, timeoutMs: confirmTimeoutMs });
         if (!ok) {
           log(`[hub] upgrade to ${requested.runtimeVersion} (${requested.buildId.slice(0, 12)}) failed confirmation \u2014 rolling back`);
-          const recovered = prev ? await rollback({ prev, cfg, host, port, pidPath, log }) : false;
+          const recovered = prev ? await rollback({ prev, cfg, host, port, pidPath, log, confirmTimeoutMs }) : false;
           clearUpgradeRecord();
           if (recovered) return { action: "rolled-back", from: requested.runtimeVersion, to: prev.runtimeVersion };
+          if (await confirmHub({ host, port, expectBuildId: requested.buildId })) {
+            await writeActiveRuntime({ buildId: requested.buildId, runtimeRoot: newRoot, runtimeVersion: requested.runtimeVersion });
+            log(`[hub] upgraded ${prev?.runtimeVersion ?? "(none)"} \u2192 ${requested.runtimeVersion} (${requested.buildId.slice(0, 12)}) after the confirmation wait`);
+            return { action: "upgraded", from: prev?.runtimeVersion ?? null, to: requested.runtimeVersion, buildId: requested.buildId, late: true };
+          }
           return {
             action: prev ? "upgrade-failed-unrecovered" : "upgrade-aborted",
             reason: prev ? "new runtime failed AND rollback failed \u2014 run SessionStart recovery" : "requested runtime failed to start; no prior hub to roll back to",
@@ -430,23 +445,34 @@ async function controlledUpgrade({ pluginRoot, allowDowngrade = false, confirm =
     throw err;
   }
 }
-async function confirmHub({ host, port, expectBuildId }) {
-  const id = await probeHubIdentity({ host, port, timeoutMs: 3e3 });
+async function confirmHub({ host, port, expectBuildId, probeTimeoutMs = 3e3 }) {
+  const id = await probeHubIdentity({ host, port, timeoutMs: probeTimeoutMs });
   return Boolean(id && id.isHub && (!expectBuildId || id.buildId === expectBuildId));
 }
-async function rollback({ prev, cfg, host, port, pidPath, log }) {
+async function waitForHub({ host, port, expectBuildId, timeoutMs }) {
+  const deadline = Date.now() + timeoutMs;
+  for (; ; ) {
+    if (await confirmHub({ host, port, expectBuildId, probeTimeoutMs: 700 })) return true;
+    if (Date.now() >= deadline) return false;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+}
+async function rollback({ prev, cfg, host, port, pidPath, log, confirmTimeoutMs = UPGRADE_CONFIRM_MS }) {
   if (!prev?.runtimeRoot) return false;
   const st = await pidFileStatus(pidPath);
   if (st.alive && st.record?.pid) stopPid(st.record.pid, log);
   await removePidFile(pidPath);
-  await waitForGone({ host, port, timeoutMs: 3e3 });
+  if (!await waitForGone({ host, port, timeoutMs: 3e3 })) {
+    log(`[hub] rollback skipped: a hub still answers on port ${port}`);
+    return false;
+  }
   if (!await verifyRuntimeStore(prev.runtimeRoot, prev.buildId)) {
     log("[hub] rollback target runtime is missing/corrupt in the store");
     return false;
   }
   await writeActiveRuntime({ buildId: prev.buildId, runtimeRoot: prev.runtimeRoot, runtimeVersion: prev.runtimeVersion });
   const started = await startHubFromRuntimeRoot({ runtimeRoot: prev.runtimeRoot, identity: prev, cfg, host, port, pidPath, log });
-  return started.action === "started" && await confirmHub({ host, port, expectBuildId: prev.buildId });
+  return Boolean(started.pid) && await waitForHub({ host, port, expectBuildId: prev.buildId, timeoutMs: confirmTimeoutMs });
 }
 function clearUpgradeRecord() {
   try {

@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`hub:upgrade` no longer rolls back a healthy hub that starts slowly.** The hub refreshed every slug's branch state with blocking `git` calls before it listened: 13 s for 136 slugs on one machine. The upgrade waited 2.5 s, declared the new runtime dead, and its rollback hub then failed on the held port, so `active-runtime.json` named the old build while the new one ran. The refresh is now asynchronous and runs after start (also for `/__sdlc/registry/refresh`), and `hub.log` records how long it took. The upgrade waits up to 30 s for the requested build to answer on the port. A rollback never starts a hub on a port that a hub still answers on, and when the requested build answers late, the upgrade reports `upgraded` and records it as the active runtime.
+
 ## [9.194.1] - 2026-10-20
 
 ### Fixed

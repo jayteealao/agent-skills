@@ -24,8 +24,8 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-C4UYE42W.mjs";
-import "./chunk-523C7UE2.mjs";
+} from "./chunk-RLA7BOVL.mjs";
+import "./chunk-G4VG2HNC.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -46,13 +46,13 @@ import {
   readHubHistory,
   readRegistry,
   recordHubStart,
-  refreshEntriesLiveness,
+  refreshEntriesLivenessAsync,
   removeOwnPidFile,
   removeOwnPidFileSync,
   validateEntry,
   writePidFile,
   writeRegistry
-} from "./chunk-GUVQYSNY.mjs";
+} from "./chunk-OVD25SAL.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -209,13 +209,34 @@ function createHubServer({
     } catch {
       entries = [];
     }
-    try {
-      refreshEntriesLiveness(entries);
-    } catch {
-    }
+    refreshLiveness();
     for (const e of entries) ensureBootstrapQueued(e);
     rewatchAll();
     invalidateLanding();
+  }
+  let livenessRunning = false;
+  let livenessAgain = false;
+  let closed = false;
+  function refreshLiveness() {
+    if (closed) return;
+    if (livenessRunning) {
+      livenessAgain = true;
+      return;
+    }
+    livenessRunning = true;
+    const target = entries;
+    const t0 = Date.now();
+    refreshEntriesLivenessAsync(target, { shouldStop: () => closed }).then(({ slugs }) => {
+      invalidateLanding();
+      logHub(`liveness: ${slugs} slugs refreshed in ${Date.now() - t0} ms`);
+    }).catch(() => {
+    }).finally(() => {
+      livenessRunning = false;
+      if (livenessAgain) {
+        livenessAgain = false;
+        refreshLiveness();
+      }
+    });
   }
   function rewatchAll() {
     if (!liveReload) return;
@@ -860,6 +881,7 @@ data: ${JSON.stringify({ ok: true })}
   if (typeof reconcileTimer.unref === "function") reconcileTimer.unref();
   const close = server.close.bind(server);
   server.close = (callback) => {
+    closed = true;
     if (heartbeat) clearInterval(heartbeat);
     clearInterval(reconcileTimer);
     for (const [, w] of watchers) {

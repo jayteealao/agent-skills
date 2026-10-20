@@ -44,17 +44,17 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-5BN2G45E.mjs";
+} from "./chunk-GC4Q2V2L.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-C4UYE42W.mjs";
+} from "./chunk-RLA7BOVL.mjs";
 import {
   frozenBoardsOf
 } from "./chunk-T5YC5F32.mjs";
-import "./chunk-523C7UE2.mjs";
+import "./chunk-G4VG2HNC.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -85,7 +85,7 @@ import {
   upsertRegistryEntry,
   viewMtimeForSlug,
   writePidFile
-} from "./chunk-GUVQYSNY.mjs";
+} from "./chunk-OVD25SAL.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";

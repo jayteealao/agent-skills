@@ -29,7 +29,7 @@ import {
   readRegistry, writeRegistry, pruneRegistry, validateEntry, REGISTRY_VERSION,
   logPrune, entryWithinGrace, REGISTRY_FRESH_GRACE_MS,
 } from '../lib/registry.mjs';
-import { refreshEntriesLiveness } from '../lib/branch-liveness.mjs';
+import { refreshEntriesLivenessAsync } from '../lib/branch-liveness.mjs';
 import {
   codeBrowserConfigFromEnv, normalizeCodeBrowserConfig,
   serveCodeBrowser, serveCodeBrowserAsset,
@@ -264,15 +264,36 @@ export function createHubServer({
   function reload() {
     try { pruneRegistry(); } catch { /* best-effort */ }
     try { entries = readRegistry().entries; } catch { entries = []; }
-    // Opportunistic liveness refresh (§4.3): a branch deleted AFTER the last
-    // render flips to `gone` here without needing a re-render. Local-git only
-    // (checkPr:false) so the reload never blocks on the network; best-effort.
-    try { refreshEntriesLiveness(entries); } catch { /* best-effort */ }
+    refreshLiveness();
     // F2: entries that arrived via shard while the hub was down get their
     // bootstrap render queued here (the POST path queues at accept time).
     for (const e of entries) ensureBootstrapQueued(e);
     rewatchAll();
     invalidateLanding();
+  }
+
+  // Opportunistic liveness refresh (§4.3): a branch deleted AFTER the last
+  // render flips to `gone` without needing a re-render. Local-git only
+  // (checkPr:false) and asynchronous: the synchronous form held the hub for 13 s
+  // before it listened (136 slugs, 2026-10-19), so `hub:upgrade` declared the new
+  // runtime dead and rolled back. One run at a time; a reload during a run asks
+  // for one more run over the new entries.
+  let livenessRunning = false;
+  let livenessAgain = false;
+  let closed = false;
+  function refreshLiveness() {
+    if (closed) return;
+    if (livenessRunning) { livenessAgain = true; return; }
+    livenessRunning = true;
+    const target = entries;
+    const t0 = Date.now();
+    refreshEntriesLivenessAsync(target, { shouldStop: () => closed })
+      .then(({ slugs }) => { invalidateLanding(); logHub(`liveness: ${slugs} slugs refreshed in ${Date.now() - t0} ms`); })
+      .catch(() => { /* best-effort */ })
+      .finally(() => {
+        livenessRunning = false;
+        if (livenessAgain) { livenessAgain = false; refreshLiveness(); }
+      });
   }
 
   /* ── live reload (Phase 3): watch each viewDir, filter on .last-render ── */
@@ -900,6 +921,7 @@ export function createHubServer({
 
   const close = server.close.bind(server);
   server.close = (callback) => {
+    closed = true;
     if (heartbeat) clearInterval(heartbeat);
     clearInterval(reconcileTimer);
     for (const [, w] of watchers) { try { w.close(); } catch { /* ignore */ } }

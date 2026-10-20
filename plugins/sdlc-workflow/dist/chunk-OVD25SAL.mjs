@@ -551,75 +551,120 @@ async function walkWorkflowFiles(root) {
 }
 
 // lib/branch-liveness.mjs
-import { execFileSync as execFileSync2 } from "node:child_process";
+import { execFile as execFile2, execFileSync as execFileSync2 } from "node:child_process";
+var GIT_OPTS = { windowsHide: true, timeout: 2e3, stdio: "ignore" };
+var GH_TIMEOUT_MS = 3e3;
+var ghArgs = (prNumber) => ["pr", "view", String(prNumber), "--json", "state", "-q", ".state"];
+var hasPr = (prNumber) => Number.isInteger(prNumber) && prNumber > 0;
 function gitExit(repoRoot, args) {
   try {
-    execFileSync2("git", ["-C", repoRoot, ...args], {
-      windowsHide: true,
-      timeout: 2e3,
-      stdio: "ignore"
-    });
+    execFileSync2("git", ["-C", repoRoot, ...args], GIT_OPTS);
     return true;
   } catch {
     return false;
   }
 }
-function gitAvailable(repoRoot) {
-  return gitExit(repoRoot, ["rev-parse", "--git-dir"]);
+function gitExitAsync(repoRoot, args) {
+  return new Promise((resolve3) => {
+    try {
+      execFile2("git", ["-C", repoRoot, ...args], { windowsHide: true, timeout: GIT_OPTS.timeout }, (err) => resolve3(!err));
+    } catch {
+      resolve3(false);
+    }
+  });
 }
 function prMerged(repoRoot, prNumber) {
-  if (!(Number.isInteger(prNumber) && prNumber > 0)) return false;
+  if (!hasPr(prNumber)) return false;
   try {
     const state = execFileSync2(
       "gh",
-      ["pr", "view", String(prNumber), "--json", "state", "-q", ".state"],
-      { cwd: repoRoot, encoding: "utf-8", windowsHide: true, timeout: 3e3, stdio: ["ignore", "pipe", "ignore"] }
+      ghArgs(prNumber),
+      { cwd: repoRoot, encoding: "utf-8", windowsHide: true, timeout: GH_TIMEOUT_MS, stdio: ["ignore", "pipe", "ignore"] }
     ).trim();
     return state === "MERGED";
   } catch {
     return false;
   }
 }
-var PRE_BRANCH_STAGES = /* @__PURE__ */ new Set(["intake", "shape", "slice", "plan", "design", "routing"]);
-function computeBranchState({ repoRoot, branch, baseBranch, prNumber, currentStage, checkPr = true } = {}) {
-  try {
-    const b = String(branch ?? "").trim();
-    if (!repoRoot || !b) return "unknown";
-    if (!gitAvailable(repoRoot)) return "unknown";
-    const refExists = gitExit(repoRoot, ["show-ref", "--verify", "--quiet", `refs/heads/${b}`]);
-    if (refExists) {
-      const base = String(baseBranch ?? "").trim();
-      if (base && base !== b && gitExit(repoRoot, ["merge-base", "--is-ancestor", b, base])) return "merged";
-      if (checkPr && prMerged(repoRoot, prNumber)) return "merged";
-      return "live";
+function prMergedAsync(repoRoot, prNumber) {
+  if (!hasPr(prNumber)) return Promise.resolve(false);
+  return new Promise((resolve3) => {
+    try {
+      execFile2(
+        "gh",
+        ghArgs(prNumber),
+        { cwd: repoRoot, encoding: "utf-8", windowsHide: true, timeout: GH_TIMEOUT_MS },
+        (err, stdout) => resolve3(!err && String(stdout).trim() === "MERGED")
+      );
+    } catch {
+      resolve3(false);
     }
-    return PRE_BRANCH_STAGES.has(String(currentStage ?? "").trim().toLowerCase()) ? "planned" : "gone";
+  });
+}
+var PRE_BRANCH_STAGES = /* @__PURE__ */ new Set(["intake", "shape", "slice", "plan", "design", "routing"]);
+function computeBranchState(opts = {}) {
+  try {
+    const steps = branchStateSteps(opts);
+    let r = steps.next();
+    while (!r.done) {
+      const p = r.value;
+      r = steps.next(p.pr ? prMerged(opts.repoRoot, opts.prNumber) : gitExit(opts.repoRoot, p.git));
+    }
+    return r.value;
   } catch {
     return "unknown";
   }
 }
-function refreshEntriesLiveness(entries = [], { checkPr = false } = {}) {
+async function computeBranchStateAsync(opts = {}) {
   try {
-    for (const e of entries ?? []) {
-      if (!e || !Array.isArray(e.slugMeta)) continue;
-      for (const sm of e.slugMeta) {
-        try {
-          sm.branchState = computeBranchState({
-            repoRoot: e.repoRoot,
-            branch: sm.branch,
-            baseBranch: sm.baseBranch,
-            prNumber: sm.prNumber,
-            currentStage: sm.currentStage,
-            checkPr
-          });
-        } catch {
-          sm.branchState = sm.branchState ?? "unknown";
-        }
-      }
+    const steps = branchStateSteps(opts);
+    let r = steps.next();
+    while (!r.done) {
+      const p = r.value;
+      r = steps.next(await (p.pr ? prMergedAsync(opts.repoRoot, opts.prNumber) : gitExitAsync(opts.repoRoot, p.git)));
     }
+    return r.value;
   } catch {
+    return "unknown";
   }
-  return entries;
+}
+function* branchStateSteps({ repoRoot, branch, baseBranch, currentStage, checkPr = true }) {
+  const b = String(branch ?? "").trim();
+  if (!repoRoot || !b) return "unknown";
+  if (!(yield { git: ["rev-parse", "--git-dir"] })) return "unknown";
+  if (yield { git: ["show-ref", "--verify", "--quiet", `refs/heads/${b}`] }) {
+    const base = String(baseBranch ?? "").trim();
+    if (base && base !== b && (yield { git: ["merge-base", "--is-ancestor", b, base] })) return "merged";
+    if (checkPr && (yield { pr: true })) return "merged";
+    return "live";
+  }
+  return PRE_BRANCH_STAGES.has(String(currentStage ?? "").trim().toLowerCase()) ? "planned" : "gone";
+}
+var slugRows = (entries) => (entries ?? []).flatMap((e) => e && Array.isArray(e.slugMeta) ? e.slugMeta.map((sm) => ({ e, sm })) : []);
+var stateOpts = (e, sm, checkPr) => ({
+  repoRoot: e.repoRoot,
+  branch: sm.branch,
+  baseBranch: sm.baseBranch,
+  prNumber: sm.prNumber,
+  currentStage: sm.currentStage,
+  checkPr
+});
+async function refreshEntriesLivenessAsync(entries = [], { checkPr = false, concurrency = 4, shouldStop = () => false } = {}) {
+  let rows = [];
+  try {
+    rows = slugRows(entries);
+  } catch {
+    return { slugs: 0 };
+  }
+  let next = 0;
+  const worker = async () => {
+    while (next < rows.length && !shouldStop()) {
+      const { e, sm } = rows[next++];
+      sm.branchState = await computeBranchStateAsync(stateOpts(e, sm, checkPr));
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, rows.length)) }, worker));
+  return { slugs: rows.length };
 }
 
 // lib/render-queue.mjs
@@ -1637,7 +1682,7 @@ export {
   classifyRenderState,
   scanWorkflowIndexes,
   activeWorkflowIndexes,
-  refreshEntriesLiveness,
+  refreshEntriesLivenessAsync,
   queueDir,
   appendError,
   enqueue,
