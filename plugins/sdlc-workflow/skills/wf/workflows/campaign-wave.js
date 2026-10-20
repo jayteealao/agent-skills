@@ -613,8 +613,8 @@ const STAGE_RESULT = {
     hardStopReason: { type: 'string' },
     // A verify that ran with an answer which accepts the slice with its failing or residual items.
     acceptedByPerson: { type: 'boolean' },
-    // A verify or review that ran with an answer which needs a new plan or new code: the
-    // driver walks the slice again from that stage (Lantern, 2026-10-20).
+    // An implement, verify or review that ran with an answer which needs a new plan or new
+    // code: the driver walks the slice again from that stage (Lantern, 2026-10-20).
     routeBack: { enum: ['plan', 'implement'] },
     steeringHonored: { type: 'array', items: { type: 'string' } },
     steeringConflict: { type: 'string' },
@@ -844,7 +844,7 @@ async function orientUnit(u, opts = {}) {
     `   - verify: artifact present AND (convergence ∈ {not-needed, converged} AND (result: pass, OR result: partial ` +
     `where EVERY open deferral of this slice in priorDeferrals has authorized=true), OR its frontmatter carries ` +
     `accepted-by: a person accepted the slice with its recorded misses)\n` +
-    `   - a verify or review artifact whose frontmatter carries route-back: plan or route-back: implement makes that ` +
+    `   - an implement, verify or review artifact whose frontmatter carries route-back: plan or route-back: implement makes that ` +
     `stage and every later stage of the slice 'todo', unless a newer artifact of that stage is complete\n` +
     `   - review: artifact present AND verdict ∈ {ship, ship-with-caveats} AND metric-findings-blocker == 0\n` +
     `   In slug-wide review scope, mark every per-slice 'review' as 'n-a'.\n` +
@@ -933,6 +933,13 @@ function answeredClause(a, stage) {
       ? ` The stopped implement began at ${a.startSha}: read \`git diff ${a.startSha}..HEAD\` and \`git status\` for ` +
         `the work it left, then revise or undo that work to fit the answer.`
       : '') +
+    // An implement cannot change its own plan: an answer that changes it goes back to the plan.
+    (stage === 'implement'
+      ? ` When the answer changes the slice's design, its acceptance criteria or its plan, do not revise or undo ` +
+        `the work: record the answer, write route-back: plan in the implement frontmatter, and return routeBack: ` +
+        `'plan'. The driver then runs the plan of the slice again with this answer, and the implement after it ` +
+        `revises the work.`
+      : '') +
     ` As the last command before your end heartbeat, run \`${cmd('question', `${a.id} consumed`)}\`.`
 }
 
@@ -1007,11 +1014,6 @@ async function runStage(u, stage, sliceArg, extra = {}) {
     `- EARLY-STOP GUARD (${referenceRoot}/_autonomy-guards.md): before ending, check your last paragraph — if it ` +
     `is a plan, a question, or a promise about work you have not done, do that work now; end only when the stage ` +
     `contract is complete or the policy hard-stopped you.\n` +
-    `- NO PROMPTS: run without a person. Never call a tool that opens a tab or a window on the person's screen ` +
-    `or waits for the person's approval: the Terminal panel tools (run_in_terminal), the browser pane, desktop control. ` +
-    `Each such call stops the whole run until a person answers it. Run a live process through the shell in the ` +
-    `background, write its output to a file under .scratch/, and read that file. Never put a secret or a token on ` +
-    `a command line; pass it in an environment variable or a file.\n` +
     `- Your mandate is ONLY the '${stage}' stage for ${sliceArg ? `slice '${sliceArg}'` : `slug '${u.slug}'`}. Do ` +
     `NOT run other stages, do NOT claim completion of other slices or of the whole workflow, and do NOT recommend ` +
     `routes beyond what this stage's reference itself returns.\n` +

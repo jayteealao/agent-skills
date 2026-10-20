@@ -890,3 +890,26 @@ test('verify: the answered clause offers the route back, and the orient reads ro
   assert.match(src, /return routeBack: 'implement'/);
   assert.match(src, /frontmatter carries route-back: plan or route-back: implement makes that/);
 });
+
+test('implement: an answer that changes the plan walks the slice again from plan, with the answer', async () => {
+  let stops = 0;
+  let routed = false;
+  const mock = makeMock({
+    rosters: { a: ['s1'] },
+    answer: (label, prompt) => {
+      if (!/^implement:s1@a/.test(label) || routed) return undefined;
+      if (/ANSWERED ESCALATION/.test(prompt)) { routed = true; return { stage: 'implement', slice: 's1', status: 'hard-stop', hardStopReason: 'the answer changes the plan', artifactPath: '', terminal: {}, routeBack: 'plan' }; }
+      if (stops++ === 0) return { stage: 'implement', slice: 's1', status: 'hard-stop', hardStopReason: 'the hook kind is not supported', artifactPath: '', startSha: 'abc123', terminal: { statusField: 'awaiting-input' } };
+      return undefined;
+    },
+  });
+  const { outcome } = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  assert.equal(all(mock.calls, /^park:stage@a/).length, 1, 'the route back does not park again');
+  const plans = all(mock.calls, /^plan:s1@a/);
+  assert.equal(plans.length, 2, 'the plan runs again');
+  assert.match(plans[1].prompt, /ANSWERED ESCALATION/, 'the new plan gets the answer');
+  assert.equal(all(mock.calls, /^implement:s1@a/).length, 3, 'the stopped implement, the answered one, then the implement of the new plan');
+  assert.match(all(mock.calls, /^implement:s1@a/)[1].prompt, /do not revise or undo the work: record the answer, write route-back: plan/);
+  assert.equal(all(mock.calls, /^verify:s1@a/).length, 1);
+});
