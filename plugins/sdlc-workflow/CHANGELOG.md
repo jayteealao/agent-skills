@@ -5,6 +5,14 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.194.0] - 2026-10-20
+
+### Added
+
+- **Plans follow the dependency order of the slices.** The campaign driver planned every slice of a unit at the same time, so a slice could plan against a sibling plan that did not exist yet. The orient of both drivers now returns each slice's `depends-on` list, and the plan fan-out runs in waves of that list. A slice plans after the slices it depends on and reads their plans. Its prompt also names the slices that plan after it, so it names their interfaces in its `edges`. A slice whose dependency did not plan cleanly plans in its own walk. The yolo driver uses the same waves when `planFanout` is on.
+- **A changed plan marks its sibling plans for a refresh (campaign).** When a plan runs again in a walk, for example after a route back, a read-only `sonnet` agent (`sibling-check:<slice>`) finds the later sibling plans that no longer agree with it. Each of those plans runs again in refresh mode (review-and-fix) when its walk reaches it.
+- **A plan check before implement (both drivers).** Before an implement whose plan is older than an implement or a merge-in of this run, a read-only `sonnet` agent (`plan-check:<slice>`) compares the plan with the code at `HEAD`. A plan that the code contradicts runs again in refresh mode before the implement. A slice gets at most one plan check in a walk, and the first slice of a run gets none.
+
 ## [9.193.2] - 2026-10-20
 
 ### Fixed
