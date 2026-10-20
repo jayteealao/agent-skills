@@ -613,6 +613,9 @@ const STAGE_RESULT = {
     hardStopReason: { type: 'string' },
     // A verify that ran with an answer which accepts the slice with its failing or residual items.
     acceptedByPerson: { type: 'boolean' },
+    // A verify or review that ran with an answer which needs a new plan or new code: the
+    // driver walks the slice again from that stage (Lantern, 2026-10-20).
+    routeBack: { enum: ['plan', 'implement'] },
     steeringHonored: { type: 'array', items: { type: 'string' } },
     steeringConflict: { type: 'string' },
     // Section 5.7 item 1: a file this slice shares with a slice of another unit.
@@ -841,6 +844,8 @@ async function orientUnit(u, opts = {}) {
     `   - verify: artifact present AND (convergence ∈ {not-needed, converged} AND (result: pass, OR result: partial ` +
     `where EVERY open deferral of this slice in priorDeferrals has authorized=true), OR its frontmatter carries ` +
     `accepted-by: a person accepted the slice with its recorded misses)\n` +
+    `   - a verify or review artifact whose frontmatter carries route-back: plan or route-back: implement makes that ` +
+    `stage and every later stage of the slice 'todo', unless a newer artifact of that stage is complete\n` +
     `   - review: artifact present AND verdict ∈ {ship, ship-with-caveats} AND metric-findings-blocker == 0\n` +
     `   In slug-wide review scope, mark every per-slice 'review' as 'n-a'.\n` +
     `6b. reverifyReason for each slice: 'new-work' (a stage is todo for a real reason), 'deferral-rechallenge' (every ` +
@@ -913,8 +918,16 @@ function answeredClause(a, stage) {
         `the miss", "continue to the next slice"), run no fix and no check round to make it pass: keep the result ` +
         `as it is, write accepted-by: '${a.by || 'person'}', accepted-at (UTC now) and accepted-items (each failing AC ` +
         `or residual, one line each) in the verify frontmatter, set its status: complete, and return ` +
-        `acceptedByPerson: true. When the answer asks for a change, make it, verify again, and return ` +
-        `acceptedByPerson: false.`
+        `acceptedByPerson: true. When the answer asks for a small fix inside this slice's plan, make it, verify ` +
+        `again, and return acceptedByPerson: false.`
+      : '') +
+    // A verify or review cannot plan or build: an answer that needs either goes back to that stage.
+    (stage === 'verify' || stage === 'review'
+      ? ` When the answer changes the slice's design, its acceptance criteria or its plan, change no code: record ` +
+        `the answer, write route-back: plan in the ${stage} frontmatter, and return routeBack: 'plan'. When the ` +
+        `answer needs new code that the current plan already describes, and more than a fix round, change no code: ` +
+        `write route-back: implement and return routeBack: 'implement'. The driver then runs that stage and every ` +
+        `later stage of the slice again, with this answer.`
       : '') +
     (a.startSha
       ? ` The stopped implement began at ${a.startSha}: read \`git diff ${a.startSha}..HEAD\` and \`git status\` for ` +
@@ -1127,6 +1140,8 @@ async function driveVerify(u, sliceArg, extra = {}) {
     // The answer goes to every round: a fix round that drops it would undo the person's decision.
     last = absorb(await heavy(() => runStage(u, 'verify', sliceArg, { round, probeAcs: probeCorrection, stopCheck: round === 1 && !probeCorrection, heavy: true, answered: extra.answered || null })))
     if (!last) return { stage: 'verify', slice: sliceArg, status: 'hard-stop', artifactPath: '', terminal: {}, transient: true, hardStopReason: 'verify did not return (subagent skipped or hit a transient API error)' }
+    // The answer needs a new plan or new code: the walk goes back to that stage, before any gate.
+    if (extra.answered && (last.routeBack === 'plan' || last.routeBack === 'implement')) return last
     if (last.status === 'hard-stop' || last.status === 'stopped') return last
     // The person accepted the slice with its failing or residual items: it passes on that answer.
     // Only an answered verify can accept; no fix round runs after it.
@@ -2327,16 +2342,25 @@ async function runOne(u, stage, sliceArg, answered) {
 
 // walkSlice() — yolo's driveChain (yolo.js:1743) for one unit: waits before implement,
 // heavy slots, and the slice clears before `slice-done`.
+// A slice goes back to its plan or implement at most this many times in one run; the next
+// stop parks as before.
+const MAX_ROUTE_BACKS = 2
+
 async function walkSlice(u, s, bounded) {
   const sliceArg = s.slice
   const done = s.stages || {}
   const stages = u.reviewScope === 'per-slice' ? ['plan', 'implement', 'verify', 'review'] : ['plan', 'implement', 'verify']
   const ran = []
   const ranStages = []
-  for (const stage of stages) {
+  // A route back (an answered verify or review that needs a new plan or new code) runs
+  // that stage and every later stage again, whatever the orient said.
+  const force = new Set()
+  let routeBacks = 0
+  for (let i = 0; i < stages.length; i++) {
+    const stage = stages[i]
     // A refused contract change runs the plan of its slice again, with the answer.
     const replan = stage === 'plan' && u.carryAnswer && u.carryAnswer.replan === true && u.carryAnswer.slice === sliceArg
-    if ((done[stage] === 'done' || done[stage] === 'n-a') && !replan) continue
+    if ((done[stage] === 'done' || done[stage] === 'n-a') && !replan && !force.has(stage)) continue
     if (STOP) return { stop: true, ran }
     if (stage === 'implement') {
       const w = await passWaits(u, sliceArg)
@@ -2363,6 +2387,7 @@ async function walkSlice(u, s, bounded) {
     // An answer of a question that was open at launch reaches the stage that asked it.
     let answered = null
     if (u.carryAnswer && u.carryAnswer.slice === sliceArg && (!u.carryAnswer.stage || u.carryAnswer.stage === stage)) { answered = u.carryAnswer; u.carryAnswer = null }
+    let routeTo = null
     for (;;) {
       let res
       if (stage === 'plan' && u.planStops[sliceArg] && !answered) { res = u.planStops[sliceArg]; delete u.planStops[sliceArg] }
@@ -2376,6 +2401,15 @@ async function walkSlice(u, s, bounded) {
       if (stage === 'implement' && res && res.startSha) { u.sliceStart = u.sliceStart || {}; u.sliceStart[sliceArg] = res.startSha }
       if (res && Array.isArray(res.decisions) && res.decisions.length) res = await classifyDecisions(u, res)
       if (res) { ran.push(res); u.results.push(res) }
+      const to = answered && res ? stages.indexOf(res.routeBack) : -1
+      if (to !== -1 && to < i && routeBacks < MAX_ROUTE_BACKS) {
+        routeBacks++
+        for (const st of stages.slice(to)) force.add(st)
+        u.carryAnswer = { ...answered, stage: res.routeBack, slice: sliceArg }
+        log(`${u.slug}: ${stage} of '${sliceArg}' routes back to ${res.routeBack} with the answer to ${answered.id}`)
+        routeTo = to
+        break
+      }
       const accepted = stage === 'verify' && !!res && res.accepted === true
       const bad = !res || res.status === 'hard-stop' || (!accepted && evaluateGate(stage, res) === 'hard-stop')
       if (!bad) { ranStages.push(stage); break }
@@ -2391,6 +2425,7 @@ async function walkSlice(u, s, bounded) {
       }
       answered = a
     }
+    if (routeTo !== null) i = routeTo - 1
   }
   // The slice clears: the write-back, then `slice-done` (section 5.6a).
   if (!u.cleared.some(c => c.slice === sliceArg)) {

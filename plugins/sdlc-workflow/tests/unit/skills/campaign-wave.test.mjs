@@ -835,3 +835,58 @@ test('verify: an answer that does not accept reaches the fix round too, and the 
 test('verify: the orient counts a verify that a person accepted as done', () => {
   assert.match(src, /OR its frontmatter carries ` \+\s*`accepted-by: a person accepted the slice with its recorded misses\)/);
 });
+
+// ---------------------------------------------------------------- an answered verify that routes back
+// Lantern, 2026-10-20: the answer to a verify stop changed the design (an http start hook
+// became a command hook). The driver ran verify again with the answer, verify cannot plan
+// or build, so it stopped again, and every answer looped verify.
+
+const passedVerify = { stage: 'verify', slice: 's1', status: 'complete', artifactPath: '/x/06-s1.md', terminal: { convergence: 'converged', result: 'pass', deferrals: [], substantiveResidual: false } };
+
+for (const to of ['plan', 'implement']) {
+  test(`verify: an answer that needs a new ${to} walks the slice again from ${to}, with the answer`, async () => {
+    let routed = false;
+    const mock = makeMock({
+      rosters: { a: ['s1'] },
+      answer: (label, prompt) => {
+        if (!/^verify:s1@a/.test(label)) return undefined;
+        if (routed) return passedVerify;
+        if (/ANSWERED ESCALATION/.test(prompt)) { routed = true; return { ...failedVerify, status: 'hard-stop', hardStopReason: `the answer needs a new ${to}`, routeBack: to }; }
+        return failedVerify;
+      },
+    });
+    const { outcome } = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+    assert.equal(outcome.ok, true, outcome.reason);
+    assert.equal(all(mock.calls, /^park:stage@a/).length, 1, 'the route back does not park again');
+    const target = all(mock.calls, new RegExp(`^${to}:s1@a`));
+    assert.equal(target.length, 2, `${to} runs again`);
+    assert.match(target[1].prompt, /ANSWERED ESCALATION/, `the ${to} gets the answer`);
+    if (to === 'plan') assert.equal(all(mock.calls, /^implement:s1@a/).length, 2, 'the implement after the new plan runs again');
+    assert.equal(all(mock.calls, /^verify:s1@a/).length, 4, 'two rounds, the answered round, then the verify of the new work');
+    assert.ok(first(mock.calls, /^review:s1@a/), 'the slice goes on to its review');
+  });
+}
+
+test('verify: a slice routes back at most twice, then parks as before', async () => {
+  let answeredRuns = 0;
+  const mock = makeMock({
+    rosters: { a: ['s1'] },
+    answer: (label, prompt) => {
+      if (!/^verify:s1@a/.test(label)) return undefined;
+      if (!/ANSWERED ESCALATION/.test(prompt)) return failedVerify;
+      answeredRuns++;
+      // The fourth answer accepts the slice, so the run ends.
+      return answeredRuns < 4 ? { ...failedVerify, status: 'hard-stop', hardStopReason: 'again', routeBack: 'implement' } : { ...failedVerify, acceptedByPerson: true };
+    },
+  });
+  const { outcome } = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  assert.equal(all(mock.calls, /^implement:s1@a/).length, 3, 'the first implement and two route backs');
+  assert.equal(all(mock.calls, /^park:stage@a/).length, 4, 'the third route back is refused, so that stop parks');
+});
+
+test('verify: the answered clause offers the route back, and the orient reads route-back', () => {
+  assert.match(src, /return routeBack: 'plan'/);
+  assert.match(src, /return routeBack: 'implement'/);
+  assert.match(src, /frontmatter carries route-back: plan or route-back: implement makes that/);
+});
