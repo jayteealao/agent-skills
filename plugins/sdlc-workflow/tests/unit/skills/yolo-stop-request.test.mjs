@@ -40,6 +40,9 @@ function chainHarness(answers) {
   const writeBacks = [];
   const build = new Function('stubs', `
     const { runStage, driveVerify, driveReview, driveWallProbe, classifyDecisions, writeBackSliceStatus, log, slug } = stubs
+    // No implement ran before this chain, so it runs no plan check.
+    let codeMoved = 0
+    const planFreshness = async () => ({ fresh: true })
     ${extractFn('verifyClean')}
     ${extractFn('evaluateGate')}
     ${extractFn('stopKindOf')}

@@ -56,9 +56,9 @@ While the person is away, do not run steps 10, 11, and 15, because a deletion an
 
 The wave driver (`workflows/campaign-wave.js`) is one Workflow run for one wave, with each unit in its own worktree:
 
-1. One orient for each unit, then the plan of every slice of every unit.
+1. One orient for each unit, then the plan of every slice of every unit. The plans of a unit run in waves of the `depends-on` lists of `03-slice.md`: a slice plans after the slices it depends on, and reads their plans. A slice whose dependency did not plan cleanly plans in its own walk.
 2. One cross-unit reconcile. It compares the files of every plan of every unit. A shared file becomes a derived needs entry. A shared `provides` or `expects` line parks the unit with kind `contract`.
-3. Each unit walks its slices: implement, verify, and its review. Before the implement of a slice with a wait, the driver merges the cleared commit of the other unit in (see "Merge in").
+3. Each unit walks its slices: implement, verify, and its review. Before the implement of a slice with a wait, the driver merges the cleared commit of the other unit in (see "Merge in"). Two read-only `sonnet` agents keep the plans current. After a plan runs again in a walk, the sibling check (`sibling-check:<slice>`) finds the later sibling plans that no longer agree with it. Before an implement whose plan is older than an implement or a merge-in of this run, the plan check (`plan-check:<slice>`) compares the plan with the code at `HEAD`. A stale plan runs again in refresh mode (review-and-fix) before its implement.
 4. When every unit finished, or the person moved it out, the boundary runs: merge, wave verify, revert search, the wave review, the as-built notes, the fidelity checkpoint, and the wave output.
 
 The run starts with `width` heavy slots, and the slots follow the budget during the run: 1 at `slow`, and the set width again at `ok`. `widthMax` is the set width: `campaign.width`, or 1 with `"parallel": false`. A width of 0 stops the run as a usage pause. A heavy suite also takes the heavy-suite lock (`<cmd> lock`), because a slot does not reach another session.

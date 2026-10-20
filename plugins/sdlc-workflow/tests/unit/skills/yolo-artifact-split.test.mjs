@@ -274,3 +274,62 @@ test('the chat return, the additive-write snapshot, and the ownership table', ()
   assert.match(ref('_subagents.md'), /Prompt-fed inputs: <input>, <input>/);
   assert.match(ref('auto.md'), /A compaction that `auto` starts in the middle of a stage keeps the record/);
 });
+
+// ---- plan order and plan freshness ------------------------------------------
+
+const TODO = { plan: 'todo', implement: 'todo', verify: 'todo', review: 'n-a' };
+const PLANNED = { plan: 'done', implement: 'todo', verify: 'todo', review: 'n-a' };
+function stageAnswer(label) {
+  const [stage, sl] = String(label).split(':');
+  if (stage === 'plan') return { stage, slice: sl, status: 'complete', artifactPath: 'x', terminal: { statusField: 'complete' } };
+  if (stage === 'implement') return { stage, slice: sl, status: 'complete', artifactPath: 'x', terminal: { statusField: 'complete' } };
+  if (stage === 'verify') return { stage: 'verify', slice: sl, status: 'complete', artifactPath: 'x', terminal: { convergence: 'converged', result: 'pass', deferrals: [], substantiveResidual: false } };
+  return undefined;
+}
+
+test('plan order: the yolo fan-out plans a slice after the slice it depends on', async () => {
+  let orients = 0;
+  const { calls, labels, outcome } = await run({ planFanout: true }, (label) => {
+    if (label === 'orient') {
+      orients++;
+      return orients === 1
+        ? orientResult({ slices: [slice('a', TODO, { dependsOn: [] }), slice('b', TODO, { dependsOn: ['a'] }), slice('c', TODO, { dependsOn: [] })] })
+        : orientResult();
+    }
+    if (label === 'plan-reconcile') return { overlaps: [] };
+    return stageAnswer(label) || common(label);
+  });
+  assert.equal(outcome.ok, true, outcome.reason);
+  assert.ok(labels.indexOf('plan:b') > labels.indexOf('plan:a'));
+  assert.ok(labels.indexOf('plan:c') < labels.indexOf('plan:b'), 'c plans with a, in the first wave');
+  assert.match(calls.find((c) => c.label === 'plan:b').prompt, /These slices are planned already: a, c\./);
+  assert.match(calls.find((c) => c.label === 'plan:a').prompt, /CONCURRENTLY with these sibling slices: c\..*These slices plan after you and build on your plan: b\./s);
+});
+
+test('plan freshness: yolo refreshes a plan that an earlier implement of the run made out of date', async () => {
+  const { calls, labels, outcome } = await run({}, (label) => {
+    if (label === 'orient') return orientResult({ slices: [slice('a', PLANNED), slice('b', PLANNED)] });
+    if (label === 'plan-check:b') return { stale: [{ slice: 'b', reason: 'the store moved' }] };
+    return stageAnswer(label) || common(label);
+  });
+  assert.equal(outcome.ok, true, outcome.reason);
+  assert.ok(!labels.includes('plan-check:a'), 'no implement ran before the first slice');
+  assert.equal(labels.filter((l) => l === 'plan-check:b').length, 1);
+  assert.equal(labels.filter((l) => l === 'plan:a').length, 0);
+  const plans = calls.filter((c) => c.label === 'plan:b');
+  assert.equal(plans.length, 1, 'only the refresh');
+  assert.match(plans[0].prompt, /PLAN REFRESH: 04-plan-b\.md already exists, and it is out of date: the store moved\./);
+  assert.ok(labels.indexOf('plan:b') < labels.indexOf('implement:b'));
+  assert.equal(labels.filter((l) => l === 'implement:b').length, 1);
+});
+
+test('plan freshness: yolo runs no refresh for a plan that still fits', async () => {
+  const { labels, outcome } = await run({}, (label) => {
+    if (label === 'orient') return orientResult({ slices: [slice('a', PLANNED), slice('b', PLANNED)] });
+    if (label === 'plan-check:b') return { stale: [] };
+    return stageAnswer(label) || common(label);
+  });
+  assert.equal(outcome.ok, true, outcome.reason);
+  assert.equal(labels.filter((l) => l === 'plan-check:b').length, 1);
+  assert.ok(!labels.includes('plan:b'));
+});

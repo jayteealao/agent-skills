@@ -611,6 +611,8 @@ const ORIENT_RESULT = {
           // for a slug-wide review once spent its whole life on the second kind and
           // died before starting the first, so the two are scheduled separately.
           reverifyReason: { type: 'string' },   // new-work | deferral-rechallenge | none
+          // the slice's depends-on list in 03-slice.md: the plan fan-out plans a slice after these.
+          dependsOn: { type: 'array', items: { type: 'string' } },
           stages: {
             type: 'object',
             // each ∈ 'done' (present + terminal-clean on disk) | 'todo' | 'n-a'
@@ -902,6 +904,7 @@ async function orient() {
     `'todo' so the next verify re-challenges the wall)\n` +
     `   - review: artifact present AND verdict ∈ {ship, ship-with-caveats} AND metric-findings-blocker == 0\n` +
     `   In slug-wide review scope, mark every per-slice 'review' as 'n-a' (review runs once at slug level, not per slice).\n` +
+    `   dependsOn: the slice's depends-on list in the roster of 03-slice.md ([] when it has none).\n` +
     `6b. For each slice, also classify WHY it still has work, as slices[].reverifyReason — this decides ` +
     `scheduling, so be precise:\n` +
     `   - 'new-work' — any of plan/implement/review is 'todo', OR verify is 'todo' because it was never run, ` +
@@ -1068,7 +1071,23 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
       `rows across slices after the fan-out and re-plans any slice that overlaps. The master's sibling table for ` +
       `this fan-out is this prompt: the concurrent siblings above have no plan on disk yet. Read the existing ` +
       `04-plan-<other>.md of any slice NOT in that list as plan.md directs.` +
+      (extra.fanout.planned && extra.fanout.planned.length
+        ? ` These slices are planned already: ${extra.fanout.planned.join(', ')}. Read each 04-plan-<slice>.md and ` +
+          `.yaml IN FULL before you plan, and build on their files, edges and interfaces.`
+        : '') +
+      (extra.fanout.later && extra.fanout.later.length
+        ? ` These slices plan after you and build on your plan: ${extra.fanout.later.join(', ')}. Name every ` +
+          `interface they will use in your .yaml \`edges\`.`
+        : '') +
       promptFedLine(['04-plan.md'], `${projectRoot}/.ai/workflows/${slug}/04-plan-${sliceArg}.md`)
+    : ''
+  // A plan that is out of date: the code changed under it.
+  const refreshClause = extra.refresh
+    ? ` PLAN REFRESH: 04-plan-${sliceArg}.md already exists, and it is out of date: ${extra.refresh.reason}.` +
+      ` Run plan.md's review mode on the existing plan (review-and-fix, not a fresh plan): read the code at HEAD ` +
+      `that the plan touches, then fix the plan so it matches the code as built and the current sibling plans. ` +
+      `Rewrite per ${referenceRoot}/_additive-write.md with trigger scope-change, and keep the .yaml files and ` +
+      `edges current. Do NOT edit the sibling plans or the master 04-plan.md.`
     : ''
   // Y7 — reconcile re-plan: an overlapping slice is planned again in review-and-fix mode.
   const reconcileClause = extra.reconcile
@@ -1099,7 +1118,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `artifact(s) under ${projectRoot}/.ai/workflows/${slug}/ — with ONE override: wherever the reference tells you ` +
     `to ask the user (AskUserQuestion) or pause for a human, DO NOT. Resolve it yourself by this policy:\n\n` +
     `${POLICY[stage]}${roundClause}${probeClause}${reChallenge}${scopeHint}${noIndexClause}${fanoutClause}` +
-    `${reconcileClause}` + steer('writer') +
+    `${reconcileClause}${refreshClause}` + steer('writer') +
     (extra.stopCheck === true ? stopCheck() : '') +
     requiresClause(`${referenceRoot}/${stage}.md`) + `\n\n` +
     `Operating rules:\n` +
@@ -1682,13 +1701,63 @@ function evaluateGate(stage, res) {
 // full verify dispatch for a reason the driver can name and records as a decision.
 // W3.3: each stage's decisions pass through one corrective classification round.
 // W5.2: a chain that completes writes the slice's status back to the control files.
+// Implements that cleared in this run: a plan written before them can be out of date.
+let codeMoved = 0
+
+// The plan check of a slice whose plan was written before code changed under it: a read-only agent.
+const PLAN_CHECK_RESULT = {
+  type: 'object',
+  required: ['stale'],
+  properties: {
+    stale: {
+      type: 'array',
+      items: { type: 'object', required: ['slice', 'reason'], properties: { slice: { type: 'string' }, reason: { type: 'string' } } },
+    },
+  },
+}
+
+async function planFreshness(sliceArg) {
+  const r = await agent(
+    `PLAN FRESHNESS CHECK for slice '${sliceArg}' of slug '${slug}'. READ-ONLY — write, edit and commit nothing. ` +
+    `The project root ${projectRoot} is ABSOLUTE; run git as \`git -C ${projectRoot} …\`.\n\n${EOB}\n\n` +
+    `1. Read ${projectRoot}/.ai/workflows/${slug}/04-plan-${sliceArg}.md and its .yaml IN FULL.\n` +
+    `2. Find the commits since the plan was last written: \`git -C ${projectRoot} log --oneline <the last commit ` +
+    `that changed the plan file>..HEAD\`, or the last 20 commits when the plan file is not committed.\n` +
+    `3. Read the files and interfaces that the plan names, as they are at HEAD.\n` +
+    `4. The plan is stale only when the code at HEAD contradicts it, so an implement would follow wrong steps: ` +
+    `a file it edits moved or changed shape, an interface it calls changed, or work it plans already exists. ` +
+    `New code that the plan does not touch does not make it stale. Return stale: [{ slice: '${sliceArg}', ` +
+    `reason }] when it is stale, and stale: [] when it still fits.` + steer('context') +
+    heartbeatClause(`plan-check:${sliceArg}`, 'Drive', 'plan-check', sliceArg),
+    { schema: PLAN_CHECK_RESULT, label: `plan-check:${sliceArg}`, phase: 'Drive', ...SONNET }
+  )
+  const s = ((r && r.stale) || []).find(x => x && x.slice === sliceArg)
+  return s ? { fresh: false, reason: s.reason || 'the code changed under the plan' } : { fresh: true }
+}
+
 async function driveChain(stages, sliceArg, idx, opts = {}) {
   const entry = idx.slices.find(s => s.slice === sliceArg)
   const done = (entry && entry.stages) || {}
   const ran = []
   const ranStages = []
-  for (const stage of stages) {
-    if (done[stage] === 'done') { log(`skip ${stage}:${sliceArg} (already terminal-clean)`); continue }
+  // A plan written before an earlier implement of this run gets one check; a stale one is
+  // refreshed before the implement runs.
+  const queue = [...stages]
+  let refresh = null
+  let freshChecked = false
+  while (queue.length) {
+    const stage = queue.shift()
+    if (done[stage] === 'done' && !(stage === 'plan' && refresh)) { log(`skip ${stage}:${sliceArg} (already terminal-clean)`); continue }
+    if (stage === 'implement' && !freshChecked && !ranStages.includes('plan') && codeMoved > 0 && done.plan === 'done') {
+      freshChecked = true
+      const f = await planFreshness(sliceArg)
+      if (!f.fresh) {
+        log(`the plan of '${sliceArg}' is out of date: ${f.reason} — refreshing it before implement`)
+        refresh = { reason: f.reason }
+        queue.unshift('plan', 'implement')
+        continue
+      }
+    }
 
     // ---- W2.2 bounded re-verify -------------------------------------------
     // Only for a slice whose sole residue is an open deferral (reverifyReason
@@ -1733,6 +1802,7 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     let res =
       stage === 'verify' ? await driveVerify(sliceArg, idx)
       : stage === 'review' ? await driveReview(sliceArg, idx)
+      : stage === 'plan' && refresh ? await runStage(stage, sliceArg, idx, { stopCheck: true, refresh })
       : await runStage(stage, sliceArg, idx, { stopCheck: true })
     // G2 — the stage agent found a stop or pause request and did no work. The stage did
     // not run, so it joins neither ran nor the write-back; the resume runs it again.
@@ -1750,6 +1820,8 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     if (evaluateGate(stage, res) === 'hard-stop') {
       return { stopped: true, at: stage, slice: sliceArg, ran, reason: `${stage} terminal state did not clear the gate: ${JSON.stringify(res.terminal || {})}` }
     }
+    if (stage === 'plan') refresh = null
+    if (stage === 'implement') codeMoved++
   }
   // W5.2 — the chain cleared every gate: record the slice as complete at DRIVE
   // time. Only when this run actually drove something (a chain that skipped every
@@ -2107,6 +2179,23 @@ function reconcileDue(idx) {
   return !!idx && idx.reconcilePending === true && idx.workflowType !== 'update-deps'
 }
 
+// planWaves() — the fan-out order: a slice plans after the slices it depends on, so its
+// plan builds on theirs. The slices with no open dependency plan together. A cycle or a
+// name outside the fan-out does not block: the slices left plan in one last wave.
+function planWaves(slices) {
+  const names = new Set((slices || []).map(s => s.slice))
+  const left = new Map((slices || []).map(s => [s.slice, (s.dependsOn || []).filter(d => d !== s.slice && names.has(d))]))
+  const placed = new Set()
+  const waves = []
+  while (left.size) {
+    const ready = [...left.keys()].filter(n => left.get(n).every(d => placed.has(d)))
+    const wave = ready.length ? ready : [...left.keys()]
+    waves.push(wave)
+    for (const n of wave) { placed.add(n); left.delete(n) }
+  }
+  return waves
+}
+
 // overlappingSlices() — normalize the reconcile agent's answer into the re-plan list:
 // one entry per slice, in roster order, skipped and unknown slices dropped, the
 // overlapping siblings and the shared files/edges merged into one detail line.
@@ -2338,15 +2427,31 @@ if (reconcileStop) {
   if (OPT.planFanout === true) {
     const unplanned = idx.slices.filter(s => (s.stages || {}).plan !== 'done' && s.status !== 'skipped')
     if (unplanned.length > 1) {
-      log(`plan fan-out: planning ${unplanned.length} un-planned slices concurrently (per-slice writes only; the driver is the single 00-index writer)`)
-      const fanSlices = unplanned.map(s => s.slice)
-      const planned = await parallel(unplanned.map(s => () => runStage('plan', s.slice, idx, {
-        noIndexWrites: true,
-        fanout: { siblings: fanSlices.filter(x => x !== s.slice) },
-      })))
+      // The fan-out plans in dependency waves: a slice plans after the slices it builds on.
+      // A slice whose dependency did not plan cleanly plans in its own chain, after that one.
+      const byName = new Map(unplanned.map(s => [s.slice, s]))
+      const waves = planWaves(unplanned)
+      log(`plan fan-out: planning ${unplanned.length} un-planned slices in ${waves.length} dependency wave(s) (per-slice writes only; the driver is the single 00-index writer)`)
+      const planned = []
+      const notClean = new Set()
+      const earlier = []
+      for (let w = 0; w < waves.length; w++) {
+        const go = waves[w].filter(sl => !(byName.get(sl).dependsOn || []).some(d => notClean.has(d)))
+        for (const sl of waves[w]) if (!go.includes(sl)) notClean.add(sl)
+        const later = waves.slice(w + 1).flat()
+        const res = await parallel(go.map(sl => () => runStage('plan', sl, idx, {
+          noIndexWrites: true,
+          fanout: { siblings: go.filter(x => x !== sl), planned: [...earlier], later },
+        })))
+        go.forEach((sl, i) => {
+          planned.push({ slice: sl, r: res[i] })
+          if (res[i] && res[i].status === 'complete' && evaluateGate('plan', res[i]) === 'proceed') earlier.push(sl)
+          else notClean.add(sl)
+        })
+      }
       const done = planned
-        .map((r, i) => (r && r.status === 'complete' ? (r.slice || unplanned[i].slice) : null))
-        .filter(Boolean)
+        .filter(p => p.r && p.r.status === 'complete')
+        .map(p => p.r.slice || p.slice)
       if (done.length) {
         await agent(
           `PLAN FAN-OUT BOOKKEEPING for slug '${slug}'. The driver just planned these slices concurrently and ` +

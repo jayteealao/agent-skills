@@ -913,3 +913,106 @@ test('implement: an answer that changes the plan walks the slice again from plan
   assert.match(all(mock.calls, /^implement:s1@a/)[1].prompt, /do not revise or undo the work: record the answer, write route-back: plan/);
   assert.equal(all(mock.calls, /^verify:s1@a/).length, 1);
 });
+
+// ---------------------------------------------------------------- plan order and plan freshness
+
+// The orient of the mock, with each slice's depends-on list.
+const withDeps = (mock, deps) => {
+  const orig = mock.agent;
+  mock.agent = async (prompt, opts) => {
+    const r = await orig(prompt, opts);
+    if (/^orient/.test(opts.label) && r && Array.isArray(r.slices)) return { ...r, slices: r.slices.map((s) => ({ ...s, dependsOn: deps[s.slice] || [] })) };
+    return r;
+  };
+  return mock;
+};
+
+test('plan order: planWaves puts a slice after the slices it depends on; a cycle or an unknown name does not block', () => {
+  const text = /function planWaves\(slices\) \{[\s\S]*?\n\}\n/.exec(src)[0];
+  const planWaves = new Function(`${text}; return planWaves`)();
+  const sl = (slice, dependsOn) => ({ slice, dependsOn });
+  assert.deepEqual(planWaves([sl('a', []), sl('b', ['a']), sl('c', []), sl('d', ['b', 'c'])]), [['a', 'c'], ['b'], ['d']]);
+  assert.deepEqual(planWaves([sl('a', ['x']), sl('b', ['b'])]), [['a', 'b']], 'a name outside the fan-out and a self-dependency do not count');
+  assert.deepEqual(planWaves([sl('a', []), sl('b', ['c']), sl('c', ['b'])]), [['a'], ['b', 'c']], 'a cycle plans in one last wave');
+  assert.deepEqual(planWaves([]), []);
+});
+
+test('plan order: a slice plans after the slice it depends on and reads its plan; an independent slice plans with the first wave', async () => {
+  const mock = withDeps(makeMock({ rosters: { a: ['s1', 's2', 's3'] } }), { s2: ['s1'] });
+  const { outcome } = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  const [p1, p2, p3] = ['s1', 's2', 's3'].map((s) => first(mock.calls, new RegExp(`^plan:${s}@a`)));
+  assert.ok(p2.start > p1.end, 's2 plans after s1');
+  assert.ok(p3.start < p1.end, 's3 plans together with s1');
+  assert.match(p2.prompt, /These slices are planned already: s1, s3\./);
+  assert.match(p1.prompt, /These slices plan after you and build on your plan: s2\./);
+  assert.equal(all(mock.calls, /^plan:s2@a/).length, 1);
+});
+
+test('plan order: when a plan stops, the slice that depends on it plans in its own walk, after the answered plan', async () => {
+  let stopped = false;
+  const mock = withDeps(makeMock({
+    rosters: { a: ['s1', 's2', 's3'] },
+    answer: (label) => {
+      if (/^plan:s1@a/.test(label) && !stopped) { stopped = true; return { stage: 'plan', slice: 's1', status: 'hard-stop', hardStopReason: 'which store?', artifactPath: '', terminal: { statusField: 'awaiting-input' } }; }
+      return undefined;
+    },
+  }), { s2: ['s1'] });
+  const { outcome } = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  const p1 = all(mock.calls, /^plan:s1@a/);
+  const p2 = all(mock.calls, /^plan:s2@a/);
+  assert.equal(p1.length, 2, 'the stopped plan, then the answered plan');
+  assert.equal(p2.length, 1, 's2 does not plan in the fan-out');
+  assert.ok(p2[0].start > p1[1].end, 's2 plans after the answered plan of s1');
+  assert.doesNotMatch(p2[0].prompt, /PLAN FAN-OUT/);
+});
+
+test('plan freshness: a plan that the code made out of date is refreshed before its implement; the first slice gets no check', async () => {
+  const mock = makeMock({
+    rosters: { a: ['s1', 's2'] },
+    answer: (label) => (/^plan-check:s2@a/.test(label) ? { stale: [{ slice: 's2', reason: 'the parser API moved' }] } : undefined),
+  });
+  const { outcome } = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  assert.equal(all(mock.calls, /^plan-check:s1@a/).length, 0, 'no code moved before the first implement');
+  assert.equal(all(mock.calls, /^plan-check:s2@a/).length, 1, 'one check, not one for each pass');
+  const plans = all(mock.calls, /^plan:s2@a/);
+  assert.equal(plans.length, 2, 'the fan-out plan, then the refresh');
+  assert.match(plans[1].prompt, /PLAN REFRESH: 04-plan-s2\.md already exists, and it is out of date: the parser API moved\./);
+  const impl = all(mock.calls, /^implement:s2@a/);
+  assert.equal(impl.length, 1);
+  assert.ok(plans[1].end < impl[0].start, 'the refresh runs before the implement');
+});
+
+test('plan freshness: a plan that still fits runs no refresh', async () => {
+  const mock = makeMock({ rosters: { a: ['s1', 's2'] }, answer: (label) => (/^plan-check:/.test(label) ? { stale: [] } : undefined) });
+  const { outcome } = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  assert.equal(all(mock.calls, /^plan-check:s2@a/).length, 1);
+  assert.equal(all(mock.calls, /^plan:s2@a/).length, 1);
+});
+
+test('sibling check: a re-plan marks a later sibling plan stale, and that plan is refreshed in its walk', async () => {
+  let stops = 0;
+  let routed = false;
+  const mock = makeMock({
+    rosters: { a: ['s1', 's2'] },
+    answer: (label, prompt) => {
+      if (/^sibling-check:s1@a/.test(label)) return { stale: [{ slice: 's2', reason: 'it calls the old hook API' }] };
+      if (!/^implement:s1@a/.test(label) || routed) return undefined;
+      if (/ANSWERED ESCALATION/.test(prompt)) { routed = true; return { stage: 'implement', slice: 's1', status: 'hard-stop', hardStopReason: 'the answer changes the plan', artifactPath: '', terminal: {}, routeBack: 'plan' }; }
+      if (stops++ === 0) return { stage: 'implement', slice: 's1', status: 'hard-stop', hardStopReason: 'the hook kind is not supported', artifactPath: '', startSha: 'abc123', terminal: { statusField: 'awaiting-input' } };
+      return undefined;
+    },
+  });
+  const { outcome } = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  const check = all(mock.calls, /^sibling-check:s1@a/);
+  assert.equal(check.length, 1, 'the re-plan of s1 runs one sibling check');
+  assert.match(check[0].prompt, /changed after these sibling plans were written: s2\./);
+  const plans = all(mock.calls, /^plan:s2@a/);
+  assert.equal(plans.length, 2, 'the fan-out plan, then the refresh');
+  assert.match(plans[1].prompt, /PLAN REFRESH: .*it calls the old hook API\. The plan of s1 changed after this plan was written/);
+  assert.equal(all(mock.calls, /^plan-check:s2@a/).length, 0, 'a plan that this walk wrote needs no freshness check');
+});

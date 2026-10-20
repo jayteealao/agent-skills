@@ -61,7 +61,7 @@ Orientation classifies every slice by why it still has work, and the driver runs
 
 The target itself — the slug-wide review in slug mode, the named slice in slice mode — sits between them.
 
-**Bounded re-verify.** A re-challenge is a wall probe, not a verify. The driver dispatches a read-only agent that re-executes the recorded capability probes for the slice's open deferrals and answers, per wall, whether the wall still stands, writing nothing. If every wall stands, the deferrals carry fresh receipts and the slice is done for this run. The driver escalates to a full verify only for a named reason — a wall fell, or the artifacts contradict the index — and records that reason as a decision.
+**Bounded re-verify.** A re-challenge is a wall probe, not a verify. A read-only agent runs the recorded capability probes of the slice's open deferrals again and reports, per wall, whether it still stands. If every wall stands, the deferrals carry fresh receipts and the slice is done for this run. The driver escalates to a full verify only for a named reason — a wall fell, or the artifacts contradict the index — and records that reason as a decision.
 
 # Control files while a driver is live
 
@@ -75,7 +75,9 @@ The full contract is [_control-file-ownership.md](_control-file-ownership.md).
 
 **Slice-complete write-back.** When a slice clears every gate, the driver writes the roster entry's `status: complete` and the index `progress` block at drive time.
 
-**Plan fan-out (`planFanout: true`).** Fan-out plan agents write only their own plan files. A bookkeeping agent then writes the master `04-plan.md` sibling table from each `04-plan-<slice>.yaml` and sets `reconcile-pending: true` in `00-index.md`. A reconcile agent returns the overlapping slices; the driver re-plans them in review-and-fix mode, then clears the marker. While the marker is set, every run reconciles first.
+**Plan fan-out (`planFanout: true`).** Plan agents write only their own plan files, in `depends-on` order. A bookkeeping agent writes the master sibling table and sets `reconcile-pending: true`. The driver re-plans each overlapping slice (review-and-fix), then clears the marker. While the marker is set, every run reconciles first.
+
+**Plan check.** Before an implement, a read-only agent refreshes a plan that code built earlier this run contradicts.
 
 # Two modes
 
