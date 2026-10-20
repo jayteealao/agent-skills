@@ -5,6 +5,13 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.194.1] - 2026-10-20
+
+### Fixed
+
+- **Handoff watches CI itself, and never offers the host's Auto-fix.** On the desktop app, handoff runs took one CI snapshot and then asked the person to turn on Auto-fix, because the app's default (offer Auto-fix after a PR opens, do not poll CI) was the only rule they saw. Handoff now lets the host show the PR, never offers or turns on the PR monitor, and runs its CI watch in one read-only sub-agent that it waits for. When Auto-fix is already on, handoff leaves it on and says so once in its report. `_host-invocation.md` names the desktop mechanics.
+- **Handoff replies to and resolves every fixed or declined review thread.** A fix made outside the triage table (a thread decided in chat, then fixed by another agent) left its threads open, so a branch that requires conversation resolution stayed blocked. Each fixed thread now gets a reply that names its fix commit, then `resolveReviewThread`, and the result must show `isResolved: true`. A declined thread gets a reply with the rationale and is resolved; a deferred thread stays open. The fixed threads go to `triage-fixed-threads`, which carries over to later runs, and the final readiness step always resolves the ones that are still open. A resolve that fails twice goes to `triage-resolve-failed` and is reported.
+
 ## [9.194.0] - 2026-10-20
 
 ### Added
