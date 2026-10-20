@@ -2,9 +2,17 @@
 
 This file carries the GitHub-conditional machinery of `/wf handoff`: the CI watch procedure (T5.0/T5.3) and the fix-subagent contract (7a CI-red + 7b triage). The PR comment triage loop (T5.1, step 7b) is in [handoff/_pr-triage.md](handoff/_pr-triage.md). `handoff.md` instructs you to read this file **in full** the moment the PR/CI path is active (`branch-strategy` is `dedicated`/`shared` AND a `pr-number` is recorded). A local-branch handoff (`branch-strategy: none`) never loads it. Once loaded, follow every section below exactly; the same fidelity rules as the parent reference apply.
 
+# The host's PR monitor
+
+A host can have its own PR monitor, which fixes CI and answers review comments by itself. The "PR monitor" row of [_host-invocation.md](_host-invocation.md) names it and its tools. Its default can tell a session to offer the monitor after it opens a PR, and not to poll CI. The person who runs handoff asks for handoff's own CI watch and comment triage, so this stage keeps both:
+
+1. Let the host show the PR, as the row says.
+2. Do not offer, ask about, or turn on the host's PR monitor: not in a gate question, not in a wrap-up question or button, and not in a closing line. The monitor skips the diagnose-then-ask rule of [_ci-red-routing.md](_ci-red-routing.md) and the triage table, and a second fixer pushes to the same branch. When the monitor is already on for the PR, leave it on, and say once in the handoff report that it also acts on this PR.
+3. Run the `## CI watch procedure` below in one CI-watch sub-agent. Do not hand the watch to the host.
+
 # CI watch procedure (shared by T5.0 and T5.3)
 
-A **bounded poll loop** that drives the PR's checks to a terminal state. Idempotent and resumable: re-invoking handoff re-enters the loop against whatever the current check state is.
+A **bounded poll loop** that drives the PR's checks to a terminal state. Idempotent and resumable: re-invoking handoff re-enters the loop against whatever the current check state is. Run the loop in ONE read-only CI-watch sub-agent at **low** effort per [_subagents.md](_subagents.md). The sub-agent runs steps 1–3, edits nothing, and returns only the outcome (`green`, `red` or `timed-out`), the failed or pending check names, and the poll count. The watch can take up to `max-wait-minutes`. Wait for the sub-agent's result before the next handoff step, and do not ask the person about CI while the watch runs.
 
 Inputs: `pr-number`; `ci-watch.poll-interval-seconds` (default 30); `ci-watch.max-wait-minutes` (default 30). The wall-clock bound is the user's hard ceiling; never exceed it silently.
 

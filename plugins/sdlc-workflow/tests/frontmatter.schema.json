@@ -974,6 +974,12 @@
         "triage-fixes-applied":  { "type": "integer", "minimum": 0 },
         "triage-fixes-skipped":  { "type": "integer", "minimum": 0 },
         "triage-deferred-thread-ids": { "$ref": "#/$defs/stringArray" },
+        "triage-fixed-threads": {
+          "type": "array",
+          "description": "Every review thread that a fix commit addressed, kept across handoff runs, so T5.3 replies to and resolves a fixed thread that is still open, whichever run fixed it.",
+          "items": { "type": "object", "required": ["thread", "sha"], "properties": { "thread": { "type": "string" }, "sha": { "type": "string" } } }
+        },
+        "triage-resolve-failed": { "$ref": "#/$defs/stringArray", "description": "Fixed or declined review threads that the resolveReviewThread mutation could not close after one retry." },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "revisions": { "$ref": "#/$defs/revisionLedger" },

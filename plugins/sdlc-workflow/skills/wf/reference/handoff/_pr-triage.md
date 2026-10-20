@@ -80,8 +80,8 @@ When ambiguous, prefer the more severe class. Bots producing very long walkthrou
 Fixes run in **subagents, never inline**; this is what keeps the orchestrator context clean. The orchestrator collects approved threads and dispatches the fix work; it does not read source or patch code itself.
 
 - Collect every 🔴 thread the user has not declined into a batch of `{ threadId, file, line, body }`.
-- **Dispatch fix subagents** per the `## Fix-subagent contract`, one dispatch per thread. Parallelize threads that touch disjoint files (one parallel wave); serialize threads that touch the same file to avoid clobbering. Each subagent reads the thread context, applies the minimal fix, commits `fix(<slug>): address review thread — <short>`, and returns `{ threadId, fix-sha, status }`. Only that compact result returns to the orchestrator, never the diffs, log dumps, or file reads.
-- Record each `{ threadId, fix-sha }` for the resolve step in 7.
+- **Dispatch fix subagents** per the `## Fix-subagent contract`, one dispatch per thread. Parallelize threads that touch disjoint files (one parallel wave); serialize threads that touch the same file to avoid clobbering. Each subagent reads the thread context, applies the minimal fix, and commits `fix(<slug>): address review thread — <short>`. Only its compact result returns to the orchestrator, never the diffs, log dumps, or file reads.
+- Keep the `threadId` of each dispatch. When the sub-agent returns `Confirmed: yes`, record `{ thread: <threadId>, sha: <its Commit line> }` in `triage-fixed-threads` for the resolve step in 7.
 
 If the user has a strong reason to decline a 🔴 (for example, the bot is wrong about correctness) and confirms as a gate question per [_gate-question.md](../_gate-question.md), route to "deferred" and add `threadId` to `triage-deferred-thread-ids`. Set `has-deferred-comments: true`.
 
@@ -99,23 +99,37 @@ options:
 multiSelect: true
 ```
 
-For selected ones: route through the same fix-subagent path, one subagent per selected thread, same as 🔴. For unselected: ask in a freeform chat round whether to **defer** (keep open, add to `triage-deferred-thread-ids`) or **decline** (resolve the thread with a brief decline rationale recorded in the comment via `gh pr comment`).
+For selected ones: route through the same fix-subagent path, one subagent per selected thread, same as 🔴. For unselected: ask in a freeform chat round whether to **defer** (keep open, add to `triage-deferred-thread-ids`) or **decline** (reply in the thread with a brief decline rationale, then resolve it in step 7).
 
-### 7. Push fixes and resolve threads
+A thread can also be decided outside this table: the person answers it in chat, or a fix for it lands by another path in this run. Treat that thread as one of the table: a fix goes through the fix-subagent path and into `triage-fixed-threads`, and a decline is replied to and resolved in step 7.
 
-After all selected fixes commit:
-- `git push origin <branch>` (regular push within the dedicated branch).
-- For each `{ threadId, fix-sha }` whose fix landed, run the `resolveReviewThread` GraphQL mutation:
+### 7. Push fixes, reply and resolve threads
 
-```graphql
-mutation {
-  resolveReviewThread(input: { threadId: "<threadId>" }) {
-    thread { id isResolved }
-  }
-}
-```
+After all selected fixes commit, push once: `git push origin <branch>` (regular push within the dedicated branch). Then do these steps for each entry of `triage-fixed-threads` that is still open, and for each declined thread:
 
-Resolve no thread whose fix was deferred or declined; those stay open with the deferral or decline rationale in a fresh `gh pr comment`.
+1. Reply in the thread. A fixed thread names its fix commit, for example `Fixed in <short-sha>: <one line>`. A declined thread gives the decline rationale. Write the reply in product language (External Output Boundary).
+
+   ```graphql
+   mutation {
+     addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: "<threadId>", body: "<reply>" }) {
+       comment { id }
+     }
+   }
+   ```
+
+2. Resolve the thread:
+
+   ```graphql
+   mutation {
+     resolveReviewThread(input: { threadId: "<threadId>" }) {
+       thread { id isResolved }
+     }
+   }
+   ```
+
+3. The result must show `isResolved: true`. When the mutation fails, run it once more. When it fails again, add the thread to `triage-resolve-failed`, and tell the person the error output.
+
+Resolve no deferred thread: it stays open, with the deferral rationale as a reply in the thread. Resolve no thread whose fix did not land.
 
 ### 8. Re-fetch and decide loop continuation
 
@@ -141,7 +155,11 @@ triage-iterations: <N actual iterations run>
 triage-fixes-applied: <count of 🔴+🟡 that landed via implement reviews>
 triage-fixes-skipped: <count of 🟡 declined or 🔴 deferred>
 triage-deferred-thread-ids: [<id>, ...]
+triage-fixed-threads: [{ thread: <id>, sha: <fix sha> }, ...]   # every fix of a thread, kept across re-runs
+triage-resolve-failed: [<id>, ...]   # a fixed or declined thread that the resolve mutation could not close
 has-deferred-comments: <true if any thread is still unresolved>
 ```
+
+`triage-fixed-threads` carries over to a later handoff run, so T5.3 resolves a fixed thread that is still open, whichever run fixed it.
 
 🟢 informational comments are summarised in the artifact's `## Reviewer Comments Triaged` table with action `noted`. They are never resolved (top-level PR comments are not threadable via API).

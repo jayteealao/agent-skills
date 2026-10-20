@@ -367,3 +367,41 @@ test('W8.1 — consult must announce a degraded panel', () => {
   assert.match(skill, /panel-size:/, 'panel-size is no longer reported, so degradation is unauditable');
   assert.match(skill, /it is a login/, 'an auth failure can be described as an environmental wall again');
 });
+
+// ── PR monitor and review threads (2026-10-20) ─────────────────────────────
+// Desktop sessions asked "Turn on Auto-fix?" instead of watching CI, because the
+// app's default (offer Auto-fix, do not poll CI) was the only rule they saw. A fix
+// made outside the triage table left its review threads open, so a branch that
+// requires conversation resolution stayed BLOCKED.
+
+test('handoff watches CI itself in a sub-agent and never offers the host Auto-fix', () => {
+  for (const { name, root } of trees) {
+    const ci = ref(root, '_pr-ci-handoff.md');
+    assert.match(ci, /# The host's PR monitor/, `${name}: the host PR-monitor rule is gone`);
+    assert.match(ci, /Do not offer, ask about, or turn on the host's PR monitor/, `${name}: the PR monitor can be offered again`);
+    const host = ref(root, '_host-invocation.md');
+    assert.match(host, /\| PR monitor \(handoff/, `${name}: the host row that names Auto-fix is gone`);
+    assert.match(host, /Do not offer Auto-fix, and do not call `set_monitor`/, `${name}: the host row no longer bans set_monitor`);
+    assert.match(ci, /not in a wrap-up question or button/, `${name}: the wrap-up box can ask about Auto-fix again`);
+    assert.match(ci, /Run the loop in ONE read-only CI-watch sub-agent/, `${name}: the CI watch is no longer delegated`);
+    assert.match(ref(root, 'handoff.md'), /or handing CI to Auto-fix, violates T5\.0\/T5\.3/, `${name}: the role rule lost the Auto-fix clause`);
+  }
+});
+
+test('handoff replies to and resolves every fixed or declined thread, whichever path fixed it', () => {
+  for (const { name, root } of trees) {
+    const tri = ref(root, 'handoff/_pr-triage.md');
+    assert.match(tri, /addPullRequestReviewThreadReply/, `${name}: the thread reply is gone`);
+    assert.match(tri, /resolveReviewThread/, `${name}: the resolve mutation is gone`);
+    assert.match(tri, /The result must show `isResolved: true`/, `${name}: the resolve result is not checked`);
+    assert.match(tri, /A thread can also be decided outside this table/, `${name}: a fix outside the table can leave its thread open again`);
+    assert.match(tri, /decline\*\* \(reply in the thread with a brief decline rationale, then resolve it in step 7\)/, `${name}: a declined thread stays open again`);
+    assert.doesNotMatch(tri, /Resolve no thread whose fix was deferred or declined/, `${name}: the decline contradiction is back`);
+    assert.match(tri, /triage-fixed-threads: \[\{ thread: <id>, sha: <fix sha> \}/, `${name}: the fixed-thread ledger is gone`);
+    assert.match(ref(root, 'handoff.md'), /resolve each still-open thread of `triage-fixed-threads`/, `${name}: T5.3 no longer resolves the fixed threads`);
+  }
+  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'tests', 'frontmatter.schema.json'), 'utf8'));
+  const text = JSON.stringify(schema);
+  assert.match(text, /"triage-fixed-threads"/);
+  assert.match(text, /"triage-resolve-failed"/);
+});
