@@ -5,6 +5,13 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.193.1] - 2026-10-20
+
+### Fixed
+
+- **A tool call that waits is not a hung agent.** A stage agent whose tool call waits for the person's approval wrote nothing to its transcript, and the watch said the agent hangs; the session then offered to stop the run. The watch now looks for a tool call with no result in the stale agent's transcript and reports `signal: pending-tool` with the tool and the time it started. The session names the waiting tool, asks the person to look for an approval prompt, and does not offer a stop.
+- **Stage agents open no prompts.** Every stage agent of the yolo and campaign wave drivers now gets a rule: no Terminal panel tools, browser pane or desktop control, because each such call stops the run until a person answers. A live process runs in the background through the shell, with its output in a file. A secret never goes on a command line.
+
 ## [9.193.0] - 2026-10-20
 
 ### Changed
