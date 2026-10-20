@@ -5,6 +5,19 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.193.0] - 2026-10-20
+
+### Changed
+
+- **The drivers run their bookkeeping agents on Haiku 5.5.** Both Workflow drivers gain a `HAIKU` preset (`claude-haiku-5-5`, medium effort) for the agents that run fixed commands or copy data and judge nothing. `campaign-wave.js` moves 13 agents: the journal events, the waiter, park, move, resume, the merge-in wait, boundary setup, read-check-report, plan-reconcile-clear, plan-index-writeback, the slice writeback, unit end and the slug output. `yolo.js` moves 5: branch, writeback, plan-reconcile-clear, read-check-report and plan-index-writeback. Every agent that judges stays on Sonnet 5.5 or Opus 5.5.
+- **A campaign watch needs no unit slug.** With `--campaign`, the slugs are optional, and `-` means none: the watch follows the campaign journal and the units of the live wave. Use it when only the wave boundary runs.
+
+### Fixed
+
+- **The watch says a run's end once.** The wave driver writes agent lines after a unit's run-end line, so every re-armed watch inferred the finished unit's run-end again. The slug state now keeps the run whose end was said, and the watch does not end that run again. A relaunch, with a new run id, ends again.
+- **A replaced or truncated journal repeats no event.** When a slug or campaign journal got shorter, the watch read it from the start and said every old event again. The lines up to that moment are now history.
+- **The look-in skips ended runs.** A run stopped mid-stage left an agent with no end, and every look-in said that agent was still running.
+
 ## [9.192.1] - 2026-10-20
 
 ### Changed
