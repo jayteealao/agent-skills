@@ -172,6 +172,7 @@ export function applyLines(slug, st, lines, { emitFrom = null, artifactOf = () =
     const emit = emitFrom === null || (line.run === emitFrom.run && Number(line.seq) > emitFrom.seq);
     if (line.event === 'run-end') {
       st.ended = true;
+      st.endedRun = line.run || st.run;
       if (emit) events.push({ event: 'run-end', slug, run: line.run || st.run, stoppedAt: line.stoppedAt || null, inferred: false, at: line.at || null });
       continue;
     }
@@ -242,6 +243,10 @@ export function judgeSilence(slug, st, nowMs, watchStartMs, activityMs = null) {
   if (silentMs <= limit) return [];
   if (st.newest && st.newest.event === 'agent-end') {
     st.ended = true;
+    // The run's end was already said: the wave driver writes agent lines after its
+    // run-end, and a re-arm resets `ended`. The same run does not end twice.
+    if (st.run && st.endedRun === st.run) return [];
+    st.endedRun = st.run;
     return [{ event: 'run-end', slug, run: st.run, stoppedAt: null, inferred: true, lastAgent: st.newest.agent, lastStatus: st.newest.status, at: iso(nowMs) }];
   }
   const key = String(st.lastLineAt);

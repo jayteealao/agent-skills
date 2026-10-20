@@ -958,3 +958,67 @@ test('look-in: a quiet --once watch wakes the session with a look-in, not after 
     assert.deepEqual(r.lines.map((l) => l.event), ['look-in']);
   } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
 });
+
+// ---------------------------------------------------------------- one end per run
+// SoccerManager, 2026-10-20: the wave driver writes agent lines after a unit's run-end
+// (the unit-end agent's own end, read-check-report). Every re-armed watch reset `ended`,
+// saw an agent-end as the newest line, and said the finished unit's run-end again.
+
+test('a run ends once: a re-armed watch does not infer the end of a run that already ended', () => {
+  const root = makeRepo();
+  const lockDir = tmpDir('locks');
+  const projectsDir = tmpDir('projects');
+  try {
+    let now = T0;
+    const opts = { projectRoot: root, slugs: [SLUG], now: () => now, lockDir, projectsDir, usageDir: projectsDir };
+    const a = W.createWatcher(opts);
+    a.pollJournals();
+    journal(root,
+      { at: at(1), seq: 39, event: 'agent-start', agent: 'unit-end@x' },
+      { at: at(1), event: 'run-end', agent: 'unit-end@x', driver: 'campaign-wave' },
+      { at: at(2), seq: 39, event: 'agent-end', agent: 'unit-end@x', status: 'complete' },
+      { at: at(3), seq: 40, event: 'agent-start', agent: 'read-check-report@x' },
+      { at: at(3), seq: 40, event: 'agent-end', agent: 'read-check-report@x', status: 'present:false' },
+    );
+    now = T0 + 4 * 60000;
+    assert.deepEqual(a.pollJournals().map((e) => e.event), ['run-end']);
+    a.save();
+    // A state saved before `endedRun` existed: an ended state keeps its run as ended.
+    const file = W.statePath(root, SLUG);
+    const saved = JSON.parse(readFileSync(file, 'utf8'));
+    delete saved.endedRun;
+    writeFileSync(file, JSON.stringify(saved));
+    for (const min of [120, 240]) {
+      now = T0 + min * 60000;
+      const b = W.createWatcher(opts);
+      assert.deepEqual(b.pollJournals().filter((e) => e.event === 'run-end'), [], `no second run-end at minute ${min}`);
+      b.save();
+    }
+    // A relaunch with a new run id ends again.
+    appendFileSync(W.journalPath(root, SLUG), `${JSON.stringify({ run: 'run-2', at: at(241), seq: 1, event: 'agent-start', agent: 'orient' })}\n${JSON.stringify({ run: 'run-2', at: at(242), seq: 1, event: 'agent-end', agent: 'orient', status: 'complete' })}\n`);
+    now = T0 + 242 * 60000;
+    const c = W.createWatcher(opts);
+    c.pollJournals();
+    now = T0 + 400 * 60000;
+    const end = c.pollJournals();
+    assert.deepEqual(end.map((e) => e.event), ['run-end']);
+    assert.equal(end[0].run, 'run-2');
+  } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
+});
+
+test('a campaign watch starts with no unit slug, or with -', async () => {
+  const root = makeRepo();
+  const lockDir = tmpDir('locks');
+  const projectsDir = tmpDir('projects');
+  try {
+    makeCampaign(root);
+    const env = { SDLC_WATCH_LOCK_DIR: lockDir, SDLC_CLAUDE_PROJECTS_DIR: projectsDir, SDLC_USAGE_DIR: projectsDir };
+    for (const args of [[root, '-'], [root]]) {
+      const r = await runCli([...args, '--campaign', B, '--once', '--look-in', '0.01'], env);
+      assert.equal(r.code, 0, r.stderr);
+      assert.deepEqual(r.lines.map((l) => l.event), ['look-in']);
+    }
+    const bad = await runCli([root, '--once'], env);
+    assert.equal(bad.code, 2, 'with no slug and no campaign, the watch refuses');
+  } finally { for (const d of [root, lockDir, projectsDir]) rmSync(d, { recursive: true, force: true }); }
+});

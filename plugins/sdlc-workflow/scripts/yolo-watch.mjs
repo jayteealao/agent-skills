@@ -382,7 +382,7 @@ export function usageLevel(reading, budget) {
 function freshSlugState() {
   return {
     version: STATE_VERSION, offset: 0, run: null, lastLineAt: null, prevLineAt: null, longestGapMs: 0,
-    newest: null, ended: false, staleFor: null, decisionsSeen: [], openStages: {},
+    newest: null, ended: false, endedRun: null, staleFor: null, decisionsSeen: [], openStages: {},
   };
 }
 
@@ -472,7 +472,8 @@ export function createWatcher({
     const entry = saved
       // A new watch belongs to a new launch or a re-arm. The previous run's end
       // must not end this watch before the relaunched driver writes its first line.
-      ? { st: { ...saved, ended: false, watchFrom: keptWatchFrom(saved, watchStartMs) }, first: false, root: srcRoot, historyBefore: null }
+      // A state from before `endedRun` that ended keeps its run as ended.
+      ? { st: { ...saved, ended: false, endedRun: saved.endedRun || (saved.ended && saved.run ? saved.run : null), watchFrom: keptWatchFrom(saved, watchStartMs) }, first: false, root: srcRoot, historyBefore: null }
       : { st: { ...freshSlugState(), watchFrom: watchStartMs }, first: fresh === 'first', root: srcRoot, historyBefore: fresh === 'first' ? null : watchStartMs };
     states.set(slug, entry);
     setSource(slug, entry);
@@ -1065,9 +1066,13 @@ export async function main(argv = process.argv.slice(2)) {
     appendRunEnd(path.resolve(root), slug, flags['stopped-at'] || null, Date.now(), flags.campaign || null);
     return 0;
   }
-  const [root, ...slugs] = pos;
+  const [root, ...named] = pos;
+  // A campaign watch with no unit slug, or `-`: the brainstorm slug holds the watch
+  // state, and the ledger gives the units of the live wave.
+  const units = named.filter((s) => s !== '-');
+  const slugs = units.length || !flags.campaign ? units : [flags.campaign];
   if (!root || !slugs.length) {
-    process.stderr.write('usage: yolo-watch.mjs <projectRoot> <slug> [<slug> ...] [--since <seq>]\n');
+    process.stderr.write('usage: yolo-watch.mjs <projectRoot> <slug> [<slug> ...] [--since <seq>]; with --campaign <brainstorm>, the slugs are optional\n');
     return 2;
   }
   if (flags.campaign && !existsSync(workflowDir(path.resolve(root), flags.campaign))) {
