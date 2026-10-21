@@ -5,6 +5,19 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.197.0] - 2026-10-21
+
+### Changed
+
+- **A unit edge is a `need` or a `sequence` (campaign).** The deps scout gives each edge between two units a kind. A `need` names a code, data, or contract use as evidence; a `sequence` is an order that the person prefers. Only a `need` puts two units in different waves; a `sequence` edge orders the units inside a wave. `deps <key> depends-on add` takes `--kind` and `--evidence`, and the new `depends-on kind` reclassifies an edge. An edge with no kind counts as a `need`, and `deps plan` lists it under `unclassified`.
+- **No plan barrier in a wave.** Each unit runs its cross-unit reconcile when its own plans finish, against the units that planned before it, and then starts its walk. A contract park or a needs cycle parks before the slice that it names, and the slices before it walk.
+- **A wait ends at verify.** A wait is ready when the needed slice passes verify (`slice-done <key> <slice> --verified`), not after its review. When the review then changes the slice, its `slice-done` returns `refresh`, and the consumer merges the fix before its next implement (`merge-in --refresh`).
+- **Two slot classes.** Implement, review, and merge take token slots, which follow the budget. Verify, the wave verify, and the builds take machine slots (`campaign.isolation.machine-width`). A machine step waits while a lock of `campaign.isolation.locks` is held (the new `locks wait` command).
+- **A trial merge while the units walk.** When a unit finishes while others walk, the driver merges it with the finished units in a scratch worktree and runs the wave verify there. A red trial gets one fix round on the unit's own branch. `campaign.trial-merge: false` turns it off. At the boundary, the as-built notes and their refuters of all units run at once.
+- **Campaign conventions for hotspot files.** The new setup answer `conventions` (on by default) is quoted in the plan and implement prompts: a generated file is regenerated, and a version number moves, only at the boundary. The boundary merge regenerates each generated file once.
+- **Ask at wave-ready.** With stacked wave PRs, `wave <n> record` of a merged wave sets `ready-at`, and its result has `nextWave`. The session asks the person at once, with a push notification, and starts the next wave on the wave branch only on a yes.
+- **Prepare ahead, the wave slicer, and `schedule`.** `status` names in `ahead` the units of later waves whose needs are met, and the person prepares them in one sitting. A read-only wave slicer proposes the slice rosters of a batch together, and `schedule <n>` simulates the wave with no agent: the critical path, the slot bound, and the longest unit. In a campaign, the slice stage recommends the `slug-wide` review scope.
+
 ## [9.196.0] - 2026-10-21
 
 ### Changed
