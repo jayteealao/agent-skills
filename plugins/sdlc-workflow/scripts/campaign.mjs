@@ -34,12 +34,15 @@
  *   away     <root> <brainstorm> --words w [--until ISO]   |   back   |   recap [--since ISO]   (C3)
  *   decided  <root> <brainstorm> <id> --question q --answer a --why w [--options json] [--intent-bearing true] [--unit key]
  *   slice-done <root> <brainstorm> <key> <slice> [--final] [--run id]   the records commit, cleared, waits ready (5.6a)
+ *   slice-done <root> <brainstorm> <key> <slice> --verified   the slice passed verify: its waits are ready (WF-CAMPAIGN-THROUGHPUT-PLAN T7)
+ *   schedule <root> <brainstorm> <n> [--width w] [--machine-width w]   simulate wave n: critical path, slot bound, idle slots (section 3 step 8)
+ *   locks    <root> <brainstorm> wait [--max seconds]   wait until no lock of campaign.isolation.locks is held (T9)
  *   needs    <root> <brainstorm> <key> add|list|remove [--from k --through s --before s --why w --by who --source s --kind need|merge --evidence e]   (5.7)
  *   contract <root> <brainstorm> <key> amend --line <line key> --text t   (5.5, kind contract)
  *   await    <root> <brainstorm> --wave n [--max seconds] [--seen id,id] | --cancel   the waiter of the wave driver (5.5a)
  *   question <root> <brainstorm> <id> consumed
  *   deps     <root> <brainstorm> show|plan|confirm   the dependency graph: show it, check and plan it, confirm it (WF-CAMPAIGN-ORDER-PLAN 4.4)
- *   deps     <root> <brainstorm> <key> depends-on add|remove <from> --why w [--by who]   |   needs add|remove --from k [--through s --before s] --why w
+ *   deps     <root> <brainstorm> <key> depends-on add|remove <from> --why w [--by who] [--kind need|sequence --evidence e]   |   depends-on kind <from> --kind need|sequence --why w [--evidence e]   |   needs add|remove --from k [--through s --before s] --why w
  *            |   provides set|remove --line k [--text t]   |   expects set|remove --from k --line k [--text t]   |   paths --set p1,p2   (4.6)
  *   owner    <root> <slug>                       the live wave run that drives a slug (5.13)
  *   slice-order <checkout> <slug> add --slice s --after t [--why w]   a plan's order as a depends-on edge (WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4)
@@ -62,6 +65,7 @@ import {
   boundaryMergeOrder, buildRecap, clearedCover, closeWaits, diskNeedGb, pathBudget, pluginUpdate, repoTag, runLive, sameNeed, shortStamp, sliceCycle, throughCovers, waitPending, waveWaits,
   DEPS_BY, ensureDeps, hasGraphFields, migrateDeps, seedDeps, serialWaves, sharedPaths, startedKeys, startEntry, syncDepsState, unconfirmedKeys,
   absorbedBy, addMergeNote, dropRecordOf, extensionWaveErrors, legacyWaits, migrateOrder, needsSort, ownsSlice, PAIR_KINDS, syncAbsorbed, targetOf,
+  conventionsOn, EDGE_KINDS, edgeKind, nextWaveAsk, OPTIONAL_ANSWERS, scheduleOf, stageMinutesFromJournals as stageMedians, unclassifiedEdges, waveReady,
 } from '../lib/campaign.mjs';
 import { closesCycle, editRosterEntry, frontmatterValue, rosterEntries, rosterWalkOrder, setFrontmatterValue } from '../lib/roster-edit.mjs';
 import { ignoredAtRisk, loadManifest, recordsIn, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
@@ -70,7 +74,7 @@ import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { missingBoardFiles, needsPictures } from '../lib/design-boards.mjs';
 import { designNeeded, designSettled } from '../lib/design-lane.mjs';
 
-const USAGE = 'Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|stack|merge-in|merge-order|steer|rule|away|back|decided|recap|slice-done|needs|contract|await|question|deps|owner|slice-order> <projectRoot> <brainstorm> ...';
+const USAGE = 'Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|locks|stack|merge-in|merge-order|steer|rule|away|back|decided|recap|slice-done|needs|contract|await|question|deps|owner|slice-order|schedule> <projectRoot> <brainstorm> ...';
 
 // scripts/ and dist/ both sit one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -237,7 +241,7 @@ function trunkOf(root) {
 }
 
 /** Flags that take no value: `reply --move`, `slice-done --final`, `await --cancel`. */
-const BOOLEAN_FLAGS = new Set(['move', 'final', 'cancel']);
+const BOOLEAN_FLAGS = new Set(['move', 'final', 'cancel', 'verified', 'refresh']);
 
 function flags(args) {
   const pos = [];
@@ -747,7 +751,7 @@ function status(root, b) {
     rules: ledger?.rules ?? [],
     presence: ledger?.presence ?? { state: 'present' },
     ...(update ? { pluginUpdate: update } : {}),
-    ...(ledger?.deps ? { deps: { state: ledger.deps.state, unconfirmed: unconfirmedKeys(ledger) } } : {}),
+    ...(ledger?.deps ? { deps: { state: ledger.deps.state, unconfirmed: unconfirmedKeys(ledger), unclassified: unclassifiedEdges(ledger).length } } : {}),
     ledger: ledger ? {
       waves: ledger.waves.map((w) => ({ n: w.n, state: w.state, units: w.units, moved: w.moved })),
       waiting: ledger.waiting,
@@ -812,15 +816,17 @@ function mergeIn(root, b, [key, from], f = {}) {
   if (!u) throw new Error(`merge-in: ${key} is not a build unit of this campaign`);
   if (!fu) throw new Error(`merge-in: ${from} is not a build unit of this campaign`);
   if (u.state === 'running') return { ok: false, error: `the drive of ${key} runs. Merge only while it is stopped (D5): wait for its wait stop, or stop it first.` };
-  const open = (u.waits ?? []).filter((w) => waitPending(w) && w.from === from);
-  if (!open.length) return { ok: false, error: `${key} has no open wait on ${from}` };
+  // T7: --refresh merges a review fix of a slice whose verified commit this unit merged earlier.
+  const refresh = f.refresh === true;
+  const open = (u.waits ?? []).filter((w) => (refresh ? w.state === 'met' : waitPending(w)) && w.from === from);
+  if (!open.length) return { ok: false, error: refresh ? `${key} has no met wait on ${from} to refresh` : `${key} has no open wait on ${from}` };
   const p = unitProgress(root, fu, ownOf(ledger, from));
   let reached;
   let mergeRef;
   if (f.at) {
-    // D21: merge exactly the commit of the cleared slice, not the branch tip.
-    const c = (fu.cleared ?? []).find((x) => x.sha === f.at || String(x.sha).startsWith(f.at));
-    if (!c) return { ok: false, error: `${f.at} is not a cleared commit of ${from}: a merge-in takes the sha that slice-done recorded` };
+    // D21: merge exactly the commit of the cleared slice, not the branch tip. T7: a verified commit counts.
+    const c = [...(fu.cleared ?? []), ...(fu.verified ?? [])].find((x) => x.sha === f.at || String(x.sha).startsWith(f.at));
+    if (!c) return { ok: false, error: `${f.at} is not a cleared or verified commit of ${from}: a merge-in takes the sha that slice-done recorded` };
     reached = c.slice;
     if (!open.some((w) => throughCovers(reached, w.through, p.order))) return { ok: false, error: `the cleared slice ${reached} of ${from} does not cover what ${key} needs (${open.map((w) => w.through).join(', ')})` };
     mergeRef = c.sha;
@@ -855,7 +861,8 @@ function mergeIn(root, b, [key, from], f = {}) {
   const at = nowIso();
   const head = commitOf(dir, 'HEAD');
   (u['merged-in'] ??= []).push({ from, through: reached, sha: fromSha, merge: head, at });
-  const closed = closeWaits(u.waits, { from, through: reached, order: p.order, at });
+  const closed = refresh ? [] : closeWaits(u.waits, { from, through: reached, order: p.order, at });
+  if (refresh) for (const w of open) if (throughCovers(reached, w.through, p.order)) { w.sha = fromSha; w['refreshed-at'] = at; delete w.refresh; }
   // The yolo path relaunched a waiting unit; the wave driver sets the unit running itself.
   if (u.state === 'waiting' && !f.at) { u.state = 'prepared'; u.route = null; }
   saveLedger(root, b, ledger);
@@ -1034,7 +1041,11 @@ function launch(root, b, n, f) {
     if (['prepared', 'waiting', 'running'].includes(u.state)) { u.state = 'running'; u.route = null; }
   }
   const campaignRunId = `${nowIso().replace(/[-:]/g, '').replace(/\.\d+/, '')}-${b}-w${n}`;
-  if (lw.run?.id) rmSync(join(root, '.scratch', 'campaign', lw.run.id), { recursive: true, force: true });
+  if (lw.run?.id) {
+    rmSync(join(root, '.scratch', 'campaign', lw.run.id), { recursive: true, force: true });
+    // T13: the trial worktree of the old run lived in its folder: drop its git record too.
+    spawnSync('git', ['-C', root, 'worktree', 'prune'], { windowsHide: true });
+  }
   lw.run = { id: campaignRunId, at: nowIso() };
   saveLedger(root, b, ledger);
   for (const k of keys) context(root, b, [k]);
@@ -1066,6 +1077,13 @@ function launch(root, b, n, f) {
     // WF-CAMPAIGN-SLICE-ORDER-PLAN D4, D10: the merge notes of the wave, and the person's standing rules.
     mergeNotes: lw['merge-notes'] ?? [],
     rules: (ledger.rules ?? []).map((r) => ({ id: r.id, text: r.text })),
+    // WF-CAMPAIGN-THROUGHPUT-PLAN T12: the campaign conventions for hotspot files; T9: the machine
+    // slots and the project's locks; T13: the trial merge while the units walk.
+    conventions: conventionsOn(ledger),
+    machineWidth: Math.max(1, Math.min(iso?.['machine-width'] ?? widthMax, widthMax * 2)),
+    locks: (iso?.locks ?? []).map((l) => l.name),
+    trialMerge: cfg.campaign?.['trial-merge'] !== false,
+    trialPorts: trialPortsOf(iso, keys.map((k) => ledger.units[k].worktree?.index ?? 0)),
     units: keys.map((k) => {
       const u = ledger.units[k];
       return {
@@ -1078,7 +1096,7 @@ function launch(root, b, n, f) {
         state: u.state,
         runId: u['wave-run-id'] ?? null,
         cleared: u.cleared ?? [],
-        waits: (u.waits ?? []).map((x) => ({ from: x.from, through: x.through, before: x.before ?? null, why: x.why ?? '', source: x.source ?? 'packet', ...(x.kind ? { kind: x.kind } : {}), state: x.state, sha: x.sha ?? null })),
+        waits: (u.waits ?? []).map((x) => ({ from: x.from, through: x.through, before: x.before ?? null, why: x.why ?? '', source: x.source ?? 'packet', ...(x.kind ? { kind: x.kind } : {}), state: x.state, sha: x.sha ?? null, ...(x.refresh ? { refresh: x.refresh } : {}) })),
         questions: (ledger.questions ?? []).filter((q) => q.unit === k && q.wave === n).map(questionArgs),
       };
     }),
@@ -1135,12 +1153,16 @@ function record(root, b, n, f) {
     res.notMerged = bd.notMerged ?? [];
     res.cleanup = (bd.merged ?? []).map((m) => ({ key: m.key, worktree: ledger.units[m.key]?.worktree?.path ?? null, branch: ledger.units[m.key]?.worktree?.branch ?? null })).filter((x) => x.worktree || x.branch);
     if (bd.stopped) res.stopped = { at: bd.stoppedAt ?? 'boundary', reason: bd.reason ?? null };
+    // T2 step 1: the merged wave branch is ready. The session asks the person at once whether the next wave starts on it.
+    else if (res.merged.length && !out.stopBeforeNextWave) w['ready-at'] = nowIso();
   }
   res.derivedNeeds = out.derivedNeeds ?? [];
   if (out.stopBeforeNextWave) res.stopBeforeNextWave = out.reason ?? true;
   saveLedger(root, b, ledger);
   appendJournal(root, b, 'wave-record', { wave: n, run: ranId, held: res.held, ...(res.merged ? { merged: res.merged } : {}) });
   res.next = campaignAction(ledger, {});
+  const ask = nextWaveAsk(ledger, n);
+  if (ask) res.nextWave = ask;
   return res;
 }
 
@@ -1157,6 +1179,7 @@ function sliceDone(root, b, [key, slice], f) {
   if (!final && !slice) throw new Error('slice-done: give the slice, or --final');
   const dir = u.worktree?.path;
   if (!dir || !existsSync(dir)) return { ok: false, error: `slice-done: ${key} has no worktree (D19)` };
+  if (f.verified === true) return sliceVerified(root, b, ledger, key, slice, dir);
   let committed = false;
   let records = null;
   if (isLocal(ledger)) records = syncOut(root, b, key, dir);
@@ -1179,9 +1202,19 @@ function sliceDone(root, b, [key, slice], f) {
   if (f.run) u['wave-run-id'] = f.run;
   const order = unitProgress(root, u, ownOf(ledger, key)).order;
   const ready = [];
+  // T7: a wait that a consumer met at the verified commit of this slice, when the review changed the slice after it.
+  const refresh = [];
+  // Only the slice whose verified commit the consumer merged: a later slice is code the consumer does not need.
+  const verifiedShas = new Set((u.verified ?? []).filter((v) => v.slice === name).map((v) => v.sha));
   for (const k of ledger.waves.find((x) => x.n === u.wave)?.units ?? []) {
     for (const wt of ledger.units[k]?.waits ?? []) {
-      if (wt.from !== key || wt.state !== 'open' || !throughCovers(name, wt.through, order)) continue;
+      if (wt.from !== key || !throughCovers(name, wt.through, order)) continue;
+      if (wt.state === 'met' && wt.sha && wt.sha !== sha && verifiedShas.has(wt.sha) && wt.refresh !== sha) {
+        wt.refresh = sha;
+        refresh.push({ key: k, from: key, through: wt.through, before: wt.before ?? null, sha, was: wt.sha });
+        continue;
+      }
+      if (wt.state !== 'open') continue;
       wt.state = 'ready';
       wt.sha = sha;
       wt['ready-at'] = at;
@@ -1190,7 +1223,36 @@ function sliceDone(root, b, [key, slice], f) {
   }
   saveLedger(root, b, ledger);
   const bd = budget(root, b);
-  return { ok: true, key, slice: name, sha, committed, ...(records ? { records } : {}), ready, budget: { state: bd.state, width: bd.width, until: bd.until ?? null, reason: bd.reason ?? null }, answered: answersOf(ledger, u.wave) };
+  return { ok: true, key, slice: name, sha, committed, ...(records ? { records } : {}), ready, ...(refresh.length ? { refresh } : {}), budget: { state: bd.state, width: bd.width, until: bd.until ?? null, reason: bd.reason ?? null }, answered: answersOf(ledger, u.wave) };
+}
+
+/**
+ * WF-CAMPAIGN-THROUGHPUT-PLAN T7: `slice-done <key> <slice> --verified` — the slice passed
+ * its verify. A consumer needs the verified code, not the review: each open wait that the
+ * slice covers is ready at HEAD. The review comes later, and `slice-done` after it returns
+ * `refresh` for each consumer that merged a commit that the review then changed.
+ */
+function sliceVerified(root, b, ledger, key, slice, dir) {
+  const u = ledger.units[key];
+  if (!slice) throw new Error('slice-done --verified: give the slice');
+  const sha = commitOf(dir, 'HEAD');
+  const at = nowIso();
+  if (!(u.verified ?? []).some((v) => v.slice === slice && v.sha === sha)) (u.verified ??= []).push({ slice, sha, at });
+  const order = unitProgress(root, u, ownOf(ledger, key)).order;
+  const ready = [];
+  for (const k of ledger.waves.find((x) => x.n === u.wave)?.units ?? []) {
+    for (const wt of ledger.units[k]?.waits ?? []) {
+      if (wt.from !== key || wt.state !== 'open' || !throughCovers(slice, wt.through, order)) continue;
+      wt.state = 'ready';
+      wt.sha = sha;
+      wt['ready-at'] = at;
+      wt['ready-on'] = 'verify';
+      ready.push({ key: k, from: key, through: wt.through, sha });
+    }
+  }
+  saveLedger(root, b, ledger);
+  if (ready.length) appendJournal(root, b, 'slice-verified', { key, slice, sha, ready: ready.length });
+  return { ok: true, key, slice, sha, verified: true, ready };
 }
 
 /**
@@ -1359,6 +1421,81 @@ function question(root, b, [id, action]) {
 }
 
 /**
+ * WF-CAMPAIGN-THROUGHPUT-PLAN section 3 step 8: `schedule <n>` — simulate wave n with no
+ * agent. Each unit's roster (00-index.md slices, 03-slice.md depends-on and complexity), the
+ * graph needs between the units of the wave, the review scope, the width, and the stage
+ * medians of this repository's driver journals (the plan's medians when there are none).
+ */
+// T13: the trial worktree runs its suites on ports past every unit's.
+function trialPortsOf(iso, indexes) {
+  const ports = portsFor(iso, Math.max(0, ...indexes) + 1);
+  return Object.keys(ports).length ? ports : null;
+}
+
+function schedule(root, b, [nText], f) {
+  const ledger = requireLedger(root, b);
+  const n = Number(nText);
+  const w = ledger.waves.find((x) => x.n === n);
+  if (!w) throw new Error(`schedule: no wave ${nText}`);
+  const cfg = configOf(root);
+  const iso = isolationOf(cfg);
+  const widthMax = effectiveWidth({ width: cfg.campaign?.width ?? DEFAULT_WIDTH, isolation: iso, budget: 'ok' });
+  const width = Math.max(1, Number(f.width) || widthMax);
+  const machineWidth = Math.max(1, Number(f['machine-width']) || iso?.['machine-width'] || width);
+  const units = w.units.filter((k) => ledger.units[k] && !isMoved(ledger.units[k])).map((k) => {
+    const u = ledger.units[k];
+    const dir = unitWorkflowDir(root, u);
+    const own = ownOf(ledger, k);
+    const fm = (name) => (existsSync(join(dir, name)) ? safeParseFrontmatter(readFileSync(join(dir, name), 'utf8')).data ?? {} : {});
+    const index = fm('00-index.md');
+    const rosterFm = fm('03-slice.md');
+    const roster = rosterOf(dir);
+    const extra = new Map((Array.isArray(rosterFm.slices) ? rosterFm.slices : []).filter((s) => s && s.slug).map((s) => [String(s.slug), s]));
+    const list = (Array.isArray(index.slices) ? index.slices : []).map((s) => (typeof s === 'string' ? { slug: s } : s ?? {})).filter((s) => s.slug ?? s.slice);
+    const slices = list.map((s) => {
+      const name = String(s.slug ?? s.slice);
+      return { slice: name, status: s.status ?? null, complexity: s.complexity ?? extra.get(name)?.complexity ?? null, dependsOn: roster.get(name)?.dependsOn ?? [] };
+    }).filter((s) => ownsSlice(roster.get(s.slice) ?? { slug: s.slice }, own));
+    return { key: k, slices, reviewScope: reviewScopeOf(root, u) };
+  });
+  const keys = new Set(units.map((u) => u.key));
+  const waits = [];
+  for (const k of keys) {
+    for (const x of ledger.units[k].waits ?? []) if (x.state !== 'rejected' && keys.has(x.from)) waits.push({ key: k, from: x.from, through: x.through ?? 'finished', before: x.before ?? null });
+    if (!ledger.units[k].waits) for (const nd of (ledger.deps?.units?.[k]?.needs ?? [])) if (keys.has(nd.from)) waits.push({ key: k, from: nd.from, through: nd.through ?? 'finished', before: nd.before ?? null });
+  }
+  const journals = units.map((u) => readJsonl(join(unitWorkflowDir(root, ledger.units[u.key]), '.driver-journal.jsonl')));
+  const minutes = f.medians === 'plan' ? {} : stageMedians(journals.filter((j) => j.length));
+  const sim = scheduleOf({ units, waits, width, machineWidth, minutes });
+  return { ok: true, wave: n, ...sim, waits: waits.length, unsliced: units.filter((u) => !u.slices.length).map((u) => u.key) };
+}
+
+/**
+ * T9: `locks wait [--max s]` — the project declares its own locks (campaign.isolation.locks:
+ * { name, path, stale-minutes }). A lock is held while its file exists and is younger than
+ * its stale age. The command waits until no lock is held, or until --max seconds pass.
+ */
+function locksCmd(root, b, [action], f) {
+  if (action !== 'wait') throw new Error('locks: the action is wait');
+  const iso = isolationOf(configOf(root));
+  const list = iso?.locks ?? [];
+  const held = () => list.filter((l) => {
+    const p = resolve(root, l.path);
+    if (!existsSync(p)) return false;
+    try { return Date.now() - lstatSync(p).mtimeMs < l['stale-minutes'] * 60_000; } catch { return false; }
+  }).map((l) => l.name);
+  const max = Math.max(0, Math.min(540, Number(f.max ?? 540) || 0));
+  const t0 = Date.now();
+  for (;;) {
+    const h = held();
+    if (!h.length) return { ok: true, free: true, waitedS: Math.round((Date.now() - t0) / 1000), locks: list.map((l) => l.name) };
+    const left = max * 1000 - (Date.now() - t0);
+    if (left <= 0) return { ok: true, free: false, timeout: true, held: h, waitedS: Math.round((Date.now() - t0) / 1000) };
+    sleepMs(Math.min(10_000, left));
+  }
+}
+
+/**
  * WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4: `slice-order <checkout> <slug> add --slice s --after t
  * --why w` — an order that a plan or a plan reconcile decided becomes a `depends-on` edge:
  * `t` joins the `depends-on` of `s` in the roster of 03-slice.md and in 03-slice-<s>.md.
@@ -1470,6 +1607,8 @@ function depsPlanOf(ledger, ws) {
     shared: planned.flatMap((w) => (w['expected-shared'] ?? []).map((s) => ({ wave: w.n, ...s }))),
     dropped: Object.entries(ledger.deps.units).flatMap(([k, e]) => (e.dropped ?? []).map((d) => ({ unit: k, from: d.key, why: d.why, by: d.by, at: d.at }))),
     unconfirmed: unconfirmedKeys(ledger),
+    // T1: the edges with no kind, of units outside a started wave. Each one orders the waves as a need until it is classified.
+    unclassified: unclassifiedEdges(ledger),
   };
 }
 
@@ -1524,16 +1663,30 @@ function depsCmd(root, b, pos, f) {
     if (arg === key) throw new Error(`deps ${key} depends-on: a unit does not depend on itself`);
     if (!why) throw new Error(`deps ${key} depends-on ${action}: give --why with the evidence`);
     const list = entry['depends-on'] ??= [];
+    // T1: an edge is a `need` (with evidence) or a `sequence`. An edge with no kind is legacy.
+    const kind = f.kind === undefined ? null : String(f.kind);
+    if (kind !== null && !EDGE_KINDS.includes(kind)) throw new Error(`deps ${key} depends-on: --kind is ${EDGE_KINDS.join(' or ')}`);
+    if (kind === 'need' && !String(f.evidence ?? '').trim()) throw new Error(`deps ${key} depends-on: a need gives --evidence (a code, data or contract use); with none, the edge is a sequence`);
+    const kindFields = kind ? { kind, ...(kind === 'need' ? { evidence: String(f.evidence).trim() } : {}) } : {};
     if (action === 'add') {
       if (list.some((d) => depKey(d) === arg)) return { ok: true, key, exists: true };
-      list.push({ key: arg, why, by, at });
+      list.push({ key: arg, why, by, at, ...kindFields });
+    } else if (action === 'kind') {
+      const i = list.findIndex((d) => depKey(d) === arg);
+      if (i < 0) return { ok: false, key, error: `deps ${key}: there is no edge from ${arg}` };
+      if (!kind) throw new Error(`deps ${key} depends-on kind: give --kind ${EDGE_KINDS.join('|')}`);
+      const was = edgeKind(list[i]);
+      const d = typeof list[i] === 'string' ? { key: arg } : { ...list[i] };
+      delete d.evidence;
+      list[i] = { ...d, ...kindFields, 'kind-why': why, 'kind-by': by, 'kind-at': at };
+      change = { field, action, from: arg, kind, was, why };
     } else if (action === 'remove') {
       if (!list.some((d) => depKey(d) === arg)) return { ok: false, key, error: `deps ${key}: there is no edge from ${arg}` };
       entry['depends-on'] = list.filter((d) => depKey(d) !== arg);
       // The removal and its reason stay: `deps plan` shows each dropped edge with its evidence.
       (entry.dropped ??= []).push({ key: arg, why, by, at });
-    } else throw new Error('deps <key> depends-on: the action is add or remove');
-    change = { field, action, from: arg, why };
+    } else throw new Error('deps <key> depends-on: the action is add, kind or remove');
+    change ??= { field, action, from: arg, why, ...kindFields };
   } else if (field === 'needs') {
     const n = { from: f.from, through: f.through ?? 'finished', before: f.before ?? null };
     if (!n.from || !packetKeys.has(n.from)) throw new Error(`deps ${key} needs ${action ?? ''}: --from names a packet of this work set`);
@@ -1600,7 +1753,9 @@ function doReplan(root, b) {
 }
 
 function answer(root, b, [key, ...rest]) {
-  if (!SETUP_ANSWERS.includes(key)) throw new Error(`answer: the key is one of ${SETUP_ANSWERS.join(', ')}`);
+  const optional = Object.keys(OPTIONAL_ANSWERS);
+  if (!SETUP_ANSWERS.includes(key) && !optional.includes(key)) throw new Error(`answer: the key is one of ${[...SETUP_ANSWERS, ...optional].join(', ')}`);
+  if (key === 'conventions' && !['on', 'off'].includes(rest.join(' ').trim())) throw new Error('answer conventions: on or off');
   const ledger = requireLedger(root, b);
   // 4.3: setup waits for the confirmed graph (Q2: no way to skip it).
   const pending = unconfirmedKeys(ledger);
@@ -1765,7 +1920,7 @@ function wave(root, b, [nText, action, state], f) {
   if (action === 'start') {
     if (w.state !== 'planned') throw new Error(`wave ${n} is ${w.state}, not planned`);
     const lives = ledger.waves.filter((x) => ['running', 'boundary', 'handoff', 'shipping'].includes(x.state));
-    const building = lives.find((x) => ['running', 'boundary'].includes(x.state));
+    const building = lives.find((x) => ['running', 'boundary'].includes(x.state) && !waveReady(x));
     if (building) throw new Error(`wave ${building.n} is ${building.state}: a wave starts after the wave below merged its slugs into its branch`);
     // Stage D2: with stacked wave PRs, a wave may start on the wave branch below
     // while that wave waits in handoff or ship, up to max-unshipped (12.5).
@@ -2298,6 +2453,8 @@ function dispatch(cmd, root, b, pos, f) {
       case 'owner': out = owner(root, b); break;
       // `slice-order <checkout> <slug> add`: the root is the unit's checkout, the second argument the slug.
       case 'slice-order': out = sliceOrder(root, b, pos, f); break;
+      case 'schedule': out = schedule(root, b, pos, f); break;
+      case 'locks': out = locksCmd(root, b, pos, f); break;
       default: return null;
     }
   }

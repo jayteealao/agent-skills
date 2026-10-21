@@ -31,6 +31,7 @@ Give the subagent these items in its prompt:
    - Keep the edge when a decision, a `why-here` note, or the code shows that this unit uses what the earlier unit builds.
    - Drop the edge only when the code shows that the two units touch different files and share no name, no type, no table, and no contract.
    - Add an edge to a unit that is not the piece just before it, when the evidence shows a dependency on it.
+   - Give each kept edge a kind. It is a `need` when the code, a data file, or a contract line shows that this unit uses what the earlier unit builds: name the use as its evidence. It is a `sequence` when only a preference orders the two units, for example "less urgent", or a `why-here` note that names no use. Only a `need` orders the waves; a `sequence` edge orders the units inside a wave.
 5. For each unit, write the contract lines:
    - `provides`: what the unit makes true for later units, one line each, with the decision or the symbol that the line comes from;
    - `expects`: what the unit needs from a `provides` line of a unit that it depends on, directly or through other units.
@@ -56,7 +57,7 @@ Return one JSON object:
     },
     {
       "key": "limit",
-      "depends-on": [{ "from": "rows", "keep": true, "evidence": "decision limit-reads-rows; src/billing/limits.ts calls costRows()" }],
+      "depends-on": [{ "from": "rows", "keep": true, "kind": "need", "evidence": "decision limit-reads-rows; src/billing/limits.ts calls costRows()" }],
       "provides": [{ "line": "project-limit", "text": "Each project has a spending limit that warns.", "source": "decision limit-warns-only" }],
       "expects": [{ "from": "rows", "line": "row-per-run", "text": "One cost row per run.", "source": "src/billing/rows.ts, costRows()" }],
       "needs": [],
@@ -66,7 +67,7 @@ Return one JSON object:
 }
 ```
 
-- Each `depends-on` item is an edge of the seed with `keep`, or a new edge with `keep: true`. Each item has `evidence`.
+- Each `depends-on` item is an edge of the seed with `keep`, or a new edge with `keep: true`. Each item has `evidence`. Each kept item has `kind`: `need` or `sequence`.
 - Each `needs` item is `{ "from", "through", "before", "why" }`.
 
 ## Record the proposal
@@ -74,11 +75,12 @@ Return one JSON object:
 Record each line of the return with the `deps` commands, `--by scout`:
 
 1. Each edge with `keep: false`: `<cmd> deps <key> depends-on remove <from> --why "<evidence>" --by scout`.
-2. Each new edge: `<cmd> deps <key> depends-on add <from> --why "<evidence>" --by scout`.
-3. Each `provides` line: `<cmd> deps <key> provides set --line <line> --text "<text>" --by scout`.
-4. Each `expects` line: `<cmd> deps <key> expects set --from <from> --line <line> --text "<text>" --by scout`.
-5. Each `needs` item: `<cmd> deps <key> needs add --from <from> --through <slice> --before <slice> --why "<why>" --by scout`.
-6. The paths: `<cmd> deps <key> paths --set <path,path>`.
+2. Each new edge: `<cmd> deps <key> depends-on add <from> --why "<evidence>" --kind <kind> --by scout`, with `--evidence "<evidence>"` for a `need`.
+3. Each kept edge of the seed: `<cmd> deps <key> depends-on kind <from> --kind <kind> --why "<evidence>" --by scout`, with `--evidence "<evidence>"` for a `need`.
+4. Each `provides` line: `<cmd> deps <key> provides set --line <line> --text "<text>" --by scout`.
+5. Each `expects` line: `<cmd> deps <key> expects set --from <from> --line <line> --text "<text>" --by scout`.
+6. Each `needs` item: `<cmd> deps <key> needs add --from <from> --through <slice> --before <slice> --why "<why>" --by scout`.
+7. The paths: `<cmd> deps <key> paths --set <path,path>`.
 
 Then continue Phase 0b at `deps plan` ([_phases.md](_phases.md)).
 
@@ -86,7 +88,8 @@ Then continue Phase 0b at `deps plan` ([_phases.md](_phases.md)).
 
 | Command | Does |
 |---|---|
-| `deps <key> depends-on add\|remove <from> --why w [--by who]` | Add or remove an edge. A removed edge and its reason stay: `deps plan` shows them |
+| `deps <key> depends-on add\|remove <from> --why w [--by who] [--kind need\|sequence --evidence e]` | Add or remove an edge. A removed edge and its reason stay: `deps plan` shows them. A `need` refuses no `--evidence` |
+| `deps <key> depends-on kind <from> --kind need\|sequence --why w [--evidence e] [--by who]` | Give an edge its kind. An edge with no kind counts as a `need`, and `deps plan` lists it under `unclassified` |
 | `deps <key> needs add\|remove --from k [--through s --before s] --why w [--by who]` | Add or remove a partial need, with the rules of a `needs` entry |
 | `deps <key> provides set\|remove --line k [--text t] [--by who]` | Add, change or remove a contract line that the unit provides |
 | `deps <key> expects set\|remove --from k --line k [--text t] [--by who]` | Add, change or remove a contract line that the unit expects |

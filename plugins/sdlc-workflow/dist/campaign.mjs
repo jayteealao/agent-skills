@@ -37,6 +37,8 @@ var WAVE_STATES = Object.freeze(["planned", "running", "boundary", "handoff", "s
 var UNIT_STATES = Object.freeze(["planned", "prepared", "running", "waiting", "stopped", "finished", "merged", "needs-fix", "shipped"]);
 var LIVE_WAVE_STATES = Object.freeze(["running", "boundary", "handoff", "shipping"]);
 var SETUP_ANSWERS = Object.freeze(["forecast", "target-version", "release-each-wave", "output", "budget"]);
+var OPTIONAL_ANSWERS = Object.freeze({ conventions: "on" });
+var conventionsOn = (ledger) => !["off", false, "false"].includes(ledger?.answers?.conventions ?? OPTIONAL_ANSWERS.conventions);
 var DEFAULT_BUDGET = Object.freeze({ fiveHourSlow: 75, fiveHourPause: 90, sevenDayReserve: 15 });
 var READING_STALE_MS = 10 * 60 * 1e3;
 var DEFAULT_MAX_UNSHIPPED = 2;
@@ -63,6 +65,8 @@ function unitOf(packet, { written = [], deps } = {}) {
     order: Number.isFinite(Number(packet.order)) ? Number(packet.order) : 1,
     whyHere: packet["why-here"] ? String(packet["why-here"]) : null,
     dependsOn: deps0.filter((d) => !done.has(d)),
+    // T1: a `sequence` edge orders the priority inside a wave, never the waves.
+    sequence: g.sequence.filter((d) => !done.has(d)),
     needs: needs2,
     provides: g.provides,
     expects: exps.filter((e) => !done.has(e.from)),
@@ -86,10 +90,14 @@ var GRAPH_FIELDS = Object.freeze(["depends-on", "needs", "provides", "expects"])
 var DEPS_BY = Object.freeze(["seed", "serial", "scout", "person", "prepare", "driver"]);
 var hasGraphFields = (packet) => GRAPH_FIELDS.some((f) => Object.prototype.hasOwnProperty.call(packet ?? {}, f));
 var keyOf = (d) => typeof d === "string" ? d : d?.key;
+var EDGE_KINDS = Object.freeze(["need", "sequence"]);
+var edgeKind = (d) => d && typeof d === "object" && EDGE_KINDS.includes(d.kind) ? d.kind : "legacy";
 function graphOf(entry) {
   const e = entry ?? {};
+  const edges = (e["depends-on"] ?? []).filter((d) => keyOf(d));
   return {
-    dependsOn: (e["depends-on"] ?? []).map(keyOf).filter(Boolean).map(String),
+    dependsOn: edges.filter((d) => edgeKind(d) !== "sequence").map(keyOf).map(String),
+    sequence: edges.filter((d) => edgeKind(d) === "sequence").map(keyOf).map(String),
     needs: (Array.isArray(e.needs) ? e.needs : []).filter((n) => n && n.from).map((n) => ({ from: String(n.from), through: n.through ? String(n.through) : "finished", before: n.before ? String(n.before) : null, why: n.why ? String(n.why) : "" })),
     provides: (e.provides ?? []).filter((p) => p && p.key).map((p) => ({ key: String(p.key), text: String(p.text ?? "") })),
     expects: (e.expects ?? []).filter((x) => x && x.from && x.key).map((x) => ({ from: String(x.from), key: String(x.key), text: String(x.text ?? "") })),
@@ -289,7 +297,7 @@ function planWaves(units, { done = /* @__PURE__ */ new Set(), started = [], stop
       }
     }
     if (!wave2.length) break;
-    wave2.sort((a, b) => byOrder(byKey.get(a), byKey.get(b)));
+    wave2.splice(0, wave2.length, ...sequenceSort(wave2.map((key) => byKey.get(key))).map((u) => u.key));
     waves.push(wave2);
     wave2.forEach((key) => placed.set(key, k));
     remaining = remaining.filter((u) => !placed.has(u.key));
@@ -302,6 +310,48 @@ function planWaves(units, { done = /* @__PURE__ */ new Set(), started = [], stop
     waiting.push(outside2.length ? { key: u.key, on: outside2, reason: "needs-you" } : { key: u.key, on: open, reason: "waits" });
   }
   return { waves, waiting };
+}
+function sequenceSort(units) {
+  const left = [...units].sort(byOrder);
+  const keys = new Set(left.map((u) => u.key));
+  const out = [];
+  const placed = /* @__PURE__ */ new Set();
+  while (left.length) {
+    const i = left.findIndex((u2) => (u2.sequence ?? []).every((d) => !keys.has(d) || placed.has(d)));
+    const u = left.splice(i < 0 ? 0 : i, 1)[0];
+    out.push(u);
+    placed.add(u.key);
+  }
+  return out;
+}
+function unclassifiedEdges(ledger) {
+  const started = startedKeys(ledger);
+  const out = [];
+  for (const [k, e] of Object.entries(ledger?.deps?.units ?? {})) {
+    if (started.has(k)) continue;
+    for (const d of e?.["depends-on"] ?? []) if (keyOf(d) && edgeKind(d) === "legacy") out.push({ key: k, from: String(keyOf(d)), by: d?.by ?? null });
+  }
+  return out;
+}
+function prepareAhead(ledger) {
+  const next = ledger?.waves?.find((w) => w.state === "planned");
+  if (!next) return [];
+  const met = (k) => {
+    const u = ledger.units[k];
+    if (!u) return ledger.outside?.[k] ? ledger.outside[k].state === "closed" : true;
+    if (["finished", "merged", "shipped"].includes(u.state)) return true;
+    return ledger.waves.some((w) => w.units.includes(k) && (w.state !== "planned" || w === next));
+  };
+  const out = [];
+  for (const w of ledger.waves) {
+    if (w.state !== "planned" || w === next) continue;
+    for (const k of w.units) {
+      if (ledger.units[k]?.state !== "planned") continue;
+      const g = graphOf(ledger.deps?.units?.[k]);
+      if ([...g.dependsOn, ...g.needs.map((n) => n.from)].every(met)) out.push(k);
+    }
+  }
+  return out;
 }
 function deferUnprepared(waveKeys, units, prepared) {
   const byKey = new Map(units.map((u) => [u.key, u]));
@@ -769,12 +819,14 @@ function campaignAction(ledger, { revision = null, driving = null } = {}) {
   const lives = ledger.waves.filter((w) => LIVE_WAVE_STATES.includes(w.state));
   const live = lives[0];
   const next = ledger.waves.find((w) => w.state === "planned");
-  const stacked = ledger.stack?.enabled && next && lives.length && lives.every((w) => ["handoff", "shipping"].includes(w.state)) && lives.length < (ledger.stack["max-unshipped"] ?? DEFAULT_MAX_UNSHIPPED);
-  if (stacked) {
+  const ahead = prepareAhead(ledger);
+  const extra = (o) => ({ ...o, ...ahead.length ? { ahead } : {} });
+  const stacked = ledger.stack?.enabled && next && lives.length && lives.every(waveReady) && lives.length < (ledger.stack["max-unshipped"] ?? DEFAULT_MAX_UNSHIPPED);
+  if (stacked && !driving) {
     const todo = unprepared(next);
-    return todo.length ? { action: "prepare", wave: next.n, units: todo } : { action: "start-wave", wave: next.n, beside: lives.map((w) => w.n) };
+    return todo.length ? extra({ action: "prepare", wave: next.n, units: todo }) : extra({ action: "start-wave", wave: next.n, beside: lives.map((w) => w.n) });
   }
-  if (driving) return { action: "driving", ...driving, prepare: unprepared(next), ...unconfirmed.length ? { deps: unconfirmed } : {} };
+  if (driving) return extra({ action: "driving", ...driving, prepare: unprepared(next), ...unconfirmed.length ? { deps: unconfirmed } : {} });
   const unsorted = ledger.waves.find((w) => needsSort(ledger, w));
   if (unsorted) return { action: "sort-waits", wave: unsorted.n, legacy: unsorted["legacy-order"] === true, extensions: unsorted["extensions-pending"] ?? [] };
   if (live) return { action: "running", wave: live.n, state: live.state, prepare: unprepared(next) };
@@ -782,12 +834,22 @@ function campaignAction(ledger, { revision = null, driving = null } = {}) {
   if (stopped) return { action: "stopped", wave: stopped.n };
   if (next) {
     const todo = unprepared(next);
-    return todo.length ? { action: "prepare", wave: next.n, units: todo } : { action: "start-wave", wave: next.n };
+    return todo.length ? extra({ action: "prepare", wave: next.n, units: todo }) : extra({ action: "start-wave", wave: next.n });
   }
   const needsYou = Object.entries(ledger.outside).filter(([, x]) => x.state !== "closed").map(([k]) => k);
   if ((ledger.waiting ?? []).length) return { action: "blocked", waiting: ledger.waiting, needsYou };
   if (ledger.phase === "done") return { action: "done" };
   return { action: "end" };
+}
+var waveReady = (w) => ["handoff", "shipping"].includes(w?.state) || w?.state === "boundary" && Boolean(w["ready-at"]);
+function nextWaveAsk(ledger, n) {
+  const w = ledger?.waves?.find((x) => x.n === n);
+  const next = ledger?.waves?.find((x) => x.state === "planned");
+  if (!w || !next || !waveReady(w) || !ledger.stack?.enabled) return null;
+  const lives = ledger.waves.filter((x) => LIVE_WAVE_STATES.includes(x.state));
+  if (!lives.every(waveReady) || lives.length >= (ledger.stack["max-unshipped"] ?? DEFAULT_MAX_UNSHIPPED)) return null;
+  const unprepared = next.units.filter((k) => ledger.units[k]?.state !== "prepared");
+  return { wave: next.n, on: n, units: [...next.units], prepared: unprepared.length === 0, unprepared };
 }
 function renderLedgerMd(ledger) {
   const L = [];
@@ -939,7 +1001,11 @@ function isolationOf(config) {
     "outside-root": absolute(iso["outside-root"]),
     // C6: an absolute worktree root outside the repo, and the deepest build path to allow for.
     "worktree-root": absolute(iso["worktree-root"]),
-    "build-depth": Number.isFinite(iso["build-depth"]) ? iso["build-depth"] : DEFAULT_BUILD_DEPTH
+    "build-depth": Number.isFinite(iso["build-depth"]) ? iso["build-depth"] : DEFAULT_BUILD_DEPTH,
+    // WF-CAMPAIGN-THROUGHPUT-PLAN T9: the width of the machine slots (verify, wave verify), and
+    // the project's own locks. With neither, the machine slots take the width of the heavy slots.
+    "machine-width": Number.isInteger(iso["machine-width"]) && iso["machine-width"] > 0 ? iso["machine-width"] : null,
+    locks: (Array.isArray(iso.locks) ? iso.locks : []).filter((l) => l && typeof l.path === "string" && l.path.trim()).map((l) => ({ name: String(l.name ?? l.path), path: l.path, "stale-minutes": Number.isFinite(l["stale-minutes"]) ? l["stale-minutes"] : 120 }))
   };
 }
 function portsFor(isolation, index) {
@@ -995,6 +1061,128 @@ function budgetState(reading, budget2 = DEFAULT_BUDGET, { now = Date.now(), stal
 function preLinesTooLong(pre, post) {
   const lines = pre.reduce((n, u) => n + 3 + u.provides.length, 0) + post.reduce((n, u) => n + u.expects.length, 0);
   return lines > CONTEXT_LONG_LINES;
+}
+var STAGE_MINUTES = Object.freeze({ plan: 12, implement: 76, verify: 30, review: 76 });
+var SIZE_FACTOR = Object.freeze({ xs: 0.5, s: 0.75, m: 1, l: 1.5, xl: 2 });
+function walkOrderOf(slices) {
+  const names = new Set(slices.map((s) => s.slice));
+  const placed = /* @__PURE__ */ new Set();
+  const out = [];
+  let left = [...slices];
+  while (left.length) {
+    const next = left.find((s) => (s.dependsOn ?? []).every((d) => d === s.slice || !names.has(d) || placed.has(d)));
+    if (!next) return [...out, ...left];
+    out.push(next);
+    placed.add(next.slice);
+    left = left.filter((s) => s !== next);
+  }
+  return out;
+}
+function scheduleOf({ units = [], waits = [], width = 1, machineWidth = null, minutes = {} } = {}) {
+  const min = { ...STAGE_MINUTES, ...Object.fromEntries(Object.entries(minutes ?? {}).filter(([, v]) => Number.isFinite(v) && v > 0)) };
+  const plans = units.map((u) => {
+    const slices = (u.slices ?? []).filter((s) => s && s.status !== "skipped" && s.status !== "complete");
+    const byName = new Map(slices.map((s) => [s.slice, s]));
+    const level = /* @__PURE__ */ new Map();
+    const depth = (s, seen = /* @__PURE__ */ new Set()) => {
+      if (level.has(s.slice)) return level.get(s.slice);
+      if (seen.has(s.slice)) return 0;
+      seen.add(s.slice);
+      const d = Math.max(0, ...(s.dependsOn ?? []).filter((x) => byName.has(x) && x !== s.slice).map((x) => 1 + depth(byName.get(x), seen)));
+      level.set(s.slice, d);
+      return d;
+    };
+    slices.forEach((s) => depth(s));
+    const planMin = slices.length ? (Math.max(...level.values()) + 1) * min.plan : 0;
+    const order = walkOrderOf(slices);
+    const tasks = [];
+    for (const s of order) {
+      const f = SIZE_FACTOR[s.complexity] ?? 1;
+      tasks.push({ slice: s.slice, stage: "implement", cls: "token", dur: min.implement * f });
+      tasks.push({ slice: s.slice, stage: "verify", cls: "machine", dur: min.verify * f });
+      if (u.reviewScope === "per-slice") tasks.push({ slice: s.slice, stage: "review", cls: "token", dur: min.review * f });
+    }
+    if (u.reviewScope !== "per-slice" && order.length) tasks.push({ slice: null, stage: "review", cls: "token", dur: min.review });
+    return { key: u.key, order: order.map((s) => s.slice), planMin, tasks };
+  });
+  const run = (tokenW, machineW) => {
+    const pools = { token: Array(tokenW).fill(0), machine: Array(machineW).fill(0) };
+    const ends = /* @__PURE__ */ new Map();
+    const state = plans.map((p) => ({ p, i: 0, t: p.planMin }));
+    const busy = { token: 0, machine: 0 };
+    let first = Infinity;
+    const endOf = (k, slice) => {
+      const p = plans.find((x) => x.key === k);
+      if (!p) return 0;
+      if (!slice || slice === "finished") return ends.get(`${k}:end`);
+      if (!p.order.includes(slice)) return 0;
+      return ends.get(`${k}:${slice}:verify`);
+    };
+    for (; ; ) {
+      let pick = null;
+      for (const s of state) {
+        if (s.i >= s.p.tasks.length) continue;
+        const t = s.p.tasks[s.i];
+        let ready = s.t;
+        let blocked2 = false;
+        if (t.stage === "implement") {
+          for (const w of waits.filter((x) => x.key === s.p.key && (x.before ?? s.p.order[0]) === t.slice)) {
+            const e = endOf(w.from, w.through);
+            if (e === void 0) {
+              blocked2 = true;
+              break;
+            }
+            ready = Math.max(ready, e);
+          }
+        }
+        if (blocked2) continue;
+        const pool = pools[t.cls];
+        const slot = pool.indexOf(Math.min(...pool));
+        const start = Math.max(ready, pool[slot]);
+        if (!pick || start < pick.start) pick = { s, t, slot, start };
+      }
+      if (!pick) break;
+      const end = pick.start + pick.t.dur;
+      pools[pick.t.cls][pick.slot] = end;
+      busy[pick.t.cls] += pick.t.dur;
+      first = Math.min(first, pick.start);
+      pick.s.t = end;
+      if (pick.t.slice) ends.set(`${pick.s.p.key}:${pick.t.slice}:${pick.t.stage}`, end);
+      pick.s.i++;
+      if (pick.s.i >= pick.s.p.tasks.length) ends.set(`${pick.s.p.key}:end`, end);
+    }
+    const blocked = state.filter((s) => s.i < s.p.tasks.length).map((s) => s.p.key);
+    const total = Math.max(0, ...state.map((s) => s.t));
+    const span = Number.isFinite(first) ? Math.max(0, total - first) : 0;
+    const idle = tokenW * span - busy.token + (machineW * span - busy.machine);
+    return { total, busy, idle: Math.max(0, idle), blocked, ends: state.map((s) => ({ key: s.p.key, end: s.t })) };
+  };
+  const tw = Math.max(1, Number(width) || 1);
+  const mw = Math.max(1, Number(machineWidth) || tw);
+  const sim = run(tw, mw);
+  const free = run(Math.max(1, units.length), Math.max(1, units.length));
+  const slotBound = Math.max(sim.busy.token / tw, sim.busy.machine / mw);
+  const longest = free.ends.reduce((a, x) => x.end > (a?.end ?? -1) ? x : a, null);
+  const r = (x) => Math.round(x);
+  return {
+    width: tw,
+    machineWidth: mw,
+    minutes: min,
+    simulated: r(sim.total),
+    criticalPath: r(free.total),
+    slotBound: r(slotBound),
+    bound: free.total >= slotBound ? "critical-path" : "slots",
+    idleSlotHours: Math.round(sim.idle / 60 * 10) / 10,
+    longest: longest?.key ?? null,
+    blocked: sim.blocked,
+    units: plans.map((p) => ({
+      key: p.key,
+      slices: p.order.length,
+      planMinutes: r(p.planMin),
+      walkMinutes: r(p.tasks.reduce((a, t) => a + t.dur, 0)),
+      end: r(sim.ends.find((e) => e.key === p.key)?.end ?? 0)
+    }))
+  };
 }
 var median = (xs) => {
   if (!xs.length) return null;
@@ -1442,7 +1630,7 @@ function ignoredAtRisk(porcelain, allow = []) {
 }
 
 // scripts/campaign.mjs
-var USAGE = "Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|stack|merge-in|merge-order|steer|rule|away|back|decided|recap|slice-done|needs|contract|await|question|deps|owner|slice-order> <projectRoot> <brainstorm> ...";
+var USAGE = "Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|locks|stack|merge-in|merge-order|steer|rule|away|back|decided|recap|slice-done|needs|contract|await|question|deps|owner|slice-order|schedule> <projectRoot> <brainstorm> ...";
 var PLUGIN_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 var brainstormDir = (root, b) => join3(root, ".ai", "workflows", b);
 var workDir = (root, b) => join3(brainstormDir(root, b), "work");
@@ -1593,7 +1781,7 @@ function trunkOf(root) {
   for (const b of ["main", "master"]) if (git(root, ["rev-parse", "--verify", "--quiet", b]) !== null) return b;
   return "main";
 }
-var BOOLEAN_FLAGS = /* @__PURE__ */ new Set(["move", "final", "cancel"]);
+var BOOLEAN_FLAGS = /* @__PURE__ */ new Set(["move", "final", "cancel", "verified", "refresh"]);
 function flags(args) {
   const pos = [];
   const f = {};
@@ -2014,7 +2202,7 @@ function status(root, b) {
     rules: ledger?.rules ?? [],
     presence: ledger?.presence ?? { state: "present" },
     ...update ? { pluginUpdate: update } : {},
-    ...ledger?.deps ? { deps: { state: ledger.deps.state, unconfirmed: unconfirmedKeys(ledger) } } : {},
+    ...ledger?.deps ? { deps: { state: ledger.deps.state, unconfirmed: unconfirmedKeys(ledger), unclassified: unclassifiedEdges(ledger).length } } : {},
     ledger: ledger ? {
       waves: ledger.waves.map((w) => ({ n: w.n, state: w.state, units: w.units, moved: w.moved })),
       waiting: ledger.waiting,
@@ -2052,14 +2240,15 @@ function mergeIn(root, b, [key, from], f = {}) {
   if (!u) throw new Error(`merge-in: ${key} is not a build unit of this campaign`);
   if (!fu) throw new Error(`merge-in: ${from} is not a build unit of this campaign`);
   if (u.state === "running") return { ok: false, error: `the drive of ${key} runs. Merge only while it is stopped (D5): wait for its wait stop, or stop it first.` };
-  const open = (u.waits ?? []).filter((w) => waitPending(w) && w.from === from);
-  if (!open.length) return { ok: false, error: `${key} has no open wait on ${from}` };
+  const refresh = f.refresh === true;
+  const open = (u.waits ?? []).filter((w) => (refresh ? w.state === "met" : waitPending(w)) && w.from === from);
+  if (!open.length) return { ok: false, error: refresh ? `${key} has no met wait on ${from} to refresh` : `${key} has no open wait on ${from}` };
   const p = unitProgress(root, fu, ownOf(ledger, from));
   let reached;
   let mergeRef;
   if (f.at) {
-    const c = (fu.cleared ?? []).find((x) => x.sha === f.at || String(x.sha).startsWith(f.at));
-    if (!c) return { ok: false, error: `${f.at} is not a cleared commit of ${from}: a merge-in takes the sha that slice-done recorded` };
+    const c = [...fu.cleared ?? [], ...fu.verified ?? []].find((x) => x.sha === f.at || String(x.sha).startsWith(f.at));
+    if (!c) return { ok: false, error: `${f.at} is not a cleared or verified commit of ${from}: a merge-in takes the sha that slice-done recorded` };
     reached = c.slice;
     if (!open.some((w) => throughCovers(reached, w.through, p.order))) return { ok: false, error: `the cleared slice ${reached} of ${from} does not cover what ${key} needs (${open.map((w) => w.through).join(", ")})` };
     mergeRef = c.sha;
@@ -2092,7 +2281,14 @@ function mergeIn(root, b, [key, from], f = {}) {
   const at = nowIso();
   const head = commitOf(dir, "HEAD");
   (u["merged-in"] ??= []).push({ from, through: reached, sha: fromSha, merge: head, at });
-  const closed = closeWaits(u.waits, { from, through: reached, order: p.order, at });
+  const closed = refresh ? [] : closeWaits(u.waits, { from, through: reached, order: p.order, at });
+  if (refresh) {
+    for (const w of open) if (throughCovers(reached, w.through, p.order)) {
+      w.sha = fromSha;
+      w["refreshed-at"] = at;
+      delete w.refresh;
+    }
+  }
   if (u.state === "waiting" && !f.at) {
     u.state = "prepared";
     u.route = null;
@@ -2255,7 +2451,10 @@ function launch(root, b, n, f) {
     }
   }
   const campaignRunId = `${nowIso().replace(/[-:]/g, "").replace(/\.\d+/, "")}-${b}-w${n}`;
-  if (lw.run?.id) rmSync2(join3(root, ".scratch", "campaign", lw.run.id), { recursive: true, force: true });
+  if (lw.run?.id) {
+    rmSync2(join3(root, ".scratch", "campaign", lw.run.id), { recursive: true, force: true });
+    spawnSync("git", ["-C", root, "worktree", "prune"], { windowsHide: true });
+  }
   lw.run = { id: campaignRunId, at: nowIso() };
   saveLedger(root, b, ledger);
   for (const k of keys) context(root, b, [k]);
@@ -2287,6 +2486,13 @@ function launch(root, b, n, f) {
     // WF-CAMPAIGN-SLICE-ORDER-PLAN D4, D10: the merge notes of the wave, and the person's standing rules.
     mergeNotes: lw["merge-notes"] ?? [],
     rules: (ledger.rules ?? []).map((r) => ({ id: r.id, text: r.text })),
+    // WF-CAMPAIGN-THROUGHPUT-PLAN T12: the campaign conventions for hotspot files; T9: the machine
+    // slots and the project's locks; T13: the trial merge while the units walk.
+    conventions: conventionsOn(ledger),
+    machineWidth: Math.max(1, Math.min(iso?.["machine-width"] ?? widthMax, widthMax * 2)),
+    locks: (iso?.locks ?? []).map((l) => l.name),
+    trialMerge: cfg.campaign?.["trial-merge"] !== false,
+    trialPorts: trialPortsOf(iso, keys.map((k) => ledger.units[k].worktree?.index ?? 0)),
     units: keys.map((k) => {
       const u = ledger.units[k];
       return {
@@ -2303,7 +2509,7 @@ function launch(root, b, n, f) {
         state: u.state,
         runId: u["wave-run-id"] ?? null,
         cleared: u.cleared ?? [],
-        waits: (u.waits ?? []).map((x) => ({ from: x.from, through: x.through, before: x.before ?? null, why: x.why ?? "", source: x.source ?? "packet", ...x.kind ? { kind: x.kind } : {}, state: x.state, sha: x.sha ?? null })),
+        waits: (u.waits ?? []).map((x) => ({ from: x.from, through: x.through, before: x.before ?? null, why: x.why ?? "", source: x.source ?? "packet", ...x.kind ? { kind: x.kind } : {}, state: x.state, sha: x.sha ?? null, ...x.refresh ? { refresh: x.refresh } : {} })),
         questions: (ledger.questions ?? []).filter((q) => q.unit === k && q.wave === n).map(questionArgs)
       };
     }),
@@ -2358,12 +2564,15 @@ function record(root, b, n, f) {
     res.notMerged = bd.notMerged ?? [];
     res.cleanup = (bd.merged ?? []).map((m) => ({ key: m.key, worktree: ledger.units[m.key]?.worktree?.path ?? null, branch: ledger.units[m.key]?.worktree?.branch ?? null })).filter((x) => x.worktree || x.branch);
     if (bd.stopped) res.stopped = { at: bd.stoppedAt ?? "boundary", reason: bd.reason ?? null };
+    else if (res.merged.length && !out.stopBeforeNextWave) w["ready-at"] = nowIso();
   }
   res.derivedNeeds = out.derivedNeeds ?? [];
   if (out.stopBeforeNextWave) res.stopBeforeNextWave = out.reason ?? true;
   saveLedger(root, b, ledger);
   appendJournal(root, b, "wave-record", { wave: n, run: ranId, held: res.held, ...res.merged ? { merged: res.merged } : {} });
   res.next = campaignAction(ledger, {});
+  const ask2 = nextWaveAsk(ledger, n);
+  if (ask2) res.nextWave = ask2;
   return res;
 }
 function sliceDone(root, b, [key, slice], f) {
@@ -2374,6 +2583,7 @@ function sliceDone(root, b, [key, slice], f) {
   if (!final && !slice) throw new Error("slice-done: give the slice, or --final");
   const dir = u.worktree?.path;
   if (!dir || !existsSync2(dir)) return { ok: false, error: `slice-done: ${key} has no worktree (D19)` };
+  if (f.verified === true) return sliceVerified(root, b, ledger, key, slice, dir);
   let committed = false;
   let records = null;
   if (isLocal(ledger)) records = syncOut(root, b, key, dir);
@@ -2395,9 +2605,17 @@ function sliceDone(root, b, [key, slice], f) {
   if (f.run) u["wave-run-id"] = f.run;
   const order = unitProgress(root, u, ownOf(ledger, key)).order;
   const ready = [];
+  const refresh = [];
+  const verifiedShas = new Set((u.verified ?? []).filter((v) => v.slice === name).map((v) => v.sha));
   for (const k of ledger.waves.find((x) => x.n === u.wave)?.units ?? []) {
     for (const wt of ledger.units[k]?.waits ?? []) {
-      if (wt.from !== key || wt.state !== "open" || !throughCovers(name, wt.through, order)) continue;
+      if (wt.from !== key || !throughCovers(name, wt.through, order)) continue;
+      if (wt.state === "met" && wt.sha && wt.sha !== sha && verifiedShas.has(wt.sha) && wt.refresh !== sha) {
+        wt.refresh = sha;
+        refresh.push({ key: k, from: key, through: wt.through, before: wt.before ?? null, sha, was: wt.sha });
+        continue;
+      }
+      if (wt.state !== "open") continue;
       wt.state = "ready";
       wt.sha = sha;
       wt["ready-at"] = at;
@@ -2406,7 +2624,29 @@ function sliceDone(root, b, [key, slice], f) {
   }
   saveLedger(root, b, ledger);
   const bd = budget(root, b);
-  return { ok: true, key, slice: name, sha, committed, ...records ? { records } : {}, ready, budget: { state: bd.state, width: bd.width, until: bd.until ?? null, reason: bd.reason ?? null }, answered: answersOf(ledger, u.wave) };
+  return { ok: true, key, slice: name, sha, committed, ...records ? { records } : {}, ready, ...refresh.length ? { refresh } : {}, budget: { state: bd.state, width: bd.width, until: bd.until ?? null, reason: bd.reason ?? null }, answered: answersOf(ledger, u.wave) };
+}
+function sliceVerified(root, b, ledger, key, slice, dir) {
+  const u = ledger.units[key];
+  if (!slice) throw new Error("slice-done --verified: give the slice");
+  const sha = commitOf(dir, "HEAD");
+  const at = nowIso();
+  if (!(u.verified ?? []).some((v) => v.slice === slice && v.sha === sha)) (u.verified ??= []).push({ slice, sha, at });
+  const order = unitProgress(root, u, ownOf(ledger, key)).order;
+  const ready = [];
+  for (const k of ledger.waves.find((x) => x.n === u.wave)?.units ?? []) {
+    for (const wt of ledger.units[k]?.waits ?? []) {
+      if (wt.from !== key || wt.state !== "open" || !throughCovers(slice, wt.through, order)) continue;
+      wt.state = "ready";
+      wt.sha = sha;
+      wt["ready-at"] = at;
+      wt["ready-on"] = "verify";
+      ready.push({ key: k, from: key, through: wt.through, sha });
+    }
+  }
+  saveLedger(root, b, ledger);
+  if (ready.length) appendJournal(root, b, "slice-verified", { key, slice, sha, ready: ready.length });
+  return { ok: true, key, slice, sha, verified: true, ready };
 }
 function needs(root, b, [key, action], f) {
   const ledger = requireLedger(root, b);
@@ -2544,6 +2784,72 @@ function question(root, b, [id, action]) {
   saveLedger(root, b, ledger);
   return { ok: true, id, consumed: true };
 }
+function trialPortsOf(iso, indexes) {
+  const ports = portsFor(iso, Math.max(0, ...indexes) + 1);
+  return Object.keys(ports).length ? ports : null;
+}
+function schedule(root, b, [nText], f) {
+  const ledger = requireLedger(root, b);
+  const n = Number(nText);
+  const w = ledger.waves.find((x) => x.n === n);
+  if (!w) throw new Error(`schedule: no wave ${nText}`);
+  const cfg = configOf(root);
+  const iso = isolationOf(cfg);
+  const widthMax = effectiveWidth({ width: cfg.campaign?.width ?? DEFAULT_WIDTH, isolation: iso, budget: "ok" });
+  const width = Math.max(1, Number(f.width) || widthMax);
+  const machineWidth = Math.max(1, Number(f["machine-width"]) || iso?.["machine-width"] || width);
+  const units = w.units.filter((k) => ledger.units[k] && !isMoved(ledger.units[k])).map((k) => {
+    const u = ledger.units[k];
+    const dir = unitWorkflowDir(root, u);
+    const own = ownOf(ledger, k);
+    const fm = (name) => existsSync2(join3(dir, name)) ? safeParseFrontmatter(readFileSync2(join3(dir, name), "utf8")).data ?? {} : {};
+    const index = fm("00-index.md");
+    const rosterFm = fm("03-slice.md");
+    const roster = rosterOf(dir);
+    const extra = new Map((Array.isArray(rosterFm.slices) ? rosterFm.slices : []).filter((s) => s && s.slug).map((s) => [String(s.slug), s]));
+    const list = (Array.isArray(index.slices) ? index.slices : []).map((s) => typeof s === "string" ? { slug: s } : s ?? {}).filter((s) => s.slug ?? s.slice);
+    const slices = list.map((s) => {
+      const name = String(s.slug ?? s.slice);
+      return { slice: name, status: s.status ?? null, complexity: s.complexity ?? extra.get(name)?.complexity ?? null, dependsOn: roster.get(name)?.dependsOn ?? [] };
+    }).filter((s) => ownsSlice(roster.get(s.slice) ?? { slug: s.slice }, own));
+    return { key: k, slices, reviewScope: reviewScopeOf(root, u) };
+  });
+  const keys = new Set(units.map((u) => u.key));
+  const waits = [];
+  for (const k of keys) {
+    for (const x of ledger.units[k].waits ?? []) if (x.state !== "rejected" && keys.has(x.from)) waits.push({ key: k, from: x.from, through: x.through ?? "finished", before: x.before ?? null });
+    if (!ledger.units[k].waits) {
+      for (const nd of ledger.deps?.units?.[k]?.needs ?? []) if (keys.has(nd.from)) waits.push({ key: k, from: nd.from, through: nd.through ?? "finished", before: nd.before ?? null });
+    }
+  }
+  const journals = units.map((u) => readJsonl(join3(unitWorkflowDir(root, ledger.units[u.key]), ".driver-journal.jsonl")));
+  const minutes = f.medians === "plan" ? {} : stageMinutesFromJournals(journals.filter((j) => j.length));
+  const sim = scheduleOf({ units, waits, width, machineWidth, minutes });
+  return { ok: true, wave: n, ...sim, waits: waits.length, unsliced: units.filter((u) => !u.slices.length).map((u) => u.key) };
+}
+function locksCmd(root, b, [action], f) {
+  if (action !== "wait") throw new Error("locks: the action is wait");
+  const iso = isolationOf(configOf(root));
+  const list = iso?.locks ?? [];
+  const held = () => list.filter((l) => {
+    const p = resolve(root, l.path);
+    if (!existsSync2(p)) return false;
+    try {
+      return Date.now() - lstatSync2(p).mtimeMs < l["stale-minutes"] * 6e4;
+    } catch {
+      return false;
+    }
+  }).map((l) => l.name);
+  const max = Math.max(0, Math.min(540, Number(f.max ?? 540) || 0));
+  const t0 = Date.now();
+  for (; ; ) {
+    const h = held();
+    if (!h.length) return { ok: true, free: true, waitedS: Math.round((Date.now() - t0) / 1e3), locks: list.map((l) => l.name) };
+    const left = max * 1e3 - (Date.now() - t0);
+    if (left <= 0) return { ok: true, free: false, timeout: true, held: h, waitedS: Math.round((Date.now() - t0) / 1e3) };
+    sleepMs(Math.min(1e4, left));
+  }
+}
 function sliceOrder(root, slug, [action], f) {
   if (action !== "add") throw new Error("slice-order: the action is add");
   const s = String(f.slice ?? "").trim();
@@ -2632,7 +2938,9 @@ function depsPlanOf(ledger, ws) {
     serial: serialWaves(units.filter(isBuildUnit)),
     shared: planned.flatMap((w) => (w["expected-shared"] ?? []).map((s) => ({ wave: w.n, ...s }))),
     dropped: Object.entries(ledger.deps.units).flatMap(([k, e]) => (e.dropped ?? []).map((d) => ({ unit: k, from: d.key, why: d.why, by: d.by, at: d.at }))),
-    unconfirmed: unconfirmedKeys(ledger)
+    unconfirmed: unconfirmedKeys(ledger),
+    // T1: the edges with no kind, of units outside a started wave. Each one orders the waves as a need until it is classified.
+    unclassified: unclassifiedEdges(ledger)
   };
 }
 function depsCmd(root, b, pos, f) {
@@ -2684,15 +2992,28 @@ function depsCmd(root, b, pos, f) {
     if (arg === key) throw new Error(`deps ${key} depends-on: a unit does not depend on itself`);
     if (!why) throw new Error(`deps ${key} depends-on ${action}: give --why with the evidence`);
     const list = entry["depends-on"] ??= [];
+    const kind = f.kind === void 0 ? null : String(f.kind);
+    if (kind !== null && !EDGE_KINDS.includes(kind)) throw new Error(`deps ${key} depends-on: --kind is ${EDGE_KINDS.join(" or ")}`);
+    if (kind === "need" && !String(f.evidence ?? "").trim()) throw new Error(`deps ${key} depends-on: a need gives --evidence (a code, data or contract use); with none, the edge is a sequence`);
+    const kindFields = kind ? { kind, ...kind === "need" ? { evidence: String(f.evidence).trim() } : {} } : {};
     if (action === "add") {
       if (list.some((d) => depKey(d) === arg)) return { ok: true, key, exists: true };
-      list.push({ key: arg, why, by, at });
+      list.push({ key: arg, why, by, at, ...kindFields });
+    } else if (action === "kind") {
+      const i = list.findIndex((d2) => depKey(d2) === arg);
+      if (i < 0) return { ok: false, key, error: `deps ${key}: there is no edge from ${arg}` };
+      if (!kind) throw new Error(`deps ${key} depends-on kind: give --kind ${EDGE_KINDS.join("|")}`);
+      const was = edgeKind(list[i]);
+      const d = typeof list[i] === "string" ? { key: arg } : { ...list[i] };
+      delete d.evidence;
+      list[i] = { ...d, ...kindFields, "kind-why": why, "kind-by": by, "kind-at": at };
+      change = { field, action, from: arg, kind, was, why };
     } else if (action === "remove") {
       if (!list.some((d) => depKey(d) === arg)) return { ok: false, key, error: `deps ${key}: there is no edge from ${arg}` };
       entry["depends-on"] = list.filter((d) => depKey(d) !== arg);
       (entry.dropped ??= []).push({ key: arg, why, by, at });
-    } else throw new Error("deps <key> depends-on: the action is add or remove");
-    change = { field, action, from: arg, why };
+    } else throw new Error("deps <key> depends-on: the action is add, kind or remove");
+    change ??= { field, action, from: arg, why, ...kindFields };
   } else if (field === "needs") {
     const n = { from: f.from, through: f.through ?? "finished", before: f.before ?? null };
     if (!n.from || !packetKeys.has(n.from)) throw new Error(`deps ${key} needs ${action ?? ""}: --from names a packet of this work set`);
@@ -2756,7 +3077,9 @@ function doReplan(root, b) {
   return { ok: true, added, waves: ledger.waves.map((w) => ({ n: w.n, state: w.state, units: w.units })), waiting: ledger.waiting };
 }
 function answer(root, b, [key, ...rest]) {
-  if (!SETUP_ANSWERS.includes(key)) throw new Error(`answer: the key is one of ${SETUP_ANSWERS.join(", ")}`);
+  const optional = Object.keys(OPTIONAL_ANSWERS);
+  if (!SETUP_ANSWERS.includes(key) && !optional.includes(key)) throw new Error(`answer: the key is one of ${[...SETUP_ANSWERS, ...optional].join(", ")}`);
+  if (key === "conventions" && !["on", "off"].includes(rest.join(" ").trim())) throw new Error("answer conventions: on or off");
   const ledger = requireLedger(root, b);
   const pending = unconfirmedKeys(ledger);
   if (pending.length) return { ok: false, error: `the dependency graph is not confirmed (${pending.join(", ")}): run the deps phase first (campaign/_phases.md, "Phase 0b \u2014 Deps")`, next: campaignAction(ledger, {}) };
@@ -2910,7 +3233,7 @@ function wave(root, b, [nText, action, state], f) {
   if (action === "start") {
     if (w.state !== "planned") throw new Error(`wave ${n} is ${w.state}, not planned`);
     const lives = ledger.waves.filter((x) => ["running", "boundary", "handoff", "shipping"].includes(x.state));
-    const building = lives.find((x) => ["running", "boundary"].includes(x.state));
+    const building = lives.find((x) => ["running", "boundary"].includes(x.state) && !waveReady(x));
     if (building) throw new Error(`wave ${building.n} is ${building.state}: a wave starts after the wave below merged its slugs into its branch`);
     if (lives.length && !ledger.stack?.enabled) throw new Error(`wave ${lives[0].n} is ${lives[0].state}: without stacked PRs a wave starts after the previous wave merged`);
     const max = ledger.stack?.["max-unshipped"] ?? DEFAULT_MAX_UNSHIPPED;
@@ -3507,6 +3830,12 @@ function dispatch(cmd, root, b, pos, f) {
       // `slice-order <checkout> <slug> add`: the root is the unit's checkout, the second argument the slug.
       case "slice-order":
         out = sliceOrder(root, b, pos, f);
+        break;
+      case "schedule":
+        out = schedule(root, b, pos, f);
+        break;
+      case "locks":
+        out = locksCmd(root, b, pos, f);
         break;
       default:
         return null;

@@ -102,7 +102,7 @@ A build packet (form `intake`, `extension`, `fix`, `hotfix`) is a unit. A `task`
 | `deps <key> <field> ...` | Change the graph ([campaign/_deps.md](campaign/_deps.md), "The deps commands") |
 | `status` | The next action and the ledger summary |
 | `replan` | Re-read the packets; re-plan the waves that did not start |
-| `answer <key> <json>` | Record a setup answer: `forecast`, `target-version`, `release-each-wave`, `output`, `budget` |
+| `answer <key> <json>` | Record a setup answer: `forecast`, `target-version`, `release-each-wave`, `output`, `budget`, `conventions` |
 | `unit <key> <state> [--route r] [--merge sha] [--digest json] [--on "<from>: <through>"]` | Set a unit's state, its route, its merge commit, or its decision digest |
 | `outside <key> closed\|needs-you` | Close a task, investigate, or discover packet; its dependents re-plan |
 | `wave <n> start` | Start a wave with its prepared units; the unprepared ones move on |
@@ -118,13 +118,15 @@ A build packet (form `intake`, `extension`, `fix`, `hotfix`) is a unit. A `task`
 | `journal <event> [<json>]` | Append a campaign event for the watch |
 | `forecast [--wave n --minutes m --tokens t]` | Update the forecast with the real numbers of a wave |
 | `budget` | The usage state (`ok`, `slow`, `pause`, `unknown`) from the newest reading, and the width it allows |
-| `worktree <key>\|wave-<n> add\|refresh\|sync\|remove` | Make or remove a unit's worktree, slug branch, and ports, or the wave worktree. With local records, `add` and `refresh` copy the main `.ai/` in, and `sync` copies the worktree changes back. `remove` syncs, refuses while a file would be lost, and never forces |
+| `worktree <key>\|wave-<n> add\|refresh\|sync\|remove` | Make or remove a unit's worktree, slug branch, and ports, or the wave worktree (local records: `_waves.md`). `remove` refuses while a file would be lost, and never forces |
 | `lock [quiet] acquire\|release <slug>` | The heavy-suite lock across sessions: one holder at a time. The quiet lock (for `quiet-suites`) also keeps every heavy suite out while it is held |
+| `locks wait [--max s]` | Wait for the project locks |
+| `schedule <n> [--width w] [--medians plan]` | Simulate wave n (`_phases.md`, "Wave slicer") |
 | `stack enable\|disable\|set <n>` | Stacked wave PRs on or off, and the stack number on GitHub |
-| `merge-in <key> <from> [--at <sha>]`, `merge-order <n>`, `slice-done`, `needs`, `contract`, `await`, `question` | The commands of the wave driver's agents ([campaign/_drive.md](campaign/_drive.md)) |
+| `merge-in <key> <from> [--at <sha>] [--refresh]`, `merge-order <n>`, `slice-done [--verified]`, `needs`, `contract`, `await`, `question` | The commands of the wave driver's agents ([campaign/_drive.md](campaign/_drive.md)) |
 | `wave <n> sorted`, `unit <key> absorb`, `unit <key> defer`, `slice-order` | The order commands ([campaign/_order.md](campaign/_order.md)) |
 | `owner <slug>` | The live wave run that drives a slug, for `/wf yolo` |
-| `steer <key\|wave-<n>\|all> add\|replace\|remove\|list [--text t] [--match m] [--by who]` | Change steering. A key writes the unit's `steer.md` in the main checkout and in its worktree; `all` writes the campaign `steer.md`. The script writes the time |
+| `steer <key\|wave-<n>\|all> add\|replace\|remove\|list [--text t] [--match m] [--by who]` | Change steering: a key writes the unit's `steer.md` (main checkout and worktree); `all` writes the campaign `steer.md` |
 | `rule add\|list\|remove [--text t] [<id>]` | The standing rules; every `status` result has them |
 | `away --words "<the person's words>" [--until t]` / `back` | The person leaves, or comes back; `back` returns the recap and the steps that waited |
 | `decided <id> --question q --answer a --why w [--options json] [--intent-bearing true] [--unit key]` | Record a decision taken for the person; it also answers the open question `<id>` |

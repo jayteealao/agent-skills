@@ -77,6 +77,9 @@ function makeMock({ rosters, answer = () => undefined, delays = {} }) {
     if (stage === 'wait') return { ok: true, closed: ['x'] };
     if (stage === 'classify') return { classified: [] };
     if (stage === 'cross-unit-reconcile') return { pairs: [] };
+    // WF-CAMPAIGN-THROUGHPUT-PLAN T13: the trial merge of the finished units is green by default.
+    if (stage === 'trial' || stage === 'trial-again') return { status: 'complete', merged: [], conflict: [], green: true, commands: ['npm test'], failures: '' };
+    if (stage === 'trial-fix') return { fixed: false, reason: 'not this unit' };
     if (stage.startsWith('waiter')) {
       const open = asked.filter((id) => !answered.has(id));
       if (!open.length) return { result: 'timeout', calls: 6 };
@@ -99,6 +102,9 @@ function makeMock({ rosters, answer = () => undefined, delays = {} }) {
   };
   const answered = new Set();
   const finishedSlugs = new Set();
+  // WF-CAMPAIGN-THROUGHPUT-PLAN T4: each unit reconciles when its own plans end. A unit later in the
+  // rosters plans later, so it reconciles against the earlier units before its walk.
+  const planDelay = (label) => 1 + 6 * Math.max(0, Object.keys(rosters).indexOf(label.split('@')[1]));
   const keyOf = (slug) => ({ a: 'A', b: 'B', c: 'C' }[slug] ?? slug.toUpperCase());
   // The waits that a cleared slice makes ready: the mock reads them from the test's `waitsOn` map.
   const readyFor = (prompt, slug, slice) => (mock.waitsOn[`${slug}:${slice}`] || []).map((w) => ({ ...w, sha: slice === 'finished' ? `fin-${slug}` : `sha-${slug}-${slice}` }));
@@ -112,7 +118,7 @@ function makeMock({ rosters, answer = () => undefined, delays = {} }) {
       calls.push(c);
       if (heavy) { active++; activeLabels.add(label); peak = Math.max(peak, active); c.concurrent = active; }
       try {
-        await tick(delays[label.split(/[:@#]/)[0]] ?? (heavy ? 4 : 1));
+        await tick(delays[label.split(/[:@#]/)[0]] ?? (/^plan:/.test(label) ? planDelay(label) : heavy ? 4 : 1));
         const over = await answer(label, prompt, { calls, asked });
         if (over instanceof Error) throw over;
         const res = over !== undefined ? over : defaults(label, prompt);
@@ -140,15 +146,20 @@ const all = (calls, re) => calls.filter((c) => re.test(c.label));
 
 // ---------------------------------------------------------------- W2: the core
 
-test('W2: two independent units at width 2 — at most 2 heavy agents, every plan before the first implement, labels end with @slug', async () => {
-  const mock = makeMock({ rosters: { a: ['s1', 's2'], b: ['p1', 'p2'] } });
+test('W2: two independent units at width 2 — at most 2 heavy agents of each class, each unit plans before its own first implement, labels end with @slug', async () => {
+  const mock = makeMock({ rosters: { a: ['s1', 's2'], b: ['p1', 'p2'] }, answer: async (label) => { if (/^plan:.*@b$/.test(label)) await tick(60); } });
   const { outcome } = await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b')]), mock);
   assert.equal(outcome.ok, true, JSON.stringify({ stoppedAt: outcome.stoppedAt, reason: outcome.reason }));
   assert.equal(outcome.held, false);
-  assert.ok(mock.peak <= 2, `peak ${mock.peak}`);
-  const lastPlan = Math.max(...all(mock.calls, /^plan:/).map((c) => c.end));
-  const firstImpl = Math.min(...all(mock.calls, /^implement:/).map((c) => c.start));
-  assert.ok(lastPlan < firstImpl, 'every plan of both units ends before the first implement');
+  assert.ok(mock.peak <= 4, `peak ${mock.peak}`);
+  assert.equal(outcome.heavyPeak <= 2 && outcome.machinePeak <= 2, true, JSON.stringify([outcome.heavyPeak, outcome.machinePeak]));
+  for (const slug of ['a', 'b']) {
+    const lastPlan = Math.max(...all(mock.calls, new RegExp(`^plan:.*@${slug}$`)).map((c) => c.end));
+    const firstImpl = Math.min(...all(mock.calls, new RegExp(`^implement:.*@${slug}$`)).map((c) => c.start));
+    assert.ok(lastPlan < firstImpl, `every plan of ${slug} ends before its first implement`);
+  }
+  // T4: no wave-wide plan barrier: a, which plans first, implements before b's plans end.
+  assert.ok(first(mock.calls, /^implement:s1@a/).start < Math.max(...all(mock.calls, /^plan:.*@b$/).map((c) => c.end)), 'a walks while b plans');
   for (const c of mock.calls.filter((x) => /^(orient|plan|implement|verify|review|writeback|unit-end|select-rubrics|scout|park|resume)/.test(x.label))) {
     assert.match(c.label, /@[ab]$/, c.label);
   }
@@ -162,11 +173,15 @@ test('W2: two independent units at width 2 — at most 2 heavy agents, every pla
   assert.ok(all(mock.calls, /^writeback:/).every((c) => /slice-done "\/repo" b [AB] \S+ --run 20261016T100000Z-[ab]/.test(c.prompt)));
 });
 
-test('W2: width 1 runs one heavy agent at a time', async () => {
+test('W2: width 1 runs one token agent and one machine agent at a time (T9)', async () => {
   const mock = makeMock({ rosters: { a: ['s1'], b: ['p1'] } });
   const { outcome } = await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b')], { width: 1, widthMax: 1 }), mock);
   assert.equal(outcome.ok, true, outcome.reason);
-  assert.equal(mock.peak, 1);
+  const overlap = (re) => { const cs = all(mock.calls, re); return cs.some((x) => cs.some((y) => x !== y && x.start < y.end && y.start < x.end)); };
+  assert.equal(overlap(/^(implement|review):/), false, 'one token agent at a time');
+  assert.equal(overlap(/^verify:/), false, 'one machine agent at a time');
+  assert.equal(outcome.heavyPeak, 1);
+  assert.equal(outcome.machinePeak, 1);
 });
 
 test('W2: a slow reading narrows the slots to 1, a later ok widens them again; widthChanges lists both', async () => {
@@ -462,7 +477,7 @@ test('W3: the cross-unit reconcile turns a need with evidence into a wait before
   const mock = makeMock({
     rosters: { a: ['s1'], b: ['p1'] },
     answer: (label) => {
-      if (label === 'cross-unit-reconcile') return { pairs: [{ a: 'B', aSlice: 'p1', b: 'A', bSlice: 's1', files: ['src/shared.ts'], kind: 'need', needs: 'a', evidence: 'b/04-plan-p1.yaml:12 calls tick() from s1' }] };
+      if (/^cross-unit-reconcile(@|$)/.test(label)) return { pairs: [{ a: 'B', aSlice: 'p1', b: 'A', bSlice: 's1', files: ['src/shared.ts'], kind: 'need', needs: 'a', evidence: 'b/04-plan-p1.yaml:12 calls tick() from s1' }] };
       if (label === 'needs-add') return { results: [{ key: 'B', from: 'A', through: 's1', before: 'p1', ok: true, wait: { state: 'open' } }] };
       return undefined;
     },
@@ -472,7 +487,8 @@ test('W3: the cross-unit reconcile turns a need with evidence into a wait before
   assert.equal(outcome.ok, true, outcome.reason);
   const add = first(mock.calls, /^needs-add$/);
   assert.match(add.prompt, /needs "\/repo" b B add --kind need --from A --through s1 --before p1 --why "src\/shared\.ts" --evidence "b\/04-plan-p1\.yaml:12 calls tick\(\) from s1" --by driver --source cross-unit/);
-  assert.ok(add.end < Math.min(...all(mock.calls, /^implement:/).map((c) => c.start)));
+  assert.ok(add.end < first(mock.calls, /^implement:p1@b/).start, 'B reconciles before its own first implement');
+  assert.match(first(mock.calls, /^cross-unit-reconcile@b$/).prompt, /The plans of B are new/);
   assert.deepEqual(outcome.derivedNeeds.map((d) => [d.key, d.from, d.through, d.before]), [['B', 'A', 's1', 'p1']]);
   assert.ok(first(mock.calls, /^wait:A@b/));
 });
@@ -483,7 +499,7 @@ test('slice order 4.1: a merge pair makes no wait; it becomes a merge note that 
   const mock = makeMock({
     rosters: { a: ['s1'], b: ['p1'] },
     answer: (label) => {
-      if (label === 'cross-unit-reconcile') return { pairs: [{ a: 'A', aSlice: 's1', b: 'B', bSlice: 'p1', files: ['CHANGELOG.md'], kind: 'merge' }] };
+      if (/^cross-unit-reconcile(@|$)/.test(label)) return { pairs: [{ a: 'A', aSlice: 's1', b: 'B', bSlice: 'p1', files: ['CHANGELOG.md'], kind: 'merge' }] };
       if (label === 'needs-add') return { results: [{ key: 'B', from: 'A', through: 's1', before: 'p1', ok: true, merge: true }] };
       return undefined;
     },
@@ -502,7 +518,7 @@ test('slice order 4.1: a need with needs a makes a wait on a, also when a is ear
   const mock = makeMock({
     rosters: { a: ['s1', 's2'], b: ['p1'] },
     answer: (label) => {
-      if (label === 'cross-unit-reconcile') return { pairs: [{ a: 'A', aSlice: 's2', b: 'B', bSlice: 'p1', files: ['src/world.ts'], kind: 'need', needs: 'a', evidence: 'a/04-plan-s2.yaml:8 reads the world that p1 writes' }] };
+      if (/^cross-unit-reconcile(@|$)/.test(label)) return { pairs: [{ a: 'A', aSlice: 's2', b: 'B', bSlice: 'p1', files: ['src/world.ts'], kind: 'need', needs: 'a', evidence: 'a/04-plan-s2.yaml:8 reads the world that p1 writes' }] };
       if (label === 'needs-add') return { results: [{ key: 'A', from: 'B', through: 'p1', before: 's2', ok: true, wait: { state: 'open' } }] };
       return undefined;
     },
@@ -519,7 +535,7 @@ test('slice order 4.1: a need with no evidence becomes a merge note, and the dri
   const mock = makeMock({
     rosters: { a: ['s1'], b: ['p1'] },
     answer: (label) => {
-      if (label === 'cross-unit-reconcile') return { pairs: [{ a: 'A', aSlice: 's1', b: 'B', bSlice: 'p1', files: ['src/x.ts'], kind: 'need', needs: 'b' }] };
+      if (/^cross-unit-reconcile(@|$)/.test(label)) return { pairs: [{ a: 'A', aSlice: 's1', b: 'B', bSlice: 'p1', files: ['src/x.ts'], kind: 'need', needs: 'b' }] };
       return undefined;
     },
   });
@@ -533,7 +549,7 @@ test('slice order 4.3: a needs add that a drop record answers makes no wait', as
   const mock = makeMock({
     rosters: { a: ['s1'], b: ['p1'] },
     answer: (label) => {
-      if (label === 'cross-unit-reconcile') return { pairs: [{ a: 'B', aSlice: 'p1', b: 'A', bSlice: 's1', files: ['x.ts'], kind: 'need', needs: 'a', evidence: 'b/04-plan-p1.yaml:3 uses s1' }] };
+      if (/^cross-unit-reconcile(@|$)/.test(label)) return { pairs: [{ a: 'B', aSlice: 'p1', b: 'A', bSlice: 's1', files: ['x.ts'], kind: 'need', needs: 'a', evidence: 'b/04-plan-p1.yaml:3 uses s1' }] };
       if (label === 'needs-add') return { results: [{ key: 'B', from: 'A', through: 's1', before: 'p1', ok: true, dropped: true }] };
       return undefined;
     },
@@ -627,7 +643,7 @@ test('slice order 4.8: a resolver replan that adds a wait holds it; a named wait
   const mock = makeMock({
     rosters: { a: ['s1'], b: ['p1', 'p2'] },
     answer: (label) => {
-      if (label === 'cross-unit-reconcile') return { pairs: [{ a: 'A', aSlice: 's1', b: 'B', bSlice: 'p2', files: ['api.ts'], kind: 'contract', needs: 'b' }] };
+      if (/^cross-unit-reconcile(@|$)/.test(label)) return { pairs: [{ a: 'A', aSlice: 's1', b: 'B', bSlice: 'p2', files: ['api.ts'], kind: 'contract', needs: 'b' }] };
       if (/^resolve:contract@b/.test(label)) return { action: 'replan', added: [{ from: 'A', through: 's1', before: 'p2', state: 'open' }, { from: 'A', through: 's1', before: 'p1' }] };
       return undefined;
     },
@@ -644,10 +660,10 @@ test('slice order 4.8: a resolver replan that adds a wait holds it; a named wait
 test('WF-CAMPAIGN-ORDER-PLAN 4.5: the cross-unit reconcile prompt names the expected-shared pairs first', async () => {
   const plain = makeMock({ rosters: { a: ['s1'], b: ['p1'] } });
   await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b')]), plain);
-  assert.doesNotMatch(first(plain.calls, /^cross-unit-reconcile$/).prompt, /EXPECTED SHARED PATHS/);
+  assert.doesNotMatch(first(plain.calls, /^cross-unit-reconcile(@|$)/).prompt, /EXPECTED SHARED PATHS/);
   const mock = makeMock({ rosters: { a: ['s1'], b: ['p1'] } });
   await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b')], { expectedShared: [{ a: 'A', b: 'B', path: 'src/billing/rows.ts' }, { a: 'A', b: 'Z', path: 'gone.ts' }] }), mock);
-  const prompt = first(mock.calls, /^cross-unit-reconcile$/).prompt;
+  const prompt = first(mock.calls, /^cross-unit-reconcile(@|$)/).prompt;
   assert.match(prompt, /EXPECTED SHARED PATHS \(check these pairs first\)/);
   assert.match(prompt, /- A and B: src\/billing\/rows\.ts/);
   assert.doesNotMatch(prompt, /gone\.ts/, 'a pair with a unit outside the run is left out');
@@ -657,7 +673,7 @@ test('W3: a contract pair parks the later unit with kind contract and creates no
   const mock = makeMock({
     rosters: { a: ['s1'], b: ['p1'] },
     answer: (label) => {
-      if (label === 'cross-unit-reconcile') return { pairs: [{ a: 'A', aSlice: 's1', b: 'B', bSlice: 'p1', files: ['api.ts'], kind: 'contract' }] };
+      if (/^cross-unit-reconcile(@|$)/.test(label)) return { pairs: [{ a: 'A', aSlice: 's1', b: 'B', bSlice: 'p1', files: ['api.ts'], kind: 'contract' }] };
       if (/^resolve:contract@b/.test(label)) return { action: 'continue', amended: true };
       return undefined;
     },
@@ -888,7 +904,7 @@ test('a stage answer that runs again is consumed by the stage, not by the resume
     rosters: { a: ['s1'], b: ['p1'] },
     answer: (label, prompt) => {
       if (/^implement:s1@a/.test(label) && !/ANSWERED ESCALATION/.test(prompt) && stops++ === 0) return { stage: 'implement', slice: 's1', status: 'hard-stop', hardStopReason: 'x', artifactPath: '', terminal: {} };
-      if (label === 'cross-unit-reconcile') return { pairs: [{ a: 'A', aSlice: 's1', b: 'B', bSlice: 'p1', files: ['api.ts'], kind: 'contract' }] };
+      if (/^cross-unit-reconcile(@|$)/.test(label)) return { pairs: [{ a: 'A', aSlice: 's1', b: 'B', bSlice: 'p1', files: ['api.ts'], kind: 'contract' }] };
       if (/^resolve:contract@b/.test(label)) return { action: 'continue', amended: true };
       return undefined;
     },
@@ -1181,4 +1197,116 @@ test('sibling check: a re-plan marks a later sibling plan stale, and that plan i
   assert.equal(plans.length, 2, 'the fan-out plan, then the refresh');
   assert.match(plans[1].prompt, /PLAN REFRESH: .*it calls the old hook API\. The plan of s1 changed after this plan was written/);
   assert.equal(all(mock.calls, /^plan-check:s2@a/).length, 0, 'a plan that this walk wrote needs no freshness check');
+});
+
+// ---------------------------------------------------------------- WF-CAMPAIGN-THROUGHPUT-PLAN
+
+test('throughput T5: a contract park of slice p2 parks before p2; p1 walks first', async () => {
+  const mock = makeMock({
+    rosters: { a: ['s1'], b: ['p1', 'p2'] },
+    answer: (label) => {
+      if (/^cross-unit-reconcile(@|$)/.test(label)) return { pairs: [{ a: 'A', aSlice: 's1', b: 'B', bSlice: 'p2', files: ['api.ts'], kind: 'contract', needs: 'b' }] };
+      if (/^resolve:contract@b/.test(label)) return { action: 'continue', amended: true };
+      return undefined;
+    },
+  });
+  const { outcome } = await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b')]), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  assert.ok(first(mock.calls, /^implement:p1@b/).start < first(mock.calls, /^park:contract@b/).start, 'p1 walks before the park');
+  assert.ok(first(mock.calls, /^implement:p2@b/).start > first(mock.calls, /^resolve:contract@b/).end, 'p2 waits for the answer');
+});
+
+test('throughput T7: a wait is ready when the needed slice passes verify; the consumer merges the verified commit', async () => {
+  const mock = makeMock({
+    rosters: { a: ['s1', 's2'], b: ['p1'] },
+    answer: (label) => {
+      if (/^verified:s1@a/.test(label)) return { ok: true, sha: 'v-a-s1', ready: [{ key: 'B', from: 'A', through: 's1', sha: 'v-a-s1' }] };
+      return undefined;
+    },
+  });
+  const { outcome } = await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b', { waits: [{ from: 'A', through: 's1', before: 'p1', state: 'open', source: 'packet' }] })]), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  assert.match(first(mock.calls, /^verified:s1@a/).prompt, /slice-done "\/repo" b A s1 --verified/);
+  assert.ok(first(mock.calls, /^verified:s1@a/).start > first(mock.calls, /^verify:s1@a/).end);
+  assert.match(first(mock.calls, /^wait:A@b/).prompt, /merge-in "\/repo" b B A --at v-a-s1`/);
+  assert.ok(first(mock.calls, /^wait:A@b/).start < first(mock.calls, /^writeback:s1@a/).start, 'B merges before the review of s1 ends');
+  assert.equal(first(mock.calls, /^verified:s2@a/), undefined, 'no wait is open on s2');
+  // A unit that no wait names runs no verified agent.
+  const plain = makeMock({ rosters: { a: ['s1'], b: ['p1'] } });
+  await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b')]), plain);
+  assert.equal(first(plain.calls, /^verified:/), undefined);
+});
+
+test('throughput T7: a review that changes a slice after the merge-in makes the consumer merge the fix before its next implement', async () => {
+  const mock = makeMock({
+    rosters: { a: ['s1'], b: ['p1', 'p2'] },
+    answer: async (label) => {
+      if (/^verified:s1@a/.test(label)) return { ok: true, sha: 'v-a-s1', ready: [{ key: 'B', from: 'A', through: 's1', sha: 'v-a-s1' }] };
+      if (/^writeback:s1@a/.test(label)) return { ok: true, wrote: [], sliceDone: { ok: true, sha: 'r-a-s1', ready: [], refresh: [{ key: 'B', from: 'A', through: 's1', before: 'p1', sha: 'r-a-s1' }], budget: { state: 'ok', width: 2 }, answered: [] } };
+      if (/^implement:p1@b/.test(label)) await tick(40);
+      return undefined;
+    },
+  });
+  const { outcome, logs } = await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b', { waits: [{ from: 'A', through: 's1', before: 'p1', state: 'open', source: 'packet' }] })]), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  const waits = all(mock.calls, /^wait:A@b/);
+  assert.equal(waits.length, 2, waits.map((c) => c.label).join(','));
+  assert.match(waits[1].prompt, /merge-in "\/repo" b B A --at r-a-s1 --refresh/);
+  assert.ok(waits[1].end < first(mock.calls, /^implement:p2@b/).start);
+  assert.ok(logs.some((l) => /merges the fix before its next implement/.test(l)), logs.join('\n'));
+});
+
+test('throughput T9: a machine step waits for the project locks; with no locks no lock wait runs', async () => {
+  let waits = 0;
+  const mock = makeMock({
+    rosters: { a: ['s1'] },
+    answer: (label) => (label === 'locks-wait' ? (waits++ === 0 ? { free: false, held: ['db'], waitedS: 540 } : { free: true, held: [], waitedS: 3 }) : undefined),
+  });
+  const { outcome, logs } = await run(baseArgs([unitArg('A', 'a')], { locks: ['db'], machineWidth: 1 }), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  const lw = all(mock.calls, /^locks-wait$/);
+  assert.ok(lw.length >= 2);
+  assert.match(lw[0].prompt, /locks "\/repo" b wait --max 540/);
+  assert.ok(first(mock.calls, /^verify:s1@a/).start > lw[1].end, 'verify starts after the lock is free');
+  assert.ok(logs.some((l) => /waits for the project lock\(s\) db/.test(l)), logs.join('\n'));
+  const plain = makeMock({ rosters: { a: ['s1'] } });
+  await run(baseArgs([unitArg('A', 'a')]), plain);
+  assert.equal(first(plain.calls, /^locks-wait$/), undefined);
+});
+
+test('throughput T13: a unit that finishes while another walks gets a trial merge; a red trial gets one fix round', async () => {
+  const mock = makeMock({
+    rosters: { a: ['s1'], b: ['p1'] },
+    answer: async (label) => {
+      if (/^implement:p1@b/.test(label)) await tick(60);
+      if (label === 'trial:a') return { status: 'complete', merged: ['A'], conflict: [], green: false, commands: ['npm test'], failures: 'x.test fails' };
+      if (label === 'trial-fix@a') return { fixed: true, reason: '', sha: 'f1' };
+      if (label === 'trial-again:a') return { status: 'complete', merged: ['A'], conflict: [], green: true, commands: ['npm test'], failures: '' };
+      return undefined;
+    },
+  });
+  const { outcome } = await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b')], { trialPorts: { PORT: 3200 } }), mock);
+  assert.equal(outcome.ok, true, outcome.reason);
+  const t = first(mock.calls, /^trial:a$/);
+  assert.match(t.prompt, /worktree add --detach \/repo\/\.scratch\/campaign\/20261016T100000Z-b-w1\/wave-1\/trial/);
+  assert.match(t.prompt, /PORT=3200/);
+  assert.match(first(mock.calls, /^trial-fix@a$/).prompt, /x\.test fails/);
+  assert.deepEqual(outcome.trials.map((r) => [r.key, r.green, r.fixed]), [['A', true, true]]);
+  assert.equal(first(mock.calls, /^trial:b$/), undefined, 'the last unit to finish gets no trial: the wave verify runs next');
+  assert.match(first(mock.calls, /^boundary-setup$/).prompt, /worktree remove \/repo\/\.scratch\/campaign\/20261016T100000Z-b-w1\/wave-1\/trial/);
+  const off = makeMock({ rosters: { a: ['s1'], b: ['p1'] }, answer: async (label) => { if (/^implement:p1@b/.test(label)) await tick(60); } });
+  await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b')], { trialMerge: false }), off);
+  assert.equal(first(off.calls, /^trial/), undefined);
+});
+
+test('throughput T12: the conventions clause is in the plan and implement prompts and the boundary merge; off removes it', async () => {
+  const on = makeMock({ rosters: { a: ['s1'] } });
+  await run(baseArgs([unitArg('A', 'a')]), on);
+  assert.match(first(on.calls, /^plan:s1@a/).prompt, /CAMPAIGN CONVENTIONS/);
+  assert.match(first(on.calls, /^implement:s1@a/).prompt, /CAMPAIGN CONVENTIONS/);
+  assert.match(first(on.calls, /^merge$/).prompt, /regenerate each generated file that a merged slice changed the input of, once/);
+  const off = makeMock({ rosters: { a: ['s1'] } });
+  await run(baseArgs([unitArg('A', 'a')], { conventions: false }), off);
+  assert.doesNotMatch(first(off.calls, /^plan:s1@a/).prompt, /CAMPAIGN CONVENTIONS/);
+  assert.doesNotMatch(first(off.calls, /^merge$/).prompt, /CAMPAIGN CONVENTIONS/);
 });

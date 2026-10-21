@@ -361,9 +361,44 @@
               "minimum": 0,
               "default": 140,
               "description": "C6: the length of the deepest build path inside a worktree, for the Windows path check."
+            },
+            "machine-width": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "WF-CAMPAIGN-THROUGHPUT-PLAN T9: how many machine steps (verify, wave verify, builds) run at once. The default is the campaign width."
+            },
+            "locks": {
+              "type": "array",
+              "description": "T9: the project's own lock files. A machine step waits until no lock is held.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "The name that the driver logs."
+                  },
+                  "path": {
+                    "type": "string",
+                    "description": "The lock file, relative to the project root. The lock is held while the file exists."
+                  },
+                  "stale-minutes": {
+                    "type": "number",
+                    "minimum": 1,
+                    "default": 120,
+                    "description": "A lock file older than this is stale and does not hold."
+                  }
+                },
+                "required": ["path"]
+              }
             }
           },
           "required": ["port-env", "build-dirs"]
+        },
+        "trial-merge": {
+          "type": "boolean",
+          "default": true,
+          "description": "T13: false turns off the trial merge of the finished units while the other units of the wave walk."
         },
         "stack": {
           "type": "boolean",

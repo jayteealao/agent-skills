@@ -33,7 +33,7 @@ The person's standing rules of the ledger (`rule add`) reach the driver in the l
 
 ## Cross-unit reconcile
 
-After every unit planned, and before any implement, one agent compares the plans of every unit. This agent is read-only: write nothing except the heartbeat.
+When the plans of a unit finish, and before its first implement, one agent compares its plans with the plans of the units that planned before it. The prompt names the units with new plans: return only the pairs in which one slice belongs to them. This agent is read-only: write nothing except the heartbeat.
 
 1. Read every `04-plan-<slice>.yaml` that the prompt names, in full: its `files` and its `edges`. The prompt names the slices that each unit owns. Do not read the plan of a slice of another unit.
 2. Read the `provides` and `expects` lines of every context file.
@@ -60,9 +60,9 @@ A derived needs entry is a `needs` entry that the driver writes into the ledger,
 | `exists: true` | A packet or the ledger has the same entry | Nothing |
 | `merge: true` | A merge note of the wave | No wait. The boundary merge and the wave review read the note |
 | `dropped: true` | The person or a resolver dropped this wait earlier | No wait. Only `--by person` brings the wait back |
-| `cycle` | The entry closes a cycle at slice level | The unit parks with kind `needs-cycle` before its first slice |
+| `cycle` | The entry closes a cycle at slice level | The unit parks with kind `needs-cycle` before the slice `before` |
 | `late: true` | The slice `before` already passed its implement | No wait. The pair goes to the focus list (`waves[n].focus`), which the wave review reads |
-| `ok: true` with `wait` | A new entry | The driver opens the wait. It is `ready` at once when the needed slice cleared earlier |
+| `ok: true` with `wait` | A new entry | The driver opens the wait. It is `ready` at once when the needed slice passed verify or cleared earlier |
 
 `needs <key> remove` leaves a drop record in the unit's `dropped-needs`. A relaunch then cannot add the same wait again. The person can drop a wait while the run is live: run `<cmd> needs <key> remove --from <key> --through <slice> --before <slice> --by person`. The waiter returns the change in `needsChanged`, and the driver settles the wait as dropped. `needs <key> add --by person` arms a new wait the same way.
 
@@ -86,14 +86,16 @@ A conflict that needs a product decision parks as before.
 
 ## Wait agent
 
-A wait belongs to one unit. It names a slice of another unit (`from` and `through`), and the slice of its own unit that needs that code (`before`). Before the implement of `before`, the walk waits until the slice `through` clears. Then the wait agent merges the cleared commit, not the branch tip.
+A wait belongs to one unit. It names a slice of another unit (`from` and `through`), and the slice of its own unit that needs that code (`before`). Before the implement of `before`, the walk waits until the slice `through` passes verify. The consumer needs the verified code, not the review. Then the wait agent merges the verified commit, not the branch tip.
 
 1. Run `<cmd> unit <key> waiting --on "<from>: <through>"`. `merge-in` refuses while the unit is `running`.
-2. Run `<cmd> merge-in <key> <from> --at <sha>`. It merges the cleared commit with rerere on.
+2. Run `<cmd> merge-in <key> <from> --at <sha>`. It merges the verified commit with rerere on. For a review fix, the prompt gives `--refresh`.
 3. Only when step 2 printed `"ok": true`, run `<cmd> unit <key> running`.
 4. Return `ok`, `conflict`, `error`, and `closed` from the object of step 2. Change nothing else.
 
 When `conflict` lists files, `merge-in` aborted the merge, and the merge agent runs ([_drive.md](_drive.md), "Merge-in conflict"). When `merge-in` fails for another reason, for example uncommitted changes, the unit parks with kind `merge-conflict`.
+
+The verify mark is bookkeeping only. After the verify of a slice passes, and while a wait on its unit is open, one agent runs `<cmd> slice-done <key> <slice> --verified`. The command records `HEAD` as the verified commit, makes each wait that the slice covers `ready` (`ready-on: verify`), and commits nothing. When the review of the slice then changes it, the `slice-done` of the slice returns `refresh`: each consumer that merged the verified commit. The consumer's wait agent runs again with `--refresh` before its next implement, and the wait stays `met`.
 
 NOTE: The stop check of an implement agent has condition (d): an **Open** or **Ready** wait line for its slice, in section 7 of the context file. Condition (d) applies to implement only, because a plan reads the needed unit's plan, not its code. When condition (d) stops an implement, the driver treats the stop as its own scheduling fault, and waits for the wait. At the third such stop, the unit parks with kind `stage`.
 

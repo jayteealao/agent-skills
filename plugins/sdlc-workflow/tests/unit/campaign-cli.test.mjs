@@ -454,7 +454,8 @@ test('setup, rolling prepare, and a wave that starts with its prepared units', (
     run(root, 'answer', 'output', '{"build-cmd":"cargo build --release","artifacts":["target/release/sm"],"try":"run target/release/sm"}');
     const last = run(root, 'answer', 'budget', 'default');
     assert.deepEqual(last.value, { fiveHourSlow: 75, fiveHourPause: 90, sevenDayReserve: 15 });
-    assert.deepEqual(last.next, { action: 'prepare', wave: 1, units: ['W1', 'W2'] });
+    // WF-CAMPAIGN-THROUGHPUT-PLAN T3: W3 needs only W1 of the next wave, so it may prepare ahead.
+    assert.deepEqual(last.next, { action: 'prepare', wave: 1, units: ['W1', 'W2'], ahead: ['W3'] });
     run(root, 'unit', 'W1', 'prepared');
     const st = run(root, 'wave', '1', 'start');
     assert.equal(st.ok, true, JSON.stringify(st));

@@ -285,7 +285,7 @@ test('D21: merge-in --at merges the cleared commit, not the tip of the unit bran
     const d = run(root, 'slice-done', 'W1', 's1');
     commitIn(w1, 'later.txt', 'slice two\n', 'engine slice two');
     run(root, 'unit', 'W2', 'waiting', '--on', 'W1: s1');
-    assert.match(run(root, 'merge-in', 'W2', 'W1', '--at', 'deadbeef').error, /not a cleared commit/);
+    assert.match(run(root, 'merge-in', 'W2', 'W1', '--at', 'deadbeef').error, /not a cleared or verified commit/);
     const m = run(root, 'merge-in', 'W2', 'W1', '--at', d.sha);
     assert.equal(m.ok, true, JSON.stringify(m));
     assert.ok(existsSync(path.join(w2, 'engine.txt')));

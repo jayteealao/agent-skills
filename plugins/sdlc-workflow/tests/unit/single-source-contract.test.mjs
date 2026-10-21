@@ -202,6 +202,8 @@ test('_subagents.md pins the effort-tier → host mapping', () => {
     "'boundary-setup'", "lbl(u, 'ask-early')", "lbl(u, 'slice-order')", "lbl(u, 'move')", "lbl(u, 'plan-index-writeback')", "lbl(u, 'plan-reconcile-clear')",
     "lbl(u, 'read-check-report')", "lbl(u, 'resume')", "lbl(u, 'slug-output')", "lbl(u, 'unit-end')",
     'lbl(u, `park:${kind}`)', 'lbl(u, `wait:${e.from}`)', 'lbl(u, `writeback:${sliceArg}`)', 'tag', '`waiter#${WAITERS}`',
+    // WF-CAMPAIGN-THROUGHPUT-PLAN T9, T7: the lock wait and the verify mark are bookkeeping, as the wait agent is.
+    "'locks-wait'", 'lbl(u, `verified:${sliceArg}`)',
   ].sort());
   assert.doesNotMatch(src, /low = `haiku`/, 'haiku is not a tier target until Haiku 5.5 is re-evaluated');
   assert.match(src, /Never use `opus` below high/);

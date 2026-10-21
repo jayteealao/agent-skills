@@ -150,7 +150,7 @@ test('a ledger with no deps gets it on first load: the started wave keeps its gr
     const l0 = readLedger(root);
     delete l0.deps;
     writeLedger(root, l0);
-    assert.deepEqual(run(root, 'status').deps, { state: 'proposed', unconfirmed: ['rows', 'limit', 'theme'] });
+    assert.deepEqual(run(root, 'status').deps, { state: 'proposed', unconfirmed: ['rows', 'limit', 'theme'], unclassified: 0 });
     assert.equal(run(root, 'unit', 'rows', 'prepared').ok, false);
     assert.equal(run(root, 'deps', 'confirm').ok, true);
     run(root, 'unit', 'rows', 'prepared');
@@ -164,7 +164,7 @@ test('a ledger with no deps gets it on first load: the started wave keeps its gr
     delete l1.deps;
     writeLedger(root, l1);
     const s = run(root, 'status');
-    assert.deepEqual(s.deps, { state: 'proposed', unconfirmed: ['theme'] }, 'the units of the started wave keep their graph');
+    assert.deepEqual(s.deps, { state: 'proposed', unconfirmed: ['theme'], unclassified: 0 }, 'the units of the started wave keep their graph');
     assert.deepEqual(s.ledger.waves.map((w) => w.units), [['rows', 'limit'], ['theme']], 'the migration changes no wave');
     assert.equal(run(root, 'deps', 'rows', 'provides', 'set', '--line', 'x', '--text', 'y').ok, false, 'a unit of a started wave changes only through needs and contract');
     const c = run(root, 'deps', 'confirm');

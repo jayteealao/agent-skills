@@ -33,8 +33,9 @@ The wave driver (`workflows/campaign-wave.js`) runs these steps as agents, after
 | Code | Resolve the conflict only when both sides keep their tests green and no `provides` line changes. Run the tests of both slugs after the resolution. Otherwise abort this slug's merge. |
 | A file of a merge note | The prompt lists the merge notes as EXPECTED CONFLICTS. Apply the rules of [_order.md](_order.md), "Merge notes": regenerate a generated file once, renumber a version, convert a row to the newer format. A conflict that needs a product decision: abort this slug's merge. |
 
-4. Append one `merge` event per slug, as the prompt says, with `result` `merged` or `stopped`.
-5. Return `merged` (in merge order, each with the merge commit sha) and `notMerged` (each with the reason).
+4. When the prompt names the CAMPAIGN CONVENTIONS, the slugs regenerated no generated file. After the last merge, regenerate each generated file whose input a merged slice changed, once, with the project's own generator. Commit each regenerated file by path.
+5. Append one `merge` event per slug, as the prompt says, with `result` `merged` or `stopped`.
+6. Return `merged` (in merge order, each with the merge commit sha) and `notMerged` (each with the reason).
 
 ## Quiet-window checks
 
@@ -55,6 +56,17 @@ A failed check makes the unit `needs-fix`, as a failed verify does. The boundary
 2. When a command fails and the prompt allows fix rounds, apply the verify rules of `reference/verify.md`: diagnose, apply the smallest fix, commit it on the wave branch by path, and run every command again. Use at most the number of rounds that the prompt gives. Before you call a failure an environment wall, climb the env-remediation rung of `reference/runtime-adapters/_ladder.md`.
 3. When the prompt allows no fix round, fix nothing.
 4. Return `green`, `rounds`, the `commands` you ran, and the failing output tail as `failures`.
+
+## Trial merge
+
+The trial merge runs while other units of the wave still walk, each time a unit finishes. It finds a fault of the merged wave before the boundary. It never changes a unit branch or the wave branch, and it pushes nothing.
+
+1. Use only the scratch worktree that the prompt names. When it does not exist, add it detached at the wave base. When it exists, reset it hard to the wave base, and clean it.
+2. Merge each branch of the prompt, in its order, with rerere on. On a conflict that rerere does not replay, abort that merge, list the unit and its files in `conflict`, and continue with the next branch.
+3. Run the wave verify commands once (see "Wave verify", step 1). Fix nothing. When the prompt gives ports, set them for each command: the units walk on their own ports.
+4. Return `merged`, `conflict`, `green`, the `commands` you ran, and the failing output tail as `failures`.
+
+A red trial with no conflict, after a green trial without the new unit, names that unit. The driver gives the unit one fix round on its own branch (`trial-fix@<slug>`), then runs the trial again. The fix agent changes only its own unit's code. The boundary setup removes the scratch worktree with `git worktree remove`, with no `--force`.
 
 ## Revert search
 

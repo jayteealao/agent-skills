@@ -21,6 +21,13 @@ export const WAVE_STATES = Object.freeze(['planned', 'running', 'boundary', 'han
 export const UNIT_STATES = Object.freeze(['planned', 'prepared', 'running', 'waiting', 'stopped', 'finished', 'merged', 'needs-fix', 'shipped']);
 export const LIVE_WAVE_STATES = Object.freeze(['running', 'boundary', 'handoff', 'shipping']);
 export const SETUP_ANSWERS = Object.freeze(['forecast', 'target-version', 'release-each-wave', 'output', 'budget']);
+/**
+ * WF-CAMPAIGN-THROUGHPUT-PLAN T12: setup answers with a default. Setup asks them, and a
+ * ledger without one takes the default, so a running campaign is never held for them.
+ */
+export const OPTIONAL_ANSWERS = Object.freeze({ conventions: 'on' });
+/** T12: the campaign conventions for hotspot files are on unless the person turned them off. */
+export const conventionsOn = (ledger) => !['off', false, 'false'].includes(ledger?.answers?.conventions ?? OPTIONAL_ANSWERS.conventions);
 /** 17.2: the budget lines, in percent of each rate-limit window (the yolo.usageBudget names). */
 export const DEFAULT_BUDGET = Object.freeze({ fiveHourSlow: 75, fiveHourPause: 90, sevenDayReserve: 15 });
 /** 17.5: a reading older than this is unknown. */
@@ -67,6 +74,8 @@ export function unitOf(packet, { written = [], deps } = {}) {
     order: Number.isFinite(Number(packet.order)) ? Number(packet.order) : 1,
     whyHere: packet['why-here'] ? String(packet['why-here']) : null,
     dependsOn: deps0.filter((d) => !done.has(d)),
+    // T1: a `sequence` edge orders the priority inside a wave, never the waves.
+    sequence: g.sequence.filter((d) => !done.has(d)),
     needs,
     provides: g.provides,
     expects: exps.filter((e) => !done.has(e.from)),
@@ -110,11 +119,23 @@ export const hasGraphFields = (packet) => GRAPH_FIELDS.some((f) => Object.protot
 
 const keyOf = (d) => (typeof d === 'string' ? d : d?.key);
 
+/**
+ * WF-CAMPAIGN-THROUGHPUT-PLAN T1: the kinds of a unit edge. A `need` is a code, data or
+ * contract use, with evidence: it orders the waves. A `sequence` edge is a preference of
+ * the person, or a why-here note with no named use: it sets the priority inside a wave.
+ * An edge with no kind is `legacy` until the deps phase classifies it, and it orders the
+ * waves as a need does.
+ */
+export const EDGE_KINDS = Object.freeze(['need', 'sequence']);
+export const edgeKind = (d) => (d && typeof d === 'object' && EDGE_KINDS.includes(d.kind) ? d.kind : 'legacy');
+
 /** The plain graph of one ledger entry, without the `by` and `why` notes. A null entry is an empty graph. */
 export function graphOf(entry) {
   const e = entry ?? {};
+  const edges = (e['depends-on'] ?? []).filter((d) => keyOf(d));
   return {
-    dependsOn: (e['depends-on'] ?? []).map(keyOf).filter(Boolean).map(String),
+    dependsOn: edges.filter((d) => edgeKind(d) !== 'sequence').map(keyOf).map(String),
+    sequence: edges.filter((d) => edgeKind(d) === 'sequence').map(keyOf).map(String),
     needs: (Array.isArray(e.needs) ? e.needs : []).filter((n) => n && n.from)
       .map((n) => ({ from: String(n.from), through: n.through ? String(n.through) : 'finished', before: n.before ? String(n.before) : null, why: n.why ? String(n.why) : '' })),
     provides: (e.provides ?? []).filter((p) => p && p.key).map((p) => ({ key: String(p.key), text: String(p.text ?? '') })),
@@ -373,7 +394,7 @@ export function planWaves(units, { done = new Set(), started = [], stopped = new
       }
     }
     if (!wave.length) break;
-    wave.sort((a, b) => byOrder(byKey.get(a), byKey.get(b)));
+    wave.splice(0, wave.length, ...sequenceSort(wave.map((key) => byKey.get(key))).map((u) => u.key));
     waves.push(wave);
     wave.forEach((key) => placed.set(key, k));
     remaining = remaining.filter((u) => !placed.has(u.key));
@@ -386,6 +407,63 @@ export function planWaves(units, { done = new Set(), started = [], stopped = new
     waiting.push(outside.length ? { key: u.key, on: outside, reason: 'needs-you' } : { key: u.key, on: open, reason: 'waits' });
   }
   return { waves, waiting };
+}
+
+/**
+ * T1: the units of one wave in priority order: a unit comes after the units that its
+ * `sequence` edges name, then packet order. A sequence cycle keeps packet order.
+ */
+export function sequenceSort(units) {
+  const left = [...units].sort(byOrder);
+  const keys = new Set(left.map((u) => u.key));
+  const out = [];
+  const placed = new Set();
+  while (left.length) {
+    const i = left.findIndex((u) => (u.sequence ?? []).every((d) => !keys.has(d) || placed.has(d)));
+    const u = left.splice(i < 0 ? 0 : i, 1)[0];
+    out.push(u);
+    placed.add(u.key);
+  }
+  return out;
+}
+
+/**
+ * T1, migration: the unit edges that have no kind yet, of the units outside a started
+ * wave. The deps phase proposes a kind for each one, and the person confirms it.
+ */
+export function unclassifiedEdges(ledger) {
+  const started = startedKeys(ledger);
+  const out = [];
+  for (const [k, e] of Object.entries(ledger?.deps?.units ?? {})) {
+    if (started.has(k)) continue;
+    for (const d of e?.['depends-on'] ?? []) if (keyOf(d) && edgeKind(d) === 'legacy') out.push({ key: k, from: String(keyOf(d)), by: d?.by ?? null });
+  }
+  return out;
+}
+
+/**
+ * T3: the units to prepare now, beyond the next wave: each planned unit of a later wave
+ * whose every need is done, in a started wave, or in the next wave.
+ */
+export function prepareAhead(ledger) {
+  const next = ledger?.waves?.find((w) => w.state === 'planned');
+  if (!next) return [];
+  const met = (k) => {
+    const u = ledger.units[k];
+    if (!u) return ledger.outside?.[k] ? ledger.outside[k].state === 'closed' : true;
+    if (['finished', 'merged', 'shipped'].includes(u.state)) return true;
+    return ledger.waves.some((w) => w.units.includes(k) && (w.state !== 'planned' || w === next));
+  };
+  const out = [];
+  for (const w of ledger.waves) {
+    if (w.state !== 'planned' || w === next) continue;
+    for (const k of w.units) {
+      if (ledger.units[k]?.state !== 'planned') continue;
+      const g = graphOf(ledger.deps?.units?.[k]);
+      if ([...g.dependsOn, ...g.needs.map((n) => n.from)].every(met)) out.push(k);
+    }
+  }
+  return out;
 }
 
 /**
@@ -1027,15 +1105,19 @@ export function campaignAction(ledger, { revision = null, driving = null } = {})
   // Stage D2 (16.3, 12.5): with stacked wave PRs, the next wave builds on the
   // wave below once that wave's slugs merged into its branch (handoff or
   // later), while fewer than max-unshipped waves wait above the trunk.
+  // T3: the units beyond the next wave whose needs are all in the running or the next wave.
+  const ahead = prepareAhead(ledger);
+  const extra = (o) => ({ ...o, ...(ahead.length ? { ahead } : {}) });
+  // WF-CAMPAIGN-THROUGHPUT-PLAN T2 step 1: a wave whose wave-ready is recorded counts as merged into its branch.
   const stacked = ledger.stack?.enabled && next && lives.length
-    && lives.every((w) => ['handoff', 'shipping'].includes(w.state))
+    && lives.every(waveReady)
     && lives.length < (ledger.stack['max-unshipped'] ?? DEFAULT_MAX_UNSHIPPED);
-  if (stacked) {
+  if (stacked && !driving) {
     const todo = unprepared(next);
-    return todo.length ? { action: 'prepare', wave: next.n, units: todo } : { action: 'start-wave', wave: next.n, beside: lives.map((w) => w.n) };
+    return todo.length ? extra({ action: 'prepare', wave: next.n, units: todo }) : extra({ action: 'start-wave', wave: next.n, beside: lives.map((w) => w.n) });
   }
   // D25: the wave driver runs the wave; the session prepares the next wave and answers questions.
-  if (driving) return { action: 'driving', ...driving, prepare: unprepared(next), ...(unconfirmed.length ? { deps: unconfirmed } : {}) };
+  if (driving) return extra({ action: 'driving', ...driving, prepare: unprepared(next), ...(unconfirmed.length ? { deps: unconfirmed } : {}) });
   // WF-CAMPAIGN-SLICE-ORDER-PLAN 5.3, 5.4: a started wave with legacy waits or an extension to place is sorted first.
   const unsorted = ledger.waves.find((w) => needsSort(ledger, w));
   if (unsorted) return { action: 'sort-waits', wave: unsorted.n, legacy: unsorted['legacy-order'] === true, extensions: unsorted['extensions-pending'] ?? [] };
@@ -1044,12 +1126,31 @@ export function campaignAction(ledger, { revision = null, driving = null } = {})
   if (stopped) return { action: 'stopped', wave: stopped.n };
   if (next) {
     const todo = unprepared(next);
-    return todo.length ? { action: 'prepare', wave: next.n, units: todo } : { action: 'start-wave', wave: next.n };
+    return todo.length ? extra({ action: 'prepare', wave: next.n, units: todo }) : extra({ action: 'start-wave', wave: next.n });
   }
   const needsYou = Object.entries(ledger.outside).filter(([, x]) => x.state !== 'closed').map(([k]) => k);
   if ((ledger.waiting ?? []).length) return { action: 'blocked', waiting: ledger.waiting, needsYou };
   if (ledger.phase === 'done') return { action: 'done' };
   return { action: 'end' };
+}
+
+/** T2 step 1: a wave whose slugs merged into its branch: handoff, shipping, or a recorded wave-ready. */
+export const waveReady = (w) => ['handoff', 'shipping'].includes(w?.state) || (w?.state === 'boundary' && Boolean(w['ready-at']));
+
+/**
+ * T2 step 1 (TQ3): at wave-ready of wave n, the next wave that may start on wave n's branch,
+ * as { wave, on, units, prepared, unprepared }, or null. The session asks the person at
+ * once, and starts the wave only on a yes. Without stacked wave PRs the next wave waits
+ * for the merge, as before.
+ */
+export function nextWaveAsk(ledger, n) {
+  const w = ledger?.waves?.find((x) => x.n === n);
+  const next = ledger?.waves?.find((x) => x.state === 'planned');
+  if (!w || !next || !waveReady(w) || !ledger.stack?.enabled) return null;
+  const lives = ledger.waves.filter((x) => LIVE_WAVE_STATES.includes(x.state));
+  if (!lives.every(waveReady) || lives.length >= (ledger.stack['max-unshipped'] ?? DEFAULT_MAX_UNSHIPPED)) return null;
+  const unprepared = next.units.filter((k) => ledger.units[k]?.state !== 'prepared');
+  return { wave: next.n, on: n, units: [...next.units], prepared: unprepared.length === 0, unprepared };
 }
 
 // ---------------------------------------------------------------- views
@@ -1221,6 +1322,12 @@ export function isolationOf(config) {
     // C6: an absolute worktree root outside the repo, and the deepest build path to allow for.
     'worktree-root': absolute(iso['worktree-root']),
     'build-depth': Number.isFinite(iso['build-depth']) ? iso['build-depth'] : DEFAULT_BUILD_DEPTH,
+    // WF-CAMPAIGN-THROUGHPUT-PLAN T9: the width of the machine slots (verify, wave verify), and
+    // the project's own locks. With neither, the machine slots take the width of the heavy slots.
+    'machine-width': Number.isInteger(iso['machine-width']) && iso['machine-width'] > 0 ? iso['machine-width'] : null,
+    locks: (Array.isArray(iso.locks) ? iso.locks : [])
+      .filter((l) => l && typeof l.path === 'string' && l.path.trim())
+      .map((l) => ({ name: String(l.name ?? l.path), path: l.path, 'stale-minutes': Number.isFinite(l['stale-minutes']) ? l['stale-minutes'] : 120 })),
   };
 }
 
@@ -1322,6 +1429,137 @@ export function isUsageLimitFailure({ error = null, apiErrorStatus = null, text 
 function preLinesTooLong(pre, post) {
   const lines = pre.reduce((n, u) => n + 3 + u.provides.length, 0) + post.reduce((n, u) => n + u.expects.length, 0);
   return lines > CONTEXT_LONG_LINES;
+}
+
+// ---------------------------------------------------------------- schedule (WF-CAMPAIGN-THROUGHPUT-PLAN section 3 step 8)
+
+/** The stage medians of the SoccerManager waves 3 and 4, in minutes (section 1). */
+export const STAGE_MINUTES = Object.freeze({ plan: 12, implement: 76, verify: 30, review: 76 });
+/** A slice's complexity scales its implement, verify and per-slice review. */
+export const SIZE_FACTOR = Object.freeze({ xs: 0.5, s: 0.75, m: 1, l: 1.5, xl: 2 });
+
+/** The walk order of a roster: depends-on first, roster order as the tie-break (the driver's walkOrder). */
+function walkOrderOf(slices) {
+  const names = new Set(slices.map((s) => s.slice));
+  const placed = new Set();
+  const out = [];
+  let left = [...slices];
+  while (left.length) {
+    const next = left.find((s) => (s.dependsOn ?? []).every((d) => d === s.slice || !names.has(d) || placed.has(d)));
+    if (!next) return [...out, ...left];
+    out.push(next);
+    placed.add(next.slice);
+    left = left.filter((s) => s !== next);
+  }
+  return out;
+}
+
+/**
+ * Simulate one wave with no agent: each unit plans its slices in dependency levels, then
+ * walks them in depends-on order, one slice at a time. Implement and review take a token
+ * slot, verify a machine slot. A wait (`key` needs `from` through a slice before a slice)
+ * holds the implement of `before` until the needed slice's verify ends (T7). Returns the
+ * simulated minutes at the width, the critical path (no slot limit), the slot bound, the
+ * idle slot-hours, and each unit's walk.
+ */
+export function scheduleOf({ units = [], waits = [], width = 1, machineWidth = null, minutes = {} } = {}) {
+  const min = { ...STAGE_MINUTES, ...Object.fromEntries(Object.entries(minutes ?? {}).filter(([, v]) => Number.isFinite(v) && v > 0)) };
+  const plans = units.map((u) => {
+    const slices = (u.slices ?? []).filter((s) => s && s.status !== 'skipped' && s.status !== 'complete');
+    const byName = new Map(slices.map((s) => [s.slice, s]));
+    // The plan fan-out runs in dependency levels; plans take no slot.
+    const level = new Map();
+    const depth = (s, seen = new Set()) => {
+      if (level.has(s.slice)) return level.get(s.slice);
+      if (seen.has(s.slice)) return 0;
+      seen.add(s.slice);
+      const d = Math.max(0, ...(s.dependsOn ?? []).filter((x) => byName.has(x) && x !== s.slice).map((x) => 1 + depth(byName.get(x), seen)));
+      level.set(s.slice, d);
+      return d;
+    };
+    slices.forEach((s) => depth(s));
+    const planMin = slices.length ? (Math.max(...level.values()) + 1) * min.plan : 0;
+    const order = walkOrderOf(slices);
+    const tasks = [];
+    for (const s of order) {
+      const f = SIZE_FACTOR[s.complexity] ?? 1;
+      tasks.push({ slice: s.slice, stage: 'implement', cls: 'token', dur: min.implement * f });
+      tasks.push({ slice: s.slice, stage: 'verify', cls: 'machine', dur: min.verify * f });
+      if (u.reviewScope === 'per-slice') tasks.push({ slice: s.slice, stage: 'review', cls: 'token', dur: min.review * f });
+    }
+    if (u.reviewScope !== 'per-slice' && order.length) tasks.push({ slice: null, stage: 'review', cls: 'token', dur: min.review });
+    return { key: u.key, order: order.map((s) => s.slice), planMin, tasks };
+  });
+  const run = (tokenW, machineW) => {
+    const pools = { token: Array(tokenW).fill(0), machine: Array(machineW).fill(0) };
+    const ends = new Map();
+    const state = plans.map((p) => ({ p, i: 0, t: p.planMin }));
+    const busy = { token: 0, machine: 0 };
+    let first = Infinity;
+    // The end of the needed slice's verify, 0 when it is not in the wave, undefined while it is not scheduled.
+    const endOf = (k, slice) => {
+      const p = plans.find((x) => x.key === k);
+      if (!p) return 0;
+      if (!slice || slice === 'finished') return ends.get(`${k}:end`);
+      if (!p.order.includes(slice)) return 0;
+      return ends.get(`${k}:${slice}:verify`);
+    };
+    for (;;) {
+      let pick = null;
+      for (const s of state) {
+        if (s.i >= s.p.tasks.length) continue;
+        const t = s.p.tasks[s.i];
+        let ready = s.t;
+        let blocked = false;
+        if (t.stage === 'implement') {
+          for (const w of waits.filter((x) => x.key === s.p.key && (x.before ?? s.p.order[0]) === t.slice)) {
+            const e = endOf(w.from, w.through);
+            if (e === undefined) { blocked = true; break; }
+            ready = Math.max(ready, e);
+          }
+        }
+        if (blocked) continue;
+        const pool = pools[t.cls];
+        const slot = pool.indexOf(Math.min(...pool));
+        const start = Math.max(ready, pool[slot]);
+        if (!pick || start < pick.start) pick = { s, t, slot, start };
+      }
+      if (!pick) break;
+      const end = pick.start + pick.t.dur;
+      pools[pick.t.cls][pick.slot] = end;
+      busy[pick.t.cls] += pick.t.dur;
+      first = Math.min(first, pick.start);
+      pick.s.t = end;
+      if (pick.t.slice) ends.set(`${pick.s.p.key}:${pick.t.slice}:${pick.t.stage}`, end);
+      pick.s.i++;
+      if (pick.s.i >= pick.s.p.tasks.length) ends.set(`${pick.s.p.key}:end`, end);
+    }
+    const blocked = state.filter((s) => s.i < s.p.tasks.length).map((s) => s.p.key);
+    const total = Math.max(0, ...state.map((s) => s.t));
+    const span = Number.isFinite(first) ? Math.max(0, total - first) : 0;
+    const idle = (tokenW * span - busy.token) + (machineW * span - busy.machine);
+    return { total, busy, idle: Math.max(0, idle), blocked, ends: state.map((s) => ({ key: s.p.key, end: s.t })) };
+  };
+  const tw = Math.max(1, Number(width) || 1);
+  const mw = Math.max(1, Number(machineWidth) || tw);
+  const sim = run(tw, mw);
+  const free = run(Math.max(1, units.length), Math.max(1, units.length));
+  const slotBound = Math.max(sim.busy.token / tw, sim.busy.machine / mw);
+  const longest = free.ends.reduce((a, x) => (x.end > (a?.end ?? -1) ? x : a), null);
+  const r = (x) => Math.round(x);
+  return {
+    width: tw, machineWidth: mw, minutes: min,
+    simulated: r(sim.total), criticalPath: r(free.total), slotBound: r(slotBound),
+    bound: free.total >= slotBound ? 'critical-path' : 'slots',
+    idleSlotHours: Math.round((sim.idle / 60) * 10) / 10,
+    longest: longest?.key ?? null,
+    blocked: sim.blocked,
+    units: plans.map((p) => ({
+      key: p.key, slices: p.order.length, planMinutes: r(p.planMin),
+      walkMinutes: r(p.tasks.reduce((a, t) => a + t.dur, 0)),
+      end: r(sim.ends.find((e) => e.key === p.key)?.end ?? 0),
+    })),
+  };
 }
 
 // ---------------------------------------------------------------- forecast
