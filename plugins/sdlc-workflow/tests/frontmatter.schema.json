@@ -223,7 +223,10 @@
                 "enum": ["defined", "in-progress", "complete", "skipped"]
               },
               "complexity": { "enum": ["xs", "s", "m", "l", "xl"] },
-              "depends-on": { "$ref": "#/$defs/stringArray" }
+              "depends-on": { "$ref": "#/$defs/stringArray" },
+              "source": { "type": "string" },
+              "extension-round": { "type": "integer", "minimum": 1 },
+              "unit": { "type": "string", "description": "campaign only: the unit that walks the slice (campaign/_order.md, Slice order)." }
             }
           }
         },
@@ -558,7 +561,10 @@
                 "enum": ["defined", "in-progress", "complete", "skipped"]
               },
               "complexity": { "enum": ["xs", "s", "m", "l", "xl"] },
-              "depends-on": { "$ref": "#/$defs/stringArray" }
+              "depends-on": { "$ref": "#/$defs/stringArray" },
+              "source": { "type": "string" },
+              "extension-round": { "type": "integer", "minimum": 1 },
+              "unit": { "type": "string", "description": "campaign only: the unit that walks the slice (campaign/_order.md, Slice order)." }
             }
           }
         },

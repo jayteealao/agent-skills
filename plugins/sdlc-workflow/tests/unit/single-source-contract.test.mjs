@@ -199,7 +199,7 @@ test('_subagents.md pins the effort-tier → host mapping', () => {
   const wave = read('skills', 'wf', 'workflows', 'campaign-wave.js');
   assert.match(wave, /const HAIKU = \{ model: 'claude-haiku-5-5', effort: 'medium' \}/);
   assert.deepEqual(haikuLabels(wave), [
-    "'boundary-setup'", "lbl(u, 'move')", "lbl(u, 'plan-index-writeback')", "lbl(u, 'plan-reconcile-clear')",
+    "'boundary-setup'", "lbl(u, 'ask-early')", "lbl(u, 'slice-order')", "lbl(u, 'move')", "lbl(u, 'plan-index-writeback')", "lbl(u, 'plan-reconcile-clear')",
     "lbl(u, 'read-check-report')", "lbl(u, 'resume')", "lbl(u, 'slug-output')", "lbl(u, 'unit-end')",
     'lbl(u, `park:${kind}`)', 'lbl(u, `wait:${e.from}`)', 'lbl(u, `writeback:${sliceArg}`)', 'tag', '`waiter#${WAITERS}`',
   ].sort());

@@ -59,6 +59,7 @@ const OUT = `${projectRoot}/.scratch/campaign/${RUN}`
 const SCRIPT = `${referenceRoot}/../scripts/campaign.mjs`
 const WATCH = `${referenceRoot}/../../../scripts/yolo-watch.mjs`
 const DRIVE_PROC = `${referenceRoot}/campaign/_drive.md`
+const ORDER_PROC = `${referenceRoot}/campaign/_order.md`
 const BOUNDARY_PROC = `${referenceRoot}/campaign/_boundary.md`
 const WAVE_BRANCH = OPT.waveBranch || `campaign/${brainstorm}/wave-${wave}`
 const WAVE_BASE = OPT.base || ''
@@ -69,6 +70,24 @@ const CHECKPOINT_EVERY = 3
 // `node "<script>" <command> "<projectRoot>" <brainstorm> …` — every bookkeeping command.
 const cmd = (sub, rest = '') => `node "${SCRIPT}" ${sub} "${projectRoot}" ${brainstorm}${rest ? ` ${rest}` : ''}`
 const q = (s) => JSON.stringify(String(s ?? ''))
+
+// WF-CAMPAIGN-SLICE-ORDER-PLAN D10: the person's standing rules of the ledger. The plan, the
+// plan reconcile and the cross-unit reconcile quote them.
+const RULES = (Array.isArray(OPT.rules) ? OPT.rules : []).filter(r => r && r.text)
+const RULES_CLAUSE = RULES.length
+  ? `\n\nTHE PERSON'S STANDING RULES (they outrank your own judgement): ${RULES.map(r => `${r.id ? `${r.id}: ` : ''}${r.text}`).join(' | ')}`
+  : ''
+// D1: the rule that decides a pair, in one sentence, with the wave 4 examples of `merge`.
+const PAIR_RULE =
+  `A shared file alone is not a wait. A pair is 'need' only when one slice uses a result of the other — code, data, ` +
+  `a schema, a file format, a version, or a behaviour that the other slice makes or changes. The test: would this ` +
+  `slice's implement fail, or build the wrong thing, if the other slice's change were absent? A pair is 'merge' when ` +
+  `the two slices change the same file in places that do not depend on each other: a new CLI subcommand, a CHANGELOG ` +
+  `line, a docs row, a dependency line, a registry or band row, a separate function in one source file, or a version ` +
+  `number that the merge renumbers. When you are unsure, the kind is 'merge'. A pair is 'contract' when a provides or ` +
+  `expects line of either unit would change.`
+// `slice-order <checkout> <slug> add` — an order that a plan decided, as a depends-on edge.
+const sliceOrderCmd = (u, e) => `node "${SCRIPT}" slice-order "${u.root}" ${u.slug} add --slice ${e.slice} --after ${e.after} --why ${q(e.why || '')}`
 
 // ---------------------------------------------------------------------------
 // External Output Boundary — every fresh-context agent gets it (yolo.js:74).
@@ -87,6 +106,10 @@ const U = (Array.isArray(OPT.units) ? OPT.units : []).map((raw) => {
   const wf = `${raw.root}/.ai/workflows/${raw.slug}`
   return {
     key: String(raw.key), slug: String(raw.slug), form: raw.form || 'intake', order: Number(raw.order) || 0,
+    // D8: the unit walks only the slices that it owns: its key and the keys of the units it absorbed.
+    ownKeys: Array.isArray(raw.ownKeys) && raw.ownKeys.length ? raw.ownKeys.map(String) : [String(raw.key)],
+    // D7: the questions of the plan stops that opened when the plan phase ended, by slice.
+    earlyQ: {},
     root: String(raw.root), branch: String(raw.branch || ''), contextPath: String(raw.contextPath || ''),
     reviewScope: raw.reviewScope === 'slug-wide' ? 'slug-wide' : 'per-slice',
     ledgerState: raw.state || 'running',
@@ -428,8 +451,13 @@ const POLICY = {
     `open question recorded, and return status:'hard-stop'. Otherwise finish status: complete, has-blockers: false. ` +
     `CROSS-UNIT FILES: read the plan files of the PARALLEL UNITS named below. When this slice changes a file that ` +
     `a slice of another unit also changes, return crossUnit: [{ key (the other unit), slice (its slice), files, ` +
-    `kind }] — kind 'order' when the two slices only touch the same file, 'contract' when a provides or expects ` +
-    `line of either unit would change. Return crossUnit: [] when no file is shared.`,
+    `kind, needs, evidence }]. ${PAIR_RULE} For kind 'need', set needs: 'this' when this slice builds on the other ` +
+    `slice, or 'other' when the other slice builds on this one, and quote in evidence the plan line or the .yaml ` +
+    `edge that shows the use, 25 words or fewer, with its path:line. A need with no evidence counts as 'merge'. ` +
+    `Return crossUnit: [] when no file is shared.\n` +
+    `SLICE ORDER: an order that you decide between two slices of THIS unit is an orderEdges entry: { slice, after, ` +
+    `why } — slice runs after after. Text in the plan does not order the walk. Return orderEdges: [] when you ` +
+    `decide no order.` + RULES_CLAUSE,
   implement:
     `AUTONOMOUS OVERRIDE — build the slice per its plan and COMMIT the code (honor the External Output Boundary ` +
     `on the commit message). Minor plan drift you can resolve in-scope: resolve it, record it in the implement ` +
@@ -495,6 +523,10 @@ const POLICY = {
 // ---------------------------------------------------------------------------
 // Schemas — copied from yolo.js, with the fields of the wave driver.
 // ---------------------------------------------------------------------------
+const ORDER_EDGES = {
+  type: 'array',
+  items: { type: 'object', required: ['slice', 'after'], properties: { slice: { type: 'string' }, after: { type: 'string' }, why: { type: 'string' } } },
+}
 const BUDGET_FIELD = {
   type: 'object',
   properties: { state: { type: 'string' }, width: { type: 'number' }, until: { type: 'string' }, reason: { type: 'string' } },
@@ -570,6 +602,9 @@ const UNIT_ORIENT = {
           slice: { type: 'string' },
           status: { type: 'string' },
           dependsOn: { type: 'array', items: { type: 'string' } },
+          // WF-CAMPAIGN-SLICE-ORDER-PLAN D8: the unit that owns the slice, and its source.
+          unit: { type: 'string' },
+          source: { type: 'string' },
           reverifyReason: { type: 'string' },
           stages: {
             type: 'object',
@@ -623,14 +658,19 @@ const STAGE_RESULT = {
     routeBack: { enum: ['plan', 'implement'] },
     steeringHonored: { type: 'array', items: { type: 'string' } },
     steeringConflict: { type: 'string' },
-    // Section 5.7 item 1: a file this slice shares with a slice of another unit.
+    // Section 5.7 item 1: a file this slice shares with a slice of another unit (WF-CAMPAIGN-SLICE-ORDER-PLAN 4.1).
     crossUnit: {
       type: 'array',
       items: {
         type: 'object',
-        properties: { key: { type: 'string' }, slice: { type: 'string' }, files: { type: 'array', items: { type: 'string' } }, kind: { enum: ['order', 'contract'] } },
+        properties: {
+          key: { type: 'string' }, slice: { type: 'string' }, files: { type: 'array', items: { type: 'string' } },
+          kind: { enum: ['need', 'merge', 'contract'] }, needs: { enum: ['this', 'other'] }, evidence: { type: 'string' },
+        },
       },
     },
+    // WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4: an order that the plan decided inside the unit.
+    orderEdges: ORDER_EDGES,
     // Sections 5.4a and 5.5a step 4: the budget reading and the free check of the stop check.
     budget: BUDGET_FIELD,
     answered: ANSWERED_FIELD,
@@ -854,6 +894,7 @@ async function orientUnit(u, opts = {}) {
     `   - review: artifact present AND verdict ∈ {ship, ship-with-caveats} AND metric-findings-blocker == 0\n` +
     `   In slug-wide review scope, mark every per-slice 'review' as 'n-a'.\n` +
     `   dependsOn: the slice's depends-on list in the roster of 03-slice.md ([] when it has none).\n` +
+    `   unit and source: the slice's unit and source fields in the roster of 03-slice.md (omit each one that is absent).\n` +
     `6b. reverifyReason for each slice: 'new-work' (a stage is todo for a real reason), 'deferral-rechallenge' (every ` +
     `stage is otherwise clean and the only reason verify is todo is an open UN-authorized deferral), or 'none'.\n` +
     `7. CLEARING-EVENT TRIPWIRE. For every open entry in priorDeferrals with a clearing-probe, run that one command ` +
@@ -872,6 +913,15 @@ async function orientUnit(u, opts = {}) {
     { schema: UNIT_ORIENT, label: lbl(u, label), phase: 'Orient', ...OPUS }
   )
   if (!res) return null
+  // D8: a slice of another unit (a deferred extension slice) is not this unit's work.
+  if (Array.isArray(res.slices)) {
+    const others = res.slices.filter(s => !ownsSlice(s, u))
+    if (others.length && !u.othersLogged) {
+      u.othersLogged = true
+      log(`${u.slug}: the walk skips ${others.length} slice(s) of another unit: ${others.map(s => `'${s.slice}' (${s.unit || 'an extension'})`).join(', ')}`)
+    }
+    res.slices = res.slices.filter(s => ownsSlice(s, u))
+  }
   u.runId = (res.runId && String(res.runId).trim()) || keep || `run-${u.slug}`
   u.seq = Math.max(u.seq, (Number(res.lastSeq) || 0) + 2)
   if (!resume) {
@@ -880,6 +930,15 @@ async function orientUnit(u, opts = {}) {
   }
   if (res.mergeAborted) log(`${u.slug}: orient aborted a half merge (MERGE_HEAD); the wait agent merges again`)
   return res
+}
+
+// ownsSlice() — WF-CAMPAIGN-SLICE-ORDER-PLAN D8 (lib/campaign.mjs ownsSlice): a slice that names
+// a unit belongs to it. A slice with no unit belongs to the unit that is not an extension,
+// and, for an extension unit, a slice whose source is extension.
+function ownsSlice(s, u) {
+  if (!s) return false
+  if (s.unit) return u.ownKeys.includes(String(s.unit))
+  return u.form === 'extension' ? s.source === 'extension' : true
 }
 
 // reChallengeClause() — copied (yolo.js:1046).
@@ -1648,6 +1707,7 @@ const RECONCILE_RESULT = {
         },
       },
     },
+    orderEdges: ORDER_EDGES,
     note: { type: 'string' },
   },
 }
@@ -1673,6 +1733,42 @@ function planWaves(slices) {
   return waves
 }
 
+// walkOrder() — the walk order of a roster (WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4): topological
+// order of dependsOn, with roster order as the tie-break. A cycle, or a name outside the
+// roster, keeps roster order for the slices that are left.
+function walkOrder(slices) {
+  const list = (slices || []).filter(s => s && s.slice)
+  const names = new Set(list.map(s => s.slice))
+  const placed = new Set()
+  const out = []
+  let left = list
+  while (left.length) {
+    const next = left.find(s => (s.dependsOn || []).every(d => d === s.slice || !names.has(d) || placed.has(d)))
+    if (!next) return out.concat(left)
+    out.push(next)
+    placed.add(next.slice)
+    left = left.filter(s => s !== next)
+  }
+  return out
+}
+
+// orderEdgesOf() — the orderEdges of plan results that name two slices of the roster, de-duplicated.
+function orderEdgesOf(results, roster) {
+  const names = new Set((roster || []).map(s => s.slice))
+  const seen = new Set()
+  const out = []
+  for (const r of results || []) {
+    for (const e of (r && r.orderEdges) || []) {
+      if (!e || !e.slice || !e.after || e.slice === e.after || !names.has(e.slice) || !names.has(e.after)) continue
+      const k = `${e.slice}<${e.after}`
+      if (seen.has(k)) continue
+      seen.add(k)
+      out.push({ slice: String(e.slice), after: String(e.after), why: String(e.why || '') })
+    }
+  }
+  return out
+}
+
 function overlappingSlices(overlaps, roster) {
   const want = new Map()
   for (const o of overlaps || []) {
@@ -1695,10 +1791,14 @@ async function reconcilePlans(u) {
     `planned slices without seeing each other's plans; find the plans that must be re-planned together.\n\n` +
     `1. Read the \`## Sibling Plans\` table in ${u.wf}/04-plan.md, and read every ${u.wf}/04-plan-<slice>.yaml in ` +
     `full (\`files\` and \`edges\`). Where the table and a .yaml disagree, the .yaml is the record.\n` +
-    `2. Two slices OVERLAP when they list the same file, when an edge of one names the other slice or one of its ` +
-    `files, or when both change one migration sequence, one shared fixture, or one public API.\n` +
+    `2. Two slices OVERLAP when an edge of one names the other slice or a file that the other slice creates, or ` +
+    `when both change one migration sequence, one shared fixture, or one public API. A file that both slices list, ` +
+    `with none of these, is NO overlap: the two slices merge at the end.\n` +
     `3. Return overlaps: one entry per slice that must be re-planned, as { slice, with, files, edges, reason }. When ` +
-    `two slices overlap, name the later one in roster order. Return overlaps: [] when no plans overlap.` + steer(u, 'context') +
+    `two slices overlap, name the later one in roster order. Return overlaps: [] when no plans overlap.\n` +
+    `4. When a plan states an order between two slices of this slug ("X lands before Y") that the roster's ` +
+    `depends-on does not hold, return it in orderEdges as { slice: Y, after: X, why }. Text in a plan does not order ` +
+    `the walk; an orderEdges entry does.` + RULES_CLAUSE + steer(u, 'context') +
     heartbeat(u, 'plan-reconcile', 'Plan', 'plan-reconcile', null),
     { schema: RECONCILE_RESULT, label: lbl(u, 'plan-reconcile'), phase: 'Plan', ...SONNET }
   )
@@ -1714,6 +1814,8 @@ async function reconcilePlans(u) {
       return { ok: false, stopped: true, stoppedSlice: t.slice, result: res, reason: (res && res.hardStopReason) || `reconcile re-plan of '${t.slice}' did not clear the plan gate`, overlaps: targets, ran }
     }
   }
+  // WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4 step 5: each order that the reconcile decided becomes a depends-on edge.
+  const edges = orderEdgesOf([r, ...ran], (u.idx && u.idx.slices) || [])
   const cleared = await call(
     `PLAN RECONCILE BOOKKEEPING for slug '${u.slug}'. The reconcile step finished: ` +
     `${targets.length ? `the driver re-planned ${targets.map(t => `'${t.slice}'`).join(', ')}` : 'no sibling plans overlap'}.\n\n${EOB}\n\n` +
@@ -1721,11 +1823,13 @@ async function reconcilePlans(u) {
     `their 04-plan-<slice>.yaml \`files\` and \`edges\`. Change no other row.` : 'Leave 04-plan.md unchanged.'}\n` +
     `2. In ${u.index}, DELETE the \`reconcile-pending\` key from the frontmatter, and refresh \`updated-at\`. Change ` +
     `NOTHING else.` + controlFileRule(u) +
+    (edges.length ? `\n3. Run each command below, in order (${ORDER_PROC}, "Slice order"). Each one adds a depends-on edge to ` +
+      `the roster and rewrites implementation-order in 04-plan.md:\n` + edges.map(e => `   \`${sliceOrderCmd(u, e)}\``).join('\n') : '') +
     `\n\nReturn { ok, wrote: [<files changed>], note }.` +
     heartbeat(u, 'plan-reconcile-clear', 'Plan', 'plan-reconcile', null),
     { schema: OK_SCHEMA, label: lbl(u, 'plan-reconcile-clear'), phase: 'Plan', ...HAIKU }
   )
-  return { ok: true, stopped: false, overlaps: targets, ran, markerCleared: !!(cleared && cleared.ok) }
+  return { ok: true, stopped: false, overlaps: targets, ran, edges, markerCleared: !!(cleared && cleared.ok) }
 }
 
 // ---------------------------------------------------------------------------
@@ -1826,8 +1930,13 @@ function openQuestion(id, unitKey, kind, text, ctx = {}) {
   return e
 }
 const openQuestions = () => [...Q.values()].filter(e => e.state === 'open')
-// The ids the waiter must not return: the answers this run already saw, and the held ones.
-const waiterSeen = () => [...[...Q.values()].filter(e => e.state !== 'open').map(e => e.id), ...HELD.keys()]
+// The needs changes of the person that this run already applied (WF-CAMPAIGN-SLICE-ORDER-PLAN 4.3 step 4).
+const NC_SEEN = new Set()
+// The ids the waiter must not return: the answers this run already saw, the held ones, and the applied needs changes.
+const waiterSeen = () => [...[...Q.values()].filter(e => e.state !== 'open').map(e => e.id), ...HELD.keys(), ...NC_SEEN]
+// A unit waits on a wait that the person can drop (a derived one): the waiter runs for it too.
+const blockedOnDerived = () => U.some(u => !u.ended && u.blockedOn && !u.blockedOn.settled && u.blockedOn.source !== 'packet')
+const waiterNeeded = () => openQuestions().length > 0 || blockedOnDerived()
 function onAnswered(list) {
   for (const a of list || []) {
     const e = a && Q.get(a.id)
@@ -1843,8 +1952,18 @@ const WAITER_RESULT = {
   type: 'object',
   required: ['result'],
   properties: {
-    result: { enum: ['answered', 'stopped', 'paused', 'cancelled', 'timeout'] },
+    result: { enum: ['answered', 'needs-changed', 'stopped', 'paused', 'cancelled', 'timeout'] },
     answered: ANSWERED_FIELD,
+    needsChanged: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' }, key: { type: 'string' }, from: { type: 'string' }, through: { type: 'string' }, before: { type: 'string' },
+          action: { enum: ['add', 'remove'] }, state: { type: 'string' }, sha: { type: 'string' },
+        },
+      },
+    },
     kind: { type: 'string' },
     until: { type: 'string' },
     reason: { type: 'string' },
@@ -1858,11 +1977,11 @@ let WAITERS = 0
 const WAIT_S = 270
 const WAIT_RUNS = 12
 function ensureWaiter() {
-  if (WAITER || STOP || !openQuestions().length) return
+  if (WAITER || STOP || !waiterNeeded()) return
   WAITER = (async () => {
     let dead = 0
     try {
-      while (!STOP && openQuestions().length) {
+      while (!STOP && waiterNeeded()) {
         if (!reserve(1, 'waiter')) break
         WAITERS++
         const seen = waiterSeen()
@@ -1872,13 +1991,15 @@ function ensureWaiter() {
           `  ${cmd('await', `--wave ${wave} --max ${WAIT_S}${seen.length ? ` --seen ${seen.join(',')}` : ''}`)}\n` +
           `It prints one JSON object. When the object has "timeout": true, run the same command again; run it at ` +
           `most ${WAIT_RUNS} times in all. Return at the first object without "timeout": result 'answered' with its answered ` +
-          `list, 'stopped' with kind, until and reason, 'paused' with until and reason (copy them from its "paused" ` +
-          `field), or 'cancelled'. After ${WAIT_RUNS} timeouts, return result 'timeout'. Return calls: the number of times you ` +
-          `ran the command.` + waveHeartbeat(`waiter#${WAITERS}`, 'waiter'),
+          `list (and its needsChanged list, when it has one), 'needs-changed' with its needsChanged list when it has ` +
+          `no answered list, 'stopped' with kind, until and reason, 'paused' with until and reason (copy them from its ` +
+          `"paused" field), or 'cancelled'. After ${WAIT_RUNS} timeouts, return result 'timeout'. Return calls: the ` +
+          `number of times you ran the command.` + waveHeartbeat(`waiter#${WAITERS}`, 'waiter'),
           { schema: WAITER_RESULT, label: `waiter#${WAITERS}`, phase: 'Drive', ...HAIKU }
         )
         if (!r) { if (++dead >= 3) { stopRun('waiter-failed', 'three waiter agents in a row returned nothing; the open questions stay in the ledger for the next launch'); break } continue }
         dead = 0
+        if (Array.isArray(r.needsChanged) && r.needsChanged.length) onNeedsChanged(r.needsChanged)
         if (Array.isArray(r.answered) && r.answered.length) onAnswered(r.answered)
         if (r.result === 'stopped') stopRun(r.kind === 'pause' ? 'usage-pause' : 'stop-request', r.reason || 'stop request', r.until || null)
         else if (r.result === 'paused') stopRun('usage-pause', r.reason || 'usage limit', r.until || null)
@@ -1920,6 +2041,28 @@ function addWait(key, w) {
   else if (e.state === 'ready' && e.sha) settle(e, { sha: e.sha })
   return e
 }
+// WF-CAMPAIGN-SLICE-ORDER-PLAN 4.3 step 4: the person added or dropped a wait while the run
+// is live (`needs add|remove --by person`). A dropped wait settles as dropped; an added one is armed.
+function onNeedsChanged(list) {
+  for (const c of list || []) {
+    if (!c || !c.id || NC_SEEN.has(c.id) || !byKey.has(c.key)) continue
+    NC_SEEN.add(c.id)
+    const through = c.through || 'finished'
+    const before = c.before || null
+    if (c.action === 'remove') {
+      for (const e of W) {
+        if (e.passed || e.key !== c.key || e.from !== c.from || e.through !== through || e.before !== before) continue
+        e.passed = true
+        if (e.settled) arm(e)
+        settle(e, { dropped: true })
+        log(`${c.key}: the person dropped the wait for ${c.from} through '${through}'`)
+      }
+    } else if (addWait(c.key, { from: c.from, through, before, why: 'added by the person', source: 'person', state: c.state || 'open', sha: c.sha || null })) {
+      log(`${c.key}: the person added a wait for ${c.from} through '${through}' before '${before || 'the first slice'}'`)
+    }
+  }
+}
+
 // `slice-done` returns the waits that its slice made ready.
 function onReady(list) {
   for (const r of list || []) {
@@ -1958,6 +2101,7 @@ function checkDeadlock() {
 async function awaitWait(u, e) {
   u.blockedOn = e
   checkDeadlock()
+  ensureWaiter()
   const v = await e.promise
   u.blockedOn = null
   return v
@@ -2079,7 +2223,9 @@ async function resolveAnswer(u, a, kind, ctx = {}) {
     `The commands you may run: \`${cmd('needs', `${u.key} remove --from <key> --through <slice> --before <slice>`)}\` to ` +
     `drop a derived wait; \`${cmd('needs', `${u.key} add --from <key> --through <slice> --before <slice> --why <text> --by person`)}\` ` +
     `to add the entry the answer gives; \`${cmd('contract', `${ctx.key || u.key} amend --line <line key> --text <text>`)}\` ` +
-    `to record an approved contract change. Run only what the answer asks for. Return action: 'continue' (the unit ` +
+    `to record an approved contract change. Run only what the answer asks for. Record every wait that the answer ` +
+    `gives with \`needs add --by person\`, also when your action is 'replan': a wait that no command recorded is in ` +
+    `no ledger and in no driver. Return action: 'continue' (the unit ` +
     `goes on), 'replan' (the plan of the slice runs again with the answer: a refused contract change), or 'move' ` +
     `(the answer moves the unit out of the wave); dropped and added: the waits you removed and added (added with ` +
     `the "wait" of the needs result: state and sha); amended: true when you ran contract amend.` +
@@ -2101,14 +2247,23 @@ async function applyResolve(u, r) {
       settle(e, { dropped: true })
     }
   }
-  for (const w of r.added || []) addWait(u.key, { ...w, source: 'person' })
+  // WF-CAMPAIGN-SLICE-ORDER-PLAN 4.8: a wait comes only from a `needs add` result (its state), so
+  // the driver and the ledger hold the same waits. A `replan` keeps the waits it added.
+  for (const w of r.added || []) {
+    if (w && w.from && w.state) addWait(u.key, { ...w, source: 'person' })
+    else if (w && w.from) log(`${u.slug}: the resolver named a wait for ${w.from} with no needs add result; the driver does not hold it`)
+  }
   if (r.action === 'move') { await moveOut(u, 'by the answer'); return 'ended' }
   return r.action === 'replan' ? 'replan' : 'continue'
 }
 
-// ---- Derived needs entries (section 5.7) -----------------------------------
+// ---- Derived needs entries (section 5.7; WF-CAMPAIGN-SLICE-ORDER-PLAN 4.1-4.3) ------
 const derivedNeeds = []
+// A late need: a pair whose `before` slice already passed its implement. The wave review reads it.
 const focus = []
+// D4: the pairs that change the same file and wait for nothing. The boundary merge reads them.
+const mergeNotes = (Array.isArray(OPT.mergeNotes) ? OPT.mergeNotes : []).filter(m => m && m.a && m.b).map(m => ({ ...m }))
+const sameNote = (x, y) => x.a === y.a && String(x.aSlice || '') === String(y.aSlice || '') && x.b === y.b && String(x.bSlice || '') === String(y.bSlice || '')
 const NEEDS_RESULT = {
   type: 'object',
   required: ['results'],
@@ -2120,6 +2275,7 @@ const NEEDS_RESULT = {
         properties: {
           key: { type: 'string' }, from: { type: 'string' }, through: { type: 'string' }, before: { type: 'string' },
           ok: { type: 'boolean' }, exists: { type: 'boolean' }, late: { type: 'boolean' },
+          merge: { type: 'boolean' }, dropped: { type: 'boolean' },
           cycle: { type: 'array', items: { type: 'string' } },
           wait: { type: 'object', properties: { state: { type: 'string' }, sha: { type: 'string' } } },
           error: { type: 'string' },
@@ -2129,55 +2285,80 @@ const NEEDS_RESULT = {
   },
 }
 
-// A pair { a, aSlice, b, bSlice }: the later unit in packet order needs the earlier one.
-function directPair(p) {
+// D1-D3: a pair { a, aSlice, b, bSlice, files, kind, needs, evidence } as an entry for `needs add`.
+// A `need` waits in the direction of its evidence (`needs` names the side that builds on the
+// other), never in packet order. A need with no direction or no evidence is a merge note.
+function pairEntry(p, source) {
   const A = byKey.get(p.a), B = byKey.get(p.b)
   if (!A || !B || A.key === B.key) return null
-  const aFirst = A.order < B.order || (A.order === B.order && A.key < B.key)
-  return aFirst
-    ? { key: B.key, from: A.key, through: p.aSlice || 'finished', before: p.bSlice || null }
-    : { key: A.key, from: B.key, through: p.bSlice || 'finished', before: p.aSlice || null }
+  const why = (p.files || []).join(', ')
+  const evidence = String(p.evidence || '').trim()
+  const side = p.needs === 'a' ? 'a' : p.needs === 'b' ? 'b' : null
+  if (p.kind === 'need' && side && evidence) {
+    return side === 'a'
+      ? { kind: 'need', key: A.key, from: B.key, through: p.bSlice || 'finished', before: p.aSlice || null, why, evidence, source }
+      : { kind: 'need', key: B.key, from: A.key, through: p.aSlice || 'finished', before: p.bSlice || null, why, evidence, source }
+  }
+  if (p.kind === 'need') log(`${source}: the need between ${A.key} '${p.aSlice || '?'}' and ${B.key} '${p.bSlice || '?'}' has no ${side ? 'evidence' : 'direction'}, so it is a merge note`)
+  return { kind: 'merge', key: B.key, from: A.key, through: p.aSlice || 'finished', before: p.bSlice || null, why, evidence: '', source }
+}
+
+// A contract pair parks the side named by `needs`, or the later unit in packet order.
+function contractPark(p) {
+  const A = byKey.get(p.a), B = byKey.get(p.b)
+  if (!A || !B || A.key === B.key) return null
+  const aLater = p.needs === 'a' ? true : p.needs === 'b' ? false : !(A.order < B.order || (A.order === B.order && A.key < B.key))
+  const [later, laterSlice, other, otherSlice] = aLater ? [A, p.aSlice, B, p.bSlice] : [B, p.bSlice, A, p.aSlice]
+  later.startParks.push({ kind: 'contract', reason: `slice '${laterSlice || 'first'}' shares ${(p.files || []).join(', ')} with ${other.key} slice '${otherSlice || '?'}', and the change would change a contract line`, ctx: { slice: laterSlice || null, key: other.key, files: p.files || [] } })
+  return later
 }
 
 async function addNeeds(entries, source, labelUnit) {
   if (!entries.length) return []
   const tag = `needs-add${labelUnit ? `:${labelUnit.slug}` : ''}`
+  const line = (e) => e.kind === 'merge'
+    ? `- \`${cmd('needs', `${e.key} add --kind merge --from ${e.from} --through ${e.through}${e.before ? ` --before ${e.before}` : ''} --why ${q(e.why || '')} --by driver --source ${e.source || source}`)}\``
+    : `- \`${cmd('needs', `${e.key} add --kind need --from ${e.from} --through ${e.through}${e.before ? ` --before ${e.before}` : ''} --why ${q(e.why || '')} --evidence ${q(e.evidence || '')} --by driver --source ${e.source || source}`)}\``
   const r = await call(
-    `DERIVED NEEDS ENTRIES for wave ${wave} of campaign '${brainstorm}'. Bookkeeping only (${DRIVE_PROC}, "Derived ` +
+    `DERIVED NEEDS ENTRIES for wave ${wave} of campaign '${brainstorm}'. Bookkeeping only (${ORDER_PROC}, "Derived ` +
     `needs"): run each command below, in order, and return its JSON object in results, with the key, from, ` +
     `through and before of its entry. Change nothing else.\n` +
-    entries.map(e => `- \`${cmd('needs', `${e.key} add --from ${e.from} --through ${e.through}${e.before ? ` --before ${e.before}` : ''} --why ${q(e.why || '')} --by driver --source ${e.source || source}`)}\``).join('\n') +
+    entries.map(line).join('\n') +
     `\n\nReturn { results }.` + waveHeartbeat(tag, 'needs'),
     { schema: NEEDS_RESULT, label: tag, phase: 'Plan', ...SONNET }
   )
   const out = (r && Array.isArray(r.results)) ? r.results : []
   for (const x of out) {
-    const e = entries.find(y => y.key === x.key && y.from === x.from && String(y.through) === String(x.through)) || {}
+    const e = entries.find(y => y.key === x.key && y.from === x.from && String(y.through) === String(x.through) && (y.kind === 'merge') === (x.merge === true)) || {}
     const u = byKey.get(x.key)
     if (!u) continue
+    if (x.merge) {
+      const note = { a: x.from, aSlice: x.through, b: x.key, bSlice: x.before || null, files: e.why || '' }
+      if (!mergeNotes.some(m => sameNote(m, note))) mergeNotes.push(note)
+      continue
+    }
+    if (x.dropped) { log(`${u.slug}: the need on ${x.from} through '${x.through}' was dropped earlier; it makes no wait (D5)`); continue }
     if (x.cycle && x.cycle.length) { u.startParks.push({ kind: 'needs-cycle', reason: `${x.from} through ${x.through} before ${x.before || 'the first slice'} closes the cycle ${x.cycle.join(' -> ')}`, ctx: { from: x.from, through: x.through, before: x.before } }); continue }
     if (x.late) { focus.push({ a: x.from, aSlice: x.through, b: x.key, bSlice: x.before, files: e.why || '' }); continue }
     if (x.ok && x.wait && !x.exists) {
-      derivedNeeds.push({ key: x.key, from: x.from, through: x.through, before: x.before || null, why: e.why || '', source: e.source || source })
+      derivedNeeds.push({ key: x.key, from: x.from, through: x.through, before: x.before || null, why: e.why || '', evidence: e.evidence || '', source: e.source || source })
       addWait(x.key, { from: x.from, through: x.through, before: x.before || null, why: e.why || '', source: e.source || source, state: x.wait.state, sha: x.wait.sha })
     }
   }
   return out
 }
 
-// A crossUnit report of a plan during the walk (section 5.7 item 1).
+// A crossUnit report of a plan during the walk (section 5.7 item 1). `needs: 'this'` is this slice.
 async function handleCrossUnit(u, sliceArg, list) {
-  const order = []
+  const entries = []
   for (const c of list || []) {
     if (!c || !c.key || !byKey.has(c.key) || c.key === u.key) continue
-    if (c.kind === 'contract') {
-      u.startParks.push({ kind: 'contract', reason: `slice '${sliceArg}' shares ${(c.files || []).join(', ')} with ${c.key} slice '${c.slice || '?'}' and would change a contract line`, ctx: { slice: sliceArg, key: c.key, files: c.files || [] } })
-      continue
-    }
-    const d = directPair({ a: u.key, aSlice: sliceArg, b: c.key, bSlice: c.slice })
-    if (d) order.push({ ...d, why: (c.files || []).join(', '), source: `plan:${sliceArg}` })
+    const p = { a: u.key, aSlice: sliceArg, b: c.key, bSlice: c.slice, files: c.files || [], kind: c.kind, needs: c.needs === 'this' ? 'a' : c.needs === 'other' ? 'b' : null, evidence: c.evidence }
+    if (c.kind === 'contract') { contractPark(p); continue }
+    const e = pairEntry(p, `plan:${sliceArg}`)
+    if (e) entries.push(e)
   }
-  if (order.length) await addNeeds(order, `plan:${sliceArg}`, u)
+  if (entries.length) await addNeeds(entries, `plan:${sliceArg}`, u)
 }
 
 // ---- The cross-unit reconcile (section 5.3 step 3, D23) -------------------
@@ -2192,7 +2373,8 @@ const CROSS_RESULT = {
         required: ['a', 'b'],
         properties: {
           a: { type: 'string' }, aSlice: { type: 'string' }, b: { type: 'string' }, bSlice: { type: 'string' },
-          files: { type: 'array', items: { type: 'string' } }, kind: { enum: ['order', 'contract'] },
+          files: { type: 'array', items: { type: 'string' } }, kind: { enum: ['need', 'merge', 'contract'] },
+          needs: { enum: ['a', 'b'] }, evidence: { type: 'string' },
         },
       },
     },
@@ -2216,32 +2398,30 @@ async function crossUnitReconcile() {
   if (planned.length < 2 || STOP) return null
   const r = await call(
     `CROSS-UNIT RECONCILE for wave ${wave} of campaign '${brainstorm}'. READ-ONLY — write nothing. Follow ` +
-    `${DRIVE_PROC}, section "Cross-unit reconcile".\n\n` +
-    `The units, in packet order:\n` +
-    planned.map(u => `- ${u.key} '${u.slug}': plans ${u.wf}/04-plan-<slice>.yaml; context ${u.contextPath}`).join('\n') +
+    `${ORDER_PROC}, sections "Pair kinds" and "Cross-unit reconcile".\n\n` +
+    `The units, in packet order, each with the slices that it owns (read the plans of these slices only):\n` +
+    planned.map(u => `- ${u.key} '${u.slug}': plans ${u.wf}/04-plan-<slice>.yaml for ${((u.idx && u.idx.slices) || []).map(s => s.slice).join(', ') || 'its slices'}; context ${u.contextPath}`).join('\n') +
     expectedSharedClause(planned) +
-    `\n\nRead every 04-plan-<slice>.yaml of every unit in full (its \`files\` and \`edges\`), and the provides and ` +
-    `expects lines of every context file. Return pairs: each pair of slices of two DIFFERENT units that change the ` +
-    `same file, as { a, aSlice, b, bSlice, files, kind } — kind 'contract' when the shared change would change a ` +
-    `provides or expects line of either unit, 'order' otherwise. Return pairs: [] when no two units share a file. ` +
-    `A pair that a needs entry of the graph already orders (section 7 of the later unit's context file) is not ` +
-    `returned.` + waveHeartbeat('cross-unit-reconcile', 'plan'),
+    `\n\nRead every 04-plan-<slice>.yaml above in full (its \`files\` and \`edges\`), and the provides and expects ` +
+    `lines of every context file. Return pairs: each pair of slices of two DIFFERENT units that change the same file, ` +
+    `as { a, aSlice, b, bSlice, files, kind, needs, evidence }. ${PAIR_RULE} For kind 'need', set needs to 'a' or ` +
+    `'b': the side that builds on the other. The direction comes from the evidence, never from packet order. Quote ` +
+    `in evidence the plan line or the .yaml edge of that side that shows the use, 25 words or fewer, with its ` +
+    `path:line. A need with no evidence counts as 'merge'. Return pairs: [] when no two units share a file. A pair ` +
+    `that a needs entry of the graph already orders (section 7 of the later unit's context file) is not returned.` +
+    RULES_CLAUSE + waveHeartbeat('cross-unit-reconcile', 'plan'),
     { schema: CROSS_RESULT, label: 'cross-unit-reconcile', phase: 'Plan', ...SONNET }
   )
   if (!r || !Array.isArray(r.pairs)) return { pairs: [] }
-  const order = []
+  const entries = []
+  let contracts = 0
   for (const p of r.pairs) {
-    const d = directPair(p)
-    if (!d) continue
-    if (p.kind === 'contract') {
-      const later = byKey.get(d.key)
-      later.startParks.push({ kind: 'contract', reason: `slice '${d.before || 'first'}' shares ${(p.files || []).join(', ')} with ${d.from} slice '${d.through}', and the change would change a contract line`, ctx: { slice: d.before, key: d.from, files: p.files || [] } })
-      continue
-    }
-    order.push({ ...d, why: (p.files || []).join(', '), source: 'cross-unit' })
+    if (p.kind === 'contract') { if (contractPark(p)) contracts++; continue }
+    const e = pairEntry(p, 'cross-unit')
+    if (e) entries.push(e)
   }
-  if (order.length) await addNeeds(order, 'cross-unit')
-  log(`cross-unit reconcile: ${r.pairs.length} shared pair(s) → ${derivedNeeds.length} derived needs entr${derivedNeeds.length === 1 ? 'y' : 'ies'}, ${focus.length} late pair(s)`)
+  if (entries.length) await addNeeds(entries, 'cross-unit')
+  log(`cross-unit reconcile: ${r.pairs.length} shared pair(s) → ${derivedNeeds.length} wait(s), ${mergeNotes.length} merge note(s), ${contracts} contract park(s), ${focus.length} late pair(s)`)
   return r
 }
 
@@ -2260,7 +2440,7 @@ const MERGE_IN_RESULT = {
 async function waitAgent(u, e, sha) {
   return await call(
     `WAIT AGENT for unit ${u.key} (slug '${u.slug}'), wave ${wave}: merge the cleared commit ${sha} of ${e.from} ` +
-    `(through '${e.through}') before the implement of '${waitSlice(u, e)}'. Bookkeeping only (${DRIVE_PROC}, "Wait ` +
+    `(through '${e.through}') before the implement of '${waitSlice(u, e)}'. Bookkeeping only (${ORDER_PROC}, "Wait ` +
     `agent"): run these commands in order, and change nothing else.\n` +
     `1. \`${cmd('unit', `${u.key} waiting --on ${q(`${e.from}: ${e.through}`)}`)}\`\n` +
     `2. \`${cmd('merge-in', `${u.key} ${e.from} --at ${sha}`)}\` — it prints one JSON object.\n` +
@@ -2279,6 +2459,7 @@ async function mergeAgent(u, e, sha, files, rule) {
     `intent holds, run the tests of both units, and commit the merge. The context files are ${u.contextPath} and ` +
     `${(byKey.get(e.from) || {}).contextPath || ''}.` +
     (rule ? ` The person's rule for this conflict: ${q(rule)}.` : '') +
+    mergeNotesClause([u.key, e.from]) +
     ` When a conflict needs a product decision that neither context file settles, run \`git -C ${u.root} merge ` +
     `--abort\` and return resolved: false with the reason. ${EOB}` +
     `\n\nReturn { resolved, reason, sha (the merge commit) }.` + heartbeat(u, `merge:${e.from}`, 'Drive', 'merge', waitSlice(u, e), true),
@@ -2434,6 +2615,26 @@ async function planFreshness(u, sliceArg) {
   return s ? { fresh: false, reason: s.reason || 'the code changed under the plan' } : { fresh: true }
 }
 
+// WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4: an order that a walk-time plan decided becomes a depends-on
+// edge on disk (`slice-order`), and in the roster of this run, so the rest of the walk follows it.
+async function applyOrderEdges(u, edges, why) {
+  if (!edges.length || STOP) return
+  const r = await call(
+    `SLICE ORDER for slug '${u.slug}' (unit ${u.key}), wave ${wave}. Bookkeeping only (${ORDER_PROC}, "Slice order"): ` +
+    `run each command below, in order, and change nothing else. Each one prints one JSON object.\n` +
+    edges.map(e => `- \`${sliceOrderCmd(u, e)}\``).join('\n') +
+    `\n\nReturn { ok, note } — ok is false when a command printed "ok": false; quote its error in note.` +
+    heartbeat(u, 'slice-order', 'Drive', 'plan', null),
+    { schema: OK_SCHEMA, label: lbl(u, 'slice-order'), phase: 'Drive', ...HAIKU }
+  )
+  if (!r || r.ok === false) { log(`${u.slug}: slice-order (${why}) did not confirm: ${(r && r.note) || 'no result'}`); return }
+  for (const e of edges) {
+    const s = ((u.idx && u.idx.slices) || []).find(x => x.slice === e.slice)
+    if (s && !(s.dependsOn || []).includes(e.after)) s.dependsOn = [...(s.dependsOn || []), e.after]
+    log(`${u.slug}: '${e.slice}' now walks after '${e.after}' (${why}${e.why ? `: ${e.why}` : ''})`)
+  }
+}
+
 // One stage of one slice, with its slot and its extras.
 async function runOne(u, stage, sliceArg, answered) {
   if (stage === 'plan') {
@@ -2442,6 +2643,7 @@ async function runOne(u, stage, sliceArg, answered) {
     delete u.replanNeeded[sliceArg]
     const res = absorb(await runStage(u, 'plan', sliceArg, { stopCheck: true, answered, refresh }))
     if (res && Array.isArray(res.crossUnit) && res.crossUnit.length) await handleCrossUnit(u, sliceArg, res.crossUnit)
+    if (res && res.status === 'complete') await applyOrderEdges(u, orderEdgesOf([res], (u.idx && u.idx.slices) || []), `plan:${sliceArg}`)
     return res
   }
   if (stage === 'implement') return absorb(await heavy(() => runStage(u, 'implement', sliceArg, { stopCheck: true, heavy: true, answered })))
@@ -2550,7 +2752,10 @@ async function walkSlice(u, s, bounded) {
       }
       const kind = stage === 'review' ? 'review' : 'stage'
       const reason = (res && res.hardStopReason) || (res ? `${stage} terminal state did not clear the gate: ${JSON.stringify(res.terminal || {})}` : `${stage} did not return`)
-      const a = await park(u, kind, reason, { stage, slice: sliceArg, startSha: res && res.startSha, artifact: res && res.artifactPath })
+      // D7: a plan stop of the fan-out asked its question when the plan phase ended; the walk takes its answer.
+      const early = stage === 'plan' ? u.earlyQ[sliceArg] : null
+      if (early) delete u.earlyQ[sliceArg]
+      const a = early ? await awaitEarly(u, early) : await park(u, kind, reason, { stage, slice: sliceArg, startSha: res && res.startSha, artifact: res && res.artifactPath })
       const h = await onAnswer(u, a)
       if (h !== 'resume') return h === 'stop' ? { stop: true, ran } : { ended: true, ran }
       // A resume orient (same run id), then the stopped stage again with the answer.
@@ -2573,6 +2778,58 @@ async function walkSlice(u, s, bounded) {
     } else log(`${u.slug}: slice '${sliceArg}' cleared, but slice-done did not confirm${(wb && wb.note) || (sd && sd.error) ? `: ${(sd && sd.error) || wb.note}` : ''}`)
   }
   return { slice: sliceArg, ran }
+}
+
+// The answer of an early plan question (D7). An answer that came before the walk reached the slice is ready at once.
+async function awaitEarly(u, eq) {
+  u.parked = { kind: 'stage', id: eq.id }
+  ensureWaiter()
+  const a = await eq.e.promise
+  u.parked = null
+  eq.e.resumed = true
+  return a
+}
+
+// Q4: the slices that the walk skips for now: each slice whose early plan question is open,
+// and each slice that depends on one of them, in `list`.
+function heldSlices(u, list) {
+  const held = new Set(list.filter(s => u.earlyQ[s.slice] && u.earlyQ[s.slice].e.state === 'open').map(s => s.slice))
+  for (let grew = held.size > 0; grew;) {
+    grew = false
+    for (const s of list) if (!held.has(s.slice) && (s.dependsOn || []).some(d => held.has(d))) { held.add(s.slice); grew = true }
+  }
+  return held
+}
+
+// D7: after the plan phase and the cross-unit reconcile, each plan stop of the fan-out opens
+// its question at once. The unit stays running, and its walk skips the slice until the answer.
+async function openEarlyQuestions() {
+  for (const u of U) {
+    if (u.ended || STOP) continue
+    const stops = Object.entries(u.planStops).filter(([, r]) => r && r.status !== 'stopped')
+    if (!stops.length) continue
+    const asks = stops.map(([slice, r]) => {
+      const reason = (r && r.hardStopReason) || `plan terminal state did not clear the gate: ${JSON.stringify((r && r.terminal) || {})}`
+      const ctx = { stage: 'plan', slice, artifact: (r && r.artifactPath) || null }
+      return { id: nextQid(u), slice, reason, ctx, text: PARK_TEXT.stage(u, String(reason).slice(0, 600), ctx) }
+    })
+    await call(
+      `ASK EARLY for unit ${u.key} (slug '${u.slug}') of wave ${wave}, campaign '${brainstorm}'. Bookkeeping only ` +
+      `(${DRIVE_PROC}, "Early plan questions"): run these commands in order, and change nothing else. The unit keeps ` +
+      `running: do not run \`unit ${u.key} stopped\`.\n` +
+      asks.map((x, i) => `${i + 1}. \`${cmd('ask', `${x.id} --wave ${wave} --unit ${u.key} --kind stage --stage plan --slice ${x.slice} ${q(x.text)}`)}\``).join('\n') +
+      `\n${asks.length + 1}. \`${cmd('journal', `asked ${q(JSON.stringify({ run: RUN, wave, key: u.key, questions: asks.map(x => x.id), early: true }))}`)}\`\n` +
+      `Return { ok, note }.` + heartbeat(u, 'ask-early', 'Plan', 'park', null),
+      { schema: PARK_RESULT, label: lbl(u, 'ask-early'), phase: 'Plan', ...HAIKU }
+    )
+    for (const x of asks) {
+      u.earlyQ[x.slice] = { id: x.id, e: openQuestion(x.id, u.key, 'stage', x.text, x.ctx) }
+      u.parks.push({ kind: 'stage', question: x.id, reason: String(x.reason).slice(0, 300), stage: 'plan', slice: x.slice })
+      events.push({ event: 'park', fields: { key: u.key, kind: 'stage', question: x.id, reason: String(x.reason).slice(0, 300), early: true } })
+      log(`${u.slug}: the plan of '${x.slice}' stopped; its question ${x.id} opens now, before the walk`)
+    }
+  }
+  ensureWaiter()
 }
 
 // A park whose kind needs its answer read (start parks of the cross-unit reconcile, a
@@ -2634,22 +2891,40 @@ async function walkUnitInner(u) {
   }
   const slices = u.idx.slices || []
   const isSweep = (s) => s && s.reverifyReason === 'deferral-rechallenge'
-  const primary = slices.filter(s => !isSweep(s))
   const sweep = slices.filter(isSweep)
   let workSinceCheckpoint = false
-  for (let si = 0; si < primary.length; si++) {
-    const s = primary[si]
-    if (s.status === 'skipped') continue
+  let walked = 0
+  // WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4: the walk follows walkOrder (depends-on, then roster order).
+  let left = walkOrder(slices.filter(s => !isSweep(s) && s.status !== 'skipped'))
+  while (left.length) {
+    // Q4: while a plan question of slice S is open, the walk skips S and each slice that depends on S.
+    const held = heldSlices(u, left)
+    const s = left.find(x => !held.has(x.slice))
+    if (!s) {
+      const open = left.map(x => u.earlyQ[x.slice]).filter(eq => eq && eq.e.state === 'open')
+      if (!open.length) break
+      u.parked = { kind: 'stage', id: open[0].id }
+      ensureWaiter()
+      await Promise.race(open.map(eq => eq.e.promise))
+      u.parked = null
+      if (STOP) return
+      continue
+    }
+    if (s !== left[0]) log(`${u.slug}: the walk skips ahead to '${s.slice}' while a plan question of ${[...held].map(x => `'${x}'`).join(', ')} is open`)
+    left = left.filter(x => x !== s)
     const r = await walkSlice(u, s, false)
     if (r.stop || r.ended || u.ended || STOP) return
+    // A plan of this walk may add an order edge: the slices left follow it.
+    left = walkOrder(left.map(x => (u.idx.slices || []).find(y => y.slice === x.slice) || x))
     // A crossUnit contract found during the walk parks the unit before its next slice.
     for (const p of u.startParks.splice(0)) {
       const k = await parkAndResolve(u, p)
       if (k !== 'go') return
     }
     if (r.ran.length) workSinceCheckpoint = true
-    const isLast = si === primary.length - 1
-    const due = ((u.idx.charter || []).length || u.contextPath) && !isLast && (si + 1) % CHECKPOINT_EVERY === 0
+    walked++
+    const isLast = !left.length
+    const due = ((u.idx.charter || []).length || u.contextPath) && !isLast && walked % CHECKPOINT_EVERY === 0
     if (due && workSinceCheckpoint) {
       workSinceCheckpoint = false
       const cp = await charterCheckpoint(u, s.slice)
@@ -2820,19 +3095,28 @@ async function planPhase(u) {
     }
     if (STOP) return
     if (doneSlices.length) {
+      // WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4 steps 5-6: each order that a plan decided becomes a depends-on
+      // edge, and implementation-order is a copy of the walk order. No driver reads it.
+      const edges = orderEdgesOf(doneSlices.map(sl => got.get(sl)), o.slices || [])
+      const withEdges = (o.slices || []).map(s => ({ ...s, dependsOn: [...(s.dependsOn || []), ...edges.filter(e => e.slice === s.slice).map(e => e.after)] }))
+      const order = walkOrder(withEdges.filter(s => s.status !== 'skipped')).map(s => s.slice)
       await call(
         `PLAN FAN-OUT BOOKKEEPING for slug '${u.slug}'. The driver planned these slices concurrently and each plan ` +
         `agent wrote ONLY its per-slice 04-plan artifact and .yaml. Do the bookkeeping of plan.md Step 7:\n\n${EOB}\n\n` +
         `A. Read ${referenceRoot}/plan.md for the master 04-plan.md contract and its \`## Sibling Plans\` table. In ` +
         `${u.wf}/04-plan.md (create it per that contract, with schema-complete frontmatter, if it is absent), write the ` +
         `\`## Sibling Plans\` table with one row for EVERY 04-plan-<slice>.yaml on disk, built from its \`files\` and ` +
-        `\`edges\`. Read each .yaml in full; copy, do not summarize.\n` +
+        `\`edges\`. Read each .yaml in full; copy, do not summarize. Set \`implementation-order\` to ${JSON.stringify(order)}: ` +
+        `the walk order of the driver.\n` +
         `B. In ${u.index}: (1) add ${doneSlices.map(s => `04-plan-${s}.md`).join(', ')} and 04-plan.md to ` +
         `\`workflow-files\` (skip any already listed); (2) set \`current-stage\` to plan if it names an earlier stage; ` +
         `(3) set \`reconcile-pending: true\`; (4) refresh \`updated-at\`. Change NOTHING else.` + controlFileRule(u) +
+        (edges.length ? `\nC. After A and B, run each command below, in order (${ORDER_PROC}, "Slice order"). Each one adds a ` +
+          `depends-on edge that a plan decided to the roster:\n` + edges.map(e => `   \`${sliceOrderCmd(u, e)}\``).join('\n') : '') +
         `\n\nReturn { ok, wrote: [<files changed>], note }.` + heartbeat(u, 'plan-index-writeback', 'Plan', 'plan', null),
         { schema: OK_SCHEMA, label: lbl(u, 'plan-index-writeback'), phase: 'Plan', ...HAIKU }
       )
+      for (const e of edges) log(`${u.slug}: '${e.slice}' walks after '${e.after}' (a plan decided it${e.why ? `: ${e.why}` : ''})`)
       const o2 = await orientUnit(u, { resume: true })
       if (o2 && o2.ok) u.idx = o2
       u.idx = { ...u.idx, reconcilePending: true }
@@ -2840,8 +3124,13 @@ async function planPhase(u) {
   }
   if (reconcileDue(u.idx) && !STOP) {
     const rp = await reconcilePlans(u)
-    u.planReconcile = { replanned: (rp.overlaps || []).map(t => t.slice), stopped: rp.stopped === true, markerCleared: rp.markerCleared === true }
+    u.planReconcile = { replanned: (rp.overlaps || []).map(t => t.slice), stopped: rp.stopped === true, markerCleared: rp.markerCleared === true, orderEdges: (rp.edges || []).length }
     if (rp.stopped && rp.stoppedSlice) u.planStops[rp.stoppedSlice] = rp.result || { stage: 'plan', slice: rp.stoppedSlice, status: 'hard-stop', artifactPath: '', terminal: {}, hardStopReason: rp.reason }
+    if ((rp.edges || []).length && !STOP) {
+      // The roster has new depends-on edges: a resume orient reads them.
+      const o3 = await orientUnit(u, { resume: true })
+      if (o3 && o3.ok) u.idx = o3
+    }
     u.idx = { ...u.idx, reconcilePending: false }
   }
 }
@@ -2953,6 +3242,17 @@ async function boundarySetup() {
   )
 }
 
+// WF-CAMPAIGN-SLICE-ORDER-PLAN 4.2: the merge notes are the expected conflicts of the merge.
+function mergeNotesClause(only = null) {
+  const notes = only ? mergeNotes.filter(m => only.includes(m.a) && only.includes(m.b)) : mergeNotes
+  if (!notes.length) return ''
+  return `\n\nEXPECTED CONFLICTS — the merge notes of the wave (${ORDER_PROC}, "Merge notes"): pairs of slices that change ` +
+    `the same file and wait for nothing: ${JSON.stringify(notes.map(m => ({ a: m.a, aSlice: m.aSlice, b: m.b, bSlice: m.bSlice, files: m.files })))}. ` +
+    `For each conflict in these files: (1) regenerate a generated file once, after both sides merged — do not merge ` +
+    `its text; (2) renumber a version or a ledger file to the next free number; (3) convert a row or a record to the ` +
+    `newer format of the other side.`
+}
+
 async function mergeUnits(toMerge, carried) {
   return await heavy(() => call(
     `MERGE THE FINISHED SLUGS of wave ${wave} of campaign '${brainstorm}' into the wave branch ${WAVE_BRANCH}. ` +
@@ -2961,6 +3261,7 @@ async function mergeUnits(toMerge, carried) {
     `so that a conflict that a campaign merge-in already resolved is replayed from rerere: ` +
     `${JSON.stringify(toMerge.map(u => ({ key: u.key, slug: u.slug, branch: u.branch })))}.` +
     (carried.length ? ` Do not merge these slugs on their own: each one is inside the branch named by its "through", at its tip: ${JSON.stringify(carried.map(u => ({ key: u.key, slug: u.slug, through: u.through })))}. When "through" merges, report each of them as merged with the same merge commit.` : '') +
+    mergeNotesClause() +
     ` After the last merge, regenerate the rows of .ai/workflows/INDEX.md on the wave branch from each slug's 00-index.md, ` +
     `by the rule of the section, and commit it.` +
     STOP_CHECK + waveHeartbeat('merge', 'merge') + campaignEvent('merge', '"key":"<packet key>","slug":"<slug>","sha":"<merge commit>","result":"merged|stopped"') +
@@ -3140,14 +3441,16 @@ async function waveReview(merged, carriers = new Set()) {
     fileUnits.get(f).add(x.key)
   }
   const shared = [...fileUnits].filter(([, ks]) => ks.size >= 2).map(([f, ks]) => ({ file: f, units: [...ks] }))
-  const full = shared.length > 0 || U.some(u => u.mergedIn.length) || W.length > 0 || focus.length > 0
+  const full = shared.length > 0 || U.some(u => u.mergedIn.length) || W.length > 0 || focus.length > 0 || mergeNotes.length > 0
   out.scope = full ? 'full' : 'contract-only'
   const diff = `git -C ${WAVE_WT || projectRoot} diff ${WAVE_BASE || '<wave base>'}...${WAVE_BRANCH}`
   const crossRule = `Report only a finding that needs two or more units to show: a call across units, a shared file, a ` +
     `duplicated helper, a migration order, or a value that one unit writes and another unit reads. A finding that one ` +
     `unit's own diff shows already passed that unit's review: do not report it. Name the units of each finding in units. ` +
     `The attribution of each file to its units: ${JSON.stringify([...fileUnits].map(([f, ks]) => ({ file: f, units: [...ks] })))}. ` +
-    `The focus list (pairs of slices that a late needs entry named): ${JSON.stringify(focus)}.`
+    `The focus list (pairs of slices that a late needs entry named): ${JSON.stringify(focus)}. ` +
+    `The merge notes (pairs of slices that changed the same file and waited for nothing; check that the merge kept ` +
+    `both changes): ${JSON.stringify(mergeNotes.map(m => ({ a: m.a, aSlice: m.aSlice, b: m.b, bSlice: m.bSlice, files: m.files })))}.`
   let rubrics = []
   if (full) {
     if (!reserve(1 + 10 + 2 + REFUTER_LIMIT + 1, 'wave review')) return out
@@ -3400,6 +3703,8 @@ if (mode === 'wave') {
   await Promise.all(U.map(u => planPhase(u).catch(err => { log(`${u.slug}: the plan phase threw: ${String((err && err.message) || err)}`); u.idx = null })))
   phase('Plan')
   if (!STOP) await crossUnitReconcile()
+  // D7: the plan questions open before the first implement.
+  if (!STOP) await openEarlyQuestions()
   await flushEvents()
   phase('Drive')
   if (!STOP) {
@@ -3443,6 +3748,7 @@ const outcome = {
   units: U.map(unitOutcome),
   derivedNeeds,
   focus,
+  mergeNotes,
   driverEvents: events,
   waveReview: WAVE_REVIEW,
   boundary,

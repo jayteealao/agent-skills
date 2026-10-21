@@ -5,6 +5,17 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **A shared file no longer makes a campaign slice wait.** In SoccerManager wave 4, the wave driver turned every file that two units changed into a wait, so the waits formed a chain of serial slices. A cross-unit pair now has one of three kinds. A `need` means that one slice uses a result of the other, and it carries a quote from a plan as evidence: only a `need` makes a wait, and its direction comes from the evidence, never from packet order. A `merge` pair waits for nothing: it becomes a merge note of the wave, and the boundary merge, a merge-in conflict and the wave review read the note. A `contract` pair parks as before. When the agent is unsure, the pair is a `merge`. The order procedure moved from `_drive.md` to the new `campaign/_order.md`.
+- **A dropped wait stays dropped.** `needs remove` leaves a drop record, so a relaunch cannot add the same wait again. Only `needs add --by person` brings it back. The person can drop or add a wait while the run is live: the waiter returns the change, and the driver settles the wait.
+- **The walk of a unit follows `depends-on`.** Both drivers walk the slices in topological order of the roster's `depends-on`, with roster order as the tie-break. A plan that decides an order between two slices returns it as `orderEdges`, and the new `slice-order <checkout> <slug> add` command writes the edge into `03-slice.md`, the slice file, and `implementation-order`. The plan reconcile no longer counts a shared file alone as an overlap.
+- **A plan question opens before the first implement (campaign).** A plan stop of the fan-out opens its question at once, and the walk skips ahead to the slices that do not depend on the held slice.
+- **An extension slice belongs to its own unit.** A roster entry can name its unit (`unit: <key>`), and a walk runs only the slices of its own unit. An extension whose target already runs in a started wave is placed with the person: `unit <key> absorb` walks its slices in the target's wave, and `unit <key> defer` names the unit of each of its slices.
+- **Ledger version 2.** A ledger of version 1 upgrades on load: each wait that the driver wrote gets `kind: legacy`. A running wave with a legacy wait or an extension to place stops at `sort-waits`, and the session sorts the waits with the person before the next launch. `wave <n> sorted` keeps the rest as needs. `wave <n> start` also refuses an item of a "Cross-Unit Needs" section that names another unit of the wave when the graph holds no need between the two units.
+
 ## [9.195.0] - 2026-10-21
 
 ### Changed

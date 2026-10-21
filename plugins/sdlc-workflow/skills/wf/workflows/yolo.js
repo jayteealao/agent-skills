@@ -674,6 +674,11 @@ const STAGE_RESULT = {
         substantiveResidual: { type: 'boolean' },
       },
     },
+    // WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4: an order that a fan-out plan decided between two slices.
+    orderEdges: {
+      type: 'array',
+      items: { type: 'object', required: ['slice', 'after'], properties: { slice: { type: 'string' }, after: { type: 'string' }, why: { type: 'string' } } },
+    },
     // Recorded autonomous calls. W3.3: every entry MUST carry a `class` stamp
     // (implementation-detail | intent-bearing) per _decision-classes.md; an entry
     // that resolves a specific AC also carries { ac, classification }, and THAT
@@ -1079,6 +1084,8 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
         ? ` These slices plan after you and build on your plan: ${extra.fanout.later.join(', ')}. Name every ` +
           `interface they will use in your .yaml \`edges\`.`
         : '') +
+      ` An order that you decide between two slices of this slug is an orderEdges entry { slice, after, why } in ` +
+      `your result: slice runs after after. Text in the plan does not order the walk.` +
       promptFedLine(['04-plan.md'], `${projectRoot}/.ai/workflows/${slug}/04-plan-${sliceArg}.md`)
     : ''
   // A plan that is out of date: the code changed under it.
@@ -2169,9 +2176,17 @@ const RECONCILE_RESULT = {
         },
       },
     },
+    // WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4: an order that a plan states and depends-on does not hold.
+    orderEdges: {
+      type: 'array',
+      items: { type: 'object', required: ['slice', 'after'], properties: { slice: { type: 'string' }, after: { type: 'string' }, why: { type: 'string' } } },
+    },
     note: { type: 'string' },
   },
 }
+
+// `slice-order <checkout> <slug> add` — an order that a plan decided, as a depends-on edge.
+const sliceOrderCmd = (e) => `node "${referenceRoot}/../scripts/campaign.mjs" slice-order "${projectRoot}" ${slug} add --slice ${e.slice} --after ${e.after} --why ${JSON.stringify(String(e.why || ''))}`
 
 // reconcileDue() — reconcile runs whenever the durable marker is set, on a fresh run
 // and on a resume alike. update-deps never fans out, so it never reconciles.
@@ -2194,6 +2209,42 @@ function planWaves(slices) {
     for (const n of wave) { placed.add(n); left.delete(n) }
   }
   return waves
+}
+
+// walkOrder() — the walk order of a roster (WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4): topological
+// order of dependsOn, with roster order as the tie-break. A cycle, or a name outside the
+// roster, keeps roster order for the slices that are left.
+function walkOrder(slices) {
+  const list = (slices || []).filter(s => s && s.slice)
+  const names = new Set(list.map(s => s.slice))
+  const placed = new Set()
+  const out = []
+  let left = list
+  while (left.length) {
+    const next = left.find(s => (s.dependsOn || []).every(d => d === s.slice || !names.has(d) || placed.has(d)))
+    if (!next) return out.concat(left)
+    out.push(next)
+    placed.add(next.slice)
+    left = left.filter(s => s !== next)
+  }
+  return out
+}
+
+// orderEdgesOf() — the orderEdges of plan results that name two slices of the roster, de-duplicated.
+function orderEdgesOf(results, roster) {
+  const names = new Set((roster || []).map(s => s.slice))
+  const seen = new Set()
+  const out = []
+  for (const r of results || []) {
+    for (const e of (r && r.orderEdges) || []) {
+      if (!e || !e.slice || !e.after || e.slice === e.after || !names.has(e.slice) || !names.has(e.after)) continue
+      const k = `${e.slice}<${e.after}`
+      if (seen.has(k)) continue
+      seen.add(k)
+      out.push({ slice: String(e.slice), after: String(e.after), why: String(e.why || '') })
+    }
+  }
+  return out
 }
 
 // overlappingSlices() — normalize the reconcile agent's answer into the re-plan list:
@@ -2222,11 +2273,15 @@ async function reconcilePlans(idx) {
     `1. Read the \`## Sibling Plans\` table in ${projectRoot}/.ai/workflows/${slug}/04-plan.md, and read every ` +
     `${projectRoot}/.ai/workflows/${slug}/04-plan-<slice>.yaml in full (\`files\` and \`edges\`). Where the table ` +
     `and a .yaml disagree, the .yaml is the record.\n` +
-    `2. Two slices OVERLAP when they list the same file, when an edge of one names the other slice or one of its ` +
-    `files, or when both change one migration sequence, one shared fixture, or one public API.\n` +
+    `2. Two slices OVERLAP when an edge of one names the other slice or a file that the other slice creates, or ` +
+    `when both change one migration sequence, one shared fixture, or one public API. A file that both slices list, ` +
+    `with none of these, is NO overlap: the two slices merge at the end.\n` +
     `3. Return overlaps: one entry per slice that must be re-planned, as { slice, with (the sibling slices it ` +
     `overlaps), files (shared files), edges (edges that cross), reason }. When two slices overlap, name the ` +
-    `later one in roster order. Return overlaps: [] when no plans overlap.` + steer('context') +
+    `later one in roster order. Return overlaps: [] when no plans overlap.\n` +
+    `4. When a plan states an order between two slices of this slug ("X lands before Y") that the roster's ` +
+    `depends-on does not hold, return it in orderEdges as { slice: Y, after: X, why }. Text in a plan does not ` +
+    `order the walk; an orderEdges entry does.` + steer('context') +
     heartbeatClause('plan-reconcile', 'Drive', 'plan-reconcile', null),
     { schema: RECONCILE_RESULT, label: 'plan-reconcile', phase: 'Drive', ...SONNET } // read-only comparison; pinned per _subagents.md
   )
@@ -2245,6 +2300,8 @@ async function reconcilePlans(idx) {
       return { ok: false, stopped: true, stoppedSlice: t.slice, reason: (res && res.hardStopReason) || `reconcile re-plan of '${t.slice}' did not clear the plan gate`, overlaps: targets, ran }
     }
   }
+  // WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4 step 5: each order that the reconcile decided becomes a depends-on edge.
+  const edges = orderEdgesOf([r, ...ran], idx.slices)
   const cleared = await agent(
     `PLAN RECONCILE BOOKKEEPING for slug '${slug}'. The reconcile step finished: ` +
     `${targets.length ? `the driver re-planned ${targets.map(t => `'${t.slice}'`).join(', ')}` : 'no sibling plans overlap'}.\n\n${EOB}\n\n` +
@@ -2253,13 +2310,21 @@ async function reconcilePlans(idx) {
     `2. In ${projectRoot}/.ai/workflows/${slug}/00-index.md, DELETE the \`reconcile-pending\` key from the ` +
     `frontmatter, and refresh \`updated-at\`. Change NOTHING else.` +
     CONTROL_FILE_RULE +
+    (edges.length ? `\n3. Run each command below, in order. Each one adds a depends-on edge that a plan decided to the ` +
+      `roster, and rewrites implementation-order in 04-plan.md:\n` + edges.map(e => `   \`${sliceOrderCmd(e)}\``).join('\n') : '') +
     `\n\nReturn { ok, wrote: [<files changed>], note }.` +
     heartbeatClause('plan-reconcile-clear', 'Drive', 'plan-reconcile', null),
     { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-reconcile-clear', phase: 'Drive', ...HAIKU }
   )
   const markerCleared = !!(cleared && cleared.ok)
   if (!markerCleared) log(`plan reconcile: the reconcile-pending marker did not confirm cleared${cleared && cleared.note ? `: ${cleared.note}` : ''} — the next run repeats the (now clean) comparison`)
-  return { ok: true, stopped: false, overlaps: targets, ran, markerCleared }
+  // The walk of this run follows the new edges.
+  for (const e of edges) {
+    const s = idx.slices.find(x => x.slice === e.slice)
+    if (s && !(s.dependsOn || []).includes(e.after)) s.dependsOn = [...(s.dependsOn || []), e.after]
+    log(`plan reconcile: '${e.slice}' walks after '${e.after}'${e.why ? ` (${e.why})` : ''}`)
+  }
+  return { ok: true, stopped: false, overlaps: targets, ran, edges, markerCleared }
 }
 
 // ---------------------------------------------------------------------------
@@ -2452,6 +2517,10 @@ if (reconcileStop) {
       const done = planned
         .filter(p => p.r && p.r.status === 'complete')
         .map(p => p.r.slice || p.slice)
+      // WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4 steps 5-6: each order that a plan decided becomes a depends-on
+      // edge, and implementation-order is a copy of the walk order. No driver reads it.
+      const edges = orderEdgesOf(planned.filter(p => p.r && p.r.status === 'complete').map(p => p.r), idx.slices)
+      const walk = walkOrder(idx.slices.filter(s => s.status !== 'skipped').map(s => ({ ...s, dependsOn: [...(s.dependsOn || []), ...edges.filter(e => e.slice === s.slice).map(e => e.after)] }))).map(s => s.slice)
       if (done.length) {
         await agent(
           `PLAN FAN-OUT BOOKKEEPING for slug '${slug}'. The driver just planned these slices concurrently and ` +
@@ -2462,7 +2531,8 @@ if (reconcileStop) {
           `\`## Sibling Plans\` table. In ${projectRoot}/.ai/workflows/${slug}/04-plan.md (create it per that ` +
           `contract, with schema-complete frontmatter, if it is absent), write the \`## Sibling Plans\` table with ` +
           `one row for EVERY 04-plan-<slice>.yaml on disk (not only this fan-out), built from that .yaml's ` +
-          `\`files\` and \`edges\`. Read each .yaml in full; copy, do not summarize.\n` +
+          `\`files\` and \`edges\`. Read each .yaml in full; copy, do not summarize. Set \`implementation-order\` to ` +
+          `${JSON.stringify(walk)}: the walk order of the driver.\n` +
           `B. In ${projectRoot}/.ai/workflows/${slug}/00-index.md: (1) add each fan-out plan artifact — ` +
           `${done.map(s => `04-plan-${s}.md`).join(', ')} — and 04-plan.md to \`workflow-files\` (skip any already ` +
           `listed); (2) set \`current-stage\` to plan if it currently names an earlier stage (never move it backward); ` +
@@ -2471,6 +2541,8 @@ if (reconcileStop) {
           `entries (the roster schema has none; the driver re-derives plan completion from the on-disk artifacts). ` +
           `Change NOTHING else.` +
           CONTROL_FILE_RULE +
+          (edges.length ? `\nC. After A and B, run each command below, in order. Each one adds a depends-on edge that a ` +
+            `plan decided to the roster:\n` + edges.map(e => `   \`${sliceOrderCmd(e)}\``).join('\n') : '') +
           `\n\nReturn { ok, wrote: [<files changed>], note }.` +
           heartbeatClause('plan-index-writeback', 'Drive', 'plan', null),
           { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-index-writeback', phase: 'Drive', ...HAIKU }
@@ -2563,7 +2635,8 @@ if (reconcileStop) {
     return null
   }
 
-  outcome = fanoutStop || await driveRoster(primary, false)
+  // WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4: the walk follows depends-on, then roster order.
+  outcome = fanoutStop || await driveRoster(walkOrder(primary), false)
   if (!outcome) {
     if (reviewPer) {
       // Endpoint: every per-slice review clean. Stop before handoff.

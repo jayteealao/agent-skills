@@ -31,6 +31,7 @@ The wave driver (`workflows/campaign-wave.js`) runs these steps as agents, after
 | `design/boards.json`, `design/boards/`, `design/r*/`, `design/source/`, `design/sketches/` of any workflow | Abort this slug's merge. A drive never writes the boards (`design/_boards.md`). |
 | `design/captures/` of any workflow | A change is allowed: a drive writes its verify captures there. On a conflict, keep the slug branch's version. |
 | Code | Resolve the conflict only when both sides keep their tests green and no `provides` line changes. Run the tests of both slugs after the resolution. Otherwise abort this slug's merge. |
+| A file of a merge note | The prompt lists the merge notes as EXPECTED CONFLICTS. Apply the rules of [_order.md](_order.md), "Merge notes": regenerate a generated file once, renumber a version, convert a row to the newer format. A conflict that needs a product decision: abort this slug's merge. |
 
 4. Append one `merge` event per slug, as the prompt says, with `result` `merged` or `stopped`.
 5. Return `merged` (in merge order, each with the merge commit sha) and `notMerged` (each with the reason).

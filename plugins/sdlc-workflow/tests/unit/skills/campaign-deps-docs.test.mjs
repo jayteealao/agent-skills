@@ -50,8 +50,8 @@ test('every section that the deps procedure cites exists', () => {
   for (const name of ['Phase 0 — Orient', 'Phase 0b — Deps', 'Shared paths', 'Phase 1 — Setup', 'Rolling prepare', 'Reopen pick-up']) assert.ok(phases.has(name), `_phases.md has no section "${name}"`);
   const deps = headings(read('campaign/_deps.md'));
   for (const name of ['The rules of the graph', 'Launch the scout', 'What the scout does', 'Return shape', 'Record the proposal']) assert.ok(deps.has(name), `_deps.md has no section "${name}"`);
-  assert.ok(headings(read('campaign/_drive.md')).has('Cross-unit reconcile'));
-  assert.match(read('campaign/_drive.md'), /Check first the `expected-shared` pairs that the prompt names/);
+  assert.ok(headings(read('campaign/_order.md')).has('Cross-unit reconcile'));
+  assert.match(read('campaign/_order.md'), /Check first the `expected-shared` pairs that the prompt names/);
   const campaign = read('campaign.md');
   assert.match(campaign, /\| `deps` \| Phase 0b/);
   assert.match(campaign, /A wait comes from the unit's `needs` in the ledger/);

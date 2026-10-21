@@ -167,7 +167,7 @@ For each confirmed new slice, write `03-slice-<new-slug>.md` per the template in
 Read the current `03-slice.md`. Update it by:
 
 1. **Incrementing `total-slices`** by the number of new slices added.
-2. **Appending new entries** to the `slices:` YAML array, per the roster entry in `intake/extend/_artifacts.md`; do NOT modify existing entries.
+2. **Appending new entries** to the `slices:` YAML array, per the roster entry in `intake/extend/_artifacts.md`; do NOT modify existing entries. In a campaign, set `unit: <the extension packet's key>` on each new entry when the extension runs as its own unit. A need of a new slice on another unit goes into the dependency graph with `campaign.mjs deps <key> needs add --by prepare`, not into the brainstorm.
 3. **Updating `updated-at`** to the current ISO 8601 timestamp.
 4. **Appending a new section** to the markdown body: the `## Extension Round <N>` section in `intake/extend/_artifacts.md` (source, New Slices Added table, Motivation).
 

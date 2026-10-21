@@ -64,6 +64,7 @@ Explain what motivated this extension — which review finding, retro item, or u
   depends-on: [<if-any>]
   source: <from-review | from-retro | from-probe | from-simplify | extension>
   extension-round: <N>
+  unit: <packet key>  # campaign only, optional: the unit that walks the slice
 ```
 
 ## `03-slice.md` Extension Round section (Step 5, item 4)

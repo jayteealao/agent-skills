@@ -49,7 +49,7 @@ const SHARED = [
   'judgeLiveness', 'deadDriverClause', 'verifyClean', 'acKey', 'probeGaps', 'evaluateGate',
   'collectDeferrals', 'classificationIndex', 'isRuntimeEvidenceClass', 'reconcileDeferrals',
   'collectSubstantiveFailures', 'collectSubagentErrors', 'deferralPressure', 'decisionDigest',
-  'clearingTripwire', 'reconcileDue', 'planWaves', 'overlappingSlices', 'runStartFromId', 'readCheckRows',
+  'clearingTripwire', 'reconcileDue', 'planWaves', 'walkOrder', 'orderEdgesOf', 'overlappingSlices', 'runStartFromId', 'readCheckRows',
 ];
 
 for (const name of SHARED) {

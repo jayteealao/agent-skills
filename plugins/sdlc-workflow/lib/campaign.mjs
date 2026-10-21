@@ -14,7 +14,8 @@
 export const BUILD_FORMS = Object.freeze(['intake', 'extension', 'fix', 'hotfix']);
 export const OUTSIDE_FORMS = Object.freeze(['task', 'investigate', 'discover', 'rca']);
 export const MAX_CARRIED = 40;
-export const LEDGER_VERSION = 1;
+// 2: WF-CAMPAIGN-SLICE-ORDER-PLAN (pair kinds, drop records, merge notes, legacy waits).
+export const LEDGER_VERSION = 2;
 export const WAVE_STATES = Object.freeze(['planned', 'running', 'boundary', 'handoff', 'shipping', 'shipped', 'stopped']);
 // `waiting`: the drive stopped at a wait for another unit of its wave (WF-CAMPAIGN-RUN-FIXES-PLAN N5).
 export const UNIT_STATES = Object.freeze(['planned', 'prepared', 'running', 'waiting', 'stopped', 'finished', 'merged', 'needs-fix', 'shipped']);
@@ -822,6 +823,128 @@ export function newLedger({ brainstorm, revision, units, now = new Date().toISOS
 /** 5.7: two needs entries are the same when `from`, `through` and `before` match. */
 export const sameNeed = (a, b) => a && b && a.from === b.from && String(a.through ?? 'finished') === String(b.through ?? 'finished') && String(a.before ?? '') === String(b.before ?? '');
 
+// ---------------------------------------------------------------- slice order (WF-CAMPAIGN-SLICE-ORDER-PLAN)
+
+/**
+ * D1: the kinds of a cross-unit pair. Only `need` makes a wait. `legacy` marks a wait of
+ * ledger version 1, whose kind nobody knows until the person sorts it (5.3).
+ */
+export const PAIR_KINDS = Object.freeze(['need', 'merge', 'contract']);
+
+/** A wait or derived entry that the wave driver wrote: a cross-unit pair or a plan's crossUnit report. */
+const driverSource = (s) => s === 'cross-unit' || /^plan:/.test(String(s ?? ''));
+
+/** D5: the drop record of `entry` in a unit's ledger entry, or null. */
+export const dropRecordOf = (unitLedger, entry) => (unitLedger?.['dropped-needs'] ?? []).find((d) => sameNeed(d, entry)) ?? null;
+
+/** D4: add a merge note to wave `w`, de-duplicated by its two slices. Returns the note and whether it is new. */
+export function addMergeNote(w, note) {
+  const notes = (w['merge-notes'] ??= []);
+  const same = (x) => x.a === note.a && String(x.aSlice ?? '') === String(note.aSlice ?? '') && x.b === note.b && String(x.bSlice ?? '') === String(note.bSlice ?? '');
+  const have = notes.find(same);
+  if (have) return { note: have, added: false };
+  notes.push(note);
+  return { note, added: true };
+}
+
+/** The pending legacy waits of a wave, as { key, from, through, before, why, source }. */
+export function legacyWaits(ledger, w) {
+  const out = [];
+  for (const k of w?.units ?? []) {
+    for (const x of ledger.units[k]?.waits ?? []) if (x.kind === 'legacy' && waitPending(x)) out.push({ key: k, from: x.from, through: x.through ?? 'finished', before: x.before ?? null, why: x.why ?? '', source: x.source ?? null });
+  }
+  return out;
+}
+
+/**
+ * 5.3, 5.4: a running wave whose units still drive, and which holds legacy waits or an
+ * extension unit to place, is sorted with the person before its next launch.
+ */
+export const needsSort = (ledger, w) => !!w && w.state === 'running'
+  && (w['legacy-order'] === true || (w['extensions-pending'] ?? []).length > 0)
+  && (w.units ?? []).some((k) => !['finished', 'merged', 'needs-fix', 'shipped'].includes(ledger.units[k]?.state));
+
+/** The intake unit that an extension unit extends: the build unit of the same slug that is not an extension. */
+export function targetOf(ledger, extKey) {
+  const ext = ledger.units[extKey];
+  if (!ext) return null;
+  return Object.keys(ledger.units).find((k) => k !== extKey && ledger.units[k].slug === ext.slug && ledger.units[k].form !== 'extension') ?? null;
+}
+
+/**
+ * 5.2: the upgrade of a ledger below version 2. Each derived needs entry and wait that the
+ * wave driver wrote, with no `kind`, gets `kind: legacy`, and stays a wait. A wave whose
+ * units hold a pending legacy wait gets `legacy-order: true`. 5.4: an extension unit whose
+ * target runs in an earlier wave that started is listed in `extensions-pending` of that
+ * wave, so the launch asks absorb or defer. Idempotent: a ledger of version 2 is unchanged.
+ */
+export function migrateOrder(ledger) {
+  if (!ledger || (Number(ledger.version) || 1) >= LEDGER_VERSION) return false;
+  for (const lu of Object.values(ledger.units ?? {})) {
+    for (const n of lu['derived-needs'] ?? []) if (!n.kind && driverSource(n.source) && n.by !== 'person') n.kind = 'legacy';
+    for (const w of lu.waits ?? []) {
+      if (w.kind || !driverSource(w.source)) continue;
+      const entry = (lu['derived-needs'] ?? []).find((n) => sameNeed(n, w));
+      if (entry?.by !== 'person') w.kind = 'legacy';
+    }
+  }
+  for (const w of ledger.waves ?? []) if (legacyWaits(ledger, w).length) w['legacy-order'] = true;
+  for (const [k, u] of Object.entries(ledger.units ?? {})) {
+    if (u.form !== 'extension' || u['absorbed-into']) continue;
+    const t = targetOf(ledger, k);
+    const tw = t ? ledger.waves.find((w) => w.n === ledger.units[t].wave) : null;
+    if (!tw || !['running', 'stopped'].includes(tw.state)) continue;
+    if (u.wave !== null && u.wave !== undefined && u.wave <= tw.n) continue;
+    const list = (tw['extensions-pending'] ??= []);
+    if (!list.includes(k)) list.push(k);
+  }
+  ledger.version = LEDGER_VERSION;
+  return true;
+}
+
+/**
+ * D8: the slices that a unit owns, from its roster entries ({ slug, unit, source }). A slice
+ * that names a unit belongs to it. A slice with no `unit` belongs to the unit that is not an
+ * extension, and, for an extension unit, a slice with `source: extension` belongs to it.
+ * `keys` are the unit's key and the keys of the units that it absorbed.
+ */
+export function ownsSlice(entry, { keys = [], form = 'intake' } = {}) {
+  if (!entry) return false;
+  if (entry.unit) return keys.includes(String(entry.unit));
+  return form === 'extension' ? entry.source === 'extension' : true;
+}
+
+/** An absorbed extension unit follows the state and the wave of the unit that absorbed it (5.4). */
+export function syncAbsorbed(ledger) {
+  for (const u of Object.values(ledger?.units ?? {})) {
+    const t = u['absorbed-into'] ? ledger.units[u['absorbed-into']] : null;
+    if (!t) continue;
+    u.state = t.state;
+    u.wave = t.wave;
+  }
+}
+
+/** The keys of the units that `key` absorbed. */
+export const absorbedBy = (ledger, key) => Object.keys(ledger?.units ?? {}).filter((k) => ledger.units[k]['absorbed-into'] === key);
+
+/**
+ * 4.6 step 5: the extension units of wave n whose target is in a later wave or in no wave.
+ * Each gets an error that names the fix.
+ */
+export function extensionWaveErrors(ledger, n) {
+  const w = ledger.waves.find((x) => x.n === n);
+  const errors = [];
+  for (const k of w?.units ?? []) {
+    if (ledger.units[k]?.form !== 'extension') continue;
+    const t = targetOf(ledger, k);
+    const tw = t ? ledger.units[t].wave : null;
+    if (t && (tw === null || tw === undefined || tw > n) && !['merged', 'shipped'].includes(ledger.units[t].state)) {
+      errors.push(`the extension ${k} is in wave ${n}, and its target ${t} is ${tw ? `in the later wave ${tw}` : 'in no wave'}. Run replan, so that the extension follows its target.`);
+    }
+  }
+  return errors;
+}
+
 /** Re-plan the waves that have not started, keeping the started ones (15.1). */
 export function replan(ledger, units, { revision = ledger['work-revision'], now = new Date().toISOString() } = {}) {
   for (const u of units) {
@@ -845,10 +968,15 @@ export function replan(ledger, units, { revision = ledger['work-revision'], now 
   const stopped = new Set(Object.entries(ledger.units).filter(([, x]) => ['stopped', 'needs-fix'].includes(x.state)).map(([k]) => k));
   const outsideDone = new Set(Object.entries(ledger.outside).filter(([, x]) => x.state === 'closed').map(([k]) => k));
   // Units of a started wave that did not finish there (moved, stopped) leave it.
-  const started = startedWaves.map((w) => w.units.filter((k) => !(w.moved ?? []).some((m) => m.key === k)));
+  // An absorbed extension unit is placed in the wave of the unit that absorbed it (5.4).
+  const absorbed = new Map(Object.entries(ledger.units).filter(([, x]) => x['absorbed-into']).map(([k, x]) => [k, x['absorbed-into']]));
+  const started = startedWaves.map((w) => [
+    ...w.units.filter((k) => !(w.moved ?? []).some((m) => m.key === k)),
+    ...[...absorbed].filter(([, t]) => w.units.includes(t)).map(([k]) => k),
+  ]);
   // 4.7: a unit whose graph entry the person has not confirmed joins no wave yet.
   const pending = new Set(unconfirmedKeys(ledger));
-  const plan = planWaves(units.filter((u) => !pending.has(u.key)), { done, started, stopped, outsideDone });
+  const plan = planWaves(units.filter((u) => !pending.has(u.key) && (!absorbed.has(u.key) || started.some((w) => w.includes(u.key)))), { done, started, stopped, outsideDone });
   const byKey = new Map(units.map((u) => [u.key, u]));
   const next = plan.waves.slice(startedWaves.length).map((keys, i) => {
     const w = { n: startedWaves.length + i + 1, revision, units: keys, state: 'planned', branch: null, pr: null, version: null, label: null, moved: [] };
@@ -908,6 +1036,9 @@ export function campaignAction(ledger, { revision = null, driving = null } = {})
   }
   // D25: the wave driver runs the wave; the session prepares the next wave and answers questions.
   if (driving) return { action: 'driving', ...driving, prepare: unprepared(next), ...(unconfirmed.length ? { deps: unconfirmed } : {}) };
+  // WF-CAMPAIGN-SLICE-ORDER-PLAN 5.3, 5.4: a started wave with legacy waits or an extension to place is sorted first.
+  const unsorted = ledger.waves.find((w) => needsSort(ledger, w));
+  if (unsorted) return { action: 'sort-waits', wave: unsorted.n, legacy: unsorted['legacy-order'] === true, extensions: unsorted['extensions-pending'] ?? [] };
   if (live) return { action: 'running', wave: live.n, state: live.state, prepare: unprepared(next) };
   const stopped = ledger.waves.find((w) => w.state === 'stopped');
   if (stopped) return { action: 'stopped', wave: stopped.n };
@@ -968,12 +1099,19 @@ export function renderLedgerMd(ledger) {
     for (const k of w.units) {
       const u = ledger.units[k] ?? {};
       const open = (u.waits ?? []).filter((x) => x.state === 'open').map((x) => `waits for ${x.from} through \`${x.through}\``);
-      L.push(`| ${k} | \`${u.slug ?? '?'}\` | ${u.form ?? '?'} | ${u.state ?? '?'} | ${[u.route ?? '', ...open].filter(Boolean).join('; ')} |`);
+      const dropped = (u['dropped-needs'] ?? []).length ? [`${u['dropped-needs'].length} dropped wait(s)`] : [];
+      L.push(`| ${k} | \`${u.slug ?? '?'}\` | ${u.form ?? '?'} | ${u.state ?? '?'} | ${[u.route ?? '', ...open, ...dropped].filter(Boolean).join('; ')} |`);
     }
+    for (const [k, x] of Object.entries(ledger.units)) if (x['absorbed-into'] && w.units.includes(x['absorbed-into'])) L.push(`| ${k} | \`${x.slug ?? '?'}\` | ${x.form ?? '?'} | absorbed | runs inside ${x['absorbed-into']} |`);
     for (const m of w.moved ?? []) L.push(`| ${m.key} | | | moved | ${m.reason} |`);
     L.push('');
     for (const s of w['expected-shared'] ?? []) L.push(`- ${s.a} and ${s.b} both cite \`${s.path}\`: the cross-unit reconcile reads this pair first.`);
     if ((w['expected-shared'] ?? []).length) L.push('');
+    // D4: the merge notes, for the boundary merge and the wave review.
+    const notes = w['merge-notes'] ?? [];
+    if (notes.length) L.push(`Merge notes: ${notes.length} pair(s) that change the same file and wait for nothing. The boundary merge reads them as expected conflicts.`, '');
+    if (w['legacy-order']) L.push('**Legacy waits:** this wave holds waits of ledger version 1. Sort them before the next launch (`sort-waits`).', '');
+    if ((w['extensions-pending'] ?? []).length) L.push(`**Extensions to place:** ${w['extensions-pending'].join(', ')}. Absorb each one into this wave, or defer it.`, '');
   }
   L.push('## Waiting', '');
   const waiting = ledger.waiting ?? [];

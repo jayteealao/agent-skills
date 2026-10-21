@@ -45,6 +45,7 @@ Each wave is one PR. Every unit of a wave runs in its own worktree, so the wave 
 | `prepare` | Prepare `next.units` with the person (`_phases.md`, "Rolling prepare"). |
 | `start-wave` | Show the forecast and the wave plan. Ask the person to start, then run the wave (`_waves.md`). |
 | `driving` | A run of wave `next.wave` is live. Show where the wave stands, and prepare `next.prepare`. Run Phase 0b first for `next.deps`. Do not run `launch`, `merge-in`, or `unit <key> <state>` for a unit of the wave: the driver owns them. |
+| `sort-waits` | Sort the waits of wave `next.wave` with the person ([campaign/_order.md](campaign/_order.md), "Sort waits"). |
 | `running` | No run of the wave is live. When its units are `merged`, continue at `_waves.md`, "Run a wave", step 10. Otherwise, launch the wave again (step 4). Prepare `next.prepare`. |
 | `stopped` | Show why the wave stopped and what waits on which answer. When the person answered, resume the wave. |
 | `blocked` | No wave can start. List what waits on which packet, and the packets that need the person. |
@@ -121,6 +122,7 @@ A build packet (form `intake`, `extension`, `fix`, `hotfix`) is a unit. A `task`
 | `lock [quiet] acquire\|release <slug>` | The heavy-suite lock across sessions: one holder at a time. The quiet lock (for `quiet-suites`) also keeps every heavy suite out while it is held |
 | `stack enable\|disable\|set <n>` | Stacked wave PRs on or off, and the stack number on GitHub |
 | `merge-in <key> <from> [--at <sha>]`, `merge-order <n>`, `slice-done`, `needs`, `contract`, `await`, `question` | The commands of the wave driver's agents ([campaign/_drive.md](campaign/_drive.md)) |
+| `wave <n> sorted`, `unit <key> absorb`, `unit <key> defer`, `slice-order` | The order commands ([campaign/_order.md](campaign/_order.md)) |
 | `owner <slug>` | The live wave run that drives a slug, for `/wf yolo` |
 | `steer <key\|wave-<n>\|all> add\|replace\|remove\|list [--text t] [--match m] [--by who]` | Change steering. A key writes the unit's `steer.md` in the main checkout and in its worktree; `all` writes the campaign `steer.md`. The script writes the time |
 | `rule add\|list\|remove [--text t] [<id>]` | The standing rules; every `status` result has them |

@@ -12,7 +12,7 @@ The wave driver (`workflows/campaign-wave.js`) drives every unit of one wave in 
 - CAUTION: do not run `git add -A` or `git add .`. They stage work that belongs to another session. Stage each file by its path.
 - CAUTION: do not push. The wave branch is pushed by handoff, after its verify passed.
 
-The run goes in this order: the unit orients, the plans, the cross-unit reconcile, the walks of the units, and then the boundary. The boundary starts only when every unit finished or moved out.
+The run goes in this order: the unit orients, the plans, the cross-unit reconcile, the early plan questions, the walks of the units, and then the boundary. The boundary starts only when every unit finished or moved out.
 
 ## Unit orient
 
@@ -28,7 +28,7 @@ A unit that is `finished` at launch gets no orient. A unit with an open question
 2. Read the unit's driver journal.
    - When the prompt gives the unit's run id, keep it. Report `lastSeq`: the largest `seq` of that run. A resume orient always has a run id, so `seq` counts on.
    - When the prompt gives no run id, mint one: the UTC time in ISO-8601 basic form plus the slug, for example `20261016T143005Z-<slug>`. Report `lastSeq` 0.
-3. Read the roster `03-slice.md`. Capture every slice in roster order, with its status from `00-index.md`.
+3. Read the roster `03-slice.md`. Capture every slice in roster order, with its status from `00-index.md`, its `depends-on`, and its `unit` and `source` when the roster entry has them. The driver keeps only the slices that the unit owns ([_order.md](_order.md), "Slice order").
 4. Resolve the file convention: `suffixed` or `unsuffixed`.
 5. Run the readiness gate and the design gate of the prompt. Do not run the design stage, because a person confirms the design.
 6. Mark each stage of each slice `done`, `todo`, or `n-a`, by the rules of the prompt.
@@ -116,7 +116,10 @@ The prompt gives the shared pair in its context: the slice, the other unit, and 
 
 - When the answer approves the change, run `<cmd> contract <key> amend --line <line key> --text "<new text>"`, with the key that the prompt gives. Return `action: continue` and `amended: true`.
 - When the answer refuses the change, run no command. Return `action: replan`. The plan of the slice then runs again with the ANSWERED ESCALATION clause, and that plan agent runs `question <id> consumed`.
+- When the answer keeps the contract and lets the slice wait for the other unit, run `<cmd> needs <key> add --from <key> --through <slice> --before <slice> --why "<text>" --by person`. Return it in `added`, with the `state` and `sha` of its `wait`, and return `action: continue`.
 - When the answer moves the unit out of the wave, return `action: move`.
+
+Record every wait that an answer gives with `needs add --by person`, also when the action is `replan`. The driver adds a wait only from a `needs add` result, so the driver and the ledger hold the same waits.
 
 `contract amend` writes the context file of every unit that carries or expects the line. Each stage agent reads its context file fresh, so the change reaches the other units at their next agent.
 
@@ -127,7 +130,7 @@ The prompt gives the shared pair in its context: the slice, the other unit, and 
 
 ### deadlock
 
-- When the answer drops a derived entry, run `<cmd> needs <key> remove --from <key> --through <slice> --before <slice>`. Return the entry in `dropped`, and return `action: continue`.
+- When the answer drops a derived entry, run `<cmd> needs <key> remove --from <key> --through <slice> --before <slice>`. Return the entry in `dropped`, and return `action: continue`. The command leaves a drop record, so a relaunch does not add the wait again.
 - `needs remove` drops only a derived entry. When the answer names a wait of a packet, run no command for that wait, and say so in `note`.
 - When the answer moves the unit out of the wave, return `action: move`.
 
@@ -171,50 +174,19 @@ The ANSWERED ESCALATION clause is in the prompt of an agent that runs again afte
 
 After step 4, `await` does not return the answer again, also after a launch again. The wave review writer follows the same rules for a wave question.
 
-## Derived needs
+## Order
 
-A derived needs entry is a `needs` entry that the driver writes into the ledger, for a shared file that no packet declares. The driver sets the direction: the later unit in packet order waits for the earlier unit.
+The pair kinds, the cross-unit reconcile, the derived needs, the merge notes, the wait agent, the slice order, and the sort of legacy waits are in [_order.md](_order.md).
 
-1. Run each command of the prompt, in order: `<cmd> needs <key> add --from <key> --through <slice> --why "<files>" --by driver --source <source>`. An entry with a `before` slice also has `--before <slice>`. The source is `cross-unit`, or `plan:<slice>` for the `crossUnit` report of a plan.
-2. Return each printed object in `results`, with the `key`, `from`, `through`, and `before` of its entry.
-3. Change nothing else. The command appends the `derived-need` event itself.
+## Early plan questions
 
-| Result | Meaning | What the driver does |
-|---|---|---|
-| `exists: true` | A packet or the ledger has the same entry | Nothing |
-| `cycle` | The entry closes a cycle at slice level | The unit parks with kind `needs-cycle` before its first slice |
-| `late: true` | The slice `before` already passed its implement | No wait. The pair goes to the focus list (`waves[n].focus`), which the wave review reads |
-| `ok: true` with `wait` | A new entry | The driver opens the wait. It is `ready` at once when the needed slice cleared earlier |
+A plan of the fan-out that stops (`hard-stop`, or a plan gate that fails) asks its question when the plan phase ends, not when the walk reaches the slice. The unit does not park: it stays `running`.
 
-The driver never writes a packet, because the brainstorm owns the packets. The session writes each derived entry into its packet at the next wave boundary.
+1. Run `<cmd> ask <id> --wave <n> --unit <key> --kind stage --stage plan --slice <slice> "<question>"` for each question of the prompt.
+2. Run `<cmd> journal asked '<json>'`, with `run`, `wave`, `key`, `questions`, and `early: true`.
+3. Do not run `unit <key> stopped`. Change nothing else. Return `ok` and a `note`.
 
-## Cross-unit reconcile
-
-After every unit planned, and before any implement, one agent compares the plans of every unit. This agent is read-only: write nothing except the heartbeat.
-
-1. Read every `04-plan-<slice>.yaml` of every unit of the prompt in full: its `files` and its `edges`.
-2. Read the `provides` and `expects` lines of every context file.
-3. Find each pair of slices of two different units that change the same file. Check first the `expected-shared` pairs that the prompt names: the deps phase expected those two units to share a path (`_phases.md`, "Shared paths").
-4. Leave out a pair that a `needs` entry of the graph already orders. Section 7 of the later unit's context file lists those entries.
-5. Give each pair its kind:
-   - `contract`: the shared change would change a `provides` or `expects` line of either unit;
-   - `order`: every other pair.
-6. Return `pairs`: one `{ a, aSlice, b, bSlice, files, kind }` for each pair. When no two units share a file, return `pairs: []`.
-
-The driver turns each `order` pair into a derived needs entry. A `contract` pair creates no entry: the later unit parks with kind `contract` before its first slice. A plan agent that runs during the walk reports a shared file in `crossUnit`, with the same kinds, and the driver treats it as a pair.
-
-## Wait agent
-
-A wait belongs to one unit. It names a slice of another unit (`from` and `through`), and the slice of its own unit that needs that code (`before`). Before the implement of `before`, the walk waits until the slice `through` clears. Then the wait agent merges the cleared commit, not the branch tip.
-
-1. Run `<cmd> unit <key> waiting --on "<from>: <through>"`. `merge-in` refuses while the unit is `running`.
-2. Run `<cmd> merge-in <key> <from> --at <sha>`. It merges the cleared commit with rerere on.
-3. Only when step 2 printed `"ok": true`, run `<cmd> unit <key> running`.
-4. Return `ok`, `conflict`, `error`, and `closed` from the object of step 2. Change nothing else.
-
-When `conflict` lists files, `merge-in` aborted the merge, and the merge agent runs (see "Merge-in conflict"). When `merge-in` fails for another reason, for example uncommitted changes, the unit parks with kind `merge-conflict`.
-
-NOTE: The stop check of an implement agent has condition (d): an **Open** or **Ready** wait line for its slice, in section 7 of the context file. Condition (d) applies to implement only, because a plan reads the needed unit's plan, not its code. When condition (d) stops an implement, the driver treats the stop as its own scheduling fault, and waits for the wait. At the third such stop, the unit parks with kind `stage`.
+While the question of slice S is open, the walk skips S and each slice that depends on S, and walks the next slice in the walk order. When the answer comes, the walk goes back to S, and the plan of S runs again with the answer. When every slice that is left waits for a question, the unit waits for the first answer.
 
 ## Merge-in conflict
 
@@ -232,12 +204,13 @@ After `resolved: true`, the wait agent runs `merge-in` again and records the mer
 
 ## Waiter
 
-While one or more questions of the wave are open, the driver keeps one waiter agent alive. The waiter judges nothing and writes nothing.
+While one or more questions of the wave are open, or a unit waits on a derived wait, the driver keeps one waiter agent alive. The waiter judges nothing and writes nothing.
 
 1. Run the `await` command of the prompt through Bash, with a Bash timeout of 600000 ms: `<cmd> await --wave <n> --max <seconds> --seen <id>,<id>`.
 2. When the object has `"timeout": true`, run the same command again. Run it at most the number of times that the prompt gives.
 3. Return at the first object without `timeout`:
-   - `answered`, with its `answered` list;
+   - `answered`, with its `answered` list, and its `needsChanged` list when it has one;
+   - `needs-changed`, with its `needsChanged` list, when the object has no `answered` list;
    - `stopped`, with `kind`, `until`, and `reason`;
    - `paused`, with `until` and `reason` from its `paused` field;
    - `cancelled`.
@@ -248,6 +221,7 @@ While one or more questions of the wave are open, the driver keeps one waiter ag
 | Result | What the driver does |
 |---|---|
 | `answered` | Starts one resume for each answer |
+| `needs-changed` | Settles each wait that the person dropped, and arms each wait that the person added ([_order.md](_order.md), "Derived needs") |
 | `stopped` or `paused` | Stops the run as a stop request or a usage pause |
 | `cancelled` | Stops the run, when the run did not write the cancel marker |
 | `timeout` | Starts a new waiter while questions stay open |
