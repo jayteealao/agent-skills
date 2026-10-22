@@ -338,8 +338,11 @@ test('the context file names the ports, the build folders, and the heavy-suite l
   assert.match(text, /E2E_PORT=4273/);
   assert.match(text, /`target`/);
   assert.match(text, /npx playwright test/);
-  assert.match(text, /node campaign\.mjs lock acquire/);
+  // WF-CAMPAIGN-HEAVY-LOCK-REVIEW F1: the suites run through heavy-run, derived from the lock command.
+  assert.match(text, /node campaign\.mjs heavy-run <slug> --agent <your agent label> -- <the command>/);
   assert.match(text, /lock-wait/);
+  assert.match(text, /Never call `lock acquire` or `lock release` for a suite/);
+  assert.doesNotMatch(text, /lock acquire <slug>/);
 });
 
 // ---------------------------------------------------------------- the dependency graph (WF-CAMPAIGN-ORDER-PLAN)

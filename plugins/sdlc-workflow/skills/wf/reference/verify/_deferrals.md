@@ -78,6 +78,6 @@ runtime-evidence-deferrals:
 - Use this kind only under a campaign (the stage prompt names a campaign context file). Outside a campaign, a timed check that the load breaks is a `fail` or a normal deferral.
 - Do not defer a timed check that failed on a quiet machine. That is a `fail`.
 - The clearing event is the campaign boundary. It runs every open `quiet-window` entry of the wave alone, before the merges ([../campaign/_boundary.md](../campaign/_boundary.md), "Quiet-window checks"). A passed run sets `cleared-by`. A failed run makes the unit `needs-fix`.
-- When `campaign.isolation['quiet-suites']` lists the command, take the quiet lock first (`campaign.mjs lock quiet acquire <slug>`) and run the check in the drive. Defer only when the lock does not come.
+- When `campaign.isolation['quiet-suites']` lists the command, run the check in the drive through `campaign.mjs heavy-run <root> <brainstorm> <slug> --quiet --agent <label> -- <command>`. Defer only when its turn does not come (`--max-wait`).
 
 **`needed-by` escalation.** External prerequisites and deferrals carry `needed-by: <slice>` (the consuming slice, set at plan time). When the `needed-by` slice reaches `complete` while the prerequisite is still unmet (`cleared-by: null`), the deferral escalates: a completed consumer standing on an unmet prerequisite is a surfaced decision, not a quiet carry-forward. `/wf status` and `/wf ship` read this list; `/wf ship` refuses to start while any entry has `cleared-by: null`.

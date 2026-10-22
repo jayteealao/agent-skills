@@ -120,7 +120,8 @@ A build packet (form `intake`, `extension`, `fix`, `hotfix`) is a unit. A `task`
 | `forecast [--wave n --minutes m --tokens t]` | Update the forecast (`wave <n> record` does it too) |
 | `budget` | The usage state (`ok`, `slow`, `pause`, `unknown`) from the newest reading, and the width it allows |
 | `worktree <key>\|wave-<n> add\|refresh\|sync\|remove` | Make or remove a unit's worktree, slug branch, and ports, or the wave worktree (local records: [campaign/_records.md](campaign/_records.md)). `remove` refuses while a file would be lost, and never forces |
-| `lock [quiet] acquire\|release <slug>` | The heavy-suite lock across sessions: one holder at a time. The quiet lock (for `quiet-suites`) also keeps every heavy suite out while it is held |
+| `heavy-run <slug> [--quiet] -- <cmd>` | One suite under the cross-session lock, in turn |
+| `lock status\|reap\|acquire\|release` | Holds; end idle ones; a 30-minute lease |
 | `locks wait [--max s]` | Wait for the project locks |
 | `schedule <n> [--width w] [--medians plan]` | Simulate wave n (`_prepare.md`, "Wave slicer") |
 | `stack enable\|disable\|set <n>` | Stacked wave PRs on or off, and the stack number on GitHub |

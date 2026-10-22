@@ -5,6 +5,22 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.200.0] - 2026-10-22
+
+WF-CAMPAIGN-HEAVY-LOCK-REVIEW-2026-10-22 in full. In SoccerManager wave 4, agents kept the heavy-suite lock for up to 2 h 18 min while they edited code, and three units waited about 7 h 50 min in one night.
+
+### Fixed
+
+- **The lock lasts as long as the suite (F1).** The new `campaign.mjs heavy-run <root> <brainstorm> <slug> [--agent a] [--run id] [--quiet] [--shell sh] [--max-wait s] -- <command>` waits for its turn, writes the `lock-wait` lines itself, runs the suite in the current folder, and releases the lock when the suite ends, also when it fails. Its exit code is the suite's. The context file of each unit now tells agents to run every heavy and quiet suite through it, one run per call, and never to hold the lock across edits.
+- **A hold names its process (F2).** A `heavy-run` hold records its pid; a dead process frees the lock at once. A running `heavy-run` keeps out the other agents of the same unit, and `lock release` does not free it.
+- **Waiting units keep their order (F3).** Waiting tickets live in `.scratch/campaign/<kind>.queue.json`; the oldest live ticket gets the lock, and a plain `lock acquire` of another unit waits behind it.
+
+### Changed
+
+- **`lock acquire` is a 30-minute lease (LQ1).** It records `until`, and `--agent` keeps out the other agents of the same unit. Holds written by an older plugin still read: stale after 3 hours, idle after 30 minutes.
+- **`lock status` and `lock reap` (F4).** `status` shows each hold (run, lease or legacy), its age, and the waiting units; `reap` ends the idle holds and journals `lock-reaped`. `campaign.mjs status` returns `locks`, and the campaign look-in event carries `locks`; the session reaps an idle hold (`_commentary.md` C8).
+- **Shorter heavy-suite lists (F5).** Setup asks for each suite's usual length and leaves out runs under 2 minutes. `heavy-run` warns when a command is not a listed suite and runs it anyway.
+
 ## [9.199.0] - 2026-10-22
 
 WF-DESIGN-PLAN in full: the Lantern design-process fixes (Releases A and B) and the impeccable v4.7 re-port (Releases C, D and E). Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.

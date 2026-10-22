@@ -23,9 +23,9 @@ import "./chunk-SGA7NFMW.mjs";
 // scripts/campaign.mjs
 import { spawnSync } from "node:child_process";
 import { createHash as createHash2 } from "node:crypto";
-import { appendFileSync, cpSync, existsSync as existsSync2, lstatSync as lstatSync2, mkdirSync as mkdirSync2, readdirSync as readdirSync2, readFileSync as readFileSync2, renameSync as renameSync2, rmSync as rmSync2, statfsSync, writeFileSync as writeFileSync2 } from "node:fs";
+import { appendFileSync, cpSync, existsSync as existsSync2, lstatSync as lstatSync2, mkdirSync as mkdirSync3, readdirSync as readdirSync2, readFileSync as readFileSync3, renameSync as renameSync2, rmSync as rmSync3, statfsSync, writeFileSync as writeFileSync3 } from "node:fs";
 import { homedir } from "node:os";
-import { join as join3, relative, resolve } from "node:path";
+import { join as join4, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // lib/campaign.mjs
@@ -1112,7 +1112,8 @@ function effectiveWidth({ width = DEFAULT_WIDTH, isolation, budget: budget2 = "u
   if (budget2 === "slow") return 1;
   return Math.max(1, Number(width) || 1);
 }
-function isolationText(isolation, { index, worktree: worktree2, lockCmd, slug = "<slug>", outside: outside2 = null }) {
+function isolationText(isolation, { index, worktree: worktree2, lockCmd, heavyCmd = null, slug = "<slug>", outside: outside2 = null }) {
+  const runCmd = heavyCmd ?? String(lockCmd ?? "").replace(/\block(?=\s|$)(?!.*\block\b)/, "heavy-run");
   const ports = Object.entries(portsFor(isolation, index)).map(([k, v]) => `\`${k}=${v}\``).join(", ");
   const L = [];
   L.push(`- Worktree: \`${worktree2}\`. Run every command there. Never write in the main checkout or in another worktree.`);
@@ -1122,11 +1123,13 @@ function isolationText(isolation, { index, worktree: worktree2, lockCmd, slug = 
   if (outside2) L.push(`- Outside folder: \`${outside2}\`. Put only two kinds of item there: a second build folder that needs a short path, and a checkout of another commit (for example the old engine). The campaign deletes this folder when it removes the worktree. Never write outside the worktree and this folder.`);
   else L.push("- No outside folder: keep every build folder and checkout inside the worktree.");
   L.push("- Delete each temporary file and folder that you create when no later step reads it. Do not delete a file that a running process uses, a file that a later step or the review reads, or the worktree's own build folders. Before a stage ends, list in its artifact what you deleted and what you kept, with the reason for each kept item.");
-  for (const suite of isolation["heavy-suites"]) {
-    L.push(`- Heavy suite \`${suite}\` runs only under the lock. Run \`${lockCmd} acquire ${slug}\` first. When it answers busy, wait, append a \`lock-wait\` line to the driver journal every 5 minutes, and try again. Run \`${lockCmd} release ${slug}\` after the suite ends, also when it fails.`);
+  const heavy = isolation["heavy-suites"];
+  if (heavy.length) {
+    L.push(`- Heavy suites: ${heavy.map((s) => `\`${s}\``).join(", ")}. Run each run of one of them only through \`${runCmd} ${slug} --agent <your agent label> -- <the command>\`, one suite run per call. The command waits for its turn, writes the \`lock-wait\` lines itself, runs the suite in the current folder, and releases the lock when the suite ends, also when it fails. Its exit code is the suite's.`);
+    L.push("- Never call `lock acquire` or `lock release` for a suite, and never hold the lock across edits, builds or other runs. When the call waits, start it in the background and continue with the work that does not need the suite.");
   }
   for (const suite of isolation["quiet-suites"] ?? []) {
-    L.push(`- Quiet suite \`${suite}\` needs an idle machine. Run \`${lockCmd} quiet acquire ${slug}\` first, and wait while it answers busy, as for a heavy suite. Run \`${lockCmd} quiet release ${slug}\` after the run. When the run still measured a busy machine, defer the timed criterion with \`kind: quiet-window\` (verify/_deferrals.md): the wave boundary runs it alone.`);
+    L.push(`- Quiet suite \`${suite}\` needs an idle machine. Run it only through \`${runCmd} ${slug} --quiet --agent <your agent label> -- <the command>\`: it waits until no heavy suite runs, and no heavy suite starts while it runs. When the run still measured a busy machine, defer the timed criterion with \`kind: quiet-window\` (verify/_deferrals.md): the wave boundary runs it alone.`);
   }
   return L.join("\n");
 }
@@ -1774,35 +1777,109 @@ function ignoredAtRisk(porcelain, allow = []) {
   return String(porcelain).split(/\r?\n/).filter((l) => l.startsWith("!! ")).map((l) => l.slice(3).replace(/^"|"$/g, "").replace(/\/$/, "")).filter((p) => p !== ".ai" && !p.startsWith(".ai/")).filter((p) => !ok.some((d) => p === d || p.startsWith(`${d}/`) || p.split("/").includes(d)));
 }
 
+// lib/campaign-locks.mjs
+import { mkdirSync as mkdirSync2, readFileSync as readFileSync2, rmSync as rmSync2, writeFileSync as writeFileSync2 } from "node:fs";
+import { join as join3 } from "node:path";
+var LOCK_KINDS = Object.freeze(["heavy", "quiet"]);
+var LOCK_STALE_MS = 3 * 60 * 60 * 1e3;
+var LEASE_MS = 30 * 60 * 1e3;
+var IDLE_HOLD_MS = 30 * 60 * 1e3;
+var lockDir = (root) => join3(root, ".scratch", "campaign");
+var lockFileOf = (root, kind) => join3(lockDir(root), `${kind}.lock`);
+var queueFileOf = (root, kind) => join3(lockDir(root), `${kind}.queue.json`);
+var mutexFileOf = (root) => join3(lockDir(root), "locks.mutex");
+var otherKind = (kind) => kind === "quiet" ? "heavy" : "quiet";
+function readJson(file) {
+  try {
+    return JSON.parse(readFileSync2(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+function withLocksMutex(root, label2, fn) {
+  mkdirSync2(lockDir(root), { recursive: true });
+  return withRecordsLock(mutexFileOf(root), label2, fn, { waitMs: 6e4, staleMs: 6e4, liveStaleMs: 5 * 6e4 });
+}
+function holdOf(rec, { now = Date.now(), alive = pidAlive } = {}) {
+  if (!rec || typeof rec !== "object" || !rec.holder) return null;
+  const at = Date.parse(rec.at);
+  const heldMs = Number.isFinite(at) ? Math.max(0, now - at) : Infinity;
+  const base = { holder: rec.holder, agent: rec.agent ?? null, at: rec.at ?? null, heldMinutes: Number.isFinite(heldMs) ? Math.round(heldMs / 6e4) : null };
+  if (Number.isInteger(rec.pid)) {
+    const running = alive(rec.pid);
+    return { ...base, kind: "run", pid: rec.pid, command: rec.command ?? null, live: running && heldMs < LOCK_STALE_MS, idle: !running };
+  }
+  const until = Date.parse(rec.until);
+  if (Number.isFinite(until)) return { ...base, kind: "lease", until: rec.until, live: now < until, idle: now >= until };
+  return { ...base, kind: "legacy", live: heldMs < LOCK_STALE_MS, idle: heldMs >= IDLE_HOLD_MS };
+}
+var readHold = (root, kind) => readJson(lockFileOf(root, kind));
+function writeHold(root, kind, rec) {
+  mkdirSync2(lockDir(root), { recursive: true });
+  writeFileSync2(lockFileOf(root, kind), JSON.stringify(rec));
+}
+var removeHold = (root, kind) => rmSync2(lockFileOf(root, kind), { force: true });
+function readQueue(root, kind, { alive = pidAlive } = {}) {
+  const q = readJson(queueFileOf(root, kind));
+  const tickets = Array.isArray(q?.tickets) ? q.tickets : [];
+  return tickets.filter((t) => t && Number.isInteger(t.pid) && alive(t.pid));
+}
+function writeQueue(root, kind, tickets) {
+  mkdirSync2(lockDir(root), { recursive: true });
+  writeFileSync2(queueFileOf(root, kind), JSON.stringify({ tickets }));
+}
+function lockState(root, { now = Date.now(), alive = pidAlive } = {}) {
+  const out = { idle: [] };
+  for (const kind of LOCK_KINDS) {
+    const hold = holdOf(readHold(root, kind), { now, alive });
+    const waiting = readQueue(root, kind, { alive }).map((t) => ({
+      holder: t.holder,
+      agent: t.agent ?? null,
+      command: t.command ?? null,
+      waitedMinutes: Number.isFinite(Date.parse(t.at)) ? Math.round((now - Date.parse(t.at)) / 6e4) : null
+    }));
+    out[kind] = { hold, waiting };
+    if (hold?.idle) out.idle.push(kind);
+  }
+  return out;
+}
+function suiteListed(command, suites = []) {
+  const c = String(command).toLowerCase();
+  return suites.some((s) => {
+    const base = String(s).replace(/\(.*$/, "").trim().toLowerCase();
+    return base.length > 0 && c.includes(base);
+  });
+}
+
 // scripts/campaign.mjs
-var USAGE = "Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|locks|stack|merge-in|merge-order|steer|rule|away|back|decided|recap|slice-done|needs|contract|await|question|deps|owner|slice-order|schedule> <projectRoot> <brainstorm> ...";
+var USAGE = "Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|heavy-run|locks|stack|merge-in|merge-order|steer|rule|away|back|decided|recap|slice-done|needs|contract|await|question|deps|owner|slice-order|schedule> <projectRoot> <brainstorm> ...";
 var PLUGIN_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
-var brainstormDir = (root, b) => join3(root, ".ai", "workflows", b);
-var workDir = (root, b) => join3(brainstormDir(root, b), "work");
-var campDir = (root, b) => join3(workDir(root, b), "campaign");
-var ledgerPath = (root, b) => join3(campDir(root, b), "ledger.json");
-var journalPath = (root, b) => join3(campDir(root, b), ".campaign-journal.jsonl");
-var controlPath = (root, b) => join3(campDir(root, b), ".control.json");
+var brainstormDir = (root, b) => join4(root, ".ai", "workflows", b);
+var workDir = (root, b) => join4(brainstormDir(root, b), "work");
+var campDir = (root, b) => join4(workDir(root, b), "campaign");
+var ledgerPath = (root, b) => join4(campDir(root, b), "ledger.json");
+var journalPath = (root, b) => join4(campDir(root, b), ".campaign-journal.jsonl");
+var controlPath = (root, b) => join4(campDir(root, b), ".control.json");
 var nowIso = () => (/* @__PURE__ */ new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
 var sleepMs = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 function writeAtomic(file, text) {
-  mkdirSync2(join3(file, ".."), { recursive: true });
+  mkdirSync3(join4(file, ".."), { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync2(tmp, text);
+  writeFileSync3(tmp, text);
   for (let i = 0; ; i++) {
     try {
       renameSync2(tmp, file);
       return;
     } catch (e) {
       if (!["EPERM", "EBUSY", "EACCES"].includes(e.code) || i >= 19) {
-        rmSync2(tmp, { force: true });
+        rmSync3(tmp, { force: true });
         throw e;
       }
       sleepMs(100);
     }
   }
 }
-var ledgerLockPath = (root, b) => join3(campDir(root, b), "ledger.lock");
+var ledgerLockPath = (root, b) => join4(campDir(root, b), "ledger.lock");
 var LEDGER_COMMANDS = /* @__PURE__ */ new Set(["orient", "replan", "answer", "unit", "outside", "wave", "ask", "reply", "pause", "resume", "forecast", "worktree", "stack", "merge-in", "rule", "away", "back", "decided", "slice-done", "needs", "contract", "question", "deps"]);
 function git(root, args) {
   const r = spawnSync("git", ["-C", root, ...args], { encoding: "utf8", windowsHide: true });
@@ -1810,15 +1887,15 @@ function git(root, args) {
 }
 function readWorkSet(root, b) {
   const dir = workDir(root, b);
-  const indexFile = join3(dir, "index.md");
+  const indexFile = join4(dir, "index.md");
   if (!existsSync2(indexFile)) return { error: `no work set: ${relative(root, indexFile)} does not exist. End the brainstorm with done first.` };
-  let index = safeParseFrontmatter(readFileSync2(indexFile, "utf8")).data;
-  if (!index) index = safeParseFrontmatter(readFileSync2(indexFile, "utf8")).data;
+  let index = safeParseFrontmatter(readFileSync3(indexFile, "utf8")).data;
+  if (!index) index = safeParseFrontmatter(readFileSync3(indexFile, "utf8")).data;
   if (!index) return { error: "work/index.md does not parse; read it again at the next boundary." };
   const packets = [];
   for (const file of readdirSync2(dir)) {
     if (!file.endsWith(".md") || file === "index.md" || file === "changes.md") continue;
-    const data = safeParseFrontmatter(readFileSync2(join3(dir, file), "utf8")).data;
+    const data = safeParseFrontmatter(readFileSync3(join4(dir, file), "utf8")).data;
     if (data?.type === "work-packet") packets.push({ ...data, file: `work/${file}` });
   }
   const written = Array.isArray(index.written) ? index.written.map(String) : [];
@@ -1828,7 +1905,7 @@ var unitsOf = (ws, ledger) => ws.packets.map((p) => unitOf(p, { written: ws.writ
 function loadLedger(root, b) {
   const p = ledgerPath(root, b);
   if (!existsSync2(p)) return null;
-  const ledger = JSON.parse(readFileSync2(p, "utf8"));
+  const ledger = JSON.parse(readFileSync3(p, "utf8"));
   if (!ledger.deps) {
     const ws = readWorkSet(root, b);
     if (!ws.error) migrateDeps(ledger, ws.packets, nowIso());
@@ -1842,7 +1919,7 @@ function saveLedger(root, b, ledger) {
   ledger["updated-at"] = nowIso();
   writeAtomic(ledgerPath(root, b), `${JSON.stringify(ledger, null, 2)}
 `);
-  writeAtomic(join3(campDir(root, b), "ledger.md"), renderLedgerMd(ledger));
+  writeAtomic(join4(campDir(root, b), "ledger.md"), renderLedgerMd(ledger));
 }
 function requireLedger(root, b) {
   const l = loadLedger(root, b);
@@ -1851,28 +1928,28 @@ function requireLedger(root, b) {
 }
 function appendJournal(root, b, event, extra = {}) {
   const line = { at: nowIso(), event, ...extra };
-  mkdirSync2(campDir(root, b), { recursive: true });
+  mkdirSync3(campDir(root, b), { recursive: true });
   appendFileSync(journalPath(root, b), `${JSON.stringify(line)}
 `);
   return line;
 }
-function readJson(file) {
+function readJson2(file) {
   try {
-    return JSON.parse(readFileSync2(file, "utf8"));
+    return JSON.parse(readFileSync3(file, "utf8"));
   } catch {
     return null;
   }
 }
 function designRecordOf(root, b) {
-  const board = readJson(join3(brainstormDir(root, b), "brainstorm-board.json"));
+  const board = readJson2(join4(brainstormDir(root, b), "brainstorm-board.json"));
   if (board?.focus !== "design") return null;
-  const dirs = [root, join3(root, ".agents", "context"), join3(root, "docs")];
-  return { focus: "design", missing: ["PRODUCT.md", "DESIGN.md"].filter((f) => !dirs.some((d) => existsSync2(join3(d, f)))) };
+  const dirs = [root, join4(root, ".agents", "context"), join4(root, "docs")];
+  return { focus: "design", missing: ["PRODUCT.md", "DESIGN.md"].filter((f) => !dirs.some((d) => existsSync2(join4(d, f)))) };
 }
 var nextAction = (root, b, ledger, opts = {}) => campaignAction(ledger, { ...opts, design: designRecordOf(root, b) });
 function readJsonl(file) {
   try {
-    return readFileSync2(file, "utf8").split(/\r?\n/).filter(Boolean).map((l) => {
+    return readFileSync3(file, "utf8").split(/\r?\n/).filter(Boolean).map((l) => {
       try {
         return JSON.parse(l);
       } catch {
@@ -1884,7 +1961,7 @@ function readJsonl(file) {
   }
 }
 function forecastHistory(root) {
-  const wfRoot = join3(root, ".ai", "workflows");
+  const wfRoot = join4(root, ".ai", "workflows");
   const journals = [];
   const sliceTokens = [];
   const slicesPerSlug = [];
@@ -1894,9 +1971,9 @@ function forecastHistory(root) {
   } catch {
   }
   for (const slug of slugs) {
-    const j = readJsonl(join3(wfRoot, slug, ".driver-journal.jsonl"));
+    const j = readJsonl(join4(wfRoot, slug, ".driver-journal.jsonl"));
     if (j.length) journals.push(j);
-    const cost = readJsonl(join3(wfRoot, slug, "cost.jsonl"));
+    const cost = readJsonl(join4(wfRoot, slug, "cost.jsonl"));
     const n = sliceCount(root, slug);
     if (n) slicesPerSlug.push(n);
     if (cost.length && n) sliceTokens.push(cost.reduce((a, r) => a + rowWeight(r), 0) / n);
@@ -1909,16 +1986,16 @@ function forecastHistory(root) {
   return { stageMinutes: stageMinutesFromJournals(journals), sliceTokens: med(sliceTokens), slicesPerSlug: med(slicesPerSlug), journals: journals.length };
 }
 function sliceCount(root, slug) {
-  const idx = join3(root, ".ai", "workflows", slug, "00-index.md");
+  const idx = join4(root, ".ai", "workflows", slug, "00-index.md");
   if (!existsSync2(idx)) return null;
-  const data = safeParseFrontmatter(readFileSync2(idx, "utf8")).data;
+  const data = safeParseFrontmatter(readFileSync3(idx, "utf8")).data;
   const s = data?.slices;
   return Array.isArray(s) && s.length ? s.length : null;
 }
 function shipPlan(root) {
-  const p = join3(root, ".ai", "ship-plan.md");
+  const p = join4(root, ".ai", "ship-plan.md");
   if (!existsSync2(p)) return null;
-  const d = safeParseFrontmatter(readFileSync2(p, "utf8")).data ?? {};
+  const d = safeParseFrontmatter(readFileSync3(p, "utf8")).data ?? {};
   return {
     "version-scheme": d["version-scheme"] ?? null,
     "version-source-of-truth": d["version-source-of-truth"] ?? null,
@@ -1933,7 +2010,7 @@ function trunkOf(root) {
   for (const b of ["main", "master"]) if (git(root, ["rev-parse", "--verify", "--quiet", b]) !== null) return b;
   return "main";
 }
-var BOOLEAN_FLAGS = /* @__PURE__ */ new Set(["move", "final", "cancel", "verified", "refresh"]);
+var BOOLEAN_FLAGS = /* @__PURE__ */ new Set(["move", "final", "cancel", "verified", "refresh", "quiet"]);
 function flags(args) {
   const pos = [];
   const f = {};
@@ -1959,7 +2036,7 @@ function orient(root, b) {
     return { ok: false, single: true, error: "the work set has one build packet: that is not a campaign.", start: only ? `/wf intake .ai/workflows/${b}/${only.file}` : null };
   }
   if (check.errors.length) return { ok: false, errors: check.errors, warnings: check.warnings };
-  const cfg = readJson(join3(root, ".ai", "sdlc-config.json")) ?? {};
+  const cfg = readJson2(join4(root, ".ai", "sdlc-config.json")) ?? {};
   const ignored = cfg.artifactTracking === "ignored" || git(root, ["check-ignore", "-q", ".ai/workflows"]) !== null;
   const ledger = newLedger({ brainstorm: b, revision: ws.revision, units, now: nowIso(), deps });
   ledger.records = ignored ? "local" : "tracked";
@@ -1985,7 +2062,7 @@ function orient(root, b) {
   const fc = buildForecast({ units, history, slices });
   ledger.forecast = { minutes: fc.minutes, tokens: fc.tokens, unknown: fc.unknown, journals: history.journals };
   saveLedger(root, b, ledger);
-  writeAtomic(join3(campDir(root, b), "forecast.md"), renderForecast(fc, { brainstorm: b, now: nowIso() }));
+  writeAtomic(join4(campDir(root, b), "forecast.md"), renderForecast(fc, { brainstorm: b, now: nowIso() }));
   appendJournal(root, b, "campaign-orient", { revision: ws.revision, waves: 0 });
   const seeded = new Set(ws.packets.filter(hasGraphFields).map((p) => p.key));
   const keys = Object.keys(deps.units);
@@ -2023,12 +2100,12 @@ function compareSemver(a, b) {
   for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
   return 0;
 }
-var configOf = (root) => readJson(join3(root, ".ai", "sdlc-config.json")) ?? {};
-var usageDir = () => process.env.SDLC_USAGE_DIR || join3(homedir(), ".claude", "sdlc", "usage");
+var configOf = (root) => readJson2(join4(root, ".ai", "sdlc-config.json")) ?? {};
+var usageDir = () => process.env.SDLC_USAGE_DIR || join4(homedir(), ".claude", "sdlc", "usage");
 function readings() {
   const dir = usageDir();
   if (!existsSync2(dir)) return [];
-  return readdirSync2(dir).filter((f) => f.endsWith(".json")).map((f) => readJson(join3(dir, f)));
+  return readdirSync2(dir).filter((f) => f.endsWith(".json")).map((f) => readJson2(join4(dir, f)));
 }
 function budget(root, b) {
   const ledger = requireLedger(root, b);
@@ -2039,9 +2116,9 @@ function budget(root, b) {
   const width = effectiveWidth({ width: cfg.campaign?.width ?? DEFAULT_WIDTH, isolation, budget: st.state });
   return { ok: true, ...st, width, readingAt: reading?.at ?? null, isolation: isolation !== null };
 }
-var defaultWorktreeBase = (root) => join3(sdlcHomeDir(), "cw", repoTag(resolve(root)));
-var worktreeRoot = (root, ledger, iso = isolationOf(configOf(root))) => join3(iso?.["worktree-root"] ?? defaultWorktreeBase(root), shortStamp(ledger["run-id"]));
-var outsideRoot = (root, ledger, iso = isolationOf(configOf(root))) => iso?.["outside-root"] ? join3(iso["outside-root"], shortStamp(ledger["run-id"])) : null;
+var defaultWorktreeBase = (root) => join4(sdlcHomeDir(), "cw", repoTag(resolve(root)));
+var worktreeRoot = (root, ledger, iso = isolationOf(configOf(root))) => join4(iso?.["worktree-root"] ?? defaultWorktreeBase(root), shortStamp(ledger["run-id"]));
+var outsideRoot = (root, ledger, iso = isolationOf(configOf(root))) => iso?.["outside-root"] ? join4(iso["outside-root"], shortStamp(ledger["run-id"])) : null;
 var pathCheckOn = () => process.platform === "win32" || process.env.SDLC_CAMPAIGN_PATH_CHECK === "1";
 function longestTrackedPath(root) {
   const r = spawnSync("git", ["-C", root, "ls-files", "-z"], { encoding: "utf8", windowsHide: true, maxBuffer: 256 * 1024 * 1024 });
@@ -2065,7 +2142,7 @@ function folderGb(dir, deadline) {
       continue;
     }
     for (const e of entries2) {
-      const p = join3(d, e.name);
+      const p = join4(d, e.name);
       let st;
       try {
         st = lstatSync2(p);
@@ -2091,7 +2168,7 @@ function linksUnder(dir, limit = 20) {
       continue;
     }
     for (const e of entries2) {
-      const p = join3(d, e.name);
+      const p = join4(d, e.name);
       let st;
       try {
         st = lstatSync2(p);
@@ -2109,8 +2186,8 @@ var commitOf = (root, ref) => {
   const r = spawnSync("git", ["-C", root, "rev-parse", "--verify", "--quiet", `${ref}^{commit}`], { encoding: "utf8", windowsHide: true });
   return r.status === 0 ? r.stdout.trim() : null;
 };
-var recordsDir = (root, b) => join3(campDir(root, b), "records");
-var manifestFile = (root, b, id) => join3(recordsDir(root, b), `${id}.json`);
+var recordsDir = (root, b) => join4(campDir(root, b), "records");
+var manifestFile = (root, b, id) => join4(recordsDir(root, b), `${id}.json`);
 var isLocal = (ledger) => ledger?.records === "local";
 var WORKTREE_IGNORE = "# written by /wf campaign (local records): the records in this worktree stay out of git\n*\n";
 var isAiIgnore = (rel) => rel === ".gitignore";
@@ -2135,12 +2212,12 @@ function committedAs(path) {
   return (rel) => clean.has(rel);
 }
 function syncIn(root, b, id, path, slugs) {
-  return withRecordsLock(join3(recordsDir(root, b), ".lock"), id, () => {
-    const ignoreFile = join3(path, ".ai", ".gitignore");
-    mkdirSync2(join3(path, ".ai"), { recursive: true });
+  return withRecordsLock(join4(recordsDir(root, b), ".lock"), id, () => {
+    const ignoreFile = join4(path, ".ai", ".gitignore");
+    mkdirSync3(join4(path, ".ai"), { recursive: true });
     const tracked = spawnSync("git", ["-C", path, "ls-files", "--error-unmatch", ".ai/.gitignore"], { encoding: "utf8", windowsHide: true }).status === 0;
-    const have = existsSync2(ignoreFile) ? readFileSync2(ignoreFile, "utf8") : "";
-    if (!tracked && !have.split(/\r?\n/).includes("*")) writeFileSync2(ignoreFile, WORKTREE_IGNORE);
+    const have = existsSync2(ignoreFile) ? readFileSync3(ignoreFile, "utf8") : "";
+    if (!tracked && !have.split(/\r?\n/).includes("*")) writeFileSync3(ignoreFile, WORKTREE_IGNORE);
     const manifest = loadManifest(manifestFile(root, b, id), id);
     manifest.worktree = path;
     const res = recordsIn({ main: root, worktree: path, manifest, exclude: notCopiedIn(b, slugs), pristine: committedAs(path) });
@@ -2152,9 +2229,9 @@ function syncIn(root, b, id, path, slugs) {
   });
 }
 function syncOut(root, b, id, path) {
-  return withRecordsLock(join3(recordsDir(root, b), ".lock"), id, () => {
+  return withRecordsLock(join4(recordsDir(root, b), ".lock"), id, () => {
     const manifest = loadManifest(manifestFile(root, b, id), id);
-    const conflictsDir = join3(recordsDir(root, b), "conflicts", id, nowIso().replace(/[-:]/g, ""));
+    const conflictsDir = join4(recordsDir(root, b), "conflicts", id, nowIso().replace(/[-:]/g, ""));
     const res = recordsOut({ main: root, worktree: path, manifest, conflictsDir, exclude: isAiIgnore, mainOnly: mainOwned(b) });
     saveManifest(manifestFile(root, b, id), manifest, nowIso());
     if (res.copied.length || res.conflicts.length) appendJournal(root, b, "records-out", { id, copied: res.copied.length, conflicts: res.conflicts.map((c) => c.rel) });
@@ -2168,8 +2245,8 @@ function removeWorktree(root, b, ledger, id, path) {
     const pending = recordsPending({ main: root, worktree: path, manifest: loadManifest(manifestFile(root, b, id), id), exclude: isAiIgnore });
     if (pending.length) return { ok: false, error: `${pending.length} file(s) in the worktree exist nowhere else, so the worktree stays. Ask the person.`, pending, records };
   } else {
-    const wf = join3(path, ".ai", "workflows");
-    if (existsSync2(wf)) for (const d of readdirSync2(wf)) rmSync2(join3(wf, d, ".watch-state.json"), { force: true });
+    const wf = join4(path, ".ai", "workflows");
+    if (existsSync2(wf)) for (const d of readdirSync2(wf)) rmSync3(join4(wf, d, ".watch-state.json"), { force: true });
   }
   const st = spawnSync("git", ["-C", path, "status", "--porcelain", "--ignored=matching"], { encoding: "utf8", windowsHide: true });
   if (st.status !== 0) return { ok: false, error: `git status failed in ${path}: ${(st.stderr || "").trim()}`, records };
@@ -2203,7 +2280,7 @@ function worktreeStep(root, b, [key, action]) {
       let size = null;
       if (!w) {
         const deadline = Date.now() + 6e4;
-        const dirs = [...(isolationOf(configOf(root))?.["build-dirs"] ?? []).map((d) => join3(wt.path, d)), ...wt.outside ? [wt.outside] : []].filter((d) => existsSync2(d));
+        const dirs = [...(isolationOf(configOf(root))?.["build-dirs"] ?? []).map((d) => join4(wt.path, d)), ...wt.outside ? [wt.outside] : []].filter((d) => existsSync2(d));
         size = dirs.reduce((acc, d) => {
           const s = folderGb(d, deadline);
           return { gb: acc.gb + s.gb, capped: acc.capped || s.capped };
@@ -2216,7 +2293,7 @@ function worktreeStep(root, b, [key, action]) {
           const links = linksUnder(wt.outside);
           if (links.length) res.outsideKept = { path: wt.outside, links, reason: "the outside folder holds links, and a recursive delete can follow a link into the folder it points to. Ask the person." };
           else {
-            rmSync2(wt.outside, { recursive: true, force: true });
+            rmSync3(wt.outside, { recursive: true, force: true });
             res.outsideRemoved = wt.outside;
           }
         }
@@ -2230,9 +2307,9 @@ function worktreeStep(root, b, [key, action]) {
   }
   if (w) {
     if (!w.branch) throw new Error(`worktree: wave ${w.n} has no branch yet`);
-    const path2 = w.worktree && existsSync2(w.worktree.path) ? w.worktree.path : join3(worktreeRoot(root, ledger), key);
+    const path2 = w.worktree && existsSync2(w.worktree.path) ? w.worktree.path : join4(worktreeRoot(root, ledger), key);
     if (!existsSync2(path2)) {
-      mkdirSync2(worktreeRoot(root, ledger), { recursive: true });
+      mkdirSync3(worktreeRoot(root, ledger), { recursive: true });
       const r2 = gitLong(root, ["worktree", "add", path2, w.branch]);
       if (r2.status !== 0) return { ok: false, error: `git worktree add failed: ${(r2.stderr || "").trim()}` };
     }
@@ -2248,12 +2325,12 @@ function worktreeStep(root, b, [key, action]) {
   const base = worktreeRoot(root, ledger, iso);
   const index = [...uw.units].sort((a, c) => (ledger.units[a].order ?? 0) - (ledger.units[c].order ?? 0)).indexOf(key);
   const branch = `campaign/${b}/wave-${uw.n}--${u.slug}`;
-  const path = join3(base, `w${uw.n}-${index + 1}`);
+  const path = join4(base, `w${uw.n}-${index + 1}`);
   if (pathCheckOn()) {
     const pb = pathBudget({ worktree: path, longestTracked: longestTrackedPath(root), buildDepth: iso["build-depth"] });
     if (!pb.ok) return { ok: false, pathTooLong: pb, error: `the worktree path ${path} leaves too little room: ${pb.total} characters with the deepest build path, against the Windows limit of ${pb.limit}. Set campaign.isolation.worktree-root in .ai/sdlc-config.json to a short absolute path (for example C:/cw), then add again.` };
   }
-  mkdirSync2(base, { recursive: true });
+  mkdirSync3(base, { recursive: true });
   const freeGb = statfsSync(base).bavail * statfsSync(base).bsize / 1024 ** 3;
   const toStart = uw.units.filter((k) => !ledger.units[k]?.worktree && ["prepared", "running"].includes(ledger.units[k]?.state)).length || 1;
   const need = diskNeedGb({ history: ledger["disk-history"] ?? [], toStart, minFreeGb: iso["min-free-gb"] });
@@ -2273,61 +2350,158 @@ function worktreeStep(root, b, [key, action]) {
   u.worktree = { path, branch, index, ports: portsFor(iso, index) };
   const outBase = outsideRoot(root, ledger, iso);
   if (outBase) {
-    u.worktree.outside = join3(outBase, `w${uw.n}-${index + 1}`);
-    mkdirSync2(u.worktree.outside, { recursive: true });
+    u.worktree.outside = join4(outBase, `w${uw.n}-${index + 1}`);
+    mkdirSync3(u.worktree.outside, { recursive: true });
   }
   saveLedger(root, b, ledger);
   let records = null;
   if (local) records = syncIn(root, b, key, path, slugs);
   else {
-    const src = join3(root, ".ai", "workflows", u.slug);
-    const dest = join3(path, ".ai", "workflows", u.slug);
+    const src = join4(root, ".ai", "workflows", u.slug);
+    const dest = join4(path, ".ai", "workflows", u.slug);
     if (existsSync2(src) && !existsSync2(dest)) cpSync(src, dest, { recursive: true });
   }
   appendJournal(root, b, "worktree", { key, slug: u.slug, path, branch, index });
   return { ok: true, ...u.worktree, ...records ? { records } : {} };
 }
-var LOCK_STALE_MS = 3 * 60 * 60 * 1e3;
-var lockFileOf = (root, kind) => join3(root, ".scratch", "campaign", `${kind}.lock`);
 var DRIVE_ENDED = /* @__PURE__ */ new Set(["stopped", "finished", "merged", "needs-fix", "shipped"]);
 function holderGone(root, b, cur) {
   const ledger = loadLedger(root, b);
   const u = ledger ? Object.values(ledger.units ?? {}).find((x) => x.slug === cur.holder) : null;
   if (!u) return false;
   if (DRIVE_ENDED.has(u.state)) return true;
-  const last = readJsonl(join3(unitWorkflowDir(root, u), ".driver-journal.jsonl")).at(-1);
+  const last = readJsonl(join4(unitWorkflowDir(root, u), ".driver-journal.jsonl")).at(-1);
   return last?.event === "run-end" && String(last.at ?? "") > String(cur.at ?? "");
 }
-function otherHolder(root, b, file, holder) {
-  const cur = readJson(file);
-  return cur && cur.holder !== holder && Date.now() - Date.parse(cur.at) < LOCK_STALE_MS && !holderGone(root, b, cur) ? cur : null;
+function blockingHold(root, b, kind, { holder, agent = null, pid = null }) {
+  const cur = readHold(root, kind);
+  const h = holdOf(cur);
+  if (!h || !h.live) return null;
+  if (h.kind === "run") return cur.pid === pid ? null : cur;
+  if (holderGone(root, b, cur)) return null;
+  if (cur.holder !== holder) return cur;
+  return agent && cur.agent && cur.agent !== agent ? cur : null;
 }
-function lock(root, b, args) {
+var queuedBefore = (root, kind, holder) => readQueue(root, kind).find((t) => t.holder !== holder) ?? null;
+function lock(root, b, args, f = {}) {
+  if (args[0] === "status") return { ok: true, ...lockState(root) };
+  if (args[0] === "reap") return withLocksMutex(root, "lock reap", () => reapLocks(root, b));
   const quiet = args[0] === "quiet";
+  const kind = quiet ? "quiet" : "heavy";
   const [action, holder] = quiet ? args.slice(1) : args;
   if (!holder) throw new Error("lock: give the holder (the slug)");
-  const file = lockFileOf(root, quiet ? "quiet" : "heavy");
-  mkdirSync2(join3(file, ".."), { recursive: true });
-  const cur = readJson(file);
-  if (action === "release") {
-    if (!cur || cur.holder !== holder) return { ok: true, released: false, holder: cur?.holder ?? null };
-    rmSync2(file, { force: true });
-    return { ok: true, released: true, ...quiet ? { quiet: true } : {} };
-  }
-  if (action !== "acquire") throw new Error("lock: the action is acquire or release (lock quiet acquire|release for the quiet lease)");
-  const blocker = otherHolder(root, b, lockFileOf(root, quiet ? "heavy" : "quiet"), holder);
-  if (blocker) return { ok: true, acquired: false, holder: blocker.holder, since: blocker.at, ...quiet ? { heavy: blocker.holder } : { quiet: blocker.holder } };
-  if (otherHolder(root, b, file, holder)) return { ok: true, acquired: false, holder: cur.holder, since: cur.at };
-  const takenOver = cur && cur.holder !== holder ? cur.holder : null;
-  if (!cur || cur.holder !== holder) {
-    try {
-      writeFileSync2(file, JSON.stringify({ holder, at: nowIso() }), { flag: cur ? "w" : "wx" });
-    } catch {
-      const now = readJson(file);
-      return { ok: true, acquired: false, holder: now?.holder ?? null, since: now?.at ?? null };
+  const agent = f.agent ? String(f.agent) : null;
+  return withLocksMutex(root, `lock ${kind} ${action} ${holder}`, () => {
+    const cur = readHold(root, kind);
+    if (action === "release") {
+      if (!cur || cur.holder !== holder) return { ok: true, released: false, holder: cur?.holder ?? null };
+      if (Number.isInteger(cur.pid) && cur.pid !== process.pid && pidAlive(cur.pid)) {
+        return { ok: true, released: false, holder, running: { pid: cur.pid, agent: cur.agent ?? null, command: cur.command ?? null }, reason: "a heavy-run of this unit runs its suite; it releases the lock when the suite ends" };
+      }
+      removeHold(root, kind);
+      return { ok: true, released: true, ...quiet ? { quiet: true } : {} };
     }
+    if (action !== "acquire") throw new Error("lock: the action is acquire, release, status or reap (lock quiet acquire|release for the quiet lease)");
+    const blocker = blockingHold(root, b, otherKind(kind), { holder, agent });
+    if (blocker) return { ok: true, acquired: false, holder: blocker.holder, since: blocker.at, ...quiet ? { heavy: blocker.holder } : { quiet: blocker.holder } };
+    const busy = blockingHold(root, b, kind, { holder, agent });
+    if (busy) return { ok: true, acquired: false, holder: busy.holder, since: busy.at };
+    const ticket = queuedBefore(root, kind, holder);
+    if (ticket) return { ok: true, acquired: false, holder: cur?.holder ?? null, queued: { holder: ticket.holder, agent: ticket.agent ?? null, since: ticket.at } };
+    const takenOver = cur && cur.holder !== holder ? cur.holder : null;
+    const at = nowIso();
+    writeHold(root, kind, { holder, ...agent ? { agent } : {}, at, until: new Date(Date.now() + LEASE_MS).toISOString().replace(/\.\d{3}Z$/, "Z") });
+    return { ok: true, acquired: true, holder, lease: { minutes: LEASE_MS / 6e4 }, ...takenOver ? { takenOver } : {} };
+  });
+}
+function reapLocks(root, b) {
+  const reaped = [];
+  for (const kind of LOCK_KINDS) {
+    const cur = readHold(root, kind);
+    const h = holdOf(cur);
+    if (h?.idle) {
+      removeHold(root, kind);
+      const line = { kind, holder: h.holder, agent: h.agent, form: h.kind, heldMinutes: h.heldMinutes, ...h.pid ? { pid: h.pid } : {} };
+      reaped.push(line);
+      if (existsSync2(campDir(root, b))) appendJournal(root, b, "lock-reaped", line);
+    }
+    writeQueue(root, kind, readQueue(root, kind));
   }
-  return { ok: true, acquired: true, holder, ...takenOver ? { takenOver } : {} };
+  return { ok: true, reaped, ...lockState(root) };
+}
+function unitJournalAppend(root, b, slug, line) {
+  const ledger = loadLedger(root, b);
+  const u = ledger ? Object.values(ledger.units ?? {}).find((x) => x.slug === slug) : null;
+  const dir = u ? unitWorkflowDir(root, u) : join4(root, ".ai", "workflows", slug);
+  if (!existsSync2(dir)) return;
+  appendFileSync(join4(dir, ".driver-journal.jsonl"), `${JSON.stringify({ at: nowIso(), ...line })}
+`);
+}
+var HEAVY_POLL_MS = () => Math.max(50, Number(process.env.SDLC_HEAVY_POLL_MS) || 1e4);
+var LOCK_WAIT_LINE_MS = () => Math.max(50, Number(process.env.SDLC_LOCK_WAIT_LINE_MS) || 5 * 6e4);
+function shellFor(f) {
+  const sh = f.shell ? String(f.shell) : process.platform === "win32" ? process.env.MSYSTEM ? "bash" : null : process.env.SHELL || "/bin/sh";
+  if (!sh || sh === "cmd") return null;
+  return { file: sh, args: /pwsh|powershell/i.test(sh) ? ["-NoProfile", "-Command"] : ["-c"] };
+}
+var quoteArg = (a) => /^[\w@%+=:,./-]+$/.test(a) ? a : `"${String(a).replace(/(["\\$`])/g, "\\$1")}"`;
+function heavyRun(root, b, [slug], f, tail) {
+  if (!slug || !tail.length) throw new Error("heavy-run: give <slug> -- <command>");
+  const kind = f.quiet ? "quiet" : "heavy";
+  const command = tail.length === 1 ? tail[0] : tail.map(quoteArg).join(" ");
+  const agent = f.agent ? String(f.agent) : null;
+  const runId = f.run ? String(f.run) : null;
+  const iso = isolationOf(configOf(root));
+  const listed = suiteListed(command, iso?.[kind === "quiet" ? "quiet-suites" : "heavy-suites"] ?? []);
+  if (!listed) process.stderr.write(`heavy-run: \`${command}\` is not in campaign.isolation.${kind}-suites; it runs under the lock anyway.
+`);
+  const ticket = { id: `${process.pid}-${Date.now()}`, holder: slug, agent, pid: process.pid, at: nowIso(), command };
+  const maxWaitMs = f["max-wait"] ? Math.max(0, Number(f["max-wait"])) * 1e3 : Infinity;
+  const t0 = Date.now();
+  let lastLine = 0;
+  let granted = false;
+  const tag = { ...agent ? { agent } : {}, ...runId ? { run: runId } : {} };
+  withLocksMutex(root, `heavy-run queue ${slug}`, () => writeQueue(root, kind, [...readQueue(root, kind), ticket]));
+  try {
+    for (; ; ) {
+      const turn = withLocksMutex(root, `heavy-run turn ${slug}`, () => {
+        const queue = readQueue(root, kind);
+        writeQueue(root, kind, queue);
+        const blocker = blockingHold(root, b, otherKind(kind), { holder: slug, agent, pid: process.pid }) ?? blockingHold(root, b, kind, { holder: slug, agent, pid: process.pid });
+        const position = queue.findIndex((t) => t.id === ticket.id);
+        if (blocker || position > 0) return { holder: blocker?.holder ?? queue[0]?.holder ?? null, position };
+        writeHold(root, kind, { holder: slug, ...agent ? { agent } : {}, pid: process.pid, command, at: nowIso() });
+        writeQueue(root, kind, queue.filter((t) => t.id !== ticket.id));
+        return { granted: true };
+      });
+      if (turn.granted) {
+        granted = true;
+        break;
+      }
+      if (Date.now() - t0 >= maxWaitMs) {
+        unitJournalAppend(root, b, slug, { event: "lock-wait", ...tag, kind, suite: command, holder: turn.holder, position: turn.position, gaveUp: true });
+        return { ok: false, error: `heavy-run: no turn after ${Math.round((Date.now() - t0) / 1e3)} s (--max-wait)`, holder: turn.holder, position: turn.position, command };
+      }
+      if (!lastLine || Date.now() - lastLine >= LOCK_WAIT_LINE_MS()) {
+        unitJournalAppend(root, b, slug, { event: "lock-wait", ...tag, kind, suite: command, holder: turn.holder, position: turn.position });
+        lastLine = Date.now();
+      }
+      sleepMs(HEAVY_POLL_MS());
+    }
+    const waitedS = Math.round((Date.now() - t0) / 1e3);
+    const t1 = Date.now();
+    const sh = shellFor(f);
+    const r = sh ? spawnSync(sh.file, [...sh.args, command], { stdio: "inherit", windowsHide: true }) : spawnSync(command, { shell: true, stdio: "inherit", windowsHide: true });
+    const exit = r.error ? 127 : r.status ?? 1;
+    const ranS = Math.round((Date.now() - t1) / 1e3);
+    unitJournalAppend(root, b, slug, { event: "heavy-run-end", ...tag, kind, suite: command, exit, waitedS, ranS });
+    return { ok: exit === 0, exit, kind, command, listed, waitedS, ranS, ...r.error ? { error: r.error.message } : {} };
+  } finally {
+    withLocksMutex(root, `heavy-run release ${slug}`, () => {
+      writeQueue(root, kind, readQueue(root, kind).filter((t) => t.id !== ticket.id));
+      if (granted && readHold(root, kind)?.pid === process.pid) removeHold(root, kind);
+    });
+  }
 }
 function stack(root, b, [action, value]) {
   const ledger = requireLedger(root, b);
@@ -2353,6 +2527,8 @@ function status(root, b) {
     revision,
     // C9: the person's standing rules, in every status result, so that a compaction cannot lose them.
     rules: ledger?.rules ?? [],
+    // WF-CAMPAIGN-HEAVY-LOCK-REVIEW F4/F6: who holds the heavy and quiet locks, and who waits.
+    locks: lockState(root),
     presence: ledger?.presence ?? { state: "present" },
     // B2, B4: the standing defaults and the away policy, so the session answers by them.
     ...ledger ? { defaults: defaultsOf(ledger), policy: policyOf(ledger), now: campaignNow(ledger) } : {},
@@ -2366,21 +2542,21 @@ function status(root, b) {
     } : null
   };
 }
-var unitWorkflowDir = (root, u) => join3(u.worktree?.path ?? root, ".ai", "workflows", u.slug);
+var unitWorkflowDir = (root, u) => join4(u.worktree?.path ?? root, ".ai", "workflows", u.slug);
 var ownOf = (ledger, key) => ({ keys: [key, ...absorbedBy(ledger, key)], form: ledger.units[key]?.form ?? "intake" });
 function rosterOf(dir) {
-  const f = join3(dir, "03-slice.md");
-  return new Map((existsSync2(f) ? rosterEntries(readFileSync2(f, "utf8")) : []).map((e) => [e.slug, e]));
+  const f = join4(dir, "03-slice.md");
+  return new Map((existsSync2(f) ? rosterEntries(readFileSync3(f, "utf8")) : []).map((e) => [e.slug, e]));
 }
 function unitProgress(root, u, own = null) {
   const dir = unitWorkflowDir(root, u);
-  const index = existsSync2(join3(dir, "00-index.md")) ? safeParseFrontmatter(readFileSync2(join3(dir, "00-index.md"), "utf8")).data ?? {} : {};
+  const index = existsSync2(join4(dir, "00-index.md")) ? safeParseFrontmatter(readFileSync3(join4(dir, "00-index.md"), "utf8")).data ?? {} : {};
   const roster = own ? rosterOf(dir) : /* @__PURE__ */ new Map();
   const order = (Array.isArray(index.slices) ? index.slices : []).map((s) => typeof s === "string" ? s : s?.slug ?? s?.slice).filter(Boolean).filter((s) => !own || ownsSlice(roster.get(s) ?? { slug: s }, own));
   const passed = order.filter((s) => {
-    const f = join3(dir, `06-verify-${s}.md`);
+    const f = join4(dir, `06-verify-${s}.md`);
     if (!existsSync2(f)) return false;
-    const fm = safeParseFrontmatter(readFileSync2(f, "utf8")).data ?? {};
+    const fm = safeParseFrontmatter(readFileSync3(f, "utf8")).data ?? {};
     return ["pass", "partial"].includes(String(fm.result ?? ""));
   });
   return { order, passed, finished: ["finished", "merged", "shipped"].includes(u.state) };
@@ -2454,9 +2630,9 @@ function mergeIn(root, b, [key, from], f = {}) {
   return { ok: true, key, from, through: reached, merge: head, closed: closed.map((w) => `${w.from} through ${w.through}`), stillOpen: (u.waits ?? []).filter((w) => w.state === "open").map((w) => `${w.from} through ${w.through}`), state: u.state, context: ctx.path ?? null, rerere: "enabled" };
 }
 function quietDeferrals(root, u) {
-  const idx = join3(unitWorkflowDir(root, u), "00-index.md");
+  const idx = join4(unitWorkflowDir(root, u), "00-index.md");
   if (!existsSync2(idx)) return [];
-  const list = safeParseFrontmatter(readFileSync2(idx, "utf8")).data?.["runtime-evidence-deferrals"];
+  const list = safeParseFrontmatter(readFileSync3(idx, "utf8")).data?.["runtime-evidence-deferrals"];
   return (Array.isArray(list) ? list : []).filter((d) => d && d.kind === "quiet-window" && !d["cleared-by"]).map((d) => ({ slice: d.slice ?? null, command: d["quiet-command"] ?? null, limit: d.limit ?? null, reason: d.reason ?? "" }));
 }
 function mergeOrder(root, b, [nText]) {
@@ -2473,14 +2649,14 @@ function mergeOrder(root, b, [nText]) {
   const boundaryUnits = [...order.map((k) => units.find((x) => x.key === k)), ...Object.entries(through).map(([k, by]) => ({ ...units.find((x) => x.key === k), through: by }))];
   return { ok: true, wave: w.n, order, through, units: boundaryUnits, carried: Object.entries(through).map(([k, by]) => ({ key: k, slug: ledger.units[k].slug, through: by })), quiet: units.filter((x) => x.quiet.length).map((x) => ({ key: x.key, checks: x.quiet.length })) };
 }
-var DRIVER_ROOT = join3(PLUGIN_ROOT, "skills", "wf", "workflows");
+var DRIVER_ROOT = join4(PLUGIN_ROOT, "skills", "wf", "workflows");
 var isMoved = (u) => u?.state === "stopped" && /^moved\b/.test(String(u.route ?? ""));
-var cancelPathOf = (root, runId, n) => join3(root, ".scratch", "campaign", runId, `wave-${n}`, "cancel");
+var cancelPathOf = (root, runId, n) => join4(root, ".scratch", "campaign", runId, `wave-${n}`, "cancel");
 function waveRunLines(root, b, ledger, w) {
   const lines = readJsonl(journalPath(root, b));
   for (const k of w.units) {
     const u = ledger.units[k];
-    if (u) lines.push(...readJsonl(join3(unitWorkflowDir(root, u), ".driver-journal.jsonl")));
+    if (u) lines.push(...readJsonl(join4(unitWorkflowDir(root, u), ".driver-journal.jsonl")));
   }
   return lines;
 }
@@ -2494,7 +2670,7 @@ function liveRun(root, b, ledger) {
 }
 function setFrontmatterKeys(file, pairs) {
   if (!existsSync2(file)) return false;
-  const text = readFileSync2(file, "utf8");
+  const text = readFileSync3(file, "utf8");
   const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
   if (!m) return false;
   let fm = m[1];
@@ -2510,8 +2686,8 @@ ${fm}
   return true;
 }
 function reviewScopeOf(root, u, ledger = null) {
-  const idx = join3(unitWorkflowDir(root, u), "00-index.md");
-  const fm = existsSync2(idx) ? safeParseFrontmatter(readFileSync2(idx, "utf8")).data ?? {} : {};
+  const idx = join4(unitWorkflowDir(root, u), "00-index.md");
+  const fm = existsSync2(idx) ? safeParseFrontmatter(readFileSync3(idx, "utf8")).data ?? {} : {};
   if (["slug-wide", "per-slice"].includes(fm["review-scope"])) return fm["review-scope"];
   return ledger && defaultsOf(ledger)["review-scope"] === "slug-wide" ? "slug-wide" : "per-slice";
 }
@@ -2536,9 +2712,9 @@ function launch(root, b, n, f) {
       ok: true,
       wave: n,
       mode: "drift",
-      stage: `node "${join3(PLUGIN_ROOT, "scripts", "stage-yolo-driver.mjs")}" "${root}" --driver campaign-wave`,
-      driver: join3(DRIVER_ROOT, "campaign-wave.js"),
-      args: { mode: "drift", projectRoot: root, referenceRoot: join3(PLUGIN_ROOT, "skills", "wf", "reference"), brainstorm: b, wave: n, campaignDir: campDir(root, b), campaignControlPath: controlPath(root, b), campaignSteerPath: campaignSteerPath(root, b), units: [] }
+      stage: `node "${join4(PLUGIN_ROOT, "scripts", "stage-yolo-driver.mjs")}" "${root}" --driver campaign-wave`,
+      driver: join4(DRIVER_ROOT, "campaign-wave.js"),
+      args: { mode: "drift", projectRoot: root, referenceRoot: join4(PLUGIN_ROOT, "skills", "wf", "reference"), brainstorm: b, wave: n, campaignDir: campDir(root, b), campaignControlPath: controlPath(root, b), campaignSteerPath: campaignSteerPath(root, b), units: [] }
     };
   }
   const cfg = configOf(root);
@@ -2571,12 +2747,12 @@ function launch(root, b, n, f) {
       const longest = longestTrackedPath(root);
       const order = [...w.units].sort((a, c) => (ledger.units[a].order ?? 0) - (ledger.units[c].order ?? 0));
       for (const k of fresh) {
-        const path = join3(base, `w${n}-${order.indexOf(k) + 1}`);
+        const path = join4(base, `w${n}-${order.indexOf(k) + 1}`);
         const pb = pathBudget({ worktree: path, longestTracked: longest, buildDepth: iso["build-depth"] });
         if (!pb.ok) blocked.push({ key: k, cause: "path", detail: `${path}: ${pb.total} characters with the deepest build path, against the Windows limit of ${pb.limit}. Set campaign.isolation.worktree-root to a short absolute path.` });
       }
     }
-    mkdirSync2(base, { recursive: true });
+    mkdirSync3(base, { recursive: true });
     const st = statfsSync(base);
     const freeGb = st.bavail * st.bsize / 1024 ** 3;
     const need = diskNeedGb({ history: ledger["disk-history"] ?? [], toStart: fresh.length, minFreeGb: iso["min-free-gb"] });
@@ -2593,7 +2769,7 @@ function launch(root, b, n, f) {
   const lw = ledger.waves.find((x) => x.n === n);
   for (const k of keys) {
     const u = ledger.units[k];
-    setFrontmatterKeys(join3(u.worktree.path, ".ai", "workflows", u.slug, "00-index.md"), { "branch-strategy": "dedicated", branch: u.worktree.branch, "base-branch": lw.branch });
+    setFrontmatterKeys(join4(u.worktree.path, ".ai", "workflows", u.slug, "00-index.md"), { "branch-strategy": "dedicated", branch: u.worktree.branch, "base-branch": lw.branch });
     if (!isLocal(ledger)) {
       const rel = `.ai/workflows/${u.slug}/00-index.md`;
       spawnSync("git", ["-C", u.worktree.path, "add", "--", rel], { windowsHide: true });
@@ -2608,7 +2784,7 @@ function launch(root, b, n, f) {
   }
   const campaignRunId = `${nowIso().replace(/[-:]/g, "").replace(/\.\d+/, "")}-${b}-w${n}`;
   if (lw.run?.id) {
-    rmSync2(join3(root, ".scratch", "campaign", lw.run.id), { recursive: true, force: true });
+    rmSync3(join4(root, ".scratch", "campaign", lw.run.id), { recursive: true, force: true });
     spawnSync("git", ["-C", root, "worktree", "prune"], { windowsHide: true });
   }
   lw.run = { id: campaignRunId, at: nowIso() };
@@ -2621,7 +2797,7 @@ function launch(root, b, n, f) {
   const args = {
     mode: allDone ? "boundary" : "wave",
     projectRoot: root,
-    referenceRoot: join3(PLUGIN_ROOT, "skills", "wf", "reference"),
+    referenceRoot: join4(PLUGIN_ROOT, "skills", "wf", "reference"),
     brainstorm: b,
     wave: n,
     campaignRunId,
@@ -2665,7 +2841,7 @@ function launch(root, b, n, f) {
         ownKeys: ownOf(ledger, k).keys,
         root: u.worktree.path,
         branch: u.worktree.branch,
-        contextPath: join3(campDir(root, b), "context", `${u.slug}.md`),
+        contextPath: join4(campDir(root, b), "context", `${u.slug}.md`),
         reviewScope: reviewScopeOf(root, u, ledger),
         state: u.state,
         runId: u["wave-run-id"] ?? null,
@@ -2677,7 +2853,7 @@ function launch(root, b, n, f) {
     waveQuestions: (ledger.questions ?? []).filter((q) => q.wave === n && !q.unit).map(questionArgs)
   };
   appendJournal(root, b, "run-start", { run: campaignRunId, wave: n, units: keys, mode: args.mode });
-  const outcomeDir = join3(root, ".scratch", "campaign", campaignRunId, `wave-${n}`);
+  const outcomeDir = join4(root, ".scratch", "campaign", campaignRunId, `wave-${n}`);
   return {
     ok: true,
     wave: n,
@@ -2685,14 +2861,14 @@ function launch(root, b, n, f) {
     mode: args.mode,
     width,
     widthMax,
-    stage: `node "${join3(PLUGIN_ROOT, "scripts", "stage-yolo-driver.mjs")}" "${root}" --driver campaign-wave`,
-    driver: join3(DRIVER_ROOT, "campaign-wave.js"),
-    outcomePath: join3(outcomeDir, "outcome.json"),
+    stage: `node "${join4(PLUGIN_ROOT, "scripts", "stage-yolo-driver.mjs")}" "${root}" --driver campaign-wave`,
+    driver: join4(DRIVER_ROOT, "campaign-wave.js"),
+    outcomePath: join4(outcomeDir, "outcome.json"),
     args
   };
 }
 function waveActualOf(root, b, ledger, w) {
-  const journals = [readJsonl(join3(campDir(root, b), ".campaign-journal.jsonl"))];
+  const journals = [readJsonl(join4(campDir(root, b), ".campaign-journal.jsonl"))];
   const costRows = [];
   const seen = /* @__PURE__ */ new Set();
   for (const k of w.units ?? []) {
@@ -2700,9 +2876,9 @@ function waveActualOf(root, b, ledger, w) {
     if (!lu?.slug) continue;
     const roots = [...new Set([lu.worktree?.path, root].filter(Boolean))];
     for (const r of roots) {
-      const dir = join3(r, ".ai", "workflows", lu.slug);
-      journals.push(readJsonl(join3(dir, ".driver-journal.jsonl")));
-      for (const row of readJsonl(join3(dir, "cost.jsonl"))) {
+      const dir = join4(r, ".ai", "workflows", lu.slug);
+      journals.push(readJsonl(join4(dir, ".driver-journal.jsonl")));
+      for (const row of readJsonl(join4(dir, "cost.jsonl"))) {
         const id = `${row.ts}|${row.session}|${row.turn}|${row.key}`;
         if (seen.has(id)) continue;
         seen.add(id);
@@ -2714,7 +2890,7 @@ function waveActualOf(root, b, ledger, w) {
 }
 function record(root, b, n, f) {
   if (!f.outcome) throw new Error("wave record: give --outcome <the outcome file>");
-  const out = readJson(resolve(f.outcome));
+  const out = readJson2(resolve(f.outcome));
   if (!out || typeof out !== "object") return { ok: false, error: `wave record: ${f.outcome} is not a JSON outcome` };
   if (Number(out.wave) !== n) return { ok: false, error: `wave record: the outcome is of wave ${out.wave}, not ${n}` };
   const ledger = requireLedger(root, b);
@@ -2883,8 +3059,8 @@ function needs(root, b, [key, action], f) {
   const evidence = f.evidence ?? "";
   const dir = unitWorkflowDir(root, u);
   const implemented = entry.before && ["05-implement-", "05-implement"].some((p) => {
-    const file = join3(dir, p.endsWith("-") ? `${p}${entry.before}.md` : `${p}.md`);
-    return existsSync2(file) && String(safeParseFrontmatter(readFileSync2(file, "utf8")).data?.status ?? "") === "complete";
+    const file = join4(dir, p.endsWith("-") ? `${p}${entry.before}.md` : `${p}.md`);
+    return existsSync2(file) && String(safeParseFrontmatter(readFileSync3(file, "utf8")).data?.status ?? "") === "complete";
   });
   if (implemented || (u.cleared ?? []).some((c) => c.slice === entry.before)) {
     (w.focus ??= []).push({ a: entry.from, aSlice: entry.through, b: key, bSlice: entry.before, files: why });
@@ -2943,7 +3119,7 @@ function awaitCmd(root, b, f) {
   const check = () => {
     const ledger = loadLedger(root, b) ?? first;
     if (run && existsSync2(cancelPathOf(root, run, n))) return { cancelled: true };
-    const ctl = readJson(controlPath(root, b));
+    const ctl = readJson2(controlPath(root, b));
     if (ctl?.action === "stop" && ctl.scope === "campaign") return { stopped: true, kind: "stop", reason: ctl.reason ?? "stop request" };
     if (ctl?.action === "pause" && (!ctl.until || Date.parse(ctl.until) > Date.now())) return { stopped: true, kind: "pause", until: ctl.until ?? null, reason: ctl.reason ?? "pause" };
     const bd = budget(root, b);
@@ -2991,7 +3167,7 @@ function schedule(root, b, [nText], f) {
     const u = ledger.units[k];
     const dir = unitWorkflowDir(root, u);
     const own = ownOf(ledger, k);
-    const fm = (name) => existsSync2(join3(dir, name)) ? safeParseFrontmatter(readFileSync2(join3(dir, name), "utf8")).data ?? {} : {};
+    const fm = (name) => existsSync2(join4(dir, name)) ? safeParseFrontmatter(readFileSync3(join4(dir, name), "utf8")).data ?? {} : {};
     const index = fm("00-index.md");
     const rosterFm = fm("03-slice.md");
     const roster = rosterOf(dir);
@@ -3011,7 +3187,7 @@ function schedule(root, b, [nText], f) {
       for (const nd of ledger.deps?.units?.[k]?.needs ?? []) if (keys.has(nd.from)) waits.push({ key: k, from: nd.from, through: nd.through ?? "finished", before: nd.before ?? null });
     }
   }
-  const journals = units.map((u) => readJsonl(join3(unitWorkflowDir(root, ledger.units[u.key]), ".driver-journal.jsonl")));
+  const journals = units.map((u) => readJsonl(join4(unitWorkflowDir(root, ledger.units[u.key]), ".driver-journal.jsonl")));
   const minutes = f.medians === "plan" ? {} : stageMinutesFromJournals(journals.filter((j) => j.length));
   const sim = scheduleOf({ units, waits, width, machineWidth, minutes });
   return { ok: true, wave: n, ...sim, waits: waits.length, unsliced: units.filter((u) => !u.slices.length).map((u) => u.key) };
@@ -3044,10 +3220,10 @@ function sliceOrder(root, slug, [action], f) {
   const s = String(f.slice ?? "").trim();
   const t = String(f.after ?? "").trim();
   if (!s || !t || s === t) throw new Error("slice-order add: give --slice <slice> --after <another slice>");
-  const dir = join3(root, ".ai", "workflows", slug);
-  const rosterFile = join3(dir, "03-slice.md");
+  const dir = join4(root, ".ai", "workflows", slug);
+  const rosterFile = join4(dir, "03-slice.md");
   if (!existsSync2(rosterFile)) return { ok: false, error: `slice-order: ${relative(root, rosterFile)} does not exist` };
-  const text = readFileSync2(rosterFile, "utf8");
+  const text = readFileSync3(rosterFile, "utf8");
   const roster = rosterEntries(text);
   const entry = roster.find((e) => e.slug === s);
   if (!entry || !roster.some((e) => e.slug === t)) return { ok: false, error: `slice-order: ${!entry ? s : t} is not a slice of the roster of ${slug}` };
@@ -3055,34 +3231,34 @@ function sliceOrder(root, slug, [action], f) {
   if (closesCycle(roster, s, t)) return { ok: false, cycle: true, error: `slice-order: ${s} after ${t} closes a cycle, because ${t} already depends on ${s}` };
   const deps = [...entry.dependsOn, t];
   writeAtomic(rosterFile, editRosterEntry(text, s, { "depends-on": deps }));
-  const sliceFile = join3(dir, `03-slice-${s}.md`);
+  const sliceFile = join4(dir, `03-slice-${s}.md`);
   if (existsSync2(sliceFile)) {
-    const st = readFileSync2(sliceFile, "utf8");
+    const st = readFileSync3(sliceFile, "utf8");
     const have = frontmatterValue(st, "depends-on");
     const list = Array.isArray(have) ? have.map(String) : [];
     if (!list.includes(t)) writeAtomic(sliceFile, setFrontmatterValue(st, "depends-on", [...list, t]) ?? st);
   }
   const why = String(f.why ?? "").trim();
-  appendFileSync(join3(dir, "index-history.jsonl"), `${JSON.stringify({ at: nowIso(), kind: "note", text: `slice-order: '${s}' after '${t}'${why ? `: ${why}` : ""}`, stage: "plan" })}
+  appendFileSync(join4(dir, "index-history.jsonl"), `${JSON.stringify({ at: nowIso(), kind: "note", text: `slice-order: '${s}' after '${t}'${why ? `: ${why}` : ""}`, stage: "plan" })}
 `);
-  const order = rosterWalkOrder(rosterEntries(readFileSync2(rosterFile, "utf8"))).map((e) => e.slug);
-  const planFile = join3(dir, "04-plan.md");
+  const order = rosterWalkOrder(rosterEntries(readFileSync3(rosterFile, "utf8"))).map((e) => e.slug);
+  const planFile = join4(dir, "04-plan.md");
   if (existsSync2(planFile)) {
-    const pt = readFileSync2(planFile, "utf8");
+    const pt = readFileSync3(planFile, "utf8");
     const next = setFrontmatterValue(pt, "implementation-order", order);
     if (next && next !== pt) writeAtomic(planFile, next);
   }
   return { ok: true, slug, slice: s, after: t, added: true, dependsOn: deps, walkOrder: order };
 }
 function owner(root, slug) {
-  const wf = join3(root, ".ai", "workflows");
+  const wf = join4(root, ".ai", "workflows");
   let dirs = [];
   try {
     dirs = readdirSync2(wf, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
   } catch {
   }
   for (const b of dirs) {
-    const ledger = readJson(ledgerPath(root, b));
+    const ledger = readJson2(ledgerPath(root, b));
     if (!ledger?.units) continue;
     for (const w of ledger.waves ?? []) {
       if (!w.run?.id) continue;
@@ -3095,11 +3271,11 @@ function owner(root, slug) {
   return { ok: true, owned: false, slug };
 }
 function runningPluginVersion() {
-  return readJson(join3(PLUGIN_ROOT, ".claude-plugin", "plugin.json"))?.version ?? readJson(join3(PLUGIN_ROOT, "package.json"))?.version ?? null;
+  return readJson2(join4(PLUGIN_ROOT, ".claude-plugin", "plugin.json"))?.version ?? readJson2(join4(PLUGIN_ROOT, "package.json"))?.version ?? null;
 }
 function installedPluginVersion(root) {
-  const file = process.env.SDLC_INSTALLED_PLUGINS || join3(homedir(), ".claude", "plugins", "installed_plugins.json");
-  const rec = readJson(file);
+  const file = process.env.SDLC_INSTALLED_PLUGINS || join4(homedir(), ".claude", "plugins", "installed_plugins.json");
+  const rec = readJson2(file);
   const plugins = rec?.plugins ?? {};
   let best = null;
   for (const [name, entries2] of Object.entries(plugins)) {
@@ -3244,7 +3420,7 @@ function depsCmd(root, b, pos, f) {
   ledger.deps.revision = (ledger.deps.revision ?? 1) + 1;
   saveLedger(root, b, ledger);
   const u = unitsOf(ws, ledger).find((x) => x.key === key);
-  if (u && existsSync2(join3(campDir(root, b), "context", `${u.slug}.md`))) context(root, b, [key]);
+  if (u && existsSync2(join4(campDir(root, b), "context", `${u.slug}.md`))) context(root, b, [key]);
   appendJournal(root, b, "deps-change", { key, by, ...change });
   const confirmed = Boolean(entry["confirmed-at"]);
   return { ok: true, key, entry, ...confirmed ? { replan: true, note: `the entry of ${key} is confirmed: run replan, so that the waves follow the change` } : {} };
@@ -3305,11 +3481,11 @@ function standingAnswer(root, b, key, raw) {
   return { ok: true, key, value: key === "defaults" ? defaultsOf(ledger) : policyOf(ledger) };
 }
 function designBlocksPrepared(root, slug) {
-  const dir = join3(root, ".ai", "workflows", slug);
-  const read = (name) => existsSync2(join3(dir, name)) ? safeParseFrontmatter(readFileSync2(join3(dir, name), "utf8")).data ?? {} : null;
+  const dir = join4(root, ".ai", "workflows", slug);
+  const read = (name) => existsSync2(join4(dir, name)) ? safeParseFrontmatter(readFileSync3(join4(dir, name), "utf8")).data ?? {} : null;
   const index = read("00-index.md");
   if (!index) return null;
-  if (!designNeeded(index, existsSync2(join3(dir, "02b-design.md")))) return null;
+  if (!designNeeded(index, existsSync2(join4(dir, "02b-design.md")))) return null;
   const contract2 = read("02c-craft.md");
   const missing = contract2 ? missingBoardFiles(dir, contract2) : null;
   if (!designSettled(index, contract2, missing)) {
@@ -3361,9 +3537,9 @@ function deferUnit(root, b, key) {
   const t = ledger.units[target];
   const dir = checkoutOf(root, t);
   const rel = `.ai/workflows/${t.slug}/03-slice.md`;
-  const file = join3(dir, rel);
+  const file = join4(dir, rel);
   if (!existsSync2(file)) return { ok: false, error: `unit defer: ${rel} does not exist in ${dir}` };
-  let text = readFileSync2(file, "utf8");
+  let text = readFileSync3(file, "utf8");
   const free = rosterEntries(text).filter((e) => e.source === "extension" && !e.unit);
   const exts = Object.keys(ledger.units).filter((k) => ledger.units[k].form === "extension" && ledger.units[k].slug === t.slug && !ledger.units[k]["absorbed-into"]).sort((x, y) => (ledger.units[x].order ?? 0) - (ledger.units[y].order ?? 0) || x.localeCompare(y));
   let mine = free;
@@ -3515,9 +3691,9 @@ function crossUnitNeedsGaps(root, ledger, w) {
   const needsOf2 = (k) => ledger.deps?.units?.[k]?.needs ?? [];
   const gaps = [];
   for (const k of keys) {
-    const f = join3(unitWorkflowDir(root, ledger.units[k]), "03-slice.md");
+    const f = join4(unitWorkflowDir(root, ledger.units[k]), "03-slice.md");
     if (!existsSync2(f)) continue;
-    const lines = readFileSync2(f, "utf8").replace(/\r\n/g, "\n").split("\n");
+    const lines = readFileSync3(f, "utf8").replace(/\r\n/g, "\n").split("\n");
     const at = lines.findIndex((l) => /^#{1,6}\s+Cross-Unit Needs/i.test(l));
     if (at < 0) continue;
     const level = /^#+/.exec(lines[at])[0].length;
@@ -3599,17 +3775,17 @@ function resume(root, b) {
   const ledger = requireLedger(root, b);
   ledger.pause = null;
   saveLedger(root, b, ledger);
-  const ctl = readJson(controlPath(root, b));
+  const ctl = readJson2(controlPath(root, b));
   if (ctl && ctl.action === "pause") writeAtomic(controlPath(root, b), "{}\n");
   appendJournal(root, b, "resumed", {});
   return { ok: true, next: nextAction(root, b, ledger, {}) };
 }
 function asBuiltNotes(root, b) {
-  const dir = join3(campDir(root, b), "as-built");
+  const dir = join4(campDir(root, b), "as-built");
   const out = {};
   if (!existsSync2(dir)) return out;
   for (const f of readdirSync2(dir).filter((x) => x.endsWith(".json"))) {
-    const d = readJson(join3(dir, f));
+    const d = readJson2(join4(dir, f));
     if (d?.key) out[d.key] = { ...d, path: `../as-built/${f.replace(/\.json$/, ".md")}` };
   }
   return out;
@@ -3621,13 +3797,20 @@ function context(root, b, [key]) {
   const units = unitsOf(ws, ledger);
   const u = units.find((x) => x.key === key);
   if (!u) throw new Error(`context: no packet ${key}`);
-  const driftFile = join3(campDir(root, b), "drift", `${key}.json`);
-  const drift2 = (readJson(driftFile)?.lines ?? []).filter((l) => l.class === "implementation-detail");
+  const driftFile = join4(campDir(root, b), "drift", `${key}.json`);
+  const drift2 = (readJson2(driftFile)?.lines ?? []).filter((l) => l.class === "implementation-detail");
   const wt = ledger.units[key]?.worktree;
-  const iso = wt ? isolationOf(readJson(join3(root, ".ai", "sdlc-config.json")) ?? {}) : null;
-  const isolation = wt && iso ? isolationText(iso, { index: wt.index, worktree: wt.path, slug: u.slug, outside: wt.outside ?? null, lockCmd: `node "${join3(PLUGIN_ROOT, "skills", "wf", "scripts", "campaign.mjs")}" lock "${root}" ${b}` }) : null;
+  const iso = wt ? isolationOf(readJson2(join4(root, ".ai", "sdlc-config.json")) ?? {}) : null;
+  const isolation = wt && iso ? isolationText(iso, {
+    index: wt.index,
+    worktree: wt.path,
+    slug: u.slug,
+    outside: wt.outside ?? null,
+    lockCmd: `node "${join4(PLUGIN_ROOT, "skills", "wf", "scripts", "campaign.mjs")}" lock "${root}" ${b}`,
+    heavyCmd: `node "${join4(PLUGIN_ROOT, "skills", "wf", "scripts", "campaign.mjs")}" heavy-run "${root}" ${b}`
+  }) : null;
   const text = renderContext({ unit: u, units, ledger, asBuilt: asBuiltNotes(root, b), drift: drift2, isolation, localRecords: isLocal(ledger) });
-  const file = join3(campDir(root, b), "context", `${u.slug}.md`);
+  const file = join4(campDir(root, b), "context", `${u.slug}.md`);
   writeAtomic(file, text);
   return { ok: true, key, slug: u.slug, path: file };
 }
@@ -3642,7 +3825,7 @@ function drift(root, b, [nText]) {
   const results = w.units.map((k) => units.find((u) => u.key === k)).filter(Boolean).map((u) => classifyDrift(u, notes));
   const L = [`# Drift check before wave ${n}`, "", "Each waiting slug's expects lines against the as-built notes of the slugs it names, after the refuter (11.2).", ""];
   for (const r of results) {
-    writeAtomic(join3(campDir(root, b), "drift", `${r.key}.json`), `${JSON.stringify(r, null, 2)}
+    writeAtomic(join4(campDir(root, b), "drift", `${r.key}.json`), `${JSON.stringify(r, null, 2)}
 `);
     L.push(`## ${r.key} \u2014 ${r.class}`, "");
     if (!r.lines.length) L.push("- No expects lines.");
@@ -3660,7 +3843,7 @@ function drift(root, b, [nText]) {
     }
   }
   L.push("## Result", "", contract2.length ? `Contract differences: ${contract2.join(", ")}. These slugs and their dependents wait for the person: ${[...stop].join(", ")}.` : "No contract difference. The wave can start.", "");
-  writeAtomic(join3(campDir(root, b), "drift", `wave-${n}.md`), L.join("\n"));
+  writeAtomic(join4(campDir(root, b), "drift", `wave-${n}.md`), L.join("\n"));
   appendJournal(root, b, "drift", { wave: n, contract: contract2, stop: [...stop], implementation: results.filter((r) => r.class === "implementation-detail").map((r) => r.key) });
   return { ok: true, wave: n, results: results.map((r) => ({ key: r.key, class: r.class })), stop: [...stop] };
 }
@@ -3707,11 +3890,11 @@ function forecast(root, b, f) {
   const fc = buildForecast({ units: units.filter((u) => !["merged", "shipped"].includes(ledger.units[u.key]?.state)), history, slices });
   ledger.forecast = { minutes: fc.minutes, tokens: fc.tokens, unknown: fc.unknown, journals: history.journals };
   saveLedger(root, b, ledger);
-  writeAtomic(join3(campDir(root, b), "forecast.md"), renderForecast(fc, { brainstorm: b, now: nowIso(), actual: ledger["forecast-actual"] }));
+  writeAtomic(join4(campDir(root, b), "forecast.md"), renderForecast(fc, { brainstorm: b, now: nowIso(), actual: ledger["forecast-actual"] }));
   return { ok: true, forecast: ledger.forecast };
 }
 var STEER_HEAD = "# Standing steering\n";
-var campaignSteerPath = (root, b) => join3(campDir(root, b), "steer.md");
+var campaignSteerPath = (root, b) => join4(campDir(root, b), "steer.md");
 function steerFiles(root, b, ledger, target) {
   if (target === "all") return [{ target: "campaign", path: campaignSteerPath(root, b) }];
   const waveN = /^wave-(\d+)$/.exec(target ?? "")?.[1];
@@ -3721,8 +3904,8 @@ function steerFiles(root, b, ledger, target) {
   for (const k of keys) {
     const u = ledger.units[k];
     if (!u) throw new Error(`steer: ${k} is not a build unit of this campaign; the target is a packet key, wave-<n>, or all`);
-    files.push({ target: k, path: join3(root, ".ai", "workflows", u.slug, "steer.md") });
-    if (u.worktree?.path) files.push({ target: k, path: join3(u.worktree.path, ".ai", "workflows", u.slug, "steer.md") });
+    files.push({ target: k, path: join4(root, ".ai", "workflows", u.slug, "steer.md") });
+    if (u.worktree?.path) files.push({ target: k, path: join4(u.worktree.path, ".ai", "workflows", u.slug, "steer.md") });
   }
   return files;
 }
@@ -3749,7 +3932,7 @@ function steer(root, b, [target, action], f) {
   const by = f.by ?? "the person";
   const at = nowIso();
   const entry = (text) => `- ${String(text).trim()} (${by}, ${at})`;
-  const read = (p) => existsSync2(p) ? readFileSync2(p, "utf8") : STEER_HEAD;
+  const read = (p) => existsSync2(p) ? readFileSync3(p, "utf8") : STEER_HEAD;
   if (action === "list") {
     const copies = files.map((x) => ({ ...x, exists: existsSync2(x.path), entries: steerEntries(read(x.path)).entries.map((e) => e.text) }));
     const differs = [];
@@ -3819,7 +4002,7 @@ function away(root, b, f) {
   appendJournal(root, b, "away", { words: ledger.presence.words });
   return { ok: true, presence: ledger.presence, policy: policyOf(ledger), limits: AWAY_LIMITS };
 }
-var decidedPath = (root, b) => join3(campDir(root, b), "decided-for-you.md");
+var decidedPath = (root, b) => join4(campDir(root, b), "decided-for-you.md");
 function decided(root, b, [id], f) {
   const ledger = requireLedger(root, b);
   if (!id) throw new Error("decided: give an id");
@@ -3872,7 +4055,7 @@ ${d.unit ? `- Unit: ${d.unit}
 function recapOf(root, ledger, since) {
   const journals = {};
   for (const [k, u] of Object.entries(ledger.units)) {
-    const j = readJsonl(join3(unitWorkflowDir(root, u), ".driver-journal.jsonl"));
+    const j = readJsonl(join4(unitWorkflowDir(root, u), ".driver-journal.jsonl"));
     if (j.length) journals[k] = j;
   }
   return buildRecap({ ledger, since, journals, campaign: readJsonl(journalPath(root, ledger.brainstorm)), now: nowIso() });
@@ -3913,10 +4096,12 @@ function main(argv = process.argv.slice(2)) {
     return 2;
   }
   const root = resolve(rootArg);
-  const { pos, f } = flags(rest);
+  const dd = rest.indexOf("--");
+  const tail = dd >= 0 ? rest.slice(dd + 1) : [];
+  const { pos, f } = flags(dd >= 0 ? rest.slice(0, dd) : rest);
   let out;
   try {
-    out = LEDGER_COMMANDS.has(cmd) && existsSync2(workDir(root, b)) ? withRecordsLock(ledgerLockPath(root, b), `${cmd} ${pos[0] ?? ""}`.trim(), () => dispatch(cmd, root, b, pos, f), { waitMs: 12e4, liveStaleMs: 30 * 6e4 }) : dispatch(cmd, root, b, pos, f);
+    out = LEDGER_COMMANDS.has(cmd) && existsSync2(workDir(root, b)) ? withRecordsLock(ledgerLockPath(root, b), `${cmd} ${pos[0] ?? ""}`.trim(), () => dispatch(cmd, root, b, pos, f), { waitMs: 12e4, liveStaleMs: 30 * 6e4 }) : dispatch(cmd, root, b, pos, f, tail);
   } catch (e) {
     out = { ok: false, error: e.message };
   }
@@ -3927,9 +4112,10 @@ function main(argv = process.argv.slice(2)) {
   }
   process.stdout.write(`${JSON.stringify(out, null, 2)}
 `);
+  if (cmd === "heavy-run" && Number.isInteger(out.exit)) return out.exit;
   return out.ok ? 0 : 1;
 }
-function dispatch(cmd, root, b, pos, f) {
+function dispatch(cmd, root, b, pos, f, tail = []) {
   let out;
   {
     switch (cmd) {
@@ -3991,7 +4177,10 @@ function dispatch(cmd, root, b, pos, f) {
         out = worktree(root, b, pos);
         break;
       case "lock":
-        out = lock(root, b, pos);
+        out = lock(root, b, pos, f);
+        break;
+      case "heavy-run":
+        out = heavyRun(root, b, pos, f, tail);
         break;
       case "stack":
         out = stack(root, b, pos);

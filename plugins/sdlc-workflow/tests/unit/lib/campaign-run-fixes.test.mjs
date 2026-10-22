@@ -187,9 +187,9 @@ test('isolationOf reads the new fields and refuses a relative root', () => {
   assert.equal(iso['outside-root'], 'C:/co');
   assert.equal(iso['worktree-root'], null);
   assert.equal(iso['build-depth'], 100);
-  const text = C.isolationText(iso, { index: 0, worktree: 'C:/cw/a/w1-1', lockCmd: 'LOCK', slug: 's', outside: 'C:/co/a/w1-1' });
+  const text = C.isolationText(iso, { index: 0, worktree: 'C:/cw/a/w1-1', lockCmd: 'LOCK', heavyCmd: 'RUN', slug: 's', outside: 'C:/co/a/w1-1' });
   assert.match(text, /Outside folder: `C:\/co\/a\/w1-1`/);
-  assert.match(text, /LOCK quiet acquire s/);
+  assert.match(text, /RUN s --quiet --agent <your agent label> -- <the command>/);
   assert.match(text, /worktree's `\.scratch\/` folder/);
 });
 

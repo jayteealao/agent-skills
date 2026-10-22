@@ -76,8 +76,8 @@ For each tool gap from Phase 0, ask the person to fix it. The campaign does not 
 
 - `port-env`: each port variable with its base value. The unit with index i gets base + 100 × i.
 - `build-dirs`: the build folders each worktree keeps for itself.
-- `heavy-suites`: the test commands that only one worktree may run at a time, also across sessions. Ask the person to list every long local run here, for example a calibration or a benchmark, and not only the test suites.
-- `quiet-suites`: the timed checks that need an idle machine. A unit takes the quiet lock for them, and no heavy suite runs while it holds the lock.
+- `heavy-suites`: the test commands that only one worktree may run at a time, also across sessions. Ask the person to list every long local run here, for example a calibration or a benchmark, and not only the test suites. Ask for the usual length of each one, and leave out a run under 2 minutes: each listed run waits for the lock, so a short run in the list slows every unit. A unit runs each listed suite through `heavy-run`, which holds the lock only while the suite runs.
+- `quiet-suites`: the timed checks that need an idle machine. A unit runs them through `heavy-run --quiet`, and no heavy suite runs at the same time.
 - `min-free-gb`: the free disk space to keep. The default is 20.
 - `outside-root` and `worktree-root`: short absolute paths outside the repo, for example `C:/co` and `C:/cw`. `outside-root` holds each unit's folders that cannot be in its worktree: a second build folder, or a checkout of another commit. The worktrees are in `~/.sdlc/cw/<repo tag>` by default; `worktree-root` moves them to a shorter path. On Windows, always ask the person for `outside-root`, and ask for `worktree-root` when `worktree add` reports a path that is too long: a folder at the drive root is the person's choice. Without them, a deep build path can pass the Windows limit of 260 characters.
 - `build-depth`: the length of the deepest build path inside a worktree, for the path check at `worktree add`. The default is 140, for a Rust `target/` folder.

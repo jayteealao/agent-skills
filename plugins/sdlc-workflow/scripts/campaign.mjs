@@ -26,7 +26,9 @@
  *   journal  <root> <brainstorm> <event> [<json>] append a campaign journal line (the watch reads it)
  *   forecast <root> <brainstorm> [--wave n --minutes m --tokens t]
  *   worktree <root> <brainstorm> <key|wave-<n>> <add|refresh|sync|remove>   (13; local records)
- *   lock     <root> <brainstorm> [quiet] <acquire|release> <slug>  the heavy-suite lock, or the quiet lease (C4)
+ *   lock     <root> <brainstorm> [quiet] <acquire|release> <slug> [--agent a]  a 30-minute lease of the heavy-suite lock, or of the quiet lock (C4)
+ *   lock     <root> <brainstorm> status|reap      the holds and the queues; end the idle holds (WF-CAMPAIGN-HEAVY-LOCK-REVIEW F4)
+ *   heavy-run <root> <brainstorm> <slug> [--agent a] [--run id] [--quiet] [--shell sh] [--max-wait s] -- <command>   run one heavy suite under the lock (F1)
  *   merge-in <root> <brainstorm> <key> <from> [--at sha]   merge a needed unit, or one cleared commit of it, into a waiting unit (N6, D21)
  *   merge-order <root> <brainstorm> <n>           the boundary merge order from the merge-ins (C7)
  *   steer    <root> <brainstorm> <key|wave-<n>|all> <add|replace|remove|list> [--text t] [--match m] [--by who]   (C2)
@@ -68,13 +70,14 @@ import {
   conventionsOn, decisionStamp, EDGE_KINDS, edgeKind, nextWaveAsk, OPTIONAL_ANSWERS, scheduleOf, stageMinutesFromJournals as stageMedians, unclassifiedEdges, waveReady,
 } from '../lib/campaign.mjs';
 import { closesCycle, editRosterEntry, frontmatterValue, rosterEntries, rosterWalkOrder, setFrontmatterValue } from '../lib/roster-edit.mjs';
-import { ignoredAtRisk, loadManifest, recordsIn, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
+import { ignoredAtRisk, loadManifest, pidAlive, recordsIn, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
+import { holdOf, LEASE_MS, LOCK_KINDS, lockState, otherKind, readHold, readQueue, removeHold, suiteListed, withLocksMutex, writeHold, writeQueue } from '../lib/campaign-locks.mjs';
 import { sdlcHomeDir } from '../lib/registry.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { missingBoardFiles, needsPictures } from '../lib/design-boards.mjs';
 import { designNeeded, designSettled } from '../lib/design-lane.mjs';
 
-const USAGE = 'Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|locks|stack|merge-in|merge-order|steer|rule|away|back|decided|recap|slice-done|needs|contract|await|question|deps|owner|slice-order|schedule> <projectRoot> <brainstorm> ...';
+const USAGE = 'Usage: campaign.mjs <orient|status|replan|answer|unit|outside|wave|ask|reply|pause|resume|context|drift|version|label|journal|forecast|budget|worktree|lock|heavy-run|locks|stack|merge-in|merge-order|steer|rule|away|back|decided|recap|slice-done|needs|contract|await|question|deps|owner|slice-order|schedule> <projectRoot> <brainstorm> ...';
 
 // scripts/ and dist/ both sit one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -257,7 +260,7 @@ function trunkOf(root) {
 }
 
 /** Flags that take no value: `reply --move`, `slice-done --final`, `await --cancel`. */
-const BOOLEAN_FLAGS = new Set(['move', 'final', 'cancel', 'verified', 'refresh']);
+const BOOLEAN_FLAGS = new Set(['move', 'final', 'cancel', 'verified', 'refresh', 'quiet']);
 
 function flags(args) {
   const pos = [];
@@ -684,15 +687,12 @@ function worktreeStep(root, b, [key, action]) {
   return { ok: true, ...u.worktree, ...(records ? { records } : {}) };
 }
 
-const LOCK_STALE_MS = 3 * 60 * 60 * 1000;
-
-const lockFileOf = (root, kind) => join(root, '.scratch', 'campaign', `${kind}.lock`);
-
 /**
- * W0a: the holder of a lock is gone when its drive ended. The process that ran
- * `lock acquire` ends at once, so its pid says nothing; the drive's state does.
- * A holder is gone when its unit is in a state that a drive ends in, or when its
- * driver journal ends with `run-end` after the lock was taken.
+ * W0a: the holder of a lease or a legacy hold is gone when its drive ended. The
+ * process that ran `lock acquire` ends at once, so its pid says nothing; the drive's
+ * state does. A holder is gone when its unit is in a state that a drive ends in, or
+ * when its driver journal ends with `run-end` after the lock was taken. A `heavy-run`
+ * hold names its own process, so its pid decides (lib/campaign-locks.mjs).
  */
 const DRIVE_ENDED = new Set(['stopped', 'finished', 'merged', 'needs-fix', 'shipped']);
 function holderGone(root, b, cur) {
@@ -704,44 +704,165 @@ function holderGone(root, b, cur) {
   return last?.event === 'run-end' && String(last.at ?? '') > String(cur.at ?? '');
 }
 
-/** A lock file whose holder is not `holder`, is younger than 3 hours, and whose drive still runs; or null. */
-function otherHolder(root, b, file, holder) {
-  const cur = readJson(file);
-  return cur && cur.holder !== holder && Date.now() - Date.parse(cur.at) < LOCK_STALE_MS && !holderGone(root, b, cur) ? cur : null;
+/**
+ * The hold of `kind` that keeps the caller out, or null. A `heavy-run` hold of a live
+ * process keeps everyone else out, the same unit too (L2). A lease or a legacy hold
+ * keeps out the other units, and the other agents of the same unit when both name
+ * their agent; it ends when its time ends or when its drive ended.
+ */
+function blockingHold(root, b, kind, { holder, agent = null, pid = null }) {
+  const cur = readHold(root, kind);
+  const h = holdOf(cur);
+  if (!h || !h.live) return null;
+  if (h.kind === 'run') return cur.pid === pid ? null : cur;
+  if (holderGone(root, b, cur)) return null;
+  if (cur.holder !== holder) return cur;
+  return agent && cur.agent && cur.agent !== agent ? cur : null;
 }
 
+/** A waiting `heavy-run` ticket of another unit, which comes before a plain acquire (F3). */
+const queuedBefore = (root, kind, holder) => readQueue(root, kind).find((t) => t.holder !== holder) ?? null;
+
 /**
- * 13: the heavy-suite lock. One holder at a time; a lock older than 3 hours is stale.
- * C4: `lock quiet acquire|release <slug>` is the quiet lease. It waits until no other
- * unit holds the heavy lock, and while it is held, no other unit gets the heavy lock.
+ * 13: the heavy-suite lock. C4: `lock quiet …` is the quiet lease; the two exclude each
+ * other. WF-CAMPAIGN-HEAVY-LOCK-REVIEW (LQ1): agents run their suites through `heavy-run`;
+ * `acquire` stays as a 30-minute lease, `status` shows the holds and the queues, and
+ * `reap` ends the idle holds.
  */
-function lock(root, b, args) {
+function lock(root, b, args, f = {}) {
+  if (args[0] === 'status') return { ok: true, ...lockState(root) };
+  if (args[0] === 'reap') return withLocksMutex(root, 'lock reap', () => reapLocks(root, b));
   const quiet = args[0] === 'quiet';
+  const kind = quiet ? 'quiet' : 'heavy';
   const [action, holder] = quiet ? args.slice(1) : args;
   if (!holder) throw new Error('lock: give the holder (the slug)');
-  const file = lockFileOf(root, quiet ? 'quiet' : 'heavy');
-  mkdirSync(join(file, '..'), { recursive: true });
-  const cur = readJson(file);
-  if (action === 'release') {
-    if (!cur || cur.holder !== holder) return { ok: true, released: false, holder: cur?.holder ?? null };
-    rmSync(file, { force: true });
-    return { ok: true, released: true, ...(quiet ? { quiet: true } : {}) };
-  }
-  if (action !== 'acquire') throw new Error('lock: the action is acquire or release (lock quiet acquire|release for the quiet lease)');
-  // C4: the two locks exclude each other across units.
-  const blocker = otherHolder(root, b, lockFileOf(root, quiet ? 'heavy' : 'quiet'), holder);
-  if (blocker) return { ok: true, acquired: false, holder: blocker.holder, since: blocker.at, ...(quiet ? { heavy: blocker.holder } : { quiet: blocker.holder }) };
-  if (otherHolder(root, b, file, holder)) return { ok: true, acquired: false, holder: cur.holder, since: cur.at };
-  const takenOver = cur && cur.holder !== holder ? cur.holder : null;
-  if (!cur || cur.holder !== holder) {
-    try {
-      writeFileSync(file, JSON.stringify({ holder, at: nowIso() }), { flag: cur ? 'w' : 'wx' });
-    } catch {
-      const now = readJson(file);
-      return { ok: true, acquired: false, holder: now?.holder ?? null, since: now?.at ?? null };
+  const agent = f.agent ? String(f.agent) : null;
+  return withLocksMutex(root, `lock ${kind} ${action} ${holder}`, () => {
+    const cur = readHold(root, kind);
+    if (action === 'release') {
+      if (!cur || cur.holder !== holder) return { ok: true, released: false, holder: cur?.holder ?? null };
+      // A running `heavy-run` releases its own hold when its suite ends.
+      if (Number.isInteger(cur.pid) && cur.pid !== process.pid && pidAlive(cur.pid)) {
+        return { ok: true, released: false, holder, running: { pid: cur.pid, agent: cur.agent ?? null, command: cur.command ?? null }, reason: 'a heavy-run of this unit runs its suite; it releases the lock when the suite ends' };
+      }
+      removeHold(root, kind);
+      return { ok: true, released: true, ...(quiet ? { quiet: true } : {}) };
     }
+    if (action !== 'acquire') throw new Error('lock: the action is acquire, release, status or reap (lock quiet acquire|release for the quiet lease)');
+    const blocker = blockingHold(root, b, otherKind(kind), { holder, agent });
+    if (blocker) return { ok: true, acquired: false, holder: blocker.holder, since: blocker.at, ...(quiet ? { heavy: blocker.holder } : { quiet: blocker.holder }) };
+    const busy = blockingHold(root, b, kind, { holder, agent });
+    if (busy) return { ok: true, acquired: false, holder: busy.holder, since: busy.at };
+    const ticket = queuedBefore(root, kind, holder);
+    if (ticket) return { ok: true, acquired: false, holder: cur?.holder ?? null, queued: { holder: ticket.holder, agent: ticket.agent ?? null, since: ticket.at } };
+    const takenOver = cur && cur.holder !== holder ? cur.holder : null;
+    const at = nowIso();
+    writeHold(root, kind, { holder, ...(agent ? { agent } : {}), at, until: new Date(Date.now() + LEASE_MS).toISOString().replace(/\.\d{3}Z$/, 'Z') });
+    return { ok: true, acquired: true, holder, lease: { minutes: LEASE_MS / 60000 }, ...(takenOver ? { takenOver } : {}) };
+  });
+}
+
+/** F4: end every idle hold (a dead process, an ended lease, a legacy hold over 30 minutes). */
+function reapLocks(root, b) {
+  const reaped = [];
+  for (const kind of LOCK_KINDS) {
+    const cur = readHold(root, kind);
+    const h = holdOf(cur);
+    if (h?.idle) {
+      removeHold(root, kind);
+      const line = { kind, holder: h.holder, agent: h.agent, form: h.kind, heldMinutes: h.heldMinutes, ...(h.pid ? { pid: h.pid } : {}) };
+      reaped.push(line);
+      if (existsSync(campDir(root, b))) appendJournal(root, b, 'lock-reaped', line);
+    }
+    writeQueue(root, kind, readQueue(root, kind));
   }
-  return { ok: true, acquired: true, holder, ...(takenOver ? { takenOver } : {}) };
+  return { ok: true, reaped, ...lockState(root) };
+}
+
+/** The driver journal of the unit whose slug is `slug`: in its worktree when it has one. */
+function unitJournalAppend(root, b, slug, line) {
+  const ledger = loadLedger(root, b);
+  const u = ledger ? Object.values(ledger.units ?? {}).find((x) => x.slug === slug) : null;
+  const dir = u ? unitWorkflowDir(root, u) : join(root, '.ai', 'workflows', slug);
+  if (!existsSync(dir)) return;
+  appendFileSync(join(dir, '.driver-journal.jsonl'), `${JSON.stringify({ at: nowIso(), ...line })}\n`);
+}
+
+const HEAVY_POLL_MS = () => Math.max(50, Number(process.env.SDLC_HEAVY_POLL_MS) || 10_000);
+const LOCK_WAIT_LINE_MS = () => Math.max(50, Number(process.env.SDLC_LOCK_WAIT_LINE_MS) || 5 * 60_000);
+
+/** The shell that runs a heavy suite: `--shell`, Git Bash on Windows when it started us, else the system shell. */
+function shellFor(f) {
+  const sh = f.shell ? String(f.shell) : process.platform === 'win32' ? (process.env.MSYSTEM ? 'bash' : null) : process.env.SHELL || '/bin/sh';
+  if (!sh || sh === 'cmd') return null;
+  return { file: sh, args: /pwsh|powershell/i.test(sh) ? ['-NoProfile', '-Command'] : ['-c'] };
+}
+
+const quoteArg = (a) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `"${String(a).replace(/(["\\$`])/g, '\\$1')}"`);
+
+/**
+ * F1: `heavy-run <root> <brainstorm> <slug> [--agent a] [--run id] [--quiet] [--shell sh] [--max-wait s] -- <command>`.
+ * The lock lasts exactly as long as the suite. The command takes a ticket, waits for its
+ * turn (oldest ticket first, F3) and writes the `lock-wait` lines itself, holds the lock
+ * under its own pid (F2), runs the suite in the current folder, and releases the lock when
+ * the suite ends, also when it fails. A process that dies frees the lock at once.
+ */
+function heavyRun(root, b, [slug], f, tail) {
+  if (!slug || !tail.length) throw new Error('heavy-run: give <slug> -- <command>');
+  const kind = f.quiet ? 'quiet' : 'heavy';
+  const command = tail.length === 1 ? tail[0] : tail.map(quoteArg).join(' ');
+  const agent = f.agent ? String(f.agent) : null;
+  const runId = f.run ? String(f.run) : null;
+  const iso = isolationOf(configOf(root));
+  const listed = suiteListed(command, iso?.[kind === 'quiet' ? 'quiet-suites' : 'heavy-suites'] ?? []);
+  if (!listed) process.stderr.write(`heavy-run: \`${command}\` is not in campaign.isolation.${kind}-suites; it runs under the lock anyway.\n`);
+  const ticket = { id: `${process.pid}-${Date.now()}`, holder: slug, agent, pid: process.pid, at: nowIso(), command };
+  const maxWaitMs = f['max-wait'] ? Math.max(0, Number(f['max-wait'])) * 1000 : Infinity;
+  const t0 = Date.now();
+  let lastLine = 0;
+  let granted = false;
+  const tag = { ...(agent ? { agent } : {}), ...(runId ? { run: runId } : {}) };
+  withLocksMutex(root, `heavy-run queue ${slug}`, () => writeQueue(root, kind, [...readQueue(root, kind), ticket]));
+  try {
+    for (;;) {
+      const turn = withLocksMutex(root, `heavy-run turn ${slug}`, () => {
+        const queue = readQueue(root, kind);
+        writeQueue(root, kind, queue);
+        const blocker = blockingHold(root, b, otherKind(kind), { holder: slug, agent, pid: process.pid })
+          ?? blockingHold(root, b, kind, { holder: slug, agent, pid: process.pid });
+        const position = queue.findIndex((t) => t.id === ticket.id);
+        if (blocker || position > 0) return { holder: blocker?.holder ?? queue[0]?.holder ?? null, position };
+        writeHold(root, kind, { holder: slug, ...(agent ? { agent } : {}), pid: process.pid, command, at: nowIso() });
+        writeQueue(root, kind, queue.filter((t) => t.id !== ticket.id));
+        return { granted: true };
+      });
+      if (turn.granted) { granted = true; break; }
+      if (Date.now() - t0 >= maxWaitMs) {
+        unitJournalAppend(root, b, slug, { event: 'lock-wait', ...tag, kind, suite: command, holder: turn.holder, position: turn.position, gaveUp: true });
+        return { ok: false, error: `heavy-run: no turn after ${Math.round((Date.now() - t0) / 1000)} s (--max-wait)`, holder: turn.holder, position: turn.position, command };
+      }
+      if (!lastLine || Date.now() - lastLine >= LOCK_WAIT_LINE_MS()) {
+        unitJournalAppend(root, b, slug, { event: 'lock-wait', ...tag, kind, suite: command, holder: turn.holder, position: turn.position });
+        lastLine = Date.now();
+      }
+      sleepMs(HEAVY_POLL_MS());
+    }
+    const waitedS = Math.round((Date.now() - t0) / 1000);
+    const t1 = Date.now();
+    const sh = shellFor(f);
+    const r = sh
+      ? spawnSync(sh.file, [...sh.args, command], { stdio: 'inherit', windowsHide: true })
+      : spawnSync(command, { shell: true, stdio: 'inherit', windowsHide: true });
+    const exit = r.error ? 127 : (r.status ?? 1);
+    const ranS = Math.round((Date.now() - t1) / 1000);
+    unitJournalAppend(root, b, slug, { event: 'heavy-run-end', ...tag, kind, suite: command, exit, waitedS, ranS });
+    return { ok: exit === 0, exit, kind, command, listed, waitedS, ranS, ...(r.error ? { error: r.error.message } : {}) };
+  } finally {
+    withLocksMutex(root, `heavy-run release ${slug}`, () => {
+      writeQueue(root, kind, readQueue(root, kind).filter((t) => t.id !== ticket.id));
+      if (granted && readHold(root, kind)?.pid === process.pid) removeHold(root, kind);
+    });
+  }
 }
 
 /** 16.1: the stack of wave PRs — on, off, or its number on GitHub. */
@@ -771,6 +892,8 @@ function status(root, b) {
     revision,
     // C9: the person's standing rules, in every status result, so that a compaction cannot lose them.
     rules: ledger?.rules ?? [],
+    // WF-CAMPAIGN-HEAVY-LOCK-REVIEW F4/F6: who holds the heavy and quiet locks, and who waits.
+    locks: lockState(root),
     presence: ledger?.presence ?? { state: 'present' },
     // B2, B4: the standing defaults and the away policy, so the session answers by them.
     ...(ledger ? { defaults: defaultsOf(ledger), policy: policyOf(ledger), now: campaignNow(ledger) } : {}),
@@ -2204,7 +2327,11 @@ function context(root, b, [key]) {
   const wt = ledger.units[key]?.worktree;
   const iso = wt ? isolationOf(readJson(join(root, '.ai', 'sdlc-config.json')) ?? {}) : null;
   const isolation = wt && iso
-    ? isolationText(iso, { index: wt.index, worktree: wt.path, slug: u.slug, outside: wt.outside ?? null, lockCmd: `node "${join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'campaign.mjs')}" lock "${root}" ${b}` })
+    ? isolationText(iso, {
+      index: wt.index, worktree: wt.path, slug: u.slug, outside: wt.outside ?? null,
+      lockCmd: `node "${join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'campaign.mjs')}" lock "${root}" ${b}`,
+      heavyCmd: `node "${join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'campaign.mjs')}" heavy-run "${root}" ${b}`,
+    })
     : null;
   const text = renderContext({ unit: u, units, ledger, asBuilt: asBuiltNotes(root, b), drift, isolation, localRecords: isLocal(ledger) });
   const file = join(campDir(root, b), 'context', `${u.slug}.md`);
@@ -2488,22 +2615,27 @@ export function main(argv = process.argv.slice(2)) {
   const [cmd, rootArg, b, ...rest] = argv;
   if (!cmd || !rootArg || !b) { process.stderr.write(`${USAGE}\n`); return 2; }
   const root = resolve(rootArg);
-  const { pos, f } = flags(rest);
+  // `heavy-run … -- <command>`: everything after `--` is the command, not flags.
+  const dd = rest.indexOf('--');
+  const tail = dd >= 0 ? rest.slice(dd + 1) : [];
+  const { pos, f } = flags(dd >= 0 ? rest.slice(0, dd) : rest);
   let out;
   try {
     // Without a work folder, no ledger can exist, and the lock would leave an empty folder.
     out = LEDGER_COMMANDS.has(cmd) && existsSync(workDir(root, b))
       ? withRecordsLock(ledgerLockPath(root, b), `${cmd} ${pos[0] ?? ''}`.trim(), () => dispatch(cmd, root, b, pos, f), { waitMs: 120_000, liveStaleMs: 30 * 60_000 })
-      : dispatch(cmd, root, b, pos, f);
+      : dispatch(cmd, root, b, pos, f, tail);
   } catch (e) {
     out = { ok: false, error: e.message };
   }
   if (out === null) { process.stderr.write(`${USAGE}\n`); return 2; }
   process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
+  // heavy-run ends with the suite's own exit code, so a caller can test it.
+  if (cmd === 'heavy-run' && Number.isInteger(out.exit)) return out.exit;
   return out.ok ? 0 : 1;
 }
 
-function dispatch(cmd, root, b, pos, f) {
+function dispatch(cmd, root, b, pos, f, tail = []) {
   let out;
   {
     switch (cmd) {
@@ -2526,7 +2658,8 @@ function dispatch(cmd, root, b, pos, f) {
       case 'forecast': out = forecast(root, b, f); break;
       case 'budget': out = budget(root, b); break;
       case 'worktree': out = worktree(root, b, pos); break;
-      case 'lock': out = lock(root, b, pos); break;
+      case 'lock': out = lock(root, b, pos, f); break;
+      case 'heavy-run': out = heavyRun(root, b, pos, f, tail); break;
       case 'stack': out = stack(root, b, pos); break;
       case 'merge-in': out = mergeIn(root, b, pos, f); break;
       case 'merge-order': out = mergeOrder(root, b, pos); break;

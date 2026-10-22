@@ -672,7 +672,8 @@ test('worktree add gives each slug its own checkout, branch, ports and workflow 
     assert.ok(existsSync(path.join(a.path, '.ai', 'workflows', 'squads', '00-index.md')), 'the prepared workflow folder travels with the drive');
     const c = run(root, 'context', 'W2');
     assert.match(readFileSync(c.path, 'utf8'), /PORT=3100/);
-    assert.match(readFileSync(c.path, 'utf8'), /lock "[^"]+" realism acquire squads/);
+    // WF-CAMPAIGN-HEAVY-LOCK-REVIEW F1: the context names heavy-run with the main checkout and the brainstorm.
+    assert.match(readFileSync(c.path, 'utf8'), /heavy-run "[^"]+" realism squads --agent/);
     const r = run(root, 'worktree', 'W2', 'remove');
     assert.equal(r.ok, false, 'an uncommitted workflow folder makes git refuse; the campaign asks the person');
     git(a.path, 'add', '.ai');

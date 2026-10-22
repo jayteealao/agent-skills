@@ -1012,11 +1012,16 @@ test('a campaign watch starts with no unit slug, or with -', async () => {
   const projectsDir = tmpDir('projects');
   try {
     makeCampaign(root);
+    // WF-CAMPAIGN-HEAVY-LOCK-REVIEW F4: a legacy heavy hold of 40 minutes is idle, and the look-in says so.
+    mkdirSync(path.join(root, '.scratch', 'campaign'), { recursive: true });
+    writeFileSync(path.join(root, '.scratch', 'campaign', 'heavy.lock'), JSON.stringify({ holder: 'engine', at: new Date(Date.now() - 40 * 60000).toISOString() }));
     const env = { SDLC_WATCH_LOCK_DIR: lockDir, SDLC_CLAUDE_PROJECTS_DIR: projectsDir, SDLC_USAGE_DIR: projectsDir };
     for (const args of [[root, '-'], [root]]) {
       const r = await runCli([...args, '--campaign', B, '--once', '--look-in', '0.01'], env);
       assert.equal(r.code, 0, r.stderr);
       assert.deepEqual(r.lines.map((l) => l.event), ['look-in']);
+      assert.equal(r.lines[0].locks.heavy.hold.holder, 'engine');
+      assert.deepEqual(r.lines[0].locks.idle, ['heavy']);
     }
     const bad = await runCli([root, '--once'], env);
     assert.equal(bad.code, 2, 'with no slug and no campaign, the watch refuses');

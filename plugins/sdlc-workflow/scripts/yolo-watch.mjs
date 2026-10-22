@@ -77,6 +77,7 @@ import {
   AGENT_SILENT_MS, STAGE_KINDS, STAGE_FILE, STALE_FLOOR_MS, applyLines, decisionSignalOf, frontmatterField, judgeSilence, liveLimitMs, stageOf,
 } from '../lib/live-events.mjs';
 import { LIVE_WAVE_STATES } from '../lib/campaign.mjs';
+import { lockState } from '../lib/campaign-locks.mjs';
 
 // The event rules live in lib/live-events.mjs, shared with the live view of the mod (WF-LIVE-VIEWS-PLAN M2).
 export { STAGE_KINDS, frontmatterField, judgeSilence, liveLimitMs, stageOf };
@@ -911,7 +912,10 @@ export function createWatcher({
           root: slugRoot, journal: st.source || journalPath(slugRoot, slug), transcript: Number.isFinite(startMs) ? activity.fileOf(agent, startMs) : null });
       }
     }
-    return [{ event: 'look-in', slugs: [...states.keys()], ...(campaign ? { campaign } : {}), running, sinceMinutes: Math.round((t - since) / 60000), at: iso(t) }];
+    // WF-CAMPAIGN-HEAVY-LOCK-REVIEW F4/F6: in a campaign, who holds the heavy and quiet locks, who waits, and which hold is idle.
+    let locks = null;
+    if (campaign) { try { locks = lockState(root, { now: t }); } catch { locks = null; } }
+    return [{ event: 'look-in', slugs: [...states.keys()], ...(campaign ? { campaign } : {}), running, ...(locks ? { locks } : {}), sinceMinutes: Math.round((t - since) / 60000), at: iso(t) }];
   }
 
   // In a campaign, a slug's run-end does not end the watch: the next slug of the

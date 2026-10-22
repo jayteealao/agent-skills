@@ -1514,7 +1514,9 @@ export function driveSlots(ledger, n, width) {
 }
 
 /** Part 6 of the context file for a drive in a worktree. */
-export function isolationText(isolation, { index, worktree, lockCmd, slug = '<slug>', outside = null }) {
+export function isolationText(isolation, { index, worktree, lockCmd, heavyCmd = null, slug = '<slug>', outside = null }) {
+  // WF-CAMPAIGN-HEAVY-LOCK-REVIEW F1: the suites run through `heavy-run`, the sibling command of `lock`.
+  const runCmd = heavyCmd ?? String(lockCmd ?? '').replace(/\block(?=\s|$)(?!.*\block\b)/, 'heavy-run');
   const ports = Object.entries(portsFor(isolation, index)).map(([k, v]) => `\`${k}=${v}\``).join(', ');
   const L = [];
   L.push(`- Worktree: \`${worktree}\`. Run every command there. Never write in the main checkout or in another worktree.`);
@@ -1525,12 +1527,14 @@ export function isolationText(isolation, { index, worktree, lockCmd, slug = '<sl
   if (outside) L.push(`- Outside folder: \`${outside}\`. Put only two kinds of item there: a second build folder that needs a short path, and a checkout of another commit (for example the old engine). The campaign deletes this folder when it removes the worktree. Never write outside the worktree and this folder.`);
   else L.push('- No outside folder: keep every build folder and checkout inside the worktree.');
   L.push('- Delete each temporary file and folder that you create when no later step reads it. Do not delete a file that a running process uses, a file that a later step or the review reads, or the worktree\'s own build folders. Before a stage ends, list in its artifact what you deleted and what you kept, with the reason for each kept item.');
-  for (const suite of isolation['heavy-suites']) {
-    L.push(`- Heavy suite \`${suite}\` runs only under the lock. Run \`${lockCmd} acquire ${slug}\` first. When it answers busy, wait, append a \`lock-wait\` line to the driver journal every 5 minutes, and try again. Run \`${lockCmd} release ${slug}\` after the suite ends, also when it fails.`);
+  const heavy = isolation['heavy-suites'];
+  if (heavy.length) {
+    L.push(`- Heavy suites: ${heavy.map((s) => `\`${s}\``).join(', ')}. Run each run of one of them only through \`${runCmd} ${slug} --agent <your agent label> -- <the command>\`, one suite run per call. The command waits for its turn, writes the \`lock-wait\` lines itself, runs the suite in the current folder, and releases the lock when the suite ends, also when it fails. Its exit code is the suite's.`);
+    L.push('- Never call `lock acquire` or `lock release` for a suite, and never hold the lock across edits, builds or other runs. When the call waits, start it in the background and continue with the work that does not need the suite.');
   }
   // C4: a timed run needs an idle machine.
   for (const suite of isolation['quiet-suites'] ?? []) {
-    L.push(`- Quiet suite \`${suite}\` needs an idle machine. Run \`${lockCmd} quiet acquire ${slug}\` first, and wait while it answers busy, as for a heavy suite. Run \`${lockCmd} quiet release ${slug}\` after the run. When the run still measured a busy machine, defer the timed criterion with \`kind: quiet-window\` (verify/_deferrals.md): the wave boundary runs it alone.`);
+    L.push(`- Quiet suite \`${suite}\` needs an idle machine. Run it only through \`${runCmd} ${slug} --quiet --agent <your agent label> -- <the command>\`: it waits until no heavy suite runs, and no heavy suite starts while it runs. When the run still measured a busy machine, defer the timed criterion with \`kind: quiet-window\` (verify/_deferrals.md): the wave boundary runs it alone.`);
   }
   return L.join('\n');
 }
