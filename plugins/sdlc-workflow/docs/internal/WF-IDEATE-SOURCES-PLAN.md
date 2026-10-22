@@ -1,6 +1,6 @@
 # WF-IDEATE-SOURCES-PLAN — ideate reads sources, issues, and research
 
-Status **PLAN, nothing built** · Date **2026-10-03** · Plugin **v9.178.0** · Owner **jayte**
+Status **BUILT 2026-10-18, not released** (S1 to S5 and B1 to B4; the live run is open) · Date **2026-10-03** · Plugin **v9.178.0** · Checked against **v9.183.0** on **2026-10-08** (section 13) and **v9.189.0** on **2026-10-18** (section 14) · Owner **jayte**
 Depends on: [BRAINSTORM-WORK-PACKETS-PLAN.md](BRAINSTORM-WORK-PACKETS-PLAN.md) (part B1 reuses the work packets).
 
 ## 1. Why
@@ -105,7 +105,10 @@ one anchor is not a finding. When an idea needs an upgrade, its `entry:` routes
 to `/wf intake update-deps` first, and its `depends-on:` says so.
 
 Effort tier: **medium** (sonnet). The lens matches outside facts to code, which
-is judgement, not extraction. The six code lenses stay at low.
+is judgement, not extraction. The six code lenses stay at low, which is also
+sonnet (`_subagents.md`). The Haiku 5.5 routing proposal of 2026-10-08 is not
+built. That proposal moves the ideate lenses to medium before any `low = haiku`
+change, so Lens 7 and the research agents stay on sonnet in both cases.
 
 ### 4.4 Challenge 6 — is the item stable and available?
 
@@ -135,9 +138,13 @@ asks for preview items. The cull reason names the item's status and source line.
 
 ### 5.3 What is saved (P5)
 
-`.ai/` is tracked in git, and `references/` is not ignored (`.ai/.gitignore`
-ignores only `_view/` and `.locks/`). Issue text can hold personal data and
-user logs. So the reference copy of an issue source holds only:
+In most repos `.ai/` is tracked in git, and `references/` is not ignored
+(`.ai/.gitignore` ignores only `_view/` and `workflows/*/.locks/`). A repo with
+`artifactTracking: ignored` keeps `.ai/` out of git. Since v9.181.0 the
+campaign copies that repo's records into each worktree and back (local
+records), and the repo can change its policy later. Issue text can hold
+personal data and user logs. So in both modes the reference copy of an issue
+source holds only:
 
 - number, title, labels, state, url;
 - created-at, updated-at, comment count, reaction count;
@@ -237,14 +244,30 @@ The pick writes one work packet per selected idea, in `work/`, with the packet
 contract from BRAINSTORM-WORK-PACKETS-PLAN. One selected idea and several
 selected ideas use the same path.
 
-1. ideate writes `ideate-work.json` in the board shape that `lib/work-packets.mjs` reads: `work[]` holds one piece per selected idea (key, title, form from the idea's `entry:`, `depends-on`), and `items[]` holds the idea's evidence as findings.
-2. The person's pick reason is the only carried decision. Packet intake confirms it word for word (`intake/_packet.md`, Step 2).
-3. `lib/work-packets.mjs` and `scripts/work-packets.mjs` learn to read a board file by path, so they accept `ideate-work.json`. The brainstorm call does not change.
-4. When every packet is written, close the workflow with `close-reason: ideas-packeted`.
-5. Print one `/wf intake <packet path>` line per packet. When there are two packets or more, also print `/wf campaign <slug>`.
+1. ideate writes `ideate-work.json` in the board shape that `lib/work-packets.mjs` reads: `work[]` holds one piece per selected idea (key, title, form from the idea's `entry:`, `order`, `why-here`), and `items[]` holds the idea's evidence as findings.
+   - Since v9.188.0, `checkWorkSet` refuses a board unless the pieces have `order` 1 to n, with no gap and no repeat, and each piece after order 1 has a `why-here` (`lib/work-packets.mjs:112-129`). The pick proposes an order from the rank and asks the person to confirm it. Each `why-here` records, in the person's words, why the piece comes after the pieces before it.
+   - The idea's `depends-on:` is not copied into the piece. The campaign owns the dependency graph: its deps scout (`campaign/_deps.md`) reads the packets, and the person confirms each unit.
+2. `ideate-work.json` passes `$defs.brainstormBoard` in `tests/frontmatter.schema.json`, because `checkWorkSet` validates every board with `validateBrainstormBoard`. The required keys are `schema`, `artifact`, `slug`, `areas`, `threads`, and `items`. ideate writes `areas: []` and one thread per selected idea, because each item names its `thread`. Do not add a second board schema.
+3. The person's pick reason is the only carried decision. Packet intake confirms it word for word (`intake/_packet.md`, Step 2).
+4. `scripts/work-packets.mjs` learns to read a board file by path, so it accepts `ideate-work.json`. Today it reads only `brainstorm-board.json` in the workflow folder. The brainstorm call does not change.
+5. `lib/work-packets.mjs` learns the board file name. Today three packet links name `../brainstorm-board.json`, and the packet key `origin-brainstorm` names the origin. An ideate packet links `../ideate-work.json` and `../01-ideate.md`. The key `origin-brainstorm` stays, because packet intake reads it (`intake/_packet.md`, Step 1).
+6. Packet intake Step 4 sets `state` and `routed-to` on the piece in the board file that the packet names, not always in `brainstorm-board.json`.
+7. An ideate piece carries no sketches. Its packet has `design: none` and no `sketches:` key (v9.182.0 added `sketches:` for brainstorm design pieces).
+8. When every packet is written, close the workflow with `close-reason: ideas-packeted`.
+9. Print one `/wf intake <packet path>` line per packet. When there are two packets or more, also print `/wf campaign <slug>`.
 
-`findIgnoredCitations` refuses a packet that cites an ignored path. Reference
-copies live in tracked `references/`, so the citations pass.
+The campaign reads only `work/index.md` and the packets (`scripts/campaign.mjs`).
+It does not read the board, so it can run an ideate slug. Only the text of
+`campaign.md` Step 0 limits the slug to a brainstorm: it lists "the brainstorm
+workflows that have `work/index.md`". B1 changes Step 0 to list every workflow
+that has `work/index.md`. ideate writes no write-now pieces, so the `written:`
+list of `work/index.md` (v9.181.0) is empty.
+
+`findIgnoredCitations` refuses a packet that cites `.scratch/` or a gitignored
+path. Cite a reference copy by its path relative to the workflow folder,
+`references/<kind>/<file>`, as brainstorm does. Do not cite it by a `.ai/…`
+path: in a repo with `artifactTracking: ignored`, `git check-ignore` refuses
+that path.
 
 ### 8.2 B2 — memory of earlier runs
 
@@ -280,7 +303,9 @@ Section 7.
 | `skills/wf/reference/intake/ideate/_sources.md` (new) | Step 0.5, results, issue rules, what is saved |
 | `skills/wf/reference/intake/ideate/_artifact.md` | Section 7 keys, confidence table |
 | `skills/wf/reference/intake.md` | Mode table row and proposal row for ideate with sources |
-| `lib/work-packets.mjs`, `scripts/work-packets.mjs` | Read a board file by path |
+| `lib/work-packets.mjs`, `scripts/work-packets.mjs` | Read a board file by path; packet links name that board file (section 8.1) |
+| `skills/wf/reference/intake/_packet.md` | Step 4 writes back to the board file that the packet names |
+| `skills/wf/reference/campaign.md` | Step 0 lists every workflow that has `work/index.md`, not only brainstorms |
 | `renderers/ideation.mjs` | Confidence column, sources table, source items |
 | `dist/` | Rebuild in the same commit as each `lib/`, `scripts/`, or `renderers/` change |
 | `docs/site/reference/commands.html` and the ideate guide page | New arguments and `refresh` |
@@ -292,6 +317,10 @@ Section 7.
 - A write with a source item that has no result fails and names the item.
 - An issue reference copy holds none of: author, body, comments.
 - `work-packets` reads `ideate-work.json` and writes one packet per piece; the brainstorm path still passes.
+- `ideate-work.json` passes `validateBrainstormBoard`, and an ideate packet links `../ideate-work.json`, never `../brainstorm-board.json`.
+- `checkWorkSet` passes an ideate board whose pieces have `order` 1 to n and a `why-here` after order 1, and refuses a board with a gap, a repeat, or no `why-here`.
+- No ideate piece carries `depends-on`.
+- `campaign.mjs status` on an ideate slug with two packets returns `orient`.
 - The renderer shows `confidence` and the sources table, and an artifact without the new keys renders as today.
 - B2: a candidate that matches an earlier cull with no changed evidence is culled with `seen-in:`.
 
@@ -311,3 +340,49 @@ Section 7.
 1. **Roster size.** 100 issues add 100 rows to `source-items:` in frontmatter. If renders slow down, move the roster to `references/items.md`. Do not use a sibling `.yaml`, because the sibling-fragment block refuses unknown types.
 2. **Agent research limit.** 8 acts per run is a first guess. Measure it on the first real run.
 3. **Other issue trackers.** Linear, Jira, and GitLab issues are out of scope for this build.
+4. **Entries that are not packet forms.** `PACKET_FORMS` in `lib/work-packets.mjs` holds `intake`, `investigate`, `discover`, `fix`, `hotfix`, `task`, and `extension`. Section 5.2 routes an issue with an unknown cause to `rca`, and section 4.3 routes an idea that needs an upgrade to `/wf intake update-deps`. Neither `rca` nor `update-deps` is a packet form. Decide before S4: add the two forms to `PACKET_FORMS` and to the form table in `intake/_packet.md`, or map `rca` to `investigate` and leave an upgrade out of the packets as a step that the person runs first.
+   **Decided 2026-10-18 (build):** `rca` is a packet form and an outside form of the campaign (`OUTSIDE_FORMS` in `lib/campaign.mjs`), so it runs with the person outside the waves. `update-deps` is not a packet form: the pick prints the upgrade command first, and the packet that needs the upgrade comes after it.
+
+## 13. Recheck 2026-10-08 (v9.183.0)
+
+The plan was checked against the code of v9.183.0. Nothing of the plan is
+built. The ideate files did not change since v9.178.0: `intake/ideate.md`,
+`intake/ideate/`, `renderers/ideation.mjs`, and the ideate rows of
+`intake.md`. The cited lines of `intake/brainstorm/_artifact.md` and
+`intake/update-deps.md` still hold. Sections 1 to 4, 6, 7, 8.2, 8.3, and 11
+need no change.
+
+The v9.180.x releases changed the Claude mod and its support files: live
+events, the cost ledger, and the yolo watch. The plan uses none of them. These changes touch code or rules that the plan uses:
+
+| Release | Change | Effect on the plan |
+|---|---|---|
+| v9.179.0, v9.183.0 | Campaign trial fixes; the campaign watch follows worktrees | None. B1 hands off to the campaign through `work/index.md` and the packets. |
+| v9.181.0 | The campaign reads `written:` of `work/index.md`; local records for a repo that ignores `.ai/` | Section 5.3 names both tracking modes. Section 8.1 cites references by relative path and leaves `written:` empty. |
+| v9.182.0 | Design boards; packets carry `sketches:` | Section 8.1 step 7: an ideate packet carries no sketches. |
+| 2026-10-07 | Haiku 5.5 released; routing proposed, not built | Section 4.3 names it. The tiers of the plan do not change. |
+
+The recheck also found three gaps in B1 that the first draft did not name.
+`checkWorkSet` validates every board against the brainstorm board schema.
+The packet text links `../brainstorm-board.json` by a fixed name. Packet
+intake Step 4 writes back to `brainstorm-board.json` by a fixed name. Section
+8.1 steps 2, 5, and 6, and the new rows of sections 9 and 10, cover these gaps.
+
+## 14. Recheck 2026-10-18 (v9.189.0)
+
+The plan was checked against the code of v9.189.0. Nothing of the plan is
+built. Section 13 was written on 2026-10-08 and was not committed before this
+recheck.
+
+These commits changed the files that the plan names in section 9:
+
+| Commit | Release | Change | Effect on the plan |
+|---|---|---|---|
+| `e3d75a6b` | v9.184.0 | Campaign units that need each other: `needs` on pieces | None. `c0493bec` removed `needs`. |
+| `de776bbf` | v9.186.0 | The wave driver's references in `campaign.md` | None. `campaign.md` Step 0 still lists only the brainstorm workflows that have `work/index.md` (line 26), so the B1 change still applies. |
+| `fb8013a1` | v9.187.0 | `intake/ideate.md` writes no explainer and no free fragments | None. The plan uses neither. The section 13 statement that the ideate files did not change is no longer true, for this reason only. |
+| `c0493bec` | v9.188.0 | The campaign owns the dependency graph. Pieces carry `order` and `why-here`, and no `depends-on` or `needs` | Section 8.1 step 1: an ideate piece carries `order` and `why-here`, which the person confirms. The idea's `depends-on:` stays in `01-ideate.md` and is not copied into the piece. |
+| `4c6d89e6` | v9.189.0 | `intake.md` gains the `optimize` mode row; the intake prose pin rises to 3086 words | Section 9: the `intake.md` rows for ideate with sources must fit the intake budget. Read the headroom in `docs/internal/capability-inventory/prose-budget.json` before S1. |
+
+The recheck also found one gap that sections 4.3 and 5.2 did not name: `rca`
+and `update-deps` are not packet forms. Open point 4 names the choice.
