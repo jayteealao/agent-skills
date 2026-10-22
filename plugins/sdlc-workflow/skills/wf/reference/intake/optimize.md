@@ -34,6 +34,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_change-mode-tail.md` | procedure | always | |
 | `intake/_intake-provenance.md` | procedure | always | |
+| `intake/_intake-provenance-consume.md` | procedure | mode:from | |
 | `01-optimize.md` | writes | | |
 | `02-optimize-spec.md` | writes | | |
 
@@ -169,7 +170,7 @@ Write `00-index.md` from the index template of `_change-mode-tail.md`, with thes
 - `design-skip-reason: "an optimize loop changes code toward a metric; it draws no surface"`.
 - `next-command: wf-optimize` and `next-invocation: "/wf loop optimize <slug>"`.
 
-Then register the slug in `.ai/workflows/INDEX.md` per `intake/default.md` Step 10.
+Then register the slug in `.ai/workflows/INDEX.md` per `intake/_intake-context.md` → Register the workflow in INDEX.md.
 
 # Step 5 — Hand off
 

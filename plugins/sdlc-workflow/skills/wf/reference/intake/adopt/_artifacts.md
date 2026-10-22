@@ -26,7 +26,6 @@ refs:
 next-command: wf-verify
 next-invocation: "/wf verify <slug>"
 recommended-routes: <routes>
-recommended-routes: <routes>
 ---
 ```
 Body (tight): `## Adopted Surface` (the changed-file roster with per-file +/- counts, the commit SHAs ahead of `<base>`, and the branch — the Step A0 evidence, exact), `## Restated Intent` (the inferred goal + any user correction from the gate), `## Acceptance Criteria` (each objectively verifiable; environment-dependent ACs carry their W2d resolution as an italic note), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
@@ -51,7 +50,6 @@ refs:
   next: 03-slice.md
 next-command: wf-verify
 next-invocation: "/wf verify <slug>"
-recommended-routes: <routes>
 recommended-routes: <routes>
 ---
 ```
@@ -82,7 +80,6 @@ refs:
 next-command: wf-verify
 next-invocation: "/wf verify <slug>"
 recommended-routes: <routes>
-recommended-routes: <routes>
 ---
 ```
 Body (one line): "Single-slice adoption — the whole adopted change is one slice." (Or, if separable concerns were confirmed at the gate: one `slices[]` entry per concern, each mapped to its file group, and `total-slices` / `best-first-slice` set accordingly. Slice status is `complete`, not `defined` — the code already exists; the schema enum has no `implemented` value, and the adoption fact is carried by `provenance: adopted` plus the index's `progress` map, never by inventing an enum value the write-hook rejects.)
@@ -110,7 +107,6 @@ refs:
   next: 05-implement.md
 next-command: wf-verify
 next-invocation: "/wf verify <slug>"
-recommended-routes: <routes>
 recommended-routes: <routes>
 ---
 ```

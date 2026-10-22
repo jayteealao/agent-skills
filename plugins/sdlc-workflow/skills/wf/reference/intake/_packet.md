@@ -25,7 +25,7 @@ The packet carries the person's decisions word for word. A decision is the perso
 |---|---|
 | `intake` | [default.md](default.md) |
 | `investigate`, `discover`, `rca`, `fix`, `hotfix` | `intake/<form>.md`, standalone. For `fix` and `hotfix`, the brief names `target-slug` as the workflow whose work is corrected, and reads its artifacts as context. |
-| `task` | [../task.md](../task.md) |
+| `task` | [task.md](task.md) |
 | `extension` | [extend.md](extend.md) on `target-slug`, with the packet as the scope. |
 
 ## Step 2 — Confirm the carried decisions
@@ -42,7 +42,7 @@ Do this before the mode's own questions.
 - A charter entry that comes from a carried decision sets `source: <board path>#<item-key>`. A RIM that comes from a carried decision cites the same key.
 - Record `origin-packet: <packet path>` and `origin-items` (every item key in the packet) in `00-index.md`.
 - The open ideas and the open questions of the packet go into this mode's question rounds. Intake still asks its own questions for the gaps that the packet leaves open. It asks no scope and no non-goal question: the carried decisions and "Left for later and cut" answer them (B1).
-- The findings and the assumptions are re-verified per [_intake-provenance.md](_intake-provenance.md). A contradicted finding becomes a known unknown.
+- The findings and the assumptions are re-verified per [_intake-provenance-consume.md](_intake-provenance-consume.md). A contradicted finding becomes a known unknown.
 - The items under "Left for later and cut" join the out-of-scope list, so the workflow does not re-widen.
 - Copy each file of the packet's `sketches:` into `.ai/workflows/<work-slug>/design/sketches/`. Keep its key as the file name (`design/_boards.md`). A sketch with `path: null` has no file to copy.
 

@@ -5,7 +5,7 @@ argument-hint: <slug> [focus area]
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
 
-> **Standing steering (steer.md).** Apply the contract in [_steering.md](_steering.md) to `steer.md`: honor the user's standing instructions, never
+> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf shape`, **stage 2 of 10**: 1·intake → `2·shape` → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro.
@@ -27,7 +27,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `01-intake.md` | artifact | always | |
 | `po-answers.md` | artifact | if-present | |
 | `steer.md` | artifact | if-present | |
-| `design/_lane.md` | procedure | always | |
+| `design/_lane.md` | procedure | always | UX impact; The human rule; The design record |
 | `design/shape.md` | procedure | mode:design | |
 | `02-shape.md` | writes | | |
 | `02b-design.md` | writes | | |
@@ -99,7 +99,7 @@ The inventory is the interview's coverage instrument and a living list: add entr
 - **Round 1 — What does the feature do?** Core interaction: the action the user takes, the input they provide, what they get back, what triggers use.
 - **Round 2 — How does the feature behave?** Dynamics: what happens after the main action, reversibility, timing model (sync/async/real-time), connections to other parts of the product.
 - **Round 3 — What does the feature look like?** Surface area: where it lives (page, modal, inline, CLI), data volume, the distinct states the user sees (empty, loading, error, success), whether it follows or breaks existing patterns.
-- **Round 3b — Visual direction (CONDITIONAL — only when design is needed per [design/_lane.md](design/_lane.md)).** 4 questions: **register** (utilitarian / expressive / editorial), **color strategy** (inherit the palette, or a distinct treatment?), **reference points and anti-goals** (what is this like, and what must it NOT look like?), and **state inventory** (which of empty / loading / error / first-run carry design weight?). These are the inputs `02b-design.md` needs (Step 5a); they ride ON TOP of the 20-question floor so design never eats the general budget. Skip entirely for non-UI work.
+- **Round 3b — Visual direction (only when design is needed per [design/_lane.md](design/_lane.md)).** 4 questions: **register** (utilitarian / expressive / editorial), **color strategy** (inherit the palette, or a distinct treatment?), **reference points and anti-goals** (what is this like, and what must it NOT look like?), and **state inventory** (which of empty / loading / error / first-run carry design weight?). These are the inputs `02b-design.md` needs (Step 5a); they ride ON TOP of the 20-question floor so design never eats the general budget. Skip entirely for non-UI work.
 - **Round 4 — What can go wrong?** Failure modes: worst-case impact of bugs, invalid-input handling, dependency failures, access and permissions.
 - **Round 5 — Where are the boundaries?** Lead with scope restraint: which parts of the brief v1 *actually* needs versus speculative generality, gold-plating, or "while we're here" scope. Present these as trim options the PO chooses, never a unilateral cut ("do you actually need X, or does Y cover it?"). Then: explicit out-of-scope, the transition from old to new behavior, existing code and data touched. Never trim what the user explicitly asked for, and never trade away a non-functional requirement (security, accessibility, data integrity) for a smaller scope.
 
@@ -124,7 +124,7 @@ An inventory item in none of those states is ILLEGAL; the interview may not end 
 Synthesize the discovery answers into a behavior-focused mini-spec (the artifact body sections below).
 
 # Step 5a — Author the design brief (when design is needed)
-When `ux-impact` is `visual`, `flow`, or `new-surface` ([design/_lane.md](design/_lane.md)), author `02b-design.md` now per [design/shape.md](design/shape.md), including `## UX intent`. Fold in the Round 3b answers and ask only what Round 3b did not cover. Do not draw surfaces and do not run a confirm gate here; the design stage does both with the person and writes `02c-craft.md`. Leave `image-gate` unset. When `ux-impact: none`, write `progress.design: skipped` and a one-line `design-skip-reason:` in `00-index.md` instead.
+When design is needed ([design/_lane.md](design/_lane.md)), author `02b-design.md` per [design/shape.md](design/shape.md), including `## UX intent`. Fold in the Round 3b answers; ask only what they did not cover. The design stage, not shape, draws the surfaces with the person, runs the confirm gate, and writes `02c-craft.md`. Leave `image-gate` unset. When `ux-impact: none`, write `progress.design: skipped` and a one-line `design-skip-reason:` in `00-index.md` instead.
 
 # Step 5b — Author the Charter Scenario (when the work has a core interaction loop)
 If the work has a **core interaction loop** — numbered in the intake's Restated Request, **or derivable from its prose** (an unnumbered loop does not exempt shape: derive it) — author `## Charter Scenario`: the loop as ONE scripted end-to-end scenario, each step carrying an **observable checkpoint** a human or tool could confirm ("goal entered → probe question shown that references the stated goal → answer captured → …").

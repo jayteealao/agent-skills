@@ -46,6 +46,7 @@ const TEXT = /\.md$/i;
 // ── The permanent exception list — the §3.3 budget, verbatim ────────────────────
 export const CONTRACT_FILES = [
   'skills/wf/reference/_host-invocation.md',
+  'skills/wf/reference/_host-surfaces.md',
   'skills/wf/reference/_gate-question.md',
   'skills/wf/reference/_subagents.md',
   'skills/wf/reference/_timestamp.md',

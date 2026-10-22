@@ -69,7 +69,7 @@ This command does not pick a winner. Pick the option you want, record the pick, 
 | Pick an option with `effort: medium` or `large`, OR `requires_schema_change: yes`, OR `requires_new_dependency: yes` with non-trivial integration | Record it — `/wf intake investigate <slug> <option> [reason]` — then `/wf intake "<option-label> — <one-line option description>" from <slug>` |
 | Are not sure which option to pick | Resolve the cheapest **Decisive unknown** among the candidate cards first: a truth question about the system → `/wf intake <slug> discover <the unknown>` (the answer lands as a compressed slice on this workflow); an API fact about a dependency → the `study-sources` skill, with the finding noted in this artifact; a product or policy call → the human who owns it (see the `problem-not-engineering` tripwire). Then pick. If the stall is comprehension rather than evidence, `/wf status recap <slug> <focus>` still applies. |
 
-Routing directly (`… from <slug>`) without recording a pick also works: the downstream mode records the pick implicitly and closes this workflow (see `_intake-provenance.md`).
+Routing directly (`… from <slug>`) without recording a pick also works: the downstream mode records the pick implicitly and closes this workflow (see `_intake-provenance-consume.md`).
 
 ## Tripwire warnings
 

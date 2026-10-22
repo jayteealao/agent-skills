@@ -1,6 +1,6 @@
 # Implement — pre-implementation research charters
 
-`implement.md` "Parallel research" launches these sub-agents per [../_subagents.md](../_subagents.md) before the build. Skip both for trivial single-file changes. Merge their findings; if the codebase diverged significantly since planning, note the deviations in the implementation record and adapt the plan steps before implementing.
+`implement.md` "Parallel research" launches these sub-agents per [../_subagents.md](../_subagents.md) before the build. Skip both for trivial single-file changes. In step groups ([_steps.md](_steps.md)), only the first group runs them; a later group reads the hand-over note instead and does not load this file. When you run them, list `research` in the `modes:` of the record you write (`mode:research`). Merge their findings; if the codebase diverged significantly since planning, note the deviations in the implementation record and adapt the plan steps before implementing.
 
 ### research sub-agent 1 — Pre-Implementation Codebase Verification
 

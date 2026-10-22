@@ -112,7 +112,7 @@ test('the work is shaped and confirmed before any piece of work is written', () 
   const artifact = read('reference', 'intake', 'brainstorm', '_artifact.md');
   assert.match(artifact, /^## Scope$/m, 'the document template lost the Scope section');
   assert.match(artifact, /^## Work$/m, 'the document template lost the Work section');
-  assert.match(read('reference', 'intake', '_intake-provenance.md'), /a `scope: cut` item never seeds it/, 'the provenance contract lets a cut item through');
+  assert.match(read('reference', 'intake', '_intake-provenance-consume.md'), /a `scope: cut` item never seeds it/, 'the provenance contract lets a cut item through');
 });
 
 // Fix 2 (BRAINSTORM-MODE-PLAN §20): principles replace quotas.
@@ -176,8 +176,9 @@ test('the agent has one clear role: ideas welcome, commitments not', () => {
 
 test('the provenance contract consumes a brainstorm source', () => {
   const src = read('reference', 'intake', '_intake-provenance.md');
-  assert.match(src, /^\| `brainstorm` \|/m, '_intake-provenance.md lost the brainstorm Consume row');
-  assert.match(src, /`origin-brainstorm`/, '_intake-provenance.md lost the origin-brainstorm key');
+  const consume = read('reference', 'intake', '_intake-provenance-consume.md');
+  assert.match(consume, /^\| `brainstorm` \|/m, '_intake-provenance-consume.md lost the brainstorm Consume row');
+  assert.match(consume, /`origin-brainstorm`/, '_intake-provenance-consume.md lost the origin-brainstorm key');
   assert.match(src, /workflow-type: brainstorm/, '_intake-provenance.md does not infer from brainstorm sources');
   assert.match(src, /brainstorm-board\.json/, '_intake-provenance.md does not read the JSON board');
 });
@@ -330,7 +331,7 @@ test('every question carries its own context', () => {
 test('the document has a short front, and the page presents the board where the host has one', () => {
   const src = read('reference', 'intake', 'brainstorm.md');
   const artifact = read('reference', 'intake', 'brainstorm', '_artifact.md');
-  const host = read('reference', '_host-invocation.md');
+  const host = read('reference', '_host-surfaces.md');
   assert.match(src, /It opens with a short front: what we believe now, the map with a brief of five lines or fewer per area, and what is open now/, 'the person document lost its short front');
   assert.ok(artifact.includes('\n## Open now\n'), 'the document template lost the Open now section');
   assert.match(artifact, /<!-- The front ends here\. The record follows\. -->/, 'the template no longer separates the front from the record');

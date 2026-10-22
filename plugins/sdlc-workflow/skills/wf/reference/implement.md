@@ -5,8 +5,7 @@ argument-hint: <slug> [slice-slug|reviews]
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
 
-> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
-> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf implement`, **stage 5 of 10**: 1·intake → 2·shape → 3·slice → 4·plan → `5·implement` → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro.
@@ -39,10 +38,11 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `04c-experiment.md` | artifact | if-present | |
 | `05c-benchmark.md` | artifact | if-present | |
 | `implement/_artifact.md` | procedure | always | |
-| `implement/_research.md` | procedure | always | |
+| `implement/_research.md` | procedure | mode:research | |
 | `implement/_steps.md` | procedure | mode:commit | |
-| `design/_design-context.md` | procedure | mode:ui | |
+| `design/_design-context.md` | procedure | mode:ui | Register; Shared design laws; Absolute bans |
 | `implement/_reviews-mode.md` | procedure | mode:reviews | |
+| `review/_fix-prompt.md` | procedure | mode:reviews | |
 | `07-review-<slice>.md` | artifact | mode:reviews | |
 | `07-review-<slice>.yaml` | artifact | mode:reviews | |
 | `05-implement-<slice>.md` | writes | | |
@@ -64,12 +64,12 @@ You are a **workflow orchestrator** running the implementation stage.
 
 # Workflow rules
 
-Apply [_workflow-rules.md](_workflow-rules.md). One implement-specific rule: **`if-present` inputs are mandatory when present.** If an `if-present` row exists on disk, read and honor it; silent omission is a contract violation.
+Apply [_workflow-rules.md](_workflow-rules.md).
 
 # Step 0 — Orient
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). The second argument, if present, is the **slice-slug**. If no slug, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, **`workflow-type`**.
-3. **Check for reviews mode.** If the second argument is literally `reviews`, this is a **review-fix** invocation: load [implement/_reviews-mode.md](implement/_reviews-mode.md), skip the rest of Step 0, and follow that file.
+3. **Check for reviews mode.** If the last argument is literally `reviews`, this is a **review-fix** invocation: load [implement/_reviews-mode.md](implement/_reviews-mode.md), skip the rest of Step 0, and follow that file.
 4. **Determine workflow source mode** from `workflow-type`:
    - `workflow-type: quick` (legacy) → **compressed mode**. The source artifact is `01-quick.md`. No shape, slice, or plan files exist; do not require them.
    - `workflow-type: rca` → **forwarded mode**. The rich context lives in `01-rca.md`; a synthesized `02-shape.md` exists (the RCA writes it as a forwarding contract). Planning may have been added via `/wf plan`, or this may be a quick-style continuation.
@@ -101,14 +101,14 @@ Apply [_workflow-rules.md](_workflow-rules.md). One implement-specific rule: **`
    - **Baseline design canon** (`mode:ui`: the slice builds UI and neither `02b` nor `02c` exists): `design/_design-context.md` gives the register, design laws, absolute bans, and motion summary. When code touches motion, interface detail, or typography, also read `animate.md` / `polish.md` / `typeset.md`. Skip the preflight, image, and mutation sections; they govern `/wf design`.
    - **Recommended references** (whenever `02b-design.md` OR `02c-craft.md` is present): build the reference set as the **union** of `recommended-references:` in `02b-design.md` and `references-loaded:` in `02c-craft.md`. Strip a trailing `.md` before de-duplicating, then read `design/<name>.md` for each unique name. Loaded references are **read-only judgment context**: they disambiguate the visual contract but never expand scope. If an entry does not resolve to a file, log a one-line warning and continue.
    - `02c-craft.md`, the **visual contract**. The `## Mock fidelity inventory` items are **additional acceptance criteria**; honor every item in code. The `## Implementation contract` names the token choices, component decisions, and motion specs to follow. With `boards:`, also read the board PNGs of the slice's surfaces (`design/_boards.md`).
-   - **Applying design moves**: for each move the plan cites, read its playbook from `design/<name>.md`, apply it during the build, then **register it as a `design-<sub>` augmentation** in `00-index.md` and write `design-notes/<sub>-<timestamp>.md` (contract in `design/_output.md` Step 5). When the contract cannot be built as drawn, STOP per [design/_lane.md](design/_lane.md) and route to `/wf design <slug> amend`.
+   - **Applying design moves**: for each move the plan cites, read its playbook from `design/<name>.md`, apply it during the build, then **register it as a `design-<sub>` augmentation** in `00-index.md` and write `design-notes/<sub>-<timestamp>.md` (contract in `design/_output.md`, "Registration and the transformation artifact"). When the contract cannot be built as drawn, STOP per [design/_lane.md](design/_lane.md) and route to `/wf design <slug> amend`.
 9. **Check sibling implementations.** Compare the plan's files with the `files-modified` key of each existing sibling implementation record. Read a sibling record in full when a file overlaps.
 10. **Carry forward** `open-questions` from the index.
 11. **Branch check** (required if `branch-strategy: dedicated`). Read `branch-strategy`, `branch`, and `base-branch` from `00-index.md`. If `dedicated`: run `git branch --show-current`; when not on the workflow branch, create it with `git checkout -b <branch>` from `<base-branch>` if missing or `git checkout <branch>` if it exists, and confirm the branch before proceeding. If `shared`, commits go to the current branch (do not create or switch). If `none`, skip all branch management.
 
 # Parallel research
 
-Before implementing, launch parallel sub-agents to verify the plan is still accurate. Skip for trivial single-file changes. The two charters (codebase verification; dependency and API freshness, only when external dependencies are involved) are in [implement/_research.md](implement/_research.md). Merge the findings; if the codebase diverged significantly, note deviations in the implementation record and adapt plan steps before implementing.
+Before implementing, launch parallel sub-agents to verify the plan is still accurate. Skip them for a trivial single-file change or a later step group. Charters are in [implement/_research.md](implement/_research.md); when they run, list `research` in `modes:`. Merge the findings; if the codebase diverged significantly, note deviations in the implementation record and adapt plan steps before implementing.
 
 # Build discipline — climb the ladder before writing each step
 
@@ -157,7 +157,7 @@ Do this in order:
 # Adaptive routing
 
 Present ALL viable options. Write each option as one `recommended-routes` entry with its reason:
-- **Option A (default): Verify** → `/wf verify <slug> <slice-slug>` when the implementation touches testable behavior. **Compact recommended**: the SessionStart hook re-reads the workflow state from disk.
+- **Option A (default): Verify** → `/wf verify <slug> <slice-slug>` when the implementation touches testable behavior. **Compact recommended**: the next stage re-reads the workflow state from disk.
 - **Option B: Skip to Review** → `/wf review <slug> <slice-slug>` for a purely declarative change with no testable behavior. **Compact recommended**, same reason as Option A.
 - **Option C: Revisit Plan** → `/wf plan <slug> <slice-slug>` when the plan was wrong: missed files, wrong assumptions.
 - **Option D: Blocked** → explain what is blocking.

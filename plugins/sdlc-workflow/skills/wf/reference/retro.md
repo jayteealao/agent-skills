@@ -7,8 +7,7 @@ argument-hint: <slug|pr#N|branch>
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
-> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf retro`, **stage 10 of 10** in the SDLC lifecycle.
@@ -49,6 +48,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `optimize/results.jsonl` | artifact | if-present | |
 | `retro/_artifact.md` | procedure | always | |
 | `design/record.md` | procedure | mode:design | |
+| `_host-surfaces.md` | procedure | mode:deep | Session transcripts |
 | `10-retro.md` | writes | | |
 
 The index holds every deferral (`runtime-evidence-deferrals`, cleared entries too).
@@ -89,7 +89,7 @@ Runs only when Step 0 set `deep-retro: true`. The deep pass mines the repo's ses
 decision moments the stage files did not record and feeds that evidence into the analysis sub-agents below.
 
 - **Transcript mining is host-gated.** Session transcripts exist only under a host that keeps a
-  per-repo transcript directory (see [_host-invocation.md](_host-invocation.md)); when this host has
+  per-repo transcript directory (see [_host-surfaces.md](_host-surfaces.md), row "Session transcripts"); when this host has
   one, scan the slug's transcripts. Otherwise a `deep` run is still honored but **falls back to an
   artifact-only deep pass**: a deeper, more adversarial re-read of the existing stage trail,
   `po-answers.md`, and the git history for the same decision moments. The retro then notes that

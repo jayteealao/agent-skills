@@ -14,7 +14,7 @@
 
 A driver can name a group of plan steps ("steps 7 to 12 of 14"). Then:
 
-1. Read the hand-over note `.ai/workflows/<slug>/.implement-handover-<slice-slug>.md` when it exists.
+1. Read the hand-over note `.ai/workflows/<slug>/.implement-handover-<slice-slug>.md` when it exists. Only the first group runs the research of `implement.md` "Parallel research". A later group does not load `implement/_research.md` again.
 2. Implement only the steps of the group, with a step commit for each.
 3. When the group is not the last one, overwrite the hand-over note: what is done, what is next, and the traps you found. Do not write the implementation record, the roster status, the final commit, or the test receipt. Return with `stepsDone`.
 4. The last group finishes the stage: steps 8 to 12 of `implement.md`.

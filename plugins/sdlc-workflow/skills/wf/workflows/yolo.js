@@ -235,7 +235,10 @@ function requiresClause(refPath) {
     `${referenceRoot}/_requires.md. Before you write the stage artifact, read every row whose When value applies ` +
     `to this run — each whole-file input from its first line to its last, each named section in full — yourself, ` +
     `with the file-read tool. A search hit, a shell read, a partial read, or a sub-agent's read does not count. ` +
-    `The mod checks your reads when you write the stage artifact: a missing or partial read comes back as ` +
+    `A \`mode:<name>\` row applies when its mode applies to this run: list every mode you ran under in the stage ` +
+    `artifact's \`modes:\` frontmatter (for example \`modes: [deferral]\`). The mod also finds some modes on disk ` +
+    `(section "Modes" of ${referenceRoot}/_requires.md lists them), and a mode it finds there applies even when ` +
+    `\`modes:\` leaves it out. The mod checks your reads when you write the stage artifact: a missing or partial read comes back as ` +
     `feedback (context) in that write's tool result. When it does, read each named input, then write the ` +
     `artifact again in this same run. Keep reading ${refPath} in full as well.`
 }
@@ -354,7 +357,7 @@ function acKey(ac) {
 // probeGaps() — the deferral-LAW compliance check that verifyClean deliberately does
 // NOT enforce. verifyClean's accept condition is untouched (the v9.114 lesson: never
 // hard-gate a converged, defect-free slice on a formatting technicality — that cost
-// ~500k tokens per recurrence). But verify.md §"Attempt before declare" requires a
+// ~500k tokens per recurrence). But verify/_deferrals.md §"Attempt before declare" requires a
 // PROBE RECEIPT on every deferral — the literal capability-probe command + output tail
 // executed THIS run. probeGaps returns the ac-bearing deferral entries (deduped by ac,
 // across BOTH terminal.deferrals[] and the sibling residual[]) that carry no non-empty
@@ -751,11 +754,17 @@ function readCheckRows(rows, runStartAt) {
 
 // WF-SYSTEM-REVIEW E3: the stage prompt states the shared rules once. A stage agent does not
 // read again the files that hold them; the stage reference still points to them for a person.
+// Audit L10: requiresClause restates _requires.md (all but its Modes table), steeringClause
+// restates _steering.md, and the POLICY block + DECISION_CONTRACT replace every gate
+// question (_gate-question.md) and its wording (_question-craft.md): the run asks nothing.
 function preambleClause() {
-  return `- PREAMBLE GIVEN HERE: this prompt states the grounded-progress rule and the early-stop guard, and your ` +
-    `return is the schema below, not a chat message. When the stage reference points to ` +
-    `${referenceRoot}/_chat-return.md, ${referenceRoot}/_autonomy-guards.md, or ${referenceRoot}/_grounded-progress.md, ` +
-    `do not read those files: apply the rules of this prompt.\n`
+  return `- PREAMBLE GIVEN HERE: this prompt states the grounded-progress rule, the early-stop guard, the ` +
+    `required-reads checklist, and the steering contract; the policy above settles or stops each question the ` +
+    `reference would ask, so you ask none; and your return is the schema below, not a chat message. When the ` +
+    `stage reference points to ${referenceRoot}/_chat-return.md, ${referenceRoot}/_autonomy-guards.md, ` +
+    `${referenceRoot}/_grounded-progress.md, ${referenceRoot}/_steering.md, ${referenceRoot}/_gate-question.md, or ` +
+    `${referenceRoot}/_question-craft.md, do not read those files: apply the rules of this prompt. When it points ` +
+    `to ${referenceRoot}/_requires.md, read only its section "Modes": this prompt states the rest.\n`
 }
 // ---- END SHARED ----
 
@@ -951,15 +960,15 @@ const POLICY = {
     `fixable issue: apply the minimal patch and run that single fix round, recording outcomes in ` +
     `"## Verify-Owned Fixes". If the reference warns the slice was already verified and asks to overwrite, ` +
     `proceed (re-running is intended).\n\n` +
-    `DEFER-DON'T-CANCEL for UN-PRODUCIBLE runtime evidence — verify.md's deferral law (§"Climb the ` +
-    `constraint-resolution ladder", §"Escape hatch") is the single normative statement; apply it EXACTLY as ` +
+    `DEFER-DON'T-CANCEL for UN-PRODUCIBLE runtime evidence — the verify deferral law (verify/_runtime-evidence.md ` +
+    `§"Climb the constraint-resolution ladder", and verify/_deferrals.md) is the single normative statement; apply it EXACTLY as ` +
     `written there, with no relaxation. In particular: a deferral is lawful ONLY over a PROBED incapability ` +
     `(literal probe command + one-line output tail, executed THIS run); climb the constraint-resolution ladder ` +
     `(runtime-adapters.md) before deferring; never inherit a prior deferral or environment claim — re-probe it ` +
     `fresh; a skipped or guard-exited spec is not evidence (an all-skipped sweep is ` +
     `blocked-runtime-evidence-missing, never a deferral); and capability you provision must persist via a repo ` +
     `script or it does not exist for later stages.\n` +
-    `When a deferral is lawful under that law, apply verify.md's escape hatch for that AC: set ` +
+    `When a deferral is lawful under that law, apply the escape hatch (verify/_deferrals.md §"The annotation") for that AC: set ` +
     `'interactive-verification: deferred' + 'interactive-verification-defer-reason: "<rungs tried + probe receipt ` +
     `+ the residual that survives them>"' in the per-slice verify frontmatter, register the deferral in ` +
     `00-index.md runtime-evidence-deferrals (slice, reason, deferred-at, cleared-by: null), and record it under ` +
@@ -1010,8 +1019,9 @@ const POLICY = {
     `migration the bump forces, never mix a security update with a major migration in one commit, never hand-edit ` +
     `lockfiles (use the package manager's own command). A run that updates some packages and blocks others is a ` +
     `legitimate result: partial, not a hard-stop.\n\n` +
-    `Then self-author 06-verify.md by running the FULL suite + build against the updated state. Apply verify.md's ` +
-    `deferral law EXACTLY as written (§"Climb the constraint-resolution ladder", §"Escape hatch" — probed ` +
+    `Then self-author 06-verify.md by running the FULL suite + build against the updated state. Apply the verify ` +
+    `deferral law EXACTLY as written (verify/_runtime-evidence.md §"Climb the constraint-resolution ladder", ` +
+    `verify/_deferrals.md — probed ` +
     `incapability only, ladder first, fresh probes never inherited, skipped/guard-exited specs are not evidence, ` +
     `an all-skipped sweep is blocked-runtime-evidence-missing). For a lawfully deferred ` +
     `AC record it in 00-index.md runtime-evidence-deferrals, write result: partial (NOT ` +
@@ -1205,12 +1215,12 @@ const STAGE_RESULT = {
         verdict: { type: 'string' },        // review → ship | ship-with-caveats | dont-ship
         blockerCount: { type: 'number' },   // review → metric-findings-blocker (OPEN)
         // verify → user-observable ACs DEFERRED because the environment genuinely
-        // could not produce runtime evidence (each written as verify.md's
+        // could not produce runtime evidence (each written as verify/_deferrals.md's
         // `interactive-verification: deferred` escape hatch + registered in
         // 00-index.md runtime-evidence-deferrals; /wf ship later blocks on them).
         // `probe` is the literal capability-probe command + one-line output tail the
         // subagent executed THIS run to establish the wall (attempt-before-declare —
-        // verify.md §"Escape hatch"). A deferral with no probe is challenged by
+        // verify/_deferrals.md §"Attempt before declare"). A deferral with no probe is challenged by
         // probeGaps()/driveVerify with one corrective re-run before it is accepted.
         deferrals: {
           type: 'array',
@@ -1619,7 +1629,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     : ''
   // F2 corrective probe round — a prior verify round returned structurally clean but
   // deferred these AC(s) with no capability-probe receipt. This is NOT a fix pass; it is
-  // a demand for the receipt the deferral law requires (verify.md §"Attempt before declare").
+  // a demand for the receipt the deferral law requires (verify/_deferrals.md §"Attempt before declare").
   const probeClause =
     stage === 'verify' && Array.isArray(extra.probeAcs) && extra.probeAcs.length
       ? ` CORRECTIVE PROBE ROUND — a prior round deferred these AC(s) WITHOUT a capability-probe receipt: ` +
@@ -1820,7 +1830,7 @@ async function driveVerify(sliceArg, idx) {
     const t = last.terminal || {}
     if (verifyClean(t, last.residual)) {
       // Structurally clean — but the deferral law demands a probe receipt on every deferral
-      // (verify.md §"Attempt before declare"). verifyClean tolerates a missing receipt (the
+      // (verify/_deferrals.md §"Attempt before declare"). verifyClean tolerates a missing receipt (the
       // v9.114 no-hard-gate lesson); probeGaps surfaces it here. First offense with a round
       // left → ONE corrective re-run that demands the receipt (or the evidence, if the wall
       // fell). Still probe-less after that → hard-stop: the law is not optional, and re-running
@@ -1840,7 +1850,7 @@ async function driveVerify(sliceArg, idx) {
           log(`verify:${sliceArg} clean but ${gaps.length} deferral(s) carry no capability-probe receipt (${probeCorrection.join(', ')}) — one corrective re-run to attach receipts (or produce evidence if the wall fell)`)
           continue
         }
-        return { ...last, status: 'hard-stop', hardStopReason: `deferral(s) still carry no capability-probe receipt after a corrective re-run: ${gaps.map(g => g.ac).join(', ')} — attach the literal probe command + output tail per verify.md §"Attempt before declare", or produce the evidence if the wall no longer stands` }
+        return { ...last, status: 'hard-stop', hardStopReason: `deferral(s) still carry no capability-probe receipt after a corrective re-run: ${gaps.map(g => g.ac).join(', ')} — attach the literal probe command + output tail per verify/_deferrals.md §"Attempt before declare", or produce the evidence if the wall no longer stands` }
       }
       const deferred = (Array.isArray(t.deferrals) ? t.deferrals.length : 0) +
                        (Array.isArray(last.residual) ? last.residual.filter(d => d && d.ac).length : 0)

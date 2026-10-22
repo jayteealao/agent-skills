@@ -4,7 +4,7 @@ Step 2 of `/wf intake rca` dispatches the three sub-agents below in parallel. Ev
 
 **Effort tier for every dispatched agent:** **medium** (per [_subagents.md](../../_subagents.md)). REQUIRED on every dispatch. Root-cause analysis is the defining judgment-heavy task: Code path investigation must reason about incorrect assumptions and race conditions, Recent change correlation must causally link diffs to symptoms, Blast radius must reason about coupling. Low effort underserves causal reasoning under uncertainty; medium is the right tier.
 
-When an inbound `discover` verdict supplied ranked counter-hypotheses (`_intake-provenance.md`), seed every prompt below with them: they are candidate root causes.
+When an inbound `discover` verdict supplied ranked counter-hypotheses (`_intake-provenance-consume.md`), seed every prompt below with them: they are candidate root causes.
 
 ### research sub-agent 1 — Code path investigation
 

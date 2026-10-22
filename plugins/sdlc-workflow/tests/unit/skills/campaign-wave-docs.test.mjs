@@ -26,7 +26,8 @@ function cited(constName) {
 test('every _drive.md section that a wave driver prompt cites is a heading of _drive.md', () => {
   const have = headings(read('reference/campaign/_drive.md'));
   const want = cited('DRIVE_PROC');
-  for (const name of ['Park', 'Resume actions', 'Early plan questions', 'Unit end', 'Boundary setup']) want.add(name);
+  // WF-SUBPROCEDURE-AUDIT AQ2: _drive.md keeps only the part that the resolve agent reads.
+  want.add('Resume actions');
   for (const name of want) assert.ok(have.has(name), `_drive.md has no section "${name}"`);
 });
 
@@ -34,7 +35,7 @@ test('every _drive.md section that a wave driver prompt cites is a heading of _d
 test('every _order.md section that a wave driver prompt cites is a heading of _order.md', () => {
   const have = headings(read('reference/campaign/_order.md'));
   const want = cited('ORDER_PROC');
-  for (const name of ['Pair kinds', 'Cross-unit reconcile', 'Derived needs', 'Merge notes', 'Wait agent', 'Slice order', 'Sort waits']) want.add(name);
+  for (const name of ['Pair kinds', 'Cross-unit reconcile', 'Derived needs', 'Merge notes', 'Slice order', 'Sort waits']) want.add(name);
   for (const name of want) assert.ok(have.has(name), `_order.md has no section "${name}"`);
   const drive = headings(read('reference/campaign/_drive.md'));
   for (const name of ['Derived needs', 'Cross-unit reconcile', 'Wait agent']) assert.ok(!drive.has(name), `_drive.md still has "${name}"`);
@@ -73,12 +74,22 @@ test('every _boundary.md section that a wave driver prompt cites is a heading of
   for (const name of want) assert.ok(have.has(name), `_boundary.md has no section "${name}"`);
 });
 
-test('_drive.md has a resume part for each park kind of the driver', () => {
-  const text = read('reference/campaign/_drive.md');
+// WF-SUBPROCEDURE-AUDIT F6: one park-kind table, in _waves.md, with a row for each park kind of
+// the driver; _drive.md has a resolve part for each kind whose answer a resolve agent reads.
+test('_waves.md lists each park kind of the driver once, and _drive.md has a part for each resolve kind', () => {
+  const waves = read('reference/campaign/_waves.md');
   const block = /const PARK_TEXT = \{([\s\S]*?)\n\}/.exec(driver)[1];
   const kinds = [...block.matchAll(/^\s+'?([a-z-]+)'?: \(/gm)].map((m) => m[1]);
   assert.ok(kinds.length >= 10, kinds.join(','));
-  for (const kind of [...kinds, 'wave-review']) assert.match(text, new RegExp(`^### ${kind}$`, 'm'), `no resume part for ${kind}`);
+  for (const kind of [...kinds, 'wave-review']) {
+    const rows = waves.match(new RegExp(`^\\| \`${kind}\` \\|`, 'gm')) || [];
+    assert.equal(rows.length, 1, `_waves.md has ${rows.length} park-kind rows for ${kind}`);
+  }
+  const drive = read('reference/campaign/_drive.md');
+  const resolve = JSON.parse(/const RESOLVE_KINDS = (\[[^\]]*\])/.exec(driver)[1].replace(/'/g, '"'));
+  assert.ok(resolve.length >= 4, resolve.join(','));
+  for (const kind of resolve) assert.match(drive, new RegExp(`^### ${kind}$`, 'm'), `no resolve part for ${kind}`);
+  assert.doesNotMatch(drive, /^\| Kind \| Cause/m, '_drive.md keeps no second park-kind table');
 });
 
 test('the away mode of campaign.md answers in the run: no relaunch of a drive, and no yolo drive in a wave', () => {

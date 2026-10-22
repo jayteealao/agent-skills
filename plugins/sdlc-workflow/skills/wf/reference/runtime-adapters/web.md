@@ -53,7 +53,7 @@ SCRIPT
 - Use `--connect` flag instead of `--headless` if the user has a running Chrome with remote debugging enabled.
 
 ### 2. Session-native browser tools (fallback)
-If the session exposes browser-control tools (a browser MCP server or a host browser plugin — a host surface, see [_host-invocation.md](../_host-invocation.md)), use them:
+If the session exposes browser-control tools (a browser MCP server or a host browser plugin — a host surface, see [_host-surfaces.md](../_host-surfaces.md), row "Browser and runtime drive"), use them:
 - navigate to load pages
 - page/DOM and page-text reads to inspect content
 - pointer/keyboard interactions (click, type)

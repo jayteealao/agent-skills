@@ -17,7 +17,7 @@
 ## Step 1 — Copy the source
 
 1. **A local folder, a zip, or image files.** Run `node "<skill-dir>/scripts/design-boards.mjs" import "<projectRoot>" <slug> <path>...`. The tool copies each path into `design/source/import-<n>/` and unpacks a zip there.
-2. **A design canvas link.** Read the canvas with the host's tool (`_host-invocation.md`, row "Design canvas"). Save each artboard into `design/source/import-<n>/`: the HTML when the tool gives it, and a PNG otherwise. Record the link and the canvas version in `design/source/import-<n>/SOURCE.md`.
+2. **A design canvas link.** Read the canvas with the host's tool (`_host-surfaces.md`, row "Design canvas"). Save each artboard into `design/source/import-<n>/`: the HTML when the tool gives it, and a PNG otherwise. Record the link and the canvas version in `design/source/import-<n>/SOURCE.md`.
 3. **A claude.ai/design project.** Use the host's design sync tool when the session has one. Otherwise ask the person to export the project as a zip, then use item 1.
 4. When the host cannot read the link, say so, and ask the person for an export. Do not guess the content of a link.
 

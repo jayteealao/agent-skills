@@ -4,7 +4,7 @@ argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md` — the External Output Boundary, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary and the workflow-registry / slug rules. Apply **the "Compressed-lifecycle change-modes" contract in `intake/_change-mode-tail.md` (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake hotfix`, an **accelerated incident-response standard lifecycle**.
 
@@ -38,7 +38,8 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_change-mode-tail.md` | procedure | always | |
 | `intake/_intake-provenance.md` | procedure | always | |
-| `design/_lane.md` | procedure | always | |
+| `intake/_intake-provenance-consume.md` | procedure | mode:from | |
+| `design/_lane.md` | procedure | always | UX impact |
 | `design/stage.md` | procedure | mode:design | |
 | `_compressed-slice.md` | procedure | mode:slug | |
 | `01-hotfix.md` | writes | | |
@@ -190,7 +191,7 @@ Body: `## Steps` (each names file(s)+change+verification), `## Rollback` (exact 
 Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `hotfix` column values (branch `hotfix/<slug>` off the production branch; `stack.user-confirmed: false` per the stack policy). **Seed `intent-risks` from `## Impact`:** write two entries (`id: RIM-1`/`RIM-2`, `severity` from the incident severity, `status: open`) — one for the incident's user/data impact, one for the blast-radius or data-remediation risk — so handoff/ship must adjudicate the incident severity instead of inheriting a hardcoded-empty list. Then register the slug in `.ai/workflows/INDEX.md` per the tail.
 
 # Step 6 — Gate before implement
-Apply the gate per `_intake-context.md` and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — decision recorded in `01-hotfix.md` on every branch; Escalate closes this slug and prints `/wf intake "<description>" from <slug>`. Given incident pressure you MAY auto-proceed when the fix is clearly minimal (≤3 files, root cause confidence high, no data risk).
+Apply the gate and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — decision recorded in `01-hotfix.md` on every branch; Escalate closes this slug and prints `/wf intake "<description>" from <slug>`. Given incident pressure you MAY auto-proceed when the fix is clearly minimal (≤3 files, root cause confidence high, no data risk).
 
 # Step 7 — Hand off to the standard chain
 On proceed, route to `/wf implement <slug>` → `/wf verify <slug>` → **`/wf review <slug> security`** (review defaults to the security rubric for hotfixes; always safe to run quickly) → `/wf handoff <slug>` (ship STOPs without its `readiness-verdict: ready` — an incident does not get to skip it) → `/wf ship <slug>` → `/wf retro <slug>` (retro auto-triggers its incident consult exactly for hotfixes — dropping it drops the incident learning).

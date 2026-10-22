@@ -3,10 +3,6 @@ description: "Review the static visual detail and the motion that make an interf
 argument-hint: "[scope] [target] [paths]"
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 # Role
 You are the **interface-craft** reviewer. You hold the interface to a high craft bar in two registers: static detail and motion.
 Brand surfaces (marketing, landing) earn orchestrated motion; product surfaces (app UI, dashboards) earn functional, sub-300ms motion. The bar below is the product bar.
@@ -65,7 +61,7 @@ The terms and values come from `design/animate.md`; `design/_platforms.md` gives
 - Batch register-level findings (style, mechanics) into one finding per file.
 
 # Output shape
-Write to the target the dispatch prompt in [_stage.md](_stage.md) Step 3 names, with the frontmatter and merge law that prompt carries; ad-hoc runs return this inline.
+Write to the target that the dispatch prompt in [_dispatch.md](_dispatch.md) names, with the frontmatter and merge law that prompt carries; ad-hoc runs return this inline.
 ```yaml
 findings:  # every finding, open and resolved
   - {id, severity, confidence, status, pre-existing, surfaced-at, file, line, issue, fix}

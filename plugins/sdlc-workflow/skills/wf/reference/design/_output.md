@@ -1,8 +1,8 @@
-# Design — artifact contracts and final-summary rules (`design.md` Steps 5 and 6)
+# Design — artifact contracts and final-summary rules (`design.md` Steps 1 and 2)
 
-Load this file from `design.md` Step 5 (registration and the transformation artifact) and Step 6 (the final-summary rules).
+Load this file from `design.md` Step 1 (registration and the transformation artifact) and Step 2 (the final-summary rules). A move pass of `design/stage.md` and a move that `implement` applies also write their notes per "Registration and the transformation artifact".
 
-## Step 5 — registration and the transformation artifact
+## Registration and the transformation artifact
 
 **Augmentation registration** (a move that `implement` applies, audit, critique) — create `augmentations:` in
 `00-index.md` if absent:
@@ -37,7 +37,7 @@ artifact lets `/wf review` and `/wf handoff` see exactly what design augmentatio
 
 **Move-pass note** (`/wf design <slug> <move>` on a confirmed design, [stage.md](stage.md) → Move pass): the same frontmatter with `files-modified: []`. Body sections: (1) **Findings** — one row per finding: surface, board key or `file:line`, what is wrong, the fix; (2) **Rejected candidates** — for `animate`, each candidate and the gate that rejected it; (3) **Reference followed**; (4) **Feel checks needed** — what code alone cannot settle; (5) **Decision** — amend now, or kept for later.
 
-## Step 6 — final-summary rules
+## Final-summary rules
 
 **Rules:**
 - **First line.** Name the command and the slug; no-slug runs that created a slug name the new

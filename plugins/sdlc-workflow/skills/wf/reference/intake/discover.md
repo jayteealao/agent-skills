@@ -35,6 +35,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `01-discover.md` | artifact | on-resume | |
 | `steer.md` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
+| `intake/_light-index.md` | procedure | always | |
 | `intake/discover/_research.md` | procedure | always | |
 | `_compressed-slice.md` | procedure | mode:slug | |
 | `01-discover.md` | writes | | |
@@ -173,39 +174,24 @@ For each fired tripwire: `[tripwire-name]: <what specifically tripped it>`. Clos
 
 # Step 4 — Write `00-index.md` (closed at write time)
 
-A verdict is terminal by construction — nothing is left to choose, so the workflow closes the moment its index is written. No re-invocation, no parked Active row:
+A verdict is terminal by construction — nothing is left to choose, so the workflow closes the moment its index is written. No re-invocation, no parked Active row.
+
+Write `00-index.md` from [_light-index.md](_light-index.md), the `discover` row. Add these keys:
 
 ```yaml
----
-schema: sdlc/v1
-type: workflow-index
-slug: <slug>
-title: "Discover: <one-line hypothesis>"
-workflow-type: discover
-current-stage: routing
-status: closed
 close-reason: verdict-recorded
-closed-at: <timestamp>
-branch-strategy: none
+closed-at: "<ISO 8601>"
 branch: <current-branch>
 base-branch: <current-branch>
-next-command: none
-next-invocation: "none — verdict recorded; see recommended-routes"
 recommended-routes:
   - {invocation: "<the ## Routing route for this verdict, with its from <slug> form>", reason: "<one phrase>", default: true}
   - {invocation: "<another viable route>", reason: "<one phrase>"}
 verdict: <holds|partial|fails|inconclusive>
 confidence: <high|medium|low>
-open-questions: []
 augmentations: []
-progress:
-  discover: complete
-created-at: <timestamp>
-updated-at: <timestamp>
----
 ```
 
-Register the slug's row in `.ai/workflows/INDEX.md` as `closed`. Body: one-line description of the hypothesis + pointer to `01-discover.md` and the verdict. (`progress` is the object form — the renderer silently drops a YAML list. No `selected-slice` — a discover has no slice roster. A successor invoked with `from <slug>` reads the closed artifact via `_intake-provenance.md`; closure hides nothing.)
+Register the slug's row in `.ai/workflows/INDEX.md` as `closed`. Body: one-line description of the hypothesis + pointer to `01-discover.md` and the verdict. (A successor invoked with `from <slug>` reads the closed artifact via `_intake-provenance-consume.md`; closure hides nothing.)
 
 # Step 5 — Hand off to user
 

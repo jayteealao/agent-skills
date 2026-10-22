@@ -7,8 +7,7 @@ argument-hint: <slug> [<slice>]
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
-> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf yolo`, the **autonomous lifecycle driver**. It resolves every stage gate by the Autonomous Decision Policy and drives the slug to the review endpoint through Claude Code's **Workflow** tool.
@@ -35,7 +34,7 @@ You are running `/wf yolo`, the **autonomous lifecycle driver**. It resolves eve
 
 It is diagnostic, never a gate: a failed append never changes what a stage does. The last agent, `run-end`, writes the `run-end` line.
 
-**Judging it.** Apply the staleness rule in [_control-file-ownership.md](_control-file-ownership.md) at every read site, `/wf status <slug>` included. Never infer liveness from a file, a task id, or a "running independently" chip.
+**Judging it.** Apply the staleness rule in [_liveness.md](_liveness.md) at every read site, `/wf status <slug>` included. Never infer liveness from a file, a task id, or a "running independently" chip.
 
 **Reconciling a dead driver.** A presumed-dead driver's last writes are suspect. Re-read every control file from disk immediately before editing it. Where an artifact on disk contradicts `00-index.md`, trust the artifact and correct the index. Report what the journal shows the run completed versus abandoned.
 
@@ -176,7 +175,7 @@ wf yolo complete: <slug> [<slice>]  (mode: <slug|slice> — <endpoint reached | 
 
 <Narrative paragraph.>
 
-Prior driver: <omit when absent | outcome.priorDriver, worded per the staleness rule in _control-file-ownership.md — never "still running" unless the journal's recency supports it>
+Prior driver: <omit when absent | outcome.priorDriver, worded per the staleness rule in _liveness.md — never "still running" unless the journal's recency supports it>
 Branch: <outcome.branch — "created <target> from <base>" | "switched to <target>"; omit when yolo did not move the branch>
 Stages run: <the per-slice sequence actually executed>
 Autonomous decisions: <count + one-line gist, or "none recorded">

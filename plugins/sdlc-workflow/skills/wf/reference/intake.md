@@ -56,7 +56,7 @@ Resolve in this exact order (the order matters — the slug checks come FIRST):
 
 **Quote-escape.** A quoted multi-word first token (`/wf intake "rca dashboard refresh"`) never matches a slug or a bare keyword, so it routes to branch 4 (default).
 
-**Trailing tokens (mode-owned, consumed from the END of `$ARGUMENTS`):** `from <slug>` is the provenance token every provenance-aware mode strips per `intake/_intake-provenance.md`; a trailing `design` token on `fix` opts the fix into design notes; a trailing `dry-run` on `amend`/`modernize` previews without writing. The dispatcher passes them through; the mode reference consumes them.
+**Trailing tokens (mode-owned, consumed from the END of `$ARGUMENTS`):** `from <slug>` is the provenance token every provenance-aware mode strips per `intake/_intake-provenance.md`; a trailing `design` token on a change-mode runs the design stage (`intake/_change-mode-tail.md`); a trailing `dry-run` on `amend`/`modernize` previews without writing. The dispatcher passes them through; the mode reference consumes them.
 
 ## Auto-route classification (branch 4 only)
 

@@ -77,6 +77,8 @@ test('every EOB citation link resolves to the canonical file', () => {
       }
     }
     // W4 merged 35 rubrics into 11, so the floor fell from 60 to 50 citation blocks.
-    assert.ok(citations >= 50, `${name}: expected >=50 citation blocks, found ${citations}`);
+    // WF-SUBPROCEDURE-AUDIT L8 dropped the 11 rubric citations (review.md, the stage
+    // writer, loads the rule), so the floor fell from 50 to 40.
+    assert.ok(citations >= 40, `${name}: expected >=40 citation blocks, found ${citations}`);
   }
 });

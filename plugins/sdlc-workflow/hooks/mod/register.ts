@@ -129,12 +129,14 @@ import {
   readCheckModeOf,
   recordRead,
   requiredOf,
+  appliedModesOf,
+  rowModesOf,
   waiverOf,
   readMarkOf,
   writerStagesOf,
   writtenTextOf,
 } from './readledger.ts'
-import type { CheckResult, Io, ReadFact, ReadLedger, RequiresEntry, WriteMatch } from './readledger.ts'
+import type { CheckResult, Io, ModeFacts, ReadFact, ReadLedger, RequiresEntry, WriteMatch } from './readledger.ts'
 import { REQUIRES } from './requires.ts'
 import { createUsageGuard } from './usage-guard.ts'
 
@@ -1386,7 +1388,7 @@ export function register(on: On, options: PluginOptions = {}) {
     if (engine && target !== null && mode === 'block') {
       // A deny after the write would leave the file written and tell the agent
       // it failed: the block runs before the write (Y3).
-      const outcome = await runReadCheck(engine, target)
+      const outcome = await runReadCheck(engine, target, writtenTextOf(input))
       const waiver = isClean(outcome) ? null : waiverOf(writtenTextOf(input))
       await appendLedgerRow(engine, target, outcome, waiver)
       if (!isClean(outcome) && waiver === null) return { deny: contextTextOf({ artifact: target.file, reference: target.match.entry.reference, result: outcome, mode: 'block' }) }
@@ -1396,7 +1398,9 @@ export function register(on: On, options: PluginOptions = {}) {
     if (!engine || target === null || result.deny !== undefined || result.isError === true) return result
     if (target.agent === MAIN_AGENT) mainReadSinceCheck = false
     if (mode !== 'warn') return result
-    const outcome = await runReadCheck(engine, target)
+    // After the write, the file on disk carries the whole frontmatter, also for an Edit.
+    const onDisk = model.root === null ? null : await readIfPresent(engine, joinPath(model.root, '.ai', 'workflows', target.slug, target.file))
+    const outcome = await runReadCheck(engine, target, `${writtenTextOf(input)}\n${onDisk ?? ''}`)
     await appendLedgerRow(engine, target, outcome, null)
     if (isClean(outcome)) return result
     const text = contextTextOf({ artifact: target.file, reference: target.match.entry.reference, result: outcome, mode: 'warn' })
@@ -1445,8 +1449,11 @@ export function register(on: On, options: PluginOptions = {}) {
     return { agent, slug: where.slug, file: where.file, id: where.id, match }
   }
 
-  /** The check for one target: the writer's reads against the stage's rows. Never throws. */
-  async function runReadCheck(engine: Host, target: CheckTarget): Promise<CheckResult> {
+  /**
+   * The check for one target: the writer's reads against the stage's rows, with the
+   * `mode:` rows whose mode applies (W0). `written` is the text of the write. Never throws.
+   */
+  async function runReadCheck(engine: Host, target: CheckTarget, written: string): Promise<CheckResult> {
     if (model.root === null) return { missing: [], partial: [] }
     const io: Io = {
       exists: path => engine.reader.exists(path),
@@ -1454,7 +1461,15 @@ export function register(on: On, options: PluginOptions = {}) {
       list: async dir => (await engine.reader.list(dir)).filter(entry => entry.kind === 'file').map(entry => entry.name),
     }
     try {
-      const required = requiredOf(target.match, target.slug)
+      const dir = joinPath(model.root, '.ai', 'workflows', target.slug)
+      const facts: ModeFacts = {
+        index: await readIfPresent(engine, joinPath(dir, '00-index.md')),
+        slice: target.match.slice === null ? null : await readIfPresent(engine, joinPath(dir, `03-slice-${target.match.slice}.md`)),
+        written,
+        exists: file => engine.reader.exists(joinPath(dir, file)),
+      }
+      const modes = await appliedModesOf(facts, rowModesOf(target.match))
+      const required = requiredOf(target.match, target.slug, modes)
       return await checkReads(required, { root: model.root, slug: target.slug, reads: reads.get(target.agent), fed: fedByOutput.get(target.id) ?? [], self: target.id }, io)
     } catch (error) {
       engine.log(`wf read check: ${messageOf(error)}`)

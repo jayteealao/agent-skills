@@ -202,5 +202,11 @@
     "category": "rubric-checks",
     "from": "what motion library is in play?",
     "to": "what platform and motion library are"
+  },
+  {
+    "file": "skills/wf/reference/intake/_change-mode-tail.md",
+    "category": "gates",
+    "from": "the gate (d4) stop-and-prompt before 05-implement . after",
+    "to": "the gate stop-and-prompt before 05-implement . after 04-plan"
   }
 ]

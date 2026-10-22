@@ -1,6 +1,6 @@
 # Simplify — artifact templates
 
-Load this file from `simplify.md` Step 4 and Step 5. It holds the routing-assignment record, the proposed-deltas block, the two standalone artifact templates, and the additive-write contract.
+Load this file from `simplify.md` Step 4 and Step 5. It holds the routing-assignment record, the proposed-deltas block, the standalone `01-simplify.md` template, and the additive-write contract. The `00-index.md` template is in [_light-index.md](../_light-index.md), the `simplify` row.
 
 ## What to record per accepted finding (Step 4)
 
@@ -42,29 +42,6 @@ proposed-deltas:
       Use the existing `utils/hash.ts.sha256(value)` — it already handles user IDs.
     rationale: |
       reuse-scan should have surfaced this; including the new function is duplication.
-```
-
-## `00-index.md` — `type: workflow-index` (Step 5)
-
-Lightweight; not the heavy 22-field `type: index`:
-
-```yaml
----
-schema: sdlc/v1
-type: workflow-index
-slug: <slug>
-workflow-type: simplify
-current-stage: simplify
-status: complete
-selected-slice: ""
-branch-strategy: none
-open-questions: []
-next-command: wf-intake
-next-invocation: "/wf <routed-command> <slug>"
-progress:
-  - simplify: complete
-created-at: "<ISO 8601>"
----
 ```
 
 ## `01-simplify.md` — `type: simplify-run` (Step 5)

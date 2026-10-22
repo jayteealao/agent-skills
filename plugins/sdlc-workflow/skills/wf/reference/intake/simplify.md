@@ -6,8 +6,7 @@ argument-hint: "[branch [<base>] | commit <sha-or-range> | plan <slug> <slice> |
 # External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
-> exists and apply the contract in [_steering.md](../_steering.md): honor the user's standing instructions, never
+> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](../_steering.md). Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf intake simplify`, a **review-and-route triage utility**. Three parallel sub-agents (Reuse, Quality, Efficiency) review one of four scopes; you classify each finding and route it to the appropriate downstream command. Not a lifecycle stage, not a workflow, not a fixer — a triage report that fans out.
@@ -42,6 +41,8 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | Input | Kind | When | Sections |
 |---|---|---|---|
 | `04-plan-<slice>.md` | artifact | mode:plan | |
+| `intake/_intake-context.md` | procedure | always | |
+| `intake/_light-index.md` | procedure | always | |
 | `intake/simplify/_research.md` | procedure | always | |
 | `intake/simplify/_artifact.md` | procedure | always | |
 | `_compressed-slice.md` | procedure | mode:slug | |
@@ -183,9 +184,9 @@ Record one `routing-assignments` entry per accepted finding: `finding-id`, `rout
 
 # Step 5 — Write the run artifact + print routing suggestions
 
-Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Derive `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), write **two** files under `.ai/workflows/<slug>/`, and register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](default.md) Step 10.
+Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Derive `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), write **two** files under `.ai/workflows/<slug>/`, and register the slug in `.ai/workflows/INDEX.md` per [_intake-context.md](_intake-context.md) → Register the workflow in INDEX.md.
 
-1. Write `00-index.md` (`type: workflow-index`, lightweight) from the template in [simplify/_artifact.md](simplify/_artifact.md).
+1. Write `00-index.md` from [_light-index.md](_light-index.md), the `simplify` row.
 2. Write `01-simplify.md` (`type: simplify-run`) from the template in the same file: frontmatter counts, `routing-summary`, `routing-assignments`, `proposed-deltas`, `recommended-routes`, then the body sections from **Input** to **Deferred**.
 3. Follow the additive-write contract in the same file: never overwrite an existing slug, no `revision-count`, `regenerable: false`, cross-run links by `refs:`.
 

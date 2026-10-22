@@ -63,7 +63,7 @@ Pick **one** primary recommendation based on the diagnosis. The printed invocati
 | Anything else — including any architectural change, new dependency, cross-cutting work, or blast radius is `high` | `plan` | `/wf intake rca <slug> plan`, then `/wf plan <slug>` (same slug continues — the synthesized `02-shape.md` is its input) |
 | `root-cause-confidence: low` AND `blast-radius: high` | `human-triage` | climb the escalation ladder first (see `## Confidence`); when low confidence survives it, record `/wf intake rca <slug> human-triage` and hand to the human |
 
-State the recommendation clearly with one sentence of justification. Then list the alternatives in priority order. The user makes the final call. Routing directly (`… from <slug>`) without recording works too; the downstream mode records the route implicitly per `_intake-provenance.md`.
+State the recommendation clearly with one sentence of justification. Then list the alternatives in priority order. The user makes the final call. Routing directly (`… from <slug>`) without recording works too; the downstream mode records the route implicitly per `_intake-provenance-consume.md`.
 
 ### Tripwire warnings (only if any fired)
 Tripwires are **warn-and-continue**: record them, and still write the RCA. Tripwires:

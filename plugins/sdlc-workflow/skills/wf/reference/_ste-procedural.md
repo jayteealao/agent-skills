@@ -7,8 +7,8 @@ parentheses for traceability; the wording and examples here are original.
 
 **Scope.** These rules apply to ALL text this workflow writes: every document
 `/wf docs` or the diataxis skill writes, every section of every workflow
-artifact — the story section and the structured sections alike — reader-visible
-text in view fragments (both tiers), runbook and how-to steps, user-facing
+artifact — the story section and the structured sections alike — runbook and
+how-to steps, user-facing
 product copy (labels, errors, empty states), external-facing outputs (release
 notes, PR bodies, announcements), and the chat summary each stage returns.
 Nothing is exempt. Each passage follows the sections that govern its kind of

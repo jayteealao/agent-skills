@@ -43,7 +43,7 @@ Its images are mood and brand images. A generated image is never a design board
 
 | Provider | Model / billing | Hosts | Method |
 |---|---|---|---|
-| `image_gen` | host built-in tool; no egress, no key | Only a session whose tool list includes `image_gen` — a host surface, see [_host-invocation.md](../wf/reference/_host-invocation.md) | Call the tool with the prompt and save the returned bytes to the output base path. Preferred when present. |
+| `image_gen` | host built-in tool; no egress, no key | Only a session whose tool list includes `image_gen` — a host surface, see [_host-surfaces.md](../wf/reference/_host-surfaces.md), row "Built-in image generation" | Call the tool with the prompt and save the returned bytes to the output base path. Preferred when present. |
 | `openai` | gpt-image-2 REST; per-token | both | `node "<skill-dir>/scripts/gen-openai.mjs" "<prompt>" <outBase> <tier>` — exit 1 = `OPENAI_API_KEY` unset → skip; 2/3 = error → skip |
 | `gemini` | nano-banana; per-token | both | `node "<skill-dir>/scripts/gen-gemini.mjs" "<prompt>" <outBase> <tier>` — exit 1 = no key or `@google/genai` not installed → skip |
 | `openai-sub` | gpt-image-2 via the codex subscription (same model as `openai`, different billing path) | both | `bash "<skill-dir>/scripts/gen-openai-codex.sh" "<prompt>" <outPath>` |

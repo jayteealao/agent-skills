@@ -4,7 +4,7 @@ argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md` — the External Output Boundary, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary and the workflow-registry / slug rules. Apply **the "Compressed-lifecycle change-modes" contract in `intake/_change-mode-tail.md` (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake fix`, a **compressed standard lifecycle** for small intentional changes.
 
@@ -22,7 +22,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | Requires | See [## Requires](#requires). |
 | Produces (this command) | `01-fix.md` (`type: intake`), `02-shape.md`, `03-slice.md` (`type: slice-index`, one slice), `04-plan.md`, and a conformant `00-index.md` (`type: index`). |
 | Compression | Each planning stage is single-pass/lightweight — **no stage is skipped**. One slice, written as a real `03-slice.md`. Design runs when `ux-impact` is not `none` (`_change-mode-tail.md` → UX impact and the design stage); the trailing token `design` forces it. |
-| Gate | Stop-and-prompt before `05-implement` (see `_intake-context.md` → the gate; Adjust/Escalate handling per `_change-mode-tail.md`). May run end-to-end if the change is judged low-risk. |
+| Gate | Stop-and-prompt before `05-implement` (see `_change-mode-tail.md` → Compressed-lifecycle change-modes; Adjust/Escalate handling in the same file). May run end-to-end if the change is judged low-risk. |
 | Next | `/wf implement <slug>` — the standard execution chain takes over from stage 5. |
 | Escalate | If during planning the work no longer fits the fix envelope, **warn and continue** — record the breach per `_change-mode-tail.md` and offer the gate's "Escalate" option, which closes this slug and restarts as `/wf intake "<description>" from <slug>`. Do not refuse. |
 
@@ -38,7 +38,8 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_change-mode-tail.md` | procedure | always | |
 | `intake/_intake-provenance.md` | procedure | always | |
-| `design/_lane.md` | procedure | always | |
+| `intake/_intake-provenance-consume.md` | procedure | mode:from | |
+| `design/_lane.md` | procedure | always | UX impact |
 | `design/stage.md` | procedure | mode:design | |
 | `_compressed-slice.md` | procedure | mode:slug | |
 | `01-fix.md` | writes | | |
@@ -199,7 +200,7 @@ Write the shared change-mode index template from [_change-mode-tail.md](_change-
 
 # Step 3 — Gate before implement (mandatory unless auto-proceeding)
 
-Apply the gate per `_intake-context.md` and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md): record the decision in `01-fix.md` on every branch; Adjust revises and re-gates; Escalate closes this slug (`close-reason: superseded`) and prints `/wf intake "<description>" from <slug>`. You MAY auto-proceed without pausing if the change is clearly low-risk (≤3 files, no tripwires, no open questions).
+Apply the gate and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md): record the decision in `01-fix.md` on every branch; Adjust revises and re-gates; Escalate closes this slug (`close-reason: superseded`) and prints `/wf intake "<description>" from <slug>`. You MAY auto-proceed without pausing if the change is clearly low-risk (≤3 files, no tripwires, no open questions).
 
 # Step 4 — Hand off
 

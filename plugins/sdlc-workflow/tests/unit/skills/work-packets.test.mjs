@@ -330,7 +330,7 @@ test('procedure: intake runs a packet and confirms its decisions (P1-P5, I1-I5)'
   match(packet, /Do not edit the brainstorm's board/);
   match(packet, /`origin-packet: <packet path>` and `origin-items`/);
   match(packet, /set the packet's `state: prepared` and `routed-to: <work-slug>`/);
-  match(read(`${REF}/intake/_intake-provenance.md`), /a brainstorm \*\*decision\*\* is the\nperson's answer/);
+  match(read(`${REF}/intake/_intake-provenance-consume.md`), /a brainstorm \*\*decision\*\* is the\nperson's answer/);
   match(read(`${REF}/shape.md`), /add one row per carried brainstorm decision, its key and text word for word/);
   match(read(`${REF}/review/intent-fidelity.md`), /the carried decisions of the origin work packet/);
   match(read(`${REF}/intake/extend.md`), /A work packet \(`intake\/_packet\.md`\) is a general seed/);

@@ -1,8 +1,8 @@
 # Shared fix-loop invariants (single source)
 
 Three surfaces dispatch fix sub-agents: `verify.md` (Step 7.6, single-round
-user-gated loop), `review.md` (Step 4c, ledger-recorded dispatch), and handoff's
-PR/CI machinery (`_pr-ci-handoff.md` — CI-red and comment-triage fixes). Their
+user-gated loop), `review/_stage.md` (Step 4c, ledger-recorded dispatch), and handoff's
+PR/CI machinery (`handoff/_pr-ci-handoff.md` — CI-red and comment-triage fixes). Their
 triggers, triage protocols, round semantics, and prompt templates are
 stage-specific and live in those files. The rules below are the invariants every
 fix dispatch shares — they are stated **only here**; the stage references cite
@@ -56,5 +56,5 @@ this file instead of restating them.
    `dedicated`/`shared`: stage ONLY the files the fix sub-agents touched and
    commit with the stage's `fix(<slug>): …` message template. Never push from
    the fix loop (handoff's orchestrator batch-push is the sanctioned exception,
-   defined in `_pr-ci-handoff.md`). When `branch-strategy: none`, skip the
+   defined in `handoff/_pr-ci-handoff.md`). When `branch-strategy: none`, skip the
    commit — the fixes remain in the working tree.

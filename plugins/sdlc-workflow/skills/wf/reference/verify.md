@@ -5,8 +5,7 @@ argument-hint: <slug> [slice]
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
 
-> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
-> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf verify`, **stage 6 of 10**: 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → `6·verify` → 7·review → 8·handoff → 9·ship → 10·retro.
@@ -15,7 +14,7 @@ You are running `/wf verify`, **stage 6 of 10**: 1·intake → 2·shape → 3·s
 |---|---|
 | Requires | See [## Requires](#requires). |
 | Produces | `06-verify-<slice-slug>.md` and the raw check output in `verify-evidence/<slice-slug>/checks.md`; updates the `06-verify.md` master |
-| Charters | [verify/_sub-agents.md](verify/_sub-agents.md): the five sub-agent charters Step 4 dispatches |
+| Charters | Sub-agents 1, 2, 5: [verify/_sub-agents.md](verify/_sub-agents.md); 3: [verify/_runtime-evidence.md](verify/_runtime-evidence.md); 4: [verify/_augmentation.md](verify/_augmentation.md) |
 | Deferrals | [verify/_deferrals.md](verify/_deferrals.md): the `interactive-verification: deferred` escape hatch and the index ledger |
 | Schemas | [verify/_artifact.md](verify/_artifact.md): frontmatter and body sections of both verify files |
 | Next | `/wf review <slug> <selected-slice>` when `result: pass` and `convergence:` is `not-needed` or `converged`. When `convergence: escalated`, re-invoke `/wf verify <slug> <selected-slice>` for a second round or escalate to `/wf implement <slug> <selected-slice>`. |
@@ -25,7 +24,7 @@ You are running `/wf verify`, **stage 6 of 10**: 1·intake → 2·shape → 3·s
 
 Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
 
-Mode `user-observable`: the slice has a user-observable AC (the Step 7.5 partition). Mode `deferral`: a `runtime-evidence-deferrals` entry names this slice, or Step 7.5 takes the deferral path (WF-SYSTEM-REVIEW E3).
+Mode `user-observable`: the slice has a user-observable AC (the Step 7.5 partition). Mode `deferral`: `00-index.md` has an open `runtime-evidence-deferrals` entry for any slice, or Step 7.5 takes the deferral path. Mode `augment`: `02c-craft.md` exists, or `augmentations:` is not empty.
 
 | Input | Kind | When | Sections |
 |---|---|---|---|
@@ -46,6 +45,7 @@ Mode `user-observable`: the slice has a user-observable AC (the Step 7.5 partiti
 | `05c-benchmark.md` | artifact | if-present | |
 | `verify/_artifact.md` | procedure | always | |
 | `verify/_sub-agents.md` | procedure | always | |
+| `verify/_augmentation.md` | procedure | mode:augment | |
 | `verify/_deferrals.md` | procedure | mode:deferral | |
 | `_fix-loop.md` | procedure | always | |
 | `runtime-adapters.md` | procedure | mode:user-observable | |
@@ -90,17 +90,17 @@ Apply [_workflow-rules.md](_workflow-rules.md). Two verify-specific rules:
      - If `04-plan-<slice-slug>.md` carries `stack-source: unconfirmed-auto-detect` → propagate the same warning and frontmatter stamp.
      - If `stack.user-confirmed: true` and the plan agrees → proceed. Sub-agent 3 intersects matched adapters with `stack.platforms`; companion skills used for evidence come from `stack.available-skills`.
    - **Constraint-resolution gate (refuse inherited unresolved environment walls).** Read `## Verification Strategy` in the plan file. Every user-observable AC whose strategy names an environment dependency (credentials, device, external service, inbound callback, deploy target, missing infrastructure) carries a `constraint-resolution:` line authored at plan time (`prerequisite-slice: <slug>` | `proxy+deferral: <named clearing event>` | `po-accepted: <reason>`). If none of the three is present, record the criterion under `constraint-resolution-missing:` in the verify frontmatter and treat it as `blocked-runtime-evidence-missing` at Step 7.5; the deferral hatch is not available for it. Route to Option E (`/wf plan`), not Option F.
-6. **Use the augmentation context.** Each `02c-craft.md` `## Mock fidelity inventory` item is an additional AC; cross-reference it against `05-implement-<slice-slug>.md` `## Visual Contract Honored`. Each `00-index.md` `augmentations:` entry names an artifact (for example `07-design-audit.md`, `07-design-critique.md`). Sub-agent 4's table in [verify/_sub-agents.md](verify/_sub-agents.md) holds the type-specific re-checks.
+6. **Use the augmentation context.** Each `02c-craft.md` `## Mock fidelity inventory` item is an additional AC; cross-reference it against `05-implement-<slice-slug>.md` `## Visual Contract Honored`. Each `00-index.md` `augmentations:` entry names an artifact (for example `07-design-audit.md`, `07-design-critique.md`). Sub-agent 4's table in [verify/_augmentation.md](verify/_augmentation.md) holds the type-specific re-checks.
 7. **Carry forward** `open-questions` from the index.
 8. **Branch check.** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy: dedicated`, confirm the branch via `git branch --show-current` and switch if needed.
 
 # Parallel verification (Step 4)
 
-When verification spans multiple concerns, launch parallel sub-agents per [_subagents.md](_subagents.md): independent AC groups go to parallel non-editing children (they may build, boot, and drive; they never edit source), each returning evidence; the parent composes the verify artifact and the verdict. Do not spin up sub-agents when a single test command covers everything. The charters are in [verify/_sub-agents.md](verify/_sub-agents.md):
+When verification spans multiple concerns, launch parallel sub-agents per [_subagents.md](_subagents.md): independent AC groups go to parallel non-editing children (they may build, boot, and drive; they never edit source), each returning evidence; the parent composes the verify artifact and the verdict. Do not spin up sub-agents when a single test command covers everything. The charters:
 - **Sub-agent 1, Static Analysis & Build** (every slice): lint, types, build, the default performance gate, security scanning, `sdlc-debt:` marker hygiene.
 - **Sub-agent 2, Test Execution** (every slice): unit, integration, coverage, the skipped-gating-spec mapping (`skipped-gating-specs`), the cross-slice regression check.
-- **Sub-agent 3, Interactive & Runtime-Truth Verification** (required when any AC is user-observable): drives each such AC through the runtime adapters, climbs the constraint-resolution ladder, records `evidence-rung`, `mock-provenance:`, `fixture-fidelity:`, and first-light status, and records incidental defects against the `_surface-defects.md` classes.
-- **Sub-agent 4, Augmentation Re-verification** (only when `02c-craft.md` exists or `augmentations:` is non-empty). It gets board PNG paths, never a canvas link.
+- **Sub-agent 3, Interactive & Runtime-Truth Verification** (required when any AC is user-observable): drives each such AC on the runtime adapters and the constraint-resolution ladder; records `evidence-rung`, `mock-provenance:`, `fixture-fidelity:`, first-light status, and incidental `_surface-defects.md` defects.
+- **Sub-agent 4, Augmentation Re-verification** (`mode:augment`). It gets board PNG paths, never a canvas link.
 - **Sub-agent 5, Freshness** (when any test failed, the plan is older than 14 days, or the slice touches an external API or schema).
 Merge all results. For each check, record the command and pass/fail in the artifact. Write the raw output (test runner output, probe logs, scan output) to `verify-evidence/<slice-slug>/checks.md`. Do not fix issues here; the fix loop runs in Step 7.6 after the AC gate partitions issues.
 
@@ -149,7 +149,7 @@ Runtime evidence is required for every user-observable AC. No evidence, no pass.
 
 **Result writeback.** All AC met (code-only via test suites, user-observable via interactive evidence) → `pass`. A user-observable AC with no matching evidence and no deferral annotation → `blocked-runtime-evidence-missing`; a designated gating spec skipped with no other rung and no deferral → the same. At least one AC fails or is partial while every user-observable AC has runtime evidence → `fail` or `partial`. `blocked-runtime-evidence-missing` is procedural (evidence not produced), not substantive (code wrong): `fail` routes to `/wf implement`; `blocked-runtime-evidence-missing` routes to a capable environment or a deferral.
 
-**Runtime evidence and deferral.** When the slice has a user-observable AC, apply [verify/_runtime-evidence.md](verify/_runtime-evidence.md): the mock rule, the CI-configuration rule, the write-time enforcement, and the deferral hatch.
+**Runtime evidence and deferral.** When the slice has a user-observable AC, apply the gate rules of [verify/_runtime-evidence.md](verify/_runtime-evidence.md): mock, CI-configuration, write-time enforcement, deferral.
 
 # Verify-owned fix loop (Step 7.6, single round, user-gated)
 

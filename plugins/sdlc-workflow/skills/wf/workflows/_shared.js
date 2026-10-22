@@ -158,7 +158,10 @@ function requiresClause(refPath) {
     `${referenceRoot}/_requires.md. Before you write the stage artifact, read every row whose When value applies ` +
     `to this run — each whole-file input from its first line to its last, each named section in full — yourself, ` +
     `with the file-read tool. A search hit, a shell read, a partial read, or a sub-agent's read does not count. ` +
-    `The mod checks your reads when you write the stage artifact: a missing or partial read comes back as ` +
+    `A \`mode:<name>\` row applies when its mode applies to this run: list every mode you ran under in the stage ` +
+    `artifact's \`modes:\` frontmatter (for example \`modes: [deferral]\`). The mod also finds some modes on disk ` +
+    `(section "Modes" of ${referenceRoot}/_requires.md lists them), and a mode it finds there applies even when ` +
+    `\`modes:\` leaves it out. The mod checks your reads when you write the stage artifact: a missing or partial read comes back as ` +
     `feedback (context) in that write's tool result. When it does, read each named input, then write the ` +
     `artifact again in this same run. Keep reading ${refPath} in full as well.`
 }
@@ -277,7 +280,7 @@ function acKey(ac) {
 // probeGaps() — the deferral-LAW compliance check that verifyClean deliberately does
 // NOT enforce. verifyClean's accept condition is untouched (the v9.114 lesson: never
 // hard-gate a converged, defect-free slice on a formatting technicality — that cost
-// ~500k tokens per recurrence). But verify.md §"Attempt before declare" requires a
+// ~500k tokens per recurrence). But verify/_deferrals.md §"Attempt before declare" requires a
 // PROBE RECEIPT on every deferral — the literal capability-probe command + output tail
 // executed THIS run. probeGaps returns the ac-bearing deferral entries (deduped by ac,
 // across BOTH terminal.deferrals[] and the sibling residual[]) that carry no non-empty
@@ -674,9 +677,15 @@ function readCheckRows(rows, runStartAt) {
 
 // WF-SYSTEM-REVIEW E3: the stage prompt states the shared rules once. A stage agent does not
 // read again the files that hold them; the stage reference still points to them for a person.
+// Audit L10: requiresClause restates _requires.md (all but its Modes table), steeringClause
+// restates _steering.md, and the POLICY block + DECISION_CONTRACT replace every gate
+// question (_gate-question.md) and its wording (_question-craft.md): the run asks nothing.
 function preambleClause() {
-  return `- PREAMBLE GIVEN HERE: this prompt states the grounded-progress rule and the early-stop guard, and your ` +
-    `return is the schema below, not a chat message. When the stage reference points to ` +
-    `${referenceRoot}/_chat-return.md, ${referenceRoot}/_autonomy-guards.md, or ${referenceRoot}/_grounded-progress.md, ` +
-    `do not read those files: apply the rules of this prompt.\n`
+  return `- PREAMBLE GIVEN HERE: this prompt states the grounded-progress rule, the early-stop guard, the ` +
+    `required-reads checklist, and the steering contract; the policy above settles or stops each question the ` +
+    `reference would ask, so you ask none; and your return is the schema below, not a chat message. When the ` +
+    `stage reference points to ${referenceRoot}/_chat-return.md, ${referenceRoot}/_autonomy-guards.md, ` +
+    `${referenceRoot}/_grounded-progress.md, ${referenceRoot}/_steering.md, ${referenceRoot}/_gate-question.md, or ` +
+    `${referenceRoot}/_question-craft.md, do not read those files: apply the rules of this prompt. When it points ` +
+    `to ${referenceRoot}/_requires.md, read only its section "Modes": this prompt states the rest.\n`
 }

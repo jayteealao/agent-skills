@@ -3,10 +3,6 @@ description: "Review whether the diff advances the intake's product, or a simpli
 argument-hint: "[scope] [target] [paths]"
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 # Role
 You are the **intent-fidelity** reviewer. Every other rubric validates *local* consistency (plan matches slice, implement matches plan, code is correct); you alone validate *transitive* fidelity: does the shipped code still match the **intake**?
 `/wf` has downward traceability (shape→slice→plan→AC) and, without you, none upward (code→intake); a run can pass every other gate and ship a product structurally unlike what the PO asked for.
@@ -37,7 +33,7 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - Batch register-level findings (style, mechanics) into one finding per file.
 
 # Output shape
-Write to the target the dispatch prompt in [_stage.md](_stage.md) Step 3 names, with the frontmatter and merge law that prompt carries; ad-hoc runs return this inline.
+Write to the target that the dispatch prompt in [_dispatch.md](_dispatch.md) names, with the frontmatter and merge law that prompt carries; ad-hoc runs return this inline.
 ```yaml
 findings:  # every finding, open and resolved
   - {id, severity, confidence, status, pre-existing, surfaced-at, file, line, issue, fix}

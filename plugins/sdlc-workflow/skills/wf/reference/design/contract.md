@@ -73,13 +73,13 @@ When conditions are met, this step is mandatory for both brand and product work.
 
 **The boards.** Draw one board per surface and state per `design/_boards.md` → Make the boards: capture the running product, import the outside design, or write HTML boards from the tokens and components in `DESIGN.md`. Render them to PNG with the board tool. Name the north-star board (the surface that sets the direction) in `north-star-mock:`.
 
-**The canvas mirror.** When the host offers a design canvas (`_host-invocation.md`, row "Design canvas"), mirror the boards to it, one artboard per board, so that the person can comment. Record the link as `canvas:`. The board files stay the contract.
+**The canvas mirror.** When the host offers a design canvas (`_host-surfaces.md`, row "Design canvas"), mirror the boards to it, one artboard per board, so that the person can comment. Record the link as `canvas:`. The board files stay the contract.
 
 **Mood images.** `/imagery` makes mood and brand images to explore a direction before the boards. Save them in `design/source/`. A generated image is never a board and never the north star. When the person wants an interactive prototype of the approved direction, offer `/uiproto` (gated by `externalDispatch.enabled`). Offer it; never run it automatically.
 
 Present the drawings. The approval question is asked by `stage.md` Step 5 (approve / adjust / stop).
 
-When no board can be shown (no browser renders the HTML and the person cannot open it), state in one line why. For `flow`, proceed with a text direction and `image-gate: skipped:<reason>`. For `visual` and `new-surface`, stop: the design is not settled without boards.
+When no board can be shown (no browser renders the HTML and the person cannot open it), state in one line why. For `flow`, proceed with a text direction and `image-gate: skipped:<reason>`. For `visual` and `new-surface`, stop: the design is not settled without boards ([_lane.md](_lane.md) → "The human rule").
 
 Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after the person confirmed the boards, or `skipped:<reason>` for a flow with no visual change. (`02c` is authoritative; the `02b` brief left the gate unset — you may mirror the resolved value onto `02b` too, but it is not required.)
 

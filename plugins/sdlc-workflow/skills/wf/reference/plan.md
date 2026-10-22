@@ -5,8 +5,7 @@ argument-hint: <slug> [slice-slug|all] [review/fix instructions]
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
 
-> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
-> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf plan`, **stage 4 of 10**: 1·intake → 2·shape → 3·slice → `4·plan` → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro.
@@ -32,20 +31,20 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `02b-design.md` | artifact | if-present | |
 | `02c-craft.md` | artifact | if-present | |
 | `design/boards.json` | artifact | if-present | |
-| `design/_lane.md` | procedure | always | |
-| `design/_design-context.md` | procedure | mode:design | |
-| `runtime-adapters/_ladder.md` | procedure | always | |
-| `augment/instrument.md` | procedure | mode:augment | |
-| `augment/experiment.md` | procedure | mode:augment | |
-| `augment/benchmark.md` | procedure | mode:augment | |
+| `design/_lane.md` | procedure | always | UX impact; The human rule |
+| `design/_design-context.md` | procedure | mode:design | Register; Shared design laws; Absolute bans |
+| `runtime-adapters/_ladder.md` | procedure | mode:user-observable | |
+| `augment/instrument.md` | procedure | mode:instrument | |
+| `augment/experiment.md` | procedure | mode:experiment | |
+| `augment/benchmark.md` | procedure | mode:benchmark | |
 | `04-plan-<slice>.md` | writes | | |
 | `04-plan.md` | writes | | |
 
-`mode:design` rows apply when design is needed per [design/_lane.md](design/_lane.md). `mode:augment` rows apply when `02-shape.md` `augmentations-needed` names the type. A single-scope workflow writes only `04-plan.md`.
+`mode:design` rows apply when `design/_lane.md` says design is needed. An augmentation row applies when `02-shape.md` `augmentations-needed` names its type (list it in `modes:`). A single-scope workflow writes only `04-plan.md`.
 
-**Plan against the real API.** When plan steps call a dependency, framework, or SDK, read its installed source first with the `study-sources` skill.
+**Plan against the real API.** When plan steps call a dependency, framework, or SDK, first read its installed source with `study-sources`.
 
-**A limitation claim carries its evidence.** A plan step that asserts a dependency capability does not exist cites evidence in the same artifact: a `study-sources` read of the installed source (name the `node_modules/` or vendored path opened), a failing minimal repro, or an upstream issue link. An in-repo comment claiming a limitation is a hypothesis, never sufficient authority for a workaround; re-verify it with one `study-sources` read. A recalled API shape never justifies `as any` / `@ts-ignore` alone; cite the type read from the installed package or the mismatch repro. The warn-only `limitationClaimLint` hook flags an uncited limitation comment; its citation markers are `source:` / `node_modules/` / `repro:` / `issue:` / a URL within ±3 lines.
+**A limitation claim carries its evidence.** A plan step that asserts a dependency capability does not exist cites evidence in the same artifact: a `study-sources` read of the installed source (name the path opened), a failing minimal repro, or an upstream issue link. An in-repo comment claiming a limitation is a hypothesis, never sufficient authority for a workaround; re-verify it with one `study-sources` read. A recalled API shape never justifies `as any` / `@ts-ignore` alone; cite the type read from the installed package or the mismatch repro. The warn-only `limitationClaimLint` hook flags an uncited limitation comment; its citation markers are `source:` / `node_modules/` / `repro:` / `issue:` / a URL within ±3 lines.
 
 # Role
 You are a workflow orchestrator, not a problem solver. Do not write code, edit files, or implement the plan you produce. Produce execution-ready plans by inspecting the repo and prior artifacts. Respect the stated order where a step consumes an earlier step's output or crosses a gate; reading and research may interleave. Your only output is the workflow artifacts and the chat summary.
@@ -206,7 +205,7 @@ Body sections, in order:
 - `## Risks / Watchouts`, `## Dependencies on Other Slices`, `## Assumptions`, `## Blockers`, `## Freshness Research`. No `## Revision History`; revisions live in the `revisions:` ledger.
 
 ## Verification Strategy
-One row per user-observable AC, engineered to fit the real constraints so `verify` executes a plan instead of improvising past a wall. Source the AC list and `verify:` stubs from `03-slice-<slice-slug>.md`. With no user-observable AC: "No user-observable AC — automated only."
+One row per user-observable AC, so `verify` executes a plan instead of improvising past a wall. Source the AC list and `verify:` stubs from `03-slice-<slice-slug>.md`. With no user-observable AC: "No user-observable AC — automated only."
 
 | AC | Tool / method + ladder rung | Environment need — satisfiable in target env? | What must be BUILT to make it verifiable | Fallback chain |
 |----|------------------------------|-----------------------------------------------|------------------------------------------|----------------|

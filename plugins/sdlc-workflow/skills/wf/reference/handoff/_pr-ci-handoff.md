@@ -1,10 +1,10 @@
 # Shared PR/CI handoff machinery (loaded on demand by `handoff.md`)
 
-This file carries the GitHub-conditional machinery of `/wf handoff`: the CI watch procedure (T5.0/T5.3) and the fix-subagent contract (7a CI-red + 7b triage). The PR comment triage loop (T5.1, step 7b) is in [handoff/_pr-triage.md](handoff/_pr-triage.md). `handoff.md` instructs you to read this file **in full** the moment the PR/CI path is active (`branch-strategy` is `dedicated`/`shared` AND a `pr-number` is recorded). A local-branch handoff (`branch-strategy: none`) never loads it. Once loaded, follow every section below exactly; the same fidelity rules as the parent reference apply.
+This file carries the GitHub-conditional machinery of `/wf handoff`: the CI watch procedure (T5.0/T5.3) and the fix-subagent contract (7a CI-red + 7b triage). The PR comment triage loop (T5.1, step 7b) is in [handoff/_pr-triage.md](_pr-triage.md). `handoff.md` instructs you to read this file **in full** the moment the PR/CI path is active (`branch-strategy` is `dedicated`/`shared` AND a `pr-number` is recorded). A local-branch handoff (`branch-strategy: none`) never loads it. Once loaded, follow every section below exactly; the same fidelity rules as the parent reference apply.
 
 # The host's PR monitor
 
-A host can have its own PR monitor, which fixes CI and answers review comments by itself. The "PR monitor" row of [_host-invocation.md](_host-invocation.md) names it and its tools. Its default can tell a session to offer the monitor after it opens a PR, and not to poll CI. The person who runs handoff asks for handoff's own CI watch and comment triage, so this stage keeps both:
+A host can have its own PR monitor, which fixes CI and answers review comments by itself. The "PR monitor" row of [_host-surfaces.md](../_host-surfaces.md) names it and its tools. Its default can tell a session to offer the monitor after it opens a PR, and not to poll CI. The person who runs handoff asks for handoff's own CI watch and comment triage, so this stage keeps both:
 
 1. Let the host show the PR, as the row says.
 2. Do not offer, ask about, or turn on the host's PR monitor: not in a gate question, not in a wrap-up question or button, and not in a closing line. The monitor skips the diagnose-then-ask rule of [_ci-red-routing.md](_ci-red-routing.md) and the triage table, and a second fixer pushes to the same branch. When the monitor is already on for the PR, leave it on, and say once in the handoff report that it also acts on this PR.
@@ -12,7 +12,7 @@ A host can have its own PR monitor, which fixes CI and answers review comments b
 
 # CI watch procedure (shared by T5.0 and T5.3)
 
-A **bounded poll loop** that drives the PR's checks to a terminal state. Idempotent and resumable: re-invoking handoff re-enters the loop against whatever the current check state is. Run the loop in ONE read-only CI-watch sub-agent at **low** effort per [_subagents.md](_subagents.md). The sub-agent runs steps 1–3, edits nothing, and returns only the outcome (`green`, `red` or `timed-out`), the failed or pending check names, and the poll count. The watch can take up to `max-wait-minutes`. Wait for the sub-agent's result before the next handoff step, and do not ask the person about CI while the watch runs.
+A **bounded poll loop** that drives the PR's checks to a terminal state. Idempotent and resumable: re-invoking handoff re-enters the loop against whatever the current check state is. Run the loop in ONE read-only CI-watch sub-agent at **low** effort per [_subagents.md](../_subagents.md). The sub-agent runs steps 1–3, edits nothing, and returns only the outcome (`green`, `red` or `timed-out`), the failed or pending check names, and the poll count. The watch can take up to `max-wait-minutes`. Wait for the sub-agent's result before the next handoff step, and do not ask the person about CI while the watch runs.
 
 Inputs: `pr-number`; `ci-watch.poll-interval-seconds` (default 30); `ci-watch.max-wait-minutes` (default 30). The wall-clock bound is the user's hard ceiling; never exceed it silently.
 
@@ -30,7 +30,7 @@ Record `ci-watch-rounds: <N polls>` and the terminal outcome in handoff frontmat
 
 # Fix-subagent contract (shared by 7a CI-red and 7b triage)
 
-Every code fix in handoff is delegated to a subagent so the orchestrator context stays clean and the orchestrator-discipline rule (no code changes by the orchestrator) holds. This contract conforms to the shared fix-loop invariants in [_fix-loop.md](_fix-loop.md). Dispatch ONE sub-agent per fix at **medium** effort per [_subagents.md](_subagents.md), required on every dispatch (the effort pin follows [_fix-loop.md](_fix-loop.md) rule 3):
+Every code fix in handoff is delegated to a subagent so the orchestrator context stays clean and the orchestrator-discipline rule (no code changes by the orchestrator) holds. This contract conforms to the shared fix-loop invariants in [_fix-loop.md](../_fix-loop.md). Dispatch ONE sub-agent per fix at **medium** effort per [_subagents.md](../_subagents.md), required on every dispatch (the effort pin follows [_fix-loop.md](../_fix-loop.md) rule 3):
 
 - `description`: 3–5 words, for example `"fix CI failure"` or `"fix review thread"`.
 - `prompt`: self-contained; include the exact target and these rules:
@@ -71,10 +71,10 @@ Every code fix in handoff is delegated to a subagent so the orchestrator context
   ```
 
 **Self-check is a command, not a promise.** "No new lint/type errors" is unenforceable as prose, so the orchestrator passes a real command:
-- When `pre-push-checks:` is configured (`handoff.md` `## Project-level handoff config`), pass the check(s) whose scope covers the fix's files.
+- When `pre-push-checks:` is configured ([_handoff-config.md](_handoff-config.md)), pass the check(s) whose scope covers the fix's files.
 - Absent that config, pass the narrowest gate the fix's own file type implies: the repo's formatter for a formatting fix, its linter for the language of the edited file, the single test file for a test fix.
 - If nothing narrow exists, say so explicitly in the prompt (`Self-check: none available — state what you verified by hand`) rather than leaving the line to be answered decoratively.
 
-**`Method: deviated` is never auto-accepted.** The orchestrator surfaces it to the user *before* the push, quoting the diagnosis's own words next to what the subagent actually did (rule 5 in [_fix-loop.md](_fix-loop.md)). When the diagnosis carried an explicit prohibition and the deviation touches it, that is a **hard stop**: one round-1 diagnosis said, in its own words, "do not hand-add the 3 missing hashes — regenerate so nothing else is missed"; the subagent hand-added 13 lines, disclosed it in a trailing note, opened with "Fix confirmed: yes", and round 2 hit exactly the predicted next trio.
+**`Method: deviated` is never auto-accepted.** The orchestrator surfaces it to the user *before* the push, quoting the diagnosis's own words next to what the subagent actually did (rule 5 in [_fix-loop.md](../_fix-loop.md)). When the diagnosis carried an explicit prohibition and the deviation touches it, that is a **hard stop**: one round-1 diagnosis said, in its own words, "do not hand-add the 3 missing hashes — regenerate so nothing else is missed"; the subagent hand-added 13 lines, disclosed it in a trailing note, opened with "Fix confirmed: yes", and round 2 hit exactly the predicted next trio.
 
 The subagent commits but does **not** push; the orchestrator pushes once after a batch (triage step 7) so a single CI run covers all fixes in the iteration. After the subagents return, the orchestrator re-runs the `## CI watch procedure` to confirm the fixes are green (in T5.3).

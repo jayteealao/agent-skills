@@ -22,6 +22,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `ship-plan/init.md` | procedure | mode:init | |
 | `ship-plan/build.md` | procedure | mode:build | |
 | `ship-plan/edit.md` | procedure | mode:edit | |
+| `ship-plan/init/_blocks.md` | procedure | mode:edit | |
 | `ship-plan/audit.md` | procedure | mode:audit | |
 | `/.ai/ship-plan.md` | writes | | |
 

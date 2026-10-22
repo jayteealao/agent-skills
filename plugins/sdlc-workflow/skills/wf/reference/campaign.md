@@ -19,7 +19,7 @@ You are running `/wf campaign <brainstorm-slug>`. A brainstorm that ends in many
 - **The brainstorm owns the board and the packets.** The campaign only reads them. The campaign owns `work/campaign/`, the dependency graph ([campaign/_deps.md](campaign/_deps.md)), and, while it is live, the main checkout's `INDEX.md` ([_control-file-ownership.md](_control-file-ownership.md)).
 - **One session runs the campaign.** It announces in chat that it is the campaign session. The person reopens the brainstorm in another session. When the person opens the brainstorm here, say once that it belongs in another session, and continue.
 
-Each wave is one PR. Every unit of a wave runs in its own worktree, so the wave driver needs an isolation contract ([campaign/_phases.md](campaign/_phases.md), "Width"). With stacked PRs, the next wave starts on the wave branch below before that wave merged ([campaign/_gh-stack.md](campaign/_gh-stack.md)). A usage budget narrows or pauses the campaign before a limit stops it.
+Each wave is one PR. Every unit of a wave runs in its own worktree, so the wave driver needs an isolation contract ([campaign/_phases.md](campaign/_phases.md), "Width"). With stacked PRs, the next wave can start on the wave branch below when that wave is ready ([campaign/_waves.md](campaign/_waves.md), "Run a wave", step 8). A usage budget narrows or pauses the campaign before a limit stops it.
 
 ## Step 0 — Resolve
 
@@ -39,17 +39,17 @@ Each wave is one PR. Every unit of a wave runs in its own worktree, so the wave 
 | `orient` | Phase 0, then Phase 0b and Phase 1 ([campaign/_phases.md](campaign/_phases.md)). |
 | `deps` | Phase 0b for `next.units` (`_phases.md`), before anything else. |
 | `setup` | Continue Phase 1 at `next.question`. |
-| `work-changed` | The brainstorm changed its work set. Pick it up (`_phases.md`, "Reopen pick-up"). |
+| `work-changed` | The brainstorm changed its work set. Pick it up ([campaign/_prepare.md](campaign/_prepare.md), "Reopen pick-up"). |
 | `ask` | Show each open question again, with its context. Record the answer with `reply`, then continue the step that asked. With `next.driving`, use only `reply` or `decided`: the wave driver continues the unit ([campaign/_waves.md](campaign/_waves.md), "Questions while the run goes"). |
 | `paused` | Show the reason and the reset time. Resume when the person asks, or when the reset time passed (`_waves.md`, "Pause and resume"). |
-| `prepare` | Prepare `next.units` with the person (`_phases.md`, "Rolling prepare"). |
+| `prepare` | Prepare `next.units` with the person (`_prepare.md`, "Rolling prepare"). |
 | `start-wave` | Show the forecast and the wave plan. Ask the person to start, then run the wave (`_waves.md`). |
 | `driving` | A run of wave `next.wave` is live. Show where the wave stands, and prepare `next.prepare`. Run Phase 0b first for `next.deps`. Do not run `launch`, `merge-in`, or `unit <key> <state>` for a unit of the wave: the driver owns them. |
 | `sort-waits` | Sort the waits of wave `next.wave` with the person ([campaign/_order.md](campaign/_order.md), "Sort waits"). |
 | `running` | No run of the wave is live. When its units are `merged`, continue at `_waves.md`, "Run a wave", step 10. Otherwise, launch the wave again (step 4). Prepare `next.prepare`. |
 | `stopped` | Show why the wave stopped and what waits on which answer. When the person answered, resume the wave. |
 | `blocked` | No wave can start. List what waits on which packet, and the packets that need the person. |
-| `end` | Phase 3 (`_waves.md`, "End"). |
+| `end` | Phase 3 ([campaign/_ship.md](campaign/_ship.md), "End"). |
 | `done` | Show `report.md`. |
 
 ## The files
@@ -118,12 +118,12 @@ A build packet (form `intake`, `extension`, `fix`, `hotfix`) is a unit. A `task`
 | `journal <event> [<json>]` | Append a campaign event for the watch |
 | `forecast [--wave n --minutes m --tokens t]` | Update the forecast (`wave <n> record` does it too) |
 | `budget` | The usage state (`ok`, `slow`, `pause`, `unknown`) from the newest reading, and the width it allows |
-| `worktree <key>\|wave-<n> add\|refresh\|sync\|remove` | Make or remove a unit's worktree, slug branch, and ports, or the wave worktree (local records: `_waves.md`). `remove` refuses while a file would be lost, and never forces |
+| `worktree <key>\|wave-<n> add\|refresh\|sync\|remove` | Make or remove a unit's worktree, slug branch, and ports, or the wave worktree (local records: [campaign/_records.md](campaign/_records.md)). `remove` refuses while a file would be lost, and never forces |
 | `lock [quiet] acquire\|release <slug>` | The heavy-suite lock across sessions: one holder at a time. The quiet lock (for `quiet-suites`) also keeps every heavy suite out while it is held |
 | `locks wait [--max s]` | Wait for the project locks |
-| `schedule <n> [--width w] [--medians plan]` | Simulate wave n (`_phases.md`, "Wave slicer") |
+| `schedule <n> [--width w] [--medians plan]` | Simulate wave n (`_prepare.md`, "Wave slicer") |
 | `stack enable\|disable\|set <n>` | Stacked wave PRs on or off, and the stack number on GitHub |
-| `merge-in <key> <from> [--at <sha>] [--refresh]`, `merge-order <n>`, `slice-done [--verified]`, `needs`, `contract`, `await`, `question` | The commands of the wave driver's agents ([campaign/_drive.md](campaign/_drive.md)) |
+| `merge-in <key> <from> [--at <sha>] [--refresh]`, `merge-order <n>`, `slice-done [--verified]`, `needs`, `contract`, `await`, `question` | The commands of the wave driver's agents |
 | `wave <n> sorted`, `unit <key> absorb`, `unit <key> defer`, `slice-order` | The order commands ([campaign/_order.md](campaign/_order.md)) |
 | `owner <slug>` | The live wave run that drives a slug, for `/wf yolo` |
 | `steer <key\|wave-<n>\|all> add\|replace\|remove\|list [--text t] [--match m] [--by who]` | Change steering: a key writes the unit's `steer.md` (main checkout and worktree); `all` writes the campaign `steer.md` |
@@ -153,11 +153,11 @@ Change steering only through the script. The script writes the time, and it writ
 
 CAUTION: do not edit a `steer.md` copy by hand or with a script of your own. The two copies then differ, and a hand-written time can be wrong.
 
-Do not write a wait between units as steering. A wait comes from the unit's `needs` in the ledger ([campaign/_waves.md](campaign/_waves.md), "Merge in").
+Do not write a wait between units as steering. A wait comes from the unit's `needs` in the ledger ([campaign/_waves.md](campaign/_waves.md), "Run a wave", step 3).
 
 ## Stop one slug
 
-A stop request for one slug needs `--then move` (the unit moves out of the wave) or `--then hold` (it parks until the person says "continue"). When the person does not say which, ask first ([campaign/_waves.md](campaign/_waves.md), "Pause and resume").
+Write a stop request for one slug per [campaign/_waves.md](campaign/_waves.md), "Pause and resume", step 3, which owns the `--then` question.
 
 ## Away mode
 
@@ -177,9 +177,9 @@ CAUTION: while the person is away, do not answer a question of the classes `shar
 
 ## Where the rest is
 
-- Phase 0, Phase 0b, Phase 1, the rolling prepare, the packet forms, and the reopen pick-up: [campaign/_phases.md](campaign/_phases.md).
-- The waves, the questions of a run, the failure paths, versions and outputs, handoff and ship per wave, pause and resume, and the end: [campaign/_waves.md](campaign/_waves.md).
-- The stacked wave PRs and every `gh stack` command: [campaign/_gh-stack.md](campaign/_gh-stack.md).
-- The wave driver's own agents and the parks: [campaign/_drive.md](campaign/_drive.md).
-- The boundary agents' procedure: [campaign/_boundary.md](campaign/_boundary.md).
-- The watch and the commentary: [yolo/_commentary.md](yolo/_commentary.md), section "In a campaign".
+- Setup (Phase 0, Phase 0b, Phase 1, "Width"): [campaign/_phases.md](campaign/_phases.md).
+- The rolling prepare, the packets outside the waves, and the reopen pick-up: [campaign/_prepare.md](campaign/_prepare.md).
+- A wave run, its questions and park kinds, and pause and resume: [campaign/_waves.md](campaign/_waves.md).
+- Handoff, ship, and the end: [campaign/_ship.md](campaign/_ship.md). Local records: [campaign/_records.md](campaign/_records.md). Stacked PRs: [campaign/_gh-stack.md](campaign/_gh-stack.md).
+- The order rules and the sort of waits: [campaign/_order.md](campaign/_order.md). The resolve answers: [campaign/_drive.md](campaign/_drive.md). The boundary: [campaign/_boundary.md](campaign/_boundary.md).
+- The watch and the commentary: [yolo/_commentary.md](yolo/_commentary.md), with [campaign/_watch.md](campaign/_watch.md).

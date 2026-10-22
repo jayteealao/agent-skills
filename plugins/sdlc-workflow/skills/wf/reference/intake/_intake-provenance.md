@@ -6,6 +6,8 @@ workflow. The terminal analysis modes (`investigate`, `rca`, `discover`, `ideate
 and tradeoff cards — when the user routes the follow-on work here, that evidence must arrive
 with it, not die in the source artifact. Slug-mode runs skip this file entirely.
 
+This file holds Detect, which every run applies. [_intake-provenance-consume.md](_intake-provenance-consume.md) holds Consume and Link back, which a run reads only when a source attaches.
+
 ## Detect
 
 Provenance is explicit or inferred — explicit always wins:
@@ -13,7 +15,8 @@ Provenance is explicit or inferred — explicit always wins:
 1. **Explicit:** `$ARGUMENTS` ends with `from <source-slug>`. Strip those two tokens from
    the description before deriving the new slug. Resolve the named slug against
    `.ai/workflows/<source-slug>/00-index.md` and read its `workflow-type`. If the type has
-   no row in the Consume table below, WARN ("`<slug>` has workflow-type `<type>` — no
+   no row in the Consume table of
+   [_intake-provenance-consume.md](_intake-provenance-consume.md), WARN ("`<slug>` has workflow-type `<type>` — no
    provenance contract for it; proceeding without inherited context") and continue.
 2. **Inferred (labeled sources only):** inference applies only to `investigate`,
    `ideate`, and `brainstorm` sources — they are the three whose artifacts carry
@@ -31,45 +34,11 @@ Provenance is explicit or inferred — explicit always wins:
    costs nothing. All other source types (`rca`, `discover`, `update-deps`, an escalated
    change-mode) carry no label vocabulary — they attach only via the explicit token.
 
-## Consume
+## When provenance attaches
 
-With provenance attached, read the source's lead artifact and seed the new workflow from
-the row that matches the source's `workflow-type`. In every row the rule is the same:
-**re-verify, do not copy** — the source may be stale against the current tree; its evidence
-targets the research, it does not replace it. One exception: a brainstorm **decision** is the
-person's answer, not a fact. It travels word for word and the person confirms it
-([_packet.md](_packet.md), Step 2).
+When a source attaches, by the token, by a confirmed label match, by a packet ([_packet.md](_packet.md)), or as the prior run of `update-deps`:
 
-| Source `workflow-type` | Read | Seed |
-|---|---|---|
-| `investigate` | `01-investigate.md`, the **chosen option's card** (the picked option, or the matched option when the pick is implicit) | The card's mechanism + sketch seed the restated request / shape direction. The files-touched estimate targets research. Top risks, constraint collisions, and the decisive unknown seed the risk inventory / known unknowns. The relevant architecture-map entries (section 2) go into research sub-agent prompts as prior context. The user's stated constraints (section 1) carry into this workflow's constraints. |
-| `rca` | `01-rca.md` | `## Root cause` seeds the restated request — the fix targets the named mechanism, not the symptom. `## Blast radius` (same-pattern-elsewhere) seeds scope and the risk inventory. `## Contributing factors` seeds known unknowns / follow-up scope decisions. `## Verification` seeds the acceptance criteria unchanged — it was written to be them. |
-| `discover` | `01-discover.md` | The verdict and its evidence seed the restated request's factual ground. The ranked counter-hypotheses seed the diagnosis candidates (they are literally candidate root causes when the successor is an rca). Recorded contradictions seed the risk inventory. |
-| `ideate` | `01-ideate.md`, the **chosen idea's card** | The idea's description + `evidence:` (`file:line` anchors) seed the restated request and research targeting. The rationale that culled its sibling ideas seeds the out-of-scope list — what was considered and rejected, so the successor does not re-widen. |
-| `brainstorm` | The piece's work packet `work/<slug>.md` when it exists ([_packet.md](_packet.md) runs it). Otherwise `brainstorm-board.json`, the **routed piece of work** (`work[]`): its kept items (`items:`), its threads' assumptions and tensions, and its title. A legacy board without the JSON file: the routed candidate in the `01-brainstorm.md` frontmatter | The title and the kept decisions and findings seed the restated request; each kept decision goes into the Known Constraints word for word with its source `<board path>#<item-key>`, and `origin-items` in `00-index.md` lists the carried keys; a `scope: cut` item never seeds it, and a `scope: later` item joins the out-of-scope list. The named and confirmed assumptions seed the risk inventory. A contradicted finding and each open tension seed known unknowns. The parked and dropped threads join the out-of-scope list, so the successor does not re-widen. When the piece of work records `ux-impact`, propose that value in the stack question; the person confirms it. Its design items (`design: true`) and carried sketches stay on the board: shape's brief and the design stage read them there (`design/_carried.md`). |
-| `update-deps` (a prior run) | The prior run's `02-shape.md` Hold tier + `05-implement.md` Blocked list | Hold/Blocked packages, their reasons, revisit conditions, and `changelog-source:` citations seed this run's research — re-check the revisit condition instead of cold-rescanning last month's findings. A citation is re-used only after confirming the target version is unchanged. |
-| an **escalated change-mode** (`fix`/`hotfix`/`refactor`/`update-deps` closed with `close-reason: superseded`) | Its `01-<mode>.md` and `02-shape.md` | The brief, diagnosis/baseline, and recorded tripwire breaches seed the successor's intake — the reason the mode escalated is the first risk entry. |
+1. Write `from` in the `modes:` list of the frontmatter of each stage artifact that this run writes, for example `modes: [from]`. The mod has no disk fact for `from`, so it checks the `mode:from` row only when `modes:` lists it ([_requires.md](../_requires.md), Modes).
+2. Read [_intake-provenance-consume.md](_intake-provenance-consume.md) in full. Apply its Consume table and its Link back steps.
 
-For `simplify` findings routed into `refactor` there is no source *workflow*: the finding
-entry itself (id, files, rationale, severity) travels in the invocation text per
-`refactor`'s Step 0 and seeds the brief directly.
-
-## Link back
-
-1. Record `origin-<source-type>: <source-slug>` in the new workflow's `00-index.md`
-   frontmatter (`origin-investigate`, `origin-rca`, `origin-discover`, `origin-ideate`,
-   `origin-brainstorm` — optional field; omit when there is no provenance).
-2. When the source is a **decision-shaped** workflow whose decision this new workflow
-   executes (`investigate` pick, `ideate` pick, `rca` route to a fix), update the source's
-   `00-index.md`: set `superseded-by: <new-slug>`. Updating this one field on a closed
-   index is additive and safe. A `discover` source is not superseded — its verdict stands
-   on its own; the `origin-discover` key alone records the lineage. A `brainstorm`
-   source is not decision-shaped as a whole and is never superseded: the successor sets
-   the piece of work's `state` (`prepared` at intake, `routed` at shape) and `routed-to: <new-slug>` in `brainstorm-board.json`, and on its packet when it has one, and
-   each of its threads to `routed` when no other piece of work draws on the thread. Updating those fields on an open
-   board is additive; the board stays open until `/wf intake <slug> close`.
-3. If a decision-shaped source is still **open** (the user routed without recording the
-   pick/route), this IS the implicit decision: apply the source mode's decision-closure
-   section (investigate `# Pick`, ideate `# Pick`, rca `# Route`) first, with
-   `decision-note: implicit — routed via /wf intake <mode>`, then set
-   `superseded-by: <new-slug>` in place of `pending`.
+With no source, do not read that file. Write no `from` mode.

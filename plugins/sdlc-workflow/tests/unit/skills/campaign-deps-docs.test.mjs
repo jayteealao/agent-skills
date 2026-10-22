@@ -24,15 +24,15 @@ test('brainstorm/_work.md names none of the four graph fields as a thing to agre
 });
 
 test('the campaign sends no graph change through /wf intake brainstorm', () => {
-  for (const rel of ['campaign/_phases.md', 'campaign/_waves.md']) {
+  for (const rel of ['campaign/_phases.md', 'campaign/_prepare.md', 'campaign/_waves.md', 'campaign/_ship.md']) {
     const text = read(rel);
     for (const line of text.split('\n').filter((l) => /\/wf intake brainstorm <brainstorm-slug> add/.test(l))) {
       assert.doesNotMatch(line, /needs|provides|expects|depends-on|derived/, `${rel}: ${line.slice(0, 120)}`);
     }
   }
-  const phases = read('campaign/_phases.md');
-  assert.match(phases, /`<cmd> deps <key> needs add --by prepare`/);
-  assert.match(phases, /`<cmd> deps <key> provides set` or `<cmd> deps <key> expects set`, `--by prepare`/);
+  const prepare = read('campaign/_prepare.md');
+  assert.match(prepare, /`<cmd> deps <key> needs add --by prepare`/);
+  assert.match(prepare, /`<cmd> deps <key> provides set` or `<cmd> deps <key> expects set`, `--by prepare`/);
   assert.match(read('campaign/_waves.md'), /A derived needs entry stays in the ledger/);
 });
 
@@ -47,7 +47,9 @@ test('the confirm question of the deps phase has no option that skips the confir
 
 test('every section that the deps procedure cites exists', () => {
   const phases = headings(read('campaign/_phases.md'));
-  for (const name of ['Phase 0 — Orient', 'Phase 0b — Deps', 'Shared paths', 'Phase 1 — Setup', 'Rolling prepare', 'Reopen pick-up']) assert.ok(phases.has(name), `_phases.md has no section "${name}"`);
+  for (const name of ['Phase 0 — Orient', 'Phase 0b — Deps', 'Shared paths', 'Phase 1 — Setup']) assert.ok(phases.has(name), `_phases.md has no section "${name}"`);
+  const prepare = headings(read('campaign/_prepare.md'));
+  for (const name of ['Rolling prepare', 'Wave slicer', 'Reopen pick-up']) assert.ok(prepare.has(name), `_prepare.md has no section "${name}"`);
   const deps = headings(read('campaign/_deps.md'));
   for (const name of ['The rules of the graph', 'Launch the scout', 'What the scout does', 'Return shape', 'Record the proposal']) assert.ok(deps.has(name), `_deps.md has no section "${name}"`);
   assert.ok(headings(read('campaign/_order.md')).has('Cross-unit reconcile'));

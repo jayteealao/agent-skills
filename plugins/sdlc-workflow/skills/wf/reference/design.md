@@ -32,8 +32,13 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `design/contract.md` | procedure | mode:stage | |
 | `design/_carried.md` | procedure | mode:stage | |
 | `design/_design-context.md` | procedure | mode:stage | |
+| `design/_preflight.md` | procedure | mode:stage | |
+| `_host-surfaces.md` | procedure | mode:stage | Design canvas |
+| `design/_design-context.md` | procedure | mode:audit | Absolute bans |
+| `design/_design-context.md` | procedure | mode:critique | Absolute bans |
 | `design/_boards.md` | procedure | mode:stage | |
 | `design/import.md` | procedure | mode:import | |
+| `_host-surfaces.md` | procedure | mode:import | Design canvas |
 | `design/audit.md` | procedure | mode:audit | |
 | `design/critique.md` | procedure | mode:critique | |
 | `02c-craft.md` | writes | | |
@@ -58,7 +63,7 @@ Resolve the first token by an exact existence check. Never fuzzy-match: a wrong 
    - one of the 15 moves → **new workflow**;
    - anything else, or no token → STOP and render the usage below.
 
-The 15 moves: `adapt`, `animate`, `bolder`, `clarify`, `colorize`, `delight`, `distill`, `harden`, `layout`, `onboard`, `optimize`, `overdrive`, `polish`, `quieter`, `typeset`. The table in [design/_commands.md](design/_commands.md) maps every command to its reference.
+The 15 moves: `adapt`, `animate`, `bolder`, `clarify`, `colorize`, `delight`, `distill`, `harden`, `layout`, `onboard`, `optimize`, `overdrive`, `polish`, `quieter`, `typeset`. Each move's reference is `design/<move>.md`. Step 1 names the reference of every other job.
 
 ```
 Usage:
@@ -103,7 +108,7 @@ Load [design/_design-context.md](design/_design-context.md) → Absolute bans, t
 
 # Step 2 — Final summary
 
-Emit the summary last, per [design/_output.md](design/_output.md) Step 6:
+Emit the summary last, per [design/_output.md](design/_output.md) "Final-summary rules":
 
 ```
 wf design <job> complete: <slug-or-"freestanding">

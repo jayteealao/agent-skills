@@ -1,6 +1,6 @@
-# Review stage — sub-agent prompts (Steps 3 and 4c of `_stage.md`)
+# Review stage — the review sub-agent prompt (Step 3 of `_stage.md`)
 
-Load this file from `_stage.md` Step 3 and Step 4c. The first section holds the prompt every review sub-agent receives and the per-dimension output contract that prompt carries. The second section holds the fix sub-agent prompt.
+Load this file from `_stage.md` Step 3, in mode `select` only. It holds the prompt that every review sub-agent receives and the output contract of each dimension. The fix sub-agent prompt of Step 4c is in [_fix-prompt.md](_fix-prompt.md).
 
 ## Step 3 — the review sub-agent prompt
 
@@ -107,41 +107,4 @@ dimension has zero OPEN findings (clean, or everything resolved), set `fragment:
 in the `.md` frontmatter instead of writing an empty `.yaml`.
 
 Write the files, then return a brief summary of what you found.
-```
-
-## Step 4c — the fix sub-agent prompt
-
-This is the same fix prompt shape used by `/wf implement reviews` mode — kept identical so behavior matches when the user routes through either path. Every fix sub-agent LEADS its return with the `Method:` line.
-
-```
-Fix the following review finding in the codebase:
-
-Finding ID: {ID}
-Source review command: {command}
-Severity: {severity}
-Location: {file}:{line-range}
-Issue: {issue description}
-Suggested fix: {fix suggestion}
-
-Read the file(s) at the specified location. Understand the issue.
-Apply the minimal fix that resolves the issue without introducing
-new problems. Do not change anything beyond what is needed for this
-specific finding. Do not refactor. Do not broaden scope.
-
-The suggested fix names a METHOD, not only an outcome. Follow it. You
-may deviate if it is wrong or impossible — but disclose that FIRST,
-not in a closing note.
-
-After fixing, verify your change is correct:
-- The fix addresses the specific issue described
-- Run the narrowest real check for the files you touched (the repo's
-  formatter/linter for that language, or the covering test) and report
-  its exit status — do not assert "no new failures" without running one
-- The surrounding code still makes sense
-
-Return, in this order:
-  Method: as-prescribed | deviated
-  (if deviated) what was suggested / what you did instead / why
-  Self-check: <command> → exit <N>
-  A brief summary of what you changed and whether the fix is confirmed.
 ```

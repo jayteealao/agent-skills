@@ -4,7 +4,7 @@ Handoff steps 7a and 7d apply this file when the `## CI watch procedure` in [_pr
 
 ## On CI red — diagnose-only sub-agent, then ask (do not auto-fix)
 
-1. **Dispatch ONE read-only diagnosis sub-agent** at **medium** effort per [_subagents.md](_subagents.md); the effort is REQUIRED on the dispatch, because diagnosis must not inherit the parent configuration. Prompt it with the failing check names and these instructions: pull the failing logs (`gh pr checks <pr-number>`, `gh run view <run-id> --log-failed`), read the implicated source, and return a structured diagnosis ONLY — apply no edits, run no fixes, create no commits. Required return fields:
+1. **Dispatch ONE read-only diagnosis sub-agent** at **medium** effort per [_subagents.md](../_subagents.md); the effort is REQUIRED on the dispatch, because diagnosis must not inherit the parent configuration. Prompt it with the failing check names and these instructions: pull the failing logs (`gh pr checks <pr-number>`, `gh run view <run-id> --log-failed`), read the implicated source, and return a structured diagnosis ONLY — apply no edits, run no fixes, create no commits. Required return fields:
    - `root-cause` (one paragraph)
    - `proposed-fix` (file:line + the change, and **the method** — if the right cure is "regenerate", say so and say what must not be hand-patched)
    - `confidence` (high/med/low)
@@ -20,7 +20,7 @@ Handoff steps 7a and 7d apply this file when the `## CI watch procedure` in [_pr
    - **`product-bug`** — the normal apply→push→re-watch path. With the local pre-push gate in place these are rare on the first CI round. When one appears anyway, note in the artifact whether a local gate would have caught it; that note is the feedback loop that tunes `pre-push-checks`.
    - **`preexisting-unrelated`** — surface it as a caveat; it is not this PR's round to spend.
 
-3. **Surface the diagnosis to the user** as a gate question per [_gate-question.md](_gate-question.md). Build the option list from the routing above — omit "Apply proposed fix" when `converges: no`, and lead with the structural option when the class calls for it:
+3. **Surface the diagnosis to the user** as a gate question per [_gate-question.md](../_gate-question.md). Build the option list from the routing above — omit "Apply proposed fix" when `converges: no`, and lead with the structural option when the class calls for it:
    ```yaml
    question: "CI failed: <check names> (class: <class>, converges: <yes|no|unknown>). The diagnosis proposes <one-line>. How should we proceed?"
    header: "CI failure"
@@ -31,7 +31,7 @@ Handoff steps 7a and 7d apply this file when the `## CI watch procedure` in [_pr
      - { label: "Stop — block handoff",  description: "Record the failure; set readiness-verdict: blocked and STOP." }
    multiSelect: false
    ```
-4. **Apply proposed fix** → dispatch ONE **fix sub-agent** at **medium** effort per [_subagents.md](_subagents.md) with the prompt in `## Fix-subagent contract` ([_pr-ci-handoff.md](_pr-ci-handoff.md)), passing the diagnosis's `proposed-fix` **and its prohibitions unchanged**. It applies the minimal fix, commits `fix(<slug>): resolve CI failure — <short>`, and returns its `Method:` line plus the commit SHA. Check the method before pushing (`_fix-loop.md` rule 5). Then `git push origin <branch>` and re-run the CI watch procedure.
+4. **Apply proposed fix** → dispatch ONE **fix sub-agent** at **medium** effort per [_subagents.md](../_subagents.md) with the prompt in `## Fix-subagent contract` ([_pr-ci-handoff.md](_pr-ci-handoff.md)), passing the diagnosis's `proposed-fix` **and its prohibitions unchanged**. It applies the minimal fix, commits `fix(<slug>): resolve CI failure — <short>`, and returns its `Method:` line plus the commit SHA. Check the method before pushing (`_fix-loop.md` rule 5). Then `git push origin <branch>` and re-run the CI watch procedure.
 5. **Budget by class, not by count.** `ci-watch.max-fix-rounds` bounds **`product-bug` rounds only**. A `flaky-or-infra` red, a `converges: no` red, and a `preexisting-unrelated` red do not consume the budget — they consume a *decision*; a counter that treats them alike pushes the user to spend rounds on things rounds cannot fix. Local pre-push rounds do not consume it either. Increment `ci-watch-fix-rounds` for every round and record `ci-fix-rounds-by-class:` so the artifact shows where the time went.
 6. **Re-run** → `gh run rerun <run-id> --failed`, then re-run the watch procedure (does not count against `max-fix-rounds`; cap re-runs at 2 to avoid masking a real failure).
    - **Before proposing "dispatch workflow X", check it exists on the base branch.** GitHub only dispatches `workflow_dispatch` workflows registered on the **default branch**, so a recovery workflow this PR itself added cannot be dispatched by this PR — `gh workflow run` returns `HTTP 404: workflow not found on the default branch`. Verify first:
@@ -44,6 +44,6 @@ Handoff steps 7a and 7d apply this file when the `## CI watch procedure` in [_pr
 
 ## Settle reviews (bounded — bots only, never block on humans)
 
-Once CI is green, loop on `review-settle.poll-interval-seconds` until every login in the effective `review-bots` list (default list in `handoff/_pr-triage.md`) has posted at least one review/thread OR `review-settle.settle-minutes` elapses — whichever comes first. Record `bot-reviews-landed: [<logins that posted>]` and `review-settle-elapsed-seconds: <N>`. Do not wait on human reviewers; a missing required human approval is `awaiting-input` at handoff T5.3.
+Once CI is green, loop on `review-settle.poll-interval-seconds` until every login in the effective `review-bots` list (default list in `_pr-triage.md`) has posted at least one review/thread OR `review-settle.settle-minutes` elapses — whichever comes first. Record `bot-reviews-landed: [<logins that posted>]` and `review-settle-elapsed-seconds: <N>`. Do not wait on human reviewers; a missing required human approval is `awaiting-input` at handoff T5.3.
 
 **Distinguish "slow" from "declined".** A configured bot that posts a skip/limit notice — "this PR exceeds the N-file limit", "review skipped", a rate-limit or quota message — has **declined**, not lagged, and waiting out the settle window on it learns nothing. Scan the PR's comments for such a notice from each configured bot and record `bot-review-status:` per login (`landed` | `declined: <reason>` | `absent`). A `declined` bot is a readiness **caveat**, surfaced in `## Reviewer Focus Areas` and in the PR body — never counted as a settled review. A large PR silently losing its automated reviewer is exactly the case where a human reviewer most needs to know they are the only one looking.

@@ -70,6 +70,7 @@ test('host-neutrality gate: the permanent exception list is exactly the §3.3 bu
   const { CONTRACT_FILES } = await import('../../scripts/verify-host-neutrality.mjs');
   assert.deepEqual(CONTRACT_FILES, [
     'skills/wf/reference/_host-invocation.md',
+    'skills/wf/reference/_host-surfaces.md',
     'skills/wf/reference/_gate-question.md',
     'skills/wf/reference/_subagents.md',
     'skills/wf/reference/_timestamp.md',

@@ -35,6 +35,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `01-investigate.md` | artifact | on-resume | |
 | `steer.md` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
+| `intake/_light-index.md` | procedure | always | |
 | `intake/investigate/_research.md` | procedure | always | |
 | `intake/investigate/_artifact.md` | procedure | always | |
 | `_compressed-slice.md` | procedure | mode:slug | |
@@ -130,37 +131,24 @@ Write the body per `intake/investigate/_artifact.md`: `## Problem & constraints`
 
 # Step 4 — Write `00-index.md`
 
+Write `00-index.md` from [_light-index.md](_light-index.md), the `investigate` row. Add these keys:
+
 ```yaml
----
-schema: sdlc/v1
-type: workflow-index
-slug: <slug>
-title: "Investigate: <one-line problem>"
-workflow-type: investigate
-current-stage: routing
-status: ready
-branch-strategy: none
 branch: <current-branch>
 base-branch: <current-branch>
-next-command: user-picks
-next-invocation: "user-picks — record via /wf intake investigate <slug> <option>; see 01-investigate.md ## Routing"
 option-count: <N: total distinct viable options found>
 presented-count: <min(N, 3)>
-option-labels: [<A label>, <B label>, <C label>]   # full-card options only
-demoted-labels: []   # labels demoted by the presentation cap; empty if none
-open-questions: []
+option-labels: [<A label>, <B label>, <C label>]
+demoted-labels: []
 augmentations: []
-progress:
-  investigate: complete
-created-at: <timestamp>
-updated-at: <timestamp>
----
 ```
+
+`option-labels` lists the full-card options only. `demoted-labels` lists the labels that the presentation cap demoted. It is empty when the cap demoted none.
 
 Body: one-line description of the problem + pointer to `01-investigate.md` and the option labels.
 
 The workflow stays open until the user picks. The pick (`# Pick — decision closure` below, or the
-implicit pick in `_intake-provenance.md`) later flips this index to `closed` with
+implicit pick in `_intake-provenance-consume.md`) later flips this index to `closed` with
 `chosen-option` provenance and `superseded-by` pointing at the successor workflow.
 
 # Step 5 — Hand off to user
@@ -208,7 +196,7 @@ starts the successor — it prints the invocation and stops.
    `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`,
    `next-invocation: "none — decision recorded"`. Update the slug's row in `.ai/workflows/INDEX.md`
    to `closed`. `superseded-by: pending` is corrected to the successor slug by the downstream
-   mode's link-back (`_intake-provenance.md`); updating that one field on a closed index is
+   mode's link-back (`_intake-provenance-consume.md`); updating that one field on a closed index is
    additive and safe.
 4. **Print the next invocation** with provenance, per the effort routing in the artifact `## Routing` —
    `/wf intake fix "<label> — <one-line mechanism>" from <slug>` (small) or

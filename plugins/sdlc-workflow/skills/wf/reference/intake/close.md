@@ -7,7 +7,7 @@ argument-hint: "<slug> [<slice> | cancelled|superseded|deferred|completed-extern
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Apply the contract in [_steering.md](../_steering.md) to `steer.md`: honor the user's standing instructions, never
+> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](../_steering.md). Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf intake <slug> close`, the **lifecycle-termination utility** for the SDLC lifecycle. It has two

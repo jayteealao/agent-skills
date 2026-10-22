@@ -28,7 +28,7 @@ const ref = (root, rel) => readFileSync(path.join(root, 'skills', 'wf', 'referen
 
 test('W1.1 — handoff carries a pre-push-checks config key with a per-command bound', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, '_handoff-config.md');
+    const src = ref(root, 'handoff/_handoff-config.md');
     assert.match(src, /^pre-push-checks:/m, `${name}: the pre-push-checks config key is gone`);
     assert.match(src, /timeout-minutes:/, `${name}: pre-push-checks lost its per-command bound`);
     assert.match(src, /on-fail: diagnose/, `${name}: pre-push-checks lost its on-fail routing`);
@@ -78,10 +78,11 @@ test('W1.4 — changed workflow files get a static setup-* pin check', () => {
 
 test('W2.1 — every fix sub-agent LEADS its return with Method, never a trailing note', () => {
   const surfaces = [
-    ['_pr-ci-handoff.md', /Method: as-prescribed \| deviated/],
+    ['handoff/_pr-ci-handoff.md', /Method: as-prescribed \| deviated/],
     ['verify.md', /Method: as-prescribed \| deviated/],
     // W1 split: the fix prompt moved from review/_stage.md into review/_dispatch.md (Step 4c section).
-    ['review/_dispatch.md', /Method: as-prescribed \| deviated/],
+    // WF-SUBPROCEDURE-AUDIT F7: it moved again, to review/_fix-prompt.md, its single owner.
+    ['review/_fix-prompt.md', /Method: as-prescribed \| deviated/],
   ];
   for (const { name, root } of trees) {
     for (const [rel, re] of surfaces) {
@@ -106,7 +107,7 @@ test('W2.3 — the self-check is a command with an exit status, not a promise', 
   for (const { name, root } of trees) {
     assert.match(ref(root, '_fix-loop.md'), /self-checked by command/i,
       `${name}: rule 4 went back to unenforceable prose`);
-    assert.match(ref(root, '_pr-ci-handoff.md'), /Self-check:.*exit/s,
+    assert.match(ref(root, 'handoff/_pr-ci-handoff.md'), /Self-check:.*exit/s,
       `${name}: the fix prompt no longer requires a reported exit status`);
   }
 });
@@ -115,7 +116,7 @@ test('W2.3 — the self-check is a command with an exit status, not a promise', 
 
 test('W3.1 — the diagnosis must answer whether repeating the fix converges', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, '_ci-red-routing.md');
+    const src = ref(root, 'handoff/_ci-red-routing.md');
     assert.match(src, /`converges`.*`yes`.*`no`.*`unknown`/,
       `${name}: converges is no longer a required diagnosis field`);
     // The Roborazzi loop was flaky-or-infra AND non-convergent and those needed
@@ -130,7 +131,7 @@ test('W3.1 — the diagnosis must answer whether repeating the fix converges', (
 test('W3.2 — only product-bug rounds consume max-fix-rounds', () => {
   for (const { name, root } of trees) {
     const src = ref(root, 'handoff.md');
-    assert.match(ref(root, '_ci-red-routing.md'), /bounds \*\*`product-bug` rounds only\*\*/,
+    assert.match(ref(root, 'handoff/_ci-red-routing.md'), /bounds \*\*`product-bug` rounds only\*\*/,
       `${name}: the fix-round budget went back to counting every class alike`);
     assert.match(src, /^ci-fix-rounds-by-class:/m,
       `${name}: the per-class round accounting is gone`);
@@ -139,7 +140,7 @@ test('W3.2 — only product-bug rounds consume max-fix-rounds', () => {
 
 test('W3.3 — exceeding the bound names the remaining classes and the structural fix', () => {
   for (const { name, root } of trees) {
-    assert.match(ref(root, '_ci-red-routing.md'), /name what it cost/i,
+    assert.match(ref(root, 'handoff/_ci-red-routing.md'), /name what it cost/i,
       `${name}: a bound-exceed can go back to asking for "another round"`);
   }
 });
@@ -258,7 +259,7 @@ test('W7.1 — a workflow_dispatch recovery hatch is unusable until it lands on 
     // W1 split: the rollback workflow step (Step 6) moved from ship-plan/build.md into ship-plan/build/post-publish.md.
     assert.match(ref(root, 'ship-plan/build/post-publish.md'), /cannot be dispatched from the branch that creates it/i,
       `${name}: ship-plan build no longer discloses the default-branch requirement`);
-    assert.match(ref(root, '_ci-red-routing.md'), /git show origin\/<base-branch>:\.github\/workflows/,
+    assert.match(ref(root, 'handoff/_ci-red-routing.md'), /git show origin\/<base-branch>:\.github\/workflows/,
       `${name}: handoff can dispatch into a 404 again`);
   }
 });
@@ -267,7 +268,7 @@ test('W7.2 — a review bot that declined is a caveat, not a settled review', ()
   for (const { name, root } of trees) {
     const src = ref(root, 'handoff.md');
     assert.match(src, /^bot-review-status:/m, `${name}: bot-review-status is gone`);
-    assert.match(ref(root, '_ci-red-routing.md'), /Distinguish "slow" from "declined"/,
+    assert.match(ref(root, 'handoff/_ci-red-routing.md'), /Distinguish "slow" from "declined"/,
       `${name}: a bot that skipped the PR counts as settled again`);
   }
 });
@@ -376,10 +377,10 @@ test('W8.1 — consult must announce a degraded panel', () => {
 
 test('handoff watches CI itself in a sub-agent and never offers the host Auto-fix', () => {
   for (const { name, root } of trees) {
-    const ci = ref(root, '_pr-ci-handoff.md');
+    const ci = ref(root, 'handoff/_pr-ci-handoff.md');
     assert.match(ci, /# The host's PR monitor/, `${name}: the host PR-monitor rule is gone`);
     assert.match(ci, /Do not offer, ask about, or turn on the host's PR monitor/, `${name}: the PR monitor can be offered again`);
-    const host = ref(root, '_host-invocation.md');
+    const host = ref(root, '_host-surfaces.md');
     assert.match(host, /\| PR monitor \(handoff/, `${name}: the host row that names Auto-fix is gone`);
     assert.match(host, /Do not offer Auto-fix, and do not call `set_monitor`/, `${name}: the host row no longer bans set_monitor`);
     assert.match(ci, /not in a wrap-up question or button/, `${name}: the wrap-up box can ask about Auto-fix again`);

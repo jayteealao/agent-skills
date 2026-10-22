@@ -248,7 +248,7 @@ test('prose: plan consumes the contract and never authors it', () => {
 });
 
 test('prose: the boards are the contract, the canvas is a mirror, and imagery and uiproto make no board', () => {
-  const host = read('skills/wf/reference/_host-invocation.md');
+  const host = read('skills/wf/reference/_host-surfaces.md');
   match(host, /\| Design canvas \(design stage\) \|/);
   match(host, /\| Design system sync/);
   const contract = read('skills/wf/reference/design/contract.md');

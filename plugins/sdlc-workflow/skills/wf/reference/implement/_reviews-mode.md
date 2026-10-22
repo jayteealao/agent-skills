@@ -1,13 +1,13 @@
 # Implement — Reviews Mode (fix review findings)
 
-Triggered when the second argument to `/wf implement` is literally `reviews`. Example: `/wf implement my-slug reviews`.
+Triggered when the last argument to `/wf implement` is literally `reviews`. It is the second argument without a slice, and the third argument after a slice. Examples: `/wf implement my-slug reviews` and `/wf implement my-slug auth-flow reviews`.
 
 Reads findings from `07-review-<slice-slug>.md`, extracts all BLOCKER and HIGH findings (and MED if the user requests), then fixes them **in parallel** using write-isolated sub-agents (per [../_subagents.md](../_subagents.md)). The findings are independent by construction; only a patch-overlap conflict forces the conflicting pair back to serial.
 
 Do this in order for reviews mode:
 1. **Resolve the slice-slug.** If a slice-slug was passed as a third argument (for example `/wf implement my-slug auth-flow reviews`), use it. Otherwise use `selected-slice` from `00-index.md`. If neither is set, ask the user.
 2. **Read `07-review-<slice-slug>.md`** and all `07-review-<slice-slug>-<command>.md` for that slice. Other slices' review files are out of scope.
-3. **Extract the findings list.** Build an ordered list sorted by severity (BLOCKER first, then HIGH, then MED if requested). Each finding has: ID, severity, file:line, issue description, suggested fix.
+3. **Extract the findings list.** Build an ordered list sorted by severity (BLOCKER first, then HIGH, then MED if requested). Each finding has: ID, source review command, severity, file:line, issue description, suggested fix.
 4. **Track the findings in a work-tracking checklist**: one item per finding plus the ledger update and the atomic commit; keep statuses truthful as fixes land.
 5. **Present the findings list** to the user before starting:
    ```
@@ -17,26 +17,8 @@ Do this in order for reviews mode:
    ...
    Starting parallel fixes...
    ```
-6. **Dispatch ALL finding fixes in parallel, one sub-agent per finding** (one parallel wave), each at **medium** effort with write isolation per [../_subagents.md](../_subagents.md) (required; the effort tier follows [../_fix-loop.md](../_fix-loop.md) rule 3) so concurrent patches cannot collide in the shared tree. For each sub-agent, use this prompt:
-      ```
-      Fix the following review finding in the codebase:
-
-      Finding ID: {ID}
-      Severity: {severity}
-      Location: {file}:{line-range}
-      Issue: {issue description}
-      Suggested Fix: {fix suggestion}
-
-      Read the file(s) at the specified location. Apply the minimal fix that resolves the issue without introducing new problems. Change nothing beyond what is needed for this finding.
-
-      After fixing, verify:
-      - The fix addresses the specific issue described
-      - No new lint/type/test failures introduced
-      - Surrounding code still makes sense
-
-      Return a brief summary of what you changed and whether the fix is confirmed correct.
-      ```
-   a. **As each sub-agent completes, verify its fix (the merge gate):** read the changed file(s), confirm the fix addresses the finding, and check for regressions before merging its patch into the shared tree.
+6. **Dispatch ALL finding fixes in parallel, one sub-agent per finding** (one parallel wave), each at **medium** effort with write isolation per [../_subagents.md](../_subagents.md) (required; the effort tier follows [../_fix-loop.md](../_fix-loop.md) rule 3) so concurrent patches cannot collide in the shared tree. Send each sub-agent the fix prompt in [../review/_fix-prompt.md](../review/_fix-prompt.md) unchanged. Review Step 4c sends the same prompt. Fill `Source review command` from the per-command file of the finding.
+   a. **As each sub-agent completes, verify its fix (the merge gate):** read its `Method:` line and self-check first. Then read the changed file(s), confirm the fix addresses the finding and the suggested method ([../_fix-loop.md](../_fix-loop.md) rule 5), and check for regressions before merging its patch into the shared tree.
    b. **On a patch-overlap conflict** (two fixes touch the same lines), fall back to serial for the conflicting pair only: merge one, re-dispatch the other against the merged state.
    c. If a fix failed or was partial, record `COULD NOT FIX: <reason>` on its checklist item.
 7. **After all findings are processed:**

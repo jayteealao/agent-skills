@@ -704,6 +704,6 @@ test('WF-SYSTEM-REVIEW D6: unit prepared records the revision and decisions; a r
     assert.equal(led.units.W1['prepared-at-revision'], 2);
     assert.equal(run(root, 'replan').ok, true);
     assert.equal(readLedger().units.W1.state, 'prepared', 'a second replan with no change keeps it prepared');
-    assert.match(readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', 'campaign', '_phases.md'), 'utf8'), /`reask`/);
+    assert.match(readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', 'campaign', '_prepare.md'), 'utf8'), /`reask`/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

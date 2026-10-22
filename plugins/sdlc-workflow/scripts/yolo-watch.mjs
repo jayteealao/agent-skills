@@ -48,7 +48,7 @@
  *    watch starts where the last watch stopped and misses no event.
  * S4 The script exits by itself after the run-end event: a run-end journal line,
  *    or a journal whose newest line is an agent-end and that stays silent past
- *    the liveness limit (_control-file-ownership.md, the staleness rule).
+ *    the liveness limit (_liveness.md, the staleness rule).
  *
  * WF-WATCH-MONITOR-PLAN:
  * F3 A restart keeps the first watch's start (keptWatchFrom), so the silence of a

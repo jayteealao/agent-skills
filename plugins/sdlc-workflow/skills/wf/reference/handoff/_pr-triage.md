@@ -1,6 +1,6 @@
 # PR comment triage (T5.1) — the body of handoff step 7b
 
-T5.1 is a **bounded loop**, not a one-shot pass. It runs until either no unresolved 🔴 blockers remain or the user opts to defer. Skip this file entirely when `branch-strategy ≠ dedicated` or no `pr-number` is recorded. Fixes go through the `## Fix-subagent contract` in [../_pr-ci-handoff.md](../_pr-ci-handoff.md); questions are gate questions per [_gate-question.md](../_gate-question.md).
+T5.1 is a **bounded loop**, not a one-shot pass. It runs until either no unresolved 🔴 blockers remain or the user opts to defer. Skip this file entirely when no `pr-number` is recorded. Also skip it when `branch-strategy` is `none`, or `shared` in single-slug scope. A `shared` branch in batch scope runs this loop ([../handoff.md](../handoff.md) step 7). Fixes go through the `## Fix-subagent contract` in [_pr-ci-handoff.md](_pr-ci-handoff.md); questions are gate questions per [_gate-question.md](../_gate-question.md).
 
 ## Loop bound
 

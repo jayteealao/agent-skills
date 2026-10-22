@@ -4,7 +4,7 @@ argument-hint: "[package-name|--security-only|--audit-only|<existing-run-slug to
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md` — the External Output Boundary, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary and the workflow-registry / slug rules. Apply **the "Compressed-lifecycle change-modes" contract in `intake/_change-mode-tail.md` (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake update-deps`, a **dependency maintenance standard lifecycle**.
 
@@ -42,7 +42,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_change-mode-tail.md` | procedure | always | |
 | `intake/_intake-provenance.md` | procedure | always | |
-| `design/_lane.md` | procedure | always | |
+| `intake/_intake-provenance-consume.md` | procedure | mode:from | |
 | `design/stage.md` | procedure | mode:design | |
 | `_compressed-slice.md` | procedure | mode:slug | |
 | `intake/update-deps/_exec-artifacts.md` | procedure | always | |
@@ -190,7 +190,7 @@ Body: `## P0 — Security` / `## P1 — Major+migration` / `## P2 — Safe batch
 Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `update-deps` column values (`mode: <all|single|security-only|audit-only>` mirrored onto the index frontmatter as an extra key; `origin-update-deps` when Step 0 consumed a prior run; `stack.user-confirmed: false`). Then register the slug in `.ai/workflows/INDEX.md` per the tail.
 
 # Step 6 — Gate before implement
-Apply the gate per `_intake-context.md` and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — for update-deps ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)) with the tier-aware options:
+Apply the gate and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — for update-deps ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)) with the tier-aware options:
 ```
 question: "Dependency update plan ready. P0: <N> security · P1: <N> major · P2: <N> safe · Hold: <N>. Proceed?"
 options:

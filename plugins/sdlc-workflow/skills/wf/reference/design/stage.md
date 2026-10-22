@@ -18,7 +18,7 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
 
 ## Step 1 — Load the design record
 
-1. Load [_design-context.md](_design-context.md) in full, and the register reference ([brand.md](brand.md) or [product.md](product.md)).
+1. Load [_design-context.md](_design-context.md) and [_preflight.md](_preflight.md) in full, and the register reference ([brand.md](brand.md) or [product.md](product.md)).
 2. Read `PRODUCT.md`. When it is missing, empty, or carries `[TODO]` markers, run `/wf design setup` now with the person, then continue.
 3. Read `DESIGN.md`, `.ai/design/current.md`, and `.ai/design/direction.md`. When a `.ai/design/` file is missing, create it from the [record.md](record.md) template with `[TODO]` sections and tell the person. Do not stop.
 4. When the person named a move, read `design/<move>.md`. The move focuses the contract; it does not widen the scope of `02-shape.md`.
@@ -33,7 +33,7 @@ When `02b-design.md` is missing, author it now per [shape.md](shape.md). The per
 
 ## Step 3 — Inspect the code
 
-Run the four codebase inspection sub-agents from [_design-context.md](_design-context.md) → Preflight gates. Reuse the `stack:` block where it answers the question. Add one duty to the surface ranger: list every existing surface the brief touches and its entry in `.ai/design/current.md`.
+Run the four codebase inspection sub-agents from [_preflight.md](_preflight.md) → Preflight gates. Reuse the `stack:` block where it answers the question. Add one duty to the surface ranger: list every existing surface the brief touches and its entry in `.ai/design/current.md`.
 
 When the product already exists and the stack can run it, capture every touched surface in its current state into `design/source/captures/` now. The boards start from these captures.
 
@@ -59,7 +59,7 @@ Draw the whole feature, not one slice. Every surface in the brief's content inve
 A changed surface that already exists gets no worst-case board unless the person asks for one.
 
 1. Make the boards per [_boards.md](_boards.md) → Make the boards: capture, import, or HTML boards from `DESIGN.md`. Ask the person which viewports to draw.
-2. On a host with a design canvas (`_host-invocation.md`, row "Design canvas"), mirror the boards to the canvas for comments. Record the canvas link.
+2. On a host with a design canvas (`_host-surfaces.md`, row "Design canvas"), mirror the boards to the canvas for comments. Record the canvas link.
 3. When the person wants an interactive prototype and external dispatch is enabled, offer `/uiproto`. A prototype is never a board.
 4. For `ux-impact: flow`, draw the flow as a sequence of states. A text flow with a recorded `image-gate: skipped:<reason>` is valid when no surface changes how it looks.
 5. Follow [contract.md](contract.md) Steps 1–4 for the direction and the mock fidelity inventory.

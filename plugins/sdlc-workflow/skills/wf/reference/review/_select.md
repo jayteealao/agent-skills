@@ -1,6 +1,6 @@
 # Review stage — rubric selection rules (Step 2 of `_stage.md`)
 
-Load this file from `_stage.md` Step 2. It maps change signals to review rubrics. `_stage.md` keeps the core set, the selection constraints, and the dispatch.
+Load this file from `_stage.md` Step 2, in mode `select`. A driver's rubric-selection agent also loads it. It maps change signals to review rubrics. `_stage.md` keeps the core set, the selection constraints, and the dispatch.
 
 Each rubric maps to `review/<name>.md` — **except** the two design dimensions `design-audit` and `design-critique`, which map to `design/audit.md` and `design/critique.md` respectively (see the "design work" selection rule below). A rubric sections its checks by alias (`### <alias>`); a trigger below names the rubric and the alias it focuses. Dispatch **one reviewer per rubric**: a core rubric reads every section; a rubric that only a trigger selected receives `focus:` with every triggered alias, and reads those sections plus the severity calibration.
 

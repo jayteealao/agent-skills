@@ -57,7 +57,7 @@ The method follows the situation, not the host. Choose the first method that app
 Then:
 1. Run `init` with the viewports the person confirms. Ask for them; do not assume one size.
 2. Run `render`. Read every PNG yourself before you show it.
-3. On a host with a design canvas (`_host-invocation.md`, row "Design canvas"), mirror the boards to the canvas, one artboard per board, so the person can comment there. The files in `boards/` stay the contract.
+3. On a host with a design canvas (`_host-surfaces.md`, row "Design canvas"), mirror the boards to the canvas, one artboard per board, so the person can comment there. The files in `boards/` stay the contract.
 
 `/imagery` makes mood and brand images only. A generated image is never a board. Save a mood image in `source/` with `/imagery … into .ai/workflows/<slug>/design/source`.
 
@@ -80,7 +80,7 @@ On **amend**, change only the named boards in the working set, render them, show
 
 ## The settled rule
 
-For `ux-impact: visual` or `new-surface`, the design is settled only when every board that `boards:` names exists on disk ([_lane.md](_lane.md)). The pre-write hook runs the same check on a plan write. Run `check` to see what is missing. A `flow` design may record `image-gate: skipped:<reason>`. A `02c-craft.md` without `boards:` (written before boards existed) keeps the old rule.
+[_lane.md](_lane.md) → "The human rule" owns when the design is settled, including the check that every named board exists on disk. The pre-write hook runs the same check on a plan write. Run `check` to list the missing boards.
 
 ## Use the boards in a later stage
 

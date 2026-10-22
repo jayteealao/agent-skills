@@ -26,7 +26,7 @@ const SHARED = [
     citation: /\[_chat-return\.md\]\(([^)]+)\)/,
   },
   {
-    file: '_pr-ci-handoff.md',
+    file: 'handoff/_pr-ci-handoff.md',
     fingerprint: 'bounded poll loop** that drives the PR',
     citation: /\[_pr-ci-handoff\.md\]\(([^)]+)\)/,
   },
@@ -47,8 +47,15 @@ const SHARED = [
     // intake maintenance modes), which is exactly how the EOB drifted into 21
     // divergent copies — so they get a single source and a guard from day one.
     file: '_control-file-ownership.md',
-    fingerprint: 'presumed dead since',
+    fingerprint: 'means the other writer moved',
     citation: /\[_control-file-ownership\.md\]\(([^)]+)\)/,
+  },
+  {
+    // WF-SUBPROCEDURE-AUDIT L8 — the staleness rule left _control-file-ownership.md
+    // for its own file, which status and yolo load.
+    file: '_liveness.md',
+    fingerprint: 'presumed dead since',
+    citation: /\[_liveness\.md\]\(([^)]+)\)/,
   },
   {
     // WORK-WITHOUT-A-HOME S1 — the accumulating findings-ledger merge law
@@ -113,7 +120,7 @@ test('shared rule bodies appear nowhere except their canonical file', () => {
       for (const f of walk(scanRoot, ['.md'])) {
         const src = readFileSync(f, 'utf8');
         for (const { file, fingerprint } of SHARED) {
-          if (path.basename(f) === file) continue;
+          if (path.basename(f) === path.basename(file)) continue;
           assert.ok(
             !src.includes(fingerprint),
             `${name}: inlined ${file} body in ${path.relative(root, f)} — cite the shared file instead`,
@@ -132,7 +139,7 @@ test('every citation link to a shared reference resolves', () => {
       for (const f of walk(scanRoot, ['.md'])) {
         const src = readFileSync(f, 'utf8');
         for (const { file, citation } of SHARED) {
-          if (path.basename(f) === file) continue;
+          if (path.basename(f) === path.basename(file)) continue;
           const m = src.match(citation);
           if (!m) continue;
           citationCounts[file]++;
@@ -143,7 +150,7 @@ test('every citation link to a shared reference resolves', () => {
           );
           assert.equal(
             path.basename(target),
-            file,
+            path.basename(file),
             `${name}: citation in ${path.relative(root, f)} points at the wrong file`,
           );
         }

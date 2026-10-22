@@ -3,10 +3,6 @@ description: "Review API contracts and database migrations for stability, compat
 argument-hint: "[scope] [target] [paths]"
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 # Role
 You are the **api-contracts** reviewer. You judge every surface other code depends on: routes, schemas, SDK entry points, and the database schema that migrations reshape.
 Library, SDK, and runtime correctness questions route here per [_surface-defects.md](../_surface-defects.md); their surface is an API and its consumers are code.
@@ -68,7 +64,7 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - Batch register-level findings (style, mechanics) into one finding per file.
 
 # Output shape
-Write to the target the dispatch prompt in [_stage.md](_stage.md) Step 3 names, with the frontmatter and merge law that prompt carries; ad-hoc runs return this inline.
+Write to the target that the dispatch prompt in [_dispatch.md](_dispatch.md) names, with the frontmatter and merge law that prompt carries; ad-hoc runs return this inline.
 ```yaml
 findings:  # every finding, open and resolved
   - {id, severity, confidence, status, pre-existing, surfaced-at, file, line, issue, fix}

@@ -55,9 +55,34 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
    - **Success-Criteria re-basing (mandatory, slug-wide milestone check).** The slug-wide review must answer the intake's **Success Criteria exactly** — quote each criterion from `01-intake.md`, state its current truth against the branch diff with concrete evidence (`file:line`, a passing test, or an observed run), and **never paraphrase** the criterion. This is the milestone the per-slice reviews structurally cannot judge: a branch can pass every per-slice gate and still miss the intake's headline outcome. Route each unmet or only-partially-met criterion through the normal ledger (via the `intent-fidelity` dimension). Additive: when `03-slice.md` marks a slice as a **visible milestone**, the same exact Success-Criteria check also runs once at that slice's per-slice review.
    - If `07-review.md` already exists → this run **merges** into it. Read it now (with its sibling `.yaml`) for dedupe + resolve-sweep at Step 4; nothing is overwritten. Prior per-slice `07-review-<slice>.md` files are left untouched.
 6. **Read the context.** Read every Requires row for the current `review-scope`.
-7. **Apply the augmentation and verify inputs** per [_context.md](_context.md). Verify values can auto-promote to BLOCKER, HIGH or WARN findings.
+7. **Apply the augmentation and verify inputs** per *Augmentation and verify inputs* below. Verify values can auto-promote to BLOCKER or HIGH findings.
 8. **Carry forward** `open-questions` from the index.
 9. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy: dedicated`, confirm you are on the correct branch. Use `git diff <base-branch>...<branch>` for the full change set.
+10. **Find the selection mode.** The run prompt can pass findings that a driver scan already verified. Then a driver agent selected the rubrics: skip Steps 2 and 3, and use those findings at Step 4. Otherwise, you run in mode `select`: do Steps 2 and 3, and list `select` in `modes:` of the stage artifact.
+
+# Augmentation and verify inputs
+
+**Augmentation inputs.** Read the `augmentations:` list in `00-index.md` if present, plus the artifacts each entry references. Per-type guidance:
+
+| Type | What review must do |
+|---|---|
+| `design-<sub>` | Read `design-notes/<sub>-<timestamp>.md`. The documented design changes are intentional — do not flag them as unexpected. Validate them: did they achieve their stated goal? |
+| `design-audit` | Read `07-design-audit.md`. Treat as already-known findings; merge with new findings during dispatch. |
+| `design-critique` | Read `07-design-critique.md`. Same as above. |
+| `instrument` | Read `04b-instrument.md`. Review the instrumentation as a first-class deliverable: are signals appropriate, is PII handled, is the framework usage correct? |
+| `experiment` | Read `04c-experiment.md`. Review the experiment infrastructure: is the cohort logic correct, are metrics appropriate, is the rollback path safe? |
+| `benchmark` | Read `05c-benchmark.md`. Cross-reference with `06-verify` compare-mode results. If verify flagged regressions, surface them as review findings. |
+
+Use `02b-design.md` and `02c-craft.md` for register, anti-goals and visual contract. Check that the change honors the `02c-craft.md` anti-goals. When `02c-craft.md` names `boards:`, compare each board PNG with its capture in the verify `## Design Comparison` (`design/_boards.md`). Route a finding against a confirmed board to `/wf design <slug> amend` as a question; do not redraw the board.
+
+**Verify inputs.** Use these values from each `06-verify-*.md` file in scope:
+- `## Augmentation Verification` — failed augmentation re-checks become BLOCKER or HIGH findings automatically.
+- `stability-check-flaky-count` (frontmatter) — any value > 0 is a HIGH finding; flaky criteria indicate race conditions or state leakage that review sub-agents should investigate in the diff.
+- `adversarial-tests-failed` (frontmatter) — any value > 0 means `## Adversarial Tests` contains BLOCKER or HIGH findings; surface them in the aggregated finding list.
+- `cross-browser-delta` (frontmatter) — if `findings`, read `## Cross-Browser Delta` and surface each divergence as a HIGH compatibility finding.
+- `design-comparison` (frontmatter) — `no-boards` means no visual check exists; do not count the visual contract as verified.
+- Web vitals (frontmatter) — a `web-vitals-inp-ms` value above 200, a `web-vitals-lcp-ms` value above 2500, or a `web-vitals-cls` value above 0.1 is a HIGH performance finding. Verify grades them the same way (`verify/_artifact.md`, `## Performance Gate`).
+- `## Friction Notes` and `## Free Exploration Notes` — these are informational (not auto-promoted to issues) but must appear in the review's `## Soft Findings` section so the human reviewer can see them. They represent observations a first-time user would notice that no AC captured.
 
 # Workflow rules
 Apply [_workflow-rules.md](../_workflow-rules.md). Review-specific: the review files are an accumulating ledger — merge in place, never overwrite.
@@ -117,7 +142,7 @@ Before dispatching, print the `## Review Scope` + `## Commands Selected` block f
 
 # Step 3: Dispatch Parallel Sub-Agents
 
-For EACH selected command, dispatch ONE sub-agent at **medium** effort per [_subagents.md](../_subagents.md). Set the tier explicitly — a reviewer must not inherit the parent configuration (per [_fix-loop.md](../_fix-loop.md) rule 3). All agents run in parallel, in waves of ≤6 when more dimensions are selected. Synthesis (Step 4 — aggregation, dedup, triage) stays with the coordinator.
+For EACH selected command, dispatch ONE sub-agent at **low** effort per [_subagents.md](../_subagents.md). The `architecture` and `security` rubrics use **medium** effort. Set the tier explicitly — a reviewer must not inherit the parent configuration (per [_fix-loop.md](../_fix-loop.md) rule 3). All agents run in parallel, in waves of ≤6 when more dimensions are selected. Synthesis (Step 4 — aggregation, dedup, triage) stays with the coordinator.
 
 **Each sub-agent receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`; resolve every `<skill-dir>` to an absolute path per [_host-invocation.md](../_host-invocation.md) before dispatch — a child has no citing file to resolve a relative path against): load [_dispatch.md](_dispatch.md) and send its fenced prompt unchanged. The prompt carries the pre-existing determination, the accumulate-never-overwrite merge law, the target path (`07-review-{slice-slug}-{command-name}.md` per-slice, `07-review-{command-name}.md` slug-wide), the `type: review-command` output contract, and the sibling `.yaml` duty.
 
@@ -173,7 +198,7 @@ Runs only if Step 4b produced at least one `Fix` decision. Dispatch fix sub-agen
 ## Fix dispatch (parallel, write-isolated)
 
 Dispatch a fix sub-agent for **every** finding triaged `Fix` **in parallel** (one wave) with write isolation, per [_subagents.md](../_subagents.md) — concurrent patches cannot collide (fixes that must touch the same file run serially, in severity order); the step-3 sanity check is the merge gate. For each finding:
-1. Dispatch ONE sub-agent at **medium** effort with write isolation, per [_subagents.md](../_subagents.md) (REQUIRED — both; the tier pin follows [_fix-loop.md](../_fix-loop.md) rule 3). This is the same fix prompt shape used by `/wf implement reviews` mode — kept identical so behavior matches when the user routes through either path. Send the fix prompt from [_dispatch.md](_dispatch.md) (Step 4c section); the child returns `Method: as-prescribed | deviated` first, then its self-check exit status.
+1. Dispatch ONE sub-agent at **medium** effort with write isolation, per [_subagents.md](../_subagents.md) (REQUIRED — both; the tier pin follows [_fix-loop.md](../_fix-loop.md) rule 3). Send the fix prompt in [_fix-prompt.md](_fix-prompt.md) unchanged. `/wf implement reviews` sends the same prompt. The child returns `Method: as-prescribed | deviated` first, then its self-check exit status.
 2. As each sub-agent completes, take its patch through step 3 before accepting it. Under a worktree host, accept by merging the child's branch result; under a partition host (no worktree flag, per [_subagents.md](../_subagents.md)) the edit is already in the working tree, so step 3 reviews the diff first and `git checkout -- <files>` discards a rejected one. **On a patch-overlap conflict** (two fixes touch the same lines), merge one, then re-dispatch the other against the merged state — serial for the conflicting pair only.
 3. Read the changed file(s) and sanity-check the patch against **both** the finding and the suggested fix's method ([_fix-loop.md](../_fix-loop.md) rule 5) — `Method: deviated` is never accepted on the subagent's own word; re-read it against what was suggested, and discard a deviation that crosses an explicit prohibition.
 4. **Record the outcome ON the finding** — set `status` and `fixed-at = now` in `## All Findings`, `## Findings (Detailed)`, `## Fix Status`, and the sibling `.yaml`: fixed → `status: fixed` (drops out of OPEN counts and verdict); could not fix → `status: could-not-fix` (stays OPEN; still counts against verdict) + record the reason (`COULD NOT FIX: <reason>`).

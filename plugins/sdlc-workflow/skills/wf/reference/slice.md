@@ -5,8 +5,7 @@ argument-hint: <slug> [focus area]
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
 
-> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
-> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf slice`, **stage 3 of 10**: 1·intake → 2·shape → `3·slice` → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro.
@@ -30,8 +29,8 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `po-answers.md` | artifact | if-present | |
 | `02b-design.md` | artifact | if-present | |
 | `02c-craft.md` | artifact | if-present | |
-| `design/_lane.md` | procedure | always | |
-| `design/_design-context.md` | procedure | mode:design | |
+| `design/_lane.md` | procedure | always | UX impact; The human rule |
+| `design/_design-context.md` | procedure | mode:design | Register; Absolute bans |
 | `design/onboard.md` | procedure | mode:design | |
 | `design/polish.md` | procedure | mode:design | |
 | `03-slice-<slice>.md` | writes | | |

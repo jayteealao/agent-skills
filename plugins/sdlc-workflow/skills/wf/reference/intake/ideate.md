@@ -38,6 +38,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `01-ideate.md` | artifact | on-resume | |
 | `steer.md` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
+| `intake/_light-index.md` | procedure | always | |
 | `intake/ideate/_lenses.md` | procedure | always | |
 | `intake/ideate/_artifact.md` | procedure | always | |
 | `intake/ideate/_sources.md` | procedure | mode:sources | |
@@ -184,30 +185,11 @@ Then ask which ideas to pursue. A gate question carries at most 4 options ([_gat
 
 # Step 6 — Write Artifact
 
-The terminal analysis modes root in a `type: workflow-index` slug workflow (the lead is the only artifact). Write **two** files under `.ai/workflows/<slug>/` (the slug derived in Step 0 sub-step 2b), then register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](default.md) Step 10.
+The terminal analysis modes root in a `type: workflow-index` slug workflow (the lead is the only artifact). Write **two** files under `.ai/workflows/<slug>/` (the slug derived in Step 0 sub-step 2b), then register the slug in `.ai/workflows/INDEX.md` per [_intake-context.md](_intake-context.md) → Register the workflow in INDEX.md.
 
 Generate a timestamp (UTC compact `<yyyymmdd>T<hhmmss>Z`) per [_timestamp.md](../_timestamp.md).
 
-**`00-index.md` — `type: workflow-index`** (lightweight; analysis modes do not get the heavy 22-field `type: index`). The workflow stays **open until the pick** — `status: ready`, `next-command: user-picks`, never `complete`-and-parked:
-```yaml
----
-schema: sdlc/v1
-type: workflow-index
-slug: <slug>
-title: "Ideate: <focus-area or codebase-wide> <YYYY-MM-DD>"
-workflow-type: ideate
-current-stage: routing
-status: ready
-branch-strategy: none
-open-questions: []
-next-command: user-picks
-next-invocation: "user-picks — record via /wf intake ideate <slug> <idea-id>; see 01-ideate.md"
-progress:
-  ideate: complete
-created-at: "<ISO 8601>"
-updated-at: "<ISO 8601>"
----
-```
+**`00-index.md`**: write it from [_light-index.md](_light-index.md), the `ideate` row. The workflow stays **open until the pick** — `status: ready`, `next-command: user-picks`, never `complete`-and-parked.
 
 Write **`01-ideate.md`** (`type: ideation`) per the template in `intake/ideate/_artifact.md`: frontmatter with the `ideas:` roster (per-idea `file:line` evidence and `entry:` invocation), the `culled:` log, and with sources the `sources:`, `source-items:` and `research:` rosters, then the ranked ideas built from the roster, and the how-to-use footer. With sources, run `ideate-sources.mjs check "<projectRoot>" <slug>`. It must return `ok: true`; the write hook refuses a source item with no result.
 
@@ -224,7 +206,7 @@ Runs from Step 0 pick mode (`/wf intake ideate <slug> <idea-id...> [one-line rea
    - `items`: each idea's evidence as `kind: finding` items on its thread (`evidence:` the `file:line` or the reference path `references/<kind>/<file>`, never a `.ai/…` path). The person's pick reason is ONE `kind: decision`, `scope: keep`, `source: person` item on the `pick` thread, with `session: 1` and `decided-at:` the `chosen-at` time (D5). It is carried once, by the order-1 piece; packet intake confirms it word for word. Do not copy it into every thread.
    - `work`: one piece per idea: `key` and `slug` (the idea's slug suggestion), `title`, `shape` (the form of the idea's `entry:`: `intake`, `extension`, `fix`, `hotfix`, `rca`, `investigate`, `discover`, or `task`), `target-slug` for `extension`, `fix` and `hotfix`, `entry`, `order` (1 to n, from step 3), `why-here` (after order 1; it names the pick), `design-form: none`, `items` (the order-1 piece also lists the pick decision), `state: proposed`. Do not copy the idea's `depends-on:` into the piece: the campaign's deps scout builds the dependency graph.
 5. **Write the packets.** Run `node "<skill-dir>/scripts/work-packets.mjs" write ".ai/workflows/<slug>/ideate-work.json"`. It checks the board, then writes one packet per piece in `work/`, and `work/index.md` last. On an error, repair the board and run it again.
-6. **Close the workflow.** Update `00-index.md`: `status: closed`, `close-reason: ideas-packeted`, `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`, `next-invocation: "none — packets written"`. Update the slug's row in `.ai/workflows/INDEX.md` to `closed`. Each successor's link-back (`_intake-provenance.md`) corrects `superseded-by: pending`.
+6. **Close the workflow.** Update `00-index.md`: `status: closed`, `close-reason: ideas-packeted`, `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`, `next-invocation: "none — packets written"`. Update the slug's row in `.ai/workflows/INDEX.md` to `closed`. Each successor's link-back (`_intake-provenance-consume.md`) corrects `superseded-by: pending`.
 7. **Print the invocations.** Print one `/wf intake .ai/workflows/<slug>/work/<packet>.md` line per packet. When an idea's `depends-on:` names `/wf intake update-deps`, print that command first. With two packets or more, also print `/wf campaign <slug>`. Do not run them.
 
 # Refresh

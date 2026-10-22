@@ -28,6 +28,9 @@ question tool.
    non-interactive default), write the decision AND the assumption behind it
    into the gate's artifact — the `revisions:` ledger or an `assumptions:`
    field — and continue.
+   An intent-bearing gate has no policy default, so rung 3 never settles it.
+   Record it as awaiting input and halt the run, per
+   [_decision-classes.md](_decision-classes.md) "The rule".
 
 - **A question spec is host-neutral data.** A citing site may describe its
   question as a YAML block with `question`, `header`, `options` (each with a

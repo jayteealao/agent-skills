@@ -4,7 +4,7 @@ argument-hint: "[description]"
 ---
 
 # Output boundary & shared context
-Apply `intake/_intake-context.md` — the External Output Boundary, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
+Apply `intake/_intake-context.md` — the External Output Boundary and the workflow-registry / slug rules. Apply **the "Compressed-lifecycle change-modes" contract in `intake/_change-mode-tail.md` (the model, the authorship split, and the gate)**. Do not restate them here.
 
 You are running `/wf intake adopt`, the **reverse-entry** mode. Where `fix`/`hotfix`/`refactor` author a plan and then drive execution *forward*, adopt reconstructs the record *backward* from a diff that already exists, then hands the result to the standard verification chain.
 
@@ -39,6 +39,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_change-mode-tail.md` | procedure | always | |
 | `intake/_intake-provenance.md` | procedure | always | |
+| `intake/_intake-provenance-consume.md` | procedure | mode:from | |
 | `intake/adopt/_artifacts.md` | procedure | always | |
 | `01-adopt.md` | writes | | |
 | `02-shape.md` | writes | | |
@@ -197,7 +198,7 @@ Notes:
 - Write no YAML comments in the index. `review-scope: slug-wide` gives one `07-review.md` for the single slice. `runtime-evidence-deferrals` receives the proxy and deferral resolutions from `04-plan`.
 - `current-stage: implement` with `implement: complete` in `progress` — the reconstructed execution is done; `verify` is the first *not-started* stage, and `next-invocation` points there. (Use the standard `current-stage` enum — `implement` — never a bespoke `adopted` value; the adoption fact lives in `provenance` and `workflow-type`, not in `current-stage`.)
 - `branch-strategy: none` is deliberate — adoption inherits whatever branch the work was done on.
-- Then **register the slug in `.ai/workflows/INDEX.md`** per [intake/default.md](default.md) Step 10 (create-if-absent / append-and-resort / never mutate other rows), with `workflow-type` column = `adopt`.
+- Then **register the slug in `.ai/workflows/INDEX.md`** per [_intake-context.md](_intake-context.md) → Register the workflow in INDEX.md, with `workflow-type` column = `adopt`.
 
 # Step 5 — Hand off
 

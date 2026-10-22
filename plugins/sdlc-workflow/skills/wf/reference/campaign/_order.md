@@ -1,6 +1,6 @@
-# Campaign order: waits, merge notes, and the slice order
+# Campaign order: pair kinds, waits, merge notes, and the slice order
 
-This file is the order procedure of the wave driver (`workflows/campaign-wave.js`). It says when one slice waits for another, how the driver records a pair of slices that only changes the same file, and how a walk orders the slices of one unit. [_drive.md](_drive.md) holds the other agents of the drive. `<cmd>` stands for the same command as in [_drive.md](_drive.md).
+This file belongs to [../campaign.md](../campaign.md). It says when one slice waits for another, and how a pair of slices that only changes the same file is recorded. The cross-unit reconcile agent of the wave driver (`workflows/campaign-wave.js`) reads "Pair kinds" and "Cross-unit reconcile". The campaign session reads the rest. The driver's bookkeeping agents follow their prompts. `<cmd>` stands for `node "<pluginRoot>/skills/wf/scripts/campaign.mjs"`, followed by the command, `"<projectRoot>"`, and the brainstorm slug.
 
 The rule of this file comes from the person (rule R1, 2026-10-21): a serial chain of slices is a negative, and a shared file alone does not make one slice wait for another.
 
@@ -37,7 +37,7 @@ When the plans of a unit finish, and before its first implement, one agent compa
 
 1. Read every `04-plan-<slice>.yaml` that the prompt names, in full: its `files` and its `edges`. The prompt names the slices that each unit owns. Do not read the plan of a slice of another unit.
 2. Read the `provides` and `expects` lines of every context file.
-3. Find each pair of slices of two different units that change the same file. Check first the `expected-shared` pairs that the prompt names: the deps phase expected those two units to share a path (`_phases.md`, "Shared paths").
+3. Find each pair of slices of two different units that change the same file. Check first the `expected-shared` pairs that the prompt names: the deps phase expected those two units to share a path ([_phases.md](_phases.md), "Shared paths").
 4. Leave out a pair that a `needs` entry of the graph already orders. Section 7 of the later unit's context file lists those entries.
 5. Give each pair its kind by "Pair kinds". For a `need`, give `needs` (`a` or `b`) and `evidence`.
 6. Return `pairs`: one `{ a, aSlice, b, bSlice, files, kind, needs, evidence }` for each pair. When no two units share a file, return `pairs: []`.
@@ -46,70 +46,23 @@ A plan agent that runs during the walk reports a shared file in `crossUnit`, wit
 
 ## Derived needs
 
-A derived needs entry is a `needs` entry that the driver writes into the ledger, for a `need` pair that no packet declares. A `merge` pair goes through the same command, with `--kind merge`.
+A derived needs entry is a `needs` entry that the driver writes into the ledger, for a `need` pair that no packet declares. A `merge` pair becomes a merge note instead (see "Merge notes"). The driver writes no packet, because the brainstorm owns the packets.
 
-1. Run each command of the prompt, in order:
-   - a need: `<cmd> needs <key> add --kind need --from <key> --through <slice> --why "<files>" --evidence "<quote>" --by driver --source <source>`;
-   - a merge note: `<cmd> needs <key> add --kind merge --from <key> --through <slice> --why "<files>" --by driver --source <source>`.
-   An entry with a `before` slice also has `--before <slice>`. The source is `cross-unit`, or `plan:<slice>` for the `crossUnit` report of a plan.
-2. Return each printed object in `results`, with the `key`, `from`, `through`, and `before` of its entry.
-3. Change nothing else. The command appends the `derived-need` or `merge-note` event itself.
-
-| Result | Meaning | What the driver does |
-|---|---|---|
-| `exists: true` | A packet or the ledger has the same entry | Nothing |
-| `merge: true` | A merge note of the wave | No wait. The boundary merge and the wave review read the note |
-| `dropped: true` | The person or a resolver dropped this wait earlier | No wait. Only `--by person` brings the wait back |
-| `cycle` | The entry closes a cycle at slice level | The unit parks with kind `needs-cycle` before the slice `before` |
-| `late: true` | The slice `before` already passed its implement | No wait. The pair goes to the focus list (`waves[n].focus`), which the wave review reads |
-| `ok: true` with `wait` | A new entry | The driver opens the wait. It is `ready` at once when the needed slice passed verify or cleared earlier |
-
-`needs <key> remove` leaves a drop record in the unit's `dropped-needs`. A relaunch then cannot add the same wait again. The person can drop a wait while the run is live: run `<cmd> needs <key> remove --from <key> --through <slice> --before <slice> --by person`. The waiter returns the change in `needsChanged`, and the driver settles the wait as dropped. `needs <key> add --by person` arms a new wait the same way.
-
-The driver never writes a packet, because the brainstorm owns the packets. The session writes each derived entry into its packet at the next wave boundary.
+- A wait is ready when the needed slice passed verify. The consumer merges the verified commit, not the branch tip. When the review of the needed slice then changes it, the consumer merges the fix before its next implement.
+- A need on a slice that already passed its implement makes no wait. The pair goes to the focus list (`waves[n].focus`), which the wave review reads.
+- A need that closes a cycle parks the unit with kind `needs-cycle`.
+- `needs <key> remove` leaves a drop record in the unit's `dropped-needs`. A relaunch then cannot add the same wait again. Only `needs <key> add --by person` brings it back.
+- The person can drop a wait while the run is live: run `<cmd> needs <key> remove --from <key> --through <slice> --before <slice> --by person`. `<cmd> needs <key> add --by person` arms a new wait the same way. The waiter returns the change, and the driver settles the wait.
 
 ## Merge notes
 
-A merge note records a `merge` pair: two slices that change the same file and wait for nothing. The notes of a wave live in `waves[n].merge-notes` of the ledger, one for each pair of slices. `wave <n> launch` passes them to the driver.
-
-- The boundary merge lists them as expected conflicts ([_boundary.md](_boundary.md), "Merge").
-- A merge-in conflict between two units gets their notes.
-- The wave review reads them next to the focus list, and runs in full when the wave has a merge note.
-
-For each conflict in a file of a merge note, apply these rules:
-
-1. Regenerate a generated file once, after both sides merged. Do not merge its text.
-2. Renumber a version or a ledger file to the next free number.
-3. Convert a row or a record to the newer format of the other side.
-
-A conflict that needs a product decision parks as before.
-
-## Wait agent
-
-A wait belongs to one unit. It names a slice of another unit (`from` and `through`), and the slice of its own unit that needs that code (`before`). Before the implement of `before`, the walk waits until the slice `through` passes verify. The consumer needs the verified code, not the review. Then the wait agent merges the verified commit, not the branch tip.
-
-1. Run `<cmd> unit <key> waiting --on "<from>: <through>"`. `merge-in` refuses while the unit is `running`.
-2. Run `<cmd> merge-in <key> <from> --at <sha>`. It merges the verified commit with rerere on. For a review fix, the prompt gives `--refresh`.
-3. Only when step 2 printed `"ok": true`, run `<cmd> unit <key> running`.
-4. Return `ok`, `conflict`, `error`, and `closed` from the object of step 2. Change nothing else.
-
-When `conflict` lists files, `merge-in` aborted the merge, and the merge agent runs ([_drive.md](_drive.md), "Merge-in conflict"). When `merge-in` fails for another reason, for example uncommitted changes, the unit parks with kind `merge-conflict`.
-
-The verify mark is bookkeeping only. After the verify of a slice passes, and while a wait on its unit is open, one agent runs `<cmd> slice-done <key> <slice> --verified`. The command records `HEAD` as the verified commit, makes each wait that the slice covers `ready` (`ready-on: verify`), and commits nothing. When the review of the slice then changes it, the `slice-done` of the slice returns `refresh`: each consumer that merged the verified commit. The consumer's wait agent runs again with `--refresh` before its next implement, and the wait stays `met`.
-
-NOTE: The stop check of an implement agent has condition (d): an **Open** or **Ready** wait line for its slice, in section 7 of the context file. Condition (d) applies to implement only, because a plan reads the needed unit's plan, not its code. When condition (d) stops an implement, the driver treats the stop as its own scheduling fault, and waits for the wait. At the third such stop, the unit parks with kind `stage`.
+A merge note records a `merge` pair: two slices that change the same file and wait for nothing. The notes of a wave live in `waves[n].merge-notes` of the ledger, one for each pair of slices. `wave <n> launch` passes them to the driver. The boundary merge and a merge-in conflict between the two units list them as expected conflicts, and apply the rules of [_boundary.md](_boundary.md), "Merge". The wave review reads them next to the focus list, and runs in full when the wave has a merge note.
 
 ## Slice order
 
-The walk of a unit follows `depends-on` of its roster in topological order, with roster order as the tie-break (`walkOrder`). A cycle, or a name outside the roster, keeps roster order for the slices that are left. The yolo driver walks in the same order.
+The walk of a unit follows `depends-on` of its roster in topological order, with roster order as the tie-break. A plan that decides an order inside one unit returns it as `orderEdges`. Text in a plan never orders a walk.
 
-A plan or a plan reconcile that decides an order inside one unit returns it as `orderEdges: [{ slice, after, why }]`. Text in a plan never orders a walk.
-
-1. The plan fan-out bookkeeping, the plan reconcile bookkeeping, and a walk-time plan run one command for each entry: `node "<pluginRoot>/skills/wf/scripts/campaign.mjs" slice-order "<checkout>" <slug> add --slice <slice> --after <after> --why "<why>"`.
-2. The command adds `after` to the `depends-on` of `slice`, in the roster of `03-slice.md` and in `03-slice-<slice>.md`. It refuses a cycle, appends a line to `index-history.jsonl`, and writes the new walk order into `implementation-order` of `04-plan.md`.
-3. Then a resume orient runs, or the driver adds the edge to the roster of the run, so the rest of the walk follows it.
-
-`slice-order` only adds an edge, as `extend` only adds slices. The slice stage keeps its ownership of the roster: the person can remove an edge with `/wf slice`.
+`node "<pluginRoot>/skills/wf/scripts/campaign.mjs" slice-order "<checkout>" <slug> add --slice <slice> --after <after> --why "<why>"` adds `after` to the `depends-on` of `slice`, in the roster of `03-slice.md` and in `03-slice-<slice>.md`. It refuses a cycle, and writes the new walk order into `implementation-order` of `04-plan.md`. It only adds an edge. The slice stage keeps its ownership of the roster: the person can remove an edge with `/wf slice`.
 
 **Slice ownership.** Each roster entry of a campaign unit can name its unit (`unit: <key>`). A walk runs only the slices of its own unit and of each unit that it absorbed. A slice with no `unit` belongs to the unit that is not an extension, and, for an extension unit, a slice with `source: extension` belongs to it.
 

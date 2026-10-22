@@ -981,5 +981,24 @@
     "release": "9.191.0",
     "file": "skills/wf/reference/review/ste-compliance.md",
     "category": "rubric-checks"
+  },
+  {
+    "file": "skills/wf/reference/_host-invocation.md",
+    "category": "gates",
+    "entry": "concern claude code codex pi --- --- ---",
+    "reason": "WF-SUBPROCEDURE-AUDIT L8: the gate-question, sub-agent and timestamp pointer rows left the host-surfaces table; the file's opening sentence cites _gate-question.md, _subagents.md and _timestamp.md, and the stage-only rows moved to _host-surfaces.md.",
+    "release": "9.198.0"
+  },
+  {
+    "category": "invocations",
+    "entry": "/wf announce",
+    "reason": "WF-SUBPROCEDURE-AUDIT F12: never a /wf key; ship-plan/init/_blocks.md now names the real form, `/wf ship <slug> announce`.",
+    "release": "9.198.0"
+  },
+  {
+    "category": "citations",
+    "entry": "skills/wf/reference/_pr-ci-handoff.md",
+    "reason": "WF-SUBPROCEDURE-AUDIT section 6.5: moved to skills/wf/reference/handoff/_pr-ci-handoff.md with _ci-red-routing.md and _handoff-config.md; every citation now points there.",
+    "release": "9.198.0"
   }
 ]

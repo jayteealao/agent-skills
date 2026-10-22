@@ -35,7 +35,9 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `01-rca.md` | artifact | on-resume | |
 | `steer.md` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
+| `intake/_light-index.md` | procedure | always | |
 | `intake/_intake-provenance.md` | procedure | always | |
+| `intake/_intake-provenance-consume.md` | procedure | mode:from | |
 | `intake/rca/_research.md` | procedure | always | |
 | `intake/rca/_artifact.md` | procedure | always | |
 | `_compressed-slice.md` | procedure | mode:slug | |
@@ -132,22 +134,11 @@ If the recommended next command is `/wf intake fix` or `/wf intake hotfix`, stil
 
 # Step 5 — Write `00-index.md`
 
-Standard index file:
+Write `00-index.md` from [_light-index.md](_light-index.md), the `rca` row. Add these keys, and add the two extra `progress` entries:
 
 ```yaml
----
-schema: sdlc/v1
-type: workflow-index
-slug: <slug>
-title: "RCA: <one-line symptom>"
-workflow-type: rca
-current-stage: fix-routing
-status: ready
-branch-strategy: none
 branch: <current-branch-recorded-at-step-0>
 base-branch: <current-branch-recorded-at-step-0>
-next-command: <route from `## Recommended next command`, e.g. wf-plan; user-picks until recorded>
-next-invocation: "<the invocation for that route>"
 recommended-routes:
   - {invocation: "<route>", reason: "<one phrase>", default: true}
   - {invocation: "<route>", reason: "<one phrase>"}
@@ -160,19 +151,15 @@ stack:
   user-confirmed: false
 ux-impact: <none|visual|flow|new-surface>
 ux-impact-confirmed: false
-open-questions: []
 progress:
   rca: complete
   shape-synthesized: complete
   design: <not-started|skipped>
-created-at: <timestamp>
-updated-at: <timestamp>
----
 ```
 
 **UX impact.** Classify the suggested fix per `design/_lane.md`. When the value is `none`, also write `design-skip-reason:` (one line). When design is needed, the `plan` route goes through the design stage first: set `next-command: wf-design` and `next-invocation: "/wf design <slug>"`. The design stage confirms `ux-impact` with the person, writes the brief, and settles the design before plan.
 
-Body: one-line description + a short pointer to `01-rca.md` and the routing recommendation. No `selected-slice`: an rca has no slice roster, and a key naming a slice that never exists misleads every reader. `progress` is the stage→status **object** form; the renderer silently drops a YAML list.
+Body: one-line description + a short pointer to `01-rca.md` and the routing recommendation. The rules of [_light-index.md](_light-index.md) apply: no `selected-slice`, and `progress` in the object form.
 
 # Step 6 — Hand off to user
 
@@ -202,7 +189,7 @@ Runs only from Step 0 route mode (`/wf intake rca <slug> <plan|fix|hotfix|human-
 1. **Stamp the artifact.** Add to `01-rca.md` frontmatter: `chosen-route: <route>`; `routed-at:` set to the real UTC timestamp (per [_timestamp.md](../_timestamp.md)); and `decision-note: <the trailing prose>` if the user supplied any (omit the key otherwise).
 2. **Append a `## Decision` section** to the artifact body: which route was picked; why (the user's exact reason, else "user routed without a stated reason"); which tripwires were live at route time (from `## Tripwire warnings`, or "none").
 3. **Close or continue, by route:**
-   - **`fix` / `hotfix`**: the successor is a NEW workflow, so this one closes. Update `00-index.md` with `status: closed`, `close-reason: route-recorded`, `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`, `next-invocation: "none — route recorded"`; update the registry row to `closed`. The successor's link-back (`_intake-provenance.md`) corrects `superseded-by: pending`.
+   - **`fix` / `hotfix`**: the successor is a NEW workflow, so this one closes. Update `00-index.md` with `status: closed`, `close-reason: route-recorded`, `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`, `next-invocation: "none — route recorded"`; update the registry row to `closed`. The successor's link-back (`_intake-provenance-consume.md`) corrects `superseded-by: pending`.
    - **`plan`**: the SAME slug continues into the standard chain; the workflow stays open. Set `next-command: wf-plan`, `next-invocation: "/wf plan <slug>"`, refresh `updated-at`. When design is needed and not settled per `design/_lane.md`, set `next-command: wf-design` and `next-invocation: "/wf design <slug>"` instead.
    - **`human-triage`**: the workflow stays open awaiting the human. Set `next-command: user-picks`, `next-invocation: "user-picks — human triage; see 01-rca.md ## Confidence"`.
 4. **Print the next invocation** per the `## Recommended next command` table (`/wf plan <slug>`, or `/wf intake fix "<suggested fix, one line>" from <slug>`, or `/wf intake hotfix "<symptom, one line>" from <slug>`) and stop. Do not run it.

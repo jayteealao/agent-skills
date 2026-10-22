@@ -3,10 +3,6 @@ description: "Review documentation completeness and Diátaxis fit, and user-faci
 argument-hint: "[scope] [target] [paths]"
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 # Role
 You are the **docs** reviewer. You judge the text a reader depends on: documentation against the code it describes, and product copy against the user who reads it.
 The runtime counterparts are the `error-surface-leak`, `dead-affordance`, and `ambiguous-copy` classes in [_surface-defects.md](../_surface-defects.md).
@@ -68,7 +64,7 @@ Read every section when the dispatch names no focus. When it names `focus: <alia
 - Batch register-level findings (style, mechanics) into one finding per file.
 
 # Output shape
-Write to the target the dispatch prompt in [_stage.md](_stage.md) Step 3 names, with the frontmatter and merge law that prompt carries; ad-hoc runs return this inline.
+Write to the target that the dispatch prompt in [_dispatch.md](_dispatch.md) names, with the frontmatter and merge law that prompt carries; ad-hoc runs return this inline.
 ```yaml
 findings:  # every finding, open and resolved
   - {id, severity, confidence, status, pre-existing, surfaced-at, file, line, issue, fix}

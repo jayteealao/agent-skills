@@ -37,6 +37,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `brainstorm-board.json` | artifact | on-resume | |
 | `steer.md` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
+| `intake/_light-index.md` | procedure | always | |
 | `intake/brainstorm/_artifact.md` | procedure | always | |
 | `intake/brainstorm/_talk.md` | procedure | always | |
 | `intake/brainstorm/_design.md` | procedure | mode:design | |
@@ -104,27 +105,7 @@ An item has one of six kinds: a **decision**, which the person chose; an **idea*
 4. **Announce the plan** in chat: the topic, the slug, the map in plain words, the control words (2.3), and how to leave (`done`). The first batch asks where to start.
 
 # Step 1 — Open the board
-Write `00-index.md` (template below), `01-brainstorm.md`, and `brainstorm-board.json` per [brainstorm/_artifact.md](brainstorm/_artifact.md), with the Step 0 map, one `live` thread named from the topic, and any Step 0 findings. Register the slug in `.ai/workflows/INDEX.md` per [default.md](default.md) Step 10. Timestamps follow [_timestamp.md](../_timestamp.md).
-
-```yaml
----
-schema: sdlc/v1
-type: workflow-index
-slug: <slug>
-title: "Brainstorm: <topic> <YYYY-MM-DD>"
-workflow-type: brainstorm
-current-stage: brainstorm
-status: ready
-branch-strategy: none
-open-questions: []
-next-command: intake
-next-invocation: "/wf intake brainstorm <slug>"
-progress:
-  brainstorm: in-progress
-created-at: "<ISO 8601>"
-updated-at: "<ISO 8601>"
----
-```
+Write `00-index.md` from [_light-index.md](_light-index.md) (the `brainstorm` row), `01-brainstorm.md`, and `brainstorm-board.json` per [brainstorm/_artifact.md](brainstorm/_artifact.md), with the Step 0 map, one `live` thread named from the topic, and any Step 0 findings. Register the slug in `.ai/workflows/INDEX.md` per [_intake-context.md](_intake-context.md) → Register the workflow in INDEX.md. Timestamps follow [_timestamp.md](../_timestamp.md).
 
 # Step 2 — The loop
 > **WARNING: you never end this loop.** Only the person's `done` reaches Step 3. A board where every thread has material is not a reason to stop. When you believe the thinking is complete, check in (2.5) and continue. A distillation the person did not ask for takes the person's decision and ends the session the person wanted.
@@ -185,7 +166,7 @@ An area is explored when its threads stop producing new ground. Closing it is pa
 6. When the area changes an existing piece of work, set `stale: true` and `stale-because` on that piece; step 3.3 proposes the piece that brings it up to date. When a newer decision replaces an older one, set `replaced-by` on the older item; the document lists only the newer decision, and says what it replaced.
 
 ## 2.9 The page
-When the host offers a published page ([_host-invocation.md](../_host-invocation.md), row "Published page"), present the board to the person as one page, and keep it current:
+When the host offers a published page (`_host-surfaces.md`, row "Published page"), present the board to the person as one page, and keep it current:
 1. Build `brainstorm-page.html` beside the board from the two files, in plain words and with no key: the summary; the session stories, newest first; the areas with their briefs and scope; the decisions by area, core first; the open ideas; the findings with their sources; the open tensions and the accepted risks; the pieces of work, with the stale ones marked.
 2. Publish it the first time the person needs to see the board: the first check-in, `board`, or a resume. Record its link as `page` in the board and in the document frontmatter, and give the link in the question text.
 3. Republish it to the same link at each check-in, each area close, each `board`, and at `done`.
@@ -231,7 +212,7 @@ Propose a first split, then change it as the person directs. Continue until the 
 
 A second `done` on a distilled board shows the recorded scope and asks what to change. It walks the areas the person names and every decision or idea with no `scope` value.
 
-**Link-back.** A successor started from a packet, or `from <slug>`, applies [_intake-provenance.md](_intake-provenance.md): it records `origin-brainstorm`, sets the piece of work's `state` (`prepared`, then `routed`) and `routed-to` on the board and on the packet, and sets each of its threads to `routed` when no other piece of work draws on the thread. An item with `scope: cut` never seeds a successor. The board is never superseded.
+**Link-back.** A successor started from a packet, or `from <slug>`, applies [_intake-provenance-consume.md](_intake-provenance-consume.md): it records `origin-brainstorm`, sets the piece of work's `state` (`prepared`, then `routed`) and `routed-to` on the board and on the packet, and sets each of its threads to `routed` when no other piece of work draws on the thread. An item with `scope: cut` never seeds a successor. The board is never superseded.
 
 # What this command is NOT
 - Not `ideate`: no lens scan, no ranked backlog. The person leads and you think beside the person.

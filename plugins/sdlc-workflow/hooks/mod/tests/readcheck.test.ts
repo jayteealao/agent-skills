@@ -27,6 +27,9 @@ const FIXTURE: RequiresEntry[] = [
       { input: '03-slice-<slice>.md', kind: 'artifact', when: 'always', sections: ['Acceptance Criteria'] },
       { input: 'steer.md', kind: 'artifact', when: 'on-resume', sections: [] },
       { input: 'plan/_artifact.md', kind: 'procedure', when: 'always', sections: [] },
+      // W0: a mode row is checked only when its mode applies.
+      { input: 'plan/_deferrals.md', kind: 'procedure', when: 'mode:deferral', sections: [] },
+      { input: 'plan/_triage.md', kind: 'procedure', when: 'mode:triage', sections: [] },
       { input: '04-plan-<slice>.md', kind: 'writes', when: '', sections: [] },
     ],
   },
@@ -54,7 +57,7 @@ const TREE: Record<string, string> = {
 const MASTERS: RequiresEntry[] = [
   {
     reference: 'fixture/task.md',
-    stage: 'task',
+    stage: 'intake:task',
     rows: [
       { input: 'fixture/context.md', kind: 'procedure', when: 'always', sections: [] },
       { input: '05-implement.md', kind: 'writes', when: '', sections: [] },
@@ -373,7 +376,7 @@ describe('read check', () => {
     await read($, `${REF}/fixture/task.md`, 'T')
     const text = contextOf(await write($, `${W}/05-implement.md`, '# Task\n', 'T'))
     expect(text).toContain('fixture/context.md')
-    expect(ledgerRows(world)).toEqual([{ at: expect.any(String), agentId: 'T', stage: 'task', artifact: '05-implement.md', missing: ['fixture/context.md'], partial: [], waiver: null }])
+    expect(ledgerRows(world)).toEqual([{ at: expect.any(String), agentId: 'T', stage: 'intake:task', artifact: '05-implement.md', missing: ['fixture/context.md'], partial: [], waiver: null }])
   })
 
   test('the main loop is checked against the stage its /wf command names', async ($, on) => {
@@ -381,7 +384,7 @@ describe('read check', () => {
     await $.session.start(SESSION)
     await $.turn.start({ text: '/wf intake task alpha-flow', turnId: 't1' })
     expect(contextOf(await write($, `${W}/05-implement.md`, '# Task\n'))).toContain('fixture/context.md')
-    expect(ledgerRows(world).map(row => row['stage'])).toEqual(['task'])
+    expect(ledgerRows(world).map(row => row['stage'])).toEqual(['intake:task'])
   })
 
   test('a compaction mid-stage keeps the main ledger; one between stages clears it', async ($, on) => {
@@ -397,5 +400,24 @@ describe('read check', () => {
     const again = contextOf(await write($, PLAN))
     expect(again).toContain('02-shape.md')
     expect(again).toContain('00-index.md')
+  })
+
+  test('W0: a mode row is checked when a disk fact or the writer declares its mode, and not otherwise', async ($, on) => {
+    const world = seat(on)
+    await $.session.start(SESSION)
+    await readAllBut($, 'A')
+    // No open deferral, no declared mode: neither mode row is required.
+    expect(contextOf(await write($, PLAN, undefined, 'A'))).toBe('')
+    // An open deferral in the index proves mode:deferral.
+    world.tree[`${W}/00-index.md`] = [
+      '---', 'slug: alpha-flow', 'selected-slice: auth', 'runtime-evidence-deferrals:', '  - ac: AC1', '    cleared-by: null', '---', '',
+    ].join('\n')
+    await read($, `${W}/00-index.md`, 'A')
+    const deferral = contextOf(await write($, PLAN, undefined, 'A'))
+    expect(deferral).toContain('plan/_deferrals.md')
+    expect(deferral).not.toContain('plan/_triage.md')
+    // A mode with no resolver counts when the writer declares it in `modes:`.
+    const declared = contextOf(await write($, PLAN, ['---', 'slice: auth', 'modes: [triage]', '---', '# Plan', ''].join('\n'), 'A'))
+    expect(declared).toContain('plan/_triage.md')
   })
 })

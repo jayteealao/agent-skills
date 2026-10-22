@@ -221,6 +221,36 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
+        "input": "design/_preflight.md",
+        "kind": "procedure",
+        "when": "mode:stage",
+        "sections": []
+      },
+      {
+        "input": "_host-surfaces.md",
+        "kind": "procedure",
+        "when": "mode:stage",
+        "sections": [
+          "Design canvas"
+        ]
+      },
+      {
+        "input": "design/_design-context.md",
+        "kind": "procedure",
+        "when": "mode:audit",
+        "sections": [
+          "Absolute bans"
+        ]
+      },
+      {
+        "input": "design/_design-context.md",
+        "kind": "procedure",
+        "when": "mode:critique",
+        "sections": [
+          "Absolute bans"
+        ]
+      },
+      {
         "input": "design/_boards.md",
         "kind": "procedure",
         "when": "mode:stage",
@@ -231,6 +261,14 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "kind": "procedure",
         "when": "mode:import",
         "sections": []
+      },
+      {
+        "input": "_host-surfaces.md",
+        "kind": "procedure",
+        "when": "mode:import",
+        "sections": [
+          "Design canvas"
+        ]
       },
       {
         "input": "design/audit.md",
@@ -389,7 +427,7 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
-        "input": "_handoff-config.md",
+        "input": "handoff/_handoff-config.md",
         "kind": "procedure",
         "when": "always",
         "sections": []
@@ -401,7 +439,7 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
-        "input": "_pr-ci-handoff.md",
+        "input": "handoff/_pr-ci-handoff.md",
         "kind": "procedure",
         "when": "mode:pr",
         "sections": []
@@ -411,6 +449,14 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "kind": "procedure",
         "when": "mode:pr",
         "sections": []
+      },
+      {
+        "input": "_host-surfaces.md",
+        "kind": "procedure",
+        "when": "mode:pr",
+        "sections": [
+          "PR monitor"
+        ]
       },
       {
         "input": "08-handoff.md",
@@ -522,7 +568,7 @@ export const REQUIRES: readonly RequiresEntry[] = [
       {
         "input": "implement/_research.md",
         "kind": "procedure",
-        "when": "always",
+        "when": "mode:research",
         "sections": []
       },
       {
@@ -535,10 +581,20 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "input": "design/_design-context.md",
         "kind": "procedure",
         "when": "mode:ui",
-        "sections": []
+        "sections": [
+          "Register",
+          "Shared design laws",
+          "Absolute bans"
+        ]
       },
       {
         "input": "implement/_reviews-mode.md",
+        "kind": "procedure",
+        "when": "mode:reviews",
+        "sections": []
+      },
+      {
+        "input": "review/_fix-prompt.md",
         "kind": "procedure",
         "when": "mode:reviews",
         "sections": []
@@ -619,6 +675,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "input": "intake/_intake-provenance.md",
         "kind": "procedure",
         "when": "always",
+        "sections": []
+      },
+      {
+        "input": "intake/_intake-provenance-consume.md",
+        "kind": "procedure",
+        "when": "mode:from",
         "sections": []
       },
       {
@@ -772,6 +834,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
+        "input": "intake/_light-index.md",
+        "kind": "procedure",
+        "when": "always",
+        "sections": []
+      },
+      {
         "input": "intake/brainstorm/_artifact.md",
         "kind": "procedure",
         "when": "always",
@@ -892,6 +960,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
+        "input": "intake/_intake-provenance-consume.md",
+        "kind": "procedure",
+        "when": "mode:from",
+        "sections": []
+      },
+      {
         "input": "intake/default/_stack-fingerprint.md",
         "kind": "procedure",
         "when": "always",
@@ -941,6 +1015,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
       },
       {
         "input": "intake/_intake-context.md",
+        "kind": "procedure",
+        "when": "always",
+        "sections": []
+      },
+      {
+        "input": "intake/_light-index.md",
         "kind": "procedure",
         "when": "always",
         "sections": []
@@ -1091,10 +1171,18 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
+        "input": "intake/_intake-provenance-consume.md",
+        "kind": "procedure",
+        "when": "mode:from",
+        "sections": []
+      },
+      {
         "input": "design/_lane.md",
         "kind": "procedure",
         "when": "always",
-        "sections": []
+        "sections": [
+          "UX impact"
+        ]
       },
       {
         "input": "design/stage.md",
@@ -1175,10 +1263,18 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
+        "input": "intake/_intake-provenance-consume.md",
+        "kind": "procedure",
+        "when": "mode:from",
+        "sections": []
+      },
+      {
         "input": "design/_lane.md",
         "kind": "procedure",
         "when": "always",
-        "sections": []
+        "sections": [
+          "UX impact"
+        ]
       },
       {
         "input": "design/stage.md",
@@ -1247,6 +1343,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
+        "input": "intake/_light-index.md",
+        "kind": "procedure",
+        "when": "always",
+        "sections": []
+      },
+      {
         "input": "intake/ideate/_lenses.md",
         "kind": "procedure",
         "when": "always",
@@ -1302,6 +1404,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
       },
       {
         "input": "intake/_intake-context.md",
+        "kind": "procedure",
+        "when": "always",
+        "sections": []
+      },
+      {
+        "input": "intake/_light-index.md",
         "kind": "procedure",
         "when": "always",
         "sections": []
@@ -1379,6 +1487,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
+        "input": "intake/_intake-provenance-consume.md",
+        "kind": "procedure",
+        "when": "mode:from",
+        "sections": []
+      },
+      {
         "input": "01-optimize.md",
         "kind": "writes",
         "when": "",
@@ -1421,9 +1535,21 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
+        "input": "intake/_light-index.md",
+        "kind": "procedure",
+        "when": "always",
+        "sections": []
+      },
+      {
         "input": "intake/_intake-provenance.md",
         "kind": "procedure",
         "when": "always",
+        "sections": []
+      },
+      {
+        "input": "intake/_intake-provenance-consume.md",
+        "kind": "procedure",
+        "when": "mode:from",
         "sections": []
       },
       {
@@ -1499,10 +1625,18 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
+        "input": "intake/_intake-provenance-consume.md",
+        "kind": "procedure",
+        "when": "mode:from",
+        "sections": []
+      },
+      {
         "input": "design/_lane.md",
         "kind": "procedure",
         "when": "always",
-        "sections": []
+        "sections": [
+          "UX impact"
+        ]
       },
       {
         "input": "design/stage.md",
@@ -1550,6 +1684,18 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "input": "04-plan-<slice>.md",
         "kind": "artifact",
         "when": "mode:plan",
+        "sections": []
+      },
+      {
+        "input": "intake/_intake-context.md",
+        "kind": "procedure",
+        "when": "always",
+        "sections": []
+      },
+      {
+        "input": "intake/_light-index.md",
+        "kind": "procedure",
+        "when": "always",
         "sections": []
       },
       {
@@ -1685,9 +1831,9 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
-        "input": "design/_lane.md",
+        "input": "intake/_intake-provenance-consume.md",
         "kind": "procedure",
-        "when": "always",
+        "when": "mode:from",
         "sections": []
       },
       {
@@ -1858,36 +2004,43 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "input": "design/_lane.md",
         "kind": "procedure",
         "when": "always",
-        "sections": []
+        "sections": [
+          "UX impact",
+          "The human rule"
+        ]
       },
       {
         "input": "design/_design-context.md",
         "kind": "procedure",
         "when": "mode:design",
-        "sections": []
+        "sections": [
+          "Register",
+          "Shared design laws",
+          "Absolute bans"
+        ]
       },
       {
         "input": "runtime-adapters/_ladder.md",
         "kind": "procedure",
-        "when": "always",
+        "when": "mode:user-observable",
         "sections": []
       },
       {
         "input": "augment/instrument.md",
         "kind": "procedure",
-        "when": "mode:augment",
+        "when": "mode:instrument",
         "sections": []
       },
       {
         "input": "augment/experiment.md",
         "kind": "procedure",
-        "when": "mode:augment",
+        "when": "mode:experiment",
         "sections": []
       },
       {
         "input": "augment/benchmark.md",
         "kind": "procedure",
-        "when": "mode:augment",
+        "when": "mode:benchmark",
         "sections": []
       },
       {
@@ -2003,6 +2156,14 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "kind": "artifact",
         "when": "if-present",
         "sections": []
+      },
+      {
+        "input": "_host-surfaces.md",
+        "kind": "procedure",
+        "when": "always",
+        "sections": [
+          "Published page"
+        ]
       },
       {
         "input": "prototype-ledger.json",
@@ -2177,6 +2338,14 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "kind": "procedure",
         "when": "mode:design",
         "sections": []
+      },
+      {
+        "input": "_host-surfaces.md",
+        "kind": "procedure",
+        "when": "mode:deep",
+        "sections": [
+          "Session transcripts"
+        ]
       },
       {
         "input": "10-retro.md",
@@ -2355,21 +2524,27 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
-        "input": "review/_context.md",
-        "kind": "procedure",
-        "when": "always",
-        "sections": []
-      },
-      {
         "input": "review/_select.md",
         "kind": "procedure",
-        "when": "always",
+        "when": "mode:select",
         "sections": []
       },
       {
         "input": "review/_dispatch.md",
         "kind": "procedure",
+        "when": "mode:select",
+        "sections": []
+      },
+      {
+        "input": "review/_fix-prompt.md",
+        "kind": "procedure",
         "when": "always",
+        "sections": []
+      },
+      {
+        "input": "review/_ad-hoc.md",
+        "kind": "procedure",
+        "when": "mode:ad-hoc",
         "sections": []
       },
       {
@@ -2430,7 +2605,11 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "input": "design/_lane.md",
         "kind": "procedure",
         "when": "always",
-        "sections": []
+        "sections": [
+          "UX impact",
+          "The human rule",
+          "The design record"
+        ]
       },
       {
         "input": "design/shape.md",
@@ -2488,6 +2667,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
       },
       {
         "input": "ship-plan/edit.md",
+        "kind": "procedure",
+        "when": "mode:edit",
+        "sections": []
+      },
+      {
+        "input": "ship-plan/init/_blocks.md",
         "kind": "procedure",
         "when": "mode:edit",
         "sections": []
@@ -2622,13 +2807,19 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "input": "design/_lane.md",
         "kind": "procedure",
         "when": "always",
-        "sections": []
+        "sections": [
+          "UX impact",
+          "The human rule"
+        ]
       },
       {
         "input": "design/_design-context.md",
         "kind": "procedure",
         "when": "mode:design",
-        "sections": []
+        "sections": [
+          "Register",
+          "Absolute bans"
+        ]
       },
       {
         "input": "design/onboard.md",
@@ -2721,10 +2912,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
-        "input": "_control-file-ownership.md",
+        "input": "_liveness.md",
         "kind": "procedure",
         "when": "mode:detail",
-        "sections": []
+        "sections": [
+          "The staleness rule"
+        ]
       }
     ]
   },
@@ -2837,6 +3030,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "input": "verify/_sub-agents.md",
         "kind": "procedure",
         "when": "always",
+        "sections": []
+      },
+      {
+        "input": "verify/_augmentation.md",
+        "kind": "procedure",
+        "when": "mode:augment",
         "sections": []
       },
       {

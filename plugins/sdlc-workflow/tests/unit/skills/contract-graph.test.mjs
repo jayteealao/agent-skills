@@ -47,7 +47,7 @@ const REF_DIR = path.join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 export const PRODUCERS = [
   // The index template, the other intake modes' index templates, and the optional
   // handoff config keys (`public-surface`, `review-bots`, `pre-push-checks`, ...).
-  { match: /^00-index\.md$/, templates: ['intake/default/_artifact.md', '_handoff-config.md', 'intake/rca.md', 'intake/adopt.md', 'intake/brainstorm.md', 'intake/ideate.md', 'intake/investigate.md', 'intake/discover.md', 'intake/_change-mode-tail.md', 'intake/simplify/_artifact.md'] },
+  { match: /^00-index\.md$/, templates: ['intake/default/_artifact.md', 'handoff/_handoff-config.md', 'intake/rca.md', 'intake/adopt.md', 'intake/brainstorm.md', 'intake/ideate.md', 'intake/investigate.md', 'intake/discover.md', 'intake/_change-mode-tail.md', 'intake/_light-index.md'] },
   { match: /^po-answers\.md$/, templates: ['intake/default/_artifact.md'] },
   // Intake mode leads (01-<mode>.md).
   { match: /^01-intake\.md$/, templates: ['intake/default/_artifact.md'] },

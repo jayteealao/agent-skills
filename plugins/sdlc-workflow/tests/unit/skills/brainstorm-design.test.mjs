@@ -71,7 +71,7 @@ test('schema: the contract records carried-from; the document names a design boa
 });
 
 test('the thoughts travel: provenance, the brief, the design stage, the direction command', () => {
-  match(read(`${REF}/intake/_intake-provenance.md`), /When the piece of work records `ux-impact`, propose that value in the stack question/);
+  match(read(`${REF}/intake/_intake-provenance-consume.md`), /When the piece of work records `ux-impact`, propose that value in the stack question/);
   const carried = read(`${REF}/design/_carried.md`);
   match(carried, /whose `routed-to` is this slug/);
   match(carried, /keep, change \(free text says how\), or drop/);

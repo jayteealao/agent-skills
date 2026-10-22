@@ -30,6 +30,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import { collectRequires } from './build-requires.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(HERE, '..');
@@ -52,32 +53,33 @@ const REFERENCE_DIRS = new Set([
   'runtime-adapters', 'ship', 'ship-plan', 'simplify', 'status', 'verify',
 ]);
 
-/**
- * What each yolo stage agent must read. `prefix` entries match an artifact
- * basename by prefix (any slice); `ref` entries match a reference path.
- */
-export const STAGE_WANTS = {
-  plan: {
-    adjacent: '03-slice',
-    template: null,
-    procedures: ['_story-arc.md'],
-  },
-  implement: {
-    adjacent: '04-plan',
-    template: 'implement/_artifact.md',
-    procedures: ['implement/_research.md'],
-  },
-  verify: {
-    adjacent: '05-implement',
-    template: 'verify/_artifact.md',
-    procedures: ['verify/_sub-agents.md', 'verify/_deferrals.md', '_fix-loop.md', 'runtime-adapters.md'],
-  },
-  review: {
-    adjacent: '06-verify',
-    template: 'review/_artifact.md',
-    procedures: ['review/_stage.md', 'review/_context.md', 'review/_dispatch.md', '_findings-ledger.md'],
-  },
+const STAGE_SHAPES = {
+  plan: { adjacent: '03-slice', template: null },
+  implement: { adjacent: '04-plan', template: 'implement/_artifact.md' },
+  verify: { adjacent: '05-implement', template: 'verify/_artifact.md' },
+  review: { adjacent: '06-verify', template: 'review/_artifact.md' },
 };
+
+/**
+ * The `always` procedure rows of a stage's `## Requires` table, less its
+ * template. A `mode:<name>` row is not counted: a transcript does not show
+ * which modes applied (`_requires.md`, Modes), so the measure counts only
+ * the reads that every run of the stage owes.
+ */
+export function stageWantsOf(entries, stage, shape) {
+  const entry = entries.find((e) => e.reference === `${stage}.md`);
+  const rows = entry ? entry.rows : [];
+  const procedures = rows
+    .filter((r) => r.kind === 'procedure' && r.when.trim().toLowerCase() === 'always' && r.input !== shape.template)
+    .map((r) => r.input);
+  return { ...shape, procedures };
+}
+
+/** What each yolo stage agent must read, from the `## Requires` tables. */
+export const STAGE_WANTS = (() => {
+  const { entries } = collectRequires(join(dirname(fileURLToPath(import.meta.url)), '..', 'skills', 'wf', 'reference'));
+  return Object.fromEntries(Object.entries(STAGE_SHAPES).map(([stage, shape]) => [stage, stageWantsOf(entries, stage, shape)]));
+})();
 
 const READ_VERBS = /(?:^|[\s;|&(])(?:cat|type|Get-Content|gc|sed|head|tail|awk|less|more|bat|grep|egrep|rg|Select-String|findstr|jq|yq)(?=\s)/i;
 const WRITE_CMDLETS = /\b(?:Set-Content|Out-File|Add-Content|tee)\b[^;|&]*/gi;

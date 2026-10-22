@@ -1,7 +1,7 @@
 # Intake shared context
 
-The single source of truth for the rules every `/wf intake` mode shares — the output boundary
-and the workflow-registry / slug semantics. The dispatcher
+The single source of truth for the rules every `/wf intake` mode shares — the output boundary,
+the workflow-registry / slug semantics, and the registration in `INDEX.md`. The dispatcher
 (`reference/intake.md`), `intake/default.md`, and every mode reference under `intake/` defer to
 this file rather than restating it. (Mirrors how the design commands defer to
 `design/_design-context.md`.)
@@ -10,8 +10,7 @@ this file rather than restating it. (Mirrors how the design commands defer to
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
-> exists and apply the contract in [_steering.md](../_steering.md): honor the user's standing instructions, never
+> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](../_steering.md). Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 # Workflow registry & slug semantics
@@ -42,64 +41,15 @@ When a derived or given slug is in this set, ask for another slug with the "Pick
 option of the `intake/default.md` collision prompt. Every mode that creates a workflow applies this
 rule. An existing slug keeps its name, and `/wf status` flags it.
 
-**Additive bootstrap.** A mode that creates a new workflow must ensure `.ai/workflows/INDEX.md`
-contains a row for its slug after `00-index.md` is finalized (create the file with the header line
-if absent; append-and-resort if the slug is missing; never mutate other rows). The full procedure
-and header text live in `intake/default.md` Step 10 — modes that create a workflow follow it.
+# Register the workflow in INDEX.md
 
-# Compressed-lifecycle change-modes (fix / hotfix / refactor / update-deps)
+This is the additive bootstrap. Every mode that creates a new workflow registers it in `.ai/workflows/INDEX.md`. Do this after `00-index.md` is final. Read the frontmatter of the `00-index.md` you wrote again, so the row has the final values. Branch, status, and workflow-type can change between Step 0 and the end of the run.
 
-The change-modes are **compressed *standard* lifecycles**, not bespoke pipelines. Each drives the
-full SDLC stage sequence — **no stage is skipped**, every stage is single-pass/lightweight but
-*present* — and emits **standard numbered artifacts with standard types**, surfaced on a full
-`type: index` overview. The four modes share the contract below; each mode reference fills in the
-per-mode body (what `01-<mode>`/`02-shape`/etc. carry).
-
-**The model:**
-- **Lead = `01-<mode>.md` with `type: intake`** (`01-fix.md`, `01-hotfix.md`, `01-refactor.md`,
-  `01-update-deps.md`). The filename carries the mode; the renderer dispatches on `type: intake`
-  (→ `intake.mjs`) and the view-path lands at `intake/` (filename-mapped in `_paths.mjs`). The lead
-  must satisfy the **intake** required set: `status` ∈ `{complete, awaiting-input}`, `stage-number: 1`,
-  `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`.
-- **The authoritative `workflow-type` discriminator lives on `00-index.md`** (mirror it onto the lead
-  for readability, but the index is canonical — the standard stage commands and `/wf status recap` read it there).
-- **`00-index.md` is a fully-conformant `type: index`** — the heavy 22-field `indexFrontmatter`
-  (`status: active` not `ready`; `progress` a stage→status **object** `{intake: …, shape: …, …}` with
-  enum values `not-started|in-progress|complete|skipped`, NOT a list). Use the template + 22-field set
-  from [intake/default.md](default.md). Add `workflow-type: <mode>`. A missing field or wrong `status`
-  → schema-invalid → a render-time warn-banner on every overview.
-- **Downstream planning stages use STANDARD types** authored **un-suffixed, single-slice**:
-  `02-shape.md` (`type: shape`), `03-slice.md` (`type: slice-index` — even with one slice: a one-entry
-  `slices[]` + `total-slices: 1` + `best-first-slice: <the-slice>`, so the overview's slice/implement
-  stations derive counts via the slice roster), `04-plan.md` (`type: plan`, carries `slice-slug`).
-- **`current-stage` uses the standard enum** (`intake`/`shape`/`slice`/`plan`/`implement`/`verify`/…)
-  — never bespoke names like `diagnose`/`baseline`/`scan`. Put descriptive labels in free-form body
-  prose, not in `current-stage`.
-
-**Authorship split — the mode authors planning; the standard commands author execution.**
-The mode skill writes **only** `01-<mode>`(intake) → `02-shape` → `03-slice` → `04-plan`, then
-**gates** (below). On *proceed* it routes into the standard execution chain, each its own command:
-`/wf implement <slug>` (→`05`) → `/wf verify <slug>` (→`06`) → `/wf review <slug>` (→`07`) →
-`/wf handoff` (→`08`) → `/wf ship` (→`09`) → `/wf retro` (→`10`). Those commands recognize the
-change-mode `workflow-type`s and read the un-suffixed single-slice files. This reuses the standard
-pipeline (rather than re-implementing it per mode) and is what makes the workflow resumable.
-**Exception — `update-deps`** self-authors `05-implement`/`06-verify` (its tier-ordered execution is
-specialized), then routes to `/wf review`; it never invokes `/wf implement` or `/wf verify`.
-
-**The gate — stop-and-prompt before `05-implement`.** After `04-plan` is written and before any
-execution, the mode pauses for the human per the gate-question ladder ([_gate-question.md](../_gate-question.md)):
-
-```
-question: "Plan for `<slug>` is ready (<N> steps, <M> files). Proceed to implementation?"
-options:
-  - label: "Proceed"
-    description: "Run /wf implement <slug> and continue the standard lifecycle."
-  - label: "Adjust"
-    description: "Revise the plan/scope before implementing — say what to change."
-  - label: "Escalate"
-    description: "The change outgrew this mode — restart as a full /wf intake workflow."
-```
-
-A mode **MAY run end-to-end without pausing** at this prompt when it judges the change low-risk — its
-discretion, per the user. The gate skips only the human *pause*, **never an SDLC *stage***. Record the
-decision (proceeded / adjusted / escalated / auto-proceeded-low-risk) in the `01-<mode>.md` body.
+- **If `.ai/workflows/INDEX.md` does NOT exist**, create it with the header comment (exactly from the [`/wf status` reconcile spec](../status.md)) followed by exactly one row for this workflow. Use the canonical column order: `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`. Header line:
+  ```
+  # .ai/workflows/INDEX.md — global workflow registry. Reconciled by /wf status (bootstrap+refresh) and additively touched by slug-mode compressed-slice writes from /wf intake/probe/simplify (updated-at only) and by /wf intake (append self if absent). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.
+  ```
+  Surface in the chat return: *"Bootstrapped `.ai/workflows/INDEX.md` with this workflow's row. Positional slug detection (compressed-slice attach via `/wf intake`/`/wf probe`/`/wf intake simplify`) is now enabled."*
+- **If `.ai/workflows/INDEX.md` exists AND the slug is already present**, do nothing. A matching row means this is a resume on a row that an earlier intake run wrote. Leave the existing row in place so sync owns updates.
+- **If `.ai/workflows/INDEX.md` exists AND the slug is missing**, append a single new row for this workflow, then **re-sort the file alphabetically by slug** (preserving the header line at the top). Surface in the chat return: *"Added `<slug>` to `.ai/workflows/INDEX.md`."*
+- **Mutate no other row.** Status/branch/updated-at drift on other workflows is sync's responsibility, not intake's. Intake's contract here is strictly *append self if absent*.

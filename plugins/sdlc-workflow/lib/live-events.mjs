@@ -12,7 +12,7 @@
 export const STAGE_KINDS = Object.freeze(['plan', 'implement', 'verify', 'review', 'update-deps-exec']);
 /** The artifact prefix of each stage kind. */
 export const STAGE_FILE = Object.freeze({ plan: '04-plan', implement: '05-implement', verify: '06-verify', review: '07-review', 'update-deps-exec': '06-verify' });
-/** The liveness floor: a silence under 20 minutes is never stale (_control-file-ownership.md). */
+/** The liveness floor: a silence under 20 minutes is never stale (_liveness.md). */
 export const STALE_FLOOR_MS = 20 * 60 * 1000;
 /**
  * The silence of a running agent's own transcript that makes it stale. A

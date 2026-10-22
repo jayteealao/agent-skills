@@ -30,7 +30,7 @@ Read of `handoff.md` and `ship.md`, and a live run on the scratch repo.
 - **CI runs on a stacked PR even with a trunk filter.** The scratch CI had `on: pull_request: branches: [main]`. PR #5 had base `campaign/probe/wave-3` and was in stack #3, and its checks still ran. GitHub applies the branch filter of a PR in a stack to the stack's trunk. SoccerManager's `pr-checks.yml` has the same filter, so its wave PRs get CI once they are in the stack.
 - **A PR not yet in a stack gets no CI under that filter.** `gh stack link` needs two PRs (below), so wave 1's PR is in no stack until wave 2's PR opens. Wave 1's base is the trunk, so its CI runs anyway.
 - **Ship needs a merge-command switch.** `gh pr merge 4 --merge` on the bottom PR of a stack failed: "This pull request is part of a stack and must be merged using the asynchronous merge REST API." `gh stack merge 4 --yes --squash` merged it.
-- **Ship must read the trunk at ship time.** After the lower wave merged, GitHub moved the upper PR's base to `main` by itself (PR #4, then PR #5). The slug's `base-branch:` still names the lower wave. Ship uses `base-branch` for `gh release create --target`, `gh run list --branch`, and the post-release push, so the campaign sets `base-branch:` to the trunk before ship runs (rule in `_waves.md`).
+- **Ship must read the trunk at ship time.** After the lower wave merged, GitHub moved the upper PR's base to `main` by itself (PR #4, then PR #5). The slug's `base-branch:` still names the lower wave. Ship uses `base-branch` for `gh release create --target`, `gh run list --branch`, and the post-release push, so the campaign sets `base-branch:` to the trunk before ship runs (rule in `campaign/_ship.md`).
 
 ## P3 — the error kind of a usage-limit failure
 

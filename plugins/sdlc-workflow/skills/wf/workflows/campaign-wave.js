@@ -220,7 +220,10 @@ function requiresClause(refPath) {
     `${referenceRoot}/_requires.md. Before you write the stage artifact, read every row whose When value applies ` +
     `to this run — each whole-file input from its first line to its last, each named section in full — yourself, ` +
     `with the file-read tool. A search hit, a shell read, a partial read, or a sub-agent's read does not count. ` +
-    `The mod checks your reads when you write the stage artifact: a missing or partial read comes back as ` +
+    `A \`mode:<name>\` row applies when its mode applies to this run: list every mode you ran under in the stage ` +
+    `artifact's \`modes:\` frontmatter (for example \`modes: [deferral]\`). The mod also finds some modes on disk ` +
+    `(section "Modes" of ${referenceRoot}/_requires.md lists them), and a mode it finds there applies even when ` +
+    `\`modes:\` leaves it out. The mod checks your reads when you write the stage artifact: a missing or partial read comes back as ` +
     `feedback (context) in that write's tool result. When it does, read each named input, then write the ` +
     `artifact again in this same run. Keep reading ${refPath} in full as well.`
 }
@@ -339,7 +342,7 @@ function acKey(ac) {
 // probeGaps() — the deferral-LAW compliance check that verifyClean deliberately does
 // NOT enforce. verifyClean's accept condition is untouched (the v9.114 lesson: never
 // hard-gate a converged, defect-free slice on a formatting technicality — that cost
-// ~500k tokens per recurrence). But verify.md §"Attempt before declare" requires a
+// ~500k tokens per recurrence). But verify/_deferrals.md §"Attempt before declare" requires a
 // PROBE RECEIPT on every deferral — the literal capability-probe command + output tail
 // executed THIS run. probeGaps returns the ac-bearing deferral entries (deduped by ac,
 // across BOTH terminal.deferrals[] and the sibling residual[]) that carry no non-empty
@@ -736,11 +739,17 @@ function readCheckRows(rows, runStartAt) {
 
 // WF-SYSTEM-REVIEW E3: the stage prompt states the shared rules once. A stage agent does not
 // read again the files that hold them; the stage reference still points to them for a person.
+// Audit L10: requiresClause restates _requires.md (all but its Modes table), steeringClause
+// restates _steering.md, and the POLICY block + DECISION_CONTRACT replace every gate
+// question (_gate-question.md) and its wording (_question-craft.md): the run asks nothing.
 function preambleClause() {
-  return `- PREAMBLE GIVEN HERE: this prompt states the grounded-progress rule and the early-stop guard, and your ` +
-    `return is the schema below, not a chat message. When the stage reference points to ` +
-    `${referenceRoot}/_chat-return.md, ${referenceRoot}/_autonomy-guards.md, or ${referenceRoot}/_grounded-progress.md, ` +
-    `do not read those files: apply the rules of this prompt.\n`
+  return `- PREAMBLE GIVEN HERE: this prompt states the grounded-progress rule, the early-stop guard, the ` +
+    `required-reads checklist, and the steering contract; the policy above settles or stops each question the ` +
+    `reference would ask, so you ask none; and your return is the schema below, not a chat message. When the ` +
+    `stage reference points to ${referenceRoot}/_chat-return.md, ${referenceRoot}/_autonomy-guards.md, ` +
+    `${referenceRoot}/_grounded-progress.md, ${referenceRoot}/_steering.md, ${referenceRoot}/_gate-question.md, or ` +
+    `${referenceRoot}/_question-craft.md, do not read those files: apply the rules of this prompt. When it points ` +
+    `to ${referenceRoot}/_requires.md, read only its section "Modes": this prompt states the rest.\n`
 }
 // ---- END SHARED ----
 
@@ -1067,15 +1076,15 @@ const POLICY = {
     `fixable issue: apply the minimal patch and run that single fix round, recording outcomes in ` +
     `"## Verify-Owned Fixes". If the reference warns the slice was already verified and asks to overwrite, ` +
     `proceed (re-running is intended).\n\n` +
-    `DEFER-DON'T-CANCEL for UN-PRODUCIBLE runtime evidence — verify.md's deferral law (§"Climb the ` +
-    `constraint-resolution ladder", §"Escape hatch") is the single normative statement; apply it EXACTLY as ` +
+    `DEFER-DON'T-CANCEL for UN-PRODUCIBLE runtime evidence — the verify deferral law (verify/_runtime-evidence.md ` +
+    `§"Climb the constraint-resolution ladder", and verify/_deferrals.md) is the single normative statement; apply it EXACTLY as ` +
     `written there, with no relaxation. In particular: a deferral is lawful ONLY over a PROBED incapability ` +
     `(literal probe command + one-line output tail, executed THIS run); climb the constraint-resolution ladder ` +
     `(runtime-adapters.md) before deferring; never inherit a prior deferral or environment claim — re-probe it ` +
     `fresh; a skipped or guard-exited spec is not evidence (an all-skipped sweep is ` +
     `blocked-runtime-evidence-missing, never a deferral); and capability you provision must persist via a repo ` +
     `script or it does not exist for later stages.\n` +
-    `When a deferral is lawful under that law, apply verify.md's escape hatch for that AC: set ` +
+    `When a deferral is lawful under that law, apply the escape hatch (verify/_deferrals.md §"The annotation") for that AC: set ` +
     `'interactive-verification: deferred' + 'interactive-verification-defer-reason: "<rungs tried + probe receipt ` +
     `+ the residual that survives them>"' in the per-slice verify frontmatter, register the deferral in ` +
     `00-index.md runtime-evidence-deferrals (slice, reason, deferred-at, cleared-by: null), and record it under ` +
@@ -1841,7 +1850,7 @@ async function driveVerify(u, sliceArg, extra = {}) {
           log(`verify:${sliceArg}@${u.slug} clean but ${gaps.length} deferral(s) carry no capability-probe receipt (${probeCorrection.join(', ')}) — one corrective re-run`)
           continue
         }
-        return { ...last, status: 'hard-stop', hardStopReason: `deferral(s) still carry no capability-probe receipt after a corrective re-run: ${gaps.map(g => g.ac).join(', ')} — attach the literal probe command + output tail per verify.md §"Attempt before declare", or produce the evidence if the wall no longer stands` }
+        return { ...last, status: 'hard-stop', hardStopReason: `deferral(s) still carry no capability-probe receipt after a corrective re-run: ${gaps.map(g => g.ac).join(', ')} — attach the literal probe command + output tail per verify/_deferrals.md §"Attempt before declare", or produce the evidence if the wall no longer stands` }
       }
       return last
     }
@@ -2469,7 +2478,7 @@ async function park(u, kind, reason, ctx = {}) {
   const flags = `--wave ${wave} --unit ${u.key} --kind ${kind}${ctx.stage ? ` --stage ${ctx.stage}` : ''}${ctx.slice ? ` --slice ${ctx.slice}` : ''}`
   await call(
     `PARK unit ${u.key} (slug '${u.slug}') of wave ${wave}, campaign '${brainstorm}'. Bookkeeping only: run these ` +
-    `steps in order, and change nothing else (${DRIVE_PROC}, "Park").\n` +
+    `steps in order, and change nothing else.\n` +
     `1. \`${cmd('unit', `${u.key} stopped --route ${q(route)}`)}\`\n` +
     `2. \`${cmd('ask', `${id} ${flags} ${q(text)}`)}\`\n` +
     `3. \`${lineCmd(u.journal, { run: u.runId, event: 'waiting', question: id, kind, agent: lbl(u, `park:${kind}`), stage: ctx.stage || '', slice: ctx.slice || '', driver: 'campaign-wave', campaign: brainstorm, campaignRun: RUN })}\`\n` +
@@ -2776,8 +2785,8 @@ const MERGE_IN_RESULT = {
 async function waitAgent(u, e, sha, opts = {}) {
   return await call(
     `WAIT AGENT for unit ${u.key} (slug '${u.slug}'), wave ${wave}: merge the ${opts.refresh ? 'review fix' : 'verified commit'} ${sha} of ${e.from} ` +
-    `(through '${e.through}') before the implement of '${waitSlice(u, e)}'. Bookkeeping only (${ORDER_PROC}, "Wait ` +
-    `agent"): run these commands in order, and change nothing else.\n` +
+    `(through '${e.through}') before the implement of '${waitSlice(u, e)}'. Bookkeeping only: run these ` +
+    `commands in order, and change nothing else.\n` +
     `1. \`${cmd('unit', `${u.key} waiting --on ${q(`${e.from}: ${e.through}`)}`)}\`\n` +
     `2. \`${cmd('merge-in', `${u.key} ${e.from} --at ${sha}${opts.refresh ? ' --refresh' : ''}`)}\` — it prints one JSON object.\n` +
     `3. Only when step 2 returned "ok": true, run \`${cmd('unit', `${u.key} running`)}\`.\n` +
@@ -2789,8 +2798,8 @@ async function waitAgent(u, e, sha, opts = {}) {
 async function mergeAgent(u, e, sha, files, rule) {
   return await heavy(() => call(
     `MERGE CONFLICT in unit ${u.key} (slug '${u.slug}'), wave ${wave}: merging the cleared commit ${sha} of ` +
-    `${e.from} conflicts in ${(files || []).join(', ') || 'some files'}. Read ${BOUNDARY_PROC}, section "Merge", and ` +
-    `follow it for this one merge, in the worktree ${u.root} (run git as \`git -C ${u.root} …\`): ` +
+    `${e.from} conflicts in ${(files || []).join(', ') || 'some files'}. Read ${BOUNDARY_PROC}: only its header (the lines ` +
+    `above its first level-2 heading) and its section "Merge". Follow that section for this one merge, in the worktree ${u.root} (run git as \`git -C ${u.root} …\`): ` +
     `\`git -C ${u.root} -c rerere.enabled=true merge --no-ff ${sha}\`, resolve each conflict so that both units' ` +
     `intent holds, run the tests of both units, and commit the merge. The context files are ${u.contextPath} and ` +
     `${(byKey.get(e.from) || {}).contextPath || ''}.` +
@@ -3167,8 +3176,8 @@ const VERIFIED_RESULT = { type: 'object', properties: { ok: { type: 'boolean' },
 async function markVerified(u, sliceArg) {
   if (STOP || !W.some(e => e.from === u.key && !e.settled && !e.passed)) return
   const r = await call(
-    `SLICE VERIFIED for unit ${u.key} (slug '${u.slug}'), slice '${sliceArg}', wave ${wave}. Bookkeeping only ` +
-    `(${ORDER_PROC}, "Wait agent"): run \`${cmd('slice-done', `${u.key} ${sliceArg} --verified`)}\` and change ` +
+    `SLICE VERIFIED for unit ${u.key} (slug '${u.slug}'), slice '${sliceArg}', wave ${wave}. Bookkeeping only: ` +
+    `run \`${cmd('slice-done', `${u.key} ${sliceArg} --verified`)}\` and change ` +
     `nothing else. Return its JSON object.` + heartbeat(u, `verified:${sliceArg}`, 'Drive', 'verified', sliceArg),
     { schema: VERIFIED_RESULT, label: lbl(u, `verified:${sliceArg}`), phase: 'Drive', ...HAIKU }
   )
@@ -3258,8 +3267,8 @@ async function openEarlyQuestions(list = U) {
       return { id: nextQid(u), slice, reason, ctx, text: PARK_TEXT.stage(u, String(reason).slice(0, 600), ctx) }
     })
     await call(
-      `ASK EARLY for unit ${u.key} (slug '${u.slug}') of wave ${wave}, campaign '${brainstorm}'. Bookkeeping only ` +
-      `(${DRIVE_PROC}, "Early plan questions"): run these commands in order, and change nothing else. The unit keeps ` +
+      `ASK EARLY for unit ${u.key} (slug '${u.slug}') of wave ${wave}, campaign '${brainstorm}'. Bookkeeping only: ` +
+      `run these commands in order, and change nothing else. The unit keeps ` +
       `running: do not run \`unit ${u.key} stopped\`.\n` +
       asks.map((x, i) => `${i + 1}. \`${cmd('ask', `${x.id} --wave ${wave} --unit ${u.key} --kind stage --stage plan --slice ${x.slice} ${q(x.text)}`)}\``).join('\n') +
       `\n${asks.length + 1}. \`${cmd('journal', `asked ${q(JSON.stringify({ run: RUN, wave, key: u.key, questions: asks.map(x => x.id), early: true }))}`)}\`\n` +
@@ -3467,8 +3476,8 @@ async function unitEnd(u) {
   const digest = d ? { total: d.total, byClass: d.byClass, intentBearing: d.intentBearing.length, unclassified: d.unclassified.length, guarantee: d.intentBearingGuarantee } : null
   u.digest = d
   const r = await call(
-    `UNIT END for unit ${u.key} (slug '${u.slug}'), wave ${wave}. Its review is clean. Bookkeeping only (${DRIVE_PROC}, ` +
-    `"Unit end"): run these steps in order, and change nothing else.\n` +
+    `UNIT END for unit ${u.key} (slug '${u.slug}'), wave ${wave}. Its review is clean. Bookkeeping only: ` +
+    `run these steps in order, and change nothing else.\n` +
     `1. \`${lineCmd(u.journal, { run: u.runId, event: 'run-end', agent: lbl(u, 'unit-end'), driver: 'campaign-wave', campaign: brainstorm, campaignRun: RUN })}\`\n` +
     `2. Pipe a one-paragraph run-end note (what the unit built, in product language) into ` +
     `\`node "${WATCH}" note "${u.root}" ${u.slug} --event run-end\`.\n` +
@@ -3753,7 +3762,8 @@ const obj = (required, properties) => ({ type: 'object', required, properties: {
 
 let WAVE_WT = null   // the wave worktree, from the boundary setup
 const common = (step) =>
-  `Read ${BOUNDARY_PROC} IN FULL and follow its section "${step}" exactly. Project root ${projectRoot} is ABSOLUTE: ` +
+  `Read ${BOUNDARY_PROC}: only its header (the lines above its first level-2 heading) and its section "${step}"; ` +
+  `read another section only where that section points to it. Follow that section exactly. Project root ${projectRoot} is ABSOLUTE: ` +
   `resolve every path under it. ${WAVE_WT ? `The wave branch ${WAVE_BRANCH} is checked out in the wave worktree ${WAVE_WT}: run ` +
   `every git and build command of the wave branch there, as \`git -C ${WAVE_WT} …\`, and never check the wave branch out ` +
   `anywhere else.` : `Run git as \`git -C ${projectRoot} …\`.`} The campaign folder is ${CAMP}. The campaign script is ` +
@@ -3790,7 +3800,7 @@ const SETUP_RESULT = obj(['status'], {
 // The boundary setup agent (section 5.2).
 async function boundarySetup() {
   return await call(
-    `BOUNDARY SETUP of wave ${wave} of campaign '${brainstorm}'. Bookkeeping only (${DRIVE_PROC}, "Boundary setup"): ` +
+    `BOUNDARY SETUP of wave ${wave} of campaign '${brainstorm}'. Bookkeeping only: ` +
     `run these commands in order, and change nothing else.\n` +
     `1. \`${cmd('wave', `${wave} set boundary`)}\`\n` +
     `2. \`${cmd('worktree', `wave-${wave} add`)}\` — it prints the wave worktree; return its "path" as worktree.\n` +
@@ -4067,7 +4077,8 @@ async function waveReview(merged, carriers = new Set()) {
   WAVE_CARRY = null
   for (let round = 0; round < 4; round++) {
     const w = await heavy(() => call(
-      `WRITE THE WAVE REVIEW of wave ${wave}, campaign '${brainstorm}'. Read ${BOUNDARY_PROC}, section "Wave review", and ` +
+      `WRITE THE WAVE REVIEW of wave ${wave}, campaign '${brainstorm}'. Read ${BOUNDARY_PROC}: only its header (the lines above ` +
+      `its first level-2 heading) and its section "Wave review". Read also ` +
       `${referenceRoot}/review.md for the triage, the fix loop and the ledger, with the autonomous review policy: ` +
       `${POLICY.review}\n\n${EOB}\n\nThe surviving findings: ${JSON.stringify(verified)}. Fix code on the wave branch ` +
       `only, in ${WAVE_WT || projectRoot}. Write ${out.path} and its sibling ${out.path.replace(/\.md$/, '.yaml')}, with the ` +

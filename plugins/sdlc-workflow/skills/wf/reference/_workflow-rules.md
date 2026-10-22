@@ -11,7 +11,7 @@
 - Ask multiple-choice PO questions as gate questions per [_gate-question.md](_gate-question.md) (structured decisions, confirmations). Use freeform chat for open-ended questions. Construct every question per [_question-craft.md](_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
-- Conditional inputs are mandatory when present. If a file in an `if-present` row of the stage's `## Requires` table exists on disk, read it and honor it in the output. Existence is optional; consumption is required; silent omission is a contract violation.
+- Read and honor every `if-present` input that exists, per [_requires.md](_requires.md) "Before you write".
 - Use parallel sub-agents for multi-domain research per [_subagents.md](_subagents.md). Do not spin up sub-agents for trivial work.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 

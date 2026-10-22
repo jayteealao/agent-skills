@@ -83,9 +83,9 @@ question: "Create a seed announcement template at `<announcement.template-path>`
 header: "Announcement template"
 options:
   - label: "Create seed template (Recommended)"
-    description: "Write a markdown template with {{version}}, {{project-name}}, {{release-url}}, {{changelog-summary}} placeholders. /wf announce will fill these at release time."
+    description: "Write a markdown template with {{version}}, {{project-name}}, {{release-url}}, {{changelog-summary}} placeholders. /wf ship <slug> announce will fill these at release time."
   - label: "Skip — I'll create it manually"
-    description: "The file must exist before /wf announce runs. You can create it at any time before the next ship run."
+    description: "The file must exist before /wf ship <slug> announce runs. You can create it at any time before the next ship run."
 multiSelect: false
 ```
 

@@ -160,7 +160,9 @@ test('measure-load: 23 dispatch units, core ⊆ instructed ⊆ referenced, targe
     assert.deepEqual(core.fileList, ['skills/wf/SKILL.md', `skills/wf/reference/${k}.md`], `${k}: core is SKILL.md + body`);
     for (const f of core.fileList) assert.ok(instructed.fileList.includes(f), `${k}: instructed ⊇ core (${f})`);
     for (const f of instructed.fileList) assert.ok(referenced.fileList.includes(f), `${k}: referenced ⊇ instructed (${f})`);
-    assert.ok(referenced.files < 60, `${k}: referenced ${referenced.files} files — the citation graph became fully connected`);
+    // A fully connected graph reaches about 245 files. WF-SUBPROCEDURE-AUDIT split large files by
+    // owner, which adds files to a key's reach without adding reads, so the limit is 80, not 60.
+    assert.ok(referenced.files < 80, `${k}: referenced ${referenced.files} files — the citation graph became fully connected`);
     // §16: a body that cannot meet 4,050 without deleting a capability carries a raised
     // per-file word budget with a reason; the target then follows that budget.
     const skillShare = load.wordBudgets['skills/wf/SKILL.md']?.words ?? 120 * 11;

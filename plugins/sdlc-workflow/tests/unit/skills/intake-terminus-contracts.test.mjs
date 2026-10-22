@@ -110,15 +110,30 @@ test('the shared change-mode index template carries the full required set', () =
 // renderers/workflow-index.mjs silently drops a list-form progress: — the
 // dashboard panel renders empty. Templates must author the object form, and
 // terminal indexes must carry title/updated-at or the row is untitled/never-stale.
-const TERMINAL_INDEX_AUTHORS = ['rca.md', 'discover.md', 'ideate.md', 'investigate.md', 'brainstorm.md'];
+// AQ3 (WF-SUBPROCEDURE-AUDIT-2026-10-22): the light index is ONE shared template
+// in _light-index.md; each analysis mode cites it and carries no copy of its own.
+const TERMINAL_INDEX_AUTHORS = ['rca.md', 'discover.md', 'ideate.md', 'investigate.md', 'brainstorm.md', 'simplify.md'];
 
 test('terminal workflow-index templates use object-form progress and carry title/updated-at', () => {
   for (const { name, root } of trees) {
     for (const file of TERMINAL_INDEX_AUTHORS) {
       const src = readMode(root, file);
+      assert.ok(src.includes('_light-index.md'), `${name}: ${file} does not cite the shared _light-index.md`);
+      assert.ok(
+        !yamlBlocks(src).some((b) => /^type: workflow-index$/m.test(b)),
+        `${name}: ${file} carries its own type:workflow-index template — _light-index.md is the single source`,
+      );
+    }
+    for (const file of ['_light-index.md', 'simplify/_artifact.md']) {
+      const src = readMode(root, file);
       const idx = yamlBlocks(src).filter((b) => /^type: workflow-index$/m.test(b));
+      if (file !== '_light-index.md') {
+        assert.equal(idx.length, 0, `${name}: ${file} carries its own type:workflow-index template`);
+        continue;
+      }
       assert.ok(idx.length >= 1, `${name}: ${file} has no fenced type:workflow-index template`);
       for (const block of idx) {
+        assert.ok(!/^selected-slice:/m.test(block), `${name}: ${file} names a selected-slice that never exists`);
         assert.ok(block.includes('title:'), `${name}: ${file} workflow-index template omits title:`);
         assert.ok(block.includes('updated-at:'), `${name}: ${file} workflow-index template omits updated-at:`);
         const pm = block.match(/^progress:\r?\n([ \t]*)(- )?/m);

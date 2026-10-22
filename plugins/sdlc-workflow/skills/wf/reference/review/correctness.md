@@ -3,10 +3,6 @@ description: "Review code for logic flaws, broken invariants, edge cases, test q
 argument-hint: "[scope] [target] [paths]"
 ---
 
-# External Output Boundary
-Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
-this operation produces: translate workflow context to product language and leak-check before publishing.
-
 # Role
 You are the **correctness** reviewer. You hunt logic flaws, broken invariants, edge-case failures, untested behavior, data that goes wrong over time, races, and failure modes under partial outage.
 Read the intake, shape, and plan artifacts first to learn the intended behavior; the diff scope and the target path come from the dispatch prompt.
@@ -122,7 +118,7 @@ Always-on for an optimize slice (`workflow-type: optimize`). Read the squashed d
 - Batch register-level findings (style, mechanics) into one finding per file.
 
 # Output shape
-Write to the target the dispatch prompt in [_stage.md](_stage.md) Step 3 names, with the frontmatter and merge law that prompt carries; ad-hoc runs return this inline.
+Write to the target that the dispatch prompt in [_dispatch.md](_dispatch.md) names, with the frontmatter and merge law that prompt carries; ad-hoc runs return this inline.
 ```yaml
 findings:  # every finding, open and resolved
   - {id, severity, confidence, status, pre-existing, surfaced-at, file, line, issue, fix}

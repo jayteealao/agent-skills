@@ -17,6 +17,7 @@ created-at: "<iso-8601>"        # first run's timestamp — PRESERVE across re-r
 updated-at: "<iso-8601>"        # this run's timestamp
 verdict: <ship|ship-with-caveats|dont-ship>     # from OPEN findings with pre-existing: false only
 commands-run: [correctness, security, ...]      # cumulative union of every dimension ever run
+modes: [select]                  # the modes of THIS run (review.md ## Requires); omit the key when none applies
 metric-commands-run: <N>
 metric-findings-total: <N>       # OPEN findings (status open|deferred|could-not-fix)
 metric-findings-raw: <N>         # raw findings collected this run, pre-dedup

@@ -5,7 +5,8 @@
  * with its line ranges, per agent. When an agent writes a stage artifact that
  * a `## Requires` table names in a `writes` row of a stage the agent runs
  * (`writerStagesOf`), the check compares those
- * reads with the table's `always` and `if-present` rows. A file counts as read
+ * reads with the table's `always` and `if-present` rows, and with each
+ * `mode:<name>` row whose mode applies to the write (`appliedModesOf`). A file counts as read
  * only when the ranges cover it, or cover each named `##` section.
  *
  * Everything here is pure: the file checks take an `Io` the caller binds.
@@ -423,20 +424,33 @@ export type RequiredInput = {
   /** The input as the table names it, placeholders filled: the name the agent sees. */
   input: string
   kind: 'artifact' | 'procedure'
+  /** A `mode:` row checks as `always` (a procedure) or `if-present` (an artifact). */
   when: 'always' | 'if-present'
+  /** The mode of a `mode:<name>` row. */
+  mode?: string
   sections: readonly string[]
   id: string
   /** True when the input carries `*`: every existing match is required. */
   isGlob: boolean
 }
 
-/** The rows the check runs for a matched write: `always` and `if-present` rows, placeholders filled. */
-export function requiredOf(match: WriteMatch, slug: string): RequiredInput[] {
+/**
+ * The rows the check runs for a matched write, placeholders filled: `always` and
+ * `if-present` rows, and each `mode:<name>` row whose mode is in `modes`
+ * (WF-SUBPROCEDURE-AUDIT-2026-10-22 W0).
+ */
+export function requiredOf(match: WriteMatch, slug: string, modes: ReadonlySet<string> = new Set()): RequiredInput[] {
   const required: RequiredInput[] = []
   for (const row of match.entry.rows) {
     if (row.kind === 'writes') continue
-    const when = row.when.trim().toLowerCase()
-    if (when !== 'always' && when !== 'if-present') continue
+    const raw = row.when.trim().toLowerCase()
+    let when: 'always' | 'if-present'
+    let mode: string | undefined
+    if (raw === 'always' || raw === 'if-present') when = raw
+    else if (raw.startsWith('mode:') && modes.has(raw.slice(5).trim())) {
+      mode = raw.slice(5).trim()
+      when = row.kind === 'procedure' ? 'always' : 'if-present'
+    } else continue
     let input = cleanInput(row.input)
     if (input.includes('<slice>')) {
       if (match.slice === null) continue
@@ -447,9 +461,104 @@ export function requiredOf(match: WriteMatch, slug: string): RequiredInput[] {
       input = input.split('<mode>').join(match.mode)
     }
     if (/<[a-z-]+>/u.test(input)) continue
-    required.push({ input, kind: row.kind, when, sections: row.sections, id: inputIdOf(row.kind, input, slug), isGlob: input.includes('*') })
+    required.push({ input, kind: row.kind, when, ...(mode === undefined ? {} : { mode }), sections: row.sections, id: inputIdOf(row.kind, input, slug), isGlob: input.includes('*') })
   }
   return required
+}
+
+// ---------------------------------------------------------------------------
+// Modes (WF-SUBPROCEDURE-AUDIT-2026-10-22 W0)
+
+/** The frontmatter block of a text, or an empty string. */
+function frontmatterOf(text: string): string {
+  const found = /^---\r?\n([\s\S]*?)\r?\n---/u.exec(text)
+  return found === null ? '' : (found[1] ?? '')
+}
+
+const unquote = (value: string): string => value.trim().replace(/^["']|["']$/gu, '').trim().toLowerCase()
+
+/** The `modes:` list in the frontmatter of a written artifact: the modes the writer says it ran under. */
+export function declaredModesOf(text: string): string[] {
+  const body = frontmatterOf(text)
+  const inline = /^modes:[ \t]*\[([^\]]*)\]/mu.exec(body)
+  if (inline !== null) return (inline[1] ?? '').split(',').map(unquote).filter(value => value !== '')
+  const block = /^modes:[ \t]*\r?\n((?:[ \t]+-[^\n]*(?:\r?\n|$))+)/mu.exec(body)
+  if (block === null) return []
+  return (block[1] ?? '').split(/\r?\n/u).map(line => unquote(line.replace(/^[ \t]+-[ \t]*/u, ''))).filter(value => value !== '')
+}
+
+/** The value of a top-level frontmatter key, or null. */
+function scalarOf(frontmatter: string, key: string): string | null {
+  const found = new RegExp(`^${key}:[ \\t]*(.*)$`, 'mu').exec(frontmatter)
+  if (found === null) return null
+  const value = unquote(found[1] ?? '')
+  return value === '' || value === 'null' || value === '~' ? null : value
+}
+
+/** True when a top-level frontmatter key holds a list with at least one entry that `isOpen` keeps. */
+function hasListEntry(frontmatter: string, key: string, isOpen: (entry: string) => boolean = () => true): boolean {
+  const lines = frontmatter.split(/\r?\n/u)
+  const at = lines.findIndex(line => new RegExp(`^${key}:`, 'u').test(line))
+  if (at < 0) return false
+  const rest = (lines[at] ?? '').slice(key.length + 1).trim()
+  if (rest.startsWith('[')) return rest.replace(/[\[\]\s]/gu, '') !== ''
+  const entries: string[] = []
+  for (const line of lines.slice(at + 1)) {
+    if (/^\S/u.test(line)) break
+    if (/^[ \t]*-/u.test(line)) entries.push(line)
+    else if (entries.length > 0) entries[entries.length - 1] += `\n${line}`
+  }
+  return entries.some(isOpen)
+}
+
+/** What the mode resolvers read: the workflow index, the slice file, the written artifact, and file presence. */
+export type ModeFacts = {
+  /** The text of `00-index.md`, or null. */
+  index: string | null
+  /** The text of the slice file (`03-slice-<slice>.md`), or null. */
+  slice: string | null
+  /** The written artifact: the text the write carries and, after the write, the file on disk. */
+  written: string
+  /** True when the named file of the workflow exists. */
+  exists: (file: string) => Promise<boolean>
+}
+
+/**
+ * The modes a disk fact proves. A resolver wins over a missing declaration, so a
+ * writer cannot skip a read by leaving a mode out of `modes:`. A mode with no
+ * resolver counts only when the writer declares it.
+ */
+export const MODE_RESOLVERS: Readonly<Record<string, (facts: ModeFacts) => Promise<boolean>>> = {
+  // An open runtime-evidence deferral (`cleared-by: null`, as the ship gate reads it) binds every slice.
+  deferral: async ({ index }) => index !== null && hasListEntry(frontmatterOf(index), 'runtime-evidence-deferrals', entry => !/cleared-by:[ \t]*(?!null\b|~|#|$)\S/mu.test(entry) && !/state:[ \t]*["']?cleared/mu.test(entry)),
+  // The slice, or the verify artifact, has an AC that a person sees.
+  'user-observable': async ({ slice, written }) => [slice ?? '', written].some(text => /observable:[ \t]*true|kind:[ \t]*["']?user-observable/u.test(text)),
+  design: async ({ exists }) => (await exists('02b-design.md')) || (await exists('02c-craft.md')),
+  augment: async ({ index, exists }) => (index !== null && hasListEntry(frontmatterOf(index), 'augmentations')) || (await exists('02c-craft.md')),
+  packet: async ({ index }) => index !== null && scalarOf(frontmatterOf(index), 'origin-packet') !== null,
+  'slug-wide': async ({ index }) => index !== null && scalarOf(frontmatterOf(index), 'review-scope') === 'slug-wide',
+  change: async ({ index }) => index !== null && ['fix', 'hotfix', 'refactor'].includes(scalarOf(frontmatterOf(index), 'workflow-type') ?? ''),
+}
+
+/** The modes that apply to a write: the declared ones and the ones a resolver proves. Never throws. */
+export async function appliedModesOf(facts: ModeFacts, wanted: readonly string[] = Object.keys(MODE_RESOLVERS)): Promise<Set<string>> {
+  const modes = new Set(declaredModesOf(facts.written))
+  for (const name of wanted) {
+    const resolve = MODE_RESOLVERS[name]
+    if (resolve === undefined || modes.has(name)) continue
+    if (await safe(() => resolve(facts), false)) modes.add(name)
+  }
+  return modes
+}
+
+/** The mode names that the `mode:` rows of a matched write use. */
+export function rowModesOf(match: WriteMatch): string[] {
+  const names = new Set<string>()
+  for (const row of match.entry.rows) {
+    const when = row.when.trim().toLowerCase()
+    if (when.startsWith('mode:')) names.add(when.slice(5).trim())
+  }
+  return [...names]
 }
 
 // ---------------------------------------------------------------------------

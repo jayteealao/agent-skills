@@ -5,8 +5,7 @@ argument-hint: <slug|pr#N|branch> [slice-slug]
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
 
-> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
-> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf handoff`, **stage 8 of 10**: 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → `8·handoff` → 9·ship → 10·retro.
@@ -15,7 +14,7 @@ You are running `/wf handoff`, **stage 8 of 10**: 1·intake → 2·shape → 3·
 |---|---|
 | Requires | See [## Requires](#requires). |
 | Produces | `08-handoff.md` per slug, covering all complete slices (or one slice if explicitly scoped). In batch mode: one per slug on the branch, plus a single shared PR and the branch-level readiness keys on the lead slug. |
-| Config | The optional `00-index.md` keys (`public-surface`, `docs-mirror`, `review-bots`, `ci-watch`, `review-settle`, `pre-push-checks`) are documented in [_handoff-config.md](_handoff-config.md). |
+| Config | The optional `00-index.md` keys (`public-surface`, `docs-mirror`, `review-bots`, `ci-watch`, `review-settle`, `pre-push-checks`) are documented in [_handoff-config.md](handoff/_handoff-config.md). |
 
 ## Requires
 
@@ -34,15 +33,16 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `04b-instrument.md` | artifact | if-present | |
 | `04c-experiment.md` | artifact | if-present | |
 | `05c-benchmark.md` | artifact | if-present | |
-| `_handoff-config.md` | procedure | always | |
+| `handoff/_handoff-config.md` | procedure | always | |
 | `_ship-plan-readiness.md` | procedure | always | |
-| `_pr-ci-handoff.md` | procedure | mode:pr | |
+| `handoff/_pr-ci-handoff.md` | procedure | mode:pr | |
 | `handoff/_pr-triage.md` | procedure | mode:pr | |
+| `_host-surfaces.md` | procedure | mode:pr | PR monitor |
 | `08-handoff.md` | writes | | |
 
 # Role
 You are a workflow orchestrator, not a problem solver. Apply [_workflow-rules.md](_workflow-rules.md).
-- Do not make code changes, fix issues, or modify the implementation yourself. When CI fails or a review thread needs a code change, dispatch a diagnosis or fix sub-agent (`## Fix-subagent contract` in [_pr-ci-handoff.md](_pr-ci-handoff.md)) and, for CI-red, get user approval first. Only the sub-agent's compact result returns to your context.
+- Do not make code changes, fix issues, or modify the implementation yourself. When CI fails or a review thread needs a code change, dispatch a diagnosis or fix sub-agent (`## Fix-subagent contract` in [_pr-ci-handoff.md](handoff/_pr-ci-handoff.md)) and, for CI-red, get user approval first. Only the sub-agent's compact result returns to your context.
 - You DO wait. CI reaches a terminal state and bot reviews get their settle window before you decide readiness. Snapshotting "pending" and stopping, or handing CI to Auto-fix, violates T5.0/T5.3.
 - Summarise the completed work into a reviewer-friendly handoff package, push the branch, and create a pull request. Do not ship, merge, or deploy.
 
@@ -94,7 +94,7 @@ Single-slug scope runs the numbered procedure as written. Branch scope splits it
 3. **`pr-readiness-verdict` is the logical AND across the roster.** Ship gates on the AND.
 
 Do this in order:
-1. **Read branch strategy** from `00-index.md`: `branch-strategy`, `branch`, `base-branch`, and the optional config keys in [_handoff-config.md](_handoff-config.md) (silent skip if absent).
+1. **Read branch strategy** from `00-index.md`: `branch-strategy`, `branch`, `base-branch`, and the optional config keys in [_handoff-config.md](handoff/_handoff-config.md) (silent skip if absent).
 2. **Track the handoff sequence.** One progress step per numbered step, with the labels used throughout this reference (T1 read artifacts · T2 summary · T3 Diátaxis docs · T3.5 commitlint · T3.6 public-surface drift · T3.7 doc-mirror regen · T3.8 local pre-push gate · T4 push · T5 PR · T5.0 CI watch · T5.1 comment triage · T5.2 rebase · T5.3 final re-watch · T6 write 08-handoff.md). A step that resolves to nothing to run is recorded as skipped with its reason, never marked done. T4 (push) never runs before T3.8 (the local pre-push gate) passes, and T5.1 (triage) waits on T5.0 (CI watch). The progress surface is a host concern ([_host-invocation.md](_host-invocation.md)).
 3. Read the Requires inputs (T1).
 4. Summarize the problem, solution, affected areas, verification evidence, risks, and follow-ups in reviewer-friendly language (T2).
@@ -108,7 +108,7 @@ Do this in order:
       - `pre-push-checks:` **present** → use its `checks:` unchanged. An empty `checks: []` (the recorded decline) → `pre-push-checks-status: not-configured`, continue.
       - `pre-push-checks:` **absent** → auto-detect, then propose once. Read the PR-gate workflow(s) under `.github/workflows/` and extract `run:` steps from jobs that are a required check per the ship plan's Block J or are named `format` / `lint` / `test` / `build`. Detection is conservative: skip any step that references `secrets.`, a service container, an emulator or device, or a matrix `runs-on` this host is not. Then ask ONE gate question per [_gate-question.md](_gate-question.md) presenting the derived list and the skipped steps with their reasons ("Run these <N> checks locally before pushing? They are this repo's own PR gates"), with the options *Run them and remember (Recommended)* (persist the list to `00-index.md` `pre-push-checks`), *Run once, don't persist*, and *Skip the gate* (records `pre-push-checks: { checks: [], declined-reason }` so this never re-asks). **Record what detection skipped and why**, in the question and in `pre-push-checks-skipped`. Detecting nothing runnable is legitimate: set `not-configured` and continue; do not invent commands.
    b. **Run each check** in list order, bounded by `timeout-minutes` (default 15) per command. Capture the exit status and the failing output tail. A check that exceeds its bound is `timed-out` and non-blocking.
-   c. **On a blocking failure**, route into the existing diagnose→ask→fix path (`## Fix-subagent contract` in [_pr-ci-handoff.md](_pr-ci-handoff.md)). Honor `on-fail`: `diagnose` (default) enters that path; `stop` records the failure, sets `readiness-verdict: awaiting-input`, and STOPs before the push. **Local fix rounds do NOT consume `ci-watch.max-fix-rounds`**; count them in `pre-push-fix-rounds`.
+   c. **On a blocking failure**, route into the existing diagnose→ask→fix path (`## Fix-subagent contract` in [_pr-ci-handoff.md](handoff/_pr-ci-handoff.md)). Honor `on-fail`: `diagnose` (default) enters that path; `stop` records the failure, sets `readiness-verdict: awaiting-input`, and STOPs before the push. **Local fix rounds do NOT consume `ci-watch.max-fix-rounds`**; count them in `pre-push-fix-rounds`.
    d. **Do not push on an unresolved blocking failure.** Non-blocking (`blocking: false`) failures are recorded in `## Reviewer Focus Areas`, and the push proceeds.
    e. **Workflow-file static validation**, whenever the packaged diff touches `.github/workflows/**`: parse each changed file as YAML (a syntax error is a blocking failure) and check that every `actions/setup-*` version string resolves against its manifest (`setup-java` → the Adoptium manifest; `setup-node` / `setup-python` → theirs). Record `workflow-validation: <ok | findings | skipped>`.
    f. Record `pre-push-checks-status: <pass | fixed | fail | timed-out | skipped | not-configured>` and `pre-push-fix-rounds: <N>`.
@@ -122,18 +122,18 @@ Do this in order:
    c. **PR template checkbox sweep.** If `.github/PULL_REQUEST_TEMPLATE.md` exists, tick the checkboxes the artifacts justify ("Tests pass" when `06-verify-*.md` is green; "Docs updated" when `docs-generated:` is non-empty) and no others. Record `pr-url` and `pr-number` in `00-index.md`.
    - If `branch-strategy` is `shared`: in single-slug scope, push but do not create a PR; drop T5, T5.1, and T5.2 (no force-push on shared branches); T5.0/T5.3 still run if a `pr-number` is recorded. In batch scope, the lead creates/refreshes the single shared PR (T5 runs) with the not-ready slugs disclosed in the body; T5.2 stays dropped; T5.0/T5.1/T5.3 run.
    - If `branch-strategy` is `none`: drop T4 through T5.3. The handoff document is the deliverable.
-7a. **T5.0 — Watch CI to green + settle reviews.** Skip when `branch-strategy` is not `dedicated`/`shared` or no `pr-number` is recorded. Otherwise read [_pr-ci-handoff.md](_pr-ci-handoff.md) in full now; it carries the `## CI watch procedure` and the `## Fix-subagent contract` that steps 7a–7d execute; the T5.1 triage loop is in [handoff/_pr-triage.md](handoff/_pr-triage.md). Read the wait config (`ci-watch:`, `review-settle:`; defaults per [_handoff-config.md](_handoff-config.md)). Then run the CI watch procedure against `pr-number`:
-   - **green** (all checks `SUCCESS`/`NEUTRAL`/`SKIPPED`) → record `ci-watch-conclusion: green`; settle reviews per `## Settle reviews` in [_ci-red-routing.md](_ci-red-routing.md) (bots only, bounded; record `bot-reviews-landed`, `bot-review-status`, `review-settle-elapsed-seconds`).
+7a. **T5.0 — Watch CI to green + settle reviews.** Skip when `branch-strategy` is not `dedicated`/`shared` or no `pr-number` is recorded. Otherwise read [_pr-ci-handoff.md](handoff/_pr-ci-handoff.md) in full now; it carries the `## CI watch procedure` and the `## Fix-subagent contract` that steps 7a–7d execute. Read the wait config (`ci-watch:`, `review-settle:`; defaults per [_handoff-config.md](handoff/_handoff-config.md)). Then run the CI watch procedure against `pr-number`:
+   - **green** (all checks `SUCCESS`/`NEUTRAL`/`SKIPPED`) → record `ci-watch-conclusion: green`; settle reviews per `## Settle reviews` in [_ci-red-routing.md](handoff/_ci-red-routing.md) (bots only, bounded; record `bot-reviews-landed`, `bot-review-status`, `review-settle-elapsed-seconds`).
    - **bound-exceeded** (checks still `pending` when the wait bound elapsed) → record `ci-watch-conclusion: timed-out`, set `readiness-verdict: awaiting-input`, list the still-pending checks in `live-checks-pending`, and STOP (write the artifact via steps 8–10). Re-run `/wf handoff <slug>` to resume.
-   - **red** (one or more checks terminal-failed) → apply [_ci-red-routing.md](_ci-red-routing.md): a diagnose-only sub-agent, routing by class and `converges`, one gate question, then fix / structural fix / re-run / stop. It records `ci-watch-fix-rounds` and `ci-fix-rounds-by-class:`; `ci-watch.max-fix-rounds` bounds product-bug rounds only.
-7b. **T5.1 — PR comment triage loop.** Run the loop in [handoff/_pr-triage.md](handoff/_pr-triage.md). Record `triage-iterations`, `triage-fixes-applied`, `triage-fixes-skipped`, `triage-deferred-thread-ids`, `has-deferred-comments`. Skip when `branch-strategy` is not `dedicated` or no `pr-number` was recorded.
+   - **red** (one or more checks terminal-failed) → apply [_ci-red-routing.md](handoff/_ci-red-routing.md): a diagnose-only sub-agent, routing by class and `converges`, one gate question, then fix / structural fix / re-run / stop. It records `ci-watch-fix-rounds` and `ci-fix-rounds-by-class:`; `ci-watch.max-fix-rounds` bounds product-bug rounds only.
+7b. **T5.1 — PR comment triage loop.** Run the loop in [handoff/_pr-triage.md](handoff/_pr-triage.md). Record `triage-iterations`, `triage-fixes-applied`, `triage-fixes-skipped`, `triage-deferred-thread-ids`, `has-deferred-comments`. Skip when step 7 drops T5.1 or no `pr-number` was recorded.
 7c. **T5.2 — Rebase onto base** (only when `branch-strategy: dedicated`). `git fetch origin <base-branch>`. If `git merge-base --is-ancestor origin/<base-branch> HEAD` exits 0 → `rebase-status: fast-forward`, record `rebase-onto-sha: <git rev-parse origin/<base-branch>>`, skip to 7d. Otherwise `git rebase origin/<base-branch>`:
    - **Conflicts** → `rebase-status: conflicts`. Run `git rebase --abort`. STOP. Print the conflicting files, recommend `/wf implement <slug> <slice>`, set `readiness-verdict: blocked`, and proceed to step 9. T5.3 stays pending.
    - **Clean** → `git push --force-with-lease origin <branch>`. If the lease fails (moved during T5.1 triage), re-fetch and retry once. If the second attempt also fails, set `rebase-status: lease-failure` and STOP; recommend re-running handoff. Otherwise `rebase-status: rebased-clean`; record `rebase-onto-sha`.
 7d. **T5.3 — Final readiness re-watch** (only when `pr-number` is recorded). Triage fixes (7b) and the rebase force-push (7c) retrigger CI; do not reuse the T5.0 result.
    a. **Re-watch CI** with the shared `## CI watch procedure`.
       - **timed-out** → set `readiness-verdict: awaiting-input`, record the still-pending checks in `live-checks-pending`, STOP (write the artifact via steps 8–10; re-running handoff resumes the watch).
-      - **red** → run [_ci-red-routing.md](_ci-red-routing.md) once; if unresolved (user declines or the bound is hit), set `readiness-verdict: blocked` and write the artifact.
+      - **red** → run [_ci-red-routing.md](handoff/_ci-red-routing.md) once; if unresolved (user declines or the bound is hit), set `readiness-verdict: blocked` and write the artifact.
       - **green** → continue.
    b. **Capture the review snapshot**: `gh pr view <pr-number> --json reviewDecision,statusCheckRollup,mergeable,mergeStateStatus`. Record `live-review-decision` (`APPROVED` | `CHANGES_REQUESTED` | `REVIEW_REQUIRED` | null), `live-checks-failing` and `live-checks-pending` (terminal-failed / still-pending `name`s from `.statusCheckRollup[]`), `live-merge-state` (`CLEAN` | `UNSTABLE` | `BLOCKED` | `DIRTY` | `BEHIND` | …) and `live-mergeable` (`MERGEABLE` | `CONFLICTING` | `UNKNOWN`). These are GitHub's own merge gate; the verdict consumes them. Then re-run the T5.1 unresolved-threads query once, and reply to and resolve each still-open thread of `triage-fixed-threads` (step 7 of [handoff/_pr-triage.md](handoff/_pr-triage.md)); genuinely open threads keep the verdict out of `ready`. Never resolve a thread to launder the merge state.
    c. **Compute the per-slug `readiness-verdict`** (a property of the PR; it lives on the lead's artifact and is copied to followers):

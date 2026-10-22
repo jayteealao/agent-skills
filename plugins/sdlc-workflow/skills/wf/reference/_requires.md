@@ -1,6 +1,6 @@
 # Requires tables and the read check (single source)
 
-Every stage reference that writes a stage artifact has one `## Requires` section, directly after its header detail table. The table names every input the writer must read and every procedure file the writer must load. This file defines the table and the check that compares the table with your reads. A stage reference cites this file and does not restate it.
+Every stage reference that writes a stage artifact has one `## Requires` section. The table names every input the writer must read and every procedure file the writer must load. This file defines the table for the reader. `_requires-authoring.md` holds the authoring rules and the mod internals; a stage run does not load it.
 
 ## The table
 
@@ -10,14 +10,33 @@ Every stage reference that writes a stage artifact has one `## Requires` section
 | `implement/_artifact.md` | procedure | always | |
 | `05-implement-<slice>.md` | writes | | |
 
-- **Input.** One path in backticks. For `artifact` and `writes`, the path is relative to `.ai/workflows/<slug>/`. For `procedure`, the path is relative to `skills/wf/reference/`. The only placeholders are `<slice>` (the slice of the artifact you write) and `<mode>` (the intake mode). A glob `*` is permitted. A project-level file starts with `/.ai/`. A free-text input that is not a file has no backticks, and the check ignores it.
+- **Input.** One path in backticks. For `artifact` and `writes`, the path is relative to `.ai/workflows/<slug>/`. For `procedure`, the path is relative to `skills/wf/reference/`. `<slice>` is the slice of the artifact you write, and `<mode>` is the intake mode. A glob `*` matches every file it names. A project-level file starts with `/.ai/`. A free-text input that is not a file has no backticks, and the check ignores it.
 - **Kind.** `artifact`, `procedure`, or `writes`. A `writes` row names the stage artifact that the check runs on. Its When and Sections cells are empty.
-- **When.** `always`, `if-present`, `on-resume`, or `mode:<name>`. The check compares only `always` and `if-present` rows. The other values are a checklist for you only.
+- **When.** `always`, `if-present`, `on-resume`, or `mode:<name>`. The check compares `always` and `if-present` rows, and each `mode:<name>` row whose mode applies (see Modes). An `on-resume` row is a checklist for you only.
 - **Sections.** Empty means the whole file. Otherwise the cell is a `; `-separated list of exact `##` heading texts, without the `## `.
+
+## Modes
+
+A `mode:<name>` row applies when its mode applies to this run. A mode applies when one of these is true:
+
+- The frontmatter of the stage artifact lists the mode in `modes:`, for example `modes: [deferral, triage]`. List every mode you ran under.
+- The mod finds the mode on disk. A disk fact wins over a missing `modes:` entry.
+
+| Mode | Disk fact |
+|---|---|
+| `deferral` | `00-index.md` has a `runtime-evidence-deferrals` entry with `cleared-by: null`. |
+| `user-observable` | The slice file or the stage artifact marks an AC `observable: true` or `kind: user-observable`. |
+| `design` | `02b-design.md` or `02c-craft.md` exists. |
+| `augment` | `00-index.md` has an `augmentations` entry, or `02c-craft.md` exists. |
+| `packet` | `00-index.md` has an `origin-packet` value. |
+| `slug-wide` | `00-index.md` has `review-scope: slug-wide`. |
+| `change` | `00-index.md` has `workflow-type` `fix`, `hotfix`, or `refactor`. |
+
+Any other mode, for example `triage` or a command argument such as `audit`, applies only when `modes:` lists it. A `procedure` mode row that applies is mandatory. An `artifact` mode row that applies is mandatory to read when the file exists.
 
 ## Before you write
 
-The table is a checklist. Before you write the stage artifact, read every row whose When value applies to this run. An `if-present` input is optional to exist and mandatory to read when it exists.
+The table is a checklist. Before you write the stage artifact, read every row whose When value applies to this run. An `if-present` input is optional to exist and mandatory to read when it exists. Honor what it says in the stage artifact; a silent omission is a contract violation. This file is the one owner of that rule.
 
 1. Read each whole-file input from its first line to its last line.
 2. For an input with named sections, read each named section in full.
@@ -36,21 +55,15 @@ Prompt-fed inputs: 02-shape.md, 04-plan-<slice>.md
 
 Those inputs then count as read for the writer of that output path. [_subagents.md](_subagents.md) states when a dispatcher adds the line.
 
-## The check where the mod runs
+## When the mod reports missing reads
 
-The mod is Claude Code-only. It records each read of a workflow file or a `skills/wf/reference/` file, with its line ranges, for each agent. When the named stage writer writes a file that matches a `writes` row, the mod compares those reads with the table. The check does not run for sibling `.yaml` files, fragments, `history/`, `00-index.md`, `03-slice.md` write-backs, `index-history.jsonl`, or the evidence folders.
+Where the mod runs (Claude Code-only), it compares your reads with the table when you write the stage artifact. The mod setting `readCheck` is `warn` by default.
 
-The mod setting `readCheck` selects the mode:
+1. When a tool result names missing or partial reads, read each named input.
+2. Write the stage artifact again in the same stage run.
+3. When the mod denies the write (`block`), read the named inputs and write again. Add `read-waiver: "<reason>"` to the frontmatter only when an input cannot be read.
 
-| Mode | Result |
-|---|---|
-| `warn` (default) | The write lands. The tool result carries the missing and partial reads as context. |
-| `block` (later) | The mod denies the write unless its frontmatter carries `read-waiver: "<reason>"`. |
-| `off` | No check. |
-
-When a tool result names missing reads, read each named input. Then write the stage artifact again in the same stage run.
-
-Each check appends one row to `.ai/workflows/<slug>/.read-ledger.jsonl`: `{"at","agentId","stage","artifact","missing":[...],"partial":[...],"waiver"}`. The mod owns this file. No agent writes it, and no check row goes to `.driver-journal.jsonl`. The read record resets on a compaction between stages. It survives a compaction in the middle of a stage.
+The mod records each check in `.read-ledger.jsonl`. Do not write that file.
 
 ## A host without the mod
 

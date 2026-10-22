@@ -1,6 +1,6 @@
 # Campaign boundary: the agents between the drives
 
-The wave driver (`workflows/campaign-wave.js`) runs these steps as agents, after every unit of the wave finished or moved out. Each agent reads this file and follows the one section that its prompt names. The paths in the prompt are absolute. Run git as `git -C <projectRoot>`, or as `git -C <wave worktree>` when the prompt names the wave worktree. The agents of the drive itself follow [_drive.md](_drive.md).
+The wave driver (`workflows/campaign-wave.js`) runs these steps as agents, after every unit of the wave finished or moved out. Each agent reads this header and the one section that its prompt names, and another section only where that section points to it. The paths in the prompt are absolute. Run git as `git -C <projectRoot>`, or as `git -C <wave worktree>` when the prompt names the wave worktree. The other agents of the wave driver follow their prompts.
 
 - The campaign folder is `.ai/workflows/<brainstorm-slug>/work/campaign/`. An agent writes only the files that its section names.
 - An agent never edits `ledger.json`, the board, a packet, or a slug's artifacts. The campaign session records the outcome with `campaign.mjs wave <n> record`.
@@ -17,7 +17,7 @@ The wave driver (`workflows/campaign-wave.js`) runs these steps as agents, after
 
 ## Merge
 
-1. Check out the wave branch in the wave worktree, `.scratch/campaign/<run-id>/wt/wave-<n>`. The boundary setup agent adds it with `campaign.mjs worktree wave-<n> add` before the merge ([_drive.md](_drive.md), "Boundary setup"); add it with `git -C <projectRoot> worktree add <path> <wave branch>` only when it does not exist. Never remove a worktree: the campaign session does that, through its guarded `remove`. The main checkout stays on the trunk, where the rolling prepare writes. When a tracked file has uncommitted changes, return `status: failed`. Untracked files do not block.
+1. Use the wave worktree that the prompt names: the wave branch is checked out there. The boundary setup agent added it with `campaign.mjs worktree wave-<n> add` before the merge. When it does not exist, run that command again: it adds the worktree, or reuses it, and prints its `path`. Do not run `git worktree add` or `git worktree remove` yourself: the campaign session removes the worktree through its guarded `remove`. The main checkout stays on the trunk, where the rolling prepare writes. When a tracked file has uncommitted changes, return `status: failed`. Untracked files do not block.
 2. Merge each slug branch in the order that the prompt gives, one at a time: `git -C <checkout> -c rerere.enabled=true merge --no-ff <slug branch> -m "<the slug's change in product language>"`. The boundary setup agent computes the order with `campaign.mjs merge-order <n>`: a unit that another unit merged in (`merge-in`) merges before that unit.
    - The rerere cache is in the common git folder, which every worktree shares. A conflict that `merge-in` resolved earlier replays here, so do not resolve it a second time. Check the replayed files, then finish the merge.
    - The prompt can name carried units. A carried unit is inside its carrier's branch at its own tip. Do not merge a carried unit. Report it as merged, with the carrier's merge commit sha.
@@ -31,7 +31,7 @@ The wave driver (`workflows/campaign-wave.js`) runs these steps as agents, after
 | `design/boards.json`, `design/boards/`, `design/r*/`, `design/source/`, `design/sketches/` of any workflow | Abort this slug's merge. A drive never writes the boards (`design/_boards.md`). |
 | `design/captures/` of any workflow | A change is allowed: a drive writes its verify captures there. On a conflict, keep the slug branch's version. |
 | Code | Resolve the conflict only when both sides keep their tests green and no `provides` line changes. Run the tests of both slugs after the resolution. Otherwise abort this slug's merge. |
-| A file of a merge note | The prompt lists the merge notes as EXPECTED CONFLICTS. Apply the rules of [_order.md](_order.md), "Merge notes": regenerate a generated file once, renumber a version, convert a row to the newer format. A conflict that needs a product decision: abort this slug's merge. |
+| A file of a merge note | The prompt lists the merge notes as EXPECTED CONFLICTS. Regenerate a generated file once, after both sides merged, and do not merge its text. Renumber a version or a ledger file to the next free number. Convert a row or a record to the newer format of the other side. A conflict that needs a product decision: abort this slug's merge. |
 
 4. When the prompt names the CAMPAIGN CONVENTIONS, the slugs regenerated no generated file. After the last merge, regenerate each generated file whose input a merged slice changed, once, with the project's own generator. Commit each regenerated file by path.
 5. Append one `merge` event per slug, as the prompt says, with `result` `merged` or `stopped`.
@@ -94,12 +94,12 @@ Each unit's own review ran inside its walk and wrote the unit's review record. T
    - Fix code on the wave branch only, in the wave worktree.
    - Write `review/wave-<n>.md` and `review/wave-<n>.yaml`, with the units of each finding.
    - Do not write a unit's review record.
-   - When the prompt gives an answer to a wave question, apply it ([_drive.md](_drive.md), "Resume actions", wave-review).
+   - When the prompt gives an answer to a wave question, apply it. Return each unit that the answer names for a revert in `revert`. Record a finding that the answer accepts as it is as the person's override decision. As your last command, run `campaign.mjs question <id> consumed`.
    - Return `verdict`, `blockerCount`, `open` (each with `id`, `severity`, `units`, and `issue`), `fixed`, `committed`, `revert`, and `path`.
 7. **Verify again.** When the writer committed a fix, the wave verify runs again, with up to 2 fix rounds. When the verify stays red, the wave asks a question `w<n>-wave-<k>`, and the writer runs again with the answer.
 8. **`dont-ship`.** When the verdict is `dont-ship`, or the writer returned units in `revert`, the driver applies this rule:
    - When every open finding names the same one unit, and no other unit merged that unit in or carries it, the driver reverts that unit's merge. The revert uses the "Revert search" step, which appends a `wave-revert` event. That unit becomes `needs-fix`, and the other units stay merged.
-   - Otherwise, the wave asks a question `w<n>-wave-<k>` ([_drive.md](_drive.md), "Park"). The run waits for the answer, and the writer then runs again with the answer.
+   - Otherwise, the wave asks a question `w<n>-wave-<k>`. The run waits for the answer, and the writer then runs again with the answer.
 
 ## As-built note
 

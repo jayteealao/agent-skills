@@ -67,13 +67,13 @@
   },
   {
     "from": "skills/wf/reference/verify.md",
-    "to": "skills/wf/reference/verify/_sub-agents.md",
+    "to": "skills/wf/reference/verify/_runtime-evidence.md",
     "category": "dispatches",
     "entry": "heading: functional sub-agent 3 interactive & runtime-truth verification"
   },
   {
     "from": "skills/wf/reference/verify.md",
-    "to": "skills/wf/reference/verify/_sub-agents.md",
+    "to": "skills/wf/reference/verify/_augmentation.md",
     "category": "dispatches",
     "entry": "heading: functional sub-agent 4 augmentation re-verification (only if 02c-craft.md or 00-index.md augmentations: list is non-empty)"
   },
@@ -719,5 +719,155 @@
     "to": "skills/wf/reference/review/_triage.md",
     "category": "stops",
     "entry": "then stop do not continue to the full"
+  },
+  {
+    "from": "skills/wf/reference/review.md",
+    "to": "skills/wf/reference/review/_ad-hoc.md",
+    "category": "gates",
+    "entry": "sweep execution (parallel sub-agent dispatch) 1. resolve the"
+  },
+  {
+    "from": "skills/wf/reference/review.md",
+    "to": "skills/wf/reference/review/_ad-hoc.md",
+    "category": "dispatches",
+    "entry": "aggregate keys (reached via /wf review sweep <aggregate"
+  },
+  {
+    "from": "skills/wf/reference/review.md",
+    "to": "skills/wf/reference/review/_ad-hoc.md",
+    "category": "dispatches",
+    "entry": "sweep execution (parallel sub-agent dispatch)"
+  },
+  {
+    "from": "skills/wf/reference/intake/_intake-context.md",
+    "to": "skills/wf/reference/intake/_change-mode-tail.md",
+    "category": "artifacts",
+    "entry": "01-fix.md"
+  },
+  {
+    "from": "skills/wf/reference/intake/_intake-context.md",
+    "to": "skills/wf/reference/intake/_change-mode-tail.md",
+    "category": "artifacts",
+    "entry": "01-hotfix.md"
+  },
+  {
+    "from": "skills/wf/reference/intake/_intake-context.md",
+    "to": "skills/wf/reference/intake/_change-mode-tail.md",
+    "category": "artifacts",
+    "entry": "01-refactor.md"
+  },
+  {
+    "from": "skills/wf/reference/intake/_intake-context.md",
+    "to": "skills/wf/reference/intake/_change-mode-tail.md",
+    "category": "artifacts",
+    "entry": "01-update-deps.md"
+  },
+  {
+    "from": "skills/wf/reference/intake/_intake-context.md",
+    "to": "skills/wf/reference/intake/_change-mode-tail.md",
+    "category": "artifacts",
+    "entry": "02-shape.md"
+  },
+  {
+    "from": "skills/wf/reference/intake/_intake-context.md",
+    "to": "skills/wf/reference/intake/_change-mode-tail.md",
+    "category": "artifacts",
+    "entry": "03-slice.md"
+  },
+  {
+    "from": "skills/wf/reference/intake/_intake-context.md",
+    "to": "skills/wf/reference/intake/_change-mode-tail.md",
+    "category": "artifacts",
+    "entry": "04-plan.md"
+  },
+  {
+    "from": "skills/wf/reference/intake/_intake-context.md",
+    "to": "skills/wf/reference/intake/_change-mode-tail.md",
+    "category": "gates",
+    "entry": "the gate (d4) stop-and-prompt before 05-implement . after"
+  },
+  {
+    "from": "skills/wf/reference/intake/_intake-provenance.md",
+    "to": "skills/wf/reference/intake/_intake-provenance-consume.md",
+    "category": "artifacts",
+    "entry": "01-discover.md"
+  },
+  {
+    "from": "skills/wf/reference/intake/_intake-provenance.md",
+    "to": "skills/wf/reference/intake/_intake-provenance-consume.md",
+    "category": "artifacts",
+    "entry": "01-ideate.md"
+  },
+  {
+    "from": "skills/wf/reference/intake/_intake-provenance.md",
+    "to": "skills/wf/reference/intake/_intake-provenance-consume.md",
+    "category": "artifacts",
+    "entry": "01-investigate.md"
+  },
+  {
+    "from": "skills/wf/reference/intake/_intake-provenance.md",
+    "to": "skills/wf/reference/intake/_intake-provenance-consume.md",
+    "category": "artifacts",
+    "entry": "01-rca.md"
+  },
+  {
+    "from": "skills/wf/reference/intake/_intake-provenance.md",
+    "to": "skills/wf/reference/intake/_intake-provenance-consume.md",
+    "category": "artifacts",
+    "entry": "02-shape.md"
+  },
+  {
+    "from": "skills/wf/reference/intake/_intake-provenance.md",
+    "to": "skills/wf/reference/intake/_intake-provenance-consume.md",
+    "category": "artifacts",
+    "entry": "05-implement.md"
+  },
+  {
+    "from": "skills/wf/reference/_pr-ci-handoff.md",
+    "to": "skills/wf/reference/handoff/_pr-ci-handoff.md",
+    "category": "dispatches",
+    "entry": "dispatch one sub-agent per fix at medium effort"
+  },
+  {
+    "from": "skills/wf/reference/design/_design-context.md",
+    "to": "skills/wf/reference/design/_preflight.md",
+    "category": "artifacts",
+    "entry": "00-index.md"
+  },
+  {
+    "from": "skills/wf/reference/design/_design-context.md",
+    "to": "skills/wf/reference/design/_preflight.md",
+    "category": "artifacts",
+    "entry": "02-shape.md"
+  },
+  {
+    "from": "skills/wf/reference/design/_design-context.md",
+    "to": "skills/wf/reference/design/_preflight.md",
+    "category": "artifacts",
+    "entry": "02b-design.md"
+  },
+  {
+    "from": "skills/wf/reference/design/_design-context.md",
+    "to": "skills/wf/reference/design/_preflight.md",
+    "category": "stops",
+    "entry": "otherwise stop: \"design context is missing."
+  },
+  {
+    "from": "skills/wf/reference/handoff.md",
+    "to": "skills/wf/reference/handoff/_ci-red-routing.md",
+    "category": "gates",
+    "entry": "3. surface the diagnosis to the user as"
+  },
+  {
+    "from": "skills/wf/reference/handoff.md",
+    "to": "skills/wf/reference/handoff/_ci-red-routing.md",
+    "category": "stops",
+    "entry": "- { label: \"stop block handoff\", description: \"record"
+  },
+  {
+    "from": "skills/wf/reference/handoff.md",
+    "to": "skills/wf/reference/handoff/_handoff-config.md",
+    "category": "stops",
+    "entry": "on-fail: diagnose diagnose (route into the fix path)"
   }
 ]

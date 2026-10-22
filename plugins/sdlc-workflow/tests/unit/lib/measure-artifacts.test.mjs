@@ -17,6 +17,7 @@ import {
   parseTranscriptLine,
   quantile,
   readsOf,
+  stageWantsOf,
   writesOf,
   yoloStageOf,
 } from '../../../scripts/measure-artifacts.mjs';
@@ -289,5 +290,19 @@ describe('measure over synthetic data', () => {
     assert.equal(out.ledger.stages.review.completeShare, 100);
     assert.equal(out.ledger.stages.review.waived, 1);
     assert.equal(out.headline['ledger.verify.complete%'], 50);
+  });
+});
+
+describe('stageWantsOf (WF-SUBPROCEDURE-AUDIT W0)', () => {
+  test('counts the always procedure rows, less the template; a mode row is not counted', () => {
+    const entries = [{ reference: 'verify.md', stage: 'verify', rows: [
+      { input: '00-index.md', kind: 'artifact', when: 'always', sections: [] },
+      { input: 'verify/_artifact.md', kind: 'procedure', when: 'always', sections: [] },
+      { input: 'verify/_sub-agents.md', kind: 'procedure', when: 'always', sections: [] },
+      { input: 'verify/_deferrals.md', kind: 'procedure', when: 'mode:deferral', sections: [] },
+    ] }];
+    const want = stageWantsOf(entries, 'verify', { adjacent: '05-implement', template: 'verify/_artifact.md' });
+    assert.deepEqual(want.procedures, ['verify/_sub-agents.md']);
+    assert.deepEqual(stageWantsOf([], 'plan', { adjacent: '03-slice', template: null }).procedures, []);
   });
 });

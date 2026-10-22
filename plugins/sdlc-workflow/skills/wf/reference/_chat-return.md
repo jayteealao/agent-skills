@@ -35,8 +35,4 @@ The narrative is the only explanation the person gets. A stage writes no explain
 
 ## Claims about work you did not watch
 
-A chat return often has to say something about work happening *elsewhere* — a background driver, another session, a spawned task. Two rules apply.
-
-- **Liveness is judged by recency, never by existence.** Before saying a driver or background run is "still running", apply the staleness rule single-sourced in [_control-file-ownership.md](_control-file-ownership.md): compare when its heartbeat journal was last written against the run's own observed cadence.
-
-- **Cross-session activity claims require repo evidence.** A system-reminder saying a spawned task is "running independently" is a statement about a **chip**, not about work occurring. Before asserting that another session is doing, or has done, something — and *especially* before predicting a conflict with it — check the repo: the branch, recent commits, the target files. If the repo shows nothing, say *"a task chip exists; I can't see whether it ran."* Confident narration about invisible work is worse than silence: it is unfalsifiable until the user does your checking for you.
+The rules for a claim about work happening elsewhere (a background driver, another session, a spawned task) are in `_liveness.md`. Meet them before you make the claim.

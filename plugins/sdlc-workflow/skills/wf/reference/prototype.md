@@ -18,6 +18,7 @@ Read every row before the first round. [_requires.md](_requires.md) defines the 
 | `prototype-ledger.json` | artifact | on-resume | |
 | `01-prototype.md` | artifact | on-resume | |
 | `steer.md` | artifact | if-present | |
+| `_host-surfaces.md` | procedure | always | Published page |
 | `prototype-ledger.json` | writes | | |
 | `01-prototype.md` | writes | | |
 
@@ -105,7 +106,7 @@ A decide round accepts a component only from the person's words.
 
 1. Run `report`. The script builds `report.html` from the ledger and the proof media. The page has the accepted pipeline, the latest round, every proof newest first, and the rejected and unresolved paths.
 2. The page must have `ok: true`. The script refuses a page over 1 MB, a page with a script, and a page that loads an external resource. When the page is too large, make the images smaller. Put video and large media on their own page, or in the artifact's asset store.
-3. Publish the page per the published-page row of [_host-invocation.md](_host-invocation.md). Republish to the link in `report.url`, so the link that the person shares stays the same. Record a new link in `report.url`.
+3. Publish the page per the published-page row of [_host-surfaces.md](_host-surfaces.md). Republish to the link in `report.url`, so the link that the person shares stays the same. Record a new link in `report.url`.
 4. When the person asks for a separate page, write it as a separate page and link it from the rolling report.
 
 ## Step 6 — Return

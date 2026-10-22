@@ -6,7 +6,7 @@ argument-hint: <task description>
 # External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Apply the contract in [_steering.md](../_steering.md) to `steer.md`: honor the user's standing instructions, never
+> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](../_steering.md). Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf intake`, **stage 1 of 10** in the SDLC lifecycle.
@@ -33,6 +33,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `steer.md` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_intake-provenance.md` | procedure | always | |
+| `intake/_intake-provenance-consume.md` | procedure | mode:from | |
 | `intake/default/_stack-fingerprint.md` | procedure | always | |
 | `intake/default/_questions.md` | procedure | always | |
 | `intake/default/_artifact.md` | procedure | always | |
@@ -134,15 +135,7 @@ Do this in order:
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into the `01-intake.md` `recommended-routes`.
 8. Update `00-index.md` with the recommended default option.
 9. Write `.ai/workflows/<slug>/01-intake.md` per the template in `intake/default/_artifact.md`.
-10. **Register this workflow in `.ai/workflows/INDEX.md`** (additive bootstrap). After `00-index.md` is finalized, ensure the registry contains a row for this slug. Re-read the just-written `00-index.md` frontmatter so the row reflects the *final* values (branch/status/workflow-type can change between Step 0 and now based on Batch A answers).
-    - **If `.ai/workflows/INDEX.md` does NOT exist**, create it with the header comment (exactly from the [`/wf status` reconcile spec](../status.md)) followed by exactly one row for this workflow. Use the canonical column order: `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`. Header line:
-      ```
-      # .ai/workflows/INDEX.md — global workflow registry. Reconciled by /wf status (bootstrap+refresh) and additively touched by slug-mode compressed-slice writes from /wf intake/probe/simplify (updated-at only) and by /wf intake (append self if absent). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.
-      ```
-      Surface in the chat return: *"Bootstrapped `.ai/workflows/INDEX.md` with this workflow's row. Positional slug detection (compressed-slice attach via `/wf intake`/`/wf probe`/`/wf intake simplify`) is now enabled."*
-    - **If `.ai/workflows/INDEX.md` exists AND the slug is already present**, do nothing. Reaching Step 10 with a matching row means this is a resume on a row written by an earlier intake run; leave the existing row in place so sync owns updates.
-    - **If `.ai/workflows/INDEX.md` exists AND the slug is missing**, append a single new row for this workflow, then **re-sort the file alphabetically by slug** (preserving the header line at the top). Surface in the chat return: *"Added `<slug>` to `.ai/workflows/INDEX.md`."*
-    - **Mutate no other row.** Status/branch/updated-at drift on other workflows is sync's responsibility, not intake's. Intake's contract here is strictly *append self if absent*.
+10. **Register this workflow in `.ai/workflows/INDEX.md`** per [_intake-context.md](_intake-context.md) → Register the workflow in INDEX.md.
 
 # Adaptive routing — evaluate what's actually next
 After completing this stage, do not blindly recommend `/wf shape`. Evaluate the intake and present the user with ALL viable options:

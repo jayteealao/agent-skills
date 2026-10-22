@@ -7,7 +7,7 @@
 //   keys              rows of the four key tables in skills/wf/SKILL.md
 //   intakeModes       the mode keyword set named in skills/wf/reference/intake.md
 //   reviewRubrics     skills/wf/reference/review/<rubric>.md (no underscore files)
-//   aggregates        rows of the "| Aggregate | Rubrics |" table in review.md
+//   aggregates        rows of the "| Aggregate | Rubrics |" table in review/_ad-hoc.md
 //   artifactStems     distinct artifact names in the capability inventory's
 //                     `artifacts` union (the W0 extractor, run on the tree)
 //   frontmatterTypes  distinct `type` values the schema's oneOf branches accept
@@ -67,9 +67,9 @@ export function countReviewRubrics(root = PLUGIN_ROOT) {
     .sort();
 }
 
-/** Aggregate keys of the review.md aggregate table. */
+/** Aggregate keys of the review/_ad-hoc.md aggregate table. */
 export function countAggregates(root = PLUGIN_ROOT) {
-  const rows = tableRows(read(root, 'skills', 'wf', 'reference', 'review.md'), 'Aggregate');
+  const rows = tableRows(read(root, 'skills', 'wf', 'reference', 'review', '_ad-hoc.md'), 'Aggregate');
   return rows.map((r) => /^\| `([a-z-]+)`/.exec(r)?.[1]).filter(Boolean);
 }
 

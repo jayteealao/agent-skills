@@ -111,15 +111,17 @@ Every STOP path above throws away work the run already did correctly. This gate 
 Before returning a STOP verdict, write into the slug's `00-index.md` (or, for `ship`, the run's own scratch state):
 
 ```yaml
-resume-orientation:                     # cheap re-entry state; safe to ignore, safe to delete
+resume-orientation:
   at: "<iso-8601>"
   stage: <handoff | ship>
-  roster: [<slug>, ...]                 # the resolved roster (batch) or the single slug
-  prereq-results:                       # per slug: what the prerequisite pass already decided
+  roster: [<slug>, ...]
+  prereq-results:
     <slug>: { ready: <true|false>, reason: "<why not, if not>" }
   commit-range: "<merge-base>..<head-sha>"
   blocked-on: ship-plan-<missing|drift>
   blocked-signals: [<signal>, ...]
 ```
+
+Do not write YAML comments into `00-index.md`. The block is cheap re-entry state: a run can ignore it or delete it. `roster` is the resolved roster (batch) or the single slug. `prereq-results` records, for each slug, what the prerequisite pass decided.
 
 A resumed run **may trust these only while the inputs have not moved**: if `HEAD` still matches the recorded range's head and no roster slug's `00-index.md` has a newer `updated-at`, skip re-deriving the roster and prereqs and go straight to the gate. Anything moved → discard the block and re-derive. Stale re-entry state that is silently trusted is worse than none; the head-SHA check is what makes it safe to keep.

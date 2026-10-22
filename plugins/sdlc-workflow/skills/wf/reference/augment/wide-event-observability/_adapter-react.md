@@ -4,7 +4,7 @@ Load this file from `wide-event-observability.md` only when the unit's stack is 
 
 ## Reference Adapter: React/Frontend (the client tier — opt-in)
 
-The client/edge tier is an **opt-in extension** (Block H of `.ai/observability.md`), not a default. When in scope,
+The client/edge tier is an **opt-in extension** (the optional `client-edge` block of `.ai/observability.md`), not a default. When in scope,
 the same core applies — emit fewer, richer events with business context — realized in the browser below.
 
 ### Goal on the Client

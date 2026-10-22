@@ -7,8 +7,7 @@ argument-hint: "<slug> [slice | triage] | <dimension> | sweep <aggregate>"
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
-> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 > **Ground findings in the real source (both modes).** Before asserting that code misuses a
@@ -28,7 +27,7 @@ You are running `/wf review`, **stage 7 of 10** in the SDLC lifecycle.
 
 Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
 
-Mode `triage`: the second argument is `triage`.
+Mode `triage`: the second argument is `triage`. Mode `select`: you select the rubrics and dispatch the reviewers yourself (`review/_stage.md` Steps 2 and 3). A driver run that passes findings from its own scan does not apply `select`. Declare each mode that applies in `modes:` of the stage artifact, for example `modes: [select]`. Mode `ad-hoc`: the first token is a dimension or `sweep`.
 
 | Input | Kind | When | Sections |
 |---|---|---|---|
@@ -59,15 +58,16 @@ Mode `triage`: the second argument is `triage`.
 | `07-review-<slice>.yaml` | artifact | on-resume | |
 | `review/_stage.md` | procedure | always | |
 | `review/_triage.md` | procedure | mode:triage | |
-| `review/_context.md` | procedure | always | |
-| `review/_select.md` | procedure | always | |
-| `review/_dispatch.md` | procedure | always | |
+| `review/_select.md` | procedure | mode:select | |
+| `review/_dispatch.md` | procedure | mode:select | |
+| `review/_fix-prompt.md` | procedure | always | |
+| `review/_ad-hoc.md` | procedure | mode:ad-hoc | |
 | `review/_artifact.md` | procedure | always | |
 | `_findings-ledger.md` | procedure | always | |
 | `07-review-<slice>.md` | writes | | |
 | `07-review.md` | writes | | |
 
-Stage mode only: ad-hoc review writes no stage artifact. In slug-wide mode, rows with `<slice>` do not apply, and a re-run reads `07-review.md` and its `.yaml`.
+Stage mode only: ad-hoc review writes no stage artifact, so no check runs for it. In slug-wide mode, rows with `<slice>` do not apply, and a re-run reads `07-review.md` and its `.yaml`.
 
 # Step 00 — Resolve scope: workflow stage vs ad-hoc (mandatory, before everything)
 
@@ -76,8 +76,8 @@ review (a dimension or a sweep, no slug), the way `/wf intake simplify` unifies 
 
 1. **Exact slug match** — `.ai/workflows/<token>/00-index.md` exists → **stage mode**. Read
    `review/_stage.md` in full and follow it exactly. The optional second token is `<slice>` or `triage`.
-2. **`sweep` or a known rubric/alias/aggregate key** (no slug matched) → **ad-hoc mode**. Jump to the
-   `# Ad-hoc review (no slug)` section below. Rubric keys, alias keys, and aggregate keys are listed there.
+2. **`sweep` or a known rubric/alias/aggregate key** (no slug matched) → **ad-hoc mode**. Read
+   [review/_ad-hoc.md](review/_ad-hoc.md) in full and follow it. It lists the rubric, alias, and aggregate keys.
    Ad-hoc never loads the stage body.
 3. **A dimension name that also happens to be a real slug** → the slug wins (stage mode); reach the
    aggregate/dimension explicitly with `/wf review sweep <name>` or by running ad-hoc in a repo with no
@@ -87,52 +87,3 @@ review (a dimension or a sweep, no slug), the way `/wf intake simplify` unifies 
 
 Because `review` owns its own first-token resolution, it is **excluded from the dispatcher's Step 0.5
 fuzzy-suggest** (like `simplify`/`design`).
-
-# Ad-hoc review (no slug)
-
-Reached from Step 00 branch 2. Two modes over one of five scopes (`pr` / `worktree` / `diff` / `file` / `repo`); parse the scope + target from the remaining tokens (a PR URL/number, a commit range, a file path, or bare = repo/worktree). Ad-hoc runs write **no** `07-review*` artifact — findings return inline (the numbered stage artifacts belong to slug mode).
-
-**Rubric keys** — each resolves to `review/<key>.md`. A rubric sections its checks by alias (`### <alias>` under `# What to look for`), and `focus` selects a section:
-
-| Rubric | Invocation | Sections (aliases) |
-|---|---|---|
-| `correctness` | `/wf review correctness` | correctness, testing, metric-gaming, data-integrity, backend-concurrency, reliability |
-| `security` | `/wf review security` | security, infra-security, supply-chain, privacy |
-| `performance` | `/wf review performance` | performance, frontend-performance, scalability, cost |
-| `architecture` | `/wf review architecture` | architecture, maintainability, overengineering, code-simplification, style-consistency, refactor-safety |
-| `api-contracts` | `/wf review api-contracts` | api-contracts, migrations |
-| `accessibility` | `/wf review accessibility` | accessibility, frontend-accessibility |
-| `interface-craft` | `/wf review interface-craft` | interface-craft, motion |
-| `docs` | `/wf review docs` | docs, ux-copy |
-| `observability` | `/wf review observability` | observability, logging |
-| `infra` | `/wf review infra` | infra, ci, release, dx |
-| `intent-fidelity` | `/wf review intent-fidelity` | intent-fidelity |
-
-**Alias keys** — each alias below is a valid dimension name. An alias resolves to its rubric with `focus: <alias>`: the reviewer reads that section plus `# Severity calibration`, so `/wf review logging` reviews only that section. The 24 aliases: `/wf review testing`, `/wf review metric-gaming`, `/wf review data-integrity`, `/wf review backend-concurrency`, `/wf review reliability`, `/wf review infra-security`, `/wf review supply-chain`, `/wf review privacy`, `/wf review frontend-performance`, `/wf review scalability`, `/wf review cost`, `/wf review maintainability`, `/wf review overengineering`, `/wf review code-simplification`, `/wf review style-consistency`, `/wf review refactor-safety`, `/wf review migrations`, `/wf review frontend-accessibility`, `/wf review motion`, `/wf review ux-copy`, `/wf review logging`, `/wf review ci`, `/wf review release`, `/wf review dx`.
-
-**Aggregate keys** (reached via `/wf review sweep <aggregate>`) — each dispatches one reviewer sub-agent per rubric in its composition:
-
-| Aggregate | Rubrics |
-|---|---|
-| `all` | every rubric (11 sub-agents — broadest, most expensive) |
-| `architecture` | architecture, performance, api-contracts |
-| `infra` | infra, observability, api-contracts |
-| `pre-merge` | correctness, security, architecture |
-| `quick` | correctness, architecture, docs |
-| `security` | the `security` rubric, all four sections (one sub-agent) |
-| `ux` | accessibility, interface-craft, docs, performance (focus frontend-performance) |
-
-`architecture`, `infra`, and `security` exist as BOTH a rubric and an aggregate — a bare `/wf review <name>` is the rubric; `/wf review sweep <name>` is the aggregate.
-
-## Single-rubric execution
-1. Resolve the key. A rubric key reads `review/<key>.md` in full; an alias reads its rubric's `### <alias>` section plus `# Severity calibration` (`focus: <alias>`). Follow the rubric exactly; the scope, target, and paths come from the ad-hoc tokens.
-2. Run the rubric inline over the resolved scope. Return findings in the standard schema (severity + confidence + file:line + evidence + suggested fix).
-
-## Sweep execution (parallel sub-agent dispatch)
-1. Resolve the composition from the aggregate table above.
-2. Prepare ONE dispatch per dimension D: read-only children per [_subagents.md](_subagents.md) at **low** effort for every rubric EXCEPT `architecture`/`security`, which run at **medium** (set the tier explicitly — reviewers must not inherit the parent configuration); `description: "review-{D}"`; `prompt` = the rubric body from `review/{D}.md` (with `focus:` when the aggregate names one) + the concrete scope/target/paths + the standard findings-schema + output instruction (return inline; no artifact in ad-hoc mode).
-3. **Dispatch in parallel** — all N dispatches in one wave, waves of ≤6 per [_subagents.md](_subagents.md) (sequential dispatch is forbidden).
-4. Wait for all to return, then **synthesize**: collect findings; dedupe by `(file:line + root cause)` (keep the most specific severity, merge rationales, tag with both dimensions); normalize severity to BLOCKER/HIGH/MED/LOW/NIT (map any other scale first); triage BLOCKER+HIGH interactively as a gate question per [_gate-question.md](_gate-question.md) — present each finding with its text + impact + suggested fix; the user chooses accept (will fix), defer (acknowledge but ship), or reject (false positive); derive the verdict (Ship = no blocker/high · Ship with caveats = high only · Don't ship = any blocker).
-
-## Output + final summary
-Render the review report (verdict · reviewed scope/target · files ± · findings by severity · critical block · triage decisions), then emit the standard compact chat summary: verb-first first line (`review <mode> complete: <key> on <scope>/<target>`), a short narrative paragraph, `Artifacts: none` (ad-hoc returns inline), `Verdict:`, `Findings: BLOCKER n | HIGH n | MED n | LOW n | NIT n`, and `Next:` (a concrete command tied to the verdict, or `Done`).

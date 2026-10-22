@@ -34,6 +34,25 @@ WF-SYSTEM-REVIEW-2026-10-21 in full: themes A, B, C, D (without D4), and E (with
 - **Less reference prose for each stage (E3).** `verify/_deferrals.md` loads only for a deferral; the runtime adapters, the ladder, and the new `verify/_runtime-evidence.md` load only for a user-observable AC; review triage mode moves to `review/_triage.md`. The stage prompt gives the grounded-progress and early-stop rules once, so a stage agent does not read `_chat-return.md`, `_autonomy-guards.md`, or `_grounded-progress.md`.
 - **Fewer bookkeeping agents (E4).** The unit-end agent does the read check, and the yolo verify agent mirrors the slice status as its last step. The separate write-back agent runs only as the fallback.
 
+WF-SUBPROCEDURE-AUDIT-2026-10-22 in full: W0 to W4.
+
+### Fixed (sub-procedure audit)
+
+- **The read check also checks `mode:` rows (W0).** A `mode:<name>` row of a `## Requires` table is checked when its mode applies. A mode applies when the stage artifact lists it in `modes:`, or when a disk fact proves it: an open deferral (`cleared-by: null`), a user-observable AC, a design record, an augmentation, a packet, a slug-wide review, or a change workflow. `_requires.md` "Modes" defines the rule, and every stage artifact schema admits `modes:`. `scripts/measure-artifacts.mjs` takes the wanted reads from the `always` procedure rows, so a correct skip is no longer a miss (F15).
+- **Contradictions between sub-procedures (F1 to F8).** Review grades a web-vitals breach HIGH, as verify does. An intent-bearing gate stops in an autonomous run. The deferral mode covers an open deferral of any slice. Review rubrics run at low effort, and architecture and security at medium. PR triage follows handoff step 7. The campaign park kinds have one table. The review fix prompt has one owner, `review/_fix-prompt.md`. A campaign unit gets no review-scope question.
+- **Stale pointers and text (F9 to F16).** The host contract states the real hooks. Paths, section citations, and key names point to files and commands that exist. The adopt templates have one `recommended-routes` key each. The driver prompts cite the real verify sections.
+
+### Changed (sub-procedure audit)
+
+- **Verify loads by sub-agent (L1).** Sub-agent 3 is in `verify/_runtime-evidence.md` and sub-agent 4 in the new `verify/_augmentation.md` (`mode:augment`).
+- **Fewer always reads in plan, implement, and design (L2, L3, L5, L6).** Plan reads the ladder only for a user-observable AC. Implement reads `_research.md` only for the first step group of a non-trivial change. The design lane and design context load by section, and the design-stage-only sections move to `design/_preflight.md`.
+- **Driver prompts read less (L4, L10).** A boundary agent reads the header and its own section of `campaign/_boundary.md`. A driven agent skips `_steering.md`, `_gate-question.md`, and `_question-craft.md`, and reads only "Modes" of `_requires.md`.
+- **Review (L7).** `review/_context.md` is folded into `review/_stage.md`. Rubric selection and the reviewer prompt are `mode:select`. Ad-hoc review is in `review/_ad-hoc.md`.
+- **Session files (L8).** `_host-invocation.md` keeps a core, and the per-stage host rows are in `_host-surfaces.md`. A stage reads `_steering.md` only when the workflow has a `steer.md`. `_requires.md` keeps the reader part, and `_requires-authoring.md` has the rest. The staleness rule is in `_liveness.md`.
+- **Intake (L9, AQ3).** The change-mode contract is in `intake/_change-mode-tail.md`. Provenance Consume and Link back are in `intake/_intake-provenance-consume.md` (`mode:from`). Registration in `INDEX.md` is in `intake/_intake-context.md`. The light `00-index.md` template of six modes is one file, `intake/_light-index.md`.
+- **Campaign (L11, AQ2).** `campaign/_phases.md` holds setup and `campaign/_prepare.md` the recurring prepare. `campaign/_waves.md` runs a wave; `_ship.md`, `_records.md`, and `_watch.md` hold ship and end, local records, and the campaign commentary. `campaign/_drive.md` and `campaign/_order.md` are session notes; the driver prompts are the specification.
+- **Structure.** Each restated rule has one owner. `_handoff-config.md`, `_ci-red-routing.md`, and `_pr-ci-handoff.md` are in `handoff/`. `design/_commands.md` is deleted.
+
 ## [9.197.0] - 2026-10-21
 
 ### Changed

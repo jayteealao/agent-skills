@@ -2004,7 +2004,7 @@ function wave(root, b, [nText, action, state], f) {
     if (gaps.length) {
       return {
         ok: false, gaps,
-        error: `wave ${n}: ${gaps.length} cross-unit need(s) that a slice doc names are not in the dependency graph. Record each one with \`deps <key> needs add --from <key> --through <slice> --before <slice> --why <text> --by prepare\` (campaign/_phases.md, "Rolling prepare" step 1.3), then run replan. When an item is no need, take it out of the section.`,
+        error: `wave ${n}: ${gaps.length} cross-unit need(s) that a slice doc names are not in the dependency graph. Record each one with \`deps <key> needs add --from <key> --through <slice> --before <slice> --why <text> --by prepare\` (campaign/_prepare.md, "Rolling prepare" step 1.3), then run replan. When an item is no need, take it out of the section.`,
       };
     }
     const ws = readWorkSet(root, b);
