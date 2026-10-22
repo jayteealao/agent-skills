@@ -102,8 +102,8 @@ test('W3: the design ban list has exactly one source', () => {
   const designDir = path.join(refRoot, 'design');
   const holders = readdirSync(designDir)
     .filter((f) => f.endsWith('.md'))
-    .filter((f) => /##\s+Absolute bans/i.test(readFileSync(path.join(designDir, f), 'utf8')));
-  assert.deepEqual(holders, ['_design-context.md'], `ban blocks in: ${holders.join(', ')}`);
+    .filter((f) => /##\s+(Absolute bans|Refuse — always)/i.test(readFileSync(path.join(designDir, f), 'utf8')));
+  assert.deepEqual(holders, ['_craft-floor.md'], `ban blocks in: ${holders.join(', ')}`);
 });
 
 test('W3: no rubric carries the dead .claude/<SESSION_SLUG> output path', () => {

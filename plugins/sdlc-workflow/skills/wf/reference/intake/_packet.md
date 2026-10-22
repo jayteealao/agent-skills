@@ -44,7 +44,8 @@ Do this before the mode's own questions.
 - The open ideas and the open questions of the packet go into this mode's question rounds. Intake still asks its own questions for the gaps that the packet leaves open. It asks no scope and no non-goal question: the carried decisions and "Left for later and cut" answer them (B1).
 - The findings and the assumptions are re-verified per [_intake-provenance-consume.md](_intake-provenance-consume.md). A contradicted finding becomes a known unknown.
 - The items under "Left for later and cut" join the out-of-scope list, so the workflow does not re-widen.
-- Copy each file of the packet's `sketches:` into `.ai/workflows/<work-slug>/design/sketches/`. Keep its key as the file name (`design/_boards.md`). A sketch with `path: null` has no file to copy.
+- Copy each file of the packet's `sketches:` into `.ai/workflows/<work-slug>/design/sketches/`. Keep its key as the file name (`design/_boards.md`). A sketch with `path: null` has no file to copy. When the `path` is `<file>#<artboard>`, copy the file once, and keep the `#<artboard>` anchor in the key's record. Do not copy one file under several names.
+- The tracked file is the source of a sketch. A canvas is a published view of that file. Check the `canvas` record of each sketch before its link goes into a question: `node "<skill-dir>/scripts/design-boards.mjs" canvas-stale "<projectRoot>" <slug> --account <name>` lists the stale ones. When `canvas.account` is not the session's account, or `canvas.sha256` differs from the file's hash, publish the tracked file again under the session's account (`_host-surfaces.md`, row "Design canvas"). Record the new link on the packet's sketch entry, and keep the old link in `canvas.previous[]`. The file is the source, so this republish loses nothing. On a host with no design canvas, give the file path only, and record nothing.
 
 ## Step 4 — Link back
 

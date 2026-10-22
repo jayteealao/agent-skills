@@ -6,6 +6,7 @@ import { renderHistoryBlock } from './_history.mjs';
 import { frontmatterCard } from './_simple.mjs';
 import { escapeHtml } from './_validator.mjs';
 import { boardsGallery } from './_boards.mjs';
+import { designModesOf } from '../lib/design-boards.mjs';
 
 export function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
@@ -54,6 +55,9 @@ export function render(artifact, ctx) {
     ? `<div class="fragment">${artifact.fragment}</div>`
     : '';
 
+  // The design mode of each surface (WF-DESIGN-PLAN Part III 9.1). An old contract
+  // carries only `register`; it still renders, read as a design mode.
+  const modesHtml = designModesBlock(fm);
   const frontmatterBlock = frontmatterCard(fm, [
     'component', 'based-on', 'register', 'image-gate', 'north-star-mock', 'boards', 'design-revision',
     'canvas', 'surfaces', 'direction-confirmed-by', 'confirmed-at', 'carried-from', 'references-loaded', 'refs',
@@ -67,10 +71,24 @@ export function render(artifact, ctx) {
 
   return {
     headerHtml,
-    bodyHtml: `${metricsHtml}${summaryHtml}${galleryHtml}${fragmentBlock}${matrixHtml}${frontmatterBlock}${proseBlock}${renderHistoryBlock(artifact.history)}`,
+    bodyHtml: `${metricsHtml}${summaryHtml}${modesHtml}${galleryHtml}${fragmentBlock}${matrixHtml}${frontmatterBlock}${proseBlock}${renderHistoryBlock(artifact.history)}`,
     links: [],
     children: [],
   };
+}
+
+/** The design modes of a contract: `surface-modes`, else the deprecated `register`. '' when neither. */
+function designModesBlock(fm) {
+  const { modes, from, register } = designModesOf(fm);
+  if (!modes.length) return '';
+  const rows = modes.map((m) => `<li>${m.surface ? `<code>${escapeHtml(m.surface)}</code>: ` : ''}${escapeHtml(m.mode)}</li>`).join('');
+  const note = from === 'register'
+    ? `<p class="muted">Read from the deprecated <code>register: ${escapeHtml(register)}</code>.</p>`
+    : '';
+  return `<section class="design-contract-modes">
+        <h2 class="sdlc-h2">design modes</h2>
+        <ul>${rows}</ul>${note}
+      </section>`;
 }
 
 function listBlock(label, values = []) {

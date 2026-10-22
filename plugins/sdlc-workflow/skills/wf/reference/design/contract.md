@@ -31,7 +31,7 @@ Invalid image-skip reasons: "the implementation will be semantic HTML/CSS/SVG", 
 Read `02b-design.md` and the design record (`.ai/design/current.md`, `.ai/design/direction.md`), and extract:
 - Feature summary and user context
 - Color strategy and scene sentence
-- Register (brand / product) — load `brand.md` or `product.md` (this directory)
+- The design mode of each surface (Persuade, Operate, Read, or Experience), from the brief's content inventory
 - Visual direction and anti-goals
 - Recommended references (`recommended-references:` frontmatter array)
 - The UX intent (flows, states, user-facing text)
@@ -39,7 +39,7 @@ Read `02b-design.md` and the design record (`.ai/design/current.md`, `.ai/design
 
 Load the recommended references from the brief, plus the move the person named. At minimum:
 - `typeset.md` for type hierarchy
-- The register reference (brand.md or product.md)
+- The design-mode file of each surface: `mode-persuade.md` (Persuade and Experience), `mode-operate.md`, or `mode-read.md`
 
 Add based on brief needs:
 - `animate.md` — if transitions or motion
@@ -66,10 +66,10 @@ Draw the direction when:
 - Brief scope is mid-fi, high-fi, or production-ready
 - The person can see a picture: a board, a capture, or an imported design
 
-When conditions are met, this step is mandatory for both brand and product work.
+When conditions are met, this step is mandatory for every design mode.
 
-- For brand: push visual identity, composition, and mood aggressively
-- For product: push hierarchy, topology, and density while staying grounded in realistic product structure
+- Persuade and Experience: push visual identity, composition, and mood aggressively
+- Operate and Read: push hierarchy, topology, and density while staying grounded in realistic product structure
 
 **The boards.** Draw one board per surface and state per `design/_boards.md` → Make the boards: capture the running product, import the outside design, or write HTML boards from the tokens and components in `DESIGN.md`. Render them to PNG with the board tool. Name the north-star board (the surface that sets the direction) in `north-star-mock:`.
 
@@ -120,7 +120,8 @@ sizes: [mobile, tablet, desktop]
 themes: [light, dark]
 refs:
   design: 02b-design.md
-register: <brand|product>
+surface-modes:                 # one design mode per surface, from the brief's content inventory
+  <surface>: <persuade|operate|read|experience>
 image-gate: <pass|skipped:<reason>>
 north-star-mock: <design/r<N>/boards/<key>.png, or "none" for a text-only flow>
 boards: design/r<N>/boards.json
@@ -140,12 +141,14 @@ recommended-routes: [{invocation: "/wf slice <slug>", reason: "the person confir
 Body sections, in order, under these exact `##` headings (later stages cite them):
 
 - `## Visual direction confirmed` — one paragraph on the approved direction: the chosen probe (if any) and each deviation from the brief.
-- `## Directions considered` — only when design stage Step 3b ran: one row per direction, `| Name | Axis | Kept or rejected | The person's reason |`, so a later amend does not reopen a rejected direction by accident.
-- `## North-star mock` — the north-star board path (or "none — text-only direction"), the scene sentence (always), and 5–10 annotated callouts, each with a short description and an implementation note.
+- `## Directions considered` — only when design stage Step 3b ran: one row per direction, `| Name | Axis | Kept or rejected | The person's reason |`, so a later amend does not reopen a rejected direction by accident. Include the canon row. Below the table, list the candidates that were not drawn, with one line each.
+- `## Thesis` — the default arrangement that this design refuses, in one sentence.
+- `## Own world` — what makes the design recognizable with all content removed.
+- `## North-star mock` — the north-star board path (or "none — text-only direction"), the scene sentence (always), and 5–10 annotated callouts, each with a short description and an implementation note. Add the first-viewport memory test: name the one thing a person remembers after five seconds. When the honest answer is a mood, the direction is not committed yet.
 - `## Boards` — one row per frozen board: `| Key | Surface | State | Viewport | PNG |`, from `design/r<N>/boards.json`.
 - `## Mock fidelity inventory` — the non-negotiable visible ingredients, one numbered line each: `<ingredient> — <board key and where on it> — <why non-negotiable>`.
 - `## Implementation contract` — the decisions `/wf implement` follows: **token choices** (existing tokens, new tokens); **component decisions** (extend X or create Y); **layout structure** (grid, breakpoints); **type scale**; **color application**; **motion** (each animation's gate result — frequency tier and named purpose — its curve token and duration or spring, and the rejected candidates that stay still; `animate.md` carries the rules and `_platforms.md` the platform forms); **finish & detail** (concentric radius, optical alignment, shadows versus borders, hit-area minimums; `polish.md`); **state coverage** per interactive element.
-- `## Anti-patterns to avoid` — from the brief's anti-goals plus the absolute bans in `_design-context.md`, specific to this feature.
+- `## Anti-patterns to avoid` — from the brief's anti-goals plus the refusals in `_craft-floor.md`, specific to this feature. Stage Step 4 loaded the floor before this step.
 - `## Implementation references` — the reference docs `/wf implement` consults (`typeset.md`, `animate.md`, `harden.md`, and so on).
 
 Record the reference list authoritatively in the `references-loaded:` frontmatter array as the **union** of the brief's `recommended-references:` (from `02b-design.md`) and each reference you loaded while authoring the contract. Names omit `.md` and resolve to `skills/wf/reference/design/<name>.md`. `/wf implement` re-reads this field, not the prose: a reference only in `## Implementation references` is not loaded, so keep the two in sync.

@@ -751,6 +751,42 @@ function preambleClause() {
     `${referenceRoot}/_question-craft.md, do not read those files: apply the rules of this prompt. When it points ` +
     `to ${referenceRoot}/_requires.md, read only its section "Modes": this prompt states the rest.\n`
 }
+
+// WF-DESIGN-PLAN B1 (P2): a review finding against the confirmed design is the person's decision.
+// Both drivers add this clause to POLICY.review, so its text is the same in each driver.
+function designAmendClause() {
+  return ` DESIGN FINDINGS: a finding against a confirmed board (a frozen board under ` +
+    `.ai/workflows/<slug>/design/r<N>/) or against a line of the 02c-craft.md contract is the person's decision. ` +
+    `Do not fix it, do not dismiss it, and do not defer it. Record it open, with triage needs-amend and the reason ` +
+    `"the person decides: amend, keep, or defer". List it in amendFindings as { key (the finding id), severity, ` +
+    `summary (one line), contract (the board or the 02c-craft.md line that it contradicts, with its path) }. A ` +
+    `needs-amend finding is no reason to hard-stop: the driver asks the person. Return amendFindings: [] when no ` +
+    `finding is against the confirmed design.`
+}
+
+// The amendFindings field of STAGE_RESULT.
+function amendFindingsSchema() {
+  return {
+    type: 'array',
+    items: {
+      type: 'object',
+      required: ['key', 'summary'],
+      properties: { key: { type: 'string' }, severity: { type: 'string' }, summary: { type: 'string' }, contract: { type: 'string' } },
+    },
+  }
+}
+
+// The design findings of a review result: the entries that name a finding.
+function amendFindingsOf(res) {
+  const list = res && Array.isArray(res.amendFindings) ? res.amendFindings : []
+  return list.filter(f => f && typeof f === 'object' && String(f.key || '').trim())
+}
+
+// The design findings as one line each, for a question or a stop reason.
+function amendFindingsText(list) {
+  return (list || []).map(f => `${f.key} (${f.severity || '?'}): ${String(f.summary || '').slice(0, 160)}` +
+    `${f.contract ? ` [against ${String(f.contract).slice(0, 160)}]` : ''}`).join('; ')
+}
 // ---- END SHARED ----
 
 
@@ -1123,7 +1159,7 @@ const POLICY = {
     `surfaced-at on the accumulating ledger, and compute verdict from OPEN findings only. A clean verdict ` +
     `(ship | ship-with-caveats with metric-findings-blocker == 0) is the ENDPOINT — return status:'complete'. ` +
     `HARD-STOP (return status:'hard-stop') only if verdict: dont-ship, OR an OPEN BLOCKER is a security / ` +
-    `data-loss issue you could not fix after the loop.`,
+    `data-loss issue you could not fix after the loop.` + designAmendClause(),
 }
 
 // ---------------------------------------------------------------------------
@@ -1282,6 +1318,8 @@ const STAGE_RESULT = {
         },
       },
     },
+    // WF-DESIGN-PLAN B1: the review findings against the confirmed design (designAmendClause).
+    amendFindings: amendFindingsSchema(),
     // WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4: an order that the plan decided inside the unit.
     orderEdges: ORDER_EDGES,
     // Sections 5.4a and 5.5a step 4: the budget reading and the free check of the stop check.
@@ -2457,6 +2495,10 @@ const PARK_TEXT = {
   orient: (u, r) => `${u.slug} could not orient: ${r}. Say "continue" when it is fixed, or move it out.`,
   'slug-stop': (u) => `The person asked to stop ${u.slug}. Continue ${u.slug}? (Clear the stop request first.)`,
   'driver-fault': (u, r) => `The wave driver faulted while it drove ${u.slug}: ${r}. Continue from the disk state, or move it out?`,
+  // WF-DESIGN-PLAN B1 (P2): the review left findings against the confirmed design open.
+  'design-amend': (u, r, c) => `The review of ${u.slug}${c.slice ? ` (slice '${c.slice}')` : ''} found these findings against the confirmed design: ${r}. ` +
+    `Answer amend, keep, or defer. Amend: ${u.slug} stops, and the next step is "Type \`/wf design ${u.slug} amend\`." ` +
+    `Keep: each finding closes as kept-by-person, with your answer as the reason. Defer: each finding closes as deferred by the person.`,
 }
 
 function nextQid(u) {
@@ -2500,13 +2542,16 @@ async function park(u, kind, reason, ctx = {}) {
 
 // The unit moves out of the wave: it stays `stopped` with the route `moved by the
 // person`, and every wait on it rejects (section 5.5a step 7).
-async function moveOut(u, why) {
+async function moveOut(u, why, consumeId = null) {
+  const route = `moved by the person${why ? `: ${why}` : ''}`
   await call(
     `MOVE unit ${u.key} (slug '${u.slug}') out of wave ${wave}. Bookkeeping only: run ` +
-    `\`${cmd('unit', `${u.key} stopped --route ${q(`moved by the person${why ? `: ${why}` : ''}`)}`)}\` and change ` +
+    `\`${cmd('unit', `${u.key} stopped --route ${q(route)}`)}\`` +
+    (consumeId ? `, then \`${cmd('question', `${consumeId} consumed`)}\`,` : '') + ` and change ` +
     `nothing else. Return { ok, note }.` + heartbeat(u, 'move', 'Drive', 'move', null),
     { schema: OK_SCHEMA, label: lbl(u, 'move'), phase: 'Drive', ...HAIKU }
   )
+  u.moveRoute = route
   u.moved = true
   u.ended = true
   rejectWaitsOn(u.key)
@@ -3114,6 +3159,14 @@ async function walkSlice(u, s, bounded) {
       if (stage === 'implement' && res && res.startSha) { u.sliceStart = u.sliceStart || {}; u.sliceStart[sliceArg] = res.startSha }
       if (res && Array.isArray(res.decisions) && res.decisions.length) res = await classifyDecisions(u, res)
       if (res) { ran.push(res); u.results.push(res) }
+      // B1: findings against the confirmed design go to the person before the review gate.
+      if (stage === 'review' && amendFindingsOf(res).length) {
+        const d = await designAmend(u, res, sliceArg)
+        if (d === 'stop') return { stop: true, ran }
+        if (d === 'ended') return { ended: true, ran }
+        res = d.res
+        ran.push(res); u.results.push(res)
+      }
       const to = answered && res ? stages.indexOf(res.routeBack) : -1
       if (to !== -1 && to < i && routeBacks < MAX_ROUTE_BACKS) {
         routeBacks++
@@ -3303,7 +3356,60 @@ async function afterAnswer(u, a, kind, ctx) {
     return 'go'
   }
   if (['stage', 'review', 'slug-stop'].includes(kind) && ctx.slice) u.carryAnswer = { ...a, stage: ctx.stage || null, slice: ctx.slice }
+  // A design-amend answer of an earlier run: the next review with design findings takes it.
+  if (kind === 'design-amend') u.carryAmend = a
   return 'go'
+}
+
+// ---- Design findings (WF-DESIGN-PLAN B1, P2, BQ2) ---------------------------
+// A review that leaves findings against the confirmed design open parks the unit with kind
+// design-amend; the other units continue. Keep and defer close the findings, and the review gate
+// runs on the result. Amend, and any other answer, moves the unit out with the route of the amend.
+const amendHow = (a) => /^\s*keep\b/i.test(String((a && a.answer) || '')) ? 'keep'
+  : /^\s*defer\b/i.test(String((a && a.answer) || '')) ? 'defer' : 'amend'
+const amendWhy = (u) => `design amend: Type \`/wf design ${u.slug} amend\`.`
+
+async function closeAmendFindings(u, a, res, list, how, sliceArg) {
+  const tag = sliceArg ? `:${sliceArg}` : ''
+  return absorb(await call(
+    `CLOSE THE DESIGN FINDINGS of the review of unit ${u.key} (slug '${u.slug}')${sliceArg ? `, slice '${sliceArg}'` : ''}, ` +
+    `wave ${wave}. The person answered question ${a.id} with ${how}: ${q(a.answer)}.\n` +
+    `In the review artifact ${(res && res.artifactPath) || `of ${u.slug}`} and its sibling .yaml, set each finding below to ` +
+    `status ${how === 'keep' ? 'kept-by-person, with the answer as its reason' : 'deferred, with by: person and the answer as its reason'}. ` +
+    `Record each change in "## Triage Decisions" as the person's decision. Compute the verdict again from the OPEN ` +
+    `findings only, and update the frontmatter. Fix no code, and change nothing else. The worktree ${u.root} is ABSOLUTE.\n` +
+    `The findings: ${JSON.stringify(list)}\n` +
+    `Return the review stage result: stage 'review', status, artifactPath, terminal (verdict + blockerCount), and amendFindings: [].` +
+    heartbeat(u, `amend-close${tag}`, 'Review', 'review', sliceArg || null),
+    { schema: STAGE_RESULT, label: lbl(u, `amend-close${tag}`), phase: 'Review', ...SONNET }
+  ))
+}
+
+// Returns { res } (the review result after the close) | 'stop' | 'ended'.
+async function designAmend(u, res, sliceArg) {
+  const list = amendFindingsOf(res)
+  let a = u.carryAmend
+  u.carryAmend = null
+  const fresh = !a
+  if (fresh) {
+    a = await park(u, 'design-amend', amendFindingsText(list), { stage: 'review', slice: sliceArg })
+    if (!a || a.stopped || STOP) return 'stop'
+    if (a.move) { await moveOut(u, a.answer); return 'ended' }
+  }
+  const how = amendHow(a)
+  if (how === 'amend') {
+    await moveOut(u, amendWhy(u), fresh ? a.id : null)
+    events.push({ event: 'design-amend', fields: { key: u.key, question: a.id, findings: list.map(f => f.key) } })
+    return 'ended'
+  }
+  const closed = await closeAmendFindings(u, a, res, list, how, sliceArg)
+  if (STOP) return 'stop'
+  if (fresh) {
+    const h = await onAnswer(u, a, { consume: true })
+    if (h !== 'resume') return h === 'stop' ? 'stop' : 'ended'
+  }
+  log(`${u.slug}: the person answered ${how} for ${list.length} design finding(s) of the review${sliceArg ? ` of '${sliceArg}'` : ''}`)
+  return { res: { ...(closed && closed.stage ? closed : res), amendFindings: [] } }
 }
 
 // walkUnit() — yolo's driveRoster (yolo.js:2468) for one unit, with the parks.
@@ -3319,6 +3425,7 @@ async function walkUnitInner(u) {
     u.parked = null
     e.resumed = true
     if (a && !a.stopped && !a.move && e.kind === 'slug-stop' && !CONTINUE_RE.test(String(a.answer || ''))) { await moveOut(u, a.answer); return }
+    if (a && !a.stopped && !a.move && !STOP && e.kind === 'design-amend' && amendHow(a) === 'amend') { await moveOut(u, amendWhy(u), a.id); return }
     const h = await onAnswer(u, a)
     if (h !== 'resume') return
     const k = await afterAnswer(u, a, e.kind, e.ctx || {})
@@ -3407,6 +3514,13 @@ async function walkUnitInner(u) {
       }
       if (rev && Array.isArray(rev.decisions) && rev.decisions.length) rev = await classifyDecisions(u, rev)
       if (rev) u.results.push(rev)
+      // B1: findings against the confirmed design go to the person before the review gate.
+      if (amendFindingsOf(rev).length) {
+        const d = await designAmend(u, rev, null)
+        if (d === 'stop' || d === 'ended') return
+        rev = d.res
+        u.results.push(rev)
+      }
       if (rev && rev.status !== 'hard-stop' && evaluateGate('review', rev) === 'proceed') { u.unitReview = rev; break }
       const a = await park(u, 'review', (rev && rev.hardStopReason) || `the review did not clear: ${JSON.stringify((rev && rev.terminal) || {})}`, { stage: 'review' })
       const h = await onAnswer(u, a)
@@ -3718,7 +3832,7 @@ function unitOutcome(u) {
     moved: u.moved === true,
     stoppedAt: u.finished ? null : (u.parked ? `park:${u.parked.kind}` : (STOP ? STOP.at : null)),
     reason: u.parked && lastPark ? lastPark.reason : null,
-    route: u.moved ? 'moved by the person' : (u.parked && lastPark ? `parked: ${lastPark.kind}: ${lastPark.reason}` : null),
+    route: u.moved ? (u.moveRoute || 'moved by the person') : (u.parked && lastPark ? `parked: ${lastPark.kind}: ${lastPark.reason}` : null),
     waitsFor: u.blockedOn ? `${u.blockedOn.from}: ${u.blockedOn.through}` : null,
     cleared: u.cleared,
     questions: [...Q.values()].filter(e => e.unit === u.key).map(e => ({ id: e.id, kind: e.kind, asked: e.question, state: e.state })),

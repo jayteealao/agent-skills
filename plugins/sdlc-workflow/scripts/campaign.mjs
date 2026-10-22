@@ -58,7 +58,7 @@ import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  budgetState, buildForecast, buildLabel, campaignAction, DEFAULT_BUDGET, DEFAULT_MAX_UNSHIPPED, DEFAULT_WIDTH, effectiveWidth, isolationOf, isolationText,
+  budgetState, buildForecast, buildLabel, campaignAction, typeCommand, DEFAULT_BUDGET, DEFAULT_MAX_UNSHIPPED, DEFAULT_WIDTH, effectiveWidth, isolationOf, isolationText,
   newestReading, portsFor, waveBase, checkCampaignSet, classifyDrift, deferUnprepared, hotfixVersion,
   isBuildUnit, modelsOf, defaultsOf, policyOf, standingError, campaignNow, newLedger, nextWaveVersion, renderContext, renderForecast, renderLedgerMd, replan, rowWeight, waveActual,
   SETUP_ANSWERS, stageMinutesFromJournals, unitOf, UNIT_STATES, WAVE_STATES,
@@ -185,6 +185,21 @@ export function appendJournal(root, b, event, extra = {}) {
 function readJson(file) {
   try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; }
 }
+
+/**
+ * WF-DESIGN-PLAN B4 (P4): the design record of the board, for `campaignAction`. Null unless
+ * `brainstorm-board.json` has `focus: design`. `missing` lists PRODUCT.md and DESIGN.md when
+ * neither the project root, `.agents/context/`, nor `docs/` holds them (design/record.md).
+ */
+export function designRecordOf(root, b) {
+  const board = readJson(join(brainstormDir(root, b), 'brainstorm-board.json'));
+  if (board?.focus !== 'design') return null;
+  const dirs = [root, join(root, '.agents', 'context'), join(root, 'docs')];
+  return { focus: 'design', missing: ['PRODUCT.md', 'DESIGN.md'].filter((f) => !dirs.some((d) => existsSync(join(d, f)))) };
+}
+
+/** `campaignAction` with the design record read from the disk (B4). */
+const nextAction = (root, b, ledger, opts = {}) => campaignAction(ledger, { ...opts, design: designRecordOf(root, b) });
 
 function readJsonl(file) {
   try {
@@ -313,7 +328,7 @@ function orient(root, b) {
     ok: true, records: ledger.records, waves: [], outside: Object.keys(ledger.outside), warnings: check.warnings, forecast: ledger.forecast, toolGaps: ledger['tool-gaps'],
     // 4.4: the deps phase comes next. `seeded` units start from their old packet fields (D8), `serial` units from the serial chain.
     deps: { state: ledger.deps.state, units: keys, seeded: keys.filter((k) => seeded.has(k)), serial: keys.filter((k) => !seeded.has(k)) },
-    next: campaignAction(ledger, { revision: ws.revision }),
+    next: nextAction(root, b, ledger, { revision: ws.revision }),
   };
 }
 
@@ -449,7 +464,13 @@ const isLocal = (ledger) => ledger?.records === 'local';
 const WORKTREE_IGNORE = '# written by /wf campaign (local records): the records in this worktree stay out of git\n*\n';
 const isAiIgnore = (rel) => rel === '.gitignore';
 /** The campaign folder belongs to the main checkout: a drive reads it there, by absolute path. */
-const mainOwned = (b) => (rel) => isAiIgnore(rel) || rel.startsWith(`workflows/${b}/work/campaign/`);
+const campaignOwned = (b) => (rel) => isAiIgnore(rel) || rel.startsWith(`workflows/${b}/work/campaign/`);
+/**
+ * WF-DESIGN-PLAN B2 (DP13): the main checkout also owns the design record `.ai/design/`. A
+ * worktree gets a copy to read, but the sync never copies it back: a changed worktree copy
+ * goes to the conflict store, so a worktree remove cannot overwrite the main record.
+ */
+const mainOwned = (b) => (rel) => campaignOwned(b)(rel) || rel.startsWith('design/');
 /** A stage's evidence folder: `implement-evidence/`, `verify-evidence/`, `probe-evidence/`. */
 const EVIDENCE_RE = /^workflows\/([^/]+)\/[^/]+-evidence(\/|$)/;
 /** A workflow's design boards folder (DESIGN-BOARDS-PLAN section 3). */
@@ -461,7 +482,7 @@ const DESIGN_RE = /^workflows\/([^/]+)\/design(\/|$)/;
  * PNGs, and a drive reads only its own.
  */
 const notCopiedIn = (b, slugs) => (rel) => {
-  if (mainOwned(b)(rel)) return true;
+  if (campaignOwned(b)(rel)) return true;
   const m = EVIDENCE_RE.exec(rel) ?? DESIGN_RE.exec(rel);
   return Boolean(m) && !slugs.includes(m[1]);
 };
@@ -508,7 +529,7 @@ function syncOut(root, b, id, path) {
   return withRecordsLock(join(recordsDir(root, b), '.lock'), id, () => {
     const manifest = loadManifest(manifestFile(root, b, id), id);
     const conflictsDir = join(recordsDir(root, b), 'conflicts', id, nowIso().replace(/[-:]/g, ''));
-    const res = recordsOut({ main: root, worktree: path, manifest, conflictsDir, exclude: isAiIgnore });
+    const res = recordsOut({ main: root, worktree: path, manifest, conflictsDir, exclude: isAiIgnore, mainOnly: mainOwned(b) });
     saveManifest(manifestFile(root, b, id), manifest, nowIso());
     if (res.copied.length || res.conflicts.length) appendJournal(root, b, 'records-out', { id, copied: res.copied.length, conflicts: res.conflicts.map((c) => c.rel) });
     return res;
@@ -746,7 +767,7 @@ function status(root, b) {
   const update = pluginUpdate(runningPluginVersion(), installedPluginVersion(root));
   return {
     ok: true,
-    next: campaignAction(ledger, { revision, driving }),
+    next: nextAction(root, b, ledger, { revision, driving }),
     revision,
     // C9: the person's standing rules, in every status result, so that a compaction cannot lose them.
     rules: ledger?.rules ?? [],
@@ -1204,7 +1225,7 @@ function record(root, b, n, f) {
   saveLedger(root, b, ledger);
   try { forecast(root, b, {}); } catch { /* the forecast is advice; a failed refresh never fails the record */ }
   appendJournal(root, b, 'wave-record', { wave: n, run: ranId, held: res.held, ...(res.merged ? { merged: res.merged } : {}), ...(actual.minutes !== null ? { minutes: actual.minutes } : {}), ...(actual.tokens !== null ? { w: actual.tokens } : {}) });
-  res.next = campaignAction(ledger, {});
+  res.next = nextAction(root, b, ledger, {});
   const ask = nextWaveAsk(ledger, n);
   if (ask) res.nextWave = ask;
   return res;
@@ -1689,7 +1710,7 @@ function depsCmd(root, b, pos, f) {
     return {
       ok: true, confirmed: shown, waves: ledger.waves.map((w) => w.units), waiting: ledger.waiting, warnings: check.warnings,
       shared: planned.flatMap((w) => (w['expected-shared'] ?? []).map((s) => ({ wave: w.n, ...s }))),
-      next: campaignAction(ledger, { revision: ws.revision }),
+      next: nextAction(root, b, ledger, { revision: ws.revision }),
     };
   }
   const key = sub;
@@ -1805,7 +1826,7 @@ function answer(root, b, [key, ...rest]) {
   const ledger = requireLedger(root, b);
   // 4.3: setup waits for the confirmed graph (Q2: no way to skip it).
   const pending = unconfirmedKeys(ledger);
-  if (pending.length) return { ok: false, error: `the dependency graph is not confirmed (${pending.join(', ')}): run the deps phase first (campaign/_phases.md, "Phase 0b — Deps")`, next: campaignAction(ledger, {}) };
+  if (pending.length) return { ok: false, error: `the dependency graph is not confirmed (${pending.join(', ')}): run the deps phase first (campaign/_phases.md, "Phase 0b — Deps")`, next: nextAction(root, b, ledger, {}) };
   const raw = rest.join(' ');
   let value;
   try { value = JSON.parse(raw); } catch { value = raw; }
@@ -1817,7 +1838,7 @@ function answer(root, b, [key, ...rest]) {
   }
   ledger.answers[key] = value;
   saveLedger(root, b, ledger);
-  return { ok: true, key, value, next: campaignAction(ledger, {}) };
+  return { ok: true, key, value, next: nextAction(root, b, ledger, {}) };
 }
 
 /**
@@ -1966,7 +1987,10 @@ function unit(root, b, [key, state], f) {
   if (f.digest !== undefined) { try { u.digest = JSON.parse(f.digest); } catch { u.digest = f.digest; } }
   saveLedger(root, b, ledger);
   appendJournal(root, b, 'unit-state', { key, slug: u.slug, state, ...(f.route ? { route: f.route } : {}) });
-  return { ok: true, key, state, ...(rejected.length ? { rejected } : {}) };
+  // B3 (DP4): after a prepare, the person learns the next command; with no waiting action, it is the campaign.
+  const next = state === 'prepared' ? nextAction(root, b, ledger, { driving: liveRun(root, b, ledger) }) : null;
+  if (next && !next.command) next.command = typeCommand(`campaign ${b}`);
+  return { ok: true, key, state, ...(rejected.length ? { rejected } : {}), ...(next ? { next } : {}) };
 }
 
 function outside(root, b, [key, state]) {
@@ -2102,7 +2126,7 @@ function sorted(root, b, ledger, w) {
   delete w['legacy-order'];
   saveLedger(root, b, ledger);
   appendJournal(root, b, 'waits-sorted', { wave: w.n, kept });
-  return { ok: true, wave: w.n, kept, next: campaignAction(ledger, {}) };
+  return { ok: true, wave: w.n, kept, next: nextAction(root, b, ledger, {}) };
 }
 
 function ask(root, b, args, f) {
@@ -2154,7 +2178,7 @@ function resume(root, b) {
   const ctl = readJson(controlPath(root, b));
   if (ctl && ctl.action === 'pause') writeAtomic(controlPath(root, b), '{}\n');
   appendJournal(root, b, 'resumed', {});
-  return { ok: true, next: campaignAction(ledger, {}) };
+  return { ok: true, next: nextAction(root, b, ledger, {}) };
 }
 
 function asBuiltNotes(root, b) {

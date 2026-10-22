@@ -14,6 +14,9 @@ import {
   validateSiblingYamlFile
 } from "./chunk-GKIHU4J2.mjs";
 import {
+  designModesOf
+} from "./chunk-JTJFHSOY.mjs";
+import {
   blockToolCall,
   isEntry,
   runStandalone
@@ -514,6 +517,29 @@ function indexLintWarnings(text, byteSize = Buffer.byteLength(String(text ?? "")
   }
   return warnings;
 }
+var DESIGN_MODE_TYPES = /* @__PURE__ */ new Set(["design", "design-contract", "design-augmentation"]);
+function designModeAdvice(fm) {
+  if (!fm || !DESIGN_MODE_TYPES.has(fm.type)) return null;
+  const { from, modes, register } = designModesOf(fm);
+  if (from !== "register") return null;
+  const field = fm.type === "design-contract" || fm.type === "design" ? "`surface-modes:` (surface \u2192 design mode)" : "`design-mode:`";
+  return `carries \`register: ${register}\`, read as design mode \`${modes[0].mode}\`. \`register\` is deprecated: each surface now has its own design mode (persuade, operate, read, or experience). Write ${field} instead.`;
+}
+async function enforceDesignModeLint(paths, config) {
+  if (config.hooks?.designModeLint === false) return;
+  const lines2 = [];
+  for (const path of paths) {
+    const text = await readTextIfExists(path.absolute);
+    if (!text) continue;
+    const { data } = safeParseFrontmatter(text, { filePath: path.absolute });
+    const advice = designModeAdvice(data);
+    if (advice) lines2.push(`  - ${path.original} ${advice}`);
+  }
+  if (!lines2.length) return;
+  outputSystemMessage(`wf: design mode (advisory):
+${lines2.join("\n")}
+Opt out: hooks.designModeLint: false.`);
+}
 async function enforceIndexLint(paths, config) {
   if (config.hooks?.indexLint === false) return;
   const lines2 = [];
@@ -565,6 +591,7 @@ async function run(input) {
     await enforceSourceCoverage(paths, config);
     await enforceIntakeLedgerLint(paths, config);
     await enforceNamedMechanismLint(paths, config);
+    await enforceDesignModeLint(paths, config);
     await validateSiblingYamls(paths, config, schemaPath);
     await enforceSiblingFragments(paths, config);
     return;
@@ -590,5 +617,6 @@ export {
   INDEX_STAGE_HEAD_CHARS,
   INDEX_COMMENT_PROSE_MAX_WORDS,
   indexLintWarnings,
+  designModeAdvice,
   run
 };

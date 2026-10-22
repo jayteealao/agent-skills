@@ -53,7 +53,7 @@ import {
 } from "./chunk-RLA7BOVL.mjs";
 import {
   frozenBoardsOf
-} from "./chunk-T5YC5F32.mjs";
+} from "./chunk-JTJFHSOY.mjs";
 import "./chunk-G4VG2HNC.mjs";
 import {
   readRenderedIdentity,

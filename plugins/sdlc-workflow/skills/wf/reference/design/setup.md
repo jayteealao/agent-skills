@@ -1,12 +1,16 @@
 Gather and document the design context for a project. Creates or updates PRODUCT.md and DESIGN.md, and the `.ai/design/` record ([record.md](record.md)) — the context anchors that the design stage and every design duty read before doing work.
 
+Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.
+
 **Run this once per project before the first design stage.** The design stage runs it for you when PRODUCT.md is missing. `extract` needs no prior context. Running the design stage without context produces generic output that ignores the project.
 
 ## What gets created
 
-**PRODUCT.md** (required): Users, brand, tone, anti-references, strategic principles, register.
-**DESIGN.md** (optional, strongly recommended): Colors, typography, elevation, components, design tokens.
+**PRODUCT.md** (required): Users, purpose, positioning, operating context, capabilities and constraints, brand commitments, evidence on hand, strategic principles.
+**DESIGN.md** (optional, strongly recommended): Overview, colors and token roles, typography, layout, elevation and depth, shapes, components, do's and don'ts.
 **`.ai/design/current.md` and `.ai/design/direction.md`**: the current design and the design goals, per [record.md](record.md).
+
+PRODUCT.md holds product facts only. The aesthetic questions (brand words, tone, references) belong to the design brief, per surface: `shape` asks them ([shape.md](shape.md)). Do not ask for an aesthetic direction, colors, type or style here. When the person gives a binding visual constraint, record it under `## Brand Commitments` as given.
 
 ## Step 1: Discovery interview
 
@@ -17,20 +21,17 @@ Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Bef
 3. Ask the unanswered questions in ONE batched round. Then stop and wait for the answers.
 4. When no unanswered questions remain, skip the round and continue to Step 2.
 
-### Group 1: Register and purpose
-- Is this primarily a **brand** surface (landing page, marketing, campaign, portfolio) or a **product** surface (app, dashboard, tool, authenticated experience)?
+### Group 1: Purpose and position
 - What is this product/site for? Who uses it?
-- How would you describe the brand in three concrete words? (Not "modern" — think physical objects, textures, contexts)
+- What does the product make possible? What mechanism or position could a neighboring product not truthfully copy?
 
-### Group 2: Users and tone
+### Group 2: Users and context
 - Who are the primary users? What's their context and expertise level?
-- What emotional tone should the design communicate? (Serious? Warm? Technical? Playful?)
-- What's the most important thing a visitor should feel or understand in their first 5 seconds?
+- Where and how do people use or evaluate the product: workflows, environments, tools, documents?
 
-### Group 3: Visual direction
-- Name 2–3 specific products, sites, or brands you'd use as positive references — things you want to be similar to.
-- Name 1–2 anti-references — things you explicitly do NOT want this to look like.
-- Are there existing brand assets (logo, color palette, type choices) to follow?
+### Group 3: Brand commitments and evidence
+- Are there existing brand assets (name, logo, color palette, type choices, voice) that future work must keep?
+- What real content, data, demonstrations, testimonials, or case studies exist? Which do not exist yet?
 
 ### Group 4: Constraints
 - Any technical constraints? (Must use Tailwind? Specific component library? CSS-in-JS?)
@@ -44,65 +45,87 @@ Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Bef
 
 ## Step 2: Write PRODUCT.md
 
-Write to `PRODUCT.md` in the project root:
+Write to `PRODUCT.md` in the project root. Write only confirmed facts and open decisions marked as open. Omit a section that does not apply.
 
 ```markdown
 # Product
 
-## Register
-brand | product
-
 ## Users
-[2–3 sentence description of primary users, their context, and their expertise]
+[Primary users, their situation, and the job they do. Add other audiences only when confirmed.]
 
-## Brand Personality
-[3–5 concrete brand-voice words and what they mean for design choices]
+## Product Purpose
+[What the product does, why it exists, and what success means.]
 
-## Tone
-[How the design should feel emotionally. What it should NOT feel like.]
+## Positioning
+[The mechanism or claim that a neighboring product could not truthfully copy.]
 
-## Positive References
-- [Name] — [why/what to take from it]
-- [Name] — [why/what to take from it]
+## Operating Context
+[The workflows, environments, tools and documents that are part of using or evaluating the product.]
 
-## Anti-references
-- [Name] — [why to avoid this direction]
+## Capabilities and Constraints
+[Confirmed functions, technical constraints, terminology, and product facts that are still undecided.]
+
+## Brand Commitments
+[Existing name, voice, assets, personality, and references the person made binding. Omit when none exist.]
+
+## Evidence on Hand
+[Real content, data, demonstrations, testimonials, case studies and assets, with paths. State each absence that future work must not fabricate.]
 
 ## Strategic Principles
-[2–4 sentences on design priorities and trade-offs specific to this project]
+[Two to four durable principles on priorities and trade-offs. No visual recipes.]
 ```
+
+Do not write a `## Register` section: the design mode is chosen per surface ([_design-context.md](_design-context.md) → Design modes). An older PRODUCT.md keeps its legacy sections (Register, Brand Personality, Tone, references) until the person agrees to remove them.
 
 ## Step 3: Write DESIGN.md (if information available)
 
-Write to `DESIGN.md` in the project root:
+Write to `DESIGN.md` in the project root. Write no frontmatter.
 
 ```markdown
 # Design
 
+## Overview
+[The personality, density and aesthetic stance of the system, in two or three paragraphs. State only confirmed rejections. Token file: <path, or none>.]
+
 ## Colors
-[Primary, secondary, accent, neutrals — hex or oklch values if known]
+[The palette character in one sentence. Each color with its value (hex or oklch), its name and where it is used. Light and dark support.]
+
+### Token roles
+| Role | Token | Value | Used for |
+|---|---|---|---|
+| ground | | | page background |
+| surface | | | raised panels and cards |
+| text | | | body text |
+| text-secondary | | | secondary text |
+| accent | | | primary action, current selection |
+| border | | | dividers and control outlines |
+| focus | | | focus ring |
+| error, warning, success, info | | | state colors |
 
 ## Typography
-[Font families, scale, key sizes if known]
+[Families with fallbacks. The hierarchy roles (display, headline, title, body, label) with weight, size and line height. The body measure.]
+
+## Layout
+[The grid or spatial model, container behavior, density, responsive changes, and the spacing rhythm.]
+
+## Elevation & Depth
+[Shadows, tonal layers, or both. With no shadows, say how depth shows.]
+
+## Shapes
+[The radius strategy, borders, clipping, and recurring geometry.]
 
 ## Components
-[Existing component library if any — shadcn, Radix, MUI, Tailwind UI, etc.]
+[The component library, if any, and the icon library. For each main component (buttons, inputs, cards, navigation): its shape, color roles and states.]
 
-## Design Tokens
-[Token file location if one exists]
-
-## Elevation and Shadows
-[Shadow levels or elevation system if used]
-
-## Notes
-[Anything else relevant — dark mode support, icon library, illustration style]
+## Do's and Don'ts
+[Concrete guardrails from the existing system or the person's choices. Start each with "Do" or "Don't".]
 ```
 
-If no design information is available yet, create DESIGN.md with placeholder sections and a note to fill in when known.
+Fill the token roles that a source gives. The design stage fills the rest at freeze ([record.md](record.md) → Token roles at freeze). If no design information is available yet, create DESIGN.md with placeholder sections and a note to fill in when known.
 
 ## Step 3b: Write the `.ai/design/` record
 
-Write `.ai/design/current.md` and `.ai/design/direction.md` from the templates in [record.md](record.md). Group 5 fills `## Goals` and `## Future direction`. List the surfaces the codebase inspection found under `## Surfaces`. Put the known problems from Group 5 under `## Design debt`.
+Write `.ai/design/current.md` and `.ai/design/direction.md` from the templates in [record.md](record.md). Group 5 fills `## Goals` and `## Future direction`. List the surfaces the codebase inspection found under `## Surfaces`. Put the known problems from Group 5 under `## Design debt`. Apply [record.md](record.md) → Floor guard to every write.
 
 ## Step 4: Confirm
 

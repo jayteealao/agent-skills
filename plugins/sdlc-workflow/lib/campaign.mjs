@@ -46,6 +46,8 @@ const DEFAULT_CHOICES = Object.freeze({ 'review-scope': ['slug-wide', 'per-slice
 export const AWAY_POLICY = Object.freeze({
   stage: 'recommended', review: 'fix-loop', contract: 'hold', orient: 'rerun', 'driver-fault': 'resume',
   'merge-conflict': 'hold', 'needs-cycle': 'hold', deadlock: 'hold', 'moved-dependency': 'hold', 'slug-stop': 'hold', 'wave-review': 'hold',
+  // WF-DESIGN-PLAN B1: a finding against the confirmed design is an intent-bearing question.
+  'design-amend': 'hold',
 });
 const POLICY_CHOICES = Object.freeze({
   stage: ['recommended', 'hold'], review: ['fix-loop', 'hold'], contract: ['refuse-change', 'hold'], orient: ['rerun', 'hold'], 'driver-fault': ['resume', 'hold'],
@@ -1172,12 +1174,29 @@ export function replan(ledger, units, { revision = ledger['work-revision'], now 
 export const openSetupAnswer = (ledger) => SETUP_ANSWERS.find((k) => ledger.answers?.[k] === null || ledger.answers?.[k] === undefined) ?? null;
 
 /**
+ * WF-DESIGN-PLAN B3 (DP4, P6): the command the person types next, in the form of the reply
+ * rule ("Type `/wf …`."). `prepare` names the intake of its first unit; the rolling prepare
+ * then runs shape, the design lane, and slice (campaign/_prepare.md).
+ */
+export const typeCommand = (args) => `Type \`/wf ${args}\`.`;
+const campaignCommand = (ledger) => typeCommand(`campaign ${ledger.brainstorm}`);
+const prepareCommand = (ledger, key) => {
+  const u = ledger.units?.[key] ?? {};
+  return typeCommand(`intake .ai/workflows/${ledger.brainstorm}/work/${u['work-slug'] ?? u.slug ?? key}.md`);
+};
+
+/**
  * Section 6: what `/wf campaign <brainstorm>` does next, from the ledger and the
  * current work-revision of work/index.md. `driving` is the live wave run
  * ({ wave, run, newestAt }) when one runs (D25): the session then never launches
  * a second run and never changes a unit of that wave itself.
+ * B3: each action that waits for the person (`prepare`, `start-wave`, `ask`, `setup`,
+ * `design-setup`) carries `command`. B4 (P4): `design` is the design record of the
+ * board ({ focus, missing }, from the caller's read of the disk). When the board has
+ * `focus: design` and PRODUCT.md or DESIGN.md is missing, `design-setup` comes before
+ * `prepare`, and it clears when both files exist. The ledger holds none of it.
  */
-export function campaignAction(ledger, { revision = null, driving = null } = {}) {
+export function campaignAction(ledger, { revision = null, driving = null, design = null } = {}) {
   if (!ledger) return { action: 'orient' };
   if (ledger.pause) return { action: 'paused', pause: ledger.pause, ...(driving ? { driving } : {}) };
   // 4.4: the person confirms the dependency graph before setup, and before a new unit joins a wave.
@@ -1185,10 +1204,10 @@ export function campaignAction(ledger, { revision = null, driving = null } = {})
   const unconfirmed = unconfirmedKeys(ledger);
   if (unconfirmed.length && !driving) return { action: 'deps', units: unconfirmed };
   const setup = openSetupAnswer(ledger);
-  if (setup) return { action: 'setup', question: setup };
+  if (setup) return { action: 'setup', question: setup, command: campaignCommand(ledger) };
   if (revision !== null && revision !== ledger['work-revision']) return { action: 'work-changed', from: ledger['work-revision'], to: revision, ...(driving ? { driving } : {}) };
   const open = ledger.questions.filter((q) => !q['answered-at']);
-  if (open.length) return { action: 'ask', questions: open, ...(driving ? { driving } : {}) };
+  if (open.length) return { action: 'ask', questions: open, ...(driving ? { driving } : {}), command: campaignCommand(ledger) };
   const unprepared = (w) => (w ? w.units.filter((k) => ledger.units[k]?.state === 'planned') : []);
   const lives = ledger.waves.filter((w) => LIVE_WAVE_STATES.includes(w.state));
   const live = lives[0];
@@ -1201,13 +1220,18 @@ export function campaignAction(ledger, { revision = null, driving = null } = {})
   // D6: the units to prepare again, with the decisions to ask about.
   const reask = Object.fromEntries(Object.entries(ledger.units ?? {}).filter(([, x]) => x.state === 'planned' && x['stale-decisions']?.length).map(([k, x]) => [k, x['stale-decisions']]));
   const extra = (o) => ({ ...o, ...(ahead.length ? { ahead } : {}), ...(Object.keys(reask).length ? { reask } : {}) });
+  const missing = design?.focus === 'design' && Array.isArray(design.missing) ? design.missing : [];
+  // B4: the person sets up the design record once, before the first prepare that needs it.
+  const prepare = (wave, units) => (missing.length
+    ? { action: 'design-setup', missing: [...missing], wave, units, command: typeCommand('design setup') }
+    : extra({ action: 'prepare', wave, units, command: prepareCommand(ledger, units[0]) }));
   // WF-CAMPAIGN-THROUGHPUT-PLAN T2 step 1: a wave whose wave-ready is recorded counts as merged into its branch.
   const stacked = ledger.stack?.enabled && next && lives.length
     && lives.every(waveReady)
     && lives.length < (ledger.stack['max-unshipped'] ?? DEFAULT_MAX_UNSHIPPED);
   if (stacked && !driving) {
     const todo = unprepared(next);
-    return todo.length ? extra({ action: 'prepare', wave: next.n, units: todo }) : extra({ action: 'start-wave', wave: next.n, beside: lives.map((w) => w.n) });
+    return todo.length ? prepare(next.n, todo) : extra({ action: 'start-wave', wave: next.n, beside: lives.map((w) => w.n), command: campaignCommand(ledger) });
   }
   // D25: the wave driver runs the wave; the session prepares the next wave and answers questions.
   if (driving) return extra({ action: 'driving', ...driving, prepare: unprepared(next), ...(unconfirmed.length ? { deps: unconfirmed } : {}) });
@@ -1219,7 +1243,7 @@ export function campaignAction(ledger, { revision = null, driving = null } = {})
   if (stopped) return { action: 'stopped', wave: stopped.n };
   if (next) {
     const todo = unprepared(next);
-    return todo.length ? extra({ action: 'prepare', wave: next.n, units: todo }) : extra({ action: 'start-wave', wave: next.n });
+    return todo.length ? prepare(next.n, todo) : extra({ action: 'start-wave', wave: next.n, command: campaignCommand(ledger) });
   }
   const needsYou = Object.entries(ledger.outside).filter(([, x]) => x.state !== 'closed').map(([k]) => k);
   if ((ledger.waiting ?? []).length) return { action: 'blocked', waiting: ledger.waiting, needsYou };

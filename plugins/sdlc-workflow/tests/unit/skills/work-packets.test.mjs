@@ -143,6 +143,42 @@ test('a packet carries its sketches with their files; a packet without sketches 
   equal('sketches' in plain, false);
 });
 
+test('WF-DESIGN-PLAN A6: a packet sketch keeps its #<artboard> anchor and carries its canvas record', () => {
+  const canvas = { link: 'https://claude.ai/canvas/new', account: 'me', 'published-at': '2026-10-22T10:00:00Z', sha256: 'a'.repeat(64), previous: ['https://claude.ai/canvas/old'] };
+  const sketches = [
+    { key: 'home-hero', thread: 'module-shape', link: 'https://claude.ai/canvas/old', path: 'design/sketches/screens.html#home', caption: 'The home hero.', state: 'carried', canvas },
+    { key: 'home-list', thread: 'module-shape', link: null, path: `.ai/workflows/${SLUG}/design/sketches/screens.html#list`, caption: 'The list.', state: 'carried' },
+  ];
+  const base = board();
+  const b = board({ focus: 'design', sketches, work: [{ ...base.work[0], sketches: ['home-hero', 'home-list'] }, ...base.work.slice(1)] });
+  ok(validateBrainstormBoard(b).valid, JSON.stringify(validateBrainstormBoard(b).errors));
+  const fm = packetFrontmatter(b, b.work[0]);
+  deepEqual(fm.sketches, [
+    { key: 'home-hero', path: `.ai/workflows/${SLUG}/design/sketches/screens.html#home`, link: 'https://claude.ai/canvas/new', caption: 'The home hero.', canvas },
+    { key: 'home-list', path: `.ai/workflows/${SLUG}/design/sketches/screens.html#list`, link: null, caption: 'The list.' },
+  ]);
+  ok(validateFrontmatter(fm).valid, JSON.stringify(validateFrontmatter(fm).errors));
+  deepEqual(checkWorkSet(b).errors, []);
+});
+
+test('WF-DESIGN-PLAN A7: at done, no sketch is an idea, every carried sketch is in a piece, and a piece names only board sketches', () => {
+  const base = board();
+  const sketches = [
+    { key: 'module-map', thread: 'module-shape', link: null, path: 'design/sketches/module-map.html', caption: 'The modules.', state: 'idea' },
+    { key: 'event-strip', thread: 'module-shape', link: null, path: 'design/sketches/event-strip.html', caption: 'One strip per event.', state: 'carried' },
+    { key: 'old-idea', thread: 'module-shape', link: null, path: null, caption: 'An old idea.', state: 'dropped' },
+    { key: 'outside', thread: 'module-shape', link: 'https://claude.ai/canvas/r', path: null, caption: 'A reference.', state: 'reference' },
+  ];
+  const b = board({ focus: 'design', sketches, work: [{ ...base.work[0], sketches: ['ghost'] }, ...base.work.slice(1)] });
+  const errors = checkWorkSet(b).errors.join('\n');
+  match(errors, /sketch module-map \("The modules\."\) is still an idea/);
+  match(errors, /carried sketch event-strip \("One strip per event\."\) is in no piece of work/);
+  match(errors, /piece engine-modules names sketch ghost, which is not on the board/);
+  doesNotMatch(errors, /old-idea|outside/, 'a dropped sketch and a reference need no piece');
+  const fixed = board({ focus: 'design', sketches: sketches.map((s) => (s.key === 'module-map' ? { ...s, state: 'dropped' } : s)), work: [{ ...base.work[0], sketches: ['event-strip'] }, ...base.work.slice(1)] });
+  deepEqual(checkWorkSet(fixed).errors, []);
+});
+
 test('a clean work set passes the check', () => {
   const b = board();
   deepEqual(checkWorkSet(b).errors, []);

@@ -40,7 +40,8 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `implement/_artifact.md` | procedure | always | |
 | `implement/_research.md` | procedure | mode:research | |
 | `implement/_steps.md` | procedure | mode:commit | |
-| `design/_design-context.md` | procedure | mode:ui | Register; Shared design laws; Absolute bans |
+| `design/_design-context.md` | procedure | mode:ui | Design modes; Shared design laws |
+| `design/_craft-floor.md` | procedure | mode:ui | |
 | `implement/_reviews-mode.md` | procedure | mode:reviews | |
 | `review/_fix-prompt.md` | procedure | mode:reviews | |
 | `07-review-<slice>.md` | artifact | mode:reviews | |
@@ -97,8 +98,8 @@ Apply [_workflow-rules.md](_workflow-rules.md).
    | `benchmark` (mode: baseline) | `05c-benchmark.md` | Note the baseline numbers; the implementation may not regress them. `verify` re-runs the compare (loads `augment/benchmark.md` in compare mode). |
 
    **Apply the design planning artifacts** (separate from augmentations):
-   - `02b-design.md`, the design brief: carry forward register (brand/product), color strategy, and anti-goals.
-   - **Baseline design canon** (`mode:ui`: the slice builds UI and neither `02b` nor `02c` exists): `design/_design-context.md` gives the register, design laws, absolute bans, and motion summary. When code touches motion, interface detail, or typography, also read `animate.md` / `polish.md` / `typeset.md`. Skip the preflight, image, and mutation sections; they govern `/wf design`.
+   - `02b-design.md`, the design brief: carry forward the design mode of each surface, color strategy, and anti-goals.
+   - **Baseline design canon** (the slice builds UI and neither `02b` nor `02c` exists): `design/_design-context.md` gives the design modes, design laws, and motion summary. When code touches motion, interface detail, or typography, also read `animate.md` / `polish.md` / `typeset.md`. Skip the preflight, image, and mutation sections; they govern `/wf design`.
    - **Recommended references** (whenever `02b-design.md` OR `02c-craft.md` is present): build the reference set as the **union** of `recommended-references:` in `02b-design.md` and `references-loaded:` in `02c-craft.md`. Strip a trailing `.md` before de-duplicating, then read `design/<name>.md` for each unique name. Loaded references are **read-only judgment context**: they disambiguate the visual contract but never expand scope. If an entry does not resolve to a file, log a one-line warning and continue.
    - `02c-craft.md`, the **visual contract**. The `## Mock fidelity inventory` items are **additional acceptance criteria**; honor every item in code. The `## Implementation contract` names the token choices, component decisions, and motion specs to follow. With `boards:`, also read the board PNGs of the slice's surfaces (`design/_boards.md`).
    - **Applying design moves**: for each move the plan cites, read its playbook from `design/<name>.md`, apply it during the build, then **register it as a `design-<sub>` augmentation** in `00-index.md` and write `design-notes/<sub>-<timestamp>.md` (contract in `design/_output.md`, "Registration and the transformation artifact"). When the contract cannot be built as drawn, STOP per [design/_lane.md](design/_lane.md) and route to `/wf design <slug> amend`.
@@ -128,9 +129,9 @@ Shape settled *what* to build and plan settled *which strategy* (build-avoidance
 
 # Design build discipline (when the slice builds UI and a contract or design canon applies)
 
-When this slice builds UI, the build is held to the design floor in [design/_design-context.md](design/_design-context.md). Apply it; do not restate its rules. Principles: use codebase design tokens, not hard-coded values; follow the existing component vocabulary (no new button style when one exists); every interactive component has default, hover, focus, active, and disabled states; skeletons, not spinners, for content areas; reduced motion is gentler, not zero (keep opacity); OKLCH for any new color value, never `#000` or `#fff`. If the deliverable is a **reusable component** (design-system primitive or shared widget, not a one-off screen), apply [design/_component-craft.md](design/_component-craft.md): DX-first API, excellent defaults, memorable naming, a touchable example. **Absolute bans** are in `design/_design-context.md` → *Absolute bans*; introducing one is a defect the review and verify gates bounce.
+When this slice builds UI, list `ui` in the `modes:` of the implementation record. Before you draw or edit UI, load [design/_craft-floor.md](design/_craft-floor.md). Load it once per slice, before the first UI file edit. Check the result against its Refuse and Verify lists. If the deliverable is a **reusable component** (design-system primitive or shared widget, not a one-off screen), apply [design/_component-craft.md](design/_component-craft.md): DX-first API, excellent defaults, memorable naming, a touchable example. A floor refusal that you introduce is a defect the review and verify gates bounce.
 
-**Contract-check pass (when `02c-craft.md` was present).** After building against a visual contract, dispatch one **fresh-context check agent** before writing the implementation record: the blind pre-mortem pattern (`shape.md` Step 9), not a self-critique. Give the agent ONLY the contract inputs (`02c-craft.md`, `02b-design.md`, the board PNGs, the relevant register reference) and the built surface. Its charter: report every material departure from the mock-fidelity inventory, the boards, the anti-goals, and the register rules, each with file:line evidence. Fix the material defects it reports. Record what the pass caught, and the file:line each fix landed at, in `## Visual Contract Honored`.
+**Contract-check pass (when `02c-craft.md` was present).** After building against a visual contract, dispatch one **fresh-context check agent** before writing the implementation record: the blind pre-mortem pattern (`shape.md` Step 9), not a self-critique. Give the agent ONLY the contract inputs (`02c-craft.md`, `02b-design.md`, the board PNGs, the design-mode reference of each surface) and the built surface. Its charter: report every material departure from the mock-fidelity inventory, the boards, the anti-goals, and the design-mode rules, each with file:line evidence. Fix the material defects it reports. Record what the pass caught, and the file:line each fix landed at, in `## Visual Contract Honored`.
 
 # Chat return contract
 

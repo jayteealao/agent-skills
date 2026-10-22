@@ -73,7 +73,7 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
 | `experiment` | Read `04c-experiment.md`. Review the experiment infrastructure: is the cohort logic correct, are metrics appropriate, is the rollback path safe? |
 | `benchmark` | Read `05c-benchmark.md`. Cross-reference with `06-verify` compare-mode results. If verify flagged regressions, surface them as review findings. |
 
-Use `02b-design.md` and `02c-craft.md` for register, anti-goals and visual contract. Check that the change honors the `02c-craft.md` anti-goals. When `02c-craft.md` names `boards:`, compare each board PNG with its capture in the verify `## Design Comparison` (`design/_boards.md`). Route a finding against a confirmed board to `/wf design <slug> amend` as a question; do not redraw the board.
+Use `02b-design.md` and `02c-craft.md` for the design mode of each surface, anti-goals and visual contract. Check that the change honors the `02c-craft.md` anti-goals. When the change touches UI, the Verify and Refuse lists of `design/_craft-floor.md` are the checklist of the design-audit and design-critique dimensions. When `02c-craft.md` names `boards:`, compare each board PNG with its capture in the verify `## Design Comparison` (`design/_boards.md`). Route a finding against a confirmed board to `/wf design <slug> amend` as a question; do not redraw the board.
 
 **Verify inputs.** Use these values from each `06-verify-*.md` file in scope:
 - `## Augmentation Verification` — failed augmentation re-checks become BLOCKER or HIGH findings automatically.
@@ -81,7 +81,7 @@ Use `02b-design.md` and `02c-craft.md` for register, anti-goals and visual contr
 - `adversarial-tests-failed` (frontmatter) — any value > 0 means `## Adversarial Tests` contains BLOCKER or HIGH findings; surface them in the aggregated finding list.
 - `cross-browser-delta` (frontmatter) — if `findings`, read `## Cross-Browser Delta` and surface each divergence as a HIGH compatibility finding.
 - `design-comparison` (frontmatter) — `no-boards` means no visual check exists; do not count the visual contract as verified.
-- Web vitals (frontmatter) — a `web-vitals-inp-ms` value above 200, a `web-vitals-lcp-ms` value above 2500, or a `web-vitals-cls` value above 0.1 is a HIGH performance finding. Verify grades them the same way (`verify/_artifact.md`, `## Performance Gate`).
+- Web vitals (frontmatter) — a `web-vitals-inp-ms` value above 200 is a HIGH performance finding. A `web-vitals-lcp-ms` value above 2500, or a `web-vitals-cls` value above 0.1, is a MED performance finding. Verify grades INP HIGH and LCP and CLS WARN (`verify/_artifact.md`, `## Performance Gate`); review has no WARN, so a WARN is MED here.
 - `## Friction Notes` and `## Free Exploration Notes` — these are informational (not auto-promoted to issues) but must appear in the review's `## Soft Findings` section so the human reviewer can see them. They represent observations a first-time user would notice that no AC captured.
 
 # Workflow rules

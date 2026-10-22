@@ -33,10 +33,24 @@ test('the platform map has the four platform columns and every rule term', () =>
   for (const term of ['cheap property', 'paint property', 'layout property', 'render thread', 'app thread', 'layer hint',
     'retargetable animation', 'restarting animation', 'curve token', 'spring', 'trigger origin', 'entry without a mount flag',
     'per-frame value', 'reduced-motion setting', 'hover pointer', 'press feedback', 'system back', 'insets and system bars',
-    'largest text size']) {
+    'largest text size', 'minimum hit area', 'window size class', 'coarse pointer', 'interrupted gesture',
+    'start and end edges', 'locale formatter', 'high-contrast setting', 'accessibility semantics', 'profiling tools',
+    'deferred media loading', 'reserved media size', 'text shown during font load', 'long-list virtualization',
+    'shared-element transition', 'scroll-linked animation', 'GPU drawing surface', 'hanging punctuation',
+    'system-part colors', 'balanced wrap', 'even-last-line wrap', 'tabular numerals', 'font smoothing',
+    'top-level navigation', 'font stack']) {
     match(map, new RegExp(`\\*\\*${term.replace(/[-()]/g, '\\$&')}\\*\\*`), `the map defines "${term}"`);
   }
   ok(platformTokens().size > 40, 'the map holds the platform forms');
+  match(map, /^## Idioms$/m);
+});
+
+test('the platform map carries the terminal rules (DP11)', () => {
+  const terminal = read(`${DESIGN}/_platforms.md`).split('## Terminal')[1].split('## Sources')[0];
+  for (const rule of [/light board and a dark board/, /ANSI yellow \(SGR 33\) and bright black \(SGR 90\)/, /80 columns by 24 rows/,
+    /Do not print `~`/, /"done" line only after an end-to-end check/, /design-boards\.mjs" ansi/]) {
+    match(terminal, rule);
+  }
 });
 
 test('motion rules name no platform API outside code examples', () => {
@@ -46,6 +60,7 @@ test('motion rules name no platform API outside code examples', () => {
     '_motion-recipes.md (rules part)': prose(read(`${DESIGN}/_motion-recipes.md`).split('## Web snippets')[0]),
     'review/interface-craft.md (motion)': read('skills/wf/reference/review/interface-craft.md').split('### motion')[1].split('# Severity calibration')[0],
   };
+  for (const move of ['animate', 'bolder', 'clarify', 'colorize', 'delight', 'distill', 'harden', 'layout', 'onboard', 'optimize', 'overdrive', 'polish', 'quieter', 'typeset']) sources[`${move}.md`] = prose(read(`${DESIGN}/${move}.md`));
   for (const [name, text] of Object.entries(sources)) {
     const leaks = [...text.matchAll(/`([^`]+)`/g)].map((m) => m[1].trim()).filter((t) => tokens.has(t));
     deepEqual(leaks, [], `${name} names platform APIs; use the generic term and _platforms.md`);
@@ -74,7 +89,7 @@ test('the six old motion conflicts stay fixed everywhere in the references', () 
   match(animate, /fewer and gentler, not zero/, 'reduced motion is gentler, not zero');
   match(animate, /Exit on the entry path/, 'exits follow the entry path');
   match(animate, /Hover motion only for a hover pointer/, 'hover is gated');
-  match(animate, /Product UI motion stays under 300 ms/, 'the 300 ms cap');
+  match(animate, /Motion on an Operate or Read surface stays under 300 ms/, 'the 300 ms cap');
 });
 
 test('animate carries the gates, the sweep with rejected candidates, and the source commit', () => {

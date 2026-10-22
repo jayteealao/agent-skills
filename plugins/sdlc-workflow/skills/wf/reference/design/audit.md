@@ -4,7 +4,9 @@ This is a code-level audit, not a design critique. Check what is measurable and 
 
 **Reuse verify measurements.** When `06-verify-*.md` exists, consume its measured accessibility, performance, and web-vitals results. Do not re-run axe-core or Lighthouse. Measure these yourself only when no verify ran.
 
-**The audit scores accessibility** against the shared Accessibility law in `_design-context.md`.
+**Load the floor as a checklist.** Load [_craft-floor.md](_craft-floor.md). Score accessibility against its Verify list, and dimension 5 against its Refuse list. The audit edits nothing.
+
+Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.
 
 ## Diagnostic Scan
 
@@ -13,6 +15,7 @@ Run comprehensive checks across 5 dimensions. Score each 0–4 using the criteri
 ### 1. Accessibility (A11y)
 
 - **Contrast**: Text contrast ratios < 4.5:1 (or 7:1 for AAA)
+- **Motion sensitivity**: the reduced-motion setting gets a planned alternative that keeps each state change and the hierarchy. Flag a global reduced-motion switch that sets every duration to zero: it removes useful feedback. Also flag flashing above the threshold, and motion that blocks focus, reading, or the task
 - **Missing ARIA**: Interactive elements without proper roles, labels, or states
 - **Keyboard navigation**: Missing focus indicators, illogical tab order, keyboard traps
 - **Semantic HTML**: Improper heading hierarchy, missing landmarks, divs instead of buttons
@@ -24,8 +27,9 @@ Score: 0=Inaccessible (fails WCAG A), 1=Major gaps, 2=Partial (some effort, sign
 ### 2. Performance
 
 - **Layout thrashing**: Reading/writing layout properties in loops
-- **Expensive animations** (terms of `animate.md` → Performance; platform forms in `_platforms.md`): a layout property animated, every property animated at once, app-thread motion during heavy work, a per-frame value routed through component state, one inherited value driving a child's motion, animated blur above 20 px, an animated shadow, visible frame drops at the 8.3 ms budget
-- **Missing optimization**: Images without lazy loading, unoptimized assets, a layer hint missing where a measured shift exists (and a layer hint added with no measured need)
+- **Expensive animations** (terms of `animate.md` → Performance; platform forms in `_platforms.md`): a layout property animated, every property animated at once, app-thread motion during heavy work, a per-frame value routed through component state, one inherited value driving a child's motion, visible frame drops at the 8.3 ms budget
+- **Motion materials (a cost flag, not a ban)**: animated blur above 20 px and an animated shadow are allowed on a Persuade or Experience focal moment inside the frame budget. Flag them on an Operate or Read surface, or when they drop frames
+- **Missing optimization**: Images without lazy loading, unoptimized assets, a layer hint missing where a measured shift exists (and a layer hint added with no measured need, or left on at rest)
 - **Bundle size**: Unnecessary imports, unused dependencies
 - **Render performance**: Unnecessary re-renders, missing memoization
 
@@ -44,6 +48,7 @@ Score: 0=No theming, 1=Minimal tokens, 2=Partial, 3=Good (minor hard-coded value
 
 - **Fixed widths**: Hard-coded widths that break on mobile
 - **Touch targets**: Interactive elements < 44×44 px (a pointer-only desktop control < 32×32 px)
+- **Broken touch interaction**: a custom slider, drag surface, or scrolling control strip whose main gesture fails under touch, takes the page scroll, or stays stuck after an interrupted gesture. Code signs: mouse-only handlers, no touch handling on a drag surface, drag state that nothing clears on cancel or blur. Run the gesture when a tool can make touch input. Name the source of the evidence: an emulated viewport, a made touch, which engine, or a real device
 - **Horizontal scroll**: Content overflow on narrow viewports
 - **Text scaling**: Layouts that break when text size increases
 - **Missing breakpoints**: No mobile/tablet variants
@@ -51,14 +56,17 @@ Score: 0=No theming, 1=Minimal tokens, 2=Partial, 3=Good (minor hard-coded value
 
 Score: 0=Desktop-only, 1=Major issues, 2=Works on mobile but rough, 3=Good (minor issues), 4=Excellent (all viewports)
 
-### 5. Anti-patterns
+### 5. Implementation integrity
 
-Check against the absolute bans in [_design-context.md](_design-context.md) → Absolute bans, and against the register references. Look for AI slop tells and general design anti-patterns:
-- AI slop tells: purple-blue gradients, glassmorphism, hero metric cards, generic card grids, gradient text, fonts from the reflex-reject list in [brand.md](brand.md) on new surfaces
-- Design anti-patterns: `border-left`/`border-right` colored accent stripes, nested cards, bounce easing in product-register UI, gray text on colored backgrounds
-- Product anti-patterns: display fonts in labels, inconsistent component vocabulary, reinvented standard affordances
+Score the build against the Refuse list and the Model tells of [_craft-floor.md](_craft-floor.md), and against the design-mode file of each surface (`02c-craft.md` `surface-modes:`). Look for:
+- **Drift from `DESIGN.md`**: tokens, components, or patterns that the system does not hold.
+- **Shortcuts**: the same refused element repeated across surfaces; decorative or misleading content; illustrative values not labelled as illustrative.
+- **Interchangeable structure**: a layout that an unrelated product could ship unchanged.
+- **Mode faults**: a display face in a label, bounce easing on an Operate or Read surface, a reinvented standard control, an inconsistent component vocabulary.
 
-Score: 0=AI slop gallery (5+ tells), 1=Heavy AI aesthetic (3–4 tells), 2=Some tells (1–2), 3=Mostly clean (subtle issues), 4=No AI tells (distinctive, intentional)
+Check each finding in its context, and name each false positive. Keep a measured finding apart from a visual judgment.
+
+Score: 0=systemic drift, 1=major repeated failures, 2=several verified issues, 3=minor isolated issues, 4=coherent and intentional
 
 ### Drift check (not scored)
 
@@ -93,7 +101,7 @@ Format as a structured report:
 | Performance | X/4 | ... |
 | Theming | X/4 | ... |
 | Responsive | X/4 | ... |
-| Anti-patterns | X/4 | ... |
+| Implementation integrity | X/4 | ... |
 
 ## Critical issues (score 0–1 in any dimension)
 [List with file:line references]

@@ -5,6 +5,31 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+WF-DESIGN-PLAN in full: the Lantern design-process fixes (Releases A and B) and the impeccable v4.7 re-port (Releases C, D and E). Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.
+
+### Fixed
+
+- **A carried design decision is not asked again (A1).** The design stage presents the carried thoughts as one read-only summary, finds the contradictions, and asks only about those. Shape shows the carried sketches with path and caption (A2).
+- **The person types the next step (A3).** Every stage and the campaign write "Type `/wf <key> <args>`" and never say that they run it. `campaign.mjs status` returns `next.command` for each action that waits for the person (B3).
+- **Prepare runs the design lane before slice (A4).** The order is intake, shape, design when the packet needs one, then slice. With `focus: design` and no `PRODUCT.md` or `DESIGN.md`, `status` first returns `design-setup` (A9, B4).
+- **Sketches survive the machine (A5).** `design-boards.mjs track` also keeps `.ai/workflows/*/design/sketches/` in git and upgrades an old block.
+- **The file is the source, the canvas is a view (A5b, A6).** Sketches and boards record `canvas: { link, account, published-at, sha256, previous[] }`. The new `design-boards.mjs canvas-stale <root> <slug> [--account <name>]` finds a canvas that is foreign or out of date, and the stage republishes it from the session's account. A sketch path may be `<file>#<artboard>`; a sketch may be `state: reference`.
+- **A brainstorm writes a readable page (A7).** The new `scripts/brainstorm-page.mjs <root> <slug>` writes `brainstorm-page.html` with the decisions, tensions, sketches and pieces of work. `checkWorkSet` reports a sketch still `idea`, a carried sketch in no piece, and a piece that names an unknown sketch.
+- **Terminal surfaces get real boards (A8).** `design-boards.mjs ansi <input.txt> --scheme campbell|solarized-light` renders captured ANSI output with the Windows Terminal schemes. `_platforms.md` → Terminal gives the 80×24 board and the contrast checks.
+- **Smaller faults (A10, A11).** An interrupted question is unanswered. The clock is read again for each question batch. Ideate offers a brainstorm when no code exists. Retro writes `.ai/design/*` in the main checkout under a campaign and routes direction decisions to `steer <unit> add`.
+- **A design finding goes to the person (B1).** A review finding against a confirmed board or the `02c-craft.md` contract is never fixed or dismissed by a driver. The campaign parks the unit with the kind `design-amend` (amend, keep or defer); yolo stops with the route `/wf design <slug> amend`.
+- **Main records are safe on worktree remove (B2).** `.ai/design/` is main-owned. A record that a worktree reverted to an earlier base is not copied over main.
+
+### Changed
+
+- **One craft floor (C).** New `design/_craft-floor.md` holds Verify, Refuse (always, and the defaults a brief can earn), Model tells and the Record guard. The design stage loads it at Step 4; implement loads it before the first UI edit of a slice (`mode:ui`); audit, critique, import, upkeep and every move check against it. A brainstorm does not load it. `_design-context.md` loses its ban list.
+- **The 15 moves and review (D).** Each move gains the impeccable v4.7 additions in STE, a `## Design mode` section and the floor pointer. Critique scores the Nielsen heuristics (new `design/_heuristics.md`), runs the cognitive-load check and the squint test, adds personas, P0–P3 severity and closing questions. Audit dimension 5 is "Implementation integrity". The design stage draws seven candidate directions, chooses three and records four. `_platforms.md` gains `## Idioms` and `## Terminal`.
+- **Design modes replace register (E).** Each surface has one design mode: Persuade, Operate, Read or Experience. `02c-craft.md` records `surface-modes:`; a move artifact records `design-mode:`. `design/mode-persuade.md`, `mode-operate.md` and `mode-read.md` replace `brand.md` and `product.md`. An old `register:` still reads (brand → persuade, product → operate), and `post-write-verify` warns once (`hooks.designModeLint`). The contract renderer shows the map.
+- **Web vitals (M1).** Verify grades INP above 200 ms HIGH, LCP above 2500 ms and CLS above 0.1 WARN; review grades a WARN vital MED.
+- **Setup and teach.** The PRODUCT.md and DESIGN.md templates have eight headings and `### Token roles` under Colors. The aesthetic questions move to the design brief (`design/shape.md` Round 3), which also records `viewports:`.
+
 ## [9.198.0] - 2026-10-22
 
 WF-SYSTEM-REVIEW-2026-10-21 in full: themes A, B, C, D (without D4), and E (without E2).

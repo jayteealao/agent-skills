@@ -19,6 +19,9 @@ import {
 import {
   escapeHtml
 } from "../chunk-3RXHOXIK.mjs";
+import {
+  designModesOf
+} from "../chunk-JTJFHSOY.mjs";
 import "../chunk-CGSPUUFD.mjs";
 import "../chunk-FZ2GR6GF.mjs";
 import "../chunk-LFGT2BKG.mjs";
@@ -54,6 +57,7 @@ function render(artifact, ctx) {
         ${listBlock("themes", data.themes)}
       </section>` : "";
   const fragmentBlock = artifact.fragment ? `<div class="fragment">${artifact.fragment}</div>` : "";
+  const modesHtml = designModesBlock(fm);
   const frontmatterBlock = frontmatterCard(fm, [
     "component",
     "based-on",
@@ -74,10 +78,20 @@ function render(artifact, ctx) {
   const proseBlock = artifact.body ? `<div class="prose">${md2html(artifact.body)}</div>` : "";
   return {
     headerHtml,
-    bodyHtml: `${metricsHtml}${summaryHtml}${galleryHtml}${fragmentBlock}${matrixHtml}${frontmatterBlock}${proseBlock}${renderHistoryBlock(artifact.history)}`,
+    bodyHtml: `${metricsHtml}${summaryHtml}${modesHtml}${galleryHtml}${fragmentBlock}${matrixHtml}${frontmatterBlock}${proseBlock}${renderHistoryBlock(artifact.history)}`,
     links: [],
     children: []
   };
+}
+function designModesBlock(fm) {
+  const { modes, from, register } = designModesOf(fm);
+  if (!modes.length) return "";
+  const rows = modes.map((m) => `<li>${m.surface ? `<code>${escapeHtml(m.surface)}</code>: ` : ""}${escapeHtml(m.mode)}</li>`).join("");
+  const note = from === "register" ? `<p class="muted">Read from the deprecated <code>register: ${escapeHtml(register)}</code>.</p>` : "";
+  return `<section class="design-contract-modes">
+        <h2 class="sdlc-h2">design modes</h2>
+        <ul>${rows}</ul>${note}
+      </section>`;
 }
 function listBlock(label, values = []) {
   const items = Array.isArray(values) ? values : [];

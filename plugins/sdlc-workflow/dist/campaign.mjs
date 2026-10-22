@@ -4,11 +4,11 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   designNeeded,
   designSettled
-} from "./chunk-U4PRGBEI.mjs";
+} from "./chunk-DW2YQRFR.mjs";
 import {
   missingBoardFiles,
   needsPictures
-} from "./chunk-T5YC5F32.mjs";
+} from "./chunk-JTJFHSOY.mjs";
 import {
   sdlcHomeDir
 } from "./chunk-OVD25SAL.mjs";
@@ -51,7 +51,9 @@ var AWAY_POLICY = Object.freeze({
   deadlock: "hold",
   "moved-dependency": "hold",
   "slug-stop": "hold",
-  "wave-review": "hold"
+  "wave-review": "hold",
+  // WF-DESIGN-PLAN B1: a finding against the confirmed design is an intent-bearing question.
+  "design-amend": "hold"
 });
 var POLICY_CHOICES = Object.freeze({
   stage: ["recommended", "hold"],
@@ -872,16 +874,22 @@ function replan(ledger, units, { revision = ledger["work-revision"], now = (/* @
   return ledger;
 }
 var openSetupAnswer = (ledger) => SETUP_ANSWERS.find((k) => ledger.answers?.[k] === null || ledger.answers?.[k] === void 0) ?? null;
-function campaignAction(ledger, { revision = null, driving = null } = {}) {
+var typeCommand = (args) => `Type \`/wf ${args}\`.`;
+var campaignCommand = (ledger) => typeCommand(`campaign ${ledger.brainstorm}`);
+var prepareCommand = (ledger, key) => {
+  const u = ledger.units?.[key] ?? {};
+  return typeCommand(`intake .ai/workflows/${ledger.brainstorm}/work/${u["work-slug"] ?? u.slug ?? key}.md`);
+};
+function campaignAction(ledger, { revision = null, driving = null, design = null } = {}) {
   if (!ledger) return { action: "orient" };
   if (ledger.pause) return { action: "paused", pause: ledger.pause, ...driving ? { driving } : {} };
   const unconfirmed = unconfirmedKeys(ledger);
   if (unconfirmed.length && !driving) return { action: "deps", units: unconfirmed };
   const setup = openSetupAnswer(ledger);
-  if (setup) return { action: "setup", question: setup };
+  if (setup) return { action: "setup", question: setup, command: campaignCommand(ledger) };
   if (revision !== null && revision !== ledger["work-revision"]) return { action: "work-changed", from: ledger["work-revision"], to: revision, ...driving ? { driving } : {} };
   const open = ledger.questions.filter((q) => !q["answered-at"]);
-  if (open.length) return { action: "ask", questions: open, ...driving ? { driving } : {} };
+  if (open.length) return { action: "ask", questions: open, ...driving ? { driving } : {}, command: campaignCommand(ledger) };
   const unprepared = (w) => w ? w.units.filter((k) => ledger.units[k]?.state === "planned") : [];
   const lives = ledger.waves.filter((w) => LIVE_WAVE_STATES.includes(w.state));
   const live = lives[0];
@@ -889,10 +897,12 @@ function campaignAction(ledger, { revision = null, driving = null } = {}) {
   const ahead = prepareAhead(ledger);
   const reask = Object.fromEntries(Object.entries(ledger.units ?? {}).filter(([, x]) => x.state === "planned" && x["stale-decisions"]?.length).map(([k, x]) => [k, x["stale-decisions"]]));
   const extra = (o) => ({ ...o, ...ahead.length ? { ahead } : {}, ...Object.keys(reask).length ? { reask } : {} });
+  const missing = design?.focus === "design" && Array.isArray(design.missing) ? design.missing : [];
+  const prepare = (wave2, units) => missing.length ? { action: "design-setup", missing: [...missing], wave: wave2, units, command: typeCommand("design setup") } : extra({ action: "prepare", wave: wave2, units, command: prepareCommand(ledger, units[0]) });
   const stacked = ledger.stack?.enabled && next && lives.length && lives.every(waveReady) && lives.length < (ledger.stack["max-unshipped"] ?? DEFAULT_MAX_UNSHIPPED);
   if (stacked && !driving) {
     const todo = unprepared(next);
-    return todo.length ? extra({ action: "prepare", wave: next.n, units: todo }) : extra({ action: "start-wave", wave: next.n, beside: lives.map((w) => w.n) });
+    return todo.length ? prepare(next.n, todo) : extra({ action: "start-wave", wave: next.n, beside: lives.map((w) => w.n), command: campaignCommand(ledger) });
   }
   if (driving) return extra({ action: "driving", ...driving, prepare: unprepared(next), ...unconfirmed.length ? { deps: unconfirmed } : {} });
   const unsorted = ledger.waves.find((w) => needsSort(ledger, w));
@@ -902,7 +912,7 @@ function campaignAction(ledger, { revision = null, driving = null } = {}) {
   if (stopped) return { action: "stopped", wave: stopped.n };
   if (next) {
     const todo = unprepared(next);
-    return todo.length ? extra({ action: "prepare", wave: next.n, units: todo }) : extra({ action: "start-wave", wave: next.n });
+    return todo.length ? prepare(next.n, todo) : extra({ action: "start-wave", wave: next.n, command: campaignCommand(ledger) });
   }
   const needsYou = Object.entries(ledger.outside).filter(([, x]) => x.state !== "closed").map(([k]) => k);
   if ((ledger.waiting ?? []).length) return { action: "blocked", waiting: ledger.waiting, needsYou };
@@ -1587,6 +1597,15 @@ function saveManifest(file, manifest, now) {
   putVerified(file, text, createHash("sha256").update(text).digest("hex"));
 }
 var entryOf = (manifest, rel) => manifest.files[rel] ??= { base: null, kept: [] };
+var EARLIER_LIMIT = 20;
+function setBase(e, hash) {
+  if (e.base && hash && e.base !== hash) {
+    e.earlier = [...(e.earlier ?? []).filter((h) => h !== e.base && h !== hash), e.base].slice(-EARLIER_LIMIT);
+  } else if (hash && e.earlier?.includes(hash)) {
+    e.earlier = e.earlier.filter((h) => h !== hash);
+  }
+  e.base = hash;
+}
 function mergeRegistry(mainText, otherText) {
   const header = [];
   const rows = /* @__PURE__ */ new Map();
@@ -1623,25 +1642,25 @@ function recordsIn({ main: main2, worktree: worktree2, manifest, exclude = () =>
         continue;
       }
       copyVerified(abs, target, mh);
-      entryOf(manifest, rel).base = mh;
+      setBase(entryOf(manifest, rel), mh);
       res.copied.push(rel);
       continue;
     }
     const wh = hashFile(dst.files.get(rel));
     if (wh === mh) {
-      entryOf(manifest, rel).base = mh;
+      setBase(entryOf(manifest, rel), mh);
       res.same++;
       continue;
     }
     if (pristine(rel)) {
       const t = entryOf(manifest, rel);
-      if (!t.base) t.base = wh;
+      if (!t.base) setBase(t, wh);
       res.tracked.push(rel);
       continue;
     }
     if (e?.base && wh === e.base) {
       copyVerified(abs, target, mh);
-      e.base = mh;
+      setBase(e, mh);
       res.refreshed.push(rel);
       continue;
     }
@@ -1649,7 +1668,7 @@ function recordsIn({ main: main2, worktree: worktree2, manifest, exclude = () =>
   }
   return res;
 }
-function recordsOut({ main: main2, worktree: worktree2, manifest, conflictsDir, exclude = () => false }) {
+function recordsOut({ main: main2, worktree: worktree2, manifest, conflictsDir, exclude = () => false, mainOnly = () => false }) {
   const src = walk(join2(worktree2, ".ai"));
   const res = { copied: [], same: 0, unchanged: 0, conflicts: [], deletedInWorktree: [], links: src.links.filter((r) => !isSkipped(r)) };
   for (const [rel, abs] of src.files) {
@@ -1659,7 +1678,7 @@ function recordsOut({ main: main2, worktree: worktree2, manifest, conflictsDir, 
     const mh = existsSync(target) ? hashFile(target) : null;
     const e = entryOf(manifest, rel);
     if (mh === wh) {
-      e.base = wh;
+      setBase(e, wh);
       res.same++;
       continue;
     }
@@ -1667,11 +1686,13 @@ function recordsOut({ main: main2, worktree: worktree2, manifest, conflictsDir, 
       res.unchanged++;
       continue;
     }
-    if (mh === null || e.base && mh === e.base) {
+    const stale = mh !== null && (e.earlier ?? []).includes(wh);
+    const owned = mainOnly(rel);
+    if (!stale && !owned && (mh === null || e.base && mh === e.base)) {
       const now = existsSync(target) ? hashFile(target) : null;
       if (now === mh) {
         copyVerified(abs, target, wh);
-        e.base = wh;
+        setBase(e, wh);
         res.copied.push(rel);
         continue;
       }
@@ -1685,8 +1706,8 @@ function recordsOut({ main: main2, worktree: worktree2, manifest, conflictsDir, 
       putVerified(target, text, createHash("sha256").update(text).digest("hex"));
       merged = true;
     }
-    e.base = wh;
-    res.conflicts.push({ rel, kept: posix(kept), merged });
+    setBase(e, wh);
+    res.conflicts.push({ rel, kept: posix(kept), merged, ...stale ? { stale: true } : {}, ...owned ? { mainOwned: true } : {} });
   }
   for (const [rel, e] of Object.entries(manifest.files)) {
     if (e.base && !src.files.has(rel) && !isSkipped(rel) && !exclude(rel)) res.deletedInWorktree.push(rel);
@@ -1842,6 +1863,13 @@ function readJson(file) {
     return null;
   }
 }
+function designRecordOf(root, b) {
+  const board = readJson(join3(brainstormDir(root, b), "brainstorm-board.json"));
+  if (board?.focus !== "design") return null;
+  const dirs = [root, join3(root, ".agents", "context"), join3(root, "docs")];
+  return { focus: "design", missing: ["PRODUCT.md", "DESIGN.md"].filter((f) => !dirs.some((d) => existsSync2(join3(d, f)))) };
+}
+var nextAction = (root, b, ledger, opts = {}) => campaignAction(ledger, { ...opts, design: designRecordOf(root, b) });
 function readJsonl(file) {
   try {
     return readFileSync2(file, "utf8").split(/\r?\n/).filter(Boolean).map((l) => {
@@ -1971,7 +1999,7 @@ function orient(root, b) {
     toolGaps: ledger["tool-gaps"],
     // 4.4: the deps phase comes next. `seeded` units start from their old packet fields (D8), `serial` units from the serial chain.
     deps: { state: ledger.deps.state, units: keys, seeded: keys.filter((k) => seeded.has(k)), serial: keys.filter((k) => !seeded.has(k)) },
-    next: campaignAction(ledger, { revision: ws.revision })
+    next: nextAction(root, b, ledger, { revision: ws.revision })
   };
 }
 function claudeVersionGap() {
@@ -2086,11 +2114,12 @@ var manifestFile = (root, b, id) => join3(recordsDir(root, b), `${id}.json`);
 var isLocal = (ledger) => ledger?.records === "local";
 var WORKTREE_IGNORE = "# written by /wf campaign (local records): the records in this worktree stay out of git\n*\n";
 var isAiIgnore = (rel) => rel === ".gitignore";
-var mainOwned = (b) => (rel) => isAiIgnore(rel) || rel.startsWith(`workflows/${b}/work/campaign/`);
+var campaignOwned = (b) => (rel) => isAiIgnore(rel) || rel.startsWith(`workflows/${b}/work/campaign/`);
+var mainOwned = (b) => (rel) => campaignOwned(b)(rel) || rel.startsWith("design/");
 var EVIDENCE_RE = /^workflows\/([^/]+)\/[^/]+-evidence(\/|$)/;
 var DESIGN_RE = /^workflows\/([^/]+)\/design(\/|$)/;
 var notCopiedIn = (b, slugs) => (rel) => {
-  if (mainOwned(b)(rel)) return true;
+  if (campaignOwned(b)(rel)) return true;
   const m = EVIDENCE_RE.exec(rel) ?? DESIGN_RE.exec(rel);
   return Boolean(m) && !slugs.includes(m[1]);
 };
@@ -2126,7 +2155,7 @@ function syncOut(root, b, id, path) {
   return withRecordsLock(join3(recordsDir(root, b), ".lock"), id, () => {
     const manifest = loadManifest(manifestFile(root, b, id), id);
     const conflictsDir = join3(recordsDir(root, b), "conflicts", id, nowIso().replace(/[-:]/g, ""));
-    const res = recordsOut({ main: root, worktree: path, manifest, conflictsDir, exclude: isAiIgnore });
+    const res = recordsOut({ main: root, worktree: path, manifest, conflictsDir, exclude: isAiIgnore, mainOnly: mainOwned(b) });
     saveManifest(manifestFile(root, b, id), manifest, nowIso());
     if (res.copied.length || res.conflicts.length) appendJournal(root, b, "records-out", { id, copied: res.copied.length, conflicts: res.conflicts.map((c) => c.rel) });
     return res;
@@ -2320,7 +2349,7 @@ function status(root, b) {
   const update = pluginUpdate(runningPluginVersion(), installedPluginVersion(root));
   return {
     ok: true,
-    next: campaignAction(ledger, { revision, driving }),
+    next: nextAction(root, b, ledger, { revision, driving }),
     revision,
     // C9: the person's standing rules, in every status result, so that a compaction cannot lose them.
     rules: ledger?.rules ?? [],
@@ -2730,7 +2759,7 @@ function record(root, b, n, f) {
   } catch {
   }
   appendJournal(root, b, "wave-record", { wave: n, run: ranId, held: res.held, ...res.merged ? { merged: res.merged } : {}, ...actual.minutes !== null ? { minutes: actual.minutes } : {}, ...actual.tokens !== null ? { w: actual.tokens } : {} });
-  res.next = campaignAction(ledger, {});
+  res.next = nextAction(root, b, ledger, {});
   const ask2 = nextWaveAsk(ledger, n);
   if (ask2) res.nextWave = ask2;
   return res;
@@ -3134,7 +3163,7 @@ function depsCmd(root, b, pos, f) {
       waiting: ledger.waiting,
       warnings: check.warnings,
       shared: planned.flatMap((w) => (w["expected-shared"] ?? []).map((s) => ({ wave: w.n, ...s }))),
-      next: campaignAction(ledger, { revision: ws.revision })
+      next: nextAction(root, b, ledger, { revision: ws.revision })
     };
   }
   const key = sub;
@@ -3243,7 +3272,7 @@ function answer(root, b, [key, ...rest]) {
   if (key === "conventions" && !["on", "off"].includes(rest.join(" ").trim())) throw new Error("answer conventions: on or off");
   const ledger = requireLedger(root, b);
   const pending = unconfirmedKeys(ledger);
-  if (pending.length) return { ok: false, error: `the dependency graph is not confirmed (${pending.join(", ")}): run the deps phase first (campaign/_phases.md, "Phase 0b \u2014 Deps")`, next: campaignAction(ledger, {}) };
+  if (pending.length) return { ok: false, error: `the dependency graph is not confirmed (${pending.join(", ")}): run the deps phase first (campaign/_phases.md, "Phase 0b \u2014 Deps")`, next: nextAction(root, b, ledger, {}) };
   const raw = rest.join(" ");
   let value;
   try {
@@ -3258,7 +3287,7 @@ function answer(root, b, [key, ...rest]) {
   }
   ledger.answers[key] = value;
   saveLedger(root, b, ledger);
-  return { ok: true, key, value, next: campaignAction(ledger, {}) };
+  return { ok: true, key, value, next: nextAction(root, b, ledger, {}) };
 }
 function standingAnswer(root, b, key, raw) {
   let value;
@@ -3397,7 +3426,9 @@ function unit(root, b, [key, state], f) {
   }
   saveLedger(root, b, ledger);
   appendJournal(root, b, "unit-state", { key, slug: u.slug, state, ...f.route ? { route: f.route } : {} });
-  return { ok: true, key, state, ...rejected.length ? { rejected } : {} };
+  const next = state === "prepared" ? nextAction(root, b, ledger, { driving: liveRun(root, b, ledger) }) : null;
+  if (next && !next.command) next.command = typeCommand(`campaign ${b}`);
+  return { ok: true, key, state, ...rejected.length ? { rejected } : {}, ...next ? { next } : {} };
 }
 function outside(root, b, [key, state]) {
   const ledger = requireLedger(root, b);
@@ -3518,7 +3549,7 @@ function sorted(root, b, ledger, w) {
   delete w["legacy-order"];
   saveLedger(root, b, ledger);
   appendJournal(root, b, "waits-sorted", { wave: w.n, kept });
-  return { ok: true, wave: w.n, kept, next: campaignAction(ledger, {}) };
+  return { ok: true, wave: w.n, kept, next: nextAction(root, b, ledger, {}) };
 }
 function ask(root, b, args, f) {
   const [id, ...text] = args;
@@ -3571,7 +3602,7 @@ function resume(root, b) {
   const ctl = readJson(controlPath(root, b));
   if (ctl && ctl.action === "pause") writeAtomic(controlPath(root, b), "{}\n");
   appendJournal(root, b, "resumed", {});
-  return { ok: true, next: campaignAction(ledger, {}) };
+  return { ok: true, next: nextAction(root, b, ledger, {}) };
 }
 function asBuiltNotes(root, b) {
   const dir = join3(campDir(root, b), "as-built");
@@ -4037,6 +4068,7 @@ export {
   campaignSteerPath,
   controlPath,
   designBlocksPrepared,
+  designRecordOf,
   journalPath,
   main,
   owner,

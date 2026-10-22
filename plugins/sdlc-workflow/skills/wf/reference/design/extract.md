@@ -10,7 +10,7 @@ Use `extract` to:
 
 ## Step 1: Scan for design values
 
-Choose the search roots first. Use the source directories that the framework detector in [_design-context.md](_design-context.md) found. If the detector found none, search the repo root. Always exclude `node_modules/`, `dist/`, `build/`, and `.ai/`. In the commands below, `<roots>` is the chosen roots and `<excludes>` is `--exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build --exclude-dir=.ai`.
+Choose the search roots first. Use the source directories that the framework detector in [_preflight.md](_preflight.md) → Codebase inspection sub-agents found. If the detector found none, search the repo root. Always exclude `node_modules/`, `dist/`, `build/`, and `.ai/`. In the commands below, `<roots>` is the chosen roots and `<excludes>` is `--exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build --exclude-dir=.ai`.
 
 Search the codebase for:
 
@@ -137,3 +137,4 @@ When invoked as `/wf design extract` with no slug:
 In both cases, update the design record:
 - Summarize the extracted tokens and the component patterns into the `## System in code` section of `.ai/design/current.md`.
 - Follow the format in [record.md](record.md).
+- Do not record a floor refusal as a system pattern. Record it under `## Design debt` per [_craft-floor.md](_craft-floor.md) → Record guard.

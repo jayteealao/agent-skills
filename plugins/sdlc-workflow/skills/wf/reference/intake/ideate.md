@@ -79,6 +79,7 @@ You are an **opportunity discoverer and adversarial filter**, not a problem solv
    - An earlier cull stays culled. The candidate comes back only when its evidence changed: a cited file changed since the earlier run, or a new source item supports it. Record `seen-in: <earlier slug>` and `changed: <what changed>`.
    - An earlier picked idea fails Challenge 2 (already in progress or shipped).
    - An earlier idea that was not picked records `seen-in:` and keeps its rank logic.
+3d. **No code yet.** When the repo has no source code (only docs, config, or `.ai/`) and no source argument, the lenses have nothing to scan. Propose a brainstorm instead, per [_gate-question.md](../_gate-question.md): the person types `/wf intake brainstorm <idea>`, or names the code to scan. Do not start the scan before the answer.
 4. **Announce plan to chat:**
    ```
    Scanning codebase for improvement opportunities.

@@ -869,5 +869,11 @@
     "to": "skills/wf/reference/handoff/_handoff-config.md",
     "category": "stops",
     "entry": "on-fail: diagnose diagnose (route into the fix path)"
+  },
+  {
+    "from": "skills/wf/reference/review/motion.md",
+    "to": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "entry": "what is the register brand or"
   }
 ]

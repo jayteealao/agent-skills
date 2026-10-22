@@ -27,6 +27,7 @@ import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { validateBrainstormBoardFile, validateFrontmatterFile, validatePrototypeLedgerFile, validateSiblingYamlFile, formatValidationErrors } from '../lib/schema-validator.mjs';
 import { ledgerProblems } from '../lib/prototype.mjs';
+import { designModesOf } from '../lib/design-boards.mjs';
 import { sourceItemProblems } from '../lib/ideate.mjs';
 import { findUncitedLimitationClaims, findUnmarkedSuppressions, findUnownedMechanisms } from '../lib/limitation-lexicon.mjs';
 import {
@@ -618,6 +619,36 @@ export function indexLintWarnings(text, byteSize = Buffer.byteLength(String(text
   return warnings;
 }
 
+// Design mode lint (WF-DESIGN-PLAN Part III 9.1). The design artifacts used to carry one
+// `register` (brand or product); a surface now has its own design mode. The validator
+// still accepts `register` and reads it as a design mode: brand → persuade, product →
+// operate. Warn-only, so an old artifact keeps working and the writer learns the reason.
+const DESIGN_MODE_TYPES = new Set(['design', 'design-contract', 'design-augmentation']);
+
+/** The advisory line for one design artifact's frontmatter, or null. */
+export function designModeAdvice(fm) {
+  if (!fm || !DESIGN_MODE_TYPES.has(fm.type)) return null;
+  const { from, modes, register } = designModesOf(fm);
+  if (from !== 'register') return null;
+  const field = fm.type === 'design-contract' || fm.type === 'design' ? '`surface-modes:` (surface → design mode)' : '`design-mode:`';
+  return `carries \`register: ${register}\`, read as design mode \`${modes[0].mode}\`. \`register\` is deprecated: each surface ` +
+    `now has its own design mode (persuade, operate, read, or experience). Write ${field} instead.`;
+}
+
+async function enforceDesignModeLint(paths, config) {
+  if (config.hooks?.designModeLint === false) return;
+  const lines = [];
+  for (const path of paths) {
+    const text = await readTextIfExists(path.absolute);
+    if (!text) continue;
+    const { data } = safeParseFrontmatter(text, { filePath: path.absolute });
+    const advice = designModeAdvice(data);
+    if (advice) lines.push(`  - ${path.original} ${advice}`);
+  }
+  if (!lines.length) return;
+  outputSystemMessage(`wf: design mode (advisory):\n${lines.join('\n')}\nOpt out: hooks.designModeLint: false.`);
+}
+
 async function enforceIndexLint(paths, config) {
   if (config.hooks?.indexLint === false) return;
   const lines = [];
@@ -704,6 +735,7 @@ export async function run(input) {
     await enforceSourceCoverage(paths, config);
     await enforceIntakeLedgerLint(paths, config);
     await enforceNamedMechanismLint(paths, config);
+    await enforceDesignModeLint(paths, config);
     await validateSiblingYamls(paths, config, schemaPath);
     await enforceSiblingFragments(paths, config);
     return;

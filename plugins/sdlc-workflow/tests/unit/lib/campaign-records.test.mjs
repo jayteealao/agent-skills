@@ -150,6 +150,53 @@ test('pending names every worktree file whose content is nowhere else', () => {
   } finally { rmSync(top, { recursive: true, force: true }); }
 });
 
+// WF-DESIGN-PLAN B2 (DP13): a worktree that reverts a record to an earlier base never overwrites main.
+test('out: a worktree revert to an earlier base goes to the conflict store and does not overwrite main', () => {
+  const { top, main, wt } = tree();
+  try {
+    put(main, 'design/direction.md', 'direction v1');
+    const manifest = { files: {} };
+    R.recordsIn({ main, worktree: wt, manifest });
+    put(wt, 'design/direction.md', 'direction v2 (worktree)');
+    const first = R.recordsOut({ main, worktree: wt, manifest, conflictsDir: path.join(top, 'c1') });
+    assert.deepEqual(first.copied, ['design/direction.md']);
+    assert.equal(manifest.files['design/direction.md'].earlier.length, 1, 'the earlier base is kept');
+    // The worktree reverts the file to its first version before the next sync.
+    put(wt, 'design/direction.md', 'direction v1');
+    const again = R.recordsOut({ main, worktree: wt, manifest, conflictsDir: path.join(top, 'c2') });
+    assert.deepEqual(again.copied, []);
+    assert.equal(read(main, 'design/direction.md'), 'direction v2 (worktree)', 'the revert does not overwrite main');
+    assert.equal(again.conflicts.length, 1);
+    assert.equal(again.conflicts[0].stale, true);
+    assert.equal(readFileSync(path.join(top, 'c2', 'design', 'direction.md'), 'utf8'), 'direction v1', 'the reverted copy is kept');
+    assert.deepEqual(R.recordsPending({ main, worktree: wt, manifest }), []);
+    // The next in refreshes the worktree with the main version; a further out changes nothing.
+    assert.deepEqual(R.recordsIn({ main, worktree: wt, manifest }).refreshed, ['design/direction.md']);
+    assert.equal(read(wt, 'design/direction.md'), 'direction v2 (worktree)');
+    const third = R.recordsOut({ main, worktree: wt, manifest, conflictsDir: path.join(top, 'c3') });
+    assert.deepEqual([third.copied, third.conflicts], [[], []]);
+  } finally { rmSync(top, { recursive: true, force: true }); }
+});
+
+test('out: a main-owned file is never copied to main, also when main has none; its changed copy is kept', () => {
+  const { top, main, wt } = tree();
+  try {
+    put(main, 'design/direction.md', 'direction v1');
+    const manifest = { files: {} };
+    R.recordsIn({ main, worktree: wt, manifest });
+    put(wt, 'design/direction.md', 'direction (worktree)');
+    put(wt, 'design/current.md', 'current (worktree)');
+    put(wt, 'workflows/engine/05-implement.md', 'implement');
+    const mainOnly = (rel) => rel.startsWith('design/');
+    const res = R.recordsOut({ main, worktree: wt, manifest, conflictsDir: path.join(top, 'c'), mainOnly });
+    assert.deepEqual(res.copied, ['workflows/engine/05-implement.md']);
+    assert.equal(read(main, 'design/direction.md'), 'direction v1');
+    assert.ok(!has(main, 'design/current.md'));
+    assert.deepEqual(res.conflicts.map((c) => [c.rel, c.mainOwned]).sort(), [['design/current.md', true], ['design/direction.md', true]]);
+    assert.deepEqual(R.recordsPending({ main, worktree: wt, manifest }), [], 'the kept copies are not pending');
+  } finally { rmSync(top, { recursive: true, force: true }); }
+});
+
 test('the records lock admits one holder at a time and takes over a stale lock', () => {
   const { top } = tree();
   try {

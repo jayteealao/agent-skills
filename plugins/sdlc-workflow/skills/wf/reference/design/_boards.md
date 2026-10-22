@@ -14,7 +14,7 @@ Every workflow keeps its drawings in one folder, `.ai/workflows/<slug>/design/`:
 | `index.html` | The contact sheet: every board with its caption, by surface. The tool writes it. |
 | `boards/<key>.html`, `boards/<key>.png` | One board per surface and state. The PNG is what the person sees and what verify compares against. |
 | `source/` | What made the boards: a build script, captures of the running app, a canvas export, an imported bundle (`source/import-<n>/`). |
-| `sketches/<key>.png` or `.html` | Brainstorm sketches carried to this workflow. |
+| `sketches/<key>.png` or `.html` | Brainstorm sketches carried to this workflow. A sketch path can be `<file>#<artboard>` when one file holds several sketches. |
 | `captures/<slice>/<key>.png` | Verify captures, with the same key as the board. |
 | `r<N>/` | Revision N, frozen when the person confirmed it: `boards.json`, `boards/`, `index.html`. Never changed. |
 
@@ -43,6 +43,11 @@ node "<skill-dir>/scripts/design-boards.mjs" <command> "<projectRoot>" <slug> [a
 | `check <slug>` | List the board files that `02c-craft.md` `boards:` names but that are missing. |
 | `capture-name <slug> <slice> <key>` | Give the capture path of a board for verify. |
 | `import <slug> <path>…` | Copy outside design work into `source/import-<n>/`. |
+| `canvas-stale <slug> [--account <name>]` | List each sketch and board whose recorded `canvas.sha256` differs from its file, or whose `canvas.account` differs from the given account. |
+
+Two commands take other arguments:
+- `node "<skill-dir>/scripts/design-boards.mjs" ansi <input.txt> --scheme <campbell|solarized-light> --out <file.html>` renders terminal output with its ANSI colours to HTML. `campbell` is a dark scheme; `solarized-light` is a light scheme.
+- `node "<skill-dir>/scripts/design-boards.mjs" track "<projectRoot>" [--write]` reports the `.gitignore` lines of [Tracking](#tracking).
 
 The tool renders with an installed Chromium browser in headless mode. Set `SDLC_BROWSER` to choose one. When no browser works, a board stays HTML only, and the manifest records `"png": null` with the reason. Tell the person, and show them the HTML file instead.
 
@@ -54,10 +59,12 @@ The method follows the situation, not the host. Choose the first method that app
 2. **Import.** The person brings outside design work (a canvas, a claude.ai/design project, a folder, a zip, image files): run [import.md](import.md).
 3. **HTML boards.** For new surfaces, write one self-contained HTML file per surface and state into `boards/`. Use the tokens and components of `DESIGN.md`, real copy, and realistic data. Inline the CSS, or link a file in `source/`.
 
+**A terminal surface.** Capture the real output, or write it as text with its ANSI codes. Render it with `ansi` and a named scheme into `boards/<key>.html`, then run `render`. Use the same render for an HTML board of a terminal surface. Draw one board for each scheme that `_platforms.md` → Terminal names, and state the scheme in the caption.
+
 Then:
-1. Run `init` with the viewports the person confirms. Ask for them; do not assume one size.
+1. Run `init` with the viewports of the brief's `viewports:` (`02b-design.md`). Ask the person only when the brief has none. Do not assume one size.
 2. Run `render`. Read every PNG yourself before you show it.
-3. On a host with a design canvas (`_host-surfaces.md`, row "Design canvas"), mirror the boards to the canvas, one artboard per board, so the person can comment there. The files in `boards/` stay the contract.
+3. On a host with a design canvas (`_host-surfaces.md`, row "Design canvas"), publish the boards to the canvas from the session's own account, one artboard per board, so the person can comment there. Record the `canvas` object per [The file is the source](#the-file-is-the-source). The files in `boards/` stay the contract.
 
 `/imagery` makes mood and brand images only. A generated image is never a board. Save a mood image in `source/` with `/imagery … into .ai/workflows/<slug>/design/source`.
 
@@ -65,8 +72,8 @@ Then:
 
 1. Run `sheet`.
 2. When the host can send a file to the person, send `design/index.html` and the board PNGs. On a phone, send the PNGs: a local path does not open there.
-3. Always give the path of `design/index.html` in the question text as well.
-4. When a canvas mirror exists, read its comments before you ask.
+3. Always give the path of `design/index.html` in the question text as well. Give a local path first and a canvas link second.
+4. When a canvas mirror exists, run `canvas-stale` and republish each listed file. Then read the canvas comments before you ask, per [The file is the source](#the-file-is-the-source).
 
 On **adjust**, change only the boards the person named, run `render` for those keys, and ask again.
 
@@ -77,6 +84,23 @@ On **adjust**, change only the boards the person named, run `render` for those k
 3. When the result has a warning, tell the person.
 
 On **amend**, change only the named boards in the working set, render them, show them, and freeze again. The new revision is `r<N+1>/`, and the new `02c-craft.md` names it.
+
+## The file is the source
+
+A sketch or board file in git is the design. A canvas is a published view of that file. Every stage, sub-agent, machine, and account reads the file, so no stage needs a canvas to read the design.
+
+**Publish.** Publish every canvas from the session's own account. Record `canvas: { link, account, published-at, sha256 }`, where `sha256` is the hash of the published file. A sketch records it on its sketch entry (board `sketches[]`, packet `sketches:`); a board records it in `boards.json`. On a host with no design canvas, give the file path only, and record no `canvas`.
+
+**Republish a stale view.** Before a link goes into a question, run `canvas-stale <slug> --account <session account>`. For each listed file:
+1. When `canvas.account` is not the session's account, publish the file again under the session's account. Record the new link, and keep the old link in `canvas.previous[]`. Before you stop using the old link, read its comments once when the session's account can read them.
+2. When `canvas.sha256` differs from the file's hash, publish the file again to the same link. The person never reviews an old view.
+
+**A change made on the canvas.** Change a sketch or a board only through its file.
+1. Before each design question, read the canvas comments with the host's comment tool. Turn each comment into a change to the file, or answer it. Then republish the file to the same link.
+2. The host refuses a republish to a link whose live version is newer, and the refusal gives the live version. Then ask the person one question: take the canvas change into the file, or replace it with the file. Write the choice to the file, then republish.
+3. For a frozen board, a taken canvas change goes through [import.md](import.md) and becomes a new board revision. Never edit a file inside `r<N>/`.
+
+**Design work with no file.** Save it to a local file at once: [import.md](import.md) → Import at the door.
 
 ## The settled rule
 
@@ -92,4 +116,4 @@ On **amend**, change only the named boards in the working set, render them, show
 
 ## Tracking
 
-A repo that ignores `.ai/` loses the boards with the machine. `freeze` writes each confirmed revision to its own folder so that the repo can track `r<N>/` and `.ai/design/` alone. `node "<skill-dir>/scripts/design-boards.mjs" track "<projectRoot>"` reports the `.gitignore` lines that do this, and `--write` adds them. Ask the person before you run `--write`.
+A repo that ignores `.ai/` loses the boards with the machine. `freeze` writes each confirmed revision to its own folder so that the repo can track `r<N>/` and `.ai/design/` alone. The sketches are design files too: the repo tracks every file in `.ai/workflows/*/design/sketches/`, carried or dropped. The working `design/boards/` folder stays ignored. `node "<skill-dir>/scripts/design-boards.mjs" track "<projectRoot>"` reports the `.gitignore` lines that do this, and `--write` adds them. A repo with an older block gets the sketch lines too. Ask the person before you run `--write`.

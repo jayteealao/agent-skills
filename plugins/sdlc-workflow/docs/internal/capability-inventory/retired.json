@@ -1000,5 +1000,11 @@
     "entry": "skills/wf/reference/_pr-ci-handoff.md",
     "reason": "WF-SUBPROCEDURE-AUDIT section 6.5: moved to skills/wf/reference/handoff/_pr-ci-handoff.md with _ci-red-routing.md and _handoff-config.md; every citation now points there.",
     "release": "9.198.0"
+  },
+  {
+    "category": "fields",
+    "entry": "register:",
+    "reason": "WF-DESIGN-PLAN Part III 9.1 (I8, MQ2): templates record design-mode: (design augmentation) and surface-modes: (02c-craft.md); register stays an optional deprecated field read as brand → persuade, product → operate.",
+    "release": "9.199.0"
   }
 ]

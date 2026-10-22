@@ -766,6 +766,42 @@ function preambleClause() {
     `${referenceRoot}/_question-craft.md, do not read those files: apply the rules of this prompt. When it points ` +
     `to ${referenceRoot}/_requires.md, read only its section "Modes": this prompt states the rest.\n`
 }
+
+// WF-DESIGN-PLAN B1 (P2): a review finding against the confirmed design is the person's decision.
+// Both drivers add this clause to POLICY.review, so its text is the same in each driver.
+function designAmendClause() {
+  return ` DESIGN FINDINGS: a finding against a confirmed board (a frozen board under ` +
+    `.ai/workflows/<slug>/design/r<N>/) or against a line of the 02c-craft.md contract is the person's decision. ` +
+    `Do not fix it, do not dismiss it, and do not defer it. Record it open, with triage needs-amend and the reason ` +
+    `"the person decides: amend, keep, or defer". List it in amendFindings as { key (the finding id), severity, ` +
+    `summary (one line), contract (the board or the 02c-craft.md line that it contradicts, with its path) }. A ` +
+    `needs-amend finding is no reason to hard-stop: the driver asks the person. Return amendFindings: [] when no ` +
+    `finding is against the confirmed design.`
+}
+
+// The amendFindings field of STAGE_RESULT.
+function amendFindingsSchema() {
+  return {
+    type: 'array',
+    items: {
+      type: 'object',
+      required: ['key', 'summary'],
+      properties: { key: { type: 'string' }, severity: { type: 'string' }, summary: { type: 'string' }, contract: { type: 'string' } },
+    },
+  }
+}
+
+// The design findings of a review result: the entries that name a finding.
+function amendFindingsOf(res) {
+  const list = res && Array.isArray(res.amendFindings) ? res.amendFindings : []
+  return list.filter(f => f && typeof f === 'object' && String(f.key || '').trim())
+}
+
+// The design findings as one line each, for a question or a stop reason.
+function amendFindingsText(list) {
+  return (list || []).map(f => `${f.key} (${f.severity || '?'}): ${String(f.summary || '').slice(0, 160)}` +
+    `${f.contract ? ` [against ${String(f.contract).slice(0, 160)}]` : ''}`).join('; ')
+}
 // ---- END SHARED ----
 
 
@@ -1007,7 +1043,7 @@ const POLICY = {
     `surfaced-at on the accumulating ledger, and compute verdict from OPEN findings only. A clean verdict ` +
     `(ship | ship-with-caveats with metric-findings-blocker == 0) is the ENDPOINT — return status:'complete'. ` +
     `HARD-STOP (return status:'hard-stop') only if verdict: dont-ship, OR an OPEN BLOCKER is a security / ` +
-    `data-loss issue you could not fix after the loop.`,
+    `data-loss issue you could not fix after the loop.` + designAmendClause(),
   'update-deps':
     `AUTONOMOUS OVERRIDE for the self-managed update-deps exec — intake/update-deps.md Step 6 asks the user ` +
     `(AskUserQuestion) to choose the update scope (full plan / P0 security only / audit-only / adjust). DO NOT ask. ` +
@@ -1240,6 +1276,8 @@ const STAGE_RESULT = {
         substantiveResidual: { type: 'boolean' },
       },
     },
+    // WF-DESIGN-PLAN B1: the review findings against the confirmed design (designAmendClause).
+    amendFindings: amendFindingsSchema(),
     // WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4: an order that a fan-out plan decided between two slices.
     orderEdges: {
       type: 'array',
@@ -2212,6 +2250,11 @@ async function driveUpdateDeps(idx) {
 }
 
 
+// WF-DESIGN-PLAN B1: the stop reason of a review with findings against the confirmed design.
+function amendStopReason(res) {
+  return `the review found findings against the confirmed design; the person decides amend, keep, or defer: ${amendFindingsText(amendFindingsOf(res))}`
+}
+
 // driveChain() — run stages sequentially for one slice, skipping any already
 // terminal-clean on disk (free resume), gating each per policy, HARD-STOPping
 // (and returning the trail) when the policy says so.
@@ -2357,6 +2400,10 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     if (res && Array.isArray(res.decisions) && res.decisions.length) res = await classifyDecisions(res, idx)
     ran.push(res)
     ranStages.push(stage)
+    // WF-DESIGN-PLAN B1 (P2): findings against the confirmed design stop the run for the person.
+    if (stage === 'review' && amendFindingsOf(res).length) {
+      return { stopped: true, at: 'review', slice: sliceArg, ran, amendFindings: amendFindingsOf(res), reason: amendStopReason(res), route: `/wf design ${slug} amend` }
+    }
     if (!res || res.status === 'hard-stop') {
       return { stopped: true, at: stage, slice: sliceArg, ran, reason: (res && res.hardStopReason) || `${stage} stopped` }
     }
@@ -2690,7 +2737,7 @@ if (reconcileStop) {
   const next = i >= 0 && i < sliceList.length - 1 ? sliceList[i + 1] : null
   let route
   if (chain.stopped) {
-    route = `address the gate at '${chain.at}', then re-run /wf yolo ${slug} ${idx.targetSlice}`
+    route = chain.route || `address the gate at '${chain.at}', then re-run /wf yolo ${slug} ${idx.targetSlice}`
   } else if (next) {
     route = `/wf yolo ${slug} ${next}`
   } else {
@@ -2819,7 +2866,7 @@ if (reconcileStop) {
       results.push(chain)
       if (touchesCharter(chain.ran, idx.charter)) workSinceCheckpoint = true
       if (chain.stopped) {
-        return { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: chain.at, stoppedSlice: s.slice, reason: chain.reason, results, route: `address the gate at '${chain.at}' on slice '${s.slice}', then re-run /wf yolo ${slug}` }
+        return { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: chain.at, stoppedSlice: s.slice, reason: chain.reason, results, route: chain.route || `address the gate at '${chain.at}' on slice '${s.slice}', then re-run /wf yolo ${slug}` }
       }
       // W11.1 — charter fidelity checkpoint every K slices (not after the last, which the
       // slug-wide review + final scenario cover). A `broken` commitment stops the run.
@@ -2866,6 +2913,8 @@ if (reconcileStop) {
       const stopped = !rev || rev.status === 'hard-stop' || evaluateGate('review', rev) === 'hard-stop'
       outcome = rev && rev.status === 'stopped'
         ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: stopKindOf(rev), reason: `${rev.stopReason || 'stop request'} — stopped before the slug-wide review`, results, route: `/wf yolo ${slug}` }
+        : amendFindingsOf(rev).length
+        ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', reason: amendStopReason(rev), amendFindings: amendFindingsOf(rev), results, slugWide: rev, route: `/wf design ${slug} amend` }
         : stopped
         ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', reason: (rev && rev.hardStopReason) || 'slug-wide review did not clear the gate', results, slugWide: rev, route: `address the review blockers, then re-run /wf yolo ${slug}` }
         : { ok: true, mode: 'slug', reviewScope: 'slug-wide', stopped: false, results, slugWide: rev, route: `/wf handoff ${slug}` }

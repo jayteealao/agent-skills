@@ -33,14 +33,18 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `design/_carried.md` | procedure | mode:stage | |
 | `design/_design-context.md` | procedure | mode:stage | |
 | `design/_preflight.md` | procedure | mode:stage | |
+| `design/_craft-floor.md` | procedure | mode:stage | |
 | `_host-surfaces.md` | procedure | mode:stage | Design canvas |
-| `design/_design-context.md` | procedure | mode:audit | Absolute bans |
-| `design/_design-context.md` | procedure | mode:critique | Absolute bans |
+| `design/_craft-floor.md` | procedure | mode:audit | |
+| `design/_craft-floor.md` | procedure | mode:critique | |
+| `design/_craft-floor.md` | procedure | mode:upkeep | Record guard |
 | `design/_boards.md` | procedure | mode:stage | |
 | `design/import.md` | procedure | mode:import | |
+| `design/_craft-floor.md` | procedure | mode:import | |
 | `_host-surfaces.md` | procedure | mode:import | Design canvas |
 | `design/audit.md` | procedure | mode:audit | |
 | `design/critique.md` | procedure | mode:critique | |
+| `design/_heuristics.md` | procedure | mode:critique | |
 | `02c-craft.md` | writes | | |
 | `07-design-audit.md` | writes | | |
 | `07-design-critique.md` | writes | | |
@@ -88,9 +92,11 @@ Record the resolved job, slug, command, and instructions before you continue.
 
 Follow [design/stage.md](design/stage.md) exactly. The boards follow [design/_boards.md](design/_boards.md). A move on a confirmed design runs [design/stage.md](design/stage.md) → Move pass. The moves use the generic terms of [design/_platforms.md](design/_platforms.md).
 
+Load [design/_craft-floor.md](design/_craft-floor.md) at Step 4, before the first board. Do not load it at Steps 1–3b. The Move pass reads it as a checklist.
+
 ## Import
 
-Follow [design/import.md](design/import.md). An import continues at the design stage, Step 5: the person confirms the imported boards. It loads the design record, the shared design context, and the move reference when a move is named.
+Follow [design/import.md](design/import.md). An import continues at the design stage, Step 5: the person confirms the imported boards. It loads the design record, the shared design context, and the move reference when a move is named. Load [design/_craft-floor.md](design/_craft-floor.md) with them, because the import skips Step 4.
 
 ## New workflow (`/wf design <move> <instructions>`)
 
@@ -98,11 +104,11 @@ Run `/wf intake <instructions>` in default mode. Before intake writes `00-index.
 
 ## Upkeep
 
-Follow the command's section in [design/record.md](design/record.md). `setup` and `teach` also follow [design/setup.md](design/setup.md) and [design/teach.md](design/teach.md). `extract` also follows [design/extract.md](design/extract.md). Upkeep writes the design record only; it touches no workflow artifact, except that `extract` with a slug writes its report under that slug's `design-notes/`.
+Follow the command's section in [design/record.md](design/record.md). `setup` and `teach` also follow [design/setup.md](design/setup.md) and [design/teach.md](design/teach.md). `extract` also follows [design/extract.md](design/extract.md). Upkeep writes the design record only; it touches no workflow artifact, except that `extract` with a slug writes its report under that slug's `design-notes/`. Before a write to the design record, load [design/_craft-floor.md](design/_craft-floor.md) → Record guard ([design/record.md](design/record.md) → Floor guard).
 
 ## Review
 
-Load [design/_design-context.md](design/_design-context.md) → Absolute bans, then follow [design/audit.md](design/audit.md) or [design/critique.md](design/critique.md).
+Load [design/_craft-floor.md](design/_craft-floor.md), then follow [design/audit.md](design/audit.md) or [design/critique.md](design/critique.md). Check against its Refuse and Verify lists.
 - With a slug, write `07-design-audit.md` or `07-design-critique.md`, and register the augmentation per [design/_output.md](design/_output.md). `audit` consumes the accessibility, performance, and web-vitals results in `06-verify-*.md`; it measures them itself only when no verify ran.
 - Without a slug, write no workflow artifact. Report in chat.
 
@@ -115,10 +121,13 @@ wf design <job> complete: <slug-or-"freestanding">
 
 <Narrative — lead with the narrative per _chat-return.md, section The narrative.>
 
-Register: <brand|product>
+Design modes: <surface: persuade|operate|read|experience, ... | n/a>
 Image gate: <pass | skipped:<reason> | n/a>
 Artifacts: <comma-separated paths, or "none">
-Next: <one invocation, or "Done">
+Next: <Type `/wf <key> <args>`. | Done>
 ```
 
-After the stage, `Next` is `/wf slice <slug>`. After amend, `Next` names the first plan to revisit.
+Write `Next` as "Type `/wf <key> <args>`." The person runs the key; never write that you run it.
+- After the stage, `Next` is "Type `/wf slice <slug>`."
+- When `00-index.md` has `origin-packet` and `.ai/workflows/<board>/work/campaign/ledger.json` exists, `Next` names the campaign order: "Type `/wf slice <slug>`.", then "Run `campaign.mjs unit <key> prepared`.", then "Type `/wf campaign <board>`."
+- After amend, `Next` names the first plan to revisit.

@@ -689,3 +689,39 @@ function preambleClause() {
     `${referenceRoot}/_question-craft.md, do not read those files: apply the rules of this prompt. When it points ` +
     `to ${referenceRoot}/_requires.md, read only its section "Modes": this prompt states the rest.\n`
 }
+
+// WF-DESIGN-PLAN B1 (P2): a review finding against the confirmed design is the person's decision.
+// Both drivers add this clause to POLICY.review, so its text is the same in each driver.
+function designAmendClause() {
+  return ` DESIGN FINDINGS: a finding against a confirmed board (a frozen board under ` +
+    `.ai/workflows/<slug>/design/r<N>/) or against a line of the 02c-craft.md contract is the person's decision. ` +
+    `Do not fix it, do not dismiss it, and do not defer it. Record it open, with triage needs-amend and the reason ` +
+    `"the person decides: amend, keep, or defer". List it in amendFindings as { key (the finding id), severity, ` +
+    `summary (one line), contract (the board or the 02c-craft.md line that it contradicts, with its path) }. A ` +
+    `needs-amend finding is no reason to hard-stop: the driver asks the person. Return amendFindings: [] when no ` +
+    `finding is against the confirmed design.`
+}
+
+// The amendFindings field of STAGE_RESULT.
+function amendFindingsSchema() {
+  return {
+    type: 'array',
+    items: {
+      type: 'object',
+      required: ['key', 'summary'],
+      properties: { key: { type: 'string' }, severity: { type: 'string' }, summary: { type: 'string' }, contract: { type: 'string' } },
+    },
+  }
+}
+
+// The design findings of a review result: the entries that name a finding.
+function amendFindingsOf(res) {
+  const list = res && Array.isArray(res.amendFindings) ? res.amendFindings : []
+  return list.filter(f => f && typeof f === 'object' && String(f.key || '').trim())
+}
+
+// The design findings as one line each, for a question or a stop reason.
+function amendFindingsText(list) {
+  return (list || []).map(f => `${f.key} (${f.severity || '?'}): ${String(f.summary || '').slice(0, 160)}` +
+    `${f.contract ? ` [against ${String(f.contract).slice(0, 160)}]` : ''}`).join('; ')
+}

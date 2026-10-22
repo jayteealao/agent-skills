@@ -33,10 +33,21 @@ Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Bef
 - What are the edge cases? (Empty state, error state, first-time use, power user)
 - Is any content dynamic? What changes and how often?
 
-### Round 3 — Visual direction and scope (ask only what's missing from PRODUCT.md/DESIGN.md)
+### Round 3 — Visual direction and scope
+
+Do not ask a question that `.ai/design/direction.md`, `DESIGN.md`, or `PRODUCT.md` already answers. Record the answer in the brief with its source. When a carried sketch answers a question, or shows the options of a question, give the sketch's local path and caption in the question text ([_carried.md](_carried.md) → The file is the source).
+
+The aesthetic questions are asked here, per surface. `setup` and `teach` do not ask them.
+
+- **Design mode of each surface**: Persuade, Operate, Read, or Experience ([_design-context.md](_design-context.md) → Design modes). Choose one per surface, not one per product.
+- **Three brand words** for this surface: three concrete, physical-object words. Not "modern" or "clean".
+- **Tone**: the emotional tone that the surface communicates, in one line.
+- **First five seconds**: the most important thing a visitor feels or understands in the first five seconds.
 - **Color strategy for this surface**: Restrained / Committed / Full palette / Drenched — can override the project default if the surface earns it
 - **Scene sentence**: One sentence of physical context — who uses this, where, under what ambient light, in what mood. The sentence forces dark vs light. If it doesn't, add detail until it does.
 - **Two or three named anchor references**: Specific products, brands, objects — not adjectives
+- **One or two anti-references**: named products or sites that this surface is not like
+- **Viewports**: the sizes to draw, each as `<name>=<width>x<height>`. Take them from a carried item, from `DESIGN.md`, or from the platform. Ask only when no source gives them.
 - **Scope**: sketch quality vs. shipped quality — don't guess between them
 
 ## Phase 2: Design Brief
@@ -50,7 +61,7 @@ Two sentences: what it is and what problem it solves.
 Specific user description, their task context, their emotional state at arrival.
 
 ### 3. Content inventory
-List of content elements, edge cases, and state variants (empty, error, loading, first-run).
+List of content elements, edge cases, and state variants (empty, error, loading, first-run). List each surface with one design mode (persuade, operate, read, or experience) and its reason. Mirror the surface names in the `surfaces:` frontmatter list.
 
 ### 3b. UX intent
 - The flows this change adds or alters, as numbered steps a person takes
@@ -61,8 +72,10 @@ List of content elements, edge cases, and state variants (empty, error, loading,
 ### 4. Visual direction
 - Color strategy chosen (and why it fits this surface)
 - Scene sentence (confirmed by user or inferred)
-- Register: brand or product — explain the determination
-- Two or three named anchor references with brief rationale
+- The design mode of each surface, with the reason for each choice
+- The three brand words, the tone, and the first-five-seconds goal of each surface
+- Two or three named anchor references with brief rationale, and the anti-references
+- The viewports, with the source of each
 - Anti-goals: what this should NOT look like
 
 ### 5. Scope and fidelity
@@ -82,7 +95,11 @@ Which reference docs from `skills/wf/reference/design/` should be loaded for imp
 
 ```yaml
 recommended-references: [typeset, animate, colorize, harden]
+surfaces: [squad-list, squad-detail]          # every surface in the content inventory
+viewports: [phone=390x844, desktop=1440x900]  # the sizes the design stage draws
 ```
+
+The design stage reads `surfaces:` to decide which carried items it asks about, and `viewports:` to size the boards ([_boards.md](_boards.md)).
 
 Names omit the `.md` extension. `/wf implement` reads each as `skills/wf/reference/design/<name>.md` and treats the loaded files as read-only design rationale during implementation. The frontmatter array is authoritative; the human-readable bullet list above is for the design reviewer's eye and may include conditional notes that the array does not.
 

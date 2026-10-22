@@ -462,7 +462,7 @@
       "type": "object",
       "required": [
         "schema", "type", "slug", "created-at",
-        "register", "recommended-references"
+        "recommended-references"
       ],
       "properties": {
         "recommended-routes": {"$ref":"#/$defs/recommendedRoutes"},
@@ -470,7 +470,9 @@
         "read-waiver": {"type":"string","description":"S6 (ARTIFACT-SPLIT-PLAN): the reason a writer skipped a ## Requires input; lets a write through when the mod read check is in block mode."},
         "modes": {"type":"array","items":{"type":"string"},"description":"WF-SUBPROCEDURE-AUDIT W0: the modes the writer ran under; the mod read check also checks each mode:<name> row of ## Requires whose mode is listed here or proven on disk (_requires.md, Modes)."},
         "type": { "const": "design" },
-        "register": { "enum": ["brand", "product"] },
+        "register": { "enum": ["brand", "product"], "description": "Deprecated (WF-DESIGN-PLAN Part III 9.1): read as a design mode, brand → persuade, product → operate. Optional; a new artifact records the design mode instead." },
+        "design-mode": { "$ref": "#/$defs/designMode", "description": "The design mode of the artifact (persuade, operate, read, or experience). Replaces register." },
+        "surface-modes": { "$ref": "#/$defs/surfaceModes" },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "recommended-references": { "$ref": "#/$defs/stringArray" },
         "image-gate": {
@@ -512,7 +514,8 @@
         "sizes": { "$ref": "#/$defs/stringArray" },
         "themes": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" },
-        "register": { "enum": ["brand", "product"] },
+        "register": { "enum": ["brand", "product"], "description": "Deprecated (WF-DESIGN-PLAN Part III 9.1): read as a design mode, brand → persuade, product → operate. Optional; a new artifact records the design mode instead." },
+        "surface-modes": { "$ref": "#/$defs/surfaceModes" },
         "image-gate": {
           "oneOf": [
             { "const": "pass" },
@@ -1437,7 +1440,7 @@
       "type": "object",
       "required": [
         "schema", "type", "sub-command", "slug",
-        "created-at", "register", "files-modified"
+        "created-at", "files-modified"
       ],
       "properties": {
         "type": { "const": "design-augmentation" },
@@ -1448,7 +1451,8 @@
             "overdrive", "polish", "quieter", "typeset", "adapt", "extract"
           ]
         },
-        "register": { "enum": ["brand", "product"] },
+        "register": { "enum": ["brand", "product"], "description": "Deprecated (WF-DESIGN-PLAN Part III 9.1): read as a design mode, brand → persuade, product → operate. Optional; a new artifact records the design mode instead." },
+        "design-mode": { "$ref": "#/$defs/designMode", "description": "The design mode of the artifact (persuade, operate, read, or experience). Replaces register." },
         "files-modified": { "$ref": "#/$defs/stringArray" },
         "created-at": { "$ref": "#/$defs/iso8601" }
       }
@@ -1958,9 +1962,10 @@
               "thread": { "type": "string" },
               "items": { "$ref": "#/$defs/stringArray" },
               "link": { "type": ["string", "null"] },
-              "path": { "type": ["string", "null"], "description": "The sketch file, .ai/workflows/<slug>/design/sketches/<key>.<ext> (DESIGN-BOARDS-PLAN W5b)." },
+              "path": { "type": ["string", "null"], "description": "The sketch file, .ai/workflows/<slug>/design/sketches/<key>.<ext> (DESIGN-BOARDS-PLAN W5b). One file may hold several sketches: <file>#<artboard> (WF-DESIGN-PLAN A6)." },
               "caption": { "type": "string" },
-              "state": { "enum": ["idea", "carried", "dropped"] }
+              "canvas": { "$ref": "#/$defs/sketchCanvas" },
+              "state": { "enum": ["idea", "carried", "dropped", "reference"], "description": "reference: a link to outside design work kept as a reference only, with no file; never a board (WF-DESIGN-PLAN A5b)." }
             }
           }
         },
@@ -2128,6 +2133,27 @@
       }
     },
     "brainstormKey": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "designMode": { "enum": ["persuade", "operate", "read", "experience"], "description": "A design mode (WF-DESIGN-PLAN Part III 9.1): Persuade, Operate, Read, or Experience. Each surface has one." },
+    "surfaceModes": { "type": "object", "description": "The design mode of each surface: surface key → persuade, operate, read, or experience (WF-DESIGN-PLAN Part III 9.1, MQ2). Never named modes:, which is the read-check list.", "additionalProperties": { "$ref": "#/$defs/designMode" } },
+    "sketchCanvas": {
+      "type": "object",
+      "description": "The published view of a tracked sketch or board file (WF-DESIGN-PLAN A5b). The file is the source; sha256 is the hash of the file that was published. design-boards.mjs canvas-stale reports a changed file or another account.",
+      "required": ["link", "sha256"],
+      "properties": {
+        "link": { "type": "string", "minLength": 1 },
+        "account": { "type": ["string", "null"], "description": "The account that published the canvas." },
+        "published-at": { "$ref": "#/$defs/iso8601" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+        "previous": {
+          "type": "array",
+          "description": "Earlier links of this file, kept after a republish under another account.",
+          "items": { "anyOf": [
+            { "type": "string" },
+            { "type": "object", "required": ["link"], "properties": { "link": { "type": "string" }, "account": { "type": ["string", "null"] }, "published-at": { "type": "string" }, "sha256": { "type": "string" } } }
+          ] }
+        }
+      }
+    },
     "workPacketFrontmatter": {
       "type": "object",
       "description": "work/<work-slug>.md — a work packet that a brainstorm's done writes for one resulting workflow slug (BRAINSTORM-WORK-PACKETS-PLAN section 5). Generated from brainstorm-board.json by work-packets.mjs; the board wins on a difference. slug is the brainstorm folder (every file in a workflow folder carries that folder's slug); work-slug is the slug the packet opens.",
@@ -2169,7 +2195,7 @@
         "references": { "$ref": "#/$defs/stringArray" },
         "ux-impact": { "enum": ["none", "visual", "flow", "new-surface"] },
         "design": { "enum": ["none", "design", "design-direction"] },
-        "sketches": { "type": "array", "description": "The carried sketches, each with its file under the board's design/sketches/ (DESIGN-BOARDS-PLAN W5b). Intake copies each file into the new slug's design/sketches/.", "items": { "type": "object", "required": ["key", "path"], "properties": { "key": { "$ref": "#/$defs/brainstormKey" }, "path": { "type": ["string", "null"] }, "link": { "type": ["string", "null"] }, "caption": { "type": "string" } } } },
+        "sketches": { "type": "array", "description": "The carried sketches, each with its file under the board's design/sketches/ (DESIGN-BOARDS-PLAN W5b). Intake copies each file into the new slug's design/sketches/.", "items": { "type": "object", "required": ["key", "path"], "properties": { "key": { "$ref": "#/$defs/brainstormKey" }, "path": { "type": ["string", "null"], "description": "The sketch file; may end in #<artboard> (WF-DESIGN-PLAN A6)." }, "link": { "type": ["string", "null"] }, "caption": { "type": "string" }, "canvas": { "$ref": "#/$defs/sketchCanvas" } } } },
         "size": { "enum": ["small", "medium", "large", "too-large"] },
         "state": { "enum": ["proposed", "prepared", "routed"] },
         "routed-to": { "type": ["string", "null"] },

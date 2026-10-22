@@ -10,12 +10,15 @@
  *   check   <root> <slug>                          the board files that 02c-craft.md boards: lists but that are missing
  *   capture-name <root> <slug> <slice> <key>       the verify capture path of a board
  *   import  <root> <slug> <path>...                copy outside design work into design/source/import-<n>/
- *   track   <root> [--write]                       the .gitignore exceptions that keep the design record tracked (D9)
+ *   track   <root> [--write]                       the .gitignore exceptions that keep the design record and the sketches tracked (D9, A5)
+ *   canvas-stale <root> <slug> [--account name]    the sketches and boards whose published canvas is stale (WF-DESIGN-PLAN A5b)
+ *   ansi    <input.txt> --scheme <name> --out <file.html>   render terminal output with colour in a named scheme (A8)
  *
  * Every command prints one JSON object on stdout. No new dependency: a board renders
  * with the headless mode of an installed Chromium browser (`--screenshot`).
  */
 import { spawn, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, platform, tmpdir } from 'node:os';
 import { basename, dirname, extname, join, relative, resolve } from 'node:path';
@@ -23,13 +26,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   DESIGN_DIR, MANIFEST, METHODS, REVISION_WARN_BYTES, SHEET,
-  boardFiles, capturePath, directionSketches, emptyManifest, frozenManifestPath, ignoreAdvice, missingBoardFiles, needsPictures,
-  parseBoardKey, parseViewport, readManifest, renderSheet, revisionDir,
+  ANSI_SCHEMES, TRACK_PROBES,
+  boardFiles, canvasStale, capturePath, directionSketches, emptyManifest, frozenManifestPath, ignoreAdvice, missingBoardFiles, needsPictures,
+  parseBoardKey, parseViewport, readManifest, renderAnsi, renderSheet, revisionDir, sketchAdvice, splitAnchor,
 } from '../lib/design-boards.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 
-const USAGE = `usage: design-boards.mjs <init|render|sheet|freeze|check|capture-name|import> <projectRoot> <slug> [args]
-       design-boards.mjs track <projectRoot> [--write]`;
+const USAGE = `usage: design-boards.mjs <init|render|sheet|freeze|check|capture-name|import|canvas-stale> <projectRoot> <slug> [args]
+       design-boards.mjs track <projectRoot> [--write]
+       design-boards.mjs ansi <input.txt> --scheme <${Object.keys(ANSI_SCHEMES).join('|')}> [--out <file.html>]`;
 /** A browser that renders nothing in this time is stopped (W0: one Playwright Chromium build hung on --screenshot). */
 const RENDER_TIMEOUT_MS = Number(process.env.SDLC_BROWSER_TIMEOUT_MS) || 30_000;
 
@@ -512,20 +517,113 @@ function gitIgnoreSource(root, rel) {
 function track(root, f) {
   const repo = spawnSync('git', ['-C', root, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', windowsHide: true });
   if (repo.status !== 0) return { ok: false, error: `${posix(root)} is not a git repository` };
-  const probe = gitIgnoreSource(root, '.ai/design/current.md');
-  const frozen = gitIgnoreSource(root, '.ai/workflows/x/design/r1/boards.json');
-  const advice = ignoreAdvice(probe?.pattern ?? null, Boolean(probe || frozen));
-  if (!advice.change) return { ok: true, ignored: Boolean(probe || frozen), ...advice, written: false };
-  const file = probe?.file ? resolve(root, probe.file) : join(root, '.gitignore');
-  if (!f.write) return { ok: true, ignored: true, file: posix(relative(root, file)), line: probe?.line ?? null, ...advice, written: false };
+  const probe = gitIgnoreSource(root, TRACK_PROBES.record);
+  const frozen = gitIgnoreSource(root, TRACK_PROBES.frozen);
+  const sketch = gitIgnoreSource(root, TRACK_PROBES.sketch);
+  // A repo with the block from before A5 tracks the record but not the sketches: add the sketch lines only.
+  const upgrade = !probe && !frozen && sketch;
+  const advice = upgrade ? sketchAdvice(sketch.pattern) : ignoreAdvice(probe?.pattern ?? null, Boolean(probe || frozen));
+  const ignored = Boolean(probe || frozen || sketch);
+  if (!advice.change) return { ok: true, ignored, ...advice, written: false };
+  const source = upgrade ? sketch : probe;
+  const file = source?.file ? resolve(root, source.file) : join(root, '.gitignore');
+  if (!f.write) return { ok: true, ignored: true, file: posix(relative(root, file)), line: source?.line ?? null, ...advice, written: false };
   const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
   const lines = text.split(/\r?\n/);
   if (advice.replace && probe?.line) lines[probe.line - 1] = advice.replace;
   const next = `${lines.join('\n').replace(/\n*$/, '\n')}${advice.block}`;
   writeAtomic(file, next);
-  const after = gitIgnoreSource(root, '.ai/design/current.md');
-  const afterFrozen = gitIgnoreSource(root, '.ai/workflows/x/design/r1/boards.json');
-  return { ok: !after && !afterFrozen, ignored: true, file: posix(relative(root, file)), ...advice, written: true, stillIgnored: [after, afterFrozen].filter(Boolean) };
+  const still = Object.values(TRACK_PROBES).map((p) => gitIgnoreSource(root, p)).filter(Boolean);
+  return { ok: !still.length, ignored: true, file: posix(relative(root, file)), ...advice, written: true, stillIgnored: still };
+}
+
+// ---------------------------------------------------------------- canvas-stale (WF-DESIGN-PLAN A5b)
+
+const sha256Of = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
+
+/** A recorded path as a project-relative path: `.ai/…` stays, any other path is relative to `base`. */
+function projectPath(root, base, path) {
+  const p = posix(path);
+  return p.startsWith('.ai/') ? p : posix(relative(root, join(base, ...p.split('/'))));
+}
+
+/** One entry of the check: the file hash now (null when missing, undefined when the entry has no file). */
+function canvasEntry(root, kind, key, where, path, canvas) {
+  const { file } = splitAnchor(path);
+  const abs = file ? join(root, ...file.split('/')) : null;
+  const sha256 = abs ? (existsSync(abs) && statSync(abs).isFile() ? sha256Of(abs) : null) : undefined;
+  return { kind, key, where, path: path || null, canvas: canvas && typeof canvas === 'object' ? canvas : null, sha256 };
+}
+
+/**
+ * The sketches and boards of a workflow, with their recorded canvas: the brainstorm
+ * board `sketches[]`, the packet `sketches:` of `work/` and of `origin-packet`, and the
+ * `canvas` of each board in `design/boards.json`.
+ */
+function canvasEntries(root, slug) {
+  const wdir = workflowDir(root, slug);
+  const wrel = posix(relative(root, wdir));
+  const entries = [];
+  const board = join(wdir, 'brainstorm-board.json');
+  if (existsSync(board)) {
+    let b = null;
+    try { b = JSON.parse(readFileSync(board, 'utf8')); } catch { /* the write hook reports a bad board */ }
+    (b?.sketches ?? []).forEach((s, i) => {
+      if (!s?.key) return;
+      const path = s.path ? projectPath(root, wdir, s.path) : null;
+      entries.push(canvasEntry(root, 'sketch', s.key, `${wrel}/brainstorm-board.json sketches[${i}]`, path, s.canvas));
+    });
+  }
+  const packets = [];
+  const workDir = join(wdir, 'work');
+  if (existsSync(workDir)) for (const name of readdirSync(workDir).filter((n) => n.endsWith('.md')).sort()) packets.push(join(workDir, name));
+  const origin = readFm(join(wdir, '00-index.md'))?.['origin-packet'];
+  if (typeof origin === 'string' && origin.trim()) {
+    const abs = resolve(root, origin.trim());
+    if (existsSync(abs) && !packets.includes(abs)) packets.push(abs);
+  }
+  for (const file of packets) {
+    const fm = readFm(file);
+    if (fm?.type !== 'work-packet') continue;
+    const rel = posix(relative(root, file));
+    (fm.sketches ?? []).forEach((s, i) => {
+      if (!s?.key) return;
+      const path = s.path ? projectPath(root, dirname(dirname(file)), s.path) : null;
+      entries.push(canvasEntry(root, 'sketch', s.key, `${rel} sketches[${i}]`, path, s.canvas));
+    });
+  }
+  const manifest = manifestPath(root, slug);
+  if (existsSync(manifest)) {
+    const { manifest: m } = readManifest(manifest);
+    (m?.boards ?? []).forEach((b, i) => {
+      const f = b?.html ?? b?.png ?? null;
+      const path = f ? projectPath(root, designDir(root, slug), f) : null;
+      entries.push(canvasEntry(root, 'board', b?.key ?? `boards[${i}]`, `${wrel}/${DESIGN_DIR}/${MANIFEST} boards[${i}]`, path, b?.canvas));
+    });
+  }
+  return entries;
+}
+
+function canvasStaleCmd(root, slug, f) {
+  requireWorkflow(root, slug);
+  const account = typeof f.account === 'string' && f.account ? f.account : null;
+  const entries = canvasEntries(root, slug);
+  const stale = canvasStale(entries, { account });
+  // A file with no canvas yet: its hash is what the first publish records.
+  const unpublished = entries.filter((e) => !e.canvas && e.sha256).map((e) => ({ kind: e.kind, key: e.key, where: e.where, path: e.path, sha256: e.sha256 }));
+  return { ok: true, slug, account, checked: entries.filter((e) => e.canvas).length, stale, unpublished };
+}
+
+// ---------------------------------------------------------------- ansi (WF-DESIGN-PLAN A8)
+
+function ansi(input, f) {
+  if (!existsSync(input)) throw new Error(`ansi: ${posix(input)} does not exist`);
+  const scheme = typeof f.scheme === 'string' ? f.scheme : null;
+  if (!scheme || !ANSI_SCHEMES[scheme]) throw new Error(`ansi: --scheme is one of ${Object.keys(ANSI_SCHEMES).join(', ')}`);
+  const out = typeof f.out === 'string' && f.out ? resolve(f.out) : join(dirname(input), `${basename(input, extname(input))}.${scheme}.html`);
+  const text = readFileSync(input, 'utf8');
+  writeAtomic(out, renderAnsi(text, scheme, { title: `${basename(input)} · ${ANSI_SCHEMES[scheme].name}` }));
+  return { ok: true, out: posix(out), scheme, theme: ANSI_SCHEMES[scheme].theme, lines: text.split(/\r?\n/).length };
 }
 
 // ---------------------------------------------------------------- main
@@ -538,6 +636,8 @@ export async function main(argv = process.argv.slice(2)) {
   try {
     if (cmd === 'track') {
       out = track(root, flags(rest0).f);
+    } else if (cmd === 'ansi') {
+      out = ansi(root, flags(rest0).f);
     } else {
       const [slug, ...rest] = rest0;
       if (!slug) { process.stderr.write(`${USAGE}\n`); return 2; }
@@ -550,6 +650,7 @@ export async function main(argv = process.argv.slice(2)) {
         case 'check': out = check(root, slug); break;
         case 'capture-name': out = captureName(root, slug, pos); break;
         case 'import': out = importSources(root, slug, pos); break;
+        case 'canvas-stale': out = canvasStaleCmd(root, slug, f); break;
         default: process.stderr.write(`${USAGE}\n`); return 2;
       }
     }

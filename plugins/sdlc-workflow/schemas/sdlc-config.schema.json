@@ -142,6 +142,11 @@
           "default": true,
           "description": "When true (default), the pre-write-validate hook refuses a `04-plan*.md` write while the workflow needs design (`ux-impact` is visual, flow, or new-surface, or a legacy `02b-design.md` exists) and the design is not settled: no `02c-craft.md` carrying a resolved `image-gate` and `direction-confirmed-by`, and no `progress.design: skipped` with a `design-skip-reason` (skills/wf/reference/design/_lane.md). A person confirms the design at `/wf design <slug>` before planning. Set false to disable."
         },
+        "designModeLint": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook WARNS (non-blocking) when a design artifact carries only the deprecated `register`; it reads as a design mode (brand → persuade, product → operate). Set false to silence."
+        },
         "verifyDeferralLint": {
           "type": "boolean",
           "default": true,

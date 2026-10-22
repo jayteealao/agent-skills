@@ -16,11 +16,11 @@
       "reason": "The 19-key tables (Arguments / Does / Writes cells), the sub-key table, and the Step 0, 0.5, 0.7 STOP rules with the sub-key and intake fast-path rules are the dispatcher's capability surface; 115 lines at 15 words per line. Cutting to 1,320 words would delete table cells that name invocations and artifacts. WF-KEY-SURFACE-PLAN removed eight rows and added the sub-key table, the fast path, and the loop and project rows."
     },
     "skills/wf/reference/handoff.md": {
-      "words": 4819,
+      "words": 4815,
       "reason": "The 60-field frontmatter template (about 600 words), the T3.5-T5.3 readiness procedure with 11 inventoried STOP sentences, and the per-slug/per-branch batch contract are capability; rationale and restatements were cut from 5,760 words to this count. WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     },
     "skills/wf/reference/implement.md": {
-      "words": 3083,
+      "words": 3039,
       "reason": "WIDE-VIEW-REPAIR-PLAN §16: implement.md holds 22 artifact keys, 6 stops, 2 dispatches, the suppressionDebtLint/limitationClaimLint config entries, and the pinned build-discipline phrases; the 2,731-word share is unreachable without deleting capability. §4.3 cuts (rationale, history, restatements) landed first. WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     },
     "skills/wf/reference/intake.md": {
@@ -28,11 +28,11 @@
       "reason": "The five-branch shape resolution with its STOPs, the nine-row auto-route signal table with six discriminators, the 15-row mode→span map, and the 15-row mode→file map are the intake dispatcher capability surface; §4.3 cuts removed only rationale and restatements (3,498 → 3,092 words). The optimize mode (WF-OPTIMIZE-PLAN W2) added 34 words: its keyword, its row in each map, and the slug-mode refusal. Ideate with sources (WF-IDEATE-SOURCES-PLAN S1, S4) added 13 words: the source shape in the proposal row, and the packet pick in the span row. WF-KEY-SURFACE-PLAN (A4, A5, A7) added 263 words: the simplify and task modes and the close maintenance word in the keyword set, the branch-0 rules for close, and their rows in each map. The intake fast path takes this file out of every explicit-mode run."
     },
     "skills/wf/reference/plan.md": {
-      "words": 4743,
+      "words": 4741,
       "reason": "Four research sub-agent charters with verbatim CONTRACT blocks, the build-avoidance ladder, the repeat-deferral tripwire, the 20-field frontmatter template, the Verification Strategy table with the force-scope rule, and the Step F sibling schema are each a capability surface; §4.3 cuts removed only rationale and examples (5,379 → 5,138 words)."
     },
     "skills/wf/reference/probe.md": {
-      "words": 3233,
+      "words": 3226,
       "reason": "WIDE-VIEW-REPAIR-PLAN §16: probe.md holds 7 artifact keys, the branch gate, the sweep dispatch, the charter/decidability/re-observe contracts and the surface-sweep pins; the 2,731-word share is unreachable without deleting capability. §4.3 cuts (the runtime-commands 2x2, branch-posture rationale, anecdotes) landed in ef04eb84."
     },
     "skills/wf/reference/shape.md": {
@@ -40,15 +40,15 @@
       "reason": "The 20-question floor with its Ambiguity Inventory and coverage gate (PO directive: never scale down), two sub-agent charters, Round 3b, the blind pre-mortem generator, the RIM adjudication gate, the Intake Fidelity table, and the AC direction/named-mechanism rules are each a capability surface; §4.3 cuts removed only rationale, examples, and restatements (5,236 → 4,932 words)."
     },
     "skills/wf/reference/ship.md": {
-      "words": 3975,
+      "words": 3968,
       "reason": "The polymorphic Step 0 with two hard-block gates (runtime-evidence deferrals, RIMs) and the pre-sequence question table, the 13 idempotent steps with their exact gh/git commands and per-step idempotency checks, the four-class dirty-tree triage, and the batch-ship contract are each a capability surface; §4.3 cuts removed only history anecdotes and rationale (4,390 → 4,104 words). WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     },
     "skills/wf/reference/verify.md": {
-      "words": 3565,
+      "words": 3558,
       "reason": "WIDE-VIEW-REPAIR-PLAN §16: verify.md holds 22 artifact keys, 4 gates, 5 stops, 7 dispatches, the mockEvidenceGate/verifyResultGate/verifyDeferralLint config entries, the AC-gate semantics and the verbatim fix-sub-agent prompt; the 2,731-word share is unreachable without deleting capability. §4.3 cuts (anecdote, rationale, examples) landed first."
     },
     "skills/wf/reference/yolo.md": {
-      "words": 3727,
+      "words": 3720,
       "reason": "The Autonomous Decision Policy table (about 650 words of gate definitions with 10 inventoried STOP sentences), the six intake classes (the optimize class, WF-OPTIMIZE-PLAN W2, added 32 words), and the 16-line hand-back template are capability; rationale, history, and restatements were cut from 6,434 words to this count. WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     }
   },
@@ -64,7 +64,7 @@
       },
       "instructed": {
         "files": 8,
-        "words": 7184,
+        "words": 7213,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_autonomy-guards.md",
@@ -79,8 +79,8 @@
         "allFiles": 8
       },
       "referenced": {
-        "files": 29,
-        "words": 28107,
+        "files": 31,
+        "words": 34891,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -103,7 +103,9 @@
           "skills/wf/reference/design/_boards.md",
           "skills/wf/reference/design/_carried.md",
           "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/_heuristics.md",
           "skills/wf/reference/design/_lane.md",
           "skills/wf/reference/design/_motion-recipes.md",
           "skills/wf/reference/design/_output.md",
@@ -125,7 +127,7 @@
     "campaign": {
       "core": {
         "files": 2,
-        "words": 4482,
+        "words": 4500,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/campaign.md"
@@ -133,7 +135,7 @@
       },
       "instructed": {
         "files": 5,
-        "words": 6255,
+        "words": 6302,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -145,8 +147,8 @@
         "allFiles": 5
       },
       "referenced": {
-        "files": 64,
-        "words": 75080,
+        "files": 66,
+        "words": 82663,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -183,7 +185,9 @@
           "skills/wf/reference/design/_boards.md",
           "skills/wf/reference/design/_carried.md",
           "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/_heuristics.md",
           "skills/wf/reference/design/_lane.md",
           "skills/wf/reference/design/_motion-recipes.md",
           "skills/wf/reference/design/_output.md",
@@ -226,15 +230,15 @@
     "design": {
       "core": {
         "files": 2,
-        "words": 2754,
+        "words": 2894,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/design.md"
         ]
       },
       "instructed": {
-        "files": 13,
-        "words": 11375,
+        "files": 14,
+        "words": 14398,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -246,22 +250,23 @@
           "skills/wf/reference/design/_boards.md",
           "skills/wf/reference/design/_carried.md",
           "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_design-context.md",
           "skills/wf/reference/design/_preflight.md",
-          "skills/wf/reference/design/contract.md"
+          "skills/wf/reference/design/stage.md"
         ],
         "branches": [
           {
             "dir": "skills/wf/reference/design",
-            "chosen": "skills/wf/reference/design/contract.md",
-            "alternatives": 10
+            "chosen": "skills/wf/reference/design/stage.md",
+            "alternatives": 11
           }
         ],
-        "allFiles": 22
+        "allFiles": 24
       },
       "referenced": {
-        "files": 27,
-        "words": 23955,
+        "files": 29,
+        "words": 30933,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -282,19 +287,21 @@
           "skills/wf/reference/design/_boards.md",
           "skills/wf/reference/design/_carried.md",
           "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/_heuristics.md",
           "skills/wf/reference/design/_lane.md",
           "skills/wf/reference/design/_motion-recipes.md",
           "skills/wf/reference/design/_output.md",
           "skills/wf/reference/design/_platforms.md",
           "skills/wf/reference/design/_preflight.md",
-          "skills/wf/reference/design/contract.md",
+          "skills/wf/reference/design/stage.md",
           "skills/wf/reference/yolo/_commentary.md"
         ]
       },
       "target": {
         "core": 4500,
-        "instructed": 30550,
+        "instructed": 33850,
         "raised": [
           "skills/wf/SKILL.md",
           "skills/wf/SKILL.md"
@@ -312,7 +319,7 @@
       },
       "instructed": {
         "files": 9,
-        "words": 9282,
+        "words": 9337,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_chat-return.md",
@@ -335,7 +342,7 @@
       },
       "referenced": {
         "files": 18,
-        "words": 15420,
+        "words": 15491,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -377,7 +384,7 @@
       },
       "instructed": {
         "files": 5,
-        "words": 4693,
+        "words": 4722,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -389,8 +396,8 @@
         "allFiles": 5
       },
       "referenced": {
-        "files": 57,
-        "words": 62813,
+        "files": 59,
+        "words": 70118,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -417,7 +424,9 @@
           "skills/wf/reference/design/_boards.md",
           "skills/wf/reference/design/_carried.md",
           "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/_heuristics.md",
           "skills/wf/reference/design/_lane.md",
           "skills/wf/reference/design/_motion-recipes.md",
           "skills/wf/reference/design/_output.md",
@@ -471,7 +480,7 @@
       },
       "instructed": {
         "files": 14,
-        "words": 15633,
+        "words": 15662,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -493,7 +502,7 @@
       },
       "referenced": {
         "files": 31,
-        "words": 34844,
+        "words": 34915,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -541,15 +550,15 @@
     "implement": {
       "core": {
         "files": 2,
-        "words": 4782,
+        "words": 4754,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/implement.md"
         ]
       },
       "instructed": {
-        "files": 13,
-        "words": 12767,
+        "files": 14,
+        "words": 13837,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_chat-return.md",
@@ -562,15 +571,16 @@
           "skills/wf/reference/_workflow-rules.md",
           "skills/wf/reference/augment/benchmark.md",
           "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/implement.md",
           "skills/wf/reference/implement/_reviews-mode.md"
         ],
         "branches": [],
-        "allFiles": 13
+        "allFiles": 14
       },
       "referenced": {
-        "files": 54,
-        "words": 56298,
+        "files": 56,
+        "words": 63083,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -600,7 +610,9 @@
           "skills/wf/reference/design/_boards.md",
           "skills/wf/reference/design/_carried.md",
           "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/_heuristics.md",
           "skills/wf/reference/design/_lane.md",
           "skills/wf/reference/design/_motion-recipes.md",
           "skills/wf/reference/design/_output.md",
@@ -630,7 +642,7 @@
       },
       "target": {
         "core": 4800,
-        "instructed": 22200,
+        "instructed": 25450,
         "raised": [
           "skills/wf/SKILL.md",
           "skills/wf/SKILL.md",
@@ -649,7 +661,7 @@
       },
       "instructed": {
         "files": 15,
-        "words": 15880,
+        "words": 15935,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -678,7 +690,7 @@
       },
       "referenced": {
         "files": 62,
-        "words": 60454,
+        "words": 61120,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -765,7 +777,7 @@
       },
       "instructed": {
         "files": 7,
-        "words": 6988,
+        "words": 7017,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -786,7 +798,7 @@
       },
       "referenced": {
         "files": 20,
-        "words": 18243,
+        "words": 18314,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -830,7 +842,7 @@
       },
       "instructed": {
         "files": 11,
-        "words": 10327,
+        "words": 10356,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -848,8 +860,8 @@
         "allFiles": 11
       },
       "referenced": {
-        "files": 57,
-        "words": 58701,
+        "files": 59,
+        "words": 65992,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -876,7 +888,9 @@
           "skills/wf/reference/design/_boards.md",
           "skills/wf/reference/design/_carried.md",
           "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/_heuristics.md",
           "skills/wf/reference/design/_lane.md",
           "skills/wf/reference/design/_motion-recipes.md",
           "skills/wf/reference/design/_output.md",
@@ -922,7 +936,7 @@
     "plan": {
       "core": {
         "files": 2,
-        "words": 6462,
+        "words": 6456,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/plan.md"
@@ -930,7 +944,7 @@
       },
       "instructed": {
         "files": 10,
-        "words": 12259,
+        "words": 12951,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -938,7 +952,7 @@
           "skills/wf/reference/_output-boundary.md",
           "skills/wf/reference/_steering.md",
           "skills/wf/reference/_workflow-rules.md",
-          "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_lane.md",
           "skills/wf/reference/design/typeset.md",
           "skills/wf/reference/plan.md"
@@ -953,8 +967,8 @@
         "allFiles": 11
       },
       "referenced": {
-        "files": 36,
-        "words": 35081,
+        "files": 38,
+        "words": 42053,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -978,7 +992,9 @@
           "skills/wf/reference/design/_boards.md",
           "skills/wf/reference/design/_carried.md",
           "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/_heuristics.md",
           "skills/wf/reference/design/_lane.md",
           "skills/wf/reference/design/_motion-recipes.md",
           "skills/wf/reference/design/_output.md",
@@ -1015,7 +1031,7 @@
       },
       "instructed": {
         "files": 7,
-        "words": 7571,
+        "words": 7600,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -1030,7 +1046,7 @@
       },
       "referenced": {
         "files": 25,
-        "words": 27315,
+        "words": 27386,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1080,7 +1096,7 @@
       },
       "instructed": {
         "files": 5,
-        "words": 5100,
+        "words": 5129,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -1093,7 +1109,7 @@
       },
       "referenced": {
         "files": 16,
-        "words": 14272,
+        "words": 14343,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1133,7 +1149,7 @@
       },
       "instructed": {
         "files": 6,
-        "words": 6539,
+        "words": 6568,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -1147,7 +1163,7 @@
       },
       "referenced": {
         "files": 15,
-        "words": 14414,
+        "words": 14485,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1178,7 +1194,7 @@
     "retro": {
       "core": {
         "files": 2,
-        "words": 4398,
+        "words": 4453,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/retro.md"
@@ -1186,7 +1202,7 @@
       },
       "instructed": {
         "files": 8,
-        "words": 7343,
+        "words": 7427,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -1201,8 +1217,8 @@
         "allFiles": 8
       },
       "referenced": {
-        "files": 33,
-        "words": 30656,
+        "files": 35,
+        "words": 37495,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -1227,7 +1243,9 @@
           "skills/wf/reference/design/_boards.md",
           "skills/wf/reference/design/_carried.md",
           "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/_heuristics.md",
           "skills/wf/reference/design/_lane.md",
           "skills/wf/reference/design/_motion-recipes.md",
           "skills/wf/reference/design/_output.md",
@@ -1259,7 +1277,7 @@
       },
       "instructed": {
         "files": 16,
-        "words": 16475,
+        "words": 16592,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_findings-ledger.md",
@@ -1283,7 +1301,7 @@
       },
       "referenced": {
         "files": 26,
-        "words": 24387,
+        "words": 24546,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1333,7 +1351,7 @@
       },
       "instructed": {
         "files": 8,
-        "words": 9797,
+        "words": 9826,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1348,8 +1366,8 @@
         "allFiles": 8
       },
       "referenced": {
-        "files": 37,
-        "words": 37674,
+        "files": 39,
+        "words": 44458,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -1373,7 +1391,9 @@
           "skills/wf/reference/design/_boards.md",
           "skills/wf/reference/design/_carried.md",
           "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/_heuristics.md",
           "skills/wf/reference/design/_lane.md",
           "skills/wf/reference/design/_motion-recipes.md",
           "skills/wf/reference/design/_output.md",
@@ -1411,7 +1431,7 @@
       },
       "instructed": {
         "files": 9,
-        "words": 11714,
+        "words": 11743,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -1434,7 +1454,7 @@
       },
       "referenced": {
         "files": 26,
-        "words": 30985,
+        "words": 31056,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1485,7 +1505,7 @@
       },
       "instructed": {
         "files": 9,
-        "words": 10537,
+        "words": 10566,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -1508,7 +1528,7 @@
       },
       "referenced": {
         "files": 26,
-        "words": 27793,
+        "words": 27864,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1550,15 +1570,15 @@
     "slice": {
       "core": {
         "files": 2,
-        "words": 4496,
+        "words": 4495,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/slice.md"
         ]
       },
       "instructed": {
-        "files": 9,
-        "words": 9211,
+        "files": 10,
+        "words": 10343,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1567,15 +1587,16 @@
           "skills/wf/reference/_output-boundary.md",
           "skills/wf/reference/_steering.md",
           "skills/wf/reference/_workflow-rules.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_lane.md",
           "skills/wf/reference/slice.md"
         ],
         "branches": [],
-        "allFiles": 9
+        "allFiles": 10
       },
       "referenced": {
-        "files": 36,
-        "words": 35110,
+        "files": 38,
+        "words": 41893,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -1599,7 +1620,9 @@
           "skills/wf/reference/design/_boards.md",
           "skills/wf/reference/design/_carried.md",
           "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/_heuristics.md",
           "skills/wf/reference/design/_lane.md",
           "skills/wf/reference/design/_motion-recipes.md",
           "skills/wf/reference/design/_output.md",
@@ -1617,7 +1640,7 @@
       },
       "target": {
         "core": 4500,
-        "instructed": 13050,
+        "instructed": 16350,
         "raised": [
           "skills/wf/SKILL.md",
           "skills/wf/SKILL.md"
@@ -1635,7 +1658,7 @@
       },
       "instructed": {
         "files": 9,
-        "words": 9123,
+        "words": 9152,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_gate-question.md",
@@ -1652,7 +1675,7 @@
       },
       "referenced": {
         "files": 19,
-        "words": 17681,
+        "words": 17752,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_additive-write.md",
@@ -1694,8 +1717,8 @@
         ]
       },
       "instructed": {
-        "files": 11,
-        "words": 12072,
+        "files": 12,
+        "words": 13156,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_autonomy-guards.md",
@@ -1706,15 +1729,16 @@
           "skills/wf/reference/_steering.md",
           "skills/wf/reference/_subagents.md",
           "skills/wf/reference/_workflow-rules.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/verify.md",
           "skills/wf/reference/verify/_runtime-evidence.md"
         ],
         "branches": [],
-        "allFiles": 11
+        "allFiles": 12
       },
       "referenced": {
-        "files": 47,
-        "words": 50821,
+        "files": 49,
+        "words": 57634,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -1743,7 +1767,9 @@
           "skills/wf/reference/design/_boards.md",
           "skills/wf/reference/design/_carried.md",
           "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/_heuristics.md",
           "skills/wf/reference/design/_lane.md",
           "skills/wf/reference/design/_motion-recipes.md",
           "skills/wf/reference/design/_output.md",
@@ -1767,7 +1793,7 @@
       },
       "target": {
         "core": 5300,
-        "instructed": 15650,
+        "instructed": 18950,
         "raised": [
           "skills/wf/SKILL.md",
           "skills/wf/SKILL.md",
@@ -1786,7 +1812,7 @@
       },
       "instructed": {
         "files": 8,
-        "words": 8570,
+        "words": 8599,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/_autonomy-guards.md",
@@ -1801,8 +1827,8 @@
         "allFiles": 8
       },
       "referenced": {
-        "files": 29,
-        "words": 29493,
+        "files": 31,
+        "words": 36277,
         "fileList": [
           "skills/wf/SKILL.md",
           "skills/wf/reference/DESIGN.md",
@@ -1824,7 +1850,9 @@
           "skills/wf/reference/design/_boards.md",
           "skills/wf/reference/design/_carried.md",
           "skills/wf/reference/design/_component-craft.md",
+          "skills/wf/reference/design/_craft-floor.md",
           "skills/wf/reference/design/_design-context.md",
+          "skills/wf/reference/design/_heuristics.md",
           "skills/wf/reference/design/_lane.md",
           "skills/wf/reference/design/_motion-recipes.md",
           "skills/wf/reference/design/_output.md",

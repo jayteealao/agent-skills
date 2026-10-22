@@ -99,6 +99,22 @@ export function saveManifest(file, manifest, now) {
 }
 
 const entryOf = (manifest, rel) => (manifest.files[rel] ??= { base: null, kept: [] });
+/** How many earlier bases a file entry keeps. */
+const EARLIER_LIMIT = 20;
+
+/**
+ * WF-DESIGN-PLAN B2 (DP13): set the base of a file entry, and keep the base it replaces in
+ * `earlier`. A worktree file whose hash equals an earlier base is an old version of the file
+ * (a revert in the worktree), so `out` never copies it over the main checkout.
+ */
+export function setBase(e, hash) {
+  if (e.base && hash && e.base !== hash) {
+    e.earlier = [...(e.earlier ?? []).filter((h) => h !== e.base && h !== hash), e.base].slice(-EARLIER_LIMIT);
+  } else if (hash && e.earlier?.includes(hash)) {
+    e.earlier = e.earlier.filter((h) => h !== hash);
+  }
+  e.base = hash;
+}
 
 /**
  * The registry rows of both sides, merged: one row per slug, the row with the
@@ -145,21 +161,21 @@ export function recordsIn({ main, worktree, manifest, exclude = () => false, pri
     if (!dst.files.has(rel)) {
       if (e?.base) { res.deletedInWorktree.push(rel); continue; }
       copyVerified(abs, target, mh);
-      entryOf(manifest, rel).base = mh;
+      setBase(entryOf(manifest, rel), mh);
       res.copied.push(rel);
       continue;
     }
     const wh = hashFile(dst.files.get(rel));
-    if (wh === mh) { entryOf(manifest, rel).base = mh; res.same++; continue; }
+    if (wh === mh) { setBase(entryOf(manifest, rel), mh); res.same++; continue; }
     if (pristine(rel)) {
       const t = entryOf(manifest, rel);
-      if (!t.base) t.base = wh;
+      if (!t.base) setBase(t, wh);
       res.tracked.push(rel);
       continue;
     }
     if (e?.base && wh === e.base) {
       copyVerified(abs, target, mh);
-      e.base = mh;
+      setBase(e, mh);
       res.refreshed.push(rel);
       continue;
     }
@@ -176,8 +192,11 @@ export function recordsIn({ main, worktree, manifest, exclude = () => false, pri
  * - both sides changed it: the main version stays, the worktree version goes to
  *   the conflict store (the registry also merges its rows into the main copy).
  * A file the worktree deleted stays in the main checkout, and the result names it.
+ * B2 (DP13): a worktree file whose hash equals an earlier base is an old version, and
+ * `mainOnly(rel)` names the files that the main checkout owns (`.ai/design/`). Neither
+ * is copied over the main version: a changed worktree copy goes to the conflict store.
  */
-export function recordsOut({ main, worktree, manifest, conflictsDir, exclude = () => false }) {
+export function recordsOut({ main, worktree, manifest, conflictsDir, exclude = () => false, mainOnly = () => false }) {
   const src = walk(join(worktree, '.ai'));
   const res = { copied: [], same: 0, unchanged: 0, conflicts: [], deletedInWorktree: [], links: src.links.filter((r) => !isSkipped(r)) };
   for (const [rel, abs] of src.files) {
@@ -186,14 +205,16 @@ export function recordsOut({ main, worktree, manifest, conflictsDir, exclude = (
     const target = join(main, '.ai', ...rel.split('/'));
     const mh = existsSync(target) ? hashFile(target) : null;
     const e = entryOf(manifest, rel);
-    if (mh === wh) { e.base = wh; res.same++; continue; }
+    if (mh === wh) { setBase(e, wh); res.same++; continue; }
     if (e.base && wh === e.base) { res.unchanged++; continue; }
-    if (mh === null || (e.base && mh === e.base)) {
+    const stale = mh !== null && (e.earlier ?? []).includes(wh);
+    const owned = mainOnly(rel);
+    if (!stale && !owned && (mh === null || (e.base && mh === e.base))) {
       // Re-read the main side just before the copy: a writer in the main checkout may have moved it.
       const now = existsSync(target) ? hashFile(target) : null;
       if (now === mh) {
         copyVerified(abs, target, wh);
-        e.base = wh;
+        setBase(e, wh);
         res.copied.push(rel);
         continue;
       }
@@ -207,8 +228,9 @@ export function recordsOut({ main, worktree, manifest, conflictsDir, exclude = (
       putVerified(target, text, createHash('sha256').update(text).digest('hex'));
       merged = true;
     }
-    e.base = wh;
-    res.conflicts.push({ rel, kept: posix(kept), merged });
+    // The kept copy becomes the base: the next `in` refreshes the worktree with the main version.
+    setBase(e, wh);
+    res.conflicts.push({ rel, kept: posix(kept), merged, ...(stale ? { stale: true } : {}), ...(owned ? { mainOwned: true } : {}) });
   }
   for (const [rel, e] of Object.entries(manifest.files)) {
     if (e.base && !src.files.has(rel) && !isSkipped(rel) && !exclude(rel)) res.deletedInWorktree.push(rel);

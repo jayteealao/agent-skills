@@ -1,22 +1,32 @@
-> **Additional context needed**: user's primary task and what they need most.
+> **Additional context needed**: the person's primary task and what they need most.
 
-Reduce a UI to its essential elements — removing complexity, decoration, and noise while preserving everything that serves the user's actual needs.
+Reduce a UI to its essential elements. Remove complexity, decoration and noise. Keep everything that serves the real needs of the person.
 
 ---
 
-## Register
+## Design mode
 
-Brand: distill means finding the irreducible core of the brand expression. What is the one thing this page must communicate? Every element either serves that or gets cut.
+Persuade: one offer and one working action. Every element serves that offer or goes.
 
-Product: distill means stripping the interface to the minimum required for the task. A user should be able to complete their primary task without encountering anything that isn't directly relevant.
+Experience: cut the interface until the work leads.
+
+Operate: cut to the task. A person completes the primary task without meeting anything that is not relevant. Density is a permission, not clutter.
+
+Read: cut the chrome around the column. Never cut wayfinding.
 
 ---
 
 ## Philosophy
 
-Distill is not minimalism for aesthetic reasons. It is the relentless removal of everything that doesn't earn its place. If removing an element requires explanation ("but what if the user needs…"), the element might earn its place. If removing it makes no practical difference, it was always noise.
+Distill is not minimalism for its look. It removes everything that does not earn its place. When a removal needs an explanation ("but what if the person needs…"), the element can earn its place. When a removal makes no practical difference, the element was always noise.
 
-The question for every element: "If this wasn't here, what would break or be worse?" If the answer is "nothing," remove it.
+Ask of every element: "If this was not here, what would break or get worse?" When the answer is "nothing", remove it.
+
+## Find the essence
+
+Name the one primary goal of the surface. When the code and the brief do not show it, ask. Do not guess.
+
+Simplicity does not remove features. It removes obstacles between the person and the goal.
 
 ## Step 1: Inventory the current elements
 
@@ -26,54 +36,85 @@ List every element in the UI:
 - Structural elements (cards, panels, dividers, containers)
 - Decorative elements (icons, illustrations, backgrounds, borders)
 
+Count the variation: the colors, the sizes, the weights and the component variants. List each competing action and each extra path forward.
+
 ## Step 2: Classify by necessity
 
-For each element, classify:
-- **Essential**: directly serves the user's primary task — cannot be removed
-- **Contextual**: provides information the user needs sometimes — consider progressive disclosure
-- **Decorative**: visual only, no information value — candidate for removal
-- **Redundant**: the same information conveyed by another element — remove one
+Classify each element:
+- **Essential:** serves the primary task directly. Keep it.
+- **Contextual:** gives information the person needs sometimes. Consider progressive disclosure.
+- **Decorative:** visual only, with no information. A candidate for removal.
+- **Redundant:** another element carries the same information. Remove one.
 
 ## Step 3: Apply progressive disclosure
 
-For contextual elements (needed sometimes, not always):
-- Hide behind expand/collapse
-- Move to a detail panel or tooltip
-- Show only in the relevant state (error text only when there's an error)
+For a contextual element:
+- Put it behind an expand and collapse control.
+- Move it to a detail panel or a tooltip.
+- Show it only in its state (error text only when there is an error).
 
 ## Step 4: Remove decorative noise
 
 Remove or simplify:
-- Borders that separate elements that don't need separation (whitespace does this better)
-- Background fills on cards where content structure already creates the boundary
-- Icon + label where label alone is sufficient
-- Headings that repeat what the current context already communicates
-- Inline explanatory text that users after the first visit will never read again
+- Borders between elements that need no separation. Space separates them better.
+- Background fills on cards where the content structure already makes the boundary.
+- An icon beside a label when the label alone is enough.
+- Headings that repeat what the context already says.
+- Inline explanations that a person never reads again after the first visit.
+
+## Step 4b: Simplify the system
+
+- Remove each color, size and weight that has no distinct role.
+- Use one spacing scale. Remove one-off gaps.
+- Flatten nesting. Remove containers that carry no meaning.
+- For each component, ask whether three variants cover most cases.
+- Remove unused styles and components.
 
 ## Step 5: Simplify interactions
 
-- Combine multi-step flows where steps can be collapsed
-- Remove confirmation dialogs for non-destructive reversible actions
-- Replace modal dialogs with inline editing where possible
-- Replace multi-choice selection with sensible defaults + optional override
+- Give each view one primary action. Make the common choice the default.
+- Remove each step that the flow can lose. Combine steps that can collapse.
+- Ask only for the fields that the first action needs.
+- Remove confirmation dialogs for actions that are not destructive and can be undone.
+- Replace a modal dialog with inline editing where you can.
+- Replace a multiple choice with a sensible default and an optional override.
+- For the words on each step, apply [clarify.md](clarify.md).
+
+## Record removed complexity
+
+For each removed item, write in the design note:
+- the item and the reason for its removal;
+- the new path to it, when people still need it;
+- the signal to watch after release.
 
 ## Validate
 
-After distilling:
-- Does the user's primary task flow without obstruction?
+After you distill:
+- Does the primary task flow without obstruction?
+- Does one element clearly lead?
 - Is anything missing that was removed?
-- Does the reduced design still communicate the essential brand intent?
-- Is the result simpler, or just emptier?
+- Does the reduced design still carry the essential brand intent?
+- Does the surface load faster?
+- Is the result simpler, or only emptier?
 
 ## Never
 
-Apply the ban list in [_design-context.md](_design-context.md).
-
-- Removing elements that are essential for rare-but-critical cases (error states, accessibility affordances)
-- Distilling for aesthetic minimalism at the cost of usability
-- Hiding information that users need without providing a clear path to find it
-- Removing redundancy that serves accessibility (visual + text labels together)
+- Removing an element that is essential in a rare but critical case (error states, accessibility affordances).
+- Distilling for minimal looks at the cost of usability.
+- Hiding information that people need without a clear path to it.
+- Removing redundancy that serves accessibility (a visual and a text label together).
+- Removing all hierarchy. Some things stand out.
+- Simplifying a complex domain below the real complexity of the task.
 
 ## In the workflow
 
-This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.
+This file is a move, not a stage.
+- **Design not confirmed:** `/wf design <slug> distill` focuses the design stage and its contract `02c-craft.md` on reduction.
+- **Design confirmed:** `/wf design <slug> distill` runs the inventory, the classification and the Validate list against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- `plan` cites this file as a step pointer; `implement` applies it.
+- Every run writes `design-notes/distill-<timestamp>.md` per [_output.md](_output.md) with: the primary goal, each removed item with its reason, its new path and the signal to watch.
+- Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
+
+---
+
+> *Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.*

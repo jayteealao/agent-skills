@@ -10,7 +10,7 @@ This file belongs to [../campaign.md](../campaign.md). It holds the steps that r
    - turns on local records for a repo that does not track `.ai/` (`artifactTracking: ignored`, or a gitignored `.ai/workflows`): the result has `records: local` and a warning ([_records.md](_records.md));
    - reads the version contract from `.ai/ship-plan.md` (`version-scheme`, `version-source-of-truth`, `version-bump-cmd`, `release-trigger`, `rollout-stages`);
    - writes `ledger.json`, `ledger.md`, and `forecast.md`. It plans no wave yet, and returns `next: deps`.
-2. When the result has `single: true`, the work set has one build packet. Stop, and give the person the packet's start command (`start`).
+2. When the result has `single: true`, the work set has one build packet. Stop, and write the packet's start command (`start`) as "Type `<start>`".
 3. When the result has `errors`, stop and show each error. The person fixes the work set in the brainstorm session (`/wf intake brainstorm <brainstorm-slug>`), not here.
 4. Show the packets that need the person (`outside`), the forecast, and each tool gap. Then continue at Phase 0b.
 
@@ -64,7 +64,9 @@ For `output`, take the recipe from the first source that has one:
 
 CAUTION: the release question is about permanent tags. A pushed tag cannot be re-used: a fixed release takes a new version. Say this when you ask.
 
-For each tool gap from Phase 0, ask the person to fix it. The campaign does not change the person's tools. A `gh-stack` gap turns stacked wave PRs off (`<cmd> stack disable`) until the person upgrades it. A `ship-plan` gap needs `/wf project ship-plan init` with the person before wave 1 reaches handoff: handoff and ship stop without a plan. An `isolation` gap needs the isolation contract of "Width" before wave 1: `wave <n> launch` refuses with `isolation-required` without one.
+For each tool gap from Phase 0, ask the person to fix it. The campaign does not change the person's tools. A `gh-stack` gap turns stacked wave PRs off (`<cmd> stack disable`) until the person upgrades it. A `ship-plan` gap needs the person to type `/wf project ship-plan init` before wave 1 reaches handoff: handoff and ship stop without a plan. An `isolation` gap needs the isolation contract of "Width" before wave 1: `wave <n> launch` refuses with `isolation-required` without one.
+
+**Design setup.** When the brainstorm board has `focus: design`, and `PRODUCT.md` or `DESIGN.md` is missing, `status` returns `next.action: design-setup` before wave 1 prepare. Have the person type `/wf design setup` once, in the main checkout, before the first prepare ([../design/setup.md](../design/setup.md)). The action clears when both files exist. Every design stage of the campaign then reads the same record.
 
 **Width.** The wave driver runs every unit of a wave in its own worktree, so every campaign needs an isolation contract, `campaign.isolation` in `.ai/sdlc-config.json`. The driver never works in the main checkout. When the project has none, ask the person for one before wave 1, in the same batch, and write the answer there:
 

@@ -162,6 +162,20 @@ function checkWorkSet(board, { isIgnored = null } = {}) {
       warnings.push(`piece ${piece.key} carries ${count} decisions and no finding: put the findings that bear on them in its items or on its threads, or say why there are none.`);
     }
   }
+  const sketchKeys = new Set((board.sketches ?? []).map((s) => s?.key).filter(Boolean));
+  const placed = new Set(pieces.flatMap((p) => p.sketches ?? []));
+  for (const sketch of board.sketches ?? []) {
+    if (sketch?.state === "idea") {
+      errors.push(`sketch ${sketch.key} ("${sketch.caption ?? ""}") is still an idea: carry it into a piece, drop it, or keep it as a reference.`);
+    } else if (sketch?.state === "carried" && !placed.has(sketch.key)) {
+      errors.push(`carried sketch ${sketch.key} ("${sketch.caption ?? ""}") is in no piece of work: name it in the sketches of the piece it serves, or drop it.`);
+    }
+  }
+  for (const piece of pieces) {
+    for (const key of piece.sketches ?? []) {
+      if (!sketchKeys.has(key)) errors.push(`piece ${piece.key} names sketch ${key}, which is not on the board.`);
+    }
+  }
   for (const piece of pieces.filter(isWriteNowPiece)) {
     if (piece.state === "written" && !(piece["written-files"] ?? []).length) {
       errors.push(`write-now piece ${piece.key} is written but records no written-files.`);
@@ -219,8 +233,19 @@ function packetSketches(board, piece) {
   const sketches = byKey(board.sketches);
   return (piece.sketches ?? []).map((key) => {
     const s = sketches.get(key) ?? {};
-    const path = s.path ? String(s.path).startsWith(".ai/") ? s.path : `.ai/workflows/${board.slug}/${s.path}` : null;
-    return { key, path, link: s.link ?? null, ...s.caption ? { caption: s.caption } : {} };
+    const raw = s.path ? String(s.path).split("\\").join("/") : "";
+    const at = raw.indexOf("#");
+    const file = at < 0 ? raw : raw.slice(0, at);
+    const anchor = at < 0 ? "" : raw.slice(at);
+    const path = file ? `${file.startsWith(".ai/") ? file : `.ai/workflows/${board.slug}/${file.replace(/^\.\//, "")}`}${anchor}` : null;
+    const canvas = s.canvas && typeof s.canvas === "object" ? s.canvas : null;
+    return {
+      key,
+      path,
+      link: canvas?.link ?? s.link ?? null,
+      ...s.caption ? { caption: s.caption } : {},
+      ...canvas ? { canvas } : {}
+    };
   });
 }
 function packetFrontmatter(board, piece, { revision = 1, generatedAt = null } = {}) {

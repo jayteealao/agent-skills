@@ -281,3 +281,42 @@ slug: demo
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// WF-DESIGN-PLAN Release E (Part III 9.1): four design modes per surface; `register`
+// stays readable and optional, and reads as a design mode (brand → persuade, product → operate).
+test('design modes: surface-modes on 02c-craft.md, design-mode on 02b and a move, register optional', async () => {
+  const contract = { ...validDesignContract(), 'surface-modes': { home: 'persuade', settings: 'operate', docs: 'read', game: 'experience' } };
+  equal(validateFrontmatter(contract).valid, true, JSON.stringify(validateFrontmatter(contract).errors));
+  equal(validateFrontmatter({ ...contract, 'surface-modes': { home: 'brand' } }).valid, false, 'a design mode is one of four');
+  equal(validateFrontmatter({ ...validDesignContract(), register: 'product' }).valid, true, 'an old register still validates');
+  const design = { schema: 'sdlc/v1', type: 'design', slug: 'demo', 'created-at': '2026-05-24T12:00:00Z', 'recommended-references': [] };
+  equal(validateFrontmatter(design).valid, true, 'register is no longer required on 02b-design.md');
+  equal(validateFrontmatter({ ...design, 'design-mode': 'operate', 'surface-modes': { home: 'read' } }).valid, true);
+  equal(validateFrontmatter({ ...design, register: 'brand' }).valid, true);
+  const move = { schema: 'sdlc/v1', type: 'design-augmentation', 'sub-command': 'polish', slug: 'demo', 'created-at': '2026-05-24T12:00:00Z', 'files-modified': [] };
+  equal(validateFrontmatter(move).valid, true, 'register is no longer required on a move');
+  equal(validateFrontmatter({ ...move, 'design-mode': 'experience' }).valid, true);
+  equal(validateFrontmatter({ ...move, 'design-mode': 'brand' }).valid, false);
+  const schema = JSON.parse(readFileSync(SCHEMA_PATH, 'utf8'));
+  const required = JSON.stringify(Object.values(schema.$defs).map((d) => d?.required ?? []));
+  ok(!required.includes('"register"'), 'no schema branch requires register');
+  ok(!('modes' in (schema.$defs.surfaceModes.properties ?? {})), 'the design field is surface-modes, never modes');
+
+  const { designModeAdvice } = await import('../../../hooks/post-write-verify.mjs');
+  match(designModeAdvice({ type: 'design-contract', register: 'brand' }), /read as design mode `persuade`.*Write `surface-modes:`/);
+  match(designModeAdvice({ type: 'design-augmentation', register: 'product' }), /design mode `operate`.*Write `design-mode:`/);
+  equal(designModeAdvice({ type: 'design-contract', register: 'brand', 'surface-modes': { home: 'persuade' } }), null);
+  equal(designModeAdvice({ type: 'plan', register: 'brand' }), null);
+
+  const { render } = await import('../../../renderers/design-contract.mjs');
+  const page = (fm) => render({ type: 'design-contract', path: '02c-craft.md', frontmatter: fm, body: '' }, {}).bodyHtml;
+  const modern = page(contract);
+  match(modern, /design modes/);
+  match(modern, /<code>home<\/code>: persuade/);
+  match(modern, /<code>game<\/code>: experience/);
+  const old = page({ ...validDesignContract(), register: 'brand' });
+  match(old, /<li>persuade<\/li>/);
+  match(old, /Read from the deprecated <code>register: brand<\/code>/);
+  match(old, /<dt>register<\/dt><dd>brand<\/dd>/, 'the old register still renders in the record');
+  ok(!page(validDesignContract()).includes('design modes'), 'no section when the contract names no design mode');
+});

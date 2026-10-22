@@ -24,7 +24,7 @@ type: design-augmentation
 sub-command: <name>
 slug: <slug>
 created-at: <timestamp>
-register: <brand|product>
+design-mode: <persuade|operate|read|experience>
 files-modified: [list]
 ---
 ```
@@ -32,7 +32,7 @@ files-modified: [list]
 Body sections: (1) **What changed** — bullets per file; (2) **Why** — design rationale; (3)
 **Reference followed** — which `design/<name>.md` guided this; (4) **Verification needed** — what
 `verify` re-checks (visual regression? a11y? perf?); (5) **Anti-patterns avoided** — confirm
-none of the absolute bans were introduced (and, for transforms, the `register:` field). This
+none of the refusals in [_craft-floor.md](_craft-floor.md) were introduced (and, for transforms, the `design-mode:` field). This
 artifact lets `/wf review` and `/wf handoff` see exactly what design augmentations were applied.
 
 **Move-pass note** (`/wf design <slug> <move>` on a confirmed design, [stage.md](stage.md) → Move pass): the same frontmatter with `files-modified: []`. Body sections: (1) **Findings** — one row per finding: surface, board key or `file:line`, what is wrong, the fix; (2) **Rejected candidates** — for `animate`, each candidate and the gate that rejected it; (3) **Reference followed**; (4) **Feel checks needed** — what code alone cannot settle; (5) **Decision** — amend now, or kept for later.
@@ -49,15 +49,15 @@ artifact lets `/wf review` and `/wf handoff` see exactly what design augmentatio
   was reverse-engineered; for the other upkeep commands, what the design record now says. Weave in the
   load-bearing counts, decisions, and the top risk. Write it like you're telling a colleague, not
   filling a form. Omit only for genuinely read-only runs with nothing to narrate.
-- **Register** is `brand` or `product` — always emit; it is the load-bearing design-mode signal.
+- **Design modes** — the design mode of each surface the run touched (`persuade`, `operate`, `read`, `experience`), or `n/a`. Always emit it; it is the load-bearing design-mode signal.
 - **Image gate** records whether the person confirmed the boards (`pass`) or why a flow skipped
   them; `n/a` for commands that don't run it.
 - **Boards** — for the design stage, the frozen revision (`design/r<N>/`), its board count, and the
   contact-sheet path `design/r<N>/index.html`.
 - **Artifacts.** Comma-separate the `.ai/workflows/<slug>/` paths written (build runs list the
   whole span; the design stage lists `design/r<N>/` as one entry). No-slug standalone reports may write `"none"` if nothing persisted.
-- **Next** is a concrete invocation, or `Done`. The design stage routes to `/wf slice <slug>`;
-  `audit`/`critique` route to `/wf review <slug>`; upkeep runs usually `Done`.
+- **Next** is "Type `/wf <key> <args>`.", or `Done`. The design stage routes to `/wf slice <slug>`, or names the
+  campaign order per `design.md` Step 2; `audit`/`critique` route to `/wf review <slug>`; upkeep runs usually `Done`.
 - If the command reference defines its own "Chat return contract", treat that as the *content*
   spec — pick the load-bearing fields and keep it compact.
 - Framing rules — narrative definition, "return only" caveat, internal audience, always-emit — are single-sourced in [_chat-return.md](../_chat-return.md); apply them here.

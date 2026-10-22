@@ -30,6 +30,17 @@ test('E1: _shared.js holds the helpers both drivers share, and only function dec
   assert.doesNotMatch(sharedBody(shared), /^(?:const|let|var) /m);
 });
 
+// WF-DESIGN-PLAN B1: POLICY is not shared, so the design clause of the review policy comes from
+// _shared.js, and each driver adds the same call to its POLICY.review.
+test('B1: both drivers add the shared design clause to POLICY.review and the amendFindings field to STAGE_RESULT', () => {
+  for (const n of ['designAmendClause', 'amendFindingsSchema', 'amendFindingsOf', 'amendFindingsText']) assert.ok(names.includes(n), `_shared.js has no function ${n}`);
+  const policyReview = (src) => /\n {2}review:\n([\s\S]*?),\n(?: {2}'?[\w-]+'?:|\})/.exec(src)?.[1] ?? '';
+  const tails = SHARED_DRIVERS.map((f) => policyReview(read(f)).trim().split('\n').at(-1).trim());
+  for (const t of tails) assert.match(t, /\+ designAmendClause\(\)$/);
+  assert.equal(new Set(SHARED_DRIVERS.map((f) => policyReview(read(f)))).size, 1, 'POLICY.review has the same text in both drivers');
+  for (const f of SHARED_DRIVERS) assert.match(read(f), /amendFindings: amendFindingsSchema\(\),/, f);
+});
+
 for (const f of SHARED_DRIVERS) {
   test(`E1: ${f} defines each shared helper once, inside its shared block`, () => {
     const src = read(f);

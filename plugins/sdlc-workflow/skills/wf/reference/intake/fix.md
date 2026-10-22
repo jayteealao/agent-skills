@@ -64,7 +64,7 @@ You are a **compressed-planning orchestrator**, not an incident responder and no
 5. **Branch check:**
    - Default `branch-strategy: dedicated`, branch `fix/<slug>`. Create off the current base if absent: `git checkout -b fix/<slug>`.
    - If the user passed `branch-strategy: none` or is mid-task on a branch they want to keep → record `branch-strategy: none`; do not switch branches.
-6. **Read project context (lightweight):** `.impeccable.md` if present (design context), `README.md` (top ~100 lines). Do not read the full codebase here — the Step 1 sub-agent does targeted exploration.
+6. **Read project context (lightweight):** `PRODUCT.md` and `DESIGN.md` when present (design context), `README.md` (top ~100 lines). Do not read the full codebase here — the Step 1 sub-agent does targeted exploration.
 7. **Single slice.** This is a single-slice lifecycle: the workflow slug doubles as the one slice's `slice-slug` (use `<slug>` for `slice-slug`, `selected-slice`, and `best-first-slice`). Downstream stages write **un-suffixed** files (`04-plan.md`, `05-implement.md`, `06-verify.md`).
 
 # Step 1 — Author the planning artifacts (single pass, parallel research)

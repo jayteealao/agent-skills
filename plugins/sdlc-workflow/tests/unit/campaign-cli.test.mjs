@@ -420,6 +420,59 @@ test('local records: a worktree gets the design boards of its own slug only; a P
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+// WF-DESIGN-PLAN B2 (DP13): the design record belongs to the main checkout. A worktree reads its
+// copy; a change or a revert there goes to the conflict store and never overwrites the main record.
+test('local records: .ai/design/ stays main-owned; a worktree change goes to the conflict store (B2)', () => {
+  const root = makeLocalRepo();
+  try {
+    const design = (p, f) => path.join(p, '.ai', 'design', f);
+    mkdirSync(path.join(root, '.ai', 'design'), { recursive: true });
+    writeFileSync(design(root, 'direction.md'), 'direction v1');
+    orient(root);
+    setupDone(root);
+    run(root, 'unit', 'W1', 'prepared');
+    run(root, 'unit', 'W2', 'prepared');
+    const st = run(root, 'wave', '1', 'start');
+    git(root, 'branch', st.branch, st.base);
+    const a = run(root, 'worktree', 'W2', 'add');
+    assert.equal(a.ok, true, JSON.stringify(a));
+    assert.equal(readFileSync(design(a.path, 'direction.md'), 'utf8'), 'direction v1', 'the worktree gets a copy to read');
+    // The retro in main settles a new direction; a stage in the worktree writes its own version.
+    writeFileSync(design(root, 'direction.md'), 'direction v2 (retro in main)');
+    writeFileSync(design(a.path, 'direction.md'), 'direction (worktree)');
+    writeFileSync(design(a.path, 'current.md'), 'current (worktree)');
+    const s = run(root, 'worktree', 'W2', 'sync');
+    assert.equal(s.ok, true, JSON.stringify(s));
+    assert.equal(readFileSync(design(root, 'direction.md'), 'utf8'), 'direction v2 (retro in main)');
+    assert.ok(!existsSync(design(root, 'current.md')), 'a new design file never copies out to main');
+    assert.deepEqual(s.records.copied, []);
+    assert.deepEqual(s.records.conflicts.map((c) => [c.rel, c.mainOwned]).sort(), [['design/current.md', true], ['design/direction.md', true]]);
+    const removed = run(root, 'worktree', 'W2', 'remove');
+    assert.equal(removed.ok, true, JSON.stringify(removed));
+    assert.equal(readFileSync(design(root, 'direction.md'), 'utf8'), 'direction v2 (retro in main)', 'the remove keeps the main record');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// WF-DESIGN-PLAN B4 (P4): status reads the design focus of the board and the design record on disk.
+test('status returns design-setup before prepare for a design board without PRODUCT.md or DESIGN.md (B4)', () => {
+  const root = makeRepo();
+  try {
+    writeFileSync(path.join(root, '.ai', 'workflows', B, 'brainstorm-board.json'), JSON.stringify({ focus: 'design' }));
+    orient(root);
+    setupDone(root);
+    const s = run(root, 'status');
+    assert.equal(s.next.action, 'design-setup');
+    assert.deepEqual(s.next.missing, ['PRODUCT.md', 'DESIGN.md']);
+    assert.equal(s.next.command, 'Type `/wf design setup`.');
+    writeFileSync(path.join(root, 'PRODUCT.md'), '# Product\n');
+    mkdirSync(path.join(root, 'docs'), { recursive: true });
+    writeFileSync(path.join(root, 'docs', 'DESIGN.md'), '# Design\n');
+    const t = run(root, 'status');
+    assert.equal(t.next.action, 'prepare', 'the action clears when both files exist');
+    assert.match(t.next.command, /^Type `\/wf intake /);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test('unit prepared refuses a unit whose needed design has no confirmed boards on disk (DESIGN-BOARDS-PLAN W5b)', () => {
   const root = makeRepo();
   try {
@@ -455,8 +508,12 @@ test('setup, rolling prepare, and a wave that starts with its prepared units', (
     const last = run(root, 'answer', 'budget', 'default');
     assert.deepEqual(last.value, { fiveHourSlow: 75, fiveHourPause: 90, sevenDayReserve: 15 });
     // WF-CAMPAIGN-THROUGHPUT-PLAN T3: W3 needs only W1 of the next wave, so it may prepare ahead.
-    assert.deepEqual(last.next, { action: 'prepare', wave: 1, units: ['W1', 'W2'], ahead: ['W3'] });
-    run(root, 'unit', 'W1', 'prepared');
+    assert.deepEqual(last.next, { action: 'prepare', wave: 1, units: ['W1', 'W2'], ahead: ['W3'], command: 'Type `/wf intake .ai/workflows/realism/work/engine.md`.' });
+    // WF-DESIGN-PLAN B3: unit <key> prepared names the next command: the intake of the next unit.
+    const prepared = run(root, 'unit', 'W1', 'prepared');
+    assert.equal(prepared.next.action, 'prepare');
+    assert.deepEqual(prepared.next.units, ['W2']);
+    assert.match(prepared.next.command, /^Type `\/wf intake \.ai\/workflows\/realism\/work\/\S+\.md`\.$/);
     const st = run(root, 'wave', '1', 'start');
     assert.equal(st.ok, true, JSON.stringify(st));
     assert.equal(st.branch, 'campaign/realism/wave-1');

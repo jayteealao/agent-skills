@@ -167,7 +167,7 @@ An area is explored when its threads stop producing new ground. Closing it is pa
 
 ## 2.9 The page
 When the host offers a published page (`_host-surfaces.md`, row "Published page"), present the board to the person as one page, and keep it current:
-1. Build `brainstorm-page.html` beside the board from the two files, in plain words and with no key: the summary; the session stories, newest first; the areas with their briefs and scope; the decisions by area, core first; the open ideas; the findings with their sources; the open tensions and the accepted risks; the pieces of work, with the stale ones marked.
+1. Build `brainstorm-page.html` beside the board from the two files with `node "<skill-dir>/scripts/brainstorm-page.mjs" "<projectRoot>" <slug>`, in plain words and with no key: the summary; the session stories, newest first; the areas with their briefs and scope; the decisions by area, core first; the open ideas; the findings with their sources; the open tensions and the accepted risks; the sketches, each with its caption, file, and link; the pieces of work, with the stale ones marked.
 2. Publish it the first time the person needs to see the board: the first check-in, `board`, or a resume. Record its link as `page` in the board and in the document frontmatter, and give the link in the question text.
 3. Republish it to the same link at each check-in, each area close, each `board`, and at `done`.
 4. The page presents the board and never replaces it. Write every change to the two files first. Where the host has no published page, the person reads `01-brainstorm.md`, and the question text carries what the person needs.

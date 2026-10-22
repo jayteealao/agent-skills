@@ -1,24 +1,50 @@
 > **Additional context needed**: primary content type, target devices.
 
-Improve the spatial structure of a UI — grid, spacing, alignment, and compositional relationships.
+Layout turns product priority into reading order, grouping, rhythm and usable space. Find the structural problem before you move boxes. Change the structure inside the current world. A new identity runs through [stage.md](stage.md) Step 3b.
+
+A unit below is the platform's layout unit: a CSS pixel on the web, a point on iOS, a density-independent pixel on Android.
 
 ---
 
-## Register
+## Design mode
 
-Brand: asymmetric and editorial layouts are available. The grid is a tool, not a constraint. Intentional whitespace as content. Multi-column narrative layouts, overlapping elements, and unconventional composition are all legitimate when they serve the brand voice.
+Persuade and Experience: asymmetric or disruptive composition is available when the world earns it. The grid is a tool, not a constraint. Empty space can be content. Overlap and broken columns are legitimate when they serve the voice.
 
-Product: predictable grids. Consistency IS an affordance. Users navigate faster when the structure is expected. Responsive behavior is structural (collapse sidebar, responsive table), not decorative rearrangement.
+Operate: predictable structure and stable density. Consistency is an affordance: people move faster through an expected structure. A responsive change is structural, never a decorative rearrangement.
+
+Read: a calm column at a real measure. The frame carries the world.
 
 ---
+
+## Assess first
+
+Look at representative states and sizes. Answer each question with rendered or source evidence:
+- **Reading order.** Apply the squint test: blur the detail. Can you still find the primary element, the secondary element and the major groups, in order?
+- **Grouping.** Are related items close and separate groups apart? Or do containers make up for weak proximity?
+- **Rhythm.** Do tight and wide intervals make a deliberate cadence? Or does one spacing value repeat until every part has equal weight?
+- **Structure.** Does the structure match the content and the task? Are repeated cards, columns or sections truly equal, or only a framework default?
+- **Density.** Does the information in each region fit the frequency of use, the decision load and the design mode?
+- **Focus order.** At each size, does the keyboard and focus order match the visual order?
+- **Extremes.** Do long content, empty states, overlays, fixed elements and safe areas break the structure?
+
+## Set the spatial thesis
+
+Before you edit, name:
+- the primary reading or task path;
+- what groups together and what separates;
+- the element that leads and the elements that support it;
+- the density and the spacing rhythm;
+- how the structure changes across sizes, inputs and content extremes.
+
+Choose the simplest structure that shows those relations. Record the thesis in the design note.
 
 ## Spatial system first
 
-Before solving any specific layout problem, establish the spatial system. Most layout problems are symptoms of no system — arbitrary spacing values that don't relate to each other.
+Establish the spatial system before you solve a layout problem. Most layout problems come from spacing values that do not relate to each other.
 
-**Define a base unit**: 4px or 8px. All spacing should be multiples (4, 8, 12, 16, 24, 32, 48, 64, 96...).
+**Base unit.** Use a 4-unit base. Extend the project's spacing tokens. Never add a parallel set.
 
-**Define spacing tokens**:
+Web:
 ```css
 --space-1: 4px;
 --space-2: 8px;
@@ -30,69 +56,106 @@ Before solving any specific layout problem, establish the spatial system. Most l
 --space-16: 64px;
 ```
 
-Spacing between related elements should be smaller than spacing between unrelated elements. Proximity is meaning.
+Spacing between related elements is smaller than spacing between unrelated elements. Proximity is meaning.
+
+## Hierarchy and reading order
+
+- Give each view one primary element: one action or one message.
+- Make three tiers (primary, secondary, tertiary) with size, weight, color and space together. Color alone is not a tier.
+- Increase the contrast between adjacent tiers in size and weight, not only in color.
+- Run the squint test after each change. The primary element still leads.
+
+## Apply
+
+- Group by meaning. Use proximity before you add a container or decoration.
+- Make rhythm from deliberate contrast between tight and wide intervals.
+- Let the hierarchy follow product priority, not framework defaults.
+- Use depth only to show state or hierarchy.
+- Let repetition support recognition. Break it only when the content or the priority changes.
+- Keep a touch target usable when its visible mark is small ([harden.md](harden.md) §7).
+- Make an optical correction only after you inspect the rendered result.
 
 ## Grid
 
-### Product UI
-- 12-column grid, 16px gutters, responsive collapse
-- Fixed sidebar widths (240px, 280px, 320px) — not percentage-based
-- Content area max-width: 1200px–1400px centered, with 24–48px side padding
-- Data-heavy surfaces: full width is fine at table-appropriate breakpoints (1200px+)
+### Operate
+- A 12-column grid with 16-unit gutters that collapses at narrow sizes.
+- Fixed sidebar widths (240, 280 or 320 units), not a percentage.
+- A content area of 1,200–1,400 units at most, centered, with 24–48 units of side padding.
+- A data-heavy surface may use the full width when the table needs it.
 
-### Brand surfaces
-- Named column grid with intentional variations (9/3, 8/4, 7/5 splits)
-- Editorial: column bleeds and oversized elements crossing grid lines are design choices
-- Negative space is content — a column of white can be as intentional as a column of copy
+### Persuade and Experience
+- A named column grid with deliberate splits (9/3, 8/4, 7/5).
+- A column bleed or an element that crosses grid lines is a design choice.
+- Empty space is content. A blank column can be as deliberate as a column of copy.
+
+### Read
+- One reading column at the measure of [_craft-floor.md](_craft-floor.md). Navigation, notes and the table of contents sit in the frame.
 
 ## Content width
 
-**Body text**: 65–75ch per line. Use `max-width: 65ch` on prose containers.
-**Data tables**: can run 120ch+ when the content demands it.
-**UI labels**: no max-width constraint; follow the component size.
+- **Body prose:** limit a prose column to the measure of [_craft-floor.md](_craft-floor.md).
+- **Data tables:** may run past 120 characters when the content needs it.
+- **UI labels:** no maximum width; follow the component size.
 
 ## Alignment
 
-- Align text to a baseline grid (using `line-height` multiples matching the spacing system)
-- Left-align for most content (consistent starting edge aids scannability)
-- Center-align for: hero text, modal dialogs, isolated single-sentence messages
-- Right-align for: numeric columns in tables, currency values, timestamps in narrow contexts
-- Never mix multiple alignment axes in adjacent components without intent
+People scan before they read. Design for the scan path:
+- Anchor the most important information at the start of the scan path, in the locale's reading direction.
+- Use consistent visual patterns, so that a person recognizes a repeated element type at once.
+- To compare items, use a table, not stacked key-value pairs.
+- Align text to a baseline grid: line heights in multiples of the spacing base.
+- Align most content to the start edge. A consistent start edge helps scanning.
+- Center a hero line, a dialog or an isolated one-sentence message.
+- Align numbers in table columns, money and narrow timestamps to the end edge.
+- Do not mix alignment axes in adjacent components without a reason.
 
-## Nested radius & optical alignment
+## Nested radius and optical alignment
 
-Two spatial details that read as "off" when they're wrong:
-- **Concentric radius** — when one rounded surface nests inside another, the outer radius must equal the inner radius plus the padding between them (`outerRadius = innerRadius + padding`). Equal radius on a padded parent and child is the single most common thing that makes a layout feel off. (Past ~24px padding, treat them as separate surfaces and choose radii independently.)
-- **Optical over geometric alignment** — when centering *looks* off, trust the eye: an icon beside a label wants ~2px less padding on the icon side; a play triangle shifts ~2px right of its geometric center; fix lopsided glyphs (carets, stars) in the SVG itself. See `polish.md` for both in full.
+Two spatial details look wrong when they are wrong:
+- **Concentric radius.** When one rounded surface sits inside another, the outer radius equals the inner radius plus the padding between them. Equal radii on a padded parent and child is the most common cause of a layout that feels off. Past about 24 units of padding, treat them as separate surfaces and choose each radius alone.
+- **Optical over geometric alignment.** When a centered element looks off, trust the eye. An icon beside a label needs about 2 units less padding on the icon side. A play triangle moves about 2 units right of its geometric center. Fix a lopsided glyph (a caret, a star) in the icon itself. See [polish.md](polish.md) for both.
 
 ## Responsive behavior
 
-**Product**: structural breakpoints at 640px (mobile), 1024px (tablet/narrow desktop).
-- Mobile: stack all multi-column layouts, collapse sidebar to drawer or bottom nav
-- Tablet: single-column content with fixed side panel, or two-column max
-
-**Brand**: fluid approach — `clamp()` for type, CSS Grid with `auto-fit` / `minmax()` for columns.
+Make each responsive change structural. Reorder, collapse, reflow or reveal by importance. Prefer components that respond to their container. Check the narrow, middle, wide, zoomed and translated states.
 
 ## Common layout problems and fixes
 
-**Too much whitespace everywhere**: identify the element relationships — related items need tighter spacing. Apply the proximity principle.
+**Too much space everywhere.** Find the relations between elements. Give related items tighter spacing. Apply proximity.
 
-**Too little whitespace everywhere**: increase section-level spacing (between major content blocks), not element-level spacing. The problem is usually not enough vertical breathing room between sections.
+**Too little space everywhere.** Increase the spacing between sections, not between elements. The cause is usually too little vertical space between major blocks.
 
-**Elements not aligning**: establish a single grid / spatial system and enforce it. Eyeballed alignment creates visual noise even when it looks "close enough."
+**Elements do not align.** Establish one grid and one spatial system, and use them everywhere. Alignment by eye makes visual noise even when it looks close.
 
-**Content too wide**: prose content needs `max-width: 65ch`. Most layouts need a container max-width.
+**Content too wide.** Limit prose to the floor measure. Give most layouts a container maximum width.
 
-**Broken on mobile**: fix the breakpoint collapse structure — start from the mobile layout and add complexity, not remove it.
+**Broken on a phone.** Fix the collapse structure. Start from the narrow layout and add structure for wider sizes.
+
+## Verify
+
+Answer each item with rendered or source evidence. A bare "yes" is not evidence.
+- The squint test still shows the primary element, the secondary element and the major groups, in order.
+- The reading or task path is clear at every supported size.
+- Related content groups; unrelated content stays apart.
+- The density matches the frequency of use and the complexity of the content.
+- Long text, empty states, translation, zoom and dynamic content do not break the structure.
+- The keyboard, touch and screen-reader order matches the visual order.
 
 ## Never
 
-Apply the ban list in [_design-context.md](_design-context.md).
-
-- Fixed pixel widths on containers that need to respond to the viewport
-- Mixing font-size and spacing systems (using `px` values that don't relate to each other)
-- Layout changes that only move elements without resolving the underlying grid problem
+- Fixed widths on containers that respond to the window.
+- A layout change that moves elements and leaves the grid problem.
+- Space without hierarchy. Spacious and flat is still flat.
 
 ## In the workflow
 
-This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.
+This file is a move, not a stage.
+- **Design not confirmed:** `/wf design <slug> layout` focuses the design stage and its contract `02c-craft.md` on spatial structure.
+- **Design confirmed:** `/wf design <slug> layout` runs the assessment and the Verify list against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- `plan` cites this file as a step pointer; `implement` applies it.
+- Every run writes `design-notes/layout-<timestamp>.md` per [_output.md](_output.md) with: the spatial thesis, the assessment answers and their evidence, and each structural change.
+- Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
+
+---
+
+> *Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.*

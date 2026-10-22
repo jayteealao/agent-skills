@@ -1,10 +1,16 @@
 Provide prescriptive, actionable design feedback. Unlike `audit` (which measures technical quality), critique evaluates the design *decisions* — whether they serve the user and communicate the brand effectively.
 
-## Register
+Load [_heuristics.md](_heuristics.md) for the scoring rubrics, the cognitive-load check, and the personas. Load [_craft-floor.md](_craft-floor.md) as a checklist: judge the work against its Refuse list and its Model tells. The critique draws nothing.
 
-Brand: critique against distinctiveness. Would someone ask "how was this made?" If the answer is "no — it looks like every other AI landing page," the design has failed. Critique for POV, specific aesthetic lane, and committed visual choices.
+Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.
 
-Product: critique against earned familiarity. Does the interface feel like a tool a skilled user can trust? Critique for consistency, state completeness, and affordance clarity — not for visual novelty.
+## Design mode
+
+Read the design mode of each surface from `02c-craft.md` `surface-modes:`, or from the brief's content inventory. An older workflow records `register` instead: read `brand` as Persuade and `product` as Operate.
+
+Persuade and Experience: critique against distinctiveness. Would someone ask "how was this made?" If the answer is "no — it looks like every other AI landing page," the design has failed. Critique for POV, specific aesthetic lane, and committed visual choices.
+
+Operate and Read: critique against earned familiarity. Does the interface feel like a tool a skilled user can trust, or a text a reader can follow? Critique for consistency, state completeness, affordance clarity, and reading order — not for visual novelty.
 
 ---
 
@@ -13,6 +19,23 @@ Product: critique against earned familiarity. Does the interface feel like a too
 A good critique is specific, not general. "The typography feels off" is not a critique. "The heading weight contrast ratio between h1 and h2 is 1.15× — too flat for the information hierarchy required here" is a critique.
 
 Be direct. Don't soften findings. The goal is to surface the real problems, not to make the designer feel good. Surface-level praise before every criticism ("this is nice but…") wastes the critique.
+
+## Isolation
+
+Judge the design before you read the evidence, so that the evidence does not anchor the judgment.
+
+1. In `/wf review`, the critique already runs as an isolated child reviewer. Continue at step 3.
+2. In a freestanding `/wf design critique`, send the design review to a fresh-context sub-agent per [_subagents.md](../_subagents.md). Give it the board paths, the built surfaces, `02c-craft.md`, and this file. Do not give it the verify results.
+3. Read the `06-verify-*.md` evidence only after the review is written. Add each measured fault that the review missed, and name each review finding that the evidence disproves.
+4. When isolation is not possible, write this line first in the report: "Method: single context (<reason>)."
+
+## Design specificity verdict
+
+Write this first. Could a neighboring product in the same category ship this design unchanged? Judge the coherence of the whole, the structural sameness, the choices that any product in the category could make, and the missed chances for product character. Give one verdict: `specific`, `partly specific`, or `interchangeable`, with the reason.
+
+## Heuristic score
+
+Score Nielsen's ten heuristics per [_heuristics.md](_heuristics.md) → Nielsen's ten heuristics. On a Persuade or Experience surface, heuristics 7 and 10 can be `n/a`; rescale the total to the scored maximum. Give the total and its band.
 
 ## Evaluation Dimensions
 
@@ -25,6 +48,8 @@ Does the design serve its stated purpose?
 
 Ask: "What would a user do in their first 5 seconds here? Does the design support that?"
 
+Run the cognitive-load check of [_heuristics.md](_heuristics.md) → The cognitive-load check: the 5-second test and the eight items. Give the count of failed items and the load level. Flag each decision point that shows more than four options.
+
 ### 2. Visual hierarchy
 
 Does the eye travel correctly?
@@ -32,19 +57,21 @@ Does the eye travel correctly?
 - Does size, weight, color, and spacing guide attention in the right order?
 - Are there competing focal points that fight each other?
 
+Run the squint test: blur the detail. The primary element, the secondary element, and the major groups still read in order.
+
 ### 3. Typographic execution
 
 - Does the type scale communicate the content hierarchy?
-- Are font choices aligned with the register and brief?
+- Are font choices aligned with the design mode and the brief?
 - Are there line length, line height, or tracking issues?
-- Check against the font reflex-reject list in [brand.md](brand.md) (brand register). Flag a listed font on a new surface without a reason.
+- Check against the reflex list in [typeset.md](typeset.md) → Font selection on a Persuade or Experience surface. Flag a listed font on a new surface without a reason.
 
 ### 4. Color execution
 
 - Does the color strategy follow the chosen dosage (Restrained / Committed / Full palette / Drenched)?
 - Are semantic colors consistent?
-- Check for the absolute ban: `border-left`/`border-right` colored accent stripes — call these out explicitly.
-- Are neutrals tinted or pure gray?
+- Check against the Refuse list of [_craft-floor.md](_craft-floor.md): a colored side stripe above 1 px is always refused. Call each one out explicitly.
+- Does secondary text on a colored ground take its color from that hue?
 
 ### 5. Spatial quality
 
@@ -61,8 +88,8 @@ Does the eye travel correctly?
 ### 7. Slop check
 
 Would someone say "AI made this"?
-- Purple-blue gradients, glassmorphism, hero metric cards, fonts from the reflex-reject list in [brand.md](brand.md), generic card grids, gradient text — name them explicitly if present.
-- Brand register: does it have a POV? Can you name the aesthetic lane?
+- Check the Refuse list and the Model tells of [_craft-floor.md](_craft-floor.md). Name each one that is present.
+- Persuade and Experience: does it have a POV? Can you name the aesthetic lane?
 
 ### 8. Motion & interaction feel
 
@@ -83,17 +110,39 @@ Judge the work against the design record:
 - Compare it with the goals in `.ai/design/direction.md`.
 - Give a finding that moves away from a stated goal a severity of `medium` or higher.
 
+### 10. Personas
+
+Walk the primary task as two or three personas, chosen per [_heuristics.md](_heuristics.md) → Personas. Report each red flag with its surface. Riley walks the worst-case boards.
+
+## Severity
+
+Tag each issue P0 to P3 per [_heuristics.md](_heuristics.md) → Severity of each issue. Write it in the issue list as `blocker`, `high`, `medium`, or `low`. Use `nit` for a small observation.
+
 ## Output Format
 
 ```
 ## Design Critique
+
+Method: <isolated reviewer | sub-agent | single context (<reason>)>
+
+### Design specificity verdict
+[specific | partly specific | interchangeable — the reason]
+
+### Heuristic score
+| # | Heuristic | Score | Key issue |
+|---|---|---|---|
+| 1 | Visibility of system status | 0–4 or n/a | ... |
+| ... | | | |
+| **Total** | | **X/<scored maximum>** | **<band>** |
+
+Cognitive load: <failed items>/8 — <low | moderate | critical>
 
 ### What's working
 [1–3 specific things that are genuinely strong, with reasons]
 
 ### Issues — ordered by impact
 
-1. **C1 [Issue title]** — Severity: blocker/high/medium/low/nit
+1. **C1 [Issue title]** — Severity: blocker/high/medium/low/nit (P0–P3)
    Dimension: [critique dimension]
    What: [specific problem]
    Where: [file:component or visual area]
@@ -102,9 +151,22 @@ Judge the work against the design record:
 
 2. ...
 
+### Persona red flags
+[persona — red flag — where]
+
 ### Summary assessment
 [2–3 sentences: the overall design direction and whether it will serve its purpose]
 ```
+
+## Close with questions
+
+After the report, ask the person two to four targeted questions in one batch per [_gate-question.md](../_gate-question.md). Write the report first, and put the questions last. Each question names findings from the report and gives two or three concrete options. Ask about:
+- the priority: which area of findings to fix first;
+- the intent: when the tone does not match the brief, whether the difference is intended;
+- the scope: all issues, the top three, or the blockers only;
+- the limits, only when the findings touch many areas: what must stay as it is.
+
+When the report lists fewer than three issues, you can skip the questions. Then write: "Questions skipped: <count> issues."
 
 ## Output in SDLC context
 

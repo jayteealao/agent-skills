@@ -13,13 +13,13 @@ You are running `/wf campaign <brainstorm-slug>`. A brainstorm that ends in many
 
 ## What the campaign is, and is not
 
-- **The person decides every intake and shape question.** The campaign prepares each slug with the person (intake, shape, slice, and the design lane when the packet needs one). It never makes an intake or shape decision.
+- **The person decides every intake and shape question.** The campaign prepares each slug with the person (intake, shape, the design lane when the packet needs one, and slice). It never makes an intake or shape decision.
 - **The waves are autonomous.** One run of the wave driver drives every unit of a wave, then runs the boundary steps. The yolo rules all stay: an intent-bearing decision stops the unit, a steering veto outranks every auto-resolve, and the charter checkpoint runs after charter-touching work. A unit that stops parks with one question, and the other units continue.
 - **The campaign asks the person** at each handoff or ship issue and each ambiguity. It never guesses past one.
 - **The brainstorm owns the board and the packets.** The campaign only reads them. The campaign owns `work/campaign/`, the dependency graph ([campaign/_deps.md](campaign/_deps.md)), and, while it is live, the main checkout's `INDEX.md` ([_control-file-ownership.md](_control-file-ownership.md)).
 - **One session runs the campaign.** It announces in chat that it is the campaign session. The person reopens the brainstorm in another session. When the person opens the brainstorm here, say once that it belongs in another session, and continue.
 
-Each wave is one PR. Every unit of a wave runs in its own worktree, so the wave driver needs an isolation contract ([campaign/_phases.md](campaign/_phases.md), "Width"). With stacked PRs, the next wave can start on the wave branch below when that wave is ready ([campaign/_waves.md](campaign/_waves.md), "Run a wave", step 8). A usage budget narrows or pauses the campaign before a limit stops it.
+Each wave is one PR. Every unit of a wave runs in its own worktree, so the wave driver needs an isolation contract ([campaign/_phases.md](campaign/_phases.md), "Width"). With stacked PRs, the next wave can start on the wave branch below when that wave is ready ([campaign/_waves.md](campaign/_waves.md), "Run a wave", step 8).
 
 ## Step 0 — Resolve
 
@@ -31,8 +31,8 @@ Each wave is one PR. Every unit of a wave runs in its own worktree, so the wave 
    node "<pluginRoot>/skills/wf/scripts/campaign.mjs" <command> "<projectRoot>" <brainstorm-slug> ...
    ```
 
-   The commands are listed under [Commands](#commands). Never edit `ledger.json` by hand.
-4. Run `status`. Run it again after each compaction. Follow every entry of its `rules` (see [Standing rules](#standing-rules)). When it has `presence.state: away`, follow [Away mode](#away-mode). Its `next.action` says what this invocation does:
+   Never edit `ledger.json` by hand ([Commands](#commands)).
+4. Run `status`. Run it again after each compaction. Follow every entry of its `rules` (see [Standing rules](#standing-rules)). When it has `presence.state: away`, follow [Away mode](#away-mode). Its `next.action` says what this invocation does. When `next` has `command`, the person types that command: write "Type `<command>`" ([_chat-return.md](_chat-return.md)).
 
 | `next.action` | Do |
 |---|---|
@@ -42,6 +42,7 @@ Each wave is one PR. Every unit of a wave runs in its own worktree, so the wave 
 | `work-changed` | The brainstorm changed its work set. Pick it up ([campaign/_prepare.md](campaign/_prepare.md), "Reopen pick-up"). |
 | `ask` | Show each open question again, with its context. Record the answer with `reply`, then continue the step that asked. With `next.driving`, use only `reply` or `decided`: the wave driver continues the unit ([campaign/_waves.md](campaign/_waves.md), "Questions while the run goes"). |
 | `paused` | Show the reason and the reset time. Resume when the person asks, or when the reset time passed (`_waves.md`, "Pause and resume"). |
+| `design-setup` | Have the person type `/wf design setup` before wave 1 prepare (`_phases.md`, "Design setup"). |
 | `prepare` | Prepare `next.units` with the person (`_prepare.md`, "Rolling prepare"). |
 | `start-wave` | Show the forecast and the wave plan. Ask the person to start, then run the wave (`_waves.md`). |
 | `driving` | A run of wave `next.wave` is live. Show where the wave stands, and prepare `next.prepare`. Run Phase 0b first for `next.deps`. Do not run `launch`, `merge-in`, or `unit <key> <state>` for a unit of the wave: the driver owns them. |
@@ -58,12 +59,12 @@ The campaign keeps its state inside the brainstorm, beside the packets.
 
 | File | Writer | What |
 |---|---|---|
-| `work/campaign/ledger.json` | the campaign script | The truth: setup answers, waves, unit states, questions, pause, revisions |
+| `work/campaign/ledger.json` | the campaign script | The state: setup answers, waves, units, questions, pause, revisions |
 | `work/campaign/ledger.md` | the campaign script | The view of the ledger for the person |
 | `work/campaign/forecast.md` | the campaign script | Time and usage estimate, updated after each wave |
-| `work/campaign/.campaign-journal.jsonl` | the script and the wave driver's agents | Heartbeats and campaign events; the watch reads it |
+| `work/campaign/.campaign-journal.jsonl` | the script and the wave driver's agents | Heartbeats and campaign events, for the watch |
 | `work/campaign/.control.json` | the campaign session | Stop and pause requests; every agent reads it |
-| `work/campaign/context/<slug>.md` | the campaign script | The context file that each stage agent of the unit reads fresh; section 7 lists the unit's waits |
+| `work/campaign/context/<slug>.md` | the campaign script | The context that each stage agent of the unit reads; section 7 lists its waits |
 | `work/campaign/steer.md` | the campaign script (`steer all`) | Steering for every slug of the campaign; each unit reads it beside its own `steer.md` |
 | `work/campaign/decided-for-you.md` | the campaign script (`decided`) | Each decision taken for the person while away |
 | `work/campaign/as-built/<slug>.md`, `.json` | the boundary | What the slug actually built, after its merge |
@@ -72,7 +73,7 @@ The campaign keeps its state inside the brainstorm, beside the packets.
 | `work/campaign/drift/wave-<n>.md` | the campaign script | The drift check before wave n |
 | `work/campaign/fidelity/wave-<n>.md` | the boundary | The fidelity checkpoint after wave n |
 | `work/campaign/waves/wave-<n>.md` | the boundary | The try-it note, for a person |
-| `work/campaign/commentary.md` | the watch, and its `note` command | The campaign commentary: one line per stage start and commit, and a note per other event |
+| `work/campaign/commentary.md` | the watch, and its `note` command | The campaign commentary ([yolo/_commentary.md](yolo/_commentary.md)) |
 | `work/campaign/report.md` | the campaign session | The campaign report |
 
 Built outputs are not artifacts. They go to `<projectRoot>/.scratch/campaign/<run-id>/` (`wave-<n>/` and `slugs/<slug>/`). The outcome of a wave run goes to the `outcomePath` that `wave <n> launch` gives.
@@ -84,7 +85,7 @@ A build packet (form `intake`, `extension`, `fix`, `hotfix`) is a unit. A `task`
 | State | Meaning |
 |---|---|
 | `planned` | In a wave, not prepared yet |
-| `prepared` | Intake, shape, and slice are done with the person |
+| `prepared` | Intake, shape, design, and slice are done with the person |
 | `running` | The wave driver walks its slices |
 | `waiting` | The wave driver merges the cleared slice of another unit of the wave into it |
 | `finished` | Its review is clean and its slug output is built; not merged yet |
@@ -146,6 +147,7 @@ Change steering only through the script. The script writes the time, and it writ
 
 - One slug: `<cmd> steer <key> add --text "<entry>"`. The command writes the slug's `steer.md` in the main checkout and in the unit's worktree.
 - Every slug of a wave: `<cmd> steer wave-<n> add --text "<entry>"`.
+- A direction decision: `steer <key> add` for each unit that it applies to, never `wave-<n>`. The person confirms the units.
 - Every slug of the campaign: `<cmd> steer all add --text "<entry>"`. The command writes `work/campaign/steer.md`. Each unit reads it beside its own `steer.md`, at every stage agent. On a conflict, the slug's own entry wins.
 - Change or remove one entry with `replace --match "<text>" --text "<entry>"` or `remove --match "<text>"`. When the match finds zero entries, or more than one entry, in any copy, nothing is written.
 - Use `--by coordinator` for an entry that the person did not dictate. The default is "the person".

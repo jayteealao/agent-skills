@@ -195,7 +195,7 @@
     "file": "skills/wf/reference/review/interface-craft.md",
     "category": "rubric-checks",
     "from": "ui duration 300ms with no stated",
-    "to": "product ui duration over 300 ms"
+    "to": "duration over 300 ms on an"
   },
   {
     "file": "skills/wf/reference/review/interface-craft.md",
@@ -208,5 +208,11 @@
     "category": "gates",
     "from": "the gate (d4) stop-and-prompt before 05-implement . after",
     "to": "the gate stop-and-prompt before 05-implement . after 04-plan"
+  },
+  {
+    "file": "skills/wf/reference/review/interface-craft.md",
+    "category": "rubric-checks",
+    "from": "what is the register brand or",
+    "to": "what is the design mode of"
   }
 ]

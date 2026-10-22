@@ -184,7 +184,7 @@ test('the ledger state decides what /wf campaign does next (section 6)', () => {
   const ledger = C.newLedger({ brainstorm: 'realism', revision: 1, units: u, now: '2026-10-03T10:00:00Z' });
   assert.equal(C.campaignAction(ledger, { revision: 1 }).action, 'setup');
   Object.assign(ledger.answers, { forecast: 'continue', 'target-version': '0.3.0', 'release-each-wave': false, output: { 'build-cmd': 'make', artifacts: ['out/'], try: 'run out/app' } });
-  assert.deepEqual(C.campaignAction(ledger, { revision: 1 }), { action: 'setup', question: 'budget' });
+  assert.deepEqual(C.campaignAction(ledger, { revision: 1 }), { action: 'setup', question: 'budget', command: 'Type `/wf campaign realism`.' });
   ledger.answers.budget = C.DEFAULT_BUDGET;
   assert.equal(C.campaignAction(ledger, { revision: 1 }).action, 'prepare');
   ledger.units.A.state = 'prepared';
@@ -195,6 +195,50 @@ test('the ledger state decides what /wf campaign does next (section 6)', () => {
   ledger.pause = null;
   ledger.questions.push({ id: 'q1', wave: 1, text: 'CI is red', 'asked-at': '2026-10-03T11:00:00Z' });
   assert.equal(C.campaignAction(ledger, { revision: 1 }).action, 'ask');
+});
+
+// WF-DESIGN-PLAN B3, B4: each action that waits for the person names its command; a design board
+// with no design record asks for /wf design setup before the first prepare.
+test('B3: prepare, start-wave, ask and setup carry the command the person types', () => {
+  const u = units(packet('A', { 'work-slug': 'engine' }), packet('B', { 'depends-on': ['A'] }));
+  const ledger = C.newLedger({ brainstorm: 'realism', revision: 1, units: u });
+  assert.equal(C.campaignAction(ledger, { revision: 1 }).command, 'Type `/wf campaign realism`.', 'setup');
+  Object.assign(ledger.answers, { forecast: 'continue', 'target-version': 'none', 'release-each-wave': false, output: 'none', budget: C.DEFAULT_BUDGET });
+  const prep = C.campaignAction(ledger, { revision: 1 });
+  assert.equal(prep.action, 'prepare');
+  assert.equal(prep.command, 'Type `/wf intake .ai/workflows/realism/work/engine.md`.', 'the intake of the first unit');
+  ledger.units.A.state = 'prepared';
+  const start = C.campaignAction(ledger, { revision: 1 });
+  assert.equal(start.action, 'start-wave');
+  assert.equal(start.command, 'Type `/wf campaign realism`.');
+  ledger.questions.push({ id: 'q1', wave: 1, text: 'CI is red', 'asked-at': '2026-10-03T11:00:00Z' });
+  const ask = C.campaignAction(ledger, { revision: 1, driving: { wave: 1, run: 'r1' } });
+  assert.equal(ask.action, 'ask');
+  assert.equal(ask.command, 'Type `/wf campaign realism`.');
+  ledger.pause = { reason: 'five-hour window', until: '2026-10-03T15:00:00Z' };
+  assert.equal(C.campaignAction(ledger, { revision: 1 }).command, undefined, 'a pause waits for no command');
+});
+
+test('B4: design-setup comes before prepare while the design board lacks PRODUCT.md or DESIGN.md, and clears when both exist', () => {
+  const u = units(packet('A'), packet('B', { 'depends-on': ['A'] }));
+  const ledger = C.newLedger({ brainstorm: 'lantern', revision: 1, units: u });
+  Object.assign(ledger.answers, { forecast: 'continue', 'target-version': 'none', 'release-each-wave': false, output: 'none', budget: C.DEFAULT_BUDGET });
+  const ds = C.campaignAction(ledger, { revision: 1, design: { focus: 'design', missing: ['DESIGN.md'] } });
+  assert.deepEqual(ds, { action: 'design-setup', missing: ['DESIGN.md'], wave: 1, units: ['A'], command: 'Type `/wf design setup`.' });
+  assert.equal(C.campaignAction(ledger, { revision: 1, design: { focus: 'design', missing: [] } }).action, 'prepare', 'both files exist');
+  assert.equal(C.campaignAction(ledger, { revision: 1, design: null }).action, 'prepare', 'no design focus');
+  assert.equal(C.campaignAction(ledger, { revision: 1, design: { focus: 'general', missing: ['PRODUCT.md'] } }).action, 'prepare');
+  // Setup and the open questions still come first: design-setup is only in place of prepare.
+  ledger.answers.budget = null;
+  assert.equal(C.campaignAction(ledger, { revision: 1, design: { focus: 'design', missing: ['PRODUCT.md'] } }).action, 'setup');
+  ledger.answers.budget = C.DEFAULT_BUDGET;
+  ledger.units.A.state = 'prepared';
+  assert.equal(C.campaignAction(ledger, { revision: 1, design: { focus: 'design', missing: ['PRODUCT.md'] } }).action, 'start-wave');
+});
+
+test('B1: the away policy holds a design-amend question', () => {
+  assert.equal(C.policyOf({})['design-amend'], 'hold');
+  assert.equal(C.policyOf({ answers: { policy: { 'design-amend': 'resume' } } })['design-amend'], 'hold', 'a hold-only kind stays hold');
 });
 
 // ---------------------------------------------------------------- Stage D
@@ -275,7 +319,7 @@ test('stacking: the next wave may start once the wave below merged its slugs, up
   ledger.units.A.state = 'merged';
   assert.equal(C.campaignAction(ledger, { revision: 1 }).action, 'running', 'Stage C waits for the merge');
   ledger.stack = { enabled: true, number: null, 'max-unshipped': 2 };
-  assert.deepEqual(C.campaignAction(ledger, { revision: 1 }), { action: 'start-wave', wave: 2, beside: [1] });
+  assert.deepEqual(C.campaignAction(ledger, { revision: 1 }), { action: 'start-wave', wave: 2, beside: [1], command: 'Type `/wf campaign b`.' });
   ledger.waves[1].state = 'handoff';
   ledger.units.B.state = 'merged';
   assert.equal(C.campaignAction(ledger, { revision: 1 }).action, 'running', 'two unshipped waves already wait above the trunk');

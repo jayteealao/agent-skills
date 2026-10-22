@@ -106,7 +106,7 @@
 
 <ul>
   <li>It reads the design record at the start. On a feature workflow, it also reads <code>02-shape.md</code>, <code>02b-design.md</code>, and <code>02c-craft.md</code> when they exist. A missing file is a gap to name, not a stop.</li>
-  <li>It maps the design space: the surfaces, what a person does on each, layout and hierarchy, register, color, and type, motion and feedback, the states (empty, loading, error, first use), content and voice, and the fit with the design record.</li>
+  <li>It maps the design space: the surfaces, what a person does on each, layout and hierarchy, the design mode of each surface, color, and type, motion and feedback, the states (empty, loading, error, first use), content and voice, and the fit with the design record.</li>
   <li>It draws a rough sketch when a picture decides faster than words. It uses the design canvas, else an HTML sketch or an <code>imagery</code> image, else a one-sentence scene in the question text. Each sketch is also saved as a file in <code>design/sketches/</code>, so that it travels with the work. When an area closes, you say which sketches carry forward.</li>
   <li>It raises a tension when an idea pulls against <code>PRODUCT.md</code> or against a goal in <code>direction.md</code>.</li>
 </ul>
@@ -149,7 +149,7 @@
 <table>
 <thead><tr><th>Part</th><th>File</th><th>Holds</th></tr></thead>
 <tbody>
-<tr><td>Identity</td><td><code>PRODUCT.md</code> (project root)</td><td>Users, register, voice, anti-references, principles</td></tr>
+<tr><td>Identity</td><td><code>PRODUCT.md</code> (project root)</td><td>Users, design modes, voice, anti-references, principles</td></tr>
 <tr><td>System</td><td><code>DESIGN.md</code> (project root)</td><td>Tokens, components, patterns, elevation</td></tr>
 <tr><td>Current design</td><td><code>.ai/design/current.md</code></td><td>The surfaces that exist, their drift from the system, and the design debt</td></tr>
 <tr><td>Direction</td><td><code>.ai/design/direction.md</code></td><td>Design goals, the future direction, open and decided design questions</td></tr>
@@ -171,6 +171,12 @@
 
 <p>The record files keep the <code>[TODO]</code> and <code>&lt;!-- intentionally omitted --&gt;</code> markers, so a gap is visible and is never filled with an invented goal.</p>
 
+<h2 id="floor">The craft floor</h2>
+
+<p>Every step that draws or edits UI loads one shared file, <code>design/_craft-floor.md</code>. It holds the checks that every surface must pass (<em>Verify</em>), the patterns that are always refused, the defaults that a brief can earn, the tells of model-made UI, and the guard for writes to the design record. The design stage loads it at Step 4, before the first board. <code>implement</code> loads it before the first UI file edit of a slice. <code>audit</code>, <code>critique</code>, <code>import</code> and every move check against it. A brainstorm does not load it.</p>
+
+<p><strong>Terminal surfaces.</strong> A command-line or terminal surface gets an 80×24 board, rendered from captured ANSI output with <code>design-boards.mjs ansi &lt;input.txt&gt; --scheme campbell|solarized-light --out &lt;file.html&gt;</code>. Check contrast in both schemes.</p>
+
 <h2 id="moves">Moves</h2>
 
 <p>A move is a design playbook. It is not a stage and it is not a separate lifecycle. There are 15 moves:</p>
@@ -181,7 +187,7 @@
 <tr><td><code>adapt</code></td><td>Context adaptation: responsive, platform, theme, print; native feel on the web, iOS, Android, and desktop</td></tr>
 <tr><td><code>animate</code></td><td>Motion through the frequency and purpose gates; the opportunity sweep with its rejected candidates</td></tr>
 <tr><td><code>bolder</code></td><td>Visual presence and hierarchy</td></tr>
-<tr><td><code>clarify</code></td><td>Less cognitive load and better scannability</td></tr>
+<tr><td><code>clarify</code></td><td>Clear interface text: actions, errors, empty states and help</td></tr>
 <tr><td><code>colorize</code></td><td>Strategic use of color</td></tr>
 <tr><td><code>delight</code></td><td>Moments of joy and personality</td></tr>
 <tr><td><code>distill</code></td><td>Removal of complexity down to the essential core</td></tr>
@@ -217,7 +223,7 @@
 
 <ul>
   <li><code>audit</code> is a technical quality scan with 0–4 scoring. It covers accessibility, performance, theming, responsive behavior, and anti-patterns. When the workflow has verify results, audit uses the measurements in <code>06-verify-*.md</code>. It measures for itself only when no verify ran.</li>
-  <li><code>critique</code> gives prescriptive design feedback. The stance of the feedback follows the register: brand work is judged on distinctiveness, and product work is judged on earned familiarity.</li>
+  <li><code>critique</code> gives prescriptive design feedback. The stance of the feedback follows the design mode of each surface: Persuade and Experience surfaces are judged on distinctiveness, and Operate and Read surfaces are judged on earned familiarity. Critique scores the Nielsen heuristics and closes with questions for you.</li>
 </ul>
 
 <p>With a slug, the commands write <code>07-design-audit.md</code> or <code>07-design-critique.md</code> in the workflow and register themselves in <code>00-index.md</code>. Without a slug, they write no workflow artifact and report in chat.</p>
@@ -244,11 +250,11 @@
 
 <p>The contract page in the viewer shows the frozen boards, with the canvas link.</p>
 
-<h3 id="register-gate">The Register line and the image gate</h3>
+<h3 id="register-gate">The Design modes line and the image gate</h3>
 
 <p>Every design run reports two lines in its closing summary.</p>
 
-<p><strong>Register: brand | product.</strong> <em>Brand</em> work is a surface where distinctiveness wins, for example a marketing page. <em>Product</em> work is a surface that people use daily, and it is judged on earned familiarity and restraint. The register changes the stance of the design and of critique.</p>
+<p><strong>Design modes: &lt;surface&gt;: persuade | operate | read | experience.</strong> Each surface has one design mode, chosen from the surface, not from the product. On a <em>Persuade</em> surface the person decides and acts, for example a landing page. On an <em>Operate</em> surface the person completes a task, for example a dashboard; it is judged on earned familiarity and restraint. On a <em>Read</em> surface the person understands something, for example docs. On an <em>Experience</em> surface the person is inside the work itself, for example a portfolio. <code>02c-craft.md</code> records the map in <code>surface-modes:</code>. An old <code>register:</code> value still reads: <code>brand</code> is Persuade and <code>product</code> is Operate.</p>
 
 <p><strong>Image gate: pass | skipped:&lt;reason&gt; | n/a.</strong> The image gate stays pending until the design stage resolves it to <code>pass</code> or to a skip with a reason. A pending gate means that the design is not settled. Commands that draw nothing (<code>audit</code>, <code>critique</code>, and the upkeep commands) report <code>n/a</code>.</p>
 

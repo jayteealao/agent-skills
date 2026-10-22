@@ -7,11 +7,13 @@ The project-level design memory. Every workflow that needs design reads it, and 
 | Part | File | Written by |
 |---|---|---|
 | Identity | `PRODUCT.md` (project root) | `/wf design setup`, `/wf design teach` |
-| System | `DESIGN.md` (project root) | `/wf design setup`, `/wf design teach`, `/wf design sync` |
+| System | `DESIGN.md` (project root) | `/wf design setup`, `/wf design teach`, `/wf design sync`; the design stage writes the token roles at freeze |
 | Current design | `.ai/design/current.md` | `/wf design setup`, `/wf design extract`, `retro`; the design stage creates it when it is missing |
 | Direction | `.ai/design/direction.md` | `/wf design setup`, `/wf design direction`, `retro` (only after the person answers); the design stage creates it when it is missing and adds the open decisions the person keeps |
 
 Search for `PRODUCT.md` and `DESIGN.md` at the project root first, then `.agents/context/`, then `docs/`. The two `.ai/design/` files have one fixed location. In a repo that ignores `.ai/`, keep them tracked per [_boards.md](_boards.md) → Tracking.
+
+**Token roles at freeze.** At freeze (design stage Step 6), the design stage writes the token roles that `02c-craft.md` settles into `DESIGN.md` → `## Colors` → `### Token roles` ([setup.md](setup.md) gives the template). Show the person the change before the write. Keep every other row and section of `DESIGN.md`.
 
 ## `.ai/design/current.md`
 
@@ -70,6 +72,12 @@ When the instructions are `from <board-slug>`, a design brainstorm carried a cha
 
 ### `/wf design sync`
 Keep `DESIGN.md` and the canvas design system in step, per `_host-surfaces.md`, row "Design system sync". When the host has no sync surface, report that and stop. Record the design-system link in `current.md` frontmatter. Change one component at a time, and show the person the plan before any write.
+
+## Floor guard
+
+Every write to the design record follows the Record guard. It covers `setup`, `teach`, `sync`, `direction`, `extract`, the token roles at freeze, and the retro write-back.
+1. Before you write `DESIGN.md` or `.ai/design/current.md`, load [_craft-floor.md](_craft-floor.md) → Record guard.
+2. Write a refused element as a design debt in `## Design debt`. Never write it as a system rule.
 
 ## Retro write-back
 

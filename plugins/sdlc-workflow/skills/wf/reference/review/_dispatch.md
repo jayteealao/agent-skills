@@ -68,9 +68,11 @@ refs:
 | ID | Sev | Conf | Status | Pre | Surfaced | File:Line | Issue |
 |----|-----|------|--------|-----|----------|-----------|-------|
 (ALL findings — open AND resolved — with severity BLOCKER/HIGH/MED/LOW/NIT, confidence
-High/Med/Low, status open|deferred|dismissed|fixed|could-not-fix|resolved, the `Pre` column
+High/Med/Low, status open|deferred|dismissed|fixed|could-not-fix|resolved|kept-by-person, the `Pre` column
 (`pre-existing: true|false` from the diff test), and the `surfaced-at` date. Keep resolved
 rows for history; mark them clearly.)
+
+A finding against a frozen board (`design/r<N>/`) or a `02c-craft.md` line gets triage `needs-amend`. It stays open: only the person amends, keeps (`kept-by-person`) or defers it.
 
 ## Detailed Findings
 ### {ID}: {Title} [{SEVERITY}]

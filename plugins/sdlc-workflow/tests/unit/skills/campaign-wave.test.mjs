@@ -283,6 +283,69 @@ test('W2: a dont-ship unit review parks with kind review; the answer runs only t
   assert.match(all(mock.calls, /^review:s1@a/)[1].prompt, /ANSWERED ESCALATION/);
 });
 
+// WF-DESIGN-PLAN B1 (P2, BQ2): a review that leaves findings against the confirmed design open parks the
+// unit with kind design-amend. Keep and defer close the findings; amend moves the unit out with the amend route.
+const DESIGN_FINDING = { key: 'design-1', severity: 'HIGH', summary: 'the list uses cards, the board shows rows', contract: 'design/r1/boards/list--default.png' };
+const amendMock = (answer, rosters = { a: ['s1'], b: ['p1'] }) => makeMock({
+  rosters,
+  answer: (label, prompt, ctx) => {
+    if (/^review:s1@a/.test(label)) return { stage: 'review', slice: 's1', status: 'complete', artifactPath: '/x/07-review-s1.md', terminal: { verdict: 'dont-ship', blockerCount: 0 }, amendFindings: [DESIGN_FINDING] };
+    if (/^amend-close:s1@a/.test(label)) return { stage: 'review', slice: 's1', status: 'complete', artifactPath: '/x/07-review-s1.md', terminal: { verdict: 'ship', blockerCount: 0 }, amendFindings: [] };
+    if (/^waiter/.test(label) && answer) {
+      const open = ctx.asked.filter((id) => /^w1-A-/.test(id));
+      if (open.length) return { result: 'answered', answered: open.map((id) => ({ id, answer, by: 'person' })), calls: 1 };
+    }
+    return undefined;
+  },
+});
+
+for (const [answer, status] of [['keep: the cards are right', 'kept-by-person'], ['defer: after the beta', 'deferred']]) {
+  test(`B1: a review with design findings parks with kind design-amend; "${answer.split(':')[0]}" closes them as ${status}, and the unit finishes`, async () => {
+    const mock = amendMock(answer);
+    const { outcome } = await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b')], { width: 1, widthMax: 1 }), mock);
+    assert.equal(outcome.ok, true, outcome.reason);
+    const park = first(mock.calls, /^park:design-amend@a/);
+    assert.ok(park, 'the unit parks with kind design-amend');
+    assert.match(park.prompt, /--kind design-amend --stage review --slice s1/);
+    assert.match(park.prompt, /design-1 \(HIGH\): the list uses cards/);
+    assert.match(park.prompt, /Answer amend, keep, or defer/);
+    assert.match(park.prompt, /Type \\`\/wf design a amend\\`|Type `\/wf design a amend`/);
+    const close = first(mock.calls, /^amend-close:s1@a/);
+    assert.ok(close, 'a close agent closes the findings');
+    assert.ok(close.prompt.includes(`status ${status}`), close.prompt.slice(0, 400));
+    assert.ok(close.prompt.includes('"key":"design-1"'));
+    assert.ok(close.start > park.end);
+    assert.equal(first(mock.calls, /^park:review@a/), undefined, 'the closed result clears the review gate');
+    assert.ok(first(mock.calls, /^resume@a/), 'the unit resumes and its question is consumed');
+    assert.match(first(mock.calls, /^resume@a/).prompt, /question "\/repo" b \S+ consumed|consumed/);
+    assert.deepEqual(outcome.units.map((u) => u.state), ['finished', 'finished']);
+  });
+}
+
+test('B1: amend (and any other answer) moves the unit out with the amend route; the other unit finishes', async () => {
+  const mock = amendMock(null);
+  const { outcome } = await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b')], { width: 1, widthMax: 1 }), mock);
+  assert.ok(first(mock.calls, /^park:design-amend@a/));
+  assert.equal(first(mock.calls, /^amend-close/), undefined, 'no finding closes without keep or defer');
+  const move = first(mock.calls, /^move@a/);
+  assert.ok(move, 'the unit moves out');
+  assert.ok(move.prompt.includes('moved by the person: design amend: Type `/wf design a amend`.'), move.prompt.slice(0, 400));
+  assert.match(move.prompt, /consumed/);
+  const a = outcome.units.find((u) => u.key === 'A');
+  assert.equal(a.moved, true);
+  assert.equal(a.route, 'moved by the person: design amend: Type `/wf design a amend`.');
+  assert.equal(outcome.units.find((u) => u.key === 'B').state, 'finished');
+  assert.equal(outcome.held, false, outcome.reason);
+});
+
+test('B1: both drivers carry the same design clause in POLICY.review, and STAGE_RESULT has amendFindings', () => {
+  for (const f of ['campaign-wave.js', 'yolo.js']) {
+    const text = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'workflows', f), 'utf8');
+    assert.match(text, /`data-loss issue you could not fix after the loop\.` \+ designAmendClause\(\),/, f);
+    assert.match(text, /amendFindings: amendFindingsSchema\(\),/, f);
+  }
+});
+
 test('W2: a deferral with no probe gets one corrective round, then a hard-stop parks the unit', async () => {
   const mock = makeMock({
     rosters: { a: ['s1'] },

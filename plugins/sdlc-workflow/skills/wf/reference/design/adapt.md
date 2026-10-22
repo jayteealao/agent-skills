@@ -1,63 +1,91 @@
 > **Additional context needed**: target context, constraints, or platform requirements.
 
-Adapt an existing design to work in a new context — different viewport, different platform, different user context, or different constraints while preserving the design's essential character.
+Adapt an existing design to a new context: a window size, an input method, a platform or a medium. Rethink the experience for that context. Do not scale it.
 
 ---
 
-## Register
+## Design mode
 
-Brand: preserve the brand's essential aesthetic during adaptation. A mobile adaptation of a brand site should still feel like the same brand — not a stripped-down generic version. The constraints change; the character doesn't.
+Persuade and Experience: keep the world in every context. Never reduce it to a generic version. The constraints change; the character does not.
 
-Product: preserve functional integrity during adaptation. A responsive product UI must work as well on mobile as on desktop — not just technically work, but feel purposeful and complete.
+Operate: keep every task complete in every context. The structure changes; the type size does not. Keep the standard navigation.
+
+Read: keep the reading order, the wayfinding, a real measure and the body size.
 
 ---
+
+## Assess the context
+
+Before you change anything:
+1. Name the source context and the assumptions it makes: window size, input, connection and attention.
+2. Name the target context: device class, input method, orientation, posture and connection.
+3. List what will not fit, what will not work, and what will feel foreign in the target.
 
 ## Types of adaptation
 
 ### Responsive adaptation (desktop → mobile / mobile → desktop)
 
 **Desktop to mobile**:
-- Start from content priority: what does the user need most on a small screen?
-- Collapse multi-column layouts: main content first, secondary content second, navigation last (or behind burger)
-- Increase touch target sizes to 44×44px minimum
-- Simplify navigation: bottom tab bar (4–5 items max), drawer, or tab bar replaces complex nav
-- Increase body font size at small viewports: minimum 16px, often 17–18px for comfortable mobile reading
-- Remove hover-state-only information (tooltips, hover reveals) — provide touch-accessible alternatives
+- Start from content priority: what does the person need most on a small window?
+- Collapse multi-column layouts: main content first, secondary content second, navigation last (or behind a menu).
+- Give every touch target the platform's minimum hit area ([_platforms.md](_platforms.md) → minimum hit area).
+- Simplify navigation: a bottom tab bar (4–5 items at most) or a drawer replaces complex navigation.
+- Keep body text at the platform body size or larger. On the web, that is 16 px.
+- Remove information that only hover shows (tooltips, hover reveals). Give it a touch path.
 
 **Mobile to desktop**:
-- Expand with purpose — don't just stretch single-column to full width
-- Introduce multi-column where it improves content relationships (sidebar + main, list + detail)
-- Show more information that was hidden on mobile (secondary actions, metadata)
-- Leverage hover states for progressive disclosure (tooltips, context menus)
-- Increase typographic scale at larger viewports with `clamp()`
+- Expand with purpose. Do not stretch a single column to the full width.
+- Add columns where they improve content relationships (sidebar and main, list and detail).
+- Show more of what the small window hid (secondary actions, metadata).
+- Use hover for progressive disclosure only on a hover pointer. Never make hover the only path.
+- On a Persuade or Read surface, display type may grow with the window. On an Operate surface, keep a fixed type scale and change the structure.
 
-### Platform adaptation
+### Large windows, orientation and foldables
 
-**Web to native (React Native, Flutter, etc.)**:
-- Replace web conventions (underlined links, box shadows) with native equivalents
-- Follow platform navigation patterns (iOS: swipe-back, Android: back button or gesture)
-- Respect safe areas (notch, home indicator, dynamic island)
-- Native font stack unless brand fonts are critical: `-apple-system` on iOS, Roboto on Android
+- Restructure for a large window. Do not stretch.
+- Show list and detail side by side when the width allows.
+- Let the navigation shape follow the width: a bar, then a rail, then a sidebar.
+- Treat split screen as a window size, not as a special case.
+- Take the structure from the window size class ([_platforms.md](_platforms.md) → window size class). Never take it from the device model.
+- Restructure for landscape. Never letterbox.
+- Lock the orientation only when the task demands it.
+- Test a foldable folded, unfolded and half-open.
+
+### Platform to platform
+
+- Translate idioms. Never transplant them.
+- Rebuild navigation and controls in the vocabulary of the target platform ([_platforms.md](_platforms.md) → Idioms).
+- Carry the palette intent, the type accent and the motion personality through the target theme.
+- Respect the safe areas (notch, home indicator, camera cutout).
+- Use the platform font stack unless the brand font is essential ([_platforms.md](_platforms.md) → Idioms).
 
 **Light to dark mode**:
-- Build on a token system — don't create a separate dark-mode stylesheet
-- Every neutral color token needs a dark counterpart
-- Never just invert: dark mode uses a dark surface, not a negative of the light palette
-- Dark mode backgrounds: use `oklch(10–20% 0.01 hue)` — dark tinted, not pure black
-- Shadows in dark mode: use border + subtle glow instead of drop shadows
+- Build on a token system. Do not create a separate dark-mode stylesheet.
+- Give every neutral color token a dark counterpart.
+- Never invert. A dark theme uses a dark surface, not a negative of the light palette.
+- Dark backgrounds: use `oklch(10–20% 0.01 hue)`, dark and tinted, not pure black.
+- Show elevation with a lighter surface for each higher layer. Keep a shadow only where it still reads. Give it an offset and a soft blur. Never use a zero-offset glow as depth.
 
 ### Viewport context adaptation
-- Print styles: `@media print` — remove navigation, sidebars, decorative elements; ensure content prints as a readable document
-- High-DPI (Retina): SVG or 2× image assets for icons and critical images
-- Narrow embedding (widget, iframe): strip all chrome, keep only essential content
+- Print: remove navigation and controls. Break pages at logical points. Show full link targets and hidden sections. Add the title and the date.
+- High-DPI (Retina): SVG or 2× image assets for icons and critical images.
+- Narrow embedding (widget, iframe): strip all chrome, keep only essential content.
+- Email: one column about 600 px wide. Make each action a large button. Expect no hover. Link a complex task back to the app.
 
 ## Adaptation principles
 
-**What must survive adaptation**: the design's essential character — the choices that make it recognizable as this brand or product.
+**What must survive adaptation**: the design's essential character — the choices that make it recognizable as this product.
 
 **What can change**: layout structure, interaction model, font scale, navigation pattern, information density.
 
 **What must change**: touch targets, navigation patterns, content priority ordering for the new context.
+
+**Input and structure**:
+- Set hit areas and hover from the pointer type ([_platforms.md](_platforms.md) → coarse pointer), not from the window width. A laptop can have touch.
+- Keep one information architecture in every context.
+- Never hide a core function on a small window.
+- A large window is not a fast device. Do not assume a fast connection or a fast processor.
+- Break the layout where the content breaks, not at a device width.
 
 ## Feel native on the target platform
 
@@ -113,15 +141,28 @@ A surface can be correct and still feel like a foreign app. These principles hol
 ## Validate
 
 After adaptation:
-- Does it feel complete for the target context (not a reduced/broken version)?
-- Is the essential brand or product character preserved?
+- Does it feel complete for the target context, not a reduced or broken version?
+- Is the essential character of the product kept?
 - Are all interactive elements reachable without hover?
 - Does the information hierarchy work in the new layout?
-- Is it tested at the actual target viewport/device?
+- Is it tested at the actual target window size and device?
 - Does every principle of "Feel native on the target platform" hold on real hardware?
+- Tap each custom control. Then drag it to its end with the target input.
+- Swipe across each custom control on the scroll axis. The page scrolls, and the control stays.
+- Name the evidence source of each gesture check: emulation, synthetic touch or a real device. A screenshot proves layout, never a gesture.
+- Report missing hardware as a gap.
 
 ## In the workflow
 
-This file is a move, not a stage. Before the design is confirmed, `/wf design <slug> adapt` focuses the visual contract `02c-craft.md` on it. After it is confirmed, the same command runs the checks above against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass). `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.
+This file is a move, not a stage.
+- **Design not confirmed:** `/wf design <slug> adapt` focuses the design stage and its contract `02c-craft.md` on the target context.
+- **Design confirmed:** `/wf design <slug> adapt` runs the checks of this file against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- `plan` cites this file as a step pointer; `implement` applies it.
+- Every run writes `design-notes/adapt-<timestamp>.md` per [_output.md](_output.md) with: the source and target contexts, the structure and input changes, each gesture check with its evidence source, and the hardware gaps.
+- Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
+
+---
+
+> *Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.*
 
 > *The web-on-a-phone checklist is adapted from Emil Kowalski's `mobile-native` skill ([github.com/emilkowalski/skills](https://github.com/emilkowalski/skills), commit `2d22863`, 2026-10-11). MIT license.*

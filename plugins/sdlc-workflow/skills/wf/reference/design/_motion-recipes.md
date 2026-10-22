@@ -21,7 +21,7 @@ Each recipe is platform-neutral. The terms (cheap property, retargetable animati
 | Hold to confirm | Press and hold | clip of a fill overlay from one edge → full; scale 0.97 while held | Fill: linear, 2 s. Release: `ease-out`, 200 ms | — | Keep the fill (it is progress) |
 | Tab indicator with color | Active tab change | clip of an "active" copy of the tab list | `ease-in-out`, 250 ms | — | Instant |
 | Scroll reveal | Element enters the viewport, once | clip from the bottom edge → full | `ease-in-out`, 600 ms | — | No reveal |
-| Drag to dismiss | Drag, then release | offset follows the finger 1:1; settle with a spring | spring `duration 0.5 s, bounce 0` (product), `bounce 0.2` (brand) | — | Settle with opacity |
+| Drag to dismiss | Drag, then release | offset follows the finger 1:1; settle with a spring | spring `duration 0.5 s, bounce 0` (Operate, Read), `bounce 0.2` (Persuade, Experience) | — | Settle with opacity |
 | Crossfade that will not settle | State swap | blur 0 → 2 px → 0, opacity 1 → 0.7 → 1 | `ease`, 200 ms | — | Plain crossfade |
 | Contextual icon swap | State change | opacity 0 → 1, scale 0.25 → 1, blur 4 px → 0 | spring `duration 0.3 s, bounce 0` | Center | Opacity only |
 
@@ -37,7 +37,7 @@ Each recipe is platform-neutral. The terms (cheap property, retargetable animati
 - **Group entrance.** Only for a screen seen occasionally, never for a list the person scrolls past all day. The stagger never blocks interaction.
 - **Hold to confirm.** For destructive actions where a plain tap is too easy. The fill is linear because it is a progress indicator. The release snaps back fast: slow where the person decides, fast where the system responds.
 - **Tab indicator with color.** Duplicate the tab list, style the copy as active, and clip the copy so only the active tab shows. Text and background change in sync, because one element is revealed instead of two colors interpolating.
-- **Scroll reveal.** Marketing and brand surfaces only, and only once per element. Re-animating on every scroll-by fights the reader.
+- **Scroll reveal.** Persuade and Experience surfaces only, and only once per element. Re-animating on every scroll-by fights the reader.
 - **Drag to dismiss.** Dismiss on distance **or** on a flick (speed above ≈0.11 px/ms). Hand the release velocity to the settling spring. Capture the pointer, ignore extra touch points, rubber-band past the edge. Write the offset to the dragged element directly, never through a value that every child inherits.
 - **Crossfade that will not settle.** Use only after easing and duration tuning failed. Blur blends two states into one perceived change. Keep blur under 20 px.
 - **Contextual icon swap.** Only icons that appear on hover, change with state, or live in a toolbar. When no animation library is present, keep both icons mounted, one over the other, and cross-fade them with a retargetable animation on the curve `0.2, 0, 0, 1`.

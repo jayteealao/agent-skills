@@ -42,6 +42,9 @@ question tool.
   hide the chat text before it. Put everything the person needs to answer in
   the question text itself: the summary to confirm, the finding, the list to
   walk. Keep chat text before a question to one line.
+- **An interrupted question is unanswered.** When the question is
+  interrupted, or its result is unknown, it has no answer. Ask it once more.
+  Do not take its default.
 - **Never require structured input to proceed.** A gate must always be
   resolvable by rung 2 (free-text reply mapped to the closest option) or
   rung 3 (policy default). Rung 1 is an affordance, not a dependency.

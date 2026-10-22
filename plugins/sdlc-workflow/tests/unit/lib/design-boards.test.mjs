@@ -11,9 +11,11 @@ import { test } from 'node:test';
 import { deepEqual, equal, match, ok, throws } from 'node:assert/strict';
 
 import {
-  BOARDS_SCHEMA, boardKey, capturePath, directionSketches, emptyManifest, ignoreAdvice, isBoardKey, isInsidePath,
-  missingBoardFiles, needsPictures, parseBoardKey, parseViewport, renderSheet, validateManifest,
+  ANSI_SCHEMES, BOARDS_SCHEMA, boardKey, canvasStale, capturePath, designModesOf, directionSketches, emptyManifest, ignoreAdvice, isBoardKey, isInsidePath,
+  missingBoardFiles, needsPictures, parseBoardKey, parseViewport, renderAnsi, renderSheet, sketchAdvice, splitAnchor, validateManifest,
 } from '../../../lib/design-boards.mjs';
+import { createHash } from 'node:crypto';
+import { validateFrontmatter, validateBrainstormBoard } from '../../../lib/schema-validator.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..', '..', '..');
@@ -295,10 +297,173 @@ test('tool: track writes the exception block that git honours', () => {
     equal(ignored('.ai/design/current.md'), false);
     equal(ignored('.ai/workflows/demo/design/r1/boards/a--b.png'), false);
     equal(ignored('.ai/workflows/demo/design/boards/a--b.png'), true);
+    equal(ignored('.ai/workflows/demo/design/sketches/home.html'), false, 'WF-DESIGN-PLAN A5: the sketches are tracked');
     equal(ignored('.ai/workflows/demo/00-index.md'), true);
     equal(ignored('.ai/workflows/INDEX.md'), true);
     equal(run(root, ['track']).json.change, false, 'a second run finds nothing to change');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// ── WF-DESIGN-PLAN A5, A5b, A8 ───────────────────────────────────────────────
+
+test('A5: the exception blocks track the sketches; an old block gets only the sketch lines', () => {
+  match(ignoreAdvice('.ai/*').block, /^!\.ai\/workflows\/\*\/design\/sketches\/$/m);
+  const glob = ignoreAdvice('.ai/**/*').block;
+  match(glob, /^!\.ai\/workflows\/\*\/design\/sketches\/$/m);
+  match(glob, /^!\.ai\/workflows\/\*\/design\/sketches\/\*\*$/m);
+  const star = sketchAdvice('.ai/workflows/*/design/*');
+  equal(star.change, true);
+  equal(star.upgrade, true);
+  ok(!/r\*/.test(star.block), 'the upgrade adds only the sketch lines');
+  match(sketchAdvice('/.ai/**/*').block, /sketches\/\*\*$/m);
+  equal(sketchAdvice(null).change, false);
+  equal(sketchAdvice('design/').style, 'other');
+  match(ignoreAdvice('.ai/workflows/').manual, /design\/sketches\//);
+});
+
+test('A5: track upgrades a repo with the block from before the sketches (change: true)', () => {
+  const root = project();
+  try {
+    if (spawnSync('git', ['init', '-q', root]).status !== 0) return;
+    const oldBlock = ['# old block', '!.ai/design/', '!.ai/workflows/', '.ai/workflows/*', '!.ai/workflows/*/', '.ai/workflows/*/*',
+      '!.ai/workflows/*/design/', '.ai/workflows/*/design/*', '!.ai/workflows/*/design/r*/'].join('\n');
+    writeFileSync(join(root, '.gitignore'), `node_modules/\n.ai/*\n${oldBlock}\n`);
+    const ignored = (rel) => spawnSync('git', ['-C', root, 'check-ignore', '-q', '--no-index', rel]).status === 0;
+    equal(ignored('.ai/workflows/demo/design/sketches/home.html'), true, 'the old block ignores the sketches');
+    const dry = run(root, ['track']);
+    equal(dry.json.change, true, dry.stdout);
+    equal(dry.json.upgrade, true);
+    equal(dry.json.written, false);
+    const w = run(root, ['track', '--write']);
+    equal(w.status, 0, w.stdout);
+    deepEqual(w.json.stillIgnored, []);
+    equal(ignored('.ai/workflows/demo/design/sketches/home.html'), false);
+    equal(ignored('.ai/workflows/demo/design/sketches/sheet.png'), false);
+    equal(ignored('.ai/workflows/demo/design/boards/a--b.html'), true, 'design/boards/ stays ignored');
+    equal(ignored('.ai/workflows/demo/design/r1/boards.json'), false);
+    equal(run(root, ['track']).json.change, false, 'a second run finds nothing to change');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+const hash = (text) => createHash('sha256').update(text).digest('hex');
+
+test('A5b: canvasStale reports a changed file, a missing file and a foreign account', () => {
+  const canvas = (sha, account = 'me') => ({ link: 'https://claude.ai/a/1', account, 'published-at': '2026-10-22T10:00:00Z', sha256: sha });
+  const entries = [
+    { kind: 'sketch', key: 'fresh', where: 'w', path: 'a.html', canvas: canvas(hash('a')), sha256: hash('a') },
+    { kind: 'sketch', key: 'changed', where: 'w', path: 'b.html', canvas: canvas(hash('old')), sha256: hash('new') },
+    { kind: 'sketch', key: 'gone', where: 'w', path: 'c.html', canvas: canvas(hash('c')), sha256: null },
+    { kind: 'board', key: 'home--default', where: 'w', path: 'd.html', canvas: canvas(hash('d'), 'outlook'), sha256: hash('d') },
+    { kind: 'sketch', key: 'no-canvas', where: 'w', path: 'e.html', canvas: null, sha256: hash('e') },
+  ];
+  deepEqual(canvasStale(entries).map((e) => [e.key, e.reasons]), [['changed', ['changed']], ['gone', ['missing-file']]]);
+  deepEqual(canvasStale(entries, { account: 'me' }).map((e) => [e.key, e.reasons]),
+    [['changed', ['changed']], ['gone', ['missing-file']], ['home--default', ['account']]]);
+  deepEqual(splitAnchor('design/sketches/screens.html#home'), { file: 'design/sketches/screens.html', anchor: 'home' });
+  deepEqual(splitAnchor('a.png'), { file: 'a.png', anchor: null });
+  const m = { ...emptyManifest('demo'), boards: [{ key: 'cart--empty', surface: 'cart', state: 'empty', html: 'boards/cart--empty.html', canvas: { link: 'x' } }] };
+  match(validateManifest(m).join('\n'), /canvas\.sha256 must be 64 hex/);
+  m.boards[0].canvas.sha256 = hash('x');
+  deepEqual(validateManifest(m), []);
+});
+
+test('A5b: the schema accepts a canvas record and state reference on sketches and packets', () => {
+  const canvas = { link: 'https://claude.ai/a/1', account: 'me', 'published-at': '2026-10-22T10:00:00Z', sha256: hash('a'), previous: ['https://claude.ai/a/0', { link: 'https://claude.ai/a/00', account: 'outlook' }] };
+  const board = {
+    schema: 'sdlc/v1', artifact: 'brainstorm-board', slug: 'demo', areas: [], threads: [], items: [],
+    sketches: [
+      { key: 'home', thread: 't', caption: 'Home', state: 'carried', path: 'design/sketches/screens.html#home', canvas },
+      { key: 'outside', thread: 't', caption: 'A reference', state: 'reference', link: 'https://claude.ai/a/9', path: null },
+    ],
+  };
+  ok(validateBrainstormBoard(board).valid, JSON.stringify(validateBrainstormBoard(board).errors));
+  equal(validateBrainstormBoard({ ...board, sketches: [{ ...board.sketches[0], canvas: { link: 'x' } }] }).valid, false, 'a canvas records its sha256');
+  equal(validateBrainstormBoard({ ...board, sketches: [{ ...board.sketches[0], state: 'kept' }] }).valid, false);
+  const packet = {
+    schema: 'sdlc/v1', type: 'work-packet', slug: 'demo', key: 'home', 'work-slug': 'home', form: 'intake', 'origin-brainstorm': 'demo',
+    'carried-decisions': [], state: 'proposed', sketches: [{ key: 'home', path: '.ai/workflows/demo/design/sketches/screens.html#home', link: canvas.link, canvas }],
+  };
+  ok(validateFrontmatter(packet).valid, JSON.stringify(validateFrontmatter(packet).errors));
+  equal(validateFrontmatter({ ...packet, sketches: [{ key: 'home', path: null, canvas: { sha256: hash('a') } }] }).valid, false);
+});
+
+test('A5b: tool canvas-stale reads the board, the packets and boards.json', () => {
+  const root = project();
+  try {
+    const wdir = join(root, '.ai', 'workflows', 'demo');
+    mkdirSync(join(wdir, 'design', 'sketches'), { recursive: true });
+    mkdirSync(join(wdir, 'work'), { recursive: true });
+    writeFileSync(designFile(root, 'sketches/screens.html'), '<p>v2</p>');
+    writeFileSync(designFile(root, 'sketches/strip.png'), 'png');
+    writeFileSync(designFile(root, 'boards/cart--empty.html'), '<p>cart</p>');
+    const canvas = (text, account = 'me') => ({ link: 'https://claude.ai/a/1', account, sha256: hash(text) });
+    writeFileSync(join(wdir, 'brainstorm-board.json'), JSON.stringify({
+      schema: 'sdlc/v1', artifact: 'brainstorm-board', slug: 'demo', areas: [], threads: [], items: [],
+      sketches: [
+        { key: 'home', thread: 't', caption: 'Home', state: 'carried', path: 'design/sketches/screens.html#home', canvas: canvas('<p>v1</p>') },
+        { key: 'strip', thread: 't', caption: 'Strip', state: 'carried', path: 'design/sketches/strip.png' },
+      ],
+    }));
+    writeFileSync(join(wdir, 'work', 'home.md'), `---\nschema: sdlc/v1\ntype: work-packet\nslug: demo\nkey: home\nsketches:\n  - key: home\n    path: .ai/workflows/demo/design/sketches/screens.html#home\n    link: https://claude.ai/a/1\n    canvas:\n      link: https://claude.ai/a/1\n      account: outlook\n      sha256: ${hash('<p>v2</p>')}\n---\n`);
+    writeFileSync(designFile(root, 'boards.json'), JSON.stringify({ ...emptyManifest('demo'), boards: [{ key: 'cart--empty', surface: 'cart', state: 'empty', html: 'boards/cart--empty.html', png: null, canvas: canvas('<p>cart</p>') }] }));
+    const r = run(root, ['canvas-stale', 'demo', '--account', 'me']);
+    equal(r.status, 0, r.stdout);
+    equal(r.json.checked, 3);
+    deepEqual(r.json.stale.map((e) => [e.kind, e.key, e.reasons]), [['sketch', 'home', ['changed']], ['sketch', 'home', ['account']]]);
+    equal(r.json.stale[0].path, '.ai/workflows/demo/design/sketches/screens.html#home', 'the anchor stays in the path');
+    equal(r.json.stale[0].sha256, hash('<p>v2</p>'));
+    deepEqual(r.json.unpublished.map((e) => [e.key, e.sha256]), [['strip', hash('png')]]);
+    deepEqual(run(root, ['canvas-stale', 'demo']).json.stale.map((e) => e.key), ['home'], 'with no account, only the changed file');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('A8: renderAnsi maps SGR 33 and 90 to the colours of each scheme', () => {
+  const text = 'ok \x1b[33mwarn\x1b[0m \x1b[90mhint\x1b[39m \x1b[1;31mfail\x1b[0m\x1b[2K <tag>\r\n';
+  const dark = renderAnsi(text, 'campbell');
+  match(dark, /<span style="color:#c19c00">warn<\/span>/);
+  match(dark, /<span style="color:#767676">hint<\/span>/);
+  match(dark, /<span style="color:#c50f1f;font-weight:bold">fail<\/span>/);
+  match(dark, /background:#0c0c0c/);
+  match(dark, /&lt;tag&gt;/);
+  ok(!dark.includes('\x1b'), 'no escape survives');
+  const light = renderAnsi(text, 'solarized-light');
+  match(light, /<span style="color:#b58900">warn<\/span>/);
+  match(light, /<span style="color:#073642">hint<\/span>/);
+  match(light, /background:#fdf6e3/);
+  equal(ANSI_SCHEMES.campbell.theme, 'dark');
+  equal(ANSI_SCHEMES['solarized-light'].theme, 'light');
+  match(renderAnsi('\x1b[38;5;196mred\x1b[48;2;1;2;3mbg', 'campbell'), /color:#ff0000">red<\/span><span style="color:#ff0000;background:#010203">bg/);
+  match(renderAnsi('\x1b[7minv', 'campbell'), /color:#0c0c0c;background:#cccccc">inv/);
+  throws(() => renderAnsi('x', 'nope'), /unknown colour scheme/);
+});
+
+test('A8: tool ansi writes the page; an unknown scheme is refused', () => {
+  const root = project();
+  try {
+    writeFileSync(join(root, 'out.txt'), '\x1b[33mwarn\x1b[0m\n');
+    const r = spawnSync(process.execPath, [SCRIPT, 'ansi', join(root, 'out.txt'), '--scheme', 'solarized-light', '--out', join(root, 'b', 'out.html')], { encoding: 'utf8' });
+    equal(r.status, 0, r.stdout);
+    equal(JSON.parse(r.stdout).theme, 'light');
+    match(readFileSync(join(root, 'b', 'out.html'), 'utf8'), /color:#b58900">warn/);
+    const bad = spawnSync(process.execPath, [SCRIPT, 'ansi', join(root, 'out.txt'), '--scheme', 'nope'], { encoding: 'utf8' });
+    equal(bad.status, 1);
+    match(JSON.parse(bad.stdout).error, /--scheme is one of campbell, solarized-light/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Release E: designModesOf reads surface-modes, then design-mode, then the deprecated register', () => {
+  deepEqual(designModesOf({ 'surface-modes': { home: 'persuade', settings: 'operate' }, register: 'brand' }).modes,
+    [{ surface: 'home', mode: 'persuade' }, { surface: 'settings', mode: 'operate' }]);
+  deepEqual(designModesOf({ 'design-mode': 'read' }), { modes: [{ surface: null, mode: 'read' }], from: 'design-mode', register: null });
+  deepEqual(designModesOf({ register: 'brand' }).modes, [{ surface: null, mode: 'persuade' }]);
+  deepEqual(designModesOf({ register: 'product' }), { modes: [{ surface: null, mode: 'operate' }], from: 'register', register: 'product' });
+  deepEqual(designModesOf({}).modes, []);
 });

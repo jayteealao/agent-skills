@@ -6,7 +6,7 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
 |---|---|
 | Requires | See [design.md → ## Requires](../design.md#requires). |
 | Produces | `02c-craft.md` (type `design-contract`); the boards in `design/` and the frozen revision `design/r<N>/` ([_boards.md](_boards.md)); `00-index.md` updates |
-| Next | `/wf slice <slug>` (`/wf plan <slug>` for an `rca` workflow, which has no slice stage; `/wf plan <slug> <first-new-slice>` after an extension) — or `/wf auto <slug>` / `/wf yolo <slug>`, which may start now |
+| Next | Type `/wf slice <slug>` (`/wf plan <slug>` for an `rca` workflow, which has no slice stage; `/wf plan <slug> <first-new-slice>` after an extension) — or `/wf auto <slug>` / `/wf yolo <slug>`, which may start now. In a campaign, the campaign order of [Chat return](#chat-return). |
 
 ## Step 0 — Orient
 
@@ -18,14 +18,14 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
 
 ## Step 1 — Load the design record
 
-1. Load [_design-context.md](_design-context.md) and [_preflight.md](_preflight.md) in full, and the register reference ([brand.md](brand.md) or [product.md](product.md)).
+1. Load [_design-context.md](_design-context.md) and [_preflight.md](_preflight.md) in full. Do not load [_craft-floor.md](_craft-floor.md) yet: Step 4 loads it, after the direction is settled.
 2. Read `PRODUCT.md`. When it is missing, empty, or carries `[TODO]` markers, run `/wf design setup` now with the person, then continue.
 3. Read `DESIGN.md`, `.ai/design/current.md`, and `.ai/design/direction.md`. When a `.ai/design/` file is missing, create it from the [record.md](record.md) template with `[TODO]` sections and tell the person. Do not stop.
 4. When the person named a move, read `design/<move>.md`. The move focuses the contract; it does not widen the scope of `02-shape.md`.
 
 ## Step 1b — Present the carried design thoughts
 
-When a design brainstorm left thoughts for this workflow, follow [_carried.md](_carried.md) → At the design stage: present them, walk them with the person, and ask their open questions. The kept set is the starting direction for Step 4. When nothing is carried, continue.
+When a design brainstorm left thoughts for this workflow, follow [_carried.md](_carried.md) → At the design stage: show the read-only summary, find the contradictions, and ask only the ask set and the open questions. The kept set is the starting direction for Step 4. When nothing is carried, continue.
 
 ## Step 2 — Make sure the brief exists
 
@@ -42,24 +42,33 @@ When the product already exists and the stack can run it, capture every touched 
 Run this step only when `ux-impact: new-surface` and no direction is confirmed yet (no carried direction the person kept at Step 1b, no `teach` answer that settles it). Otherwise, continue at Step 4.
 
 1. Ask one gate question per [_gate-question.md](../_gate-question.md): *"The direction is open. Draw three directions of the main surface first, or draw the boards now?"* On "boards now", continue at Step 4.
-2. Choose three directions (up to five when the person asks). Give each a name that describes it (Quiet, Editorial, Dense — never "Option A") and one named axis: layout, density, personality, motion, or interaction model. No two directions share a position on an axis. Two directions that differ only in accent color or copy are one direction: replace one.
-3. Draw each direction of the main surface as a sketch, `design/sketches/direction-<name>.html`, full size, in realistic surrounding context, with real copy and the tokens of `DESIGN.md`. Every direction meets the craft bar on its own.
-4. Run `render` (no keys) and `sheet` per [_boards.md](_boards.md). The contact sheet shows the directions in their own section. Show it per [_boards.md](_boards.md) → Show the boards.
-5. Present a table: name, axis, when it is the right choice, its cost. Do not pre-pick a favorite. Ask one gate question: pick a direction, or run another round around one of them.
-6. Record each direction, its axis, and the person's reason to keep or reject it. Step 6 writes them to `02c-craft.md`. The picked direction is the starting direction for Step 4.
+2. Load the design-mode file of the main surface, as the brief's content inventory records it: [mode-persuade.md](mode-persuade.md) for Persuade and Experience, [mode-operate.md](mode-operate.md), or [mode-read.md](mode-read.md). Read its `## Directions`.
+3. **Ground the search.** Name the product's mechanism in one sentence, the audience's real scene, and the product's cultural home.
+4. **Name the rut.** Name the page this category always ships, and its predictable opposite. Keep both out of the candidates.
+5. **List seven candidates** from the audience's culture: visual systems, artifacts, places, or rituals that the audience knows well. Give each one line on why it fits and one line on how it looks. Span at least three material families. On an Operate or Read surface, never take a candidate from the tools that the audience operates: it comes back as a costume of that tool.
+6. **Choose three** of the seven as directions (up to five when the person asks). Give each a name that describes it (Quiet, Editorial, Dense — never "Option A") and one named axis: layout, density, personality, motion, or interaction model. No two directions share a position on an axis. Two directions that differ only in accent color or copy are one direction: replace one. Record the four candidates that you did not draw, with one line each.
+7. Draw each direction of the main surface as a sketch, `design/sketches/direction-<name>.html`, full size, in realistic surrounding context, with real copy and the tokens of `DESIGN.md`. Every direction is complete and uses the tokens of DESIGN.md.
+8. **Add the canon.** Draw one more sketch, `design/sketches/direction-canon.html`: the category standard, played straight. It is the person's standing exit. Never recommend it, and never weigh it against the other directions.
+9. Run `render` (no keys) and `sheet` per [_boards.md](_boards.md). The contact sheet shows the directions in their own section. Show it per [_boards.md](_boards.md) → Show the boards.
+10. Present a table: name, axis, when it is the right choice, its cost. Put the canon in the last row. Do not pre-pick a favorite. Ask one gate question: pick a direction, or run another round around one of them. When the person picks the canon, ask once for two or three products that it sits beside. Their craft level is the bar.
+11. After two rounds with no pick, do not draw a third round blind. Ask the person what quality is missing, then draw the next round from the answer.
+12. Record each direction, its axis, and the person's reason to keep or reject it, and the candidates that you did not draw. Step 6 writes them to `02c-craft.md`. The picked direction is the starting direction for Step 4.
 
 ## Step 4 — Draw every changed surface
+
+Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists. Load it now, before the first board, and draw every board against it. Also load the design-mode file of each surface in the brief's content inventory, and read its `## Boards`.
 
 Draw the whole feature, not one slice. Every surface in the brief's content inventory gets a board, in every state the brief names.
 
 **Worst-case boards.** Also draw `<surface>--worst`, with the worst-case content of [harden.md](harden.md) → Worst-case content:
 - for each surface the person asks for, at any `ux-impact`;
+- for each terminal surface of a flow (command-line output or a terminal interface), at the height budget of `_platforms.md` → Terminal;
 - otherwise, for each **new** surface that shows data from people or from the system.
 
 A changed surface that already exists gets no worst-case board unless the person asks for one.
 
-1. Make the boards per [_boards.md](_boards.md) → Make the boards: capture, import, or HTML boards from `DESIGN.md`. Ask the person which viewports to draw.
-2. On a host with a design canvas (`_host-surfaces.md`, row "Design canvas"), mirror the boards to the canvas for comments. Record the canvas link.
+1. Make the boards per [_boards.md](_boards.md) → Make the boards: capture, import, or HTML boards from `DESIGN.md`. Take the viewports from the brief's `viewports:`. Ask the person only when the brief has none.
+2. On a host with a design canvas (`_host-surfaces.md`, row "Design canvas"), publish the boards to the canvas from the session's account, for comments, per [_boards.md](_boards.md) → The file is the source. Record the canvas link.
 3. When the person wants an interactive prototype and external dispatch is enabled, offer `/uiproto`. A prototype is never a board.
 4. For `ux-impact: flow`, draw the flow as a sequence of states. A text flow with a recorded `image-gate: skipped:<reason>` is valid when no surface changes how it looks.
 5. Follow [contract.md](contract.md) Steps 1–4 for the direction and the mock fidelity inventory.
@@ -76,7 +85,7 @@ A user-confirmed `PRODUCT.md` or an earlier `teach` answer satisfies the gate on
 
 ## Step 6 — Write the contract
 
-Freeze the confirmed boards per [_boards.md](_boards.md) → Freeze. Then write `02c-craft.md` per [contract.md](contract.md) Step 5, with these extra frontmatter fields:
+Before the freeze, run `canvas-stale` per [_boards.md](_boards.md) → The file is the source, and republish each listed file from the session's account. The board files are the source; the canvas is their published view. Freeze the confirmed boards per [_boards.md](_boards.md) → Freeze. Then write `02c-craft.md` per [contract.md](contract.md) Step 5, with these extra frontmatter fields:
 
 ```yaml
 boards: design/r<N>/boards.json        # from the freeze result
@@ -91,6 +100,8 @@ carried-from: [<board path>#<piece-of-work key>]   # omit when nothing was carri
 directions: [<name>: <axis>]                      # omit when Step 3b did not run
 ```
 
+Then write the token roles that `02c-craft.md` settles into `DESIGN.md` under `## Colors`: each role, its token, and its value. Change only the roles that this design settles. Apply the record guard of [_craft-floor.md](_craft-floor.md) → Record guard. Show the change to the person: the lines that you added or changed.
+
 Then update `00-index.md`: `current-stage: design`, `progress.design: complete`, and `next-invocation` per the Next row above. Record each new open design question under `## Open decisions` in `.ai/design/direction.md` only when the person agrees to keep it.
 
 ## Amend
@@ -98,7 +109,7 @@ Then update `00-index.md`: `current-stage: design`, `progress.design: complete`,
 `/wf design <slug> amend [instructions]` reopens a confirmed design, because a later stage found that it cannot be built as drawn, or because the person changed their mind.
 
 1. Read the stop reason from `00-index.md` and the stage artifact that raised it. For an extension, the reason is the new slices in `03-slice.md` and the surfaces they add. For a design brainstorm, the reason is the carried thoughts: run Step 1b first.
-2. Change or add only the boards of the surfaces the reason names. Run Steps 4–6 for those surfaces. Step 6 freezes `r<N+1>/` and adds new surfaces to `surfaces:`.
+2. Change or add only the boards of the surfaces the reason names. Run Steps 4–6 for those surfaces. Step 4 loads the floor. Step 6 freezes `r<N+1>/` and adds new surfaces to `surfaces:`.
 3. Snapshot the prior contract per [_additive-write.md](../_additive-write.md), then write the new one.
 4. Name every plan that cites a changed surface. Route to `/wf plan <slug> <slice>` for each.
 
@@ -108,15 +119,19 @@ When the person wants to reconsider the direction itself, run Step 3b again arou
 
 `/wf design <slug> <move>` on a confirmed design runs the move's own checks. It draws nothing and freezes nothing.
 
-1. Read `02c-craft.md`, the frozen boards it names, and `design/<move>.md`. When built code exists for the surfaces, read it too; when the stack can run it, look at the running surfaces.
+1. Read `02c-craft.md`, the frozen boards it names, and `design/<move>.md`. Load [_craft-floor.md](_craft-floor.md) as a checklist: check the boards and the built UI against its Refuse and Verify lists. When built code exists for the surfaces, read it too; when the stack can run it, look at the running surfaces.
 2. Run the move's checks against the boards and the built UI:
    - `animate` — the gates and the opportunity sweep ([animate.md](animate.md)): every existing animation through the gates, the opportunities, and the rejected candidates.
    - `harden` — the checks of [harden.md](harden.md), including the worst-case pass.
    - any other move — the checks its file names.
 3. Write `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). Each finding names its surface, its board key or `file:line`, and the fix.
 4. When a finding changes a confirmed board, ask one gate question per [_gate-question.md](../_gate-question.md): amend the design now, or keep the note for later. On "amend", run Amend for the surfaces the note names. On "later", the note stays, and nothing else changes.
-5. Return per [_chat-return.md](../_chat-return.md): the findings, the rejected candidates when the move is `animate`, and the note path. Next: the current `next-invocation` of `00-index.md`, unless the person chose Amend.
+5. Return per [_chat-return.md](../_chat-return.md): the findings, the rejected candidates when the move is `animate`, and the note path. Next: the current `next-invocation` of `00-index.md`, written as "Type `/wf <key> <args>`.", unless the person chose Amend.
 
 ## Chat return
 
-Return per [_chat-return.md](../_chat-return.md): what the person confirmed, how many boards were frozen and in which revision, the path of `design/r<N>/index.html`, the canvas link when a mirror exists, and the top design risk. Next: `/wf slice <slug>`, or `/wf auto <slug>` when the person wants the build driven.
+Return per [_chat-return.md](../_chat-return.md): what the person confirmed, how many boards were frozen and in which revision, the path of `design/r<N>/index.html`, the canvas link when a mirror exists, the `DESIGN.md` change, and the top design risk.
+
+Write the next step as "Type `/wf <key> <args>`." The person runs the key; never write that you run it.
+- Next: "Type `/wf slice <slug>`.", or "Type `/wf auto <slug>`." when the person wants the build driven.
+- When `00-index.md` has `origin-packet` and `.ai/workflows/<board>/work/campaign/ledger.json` exists, name the campaign order: "Type `/wf slice <slug>`.", then "Run `campaign.mjs unit <key> prepared`.", then "Type `/wf campaign <board>`." When `campaign.mjs status` gives a `command` for this unit, use that command.

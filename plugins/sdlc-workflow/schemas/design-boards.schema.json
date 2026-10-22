@@ -30,7 +30,8 @@
           "render": { "type": "string", "description": "Set when no PNG exists: none — <reason>." },
           "source": { "type": ["string", "null"] },
           "sketch": { "type": ["string", "null"], "description": "The brainstorm sketch key the board grew from." },
-          "caption": { "type": "string" }
+          "caption": { "type": "string" },
+          "canvas": { "type": "object", "description": "The published view of this board's file (WF-DESIGN-PLAN A5b); sha256 is the hash of the html (else png) that was published.", "required": ["link", "sha256"], "properties": { "link": { "type": "string" }, "account": { "type": ["string", "null"] }, "published-at": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }, "previous": { "type": "array" } } }
         }
       }
     },

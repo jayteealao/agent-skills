@@ -2,12 +2,15 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  ANSI_SCHEMES,
   DESIGN_DIR,
   MANIFEST,
   METHODS,
   REVISION_WARN_BYTES,
   SHEET,
+  TRACK_PROBES,
   boardFiles,
+  canvasStale,
   capturePath,
   directionSketches,
   emptyManifest,
@@ -18,9 +21,12 @@ import {
   parseBoardKey,
   parseViewport,
   readManifest,
+  renderAnsi,
   renderSheet,
-  revisionDir
-} from "./chunk-T5YC5F32.mjs";
+  revisionDir,
+  sketchAdvice,
+  splitAnchor
+} from "./chunk-JTJFHSOY.mjs";
 import {
   safeParseFrontmatter
 } from "./chunk-5U76735W.mjs";
@@ -29,12 +35,14 @@ import "./chunk-SGA7NFMW.mjs";
 
 // scripts/design-boards.mjs
 import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir, platform, tmpdir } from "node:os";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-var USAGE = `usage: design-boards.mjs <init|render|sheet|freeze|check|capture-name|import> <projectRoot> <slug> [args]
-       design-boards.mjs track <projectRoot> [--write]`;
+var USAGE = `usage: design-boards.mjs <init|render|sheet|freeze|check|capture-name|import|canvas-stale> <projectRoot> <slug> [args]
+       design-boards.mjs track <projectRoot> [--write]
+       design-boards.mjs ansi <input.txt> --scheme <${Object.keys(ANSI_SCHEMES).join("|")}> [--out <file.html>]`;
 var RENDER_TIMEOUT_MS = Number(process.env.SDLC_BROWSER_TIMEOUT_MS) || 3e4;
 var posix = (p) => String(p).split("\\").join("/");
 var nowIso = () => (/* @__PURE__ */ new Date()).toISOString();
@@ -523,20 +531,97 @@ function gitIgnoreSource(root, rel) {
 function track(root, f) {
   const repo = spawnSync("git", ["-C", root, "rev-parse", "--show-toplevel"], { encoding: "utf8", windowsHide: true });
   if (repo.status !== 0) return { ok: false, error: `${posix(root)} is not a git repository` };
-  const probe = gitIgnoreSource(root, ".ai/design/current.md");
-  const frozen = gitIgnoreSource(root, ".ai/workflows/x/design/r1/boards.json");
-  const advice = ignoreAdvice(probe?.pattern ?? null, Boolean(probe || frozen));
-  if (!advice.change) return { ok: true, ignored: Boolean(probe || frozen), ...advice, written: false };
-  const file = probe?.file ? resolve(root, probe.file) : join(root, ".gitignore");
-  if (!f.write) return { ok: true, ignored: true, file: posix(relative(root, file)), line: probe?.line ?? null, ...advice, written: false };
+  const probe = gitIgnoreSource(root, TRACK_PROBES.record);
+  const frozen = gitIgnoreSource(root, TRACK_PROBES.frozen);
+  const sketch = gitIgnoreSource(root, TRACK_PROBES.sketch);
+  const upgrade = !probe && !frozen && sketch;
+  const advice = upgrade ? sketchAdvice(sketch.pattern) : ignoreAdvice(probe?.pattern ?? null, Boolean(probe || frozen));
+  const ignored = Boolean(probe || frozen || sketch);
+  if (!advice.change) return { ok: true, ignored, ...advice, written: false };
+  const source = upgrade ? sketch : probe;
+  const file = source?.file ? resolve(root, source.file) : join(root, ".gitignore");
+  if (!f.write) return { ok: true, ignored: true, file: posix(relative(root, file)), line: source?.line ?? null, ...advice, written: false };
   const text = existsSync(file) ? readFileSync(file, "utf8") : "";
   const lines = text.split(/\r?\n/);
   if (advice.replace && probe?.line) lines[probe.line - 1] = advice.replace;
   const next = `${lines.join("\n").replace(/\n*$/, "\n")}${advice.block}`;
   writeAtomic(file, next);
-  const after = gitIgnoreSource(root, ".ai/design/current.md");
-  const afterFrozen = gitIgnoreSource(root, ".ai/workflows/x/design/r1/boards.json");
-  return { ok: !after && !afterFrozen, ignored: true, file: posix(relative(root, file)), ...advice, written: true, stillIgnored: [after, afterFrozen].filter(Boolean) };
+  const still = Object.values(TRACK_PROBES).map((p) => gitIgnoreSource(root, p)).filter(Boolean);
+  return { ok: !still.length, ignored: true, file: posix(relative(root, file)), ...advice, written: true, stillIgnored: still };
+}
+var sha256Of = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
+function projectPath(root, base, path) {
+  const p = posix(path);
+  return p.startsWith(".ai/") ? p : posix(relative(root, join(base, ...p.split("/"))));
+}
+function canvasEntry(root, kind, key, where, path, canvas) {
+  const { file } = splitAnchor(path);
+  const abs = file ? join(root, ...file.split("/")) : null;
+  const sha256 = abs ? existsSync(abs) && statSync(abs).isFile() ? sha256Of(abs) : null : void 0;
+  return { kind, key, where, path: path || null, canvas: canvas && typeof canvas === "object" ? canvas : null, sha256 };
+}
+function canvasEntries(root, slug) {
+  const wdir = workflowDir(root, slug);
+  const wrel = posix(relative(root, wdir));
+  const entries = [];
+  const board = join(wdir, "brainstorm-board.json");
+  if (existsSync(board)) {
+    let b = null;
+    try {
+      b = JSON.parse(readFileSync(board, "utf8"));
+    } catch {
+    }
+    (b?.sketches ?? []).forEach((s, i) => {
+      if (!s?.key) return;
+      const path = s.path ? projectPath(root, wdir, s.path) : null;
+      entries.push(canvasEntry(root, "sketch", s.key, `${wrel}/brainstorm-board.json sketches[${i}]`, path, s.canvas));
+    });
+  }
+  const packets = [];
+  const workDir = join(wdir, "work");
+  if (existsSync(workDir)) for (const name of readdirSync(workDir).filter((n) => n.endsWith(".md")).sort()) packets.push(join(workDir, name));
+  const origin = readFm(join(wdir, "00-index.md"))?.["origin-packet"];
+  if (typeof origin === "string" && origin.trim()) {
+    const abs = resolve(root, origin.trim());
+    if (existsSync(abs) && !packets.includes(abs)) packets.push(abs);
+  }
+  for (const file of packets) {
+    const fm = readFm(file);
+    if (fm?.type !== "work-packet") continue;
+    const rel = posix(relative(root, file));
+    (fm.sketches ?? []).forEach((s, i) => {
+      if (!s?.key) return;
+      const path = s.path ? projectPath(root, dirname(dirname(file)), s.path) : null;
+      entries.push(canvasEntry(root, "sketch", s.key, `${rel} sketches[${i}]`, path, s.canvas));
+    });
+  }
+  const manifest = manifestPath(root, slug);
+  if (existsSync(manifest)) {
+    const { manifest: m } = readManifest(manifest);
+    (m?.boards ?? []).forEach((b, i) => {
+      const f = b?.html ?? b?.png ?? null;
+      const path = f ? projectPath(root, designDir(root, slug), f) : null;
+      entries.push(canvasEntry(root, "board", b?.key ?? `boards[${i}]`, `${wrel}/${DESIGN_DIR}/${MANIFEST} boards[${i}]`, path, b?.canvas));
+    });
+  }
+  return entries;
+}
+function canvasStaleCmd(root, slug, f) {
+  requireWorkflow(root, slug);
+  const account = typeof f.account === "string" && f.account ? f.account : null;
+  const entries = canvasEntries(root, slug);
+  const stale = canvasStale(entries, { account });
+  const unpublished = entries.filter((e) => !e.canvas && e.sha256).map((e) => ({ kind: e.kind, key: e.key, where: e.where, path: e.path, sha256: e.sha256 }));
+  return { ok: true, slug, account, checked: entries.filter((e) => e.canvas).length, stale, unpublished };
+}
+function ansi(input, f) {
+  if (!existsSync(input)) throw new Error(`ansi: ${posix(input)} does not exist`);
+  const scheme = typeof f.scheme === "string" ? f.scheme : null;
+  if (!scheme || !ANSI_SCHEMES[scheme]) throw new Error(`ansi: --scheme is one of ${Object.keys(ANSI_SCHEMES).join(", ")}`);
+  const out = typeof f.out === "string" && f.out ? resolve(f.out) : join(dirname(input), `${basename(input, extname(input))}.${scheme}.html`);
+  const text = readFileSync(input, "utf8");
+  writeAtomic(out, renderAnsi(text, scheme, { title: `${basename(input)} \xB7 ${ANSI_SCHEMES[scheme].name}` }));
+  return { ok: true, out: posix(out), scheme, theme: ANSI_SCHEMES[scheme].theme, lines: text.split(/\r?\n/).length };
 }
 async function main(argv = process.argv.slice(2)) {
   const [cmd, rootArg, ...rest0] = argv;
@@ -550,6 +635,8 @@ async function main(argv = process.argv.slice(2)) {
   try {
     if (cmd === "track") {
       out = track(root, flags(rest0).f);
+    } else if (cmd === "ansi") {
+      out = ansi(root, flags(rest0).f);
     } else {
       const [slug, ...rest] = rest0;
       if (!slug) {
@@ -579,6 +666,9 @@ async function main(argv = process.argv.slice(2)) {
           break;
         case "import":
           out = importSources(root, slug, pos);
+          break;
+        case "canvas-stale":
+          out = canvasStaleCmd(root, slug, f);
           break;
         default:
           process.stderr.write(`${USAGE}

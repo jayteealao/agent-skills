@@ -4,11 +4,13 @@ Decide where motion earns its place, reject the rest, and build what remains so 
 
 ---
 
-## Register
+## Design mode
 
-Brand: orchestrated entrances, staggered reveals, scroll-driven motion. Motion is part of the brand voice; one rehearsed entrance beats scattered micro-interactions. Longer, cinematic timing is available on brand surfaces.
+Persuade and Experience: motion may carry the voice. Prefer one rehearsed focal sequence to scattered micro-interactions. A focal entrance may take 400–800 ms. A spring may bounce 0.1–0.3.
 
-Product: motion conveys state — feedback, reveal, loading, transitions between views. No page-load choreography; people are in a task and will not wait for it. Functional, not decorative.
+Operate: motion carries feedback, state and continuity. Routine transitions take 150–250 ms. No page-load sequence: people are in a task and do not wait for it.
+
+Read: motion serves wayfinding only. Nothing moves in the reading column.
 
 ---
 
@@ -30,7 +32,7 @@ Product: motion conveys state — feedback, reveal, loading, transitions between
 | Occasional (modals, drawers, toasts, settings) | Standard animation |
 | Rare / first-time (onboarding, success, celebration) | The delight budget lives here |
 
-**Keyboard-initiated actions are a disqualifier, not a judgment call.** They repeat hundreds of times a day, and motion makes them feel slow and disconnected from the key press. (Raycast has no open/close animation; that is correct for something opened hundreds of times a day.) On a genuine brand surface, where motion is the message, this gate relaxes; the performance, accessibility and interruption rules never relax.
+**Keyboard-initiated actions are a disqualifier, not a judgment call.** They repeat hundreds of times a day, and motion makes them feel slow and disconnected from the key press. (Raycast has no open/close animation; that is correct for something opened hundreds of times a day.) On a Persuade or Experience surface where motion is the message, this gate relaxes; the performance, accessibility and interruption rules never relax.
 
 ## Gate 2 — Purpose and function
 
@@ -46,6 +48,16 @@ Name the purpose in one of these words before you continue:
 No named purpose, no motion. "It looks cool" on a frequently seen element is a reason to stop.
 
 **Function check.** Data that a person reads or acts on does not move for style. A decorative pointer-tracking effect belongs on a marketing page, not on a chart in a banking app.
+
+## Motion thesis
+
+Before you build, write four lines:
+1. **Focal moment** — the one sequence that earns authorship, or none.
+2. **Continuity** — the changes that need a bridge.
+3. **Feedback** — the controls and outcomes that need acknowledgment.
+4. **Budget** — each expensive effect, and how often it runs.
+
+Take the focal moment from this product. A generic fade-and-rise is not a thesis.
 
 ## The opportunity sweep
 
@@ -80,6 +92,7 @@ When the job needs a component rather than an animation — a toast, a drawer, a
 ## Properties
 
 - **Cheap properties only**: offset, scale, rotation, opacity. Clip is the sanctioned extra: on most renderers it repaints, but it never re-lays out, and it enables reveals no cheap property can draw. A layout property is tolerated only for an accordion, where no cheap equivalent exists; keep it short.
+- **A paint property may carry a focal moment** on a Persuade or Experience surface: blur, mask, clip or shadow. Bound it to one region. Confirm the frame budget on a real mid-range device. Cheap properties still govern Operate and Read surfaces.
 - **Never scale from 0.** Nothing in the real world appears from nothing. Start from scale 0.9–0.97 with opacity 0.
 - **Scale from the trigger origin** for popovers, menus, dropdowns and tooltips. **Modals are exempt**: they are not anchored to a trigger, so they stay centered.
 - **Offsets relative to the element's own size** (100% of its height, not a fixed number) adapt to content.
@@ -113,10 +126,10 @@ Need another curve? Take it from [easing.dev](https://easing.dev/) or [easings.c
 | Tooltips, small popovers | 125–200 ms |
 | Dropdowns, selects | 150–250 ms |
 | Modals, drawers | 200–500 ms |
-| Brand entrance (hero, scroll reveal) | 400–800 ms |
+| Focal entrance on a Persuade or Experience surface (hero, scroll reveal) | 400–800 ms |
 | Marketing / explanatory | Can be longer |
 
-**Product UI motion stays under 300 ms.** A 180 ms dropdown feels more responsive than a 400 ms one. A faster spinner makes a load feel faster at the same real time.
+**Motion on an Operate or Read surface stays under 300 ms.** A 180 ms dropdown feels more responsive than a 400 ms one. A faster spinner makes a load feel faster at the same real time.
 
 **Asymmetric timing.** Slow the phase where the person decides; snap the phase where the system responds. A hold-to-delete fills over 2 s linear; its release returns in 200 ms ease-out. Symmetric timing on a press-and-release or a hold feels wrong.
 
@@ -126,8 +139,8 @@ Springs simulate physics. They settle on their parameters, have no fixed duratio
 
 Express a spring as a **duration and a bounce** (`duration 0.5 s, bounce 0.2`); the map converts it, for example to a damping ratio of 1 − bounce.
 
-- **Product UI: bounce 0.** This is the spring form of the no-bounce, no-elastic ban in [_design-context.md](_design-context.md).
-- **Brand surfaces: bounce 0.1–0.3**, when the brand direction calls for play, including brand drag-to-dismiss. Never in dashboards or data UI.
+- **Operate and Read surfaces: bounce 0.** This is the spring form of the bounce and elastic refusal in [_craft-floor.md](_craft-floor.md).
+- **Persuade and Experience surfaces: bounce 0.1–0.3**, when the direction calls for play, including drag-to-dismiss. Never in dashboards or data UI.
 
 **Decorative pointer tracking.** Do not bind a transform directly to the pointer position; it has no momentum and feels artificial. Interpolate it through a spring so it lags and settles. Reserve this for decorative motion; on a functional control or a chart, no motion beats decorative motion.
 
@@ -138,10 +151,12 @@ Express a spring as a **duration and a bounce** (`duration 0.5 s, bounce 0.2`); 
 - **Exit on the entry path.** A toast that enters from the bottom leaves through the bottom. Symmetric paths make swipe-to-dismiss obvious.
 - **An exit is softer and faster than its enter.** Attention has moved on: travel less (a small fixed offset on the same path, not the full height) and take about half the time (≈150 ms against ≈300 ms), with ease-out. Do not drop the exit entirely; an element that just vanishes loses its spatial context.
 - **Skip the enter on first paint.** Elements already in their default state at launch do not animate in; only later state changes do. The exception is a deliberate first-run entrance that relies on it.
+- **Keep content visible in its default state.** An entrance starts from a state the person can already read. Content never waits on a script or an animation.
 
 ## Choreography
 
 - **Stagger a group entrance 30–80 ms per item.** Longer feels slow. A stagger is decorative: never block interaction while it plays.
+- **Never give every section the same entrance.** A fade-and-rise on each scrolled section is a template. Keep one authored moment.
 - **Split a large entrance into semantic chunks** (title, description, actions) rather than moving one big container; combine opacity, a small offset (≈12 px) and, where cheap, a light blur (≈4 px) per chunk.
 - **Contextual icon swaps** (play → pause, like → liked): opacity 0 → 1, scale 0.25 → 1, blur 4 px → 0, spring `duration 0.3 s, bounce 0`. Animate only contextual icons; leave navigation and decorative icons alone. When no library is present, keep both icons mounted and cross-fade them with a retargetable animation on the curve `0.2, 0, 0, 1`.
 - **Mask a crossfade that will not settle** with a brief 2 px blur during the transition; it blends two states into one perceived change. Keep animated blur under 20 px.
@@ -154,6 +169,7 @@ Both ship with the motion, every time.
 - **Reduced motion means fewer and gentler, not zero.** When the reduced-motion setting is on, keep opacity and color transitions that aid comprehension; remove movement, scale, parallax and position changes. Never set every duration to 0 globally.
 - **Hover motion only for a hover pointer.** Touch fires a false hover on tap. Gate every hover animation behind the platform's hover-pointer check.
 - **No content flashes more than 3 times a second.**
+- **Stop a non-essential loop when it is off screen or hidden.** Respect the autoplay and sound settings.
 
 ## Gestures
 
@@ -202,7 +218,7 @@ Swap down a tier: a size change becomes scale; a position change becomes an offs
 | ease-in on UI | ease-out or a strong curve token |
 | A built-in curve on a deliberate animation | The `ease-out` token |
 | Motion on a keyboard shortcut or a 100+/day action | No motion |
-| Product UI motion over 300 ms with no reason | 150–250 ms |
+| Operate or Read motion over 300 ms with no reason | 150–250 ms |
 | Center origin on a trigger-anchored popover | The trigger origin (modals exempt) |
 | A restarting animation on a toast, toggle or other fast-fired element | A retargetable animation |
 | Animating a layout property | A cheap property |
@@ -210,11 +226,12 @@ Swap down a tier: a size change becomes scale; a position change becomes an offs
 | Hover motion with no hover-pointer gate | The platform's hover-pointer check |
 | No reduced-motion form | Gentler, not zero |
 | A group that enters all at once | A 30–80 ms stagger |
-| Bounce or elastic easing in product UI | Bounce 0 |
+| The same entrance on every section | One authored moment |
+| Bounce or elastic easing on an Operate or Read surface | Bounce 0 |
 
 ## Cohesion
 
-Motion matches the personality of the thing it animates and of the rest of the product. A playful brand component can be bouncier; a professional dashboard stays crisp and fast. Sonner feels right partly because its easing, duration, visual design and name agree: slightly slower than typical UI, `ease` rather than ease-out, to read as elegant. Opacity and height in an entering list have no formula; adjust until it feels right. When you cannot tell whether a motion improves the experience, delete it.
+Motion matches the personality of the thing it animates and of the rest of the product. A playful component on a Persuade surface can be bouncier; a professional dashboard stays crisp and fast. Sonner feels right partly because its easing, duration, visual design and name agree: slightly slower than typical UI, `ease` rather than ease-out, to read as elegant. Opacity and height in an entering list have no formula; adjust until it feels right. When you cannot tell whether a motion improves the experience, delete it.
 
 ## Feel check
 
@@ -228,11 +245,13 @@ Motion bugs hide at full speed. Before you call an animation done:
 
 This file is a move, not a stage.
 - **Design not confirmed:** `/wf design <slug> animate` focuses the design stage and its contract `02c-craft.md` on motion.
-- **Design confirmed:** `/wf design <slug> animate` runs the gates and the opportunity sweep against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) Step 0).
+- **Design confirmed:** `/wf design <slug> animate` runs the gates and the opportunity sweep against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
 - `plan` cites this file as a step pointer; `implement` applies it.
-- Every run writes `design-notes/animate-<timestamp>.md` per [_output.md](_output.md) with: the gate result for each animation (frequency tier and named purpose), the ingredients (tool, properties, curve token, duration or spring), the rejected candidates and the gate that rejected each, and the feel checks that code alone cannot settle.
-- The absolute bans in [_design-context.md](_design-context.md) apply.
+- Every run writes `design-notes/animate-<timestamp>.md` per [_output.md](_output.md) with: the motion thesis, the gate result for each animation (frequency tier and named purpose), the ingredients (tool, properties, curve token, duration or spring), the rejected candidates and the gate that rejected each, and the feel checks that code alone cannot settle.
+- Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
 
 ---
+
+> *Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.*
 
 > *The gates, the opportunity sweep, the tool ladder, the curve tokens and durations, springs, interruption, gesture physics, the performance diagnosis, the never-ship table, cohesion and the feel check are adapted from Emil Kowalski's skills `animate`, `find-animation-opportunities`, `animation-performance`, `review-animations` and `apple-design` ([github.com/emilkowalski/skills](https://github.com/emilkowalski/skills), commit `2d22863`, 2026-10-11). The icon micro-animation values, split-and-stagger entrances and skip-on-first-paint guidance are adapted from Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)). Both used under MIT license.*

@@ -2,8 +2,8 @@
 
 The design stage's own gates: context gathering, the image gate, the preflight gates, and the
 mutation types. Only the design stage (`design/stage.md`, `design.md` stage mode) loads this
-file. The register, laws, and bans that every design consumer shares stay in
-[_design-context.md](_design-context.md).
+file. The design modes and laws that every design consumer shares stay in
+[_design-context.md](_design-context.md). The refusals stay in [_craft-floor.md](_craft-floor.md).
 
 > Load with: `design/_preflight.md`
 
@@ -11,8 +11,8 @@ file. The register, laws, and bans that every design consumer shares stay in
 
 Two files, case-insensitive. Search project root first, then `.agents/context/`, then `docs/`.
 
-- **PRODUCT.md** — required. Users, brand, tone, anti-references, strategic principles, register.
-- **DESIGN.md** — optional, strongly recommended. Colors, typography, elevation, components, tokens.
+- **PRODUCT.md** — required. Users, purpose, positioning, operating context, capabilities and constraints, brand commitments, evidence on hand, strategic principles.
+- **DESIGN.md** — optional, strongly recommended. Overview, colors and token roles, typography, layout, elevation, shapes, components, do's and don'ts.
 
 The design record adds two more files, `.ai/design/current.md` and `.ai/design/direction.md`
 (`design/record.md`). The design stage, `review`, and `retro` read them.
@@ -49,7 +49,7 @@ Skipping these produces generic output that ignores the project.
 | Gate | Required check | If fail |
 |---|---|---|
 | Context | PRODUCT.md exists and is valid (≥200 chars, no `[TODO]` markers) | If the command is `setup` or `teach` → proceed (these create/update PRODUCT.md). Otherwise STOP: *"Design context is missing. Run `/wf design setup` to create PRODUCT.md first."* |
-| Register | `brand` or `product` is determined for this task | Read PRODUCT.md `## Register`; infer from task cue if missing. Suggest `/wf design teach` to add it explicitly. |
+| Design mode | A design mode (`persuade`, `operate`, `read`, `experience`) is chosen for each changed surface | Choose it per [_design-context.md](_design-context.md) → Design modes. Ask the person when the task cue and the surface leave it open. |
 | Codebase | Codebase inspection sub-agents have run | Run the 4 parallel inspection sub-agents (below). Skip if their output is already in this session, or reuse the `stack` fingerprint from `00-index.md` where possible. |
 | Brief | Design brief `02b-design.md` authored (at `shape`, following `design/shape.md`) and its direction backed by a recorded user source at contract time (an in-session confirmation, a user-confirmed PRODUCT.md, or a prior `teach` answer) | The brief is authored by the `shape` lifecycle stage; the design stage confirms its direction (`shape=pass`) with the person before writing the contract (`design/contract.md`). When the brief is missing, the design stage writes it first. |
 | Image gate | Surfaces drawn or probes generated, or skipped with a recorded reason | Resolve at the design stage before any stage plans or builds. |
@@ -65,7 +65,7 @@ fingerprint from `00-index.md` for framework/library facts where it already answ
 
 1. **Token scanner.** Find design tokens: CSS custom properties (`--color-*`, `--spacing-*`, `--font-*`, `--radius-*`), Tailwind config `theme.extend`, `tokens.json`, Style Dictionary source files. Return the extracted token table.
 2. **Framework + component detector.** Identify the UI framework (React/Vue/Svelte/Angular from package.json), component library (shadcn/ui, Radix, Headless UI, MUI, Mantine, Ant Design, Chakra), CSS approach (Tailwind, CSS modules, styled-components, plain CSS), Tailwind version, sample component path.
-3. **Context loader.** Read PRODUCT.md and DESIGN.md (project root → `.agents/context/` → `docs/`). Extract register, brand-personality, users, aesthetic-direction, design-principles.
+3. **Context loader.** Read PRODUCT.md and DESIGN.md (project root → `.agents/context/` → `docs/`). Extract users, purpose, positioning, brand commitments, evidence on hand, and design principles. Report an old `## Register` once, as a hint only.
 4. **Surface ranger.** Find files relevant to the current task: active page/component files, related CSS, primary component. In workflow context, read `02-shape.md` for `files-in-scope`.
 
 ## Mutation types

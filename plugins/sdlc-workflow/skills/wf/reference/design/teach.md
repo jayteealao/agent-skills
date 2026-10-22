@@ -4,7 +4,7 @@ Help the user write or improve the design record — PRODUCT.md, DESIGN.md, `.ai
 
 Run `teach` when:
 - PRODUCT.md exists but is incomplete or stale
-- The user wants to add design principles or anti-references to an existing document
+- The user wants to add principles, brand commitments, or evidence on hand to an existing document
 - DESIGN.md needs to be created from an existing product's actual visual system
 - The brand or product direction has changed and context needs updating
 - The design goals or the future direction in `.ai/design/direction.md` are missing or out of date
@@ -31,14 +31,14 @@ Before you ask any question, pre-fill the answers:
 
 Example questions:
 
-For missing register:
-> "Is this primarily a **brand** surface (landing page, marketing) or a **product** surface (app, dashboard, tool)?"
+For missing positioning:
+> "What does the product make possible that a neighboring product could not truthfully claim?"
 
-For missing anti-references:
-> "Which 1–2 things should this NOT look like? Specific products, brands, or aesthetic movements."
+For missing evidence on hand:
+> "What real content, data, testimonials, or case studies exist? Which do not exist yet?"
 
-For missing brand voice words:
-> "Describe the brand in 3 concrete words — not 'modern' or 'clean', but physical-object words like 'industrial', 'clinical', 'handmade'."
+For missing brand commitments:
+> "Which existing name, voice, or assets must future work keep?"
 
 For missing user description:
 > "Who are the primary users? What's their role, their context when they use this, and their expertise level?"
@@ -49,58 +49,13 @@ For missing goals or direction:
 For stale content:
 > "Has anything changed about the product's direction, audience, or design principles since this was written?"
 
+Do not ask for an aesthetic direction, brand words, tone or references. `shape` asks them per surface ([shape.md](shape.md)).
+
 ## Step 3: Update the files
 
 Update or create PRODUCT.md, DESIGN.md, and the `.ai/design/` files based on answers. Preserve all existing content; only add to or replace sections that were discussed. The `.ai/design/` templates are in [record.md](record.md).
 
-**PRODUCT.md sections**:
-```markdown
-# Product
-
-## Register
-brand | product
-
-## Users
-[Specific user description — role, context, expertise, frequency]
-
-## Brand Personality
-[3–5 concrete brand-voice words with meaning]
-
-## Tone
-[Emotional tone the design should communicate. What it should NOT feel like.]
-
-## Positive References
-- [Name] — [why/what to take from it]
-
-## Anti-references
-- [Name] — [why to avoid this direction]
-
-## Strategic Principles
-[2–4 sentences on design priorities specific to this project]
-```
-
-**DESIGN.md sections**:
-```markdown
-# Design
-
-## Colors
-[Palette — hex or oklch values, named with purpose: primary, surface, accent, border, text]
-
-## Typography
-[Font families and scale — type sizes, weights, line heights if documented]
-
-## Components
-[Component library if any — shadcn, Radix, MUI, Tailwind UI, custom]
-
-## Design Tokens
-[Token file location and naming convention]
-
-## Elevation and Shadows
-[Shadow levels or elevation system if used]
-
-## Notes
-[Dark mode support, icon library, illustration style, anything else]
-```
+**Templates.** PRODUCT.md and DESIGN.md use the templates in [setup.md](setup.md) Step 2 and Step 3. Do not write a `## Register` section. Keep legacy sections (Register, Brand Personality, Tone, references) until the person agrees to remove them. Report an old `## Register` once as deprecated, per [_design-context.md](_design-context.md) → Design modes. Apply [record.md](record.md) → Floor guard to every write.
 
 ## Step 4: Confirm
 

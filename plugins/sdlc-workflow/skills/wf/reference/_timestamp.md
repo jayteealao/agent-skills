@@ -21,6 +21,7 @@ Variant formats derive the same way from one real clock read:
 | Date only `<yyyy-mm-dd>` | `date -u +"%Y-%m-%d"` | `(Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")` |
 | Epoch seconds (staleness math) | `date -u +%s` | `[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()` |
 
-One clock read per run is enough — reuse it for every field stamped in the
-same pass. If no shell call is possible, say so in the chat return and write
+One clock read per pass is enough — reuse it for every field stamped in the
+same pass. Read the clock again for each question batch. A decision gets the
+time of its batch. If no shell call is possible, say so in the chat return and write
 `<unknown>` rather than inventing a plausible-looking value.

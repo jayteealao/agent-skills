@@ -32,7 +32,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `02c-craft.md` | artifact | if-present | |
 | `design/boards.json` | artifact | if-present | |
 | `design/_lane.md` | procedure | always | UX impact; The human rule |
-| `design/_design-context.md` | procedure | mode:design | Register; Shared design laws; Absolute bans |
+| `design/_design-context.md` | procedure | mode:design | Design modes; Shared design laws |
 | `runtime-adapters/_ladder.md` | procedure | mode:user-observable | |
 | `augment/instrument.md` | procedure | mode:instrument | |
 | `augment/experiment.md` | procedure | mode:experiment | |
@@ -62,8 +62,8 @@ You are a workflow orchestrator, not a problem solver. Do not write code, edit f
      - If `stack.user-confirmed: true`, proceed. Sub-agent 3 and the interactive verification template consume this block as their source of truth.
    - If `current-stage` is already past plan, note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
    - **Review-scope fallback (skip-to-plan path only).** If `00-index.md` shows `review-scope-confirmed: false` (absent means the question was asked at intake), the workflow bypassed `slice`, where the question normally lands. Ask it here with one gate question per [_gate-question.md](_gate-question.md); for a single-scope workflow recommend `Slug-wide` ("one 07-review.md against the cumulative diff") over `Per slice`. Record the answer in `po-answers.md` (`stage: plan`); set `review-scope:` and `review-scope-confirmed: true` in `00-index.md`. The question is asked once per workflow.
-4. **Use the design context when design is needed.** Use `design/_design-context.md` for the register, design laws, absolute bans, and motion summary. When the feature touches motion, interface detail, or typography, also read `animate.md` / `polish.md` / `typeset.md`. Its preflight, image, and mutation sections govern `/wf design`. Then:
-   - `02b-design.md` — register, recommended references, anti-goals.
+4. **Use the design context when design is needed.** Use `design/_design-context.md` for its design modes, laws, and motion summary. When the feature touches motion, interface detail, or typography, also read `animate.md` / `polish.md` / `typeset.md`. Its preflight, image, and mutation sections govern `/wf design`. Then:
+   - `02b-design.md` — design mode per surface, recommended references, anti-goals.
    - `02c-craft.md` — the visual contract. Every `## Mock fidelity inventory` item becomes a concrete plan step. When `boards:` is set, read the board PNG files of each surface. Each step that builds a surface cites its board key (`design/r<N>/boards/<key>.png`, `design/_boards.md`). The `## Implementation contract` (token choices, component decisions, motion specs) binds the plan. If the plan must contradict the contract, surface the conflict before implementation.
    - **Design references — union of both files.** Build the reference set from `recommended-references:` in `02b-design.md` and `references-loaded:` in `02c-craft.md`. Strip a trailing `.md` before de-duplicating. Every UI plan step cites its reference as a pointer ("follow `design/typeset.md` for type scale"); each resolves to `design/<name>.md`.
 5. **Design gate.** Apply the human rule in [design/_lane.md](design/_lane.md): when design is needed and not settled, STOP with `status: awaiting-input` and route to `/wf design <slug>`. Plan never authors `02c-craft.md`. Write `## Design Components` per the lane's `plan` duty.

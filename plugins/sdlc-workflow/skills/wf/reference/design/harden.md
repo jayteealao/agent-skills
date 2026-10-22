@@ -1,82 +1,106 @@
-Improve the accessibility and robustness of a UI — ensuring it works for users with visual, motor, or cognitive differences, and that it handles edge cases and error states gracefully.
+Harden a UI against real people, real data and real failures. Make it work for people with visual, motor or cognitive differences. Make it handle the inputs, errors, languages and network conditions that real use produces.
 
 ## What to check and fix
 
 ### 1. Keyboard navigation
 
-- Every interactive element reachable by Tab
-- No keyboard traps (modal, dropdown, custom widget must return focus when closed)
-- Logical Tab order matching visual order
-- Skip-to-main-content link for pages with navigation
-- Custom interactive elements (accordion, tabs, combobox) must implement ARIA keyboard patterns
+- Every interactive element is reachable by Tab.
+- No keyboard trap: a dialog, a dropdown or a custom widget returns focus when it closes.
+- The Tab order matches the visual order.
+- A page with navigation has a skip-to-main-content link.
+- A custom interactive element (accordion, tabs, combobox) follows the standard keyboard pattern for its role.
 
 ### 2. Focus indicators
 
-- Visible focus ring on all interactive elements
-- Focus ring must meet 3:1 contrast ratio against adjacent background
-- Never `outline: none` without a custom focus indicator replacement
-- Focus indicators must be visible in both light and dark mode
+- Every interactive element shows a visible focus ring.
+- The focus ring has 3:1 contrast against the adjacent background.
+- Never remove the focus ring without a custom replacement.
+- The focus ring is visible in the light and the dark theme.
 
 ### 3. Color and contrast
 
-- Body text: 4.5:1 contrast ratio minimum (WCAG AA)
-- Large text (≥18pt regular or ≥14pt bold): 3:1 minimum
-- UI components and state indicators: 3:1 minimum
-- Color must not be the only signal — pair color with shape, icon, or text
-- Test with simulated protanopia and deuteranopia
+- Body text: 4.5:1 contrast at minimum (WCAG AA).
+- Large text (18 pt regular or 14 pt bold and larger): 3:1 at minimum.
+- Controls and state indicators: 3:1 at minimum.
+- Color is never the only signal. Pair it with a shape, an icon or text.
+- Test with simulated protanopia and deuteranopia.
+- Test with the system high-contrast setting on ([_platforms.md](_platforms.md)). Every control, focus ring and state stays visible.
 
-### 4. Semantic HTML
+### 4. Semantics and assistive technology
 
-- Heading hierarchy is sequential (h1 → h2 → h3, no skips)
-- Landmark regions: `<main>`, `<nav>`, `<header>`, `<footer>`, `<aside>` used correctly
-- Interactive elements: use `<button>` for actions, `<a>` for navigation — not divs
-- Form elements: every input has an associated `<label>` (or `aria-label` / `aria-labelledby`)
-- Lists: use `<ul>` / `<ol>` for actual lists, not for layout
+- Heading levels run in order, with no skipped level.
+- Mark the page regions (main, navigation, header, footer, complementary) as landmarks.
+- Use the platform's native control for each role: a button for an action, a link for navigation. Never a plain container with a click handler.
+- Give every input a label that assistive technology reads.
+- Mark a real list as a list. Never use list semantics for layout.
+- The platform forms are in the accessibility semantics row of [_platforms.md](_platforms.md).
 
-### 5. ARIA
+### 5. States and announcements
 
-- Use native HTML semantics before ARIA (`<button>` over `role="button"`)
-- Dynamic content: `aria-live` regions for content that updates without page reload
-- Modal dialogs: `role="dialog"`, `aria-modal="true"`, `aria-labelledby` pointing to title
-- Tabs: `role="tablist"`, `role="tab"`, `role="tabpanel"` with `aria-controls` and `aria-selected`
-- Required fields: `aria-required="true"` (not just a visual asterisk)
-- Error messages: `aria-describedby` linking error message to input
+- Prefer native semantics to an added role.
+- Announce content that updates without a navigation.
+- A dialog carries the dialog role, holds focus while it is open, and takes its name from its title.
+- Tabs expose the tab list, each tab, its panel and the selected tab.
+- Mark a required field for assistive technology, not only with a visual asterisk.
+- Link each error message to its field.
 
 ### 6. Images and icons
 
-- Decorative images: `alt=""` (not missing alt, explicitly empty)
-- Informative images: descriptive alt text — what the image communicates, not what it depicts
-- Icon buttons: `aria-label` describing the action
-- SVG icons: `aria-hidden="true"` when decorative, or `<title>` element for informative icons
+- A decorative image has an empty text alternative, not a missing one.
+- An informative image has a text alternative that says what the image communicates, not what it shows.
+- An icon-only button has an accessible name that names its action.
+- Hide a decorative icon from assistive technology. Give an informative icon a title.
+
+Web:
+```html
+<main> <nav> <header> <footer> <aside>      <!-- landmarks -->
+<button> for an action, <a> for navigation  <!-- never role="button" on a div -->
+<label for="…"> or aria-label / aria-labelledby
+aria-live="polite" | role="alert"           <!-- announced updates and errors -->
+role="dialog" aria-modal="true" aria-labelledby="…"
+role="tablist" / "tab" / "tabpanel" with aria-controls and aria-selected
+aria-required="true"; aria-describedby="<error id>"
+alt="" (decorative); aria-hidden="true" on a decorative icon; <title> in an informative icon
+```
 
 ### 7. Touch targets
 
-- Minimum 44×44 px (CSS pixels) for all interactive elements
-- Minimum 8px spacing between adjacent touch targets
-- A pointer-only desktop control may be 32×32 px
-- When the *visible* control is smaller than the target (a 20px checkbox, a small icon button), extend the hit area with a centered pseudo-element rather than padding the layout — and never let two interactive elements' hit areas overlap (shrink the pseudo-element to the largest size that doesn't collide)
+- Minimum 44×44 px (CSS pixels) for all interactive elements.
+- Minimum 8 px between adjacent touch targets.
+- A control that only a desktop pointer uses may be 32×32 px.
+- When the visible control is smaller than the target (a 20 px checkbox, a small icon button), extend the hit area with a centered invisible layer, not with layout padding. Never let the hit areas of two interactive elements overlap. Shrink the layer to the largest size that does not collide.
 
 ### 8. Text and readability
 
-- Minimum 16px base font size for body text
-- Line height ≥ 1.5 for body text, ≥ 1.2 for headings
-- Maximum line length 75ch for body text
-- Text must reflow at 400% zoom without horizontal scroll (WCAG 1.4.10)
-- Don't use justified text alignment for body copy (uneven word spacing creates rivers)
+- Body text is 16 px or larger.
+- Line height is 1.5 or more for body text and 1.2 or more for headings.
+- Body text lines are 75 characters at most.
+- Text reflows at 400% zoom without horizontal scroll (WCAG 1.4.10).
+- Do not justify body copy. Uneven word spacing makes rivers.
+- On a phone, a text field below 16 px can zoom the page on focus. See [adapt.md](adapt.md).
 
 ### 9. Motion and animation
 
-- Every animation honors the reduced-motion setting ([_platforms.md](_platforms.md)) — reduced means *gentler*, not *zero*: keep opacity/color transitions that aid comprehension, drop movement and position/parallax animation
-- No content that flashes more than 3 times per second (seizure risk)
-- Parallax effects must be disabled under reduced motion
-- Hover-triggered motion runs only for a hover pointer (the platform's hover-pointer check in [_platforms.md](_platforms.md)) — touch fires a hover on tap, so ungated hover animation triggers a false positive on every touch
+- Every animation honors the reduced-motion setting ([_platforms.md](_platforms.md)). Reduced means gentler, not zero: keep the opacity and color transitions that help understanding; drop movement, position and parallax animation.
+- No content flashes more than 3 times per second (seizure risk).
+- Parallax is off under reduced motion.
+- Hover-triggered motion runs only for a hover pointer ([_platforms.md](_platforms.md)). Touch fires a hover on tap, so hover animation without that check plays on every touch.
 
-### 10. Error states
+### 10. Error states and failures
 
-- Error messages are specific about what went wrong
-- Error messages are associated with their field via `aria-describedby`
-- Required fields are indicated before submission (not just after failure)
-- Errors are announced to screen readers via `aria-live="polite"` or `role="alert"`
+- An error message says what went wrong, specifically.
+- Each error message is linked to its field and announced to assistive technology.
+- Required fields are marked before the submit, not only after a failure.
+- Map each server failure to a state:
+  - invalid input: field errors;
+  - not signed in: a sign-in path that keeps the input;
+  - no permission: say what is missing and who grants it;
+  - not found: a way back;
+  - rate limited: say when to try again;
+  - server fault: a plain message, a retry and a support path;
+  - offline, slow or timed out: the state and a retry.
+- Keep the person's input after every error.
+- When one component fails, the rest of the surface still works.
 
 ### 11. Worst-case content
 
@@ -103,13 +127,45 @@ Load each surface with the worst data a real person or system can produce, and r
 
 **Images and media** — an image URL that fails; no image at all (the fallback); a 4000×200 panorama and a 200×4000 tall image (distortion, blown-out height); a transparent or dark logo on a dark theme; a slow image (layout shift without fixed dimensions).
 
-**States** — loading (skeletons that do not match the final layout); an error from the API (no error state, or a raw error message); partial data in one list; every status value at once; no permission; the current person in the list ("You").
+**States** — loading (skeletons that do not match the final layout); an error from the API (no error state, or a raw error message); partial data in one list; every status value at once; no permission; the current person in the list ("You"); offline; a slow network; a request that times out.
 
 **Environment** — the narrowest supported width (320 px on the web, the smallest phone, a split-screen window); a narrow side column; a very wide window; the largest system text size or 200% zoom; dark theme; a right-to-left language; touch (hover-only actions are unreachable).
 
 **Report.** One table, one row per break: the surface and field, the worst value, what broke (`file:line` when code exists), and the fix. Then list the decisions that belong to the person (for example, truncate or wrap a name), and what held up.
 
 **In the design stage.** A worst-case board `<surface>--worst` draws the surface with these values. The stage draws one for every surface the person asks for, and otherwise for every new surface that shows data ([stage.md](stage.md) Step 4).
+
+### 12. Language and locale
+
+- Lay out by start and end edges, not by left and right ([_platforms.md](_platforms.md)). A right-to-left language then mirrors the layout.
+- Mirror the icons that show direction (back, forward, a progress arrow) in a right-to-left language. Do not mirror a logo, a clock or a media control.
+- Format dates, numbers, currency and plurals with the platform locale formatter ([_platforms.md](_platforms.md)).
+- Never build a plural from a count test such as "one, else add s". Many languages have more plural forms.
+- Leave 30–40% spare space for translation.
+- Never fix the width of a text container.
+- Test with CJK text, emoji and a right-to-left script.
+
+### 13. Concurrent operations
+
+- Send one request per action. While the request runs, disable or ignore a repeat of the action.
+- An optimistic update shows the result at once. When the request fails, restore the previous state and say what failed.
+- When responses arrive out of order, show only the result of the latest request.
+- When two people edit one item, show the conflict. Never let the later save overwrite the earlier one in silence.
+- Test: press submit 10 times fast. Expect one request.
+
+### 14. Interrupted gestures
+
+A custom slider, drag surface or scrolling control strip survives an interrupted gesture ([_platforms.md](_platforms.md)).
+- A gesture ends when the system cancels it, when pointer capture is lost, when the pointer is released outside the control, or when the window loses focus. On each end, clear the drag state and release capture.
+- A second finger or pointer never takes over a drag. The first drag keeps its pointer or ends cleanly.
+- After each interruption, the next tap or drag works without a reload.
+- Test: add a second finger mid-drag, scroll across the control, release outside it, switch windows mid-drag. Then drag again.
+- Name the evidence source: emulation, synthetic touch or a real device. Name what stayed untested.
+
+### 15. Resource cleanup
+
+- When a view closes, stop its timers, cancel its subscriptions and pending requests, and remove its listeners.
+- A late response never updates a closed view.
 
 ## Output Format
 
@@ -128,21 +184,32 @@ Load each surface with the worst data a real person or system can produce, and r
 ### Worst-case content
 [One row per break: surface and field, worst value, what broke, fix]
 
+### Failures and concurrency
+[One row per break: surface, case, what broke, fix]
+
 ### Changes made
 [Summary of changes applied]
 ```
 
 ## Never
 
-Apply the ban list in [_design-context.md](_design-context.md).
-
-- `outline: none` without replacement
-- Color as the only indicator for any state
-- Custom interactive elements without ARIA keyboard patterns
-- Images with no alt attribute (must be `alt=""` for decorative, descriptive text for informative)
+- Removing the focus ring without a replacement.
+- Color as the only indicator of a state.
+- A custom interactive element without the standard keyboard pattern of its role.
+- An image with no text alternative. A decorative image gets an empty one; an informative image gets a description.
+- A failure that loses the person's input.
 
 ## In the workflow
 
-This file is a move, not a stage. Before the design is confirmed, `/wf design <slug> harden` focuses the visual contract `02c-craft.md` on it. After the design is confirmed, the same command runs the checks above, including the worst-case pass, against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) Step 0). `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.
+This file is a move, not a stage.
+- **Design not confirmed:** `/wf design <slug> harden` focuses the design stage and its contract `02c-craft.md` on accessibility and robustness.
+- **Design confirmed:** `/wf design <slug> harden` runs the checks above, including the worst-case pass, against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- `plan` cites this file as a step pointer; `implement` applies it.
+- Every run writes `design-notes/harden-<timestamp>.md` per [_output.md](_output.md) with the report above.
+- Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
+
+---
+
+> *Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.*
 
 > *The worst-case catalog is adapted from Emil Kowalski's `break-ui` skill ([github.com/emilkowalski/skills](https://github.com/emilkowalski/skills), commit `2d22863`, 2026-10-11). MIT license.*

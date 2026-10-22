@@ -103,7 +103,7 @@ test('new packets: orient seeds the serial chain; the scout drops an edge with e
     assert.equal(c.ok, true, JSON.stringify(c));
     assert.deepEqual(c.confirmed, ['rows', 'limit', 'theme']);
     assert.deepEqual(c.waves, [['rows', 'theme'], ['limit']]);
-    assert.deepEqual(c.next, { action: 'setup', question: 'forecast' });
+    assert.deepEqual(c.next, { action: 'setup', question: 'forecast', command: 'Type `/wf campaign limits`.' });
     const l = readLedger(root);
     assert.equal(l.deps.state, 'confirmed');
     assert.deepEqual(l.waves[0]['expected-shared'], [{ a: 'rows', b: 'theme', path: 'src/billing/rows.ts' }]);

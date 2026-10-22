@@ -214,6 +214,23 @@ export function checkWorkSet(board, { isIgnored = null } = {}) {
     }
   }
 
+  // Sketches at done (WF-DESIGN-PLAN A7): no sketch is left an idea, every carried
+  // sketch lands in a piece, and a piece names only sketches on the board.
+  const sketchKeys = new Set((board.sketches ?? []).map((s) => s?.key).filter(Boolean));
+  const placed = new Set(pieces.flatMap((p) => p.sketches ?? []));
+  for (const sketch of board.sketches ?? []) {
+    if (sketch?.state === 'idea') {
+      errors.push(`sketch ${sketch.key} ("${sketch.caption ?? ''}") is still an idea: carry it into a piece, drop it, or keep it as a reference.`);
+    } else if (sketch?.state === 'carried' && !placed.has(sketch.key)) {
+      errors.push(`carried sketch ${sketch.key} ("${sketch.caption ?? ''}") is in no piece of work: name it in the sketches of the piece it serves, or drop it.`);
+    }
+  }
+  for (const piece of pieces) {
+    for (const key of piece.sketches ?? []) {
+      if (!sketchKeys.has(key)) errors.push(`piece ${piece.key} names sketch ${key}, which is not on the board.`);
+    }
+  }
+
   // Write-now pieces (K5-K8).
   for (const piece of pieces.filter(isWriteNowPiece)) {
     if (piece.state === 'written' && !(piece['written-files'] ?? []).length) {
@@ -293,13 +310,25 @@ function startCommand(slug, piece) {
  * The carried sketches of a piece (DESIGN-BOARDS-PLAN W5b): each key with its
  * file under the board's `design/sketches/`, its canvas link, and its caption.
  * A board path that does not start with `.ai/` is relative to the board folder.
+ * One file may hold several sketches: the `#<artboard>` anchor stays in `path`
+ * (WF-DESIGN-PLAN A6). The canvas record travels with the sketch (A5b), and its
+ * link wins over the older `link`.
  */
 export function packetSketches(board, piece) {
   const sketches = byKey(board.sketches);
   return (piece.sketches ?? []).map((key) => {
     const s = sketches.get(key) ?? {};
-    const path = s.path ? (String(s.path).startsWith('.ai/') ? s.path : `.ai/workflows/${board.slug}/${s.path}`) : null;
-    return { key, path, link: s.link ?? null, ...(s.caption ? { caption: s.caption } : {}) };
+    const raw = s.path ? String(s.path).split('\\').join('/') : '';
+    const at = raw.indexOf('#');
+    const file = at < 0 ? raw : raw.slice(0, at);
+    const anchor = at < 0 ? '' : raw.slice(at);
+    const path = file ? `${file.startsWith('.ai/') ? file : `.ai/workflows/${board.slug}/${file.replace(/^\.\//, '')}`}${anchor}` : null;
+    const canvas = s.canvas && typeof s.canvas === 'object' ? s.canvas : null;
+    return {
+      key, path, link: canvas?.link ?? s.link ?? null,
+      ...(s.caption ? { caption: s.caption } : {}),
+      ...(canvas ? { canvas } : {}),
+    };
   });
 }
 

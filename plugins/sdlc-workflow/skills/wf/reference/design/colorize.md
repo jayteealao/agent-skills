@@ -1,97 +1,131 @@
 > **Additional context needed**: existing brand colors.
 
-Strategically introduce color to designs that are too monochromatic, gray, or lacking in visual warmth and personality.
+Introduce color as hierarchy, meaning and atmosphere. Keep the confirmed brand and semantic conventions. Do not replace a visual world under the name of color.
 
 ---
 
-## Register
+## Design mode
 
-Brand: palette IS voice. Pick a color strategy first (Restrained / Committed / Full palette / Drenched) and follow its dosage. Committed, Full palette, and Drenched deliberately exceed the ≤10% rule — that rule is Restrained only. Unexpected combinations are allowed; a dominant color can own the page when the chosen strategy calls for it.
+Persuade and Experience: the palette is the voice. Color may own regions. The Committed, Full palette and Drenched strategies are available.
 
-Product: semantic-first and almost always Restrained. Accent color is reserved for primary action, current selection, and state indicators — not decoration. Every color has a consistent meaning across every screen.
+Operate: Restrained by default, and color still does real jobs: the shell, state, data and selection. A gray screen with one accent is the category default, not restraint.
+
+Read: the world's color owns the frame. The reading column keeps a calm ground.
 
 ---
 
-## Assess Color Opportunity
+## Audit before choosing
 
-1. **Understand current state**: color absence, missed semantic opportunities, existing brand constraints.
-2. **Identify where color adds value**: semantic meaning, hierarchy, categorization, emotional tone, wayfinding, delight.
+1. Read DESIGN.md, the color tokens, the themes and the states.
+2. List the color commitments and the roles that exist.
+3. List where gray hides hierarchy, each contrast failure, and each signal that uses color only.
+4. When the work needs a new color identity, run [stage.md](stage.md) Step 3b. This move does not replace one.
+5. Give every color a purpose. More color is not better.
 
-More color ≠ better. Strategic color beats rainbow vomit every time. Every color should have a purpose.
+## Pick a strategy
 
-## Plan Color Strategy
+Pick a strategy before you pick a color:
+- **Restrained** — neutrals and one accent for action, selection and state.
+- **Committed** — one saturated color carries 30–60% of the surface.
+- **Full palette** — 3–4 named color roles.
+- **Drenched** — the surface is the color.
 
-Use the 60/30/10 split below for the Committed strategy or higher, the brand default. Product stays Restrained: tinted neutrals and one accent at 10% or less (see [product.md](product.md)).
+Name the temperature, the dominant relationship, the contrast range and the dosage. Follow the brief, not a percentage.
 
-- **Dominant color** (60%): Primary brand color or most-used accent
-- **Secondary color** (30%): Supporting color for variety
-- **Accent color** (10%): High contrast for key moments
-- **Neutrals** (remaining): Tinted grays for structure
+## Build roles, not swatches
 
-## Introduce Color Strategically
+Give each job a role:
+- canvas and raised surfaces;
+- primary and secondary text;
+- action, focus and selection;
+- borders;
+- success, warning, error and info;
+- data series.
 
-### Semantic Color
-- State indicators: success (green), error (red), warning (orange/amber), info (blue), inactive (gray)
+A theme change remaps the roles. It does not repaint each component.
+
+## Introduce color strategically
+
+### Semantic color
+- Give each state one stable meaning across the product. Take its hue from the platform, the domain and the palette.
 - Status badges: colored backgrounds for states (active, pending, completed)
 - Progress indicators: colored bars or rings
 
-### Accent Application
-- Primary actions: color the most important buttons/CTAs
+### Accent application
+- Primary actions: color the most important buttons and calls to action
 - Links: colored clickable text (maintain accessibility)
 - Icons: colorize key icons for recognition
 - Headers: color on section headings or key labels
 - Hover states: introduce color on interaction
 
-### Background and Surfaces
-- Tinted backgrounds: replace pure gray (`#f5f5f5`) with warm neutrals (`oklch(97% 0.01 60)`) or cool tints (`oklch(97% 0.01 250)`)
+### Background and surfaces
+- Tint a neutral toward the brand hue only when it creates cohesion. A plain neutral is valid. Never default to a cream or sand ground.
 - Colored sections: subtle background colors to separate areas
-- Cards and surfaces: slight tint for warmth
-- Gradients: subtle, intentional
+- Cards and surfaces: a slight tint only when the strategy calls for it
+- Use a gradient only from the world's material. Never use gradient text.
+- Compose the dark theme on its own. Never invert the light theme.
 
-### Borders and Accents
+### Borders and accents
 
-Use OKLCH for all color. Apply color to borders and frames as:
+Use the project's color space. For a new palette, prefer a perceptual space such as OKLCH. Apply color to borders and frames as:
 - **Hairline full-perimeter borders**: 1px colored strokes around a card or section surface
 - **Surface tints**: 4–8% background wash of the accent color on active or highlighted cards
 - **Focus rings**: colored focus indicators matching brand
 - **Underlines**: colored underlines for active state or emphasis
 
-Apply the ban list in [_design-context.md](_design-context.md).
+**Depth is not a color job.** For elevation, prefer a layered shadow to a colored border. A shadow adapts to any background; a solid border does not (see [polish.md](polish.md)). A shadow carries an offset and a soft blur. Give an image edge a pure black or pure white outline at about 10% opacity. Never use a tinted near-black from the palette or the accent: a tinted outline picks up the surface color underneath and reads as dirt on the edge.
 
-**Depth is not a color job.** For *elevation*, prefer a layered transparent `box-shadow` over a colored border — a shadow adapts to any background, a solid border doesn't (see `polish.md`). And give image edges a **pure** black (`rgba(0,0,0,0.1)`) or **pure** white (`rgba(255,255,255,0.1)`) outline — never a tinted near-black from the palette or the accent: a tinted outline picks up the surface color underneath and reads as dirt on the edge.
-
-### Typography Color
+### Typography color
 - Colored headings: brand colors for section headers (maintain contrast)
 - Highlight text: color for emphasis or categories
 - Labels and tags: small colored labels for metadata
 
-### Data Visualization
+### Data visualization
 - Charts and graphs: color to encode categories or values
 - Heatmaps: color intensity for density or importance
+- Separate data series by lightness, chroma, shape, label or pattern.
 
-## Balance and Refinement
+## Balance and refinement
 
-### Maintain Hierarchy
-- Dominant 60 / Secondary 30 / Accent 10 ratio for Committed or higher; accent ≤10% for Restrained
+### Maintain hierarchy
+- Keep the dosage that the strategy names.
 - Same color meanings throughout the surface
 
 ### Accessibility
-- Contrast ratios: WCAG 4.5:1 for text, 3:1 for UI components
-- Don't rely on color alone: pair with icons, labels, or patterns
-- Test red/green combinations for color blindness
+- Contrast: 4.5:1 for body text, 3:1 for large text. 3:1 for controls, icons and focus indicators.
+- Check every state, overlays, text on images, disabled content and both themes.
+- Simulate the common color vision deficiencies.
+- Never use color alone: pair it with an icon, a label or a pattern.
+- Prefer an explicit color to a chain of translucent overlays.
+- Secondary text on a colored ground takes that hue. Never gray.
 
 ### Cohesion
 - Use colors from the defined palette only
 - Temperature consistency: warm stays warm, cool stays cool
-- Pure gray for neutrals → always add a subtle tint instead
+
+## Verify
+
+- Every color has a stable role.
+- Attention lands on the intended action.
+- The palette works in quiet, dense, error and empty states.
+- Both themes are composed.
+- It reads as this product.
 
 ## Never
-- Every color in the rainbow (2–4 beyond neutrals is the limit)
+- More hues than the strategy names
 - Color applied randomly without semantic meaning
-- Gray text on colored backgrounds (use a darker shade or transparent overlay instead)
 - WCAG contrast violations
 - Color as the only state indicator (pair with shape, label, or icon)
 
 ## In the workflow
 
-This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.
+This file is a move, not a stage.
+- **Design not confirmed:** `/wf design <slug> colorize` focuses the design stage and its contract `02c-craft.md` on color.
+- **Design confirmed:** `/wf design <slug> colorize` runs the audit, the Accessibility checks and the Verify list against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- `plan` cites this file as a step pointer; `implement` applies it.
+- Every run writes `design-notes/colorize-<timestamp>.md` per [_output.md](_output.md) with: the strategy and its dosage, the role map, each contrast check in both themes, and each signal that used color only.
+- Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
+
+---
+
+> *Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.*

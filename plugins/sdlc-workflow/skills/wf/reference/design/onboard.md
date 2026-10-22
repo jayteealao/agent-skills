@@ -1,91 +1,140 @@
-Design the onboarding, empty states, and first-run experience for a feature or product — the moments when users encounter something new and decide whether to engage or abandon.
+> **Additional context needed**: the first-value moment, and the people's experience level.
+
+Design the onboarding, the empty states and the first-run experience of a feature or a product. These are the moments when people meet something new and decide to engage or to leave. Get people to first value fast. Onboarding does not teach the whole product. It brings people to the moment that proves the product is worth their time.
 
 ---
 
-## Register
+## Design mode
 
-Brand: first impressions are product-defining. A brand site's first-run experience is the landing page itself. A portfolio's onboarding is the hero section. These are marketing moments; they should be designed with the same ambition as any other brand surface.
+Persuade: first impressions define the product. The first run is the landing page, and its action works. Design it with the ambition of any other Persuade surface.
 
-Product: onboarding is a teaching problem, not a decoration problem. The goal is for users to reach their "aha moment" — the point where they understand the product's value through their own use — as quickly as possible. Every element of onboarding should serve that path.
+Experience: the work leads. No tours.
+
+Operate: onboarding is a teaching path to first value, not decoration. People reach the moment where they understand the value through their own use. Empty states teach. No page-load choreography.
+
+Read: onboarding is wayfinding.
 
 ---
+
+## Define first value
+
+Before you design, name:
+- the one action that proves the value (the first project, the first invite);
+- the least a person must learn to reach it;
+- the signal that shows that onboarding worked (completion, time to first value).
+
+Find where people get stuck or leave today. Ask about the audience: their experience level, their motivation and the products they know.
 
 ## Empty states
 
-Empty states are the most overlooked UX opportunity. A "nothing here" screen is a missed chance to teach, guide, or delight.
+An empty state is a chance to teach, to guide or to delight. A "nothing here" screen misses it.
 
-### What a good empty state does:
-1. **Explains what will appear here** — not "no data found" but "your saved items will appear here"
-2. **Gives the user a path forward** — a specific action to take, not just a description
-3. **Sets expectations** — shows a preview or example of what the filled state looks like
-4. **Doesn't feel like an error** — visual design should feel intentional, not like a fallback
+### What a good empty state does
+1. **It explains what will appear here.** Not "no data found" but "your saved items appear here".
+2. **It gives a path forward.** A specific action, not only a description.
+3. **It sets expectations.** It shows a preview or an example of the filled state.
+4. **It does not feel like an error.** Its design looks deliberate, not like a fallback.
 
-### Empty state anatomy:
-- Illustration or icon (communicates what the space is for — avoid generic empty box icons)
-- Heading (what this space is for)
-- Description (1–2 sentences max: what it will look like when populated)
-- Primary action (specific CTA that creates the first item)
-- Optional: example or preview of the filled state
+### Empty state anatomy
+- An illustration or icon that shows what the space is for. Avoid a generic empty-box icon.
+- A heading: what this space is for.
+- A description of one or two sentences: what the filled state looks like.
+- A primary action: a specific action that creates the first item.
+- Optional: an example or a preview of the filled state.
 
-```html
-<!-- Empty state pattern -->
-<div class="empty-state">
-  <div class="empty-state-icon"><!-- context-specific illustration or icon --></div>
-  <h2>No projects yet</h2>
-  <p>Create your first project to track its progress and collaborate with your team.</p>
-  <button class="btn-primary">Create project</button>
-</div>
+Example (plain text):
+```
+[icon: a project board]
+No projects yet
+Create your first project to track its progress with your team.
+[Create project]
 ```
 
-### Different empty state types:
-- **First-time empty** (user has never added content): welcoming, teaching, encouraging
-- **Filtered empty** (search or filter returned nothing): explain the filter is active, offer to clear it
-- **Error empty** (content failed to load): explain what went wrong, offer retry
-- **Permissions empty** (user lacks access): explain why, offer a path to request access
+### Empty state types
+- **First use** (the person never added content): welcome, teach, encourage.
+- **Cleared by the person** (the person removed everything): keep it light, make it easy to create again, do not teach again.
+- **Filtered empty** (a search or filter returned nothing): say that the filter is active, and offer to clear it.
+- **Error empty** (the content failed to load): say what went wrong, and offer a retry.
+- **Permissions empty** (the person has no access): say why, and offer a path to request access.
+
+For the words of each state, apply [clarify.md](clarify.md).
 
 ## First-run experience
 
-### Principles:
-- **Show value first, ask for setup later**: let users see the product before they configure it
-- **Progressive commitment**: don't require a full profile setup before the first useful action
-- **Contextual tooltips over upfront tours**: trigger guidance when the user reaches a specific feature, not before
-- **Skip everything**: every onboarding step must be skippable
+### Principles
+- **Show value first, ask for setup later.** People see the product before they configure it.
+- **Progressive commitment.** Require no full profile before the first useful action.
+- **Ask little.** Ask only for the information that the first action needs. Say why you ask for each item.
+- **Contextual hints over upfront tours.** Show guidance when the person reaches a feature, not before.
+- **Skip everything.** The person can skip every onboarding step.
 
-### Patterns:
+### Patterns
 
-**Checklist onboarding** (for products with clear setup steps):
-- 3–5 items maximum
-- Show completion and progress
-- Auto-advance when steps are done in the product
-- Allow any order
+**Checklist onboarding** (for a product with clear setup steps):
+- 3–5 items at most.
+- Show completion and progress.
+- Complete a step automatically when the person does it in the product.
+- Allow any order.
 
-**Empty state driven** (for creation-first products):
-- Let the empty state be the onboarding
-- The first-run experience is just seeing the empty state with a clear first-action CTA
-- No separate onboarding flow needed
+**Empty-state driven** (for a creation-first product):
+- The empty state is the onboarding.
+- The first run shows the empty state with a clear first action.
+- No separate onboarding flow.
 
-**Overlay/spotlight** (for features within an existing product):
-- One spotlight at a time: highlight one element, dismiss, move to next
-- User-triggered: "show me how this works" rather than auto-triggered on first load
-- Skip and don't show again
+**Overlay or spotlight** (for a feature inside an existing product):
+- One spotlight at a time: highlight one element, dismiss it, move to the next.
+- The person starts it ("show me how this works"). It does not start on first load.
+- The person can skip it and hide it for good.
 
-### What not to do:
-- Full-screen welcome modals with 5 pages before the user has seen the product
-- Automatic coach mark tours that appear every session
-- Mandatory profile setup before any useful action
-- Generic "welcome to [product]" messaging without product-specific value proposition
+**Guided tour** (for a complex interface or a large change):
+- 3–7 steps.
+- Teach the workflow, not the control: "Create a project", not "This is the project button".
+- Give sample data, so that each step works on real controls.
+- The person can replay the tour from help.
+
+### Remember progress
+- Record each finished or dismissed step.
+- Never show the first-run flow to a returning person again.
+- Never show a dismissed hint again.
 
 ## Motion in first-run
 
-A first-run or empty state is a *rare* moment — the frequency tier where a designed entrance is welcome — but it must never delay the first action. Split the reveal into semantic chunks (illustration → heading → description → CTA) and stagger them ~100ms apart with `opacity` + a small `translateY` + `blur`, rather than animating one container in. Keep the CTA reachable immediately; never gate interaction behind the animation. A brand first-run (a landing hero) can be cinematic; in product, keep it to a single quick staggered reveal. See `animate.md` for the enter/exit choreography and the reduced-motion handling.
+A first run or an empty state is a rare moment: the frequency tier where a designed entrance is welcome. It never delays the first action. Split the reveal into semantic chunks (illustration, heading, description, action). Stagger the chunks 30–80 ms apart per [animate.md](animate.md) → Choreography. Combine opacity, a small offset and a light blur. Do not animate one container in. The action is reachable at once; never hold interaction behind the animation. A Persuade first run (a landing hero) can be cinematic. On an Operate surface, keep it to one quick staggered reveal. See [animate.md](animate.md) for the reduced-motion form.
+
+## Never
+
+- A full-screen welcome dialog of five pages before the person sees the product.
+- An automatic tour that appears every session.
+- A required profile setup before any useful action.
+- A generic "welcome to [product]" message without the product's specific value.
+- A tutorial mode cut off from the real product.
+- A hidden or hard-to-find Skip.
 
 ## Validate
 
-- Can a new user complete their first meaningful action without help?
-- Does the empty state explain what will appear and how to get there?
-- Are all onboarding steps skippable?
-- Is the first-run experience showing value or demanding commitment?
+- Can a new person complete the first meaningful action without help?
+- Does each empty state say what will appear and how to get there?
+- Can the person skip every onboarding step?
+- Does the first run show value, or demand commitment?
+- Can a returning person reach their work with no onboarding in the way?
+
+## Measure
+
+Write these measures in the design note, with the place in the product that records each one:
+- the skip rate;
+- the completion rate;
+- the step where people drop off;
+- the time to first value.
 
 ## In the workflow
 
-This file is a move, not a stage. The design stage (`/wf design <slug> <move>`) focuses the visual contract `02c-craft.md` on it, `plan` cites it as a step pointer, and `implement` applies it and records `design-notes/<move>-<timestamp>.md` per [_output.md](_output.md). The absolute bans in [_design-context.md](_design-context.md) apply.
+This file is a move, not a stage.
+- **Design not confirmed:** `/wf design <slug> onboard` focuses the design stage and its contract `02c-craft.md` on first run and empty states.
+- **Design confirmed:** `/wf design <slug> onboard` runs the Validate list against the frozen boards and the built UI, and draws nothing ([stage.md](stage.md) → Move pass).
+- `plan` cites this file as a step pointer; `implement` applies it.
+- Every run writes `design-notes/onboard-<timestamp>.md` per [_output.md](_output.md) with: the first-value definition, each empty state and its type, and the measures.
+- Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
+
+---
+
+> *Parts adapted from impeccable v4.7.0 (`pbakaus/impeccable`, `374a0e179`), Apache-2.0.*

@@ -227,6 +227,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
+        "input": "design/_craft-floor.md",
+        "kind": "procedure",
+        "when": "mode:stage",
+        "sections": []
+      },
+      {
         "input": "_host-surfaces.md",
         "kind": "procedure",
         "when": "mode:stage",
@@ -235,19 +241,23 @@ export const REQUIRES: readonly RequiresEntry[] = [
         ]
       },
       {
-        "input": "design/_design-context.md",
+        "input": "design/_craft-floor.md",
         "kind": "procedure",
         "when": "mode:audit",
-        "sections": [
-          "Absolute bans"
-        ]
+        "sections": []
       },
       {
-        "input": "design/_design-context.md",
+        "input": "design/_craft-floor.md",
         "kind": "procedure",
         "when": "mode:critique",
+        "sections": []
+      },
+      {
+        "input": "design/_craft-floor.md",
+        "kind": "procedure",
+        "when": "mode:upkeep",
         "sections": [
-          "Absolute bans"
+          "Record guard"
         ]
       },
       {
@@ -258,6 +268,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
       },
       {
         "input": "design/import.md",
+        "kind": "procedure",
+        "when": "mode:import",
+        "sections": []
+      },
+      {
+        "input": "design/_craft-floor.md",
         "kind": "procedure",
         "when": "mode:import",
         "sections": []
@@ -278,6 +294,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
       },
       {
         "input": "design/critique.md",
+        "kind": "procedure",
+        "when": "mode:critique",
+        "sections": []
+      },
+      {
+        "input": "design/_heuristics.md",
         "kind": "procedure",
         "when": "mode:critique",
         "sections": []
@@ -582,10 +604,15 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "kind": "procedure",
         "when": "mode:ui",
         "sections": [
-          "Register",
-          "Shared design laws",
-          "Absolute bans"
+          "Design modes",
+          "Shared design laws"
         ]
+      },
+      {
+        "input": "design/_craft-floor.md",
+        "kind": "procedure",
+        "when": "mode:ui",
+        "sections": []
       },
       {
         "input": "implement/_reviews-mode.md",
@@ -2014,9 +2041,8 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "kind": "procedure",
         "when": "mode:design",
         "sections": [
-          "Register",
-          "Shared design laws",
-          "Absolute bans"
+          "Design modes",
+          "Shared design laws"
         ]
       },
       {
@@ -2817,8 +2843,7 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "kind": "procedure",
         "when": "mode:design",
         "sections": [
-          "Register",
-          "Absolute bans"
+          "Design modes"
         ]
       },
       {

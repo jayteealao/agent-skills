@@ -8,11 +8,26 @@
 | Produces | `design/source/import-<n>/`, boards in `design/boards/`, then the stage's outputs ([stage.md](stage.md)) |
 | Next | The design stage, Step 5 |
 
+## Import at the door
+
+The tracked file is the only source of a design. A canvas is a published view of a file ([_boards.md](_boards.md) → The file is the source). Design work that has no local file becomes a file at once:
+
+- in a brainstorm, as `design/sketches/<key>.html` (`intake/brainstorm/_design.md`);
+- at the design stage, as boards, through the steps below.
+
+From then on, every stage reads the file. Publish it again from the session's account per [_boards.md](_boards.md).
+
+When the session's account can read only a summary of a link (the account can view it but cannot edit it), the full page cannot be saved. Ask the person for one of:
+- edit access to the link for this account;
+- the downloaded file, and its path;
+- the link as a reference only: `state: reference`, no file, never a board.
+
 ## Step 0 — Orient
 
 1. Run [stage.md](stage.md) Step 0. The same stop rules apply: closed workflow, driver, missing shape.
-2. Read `02c-craft.md` when it exists. An import into a confirmed design is an amend: the freeze writes `r<N+1>/`, and Amend steps 3 and 4 of [stage.md](stage.md) apply.
+2. Read `02c-craft.md` when it exists. An import into a confirmed design is an amend: the freeze writes `r<N+1>/`, and Amend steps 3 and 4 of [stage.md](stage.md) apply. A change made on a canvas to a frozen board comes here too. It becomes a new board revision, never an edit inside `r<N>/`.
 3. Load [_boards.md](_boards.md) in full.
+4. Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists. Import skips stage Step 4, so this is the load point of the floor.
 
 ## Step 1 — Copy the source
 
@@ -38,6 +53,7 @@ Write `SOURCE.md` in the import folder for every import: what it is, where it ca
    - An image screen: copy it to `design/boards/<key>.png`.
 3. Run `render`. Read every PNG yourself.
 4. Set each board's `caption` in `design/boards.json` to the screen's description.
+5. Check each board against the Refuse and Verify lists of [_craft-floor.md](_craft-floor.md). Do not change an imported screen. Name each finding to the person at Step 5, with its board key.
 
 ## Step 4 — Confirm
 

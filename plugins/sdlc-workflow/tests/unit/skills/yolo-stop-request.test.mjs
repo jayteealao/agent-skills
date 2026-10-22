@@ -50,6 +50,10 @@ function chainHarness(answers) {
     ${extractFn('verifyClean')}
     ${extractFn('evaluateGate')}
     ${extractFn('stopKindOf')}
+    // WF-DESIGN-PLAN B1: the review's design findings stop the chain for the person.
+    ${extractFn('amendFindingsOf')}
+    ${extractFn('amendFindingsText')}
+    ${extractFn('amendStopReason')}
     ${extractFn('driveChain')}
     return driveChain
   `);
@@ -128,4 +132,31 @@ test('every stage boundary carries the stop check, and no fix round does', () =>
   assert.match(extractFn('driveVerify'), /last\.status === 'stopped'\) return last/, 'verify passes a stop through');
   assert.match(src, /outcome\.stoppedAt === 'stop-request' \|\| outcome\.stoppedAt === 'usage-pause'/);
   assert.match(src, /outcome\.route = `\/wf yolo \$\{slug\}\$\{slice \? ' ' \+ slice : ''\}`/, 'the route is the resume command');
+});
+
+// WF-DESIGN-PLAN B1 (P2): a review with findings against the confirmed design stops the chain at
+// review, with the findings as the reason and the amend route; the driver neither fixes nor dismisses them.
+test('a review with design findings stops at review with the route /wf design <slug> amend', async () => {
+  const review = {
+    stage: 'review', slice: 'auth', status: 'complete', artifactPath: 'x/07-review-auth.md',
+    terminal: { verdict: 'ship-with-caveats', blockerCount: 0 },
+    amendFindings: [{ key: 'design-1', severity: 'HIGH', summary: 'the list uses cards, the board shows rows', contract: 'design/r1/boards/list--default.png' }],
+  };
+  const h = chainHarness({ review });
+  const chain = await h.driveChain(['plan', 'implement', 'verify', 'review'], 'auth', IDX);
+  assert.equal(chain.stopped, true);
+  assert.equal(chain.at, 'review');
+  assert.equal(chain.route, '/wf design engine-modules amend');
+  assert.ok(chain.reason.includes('design-1 (HIGH): the list uses cards, the board shows rows [against design/r1/boards/list--default.png]'), chain.reason);
+  assert.match(chain.reason, /the person decides amend, keep, or defer/);
+  assert.deepEqual(chain.amendFindings.map((f) => f.key), ['design-1']);
+  assert.deepEqual(h.writeBacks, [], 'the slice does not clear');
+  const clean = chainHarness({ review: { ...review, amendFindings: [] } });
+  assert.equal((await clean.driveChain(['review'], 'auth', IDX)).stopped, false, 'an empty list clears the gate as before');
+});
+
+test('the slice and slug outcomes carry the chain route; the slug-wide review stops with the amend route', () => {
+  assert.ok(src.includes("route = chain.route || `address the gate at '${chain.at}'"), 'slice mode');
+  assert.ok(src.includes("route: chain.route || `address the gate at '${chain.at}' on slice"), 'slug mode');
+  assert.ok(src.includes("stoppedAt: 'review', reason: amendStopReason(rev), amendFindings: amendFindingsOf(rev), results, slugWide: rev, route: `/wf design ${slug} amend` }"), 'slug-wide review');
 });
