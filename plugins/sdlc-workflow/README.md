@@ -37,7 +37,7 @@ Follow [start/your-first-workflow.html](docs/site/start/your-first-workflow.html
 /wf retro <slug>           → 10-retro.md
 ```
 
-`/wf status` shows every workflow and the next command for each. `/wf auto <slug>` drives the lifecycle and pauses only at a stage's own gate. For small work, `/wf intake fix <description>` runs a compressed entry; [start/everyday-fixes.html](docs/site/start/everyday-fixes.html) lists the lanes.
+You can also type plain words: `/wf keep going on export` or `/wf how do I ship a hotfix`. `/wf` shows the command it would run and runs it after your yes. `/wf status` shows every workflow and the next command for each. `/wf auto <slug>` drives the lifecycle and pauses only at a stage's own gate. For small work, `/wf intake fix <description>` runs a compressed entry; [start/everyday-fixes.html](docs/site/start/everyday-fixes.html) lists the lanes.
 
 ## The 19 keys
 

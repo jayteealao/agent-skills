@@ -7,11 +7,7 @@
   "assertions": [
     {
       "type": "result-contains",
-      "pattern": "`fix` is not a known wf key"
-    },
-    {
-      "type": "result-contains",
-      "pattern": "/wf intake"
+      "pattern": "/wf intake fix the list command"
     },
     {
       "type": "absent",

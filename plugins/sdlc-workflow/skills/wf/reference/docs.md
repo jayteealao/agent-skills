@@ -48,7 +48,7 @@ Parse `$ARGUMENTS`.
    - Argument is `--audit-only` → `mode: project`, `audit-only: true`.
    - Argument matches an existing `.ai/workflows/<slug>/00-index.md` → `mode: workflow`, `target-slug: <slug>`.
    - Argument is a path (resolves to an existing directory or file) → `mode: path`, `scope-path: <path>`.
-   - Argument is none of the above → STOP. *"`<token>` is not a recognized primitive, slug, path, or flag. Run `/wf docs` with no arguments for full-project audit, or pick one of: plan, tutorial, how-to, reference, explanation, readme, review."*
+   - Argument is none of the above → load [route.md](route.md) with every token of `/wf docs`, reason `<token> does not fit <primitive>|<slug>|<path>`.
 
 3. **Generate run ID** for orchestrator mode: `docs-<YYYYMMDD-HHMM>` (real current UTC time per [_timestamp.md](_timestamp.md)).
 

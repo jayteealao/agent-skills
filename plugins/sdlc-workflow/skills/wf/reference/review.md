@@ -82,8 +82,8 @@ review (a dimension or a sweep, no slug), the way `/wf intake simplify` unifies 
 3. **A dimension name that also happens to be a real slug** → the slug wins (stage mode); reach the
    aggregate/dimension explicitly with `/wf review sweep <name>` or by running ad-hoc in a repo with no
    such slug. (This is the documented first-token ambiguity resolution.)
-4. **Neither a slug nor a known dimension/sweep** → the existing unknown handling: if it looks like a
-   typo'd slug, say so; otherwise render the ad-hoc menu and ask which review the user wants.
+4. **Neither a slug nor a known dimension/sweep** → load [route.md](route.md) with every token of `/wf review`,
+   reason `<token> does not fit <dimension>`. The router offers the near-match slug or dimension first.
 
-Because `review` owns its own first-token resolution, it is **excluded from the dispatcher's Step 0.5
-fuzzy-suggest** (like `simplify`/`design`).
+`SKILL.md` Step 0 checks the slug on the disk. This step checks the dimension, because the dimension list
+lives in `review/_ad-hoc.md`.

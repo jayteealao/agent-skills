@@ -1,13 +1,13 @@
 ---
 name: wf
-description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) plus design, the drivers (probe, auto, yolo, campaign), the loops (`loop`), navigation (`status`), and the routers (`project`, `docs`) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also runs the entry modes, extension, and the maintenance words; `review` is the whole review surface.
+description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) plus design, the drivers (probe, auto, yolo, campaign), the loops (`loop`), navigation (`status`), and the routers (`project`, `docs`) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also runs the entry modes, extension, and the maintenance words; `review` is the whole review surface. Plain words and questions about `/wf` go to the router.
 disable-model-invocation: true
 argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|probe|auto|yolo|campaign|loop|status|project|docs> [args...]"
 ---
 
 # Role
 
-You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per key. Identify the key, load the reference that Step 0 names, and follow it. Three contracts bind every key and every sub-agent you spawn:
+You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per key, and other words go to the router. Identify the key, load the reference that Step 0 names, and follow it. Three contracts bind every key and every sub-agent you spawn:
 
 - Apply [_output-boundary.md](reference/_output-boundary.md) to every external-facing output.
 - Write every text per [_ste-procedural.md](reference/_ste-procedural.md). Write chat narratives per [_chat-return.md](reference/_chat-return.md). A reference's own writing spec adds to this contract and never replaces it.
@@ -18,47 +18,49 @@ You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per ke
 
 Run this check before any read or write. Its result is your first visible output.
 
-1. Split `$ARGUMENTS` on whitespace. The first token is the key candidate. The remaining tokens are the key's `$ARGUMENTS`, unchanged. The reference is `reference/<key>.md`, except in items 5 and 6.
-2. If `$ARGUMENTS` is empty, render the key tables and ask which key the user wants. STOP.
-3. If the key candidate is not one of the 19 keys, STOP. Tell the user: *"`<token>` is not a known wf key. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, probe, auto, yolo, campaign, loop, status, project, docs."* Do not treat the token as a slug or as an intake mode. Do not pick a slug for the user. Do not load a reference.
+1. Split `$ARGUMENTS` on whitespace. The first token is the key candidate. The remaining tokens are the key's `$ARGUMENTS`, unchanged. The reference is `reference/<key>.md`, except in items 2, 3 and 5–7.
+2. If `$ARGUMENTS` is empty, the reference is [route.md](reference/route.md), reason `empty`.
+3. If the key candidate is not one of the 19 keys, the reference is `reference/route.md` with every token, reason `not a key`.
 4. If the key candidate is `yolo` under Codex or pi, answer with the host redirect. STOP.
 5. **Sub-keys.** When the next token is a sub-key of the key (the sub-key table), the reference is that sub-key's file, and the key's `$ARGUMENTS` are the tokens after the sub-key. Load no other file of the key. When `loop` or `project` has no sub-key token, render its sub-key rows and ask which one the user wants. STOP.
 6. **Intake fast path.** When the key is `intake`, the next token is a mode word below, and `.ai/workflows/<that token>/` does not exist, the reference is `reference/intake/<mode>.md` in place of `reference/intake.md`, and `reference/intake/_intake-context.md` is its first input. The mode's `$ARGUMENTS` are the tokens after the mode word. The mode words are the modes of the `intake` row.
-7. State the dispatch on one line: `wf dispatch: key=<key> · args=<remaining tokens, or (none)> · reference=<the reference>`
+7. **Full command.** Fit the tokens to the key's Arguments cell, left to right. `[ ]` marks an optional position, `|` separates choices, and `text` takes every token left. A word in the cell fits only itself, and `pr#N` fits `pr#` and a number. The reference checks `<dimension>`, `<aggregate>`, `<env>` and `<path>`. When a token does not fit, or a required position is empty, the reference is `reference/route.md` with every token, the key included, and the reason. So `/wf plan the migration` goes to the router, because `the` is not a slug.
+8. **Disk check.** Check each `<slug>`, `<slice>` and `<branch>` whose result can change the fit, all in one Bash call: `grep -P "^<slug>\t" .ai/workflows/INDEX.md`, a `grep` of the roster rows of `.ai/workflows/<slug>/03-slice.md`, and `git branch --list <branch>`. Put a token into the call only when it matches `^[A-Za-z0-9#._/-]+$`; any other token is a miss. Never put a `text` token into a shell command. With no `INDEX.md`, every `<slug>` is a miss.
+9. State the dispatch on one line: `wf dispatch: key=<key> · args=<remaining tokens, or (none)> · reference=<the reference>`
 
 ### Stages
 
 | Key | Arguments | Does | Writes |
 |---|---|---|---|
-| `intake` | `[slug] [mode] <description>` | Entry dispatcher. A description starts stage 1. A mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`) runs an entry flow. An existing slug plus a mode attaches a compressed slice; a slug plus free scope extends the workflow. A slug plus `amend`, `modernize` or `close` edits, backfills or closes the workflow or one slice. | per mode |
-| `shape` | `[slug] [hint]` | Product-owner discovery. Authors the documentation plan and `augmentations-needed`. | `02-shape.md` |
-| `design` | `[slug] [move\|amend\|import\|audit\|critique]` · `setup\|teach\|extract\|direction\|sync` | Human-only: the person confirms the boards before drivers run. | `02c-craft.md` |
-| `slice` | `<slug>` | Decompose the shape into shippable slices. | `03-slice.md`, `03-slice-<slug>.md` |
-| `plan` | `<slug> [slice]` | Per-slice plan with a reuse scan. Applies the augmentation plan via `reference/augment/<type>.md`. | `04-plan-<slice>.md` |
-| `implement` | `<slug> [slice\|reviews]` | Code the slice. `reviews` runs fix-blockers mode. | `05-implement-<slice>.md` |
-| `verify` | `<slug> [slice]` | Tests, lints, typecheck, the user-observable AC gate, one user-gated fix loop, augmentation re-checks. | `06-verify-<slice>.md` |
-| `review` | `<slug> [slice\|triage]` · `<dimension>` · `sweep <aggregate>` | With a slug: the workflow stage over the accumulating ledger. Without: ad-hoc review, one rubric or a fan-out. Resolves slug versus dimension itself. | review artifacts |
-| `handoff` | `<slug\|pr#N\|branch>` | Aggregate completed slices into a PR. `pr#N` or a branch runs batch mode across the branch onto the lead slug. Refuses while a required review has unresolved blockers. | `08-handoff.md` |
-| `ship` | `<slug\|pr#N\|branch> [env\|announce\|rollback]` | Release via `.ai/ship-plan.md`. Batch mode is all-or-nothing per PR. `announce` re-runs comms. `rollback [<run-id>]` runs the Go/No-Go reversal. | `09-ship-run-<run-id>.md`, `09-ship-runs.md`, `09-rollback-<run-id>.md` |
-| `retro` | `<slug\|pr#N\|branch>` | Post-mortem. Batch mode retrospects every slug on the branch and the cross-slug lessons. | `10-retro.md` |
+| `intake` | `[<slug>] [<mode>] [text]` | Entry dispatcher. A description starts stage 1. A mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`) runs an entry flow. An existing slug plus a mode attaches a compressed slice; a slug plus free scope extends the workflow. A slug plus `amend`, `modernize` or `close` edits, backfills or closes the workflow or one slice. | per mode |
+| `shape` | `<slug> [text]` | Product-owner discovery. Authors the documentation plan and `augmentations-needed`. | `02-shape.md` |
+| `design` | `[<slug>] [move\|amend\|import\|audit\|critique] [text]` · `setup\|teach\|extract\|direction\|sync [text]` | Human-only: the person confirms the boards before drivers run. | `02c-craft.md` |
+| `slice` | `<slug> [text]` | Decompose the shape into shippable slices. | `03-slice.md`, `03-slice-<slug>.md` |
+| `plan` | `<slug> [<slice> [text]]` · `<slug> all` | Per-slice plan with a reuse scan. Applies the augmentation plan via `reference/augment/<type>.md`. | `04-plan-<slice>.md` |
+| `implement` | `<slug> [<slice>\|reviews]` | Code the slice. `reviews` runs fix-blockers mode. | `05-implement-<slice>.md` |
+| `verify` | `<slug> [<slice>]` | Tests, lints, typecheck, the user-observable AC gate, one user-gated fix loop, augmentation re-checks. | `06-verify-<slice>.md` |
+| `review` | `<slug> [<slice>\|triage]` · `<dimension> [text]` · `sweep <aggregate> [text]` | With a slug: the workflow stage over the accumulating ledger. Without: ad-hoc review, one rubric or a fan-out. Resolves slug versus dimension itself. | review artifacts |
+| `handoff` | `<slug> [<slice>]` · `pr#N` · `<branch>` | Aggregate completed slices into a PR. `pr#N` or a branch runs batch mode across the branch onto the lead slug. Refuses while a required review has unresolved blockers. | `08-handoff.md` |
+| `ship` | `<slug>\|pr#N\|<branch> [<env>\|announce\|rollback [<run-id>]]` | Release via `.ai/ship-plan.md`. Batch mode is all-or-nothing per PR. `announce` re-runs comms. `rollback [<run-id>]` runs the Go/No-Go reversal. | `09-ship-run-<run-id>.md`, `09-ship-runs.md`, `09-rollback-<run-id>.md` |
+| `retro` | `<slug>\|pr#N\|<branch>` | Post-mortem. Batch mode retrospects every slug on the branch and the cross-slug lessons. | `10-retro.md` |
 
 ### Drivers and loops
 
 | Key | Arguments | Does | Writes |
 |---|---|---|---|
-| `probe` | `<slug> [target\|sweep]` · `sweep [path]` | Runtime-truth verification of built work. Target mode compares to AC text. `sweep` enumerates the user surface against AC, charter, and `reference/_surface-defects.md`; as the first token it runs slug-less. Writes no code. | a compressed slice, or `.ai/surface-sweep-<date>.md` |
+| `probe` | `<slug> [sweep\|text]` · `sweep [<path>]` | Runtime-truth verification of built work. Target mode compares to AC text. `sweep` enumerates the user surface against AC, charter, and `reference/_surface-defects.md`; as the first token it runs slug-less. Writes no code. | a compressed slice, or `.ai/surface-sweep-<date>.md` |
 | `auto` | `<slug> [<slice>]` | Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff. | none |
 | `yolo` | `<slug> [<slice>]` | Autonomous driver. Resolves each gate by written policy. Stops before handoff. Claude Code only. | none |
 | `campaign` | `<slug>` | Drive a workflow's work packets in dependency waves, one PR per wave. | `work/campaign/` |
-| `loop` | `goal <slug> [objective\|resume\|status\|clear]` · `optimize <slug\|description>` · `prototype <idea>` · `prototype <slug> [request]` | `goal`: the host goal carries the slug, and `goal.mjs check` judges it. `optimize`: a metric loop that keeps or reverts. `prototype`: prove an idea by running code, one round per request of the person. | `goal.md`, `optimize/`, `prototype-ledger.json` |
+| `loop` | `goal <slug> [resume\|status\|clear\|text]` · `optimize <slug>\|text` · `prototype text` · `prototype <slug>\|<branch> [text]` | `goal`: the host goal carries the slug, and `goal.mjs check` judges it. `optimize`: a metric loop that keeps or reverts. `prototype`: prove an idea by running code, one round per request of the person. | `goal.md`, `optimize/`, `prototype-ledger.json` |
 
 ### Navigation · routers
 
 | Key | Arguments | Does | Writes |
 |---|---|---|---|
-| `status` | `[slug] [deep] \| advise` · `recap <slug\|pr#N\|branch> [slice\|focus]` | Dashboard; per-slug detail with the next command; `INDEX.md` reconciliation; `deep` drift check; `advise` cross-slug sequencing. `recap` tells a workflow's or a branch's story, or explains one artifact. | none; `recap` writes `90-recap.md` |
-| `project` | `ship-plan <init\|build\|edit\|audit>` · `observability <init\|build\|audit>` | The project-level contracts: author, build, edit, or audit `.ai/ship-plan.md` and `.ai/observability.md`. | `.ai/ship-plan.md`, `.ai/observability.md`, and their audit files |
-| `docs` | `[<primitive> \| <slug> \| --audit-only \| <path>]` | Documentation router: the orchestrator pipeline, or one Diátaxis primitive. | per primitive |
+| `status` | `[<slug>\|pr#N\|<branch>] [deep]` · `advise [<branch>\|pr#N\|fast]` · `recap <slug>\|pr#N\|<branch> [<slice>\|plan\|shape\|slice\|review\|findings]` | Dashboard; per-slug detail with the next command; `INDEX.md` reconciliation; `deep` drift check; `advise` cross-slug sequencing. `recap` tells a workflow's or a branch's story, or explains one artifact. | none; `recap` writes `90-recap.md` |
+| `project` | `ship-plan init\|build\|edit\|audit [text]` · `observability init\|build\|audit [text]` | The project-level contracts: author, build, edit, or audit `.ai/ship-plan.md` and `.ai/observability.md`. | `.ai/ship-plan.md`, `.ai/observability.md`, and their audit files |
+| `docs` | `[plan\|tutorial\|how-to\|reference\|explanation\|readme\|review [text]]` · `<slug>\|--audit-only\|<path>` | Documentation router: the orchestrator pipeline, or one Diátaxis primitive. | per primitive |
 
 | Sub-key | Reference |
 |---|---|
@@ -68,19 +70,9 @@ Run this check before any read or write. Its result is your first visible output
 
 Every key runs under every host except `yolo`, which is Claude Code only.
 
-# Step 0.5 — Unknown-slug suggestion
-
-Step 0.5 applies to `shape`, `slice`, `plan`, `implement`, and `verify`. Every other key resolves its first token inside its reference.
-
-1. The slug candidate is `$1` of the key's `$ARGUMENTS`. If `$1` is empty, or `.ai/workflows/INDEX.md` does not exist, skip Step 0.5.
-2. Run `grep -P "^<candidate>\t" .ai/workflows/INDEX.md`. On a hit, dispatch.
-3. On a miss, match every row's slug, closed rows included: Levenshtein distance ≤ 2, then substring inclusion in either direction.
-4. If no row matches, STOP: *"Unknown slug `<candidate>`. Run `/wf status` to list all workflows, or `/wf intake <description>` to start a new one."*
-5. If a row matches, STOP: *"Unknown slug `<candidate>`. Did you mean `<best-match>`<closed-suffix>? (Run `/wf status` to list all workflows.) Retry: `/wf <key> <best-match> <remaining args>`"* — `<closed-suffix>` is ` (closed)` when that row is closed. Do not auto-correct.
-
 # Step 0.7 — Git precondition
 
-Skip this step when Step 0 ended at the menu or at an unknown key. Run `git rev-parse --show-toplevel` from the project root. On success, continue to Step 0.8.
+Skip this step while the reference is `route.md`; the router runs it after the yes. Run `git rev-parse --show-toplevel` from the project root. On success, continue to Step 0.8.
 
 If it fails, the hub cannot register the repo, and slug branches cannot exist. Ask first, per [_gate-question.md](reference/_gate-question.md):
 
@@ -97,7 +89,7 @@ When the work turns on how a dependency behaves, use the `study-sources` skill i
 # Step 1 — Execute
 
 1. Read the reference that Step 0 named in full and follow it verbatim, with the remaining `$ARGUMENTS` unchanged. Do not summarize, paraphrase, or skip. Honor its `## Requires` table and every artifact write it describes.
-2. Router references (`design`, `docs`, `ship-plan.md`, `observability.md`) resolve a sub-command and load a further reference. Follow that chain.
+2. Router references (`route.md`, `design`, `docs`, `ship-plan.md`, `observability.md`) resolve a sub-command and load a further reference. Follow that chain.
 
 # Step 2 — Final summary
 

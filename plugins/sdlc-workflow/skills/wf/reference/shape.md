@@ -1,6 +1,6 @@
 ---
 description: Turn the intake brief into a compact implementable mini-spec with explicit acceptance criteria and edge cases.
-argument-hint: <slug> [focus area]
+argument-hint: <slug> [focus hint]
 ---
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
@@ -41,7 +41,7 @@ You are a workflow orchestrator, not a problem solver.
 Apply [_workflow-rules.md](_workflow-rules.md). Gate questions here cover risk tolerance, appetite, and structured decisions; behavior, acceptance criteria, and non-goals take freeform chat.
 
 # Step 0 — Orient (do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). If none, infer from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). If none, infer from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user. Text after the slug is a **focus hint**: write it to `po-answers.md` with `stage: shape` and `kind: guidance`, and start discovery with it.
 2. **Parse `00-index.md`** frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, `appetite`.
 3. **Check prerequisites:**
    - `01-intake.md` must exist. If missing → STOP: "Run `/wf intake` first."

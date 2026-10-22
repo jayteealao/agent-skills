@@ -32,10 +32,10 @@ function listAfter(text, marker) {
   return [...text.slice(at, close).matchAll(/`([a-z-]+)`/g)].map((m) => m[1]);
 }
 
-test('SKILL.md has the 19 keys, and the unknown-key list names them in order', () => {
+test('SKILL.md has the 19 keys, and a word that is not a key goes to the router', () => {
   const rows = [...skill.matchAll(/^\| `([a-z-]+)` \|/gm)].map((m) => m[1]);
   deepEqual([...rows].sort(), [...KEYS].sort());
-  match(skill, new RegExp(`Pick one of: ${KEYS.join(', ')}\\."`));
+  match(skill, /If the key candidate is not one of the 19 keys, the reference is `reference\/route\.md`/);
   for (const gone of ['brainstorm', 'simplify', 'task', 'close', 'goal', 'optimize', 'prototype', 'recap', 'ship-plan', 'observability']) {
     doesNotMatch(skill, new RegExp(`^\\| \`${gone}\` \\|`, 'm'), `${gone} is no longer a key row`);
   }

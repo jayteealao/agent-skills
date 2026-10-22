@@ -1,6 +1,8 @@
 # WF-ROUTE-WIZARD-PLAN — describe the work, and `/wf` routes it
 
-Status **PLAN, nothing built; D1–D10 decided, no open point; no code dispatcher** · Date **2026-10-20**, updated **2026-10-21** · Plugin **v9.193.2** (HEAD `cdaa8632`) · Owner **jayte**
+Status **BUILT in v9.201.0 (W0–W3, W5, W6); W4 (the Desktop band) deferred by D8** · Date **2026-10-20**, updated **2026-10-22** · Owner **jayte**
+
+**As built.** `skills/wf/reference/route.md` holds the router, help and the bare `/wf` question. `SKILL.md` Step 0 items 2, 3 and 7 load it, and item 8 is the disk check; Step 0.5 and the error texts are gone. The Arguments cells are exact; `plan` is two choices (`<slug> [<slice> [text]]` · `<slug> all`) so that `|` always separates single tokens. Two choices differ from section 4: the 35 review dimensions and aliases do not fit the `SKILL.md` word budget, so `review` and `docs` check `<dimension>`, `<aggregate>` and `<primitive>` in their own reference and route a miss (`/wf review the auth changes` dispatches to `review.md`, which routes it); `ship` checks `<env>` and `probe` checks `<path>` the same way. D5 skips the question only for `/wf intake <text>` with no mode word, because an explicit mode writes without a question; a named mode gets the confirm question. The confirm and clarifying questions are intent-bearing, so a headless run prints the question and ends. G3 found `shape` and `slice`: both declared `[focus area]` and read nothing; both now read the text as a focus hint. Tests: `tests/unit/skills/route-wizard.test.mjs` (a grammar matcher runs the section 4.1 rows against the Arguments column), six eval cases.
 
 ## 1. Why
 

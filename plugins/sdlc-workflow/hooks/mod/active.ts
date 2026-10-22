@@ -86,7 +86,7 @@ export type WfCommand = { key: string; slug: string | null; slice: string | null
  * `/wf-<key> ...` command and the namespaced `/sdlc-workflow:wf` form parse
  * the same way. A key with a sub-key (`/wf loop goal <slug>`) gives the
  * sub-key's name (`goal`) as the key. An unknown key is null: the dispatcher
- * refuses it.
+ * sends it to the router (`reference/route.md`).
  */
 export function wfCommandOf(text: string): WfCommand | null {
   const match = /^\s*\/(?:sdlc-workflow:)?wf(?:-([a-z-]+))?(?:\s+(.*))?$/su.exec(text)

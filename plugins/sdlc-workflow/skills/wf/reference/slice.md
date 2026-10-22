@@ -1,6 +1,6 @@
 ---
 description: Break a shaped work item into thin, independently verifiable vertical slices. Writes a master index and one file per slice.
-argument-hint: <slug> [focus area]
+argument-hint: <slug> [focus hint]
 ---
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
@@ -50,13 +50,13 @@ You are a **workflow orchestrator**, not a problem solver.
 Apply [_workflow-rules.md](_workflow-rules.md).
 
 # Step 0 — Orient (do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user. Text after the slug is a **focus hint**: write it to `po-answers.md` with `stage: slice` and `kind: guidance`, and apply it when you choose the slices.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`: `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
    - `01-intake.md` and `02-shape.md` exist. If missing → STOP. Tell the user which command to run first ("Run `/wf shape <slug>` first.").
    - If `02-shape.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve the open shape questions first.
    - **Stack gate (do not silently re-detect).** Inspect the `stack:` block in `00-index.md`.
-     - If the block is **missing entirely** → STOP. Tell the user: "Step 0.5 stack fingerprint is missing from `00-index.md`. Re-run `/wf intake <slug>` to capture it; that step is the source of truth for downstream tooling decisions." Slice does not re-detect the stack; silent re-detection would diverge from intake's user-confirmed truth.
+     - If the block is **missing entirely** → STOP. Tell the user: "Step 0.5 stack fingerprint is missing from `00-index.md`. Re-run `/wf intake <slug>` to capture it."
      - If `stack.user-confirmed: false` → WARN: "`stack:` was auto-detected but the PO has not confirmed it. Slicing decisions that depend on tooling or platform (which surfaces ship together) may be wrong. Re-run intake's Batch B confirmation, or proceed and accept the risk?" Ask it as a gate question per [_gate-question.md](_gate-question.md). If the user proceeds, treat the unconfirmed stack as advisory only; it does not drive slice boundaries.
      - If `stack.user-confirmed: true` → proceed. The slice strategy may reference confirmed platforms and tooling to justify groupings, and introduces no tooling assumptions beyond `stack:`.
    - If `current-stage` is already past slice → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revisions and appends the `revisions:` ledger.

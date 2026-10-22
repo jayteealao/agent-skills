@@ -1006,5 +1006,33 @@
     "entry": "register:",
     "reason": "WF-DESIGN-PLAN Part III 9.1 (I8, MQ2): templates record design-mode: (design augmentation) and surface-modes: (02c-craft.md); register stays an optional deprecated field read as brand → persuade, product → operate.",
     "release": "9.199.0"
+  },
+  {
+    "category": "stops",
+    "entry": "- if no slug satisfies any condition stop:",
+    "file": "skills/wf/SKILL.md",
+    "reason": "WF-ROUTE-WIZARD-PLAN section 4.4: Step 0.5 is gone; a slug miss loads reference/route.md, which offers the near match in its confirm question.",
+    "release": "9.201.0"
+  },
+  {
+    "category": "stops",
+    "entry": "if a best match exists, stop with: \"unknown",
+    "file": "skills/wf/SKILL.md",
+    "reason": "WF-ROUTE-WIZARD-PLAN section 4.4: Step 0.5 is gone; the router offers the best match first and runs it after the yes.",
+    "release": "9.201.0"
+  },
+  {
+    "category": "stops",
+    "entry": "if the key candidate is not one of",
+    "file": "skills/wf/SKILL.md",
+    "reason": "WF-ROUTE-WIZARD-PLAN D1: a word that is not a key loads reference/route.md, which corrects a typo key or routes the description; the unknown-key error is gone.",
+    "release": "9.201.0"
+  },
+  {
+    "category": "stops",
+    "entry": "- argument is none of the above stop.",
+    "file": "skills/wf/reference/docs.md",
+    "reason": "WF-ROUTE-WIZARD-PLAN D1: a docs argument that is not a primitive, slug, path or flag loads reference/route.md.",
+    "release": "9.201.0"
   }
 ]

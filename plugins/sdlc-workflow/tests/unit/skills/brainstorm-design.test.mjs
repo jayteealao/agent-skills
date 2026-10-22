@@ -20,7 +20,7 @@ test('brainstorm is an intake mode, not a key: no row, no router, the merged inv
   const skill = read('skills/wf/SKILL.md');
   doesNotMatch(skill, /^\| `brainstorm` \|/m);
   match(skill, /one of the 19 keys/);
-  match(skill, /retro, design, probe, auto/);
+  match(skill, /the reference is `reference\/route\.md` with every token, reason `not a key`/);
   ok(!existsSync(join(PLUGIN_ROOT, REF, 'brainstorm.md')), 'the router file is gone');
   const mode = read(`${REF}/intake/brainstorm.md`);
   match(mode, /whose index has `status: closed` → STOP/);

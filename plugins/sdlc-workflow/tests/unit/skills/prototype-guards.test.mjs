@@ -41,8 +41,8 @@ test('the key reference: person-only rounds, one round per run, decide-only comm
 test('the dispatcher, the picker, and the host contract name the key', () => {
   const skill = read('skills/wf/SKILL.md');
   assert.match(skill, /one of the 19 keys/);
-  assert.match(skill, /^\| `loop` \| .*`prototype <idea>` · `prototype <slug> \[request\]`/m);
-  assert.match(skill, /loop, status, project, docs\."\*/);
+  assert.match(skill, /^\| `loop` \| .*`prototype text` · `prototype <slug>\\\|<branch> \[text\]`/m);
+  assert.match(skill, /the reference is `reference\/route\.md` with every token, reason `not a key`/);
   assert.match(skill, /^\| `loop goal`, `loop optimize`, `loop prototype` \|/m);
   assert.match(read('hooks/mod/catalog.ts'), /key: 'loop prototype'/);
   assert.match(read(`${REF}/_host-surfaces.md`), /\| Published page \(brainstorm, prototype\) \|/);

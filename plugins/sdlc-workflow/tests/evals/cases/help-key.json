@@ -1,0 +1,16 @@
+{
+  "name": "help-key",
+  "order": 8,
+  "fixture": "node-cli",
+  "prompt": "/wf what does campaign do",
+  "maxTurns": 10,
+  "assertions": [
+    {
+      "type": "result-contains",
+      "pattern": "campaign\\.md"
+    },
+    {
+      "type": "no-changes"
+    }
+  ]
+}

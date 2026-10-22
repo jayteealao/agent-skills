@@ -150,10 +150,11 @@ test('retired.json entries name a reason and a release', () => {
   }
 });
 
-test('measure-load: 23 dispatch units, core ⊆ instructed ⊆ referenced, targets derive from §4.1, baseline covers every unit', () => {
-  // 17 keys with a reference file (loop and project have none) + 6 sub-keys.
+test('measure-load: 24 dispatch units, core ⊆ instructed ⊆ referenced, targets derive from §4.1, baseline covers every unit', () => {
+  // 17 keys with a reference file (loop and project have none) + 6 sub-keys + the router
+  // (route.md, WF-ROUTE-WIZARD-PLAN), which Step 0 loads like a key.
   const keys = listKeys(pluginRoot);
-  assert.equal(keys.length, 23, `keys: ${keys.join(', ')}`);
+  assert.equal(keys.length, 24, `keys: ${keys.join(', ')}`);
   const load = measureLoad(pluginRoot);
   for (const k of keys) {
     const { core, instructed, referenced, target } = load.keys[k];

@@ -1,6 +1,6 @@
 ---
 description: Create or review-and-fix implementation plans. First invocation creates plans. Re-invocation auto-reviews against current codebase and artifacts, fixes issues found. Supports single slice, all slices (parallel), or explicit feedback.
-argument-hint: <slug> [slice-slug|all] [review/fix instructions]
+argument-hint: <slug> [<slice> [guidance or fix instructions] | all]
 ---
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
@@ -51,6 +51,7 @@ You are a workflow orchestrator, not a problem solver. Do not write code, edit f
 
 # Step 0 — Orient (do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). The second argument, if present, is the slice-slug or the keyword `all`. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
+   - **Check the slice name.** When `03-slice.md` exists and the second argument is neither `all` nor a slice of its roster, STOP: *"Unknown slice `<name>` in `<slug>`. Did you mean `<best-match>`? Retry: `/wf plan <slug> <best-match> <text>`"*. The best match has a Levenshtein distance of 2 or less, or is a substring. Write no plan file.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
    - `02-shape.md` must exist. If missing → STOP. Tell the user which command to run first.
@@ -72,7 +73,7 @@ You are a workflow orchestrator, not a problem solver. Do not write code, edit f
    - b) `all` and no plans exist → **parallel plan mode**.
    - c) slice-slug + supplemental text + `04-plan-<slice-slug>.md` exists → **directed fix mode**.
    - d) slice-slug + `04-plan-<slice-slug>.md` exists + no supplemental text → **auto-review mode**.
-   - e) slice-slug and no plan → **single plan mode**.
+   - e) slice-slug and no plan → **single plan mode**. Supplemental text is **planning guidance**: write it to `po-answers.md` with `stage: plan` and `kind: guidance`, give it to every research sub-agent as a PO directive, ask no discovery question that it answers, and cite it in `## Applied Learnings` or in the decision that it settles.
    - f) no second argument → use `selected-slice` from the index; if missing and slices exist, choose the best first slice from `03-slice.md` or ask the user; then apply (d) or (e).
    - g) no slices → single plan mode for the whole shaped spec; if `04-plan.md` exists, auto-review (d).
 7. **Check the sibling plans.** Read the `## Sibling Plans` table in `04-plan.md`; when it is missing, read each `04-plan-<slice-slug>.yaml`. Read a sibling plan in full when one of these holds:

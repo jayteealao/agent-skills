@@ -16,9 +16,10 @@
 <h2 id="dispatcher">The dispatcher</h2>
 <p>All plugin operations run through one command: <code>/wf &lt;key&gt; [args…]</code>. The first token must be one of the 19 keys on this page. Six sub-keys and the intake modes take the second token. Everything after the first token passes verbatim to that key. The dispatcher itself has this behavior:</p>
 <ul>
-  <li><strong>Empty invocation.</strong> <code>/wf</code> with no arguments renders the key menu and asks which operation you want.</li>
-  <li><strong>Unknown key.</strong> A first token that is not a known key is an error. The dispatcher never treats the token as a slug or as an intake mode. The dispatcher lists the 19 valid keys and stops. The table under <a href="#renamed">Renamed commands</a> maps every retired command name to its current spelling.</li>
-  <li><strong>Fuzzy slug suggestion.</strong> Exactly five keys have this behavior: <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, and <code>verify</code>. For these keys, a slug that matches no row in <code>.ai/workflows/INDEX.md</code> triggers an advisory typo suggestion ("Did you mean <code>&lt;best-match&gt;</code>?"). The suggestion never auto-corrects; you re-invoke with the suggested slug. Every other key resolves its own first token, which can be a PR number, a branch name, a dimension, a mode, or a sub-key. For those keys the suggestion does not fire.</li>
+  <li><strong>Full command.</strong> A key runs at once when its arguments fit the grammar on this page: every required position is filled, each slug, slice and branch exists, and free text appears only where the key reads it. The dispatcher checks a slug, a slice or a branch with one read of <code>.ai/workflows/</code> and git. It never puts your free text into a shell command.</li>
+  <li><strong>Plain words.</strong> When the command does not fit, <code>/wf</code> routes it. Type what you want, for example <code>/wf the dashboard is blank</code> or <code>/wf keep going on export</code>. The router says how it read the words, shows the full command, and runs it after your yes. A typo in a key or a slug gets the corrected command as its first option. New work goes to <code>/wf intake</code>, which asks its own questions. The router never writes an artifact itself, and it asks at most two questions.</li>
+  <li><strong>Questions about /wf.</strong> Ask <code>/wf</code> itself, for example <code>/wf what does campaign do</code> or <code>/wf how do I ship a hotfix</code>. The answer comes from the skill's own reference files and names each file. A question about a task ends with the command and a question whether to run it.</li>
+  <li><strong>Empty invocation.</strong> <code>/wf</code> with no arguments asks what you want to do. It offers the next step of your three most recent open workflows, the full key list, and a free-text answer.</li>
   <li><strong>Sub-keys.</strong> <code>loop goal</code>, <code>loop optimize</code>, <code>loop prototype</code>, <code>status recap</code>, <code>project ship-plan</code>, and <code>project observability</code> each load their own reference directly. <code>/wf loop</code> or <code>/wf project</code> alone lists its sub-keys and asks which one you want.</li>
   <li><strong>Intake fast path.</strong> <code>/wf intake &lt;mode&gt; …</code> with no slug first loads that mode directly, without the intake dispatcher. Every other intake form runs the dispatcher. Because the dispatcher reads command words before slugs, a new workflow cannot take a key, a sub-key, or a mode word as its slug.</li>
   <li><strong>Git precondition.</strong> Before dispatch, <code>/wf</code> confirms that the project is a git repository. If the project is not a git repository, the dispatcher asks whether to run <code>git init</code>. Artifacts still write without git, but the workflow view does not render until the repo is initialized.</li>
@@ -196,7 +197,7 @@
 
 <div class="related">
 <h2 id="renamed">Renamed commands</h2>
-<p>These command names are retired. The dispatcher rejects them as unknown keys. Type the current spelling instead.</p>
+<p>These command names are retired. The router offers the current spelling and runs it after your yes. Type the current spelling to skip the question.</p>
 <div class="table-wrap"><table>
 <thead><tr><th>Retired</th><th>Current</th></tr></thead>
 <tbody>

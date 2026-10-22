@@ -46,6 +46,7 @@ const NO_WRITES = new Map([
 // are the other files, each loaded by a stage reference that owns the table.
 const NO_TABLE = [
   [/^auto\.md$|^yolo\.md$|^campaign\.md$|^goal\.md$|^optimize\.md$/, 'lifecycle drivers and loops: they run stage references and scripts; intake/optimize.md carries the optimize table'],
+  [/^route\.md$/, 'the router: writes nothing; it loads the reference of the command the person confirms'],
   [/^intake\/amend\.md$/, 'edits 00-index.md only; writes no stage artifact'],
   [/^intake\/modernize\.md$/, 'backfills fields of existing artifacts; writes no stage artifact'],
   [/^design\/[^/]+\.md$/, 'design moves and sub-steps, loaded by design.md (and by shape, slice, plan, retro)'],

@@ -1,0 +1,16 @@
+{
+  "name": "help-task",
+  "order": 9,
+  "fixture": "node-cli",
+  "prompt": "/wf how do I ship a hotfix",
+  "maxTurns": 10,
+  "assertions": [
+    {
+      "type": "result-contains",
+      "pattern": "/wf intake hotfix"
+    },
+    {
+      "type": "no-changes"
+    }
+  ]
+}

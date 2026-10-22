@@ -5,6 +5,24 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.201.0] - 2026-10-22
+
+WF-ROUTE-WIZARD-PLAN in full (W0–W3, W5, W6; W4, the Desktop band, stays deferred). You can type plain words after `/wf`, and `/wf` answers questions about itself.
+
+### Added
+
+- **The router** (`skills/wf/reference/route.md`). Step 0 loads it when `/wf` has no arguments or the tokens do not resolve to a full command. It names one command, says how it read the words, and runs the command after your yes. A typo in a key, a slug or a slice gets the corrected command first. New work goes to `/wf intake <text>` with no question, because intake asks its own questions. The router asks at most two questions and writes nothing. In a headless run it prints the question and ends.
+- **Help.** `/wf what does campaign do` or `/wf how do I ship a hotfix` gets a read-only answer from `SKILL.md` and the reference files, never from the docs site. Each fact names its file. A task question ends with the command and the confirm question.
+- **A bare `/wf`** asks what you want to do: the next step of the three newest open workflows, the key list, or free text.
+
+### Changed
+
+- **The Arguments column of `SKILL.md` is the dispatch grammar** (D1). A key runs at once only when every required position is filled, each slug, slice and branch exists, and free text appears only where the key reads it. Step 0 checks slugs, slices and branches in one Bash call, and only safe tokens enter that call (D10). `review` and `docs` check their dimension and primitive themselves and route a miss.
+- **Step 0.5 and the unknown-key error are gone.** Both now load the router.
+- **`plan` checks the slice name** before it chooses a mode, and stops with the near match (G2). **Text after a slice with no plan is planning guidance** (G1): it goes to `po-answers.md` as `kind: guidance` and to every research sub-agent.
+- **`shape` and `slice` read the text after the slug** as a focus hint (G3).
+- Evals: `unknown-key` now expects the route question; new cases `route-description`, `route-typo-key`, `route-slug-miss`, `help-key`, `help-task`.
+
 ## [9.200.0] - 2026-10-22
 
 WF-CAMPAIGN-HEAVY-LOCK-REVIEW-2026-10-22 in full. In SoccerManager wave 4, agents kept the heavy-suite lock for up to 2 h 18 min while they edited code, and three units waited about 7 h 50 min in one night.

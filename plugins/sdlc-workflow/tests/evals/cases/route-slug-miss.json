@@ -1,0 +1,20 @@
+{
+  "name": "route-slug-miss",
+  "order": 11,
+  "fixture": "node-cli",
+  "requires": [
+    "intake-default"
+  ],
+  "prompt": "/wf shape <slug>x",
+  "maxTurns": 10,
+  "assertions": [
+    {
+      "type": "result-contains",
+      "pattern": "/wf shape "
+    },
+    {
+      "type": "absent",
+      "glob": ".ai/workflows/*/02-shape.md"
+    }
+  ]
+}

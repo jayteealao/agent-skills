@@ -32,13 +32,9 @@ test('SKILL.md names task as an intake mode, not a key (WF-KEY-SURFACE-PLAN A5)'
     assert.match(skill, /`simplify`, `task`\) runs an entry flow/,
       `${name}: SKILL.md intake row lost the task mode`);
     assert.ok(!/^\| `task`\s+\|/m.test(skill), `${name}: SKILL.md still has a task key row`);
-    // The not-a-known-key error roster names keys only.
-    assert.ok(!/Pick one of: [^"]*\btask\b/.test(skill),
-      `${name}: SKILL.md not-a-known-key roster still names task`);
-    // Step 0.5 exclusion — task resolves its own first token, so the applies-to list omits it.
-    const applies = /Step 0\.5 applies to ([^.]+)\./.exec(skill)?.[1] ?? '';
-    assert.ok(applies.length > 0, `${name}: SKILL.md lost the Step 0.5 applies-to sentence`);
-    assert.ok(!/`task`/.test(applies), `${name}: SKILL.md Step 0.5 applies to task`);
+    // WF-ROUTE-WIZARD-PLAN: a word that is not a key, task included, goes to the router.
+    assert.match(skill, /If the key candidate is not one of the 19 keys, the reference is `reference\/route\.md`/,
+      `${name}: SKILL.md does not send an unknown word to the router`);
   }
 });
 
