@@ -61,6 +61,22 @@ test('T3: prepareAhead names the later units whose needs are done, started, or i
   assert.deepEqual(C.prepareAhead(l), ['X'], 'a prepared unit is not named again');
 });
 
+test('WF-SYSTEM-REVIEW D6: prepareAhead names at most one slot cycle; changedDecisions and markStalePrepared', () => {
+  const l = ledgerOf({ deps: { C: { 'depends-on': [{ key: 'B', kind: 'need', evidence: 'e' }] }, D: { 'depends-on': [{ key: 'X' }] } } });
+  l.units.X = { key: 'X', state: 'planned' };
+  l.waves.push({ n: 4, state: 'planned', units: ['X'] });
+  assert.deepEqual(C.prepareAhead(l, { width: 1 }), ['C']);
+  l['slot-width'] = 1;
+  assert.deepEqual(C.prepareAhead(l), ['C'], 'the ledger slot width caps it');
+  assert.deepEqual(C.changedDecisions(null, [{ key: 'a', text: 'x' }]), [], 'no stamp: nothing to ask again');
+  assert.deepEqual(C.changedDecisions({ a: 'x', b: 'y' }, [{ key: 'a', text: 'x2' }, { key: 'c', text: 'z' }]), ['a', 'b', 'c']);
+  const ledger = { units: { P: { state: 'prepared', 'prepared-decisions': { a: 'x' } }, Q: { state: 'prepared', 'prepared-decisions': { b: 'y' } } }, waves: [{ n: 1, state: 'planned', units: ['P', 'Q'] }] };
+  const out = C.markStalePrepared(ledger, [{ key: 'P', decisions: [{ key: 'a', text: 'x2' }] }, { key: 'Q', decisions: [{ key: 'b', text: 'y' }] }]);
+  assert.deepEqual(out, [{ key: 'P', changed: ['a'] }]);
+  assert.equal(ledger.units.P.state, 'planned');
+  assert.equal(ledger.units.Q.state, 'prepared');
+});
+
 test('T2 step 1: waveReady and nextWaveAsk ask at a boundary with ready-at, only with stacked PRs', () => {
   const waves = [{ n: 1, state: 'boundary', units: ['A'] }, { n: 2, state: 'planned', units: ['B'] }];
   const l = ledgerOf({ waves, stack: { enabled: true, 'max-unshipped': 2 } });
@@ -68,7 +84,7 @@ test('T2 step 1: waveReady and nextWaveAsk ask at a boundary with ready-at, only
   assert.equal(C.nextWaveAsk(l, 1), null);
   l.waves[0]['ready-at'] = '2026-10-21T10:00:00Z';
   assert.equal(C.waveReady(l.waves[0]), true);
-  assert.deepEqual(C.nextWaveAsk(l, 1), { wave: 2, on: 1, units: ['B'], prepared: false, unprepared: ['B'] });
+  assert.deepEqual(C.nextWaveAsk(l, 1), { wave: 2, on: 1, units: ['B'], prepared: false, unprepared: ['B'], defaults: C.defaultsOf(l) });
   l.units.B.state = 'prepared';
   assert.equal(C.nextWaveAsk(l, 1).prepared, true);
   assert.equal(C.nextWaveAsk({ ...l, stack: { enabled: false } }, 1), null, 'with no stacked PRs the next wave waits for the merge');

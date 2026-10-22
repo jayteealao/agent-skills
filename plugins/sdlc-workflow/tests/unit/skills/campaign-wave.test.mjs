@@ -39,7 +39,7 @@ const stagesOf = (planned) => ({ plan: planned ? 'done' : 'todo', implement: 'to
  * return a value to override the default answer of a label; returning undefined
  * keeps the default.
  */
-function makeMock({ rosters, answer = () => undefined, delays = {} }) {
+function makeMock({ rosters, answer = () => undefined, delays = {}, sliceExtra = {} }) {
   const calls = [];
   const planned = new Set();
   const asked = [];
@@ -56,7 +56,7 @@ function makeMock({ rosters, answer = () => undefined, delays = {} }) {
       return {
         ok: true, slug, reviewScope: 'per-slice', fileConvention: 'suffixed', runId: `20261016T100000Z-${slug}`, lastSeq: 0,
         charter: [], priorDeferrals: [],
-        slices: (rosters[slug] || ['s1']).map((s) => ({ slice: s, status: 'defined', reverifyReason: 'new-work', stages: stagesOf(planned.has(`${slug}:${s}`)) })),
+        slices: (rosters[slug] || ['s1']).map((s) => ({ slice: s, status: 'defined', reverifyReason: 'new-work', stages: stagesOf(planned.has(`${slug}:${s}`)), ...(sliceExtra[`${slug}:${s}`] || {}) })),
       };
     }
     if (stage === 'plan') { planned.add(`${slug}:${slice}`); return { stage: 'plan', slice, status: 'complete', artifactPath: `/x/04-plan-${slice}.md`, terminal: { statusField: 'complete' }, decisions: [], crossUnit: [] }; }
@@ -114,7 +114,7 @@ function makeMock({ rosters, answer = () => undefined, delays = {} }) {
     agent: async (prompt, opts = {}) => {
       const label = opts.label;
       const heavy = isHeavy(label, prompt);
-      const c = { label, prompt, start: ++seq, end: null, heavy };
+      const c = { label, prompt, start: ++seq, end: null, heavy, model: opts.model };
       calls.push(c);
       if (heavy) { active++; activeLabels.add(label); peak = Math.max(peak, active); c.concurrent = active; }
       try {
@@ -1309,4 +1309,115 @@ test('throughput T12: the conventions clause is in the plan and implement prompt
   await run(baseArgs([unitArg('A', 'a')], { conventions: false }), off);
   assert.doesNotMatch(first(off.calls, /^plan:s1@a/).prompt, /CAMPAIGN CONVENTIONS/);
   assert.doesNotMatch(first(off.calls, /^merge$/).prompt, /CAMPAIGN CONVENTIONS/);
+});
+
+// ---------------------------------------------------------------- WF-SYSTEM-REVIEW A3, A4, E4
+
+test('A3: a held wave ends the run of each unit that did not finish, with the stop and its reason', async () => {
+  const mock = makeMock({
+    rosters: { a: ['s1', 's2'], b: ['p1', 'p2'] },
+    answer: (label) => (/^implement:s2@a/.test(label) ? { stage: 'implement', slice: 's2', status: 'stopped', stopKind: 'stop', stopReason: 'bed', artifactPath: '', terminal: {} } : undefined),
+  });
+  await run(baseArgs([unitArg('A', 'a'), unitArg('B', 'b')]), mock);
+  const end = first(mock.calls, /^run-end$/);
+  assert.ok(end, 'the last step writes the run-end lines');
+  assert.match(end.prompt, /yolo-watch\.mjs" end "[^"]+" a --run "[^"]+" --agent run-end@a --stopped-at "stop-request"/);
+  assert.match(end.prompt, / end "[^"]+" b --run /);
+  const i = mock.calls.indexOf(end);
+  assert.equal(i, mock.calls.length - 1, 'the run-end agent is the last agent of the wave');
+});
+
+test('A3: a wave whose units all finish runs no wave run-end agent; the unit end writes the line and the read check (E4)', async () => {
+  const mock = makeMock({ rosters: { a: ['s1'] } });
+  const { labels } = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+  assert.ok(!labels.includes('run-end'));
+  assert.ok(!labels.some((l) => /read-check-report/.test(l)), 'the read check is a step of the unit end');
+  const ue = first(mock.calls, /^unit-end@a/).prompt;
+  assert.match(ue, /READ CHECK \(READ-ONLY\)/);
+  assert.match(ue, /yolo-watch\.mjs" line "[^"]+" '\{"run":"[^"]+","event":"run-end"/);
+});
+
+test('A4: every journal line of the wave goes out through the line command, built with JSON.stringify', async () => {
+  const mock = makeMock({ rosters: { a: ['s1'] } });
+  await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+  for (const c of mock.calls) {
+    assert.doesNotMatch(c.prompt, /\{"at":"<ISO/, `${c.label} still builds a journal line by hand`);
+    for (const m of c.prompt.matchAll(/yolo-watch\.mjs" line "[^"]+" '([^']*)'/g)) {
+      assert.doesNotThrow(() => JSON.parse(m[1]), `${c.label}: ${m[1]}`);
+    }
+  }
+  const impl = first(mock.calls, /^implement:s1@a/).prompt;
+  assert.match(impl, /--hard-stop-reason/);
+  assert.match(impl, /--route-back/);
+});
+
+// ---------------------------------------------------------------- WF-SYSTEM-REVIEW C1
+
+test('C1: the models arg sets the model of a stage; every other stage stays on Opus', async () => {
+  const mock = makeMock({ rosters: { a: ['s1'] } });
+  await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1, models: { implement: 'sonnet' } }), mock);
+  assert.equal(first(mock.calls, /^implement:s1@a/).model, 'claude-sonnet-5-5');
+  assert.equal(first(mock.calls, /^verify:s1@a/).model, 'claude-opus-5-5');
+  assert.equal(first(mock.calls, /^review(:s1)?@a/).model, 'claude-opus-5-5');
+  const plain = makeMock({ rosters: { a: ['s1'] } });
+  await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), plain);
+  assert.equal(first(plain.calls, /^implement:s1@a/).model, 'claude-opus-5-5', 'no models block: Opus');
+});
+
+// ---------------------------------------------------------------- WF-SYSTEM-REVIEW B2
+
+test('B2: a narrowing with no answer is accepted and carried by the standing default; a drop still stops (F3)', async () => {
+  const fid = (dropped) => makeMock({
+    rosters: { a: ['s1'] },
+    answer: (label) => (label === 'fidelity' ? { status: 'complete', unratified: ['D3', 'D4'], unratifiedDropped: dropped } : undefined),
+  });
+  const carried = fid([]);
+  const r1 = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), carried);
+  assert.equal(r1.outcome.stopBeforeNextWave, false);
+  assert.deepEqual(r1.outcome.boundary.fidelity.carried, ['D3', 'D4']);
+  const dropped = fid(['D4']);
+  const r2 = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), dropped);
+  assert.equal(r2.outcome.stopBeforeNextWave, true);
+  assert.match(r2.outcome.boundary.reason, /fidelity: D4 narrowed or dropped/);
+  const asked = fid([]);
+  const r3 = await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1, defaults: { 'fidelity-narrowing': 'ask' } }), asked);
+  assert.equal(r3.outcome.stopBeforeNextWave, true, 'with the default off, every unratified item stops');
+});
+
+// ---------------------------------------------------------------- WF-SYSTEM-REVIEW C2, C3
+
+test('C3: a plan of 14 steps implements in groups of 6, each a fresh agent; a resume starts after the last committed step', async () => {
+  const mock = makeMock({ rosters: { a: ['s1'] }, sliceExtra: { 'a:s1': { planSteps: 14, stepsCommitted: 0 } } });
+  await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+  const impl = all(mock.calls, /^implement:s1@a/);
+  assert.equal(impl.length, 3);
+  assert.match(impl[0].prompt, /Implement plan steps 1 to 6 of 14 ONLY/);
+  assert.match(impl[0].prompt, /\.implement-handover-s1\.md/);
+  assert.match(impl[2].prompt, /Implement plan steps 13 to 14 of 14 ONLY\. .*This is the last group/s);
+  assert.match(impl[0].prompt, /STEP COMMITS \(C2\)/);
+  const resumed = makeMock({ rosters: { a: ['s1'] }, sliceExtra: { 'a:s1': { planSteps: 14, stepsCommitted: 6 } } });
+  await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), resumed);
+  const r = all(resumed.calls, /^implement:s1@a/);
+  assert.deepEqual(r.map((c) => /steps (\d+) to (\d+)/.exec(c.prompt).slice(1).join('-')), ['7-12', '13-14']);
+});
+
+test('C2: a slice whose implement hard-stopped twice parks with a split question; the answer runs it once more as a retry', async () => {
+  const mock = makeMock({ rosters: { a: ['s1'] }, sliceExtra: { 'a:s1': { implementStops: 2 } } });
+  await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1, questions: [] }), mock);
+  const p = first(mock.calls, /^park:stage@a/);
+  assert.ok(p, 'the split question parks the unit');
+  assert.match(p.prompt, /SPLIT THIS SLICE/);
+  const impl = all(mock.calls, /^implement:s1@a/);
+  assert.ok(impl.every((c) => mock.calls.indexOf(c) > mock.calls.indexOf(p)), 'no implement runs before the answer');
+});
+
+test('C6: a unit review with 6 findings of one rubric runs 2 refuters, 4 findings and 2', async () => {
+  const mock = makeMock({
+    rosters: { a: ['s1'] },
+    answer: (label) => (/^scout:correctness:s1@a/.test(label) ? { findings: Array.from({ length: 6 }, (_, i) => ({ id: `f${i}`, severity: 'MED', file: 'x.js', issue: `i${i}` })) } : undefined),
+  });
+  await run(baseArgs([unitArg('A', 'a')], { width: 1, widthMax: 1 }), mock);
+  const refuters = all(mock.calls, /^refute:correctness/);
+  assert.equal(refuters.length, 2, refuters.map((c) => c.label).join(', '));
+  assert.match(refuters[0].prompt, /each of these 4 code-review findings/);
 });

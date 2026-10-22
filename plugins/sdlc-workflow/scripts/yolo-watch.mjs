@@ -19,9 +19,17 @@
  *   node yolo-watch.mjs control <projectRoot> <slug> pause <until ISO> [reason ...]
  *   node yolo-watch.mjs control <projectRoot> <slug> clear|show
  *       Write, delete or print .ai/workflows/<slug>/.control.json (the stop request, G1).
- *   node yolo-watch.mjs end <projectRoot> <slug> [--stopped-at <where>]
+ *   node yolo-watch.mjs end <projectRoot> <slug> [--stopped-at <where>] [--reason <text>] [--run <id>]
  *       Append a run-end line to the driver journal. The main session runs it when
- *       the Workflow returns, so the watch ends at once.
+ *       the Workflow returns, so the watch ends at once. The driver's last step runs
+ *       it too (WF-SYSTEM-REVIEW A3): when the journal's last run-end is for the same
+ *       run, it appends nothing.
+ *   node yolo-watch.mjs line <journalFile> '<json>' [--fields '<json>'] [--run id] [--seq n] [--status s] [--errors n]
+ *                            [--reason r] [--hard-stop-reason r] [--route-back x]
+ *       Append one journal line (WF-SYSTEM-REVIEW A4). The driver builds the JSON with
+ *       JSON.stringify; the agent adds only what it alone knows, as flags. `at` is the
+ *       clock now. Every line goes out through JSON.stringify, so a path with
+ *       backslashes always parses.
  *
  * In a campaign (YOLO-COMMENTARY-PLAN section 4, K1-K6), add --campaign <brainstorm>:
  *   watch    one watch per wave over the wave's slugs and the campaign journal. It
@@ -990,11 +998,52 @@ export function writeControl(root, slug, action, rest, nowMs = Date.now(), { cam
   return value;
 }
 
-export function appendRunEnd(root, slug, stoppedAt = null, nowMs = Date.now(), campaign = null) {
+export function appendRunEnd(root, slug, stoppedAt = null, nowMs = Date.now(), campaign = null, opts = {}) {
   const file = campaign && (!slug || slug === '-') ? campaignJournalPath(root, campaign) : journalPath(root, slug);
   let run = null;
-  for (const l of readJournalFrom(file, 0).lines) if (l && l.run) run = l.run;
-  const line = { at: iso(nowMs), run, event: 'run-end', agent: 'main-session', ...(stoppedAt ? { stoppedAt } : {}) };
+  let lastEndRun;
+  for (const l of readJournalFrom(file, 0).lines) {
+    if (l && l.run) run = l.run;
+    if (l && l.event === 'run-end') lastEndRun = l.run ?? null;
+  }
+  if (opts.run) run = opts.run;
+  // A3: the driver's last step and the main session can both end one run. The
+  // second end appends nothing.
+  if (lastEndRun !== undefined && lastEndRun === run && run) return null;
+  const line = {
+    at: iso(nowMs), run, event: 'run-end', agent: opts.agent || 'main-session',
+    ...(stoppedAt ? { stoppedAt } : {}), ...(opts.reason ? { reason: String(opts.reason) } : {}),
+  };
+  mkdirSync(path.dirname(file), { recursive: true });
+  appendFileSync(file, `${JSON.stringify(line)}\n`);
+  return line;
+}
+
+/**
+ * A4: parse the JSON that a driver built for a journal line. The driver writes it
+ * with JSON.stringify, so it parses as it is. A copy that lost the escape of a
+ * backslash (a Windows path typed by hand) parses after the lone backslashes are
+ * doubled.
+ */
+export function parseLineJson(text) {
+  const s = String(text ?? '').trim();
+  try { return JSON.parse(s); } catch { /* repaired below */ }
+  return JSON.parse(s.replace(/\\(["\\/bfnrt]|u[0-9a-fA-F]{4})?/g, (m, g) => (g ? m : '\\\\')));
+}
+
+/** A4: append one journal line through JSON.stringify. Returns the line. */
+export function appendJournalLine(file, json, flags = {}, nowMs = Date.now()) {
+  const obj = parseLineJson(json);
+  // --fields: the values only the agent knows, as a JSON object (numbers and short words).
+  const extra = flags.fields ? parseLineJson(flags.fields) : {};
+  const line = { at: iso(nowMs), ...obj, ...(extra && typeof extra === 'object' && !Array.isArray(extra) ? extra : {}) };
+  if (flags.run) line.run = String(flags.run);
+  if (flags.seq !== undefined && Number.isFinite(Number(flags.seq))) line.seq = Number(flags.seq);
+  if (flags.status !== undefined) line.status = String(flags.status);
+  if (flags.errors !== undefined) line.errors = Math.max(0, Number(flags.errors) || 0);
+  if (flags.reason) line.reason = String(flags.reason);
+  if (flags['hard-stop-reason']) line.hardStopReason = String(flags['hard-stop-reason']);
+  if (flags['route-back']) line.routeBack = String(flags['route-back']);
   mkdirSync(path.dirname(file), { recursive: true });
   appendFileSync(file, `${JSON.stringify(line)}\n`);
   return line;
@@ -1112,7 +1161,21 @@ export async function main(argv = process.argv.slice(2)) {
   }
   if (first === 'end') {
     const [, root, slug] = pos;
-    appendRunEnd(path.resolve(root), slug, flags['stopped-at'] || null, Date.now(), flags.campaign || null);
+    appendRunEnd(path.resolve(root), slug, flags['stopped-at'] || null, Date.now(), flags.campaign || null, { reason: flags.reason || null, run: flags.run || null, agent: flags.agent || null });
+    return 0;
+  }
+  if (first === 'line') {
+    const [, file, json] = pos;
+    if (!file || json === undefined) {
+      process.stderr.write("usage: yolo-watch.mjs line <journalFile> '<json>' [--status s] [--errors n] [--reason r] [--hard-stop-reason r] [--route-back x]\n");
+      return 2;
+    }
+    try {
+      appendJournalLine(path.resolve(file), json, flags);
+    } catch (e) {
+      // Diagnostic, never a gate: a bad line never fails the agent that writes it.
+      process.stderr.write(`yolo-watch: line not appended: ${e.message}\n`);
+    }
     return 0;
   }
   const [root, ...named] = pos;

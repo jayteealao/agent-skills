@@ -35,7 +35,7 @@ A unit that is `finished` at launch gets no orient. A unit with an open question
 7. Run the clearing probe of each open deferral once. Do not clear the deferral, and do not edit `00-index.md`.
 8. Run `git -C <worktree> branch --show-current`. When the branch is not the unit branch, return `ok: false` with the reason.
 9. When `git -C <worktree> rev-parse -q --verify MERGE_HEAD` succeeds, a merge-in stopped half way. Run `git -C <worktree> merge --abort`, and report `mergeAborted: true`. The wait agent then merges again.
-10. Append the start and end heartbeat lines to the unit's driver journal, with the run id of step 2.
+10. Append the start and end heartbeat lines to the unit's driver journal with the `line` commands of the prompt, with the run id of step 2.
 
 When the orient returns `ok: false`, or returns nothing, the unit parks with kind `orient`.
 
@@ -45,7 +45,7 @@ A unit parks when it cannot continue without the person. Each park asks exactly 
 
 1. Run `<cmd> unit <key> stopped --route "parked: <kind>: <reason>"`.
 2. Run `<cmd> ask <id> --wave <n> --unit <key> --kind <kind> "<question>"`. When the prompt names a stage and a slice, the command also has `--stage <stage> --slice <slice>`.
-3. Append one `waiting` line to the unit's driver journal, with the question id and the kind. The watch then reads the silence of the unit as by design.
+3. Run the `line` command of the prompt. It appends one `waiting` line to the unit's driver journal, with the question id and the kind. The watch then reads the silence of the unit as by design.
 4. Run `<cmd> journal park '<json>'`, with `run`, `wave`, `key`, `kind`, `question`, and `reason`.
 5. Change nothing else. Return `ok` and a `note`.
 
@@ -252,14 +252,17 @@ The event agent appends the driver's own decisions that no other agent appends, 
 
 The unit end agent runs when the unit review is clean. When the setup answer names a recipe, the slug output runs first ([_boundary.md](_boundary.md), "Slug output"). A failed build parks the unit with kind `stage`, and the output builds again after the answer.
 
-1. Append one `run-end` line to the unit's driver journal.
+1. Run the `line` command of the prompt. It appends one `run-end` line to the unit's driver journal.
 2. Pipe a one-paragraph run-end note into `<watch> note "<worktree>" <slug> --event run-end`. Write what the unit built, in product language.
-3. Run `<watch> end "<worktree>" <slug>`.
+3. Run `<watch> end "<worktree>" <slug> --run <run id>`. It appends nothing when step 1 wrote the line.
 4. Run `<cmd> slice-done <key> --final --run <run id>`. Return its object as `sliceDone`.
 5. Run `<cmd> unit <key> finished --digest '<json>'`.
-6. Change nothing else.
+6. Read the slug's `.read-ledger.jsonl`, and return its rows of this run as `readCheck`. Write nothing.
+7. Change nothing else.
 
 Keep this order. `slice-done --final` commits the driver journal and the commentary, so the run-end line and the note come first. It also marks each wait with `through: finished` as `ready`.
+
+A unit that did not finish (a park, a move, a stop, a fault) gets its `run-end` line from the last agent of the wave, `run-end`. That line has `stoppedAt` and `reason`.
 
 ## Boundary setup
 

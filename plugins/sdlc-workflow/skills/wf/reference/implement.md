@@ -40,6 +40,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `05c-benchmark.md` | artifact | if-present | |
 | `implement/_artifact.md` | procedure | always | |
 | `implement/_research.md` | procedure | always | |
+| `implement/_steps.md` | procedure | mode:commit | |
 | `design/_design-context.md` | procedure | mode:ui | |
 | `implement/_reviews-mode.md` | procedure | mode:reviews | |
 | `07-review-<slice>.md` | artifact | mode:reviews | |
@@ -141,17 +142,17 @@ After writing files, return per [_chat-return.md](_chat-return.md). Lead with th
 
 Do this in order:
 1. **Ensure the correct branch** (the Step 0.11 branch check is complete).
-2. **Track the stage's units in a work-tracking checklist.** One item per plan step from `04-plan-<slice-slug>.md` → `## Step-by-Step Plan`, plus the artifact write and the atomic commit. Keep statuses truthful as you work; record a blocked step as blocked with its reason.
-3. Re-check the current code before editing (research sub-agents if needed), including files that sibling slice implementations may have changed.
-4. If the implementation depends on evolving external APIs, libraries, or patterns, run a freshness pass before editing.
-5. **Implement the selected slice**, step by step, keeping the checklist truthful.
-6. Update tests, docs, types, configs, or migrations only where required for this slice.
+2. **Track the stage's units in a work-tracking checklist.** One item per plan step from `04-plan-<slice-slug>.md` → `## Step-by-Step Plan`, plus the artifact write and the atomic commit. Keep statuses truthful; a blocked step records its reason.
+3. Re-check the current code before editing, including files that sibling slices changed.
+4. When the slice depends on evolving external APIs or libraries, run a freshness pass first.
+5. **Implement the selected slice**, step by step. Commit and record each plan step per [implement/_steps.md](implement/_steps.md).
+6. Update tests, docs, types, configs, or migrations only where this slice requires it.
 7. Summarize the exact change set.
 8. **Write `05-implement-<slice-slug>.md`** per [implement/_artifact.md](implement/_artifact.md). Ground the record per [_grounded-progress.md](_grounded-progress.md): every `## Verification Seams Built` and `## Visual Contract Honored` entry cites a file:line you **re-opened after editing**, not memory of your own edits.
 9. **Write or update `05-implement.md`** (master index, same file).
 10. **Evaluate adaptive routing.** Write ALL viable options into frontmatter `recommended-routes`.
-11. Update `00-index.md` and add files to `workflow-files`. Do not edit the slice or plan files; their `refs:` already name this record. **Then write the slice's status back to the roster**: `03-slice.md`'s `slices:` entry for `<slice-slug>` gets `status: in-progress`. Implement writes only `in-progress`. `/wf verify` is the one writer of `complete` (yolo only mirrors it), and `close.md` Step S3 is the one writer of `skipped`. Set only this slice's entry; do not touch siblings and do not renumber. Change-modes (`fix` / `hotfix` / `refactor` and any single-scope workflow) write an un-suffixed one-slice `03-slice.md`; the same rule applies to its single entry. A workflow with no `03-slice.md` at all (a forwarded `rca`) has no roster to update; skip silently.
-12. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`).** **Stage by explicit path, classified** (the same discipline as `ship.md` Step 1.1): (a) code files this slice changed, each by path; (b) workflow artifacts under `.ai/workflows/<slug>/`, by path; (c) any OTHER dirty path is NOT yours: fail closed and ask before staging it. `git add -A`, `git add .`, and any pathless `git add` are **forbidden**: concurrent sessions leave unrelated work in this tree, and a sweep commits it. Commit `feat(<slug>): implement <slice-slug>` with a brief summary of what the slice does. No push; pushing happens at handoff. Record the commit SHA in the per-slice frontmatter (`commit-sha`). If `branch-strategy` is `none`, skip the commit.
+11. Update `00-index.md` and add files to `workflow-files`. Do not edit the slice or plan files. **Then write the slice's status back to the roster**: `03-slice.md`'s `slices:` entry for `<slice-slug>` gets `status: in-progress`. Implement writes only `in-progress`. `/wf verify` is the one writer of `complete` (yolo only mirrors it), and `close.md` Step S3 is the one writer of `skipped`. Set only this slice's entry; do not touch siblings and do not renumber. Change-modes (`fix` / `hotfix` / `refactor` and any single-scope workflow) write an un-suffixed one-slice `03-slice.md`; the same rule applies to its single entry. A workflow with no `03-slice.md` at all (a forwarded `rca`) has no roster to update; skip silently.
+12. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`).** **Stage by explicit path, classified** (the same discipline as `ship.md` Step 1.1): (a) code files this slice changed, each by path; (b) workflow artifacts under `.ai/workflows/<slug>/`, by path; (c) any OTHER dirty path is NOT yours: fail closed and ask before staging it. `git add -A`, `git add .`, and any pathless `git add` are **forbidden**: concurrent sessions leave unrelated work in this tree, and a sweep commits it. Commit `feat(<slug>): implement <slice-slug>` with a brief summary of what the slice does. No push; pushing happens at handoff. Record the commit SHA in the per-slice frontmatter (`commit-sha`). If `branch-strategy` is `none`, skip the commit. Then write the test receipt ([implement/_steps.md](implement/_steps.md)).
 
 # Adaptive routing
 

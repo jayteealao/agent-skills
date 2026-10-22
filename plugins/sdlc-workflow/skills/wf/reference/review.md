@@ -28,6 +28,8 @@ You are running `/wf review`, **stage 7 of 10** in the SDLC lifecycle.
 
 Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
 
+Mode `triage`: the second argument is `triage`.
+
 | Input | Kind | When | Sections |
 |---|---|---|---|
 | `00-index.md` | artifact | always | |
@@ -56,6 +58,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `07-review-<slice>.md` | artifact | on-resume | |
 | `07-review-<slice>.yaml` | artifact | on-resume | |
 | `review/_stage.md` | procedure | always | |
+| `review/_triage.md` | procedure | mode:triage | |
 | `review/_context.md` | procedure | always | |
 | `review/_select.md` | procedure | always | |
 | `review/_dispatch.md` | procedure | always | |

@@ -22,20 +22,20 @@ You are running `/wf yolo`, the **autonomous lifecycle driver**. It resolves eve
 - **It resolves gates; it does not remove them.** Each stage's quality gate still runs; `yolo` supplies the answer and records it. Where it cannot produce the runtime proof a criterion needs, it defers that criterion through verify's `interactive-verification: deferred` hatch — recorded, ship-blocking, visible.
 - **It stops before handoff — always.** It never opens a PR or runs `handoff`, `ship`, or `retro`. CI is never in its scope.
 - **Resume is free.** The durable record is the artifact trail (`00-index.md` + numbered files). A killed run resumes on re-invocation: orientation skips stages already terminal-clean. No separate state file.
-- **A dead driver looks dead.** Every dispatched subagent appends a heartbeat line to `.ai/workflows/<slug>/.driver-journal.jsonl` on start and on finish. Read it by the staleness rule; never by its existence.
+- **A dead driver looks dead.** Every dispatched subagent writes heartbeats to `.ai/workflows/<slug>/.driver-journal.jsonl`. Read it by the staleness rule; never by its existence.
 
 # Driver liveness
 
-**The heartbeat.** Each dispatched agent appends one JSONL line before it starts and one before it returns:
+**The heartbeat.** Each dispatched agent appends one JSONL line before it starts and one before it returns, through the driver's `line` command. A stop adds `reason`, `hardStopReason` or `routeBack`:
 
 ```json
 {"at":"2026-07-26T14:31:07Z","run":"20260726T142950Z-<slug>","seq":4,"event":"agent-start","agent":"verify:auth","phase":"Drive","stage":"verify","slice":"auth"}
 {"at":"2026-07-26T14:58:22Z","run":"20260726T142950Z-<slug>","seq":4,"event":"agent-end","agent":"verify:auth","status":"complete","errors":0}
 ```
 
-It is diagnostic, never a gate: a failed append never changes what a stage does.
+It is diagnostic, never a gate: a failed append never changes what a stage does. The last agent, `run-end`, writes the `run-end` line.
 
-**Judging it.** Apply the staleness rule in [_control-file-ownership.md](_control-file-ownership.md) exactly at every read site: orientation, the hand-back, and `/wf status <slug>`. Never infer liveness from a file existing, a task id being known, or a chip saying "running independently".
+**Judging it.** Apply the staleness rule in [_control-file-ownership.md](_control-file-ownership.md) at every read site, `/wf status <slug>` included. Never infer liveness from a file, a task id, or a "running independently" chip.
 
 **Reconciling a dead driver.** A presumed-dead driver's last writes are suspect. Re-read every control file from disk immediately before editing it. Where an artifact on disk contradicts `00-index.md`, trust the artifact and correct the index. Report what the journal shows the run completed versus abandoned.
 
@@ -70,8 +70,6 @@ While a driver is running for a slug — or is presumed-dead and not yet reconci
 1. **Re-reads immediately before every edit.** Never edit from a copy read earlier in the same agent.
 2. **Treats an edit rejection as "the other writer moved"** — re-read, re-derive the change, retry once. Never force a stale string through; never rewrite the whole file to dodge the conflict.
 3. **Never runs a second driver** (`auto` or another `yolo`) for the same slug while one is live.
-
-The full contract is [_control-file-ownership.md](_control-file-ownership.md).
 
 **Slice-complete write-back.** When a slice clears every gate, the driver writes the roster entry's `status: complete` and the index `progress` block at drive time.
 
@@ -139,7 +137,7 @@ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-
 
 # Step 1 — Invoke the Workflow tool
 
-Call the **Workflow** tool with the staged script and resolved args:
+Call the **Workflow** tool:
 
 ```
 Workflow({
@@ -148,8 +146,9 @@ Workflow({
     projectRoot:   "<absolute repo root owning .ai/workflows>",
     referenceRoot: "<pluginRoot>/skills/wf/reference",
     slug:          "<slug>",
-    slice:         "<slice>"        // slice mode only — omit for slug mode
-    // reviewFanout (default ON) / planFanout (default OFF): omit unless the person asks
+    slice:         "<slice>",       // slice mode only — omit for slug mode
+    models:        { … }            // Step 0.5's models
+    // reviewFanout (on) / planFanout (off): omit unless the person asks
   }
 })
 ```

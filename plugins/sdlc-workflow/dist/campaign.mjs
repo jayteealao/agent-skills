@@ -38,6 +38,47 @@ var UNIT_STATES = Object.freeze(["planned", "prepared", "running", "waiting", "s
 var LIVE_WAVE_STATES = Object.freeze(["running", "boundary", "handoff", "shipping"]);
 var SETUP_ANSWERS = Object.freeze(["forecast", "target-version", "release-each-wave", "output", "budget"]);
 var OPTIONAL_ANSWERS = Object.freeze({ conventions: "on" });
+var STANDING_DEFAULTS = Object.freeze({ "review-scope": "slug-wide", "fidelity-narrowing": "accept-and-carry", ship: "recommended" });
+var DEFAULT_CHOICES = Object.freeze({ "review-scope": ["slug-wide", "per-slice", "ask"], "fidelity-narrowing": ["accept-and-carry", "ask"], ship: ["recommended", "ask"] });
+var AWAY_POLICY = Object.freeze({
+  stage: "recommended",
+  review: "fix-loop",
+  contract: "hold",
+  orient: "rerun",
+  "driver-fault": "resume",
+  "merge-conflict": "hold",
+  "needs-cycle": "hold",
+  deadlock: "hold",
+  "moved-dependency": "hold",
+  "slug-stop": "hold",
+  "wave-review": "hold"
+});
+var POLICY_CHOICES = Object.freeze({
+  stage: ["recommended", "hold"],
+  review: ["fix-loop", "hold"],
+  contract: ["refuse-change", "hold"],
+  orient: ["rerun", "hold"],
+  "driver-fault": ["resume", "hold"]
+});
+function standing(base, choices, given) {
+  const out = { ...base };
+  if (given && typeof given === "object" && !Array.isArray(given)) {
+    for (const [k, v] of Object.entries(given)) if (k in base && (choices[k] ?? ["hold"]).includes(v)) out[k] = v;
+  }
+  return out;
+}
+var defaultsOf = (ledger) => standing(STANDING_DEFAULTS, DEFAULT_CHOICES, ledger?.answers?.defaults);
+var policyOf = (ledger) => standing(AWAY_POLICY, POLICY_CHOICES, ledger?.answers?.policy);
+function standingError(key, value) {
+  const [base, choices] = key === "defaults" ? [STANDING_DEFAULTS, DEFAULT_CHOICES] : [AWAY_POLICY, POLICY_CHOICES];
+  if (!value || typeof value !== "object" || Array.isArray(value)) return `answer ${key}: give a JSON object, for example ${JSON.stringify(key === "defaults" ? { "review-scope": "per-slice" } : { stage: "hold" })}`;
+  for (const [k, v] of Object.entries(value)) {
+    if (!(k in base)) return `answer ${key}: ${k} is not one of ${Object.keys(base).join(", ")}`;
+    const ok = choices[k] ?? ["hold"];
+    if (!ok.includes(v)) return `answer ${key}: ${k} is one of ${ok.join(", ")}`;
+  }
+  return null;
+}
 var conventionsOn = (ledger) => !["off", false, "false"].includes(ledger?.answers?.conventions ?? OPTIONAL_ANSWERS.conventions);
 var DEFAULT_BUDGET = Object.freeze({ fiveHourSlow: 75, fiveHourPause: 90, sevenDayReserve: 15 });
 var READING_STALE_MS = 10 * 60 * 1e3;
@@ -333,7 +374,32 @@ function unclassifiedEdges(ledger) {
   }
   return out;
 }
-function prepareAhead(ledger) {
+function decisionStamp(decisions = []) {
+  return Object.fromEntries((decisions ?? []).filter((d) => d?.key).map((d) => [d.key, String(d.text ?? "")]));
+}
+function changedDecisions(stamp, decisions = []) {
+  if (!stamp || typeof stamp !== "object") return [];
+  const now = decisionStamp(decisions);
+  return [.../* @__PURE__ */ new Set([...Object.keys(stamp), ...Object.keys(now)])].filter((k) => stamp[k] !== now[k]).sort();
+}
+function markStalePrepared(ledger, units) {
+  const started = startedKeys(ledger);
+  const out = [];
+  for (const u of units) {
+    const lu = ledger.units?.[u.key];
+    if (!lu?.["prepared-decisions"] || started.has(u.key) || !["prepared", "planned"].includes(lu.state)) continue;
+    const changed = changedDecisions(lu["prepared-decisions"], u.decisions);
+    if (changed.length) {
+      lu.state = "planned";
+      lu["stale-decisions"] = changed;
+      out.push({ key: u.key, changed });
+    } else if (lu["stale-decisions"]) {
+      delete lu["stale-decisions"];
+    }
+  }
+  return out;
+}
+function prepareAhead(ledger, { width = ledger?.["slot-width"] ?? DEFAULT_WIDTH } = {}) {
   const next = ledger?.waves?.find((w) => w.state === "planned");
   if (!next) return [];
   const met = (k) => {
@@ -351,7 +417,7 @@ function prepareAhead(ledger) {
       if ([...g.dependsOn, ...g.needs.map((n) => n.from)].every(met)) out.push(k);
     }
   }
-  return out;
+  return out.slice(0, Math.max(1, Number(width) || 1));
 }
 function deferUnprepared(waveKeys, units, prepared) {
   const byKey = new Map(units.map((u) => [u.key, u]));
@@ -765,6 +831,7 @@ function replan(ledger, units, { revision = ledger["work-revision"], now = (/* @
       ledger.outside[u.key] = { slug: u.workSlug, form: u.form, title: u.title, state: "needs-you" };
     }
   }
+  markStalePrepared(ledger, units);
   for (const u of units) {
     const lu = ledger.units[u.key];
     if (!lu?.["derived-needs"]?.length) continue;
@@ -820,7 +887,8 @@ function campaignAction(ledger, { revision = null, driving = null } = {}) {
   const live = lives[0];
   const next = ledger.waves.find((w) => w.state === "planned");
   const ahead = prepareAhead(ledger);
-  const extra = (o) => ({ ...o, ...ahead.length ? { ahead } : {} });
+  const reask = Object.fromEntries(Object.entries(ledger.units ?? {}).filter(([, x]) => x.state === "planned" && x["stale-decisions"]?.length).map(([k, x]) => [k, x["stale-decisions"]]));
+  const extra = (o) => ({ ...o, ...ahead.length ? { ahead } : {}, ...Object.keys(reask).length ? { reask } : {} });
   const stacked = ledger.stack?.enabled && next && lives.length && lives.every(waveReady) && lives.length < (ledger.stack["max-unshipped"] ?? DEFAULT_MAX_UNSHIPPED);
   if (stacked && !driving) {
     const todo = unprepared(next);
@@ -849,7 +917,13 @@ function nextWaveAsk(ledger, n) {
   const lives = ledger.waves.filter((x) => LIVE_WAVE_STATES.includes(x.state));
   if (!lives.every(waveReady) || lives.length >= (ledger.stack["max-unshipped"] ?? DEFAULT_MAX_UNSHIPPED)) return null;
   const unprepared = next.units.filter((k) => ledger.units[k]?.state !== "prepared");
-  return { wave: next.n, on: n, units: [...next.units], prepared: unprepared.length === 0, unprepared };
+  return { wave: next.n, on: n, units: [...next.units], prepared: unprepared.length === 0, unprepared, defaults: defaultsOf(ledger) };
+}
+function campaignNow(ledger) {
+  const live = (ledger?.waves ?? []).filter((w) => LIVE_WAVE_STATES.includes(w.state));
+  const running = live.flatMap((w) => (w.units ?? []).filter((k) => ["running", "waiting", "prepared"].includes(ledger.units[k]?.state)).map((k) => ({ wave: w.n, key: k, slug: ledger.units[k].slug, state: ledger.units[k].state })));
+  const waiting = (ledger?.questions ?? []).filter((q) => !q["answered-at"]).map((q) => ({ id: q.id, ...q.unit ? { unit: q.unit } : {}, ...q.kind ? { kind: q.kind } : {}, text: String(q.text ?? "").slice(0, 200) }));
+  return { running, waiting, next: campaignAction(ledger, {}), presence: ledger?.presence?.state ?? "present" };
 }
 function renderLedgerMd(ledger) {
   const L = [];
@@ -857,6 +931,11 @@ function renderLedgerMd(ledger) {
   L.push(`Generated from \`ledger.json\`, which is the truth. Work revision ${ledger["work-revision"]}. Updated ${ledger["updated-at"]}.`, "");
   const act = campaignAction(ledger, {});
   L.push(`Next: **${act.action}**${act.wave ? ` (wave ${act.wave})` : ""}.`, "");
+  const now = campaignNow(ledger);
+  L.push("## Now", "");
+  L.push(`- Runs: ${now.running.length ? now.running.map((r) => `${r.key} \`${r.slug}\` (wave ${r.wave}, ${r.state})`).join("; ") : "nothing"}.`);
+  L.push(`- Waits for you: ${now.waiting.length ? now.waiting.map((q) => `${q.id}${q.unit ? ` (${q.unit})` : ""}: ${q.text}`).join("; ") : "nothing"}.`);
+  L.push(`- Next: ${act.action}${act.wave ? ` (wave ${act.wave})` : ""}.`, "");
   if (ledger.pause) L.push(`Paused: ${ledger.pause.reason}${ledger.pause.until ? `, until ${ledger.pause.until}` : ""}.`, "");
   if ((ledger.rules ?? []).length) {
     L.push("## Standing rules", "");
@@ -981,6 +1060,12 @@ function renderContext({ unit: unit0, units: units0, ledger, asBuilt = {}, drift
   const waits = waitsText(ledger?.units?.[unit2.key]);
   if (waits) L.push("## 7. Waits", "", "Other units of this wave whose code this slug needs. The campaign updates this section after each merge.", "", waits, "");
   return L.join("\n");
+}
+var MODEL_STAGES = Object.freeze(["plan", "implement", "verify", "review", "update-deps"]);
+function modelsOf(cfg) {
+  const m = cfg?.models;
+  if (!m || typeof m !== "object" || Array.isArray(m)) return {};
+  return Object.fromEntries(MODEL_STAGES.filter((s) => ["opus", "sonnet"].includes(m[s])).map((s) => [s, m[s]]));
 }
 function isolationOf(config) {
   const iso = config?.campaign?.isolation;
@@ -1209,9 +1294,47 @@ function stageMinutesFromJournals(journals) {
   }
   return Object.fromEntries(Object.entries(per).map(([k, v]) => [k, median(v)]));
 }
-function rowTokens(row) {
-  const sum = (u) => u ? ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "cached_input_tokens", "cache_write_input_tokens", "reasoning_output_tokens"].reduce((n, f) => n + (Number(u[f]) || 0), 0) : 0;
-  return sum(row?.main) + (row?.subagents ?? []).reduce((n, s) => n + sum(s), 0);
+var W_WEIGHTS = Object.freeze({
+  input_tokens: 1,
+  output_tokens: 5,
+  cache_creation_input_tokens: 1.25,
+  cache_write_input_tokens: 1.25,
+  cache_read_input_tokens: 0.1,
+  cached_input_tokens: 0,
+  reasoning_output_tokens: 0
+});
+function usageWeight(u) {
+  if (!u) return 0;
+  return Object.entries(W_WEIGHTS).reduce((n, [f, w]) => n + w * (Number(u[f]) || 0), 0);
+}
+function rowWeight(row) {
+  return usageWeight(row?.main) + (row?.subagents ?? []).reduce((n, s) => n + usageWeight(s), 0);
+}
+function rowOutputTokens(row) {
+  const out = (u) => Number(u?.output_tokens) || 0;
+  return out(row?.main) + (row?.subagents ?? []).reduce((n, s) => n + out(s), 0);
+}
+function waveActual({ wave: wave2, startedAt, journals = [], costRows = [] }) {
+  const t0 = Date.parse(startedAt ?? "");
+  if (!Number.isFinite(t0)) return { wave: wave2, minutes: null, tokens: null, output: null, from: "record" };
+  let last = null;
+  for (const lines of journals) {
+    for (const l of lines) {
+      const at = Date.parse(l?.at ?? "");
+      if (Number.isFinite(at) && at >= t0 && (last === null || at > last)) last = at;
+    }
+  }
+  const rows = costRows.filter((r) => {
+    const at = Date.parse(r?.ts ?? "");
+    return Number.isFinite(at) && at >= t0;
+  });
+  return {
+    wave: wave2,
+    minutes: last === null ? null : Math.round((last - t0) / 6e4),
+    tokens: rows.length ? Math.round(rows.reduce((n, r) => n + rowWeight(r), 0)) : null,
+    output: rows.length ? rows.reduce((n, r) => n + rowOutputTokens(r), 0) : null,
+    from: "record"
+  };
 }
 function buildForecast({ units, history, slices = {} }) {
   const perSlice = ["plan", "implement", "verify"].map((s) => history.stageMinutes?.[s]);
@@ -1234,16 +1357,17 @@ function buildForecast({ units, history, slices = {} }) {
 }
 function renderForecast(fc, { brainstorm, now = (/* @__PURE__ */ new Date()).toISOString(), actual = [] } = {}) {
   const L = [`# Forecast: ${brainstorm}`, "", `Written ${now}. This is an estimate from earlier yolo runs in this repository, not a promise. The campaign updates it after each wave with the real numbers.`, ""];
-  L.push("| Packet | Slug | Slices | Minutes | Tokens |", "|---|---|---|---|---|");
+  L.push("Tokens are W: weighted tokens, in units of one input token (output x5, cache write x1.25, cache read x0.1).", "");
+  L.push("| Packet | Slug | Slices | Minutes | Tokens (W) |", "|---|---|---|---|---|");
   for (const r of fc.rows) L.push(`| ${r.key} | \`${r.slug}\` | ${r.slices ?? "unknown"}${r.slicesFrom === "history" ? " (from history)" : ""} | ${r.minutes ?? "unknown"} | ${r.tokens ?? "unknown"} |`);
   L.push("");
   L.push(`- Total run time: ${fc.minutes !== null ? `about ${Math.round(fc.minutes / 60)} hours (${fc.minutes} minutes) at width 1` : "unknown: some slugs have no history"}.`);
-  L.push(`- Total tokens: ${fc.tokens !== null ? fc.tokens.toLocaleString("en-US") : "unknown"}.`);
+  L.push(`- Total tokens (W): ${fc.tokens !== null ? fc.tokens.toLocaleString("en-US") : "unknown"}.`);
   L.push(`- Unknown estimates: ${fc.unknown.length ? fc.unknown.join(", ") : "none"}.`);
   L.push("- Weeks of the 7-day limit: unknown until the usage guard records readings (Stage D3).", "");
   if (actual.length) {
-    L.push("## Actual, per wave", "", "| Wave | Minutes | Tokens |", "|---|---|---|");
-    for (const a of actual) L.push(`| ${a.wave} | ${a.minutes ?? "unknown"} | ${a.tokens ?? "unknown"} |`);
+    L.push("## Actual, per wave", "", "| Wave | Minutes | Tokens (W) | Output tokens |", "|---|---|---|---|");
+    for (const a of actual) L.push(`| ${a.wave} | ${a.minutes ?? "unknown"} | ${a.tokens ?? "unknown"} | ${a.output ?? "unknown"} |`);
     L.push("");
   }
   return L.join("\n");
@@ -1747,7 +1871,7 @@ function forecastHistory(root) {
     const cost = readJsonl(join3(wfRoot, slug, "cost.jsonl"));
     const n = sliceCount(root, slug);
     if (n) slicesPerSlug.push(n);
-    if (cost.length && n) sliceTokens.push(cost.reduce((a, r) => a + rowTokens(r), 0) / n);
+    if (cost.length && n) sliceTokens.push(cost.reduce((a, r) => a + rowWeight(r), 0) / n);
   }
   const med = (xs) => {
     if (!xs.length) return null;
@@ -2201,6 +2325,8 @@ function status(root, b) {
     // C9: the person's standing rules, in every status result, so that a compaction cannot lose them.
     rules: ledger?.rules ?? [],
     presence: ledger?.presence ?? { state: "present" },
+    // B2, B4: the standing defaults and the away policy, so the session answers by them.
+    ...ledger ? { defaults: defaultsOf(ledger), policy: policyOf(ledger), now: campaignNow(ledger) } : {},
     ...update ? { pluginUpdate: update } : {},
     ...ledger?.deps ? { deps: { state: ledger.deps.state, unconfirmed: unconfirmedKeys(ledger), unclassified: unclassifiedEdges(ledger).length } } : {},
     ledger: ledger ? {
@@ -2354,10 +2480,11 @@ ${fm}
 ---`));
   return true;
 }
-function reviewScopeOf(root, u) {
+function reviewScopeOf(root, u, ledger = null) {
   const idx = join3(unitWorkflowDir(root, u), "00-index.md");
   const fm = existsSync2(idx) ? safeParseFrontmatter(readFileSync2(idx, "utf8")).data ?? {} : {};
-  return fm["review-scope"] === "slug-wide" ? "slug-wide" : "per-slice";
+  if (["slug-wide", "per-slice"].includes(fm["review-scope"])) return fm["review-scope"];
+  return ledger && defaultsOf(ledger)["review-scope"] === "slug-wide" ? "slug-wide" : "per-slice";
 }
 var answersOf = (ledger, n) => (ledger.questions ?? []).filter((q) => q.wave === n && q["answered-at"] && !q.consumed).map((q) => ({ id: q.id, unit: q.unit ?? null, kind: q.kind ?? null, answer: q.answer, by: q.by ?? "person", move: q.move === true }));
 var questionArgs = (q) => ({
@@ -2456,9 +2583,10 @@ function launch(root, b, n, f) {
     spawnSync("git", ["-C", root, "worktree", "prune"], { windowsHide: true });
   }
   lw.run = { id: campaignRunId, at: nowIso() };
+  const widthMax = effectiveWidth({ width: cfg.campaign?.width ?? DEFAULT_WIDTH, isolation: iso, budget: "ok" });
+  ledger["slot-width"] = widthMax;
   saveLedger(root, b, ledger);
   for (const k of keys) context(root, b, [k]);
-  const widthMax = effectiveWidth({ width: cfg.campaign?.width ?? DEFAULT_WIDTH, isolation: iso, budget: "ok" });
   const width = Math.max(1, Math.min(widthMax, bud.width || widthMax));
   const allDone = keys.every((k) => ledger.units[k].state === "finished");
   const args = {
@@ -2480,6 +2608,10 @@ function launch(root, b, n, f) {
     output: ledger.answers.output ?? null,
     records: ledger.records ?? "tracked",
     agentCeiling: 900,
+    // WF-SYSTEM-REVIEW C1: the model of each stage, from `models` in .ai/sdlc-config.json.
+    models: modelsOf(cfg),
+    // WF-SYSTEM-REVIEW B2: the standing defaults (review scope, fidelity narrowing).
+    defaults: defaultsOf(ledger),
     moved: lw.moved ?? [],
     // WF-CAMPAIGN-ORDER-PLAN 4.5: the pairs that the deps phase expects to share a path.
     expectedShared: (lw["expected-shared"] ?? []).filter((s) => keys.includes(s.a) && keys.includes(s.b)),
@@ -2505,7 +2637,7 @@ function launch(root, b, n, f) {
         root: u.worktree.path,
         branch: u.worktree.branch,
         contextPath: join3(campDir(root, b), "context", `${u.slug}.md`),
-        reviewScope: reviewScopeOf(root, u),
+        reviewScope: reviewScopeOf(root, u, ledger),
         state: u.state,
         runId: u["wave-run-id"] ?? null,
         cleared: u.cleared ?? [],
@@ -2529,6 +2661,27 @@ function launch(root, b, n, f) {
     outcomePath: join3(outcomeDir, "outcome.json"),
     args
   };
+}
+function waveActualOf(root, b, ledger, w) {
+  const journals = [readJsonl(join3(campDir(root, b), ".campaign-journal.jsonl"))];
+  const costRows = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const k of w.units ?? []) {
+    const lu = ledger.units[k];
+    if (!lu?.slug) continue;
+    const roots = [...new Set([lu.worktree?.path, root].filter(Boolean))];
+    for (const r of roots) {
+      const dir = join3(r, ".ai", "workflows", lu.slug);
+      journals.push(readJsonl(join3(dir, ".driver-journal.jsonl")));
+      for (const row of readJsonl(join3(dir, "cost.jsonl"))) {
+        const id = `${row.ts}|${row.session}|${row.turn}|${row.key}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        costRows.push(row);
+      }
+    }
+  }
+  return waveActual({ wave: w.n, startedAt: w["started-at"], journals, costRows });
 }
 function record(root, b, n, f) {
   if (!f.outcome) throw new Error("wave record: give --outcome <the outcome file>");
@@ -2568,8 +2721,15 @@ function record(root, b, n, f) {
   }
   res.derivedNeeds = out.derivedNeeds ?? [];
   if (out.stopBeforeNextWave) res.stopBeforeNextWave = out.reason ?? true;
+  const actual = waveActualOf(root, b, ledger, w);
+  ledger["forecast-actual"] = [...(ledger["forecast-actual"] ?? []).filter((a) => !(a.wave === n && a.from === "record")), actual];
+  res.actual = actual;
   saveLedger(root, b, ledger);
-  appendJournal(root, b, "wave-record", { wave: n, run: ranId, held: res.held, ...res.merged ? { merged: res.merged } : {} });
+  try {
+    forecast(root, b, {});
+  } catch {
+  }
+  appendJournal(root, b, "wave-record", { wave: n, run: ranId, held: res.held, ...res.merged ? { merged: res.merged } : {}, ...actual.minutes !== null ? { minutes: actual.minutes } : {}, ...actual.tokens !== null ? { w: actual.tokens } : {} });
   res.next = campaignAction(ledger, {});
   const ask2 = nextWaveAsk(ledger, n);
   if (ask2) res.nextWave = ask2;
@@ -2812,7 +2972,7 @@ function schedule(root, b, [nText], f) {
       const name = String(s.slug ?? s.slice);
       return { slice: name, status: s.status ?? null, complexity: s.complexity ?? extra.get(name)?.complexity ?? null, dependsOn: roster.get(name)?.dependsOn ?? [] };
     }).filter((s) => ownsSlice(roster.get(s.slice) ?? { slug: s.slice }, own));
-    return { key: k, slices, reviewScope: reviewScopeOf(root, u) };
+    return { key: k, slices, reviewScope: reviewScopeOf(root, u, ledger) };
   });
   const keys = new Set(units.map((u) => u.key));
   const waits = [];
@@ -3078,7 +3238,8 @@ function doReplan(root, b) {
 }
 function answer(root, b, [key, ...rest]) {
   const optional = Object.keys(OPTIONAL_ANSWERS);
-  if (!SETUP_ANSWERS.includes(key) && !optional.includes(key)) throw new Error(`answer: the key is one of ${[...SETUP_ANSWERS, ...optional].join(", ")}`);
+  if (["defaults", "policy"].includes(key)) return standingAnswer(root, b, key, rest.join(" "));
+  if (!SETUP_ANSWERS.includes(key) && !optional.includes(key)) throw new Error(`answer: the key is one of ${[...SETUP_ANSWERS, ...optional, "defaults", "policy"].join(", ")}`);
   if (key === "conventions" && !["on", "off"].includes(rest.join(" ").trim())) throw new Error("answer conventions: on or off");
   const ledger = requireLedger(root, b);
   const pending = unconfirmedKeys(ledger);
@@ -3098,6 +3259,21 @@ function answer(root, b, [key, ...rest]) {
   ledger.answers[key] = value;
   saveLedger(root, b, ledger);
   return { ok: true, key, value, next: campaignAction(ledger, {}) };
+}
+function standingAnswer(root, b, key, raw) {
+  let value;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    value = null;
+  }
+  const err = standingError(key, value);
+  if (err) throw new Error(err);
+  const ledger = requireLedger(root, b);
+  ledger.answers[key] = { ...ledger.answers[key] ?? {}, ...value };
+  saveLedger(root, b, ledger);
+  appendJournal(root, b, `answer-${key}`, { value });
+  return { ok: true, key, value: key === "defaults" ? defaultsOf(ledger) : policyOf(ledger) };
 }
 function designBlocksPrepared(root, slug) {
   const dir = join3(root, ".ai", "workflows", slug);
@@ -3189,6 +3365,12 @@ function unit(root, b, [key, state], f) {
     if (unconfirmedKeys(ledger).includes(key)) return { ok: false, key, state: u.state, error: `unit ${key} is not prepared: the person has not confirmed its dependency graph. Run the deps phase first.` };
     const why = designBlocksPrepared(root, u.slug);
     if (why) return { ok: false, key, state: u.state, error: `unit ${key} is not prepared: ${why}` };
+    const ws = readWorkSet(root, b);
+    const now = ws.error ? null : unitsOf(ws, ledger).find((x) => x.key === key);
+    u["prepared-at-revision"] = ledger["work-revision"] ?? null;
+    u["prepared-at"] = nowIso();
+    if (now) u["prepared-decisions"] = decisionStamp(now.decisions);
+    delete u["stale-decisions"];
   }
   u.state = state;
   for (const k of ["route", "reason", "merge", "output"]) if (f[k] !== void 0) u[k] = f[k];
@@ -3598,12 +3780,13 @@ var AWAY_LIMITS = Object.freeze([
 ]);
 function away(root, b, f) {
   const ledger = requireLedger(root, b);
+  if (!String(f.words ?? "").trim() && ledger.presence?.["last-words"]) f = { ...f, words: ledger.presence["last-words"] };
   if (!String(f.words ?? "").trim()) throw new Error(`away: give --words "<the person's words>"`);
   if (f.until && !Number.isFinite(Date.parse(f.until))) throw new Error("away: --until is an ISO 8601 time");
   ledger.presence = { state: "away", since: nowIso(), words: String(f.words).trim(), ...f.until ? { until: new Date(Date.parse(f.until)).toISOString() } : {} };
   saveLedger(root, b, ledger);
   appendJournal(root, b, "away", { words: ledger.presence.words });
-  return { ok: true, presence: ledger.presence, limits: AWAY_LIMITS };
+  return { ok: true, presence: ledger.presence, policy: policyOf(ledger), limits: AWAY_LIMITS };
 }
 var decidedPath = (root, b) => join3(campDir(root, b), "decided-for-you.md");
 function decided(root, b, [id], f) {
@@ -3685,7 +3868,8 @@ function waitedSteps(ledger) {
 function back(root, b) {
   const ledger = requireLedger(root, b);
   const since = ledger.presence?.state === "away" ? ledger.presence.since : null;
-  ledger.presence = { state: "present", since: nowIso(), ...since ? { "last-away": since } : {} };
+  const words = ledger.presence?.words ?? ledger.presence?.["last-words"] ?? null;
+  ledger.presence = { state: "present", since: nowIso(), ...since ? { "last-away": since } : {}, ...words ? { "last-words": words } : {} };
   saveLedger(root, b, ledger);
   appendJournal(root, b, "back", {});
   return { ok: true, presence: ledger.presence, recap: recapOf(root, ledger, since), waited: waitedSteps(ledger) };

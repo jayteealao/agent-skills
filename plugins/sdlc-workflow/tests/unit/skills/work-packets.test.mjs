@@ -14,6 +14,7 @@ import { validateBrainstormBoard, validateFrontmatter } from '../../../lib/schem
 import { safeParseFrontmatter } from '../../../lib/frontmatter.mjs';
 import {
   checkWorkSet,
+  packetFrontmatter,
   sequenceErrors,
   findIgnoredCitations,
   renderPacket,
@@ -22,6 +23,7 @@ import {
   writeWorkSet,
 } from '../../../lib/work-packets.mjs';
 import { main } from '../../../scripts/work-packets.mjs';
+import { archiveBoard, docCheck } from '../../../lib/brainstorm-archive.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..', '..', '..');
@@ -342,4 +344,106 @@ test('procedure: reopening keeps started packets and captures with add (V1-V7)',
   match(work, /\*\*Changed decisions come back\.\*\*/);
   match(read(`${REF}/intake/brainstorm.md`), /\/wf intake brainstorm <brainstorm-slug> \[design \| add <text>\]/);
   match(read(`${REF}/intake/brainstorm.md`), /next token is `add` → \*\*quick capture\*\*/);
+});
+
+test('WF-SYSTEM-REVIEW D2: a started packet whose piece did not change makes no new history copy and no new revision', () => {
+  const b = board();
+  const { root, dir } = workflowDir(b);
+  try {
+    ok(writeWorkSet(dir, { now: NOW }).ok);
+    const packetPath = join(dir, 'work', 'engine-modules.md');
+    writeFileSync(packetPath, readFileSync(packetPath, 'utf8').replace('state: proposed', 'state: prepared').replace('routed-to: null', 'routed-to: engine-modules'));
+    b.items[0].text = 'The engine exposes two module contracts.';
+    writeFileSync(join(dir, 'brainstorm-board.json'), JSON.stringify(b, null, 2));
+    const r2 = writeWorkSet(dir, { now: NOW });
+    ok(existsSync(join(dir, 'history', 'work-engine-modules.r2.md')));
+    // Another piece changes; the started one does not.
+    const r3 = writeWorkSet(dir, { now: new Date('2026-10-21T12:00:00Z') });
+    ok(r3.unchanged, JSON.stringify(r3));
+    equal(r3.revision, r2.revision);
+    ok(!existsSync(join(dir, 'history', 'work-engine-modules.r3.md')), 'no copy that differs only in revision and time');
+    equal((readFileSync(join(dir, 'work', 'changes.md'), 'utf8').match(/Started, not rewritten/g) || []).length, 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('WF-SYSTEM-REVIEW D3: a finding on the piece thread and a tension that names a carried decision reach the packet; a piece with no finding warns', () => {
+  const b = board();
+  b.items.push(
+    { key: 'replay-size', kind: 'finding', thread: 'replay', text: 'A match stream is 3 MB.', source: 'data', evidence: 'data/match.json', check: 'verified' },
+    { key: 'facts-vs-why', kind: 'tension', thread: 'other', text: 'Facts only pulls against explaining a replay.', between: ['events-are-facts', 'replay-camera'], source: 'agent', state: 'open' },
+  );
+  const replay = b.work.find((p) => p.key === 'replay-builder');
+  const fm = packetFrontmatter(b, replay, { revision: 1 });
+  deepEqual(fm.findings, ['replay-size'], 'a finding on the thread reaches the packet');
+  const engine = packetFrontmatter(b, b.work.find((p) => p.key === 'engine-modules'), { revision: 1 });
+  ok(engine['open-ideas'].includes('facts-vs-why'), 'a tension that names a carried decision reaches the packet');
+  b.items = b.items.filter((i) => i.key !== 'replay-size');
+  match(checkWorkSet(b).warnings.join('\n'), /piece replay-builder carries 1 decisions and no finding/);
+});
+
+test('WF-SYSTEM-REVIEW D5: a carried decision with no session or decided-at warns; ideate carries the pick once', () => {
+  const warnings = checkWorkSet(board()).warnings.join('\n');
+  match(warnings, /piece engine-modules: 1 carried decision\(s\) have no session or decided-at \(events-are-facts\)/);
+  doesNotMatch(warnings, /one-module-contract\b[^\n]*no session/);
+  const ideate = read(`${REF}/intake/ideate.md`);
+  match(ideate, /ONE `kind: decision`, `scope: keep`, `source: person` item on the `pick` thread/);
+  match(ideate, /carried once, by the order-1 piece/);
+  match(read(`${REF}/intake/brainstorm/_work.md`), /carried decision with no `session` or `decided-at` \(D5\)/);
+});
+
+test('WF-SYSTEM-REVIEW D1: archive moves closed items and old sessions; the document caps warn', () => {
+  const b = board({ sessions: 5 });
+  b.threads.push({ key: 'old-ui', name: 'An old screen', area: 'engine', state: 'dropped', reason: 'out of scope' });
+  b.threads[0].state = 'routed';
+  b.items.push(
+    { key: 'old-ui-idea', kind: 'idea', thread: 'old-ui', text: 'A dark screen.', source: 'agent' },
+    { key: 'old-ui-q', kind: 'question', thread: 'old-ui', text: 'Which font?', source: 'agent', state: 'open' },
+    { key: 'kept-tension', kind: 'tension', thread: 'replay', text: 'x', between: ['old-ui-q', 'replay-from-events'], source: 'agent', state: 'open' },
+    { key: 'routed-idea', kind: 'idea', thread: 'module-shape', text: 'A second engine.', source: 'agent' },
+  );
+  b.log = [1, 2, 3, 4, 5].map((s) => ({ session: s, batch: 1, thread: 'replay', kind: 'fork', asked: 'a', answer: 'b' }));
+  b.stories = [1, 2, 3, 4, 5].map((s) => ({ session: s, text: `session ${s}` }));
+  // module-shape is routed, but the proposed piece engine-modules still lists it: its items stay.
+  let r = archiveBoard(b);
+  deepEqual(r.archived.items.map((i) => i.key), ['old-ui-idea'], 'a named item (old-ui-q) stays');
+  deepEqual(r.archived.log.map((e) => e.session), [1, 2]);
+  deepEqual(r.board.stories.map((s) => s.session), [3, 4, 5]);
+  b.work[0].state = 'routed';
+  r = archiveBoard(b);
+  deepEqual(r.archived.items.map((i) => i.key).sort(), ['old-ui-idea', 'routed-idea'], 'a routed piece lets its thread close; its own items stay');
+  ok(r.board.items.some((i) => i.key === 'one-module-contract'));
+  ok(checkWorkSet(r.board).errors.length === checkWorkSet(b).errors.length, 'the archive breaks no check');
+
+  const { root, dir } = workflowDir(b);
+  try {
+    const long = Array.from({ length: 160 }, () => 'word').join(' ');
+    writeFileSync(join(dir, '01-brainstorm.md'), `# Brainstorm\n\n## The Brainstorm\n${long}\n\n## Sessions\n### Session 5\n### Session 4\n### Session 3\n### Session 2\n\n## Decisions\n`);
+    const out = [];
+    equal(main(['archive', dir, '--dry-run'], { log: (l) => out.push(l) }), 0);
+    ok(!existsSync(join(dir, 'archive')), 'a dry run writes nothing');
+    equal(main(['archive', dir], { log: (l) => out.push(l), now: NOW }), 0);
+    const text = out.join('\n');
+    match(text, /moved 2 items, 2 log entries, 2 stories to archive\/board\.json/);
+    match(text, /The Brainstorm has 160 words, more than 150/);
+    match(text, /## Sessions tells 4 sessions, more than 3/);
+    const saved = JSON.parse(readFileSync(join(dir, 'brainstorm-board.json'), 'utf8'));
+    equal(saved.archived.length, 1);
+    equal(saved.archived[0].items, 2);
+    ok(validateBrainstormBoard(saved).valid);
+    const archive = JSON.parse(readFileSync(join(dir, 'archive', 'board.json'), 'utf8'));
+    equal(archive.items.length, 2);
+    // A second run moves nothing and keeps the archive.
+    out.length = 0;
+    equal(main(['archive', dir], { log: (l) => out.push(l), now: NOW }), 0);
+    match(out.join('\n'), /moved 0 items, 0 log entries, 0 stories/);
+    equal(JSON.parse(readFileSync(join(dir, 'brainstorm-board.json'), 'utf8')).archived.length, 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+  match(read(`${REF}/intake/brainstorm/_artifact.md`), /## Archive \(D1\)[\s\S]*work-packets\.mjs" archive/);
+  match(read(`${REF}/intake/brainstorm.md`), /Bump `sessions`, then run the archive command/);
+  match(read(`${REF}/intake/brainstorm/_work.md`), /5\. Run the archive command/);
+  deepEqual(docCheck('## The Brainstorm\nshort.\n'), []);
 });

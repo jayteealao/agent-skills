@@ -2082,6 +2082,11 @@
           }
         },
         "selected": { "$ref": "#/$defs/stringArray" },
+        "archived": {
+          "type": "array",
+          "description": "WF-SYSTEM-REVIEW D1: each move of the closed part of the board to archive/board.json (work-packets.mjs archive).",
+          "items": { "type": "object", "properties": { "session": {}, "at": { "type": "string" }, "file": { "type": "string" }, "items": { "type": "integer" }, "log": { "type": "integer" }, "stories": { "type": "integer" } } }
+        },
         "log": {
           "type": "array",
           "items": {

@@ -213,6 +213,18 @@
         }
       }
     },
+    "models": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "WF-SYSTEM-REVIEW C1: the model of each stage agent of the /wf yolo and campaign wave drivers. A stage that is not named runs on Opus, the default. Read at launch and passed in the driver args.",
+      "properties": {
+        "plan": { "enum": ["opus", "sonnet"], "description": "The plan stage agent." },
+        "implement": { "enum": ["opus", "sonnet"], "description": "The implement stage agent. The A/B of 2026-10-16 passed Sonnet here." },
+        "verify": { "enum": ["opus", "sonnet"], "description": "The verify stage agent." },
+        "review": { "enum": ["opus", "sonnet"], "description": "The review writer." },
+        "update-deps": { "enum": ["opus", "sonnet"], "description": "The update-deps execution agent (yolo)." }
+      }
+    },
     "memory": {
       "type": "object",
       "additionalProperties": false,

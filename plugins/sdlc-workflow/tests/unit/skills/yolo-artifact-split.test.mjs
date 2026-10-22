@@ -66,7 +66,7 @@ function common(label) {
   if (label === 'select-rubrics') return { rubrics: [{ rubric: 'correctness', file: 'review/correctness.md', focus: '' }] };
   if (label && label.startsWith('scout:')) return { findings: [] };
   if (label === 'review') return { stage: 'review', status: 'complete', artifactPath: '/repo/07-review.md', terminal: { verdict: 'ship', blockerCount: 0 } };
-  if (label === 'read-check-report') return { present: false };
+  if (label === 'run-end') return { present: false };
   if (label === 'plan-reconcile-clear') return { ok: true, wrote: ['00-index.md'] };
   if (label && label.startsWith('writeback:')) return { ok: true, wrote: [] };
   if (label === 'plan-index-writeback') return { ok: true, wrote: ['04-plan.md', '00-index.md'] };
@@ -196,7 +196,7 @@ test('Y7 helpers: reconcileDue and overlappingSlices', () => {
 test('Y4: the run report lists stage writes with a missing read, from the read ledger', async () => {
   const { outcome, calls } = await run({}, (label) => {
     if (label === 'orient') return orientResult();
-    if (label === 'read-check-report') {
+    if (label === 'run-end') {
       return {
         present: true,
         rows: [
@@ -209,10 +209,12 @@ test('Y4: the run report lists stage writes with a missing read, from the read l
     }
     return common(label);
   });
-  const report = calls.find((c) => c.label === 'read-check-report').prompt;
+  const report = calls.find((c) => c.label === 'run-end').prompt;
   assert.match(report, /\.read-ledger\.jsonl/);
   assert.match(report, /at or after 2026-09-28T10:00:00Z/);
   assert.match(report, /DRIVER HEARTBEAT/);
+  // A3: the same last agent writes the run-end line, with its run id.
+  assert.match(report, /yolo-watch\.mjs" end "\/repo" demo --run "20260928T100000Z-demo" --agent run-end/);
   assert.deepEqual(outcome.readCheck.map((r) => [r.stage, r.resolved, r.waiver]), [
     ['review', false, undefined],
     ['verify', true, 'shape absent'],
@@ -233,7 +235,7 @@ test('Y4 helpers: runStartFromId and readCheckRows', () => {
 test('Y4: the read ledger is its own file and the driver never writes it or mixes it into the journal', () => {
   assert.match(yoloSrc, /const READ_LEDGER_PATH = `\$\{projectRoot\}\/\.ai\/workflows\/\$\{slug\}\/\.read-ledger\.jsonl`/);
   assert.notEqual(yoloSrc.indexOf('.read-ledger.jsonl'), yoloSrc.indexOf('.driver-journal.jsonl'));
-  assert.match(extractFn(yoloSrc, 'readLedgerReport'), /READ-ONLY — never write/);
+  assert.match(extractFn(yoloSrc, 'runEnd'), /READ CHECK \(READ-ONLY\)/);
 });
 
 // ---- Y8 ---------------------------------------------------------------------
@@ -332,4 +334,33 @@ test('plan freshness: yolo runs no refresh for a plan that still fits', async ()
   assert.equal(outcome.ok, true, outcome.reason);
   assert.equal(labels.filter((l) => l === 'plan-check:b').length, 1);
   assert.ok(!labels.includes('plan:b'));
+});
+
+// ---- WF-SYSTEM-REVIEW C2 ------------------------------------------------------
+
+test('C2: a slice whose implement hard-stopped twice stops the run with a split question, and no third implement runs', async () => {
+  const { outcome, labels } = await run({}, (label) => (label === 'orient'
+    ? orientResult({ slices: [slice('a', { plan: 'done', implement: 'todo', verify: 'todo', review: 'n-a' }, { implementStops: 2 })] })
+    : common(label)));
+  assert.ok(!labels.some((l) => /^implement/.test(l)));
+  assert.equal(outcome.stopped, true);
+  assert.match(outcome.reason, /hard-stopped 2 times: split the slice/);
+});
+
+test('E4: the verify agent mirrors the slice status as its last step; the write-back agent runs only as the fallback', async () => {
+  const verify = (wb) => ({ stage: 'verify', slice: 'a', status: 'complete', artifactPath: '/repo/06-verify-a.md', terminal: { convergence: 'not-needed', result: 'pass' }, deferrals: [], ...(wb ? { sliceWriteBack: wb } : {}) });
+  const answer = (wb) => (label) => {
+    if (label === 'orient') return orientResult({ slices: [slice('a', { plan: 'done', implement: 'done', verify: 'todo', review: 'n-a' })] });
+    if (label === 'verify:a') return verify(wb);
+    return common(label);
+  };
+  const folded = await run({}, answer({ ok: true, wrote: ['00-index.md'] }));
+  const v = folded.calls.find((c) => c.label === 'verify:a');
+  assert.match(v.prompt, /LAST STEP — SLICE STATUS MIRROR \(only for slice 'a'\)/);
+  assert.ok(!folded.labels.includes('writeback:a'), 'no separate write-back agent');
+  // E3: the stage prompt gives the preamble rules once.
+  assert.match(v.prompt, /PREAMBLE GIVEN HERE/);
+  assert.ok(folded.logs.some((l) => /the verify agent wrote status back to 00-index\.md/.test(l)));
+  const fallback = await run({}, answer(null));
+  assert.ok(fallback.labels.includes('writeback:a'), 'the fallback runs when verify did not confirm');
 });

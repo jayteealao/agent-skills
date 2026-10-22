@@ -60,12 +60,12 @@ import { fileURLToPath } from 'node:url';
 import {
   budgetState, buildForecast, buildLabel, campaignAction, DEFAULT_BUDGET, DEFAULT_MAX_UNSHIPPED, DEFAULT_WIDTH, effectiveWidth, isolationOf, isolationText,
   newestReading, portsFor, waveBase, checkCampaignSet, classifyDrift, deferUnprepared, hotfixVersion,
-  isBuildUnit, newLedger, nextWaveVersion, renderContext, renderForecast, renderLedgerMd, replan, rowTokens,
+  isBuildUnit, modelsOf, defaultsOf, policyOf, standingError, campaignNow, newLedger, nextWaveVersion, renderContext, renderForecast, renderLedgerMd, replan, rowWeight, waveActual,
   SETUP_ANSWERS, stageMinutesFromJournals, unitOf, UNIT_STATES, WAVE_STATES,
   boundaryMergeOrder, buildRecap, clearedCover, closeWaits, diskNeedGb, pathBudget, pluginUpdate, repoTag, runLive, sameNeed, shortStamp, sliceCycle, throughCovers, waitPending, waveWaits,
   DEPS_BY, ensureDeps, hasGraphFields, migrateDeps, seedDeps, serialWaves, sharedPaths, startedKeys, startEntry, syncDepsState, unconfirmedKeys,
   absorbedBy, addMergeNote, dropRecordOf, extensionWaveErrors, legacyWaits, migrateOrder, needsSort, ownsSlice, PAIR_KINDS, syncAbsorbed, targetOf,
-  conventionsOn, EDGE_KINDS, edgeKind, nextWaveAsk, OPTIONAL_ANSWERS, scheduleOf, stageMinutesFromJournals as stageMedians, unclassifiedEdges, waveReady,
+  conventionsOn, decisionStamp, EDGE_KINDS, edgeKind, nextWaveAsk, OPTIONAL_ANSWERS, scheduleOf, stageMinutesFromJournals as stageMedians, unclassifiedEdges, waveReady,
 } from '../lib/campaign.mjs';
 import { closesCycle, editRosterEntry, frontmatterValue, rosterEntries, rosterWalkOrder, setFrontmatterValue } from '../lib/roster-edit.mjs';
 import { ignoredAtRisk, loadManifest, recordsIn, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
@@ -206,7 +206,8 @@ function forecastHistory(root) {
     const cost = readJsonl(join(wfRoot, slug, 'cost.jsonl'));
     const n = sliceCount(root, slug);
     if (n) slicesPerSlug.push(n);
-    if (cost.length && n) sliceTokens.push(cost.reduce((a, r) => a + rowTokens(r), 0) / n);
+    // A2: W, not raw tokens (cache reads are most of the raw count).
+    if (cost.length && n) sliceTokens.push(cost.reduce((a, r) => a + rowWeight(r), 0) / n);
   }
   const med = (xs) => { if (!xs.length) return null; const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
   return { stageMinutes: stageMinutesFromJournals(journals), sliceTokens: med(sliceTokens), slicesPerSlug: med(slicesPerSlug), journals: journals.length };
@@ -750,6 +751,8 @@ function status(root, b) {
     // C9: the person's standing rules, in every status result, so that a compaction cannot lose them.
     rules: ledger?.rules ?? [],
     presence: ledger?.presence ?? { state: 'present' },
+    // B2, B4: the standing defaults and the away policy, so the session answers by them.
+    ...(ledger ? { defaults: defaultsOf(ledger), policy: policyOf(ledger), now: campaignNow(ledger) } : {}),
     ...(update ? { pluginUpdate: update } : {}),
     ...(ledger?.deps ? { deps: { state: ledger.deps.state, unconfirmed: unconfirmedKeys(ledger), unclassified: unclassifiedEdges(ledger).length } } : {}),
     ledger: ledger ? {
@@ -942,10 +945,12 @@ function setFrontmatterKeys(file, pairs) {
 }
 
 /** A unit's review scope from its 00-index.md: per-slice unless it says slug-wide. */
-function reviewScopeOf(root, u) {
+function reviewScopeOf(root, u, ledger = null) {
   const idx = join(unitWorkflowDir(root, u), '00-index.md');
   const fm = existsSync(idx) ? safeParseFrontmatter(readFileSync(idx, 'utf8')).data ?? {} : {};
-  return fm['review-scope'] === 'slug-wide' ? 'slug-wide' : 'per-slice';
+  if (['slug-wide', 'per-slice'].includes(fm['review-scope'])) return fm['review-scope'];
+  // WF-SYSTEM-REVIEW B2: a unit whose slice stage recorded no scope takes the campaign's standing default.
+  return ledger && defaultsOf(ledger)['review-scope'] === 'slug-wide' ? 'slug-wide' : 'per-slice';
 }
 
 /** 5.5a: the answers of wave n that no resume consumed yet. */
@@ -1047,9 +1052,11 @@ function launch(root, b, n, f) {
     spawnSync('git', ['-C', root, 'worktree', 'prune'], { windowsHide: true });
   }
   lw.run = { id: campaignRunId, at: nowIso() };
+  const widthMax = effectiveWidth({ width: cfg.campaign?.width ?? DEFAULT_WIDTH, isolation: iso, budget: 'ok' });
+  // D6: prepare ahead at most one slot cycle.
+  ledger['slot-width'] = widthMax;
   saveLedger(root, b, ledger);
   for (const k of keys) context(root, b, [k]);
-  const widthMax = effectiveWidth({ width: cfg.campaign?.width ?? DEFAULT_WIDTH, isolation: iso, budget: 'ok' });
   const width = Math.max(1, Math.min(widthMax, bud.width || widthMax));
   const allDone = keys.every((k) => ledger.units[k].state === 'finished');
   const args = {
@@ -1071,6 +1078,10 @@ function launch(root, b, n, f) {
     output: ledger.answers.output ?? null,
     records: ledger.records ?? 'tracked',
     agentCeiling: 900,
+    // WF-SYSTEM-REVIEW C1: the model of each stage, from `models` in .ai/sdlc-config.json.
+    models: modelsOf(cfg),
+    // WF-SYSTEM-REVIEW B2: the standing defaults (review scope, fidelity narrowing).
+    defaults: defaultsOf(ledger),
     moved: lw.moved ?? [],
     // WF-CAMPAIGN-ORDER-PLAN 4.5: the pairs that the deps phase expects to share a path.
     expectedShared: (lw['expected-shared'] ?? []).filter((s) => keys.includes(s.a) && keys.includes(s.b)),
@@ -1092,7 +1103,7 @@ function launch(root, b, n, f) {
         ownKeys: ownOf(ledger, k).keys,
         root: u.worktree.path, branch: u.worktree.branch,
         contextPath: join(campDir(root, b), 'context', `${u.slug}.md`),
-        reviewScope: reviewScopeOf(root, u),
+        reviewScope: reviewScopeOf(root, u, ledger),
         state: u.state,
         runId: u['wave-run-id'] ?? null,
         cleared: u.cleared ?? [],
@@ -1118,6 +1129,33 @@ function launch(root, b, n, f) {
  * Every outcome clears the wave's run (D25). A held outcome records only the unit
  * facts, and the wave stays running for the next launch.
  */
+/**
+ * A2: the actuals of wave `n` from its journals and cost ledgers. Each unit's files
+ * are read in its worktree when it has one, and in the main tree too (a merged
+ * unit's files are there); a cost row read twice counts once.
+ */
+function waveActualOf(root, b, ledger, w) {
+  const journals = [readJsonl(join(campDir(root, b), '.campaign-journal.jsonl'))];
+  const costRows = [];
+  const seen = new Set();
+  for (const k of w.units ?? []) {
+    const lu = ledger.units[k];
+    if (!lu?.slug) continue;
+    const roots = [...new Set([lu.worktree?.path, root].filter(Boolean))];
+    for (const r of roots) {
+      const dir = join(r, '.ai', 'workflows', lu.slug);
+      journals.push(readJsonl(join(dir, '.driver-journal.jsonl')));
+      for (const row of readJsonl(join(dir, 'cost.jsonl'))) {
+        const id = `${row.ts}|${row.session}|${row.turn}|${row.key}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        costRows.push(row);
+      }
+    }
+  }
+  return waveActual({ wave: w.n, startedAt: w['started-at'], journals, costRows });
+}
+
 function record(root, b, n, f) {
   if (!f.outcome) throw new Error('wave record: give --outcome <the outcome file>');
   const out = readJson(resolve(f.outcome));
@@ -1158,8 +1196,14 @@ function record(root, b, n, f) {
   }
   res.derivedNeeds = out.derivedNeeds ?? [];
   if (out.stopBeforeNextWave) res.stopBeforeNextWave = out.reason ?? true;
+  // A2: the forecast learns. Each record writes the wave's actuals from what the run
+  // wrote; a later record of the same wave (a held wave launched again) replaces them.
+  const actual = waveActualOf(root, b, ledger, w);
+  ledger['forecast-actual'] = [...(ledger['forecast-actual'] ?? []).filter((a) => !(a.wave === n && a.from === 'record')), actual];
+  res.actual = actual;
   saveLedger(root, b, ledger);
-  appendJournal(root, b, 'wave-record', { wave: n, run: ranId, held: res.held, ...(res.merged ? { merged: res.merged } : {}) });
+  try { forecast(root, b, {}); } catch { /* the forecast is advice; a failed refresh never fails the record */ }
+  appendJournal(root, b, 'wave-record', { wave: n, run: ranId, held: res.held, ...(res.merged ? { merged: res.merged } : {}), ...(actual.minutes !== null ? { minutes: actual.minutes } : {}), ...(actual.tokens !== null ? { w: actual.tokens } : {}) });
   res.next = campaignAction(ledger, {});
   const ask = nextWaveAsk(ledger, n);
   if (ask) res.nextWave = ask;
@@ -1456,7 +1500,7 @@ function schedule(root, b, [nText], f) {
       const name = String(s.slug ?? s.slice);
       return { slice: name, status: s.status ?? null, complexity: s.complexity ?? extra.get(name)?.complexity ?? null, dependsOn: roster.get(name)?.dependsOn ?? [] };
     }).filter((s) => ownsSlice(roster.get(s.slice) ?? { slug: s.slice }, own));
-    return { key: k, slices, reviewScope: reviewScopeOf(root, u) };
+    return { key: k, slices, reviewScope: reviewScopeOf(root, u, ledger) };
   });
   const keys = new Set(units.map((u) => u.key));
   const waits = [];
@@ -1754,7 +1798,9 @@ function doReplan(root, b) {
 
 function answer(root, b, [key, ...rest]) {
   const optional = Object.keys(OPTIONAL_ANSWERS);
-  if (!SETUP_ANSWERS.includes(key) && !optional.includes(key)) throw new Error(`answer: the key is one of ${[...SETUP_ANSWERS, ...optional].join(', ')}`);
+  // B2, B4: the standing defaults and the away policy are no setup questions; the person changes them at any time.
+  if (['defaults', 'policy'].includes(key)) return standingAnswer(root, b, key, rest.join(' '));
+  if (!SETUP_ANSWERS.includes(key) && !optional.includes(key)) throw new Error(`answer: the key is one of ${[...SETUP_ANSWERS, ...optional, 'defaults', 'policy'].join(', ')}`);
   if (key === 'conventions' && !['on', 'off'].includes(rest.join(' ').trim())) throw new Error('answer conventions: on or off');
   const ledger = requireLedger(root, b);
   // 4.3: setup waits for the confirmed graph (Q2: no way to skip it).
@@ -1780,6 +1826,19 @@ function answer(root, b, [key, ...rest]) {
  * is prepared only when the design is settled. For `visual` and `new-surface`, the
  * contract must also name its frozen boards, and every board must exist on disk.
  */
+/** B2, B4: `answer defaults|policy '<json>'` merges the person's change into the standing set. */
+function standingAnswer(root, b, key, raw) {
+  let value;
+  try { value = JSON.parse(raw); } catch { value = null; }
+  const err = standingError(key, value);
+  if (err) throw new Error(err);
+  const ledger = requireLedger(root, b);
+  ledger.answers[key] = { ...(ledger.answers[key] ?? {}), ...value };
+  saveLedger(root, b, ledger);
+  appendJournal(root, b, `answer-${key}`, { value });
+  return { ok: true, key, value: key === 'defaults' ? defaultsOf(ledger) : policyOf(ledger) };
+}
+
 export function designBlocksPrepared(root, slug) {
   const dir = join(root, '.ai', 'workflows', slug);
   const read = (name) => (existsSync(join(dir, name)) ? safeParseFrontmatter(readFileSync(join(dir, name), 'utf8')).data ?? {} : null);
@@ -1880,6 +1939,13 @@ function unit(root, b, [key, state], f) {
     if (unconfirmedKeys(ledger).includes(key)) return { ok: false, key, state: u.state, error: `unit ${key} is not prepared: the person has not confirmed its dependency graph. Run the deps phase first.` };
     const why = designBlocksPrepared(root, u.slug);
     if (why) return { ok: false, key, state: u.state, error: `unit ${key} is not prepared: ${why}` };
+    // D6: record the revision and the decisions it was prepared at.
+    const ws = readWorkSet(root, b);
+    const now = ws.error ? null : unitsOf(ws, ledger).find((x) => x.key === key);
+    u['prepared-at-revision'] = ledger['work-revision'] ?? null;
+    u['prepared-at'] = nowIso();
+    if (now) u['prepared-decisions'] = decisionStamp(now.decisions);
+    delete u['stale-decisions'];
   }
   u.state = state;
   for (const k of ['route', 'reason', 'merge', 'output']) if (f[k] !== undefined) u[k] = f[k];
@@ -2311,12 +2377,14 @@ export const AWAY_LIMITS = Object.freeze([
 
 function away(root, b, f) {
   const ledger = requireLedger(root, b);
+  // B5: the away state stays until `back`. With no --words, the last away words apply again.
+  if (!String(f.words ?? '').trim() && ledger.presence?.['last-words']) f = { ...f, words: ledger.presence['last-words'] };
   if (!String(f.words ?? '').trim()) throw new Error('away: give --words "<the person\'s words>"');
   if (f.until && !Number.isFinite(Date.parse(f.until))) throw new Error('away: --until is an ISO 8601 time');
   ledger.presence = { state: 'away', since: nowIso(), words: String(f.words).trim(), ...(f.until ? { until: new Date(Date.parse(f.until)).toISOString() } : {}) };
   saveLedger(root, b, ledger);
   appendJournal(root, b, 'away', { words: ledger.presence.words });
-  return { ok: true, presence: ledger.presence, limits: AWAY_LIMITS };
+  return { ok: true, presence: ledger.presence, policy: policyOf(ledger), limits: AWAY_LIMITS };
 }
 
 const decidedPath = (root, b) => join(campDir(root, b), 'decided-for-you.md');
@@ -2385,7 +2453,8 @@ function waitedSteps(ledger) {
 function back(root, b) {
   const ledger = requireLedger(root, b);
   const since = ledger.presence?.state === 'away' ? ledger.presence.since : null;
-  ledger.presence = { state: 'present', since: nowIso(), ...(since ? { 'last-away': since } : {}) };
+  const words = ledger.presence?.words ?? ledger.presence?.['last-words'] ?? null;
+  ledger.presence = { state: 'present', since: nowIso(), ...(since ? { 'last-away': since } : {}), ...(words ? { 'last-words': words } : {}) };
   saveLedger(root, b, ledger);
   appendJournal(root, b, 'back', {});
   return { ok: true, presence: ledger.presence, recap: recapOf(root, ledger, since), waited: waitedSteps(ledger) };

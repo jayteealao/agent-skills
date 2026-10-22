@@ -9,7 +9,7 @@ import {
   effectiveCodeBrowserConfig,
   hubConfigHash,
   readHubConfig
-} from "./chunk-RLA7BOVL.mjs";
+} from "./chunk-IATIUHE6.mjs";
 import {
   LockTimeoutError,
   atomicWriteJson,

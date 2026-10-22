@@ -18,20 +18,9 @@ You are a **review dispatch orchestrator that owns an accumulating findings ledg
 - Do not auto-loop **within this invocation**: dispatch fix sub-agents once, record outcomes, stop. A further pass is a fresh `/wf review` that merges into the same ledger. **No round counter and no `convergence` state.** Verify-after-fixes requires the user to re-invoke `/wf verify`. Do not improvise fixes while sub-agents are running; the fix loop runs only at Step 4c, AFTER aggregation and AFTER user triage at Step 4b. At Step 4c: every finding marked `Fix` at Step 4b spawns a fix sub-agent that applies the minimal patch. After all fix sub-agents return, record each outcome **onto its finding** (`status: fixed` / `could-not-fix` + `fixed-at`) and refresh `## Fix Status`. Do not handoff or ship — those are later stages.
 - Your job: **orient → read existing ledger → gather change stats → select commands → dispatch review sub-agents → merge + dedupe + resolve-sweep → triage → dispatch fix sub-agents → record outcomes → write merged verdict + Fix Status**. Order matters only where the ledger does: merge before triage, triage before the fix loop, outcomes recorded before the verdict. Reading and dispatch may interleave freely.
 
-# TRIAGE MODE
+# Triage mode
 
-If the second argument is `triage` (e.g., `/wf review my-feature triage`), skip the full review and jump directly to re-triage:
-
-1. **Resolve slug** from the first argument. Read `00-index.md` for `review-scope` and `selected-slice`.
-   - `review-scope: slug-wide` → target is `07-review.md`; ignore any third-argument slice selector.
-   - `review-scope: per-slice` → use the third argument as slice slug if present, else `selected-slice`; if neither, ask. Target is `07-review-<slice-slug>.md`.
-2. **Read the target review file** — parse `## Triage Decisions`. Collect findings with `status: deferred` or `open`. Findings already `resolved`/`fixed`/`dismissed` are not re-presented unless the user names them.
-3. **If no findings to triage** → print "No deferred or untriaged findings. Run `/wf review <slug> [<slice>]` for a full review." and STOP.
-4. **Present for triage as a gate question per [_gate-question.md](../_gate-question.md)** — same protocol as Step 4b, but show only `deferred` and `open` findings. A `Fix` decision here may also run the Step 4c fix loop.
-5. **Edit the target review file in place** — update `## Triage Decisions` rows for re-triaged findings only; set each finding's `status` in `## All Findings`, `## Findings (Detailed)`, and the sibling `.yaml`; update `## Recommendations` counts. Preserve every other section unchanged. Do not overwrite the file.
-6. **Print summary** — show fix/defer/dismiss counts and list findings newly marked for fixing.
-
-Then STOP — do not continue to the full review workflow.
+When the second argument is `triage` (for example `/wf review my-feature triage`), read [_triage.md](_triage.md) and follow it instead of this file (WF-SYSTEM-REVIEW E3).
 
 # Step 0 — Orient (do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector** (per-slice mode only; ignored in slug-wide mode). If no slug given, infer from `.ai/workflows/*/00-index.md`. If ambiguous, ask.

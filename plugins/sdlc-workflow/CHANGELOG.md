@@ -5,6 +5,35 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+WF-SYSTEM-REVIEW-2026-10-21 in full: themes A, B, C, D (without D4), and E (without E2).
+
+### Fixed
+
+- **The cost ledger counts each sub-agent once (A1).** A sub-agent whose transcript also had a copy in `subagents/` was read again from its first byte on every Stop, so the ledger was at least 240 times too high from 2026-10-14. The new `scripts/cost-rebuild.mjs <projectRoot> [--apply]` rebuilds the inflated `cost.jsonl` files of one project from the transcripts, and keeps each old file as `cost.jsonl.bak`.
+- **The forecast learns (A2).** `wave <n> record` writes `forecast-actual` from the journal and the ledger. The forecast weighs each stage by its weighted tokens (W) and shows the output tokens.
+- **A stop records its reason (A3).** The `agent-end` line carries `reason`, `hardStopReason`, and `routeBack`. Both drivers write `run-end` from a final step that always runs, also on an early return; a second `run-end` of the same run is skipped.
+- **Every journal line parses (A4).** The drivers write each journal line with `yolo-watch.mjs line`, which takes JSON, never text built by hand in a prompt.
+
+### Changed
+
+- **The model of each stage is configurable (C1).** Opus stays the default. A `models` block in `.ai/sdlc-config.json` sets plan, implement, verify, review, or update-deps to `opus` or `sonnet` in both drivers.
+- **Standing defaults and an away policy for a campaign (B2, B4, B5).** Review is slug-wide, an F3 narrowing is accepted and carried, and the ship questions take their recommendation, until the person changes a default (`answer defaults`). Appetite is still a question. Each question kind has a standing away answer (`answer policy`), the away state stays until `back`, and `away` with no words applies the last away words again.
+- **A decided question is not asked again (B3).** `_question-craft.md` looks up the earlier answer before a question.
+- **Shape and intake start from the packet (B1).** The packet's carried decisions seed the shape's Ambiguity Inventory, and the items that the packet closed count toward the question floor.
+- **A brainstorm area closes with one digest (B6).** Each item has a recommendation, and "Top risk" is asked only for a risk with no owner.
+- **`status` answers what runs, what waits for the person, and what comes next (B7).** `ledger.md` opens with the same "Now" section.
+- **Implement commits after each plan step, in groups (C2, C3).** A slice with more than 6 plan steps runs one fresh implement agent for each group, with a hand-over note, and a restart resumes after the last committed step. A slice whose implement hard-stopped twice stops with a split question.
+- **Verify reuses the implement test receipt (C4)** for the same commit and the same commands.
+- **The charter checkpoint runs only when a slice touched a charter commitment (C5),** and one refuter checks up to 4 findings of one rubric (C6).
+- **Work packets (D2, D3, D5).** A started packet whose piece did not change makes no new history copy and no new work revision. A finding or a tension that bears on a carried decision reaches the packet, and the check warns on a piece with decisions and no finding. Ideate carries the pick reason once, and the check warns on a carried decision with no `session` or `decided-at`.
+- **The brainstorm stays short (D1).** `work-packets.mjs archive` moves the closed part of the board (the items of routed or dropped threads that nothing names, and the log and stories of sessions older than the newest three) to `archive/board.json`, and warns when `## The Brainstorm` is over 150 words or `## Sessions` tells more than three sessions. A resume and `done` run it.
+- **A prepared unit does not go stale (D6).** `unit <key> prepared` records `prepared-at-revision` and the carried decisions. When a reopening changes them, `replan` moves the unit back to `planned`, and `status` names in `reask` the decisions to ask again, not the whole intake. `next.ahead` names at most one slot cycle of units.
+- **One source for the shared driver helpers (E1).** The helpers that `yolo.js` and `campaign-wave.js` share live in `skills/wf/workflows/_shared.js`. `npm run build` (`scripts/build-drivers.mjs`) writes them into the BEGIN SHARED block of each driver, and the parity test checks that the blocks are current.
+- **Less reference prose for each stage (E3).** `verify/_deferrals.md` loads only for a deferral; the runtime adapters, the ladder, and the new `verify/_runtime-evidence.md` load only for a user-observable AC; review triage mode moves to `review/_triage.md`. The stage prompt gives the grounded-progress and early-stop rules once, so a stage agent does not read `_chat-return.md`, `_autonomy-guards.md`, or `_grounded-progress.md`.
+- **Fewer bookkeeping agents (E4).** The unit-end agent does the read check, and the yolo verify agent mirrors the slice status as its last step. The separate write-back agent runs only as the fallback.
+
 ## [9.197.0] - 2026-10-21
 
 ### Changed

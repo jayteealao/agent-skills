@@ -76,6 +76,10 @@ Column semantics (all pulled from each workflow's `00-index.md` YAML frontmatter
 
 The render below runs after this step, against the reconciled set.
 
+# Live campaign first (B7)
+
+With a live campaign wave, lead with `now` of `node "<skill-dir>/scripts/campaign.mjs" status "<projectRoot>" <brainstorm-slug>`: what runs, what waits for the person, what comes next.
+
 # Step 0 — Resolve mode
 1. Parse `$ARGUMENTS`. If the **last** token is `deep`, set deep-mode and strip it.
 1b. If the **first** token is `advise`, set **advise-mode** and strip it. The remaining first token (optional) is the advise **scope**: a branch name or `pr#N`/`#N`/bare integer narrows advice to the slugs on that branch; the literal `fast` drops to Tier-0 (frontmatter only — no artifact or code reads). Advise-mode skips the polymorphic resolution in step 2 and, after the always-on Step -1 reconcile, runs the **Advise Mode** section below. Advise does its own bounded code-truth seeking, so it ignores a trailing `deep`.
@@ -156,7 +160,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 6. For the **slice progress matrix**, list `03-slice-*.md`, `04-plan-*.md`, `05-implement-*.md`, `06-verify-*.md`, `07-review-*.md` (the `07-review-<slice>.md` master per slice; exclude `07-review-<slice>-<command>.md` sub-reviews), `08-handoff.md`. Mark: `✓` complete · `→` in-progress/awaiting-input · `✗` failed · `·` pending.
 7. For **branch info**, `git branch --show-current` vs the workflow's `branch` field; warn if mismatched.
 8. **Driver liveness** — read the tail of `.ai/workflows/<slug>/.driver-journal.jsonl` if it exists (append-only JSONL heartbeats written by every autonomous-driver subagent) and apply the staleness rule single-sourced in [_control-file-ownership.md](_control-file-ownership.md), rendering the `## Driver` row from its three states. **Never report a driver as running because the journal exists**: the journal outlives the driver. No journal → omit the section; a missing journal does not prove that no driver ran.
-9. **Clearing-event tripwire** — for each open `runtime-evidence-deferrals` entry (`cleared-by: null`) that carries a `clearing-probe`, **execute that one command** with a short timeout. Render every hit as the ⚠ line in the detail render, routing to `/wf probe <slug>`. Rules: one recorded command per deferral, never an improvised one; **never clear the deferral or edit `00-index.md`** — this is a tripwire, not a gate, and the probe stage still owns evidence. Skip PO-authorized entries (settled) and entries with no recorded probe (nothing to run — not a finding). Cost is milliseconds per open deferral.
+9. **Clearing-event tripwire** — for each open `runtime-evidence-deferrals` entry (`cleared-by: null`) that carries a `clearing-probe`, **execute that one command** with a short timeout. Render every hit as the ⚠ line in the detail render, routing to `/wf probe <slug>`. Rules: one recorded command per deferral, never an improvised one; **never clear the deferral or edit `00-index.md`** — this is a tripwire, not a gate, and the probe stage still owns evidence. Skip PO-authorized entries and entries with no recorded probe.
 10. **Cost** — read `.ai/workflows/<slug>/cost.jsonl` when it exists and aggregate per `key`: turns (rows with a `turn`), sub-agents, input, output, cache read, cache write, external in / out. Render `## Cost` from the detail render. Copy every integer as written; never estimate or price. No ledger → omit the section.
 11. **Goal and loop** — add one `## Driver` line from `goal.mjs status` when `goal.md` exists, one from `optimize.mjs status` for an optimize slug, and one from `prototype.mjs status` for a prototype slug.
 
@@ -168,7 +172,7 @@ Load [status/_deep.md](status/_deep.md) and run its seven steps: inventory refer
 
 # Advise Mode (`/wf status advise [branch|pr#N | fast]`) — cross-slug sequencing
 
-Advise answers the question the dashboard **cannot**: given every open workflow, *what should I do next, in what order, and what should I stop doing.* It is the portfolio-level counterpart to `/wf status <slug>`'s `## Next` — that routes one slug; advise routes the whole set. It is **read-only and route-don't-act**: it recommends commands (including `/wf intake <slug> close`), never runs them, and never advances a workflow. Its **only** write is the Step -1 registry reconcile shared by every mode — advise writes no artifact of its own; advice is about *now*, and re-running is cheap.
+Advise answers the question the dashboard **cannot**: given every open workflow, *what should I do next, in what order, and what should I stop doing.* It is **read-only and route-don't-act**: it recommends commands (including `/wf intake <slug> close`), never runs them, and never advances a workflow. Its **only** write is the Step -1 registry reconcile shared by every mode — advise writes no artifact of its own; advice is about *now*, and re-running is cheap.
 
 Load [status/_advise.md](status/_advise.md), run its steps A1–A5 in order, and render its Portfolio Advice block. Every row has a one-line rationale and a concrete next command.
 

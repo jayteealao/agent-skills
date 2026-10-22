@@ -203,6 +203,15 @@ export function checkWorkSet(board, { isIgnored = null } = {}) {
     } else if (size === 'large' && !isStartedState(piece.state)) {
       warnings.push(`piece ${piece.key} carries ${count} decisions, more than ${SIZE_SOFT_LIMIT}: propose a split; the person may keep it whole.`);
     }
+    // WF-SYSTEM-REVIEW D5: intake shows the person how old each carried decision is.
+    const undated = carriedDecisionItems(board, piece).filter((i) => i.session == null || !i['decided-at']);
+    if (undated.length && !isStartedState(piece.state)) {
+      warnings.push(`piece ${piece.key}: ${undated.length} carried decision(s) have no session or decided-at (${undated.slice(0, 3).map((i) => i.key).join(', ')}${undated.length > 3 ? ', …' : ''}): write both on each decision.`);
+    }
+    // D3: a piece with decisions and no finding gives its unit no evidence.
+    if (count && !isStartedState(piece.state) && !touchingItems(board, piece, 'finding').length) {
+      warnings.push(`piece ${piece.key} carries ${count} decisions and no finding: put the findings that bear on them in its items or on its threads, or say why there are none.`);
+    }
   }
 
   // Write-now pieces (K5-K8).
@@ -248,6 +257,24 @@ function threadItems(board, piece, predicate) {
   const own = new Set(piece.items ?? []);
   return (board.items ?? []).filter((i) => threads.has(i.thread) && !own.has(i.key) && predicate(i));
 }
+
+/**
+ * WF-SYSTEM-REVIEW D3: the items of one kind that touch a piece: in its items, on its
+ * threads, or (a tension) naming one of its carried decisions in `between`. A finding or
+ * a tension that bears on a decision reaches the unit, not only the ones listed by hand.
+ */
+export function touchingItems(board, piece, kind, predicate = isLive) {
+  const own = itemsOfKind(board, piece, [kind], predicate);
+  const seen = new Set(own.map((i) => i.key));
+  const threads = new Set(piece.threads ?? []);
+  const decisions = new Set(carriedDecisionItems(board, piece).map((i) => i.key));
+  const more = (board.items ?? []).filter((i) => i && i.kind === kind && !seen.has(i.key) && predicate(i)
+    && (threads.has(i.thread) || (Array.isArray(i.between) && i.between.some((k) => decisions.has(k)))));
+  return [...own, ...more];
+}
+
+const liveAssumption = (i) => isLive(i) && i.state !== 'rejected';
+const openTension = (i) => i.state === 'open' && !i['replaced-by'];
 
 function researchLink(id, researchFiles) {
   const file = researchFiles.find((f) => f === `${id}.md` || f.startsWith(`${id}-`));
@@ -307,10 +334,11 @@ export function packetFrontmatter(board, piece, { revision = 1, generatedAt = nu
     })),
     'open-ideas': keysOf([
       ...itemsOfKind(board, piece, ['idea', 'question'], isLive),
-      ...threadItems(board, piece, (i) => (i.kind === 'question' && (i.state === 'open' || i.state === 'for-plan')) || (i.kind === 'tension' && i.state === 'open')),
+      ...threadItems(board, piece, (i) => i.kind === 'question' && (i.state === 'open' || i.state === 'for-plan')),
+      ...touchingItems(board, piece, 'tension', openTension),
     ]),
-    findings: keysOf(itemsOfKind(board, piece, ['finding'], isLive)),
-    assumptions: keysOf(itemsOfKind(board, piece, ['assumption'], isLive)),
+    findings: keysOf(touchingItems(board, piece, 'finding')),
+    assumptions: keysOf(touchingItems(board, piece, 'assumption', liveAssumption)),
     later: keysOf(threadItems(board, piece, (i) => i.scope === 'later')),
     research: piece.research ?? [],
     references: piece.references ?? [],
@@ -331,13 +359,10 @@ export function renderPacket(board, piece, { revision = 1, generatedAt = null, r
   const pieceKeys = byKey(pieces);
   const decisions = carriedDecisionItems(board, piece);
   const open = itemsOfKind(board, piece, ['idea', 'question'], isLive);
-  const openTensions = threadItems(board, piece, (i) => i.kind === 'tension' && i.state === 'open');
+  const openTensions = touchingItems(board, piece, 'tension', openTension);
   const openQuestions = threadItems(board, piece, (i) => i.kind === 'question' && (i.state === 'open' || i.state === 'for-plan'));
-  const findings = itemsOfKind(board, piece, ['finding'], isLive);
-  const assumptions = [
-    ...itemsOfKind(board, piece, ['assumption'], isLive),
-    ...threadItems(board, piece, (i) => i.kind === 'assumption' && i.state !== 'rejected'),
-  ];
+  const findings = touchingItems(board, piece, 'finding');
+  const assumptions = touchingItems(board, piece, 'assumption', liveAssumption);
   const risks = decisions.filter((i) => i['accepted-risk']);
   const later = threadItems(board, piece, (i) => i.scope === 'later');
   const cut = threadItems(board, piece, (i) => i.scope === 'cut');
@@ -471,6 +496,33 @@ function signature(text) {
 }
 
 /**
+ * WF-SYSTEM-REVIEW D2: what a packet says, without its revision, its time, and the
+ * link-back fields that intake writes (state, routed-to, decision-changed). A history
+ * copy of a started packet is written only when this changes.
+ */
+export function packetContent(text) {
+  const p = safeParseFrontmatter(String(text ?? ''));
+  if (!p.data) return signature(text);
+  const d = { ...p.data };
+  for (const k of ['revision', 'generated-at', 'state', 'routed-to', 'decision-changed']) delete d[k];
+  return `${JSON.stringify(d)}\n${signature(p.content)}`;
+}
+
+/** D2: the text of the newest history copy of a packet (`history/work-<key>.r<n>.md`), or null. */
+function latestHistoryCopy(historyDir, key) {
+  let names = [];
+  try { names = readdirSync(historyDir); } catch { return null; }
+  const prefix = `work-${key}.r`;
+  let best = null;
+  for (const n of names) {
+    if (!n.startsWith(prefix) || !n.endsWith('.md')) continue;
+    const r = Number(n.slice(prefix.length, -3));
+    if (Number.isInteger(r) && (!best || r > best.r)) best = { r, n };
+  }
+  return best ? readFileSync(join(historyDir, best.n), 'utf8') : null;
+}
+
+/**
  * Refuse a rewrite of a started packet (V3). A write may change only the
  * link-back fields that intake owns (state, routed-to, decision-changed).
  * Returns an error string, or null when the write is allowed.
@@ -559,7 +611,9 @@ export function writeWorkSet(dir, { now = null, isIgnored = null, dryRun = false
     existing.delete(piece.key);
     if (prior && (isStartedState(prior.data.state) || isStartedState(piece.state))) {
       kept.push(piece.key);
-      if (signature(prior.text) !== signature(text)) {
+      // D2: compare with the newest history copy when one exists, so an unchanged piece
+      // makes no new copy, no changes line, and no new work revision.
+      if (packetContent(latestHistoryCopy(historyDir, piece.key) ?? prior.text) !== packetContent(text)) {
         historyOnly.push(piece.key);
         writes.push({ path: join(historyDir, `work-${piece.key}.r${revision}.md`), text });
       }

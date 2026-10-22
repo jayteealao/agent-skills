@@ -14,7 +14,7 @@ You are running `/wf campaign <brainstorm-slug>`. A brainstorm that ends in many
 ## What the campaign is, and is not
 
 - **The person decides every intake and shape question.** The campaign prepares each slug with the person (intake, shape, slice, and the design lane when the packet needs one). It never makes an intake or shape decision.
-- **The waves are autonomous.** One run of the wave driver drives every unit of a wave, then runs the boundary steps. The yolo rules all stay: an intent-bearing decision stops the unit, a steering veto outranks every auto-resolve, and the charter checkpoint runs every 3 slices. A unit that stops parks with one question, and the other units continue.
+- **The waves are autonomous.** One run of the wave driver drives every unit of a wave, then runs the boundary steps. The yolo rules all stay: an intent-bearing decision stops the unit, a steering veto outranks every auto-resolve, and the charter checkpoint runs after charter-touching work. A unit that stops parks with one question, and the other units continue.
 - **The campaign asks the person** at each handoff or ship issue and each ambiguity. It never guesses past one.
 - **The brainstorm owns the board and the packets.** The campaign only reads them. The campaign owns `work/campaign/`, the dependency graph ([campaign/_deps.md](campaign/_deps.md)), and, while it is live, the main checkout's `INDEX.md` ([_control-file-ownership.md](_control-file-ownership.md)).
 - **One session runs the campaign.** It announces in chat that it is the campaign session. The person reopens the brainstorm in another session. When the person opens the brainstorm here, say once that it belongs in another session, and continue.
@@ -116,7 +116,7 @@ A build packet (form `intake`, `extension`, `fix`, `hotfix`) is a unit. A `task`
 | `version wave\|hotfix` | The version at ship time |
 | `label <n> [<slug>]` | The build label of a wave or slug branch tip |
 | `journal <event> [<json>]` | Append a campaign event for the watch |
-| `forecast [--wave n --minutes m --tokens t]` | Update the forecast with the real numbers of a wave |
+| `forecast [--wave n --minutes m --tokens t]` | Update the forecast (`wave <n> record` does it too) |
 | `budget` | The usage state (`ok`, `slow`, `pause`, `unknown`) from the newest reading, and the width it allows |
 | `worktree <key>\|wave-<n> add\|refresh\|sync\|remove` | Make or remove a unit's worktree, slug branch, and ports, or the wave worktree (local records: `_waves.md`). `remove` refuses while a file would be lost, and never forces |
 | `lock [quiet] acquire\|release <slug>` | The heavy-suite lock across sessions: one holder at a time. The quiet lock (for `quiet-suites`) also keeps every heavy suite out while it is held |

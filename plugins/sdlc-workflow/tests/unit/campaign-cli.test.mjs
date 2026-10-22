@@ -668,3 +668,42 @@ test('stacked waves: the next wave starts on the wave branch below, up to max-un
     assert.equal(run(root, 'stack', 'set', '17').stack.number, 17);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('WF-SYSTEM-REVIEW D6: unit prepared records the revision and decisions; a reopening asks again only the changed decisions', () => {
+  const root = makeRepo();
+  try {
+    orient(root);
+    run(root, 'answer', 'forecast', 'continue');
+    run(root, 'answer', 'target-version', '"0.3.0"');
+    run(root, 'answer', 'release-each-wave', 'false');
+    run(root, 'answer', 'output', '{"build-cmd":"cargo build --release","artifacts":["target/release/sm"],"try":"run target/release/sm"}');
+    run(root, 'answer', 'budget', 'default');
+    const readLedger = () => JSON.parse(readFileSync(path.join(root, '.ai', 'workflows', B, 'work', 'campaign', 'ledger.json'), 'utf8'));
+    assert.equal(run(root, 'unit', 'W1', 'prepared').ok, true);
+    assert.equal(run(root, 'unit', 'W2', 'prepared').ok, true);
+    let led = readLedger();
+    assert.equal(led.units.W1['prepared-at-revision'], 1);
+    assert.deepEqual(led.units.W1['prepared-decisions'], { 'W1-d1': 'decision of W1' });
+    // The brainstorm reopens: one decision of W1 changes, and W1 gains a decision. W2 does not change.
+    packetFile(root, { key: 'W1', 'work-slug': 'engine', order: 1, provides: [{ key: 'tick', text: 'a match tick function' }],
+      'carried-decisions': [{ key: 'W1-d1', text: 'decision of W1, changed', session: 's2', 'decided-at': '2026-10-20' }, { key: 'W1-d2', text: 'a new decision', session: 's2', 'decided-at': '2026-10-20' }] });
+    workIndex(root, 2);
+    const rp = run(root, 'replan');
+    assert.equal(rp.ok, true, JSON.stringify(rp));
+    const s = run(root, 'status');
+    const l2 = readLedger();
+    assert.equal(l2.units.W1.state, 'planned');
+    assert.deepEqual(l2.units.W1['stale-decisions'], ['W1-d1', 'W1-d2']);
+    assert.equal(l2.units.W2.state, 'prepared', 'an unchanged unit stays prepared');
+    assert.deepEqual(s.next.reask, { W1: ['W1-d1', 'W1-d2'] });
+    // The person answers again; unit prepared clears the mark and stamps the new decisions.
+    assert.equal(run(root, 'unit', 'W1', 'prepared').ok, true);
+    led = readLedger();
+    assert.equal(led.units.W1.state, 'prepared');
+    assert.equal(led.units.W1['stale-decisions'], undefined);
+    assert.equal(led.units.W1['prepared-at-revision'], 2);
+    assert.equal(run(root, 'replan').ok, true);
+    assert.equal(readLedger().units.W1.state, 'prepared', 'a second replan with no change keeps it prepared');
+    assert.match(readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', 'campaign', '_phases.md'), 'utf8'), /`reask`/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

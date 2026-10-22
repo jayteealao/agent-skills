@@ -34,7 +34,7 @@ import {
 import {
   aggregateCost,
   readCostRows
-} from "./chunk-SQWQDGCF.mjs";
+} from "./chunk-HCBBZN2S.mjs";
 import {
   escapeHtml,
   renderWarnBanner,
@@ -44,13 +44,13 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   tailscaleDnsName
-} from "./chunk-GC4Q2V2L.mjs";
+} from "./chunk-KL2WVA3M.mjs";
 import "./chunk-KIZZEX5M.mjs";
 import {
   HUB_DEFAULT_PORT,
   effectiveCodeBrowserConfig,
   readHubConfig
-} from "./chunk-RLA7BOVL.mjs";
+} from "./chunk-IATIUHE6.mjs";
 import {
   frozenBoardsOf
 } from "./chunk-T5YC5F32.mjs";

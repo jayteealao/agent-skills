@@ -694,8 +694,14 @@ test('liveness: only the newest prior run is judged, and orient owns no arithmet
 // stage ran cannot drift the charter.
 // ---------------------------------------------------------------------------
 
-test('checkpoint: skipped when no stage ran since the last checkpoint', () => {
-  assert.match(yoloSrc, /if \(chain\.ran\.length\) workSinceCheckpoint = true/);
+test('checkpoint: skipped when no work since the last checkpoint touched the charter (WF-SYSTEM-REVIEW C5)', () => {
+  assert.match(yoloSrc, /if \(touchesCharter\(chain\.ran, idx\.charter\)\) workSinceCheckpoint = true/);
+  const touchesCharter = new Function(`${extractFn(yoloSrc, 'touchesCharter')}; return touchesCharter;`)();
+  const charter = [{ id: 'C2' }];
+  assert.equal(touchesCharter([{ decisions: [{ class: 'implementation-detail', decision: 'a helper' }] }], charter), false);
+  assert.equal(touchesCharter([{ decisions: [{ class: 'intent-bearing', decision: 'x' }] }], charter), true);
+  assert.equal(touchesCharter([{ decisions: [{ class: 'scope', decision: 'serves C2 first' }] }], charter), true);
+  assert.equal(touchesCharter([{ decisions: [{ decision: 'C22 only' }] }], charter), false);
   assert.match(yoloSrc, /!workSinceCheckpoint\) \{\s*log\(`charter checkpoint after '\$\{s\.slice\}' skipped/);
 });
 
@@ -788,7 +794,7 @@ test('steering: every judging or writing agent carries the clause; bookkeeping a
     assert.ok(review.includes(call), `driveReview lacks ${call}`);
   }
   assert.match(review, /selection\.steeringPresent === true/);
-  for (const fn of ['ensureBranch', 'writeBackSliceStatus', 'readLedgerReport']) {
+  for (const fn of ['ensureBranch', 'writeBackSliceStatus', 'runEnd']) {
     assert.ok(!fnSrc(fn).includes('steer('), `${fn} is bookkeeping and must not carry the clause`);
   }
 });

@@ -5,22 +5,48 @@
  *
  *   node work-packets.mjs check <workflow-dir|board-file> [--json]
  *   node work-packets.mjs write <workflow-dir|board-file> [--json] [--dry-run]
+ *   node work-packets.mjs archive <workflow-dir|board-file> [--json] [--dry-run]
  *
  * <workflow-dir> is .ai/workflows/<slug>; its board is brainstorm-board.json, or
  * ideate-work.json for an ideate run. A path to a board file names the board
  * itself (WF-IDEATE-SOURCES-PLAN 8.1). `check` reports the
  * contract, coverage, cycle, size, and source errors (exit 1 on an error).
  * `write` runs the check, then writes each packet, research/index.md, and
- * work/index.md last. Bundled to dist/work-packets.mjs; the skill wrapper
+ * work/index.md last. `archive` (WF-SYSTEM-REVIEW D1) moves the closed part of the
+ * board to archive/board.json and checks the caps of 01-brainstorm.md. Bundled to dist/work-packets.mjs; the skill wrapper
  * skills/wf/scripts/work-packets.mjs runs the bundle.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
+import { archiveBoard, docCheck, mergeArchive } from '../lib/brainstorm-archive.mjs';
 import { checkWorkSet, writeWorkSet } from '../lib/work-packets.mjs';
 
-const USAGE = 'Usage: work-packets.mjs <check|write> <workflow-dir|board-file> [--json] [--dry-run]';
+const USAGE = 'Usage: work-packets.mjs <check|write|archive> <workflow-dir|board-file> [--json] [--dry-run]';
+
+/**
+ * D1: move the closed part of the board to archive/board.json, record the move in the
+ * board's `archived` list, and check the caps of the person's document.
+ */
+export function archiveCommand(dir, boardFile, { dryRun = false, now = null } = {}) {
+  const boardPath = join(dir, boardFile);
+  const board = JSON.parse(readFileSync(boardPath, 'utf8'));
+  const { board: kept, archived, count } = archiveBoard(board);
+  const docPath = join(dir, '01-brainstorm.md');
+  const warnings = existsSync(docPath) ? docCheck(readFileSync(docPath, 'utf8')) : [];
+  const result = { ok: true, moved: { items: archived.items.length, log: archived.log.length, stories: archived.stories.length }, warnings, dryRun };
+  if (!count || dryRun) return result;
+  const archiveDir = join(dir, 'archive');
+  const archivePath = join(archiveDir, 'board.json');
+  const prior = existsSync(archivePath) ? JSON.parse(readFileSync(archivePath, 'utf8')) : null;
+  mkdirSync(archiveDir, { recursive: true });
+  writeFileSync(archivePath, `${JSON.stringify(mergeArchive(prior, archived), null, 2)}\n`);
+  const at = (now ?? new Date()).toISOString();
+  kept.archived = [...(board.archived ?? []), { session: board.sessions ?? null, at, file: 'archive/board.json', ...result.moved }];
+  writeFileSync(boardPath, `${JSON.stringify(kept, null, 2)}\n`);
+  return result;
+}
 
 /** The workflow folder and the board file of an argument: a board path, or a folder with one board. */
 export function resolveBoard(arg) {
@@ -53,7 +79,7 @@ function projectRootOf(dir) {
 export function main(argv = process.argv.slice(2), { log = console.log, now = null } = {}) {
   const flags = new Set(argv.filter((a) => a.startsWith('--')));
   const [command, dirArg] = argv.filter((a) => !a.startsWith('--'));
-  if (!['check', 'write'].includes(command) || !dirArg) {
+  if (!['check', 'write', 'archive'].includes(command) || !dirArg) {
     log(USAGE);
     return 2;
   }
@@ -65,6 +91,17 @@ export function main(argv = process.argv.slice(2), { log = console.log, now = nu
   }
   const isIgnored = gitIgnoredCheck(projectRootOf(dir));
   const json = flags.has('--json');
+
+  if (command === 'archive') {
+    const result = archiveCommand(dir, boardFile, { dryRun: flags.has('--dry-run'), now });
+    if (json) log(JSON.stringify(result, null, 2));
+    else {
+      const m = result.moved;
+      log(`work-packets: ${result.dryRun ? 'would move' : 'moved'} ${m.items} items, ${m.log} log entries, ${m.stories} stories to archive/board.json`);
+      for (const w of result.warnings) log(`warning: ${w}`);
+    }
+    return 0;
+  }
 
   if (command === 'check') {
     const board = JSON.parse(readFileSync(boardPath, 'utf8'));

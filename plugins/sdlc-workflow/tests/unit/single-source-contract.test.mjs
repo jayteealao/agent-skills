@@ -189,18 +189,19 @@ test('_subagents.md pins the effort-tier → host mapping', () => {
   assert.match(yolo, /const OPUS = \{ model: 'claude-opus-5-5', effort: 'medium' \}/, 'yolo other agents: Opus 5.5 at medium effort');
   assert.match(yolo, /const HAIKU = \{ model: 'claude-haiku-5-5', effort: 'medium' \}/, 'yolo bookkeeping agents: Haiku 5.5 at medium effort');
   const calls = (yolo.match(/\bagent\(\s*\n/g) || []).length;
-  const spreads = (yolo.match(/\.\.\.(SONNET|OPUS|HAIKU)\b/g) || []).length;
+  // WF-SYSTEM-REVIEW C1: a stage agent spreads stageModel(<stage>), which gives SONNET or OPUS.
+  const spreads = (yolo.match(/\.\.\.(SONNET|OPUS|HAIKU\b|stageModel\()/g) || []).length;
   assert.ok(calls > 0, 'yolo agent() calls were found');
   assert.equal(spreads, calls, 'every yolo agent() call spreads SONNET, OPUS or HAIKU');
   assert.equal((yolo.match(/model: '/g) || []).length, 3, 'yolo pins a model only in the SONNET, OPUS and HAIKU presets');
   // Haiku runs only the agents that run fixed commands or copy data (PO 2026-10-20).
   const haikuLabels = (src) => [...src.matchAll(/label: ((?:(?!label: )[^\n])+?), phase: '[A-Za-z]+', \.\.\.HAIKU\b/g)].map((m) => m[1]).sort();
-  assert.deepEqual(haikuLabels(yolo), ["'branch'", "'plan-index-writeback'", "'plan-reconcile-clear'", "'read-check-report'", '`writeback:${sliceArg}`']);
+  assert.deepEqual(haikuLabels(yolo), ["'branch'", "'plan-index-writeback'", "'plan-reconcile-clear'", "'run-end'", '`writeback:${sliceArg}`']);
   const wave = read('skills', 'wf', 'workflows', 'campaign-wave.js');
   assert.match(wave, /const HAIKU = \{ model: 'claude-haiku-5-5', effort: 'medium' \}/);
   assert.deepEqual(haikuLabels(wave), [
     "'boundary-setup'", "lbl(u, 'ask-early')", "lbl(u, 'slice-order')", "lbl(u, 'move')", "lbl(u, 'plan-index-writeback')", "lbl(u, 'plan-reconcile-clear')",
-    "lbl(u, 'read-check-report')", "lbl(u, 'resume')", "lbl(u, 'slug-output')", "lbl(u, 'unit-end')",
+    "'run-end'", "lbl(u, 'resume')", "lbl(u, 'slug-output')", "lbl(u, 'unit-end')",
     'lbl(u, `park:${kind}`)', 'lbl(u, `wait:${e.from}`)', 'lbl(u, `writeback:${sliceArg}`)', 'tag', '`waiter#${WAITERS}`',
     // WF-CAMPAIGN-THROUGHPUT-PLAN T9, T7: the lock wait and the verify mark are bookkeeping, as the wait agent is.
     "'locks-wait'", 'lbl(u, `verified:${sliceArg}`)',

@@ -40,6 +40,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { modelsOf } from '../lib/campaign.mjs';
+
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DRIVER_SOURCE = path.join(PLUGIN_ROOT, 'skills', 'wf', 'workflows', 'yolo.js');
 export const STAGE_REL = path.join('.scratch', 'wf', 'yolo.js');
@@ -102,7 +104,10 @@ export function stageYoloDriver(projectRoot, opts = {}) {
   const sidecar = { source, version, sha256: digest, stagedAt: new Date().toISOString() };
   writeFileSync(`${scriptPath}.source.json`, `${JSON.stringify(sidecar, null, 2)}\n`);
 
-  return { scriptPath, version, sha256: digest, overwroteHotPatch };
+  // WF-SYSTEM-REVIEW C1: the session passes `models` on as `args.models`.
+  let models = {};
+  try { models = modelsOf(JSON.parse(readFileSync(path.join(projectRoot, '.ai', 'sdlc-config.json'), 'utf8'))); } catch { /* no config: every stage on Opus */ }
+  return { scriptPath, version, sha256: digest, overwroteHotPatch, models };
 }
 
 function main() {

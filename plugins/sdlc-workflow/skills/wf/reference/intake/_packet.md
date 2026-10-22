@@ -41,7 +41,7 @@ Do this before the mode's own questions.
 - Each carried decision goes into the Known Constraints word for word, with its source `<board path>#<item-key>`.
 - A charter entry that comes from a carried decision sets `source: <board path>#<item-key>`. A RIM that comes from a carried decision cites the same key.
 - Record `origin-packet: <packet path>` and `origin-items` (every item key in the packet) in `00-index.md`.
-- The open ideas and the open questions of the packet go into this mode's question rounds. Intake still asks its own questions for the gaps that the packet leaves open.
+- The open ideas and the open questions of the packet go into this mode's question rounds. Intake still asks its own questions for the gaps that the packet leaves open. It asks no scope and no non-goal question: the carried decisions and "Left for later and cut" answer them (B1).
 - The findings and the assumptions are re-verified per [_intake-provenance.md](_intake-provenance.md). A contradicted finding becomes a known unknown.
 - The items under "Left for later and cut" join the out-of-scope list, so the workflow does not re-widen.
 - Copy each file of the packet's `sketches:` into `.ai/workflows/<work-slug>/design/sketches/`. Keep its key as the file name (`design/_boards.md`). A sketch with `path: null` has no file to copy.

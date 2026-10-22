@@ -11,7 +11,7 @@ import {
 import {
   costRowsFor,
   costSectionHtml
-} from "../chunk-NTW5AJRR.mjs";
+} from "../chunk-RKLTS3OM.mjs";
 import {
   evenX,
   figureCanvas
@@ -23,7 +23,7 @@ import {
   stageBadge,
   statusBadge
 } from "../chunk-AUY2HYM2.mjs";
-import "../chunk-SQWQDGCF.mjs";
+import "../chunk-HCBBZN2S.mjs";
 import {
   escapeHtml
 } from "../chunk-3RXHOXIK.mjs";

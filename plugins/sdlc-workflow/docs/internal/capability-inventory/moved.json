@@ -701,5 +701,23 @@
     "to": "skills/wf/reference/review/interface-craft.md",
     "category": "rubric-checks",
     "entry": "what motion library is in play?"
+  },
+  {
+    "from": "skills/wf/reference/review/_stage.md",
+    "to": "skills/wf/reference/review/_triage.md",
+    "category": "gates",
+    "entry": "1. resolve slug from the first argument. read"
+  },
+  {
+    "from": "skills/wf/reference/review/_stage.md",
+    "to": "skills/wf/reference/review/_triage.md",
+    "category": "stops",
+    "entry": "run /wf review <slug [<slice ] for a"
+  },
+  {
+    "from": "skills/wf/reference/review/_stage.md",
+    "to": "skills/wf/reference/review/_triage.md",
+    "category": "stops",
+    "entry": "then stop do not continue to the full"
   }
 ]

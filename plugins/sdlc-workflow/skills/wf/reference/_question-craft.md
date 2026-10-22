@@ -75,3 +75,5 @@ framing (it can be 2–3 sentences); option `label`s stay short; option
 `description`s carry the consequence text and glosses. When a round needs more setup, put it in the `question`
 field itself; the question dialog can hide chat text (see [_gate-question.md](_gate-question.md)).
 Freeform chat questions follow the same seven requirements in prose.
+
+**Never ask a decided question again (B3).** Before a question, read the earlier answers: `po-answers.md`, the campaign ledger's `questions` and `decided`, and `steer.md`. When one covers the question, use it, name it, and do not ask. Ask again only when a fact changed, and say which fact.

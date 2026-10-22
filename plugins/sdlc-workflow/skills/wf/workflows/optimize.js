@@ -47,13 +47,19 @@ const EOB =
   `in code, code comments, commit messages, or docs. Write product language only.`
 
 let SEQ = 0
+// WF-SYSTEM-REVIEW A4: every journal line goes out through the `line` command of
+// yolo-watch, which writes it with JSON.stringify and stamps `at`.
+const WATCH = `${referenceRoot}/../../../scripts/yolo-watch.mjs`
+const jsonArg = (o) => `'${JSON.stringify(o).replace(/'/g, '\\u0027')}'`
+const lineCmd = (file, o) => `node "${WATCH}" line "${file}" ${jsonArg(o)}`
 function heartbeat(label, phaseName) {
   const seq = ++SEQ
-  return `\n\nDRIVER HEARTBEAT (do this FIRST and LAST). Append one JSON line to ${JOURNAL} (create it when absent; ` +
-    `never rewrite it): before any other work {"at":"<ISO-8601 UTC now, from the system clock>","run":"${RUN}",` +
-    `"seq":${seq},"event":"agent-start","agent":"${label}","phase":"${phaseName}","stage":"optimize","driver":"optimize"}, ` +
-    `and immediately before you return the same shape with "event":"agent-end", "status":"<your status>" and ` +
-    `"errors":<the errors you recovered from>. A failed append never changes what you do.`
+  const start = { run: RUN, seq, event: 'agent-start', agent: label, phase: phaseName, stage: 'optimize', driver: 'optimize' }
+  return `\n\nDRIVER HEARTBEAT (do this FIRST and LAST). Append each line to ${JOURNAL} with the command below, never ` +
+    `by hand: before any other work, run \`${lineCmd(JOURNAL, start)}\`; immediately before you return, run ` +
+    `\`${lineCmd(JOURNAL, { ...start, event: 'agent-end' })} --status <your status> --errors <the errors you ` +
+    `recovered from>\`, adding --reason "<one line: why you stopped>" when your status is not complete. A failed ` +
+    `append never changes what you do.`
 }
 
 const steering = `\n\nSTANDING STEERING. The person keeps standing instructions for this workflow in ${STEER}. Read the file ` +

@@ -113,7 +113,8 @@ test('intent-risks validates against the 00-index frontmatter schema', () => {
 // ── R2 reference prose (both trees) ─────────────────────────────────────────
 test('R2 — verify.md carries the evidence-rung / mock / skip / first-light gate rules', () => {
   for (const { name, root } of trees) {
-    const src = ref(root, 'verify.md');
+    // WF-SYSTEM-REVIEW E3: the mock, CI, and deferral rules load from verify/_runtime-evidence.md.
+    const src = ref(root, 'verify.md') + ref(root, 'verify/_runtime-evidence.md');
     assert.match(src, /evidence-rung/, `${name}: verify lost evidence-rung`);
     assert.match(src, /uncited-mock/, `${name}: verify lost the cited/uncited-mock split`);
     assert.match(src, /mock-provenance/, `${name}: verify lost mock-provenance`);

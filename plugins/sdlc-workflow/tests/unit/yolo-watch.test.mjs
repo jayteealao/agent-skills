@@ -1133,3 +1133,43 @@ test('F6: a silent agent with a tool call that has no result is pending-tool, no
     assert.equal(ev[0].toolSince, at(24));
   } finally { for (const d of [root, projectsDir, lockDir]) rmSync(d, { recursive: true, force: true }); }
 });
+
+// ---- WF-SYSTEM-REVIEW A3, A4 ------------------------------------------------------
+
+const BS = String.fromCharCode(92);
+
+test('A4: the line command writes a Windows path that parses, stamps at, and adds the agent flags', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'yw-line-'));
+  try {
+    const file = path.join(dir, '.driver-journal.jsonl');
+    const winPath = ['C:', 'Users', 'x', '07-review.md'].join(BS);
+    const json = JSON.stringify({ run: 'r1', event: 'refuter', target: winPath, note: "it's" }).replace(/'/g, BS + 'u0027');
+    execFileSync(process.execPath, [path.join(pluginRoot, 'scripts', 'yolo-watch.mjs'), 'line', file, json, '--status', 'blocked', '--errors', '2', '--reason', 'no device', '--route-back', 'implement', '--fields', '{"upheld":3}']);
+    const line = JSON.parse(readFileSync(file, 'utf8').trim());
+    assert.equal(line.target, winPath);
+    assert.equal(line.note, "it's");
+    assert.match(line.at, /^\d{4}-\d\d-\d\dT/);
+    assert.deepEqual([line.status, line.errors, line.reason, line.routeBack, line.upheld], ['blocked', 2, 'no device', 'implement', 3]);
+    // A hand-typed copy that lost the escapes of its backslashes still parses.
+    const raw = ['C:', 'Users', 'xyz', 'plan.md'].join(BS);
+    assert.equal(W.parseLineJson(`{"target":"${raw}"}`).target, raw);
+    assert.equal(W.parseLineJson(`{"a":"x${BS}${BS}y${BS}n"}`).a, `x${BS}y
+`);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('A3: end carries the reason, and a second end of the same run appends nothing', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'yw-end-'));
+  try {
+    const file = path.join(root, '.ai', 'workflows', 'demo', '.driver-journal.jsonl');
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, `${JSON.stringify({ at: '2026-10-21T10:00:00Z', run: 'r1', event: 'agent-start' })}\n`);
+    const a = W.appendRunEnd(root, 'demo', 'implement', Date.now(), null, { reason: 'tests red', agent: 'run-end' });
+    assert.deepEqual([a.run, a.stoppedAt, a.reason, a.agent], ['r1', 'implement', 'tests red', 'run-end']);
+    assert.equal(W.appendRunEnd(root, 'demo', null, Date.now()), null, 'the main session end after the driver end appends nothing');
+    assert.equal(readFileSync(file, 'utf8').trim().split('\n').length, 2);
+    // A new run of the same slug ends again.
+    appendFileSync(file, `${JSON.stringify({ at: '2026-10-21T11:00:00Z', run: 'r2', event: 'agent-start' })}\n`);
+    assert.equal(W.appendRunEnd(root, 'demo', null, Date.now()).run, 'r2');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

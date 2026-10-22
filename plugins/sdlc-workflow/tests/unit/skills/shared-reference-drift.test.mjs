@@ -84,7 +84,9 @@ test('review split holds: entry file loads the stage body, stage body exists', (
       `${name}: review.md lost the "read review/_stage.md in full" load instruction`,
     );
     const stageSrc = readFileSync(stage, 'utf8');
-    for (const heading of ['# TRIAGE MODE', '# Step 0 — Orient', '# Adaptive routing']) {
+    // WF-SYSTEM-REVIEW E3: triage mode moved to review/_triage.md; the stage body points to it.
+    assert.ok(existsSync(path.join(path.dirname(stage), '_triage.md')), `${name}: missing review/_triage.md`);
+    for (const heading of ['# Triage mode', '# Step 0 — Orient', '# Adaptive routing']) {
       assert.ok(stageSrc.includes(heading), `${name}: review/_stage.md lost "${heading}"`);
     }
   }

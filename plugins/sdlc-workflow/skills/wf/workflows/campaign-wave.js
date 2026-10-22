@@ -24,8 +24,8 @@ export const meta = {
 // The script has no file access, no clock and no Node API. Every read, write, git
 // command and ledger change is an agent. The walks of the units are plain async
 // functions; they share one engine concurrency cap and the heavy slots of section
-// 5.4a. This script shares no code with yolo.js (D1): the helpers below are copies,
-// and tests/unit/skills/driver-parity.test.mjs shows when two copies differ.
+// 5.4a. A Workflow script cannot import, so the helpers it shares with yolo.js come from
+// _shared.js: npm run build writes them into the BEGIN SHARED block (WF-SYSTEM-REVIEW E1).
 // ===========================================================================
 
 let OPT = args
@@ -48,6 +48,707 @@ if (!['wave', 'boundary', 'drift'].includes(mode)) return { ok: false, stopped: 
 const SONNET = { model: 'claude-sonnet-5-5', effort: 'high' }
 const OPUS = { model: 'claude-opus-5-5', effort: 'medium' }
 const HAIKU = { model: 'claude-haiku-5-5', effort: 'medium' }
+// WF-SYSTEM-REVIEW C1 (SQ1): the model of each stage agent comes from the `models` block
+// of .ai/sdlc-config.json, passed in the args. A stage that is not named runs on Opus.
+const MODELS = OPT.models && typeof OPT.models === 'object' ? OPT.models : {}
+const stageModel = (stage) => (MODELS[stage] === 'sonnet' ? SONNET : OPUS)
+
+// WF-SYSTEM-REVIEW C2, C3: implement commits each plan step and records it in the slug's
+// .implement-progress.jsonl; a re-run resumes after the last committed step. A plan of more
+// than IMPLEMENT_GROUP steps runs in groups, each in a fresh agent with a hand-over note.
+// A slice whose implement hard-stopped SPLIT_AFTER_STOPS times stops with a split question.
+const IMPLEMENT_GROUP = 6
+const SPLIT_AFTER_STOPS = 2
+
+// WF-SYSTEM-REVIEW C5: the charter checkpoint runs only after work that touched the charter:
+// a stage result with an intent-bearing decision, or a decision that names a charter id.
+// The unit review and the wave fidelity are the intent checks of their levels.
+// WF-SYSTEM-REVIEW C6: one refuter checks up to REFUTE_GROUP_SIZE findings of one rubric, so
+// it pays its cold start once for several findings. Over `limit` refuters, the groups grow.
+const REFUTE_GROUP_SIZE = 4
+// ---- BEGIN SHARED: generated from _shared.js by scripts/build-drivers.mjs. Edit _shared.js, then run npm run build. ----
+function refuteGroups(raw, limit) {
+  for (let size = REFUTE_GROUP_SIZE; ; size++) {
+    const byRubric = new Map()
+    for (const f of raw) {
+      const r = f.rubric || '?'
+      if (!byRubric.has(r)) byRubric.set(r, [])
+      byRubric.get(r).push(f)
+    }
+    const groups = []
+    for (const list of byRubric.values()) for (let i = 0; i < list.length; i += size) groups.push(list.slice(i, i + size))
+    if (groups.length <= limit || size >= raw.length) return groups
+  }
+}
+
+function touchesCharter(results, charter) {
+  const ids = (charter || []).map(c => c && c.id).filter(Boolean)
+  return (results || []).some(r => ((r && r.decisions) || []).some(d => d && (d.class === 'intent-bearing' ||
+    ids.some(id => String(d.decision || '').split(/[^A-Za-z0-9]+/).includes(id)))))
+}
+
+function implementGroups(planSteps, committed, size) {
+  const total = Number(planSteps) || 0
+  if (total <= size) return [null]
+  const out = []
+  for (let a = Math.max(0, Number(committed) || 0) + 1; a <= total; a += size) out.push({ from: a, to: Math.min(total, a + size - 1), total })
+  return out.length ? out : [null]
+}
+
+function implementStepsClause(slice, steps, progressPath, handoverPath, retry) {
+  const rec = (event, fields) => `\`${lineCmd(progressPath, { slice, event })}${fields ? ` --fields '${fields}'` : ''}\``
+  return `\n\nSTEP COMMITS (C2). After each plan step, commit it as the reference says, and record it: ` +
+    `${rec('step', '{"step":<n>,"sha":"<commit sha>"}')}. When ${progressPath} records steps of this slice ` +
+    `already, continue after the last one whose sha is an ancestor of HEAD; never redo it. When you hard-stop, ` +
+    `record ${rec('hard-stop', '')} with --reason "<one line>". After the final commit of the slice, record ` +
+    `${rec('complete', '{"sha":"<commit sha>"}')}.` +
+    (retry ? ` The person answered the split question with a retry: before any other work, record ${rec('retry', '')}.` : '') +
+    (!steps ? '' : `\n\nSTEP GROUP (C3). Implement plan steps ${steps.from} to ${steps.to} of ${steps.total} ONLY. ` +
+      `Read ${handoverPath} first when it exists. ` + (steps.to >= steps.total
+      ? `This is the last group: finish the stage as the reference says (the record, the roster, the final commit, and the test receipt).`
+      : `When step ${steps.to} is committed, overwrite ${handoverPath} with a short hand-over note (what is done, ` +
+        `what is next, the traps you found), and return status 'complete' with stepsDone: ${steps.to}. Do NOT ` +
+        `write the implementation record, the roster status, the final commit, or the test receipt: the last group writes them.`))
+}
+
+// ---------------------------------------------------------------------------
+// STANDING STEERING — every agent that judges or writes reads steer.md FRESH.
+// Stage agents read steer.md through their stage reference, but the driver's own
+// agents (rubric selection, scouts, refuters, wall probe, classifier, charter
+// checkpoint, plan reconcile) are prompted by this script and never opened it. A
+// steering veto the scouts cannot see is a veto the review cannot enforce.
+// The clause names the PATH, never a copy of the text: the user may edit steer.md
+// while the run drives, and each agent that starts after the edit must see it. A
+// snapshot taken at orient would freeze the entries for the whole run.
+// Bookkeeping agents (branch, write-back, index write-back, ledger report) get no
+// clause: they change no code and judge nothing a steering entry governs.
+// ---------------------------------------------------------------------------
+function steeringClause(steerPath, role, contractPath, campaignSteerPath = null) {
+  // WF-CAMPAIGN-RUN-FIXES-PLAN C2: in a campaign, one more steer file applies to every slug of the campaign.
+  const files = campaignSteerPath
+    ? `${steerPath}, and for every slug of the campaign in ${campaignSteerPath}. Read BOTH files NOW, in full, with ` +
+      `the file-read tool — never from a copy in a prompt or from an earlier run: the user can edit them while this ` +
+      `run drives. Where an entry of this slug's own file and an entry of the campaign file conflict, this slug's ` +
+      `entry wins. If both files are absent or empty, there is no steering`
+    : `${steerPath}. Read that file NOW, in full, with the file-read tool — never from a copy in a prompt or from ` +
+      `an earlier run: the user can edit it while this run drives. If the file is absent or empty, there is no ` +
+      `steering`
+  const head = `\n\nSTANDING STEERING (MANDATORY). The user keeps standing instructions for this workflow in ` +
+    `${files}: skip the rest of this block and return no steering fields. The contract is ${contractPath}. No ` +
+    `human gate in this run repeats these entries, so the file is the user's voice here. A steering VETO ` +
+    `outranks every autonomous-policy default in this prompt. Steering never overrides a mandatory gate (the ` +
+    `External Output Boundary, sibling-fragment enforcement, AC verifiability, the constraint-resolution rule), ` +
+    `never authorizes a deferral, and never waives a dont-ship verdict.`
+  if (role === 'writer') {
+    return head +
+      `\n- Honor each entry. A preference tilts an autonomous choice; a satisfiable constraint is obeyed. Never ` +
+      `take an action a veto forbids, even when the policy above allows it.\n` +
+      `- An entry may pre-answer a NAMED intent-bearing question: settle that one decision by the entry and ` +
+      `record the entry as its answer. An entry never gives standing leave to settle intent-bearing decisions in ` +
+      `general.\n` +
+      `- Record what you honored in the stage artifact's \`steering-honored:\` frontmatter list, and return the ` +
+      `same list as steeringHonored.\n` +
+      `- When an entry conflicts with the stage contract, is impossible for this stage, or is ambiguous, or when ` +
+      `the only way to finish crosses a veto: do not obey it into a broken state and do not ignore it. Finish ` +
+      `the artifact honestly (status: awaiting-input, the conflict recorded), return status:'hard-stop' with ` +
+      `hardStopReason 'steering: <what conflicts>', and return steeringConflict quoting the entry.\n` +
+      `- When you dispatch a sub-agent, copy the entries that bear on its task into its prompt.`
+  }
+  if (role === 'scout') {
+    return head +
+      ` Your rubric is STEERING COMPLIANCE. For each entry, check the diff against it. A change that crosses a ` +
+      `veto (touches what the entry forbids, adds what it rejects) is a finding with severity HIGH. A change that ` +
+      `goes against a preference is a finding with severity MED. Quote the entry in the issue. Report nothing ` +
+      `for an entry the diff does not touch; with no steer.md, return findings: [].`
+  }
+  if (role === 'refute') {
+    return head +
+      ` A finding that quotes a steering entry is refuted ONLY when the diff does not contradict that entry as ` +
+      `the file states it now. "The code works" or "the change is reasonable" does not refute it: the entry is ` +
+      `the user's rule. A finding whose fix would cross a veto is still real; say so in reason.`
+  }
+  if (role === 'classify') {
+    return head +
+      ` A decision that contradicts an entry is 'intent-bearing'. A decision an entry pre-answers by name keeps ` +
+      `the class the six tests give it; say in why which entry answered it.`
+  }
+  if (role === 'checkpoint') {
+    return head +
+      ` Also judge the built code against each entry. Return steeringViolations: one { entry (quoted), kind ` +
+      `('veto' when the entry forbids something, 'preference' otherwise), note } for each entry the code ` +
+      `contradicts; [] when none does or there is no steer.md.`
+  }
+  // 'context' — read-only agents whose choices must stay inside the entries.
+  return head +
+    ` Keep your work inside these entries: never run a command, recommend an action, or select an option an ` +
+    `entry forbids. When an entry names a concern your task covers, weigh it.`
+}
+
+// steeringDigest() — the hand-back's steering line: what each stage said it honored,
+// the stages that stopped on a steering conflict, and the checkpoint violations.
+// Null when nothing in the run reported steering (no steer.md, or no entry applied).
+function steeringDigest(o) {
+  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
+  const stages = chains.flatMap(c => (c && c.ran) || [])
+  if (o && o.slugWide) stages.push(o.slugWide)
+  const honored = []
+  const conflicts = []
+  for (const r of stages) {
+    if (!r) continue
+    for (const h of r.steeringHonored || []) {
+      if (h && String(h).trim()) honored.push({ slice: r.slice || null, stage: r.stage, honored: String(h).trim() })
+    }
+    if (r.steeringConflict && String(r.steeringConflict).trim()) {
+      conflicts.push({ slice: r.slice || null, stage: r.stage, entry: String(r.steeringConflict).trim() })
+    }
+  }
+  const violations = ((o && o.charterCheckpoints) || [])
+    .flatMap(cp => ((cp && cp.steeringViolations) || []).map(v => ({ throughSlice: cp.throughSlice, ...v })))
+  if (!honored.length && !conflicts.length && !violations.length) return null
+  return { honored, conflicts, violations }
+}
+
+// Y6 — THE REQUIRES TABLE IS A CHECKLIST. Yolo stage agents read their own reference
+// almost always, then skipped what it points to: the shape in 8–18% of implement,
+// verify and review runs, procedure files in 3–58%. Nothing in the run noticed. The
+// stage reference's `## Requires` table now names every input, the mod checks the
+// writer's reads against it, and a missing read comes back as feedback in the write's
+// tool result (warn mode: the write lands). The prompt says so, so the agent reads
+// the table before it writes and acts on the feedback instead of ignoring it.
+function requiresClause(refPath) {
+  return `\n\nREQUIRED READS (CHECKED). The \`## Requires\` table in ${refPath} is a CHECKLIST, defined by ` +
+    `${referenceRoot}/_requires.md. Before you write the stage artifact, read every row whose When value applies ` +
+    `to this run — each whole-file input from its first line to its last, each named section in full — yourself, ` +
+    `with the file-read tool. A search hit, a shell read, a partial read, or a sub-agent's read does not count. ` +
+    `The mod checks your reads when you write the stage artifact: a missing or partial read comes back as ` +
+    `feedback (context) in that write's tool result. When it does, read each named input, then write the ` +
+    `artifact again in this same run. Keep reading ${refPath} in full as well.`
+}
+
+// S6 — a dispatch prompt that carries the full text of a Requires input names it, so the
+// read check counts it as read for the writer of the named output path.
+function promptFedLine(inputs, outputPath) {
+  const list = (inputs || []).filter(Boolean)
+  if (!list.length) return ''
+  return `\n\nPrompt-fed inputs: ${list.join(', ')}\nOutput artifact: ${outputPath}`
+}
+
+// Liveness of the PREVIOUS driver, judged in code from the journal entries orient reports.
+// The yardstick is the run's own cadence: past its longest inter-entry gap (and a 20-minute
+// floor, so a run with one slow first agent is not called dead), a newest entry that is an
+// agent-start means that agent never returned and its writes may be half-finished
+// (presumedDead); a newest agent-end means every agent returned (stoppedCleanly). Entries
+// of THIS run (ownRunId) are excluded: orient writes its own heartbeat before it reads.
+// An unparseable clock yields neither verdict — a journal that exists proves nothing.
+function judgeLiveness(journal, ownRunId) {
+  if (!journal || journal.present !== true || !Array.isArray(journal.entries)) return { present: false }
+  const all = journal.entries
+    .filter(e => e && typeof e.at === 'string' && !Number.isNaN(Date.parse(e.at)) && (!ownRunId || e.run !== ownRunId))
+    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+  if (!all.length) return { present: false }
+  const newest = all[all.length - 1]
+  const entries = newest.run ? all.filter(e => e.run === newest.run) : all
+  let longestGapMinutes = 0
+  for (let i = 1; i < entries.length; i++) {
+    longestGapMinutes = Math.max(longestGapMinutes, (Date.parse(entries[i].at) - Date.parse(entries[i - 1].at)) / 60000)
+  }
+  const now = Date.parse(journal.nowAt || '')
+  const minutesSinceLastEntry = Number.isNaN(now) ? 0 : Math.max(0, (now - Date.parse(newest.at)) / 60000)
+  const quiet = !Number.isNaN(now) && minutesSinceLastEntry > Math.max(longestGapMinutes, 20)
+  const out = {
+    present: true,
+    runId: newest.run || journal.runId || '',
+    lastEntryAt: newest.at,
+    lastEvent: newest.event || '',
+    lastStage: newest.stage || '',
+    lastSlice: newest.slice || '',
+    minutesSinceLastEntry,
+    longestGapMinutes,
+    presumedDead: quiet && newest.event === 'agent-start',
+    stoppedCleanly: quiet && newest.event === 'agent-end',
+  }
+  if (newest.event === 'agent-end' && newest.status) out.lastStatus = newest.status
+  return out
+}
+
+function deadDriverClause(priorRun) {
+  if (!priorRun || priorRun.presumedDead !== true) return ''
+  return `\n\nDEAD-DRIVER RECONCILIATION. A previous driver for this slug is PRESUMED DEAD (its journal went ` +
+    `silent at ${priorRun.lastEntryAt || 'an unknown time'}, mid-${priorRun.lastStage || 'stage'}` +
+    `${priorRun.lastSlice ? ` on slice '${priorRun.lastSlice}'` : ''}). Treat every artifact and control-file ` +
+    `write it may have made as SUSPECT and possibly half-finished: re-read each file you touch fresh from disk ` +
+    `before editing it, and if what you find contradicts what the index claims, trust the artifact on disk and ` +
+    `correct the index. Do not assume the previous run left a consistent state.`
+}
+
+// verifyClean() — the SINGLE source of truth for "verify cleared the gate so the
+// chain may proceed". Two ways to be clean:
+//   1. result: pass — every AC met (code-only via tests, user-observable via evidence).
+//   2. result: partial whose ONLY residual is user-observable AC the environment
+//      genuinely could not evidence and that were therefore DEFERRED (recorded in
+//      00-index runtime-evidence-deferrals; /wf ship will block on them later).
+// Both require a converged/not-needed loop and NO substantive residual. A bare
+// blocked-runtime-evidence-missing (un-evidenced AND un-deferred), a substantive
+// fail/partial, or an escalated loop is NOT clean. driveVerify and evaluateGate
+// share this so the in-loop decision and the defensive gate can never drift.
+//
+// The deferral is CONTRACT-authored into terminal.deferrals[], but verify subagents
+// routinely park a plan-authorized deferral in the sibling residual[] instead (with
+// substantiveResidual:false) — the driver, which can't see residual[] via terminal
+// alone, then false-stopped a converged, defect-free slice as "did not converge"
+// (~500k tokens per recurrence on any secret/live-service-gated AC). The guard that
+// matters is NOT which array holds it — a substantive residual already returned false
+// above, so by here any recorded entry is a non-substantive deferral/note. So accept
+// the deferral from EITHER terminal.deferrals[] OR the residual[] the caller passes in.
+//
+// But "something was recorded" is NOT enough on its own: residual[] is the broader
+// "deferred / could-not-fix" bucket, and a could-not-fix note need carry no `ac`. The
+// collectDeferrals (the ship-block hand-back) surfaces a deferral only when it carries an
+// `ac` — its push() guard drops any ac-less entry from BOTH arrays. So "something was
+// recorded" is not enough on its own: residual[] is the broader "deferred / could-not-fix"
+// bucket and a could-not-fix note need carry no `ac`. If this gate proceeded on a bare
+// `.length > 0`, a partial whose only residual is an ac-less note would pass here yet
+// record NOTHING for /wf ship to block on — the exact silently-dropped AC this function
+// exists to stop. So the clean signal must MATCH the collector: a partial is clean only
+// when at least one ac-bearing deferral exists in EITHER array.
+function verifyClean(t, residual) {
+  if (!t) return false
+  const converged = t.convergence === 'converged' || t.convergence === 'not-needed'
+  if (!converged || t.substantiveResidual === true) return false
+  if (t.result === 'pass') return true
+  const hasAc = (arr) => Array.isArray(arr) && arr.some((d) => d && d.ac)
+  return t.result === 'partial' && (hasAc(t.deferrals) || hasAc(residual))
+}
+
+// acKey() — canonical AC identity for deferral dedupe/matching. Verify subagents
+// routinely emit the SAME deferral in two shapes: fully-labeled in
+// terminal.deferrals[] ("AC2 — three consecutive turns …", with a probe receipt)
+// and bare in the sibling residual[] ("AC2", no receipt). Exact-string keying
+// treats those as two different ACs — the bare copy then looks un-probed and
+// probeGaps false-HARD-STOPs a compliant slice (Playster 2026-07-15: one 79-min
+// resume plus a second run lost to exactly this). Extract the leading AC token
+// when one exists (AC2, AC-7a, AC 3.1 …) and normalize case/separators; fall
+// back to the trimmed string for free-form labels so unrelated labels never
+// collide into one key.
+function acKey(ac) {
+  const s = String(ac ?? '').trim()
+  const m = s.match(/^AC[-\s]?[\w.]+/i)
+  return (m ? m[0] : s).replace(/[-\s]/g, '').toUpperCase()
+}
+
+// probeGaps() — the deferral-LAW compliance check that verifyClean deliberately does
+// NOT enforce. verifyClean's accept condition is untouched (the v9.114 lesson: never
+// hard-gate a converged, defect-free slice on a formatting technicality — that cost
+// ~500k tokens per recurrence). But verify.md §"Attempt before declare" requires a
+// PROBE RECEIPT on every deferral — the literal capability-probe command + output tail
+// executed THIS run. probeGaps returns the ac-bearing deferral entries (deduped by ac,
+// across BOTH terminal.deferrals[] and the sibling residual[]) that carry no non-empty
+// `probe`. Dedupe credits EITHER array: if any copy of an ac records a probe, that ac is
+// compliant. driveVerify turns a non-empty result into ONE corrective re-run (soft),
+// then a hard-stop (the law is not optional) — never a first-round hard gate.
+function probeGaps(t, residual) {
+  const probed = new Set()       // acKey → some copy carries a non-empty probe
+  const gapEntry = new Map()     // acKey → first probe-less entry seen (dedupe by acKey)
+  const scan = (arr) => {
+    if (!Array.isArray(arr)) return
+    for (const d of arr) {
+      if (!d || !d.ac) continue   // ac-less notes are not deferrals — ignored (matches collectDeferrals)
+      if (typeof d.probe === 'string' && d.probe.trim() !== '') probed.add(acKey(d.ac))
+      else if (!gapEntry.has(acKey(d.ac))) gapEntry.set(acKey(d.ac), d)
+    }
+  }
+  scan(t && t.deferrals)
+  scan(residual)
+  const gaps = []
+  for (const [ac, entry] of gapEntry) if (!probed.has(ac)) gaps.push(entry)
+  return gaps
+}
+
+// evaluateGate() — defensive double-check that a 'complete' status is backed by
+// terminal fields that actually clear the gate (catches a subagent mis-report).
+function evaluateGate(stage, res) {
+  const t = (res && res.terminal) || {}
+  if (stage === 'verify') {
+    return verifyClean(t, res && res.residual) ? 'proceed' : 'hard-stop'   // same rule as driveVerify — deferral-only partial proceeds
+  }
+  if (stage === 'review') {
+    return (t.verdict === 'ship' || t.verdict === 'ship-with-caveats') && (t.blockerCount || 0) === 0 ? 'proceed' : 'hard-stop'
+  }
+  return res && res.status === 'complete' ? 'proceed' : 'hard-stop'   // plan / implement / shape
+}
+
+// collectDeferrals() — gather the runtime-evidence deferrals every verify stage
+// recorded, across whichever shape this outcome took (slice mode → outcome.ran;
+// slug mode → outcome.results[].ran). They are the run's ship-blocking residue:
+// the hand-back names them so the user knows what /wf ship will refuse until a
+// /wf probe (or a re-verify in a capable environment) clears each one.
+function collectDeferrals(o) {
+  const chains = Array.isArray(o.results) ? o.results : (o.ran ? [{ ran: o.ran }] : [])
+  const out = []
+  const seen = new Set()
+  const push = (slice, ac, reason, probe) => {
+    if (!ac) return
+    // acKey-normalized so a labeled terminal copy and a bare residual copy of the
+    // same AC count once (same normalization probeGaps uses).
+    const key = `${slice || ''}::${acKey(ac)}`
+    if (seen.has(key)) return
+    seen.add(key)
+    // `probe` (the capability-probe receipt) rides through to the ship-block hand-back so
+    // /wf ship's block list and the run summary show RECEIPTED deferrals — omitted when absent.
+    out.push(probe ? { slice, ac, reason, probe } : { slice, ac, reason })
+  }
+  for (const c of chains) {
+    for (const r of (c && c.ran) || []) {
+      if (!r || r.stage !== 'verify') continue
+      const t = r.terminal || {}
+      if (Array.isArray(t.deferrals)) for (const d of t.deferrals) push(r.slice || (d && d.slice), d && d.ac, d && d.reason, d && d.probe)
+      // Verify subagents sometimes park the deferral in the sibling residual[] instead of
+      // terminal.deferrals[] (the same mis-placement verifyClean now tolerates). Surface
+      // those too — entries carrying an `ac` — so the run's ship-block hand-back isn't
+      // blind to a mis-placed deferral. Enforcement is the 00-index registry the subagent
+      // writes regardless of array; this only keeps the run summary honest. Dedup by
+      // (slice, ac) so a deferral recorded in BOTH arrays counts once.
+      if (Array.isArray(r.residual)) for (const d of r.residual) if (d && d.ac) push(r.slice || d.slice, d.ac, d.reason, d.probe)
+    }
+  }
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// W3.2 — THE AGGREGATE MAY NOT CONTRADICT ITS INPUTS.
+//
+// The run report is a re-derivation: collectDeferrals walks the stage returns and
+// decides what counts as a runtime-evidence deferral. When that re-derivation
+// disagreed with what was actually RECORDED, the re-derivation won silently — and
+// once told the user that an AC was a runtime-evidence deferral while the run's own
+// recorded decision said the opposite ("stays a build-capability deferral, NOT
+// runtime-evidence"). The user was steered into a `/wf probe` that could not
+// possibly help.
+//
+// The rule is precedence, not cleverness: a classification RECORDED by a stage
+// decision, or carried by the index's deferral ledger, is canonical over anything
+// the driver re-derives. Where they disagree the ledger's answer is reported,
+// annotated `reconciled` — never a silent re-label. Where they agree, nothing
+// happens and nothing is reported.
+//
+// `runtimeEvidence` is the only classification that belongs in
+// outcome.runtimeEvidenceDeferrals (that list is what /wf ship blocks on). Anything
+// a decision classified otherwise — build-capability, scope, external-dependency —
+// moves out of it and into `reconciled`, where it is still visible but no longer
+// pointing the user at the wrong command.
+// ---------------------------------------------------------------------------
+function classificationIndex(o, priorDeferrals) {
+  const map = new Map()   // acKey → { classification, source }
+  // Lower precedence: the index ledger read at orientation.
+  for (const d of (priorDeferrals || [])) {
+    if (!d || !d.ac) continue
+    const cls = d.classification || d.wallOwnership
+    if (cls) map.set(acKey(d.ac), { classification: String(cls), source: 'index-ledger' })
+  }
+  // Higher precedence: a classification this run's own stage decisions recorded.
+  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
+  for (const c of chains) {
+    for (const r of (c && c.ran) || []) {
+      for (const d of (r && r.decisions) || []) {
+        if (!d || !d.ac || !d.classification) continue
+        map.set(acKey(d.ac), { classification: String(d.classification), source: 'recorded-decision' })
+      }
+    }
+  }
+  return map
+}
+
+// A classification counts as "this is a runtime-evidence deferral" only when it
+// says so. Absent classification = no disagreement = leave the entry alone.
+function isRuntimeEvidenceClass(cls) {
+  const s = String(cls || '').trim().toLowerCase()
+  if (!s) return true
+  return s === 'runtime-evidence' || s === 'environment-negotiable' || s === 'external'
+}
+
+function reconcileDeferrals(o, deferrals, priorDeferrals) {
+  const map = classificationIndex(o, priorDeferrals)
+  if (!map.size) return { deferrals, reconciled: [] }
+  const kept = []
+  const reconciled = []
+  for (const d of deferrals) {
+    const rec = map.get(acKey(d && d.ac))
+    if (!rec || isRuntimeEvidenceClass(rec.classification)) { kept.push(d); continue }
+    reconciled.push({
+      ...d,
+      driverDerived: 'runtime-evidence',
+      recordedClassification: rec.classification,
+      source: rec.source,
+      note: `the run's ${rec.source === 'recorded-decision' ? 'own recorded decision' : 'index deferral ledger'} classifies this as '${rec.classification}', not a runtime-evidence deferral — the recorded classification is canonical and this entry is NOT in the /wf ship block list`,
+    })
+  }
+  return { deferrals: kept, reconciled }
+}
+
+// ---------------------------------------------------------------------------
+// W3.2 (second half) — A FAIL SURVIVES INTO THE OUTCOME.
+// The v9.134-era conflation ran the other way: verify recorded two ACs as
+// substantive FAILS with zero deferrals, and the driver's outcome listed them as
+// deferrals. A deferral is a promise that evidence is missing; a fail is a
+// statement that the behavior is wrong. Reporting the second as the first tells the
+// user to go collect evidence for a defect. So the run report carries verify's
+// recorded fail semantics explicitly, beside the deferrals, never merged into them.
+// ---------------------------------------------------------------------------
+function collectSubstantiveFailures(o) {
+  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
+  const out = []
+  for (const c of chains) {
+    for (const r of (c && c.ran) || []) {
+      if (!r || r.stage !== 'verify') continue
+      const t = r.terminal || {}
+      if (t.result === 'fail' || t.substantiveResidual === true) {
+        out.push({ slice: r.slice || null, result: t.result || null, substantiveResidual: t.substantiveResidual === true, artifactPath: r.artifactPath || null })
+      }
+    }
+  }
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// W3.4 — HONEST ERROR ACCOUNTING. One run reported "0 errors" while 6 of 15
+// subagents had hit recovered tool errors, including schema rejections refilled
+// with ""/"n-a" junk. Two sources, both available to this script:
+//   • self-reported: each subagent returns the errors it recovered from (the
+//     script cannot see a subagent's tool history, so it asks).
+//   • driver-observed: an agent() that returns null died or was skipped — that is
+//     a FATAL error for that step, and the run already knows it.
+// The count alone is this plan's scope. The junk-value schema refills are the
+// EVIDENCE-SCHEMA-CONTRACT's surface (stage-conditional required fields) and are
+// cited there, not redefined here.
+// ---------------------------------------------------------------------------
+function collectSubagentErrors(o) {
+  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
+  const agents = []
+  let recovered = 0
+  let fatal = 0
+  const consider = (r) => {
+    if (!r) { fatal++; agents.push({ agent: '(a subagent returned nothing — skipped or died after retries)', fatal: true }); return }
+    const errs = Array.isArray(r.errors) ? r.errors : []
+    if (!errs.length) return
+    recovered += errs.length
+    agents.push({ agent: `${r.stage || '?'}${r.slice ? ':' + r.slice : ''}`, recovered: errs.length, what: errs.map(e => (e && e.what) || '').filter(Boolean) })
+  }
+  for (const c of chains) for (const r of (c && c.ran) || []) consider(r)
+  if (o && o.slugWide) consider(o.slugWide)
+  if (!recovered && !fatal) return null
+  return { recovered, fatal, agents }
+}
+
+// deferralPressure() — F3 hand-back rollup. Combines the OPEN prior deferrals orient read
+// from 00-index (recorded by earlier runs) with THIS run's new deferrals into one pressure
+// headline: { open, oldestDeferredAt, repeatWalls }. It makes the standing pile visible in
+// every yolo hand-back instead of only inside artifacts — the bot-backend pattern (the same
+// 22–24 live-voice ACs deferred run after run with no escalating visibility). Visibility
+// only: NO new gate (plan.md's repeat-deferral tripwire already governs retirement).
+// oldestDeferredAt is lexicographic-min over ISO-8601 strings (= chronological); yolo scripts
+// have no clock, so only prior entries (read from disk) carry a date. Returns null when empty.
+function deferralPressure(priorDeferrals, runDeferrals) {
+  const prior = Array.isArray(priorDeferrals) ? priorDeferrals : []
+  const run = Array.isArray(runDeferrals) ? runDeferrals : []
+  if (!prior.length && !run.length) return null
+  const seen = new Set()
+  let open = 0, repeatWalls = 0, oldestDeferredAt = null
+  const consider = (slice, key, deferredAt, repeatOf) => {
+    const k = `${slice || ''}::${key || ''}`
+    if (seen.has(k)) return
+    seen.add(k)
+    open++
+    if (repeatOf) repeatWalls++
+    if (deferredAt && (!oldestDeferredAt || String(deferredAt) < String(oldestDeferredAt))) oldestDeferredAt = deferredAt
+  }
+  for (const d of prior) consider(d && d.slice, d && d.reason, d && d.deferredAt, d && d.repeatOf)
+  for (const d of run) consider(d && d.slice, (d && d.ac) ? acKey(d.ac) : (d && d.reason), null, null)
+  return { open, oldestDeferredAt, repeatWalls }
+}
+
+// decisionDigest() — W11.1 end-of-run rollup. Groups EVERY autonomous decision the run
+// recorded (across all chains) by its W4 class stamp (`class: implementation-detail`), so the
+// human's post-run inspection is one structured section, not twelve artifacts. An
+// intent-bearing stamp on an autonomous record is the tell that the policy overstepped —
+// surfaced under `intentBearing` so it can't hide. Pure + extractable like the other rollups.
+// W3.3 — `unclassified` IS A GAP, NOT A CLASS. The old shape defaulted a missing
+// stamp to 'unclassified', counted it as just another bucket, and let the headline
+// "intent-bearing: 0" absorb it. But an unclassified decision is precisely a
+// decision nobody has checked for intent — folding it into the zero inverts what
+// the number means. So it is counted separately, it never lands in `byClass`, and
+// the guarantee it qualifies is stated: 'exact' when everything is classified,
+// 'suspect' when anything is not.
+function decisionDigest(o) {
+  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
+  const groups = {}
+  let total = 0
+  const intentBearing = []
+  const unclassified = []
+  for (const c of chains) {
+    for (const r of (c && c.ran) || []) {
+      for (const d of (r && r.decisions) || []) {
+        if (!d) continue
+        total++
+        const cls = d.class && String(d.class).trim()
+        if (!cls) {
+          unclassified.push({ slice: r.slice, stage: r.stage, decision: d.decision || d.what || d.summary || '' })
+          continue
+        }
+        groups[cls] = (groups[cls] || 0) + 1
+        if (cls === 'intent-bearing') intentBearing.push({ slice: r.slice, stage: r.stage, decision: d.decision || d.what || d.summary || '' })
+      }
+    }
+  }
+  if (!total) return null
+  return {
+    total,
+    byClass: groups,
+    intentBearing,
+    unclassified,
+    // The load-bearing qualifier. 'suspect' means the run cannot honestly claim
+    // zero intent-bearing escapes — some decisions were never checked.
+    intentBearingGuarantee: unclassified.length ? 'suspect' : 'exact',
+  }
+}
+
+// clearingTripwire() — W4.2 rollup. orient ran each open deferral's recorded
+// `clearing-probe` (one bounded command apiece) and reported whether the event
+// looks satisfied. This turns the hits into a hand-back line. It is a TRIPWIRE and
+// nothing more: no deferral is cleared, no index is edited, no gate moves. The
+// probe stage still owns evidence — this only ensures that an event which has
+// quietly come true gets NOTICED, instead of an AC shipping uncleared while its
+// emulator sat booted on the same screen.
+function clearingTripwire(priorDeferrals) {
+  const hits = (priorDeferrals || []).filter(d => d && d.clearingProbeHit === true && d.authorized !== true)
+  if (!hits.length) return null
+  return hits.map(d => ({
+    slice: d.slice || null,
+    ac: d.ac || null,
+    clearingEvent: d.clearingEvent || null,
+    clearingProbe: d.clearingProbe || null,
+  }))
+}
+
+// reconcileDue() — reconcile runs whenever the durable marker is set, on a fresh run
+// and on a resume alike. update-deps never fans out, so it never reconciles.
+function reconcileDue(idx) {
+  return !!idx && idx.reconcilePending === true && idx.workflowType !== 'update-deps'
+}
+
+// planWaves() — the fan-out order: a slice plans after the slices it depends on, so its
+// plan builds on theirs. The slices with no open dependency plan together. A cycle or a
+// name outside the fan-out does not block: the slices left plan in one last wave.
+function planWaves(slices) {
+  const names = new Set((slices || []).map(s => s.slice))
+  const left = new Map((slices || []).map(s => [s.slice, (s.dependsOn || []).filter(d => d !== s.slice && names.has(d))]))
+  const placed = new Set()
+  const waves = []
+  while (left.size) {
+    const ready = [...left.keys()].filter(n => left.get(n).every(d => placed.has(d)))
+    const wave = ready.length ? ready : [...left.keys()]
+    waves.push(wave)
+    for (const n of wave) { placed.add(n); left.delete(n) }
+  }
+  return waves
+}
+
+// walkOrder() — the walk order of a roster (WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4): topological
+// order of dependsOn, with roster order as the tie-break. A cycle, or a name outside the
+// roster, keeps roster order for the slices that are left.
+function walkOrder(slices) {
+  const list = (slices || []).filter(s => s && s.slice)
+  const names = new Set(list.map(s => s.slice))
+  const placed = new Set()
+  const out = []
+  let left = list
+  while (left.length) {
+    const next = left.find(s => (s.dependsOn || []).every(d => d === s.slice || !names.has(d) || placed.has(d)))
+    if (!next) return out.concat(left)
+    out.push(next)
+    placed.add(next.slice)
+    left = left.filter(s => s !== next)
+  }
+  return out
+}
+
+// orderEdgesOf() — the orderEdges of plan results that name two slices of the roster, de-duplicated.
+function orderEdgesOf(results, roster) {
+  const names = new Set((roster || []).map(s => s.slice))
+  const seen = new Set()
+  const out = []
+  for (const r of results || []) {
+    for (const e of (r && r.orderEdges) || []) {
+      if (!e || !e.slice || !e.after || e.slice === e.after || !names.has(e.slice) || !names.has(e.after)) continue
+      const k = `${e.slice}<${e.after}`
+      if (seen.has(k)) continue
+      seen.add(k)
+      out.push({ slice: String(e.slice), after: String(e.after), why: String(e.why || '') })
+    }
+  }
+  return out
+}
+
+// overlappingSlices() — normalize the reconcile agent's answer into the re-plan list:
+// one entry per slice, in roster order, skipped and unknown slices dropped, the
+// overlapping siblings and the shared files/edges merged into one detail line.
+function overlappingSlices(overlaps, roster) {
+  const want = new Map()
+  for (const o of overlaps || []) {
+    if (!o || !o.slice) continue
+    const cur = want.get(o.slice) || { with: new Set(), details: [] }
+    for (const w of o.with || []) if (w && w !== o.slice) cur.with.add(w)
+    for (const f of o.files || []) if (f) cur.details.push(`file ${f}`)
+    for (const e of o.edges || []) if (e) cur.details.push(`edge ${e}`)
+    if (o.reason) cur.details.push(String(o.reason))
+    want.set(o.slice, cur)
+  }
+  return (roster || [])
+    .filter(s => s && s.slice && s.status !== 'skipped' && want.has(s.slice))
+    .map(s => ({ slice: s.slice, with: [...want.get(s.slice).with], detail: [...new Set(want.get(s.slice).details)].join('; ') }))
+}
+
+// runStartFromId() — orient mints the runId from the clock ('20260726T143005Z-<slug>');
+// its timestamp is the earliest moment a row of THIS run can carry.
+function runStartFromId(runId) {
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/.exec(String(runId || ''))
+  return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z` : null
+}
+
+function readCheckRows(rows, runStartAt) {
+  const start = runStartAt ? Date.parse(runStartAt) : NaN
+  const gap = r => (Array.isArray(r.missing) && r.missing.length > 0) || (Array.isArray(r.partial) && r.partial.length > 0)
+  const inRun = (rows || [])
+    .filter(r => r && typeof r.at === 'string' && !Number.isNaN(Date.parse(r.at)))
+    .filter(r => Number.isNaN(start) || Date.parse(r.at) >= start)
+    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+  const out = []
+  inRun.forEach((r, i) => {
+    if (!gap(r)) return
+    const resolved = inRun.slice(i + 1).some(l => l.artifact === r.artifact && l.agentId === r.agentId && !gap(l))
+    out.push({
+      at: r.at, stage: r.stage || '', artifact: r.artifact || '', agentId: r.agentId || '',
+      missing: r.missing || [], partial: r.partial || [], resolved,
+      ...(r.waiver ? { waiver: r.waiver } : {}),
+    })
+  })
+  return out
+}
+
+// WF-SYSTEM-REVIEW E3: the stage prompt states the shared rules once. A stage agent does not
+// read again the files that hold them; the stage reference still points to them for a person.
+function preambleClause() {
+  return `- PREAMBLE GIVEN HERE: this prompt states the grounded-progress rule and the early-stop guard, and your ` +
+    `return is the schema below, not a chat message. When the stage reference points to ` +
+    `${referenceRoot}/_chat-return.md, ${referenceRoot}/_autonomy-guards.md, or ${referenceRoot}/_grounded-progress.md, ` +
+    `do not read those files: apply the rules of this prompt.\n`
+}
+// ---- END SHARED ----
+
+
+
+
+// WF-SYSTEM-REVIEW B2: the campaign's standing defaults (lib/campaign.mjs defaultsOf).
+const DEFAULTS = { 'review-scope': 'slug-wide', 'fidelity-narrowing': 'accept-and-carry', ship: 'recommended', ...(OPT.defaults && typeof OPT.defaults === 'object' ? OPT.defaults : {}) }
 
 const CAMP = OPT.campaignDir || `${projectRoot}/.ai/workflows/${brainstorm}/work/campaign`
 const CAMPAIGN_JOURNAL = `${CAMP}/.campaign-journal.jsonl`
@@ -58,6 +759,21 @@ const CANCEL_PATH = OPT.cancelPath || `${projectRoot}/.scratch/campaign/${RUN}/w
 const OUT = `${projectRoot}/.scratch/campaign/${RUN}`
 const SCRIPT = `${referenceRoot}/../scripts/campaign.mjs`
 const WATCH = `${referenceRoot}/../../../scripts/yolo-watch.mjs`
+// WF-SYSTEM-REVIEW A4: an agent appends a journal line with the `line` command of
+// yolo-watch, never as text it builds by hand. The command writes the line through
+// JSON.stringify and stamps `at`, so a Windows path always parses. Inside the shell's
+// single quotes, `'` goes out as \u0027.
+const jsonArg = (o) => `'${JSON.stringify(o).replace(/'/g, '\\u0027')}'`
+const lineCmd = (file, o) => `node "${WATCH}" line "${file}" ${jsonArg(o)}`
+// A3: the agent-end line says why the agent stopped.
+const END_FLAGS = `--status <the status you return> --errors <the number of tool errors, rejected writes and schema ` +
+  `retries you RECOVERED from, 0 if none>. When your status is not complete, add --reason "<one line: why you ` +
+  `stopped>". When you hard-stop, add --hard-stop-reason "<the same line>". When you route back, add ` +
+  `--route-back <the stage you route back to>`
+function shellText(s) {
+  const t = String(s ?? '').replace(/\s+/g, ' ').replace(/[`$"\\]/g, "'").slice(0, 300)
+  return '"' + t + '"'
+}
 const DRIVE_PROC = `${referenceRoot}/campaign/_drive.md`
 const ORDER_PROC = `${referenceRoot}/campaign/_order.md`
 const BOUNDARY_PROC = `${referenceRoot}/campaign/_boundary.md`
@@ -175,16 +891,15 @@ const lbl = (u, label) => `${label}@${u.slug}`
 
 function heartbeat(u, label, phaseName, stageName, sliceArg, isHeavy = false) {
   const seq = ++u.seq
+  const start = {
+    run: u.runId, seq, event: 'agent-start', agent: lbl(u, label), phase: phaseName, stage: stageName || '',
+    slice: sliceArg || '', driver: 'campaign-wave', campaign: brainstorm, campaignRun: RUN, ...(isHeavy ? { heavy: true } : {}),
+  }
   return `\n\nDRIVER HEARTBEAT (MANDATORY — do this FIRST and LAST). A background driver that dies leaves no ` +
     `signal; this journal is the only way a human or a later session can tell a live driver from a dead one. ` +
-    `Append (never rewrite, never truncate) to ${u.journal}, creating it if absent:\n` +
-    `  • BEFORE any other work, one line: ` +
-    `{"at":"<ISO-8601 UTC now, from the system clock>","run":"${u.runId}","seq":${seq},"event":"agent-start",` +
-    `"agent":"${lbl(u, label)}","phase":"${phaseName}","stage":"${stageName || ''}","slice":"${sliceArg || ''}",` +
-    `"driver":"campaign-wave","campaign":"${brainstorm}","campaignRun":"${RUN}"${isHeavy ? ',"heavy":true' : ''}}\n` +
-    `  • IMMEDIATELY BEFORE you return, one line of the same shape with "event":"agent-end", plus ` +
-    `"status":"<the status you are returning>" and "errors":<the number of tool errors / rejected writes / ` +
-    `schema retries you RECOVERED from this agent, 0 if none>.\n` +
+    `Append each line with the command below, never by hand (it appends to ${u.journal} and stamps the time):\n` +
+    `  • BEFORE any other work, run: \`${lineCmd(u.journal, start)}\`\n` +
+    `  • IMMEDIATELY BEFORE you return, run: \`${lineCmd(u.journal, { ...start, event: 'agent-end' })} ${END_FLAGS}\`.\n` +
     `Never read the journal back into your answer, and never let an append failure change what you do — the ` +
     `heartbeat is diagnostic, never a gate.`
 }
@@ -194,16 +909,20 @@ function heartbeat(u, label, phaseName, stageName, sliceArg, isHeavy = false) {
 let WAVE_SEQ = 0
 function waveHeartbeat(label, step) {
   const seq = ++WAVE_SEQ
-  return `\n\nCAMPAIGN HEARTBEAT (do this FIRST and LAST). Append one JSON line to ${CAMPAIGN_JOURNAL} (create it when ` +
-    `absent; never rewrite it): before any other work {"at":"<ISO-8601 UTC now>","run":"${RUN}","seq":${seq},` +
-    `"event":"agent-start","agent":"${label}","phase":"${step}","wave":${wave},"driver":"campaign-wave"}, and ` +
-    `immediately before you return the same shape with "event":"agent-end", "status":"<your status>" and ` +
-    `"errors":<errors you recovered from>. A failed append never changes what you do.`
+  const start = { run: RUN, seq, event: 'agent-start', agent: label, phase: step, wave, driver: 'campaign-wave' }
+  return `\n\nCAMPAIGN HEARTBEAT (do this FIRST and LAST). Append each line to ${CAMPAIGN_JOURNAL} with the command ` +
+    `below, never by hand: before any other work, run \`${lineCmd(CAMPAIGN_JOURNAL, start)}\`; immediately before ` +
+    `you return, run \`${lineCmd(CAMPAIGN_JOURNAL, { ...start, event: 'agent-end' })} ${END_FLAGS}\`. A failed ` +
+    `append never changes what you do.`
 }
 
-function campaignEvent(name, fields) {
-  return `\n\nCAMPAIGN EVENT. After your work, append one more line to ${CAMPAIGN_JOURNAL}: {"at":"<ISO-8601 UTC now>",` +
-    `"run":"${RUN}","event":"${name}","wave":${wave},${fields}}. The campaign watch turns it into a commentary note.`
+// `known`: the fields the driver knows. `agentFields`: a JSON template of the values
+// only the agent knows, each <…> replaced by its value (numbers and short words).
+function campaignEvent(name, known = {}, agentFields = '') {
+  return `\n\nCAMPAIGN EVENT. After your work, append one more line to ${CAMPAIGN_JOURNAL} with this command, never ` +
+    `by hand: \`${lineCmd(CAMPAIGN_JOURNAL, { run: RUN, event: name, wave, ...known })}` +
+    `${agentFields ? ` --fields '${agentFields}'` : ''}\`${agentFields ? ', with each <…> replaced by its value' : ''}. ` +
+    `The campaign watch turns it into a commentary note.`
 }
 
 // CONTROL-FILE DISCIPLINE (yolo.js:136), for the unit's own 00-index.md only. The stage
@@ -217,91 +936,7 @@ function controlFileRule(u) {
     `the boundary merge regenerates it from each slug's 00-index.md.`
 }
 
-// ---------------------------------------------------------------------------
-// STANDING STEERING (yolo.js:156) — copied. The campaign steer file is always present.
-// ---------------------------------------------------------------------------
-function steeringClause(steerPath, role, contractPath, campaignSteerPath = null) {
-  // WF-CAMPAIGN-RUN-FIXES-PLAN C2: in a campaign, one more steer file applies to every slug of the campaign.
-  const files = campaignSteerPath
-    ? `${steerPath}, and for every slug of the campaign in ${campaignSteerPath}. Read BOTH files NOW, in full, with ` +
-      `the file-read tool — never from a copy in a prompt or from an earlier run: the user can edit them while this ` +
-      `run drives. Where an entry of this slug's own file and an entry of the campaign file conflict, this slug's ` +
-      `entry wins. If both files are absent or empty, there is no steering`
-    : `${steerPath}. Read that file NOW, in full, with the file-read tool — never from a copy in a prompt or from ` +
-      `an earlier run: the user can edit it while this run drives. If the file is absent or empty, there is no ` +
-      `steering`
-  const head = `\n\nSTANDING STEERING (MANDATORY). The user keeps standing instructions for this workflow in ` +
-    `${files}: skip the rest of this block and return no steering fields. The contract is ${contractPath}. No ` +
-    `human gate in this run repeats these entries, so the file is the user's voice here. A steering VETO ` +
-    `outranks every autonomous-policy default in this prompt. Steering never overrides a mandatory gate (the ` +
-    `External Output Boundary, sibling-fragment enforcement, AC verifiability, the constraint-resolution rule), ` +
-    `never authorizes a deferral, and never waives a dont-ship verdict.`
-  if (role === 'writer') {
-    return head +
-      `\n- Honor each entry. A preference tilts an autonomous choice; a satisfiable constraint is obeyed. Never ` +
-      `take an action a veto forbids, even when the policy above allows it.\n` +
-      `- An entry may pre-answer a NAMED intent-bearing question: settle that one decision by the entry and ` +
-      `record the entry as its answer. An entry never gives standing leave to settle intent-bearing decisions in ` +
-      `general.\n` +
-      `- Record what you honored in the stage artifact's \`steering-honored:\` frontmatter list, and return the ` +
-      `same list as steeringHonored.\n` +
-      `- When an entry conflicts with the stage contract, is impossible for this stage, or is ambiguous, or when ` +
-      `the only way to finish crosses a veto: do not obey it into a broken state and do not ignore it. Finish ` +
-      `the artifact honestly (status: awaiting-input, the conflict recorded), return status:'hard-stop' with ` +
-      `hardStopReason 'steering: <what conflicts>', and return steeringConflict quoting the entry.\n` +
-      `- When you dispatch a sub-agent, copy the entries that bear on its task into its prompt.`
-  }
-  if (role === 'scout') {
-    return head +
-      ` Your rubric is STEERING COMPLIANCE. For each entry, check the diff against it. A change that crosses a ` +
-      `veto (touches what the entry forbids, adds what it rejects) is a finding with severity HIGH. A change that ` +
-      `goes against a preference is a finding with severity MED. Quote the entry in the issue. Report nothing ` +
-      `for an entry the diff does not touch; with no steer.md, return findings: [].`
-  }
-  if (role === 'refute') {
-    return head +
-      ` A finding that quotes a steering entry is refuted ONLY when the diff does not contradict that entry as ` +
-      `the file states it now. "The code works" or "the change is reasonable" does not refute it: the entry is ` +
-      `the user's rule. A finding whose fix would cross a veto is still real; say so in reason.`
-  }
-  if (role === 'classify') {
-    return head +
-      ` A decision that contradicts an entry is 'intent-bearing'. A decision an entry pre-answers by name keeps ` +
-      `the class the six tests give it; say in why which entry answered it.`
-  }
-  if (role === 'checkpoint') {
-    return head +
-      ` Also judge the built code against each entry. Return steeringViolations: one { entry (quoted), kind ` +
-      `('veto' when the entry forbids something, 'preference' otherwise), note } for each entry the code ` +
-      `contradicts; [] when none does or there is no steer.md.`
-  }
-  // 'context' — read-only agents whose choices must stay inside the entries.
-  return head +
-    ` Keep your work inside these entries: never run a command, recommend an action, or select an option an ` +
-    `entry forbids. When an entry names a concern your task covers, weigh it.`
-}
 
-// steeringDigest() — copied (yolo.js:220).
-function steeringDigest(o) {
-  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
-  const stages = chains.flatMap(c => (c && c.ran) || [])
-  if (o && o.slugWide) stages.push(o.slugWide)
-  const honored = []
-  const conflicts = []
-  for (const r of stages) {
-    if (!r) continue
-    for (const h of r.steeringHonored || []) {
-      if (h && String(h).trim()) honored.push({ slice: r.slice || null, stage: r.stage, honored: String(h).trim() })
-    }
-    if (r.steeringConflict && String(r.steeringConflict).trim()) {
-      conflicts.push({ slice: r.slice || null, stage: r.stage, entry: String(r.steeringConflict).trim() })
-    }
-  }
-  const violations = ((o && o.charterCheckpoints) || [])
-    .flatMap(cp => ((cp && cp.steeringViolations) || []).map(v => ({ throughSlice: cp.throughSlice, ...v })))
-  if (!honored.length && !conflicts.length && !violations.length) return null
-  return { honored, conflicts, violations }
-}
 
 // CAMPAIGN CONTEXT (yolo.js:254) — copied, always on.
 function campaignClause(contextPath, role) {
@@ -375,64 +1010,9 @@ function stopKindOf(res) {
   return res && res.stopKind === 'pause' ? 'usage-pause' : 'stop-request'
 }
 
-// REQUIRED READS (yolo.js:341) and the prompt-fed line (yolo.js:353) — copied.
-function requiresClause(refPath) {
-  return `\n\nREQUIRED READS (CHECKED). The \`## Requires\` table in ${refPath} is a CHECKLIST, defined by ` +
-    `${referenceRoot}/_requires.md. Before you write the stage artifact, read every row whose When value applies ` +
-    `to this run — each whole-file input from its first line to its last, each named section in full — yourself, ` +
-    `with the file-read tool. A search hit, a shell read, a partial read, or a sub-agent's read does not count. ` +
-    `The mod checks your reads when you write the stage artifact: a missing or partial read comes back as ` +
-    `feedback (context) in that write's tool result. When it does, read each named input, then write the ` +
-    `artifact again in this same run. Keep reading ${refPath} in full as well.`
-}
 
-function promptFedLine(inputs, outputPath) {
-  const list = (inputs || []).filter(Boolean)
-  if (!list.length) return ''
-  return `\n\nPrompt-fed inputs: ${list.join(', ')}\nOutput artifact: ${outputPath}`
-}
 
-// judgeLiveness() — copied (yolo.js:366). One verdict for each unit.
-function judgeLiveness(journal, ownRunId) {
-  if (!journal || journal.present !== true || !Array.isArray(journal.entries)) return { present: false }
-  const all = journal.entries
-    .filter(e => e && typeof e.at === 'string' && !Number.isNaN(Date.parse(e.at)) && (!ownRunId || e.run !== ownRunId))
-    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
-  if (!all.length) return { present: false }
-  const newest = all[all.length - 1]
-  const entries = newest.run ? all.filter(e => e.run === newest.run) : all
-  let longestGapMinutes = 0
-  for (let i = 1; i < entries.length; i++) {
-    longestGapMinutes = Math.max(longestGapMinutes, (Date.parse(entries[i].at) - Date.parse(entries[i - 1].at)) / 60000)
-  }
-  const now = Date.parse(journal.nowAt || '')
-  const minutesSinceLastEntry = Number.isNaN(now) ? 0 : Math.max(0, (now - Date.parse(newest.at)) / 60000)
-  const quiet = !Number.isNaN(now) && minutesSinceLastEntry > Math.max(longestGapMinutes, 20)
-  const out = {
-    present: true,
-    runId: newest.run || journal.runId || '',
-    lastEntryAt: newest.at,
-    lastEvent: newest.event || '',
-    lastStage: newest.stage || '',
-    lastSlice: newest.slice || '',
-    minutesSinceLastEntry,
-    longestGapMinutes,
-    presumedDead: quiet && newest.event === 'agent-start',
-    stoppedCleanly: quiet && newest.event === 'agent-end',
-  }
-  if (newest.event === 'agent-end' && newest.status) out.lastStatus = newest.status
-  return out
-}
 
-function deadDriverClause(priorRun) {
-  if (!priorRun || priorRun.presumedDead !== true) return ''
-  return `\n\nDEAD-DRIVER RECONCILIATION. A previous driver for this slug is PRESUMED DEAD (its journal went ` +
-    `silent at ${priorRun.lastEntryAt || 'an unknown time'}, mid-${priorRun.lastStage || 'stage'}` +
-    `${priorRun.lastSlice ? ` on slice '${priorRun.lastSlice}'` : ''}). Treat every artifact and control-file ` +
-    `write it may have made as SUSPECT and possibly half-finished: re-read each file you touch fresh from disk ` +
-    `before editing it, and if what you find contradicts what the index claims, trust the artifact on disk and ` +
-    `correct the index. Do not assume the previous run left a consistent state.`
-}
 
 // DECISION RECORDING CONTRACT (yolo.js:418) — copied, with `by` for an answered escalation.
 const DECISION_CONTRACT =
@@ -622,6 +1202,11 @@ const UNIT_ORIENT = {
           // WF-CAMPAIGN-SLICE-ORDER-PLAN D8: the unit that owns the slice, and its source.
           unit: { type: 'string' },
           source: { type: 'string' },
+          // WF-SYSTEM-REVIEW C2, C3: the plan's step count, the last committed step, and the
+          // implement hard-stops since the slice's last complete implement or retry.
+          planSteps: { type: 'number' },
+          stepsCommitted: { type: 'number' },
+          implementStops: { type: 'number' },
           reverifyReason: { type: 'string' },
           stages: {
             type: 'object',
@@ -640,6 +1225,8 @@ const STAGE_RESULT = {
     stage: { type: 'string' },
     slice: { type: 'string' },
     status: { enum: ['complete', 'hard-stop', 'stopped'] },
+    // C3: the last plan step that a step-group implement committed.
+    stepsDone: { type: 'number' },
     stopKind: { enum: ['stop', 'pause', 'wait', 'slug-stop'] },
     stopThen: { enum: ['move', 'hold'] },
     stopReason: { type: 'string' },
@@ -908,6 +1495,12 @@ async function orientUnit(u, opts = {}) {
     `00-index.md slices[] (defined | in-progress | complete | skipped). When 03-slice.md is ABSENT and selected-slice ` +
     `is set on 00-index.md, synthesize a one-entry roster [selected-slice], set singleScope=true and ` +
     `reviewScope='slug-wide'.\n` +
+    `3b. ` + `IMPLEMENT PROGRESS (C2). For each slice whose implement is not done: planSteps = the count of numbered steps ` +
+    `under '## Step-by-Step Plan' in its plan file; then read ${u.wf}/.implement-progress.jsonl if it exists (JSONL rows ` +
+    `{slice, event: step|hard-stop|retry|complete, step, sha}). Take the slice's rows after its last 'complete' row: ` +
+    `stepsCommitted = the highest step of a 'step' row whose sha is an ancestor of HEAD (\`git -C ${u.root} merge-base ` +
+    `--is-ancestor <sha> HEAD\`), and implementStops = the count of 'hard-stop' rows after the last 'retry' row. ` +
+    `Report 0 for each when the file is absent.\n` +
     `4. Resolve fileConvention: 'suffixed' for per-slice 03-slice-<slice>.md files (stage files 04-plan-<slice>.md, ` +
     `06-verify-<slice>.md, 07-review-<slice>.md); 'unsuffixed' for a change mode (fix, hotfix, refactor) or a single ` +
     `scope.\n` +
@@ -945,11 +1538,12 @@ async function orientUnit(u, opts = {}) {
     `9. MERGE CHECK. When \`git -C ${u.root} rev-parse -q --verify MERGE_HEAD\` succeeds, a merge-in stopped half way: ` +
     `run \`git -C ${u.root} merge --abort\` and report mergeAborted: true, so the wait agent can merge again.\n\n` +
     `Return the structured orientation. Set ok=true only when the readiness gate passes.` +
-    `\n\nDRIVER HEARTBEAT (MANDATORY). Using the runId of step 2, append two lines to ${u.journal} (append only): ` +
-    `one when you have the runId — {"at":"<ISO-8601 UTC now>","run":"<runId>","seq":<lastSeq + 1>,"event":"agent-start",` +
-    `"agent":"${lbl(u, label)}","phase":"Orient","stage":"orient","slice":"","driver":"campaign-wave","campaign":"${brainstorm}",` +
-    `"campaignRun":"${RUN}"} — and one immediately before you return, the same shape with seq <lastSeq + 2>, ` +
-    `"event":"agent-end", "status":"<ok|blocked>" and "errors":<count of errors you recovered from>.`,
+    `\n\nDRIVER HEARTBEAT (MANDATORY). Using the runId of step 2, append two lines with the command below, never by ` +
+    `hand: one when you have the runId — ` +
+    `\`${lineCmd(u.journal, { event: 'agent-start', ...orientLine(u, label) })} --run <runId> --seq <lastSeq + 1>\` — and ` +
+    `one immediately before you return — \`${lineCmd(u.journal, { event: 'agent-end', ...orientLine(u, label) })} ` +
+    `--run <runId> --seq <lastSeq + 2> --status <ok|blocked> --errors <count of errors you recovered from>\`, adding ` +
+    `--reason "<blockReason>" when blocked.`,
     { schema: UNIT_ORIENT, label: lbl(u, label), phase: 'Orient', ...OPUS }
   )
   if (!res) return null
@@ -1138,6 +1732,7 @@ async function runStage(u, stage, sliceArg, extra = {}) {
     `- EARLY-STOP GUARD (${referenceRoot}/_autonomy-guards.md): before ending, check your last paragraph — if it ` +
     `is a plan, a question, or a promise about work you have not done, do that work now; end only when the stage ` +
     `contract is complete or the policy hard-stopped you.\n` +
+    preambleClause() +
     `- Your mandate is ONLY the '${stage}' stage for ${sliceArg ? `slice '${sliceArg}'` : `slug '${u.slug}'`}. Do ` +
     `NOT run other stages, do NOT claim completion of other slices or of the whole workflow, and do NOT recommend ` +
     `routes beyond what this stage's reference itself returns.\n` +
@@ -1150,6 +1745,7 @@ async function runStage(u, stage, sliceArg, extra = {}) {
     `## Verify-Owned Fixes, per the reference) so this run is exactly as auditable as a human-gated one.\n` +
     `- When the policy says STOP, still finish the artifact in its honest terminal state, then return ` +
     `status:'hard-stop' with hardStopReason.` +
+    (stage === 'implement' ? implementStepsClause(sliceArg || u.slug, extra.steps || null, `${u.wf}/.implement-progress.jsonl`, `${u.wf}/.implement-handover-${sliceArg || u.slug}.md`, extra.retry === true) : '') +
     controlFileRule(u) + deadDriverClause(u.priorDriver) + DECISION_CONTRACT + `\n\n` +
     `Return the terminal state: stage, slice, status ('complete' when the gate is clean, 'hard-stop' when the ` +
     `policy stopped you${extra.stopCheck === true ? ", 'stopped' when the stop-request check stopped you" : ''}), the ` +
@@ -1160,7 +1756,7 @@ async function runStage(u, stage, sliceArg, extra = {}) {
     `${stage === 'plan' ? 'crossUnit, ' : ''}${stage === 'implement' ? 'startSha, ' : ''}and the budget and answered ` +
     `fields of the stop check when it ran.` +
     heartbeat(u, label, phaseName, stage, sliceArg, extra.heavy === true),
-    { schema: STAGE_RESULT, label: lbl(u, label), phase: phaseName, ...OPUS }
+    { schema: STAGE_RESULT, label: lbl(u, label), phase: phaseName, ...stageModel(stage) }
   )
 }
 
@@ -1212,51 +1808,9 @@ async function writeBackSliceStatus(u, sliceArg, stagesRun) {
   )
 }
 
-// verifyClean(), acKey(), probeGaps() — copied (yolo.js:1262-1313).
-function verifyClean(t, residual) {
-  if (!t) return false
-  const converged = t.convergence === 'converged' || t.convergence === 'not-needed'
-  if (!converged || t.substantiveResidual === true) return false
-  if (t.result === 'pass') return true
-  const hasAc = (arr) => Array.isArray(arr) && arr.some((d) => d && d.ac)
-  return t.result === 'partial' && (hasAc(t.deferrals) || hasAc(residual))
-}
 
-function acKey(ac) {
-  const s = String(ac ?? '').trim()
-  const m = s.match(/^AC[-\s]?[\w.]+/i)
-  return (m ? m[0] : s).replace(/[-\s]/g, '').toUpperCase()
-}
 
-function probeGaps(t, residual) {
-  const probed = new Set()       // acKey → some copy carries a non-empty probe
-  const gapEntry = new Map()     // acKey → first probe-less entry seen (dedupe by acKey)
-  const scan = (arr) => {
-    if (!Array.isArray(arr)) return
-    for (const d of arr) {
-      if (!d || !d.ac) continue   // ac-less notes are not deferrals — ignored (matches collectDeferrals)
-      if (typeof d.probe === 'string' && d.probe.trim() !== '') probed.add(acKey(d.ac))
-      else if (!gapEntry.has(acKey(d.ac))) gapEntry.set(acKey(d.ac), d)
-    }
-  }
-  scan(t && t.deferrals)
-  scan(residual)
-  const gaps = []
-  for (const [ac, entry] of gapEntry) if (!probed.has(ac)) gaps.push(entry)
-  return gaps
-}
 
-// evaluateGate() — copied (yolo.js:1723).
-function evaluateGate(stage, res) {
-  const t = (res && res.terminal) || {}
-  if (stage === 'verify') {
-    return verifyClean(t, res && res.residual) ? 'proceed' : 'hard-stop'   // same rule as driveVerify — deferral-only partial proceeds
-  }
-  if (stage === 'review') {
-    return (t.verdict === 'ship' || t.verdict === 'ship-with-caveats') && (t.blockerCount || 0) === 0 ? 'proceed' : 'hard-stop'
-  }
-  return res && res.status === 'complete' ? 'proceed' : 'hard-stop'   // plan / implement / shape
-}
 
 // driveVerify() — yolo's verify loop (yolo.js:1319), inside a heavy slot.
 async function driveVerify(u, sliceArg, extra = {}) {
@@ -1403,25 +1957,8 @@ function ownCommits(u, sliceArg, from) {
   return `git -C ${u.root} log -p --no-merges ${base}..HEAD${not}`
 }
 
-// Group the findings so that at most REFUTER_LIMIT refuters run: one finding each up to
-// the limit, then groups of 4 (or more) findings of one rubric.
-function refuteGroups(raw) {
-  if (raw.length <= REFUTER_LIMIT) return raw.map(f => [f])
-  for (let size = 4; ; size++) {
-    const byRubric = new Map()
-    for (const f of raw) {
-      const r = f.rubric || '?'
-      if (!byRubric.has(r)) byRubric.set(r, [])
-      byRubric.get(r).push(f)
-    }
-    const groups = []
-    for (const list of byRubric.values()) for (let i = 0; i < list.length; i += size) groups.push(list.slice(i, i + size))
-    if (groups.length <= REFUTER_LIMIT) return groups
-  }
-}
-
 async function refuteAll(raw, labelOf, promptOf) {
-  const groups = refuteGroups(raw)
+  const groups = refuteGroups(raw, REFUTER_LIMIT)
   const verdicts = await Promise.all(groups.map((g, i) => call(promptOf(g), { schema: REFUTE_GROUP, label: labelOf(g, i), phase: 'Review', ...SONNET })))
   const kept = []
   groups.forEach((g, i) => {
@@ -1505,7 +2042,7 @@ async function reviewUnit(u, sliceArg, opts = {}) {
         `{ verdicts: [{ id, refuted, reason }] }, one for each finding.` + steer(u, 'refute')
     )
     u.lastReview = { verified, rubrics, slice: sliceArg }
-    log(`review of ${u.slug}${tag}: ${raw.length} raw findings → ${verified.length} survived the refuters (${refuteGroups(raw).length} refuter agents)`)
+    log(`review of ${u.slug}${tag}: ${raw.length} raw findings → ${verified.length} survived the refuters (${refuteGroups(raw, REFUTER_LIMIT).length} refuter agents)`)
   }
   return absorb(await heavy(() => call(
     `Execute the SDLC 'review' stage for slug '${u.slug}'${sliceArg ? `, slice '${sliceArg}'` : ''}, FULLY AUTONOMOUSLY.\n\n` +
@@ -1522,172 +2059,18 @@ async function reviewUnit(u, sliceArg, opts = {}) {
     promptFedLine([...new Set((rubrics || []).map(r => r.file))], outPath) +
     controlFileRule(u) + deadDriverClause(u.priorDriver) + DECISION_CONTRACT +
     heartbeat(u, `review${tag}`, 'Review', 'review', sliceArg, true),
-    { schema: STAGE_RESULT, label: lbl(u, `review${tag}`), phase: 'Review', ...OPUS }
+    { schema: STAGE_RESULT, label: lbl(u, `review${tag}`), phase: 'Review', ...stageModel('review') }
   )))
 }
 
-// ---------------------------------------------------------------------------
-// The hand-back collectors (yolo.js:1828-2055) — copied, applied to each unit.
-// ---------------------------------------------------------------------------
-function collectDeferrals(o) {
-  const chains = Array.isArray(o.results) ? o.results : (o.ran ? [{ ran: o.ran }] : [])
-  const out = []
-  const seen = new Set()
-  const push = (slice, ac, reason, probe) => {
-    if (!ac) return
-    const key = `${slice || ''}::${acKey(ac)}`
-    if (seen.has(key)) return
-    seen.add(key)
-    out.push(probe ? { slice, ac, reason, probe } : { slice, ac, reason })
-  }
-  for (const c of chains) {
-    for (const r of (c && c.ran) || []) {
-      if (!r || r.stage !== 'verify') continue
-      const t = r.terminal || {}
-      if (Array.isArray(t.deferrals)) for (const d of t.deferrals) push(r.slice || (d && d.slice), d && d.ac, d && d.reason, d && d.probe)
-      if (Array.isArray(r.residual)) for (const d of r.residual) if (d && d.ac) push(r.slice || d.slice, d.ac, d.reason, d.probe)
-    }
-  }
-  return out
-}
 
-function classificationIndex(o, priorDeferrals) {
-  const map = new Map()   // acKey → { classification, source }
-  for (const d of (priorDeferrals || [])) {
-    if (!d || !d.ac) continue
-    const cls = d.classification || d.wallOwnership
-    if (cls) map.set(acKey(d.ac), { classification: String(cls), source: 'index-ledger' })
-  }
-  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
-  for (const c of chains) {
-    for (const r of (c && c.ran) || []) {
-      for (const d of (r && r.decisions) || []) {
-        if (!d || !d.ac || !d.classification) continue
-        map.set(acKey(d.ac), { classification: String(d.classification), source: 'recorded-decision' })
-      }
-    }
-  }
-  return map
-}
 
-function isRuntimeEvidenceClass(cls) {
-  const s = String(cls || '').trim().toLowerCase()
-  if (!s) return true
-  return s === 'runtime-evidence' || s === 'environment-negotiable' || s === 'external'
-}
 
-function reconcileDeferrals(o, deferrals, priorDeferrals) {
-  const map = classificationIndex(o, priorDeferrals)
-  if (!map.size) return { deferrals, reconciled: [] }
-  const kept = []
-  const reconciled = []
-  for (const d of deferrals) {
-    const rec = map.get(acKey(d && d.ac))
-    if (!rec || isRuntimeEvidenceClass(rec.classification)) { kept.push(d); continue }
-    reconciled.push({
-      ...d,
-      driverDerived: 'runtime-evidence',
-      recordedClassification: rec.classification,
-      source: rec.source,
-      note: `the run's ${rec.source === 'recorded-decision' ? 'own recorded decision' : 'index deferral ledger'} classifies this as '${rec.classification}', not a runtime-evidence deferral — the recorded classification is canonical and this entry is NOT in the /wf ship block list`,
-    })
-  }
-  return { deferrals: kept, reconciled }
-}
 
-function collectSubstantiveFailures(o) {
-  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
-  const out = []
-  for (const c of chains) {
-    for (const r of (c && c.ran) || []) {
-      if (!r || r.stage !== 'verify') continue
-      const t = r.terminal || {}
-      if (t.result === 'fail' || t.substantiveResidual === true) {
-        out.push({ slice: r.slice || null, result: t.result || null, substantiveResidual: t.substantiveResidual === true, artifactPath: r.artifactPath || null })
-      }
-    }
-  }
-  return out
-}
 
-function collectSubagentErrors(o) {
-  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
-  const agents = []
-  let recovered = 0
-  let fatal = 0
-  const consider = (r) => {
-    if (!r) { fatal++; agents.push({ agent: '(a subagent returned nothing — skipped or died after retries)', fatal: true }); return }
-    const errs = Array.isArray(r.errors) ? r.errors : []
-    if (!errs.length) return
-    recovered += errs.length
-    agents.push({ agent: `${r.stage || '?'}${r.slice ? ':' + r.slice : ''}`, recovered: errs.length, what: errs.map(e => (e && e.what) || '').filter(Boolean) })
-  }
-  for (const c of chains) for (const r of (c && c.ran) || []) consider(r)
-  if (o && o.slugWide) consider(o.slugWide)
-  if (!recovered && !fatal) return null
-  return { recovered, fatal, agents }
-}
 
-function deferralPressure(priorDeferrals, runDeferrals) {
-  const prior = Array.isArray(priorDeferrals) ? priorDeferrals : []
-  const run = Array.isArray(runDeferrals) ? runDeferrals : []
-  if (!prior.length && !run.length) return null
-  const seen = new Set()
-  let open = 0, repeatWalls = 0, oldestDeferredAt = null
-  const consider = (slice, key, deferredAt, repeatOf) => {
-    const k = `${slice || ''}::${key || ''}`
-    if (seen.has(k)) return
-    seen.add(k)
-    open++
-    if (repeatOf) repeatWalls++
-    if (deferredAt && (!oldestDeferredAt || String(deferredAt) < String(oldestDeferredAt))) oldestDeferredAt = deferredAt
-  }
-  for (const d of prior) consider(d && d.slice, d && d.reason, d && d.deferredAt, d && d.repeatOf)
-  for (const d of run) consider(d && d.slice, (d && d.ac) ? acKey(d.ac) : (d && d.reason), null, null)
-  return { open, oldestDeferredAt, repeatWalls }
-}
 
-function decisionDigest(o) {
-  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
-  const groups = {}
-  let total = 0
-  const intentBearing = []
-  const unclassified = []
-  for (const c of chains) {
-    for (const r of (c && c.ran) || []) {
-      for (const d of (r && r.decisions) || []) {
-        if (!d) continue
-        total++
-        const cls = d.class && String(d.class).trim()
-        if (!cls) {
-          unclassified.push({ slice: r.slice, stage: r.stage, decision: d.decision || d.what || d.summary || '' })
-          continue
-        }
-        groups[cls] = (groups[cls] || 0) + 1
-        if (cls === 'intent-bearing') intentBearing.push({ slice: r.slice, stage: r.stage, decision: d.decision || d.what || d.summary || '' })
-      }
-    }
-  }
-  if (!total) return null
-  return {
-    total,
-    byClass: groups,
-    intentBearing,
-    unclassified,
-    intentBearingGuarantee: unclassified.length ? 'suspect' : 'exact',
-  }
-}
 
-function clearingTripwire(priorDeferrals) {
-  const hits = (priorDeferrals || []).filter(d => d && d.clearingProbeHit === true && d.authorized !== true)
-  if (!hits.length) return null
-  return hits.map(d => ({
-    slice: d.slice || null,
-    ac: d.ac || null,
-    clearingEvent: d.clearingEvent || null,
-    clearingProbe: d.clearingProbe || null,
-  }))
-}
 
 // ---------------------------------------------------------------------------
 // The charter checkpoint (yolo.js:2095) — copied. It also judges the carried
@@ -1753,78 +2136,10 @@ const RECONCILE_RESULT = {
   },
 }
 
-function reconcileDue(idx) {
-  return !!idx && idx.reconcilePending === true && idx.workflowType !== 'update-deps'
-}
 
-// planWaves() — the fan-out order: a slice plans after the slices it depends on, so its
-// plan builds on theirs. The slices with no open dependency plan together. A cycle or a
-// name outside the fan-out does not block: the slices left plan in one last wave.
-function planWaves(slices) {
-  const names = new Set((slices || []).map(s => s.slice))
-  const left = new Map((slices || []).map(s => [s.slice, (s.dependsOn || []).filter(d => d !== s.slice && names.has(d))]))
-  const placed = new Set()
-  const waves = []
-  while (left.size) {
-    const ready = [...left.keys()].filter(n => left.get(n).every(d => placed.has(d)))
-    const wave = ready.length ? ready : [...left.keys()]
-    waves.push(wave)
-    for (const n of wave) { placed.add(n); left.delete(n) }
-  }
-  return waves
-}
 
-// walkOrder() — the walk order of a roster (WF-CAMPAIGN-SLICE-ORDER-PLAN 4.4): topological
-// order of dependsOn, with roster order as the tie-break. A cycle, or a name outside the
-// roster, keeps roster order for the slices that are left.
-function walkOrder(slices) {
-  const list = (slices || []).filter(s => s && s.slice)
-  const names = new Set(list.map(s => s.slice))
-  const placed = new Set()
-  const out = []
-  let left = list
-  while (left.length) {
-    const next = left.find(s => (s.dependsOn || []).every(d => d === s.slice || !names.has(d) || placed.has(d)))
-    if (!next) return out.concat(left)
-    out.push(next)
-    placed.add(next.slice)
-    left = left.filter(s => s !== next)
-  }
-  return out
-}
 
-// orderEdgesOf() — the orderEdges of plan results that name two slices of the roster, de-duplicated.
-function orderEdgesOf(results, roster) {
-  const names = new Set((roster || []).map(s => s.slice))
-  const seen = new Set()
-  const out = []
-  for (const r of results || []) {
-    for (const e of (r && r.orderEdges) || []) {
-      if (!e || !e.slice || !e.after || e.slice === e.after || !names.has(e.slice) || !names.has(e.after)) continue
-      const k = `${e.slice}<${e.after}`
-      if (seen.has(k)) continue
-      seen.add(k)
-      out.push({ slice: String(e.slice), after: String(e.after), why: String(e.why || '') })
-    }
-  }
-  return out
-}
 
-function overlappingSlices(overlaps, roster) {
-  const want = new Map()
-  for (const o of overlaps || []) {
-    if (!o || !o.slice) continue
-    const cur = want.get(o.slice) || { with: new Set(), details: [] }
-    for (const w of o.with || []) if (w && w !== o.slice) cur.with.add(w)
-    for (const f of o.files || []) if (f) cur.details.push(`file ${f}`)
-    for (const e of o.edges || []) if (e) cur.details.push(`edge ${e}`)
-    if (o.reason) cur.details.push(String(o.reason))
-    want.set(o.slice, cur)
-  }
-  return (roster || [])
-    .filter(s => s && s.slice && s.status !== 'skipped' && want.has(s.slice))
-    .map(s => ({ slice: s.slice, with: [...want.get(s.slice).with], detail: [...new Set(want.get(s.slice).details)].join('; ') }))
-}
 
 async function reconcilePlans(u) {
   const r = await call(
@@ -1897,43 +2212,7 @@ const READ_LEDGER_RESULT = {
   },
 }
 
-function runStartFromId(runId) {
-  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/.exec(String(runId || ''))
-  return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z` : null
-}
 
-function readCheckRows(rows, runStartAt) {
-  const start = runStartAt ? Date.parse(runStartAt) : NaN
-  const gap = r => (Array.isArray(r.missing) && r.missing.length > 0) || (Array.isArray(r.partial) && r.partial.length > 0)
-  const inRun = (rows || [])
-    .filter(r => r && typeof r.at === 'string' && !Number.isNaN(Date.parse(r.at)))
-    .filter(r => Number.isNaN(start) || Date.parse(r.at) >= start)
-    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
-  const out = []
-  inRun.forEach((r, i) => {
-    if (!gap(r)) return
-    const resolved = inRun.slice(i + 1).some(l => l.artifact === r.artifact && l.agentId === r.agentId && !gap(l))
-    out.push({
-      at: r.at, stage: r.stage || '', artifact: r.artifact || '', agentId: r.agentId || '',
-      missing: r.missing || [], partial: r.partial || [], resolved,
-      ...(r.waiver ? { waiver: r.waiver } : {}),
-    })
-  })
-  return out
-}
-
-async function readLedgerReport(u, runStartAt) {
-  return await call(
-    `READ-CHECK REPORT for slug '${u.slug}'. READ-ONLY — never write, edit, or truncate any file, and never write ` +
-    `to ${u.journal} except your own heartbeat lines.\n\n` +
-    `Read ${u.readLedger} if it exists. It is append-only JSONL that the mod writes: one row per read check, ` +
-    `{"at","agentId","stage","artifact","missing":[...],"partial":[...],"waiver"}. Report present: false when the ` +
-    `file is absent or empty. Otherwise report present: true and rows: every row whose \`at\` is at or after ` +
-    `${runStartAt || 'the start of this run'}, copied verbatim, clean rows included. Omit a field the row lacks.` +
-    heartbeat(u, 'read-check-report', 'Drive', 'read-check', null),
-    { schema: READ_LEDGER_RESULT, label: lbl(u, 'read-check-report'), phase: 'Drive', ...HAIKU }
-  )
-}
 
 // ===========================================================================
 // The scheduler: questions, the waiter, waits, parks, and the stop.
@@ -2178,6 +2457,10 @@ function nextQid(u) {
 
 const PARK_RESULT = { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, note: { type: 'string' } } }
 
+function orientLine(u, label) {
+  return { agent: lbl(u, label), phase: 'Orient', stage: 'orient', slice: '', driver: 'campaign-wave', campaign: brainstorm, campaignRun: RUN }
+}
+
 async function park(u, kind, reason, ctx = {}) {
   if (STOP) return { stopped: true }
   const id = nextQid(u)
@@ -2189,9 +2472,7 @@ async function park(u, kind, reason, ctx = {}) {
     `steps in order, and change nothing else (${DRIVE_PROC}, "Park").\n` +
     `1. \`${cmd('unit', `${u.key} stopped --route ${q(route)}`)}\`\n` +
     `2. \`${cmd('ask', `${id} ${flags} ${q(text)}`)}\`\n` +
-    `3. Append one line to ${u.journal}: {"at":"<ISO-8601 UTC now>","run":"${u.runId}","event":"waiting","question":"${id}",` +
-    `"kind":"${kind}","agent":"${lbl(u, `park:${kind}`)}","stage":"${ctx.stage || ''}","slice":"${ctx.slice || ''}",` +
-    `"driver":"campaign-wave","campaign":"${brainstorm}","campaignRun":"${RUN}"}\n` +
+    `3. \`${lineCmd(u.journal, { run: u.runId, event: 'waiting', question: id, kind, agent: lbl(u, `park:${kind}`), stage: ctx.stage || '', slice: ctx.slice || '', driver: 'campaign-wave', campaign: brainstorm, campaignRun: RUN })}\`\n` +
     `4. \`${cmd('journal', `park ${q(JSON.stringify({ run: RUN, wave, key: u.key, kind, question: id, reason: String(reason || '').slice(0, 300) }))}`)}\`\n` +
     `Return { ok, note }.` + heartbeat(u, `park:${kind}`, 'Drive', 'park', ctx.slice || null),
     { schema: PARK_RESULT, label: lbl(u, `park:${kind}`), phase: 'Drive', ...HAIKU }
@@ -2706,9 +2987,32 @@ async function runOne(u, stage, sliceArg, answered) {
     if (res && res.status === 'complete') await applyOrderEdges(u, orderEdgesOf([res], (u.idx && u.idx.slices) || []), `plan:${sliceArg}`)
     return res
   }
-  if (stage === 'implement') return absorb(await heavy(() => runStage(u, 'implement', sliceArg, { stopCheck: true, heavy: true, answered })))
+  if (stage === 'implement') return await implementSlice(u, sliceArg, answered)
   if (stage === 'verify') return await driveVerify(u, sliceArg, { answered })
   return await reviewUnit(u, sliceArg, { answered, writerOnly: !!answered && !!u.lastReview && u.lastReview.slice === sliceArg, startSha: u.sliceStart && u.sliceStart[sliceArg] })
+}
+
+function splitText(u, sliceArg, n) {
+  return `the implement of '${sliceArg}' hard-stopped ${n} times. SPLIT THIS SLICE: answer with the smaller ` +
+    `slices to make (the slice stage of ${u.slug} splits it), or "retry" to run the implement once more`
+}
+
+// C3: implement in step groups, each in a fresh agent and its own heavy slot; the first
+// group's start sha is the slice's. C2: the answer of a split question is a retry.
+async function implementSlice(u, sliceArg, answered) {
+  const s = ((u.idx && u.idx.slices) || []).find(x => x.slice === sliceArg)
+  let res = null
+  let startSha = null
+  const retry = !!answered && !!answered.split
+  for (const g of implementGroups(s && s.planSteps, s && s.stepsCommitted, IMPLEMENT_GROUP)) {
+    if (STOP) break
+    res = absorb(await heavy(() => runStage(u, 'implement', sliceArg, { stopCheck: true, heavy: true, answered, steps: g, retry })))
+    answered = null
+    if (res && res.startSha && !startSha) startSha = res.startSha
+    if (!res || res.status !== 'complete') break
+  }
+  if (res && startSha) res.startSha = startSha
+  return res
 }
 
 // walkSlice() — yolo's driveChain (yolo.js:1743) for one unit: waits before implement,
@@ -2727,6 +3031,8 @@ async function walkSlice(u, s, bounded) {
   // that stage and every later stage again, whatever the orient said.
   const force = new Set()
   let routeBacks = 0
+  // C2: the implement hard-stops of this walk, added to the orient's count of earlier runs.
+  let implStops = 0
   // A plan that this walk wrote is fresh; a plan written before code moved gets one check.
   let planRan = false
   let freshChecked = false
@@ -2777,6 +3083,14 @@ async function walkSlice(u, s, bounded) {
     // An answer of a question that was open at launch reaches the stage that asked it.
     let answered = null
     if (u.carryAnswer && u.carryAnswer.slice === sliceArg && (!u.carryAnswer.stage || u.carryAnswer.stage === stage)) { answered = u.carryAnswer; u.carryAnswer = null }
+    // WF-SYSTEM-REVIEW C2: an implement that hard-stopped SPLIT_AFTER_STOPS times parks with a
+    // split question instead of a third run. The answer runs it once more as a retry.
+    if (stage === 'implement' && !answered && (s.implementStops || 0) >= SPLIT_AFTER_STOPS) {
+      const a = await park(u, 'stage', splitText(u, sliceArg, s.implementStops), { stage, slice: sliceArg, split: true })
+      const h = await onAnswer(u, a)
+      if (h !== 'resume') return h === 'stop' ? { stop: true, ran } : { ended: true, ran }
+      answered = { ...a, split: true }
+    }
     let routeTo = null
     for (;;) {
       let res
@@ -2814,11 +3128,14 @@ async function walkSlice(u, s, bounded) {
         break
       }
       const kind = stage === 'review' ? 'review' : 'stage'
-      const reason = (res && res.hardStopReason) || (res ? `${stage} terminal state did not clear the gate: ${JSON.stringify(res.terminal || {})}` : `${stage} did not return`)
+      if (stage === 'implement') implStops++
+      const split = stage === 'implement' && (s.implementStops || 0) + implStops >= SPLIT_AFTER_STOPS
+      const reason = split ? splitText(u, sliceArg, (s.implementStops || 0) + implStops)
+        : (res && res.hardStopReason) || (res ? `${stage} terminal state did not clear the gate: ${JSON.stringify(res.terminal || {})}` : `${stage} did not return`)
       // D7: a plan stop of the fan-out asked its question when the plan phase ended; the walk takes its answer.
       const early = stage === 'plan' ? u.earlyQ[sliceArg] : null
       if (early) delete u.earlyQ[sliceArg]
-      const a = early ? await awaitEarly(u, early) : await park(u, kind, reason, { stage, slice: sliceArg, startSha: res && res.startSha, artifact: res && res.artifactPath })
+      const a = early ? await awaitEarly(u, early) : await park(u, kind, reason, { stage, slice: sliceArg, startSha: res && res.startSha, artifact: res && res.artifactPath, split })
       const h = await onAnswer(u, a)
       if (h !== 'resume') return h === 'stop' ? { stop: true, ran } : { ended: true, ran }
       // A resume orient (same run id), then the stopped stage again with the answer.
@@ -2826,7 +3143,7 @@ async function walkSlice(u, s, bounded) {
         const o = await orientUnit(u, { resume: true })
         if (o && o.ok) u.idx = o
       }
-      answered = a
+      answered = split ? { ...a, split: true } : a
     }
     if (routeTo !== null) i = routeTo - 1
   }
@@ -3043,7 +3360,7 @@ async function walkUnitInner(u) {
     left = walkOrder(left.map(x => (u.idx.slices || []).find(y => y.slice === x.slice) || x))
     // A contract found during the walk parks before its own slice, or now when that slice passed.
     if ((await runParks(u, null, new Set(left.map(x => x.slice)))) !== 'go') return
-    if (r.ran.length) workSinceCheckpoint = true
+    if (touchesCharter(r.ran, u.idx.charter)) workSinceCheckpoint = true
     walked++
     const isLast = !left.length
     const due = ((u.idx.charter || []).length || u.contextPath) && !isLast && walked % CHECKPOINT_EVERY === 0
@@ -3138,7 +3455,11 @@ async function walkUnit(u) {
 const UNIT_END = {
   type: 'object',
   required: ['ok'],
-  properties: { ok: { type: 'boolean' }, note: { type: 'string' }, sliceDone: SLICE_DONE.properties.sliceDone },
+  properties: {
+    ok: { type: 'boolean' }, note: { type: 'string' }, sliceDone: SLICE_DONE.properties.sliceDone,
+    // WF-SYSTEM-REVIEW E4: the read check of the unit's run, folded into the unit end.
+    readCheck: READ_LEDGER_RESULT,
+  },
 }
 
 async function unitEnd(u) {
@@ -3148,14 +3469,18 @@ async function unitEnd(u) {
   const r = await call(
     `UNIT END for unit ${u.key} (slug '${u.slug}'), wave ${wave}. Its review is clean. Bookkeeping only (${DRIVE_PROC}, ` +
     `"Unit end"): run these steps in order, and change nothing else.\n` +
-    `1. Append one line to ${u.journal}: {"at":"<ISO-8601 UTC now>","run":"${u.runId}","event":"run-end","agent":"${lbl(u, 'unit-end')}",` +
-    `"driver":"campaign-wave","campaign":"${brainstorm}","campaignRun":"${RUN}"}\n` +
+    `1. \`${lineCmd(u.journal, { run: u.runId, event: 'run-end', agent: lbl(u, 'unit-end'), driver: 'campaign-wave', campaign: brainstorm, campaignRun: RUN })}\`\n` +
     `2. Pipe a one-paragraph run-end note (what the unit built, in product language) into ` +
     `\`node "${WATCH}" note "${u.root}" ${u.slug} --event run-end\`.\n` +
-    `3. \`node "${WATCH}" end "${u.root}" ${u.slug}\`\n` +
+    `3. \`node "${WATCH}" end "${u.root}" ${u.slug} --run ${shellText(u.runId)}\` (it appends nothing when step 1 wrote the line).\n` +
     `4. \`${cmd('slice-done', `${u.key} --final --run ${u.runId}`)}\` — return its JSON object as sliceDone.\n` +
     `5. \`${cmd('unit', `${u.key} finished --digest ${q(JSON.stringify(digest))}`)}\`\n` +
-    `Return { ok, note, sliceDone }.` + heartbeat(u, 'unit-end', 'Drive', 'unit-end', null),
+    `6. READ CHECK (READ-ONLY). Read ${u.readLedger} if it exists. It is append-only JSONL that the mod writes: one ` +
+    `row per read check, {"at","agentId","stage","artifact","missing":[...],"partial":[...],"waiver"}. Return ` +
+    `readCheck: { present: false } when the file is absent or empty; otherwise { present: true, rows }, with every ` +
+    `row whose \`at\` is at or after ${runStartFromId(u.runId) || 'the start of this run'}, copied verbatim, clean ` +
+    `rows included. Omit a field the row lacks.\n` +
+    `Return { ok, note, sliceDone, readCheck }.` + heartbeat(u, 'unit-end', 'Drive', 'unit-end', null),
     { schema: UNIT_END, label: lbl(u, 'unit-end'), phase: 'Drive', ...HAIKU }
   )
   const sd = r && r.sliceDone
@@ -3165,10 +3490,32 @@ async function unitEnd(u) {
     onRefresh(sd.refresh)
     absorb(sd)
   }
-  u.readCheck = await readLedgerReport(u, runStartFromId(u.runId))
+  u.readCheck = (r && r.readCheck) || null
   u.finished = true
   u.ended = true
   log(`${u.slug} finished in wave ${wave}`)
+}
+
+// WF-SYSTEM-REVIEW A3: the wave's last step, on every path. A unit that ran but did not
+// end cleanly (a park, a move, a stop, a fault) gets its run-end line here, with the
+// stop and its reason, so no run is left without an end. The `end` command appends
+// nothing for a run that has its run-end line already.
+async function endOpenRuns(stoppedAt, reason) {
+  const open = U.filter(u => u.runId && !u.ended)
+  if (!open.length) return null
+  const lines = open.map(u => {
+    const o = unitOutcome(u)
+    const at = o.stoppedAt || stoppedAt || (u.faulted ? 'unit-fault' : 'stopped')
+    const why = o.reason || (u.moved ? 'moved by the person' : reason) || ''
+    return `- \`node "${WATCH}" end "${u.root}" ${u.slug} --run ${shellText(u.runId)} --agent ${lbl(u, 'run-end')} ` +
+      `--stopped-at ${shellText(at)}${why ? ` --reason ${shellText(why)}` : ''}\``
+  })
+  return await call(
+    `RUN END for the units of wave ${wave}, campaign '${brainstorm}', that did not finish. Bookkeeping only: run each ` +
+    `command below, in order, and change nothing else.\n${lines.join('\n')}\n\nReturn { ok, note }.` +
+    waveHeartbeat('run-end', 'run-end'),
+    { schema: OK_SCHEMA, label: 'run-end', phase: 'Drive', ...HAIKU }
+  )
 }
 
 // ---- The trial merge (WF-CAMPAIGN-THROUGHPUT-PLAN T13) ------------------------
@@ -3482,7 +3829,7 @@ async function mergeUnits(toMerge, carried) {
     (CONVENTIONS ? ` CAMPAIGN CONVENTIONS: the slugs regenerated no generated file and moved no version number. After the ` +
       `last merge, regenerate each generated file that a merged slice changed the input of, once, with the ` +
       `project's own generator, and commit it (${BOUNDARY_PROC}, "Merge").` : '') +
-    STOP_CHECK + waveHeartbeat('merge', 'merge') + campaignEvent('merge', '"key":"<packet key>","slug":"<slug>","sha":"<merge commit>","result":"merged|stopped"') +
+    STOP_CHECK + waveHeartbeat('merge', 'merge') + campaignEvent('merge', {}, '{"key":"<packet key>","slug":"<slug>","sha":"<merge commit>","result":"<merged|stopped>"}') +
     ` Append that event once per slug.` +
     `\n\nReturn { status, merged: [{ key, slug, sha }] in merge order, notMerged: [{ key, slug, reason }] }.`,
     {
@@ -3502,7 +3849,7 @@ async function quietRun(u) {
     `\n\nThe checks: ${JSON.stringify(u.quiet)}. ${u.worktree ? `Run them in the worktree ${u.worktree}, on branch ${u.branch}.` : `Run them on branch ${u.branch}.`} ` +
     `No drive of this wave runs now, so the machine is idle: confirm it first.` +
     STOP_CHECK + waveHeartbeat(`quiet:${u.slug}`, 'quiet-window') +
-    campaignEvent('quiet-window', `"key":"${u.key}","passed":<true|false>`) +
+    campaignEvent('quiet-window', { key: u.key }, '{"passed":<true|false>}') +
     `\n\nReturn { status, passed (true when every check met its limit), results: [{ slice, command, limit, measured, passed }] }.`,
     { schema: obj(['status', 'passed'], { passed: { type: 'boolean' }, results: { type: 'array', items: { type: 'object', properties: { slice: { type: 'string' }, command: { type: 'string' }, limit: { type: 'string' }, measured: { type: 'string' }, passed: { type: 'boolean' } } } } }), label: `quiet:${u.slug}`, phase: 'Verify', ...OPUS }
   ), 'machine', { locks: true, label: `quiet:${u.slug}` })
@@ -3517,7 +3864,7 @@ async function waveVerify(fixRounds, label) {
     `RUN THE WAVE VERIFY on ${WAVE_BRANCH} for campaign '${brainstorm}', wave ${wave}. ` + common('Wave verify') +
     `\n\n${fixRounds ? `You may run up to ${fixRounds} fix rounds, each committed on the wave branch, then the env-remediation rung.` : 'Run the commands once. Fix nothing: this run judges one revert step.'}` +
     STOP_CHECK + waveHeartbeat(label, 'wave-verify') +
-    (fixRounds ? campaignEvent('wave-verify', '"green":<true|false>,"rounds":<n>') : '') +
+    (fixRounds ? campaignEvent('wave-verify', {}, '{"green":<true|false>,"rounds":<n>}') : '') +
     `\n\nReturn { status, green, rounds, commands (the commands you ran), failures (the failing output tail, or "") }.`,
     { schema: VERIFY_SCHEMA, label, phase: 'Verify', ...OPUS }
   ), 'machine', { locks: true, label })
@@ -3530,7 +3877,7 @@ async function revertStep(m, again, fromReview = null) {
     `wave ${wave}. ` + common('Revert search') +
     `\n\n${again ? `Revert the revert of merge ${m.sha} (the slug did not break the verify), then run the wave verify commands once.` : `Run \`git -C ${WAVE_WT || projectRoot} revert -m 1 --no-edit ${m.sha}\`, then run the wave verify commands once.`} ` +
     `Fix nothing.` + STOP_CHECK + waveHeartbeat(`${again ? 'remerge' : 'revert'}:${m.slug}`, 'revert-search') +
-    (fromReview ? campaignEvent('wave-revert', `"key":"${m.key}","merge":"${m.sha}","blockers":${JSON.stringify(fromReview)}`) : '') +
+    (fromReview ? campaignEvent('wave-revert', { key: m.key, merge: m.sha, blockers: fromReview }) : '') +
     `\n\nReturn { status, green, commands, failures, sha (the new commit) }.`,
     { schema: obj(['status', 'green'], { green: { type: 'boolean' }, commands: { type: 'array', items: { type: 'string' } }, failures: { type: 'string' }, sha: { type: 'string' } }), label: `${again ? 'remerge' : 'revert'}:${m.slug}`, phase: 'Verify', ...OPUS }
   ), 'machine', { locks: true, label: `revert:${m.slug}` })
@@ -3553,7 +3900,7 @@ async function refute(target, label) {
   return await call(
     `REFUTE the claims in ${target} (campaign '${brainstorm}', wave ${wave}). Default to "not shown" when you cannot ` +
     `check a claim. ` + common('Refuter') +
-    waveHeartbeat(label, 'refuter') + campaignEvent('refuter', `"target":"${target}","upheld":<n>,"changed":<n>,"unverified":<n>`) +
+    waveHeartbeat(label, 'refuter') + campaignEvent('refuter', { target }, '{"upheld":<n>,"changed":<n>,"unverified":<n>}') +
     `\n\nReturn { status, path (your refute/ file), upheld, changed, unverified }.`,
     { schema: obj(['status'], { path: { type: 'string' }, upheld: { type: 'number' }, changed: { type: 'number' }, unverified: { type: 'number' } }), label, phase: 'Record', ...SONNET }
   )
@@ -3564,9 +3911,10 @@ async function fidelity(merged) {
     `WRITE THE FIDELITY CHECKPOINT for wave ${wave} of campaign '${brainstorm}'. ` + common('Fidelity checkpoint') +
     `\n\nMerged slugs: ${JSON.stringify(merged.map(m => ({ key: m.key, slug: m.slug })))}. Write ${CAMP}/fidelity/wave-${wave}.md.` +
     STOP_CHECK + waveHeartbeat('fidelity', 'fidelity') +
-    campaignEvent('fidelity', '"honoured":<n>,"narrowed":<n>,"dropped":<n>,"unratified":["<item key>"]') +
-    `\n\nReturn { status, path, honoured, narrowed, dropped, unratified: [item keys narrowed or dropped with no quoted answer from the person] }.`,
-    { schema: obj(['status'], { path: { type: 'string' }, honoured: { type: 'number' }, narrowed: { type: 'number' }, dropped: { type: 'number' }, unratified: { type: 'array', items: { type: 'string' } } }), label: 'fidelity', phase: 'Record', ...OPUS }
+    campaignEvent('fidelity', {}, '{"honoured":<n>,"narrowed":<n>,"dropped":<n>,"unratified":["<item key>"]}') +
+    `\n\nReturn { status, path, honoured, narrowed, dropped, unratified: [item keys narrowed or dropped with no quoted ` +
+    `answer from the person], unratifiedDropped: [the keys of unratified that were dropped, not narrowed] }.`,
+    { schema: obj(['status'], { path: { type: 'string' }, honoured: { type: 'number' }, narrowed: { type: 'number' }, dropped: { type: 'number' }, unratified: { type: 'array', items: { type: 'string' } }, unratifiedDropped: { type: 'array', items: { type: 'string' } } }), label: 'fidelity', phase: 'Record', ...OPUS }
   )
 }
 
@@ -3576,7 +3924,7 @@ async function waveOutput(record) {
     `\n\nWave branch: ${WAVE_BRANCH}. Output folder: ${OUT}/wave-${wave}/. The recipe: ${JSON.stringify(OPT.output || null)}. ` +
     `This wave's record: ${JSON.stringify(record)}. List the open wave review findings under "known limits". Write ` +
     `${CAMP}/waves/wave-${wave}.md for a person.` +
-    STOP_CHECK + waveHeartbeat('wave-output', 'wave-output') + campaignEvent('wave-ready', '"label":"<build label>","note":"<try-it note path>"') +
+    STOP_CHECK + waveHeartbeat('wave-output', 'wave-output') + campaignEvent('wave-ready', {}, '{"label":"<build label>","note":"<try-it note path>"}') +
     `\n\nReturn { status, label, path, note, built }.`,
     { schema: obj(['status'], { label: { type: 'string' }, path: { type: 'string' }, note: { type: 'string' }, built: { type: 'boolean' } }), label: 'wave-output', phase: 'Output', ...SONNET }
   ), 'machine')
@@ -3883,11 +4231,22 @@ async function runBoundary() {
   const o = await waveOutput({ merged: merged.map(x => x.key), notMerged: bd.notMerged, needsFix: bd.needsFix, moved: OPT.moved || [], verify: bd.verify, fidelity: bd.fidelity, waveReview: { verdict: wr.verdict, open: wr.open } })
   if (stoppedBy(o)) return { ...bd, ...stoppedBy(o) }
   bd.output = o
-  if (bd.fidelity.unratified.length) {
+  // WF-SYSTEM-REVIEW B2 (SQ2): a narrowing with no answer is accepted and carried by the
+  // standing default; it is a line of the record, not a stop. A drop still stops. With no
+  // unratifiedDropped list, every unratified item stops, as before.
+  const stops = fidelityStops(bd.fidelity.unratified, f && f.unratifiedDropped, DEFAULTS)
+  if (stops.carried.length) bd.fidelity.carried = stops.carried
+  if (stops.stop.length) {
     bd.stopBeforeNextWave = true
-    bd.reason = `fidelity: ${bd.fidelity.unratified.join(', ')} narrowed or dropped with no answer from the person (F3)`
+    bd.reason = `fidelity: ${stops.stop.join(', ')} narrowed or dropped with no answer from the person (F3)`
   }
   return bd
+}
+
+function fidelityStops(unratified, dropped, defaults) {
+  const all = unratified || []
+  if (defaults['fidelity-narrowing'] !== 'accept-and-carry' || !Array.isArray(dropped)) return { stop: all, carried: [] }
+  return { stop: all.filter(k => dropped.includes(k)), carried: all.filter(k => !dropped.includes(k)) }
 }
 
 // ===========================================================================
@@ -3953,6 +4312,7 @@ if (WAITER) {
   await WAITER
 }
 await flushEvents()
+await endOpenRuns(stoppedAt, reason)
 
 const outcome = {
   ok: !held && !!boundary && !boundary.stopped,

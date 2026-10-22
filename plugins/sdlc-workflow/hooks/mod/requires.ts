@@ -526,6 +526,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
+        "input": "implement/_steps.md",
+        "kind": "procedure",
+        "when": "mode:commit",
+        "sections": []
+      },
+      {
         "input": "design/_design-context.md",
         "kind": "procedure",
         "when": "mode:ui",
@@ -2343,6 +2349,12 @@ export const REQUIRES: readonly RequiresEntry[] = [
         "sections": []
       },
       {
+        "input": "review/_triage.md",
+        "kind": "procedure",
+        "when": "mode:triage",
+        "sections": []
+      },
+      {
         "input": "review/_context.md",
         "kind": "procedure",
         "when": "always",
@@ -2830,7 +2842,7 @@ export const REQUIRES: readonly RequiresEntry[] = [
       {
         "input": "verify/_deferrals.md",
         "kind": "procedure",
-        "when": "always",
+        "when": "mode:deferral",
         "sections": []
       },
       {
@@ -2842,13 +2854,19 @@ export const REQUIRES: readonly RequiresEntry[] = [
       {
         "input": "runtime-adapters.md",
         "kind": "procedure",
-        "when": "always",
+        "when": "mode:user-observable",
         "sections": []
       },
       {
         "input": "runtime-adapters/_ladder.md",
         "kind": "procedure",
-        "when": "always",
+        "when": "mode:user-observable",
+        "sections": []
+      },
+      {
+        "input": "verify/_runtime-evidence.md",
+        "kind": "procedure",
+        "when": "mode:user-observable",
         "sections": []
       },
       {

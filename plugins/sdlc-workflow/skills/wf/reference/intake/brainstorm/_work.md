@@ -92,6 +92,8 @@ Run the commands from the project root. `<skill-dir>` resolves per [_host-invoca
    - a packet piece with no `slug`, or an `extension`, `fix` or `hotfix` piece with no `target-slug`;
    - a citation of `.scratch/` or another gitignored path (see the sources rules in [_artifact.md](_artifact.md)).
 
+   The check also warns on a piece with decisions and no finding (D3), and on a carried decision with no `session` or `decided-at` (D5). Fix a warning yourself when the board has the answer; otherwise bring it to the person.
+
    Bring each failure to the person in plain words, with your proposal. Record the person's answer on the board, then check again. The check must pass before you continue.
 2. Run each write-now piece (above).
 3. Write the work set:
@@ -100,6 +102,7 @@ Run the commands from the project root. `<skill-dir>` resolves per [_host-invoca
    ```
    The command writes each packet to `work/<slug>.md`, then `research/index.md`, then `work/index.md` last, and appends one entry to `work/changes.md`. A reader that sees the new `work-revision` in `work/index.md` finds every packet already written.
 4. Read `work/index.md`. Set each piece's `entry` on the board to its start command from that file.
+5. Run the archive command ([_artifact.md](_artifact.md), Archive).
 
 A packet says at its top that the board wins on a difference.
 

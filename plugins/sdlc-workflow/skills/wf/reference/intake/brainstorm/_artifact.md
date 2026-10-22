@@ -73,6 +73,7 @@ The write hook validates this file against `$defs.brainstormBoard` in `tests/fro
   - `replaced-by` is the key of the newer decision that replaced this one.
   - `design: true` marks an item about how the idea looks or behaves. These items travel to the design stage.
   - `was` holds a legacy id after a conversion.
+- **`archived[]`** records each run of the archive command (below): `session`, `at`, `file`, and the counts it moved.
 - **`log[].kind`** is `reflection`, `probe`, `fork`, `widen`, `choice`, `talk`, `story`, `check-in`, `close`, `cohere`, `brief`, `control`, or `walk`.
 
 A **piece of work** (one per agreed piece at `done`, in sequence order):
@@ -163,7 +164,7 @@ The body names everything in words. It carries no key, no internal number, and n
 # Brainstorm: <topic>
 
 ## The Brainstorm
-<!-- STORY SECTION — first, and self-sufficient. It is the summary of what we believe now, rewritten at every check-in. Write the thought we started from; what we now believe, with the reasons; what is still open and the sharpest tension. Language follows `../../_ste-procedural.md` sections 1 and 3. 1–3 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. It is the summary of what we believe now, rewritten at every check-in. Write the thought we started from; what we now believe, with the reasons; what is still open and the sharpest tension. Language follows `../../_ste-procedural.md` sections 1 and 3. 150 words or fewer (D1). -->
 
 ## Map
 ### <area in words> — <problem side or solution side> — <open, touched, or explored>
@@ -179,7 +180,7 @@ The body names everything in words. It carries no key, no internal number, and n
 
 ## Sessions
 ### Session <N> — <YYYY-MM-DD>
-<The story of the session: what we set out to explore, what we learned, what we decided and why, what is still open, and where the next sitting starts. Plain prose, about 100 to 200 words, newest session first.>
+<The story of the session: what we set out to explore, what we learned, what we decided and why, what is still open, and where the next sitting starts. Plain prose, about 100 to 200 words, newest session first. Keep the newest three sessions here; move the older stories to `archive/record.md`.>
 
 ## Decisions
 ### <area in words>
@@ -211,6 +212,18 @@ The body names everything in words. It carries no key, no internal number, and n
 - Control words: `park <thread>` · `pull <thread>` · `drop <thread>` · `board` · `look it up` · `second opinion` · `cohere` · `pause` · `done`
 - Retire when no thread is live: `/wf intake <slug> close`
 ```
+
+## Archive (D1)
+
+A long brainstorm keeps its board and its document short. Run the archive command at each resume and after the `write` command at `done`:
+```
+node "<skill-dir>/scripts/work-packets.mjs" archive .ai/workflows/<slug>
+```
+1. The command moves the closed part of the board to `archive/board.json`: each item of a routed or dropped thread that no open piece, brief, budget, sketch, or staying item names, and the log and stories of sessions older than the newest three. It records the move in `archived[]`.
+2. The command also warns when `## The Brainstorm` is over 150 words, or when `## Sessions` tells more than three sessions. On a warning, rewrite the summary shorter, and move the older stories to `archive/record.md`.
+3. In the document, move the record of a closed area (every thread routed or dropped) to `archive/record.md`. The map keeps the area's brief, with a link to the record.
+
+Read `archive/` only when the person asks about an archived item or area, or when a reopening changes one. To reopen an archived item, copy it back to `items` and remove it from `archive/board.json`.
 
 ## Converting a legacy board
 

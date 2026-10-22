@@ -89,7 +89,7 @@ Each unit's own review ran inside its walk and wrote the unit's review record. T
    - Name the units of each finding in `units`.
 
    The contract scout reads every context file. A `provides` line that the wave diff does not meet is HIGH, and a broken `expects` line is HIGH. The steering scout reads the campaign `steer.md`.
-5. **Refute.** The refuters check the findings, as in the unit review. At most 12 refuters run: with more than 12 findings, one refuter checks a group of findings of one rubric. When a refuter is not sure, the finding is refuted. A refuter also refutes a finding that one unit's own diff alone shows.
+5. **Refute.** The refuters check the findings, as in the unit review. One refuter checks up to 4 findings of one rubric, and at most 12 refuters run: the groups grow when they must. When a refuter is not sure, the finding is refuted. A refuter also refutes a finding that one unit's own diff alone shows.
 6. **Write.** One wave review writer does the triage, the fix loop, and the ledger of the review stage, with the autonomous review policy. Its prompt names the stage reference. The writer takes a heavy slot.
    - Fix code on the wave branch only, in the wave worktree.
    - Write `review/wave-<n>.md` and `review/wave-<n>.yaml`, with the units of each finding.
@@ -141,7 +141,7 @@ The agents that built a slug do not grade it alone. Check each claim of the file
 
 ## Fidelity checkpoint
 
-Write `fidelity/wave-<n>.md`. For every carried decision of each merged slug, one row: the item key, the decision's text, its disposition from the slug's as-built JSON (after the refuter), and the person's quoted answer for a `narrowed` or `dropped` decision. A `narrowed` or `dropped` decision with no quoted answer from the person goes to `unratified`. The campaign stops before the next wave until the person answers it.
+Write `fidelity/wave-<n>.md`. For every carried decision of each merged slug, one row: the item key, the decision's text, its disposition from the slug's as-built JSON (after the refuter), and the person's quoted answer for a `narrowed` or `dropped` decision. A `narrowed` or `dropped` decision with no quoted answer from the person goes to `unratified`; return the dropped ones in `unratifiedDropped` too. With the standing default `fidelity-narrowing: accept-and-carry`, the driver accepts a narrowing and carries it in the record. A drop with no answer stops the campaign before the next wave until the person answers it.
 
 ## Wave output
 

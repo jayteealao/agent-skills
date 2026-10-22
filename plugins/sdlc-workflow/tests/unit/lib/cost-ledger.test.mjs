@@ -16,7 +16,8 @@ import {
   readNewLines, parseJsonLines, detectTranscriptHost,
   parseClaudeEntries, parseCodexEntries, codexDelta, parsePiEntries, applyPatchPaths,
   keyFromArtifactName, attributeWrites, workflowPathParts,
-  sumMain, sumSubagents, collectTurn, newCursor,
+  sumMain, sumSubagents, collectTurn, newCursor, readCursor, writeCursor, stageOfLabel,
+  agentTotalsFromFiles, rebuildLedgerRows,
   appendCostRow, readCostRows, aggregateCost, usageColumns, COST_FILE,
 } from '../../../lib/cost-ledger.mjs';
 
@@ -179,11 +180,11 @@ test('collectTurn (claude): main + subagent usage, attribution, cursor offsets; 
     assert.equal(t1.host, 'claude');
     assert.equal(t1.hadUsage, true);
     assert.equal(t1.main.output_tokens, 406);
-    assert.deepEqual(t1.subagents, [{ agent_id: 'a1', model: 'claude-opus-5', input_tokens: 2, output_tokens: 1, cache_read_input_tokens: 13525, cache_creation_input_tokens: 12182 }]);
+    assert.deepEqual(t1.subagents, [{ agent_id: 'a1', model: 'claude-opus-5', input_tokens: 2, output_tokens: 1, cache_read_input_tokens: 13525, cache_creation_input_tokens: 12182, start: '2026-09-07T10:00:00Z', end: '2026-09-07T10:00:00Z' }]);
     assert.equal(t1.attributed.slug, 'demo');
     assert.equal(t1.attributed.key, 'plan');
     assert.equal(t1.attributed.slice, 'cli');
-    assert.ok(cursor.mainOffset > 0 && cursor.agents.a1 > 0);
+    assert.ok(cursor.mainOffset > 0 && cursor.files['/a1'].off > 0);
 
     const t2 = collectTurn({ transcriptPath: transcript, subagentsDir: subDir, cursor });
     assert.equal(t2.hadUsage, false, 'nothing appended → no usage');
@@ -318,4 +319,118 @@ test('appendCostRow / readCostRows / aggregateCost: atomic append, torn lines sk
 
 test('parseJsonLines: torn lines are dropped, never thrown', () => {
   assert.deepEqual(parseJsonLines(['{"a":1}', '{bad', '']), [{ a: 1 }]);
+});
+
+/* ───────────────────────── WF-SYSTEM-REVIEW A1: book each agent once ───────────────────────── */
+
+test('A1: a copy of a Workflow agent transcript in subagents/ books nothing again, on any later Stop', () => {
+  const dir = tmp();
+  try {
+    const sid = 'sess-copy';
+    const transcript = join(dir, `${sid}.jsonl`);
+    const subDir = join(dir, sid, 'subagents');
+    const wfDir = join(subDir, 'workflows', 'wf_1');
+    mkdirSync(wfDir, { recursive: true });
+    const use = (out) => ({ input_tokens: 1, output_tokens: out, cache_read_input_tokens: 1000, cache_creation_input_tokens: 0 });
+    // Two lines of one response (the same message id), then a second response.
+    const resp = (id, out, extra = {}) => J({ type: 'assistant', isSidechain: true, timestamp: '2026-10-14T07:00:00Z', ...extra, message: { id, model: 'claude-opus-5-5', usage: use(out), content: [] } });
+    writeFileSync(transcript, '');
+    const wfText = resp('msg_1', 7, { requestId: 'r1' }) + resp('msg_1', 7, { requestId: 'r1' }) + resp('msg_2', 9, { requestId: 'r2' });
+    writeFileSync(join(wfDir, 'agent-a1.jsonl'), wfText);
+    writeFileSync(join(wfDir, 'agent-a1.meta.json'), JSON.stringify({ description: 'implement:s1@alpha' }));
+    const cursor = newCursor();
+    const t1 = collectTurn({ transcriptPath: transcript, subagentsDir: subDir, cursor });
+    const total = (t) => t.subagents.reduce((n, s) => n + s.output_tokens, 0);
+    assert.equal(total(t1), 16, 'two responses: 7 + 9, the repeated line of msg_1 counts once');
+    assert.equal(t1.subagents[0].label, 'implement:s1@alpha');
+    assert.equal(t1.subagents[0].stage, 'implement');
+    assert.equal(t1.subagents[0].slice, 's1');
+    // The host writes a copy with no requestId into subagents/: it books nothing.
+    writeFileSync(join(subDir, 'agent-a1.jsonl'), resp('msg_1', 7) + resp('msg_1', 7) + resp('msg_2', 9));
+    for (let i = 0; i < 3; i++) assert.equal(total(collectTurn({ transcriptPath: transcript, subagentsDir: subDir, cursor })), 0, `Stop ${i + 2}`);
+    // The agent goes on in its Workflow file: only the new response is booked.
+    appendFileSync(join(wfDir, 'agent-a1.jsonl'), resp('msg_3', 4, { requestId: 'r3' }));
+    assert.equal(total(collectTurn({ transcriptPath: transcript, subagentsDir: subDir, cursor })), 4);
+    assert.equal(total(collectTurn({ transcriptPath: transcript, subagentsDir: subDir, cursor })), 0);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('A1: a later line of the same response books only its growth; a response that straddles two Stops counts once', () => {
+  const dir = tmp();
+  try {
+    const sid = 'sess-grow';
+    const transcript = join(dir, `${sid}.jsonl`);
+    const subDir = join(dir, sid, 'subagents');
+    mkdirSync(subDir, { recursive: true });
+    writeFileSync(transcript, '');
+    const resp = (out) => J({ type: 'assistant', isSidechain: true, requestId: 'r1', message: { id: 'msg_1', model: 'claude-opus-5-5', usage: { input_tokens: 1, output_tokens: out, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }, content: [] } });
+    writeFileSync(join(subDir, 'agent-b1.jsonl'), resp(10));
+    const cursor = newCursor();
+    const out = () => collectTurn({ transcriptPath: transcript, subagentsDir: subDir, cursor }).subagents.reduce((n, s) => n + s.output_tokens, 0);
+    assert.equal(out(), 10);
+    appendFileSync(join(subDir, 'agent-b1.jsonl'), resp(25));
+    assert.equal(out(), 15, 'the last line of the response wins: 25 in all');
+    appendFileSync(join(subDir, 'agent-b1.jsonl'), resp(25));
+    assert.equal(out(), 0);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('A1: a cursor of the old form migrates: the bytes it knew count as booked, and two files of one id stop resetting each other', () => {
+  const dir = tmp();
+  try {
+    const sid = 'sess-old';
+    const transcript = join(dir, `${sid}.jsonl`);
+    const subDir = join(dir, sid, 'subagents');
+    const wfDir = join(subDir, 'workflows', 'wf_9');
+    mkdirSync(wfDir, { recursive: true });
+    writeFileSync(transcript, '');
+    const resp = (id, out, extra = {}) => J({ type: 'assistant', isSidechain: true, ...extra, message: { id, model: 'claude-opus-5-5', usage: { input_tokens: 0, output_tokens: out, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }, content: [] } });
+    writeFileSync(join(wfDir, 'agent-c1.jsonl'), resp('m1', 5, { requestId: 'r1' }) + resp('m2', 6, { requestId: 'r2' }));
+    writeFileSync(join(subDir, 'agent-c1.jsonl'), resp('m1', 5));
+    const cursorDir = join(dir, 'cursors');
+    // The old form: one offset for the id, the size of the larger file.
+    writeCursor(cursorDir, sid, { mainOffset: 0, agents: { c1: 999 }, turn: 7, last: null });
+    const cursor = readCursor(cursorDir, sid);
+    assert.equal(cursor.files, undefined, 'the old cursor is not mistaken for the new form');
+    const out = () => collectTurn({ transcriptPath: transcript, subagentsDir: subDir, cursor }).subagents.reduce((n, s) => n + s.output_tokens, 0);
+    assert.equal(out(), 0, 'the migration books nothing again');
+    assert.equal(cursor.agents, undefined);
+    assert.equal(out(), 0);
+    appendFileSync(join(wfDir, 'agent-c1.jsonl'), resp('m3', 8, { requestId: 'r3' }));
+    assert.equal(out(), 8);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('A1: stageOfLabel reads the stage and the slice of a driver label', () => {
+  assert.deepEqual(stageOfLabel('implement:s1@alpha'), { stage: 'implement', slice: 's1' });
+  assert.deepEqual(stageOfLabel('scout:correctness:s1@alpha'), { stage: 'scout', slice: 's1' });
+  assert.deepEqual(stageOfLabel('waiter#3'), { stage: 'waiter', slice: null });
+  assert.deepEqual(stageOfLabel('cross-unit-reconcile'), { stage: 'cross-unit-reconcile', slice: null });
+});
+
+test('A1 rebuild: agentTotalsFromFiles counts each response once across copies; rebuildLedgerRows keeps one true entry in the earliest row', () => {
+  const dir = tmp();
+  try {
+    const resp = (id, out, extra = {}) => J({ type: 'assistant', ...extra, message: { id, model: 'claude-opus-5-5', usage: { input_tokens: 0, output_tokens: out, cache_read_input_tokens: 100, cache_creation_input_tokens: 0 }, content: [] } });
+    writeFileSync(join(dir, 'wf.jsonl'), resp('m1', 5, { requestId: 'r1' }) + resp('m1', 5, { requestId: 'r1' }) + resp('m2', 7, { requestId: 'r2' }));
+    writeFileSync(join(dir, 'copy.jsonl'), resp('m1', 5) + resp('m2', 7));
+    const truth = agentTotalsFromFiles([{ id: 'a1', file: join(dir, 'wf.jsonl') }, { id: 'a1', file: join(dir, 'copy.jsonl') }]);
+    assert.deepEqual(truth.get('a1'), [{ model: 'claude-opus-5-5', input_tokens: 0, output_tokens: 12, cache_read_input_tokens: 200, cache_creation_input_tokens: 0 }]);
+    const e = (id, out, extra = {}) => ({ agent_id: id, model: 'claude-opus-5-5', input_tokens: 0, output_tokens: out, cache_read_input_tokens: 200, cache_creation_input_tokens: 0, ...extra });
+    const files = [
+      { path: 'x/cost.jsonl', rows: [
+        { ts: '2026-10-14T08:00:00Z', slug: 'x', main: { output_tokens: 1 }, subagents: [e('a1', 12, { label: 'implement:s1@x', stage: 'implement', slice: 's1' }), e('b1', 3)] },
+        { ts: '2026-10-14T09:00:00Z', slug: 'x', main: null, subagents: [e('a1', 12)] },
+      ] },
+      { path: 'y/cost.jsonl', rows: [{ ts: '2026-10-14T10:00:00Z', slug: 'y', main: null, subagents: [e('a1', 12)] }] },
+    ];
+    const r = rebuildLedgerRows(files, new Map([...truth, ['b1', [{ model: 'claude-opus-5-5', input_tokens: 0, output_tokens: 3, cache_read_input_tokens: 200, cache_creation_input_tokens: 0 }]]]));
+    assert.deepEqual(r.agents.map((a) => a.id), ['a1'], 'b1 is booked at its true total: not inflated');
+    assert.equal(r.files[0].rows.length, 1, 'the row left with no usage goes');
+    assert.deepEqual(r.files[0].rows[0].subagents.map((s) => [s.agent_id, s.output_tokens, s.rebuilt ?? false, s.stage ?? null]), [['b1', 3, false, null], ['a1', 12, true, 'implement']]);
+    assert.deepEqual(r.files[1].rows, [], 'the later re-read in another slug goes');
+    assert.equal(r.files[1].changed, true);
+    // An agent with no transcript stays as it is.
+    assert.equal(rebuildLedgerRows(files, new Map()).files.every((f) => !f.changed), true);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

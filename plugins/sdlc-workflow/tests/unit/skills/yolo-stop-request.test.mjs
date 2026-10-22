@@ -43,6 +43,10 @@ function chainHarness(answers) {
     // No implement ran before this chain, so it runs no plan check.
     let codeMoved = 0
     const planFreshness = async () => ({ fresh: true })
+    // WF-SYSTEM-REVIEW C2: the split threshold that driveChain reads.
+    const SPLIT_AFTER_STOPS = 2
+    // C3: implement runs through implementSlice, which dispatches runStage with the stop check.
+    const implementSlice = (slice, idx) => runStage('implement', slice, idx, { stopCheck: true })
     ${extractFn('verifyClean')}
     ${extractFn('evaluateGate')}
     ${extractFn('stopKindOf')}

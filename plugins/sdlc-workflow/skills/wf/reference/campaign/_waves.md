@@ -33,7 +33,7 @@ Each wave is one PR, and one run of the wave driver drives every unit of the wav
    - `stoppedAt: agent-ceiling` or `unit-fault`: launch the wave again (step 4). The launch keeps the state of each unit. When every unit is finished, the new run runs only the boundary.
    - `stoppedAt: stop-request`: the person stopped the campaign. Launch the wave again only when the person asks.
    - The record result has `stopped`: the boundary stopped, and the wave is `stopped`. Run `<cmd> ask` with the reason, and stop here.
-   - The record result has `nextWave`: the wave is ready, and wave `nextWave.wave` may start on its branch. Ask the person at once, and send one push notification: "Start wave <m> on wave <n>'s branch now?". Name each unit of `unprepared`: `wave <m> start` moves it to a later wave. On yes, run this procedure for wave m from step 1, in this session, and continue with steps 9 to 16 for wave n. Without a yes, do not start wave m.
+   - The record result has `nextWave`: the wave is ready, and wave `nextWave.wave` may start on its branch. Ask the person at once, and send one push notification: "Start wave <m> on wave <n>'s branch now?". Name each unit of `unprepared`: `wave <m> start` moves it to a later wave. In the same message, show `nextWave.defaults` as one digest; the person confirms, or changes one with `<cmd> answer defaults '<json>'`. On yes, run this procedure for wave m from step 1, in this session, and continue with steps 9 to 16 for wave n. Without a yes, do not start wave m.
    - When the run ended on an agent that returned nothing, or the session saw a usage-limit error (kind `rate_limit`, status 429, or "You've reached your … limit"), run `<cmd> budget`. When its state is `pause`, or the newest reading is 95% or more, this is a usage pause and not a failure. Run `<cmd> pause` with the reset time, and launch the wave again after the reset. A 529 Overloaded is not a usage limit.
 9. **Derived needs entries.** The wave driver adds a needs entry to the ledger when two units change the same file and no `needs` entry of the graph orders them. A derived needs entry stays in the ledger. Show each entry of `derivedNeeds` in the record result to the person in one line. Do not send it through the brainstorm.
 10. **Clean up.** For each entry of `cleanup` in the record result:
@@ -46,10 +46,10 @@ Each wave is one PR, and one run of the wave driver drives every unit of the wav
 11. **Handoff and ship** (below).
 12. **Pick up changes.** When `status` returns `work-changed`, follow [_phases.md](_phases.md), "Reopen pick-up".
 13. **Drift for the next wave.** Run `<cmd> wave <n+1> launch --mode drift`. The result gives the args of the drift check only, and the command adds no worktree. Stage and launch the driver as in step 5, with these args. Its agent classifies each changed contract line and runs `<cmd> drift <n+1>`.
-14. **Forecast.** Run `<cmd> forecast --wave <n> --minutes <m> --tokens <t>`, with the wave's real run time from the journals and its tokens from the slugs' `cost.jsonl`.
+14. **Forecast.** `wave <n> record` wrote the wave's real run time and W (weighted tokens) from the journals and the slugs' `cost.jsonl`, and updated `forecast.md`. Show the person the forecast against the real numbers in one line.
 15. **Remove the wave worktree.** After the wave shipped, run `<cmd> worktree wave-<n> remove`.
     - CAUTION: do not run `git worktree remove` yourself, and do not run it with `--force`. Git deletes the ignored files of a worktree without asking, and `--force` also deletes through a linked folder (a `node_modules` junction) into the files it points to. When `<cmd> worktree … remove` refuses, show the person its `pending` and `ignored` lists and ask.
-16. **F3.** When the record result has `stopBeforeNextWave`, record the question with `<cmd> ask` and do not start the next wave. The wave itself still ships.
+16. **F3.** When the record result has `stopBeforeNextWave`, record the question with `<cmd> ask` and do not start the next wave. The wave itself still ships. A narrowing that the standing default accepted is in `boundary.fidelity.carried`: list it in the wave digest.
 
 While the person is away, do not run steps 10, 11, and 15, because a deletion and a push need the person. `<cmd> back` lists these steps for the person (`waited`).
 
@@ -73,7 +73,7 @@ A unit that needs the person parks: it asks one question, and the other units co
 1. At each `asked` event of the watch, and at each `status` with `next.action: ask`, ask the person. Give the full context: the unit, the kind, the stage, the slice, and the question.
 2. Record the answer with `<cmd> reply <id> --by person "<answer>"`. When the person moves the unit out of the wave, run `<cmd> reply <id> --by person --move "<answer>"`. The driver reads the ledger every 10 seconds, and the unit continues.
 3. When the person answers a `slug-stop` question with "continue", clear the stop request first: `<watch> control "<projectRoot>" <slug> clear --campaign <brainstorm-slug>`. Then run `reply`. Without the clear, the request still applies, and the unit stops again at its next stage agent.
-4. When the person is away, answer by the away answer of the question's kind (table below). Record each answer with `<cmd> decided <id> … --why "away: <the rule of the table>"`. `decided` also answers the open question. A question that holds gets no answer: send one push notification with the question id, the unit, and the question.
+4. When the person is away, answer by the away answer of the question's kind: the ledger's standing policy (`policy` in `status` and `away`; the table gives the default). The person changes a kind with `<cmd> answer policy '<json>'`, for example `{"stage":"hold"}`. The away state stays until `back`; `away` with no `--words` applies the last away words again. Record each answer with `<cmd> decided <id> … --why "away: <the rule of the table>"`. `decided` also answers the open question. A question that holds gets no answer: send one push notification with the question id, the unit, and the question.
 
 | Kind | Cause | Away answer |
 |---|---|---|
@@ -152,10 +152,12 @@ The steps:
    - **Merge each wave only:** run `/wf ship <wave branch>` for its gates and its merge. At the version step and the tag step, the setup answer is "merge only": bump nothing, tag nothing, publish nothing. When ship has no way to skip one of those steps, ask the person.
 6. After the merge, run `<cmd> journal merged '{"wave":<n>}'` and `<cmd> wave <n> set shipped [--version <v>]`. When the wave shipped with a version, build the wave output again from the tagged commit, and put the version in the try-it note. With stacked PRs, run `gh stack sync` at the next wave boundary ([_gh-stack.md](_gh-stack.md), "Sync").
 
+**Standing defaults.** With `defaults.ship` `recommended` (`status` gives `defaults`), each ship-family question of handoff and ship takes its recommended option with no question: plan drift, the window, the pre-push check, the merge method, the announcement, and the dry-run. Record each with `<cmd> decided <id> … --why "standing default: ship"`, and list them in the wave digest.
+
 **Ask the person** (record each question with `<cmd> ask <id> --wave <n> <text>`; the watch sends a push notification) when:
 
 - CI is red. Diagnose only, then ask, as handoff does.
-- The readiness gate finds drift: the person chooses amend or acknowledge.
+- The readiness gate finds drift and `defaults.ship` is `ask`: the person chooses amend or acknowledge.
 - The branch needs a human approval. The campaign never approves its own PR.
 - The merge command refuses, or a merge queue rejects the wave.
 - The version is already released, or does not match.

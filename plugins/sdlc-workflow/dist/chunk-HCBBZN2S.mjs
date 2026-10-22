@@ -104,6 +104,9 @@ function claudeUsage(u) {
   for (const f of CLAUDE_USAGE_FIELDS) out[f] = int(u?.[f]);
   return out;
 }
+function claudeMessageKey(e) {
+  return e?.message?.id ?? e?.requestId ?? e?.uuid ?? `${e?.timestamp}`;
+}
 function parseClaudeEntries(entries) {
   const byRequest = /* @__PURE__ */ new Map();
   const writes = [];
@@ -111,8 +114,7 @@ function parseClaudeEntries(entries) {
     if (e?.type !== "assistant" || !e.message || typeof e.message !== "object") continue;
     const u = e.message.usage;
     if (u && typeof u === "object") {
-      const key = e.requestId ?? e.uuid ?? `${e.timestamp}`;
-      byRequest.set(key, { model: e.message.model ?? null, usage: claudeUsage(u), ts: e.timestamp ?? null });
+      byRequest.set(claudeMessageKey(e), { model: e.message.model ?? null, usage: claudeUsage(u), ts: e.timestamp ?? null });
     }
     for (const c of Array.isArray(e.message.content) ? e.message.content : []) {
       if (c?.type === "tool_use" && WRITE_TOOLS.has(c.name)) {
@@ -256,10 +258,27 @@ function sumSubagents(list, fields = CLAUDE_USAGE_FIELDS) {
   const byKey = /* @__PURE__ */ new Map();
   for (const s of list ?? []) {
     const k = `${s.agent_id ?? ""}|${s.model ?? ""}`;
-    if (!byKey.has(k)) byKey.set(k, { agent_id: s.agent_id ?? null, model: s.model ?? null, ...Object.fromEntries(fields.map((f) => [f, 0])) });
-    sumInto(byKey.get(k), s, fields);
+    if (!byKey.has(k)) {
+      byKey.set(k, {
+        agent_id: s.agent_id ?? null,
+        model: s.model ?? null,
+        ...s.label ? { label: s.label, ...stageOfLabel(s.label) } : {},
+        ...Object.fromEntries(fields.map((f) => [f, 0]))
+      });
+    }
+    const acc = byKey.get(k);
+    sumInto(acc, s, fields);
+    if (s.ts) {
+      if (!acc.start || s.ts < acc.start) acc.start = s.ts;
+      if (!acc.end || s.ts > acc.end) acc.end = s.ts;
+    }
   }
   return [...byKey.values()];
+}
+function stageOfLabel(label) {
+  const base = String(label ?? "").replace(/@[^@]*$/, "").replace(/#\d+$/, "");
+  const parts = base.split(":").filter(Boolean);
+  return { stage: parts[0] ?? null, slice: parts.length > 1 ? parts[parts.length - 1] : null };
 }
 function collectTurn({ transcriptPath, subagentsDir = null, cursor }) {
   const host = detectTranscriptHost(transcriptPath);
@@ -337,17 +356,24 @@ function labelSlugOf(label) {
   return m ? m[1] : null;
 }
 function readClaudeAgents(subagentsDir, cursor) {
-  cursor.agents ??= {};
   cursor.agentLast ??= {};
   cursor.workflowLast ??= {};
   cursor.workflowCampaign ??= {};
   cursor.slugRoot ??= {};
   cursor.agentLabel ??= {};
+  const files = listClaudeAgentFiles(subagentsDir);
+  migrateAgentOffsets(cursor, files);
+  cursor.files ??= {};
+  cursor.agentOrd ??= {};
   const read = [];
-  for (const f of listClaudeAgentFiles(subagentsDir)) {
-    const rr = readNewLines(f.file, cursor.agents[f.id] ?? 0);
-    cursor.agents[f.id] = rr.offset;
-    const pr = parseClaudeEntries(parseJsonLines(rr.lines));
+  for (const f of files) {
+    const rel = agentFileKey(f);
+    const st = cursor.files[rel] ??= { off: 0, ord: 0, last: null, used: null, mine: false };
+    const rr = readNewLines(f.file, st.off);
+    st.off = rr.offset;
+    const entries = parseJsonLines(rr.lines);
+    const pr = parseClaudeEntries(entries);
+    pr.usages = bookAgentLines(entries, st, cursor.agentOrd, f.id);
     const own = attributeWrites(pr.writes, cursor.agentLast[f.id] ?? null);
     if (own) {
       cursor.agentLast[f.id] = own;
@@ -363,7 +389,8 @@ function readClaudeAgents(subagentsDir, cursor) {
       }
       if (!(f.id in cursor.agentLabel)) cursor.agentLabel[f.id] = agentLabelOf(f.file);
     }
-    read.push({ ...f, usages: pr.usages.map((u) => ({ agent_id: f.id, model: u.model, ...u.usage })) });
+    const label = cursor.agentLabel[f.id] ?? null;
+    read.push({ ...f, usages: pr.usages.map((u) => ({ agent_id: f.id, model: u.model, ...u.usage, ...u.ts ? { ts: u.ts } : {}, ...label ? { label } : {} })) });
   }
   const silent = (a) => {
     if (!a.workflow) return null;
@@ -380,6 +407,55 @@ function readClaudeAgents(subagentsDir, cursor) {
     ...a,
     attributed: cursor.agentLast[a.id] ?? silent(a)
   }));
+}
+function agentFileKey(f) {
+  return `${f.workflow ?? ""}/${f.id}`;
+}
+function migrateAgentOffsets(cursor, files) {
+  if (!cursor.agents || cursor.files) return;
+  cursor.files = {};
+  for (const f of files) {
+    if (!(f.id in cursor.agents)) continue;
+    let size = 0;
+    try {
+      size = statSync(f.file).size;
+    } catch {
+      continue;
+    }
+    cursor.files[agentFileKey(f)] = { off: size, ord: null, last: null, used: null, mine: false };
+  }
+  delete cursor.agents;
+}
+function bookAgentLines(entries, st, agentOrd, id) {
+  const out = [];
+  const fields = CLAUDE_USAGE_FIELDS;
+  for (const e of entries) {
+    if (e?.type !== "assistant" || !e.message?.usage || typeof e.message.usage !== "object") continue;
+    const usage = claudeUsage(e.message.usage);
+    const model = e.message.model ?? null;
+    const ts = e.timestamp ?? null;
+    const key = claudeMessageKey(e);
+    if (key === st.last) {
+      if (!st.mine) continue;
+      const grow = Object.fromEntries(fields.map((f) => [f, Math.max(0, usage[f] - int(st.used?.[f]))]));
+      st.used = usage;
+      if (fields.some((f) => grow[f] > 0)) out.push({ model, usage: grow, ts });
+      continue;
+    }
+    st.last = key;
+    st.used = usage;
+    if (st.ord === null) {
+      st.mine = true;
+      out.push({ model, usage, ts });
+      continue;
+    }
+    st.ord += 1;
+    st.mine = st.ord > (agentOrd[id] ?? 0);
+    if (!st.mine) continue;
+    agentOrd[id] = st.ord;
+    out.push({ model, usage, ts });
+  }
+  return out;
 }
 function groupBySlug(agents, turn) {
   const first = { attributed: turn.attributed, main: turn.main, subagents: turn.subagents };
@@ -400,7 +476,7 @@ function groupBySlug(agents, turn) {
   return [first, ...[...other.values()].map((g) => ({ attributed: g.attributed, main: null, subagents: sumSubagents(g.usages) }))];
 }
 function newCursor() {
-  return { mainOffset: 0, agents: {}, agentLast: {}, workflowLast: {}, turn: 0, last: null, codexTotal: null, codexModel: null };
+  return { mainOffset: 0, files: {}, agentOrd: {}, agentLast: {}, workflowLast: {}, turn: 0, last: null, codexTotal: null, codexModel: null };
 }
 function cursorPath(cursorDir, sessionId) {
   return join(cursorDir, `${String(sessionId).replace(/[^A-Za-z0-9._-]/g, "_")}.json`);
@@ -408,7 +484,12 @@ function cursorPath(cursorDir, sessionId) {
 function readCursor(cursorDir, sessionId) {
   try {
     const parsed = JSON.parse(readFileSync(cursorPath(cursorDir, sessionId), "utf-8"));
-    return { ...newCursor(), ...parsed && typeof parsed === "object" ? parsed : {} };
+    const cursor = { ...newCursor(), ...parsed && typeof parsed === "object" ? parsed : {} };
+    if (parsed?.agents && !parsed.files) {
+      delete cursor.files;
+      delete cursor.agentOrd;
+    }
+    return cursor;
   } catch {
     return newCursor();
   }

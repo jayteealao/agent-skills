@@ -25,6 +25,8 @@ You are running `/wf verify`, **stage 6 of 10**: 1·intake → 2·shape → 3·s
 
 Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
 
+Mode `user-observable`: the slice has a user-observable AC (the Step 7.5 partition). Mode `deferral`: a `runtime-evidence-deferrals` entry names this slice, or Step 7.5 takes the deferral path (WF-SYSTEM-REVIEW E3).
+
 | Input | Kind | When | Sections |
 |---|---|---|---|
 | `00-index.md` | artifact | always | |
@@ -44,10 +46,11 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `05c-benchmark.md` | artifact | if-present | |
 | `verify/_artifact.md` | procedure | always | |
 | `verify/_sub-agents.md` | procedure | always | |
-| `verify/_deferrals.md` | procedure | always | |
+| `verify/_deferrals.md` | procedure | mode:deferral | |
 | `_fix-loop.md` | procedure | always | |
-| `runtime-adapters.md` | procedure | always | |
-| `runtime-adapters/_ladder.md` | procedure | always | |
+| `runtime-adapters.md` | procedure | mode:user-observable | |
+| `runtime-adapters/_ladder.md` | procedure | mode:user-observable | |
+| `verify/_runtime-evidence.md` | procedure | mode:user-observable | |
 | `06-verify-<slice>.md` | writes | | |
 
 Change-mode and single-scope workflows use the un-suffixed names, for example `06-verify.md`. In `mode:rca`, `02-shape.md` is the synthesized forwarding contract.
@@ -144,15 +147,9 @@ Runtime evidence is required for every user-observable AC. No evidence, no pass.
 
 **Matching.** For each `user-observable` AC, find the sub-agent 3 `interactive-verification-results` entry by AC id or quoted-text overlap. Matched pass → met. Matched fail → not met; `## Issues Found` lists the failure. Matched partial → partially met; list the gap. Not matched → no runtime evidence; the gate refuses `result: pass` for the slice.
 
-**A user-observable mock is not met.** Regardless of a sub-agent's local pass, a user-observable AC whose `evidence-rung` is `cited-mock`, `uncited-mock`, or `static` is not met. An unrecorded `mock-provenance:` forces `uncited-mock`; `fixture-fidelity: checked` is what lifts a mock to `cited-mock`; an integration still at `first-light: null` caps every dependent AC at `partial`. Climb the ladder (`runtime-adapters/_ladder.md`) to `live`, `headless`, or `emulator-or-container`, or take the deferral path. A skipped gating spec (`skipped-gating-specs`) that no other rung evidenced routes the same way.
-
-**CI/pipeline configuration cannot clear on `static` evidence.** An AC whose deliverable is the pipeline itself (a `.github/workflows/*.yml`, a CI job definition, a release or deploy workflow, a commit-hygiene or lint gate, a container build spec) is a program whose runtime is the CI runner; reading it and finding it plausible is the `static` rung. Such an AC records `evidence-rung` no lower than the free static battery, which is required: run the repo's own formatter or linter over the changed config (`actionlint`, `yamllint`, `prettier --check`); check every version literal against the repo's own declarations (the package manager version vs `packageManager`/lockfile, the runtime vs `.nvmrc`/`.tool-versions`/`go.mod`, action refs vs the repo's pins); lint the graph (`needs` references resolve, no cycles, referenced jobs and reusable workflows exist, matrix keys are consumed); name which steps depend on secrets and what a secretless run does. A real-executor probe (`act`, a draft-PR smoke run, a scratch branch push) stays recommended, not required; when one is run, it is the rung that clears the AC, and the deferral path applies unchanged when it cannot be.
-
 **Result writeback.** All AC met (code-only via test suites, user-observable via interactive evidence) → `pass`. A user-observable AC with no matching evidence and no deferral annotation → `blocked-runtime-evidence-missing`; a designated gating spec skipped with no other rung and no deferral → the same. At least one AC fails or is partial while every user-observable AC has runtime evidence → `fail` or `partial`. `blocked-runtime-evidence-missing` is procedural (evidence not produced), not substantive (code wrong): `fail` routes to `/wf implement`; `blocked-runtime-evidence-missing` routes to a capable environment or a deferral.
 
-**Write-time enforcement (the R7 backstop).** Managed-artifact enforcement ([_host-invocation.md](_host-invocation.md)) hard-blocks a `verify` artifact whose `result: pass` contradicts its evidence: `metric-acceptance-met < metric-acceptance-total`, or `interactive-verification: deferred`. The `mockEvidenceGate` extension also hard-blocks `result: pass` while `metric-acceptance-mock-rung > 0` (a user-observable AC row at `evidence-rung: cited-mock | uncited-mock | static` cannot pass; opt out with `hooks.mockEvidenceGate: false`, default on). It forbids the invented `metric-acceptance-unverified-interactive` field and warns when shadow-deferral prose ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified during `<slice>`", "decidable by static reasoning") co-occurs with `result: pass`. Reconcile `result` with the evidence or take the honest `partial` + deferral path (opt out per repo with `hooks.verifyResultGate: false` / `hooks.verifyDeferralLint: false`).
-
-**Deferral.** `interactive-verification: deferred` is a last resort, lawful only after the constraint-resolution ladder was climbed and the residual wall was classified (`wall-ownership`) and probed. [verify/_deferrals.md](verify/_deferrals.md) holds the hatch, the `00-index.md` `runtime-evidence-deferrals` ledger, the clearing-event rules, the repeat marker, and the stacking stop (a deferral inherited by a third slice through `absorbed-by`). A deferral writes `result: partial`, never `pass`; `/wf ship` blocks until every deferral clears.
+**Runtime evidence and deferral.** When the slice has a user-observable AC, apply [verify/_runtime-evidence.md](verify/_runtime-evidence.md): the mock rule, the CI-configuration rule, the write-time enforcement, and the deferral hatch.
 
 # Verify-owned fix loop (Step 7.6, single round, user-gated)
 

@@ -427,3 +427,32 @@ test('graph: a ledger of the old form gets its deps; a started wave keeps its gr
   assert.deepEqual(ledger.waves.map((w) => w.units), [['A', 'B'], ['C']], 'the waves do not change at the migration');
   assert.equal(C.migrateDeps(ledger, ps, 'later'), false, 'a second migration changes nothing');
 });
+
+test('WF-SYSTEM-REVIEW C1: modelsOf keeps the known stages and the allowed models', () => {
+  assert.deepEqual(C.modelsOf({ models: { implement: 'sonnet', verify: 'opus', review: 'haiku', ship: 'sonnet' } }), { implement: 'sonnet', verify: 'opus' });
+  assert.deepEqual(C.modelsOf({}), {});
+  assert.deepEqual(C.modelsOf({ models: ['implement'] }), {});
+});
+
+test('WF-SYSTEM-REVIEW B2, B4: the standing defaults and the away policy, with the changes of the person', () => {
+  assert.deepEqual(C.defaultsOf({ answers: {} }), { 'review-scope': 'slug-wide', 'fidelity-narrowing': 'accept-and-carry', ship: 'recommended' });
+  assert.equal(C.defaultsOf({ answers: { defaults: { 'review-scope': 'per-slice', ship: 'nonsense' } } })['review-scope'], 'per-slice');
+  assert.equal(C.defaultsOf({ answers: { defaults: { ship: 'nonsense' } } }).ship, 'recommended', 'a value that is not allowed keeps the default');
+  assert.equal(C.policyOf({ answers: { policy: { stage: 'hold', deadlock: 'resume' } } }).stage, 'hold');
+  assert.equal(C.policyOf({ answers: { policy: { deadlock: 'resume' } } }).deadlock, 'hold', 'a hold-only kind stays hold');
+  assert.match(C.standingError('defaults', { appetite: 'Large' }), /appetite is not one of/);
+  assert.match(C.standingError('policy', { review: 'accept' }), /review is one of fix-loop, hold/);
+  assert.equal(C.standingError('policy', { stage: 'hold' }), null);
+});
+
+test('WF-SYSTEM-REVIEW B7: campaignNow says what runs, what waits for the person, and what comes next', () => {
+  const ledger = {
+    brainstorm: 'b', waves: [{ n: 1, state: 'running', units: ['A', 'B'] }],
+    units: { A: { slug: 'a', state: 'running' }, B: { slug: 'b', state: 'finished' } },
+    questions: [{ id: 'w1-A-1', unit: 'A', kind: 'stage', text: 'Keep the retry?' }, { id: 'old', text: 'x', 'answered-at': '2026-10-01T00:00:00Z' }],
+    answers: {}, deps: null,
+  };
+  const now = C.campaignNow(ledger);
+  assert.deepEqual(now.running, [{ wave: 1, key: 'A', slug: 'a', state: 'running' }]);
+  assert.deepEqual(now.waiting, [{ id: 'w1-A-1', unit: 'A', kind: 'stage', text: 'Keep the retry?' }]);
+});

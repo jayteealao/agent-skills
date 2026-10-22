@@ -26,6 +26,56 @@ export const SETUP_ANSWERS = Object.freeze(['forecast', 'target-version', 'relea
  * ledger without one takes the default, so a running campaign is never held for them.
  */
 export const OPTIONAL_ANSWERS = Object.freeze({ conventions: 'on' });
+/**
+ * WF-SYSTEM-REVIEW B2 (SQ2): the standing defaults of a campaign. They answer, with no
+ * question, what the person picked 80 % of the time or more: one review for each unit,
+ * "accept and carry" for a fidelity narrowing, and the recommended option of each
+ * ship-family question (plan drift, window, pre-push, merge method, announce, dry-run).
+ * Appetite stays a question. The wave-ready digest shows them, and the person changes
+ * one with `answer defaults '<json>'`; `ask` puts the question back.
+ */
+export const STANDING_DEFAULTS = Object.freeze({ 'review-scope': 'slug-wide', 'fidelity-narrowing': 'accept-and-carry', ship: 'recommended' });
+const DEFAULT_CHOICES = Object.freeze({ 'review-scope': ['slug-wide', 'per-slice', 'ask'], 'fidelity-narrowing': ['accept-and-carry', 'ask'], ship: ['recommended', 'ask'] });
+
+/**
+ * B4, B5: the standing policy of each park kind while the person is away. `hold` waits
+ * for the person; the other units go on. The person sets it once and changes it with
+ * `answer policy '<json>'`. A question of the classes shared-env, external-party or
+ * irreversible always holds (AWAY_LIMITS).
+ */
+export const AWAY_POLICY = Object.freeze({
+  stage: 'recommended', review: 'fix-loop', contract: 'hold', orient: 'rerun', 'driver-fault': 'resume',
+  'merge-conflict': 'hold', 'needs-cycle': 'hold', deadlock: 'hold', 'moved-dependency': 'hold', 'slug-stop': 'hold', 'wave-review': 'hold',
+});
+const POLICY_CHOICES = Object.freeze({
+  stage: ['recommended', 'hold'], review: ['fix-loop', 'hold'], contract: ['refuse-change', 'hold'], orient: ['rerun', 'hold'], 'driver-fault': ['resume', 'hold'],
+});
+
+function standing(base, choices, given) {
+  const out = { ...base };
+  if (given && typeof given === 'object' && !Array.isArray(given)) {
+    for (const [k, v] of Object.entries(given)) if (k in base && (choices[k] ?? ['hold']).includes(v)) out[k] = v;
+  }
+  return out;
+}
+
+/** B2: the campaign's standing defaults: STANDING_DEFAULTS with the person's changes. */
+export const defaultsOf = (ledger) => standing(STANDING_DEFAULTS, DEFAULT_CHOICES, ledger?.answers?.defaults);
+/** B4: the away policy of each park kind: AWAY_POLICY with the person's changes. */
+export const policyOf = (ledger) => standing(AWAY_POLICY, POLICY_CHOICES, ledger?.answers?.policy);
+
+/** B2, B4: why an `answer defaults` or `answer policy` value is refused, or null. */
+export function standingError(key, value) {
+  const [base, choices] = key === 'defaults' ? [STANDING_DEFAULTS, DEFAULT_CHOICES] : [AWAY_POLICY, POLICY_CHOICES];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return `answer ${key}: give a JSON object, for example ${JSON.stringify(key === 'defaults' ? { 'review-scope': 'per-slice' } : { stage: 'hold' })}`;
+  for (const [k, v] of Object.entries(value)) {
+    if (!(k in base)) return `answer ${key}: ${k} is not one of ${Object.keys(base).join(', ')}`;
+    const ok = choices[k] ?? ['hold'];
+    if (!ok.includes(v)) return `answer ${key}: ${k} is one of ${ok.join(', ')}`;
+  }
+  return null;
+}
+
 /** T12: the campaign conventions for hotspot files are on unless the person turned them off. */
 export const conventionsOn = (ledger) => !['off', false, 'false'].includes(ledger?.answers?.conventions ?? OPTIONAL_ANSWERS.conventions);
 /** 17.2: the budget lines, in percent of each rate-limit window (the yolo.usageBudget names). */
@@ -442,10 +492,49 @@ export function unclassifiedEdges(ledger) {
 }
 
 /**
- * T3: the units to prepare now, beyond the next wave: each planned unit of a later wave
- * whose every need is done, in a started wave, or in the next wave.
+ * WF-SYSTEM-REVIEW D6: the carried decisions of a unit as { key: text }. `unit <key>
+ * prepared` records it, so that a reopening finds the decisions that changed since.
  */
-export function prepareAhead(ledger) {
+export function decisionStamp(decisions = []) {
+  return Object.fromEntries((decisions ?? []).filter((d) => d?.key).map((d) => [d.key, String(d.text ?? '')]));
+}
+
+/** D6: the decision keys added, changed, or removed since the stamp. No stamp: none. */
+export function changedDecisions(stamp, decisions = []) {
+  if (!stamp || typeof stamp !== 'object') return [];
+  const now = decisionStamp(decisions);
+  return [...new Set([...Object.keys(stamp), ...Object.keys(now)])].filter((k) => stamp[k] !== now[k]).sort();
+}
+
+/**
+ * D6: a prepared unit of a wave that did not start, whose carried decisions changed since
+ * `unit <key> prepared`, goes back to `planned` with `stale-decisions`. The person is
+ * asked again about those decisions only, not the whole intake.
+ */
+export function markStalePrepared(ledger, units) {
+  const started = startedKeys(ledger);
+  const out = [];
+  for (const u of units) {
+    const lu = ledger.units?.[u.key];
+    if (!lu?.['prepared-decisions'] || started.has(u.key) || !['prepared', 'planned'].includes(lu.state)) continue;
+    const changed = changedDecisions(lu['prepared-decisions'], u.decisions);
+    if (changed.length) {
+      lu.state = 'planned';
+      lu['stale-decisions'] = changed;
+      out.push({ key: u.key, changed });
+    } else if (lu['stale-decisions']) {
+      delete lu['stale-decisions'];
+    }
+  }
+  return out;
+}
+
+/**
+ * T3: the units to prepare now, beyond the next wave: each planned unit of a later wave
+ * whose every need is done, in a started wave, or in the next wave. D6: at most one slot
+ * cycle of them (the slot width), so that a prepared unit does not wait days to start.
+ */
+export function prepareAhead(ledger, { width = ledger?.['slot-width'] ?? DEFAULT_WIDTH } = {}) {
   const next = ledger?.waves?.find((w) => w.state === 'planned');
   if (!next) return [];
   const met = (k) => {
@@ -463,7 +552,7 @@ export function prepareAhead(ledger) {
       if ([...g.dependsOn, ...g.needs.map((n) => n.from)].every(met)) out.push(k);
     }
   }
-  return out;
+  return out.slice(0, Math.max(1, Number(width) || 1));
 }
 
 /**
@@ -1032,6 +1121,8 @@ export function replan(ledger, units, { revision = ledger['work-revision'], now 
       ledger.outside[u.key] = { slug: u.workSlug, form: u.form, title: u.title, state: 'needs-you' };
     }
   }
+  // D6: a prepared unit whose decisions changed is prepared again, for those decisions only.
+  markStalePrepared(ledger, units);
   // 5.7 step 5: a derived needs entry that its packet now declares leaves the ledger.
   for (const u of units) {
     const lu = ledger.units[u.key];
@@ -1107,7 +1198,9 @@ export function campaignAction(ledger, { revision = null, driving = null } = {})
   // later), while fewer than max-unshipped waves wait above the trunk.
   // T3: the units beyond the next wave whose needs are all in the running or the next wave.
   const ahead = prepareAhead(ledger);
-  const extra = (o) => ({ ...o, ...(ahead.length ? { ahead } : {}) });
+  // D6: the units to prepare again, with the decisions to ask about.
+  const reask = Object.fromEntries(Object.entries(ledger.units ?? {}).filter(([, x]) => x.state === 'planned' && x['stale-decisions']?.length).map(([k, x]) => [k, x['stale-decisions']]));
+  const extra = (o) => ({ ...o, ...(ahead.length ? { ahead } : {}), ...(Object.keys(reask).length ? { reask } : {}) });
   // WF-CAMPAIGN-THROUGHPUT-PLAN T2 step 1: a wave whose wave-ready is recorded counts as merged into its branch.
   const stacked = ledger.stack?.enabled && next && lives.length
     && lives.every(waveReady)
@@ -1150,10 +1243,26 @@ export function nextWaveAsk(ledger, n) {
   const lives = ledger.waves.filter((x) => LIVE_WAVE_STATES.includes(x.state));
   if (!lives.every(waveReady) || lives.length >= (ledger.stack['max-unshipped'] ?? DEFAULT_MAX_UNSHIPPED)) return null;
   const unprepared = next.units.filter((k) => ledger.units[k]?.state !== 'prepared');
-  return { wave: next.n, on: n, units: [...next.units], prepared: unprepared.length === 0, unprepared };
+  // B2: the ask is also the confirm-or-edit digest of the standing defaults.
+  return { wave: next.n, on: n, units: [...next.units], prepared: unprepared.length === 0, unprepared, defaults: defaultsOf(ledger) };
 }
 
 // ---------------------------------------------------------------- views
+
+/**
+ * WF-SYSTEM-REVIEW B7: the three answers the person polls for: what runs, what waits
+ * for the person, and what comes next. `status` returns it, and `ledger.md` opens with
+ * it. Each write of the ledger (each event of a run) keeps it current.
+ */
+export function campaignNow(ledger) {
+  const live = (ledger?.waves ?? []).filter((w) => LIVE_WAVE_STATES.includes(w.state));
+  const running = live.flatMap((w) => (w.units ?? [])
+    .filter((k) => ['running', 'waiting', 'prepared'].includes(ledger.units[k]?.state))
+    .map((k) => ({ wave: w.n, key: k, slug: ledger.units[k].slug, state: ledger.units[k].state })));
+  const waiting = (ledger?.questions ?? []).filter((q) => !q['answered-at'])
+    .map((q) => ({ id: q.id, ...(q.unit ? { unit: q.unit } : {}), ...(q.kind ? { kind: q.kind } : {}), text: String(q.text ?? '').slice(0, 200) }));
+  return { running, waiting, next: campaignAction(ledger, {}), presence: ledger?.presence?.state ?? 'present' };
+}
 
 export function renderLedgerMd(ledger) {
   const L = [];
@@ -1161,6 +1270,12 @@ export function renderLedgerMd(ledger) {
   L.push(`Generated from \`ledger.json\`, which is the truth. Work revision ${ledger['work-revision']}. Updated ${ledger['updated-at']}.`, '');
   const act = campaignAction(ledger, {});
   L.push(`Next: **${act.action}**${act.wave ? ` (wave ${act.wave})` : ''}.`, '');
+  // B7: what runs and what waits for the person, before anything else.
+  const now = campaignNow(ledger);
+  L.push('## Now', '');
+  L.push(`- Runs: ${now.running.length ? now.running.map((r) => `${r.key} \`${r.slug}\` (wave ${r.wave}, ${r.state})`).join('; ') : 'nothing'}.`);
+  L.push(`- Waits for you: ${now.waiting.length ? now.waiting.map((q) => `${q.id}${q.unit ? ` (${q.unit})` : ''}: ${q.text}`).join('; ') : 'nothing'}.`);
+  L.push(`- Next: ${act.action}${act.wave ? ` (wave ${act.wave})` : ''}.`, '');
   if (ledger.pause) L.push(`Paused: ${ledger.pause.reason}${ledger.pause.until ? `, until ${ledger.pause.until}` : ''}.`, '');
   // C9: the person's standing rules come first, so that a reader after a compaction sees them.
   if ((ledger.rules ?? []).length) {
@@ -1300,6 +1415,19 @@ export function renderContext({ unit: unit0, units: units0, ledger, asBuilt = {}
 }
 
 // ---------------------------------------------------------------- Stage D: isolation and width (13)
+
+/** WF-SYSTEM-REVIEW C1: the stages whose model the project sets in `models` of `.ai/sdlc-config.json`. */
+export const MODEL_STAGES = Object.freeze(['plan', 'implement', 'verify', 'review', 'update-deps']);
+
+/**
+ * C1 (SQ1): the `models` block of a project config, kept to the known stages and
+ * the models a stage may use. A stage that is not named runs on Opus, the default.
+ */
+export function modelsOf(cfg) {
+  const m = cfg?.models;
+  if (!m || typeof m !== 'object' || Array.isArray(m)) return {};
+  return Object.fromEntries(MODEL_STAGES.filter((s) => ['opus', 'sonnet'].includes(m[s])).map((s) => [s, m[s]]));
+}
 
 /** The project's isolation contract from `.ai/sdlc-config.json`, or null when it is absent or not usable. */
 export function isolationOf(config) {
@@ -1604,7 +1732,63 @@ export function rowTokens(row) {
 }
 
 /**
- * The forecast (9.1 step 7). `history` = { stageMinutes, sliceTokens (median per
+ * WF-SYSTEM-REVIEW A2: W, the weighted tokens of one usage, in units of one input
+ * token at list price: output x5, cache write x1.25, cache read x0.1. Cache reads
+ * are most of the raw tokens of a run and little of its cost, so raw tokens forecast
+ * nothing; the forecast and the actuals use W. Codex `cached_input_tokens` and
+ * `reasoning_output_tokens` are parts of its input and output counts: weight 0.
+ */
+export const W_WEIGHTS = Object.freeze({
+  input_tokens: 1, output_tokens: 5, cache_creation_input_tokens: 1.25, cache_write_input_tokens: 1.25,
+  cache_read_input_tokens: 0.1, cached_input_tokens: 0, reasoning_output_tokens: 0,
+});
+
+export function usageWeight(u) {
+  if (!u) return 0;
+  return Object.entries(W_WEIGHTS).reduce((n, [f, w]) => n + w * (Number(u[f]) || 0), 0);
+}
+
+/** W of a cost.jsonl row (main + sub-agents). */
+export function rowWeight(row) {
+  return usageWeight(row?.main) + (row?.subagents ?? []).reduce((n, s) => n + usageWeight(s), 0);
+}
+
+/** Output tokens of a cost.jsonl row (main + sub-agents). */
+export function rowOutputTokens(row) {
+  const out = (u) => Number(u?.output_tokens) || 0;
+  return out(row?.main) + (row?.subagents ?? []).reduce((n, s) => n + out(s), 0);
+}
+
+/**
+ * A2: the actuals of one wave, from what the run wrote. `journals` are parsed
+ * journal line arrays (the units' driver journals and the campaign journal);
+ * `costRows` are the cost.jsonl rows of the wave's slugs. Minutes run from the
+ * wave's start to the newest journal line at or after it; W and output count the
+ * cost rows at or after the start. A wave with no start, or no line after it, has
+ * unknown minutes.
+ */
+export function waveActual({ wave, startedAt, journals = [], costRows = [] }) {
+  const t0 = Date.parse(startedAt ?? '');
+  if (!Number.isFinite(t0)) return { wave, minutes: null, tokens: null, output: null, from: 'record' };
+  let last = null;
+  for (const lines of journals) {
+    for (const l of lines) {
+      const at = Date.parse(l?.at ?? '');
+      if (Number.isFinite(at) && at >= t0 && (last === null || at > last)) last = at;
+    }
+  }
+  const rows = costRows.filter((r) => { const at = Date.parse(r?.ts ?? ''); return Number.isFinite(at) && at >= t0; });
+  return {
+    wave,
+    minutes: last === null ? null : Math.round((last - t0) / 60000),
+    tokens: rows.length ? Math.round(rows.reduce((n, r) => n + rowWeight(r), 0)) : null,
+    output: rows.length ? rows.reduce((n, r) => n + rowOutputTokens(r), 0) : null,
+    from: 'record',
+  };
+}
+
+/**
+ * The forecast (9.1 step 7). `history` = { stageMinutes, sliceTokens (median W per
  * slice), slicesPerSlug (median) }; `slices` maps a unit key to its slice count
  * when the slug is sliced. An estimate with no history is null (unknown).
  */
@@ -1628,16 +1812,17 @@ export function buildForecast({ units, history, slices = {} }) {
 
 export function renderForecast(fc, { brainstorm, now = new Date().toISOString(), actual = [] } = {}) {
   const L = [`# Forecast: ${brainstorm}`, '', `Written ${now}. This is an estimate from earlier yolo runs in this repository, not a promise. The campaign updates it after each wave with the real numbers.`, ''];
-  L.push('| Packet | Slug | Slices | Minutes | Tokens |', '|---|---|---|---|---|');
+  L.push('Tokens are W: weighted tokens, in units of one input token (output x5, cache write x1.25, cache read x0.1).', '');
+  L.push('| Packet | Slug | Slices | Minutes | Tokens (W) |', '|---|---|---|---|---|');
   for (const r of fc.rows) L.push(`| ${r.key} | \`${r.slug}\` | ${r.slices ?? 'unknown'}${r.slicesFrom === 'history' ? ' (from history)' : ''} | ${r.minutes ?? 'unknown'} | ${r.tokens ?? 'unknown'} |`);
   L.push('');
   L.push(`- Total run time: ${fc.minutes !== null ? `about ${Math.round(fc.minutes / 60)} hours (${fc.minutes} minutes) at width 1` : 'unknown: some slugs have no history'}.`);
-  L.push(`- Total tokens: ${fc.tokens !== null ? fc.tokens.toLocaleString('en-US') : 'unknown'}.`);
+  L.push(`- Total tokens (W): ${fc.tokens !== null ? fc.tokens.toLocaleString('en-US') : 'unknown'}.`);
   L.push(`- Unknown estimates: ${fc.unknown.length ? fc.unknown.join(', ') : 'none'}.`);
   L.push('- Weeks of the 7-day limit: unknown until the usage guard records readings (Stage D3).', '');
   if (actual.length) {
-    L.push('## Actual, per wave', '', '| Wave | Minutes | Tokens |', '|---|---|---|');
-    for (const a of actual) L.push(`| ${a.wave} | ${a.minutes ?? 'unknown'} | ${a.tokens ?? 'unknown'} |`);
+    L.push('## Actual, per wave', '', '| Wave | Minutes | Tokens (W) | Output tokens |', '|---|---|---|---|');
+    for (const a of actual) L.push(`| ${a.wave} | ${a.minutes ?? 'unknown'} | ${a.tokens ?? 'unknown'} | ${a.output ?? 'unknown'} |`);
     L.push('');
   }
   return L.join('\n');

@@ -16,9 +16,12 @@
 // so the copied integers stay verbatim; aggregateCost maps them onto the four
 // display columns (input / output / cache read / cache write).
 //
-// The hook keeps a cursor per session ({ mainOffset, agents:{id: offset}, turn,
-// last:{slug,key,slice,root}, codexTotal }) so each Stop reads only the new
-// bytes. A row is written only when the turn has usage AND a slug is known
+// The hook keeps a cursor per session ({ mainOffset, files:{path: state},
+// agentOrd:{id: n}, turn, last:{slug,key,slice,root}, codexTotal }) so each Stop
+// reads only the new bytes. A sub-agent is booked once, however many transcript
+// files hold it (WF-SYSTEM-REVIEW-2026-10-21 A1): the offsets are kept for each
+// file, and each agent keeps the count of its messages already booked, so a
+// copy of an agent's transcript in a second folder books nothing again. A row is written only when the turn has usage AND a slug is known
 // (written this turn, or inherited from the last attributed turn). A missing row
 // shows in `/wf status` as a turn gap; a wrong number never would, so every
 // parser prefers no row to a guessed row.
@@ -129,9 +132,17 @@ function claudeUsage(u) {
 }
 
 /**
- * Claude Code transcript entries → assistant usages (deduped by requestId, last
- * line wins — one request spans several `apiBlockIndex` lines that repeat the
- * same usage) and the artifact writes the turn made.
+ * The identity of one API response: the message id, then the request id. One
+ * response spans several `apiBlockIndex` lines that repeat the same usage, and a
+ * copied transcript can lack `requestId`, so the message id comes first.
+ */
+export function claudeMessageKey(e) {
+  return e?.message?.id ?? e?.requestId ?? e?.uuid ?? `${e?.timestamp}`;
+}
+
+/**
+ * Claude Code transcript entries → assistant usages (deduped by message, last
+ * line wins) and the artifact writes the turn made.
  */
 export function parseClaudeEntries(entries) {
   const byRequest = new Map();
@@ -140,8 +151,7 @@ export function parseClaudeEntries(entries) {
     if (e?.type !== 'assistant' || !e.message || typeof e.message !== 'object') continue;
     const u = e.message.usage;
     if (u && typeof u === 'object') {
-      const key = e.requestId ?? e.uuid ?? `${e.timestamp}`;
-      byRequest.set(key, { model: e.message.model ?? null, usage: claudeUsage(u), ts: e.timestamp ?? null });
+      byRequest.set(claudeMessageKey(e), { model: e.message.model ?? null, usage: claudeUsage(u), ts: e.timestamp ?? null });
     }
     for (const c of Array.isArray(e.message.content) ? e.message.content : []) {
       if (c?.type === 'tool_use' && WRITE_TOOLS.has(c.name)) {
@@ -314,15 +324,40 @@ export function sumMain(usages, fields = CLAUDE_USAGE_FIELDS) {
   return { ...total, models };
 }
 
-/** Per-(agent, model) sums of sub-agent usages. */
+/**
+ * Per-(agent, model) sums of sub-agent usages. A usage that carries the agent's
+ * `label` (a Workflow agent) gives the entry `label`, `stage` and `slice`; a
+ * usage with `ts` gives `start` and `end`, the first and last response booked.
+ */
 export function sumSubagents(list, fields = CLAUDE_USAGE_FIELDS) {
   const byKey = new Map();
   for (const s of list ?? []) {
     const k = `${s.agent_id ?? ''}|${s.model ?? ''}`;
-    if (!byKey.has(k)) byKey.set(k, { agent_id: s.agent_id ?? null, model: s.model ?? null, ...Object.fromEntries(fields.map((f) => [f, 0])) });
-    sumInto(byKey.get(k), s, fields);
+    if (!byKey.has(k)) {
+      byKey.set(k, {
+        agent_id: s.agent_id ?? null, model: s.model ?? null,
+        ...(s.label ? { label: s.label, ...stageOfLabel(s.label) } : {}),
+        ...Object.fromEntries(fields.map((f) => [f, 0])),
+      });
+    }
+    const acc = byKey.get(k);
+    sumInto(acc, s, fields);
+    if (s.ts) {
+      if (!acc.start || s.ts < acc.start) acc.start = s.ts;
+      if (!acc.end || s.ts > acc.end) acc.end = s.ts;
+    }
   }
   return [...byKey.values()];
+}
+
+/**
+ * The stage and the slice of a driver label: `implement:s1@alpha` gives
+ * `{ stage: 'implement', slice: 's1' }`; `waiter#3` gives `{ stage: 'waiter', slice: null }`.
+ */
+export function stageOfLabel(label) {
+  const base = String(label ?? '').replace(/@[^@]*$/, '').replace(/#\d+$/, '');
+  const parts = base.split(':').filter(Boolean);
+  return { stage: parts[0] ?? null, slice: parts.length > 1 ? parts[parts.length - 1] : null };
 }
 
 /* ───────────────────────── collect one turn ───────────────────────── */
@@ -427,17 +462,24 @@ export function labelSlugOf(label) {
  * inside the campaign session is booked to the slugs it built.
  */
 function readClaudeAgents(subagentsDir, cursor) {
-  cursor.agents ??= {};
   cursor.agentLast ??= {};
   cursor.workflowLast ??= {};
   cursor.workflowCampaign ??= {};
   cursor.slugRoot ??= {};
   cursor.agentLabel ??= {};
+  const files = listClaudeAgentFiles(subagentsDir);
+  migrateAgentOffsets(cursor, files);
+  cursor.files ??= {};
+  cursor.agentOrd ??= {};
   const read = [];
-  for (const f of listClaudeAgentFiles(subagentsDir)) {
-    const rr = readNewLines(f.file, cursor.agents[f.id] ?? 0);
-    cursor.agents[f.id] = rr.offset;
-    const pr = parseClaudeEntries(parseJsonLines(rr.lines));
+  for (const f of files) {
+    const rel = agentFileKey(f);
+    const st = (cursor.files[rel] ??= { off: 0, ord: 0, last: null, used: null, mine: false });
+    const rr = readNewLines(f.file, st.off);
+    st.off = rr.offset;
+    const entries = parseJsonLines(rr.lines);
+    const pr = parseClaudeEntries(entries);
+    pr.usages = bookAgentLines(entries, st, cursor.agentOrd, f.id);
     const own = attributeWrites(pr.writes, cursor.agentLast[f.id] ?? null);
     if (own) {
       cursor.agentLast[f.id] = own;
@@ -453,7 +495,8 @@ function readClaudeAgents(subagentsDir, cursor) {
       }
       if (!(f.id in cursor.agentLabel)) cursor.agentLabel[f.id] = agentLabelOf(f.file);
     }
-    read.push({ ...f, usages: pr.usages.map((u) => ({ agent_id: f.id, model: u.model, ...u.usage })) });
+    const label = cursor.agentLabel[f.id] ?? null;
+    read.push({ ...f, usages: pr.usages.map((u) => ({ agent_id: f.id, model: u.model, ...u.usage, ...(u.ts ? { ts: u.ts } : {}), ...(label ? { label } : {}) })) });
   }
   // Second pass: a silent agent read before its run's writer still gets the run's slug.
   const silent = (a) => {
@@ -471,6 +514,67 @@ function readClaudeAgents(subagentsDir, cursor) {
     ...a,
     attributed: cursor.agentLast[a.id] ?? silent(a),
   }));
+}
+
+/** The cursor key of one agent transcript: its Workflow run (if any) and its file name. */
+function agentFileKey(f) {
+  return `${f.workflow ?? ''}/${f.id}`;
+}
+
+/**
+ * A1: a cursor of the old form keeps one offset for each agent id, and two
+ * files of one id (a Workflow transcript and its copy in `subagents/`) then
+ * reset each other's offset on every Stop. Move it to the new form once: each
+ * file that the old cursor knew counts as booked up to its present size, so the
+ * migration books nothing again. A file of an agent that the old cursor did not
+ * know is read from its start, as before.
+ */
+function migrateAgentOffsets(cursor, files) {
+  if (!cursor.agents || cursor.files) return;
+  cursor.files = {};
+  for (const f of files) {
+    if (!(f.id in cursor.agents)) continue;
+    let size = 0;
+    try { size = statSync(f.file).size; } catch { continue; }
+    cursor.files[agentFileKey(f)] = { off: size, ord: null, last: null, used: null, mine: false };
+  }
+  delete cursor.agents;
+}
+
+/**
+ * Book the new response lines of one agent file. A response counts once for the
+ * agent: its message key starts a new ordinal in this file, and only an ordinal
+ * above the agent's `agentOrd` is booked (a copy of the transcript in another
+ * folder repeats the same responses in the same order). A later line of the same
+ * response books only its growth over the earlier line (the last line wins). A
+ * file migrated from the old cursor (`ord: null`) books each new response.
+ */
+function bookAgentLines(entries, st, agentOrd, id) {
+  const out = [];
+  const fields = CLAUDE_USAGE_FIELDS;
+  for (const e of entries) {
+    if (e?.type !== 'assistant' || !e.message?.usage || typeof e.message.usage !== 'object') continue;
+    const usage = claudeUsage(e.message.usage);
+    const model = e.message.model ?? null;
+    const ts = e.timestamp ?? null;
+    const key = claudeMessageKey(e);
+    if (key === st.last) {
+      if (!st.mine) continue;
+      const grow = Object.fromEntries(fields.map((f) => [f, Math.max(0, usage[f] - int(st.used?.[f]))]));
+      st.used = usage;
+      if (fields.some((f) => grow[f] > 0)) out.push({ model, usage: grow, ts });
+      continue;
+    }
+    st.last = key;
+    st.used = usage;
+    if (st.ord === null) { st.mine = true; out.push({ model, usage, ts }); continue; }
+    st.ord += 1;
+    st.mine = st.ord > (agentOrd[id] ?? 0);
+    if (!st.mine) continue;
+    agentOrd[id] = st.ord;
+    out.push({ model, usage, ts });
+  }
+  return out;
 }
 
 /**
@@ -497,7 +601,7 @@ function groupBySlug(agents, turn) {
 /* ───────────────────────── cursor + ledger files ───────────────────────── */
 
 export function newCursor() {
-  return { mainOffset: 0, agents: {}, agentLast: {}, workflowLast: {}, turn: 0, last: null, codexTotal: null, codexModel: null };
+  return { mainOffset: 0, files: {}, agentOrd: {}, agentLast: {}, workflowLast: {}, turn: 0, last: null, codexTotal: null, codexModel: null };
 }
 
 export function cursorPath(cursorDir, sessionId) {
@@ -507,7 +611,10 @@ export function cursorPath(cursorDir, sessionId) {
 export function readCursor(cursorDir, sessionId) {
   try {
     const parsed = JSON.parse(readFileSync(cursorPath(cursorDir, sessionId), 'utf-8'));
-    return { ...newCursor(), ...(parsed && typeof parsed === 'object' ? parsed : {}) };
+    const cursor = { ...newCursor(), ...(parsed && typeof parsed === 'object' ? parsed : {}) };
+    // A cursor of the old form (`agents`, no `files`) migrates on its next read (A1).
+    if (parsed?.agents && !parsed.files) { delete cursor.files; delete cursor.agentOrd; }
+    return cursor;
   } catch {
     return newCursor();
   }
@@ -600,4 +707,88 @@ export function aggregateCost(rows) {
     }
   }
   return { byKey, total, rows: (rows ?? []).length };
+}
+
+/* ───────────────────────── rebuild an inflated ledger (A1, SQ4) ───────────────────────── */
+
+const weight = (u) => CLAUDE_USAGE_FIELDS.reduce((n, f) => n + int(u?.[f]), 0);
+
+/**
+ * The exact total of each sub-agent of the given transcript files, read in full:
+ * each response counts once across every file of its agent id (a copy repeats the
+ * responses), and the last line of a response wins.
+ * @param {Array<{ id: string, file: string }>} files
+ * @returns {Map<string, Array<object>>} agent id → one usage object per model
+ */
+export function agentTotalsFromFiles(files) {
+  const byAgent = new Map();
+  for (const f of files) {
+    let text = '';
+    try { text = readFileSync(f.file, 'utf-8'); } catch { continue; }
+    const seen = (byAgent.get(f.id) ?? byAgent.set(f.id, new Map()).get(f.id));
+    for (const e of parseJsonLines(text.split(/\r?\n/).filter(Boolean))) {
+      if (e?.type !== 'assistant' || !e.message?.usage) continue;
+      seen.set(claudeMessageKey(e), { model: e.message.model ?? null, ...claudeUsage(e.message.usage) });
+    }
+  }
+  const out = new Map();
+  for (const [id, seen] of byAgent) {
+    out.set(id, sumSubagents([...seen.values()].map((u) => ({ agent_id: id, ...u }))).map(({ agent_id, ...u }) => u));
+  }
+  return out;
+}
+
+/**
+ * Rebuild the sub-agent entries of a project's ledgers. `files` is the rows of
+ * each `cost.jsonl`, in file order. An agent whose entries add up to more than
+ * its true total (`truth`, from its transcripts) is inflated: all of its entries
+ * go, and one entry with the true total goes into the earliest row that held
+ * it: the row where the live hook booked it first.
+ * An agent with no transcript, or with entries that do not pass its total, stays
+ * as it is. A row left with no usage goes. Pure.
+ * @param {Array<{ path: string, rows: object[] }>} files
+ * @param {Map<string, object[]>} truth
+ * @returns {{ files: Array<{ path: string, rows: object[], changed: boolean }>, agents: Array<{ id: string, before: number, after: number }> }}
+ */
+export function rebuildLedgerRows(files, truth) {
+  const sums = new Map();
+  // The earliest row of an agent is where the live hook first booked it: the rebuilt total goes there.
+  const firstOf = new Map();
+  files.forEach((f, fi) => f.rows.forEach((r, ri) => {
+    for (const s of Array.isArray(r.subagents) ? r.subagents : []) {
+      if (!s?.agent_id) continue;
+      sums.set(s.agent_id, (sums.get(s.agent_id) ?? 0) + weight(s));
+      const first = firstOf.get(s.agent_id);
+      if (!first || (r.ts ?? '') < first.ts) firstOf.set(s.agent_id, { fi, ri, ts: r.ts ?? '' });
+    }
+  }));
+  const inflated = new Map();
+  for (const [id, before] of sums) {
+    const t = truth.get(id);
+    if (!t) continue;
+    const after = t.reduce((n, u) => n + weight(u), 0);
+    if (before > after * 1.01) inflated.set(id, { before, after });
+  }
+  const out = files.map((f, fi) => {
+    let changed = false;
+    const rows = f.rows.map((r, ri) => {
+      const subs = Array.isArray(r.subagents) ? r.subagents : [];
+      const keep = subs.filter((s) => !inflated.has(s?.agent_id));
+      const add = [];
+      for (const [id] of inflated) {
+        const at = firstOf.get(id);
+        if (at.fi === fi && at.ri === ri) {
+          const was = subs.find((s) => s.agent_id === id) ?? {};
+          const tags = Object.fromEntries(['label', 'stage', 'slice', 'start', 'end'].filter((k) => was[k] != null).map((k) => [k, was[k]]));
+          for (const u of truth.get(id)) add.push({ agent_id: id, ...tags, ...u, rebuilt: true });
+        }
+      }
+      if (keep.length === subs.length && !add.length) return r;
+      changed = true;
+      return { ...r, subagents: [...keep, ...add] };
+    }).filter((r) => r.main || (Array.isArray(r.subagents) && r.subagents.length) || (Array.isArray(r.external) && r.external.length));
+    if (rows.length !== f.rows.length) changed = true;
+    return { path: f.path, rows, changed };
+  });
+  return { files: out, agents: [...inflated].map(([id, v]) => ({ id, ...v })) };
 }

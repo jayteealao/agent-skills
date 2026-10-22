@@ -157,7 +157,7 @@ test('5.1: launch adds each worktree, writes the context and the branch fields, 
     assert.equal(a.stopBefore, null);
     assert.equal(a.agentCeiling, 900);
     assert.match(a.cancelPath.replace(/\\/g, '/'), new RegExp(`\\.scratch/campaign/${r.run}/wave-1/cancel$`));
-    assert.deepEqual(a.units.map((u) => [u.key, u.slug, u.state, u.reviewScope]), [['W1', 'engine', 'running', 'per-slice'], ['W2', 'squads', 'running', 'per-slice']]);
+    assert.deepEqual(a.units.map((u) => [u.key, u.slug, u.state, u.reviewScope]), [['W1', 'engine', 'running', 'slug-wide'], ['W2', 'squads', 'running', 'slug-wide']], 'WF-SYSTEM-REVIEW B2: no review-scope in the index takes the standing default');
     assert.deepEqual(a.units[1].waits, [{ from: 'W1', through: 's1', before: 'p2', why: 'the tick', source: 'packet', state: 'open', sha: null }]);
     for (const u of a.units) {
       assert.ok(existsSync(u.root), u.root);
@@ -446,5 +446,77 @@ test('5.11: record of a boundary outcome writes merged and needs-fix; back lists
     assert.equal(l.units.W2.state, 'needs-fix');
     const back = run(root, 'back');
     assert.deepEqual(back.waited.map((s) => s.step), ['cleanup', 'handoff', 'question']);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// ---------------------------------------------------------------- WF-SYSTEM-REVIEW A2
+
+test('A2: record writes the wave actuals from the journals and the cost ledger, in W, and the forecast shows them', () => {
+  const root = makeRepo();
+  try {
+    startWave(root);
+    run(root, 'wave', '1', 'launch');
+    const l0 = readLedger(root);
+    const t0 = Date.parse(l0.waves[0]['started-at']);
+    const later = (min) => new Date(t0 + min * 60000).toISOString();
+    const dir = path.join(root, '.ai', 'workflows', 'engine');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, '.driver-journal.jsonl'), [
+      { at: new Date(t0 - 3600000).toISOString(), run: 'old', event: 'agent-end' },
+      { at: later(5), run: 'r1', event: 'agent-start', agent: 'implement:s1@engine' },
+      { at: later(95), run: 'r1', event: 'run-end' },
+    ].map((x) => JSON.stringify(x)).join('\n') + '\n');
+    const use = { input_tokens: 10, output_tokens: 100, cache_read_input_tokens: 10000, cache_creation_input_tokens: 400 };
+    writeFileSync(path.join(dir, 'cost.jsonl'), [
+      { ts: new Date(t0 - 60000).toISOString(), session: 's', turn: 1, key: 'implement', main: use, subagents: [] },
+      { ts: later(10), session: 's', turn: 2, key: 'implement', main: use, subagents: [{ agent_id: 'a', ...use }] },
+    ].map((x) => JSON.stringify(x)).join('\n') + '\n');
+    const out = path.join(root, 'outcome.json');
+    writeFileSync(out, JSON.stringify({ ok: true, wave: 1, held: true, units: [] }));
+    const rec = run(root, 'wave', '1', 'record', '--outcome', out);
+    // W of one usage: 10 + 100*5 + 10000*0.1 + 400*1.25 = 2010; the row has two.
+    assert.deepEqual([rec.actual.minutes, rec.actual.tokens, rec.actual.output], [95, 4020, 200], JSON.stringify(rec.actual));
+    run(root, 'wave', '1', 'record', '--outcome', out);
+    assert.equal(readLedger(root)['forecast-actual'].filter((a) => a.wave === 1).length, 1, 'a second record replaces the first');
+    const md = readFileSync(path.join(root, '.ai', 'workflows', B, 'work', 'campaign', 'forecast.md'), 'utf8');
+    assert.match(md, /\| 1 \| 95 \| 4020 \| 200 \|/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// ---------------------------------------------------------------- WF-SYSTEM-REVIEW B2, B4, B5
+
+test('B2, B4, B5: answer defaults and policy, status shows them, launch passes the defaults, away keeps the last words', () => {
+  const root = makeRepo();
+  try {
+    startWave(root);
+    assert.equal(run(root, 'status').defaults['review-scope'], 'slug-wide');
+    assert.equal(run(root, 'answer', 'defaults', '{"ship":"ask"}').value.ship, 'ask');
+    assert.equal(run(root, 'answer', 'policy', '{"review":"accept"}').ok, false);
+    assert.equal(run(root, 'answer', 'policy', '{"stage":"hold"}').value.stage, 'hold');
+    const st = run(root, 'status');
+    assert.deepEqual([st.defaults.ship, st.policy.stage, st.policy.review], ['ask', 'hold', 'fix-loop']);
+    const l = run(root, 'wave', '1', 'launch');
+    assert.equal(l.args.defaults.ship, 'ask');
+    assert.equal(run(root, 'away', '--words', 'going to bed, pick the best').presence.words, 'going to bed, pick the best');
+    run(root, 'back');
+    const again = run(root, 'away');
+    assert.equal(again.ok, true, JSON.stringify(again));
+    assert.equal(again.presence.words, 'going to bed, pick the best');
+    assert.equal(again.policy.stage, 'hold');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('B7: status and ledger.md give what runs, what waits for the person, and what comes next', () => {
+  const root = makeRepo();
+  try {
+    startWave(root);
+    run(root, 'wave', '1', 'launch');
+    run(root, 'ask', 'w1-wave-9', '--wave', '1', 'Revert squads?');
+    const now = run(root, 'status').now;
+    assert.deepEqual(now.running.map((r) => r.key).sort(), ['W1', 'W2']);
+    assert.deepEqual(now.waiting.map((q) => q.id), ['w1-wave-9']);
+    const md = readFileSync(path.join(root, '.ai', 'workflows', B, 'work', 'campaign', 'ledger.md'), 'utf8');
+    assert.match(md, /## Now\n\n- Runs: W1/);
+    assert.match(md, /- Waits for you: w1-wave-9: Revert squads\?/);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
