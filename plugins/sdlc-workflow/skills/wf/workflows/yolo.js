@@ -122,7 +122,7 @@ function implementStepsClause(slice, progressPath, retry) {
 // The clause names the PATH, never a copy of the text: the user may edit steer.md
 // while the run drives, and each agent that starts after the edit must see it. A
 // snapshot taken at orient would freeze the entries for the whole run.
-// Bookkeeping agents (branch, write-back, index write-back, ledger report) get no
+// Bookkeeping agents (branch, write-back, index write-back, run end) get no
 // clause: they change no code and judge nothing a steering entry governs.
 // ---------------------------------------------------------------------------
 function steeringClause(steerPath, role, contractPath, campaignSteerPath = null) {
@@ -213,25 +213,21 @@ function steeringDigest(o) {
 // Y6 — THE REQUIRES TABLE IS A CHECKLIST. Yolo stage agents read their own reference
 // almost always, then skipped what it points to: the shape in 8–18% of implement,
 // verify and review runs, procedure files in 3–58%. Nothing in the run noticed. The
-// stage reference's `## Requires` table now names every input, the mod checks the
-// writer's reads against it, and a missing read comes back as feedback in the write's
-// tool result (warn mode: the write lands). The prompt says so, so the agent reads
-// the table before it writes and acts on the feedback instead of ignoring it.
+// stage reference's `## Requires` table now names every input. No hook checks the
+// reads, so the prompt asks the agent to read the table before it writes.
 function requiresClause(refPath) {
-  return `\n\nREQUIRED READS (CHECKED). The \`## Requires\` table in ${refPath} is a CHECKLIST, defined by ` +
+  return `\n\nREQUIRED READS. The \`## Requires\` table in ${refPath} is a CHECKLIST, defined by ` +
     `${referenceRoot}/_requires.md. Before you write the stage artifact, read every row whose When value applies ` +
     `to this run — each whole-file input from its first line to its last, each named section in full — yourself, ` +
     `with the file-read tool. A search hit, a shell read, a partial read, or a sub-agent's read does not count. ` +
     `A \`mode:<name>\` row applies when its mode applies to this run: list every mode you ran under in the stage ` +
-    `artifact's \`modes:\` frontmatter (for example \`modes: [deferral]\`). The mod also finds some modes on disk ` +
-    `(section "Modes" of ${referenceRoot}/_requires.md lists them), and a mode it finds there applies even when ` +
-    `\`modes:\` leaves it out. The mod checks your reads when you write the stage artifact: a missing or partial read comes back as ` +
-    `feedback (context) in that write's tool result. When it does, read each named input, then write the ` +
-    `artifact again in this same run. Keep reading ${refPath} in full as well.`
+    `artifact's \`modes:\` frontmatter (for example \`modes: [deferral]\`). A mode also applies when its disk fact ` +
+    `holds (section "Modes" of ${referenceRoot}/_requires.md lists them), even when \`modes:\` leaves it out. ` +
+    `Keep reading ${refPath} in full as well.`
 }
 
 // S6 — a dispatch prompt that carries the full text of a Requires input names it, so the
-// read check counts it as read for the writer of the named output path.
+// writer of the named output path counts it as read.
 function promptFedLine(inputs, outputPath) {
   const list = (inputs || []).filter(Boolean)
   if (!list.length) return ''
@@ -712,33 +708,6 @@ function overlappingSlices(overlaps, roster) {
     .map(s => ({ slice: s.slice, with: [...want.get(s.slice).with], detail: [...new Set(want.get(s.slice).details)].join('; ') }))
 }
 
-// runStartFromId() — orient mints the runId from the clock ('20260726T143005Z-<slug>');
-// its timestamp is the earliest moment a row of THIS run can carry.
-function runStartFromId(runId) {
-  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/.exec(String(runId || ''))
-  return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z` : null
-}
-
-function readCheckRows(rows, runStartAt) {
-  const start = runStartAt ? Date.parse(runStartAt) : NaN
-  const gap = r => (Array.isArray(r.missing) && r.missing.length > 0) || (Array.isArray(r.partial) && r.partial.length > 0)
-  const inRun = (rows || [])
-    .filter(r => r && typeof r.at === 'string' && !Number.isNaN(Date.parse(r.at)))
-    .filter(r => Number.isNaN(start) || Date.parse(r.at) >= start)
-    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
-  const out = []
-  inRun.forEach((r, i) => {
-    if (!gap(r)) return
-    const resolved = inRun.slice(i + 1).some(l => l.artifact === r.artifact && l.agentId === r.agentId && !gap(l))
-    out.push({
-      at: r.at, stage: r.stage || '', artifact: r.artifact || '', agentId: r.agentId || '',
-      missing: r.missing || [], partial: r.partial || [], resolved,
-      ...(r.waiver ? { waiver: r.waiver } : {}),
-    })
-  })
-  return out
-}
-
 // WF-SYSTEM-REVIEW E3: the stage prompt states the shared rules once. A stage agent does not
 // read again the files that hold them; the stage reference still points to them for a person.
 // Audit L10: requiresClause restates _requires.md (all but its Modes table), steeringClause
@@ -827,11 +796,6 @@ const EOB =
 // Diagnostic, never a gate: a failed append never fails a stage.
 // ---------------------------------------------------------------------------
 const JOURNAL_PATH = `${projectRoot}/.ai/workflows/${slug}/.driver-journal.jsonl`
-// Y4 — the mod's read-check rows live in their OWN file. They never go to the driver
-// journal: liveness reads the journal's newest line as the driver's state, so a mod row
-// there would call a live run "presumed dead" (and the mod has no append, so it could
-// drop driver lines). This script only ever READS the ledger, through the report agent.
-const READ_LEDGER_PATH = `${projectRoot}/.ai/workflows/${slug}/.read-ledger.jsonl`
 // C2: the implement step record.
 const PROGRESS_PATH = `${projectRoot}/.ai/workflows/${slug}/.implement-progress.jsonl`
 
@@ -2572,60 +2536,29 @@ async function reconcilePlans(idx) {
   return { ok: true, stopped: false, overlaps: targets, ran, edges, markerCleared }
 }
 
-// ---------------------------------------------------------------------------
-// Y4 — the run report shows reads. The mod appends one row per read check to
-// .read-ledger.jsonl. A read-only agent returns this run's rows; code (not the agent)
-// picks the rows that wrote with a missing or partial read, and marks a row resolved
-// when the same agent wrote the same artifact again later with a clean check.
-// ---------------------------------------------------------------------------
-const READ_LEDGER_RESULT = {
+const RUN_END_RESULT = {
   type: 'object',
-  required: ['present'],
-  properties: {
-    present: { type: 'boolean' },
-    rows: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          at: { type: 'string' }, agentId: { type: 'string' }, stage: { type: 'string' }, artifact: { type: 'string' },
-          missing: { type: 'array', items: { type: 'string' } },
-          partial: { type: 'array', items: { type: 'string' } },
-          waiver: { type: 'string' },
-        },
-      },
-    },
-  },
+  required: ['ended'],
+  properties: { ended: { type: 'boolean' } },
 }
 
-
-
-// WF-SYSTEM-REVIEW A3 + E4: the last agent of every run that has a run id. It reports
-// the read-ledger rows of this run (Y4), then writes the run-end line with the stop
-// and its reason. The `end` command appends nothing when the run has a run-end line
+// WF-SYSTEM-REVIEW A3 + E4: the last agent of every run that has a run id. It writes
+// the run-end line with the stop and its reason. The `end` command appends nothing when the run has a run-end line
 // already, so the main session's own `end` after the Workflow returns is harmless.
 function shellText(s) {
   const t = String(s ?? '').replace(/\s+/g, ' ').replace(/[`$"\\]/g, "'").slice(0, 300)
   return '"' + t + '"'
 }
-async function runEnd(runStartAt, stoppedAt = null, reason = null, readLedger = true) {
+async function runEnd(stoppedAt = null, reason = null) {
   const endCmd = `node "${WATCH}" end "${projectRoot}" ${slug} --run ${shellText(RUN_ID)} --agent run-end` +
     `${stoppedAt ? ` --stopped-at ${shellText(stoppedAt)}` : ''}${reason ? ` --reason ${shellText(reason)}` : ''}`
   return await agent(
-    `RUN END for slug '${slug}'. Bookkeeping only: run these steps in order. Never write, edit, or truncate any ` +
-    `file other than ${JOURNAL_PATH}, and write that file only with the commands below.\n` +
-    (readLedger
-      ? `1. READ CHECK (READ-ONLY). Read ${READ_LEDGER_PATH} if it exists. It is append-only JSONL that the mod ` +
-        `writes: one row per read check, {"at","agentId","stage","artifact","missing":[...],"partial":[...],"waiver"}. ` +
-        `Report present: false when the file is absent or empty. Otherwise report present: true and rows: every ` +
-        `row whose \`at\` is at or after ${runStartAt || 'the start of this run'}, copied verbatim, clean rows ` +
-        `(empty missing and partial) included — the driver uses them to see whether a later write closed a gap. ` +
-        `Omit a field the row lacks.\n`
-      : `1. Report present: false.\n`) +
-    `2. Run \`${endCmd}\`. It appends the run-end line.\n` +
-    `Return { present, rows }.` +
+    `RUN END for slug '${slug}'. Bookkeeping only. Never write, edit, or truncate any ` +
+    `file other than ${JOURNAL_PATH}, and write that file only with the command below.\n` +
+    `1. Run \`${endCmd}\`. It appends the run-end line.\n` +
+    `Return { ended: true } when the command exits 0, else { ended: false }.` +
     heartbeatClause('run-end', 'Drive', 'run-end', null),
-    { schema: READ_LEDGER_RESULT, label: 'run-end', phase: 'Drive', ...HAIKU } // mechanical bookkeeping; pinned per _subagents.md
+    { schema: RUN_END_RESULT, label: 'run-end', phase: 'Drive', ...HAIKU } // mechanical bookkeeping; pinned per _subagents.md
   )
 }
 
@@ -2655,7 +2588,7 @@ if (priorDriver && priorDriver.presumedDead === true) {
 }
 if (!idx.ok) {
   const notReady = idx.blockReason || 'workflow not ready (intake/shape/design/slice/plan incomplete, or a terminal-analysis type with no decided build)'
-  await runEnd(null, 'orient', notReady, false)
+  await runEnd('orient', notReady)
   return { ok: false, stopped: true, mode: idx.mode, reason: notReady, route: idx.route, ...(priorDriver ? { priorDriver } : {}) }
 }
 // Branch posture — DEDICATED only. Land the tree on the slug branch (create it from
@@ -2666,7 +2599,7 @@ let branchAction = null
 if (idx.branch.strategy === 'dedicated' && !idx.branch.match) {
   const b = await ensureBranch(idx)
   if (!b || !b.ok) {
-    await runEnd(null, 'branch', (b && b.reason) || 'dedicated branch posture could not be resolved', false)
+    await runEnd('branch', (b && b.reason) || 'dedicated branch posture could not be resolved')
     return { ok: false, stopped: true, reason: (b && b.reason) || 'dedicated branch posture could not be resolved', route: `resolve the dedicated branch '${idx.branch.target}' (currently on '${idx.branch.current}'), then re-run /wf yolo ${slug}${slice ? ' ' + slice : ''}` }
   }
   if (b.switched) {
@@ -2964,19 +2897,9 @@ if (planReconcile) {
     markerCleared: planReconcile.markerCleared === true,
   }
 }
-// Y4 — the run report shows reads: every stage that wrote with a missing or partial read.
-// A3 — the same last agent writes the run-end line, with the stop and its reason.
+// A3 — the last agent writes the run-end line, with the stop and its reason.
 const cleanStop = outcome.stoppedAt === 'stop-request' || outcome.stoppedAt === 'usage-pause'
-const ledger = await runEnd(runStartFromId(RUN_ID), outcome.stopped ? (outcome.stoppedAt || 'stopped') : null,
-  outcome.stopped && !cleanStop ? outcome.reason : null)
-if (ledger && ledger.present === true) {
-  const readGaps = readCheckRows(ledger.rows, runStartFromId(RUN_ID))
-  outcome.readCheck = readGaps
-  const open = readGaps.filter(r => !r.resolved)
-  log(readGaps.length
-    ? `read check: ${readGaps.length} stage write(s) with a missing or partial read (${open.length} not closed by a later clean write): ${readGaps.map(r => `${r.stage || '?'} → ${r.artifact || '?'} missing [${r.missing.join(', ')}]${r.partial.length ? ` partial [${r.partial.join(', ')}]` : ''}${r.waiver ? ` waiver: ${r.waiver}` : ''}${r.resolved ? ' (resolved)' : ''}`).join('; ')}`
-    : `read check: every checked stage write this run read its required inputs`)
-}
+await runEnd(outcome.stopped ? (outcome.stoppedAt || 'stopped') : null, outcome.stopped && !cleanStop ? outcome.reason : null)
 // W11.1 — decision digest: every autonomous decision this run recorded, grouped by W4 class,
 // so the human's post-run inspection is structured, not archaeological.
 const digest = decisionDigest(outcome)

@@ -38,7 +38,7 @@ Provenance is explicit or inferred — explicit always wins:
 
 When a source attaches, by the token, by a confirmed label match, by a list work packet (the first token after the mode is the `packet-slug` of a work packet file: [../intake.md](../intake.md), "List work packet"), or as the prior run of `update-deps`:
 
-1. Write `from` in the `modes:` list of the frontmatter of each stage artifact that this run writes, for example `modes: [from]`. The mod has no disk fact for `from`, so it checks the `mode:from` row only when `modes:` lists it ([_requires.md](../_requires.md), Modes).
+1. Write `from` in the `modes:` list of the frontmatter of each stage artifact that this run writes, for example `modes: [from]`. `from` has no disk fact, so the `mode:from` row applies only when `modes:` lists it ([_requires.md](../_requires.md), Modes).
 2. Read [_intake-provenance-consume.md](_intake-provenance-consume.md) in full. Apply its Consume table and its Link back steps.
 
 With no source, do not read that file. Write no `from` mode.

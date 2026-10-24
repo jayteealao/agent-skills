@@ -50,8 +50,6 @@ test('each sub-key loads its own file directly, and the catalog has one row per 
   }
   match(skill, /\*\*Sub-keys\.\*\* When the next token is a sub-key of the key/);
   match(skill, /When `loop` or `project` has no sub-key token, render its sub-key rows/);
-  const catalog = read('hooks/mod/catalog.ts');
-  for (const sub of Object.keys(SUB_KEYS)) match(catalog, new RegExp(`key: '${sub}', name: '${sub.split(' ')[1]}'`));
   ok(!existsSync(join(PLUGIN_ROOT, REF, 'loop.md')) && !existsSync(join(PLUGIN_ROOT, REF, 'project.md')), 'loop and project have no reference file');
 });
 

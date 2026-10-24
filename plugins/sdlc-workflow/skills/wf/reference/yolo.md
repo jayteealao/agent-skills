@@ -17,7 +17,7 @@ You are running `/wf yolo`, the **autonomous lifecycle driver**. It resolves eve
 # What `/wf yolo` is (and is not)
 
 - **A driver, not a stage.** Every artifact in `.ai/workflows/<slug>/` is written by a delegated stage subagent that follows the on-disk reference (`plan.md` / `implement.md` / `verify.md` / `review.md`) **exactly**, with one override: where the reference asks the user, the subagent resolves it by policy.
-- **Reads are checked.** Each stage prompt names the reference's `## Requires` table as a checklist per [_requires.md](_requires.md); the mod feeds back a missing read. The run report lists missing reads from `.read-ledger.jsonl`.
+- **Reads are listed.** Each stage prompt names the reference's `## Requires` table as a checklist per [_requires.md](_requires.md).
 - **It resolves gates; it does not remove them.** Each stage's quality gate still runs; `yolo` supplies the answer and records it. Where it cannot produce the runtime proof a criterion needs, it defers that criterion through verify's `interactive-verification: deferred` hatch — recorded, ship-blocking, visible.
 - **It stops before handoff — always.** It never opens a PR or runs `handoff`, `ship`, or `retro`. CI is never in its scope.
 - **Resume is free.** The durable record is the artifact trail (`00-index.md` + numbered files). A killed run resumes on re-invocation: orientation skips stages already terminal-clean. No separate state file.
@@ -185,7 +185,6 @@ Reconciled: <omit when absent | outcome.reconciled: N deferral classification(s)
 Clearing events satisfied: <omit when absent | outcome.clearingEventsSatisfied: N open deferral(s) whose clearing-probe reports the event HAS happened — run /wf probe <slug> to capture the evidence; nothing was cleared automatically>
 Subagent errors: <omit when absent | outcome.subagentErrors: N recovered, M fatal — recovered errors changed no verdict, but the run does not claim zero>
 Deferral pressure: <omit when absent | outcome.deferralPressure: N open, oldest since <date>, M repeat-of wall(s)>
-Read check: <omit when absent | outcome.readCheck: stage, artifact, missing inputs, waiver>
 Plan reconcile: <omit when absent | outcome.planReconcile.replanned, or "no overlap">
 Next: <outcome.route — the routing command>
 ```

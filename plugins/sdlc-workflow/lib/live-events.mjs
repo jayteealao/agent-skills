@@ -1,11 +1,8 @@
 /**
- * lib/live-events.mjs — the event rules of a yolo run, shared by the watch
- * script (`scripts/yolo-watch.mjs`) and the live view of the Claude mod
- * (`hooks/mod/live/`). WF-LIVE-VIEWS-PLAN.md M2: the watch and the view name
- * the same events with the same rules.
+ * lib/live-events.mjs — the event rules of a yolo run, for the watch script
+ * (`scripts/yolo-watch.mjs`).
  *
- * Pure: no imports, no file system, no clock. The mod runs in an environment
- * with no Node, so every read is the caller's. A caller hands in the journal
+ * Pure: no imports, no file system, no clock. A caller hands in the journal
  * lines it read and, for a stage end, what the stage's artifact says.
  */
 

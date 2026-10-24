@@ -1,17 +1,15 @@
 /**
- * The goal arm action (WF-GOAL-PLAN W3, D4), its pure parts. `register.ts` calls
- * them from its `turn.complete` hook.
+ * The goal arm action, its pure parts. `register.ts` calls them from its
+ * `turn.complete` hook.
  *
  * On Claude Code the model cannot type the built-in `/goal`. `goal.mjs arm` writes
  * `.ai/workflows/<slug>/goal/arm.json` with the command and `state: pending`. When
  * the turn of `/wf loop goal <slug>` ends, the mod reads that request and puts the
  * command into the prompt box. Where the surface draws its own prompt box (the
  * Desktop app), the fill is refused and the mod submits the command as the
- * person's prompt instead: the same path as the picker (probe P1 checks that a
- * submitted `/goal` runs as the built-in command). The request then records what
- * happened, so a second turn never arms it twice.
+ * person's prompt instead. The request then records what happened, so a second
+ * turn never arms it twice.
  */
-import { joinPath } from './workflows.ts'
 
 export type ArmRequest = {
   slug: string
@@ -26,8 +24,60 @@ export type ArmRequest = {
 /** How the mod handed the command over: into the box, sent as a prompt, or neither. */
 export type ArmHow = 'filled' | 'submitted' | 'refused'
 
+/** The file reads the mod makes; the hooks module binds `$.fs`, a test binds a tree in memory. */
+export type Reader = {
+  read: (path: string) => Promise<string>
+  exists: (path: string) => Promise<boolean>
+}
+
 /** Claude Code accepts a condition of up to 4,000 characters. */
 export const GOAL_CONDITION_LIMIT = 4000
+
+const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/u
+
+export function joinPath(...parts: string[]): string {
+  return parts
+    .filter(part => part !== '')
+    .map((part, index) => (index === 0 ? part.replace(/[\\/]+$/u, '') : part.replace(/^[\\/]+|[\\/]+$/u, '')))
+    .join('/')
+}
+
+function parentOf(path: string): string | null {
+  const trimmed = path.replace(/[\\/]+$/u, '')
+  const cut = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'))
+  if (cut <= 0) return null
+  const parent = trimmed.slice(0, cut)
+  // "C:" alone is not a directory the reader can list; stop at the drive root.
+  if (/^[A-Za-z]:$/u.test(parent)) return `${parent}/`
+  return parent
+}
+
+/**
+ * The nearest directory at or above `cwd` that holds `.ai/workflows`, or
+ * null when none does within 12 levels.
+ */
+export async function findProjectRoot(cwd: string, reader: Reader): Promise<string | null> {
+  let dir: string | null = cwd
+  for (let depth = 0; dir !== null && depth < 12; depth += 1) {
+    if (await reader.exists(joinPath(dir, '.ai', 'workflows'))) return dir
+    const parent = parentOf(dir)
+    if (parent === null || parent === dir) return null
+    dir = parent
+  }
+  return null
+}
+
+/**
+ * The slug of a `/wf loop goal <slug> ...` command, or null. The namespaced
+ * `/sdlc-workflow:wf` form parses the same way. A first word that is no slug
+ * gives null, so no path is built from it.
+ */
+export function goalSlugOf(text: string): string | null {
+  const match = /^\s*\/(?:sdlc-workflow:)?wf\s+loop\s+goal\s+(\S+)/u.exec(text)
+  if (match === null) return null
+  const slug = match[1] as string
+  return SLUG_PATTERN.test(slug) ? slug : null
+}
 
 export function armRequestPathOf(root: string, slug: string): string {
   return joinPath(root, '.ai', 'workflows', slug, 'goal', 'arm.json')
@@ -64,9 +114,13 @@ export function armToastOf(how: ArmHow): string {
   return 'wf goal: the prompt box is not free. Paste the /goal line that /wf loop goal printed.'
 }
 
-/** The state of the hand-over, from the text the picker's fill returns. */
-export function armHowOf(shown: string, runText: string, submitText: string): ArmHow {
-  if (shown.startsWith(submitText)) return 'submitted'
-  if (shown.startsWith(runText)) return 'filled'
-  return 'refused'
+/**
+ * How the hand-over goes, from the answer of `$.prompt.fill`. A surface that
+ * draws its own prompt box refuses every fill with `no_composer`; there the
+ * command goes out as the person's prompt.
+ */
+export function armHowOf(isFilled: boolean, refusal: string | undefined): ArmHow {
+  if (isFilled) return 'filled'
+  return refusal === 'no_composer' ? 'submitted' : 'refused'
 }
+

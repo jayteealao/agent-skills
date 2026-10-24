@@ -28,9 +28,9 @@ function extractFn(src, name) {
   throw new Error(`unbalanced braces extracting ${name}`);
 }
 
-const { reconcileDue, overlappingSlices, runStartFromId, readCheckRows } = new Function(
-  ['reconcileDue', 'overlappingSlices', 'runStartFromId', 'readCheckRows'].map((n) => extractFn(yoloSrc, n)).join('\n') +
-    '\nreturn { reconcileDue, overlappingSlices, runStartFromId, readCheckRows };',
+const { reconcileDue, overlappingSlices } = new Function(
+  ['reconcileDue', 'overlappingSlices'].map((n) => extractFn(yoloSrc, n)).join('\n') +
+    '\nreturn { reconcileDue, overlappingSlices };',
 )();
 
 // ---- whole-script harness ---------------------------------------------------
@@ -75,15 +75,15 @@ function common(label) {
 
 // ---- Y6 ---------------------------------------------------------------------
 
-test('Y6: runStage names the Requires table as a checked checklist and keeps "read in full"', () => {
+test('Y6: runStage names the Requires table as a checklist and keeps "read in full"', () => {
   const body = extractFn(yoloSrc, 'runStage');
   assert.match(body, /Read \$\{referenceRoot\}\/\$\{stage\}\.md IN FULL/);
   assert.match(body, /requiresClause\(`\$\{referenceRoot\}\/\$\{stage\}\.md`\)/);
   const clause = extractFn(yoloSrc, 'requiresClause');
   assert.match(clause, /## Requires\\` table in \$\{refPath\} is a CHECKLIST/);
   assert.match(clause, /_requires\.md/);
-  assert.match(clause, /The mod checks your reads/);
-  assert.match(clause, /comes back as ` \+\s*`feedback \(context\) in that write's tool result/);
+  assert.match(clause, /A mode also applies when its disk fact/);
+  assert.doesNotMatch(clause, /The mod checks your reads/);
 });
 
 test('Y6: every stage writer the driver dispatches carries the checklist clause', async () => {
@@ -93,7 +93,7 @@ test('Y6: every stage writer the driver dispatches carries the checklist clause'
     return common(label);
   });
   const plan = calls.find((c) => c.label === 'plan:a');
-  assert.match(plan.prompt, /REQUIRED READS \(CHECKED\)/);
+  assert.match(plan.prompt, /REQUIRED READS\. The/);
   assert.match(plan.prompt, /\/plugin\/skills\/wf\/reference\/plan\.md IN FULL/);
 });
 
@@ -102,7 +102,7 @@ test('Y6: every stage writer the driver dispatches carries the checklist clause'
 test('S6: the fan-out review writer names the rubrics it was fed and its output path', async () => {
   const { calls } = await run({}, (label) => (label === 'orient' ? orientResult() : common(label)));
   const writer = calls.find((c) => c.label === 'review');
-  assert.match(writer.prompt, /REQUIRED READS \(CHECKED\)/);
+  assert.match(writer.prompt, /REQUIRED READS\. The/);
   assert.match(writer.prompt, /Prompt-fed inputs: review\/correctness\.md\nOutput artifact: \/repo\/\.ai\/workflows\/demo\/07-review\.md/);
 });
 
@@ -193,49 +193,13 @@ test('Y7 helpers: reconcileDue and overlappingSlices', () => {
 
 // ---- Y4 ---------------------------------------------------------------------
 
-test('Y4: the run report lists stage writes with a missing read, from the read ledger', async () => {
-  const { outcome, calls } = await run({}, (label) => {
-    if (label === 'orient') return orientResult();
-    if (label === 'run-end') {
-      return {
-        present: true,
-        rows: [
-          { at: '2026-09-27T09:00:00Z', agentId: 'old', stage: 'plan', artifact: '04-plan-a.md', missing: ['02-shape.md'] },
-          { at: '2026-09-28T10:05:00Z', agentId: 'r1', stage: 'review', artifact: '07-review.md', missing: ['po-answers.md'], partial: [] },
-          { at: '2026-09-28T10:06:00Z', agentId: 'v1', stage: 'verify', artifact: '06-verify-a.md', missing: ['02-shape.md'], waiver: 'shape absent' },
-          { at: '2026-09-28T10:07:00Z', agentId: 'v1', stage: 'verify', artifact: '06-verify-a.md', missing: [], partial: [] },
-        ],
-      };
-    }
-    return common(label);
-  });
+test('A3: the last agent writes the run-end line with the run id, and reads no read ledger', async () => {
+  const { calls } = await run({}, (label) => (label === 'orient' ? orientResult() : common(label)));
   const report = calls.find((c) => c.label === 'run-end').prompt;
-  assert.match(report, /\.read-ledger\.jsonl/);
-  assert.match(report, /at or after 2026-09-28T10:00:00Z/);
   assert.match(report, /DRIVER HEARTBEAT/);
-  // A3: the same last agent writes the run-end line, with its run id.
   assert.match(report, /yolo-watch\.mjs" end "\/repo" demo --run "20260928T100000Z-demo" --agent run-end/);
-  assert.deepEqual(outcome.readCheck.map((r) => [r.stage, r.resolved, r.waiver]), [
-    ['review', false, undefined],
-    ['verify', true, 'shape absent'],
-  ]);
-});
-
-test('Y4 helpers: runStartFromId and readCheckRows', () => {
-  assert.equal(runStartFromId('20260928T100000Z-demo'), '2026-09-28T10:00:00Z');
-  assert.equal(runStartFromId('run-demo'), null);
-  // no run start → every gap row is reported
-  assert.equal(readCheckRows([{ at: '2026-01-01T00:00:00Z', missing: ['x'] }], null).length, 1);
-  assert.deepEqual(readCheckRows([{ at: '2026-01-01T00:00:00Z', missing: [] }], null), []);
-  assert.deepEqual(readCheckRows(undefined, null), []);
-  assert.equal(readCheckRows([{ at: 'nope', missing: ['x'] }], null).length, 0);
-  assert.equal(readCheckRows([{ at: '2026-01-01T00:00:00Z', partial: ['plan.md'] }], null)[0].partial[0], 'plan.md');
-});
-
-test('Y4: the read ledger is its own file and the driver never writes it or mixes it into the journal', () => {
-  assert.match(yoloSrc, /const READ_LEDGER_PATH = `\$\{projectRoot\}\/\.ai\/workflows\/\$\{slug\}\/\.read-ledger\.jsonl`/);
-  assert.notEqual(yoloSrc.indexOf('.read-ledger.jsonl'), yoloSrc.indexOf('.driver-journal.jsonl'));
-  assert.match(extractFn(yoloSrc, 'runEnd'), /READ CHECK \(READ-ONLY\)/);
+  assert.doesNotMatch(report, /read-ledger/);
+  assert.ok(!yoloSrc.includes('.read-ledger.jsonl'), 'the driver names no read ledger');
 });
 
 // ---- Y8 ---------------------------------------------------------------------
@@ -248,13 +212,15 @@ test('Y8: orient reads current index state only, never the index history', () =>
 
 // ---- the shared contract files -------------------------------------------------
 
-test('_requires.md defines the table, the checklist, the modes, the ledger and the no-hook host rule', () => {
+test('_requires.md defines the table, the checklist and the modes, and no read check', () => {
   const src = ref('_requires.md');
   for (const needle of [
     '| Input | Kind | When | Sections |', 'The table is a checklist', 'A partial read does not count',
-    'A read by a research sub-agent does not count', 'Prompt-fed inputs:', '`read-waiver: "<reason>"`',
-    '`readCheck`', '.read-ledger.jsonl', 'reads-checked: false',
+    'A read by a research sub-agent does not count', 'Prompt-fed inputs:',
   ]) assert.ok(src.includes(needle), `_requires.md lost: ${needle}`);
+  for (const gone of ['`readCheck`', '.read-ledger.jsonl', 'reads-checked: false', 'read-waiver']) {
+    assert.ok(!src.includes(gone), `_requires.md still names the read check: ${gone}`);
+  }
 });
 
 test('the chat narrative holds the story rules, and no stage writes an explainer (v9.187.0)', () => {
@@ -272,9 +238,9 @@ test('the chat return, the additive-write snapshot, and the ownership table', ()
   assert.doesNotMatch(ref('_additive-write.md'), /explainer/);
   const own = ref('_control-file-ownership.md');
   assert.match(own, /index-history\.jsonl/);
-  assert.match(own, /Do not write `\.read-ledger\.jsonl`\. The mod owns it, and it is never `\.driver-journal\.jsonl`/);
+  assert.doesNotMatch(own, /read-ledger/);
   assert.match(ref('_subagents.md'), /Prompt-fed inputs: <input>, <input>/);
-  assert.match(ref('auto.md'), /A compaction that `auto` starts in the middle of a stage keeps the record/);
+  assert.doesNotMatch(ref('auto.md'), /read record/);
 });
 
 // ---- plan order and plan freshness ------------------------------------------

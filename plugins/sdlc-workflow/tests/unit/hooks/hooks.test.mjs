@@ -832,12 +832,31 @@ test('machine-cleanup removes the old state under SDLC_HOME, writes nothing to s
     const home = join(tmp, '.sdlc-home');
     writeFile(join(home, 'registry.json'), '{}');
     writeFile(join(home, 'errors.log'), 'kept\n');
-    const result = runHook(HOOKS.machineCleanup, { cwd: tmp, hook_event_name: 'SessionStart' }, tmp, { SDLC_HOME: home });
+    const result = runHook(HOOKS.machineCleanup, { cwd: tmp, hook_event_name: 'SessionStart' }, tmp, { SDLC_HOME: home, CLAUDE_CONFIG_DIR: join(tmp, '.claude') });
     equal(result.status, 0, result.stderr);
     equal(result.stdout.trim(), '', 'machine-cleanup emits nothing to stdout');
     equal(existsSync(join(home, 'registry.json')), false, 'the old registry is removed');
     equal(readFileSync(join(home, 'errors.log'), 'utf-8'), 'kept\n', 'the error log stays');
     ok(existsSync(join(home, '.v10-cleanup.json')), 'the marker is written');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('machine-cleanup warns once about old mod settings, and only reads the settings file', () => {
+  const tmp = tempDir();
+  try {
+    const home = join(tmp, '.sdlc-home');
+    const settings = join(tmp, '.claude', 'settings.json');
+    const text = JSON.stringify({ pluginConfigs: { 'sdlc-workflow@m': { options: { strip: true } } } });
+    writeFile(settings, text);
+    const env = { SDLC_HOME: home, CLAUDE_CONFIG_DIR: join(tmp, '.claude') };
+    const first = runHook(HOOKS.machineCleanup, { cwd: tmp, hook_event_name: 'SessionStart' }, tmp, env);
+    equal(first.status, 0, first.stderr);
+    match(JSON.parse(first.stdout).systemMessage, /These settings are ignored: strip\./);
+    const second = runHook(HOOKS.machineCleanup, { cwd: tmp, hook_event_name: 'SessionStart' }, tmp, env);
+    equal(second.stdout.trim(), '', 'the warning shows once');
+    equal(readFileSync(settings, 'utf-8'), text, 'the settings file is not changed');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

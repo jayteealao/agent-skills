@@ -20,7 +20,7 @@ test('E1: the shared block of each driver is current (run npm run build after an
 });
 
 test('E1: _shared.js holds the helpers both drivers share, and only function declarations', () => {
-  for (const n of ['steeringClause', 'verifyClean', 'evaluateGate', 'planWaves', 'walkOrder', 'readCheckRows', 'implementStepsClause', 'touchesCharter', 'refuteGroups']) {
+  for (const n of ['steeringClause', 'verifyClean', 'evaluateGate', 'planWaves', 'walkOrder', 'implementStepsClause', 'touchesCharter', 'refuteGroups']) {
     assert.ok(names.includes(n), `_shared.js has no function ${n}`);
   }
   // A const would be read before it is set when the block sits below the top-level code.

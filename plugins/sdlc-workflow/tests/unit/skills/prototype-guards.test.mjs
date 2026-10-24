@@ -38,13 +38,12 @@ test('the key reference: person-only rounds, one round per run, decide-only comm
   assert.doesNotMatch(ref, /\bSTOP\b/, 'the stop sentences are inventoried; the key ends the run instead');
 });
 
-test('the dispatcher, the picker, and the host contract name the key', () => {
+test('the dispatcher and the host contract name the key', () => {
   const skill = read('skills/wf/SKILL.md');
   assert.match(skill, /one of the 19 keys/);
   assert.match(skill, /^\| `loop` \| .*`prototype text` · `prototype <slug>\\\|<branch> \[text\]`/m);
   assert.match(skill, /the reference is `reference\/route\.md` with every token, reason `not a key`/);
   assert.match(skill, /^\| `loop goal`, `loop optimize`, `loop prototype` \|/m);
-  assert.match(read('hooks/mod/catalog.ts'), /key: 'loop prototype'/);
   assert.match(read(`${REF}/_host-surfaces.md`), /\| Published page \(prototype\) \|/);
   assert.equal(JSON.parse(read('docs/internal/surface-policy.json')).keys, 19);
 });

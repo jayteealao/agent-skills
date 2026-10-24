@@ -153,16 +153,6 @@ describe('measure over synthetic data', () => {
     // A fixture project the meter skips.
     mkdirSync(join(dev, 'wf-mod-fixture', '.ai', 'workflows', 'x'), { recursive: true });
     writeFileSync(join(dev, 'wf-mod-fixture', '.ai', 'workflows', 'x', '00-index.md'), 'x'.repeat(90000));
-    // A read ledger: two verify checks (one complete), one review check.
-    writeFileSync(
-      join(slug, '.read-ledger.jsonl'),
-      [
-        { at: '2026-09-01T00:00:00Z', agentId: 'a1', stage: 'verify', artifact: '06-verify-auth.md', missing: [], partial: [], waiver: null },
-        { at: '2026-09-01T00:00:00Z', agentId: 'a2', stage: 'verify', artifact: '06-verify-auth.md', missing: ['02-shape.md'], partial: [], waiver: null },
-        { at: '2026-09-01T00:00:00Z', agentId: 'a3', stage: 'review', artifact: '07-review-auth.md', missing: [], partial: ['02-shape.md'], waiver: 'why' },
-        { at: '2026-01-01T00:00:00Z', agentId: 'old', stage: 'review', artifact: '07-review-auth.md', missing: ['x'], partial: [], waiver: null },
-      ].map((r) => JSON.stringify(r)).join('\n') + '\n',
-    );
 
     // Yolo verify agent: reads its reference in part, the implement artifact by
     // absolute path, the shape by a shell `cat`, po-answers by a relative Read,
@@ -283,14 +273,6 @@ describe('measure over synthetic data', () => {
     assert.equal(out.writes.explainerShare, 16.7);
   });
 
-  test('(e) read-ledger coverage per stage, rows before --since dropped', () => {
-    assert.equal(out.ledger.ledgerFiles, 1);
-    assert.equal(out.ledger.checks, 3);
-    assert.equal(out.ledger.stages.verify.completeShare, 50);
-    assert.equal(out.ledger.stages.review.completeShare, 100);
-    assert.equal(out.ledger.stages.review.waived, 1);
-    assert.equal(out.headline['ledger.verify.complete%'], 50);
-  });
 });
 
 describe('stageWantsOf (WF-SUBPROCEDURE-AUDIT W0)', () => {

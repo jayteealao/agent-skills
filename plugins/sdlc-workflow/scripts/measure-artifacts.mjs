@@ -11,8 +11,6 @@
 //   (c) index   — 00-index.md size p50/p90/max across slugs on disk.
 //   (d) writes  — artifact write mix: stage `.md` against the view layer
 //                 (`.yaml`, `.html.fragment`) and the explainer fragment.
-//   (e) ledger  — required-read coverage from `.ai/workflows/*/.read-ledger.jsonl`
-//                 rows (spec S6): the share of checks with an empty `missing` list.
 //
 // A read is a `Read` call, or a shell command (Bash, PowerShell, a Codex shell
 // call) that reads a file with a read verb (`cat`, `Get-Content`, `sed`, ...).
@@ -30,7 +28,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { collectRequires } from './build-requires.mjs';
+import { collectRequires } from '../lib/requires-tables.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(HERE, '..');
@@ -597,43 +595,6 @@ function indexSection(slugs) {
   };
 }
 
-/** Required-read coverage from `.read-ledger.jsonl` rows (spec S6). */
-export function ledgerSection(slugs, sinceMs) {
-  const by = {};
-  let files = 0;
-  for (const s of slugs) {
-    const f = join(s.dir, '.read-ledger.jsonl');
-    if (!existsSync(f)) continue;
-    files++;
-    for (const line of readFileSync(f, 'utf8').split('\n')) {
-      if (!line.trim()) continue;
-      let row;
-      try {
-        row = JSON.parse(line);
-      } catch {
-        continue;
-      }
-      const at = Date.parse(row.at || '');
-      if (!Number.isNaN(at) && at < sinceMs) continue;
-      const st = row.stage || '(none)';
-      const b = (by[st] ??= { checks: 0, complete: 0, waived: 0, partial: 0 });
-      b.checks++;
-      if (Array.isArray(row.missing) && row.missing.length === 0) b.complete++;
-      if (row.waiver) b.waived++;
-      if (Array.isArray(row.partial) && row.partial.length) b.partial++;
-    }
-  }
-  const stages = {};
-  let checks = 0;
-  let complete = 0;
-  for (const [st, b] of Object.entries(by)) {
-    stages[st] = { ...b, completeShare: pct(b.complete, b.checks) };
-    checks += b.checks;
-    complete += b.complete;
-  }
-  return { ledgerFiles: files, checks, completeShare: pct(complete, checks), stages };
-}
-
 // ---------------------------------------------------------------------------
 // The whole measure, the headline, the baseline compare
 // ---------------------------------------------------------------------------
@@ -649,7 +610,6 @@ export async function measure({ since, projects, codex, dev }) {
     reads: t.reads,
     index: indexSection(slugs),
     writes: t.writes,
-    ledger: ledgerSection(slugs, sinceMs),
   };
   result.headline = headlineOf(result);
   return result;
@@ -678,8 +638,6 @@ export function headlineOf(r) {
   h['writes.view%'] = r.writes.viewShare;
   h['writes.explainer%'] = r.writes.explainerShare;
   h['writes.artifactOfOutput%'] = r.writes.artifactShareOfOutput;
-  h['ledger.complete%'] = r.ledger.completeShare;
-  for (const [st, b] of Object.entries(r.ledger.stages)) h[`ledger.${st}.complete%`] = b.completeShare;
   return h;
 }
 
@@ -719,13 +677,6 @@ function formatText(r, comparison) {
   L.push('');
   L.push('(d) artifact writes (Claude Write/Edit/MultiEdit/NotebookEdit, tokens)');
   L.push(`  stage md ${r.writes.stageMdTokens} · view ${r.writes.viewTokens} (${r.writes.viewShare}%) · explainer ${r.writes.explainerTokens} (${r.writes.explainerShare}%) · artifact share of output ${r.writes.artifactShareOfOutput}%`);
-  L.push('');
-  L.push('(e) read ledger');
-  if (!r.ledger.ledgerFiles) L.push('  no .read-ledger.jsonl files yet');
-  else {
-    L.push(`  ${r.ledger.ledgerFiles} ledger files · ${r.ledger.checks} checks · complete ${r.ledger.completeShare}%`);
-    for (const [st, b] of Object.entries(r.ledger.stages)) L.push(`  ${st.padEnd(12)} checks ${b.checks} · complete ${b.completeShare}% · waived ${b.waived}`);
-  }
   if (comparison) {
     L.push('');
     L.push('baseline compare');

@@ -176,7 +176,7 @@ export function activeWorkflowIndexes(workflows) {
 // the workflow directory (probe-evidence/, verify-evidence/) are free-form and
 // written after the index, so they never mark a workflow stale
 // (ARTIFACT-SPLIT-PLAN S5). `.jsonl` files (index-history.jsonl,
-// .read-ledger.jsonl, cost.jsonl) are ignored by the extension filter below.
+// cost.jsonl) are ignored by the extension filter below.
 // A brainstorm's research/, references/ and work/ get no page, so they never
 // mark a workflow stale either (WF-PIECES-PLAN).
 const STALE_EXEMPT_DIRS = new Set([...EVIDENCE_DIRS, ...SOURCE_DIRS, WORK_DIR]);

@@ -34,7 +34,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { parseRequires } from '../../../scripts/build-requires.mjs';
+import { parseRequires } from '../../../lib/requires-tables.mjs';
 
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const REF_DIR = path.join(PLUGIN_ROOT, 'skills', 'wf', 'reference');

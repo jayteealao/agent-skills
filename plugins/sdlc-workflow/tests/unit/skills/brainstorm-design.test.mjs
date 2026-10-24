@@ -27,7 +27,6 @@ test('brainstorm is an intake mode, not a key: no row, no router, the merged inv
   match(mode, /When the next token is `design`, set the board's `focus: design`/);
   match(mode, /`design` as the first token sets `focus: design`/);
   doesNotMatch(mode, /same loop under its own key/);
-  doesNotMatch(read('hooks/mod/catalog.ts'), /key: 'brainstorm'/);
   equal(JSON.parse(read('docs/internal/surface-policy.json')).keys, 19);
 });
 

@@ -8,7 +8,7 @@ import {
 
 // lib/machine-cleanup.mjs
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 var MARKER = ".v10-cleanup.json";
@@ -32,8 +32,42 @@ var STATE_ENTRIES = Object.freeze([
   "tray.heartbeat.json",
   ".tray-heal",
   "bin",
-  "doctor.txt"
+  "doctor.txt",
+  "mod-probe.jsonl"
 ]);
+var RETIRED_MOD_SETTINGS = Object.freeze([
+  "mod",
+  "strip",
+  "suggestNext",
+  "stageCheck",
+  "questionProgress",
+  "driverStatus",
+  "spinnerVerb",
+  "cost",
+  "hubNotice",
+  "stageCompact",
+  "probeJournal",
+  "readCheck",
+  "viewStyle",
+  "liveView",
+  "liveViewDetails"
+]);
+function retiredModSettingsNotice({ env = process.env, userHome = homedir() } = {}) {
+  let settings;
+  try {
+    const dir = env.CLAUDE_CONFIG_DIR || join(userHome, ".claude");
+    settings = JSON.parse(readFileSync(join(dir, "settings.json"), "utf-8").replace(/^﻿/, ""));
+  } catch {
+    return null;
+  }
+  const set = /* @__PURE__ */ new Set();
+  for (const [id, entry] of Object.entries(settings?.pluginConfigs ?? {})) {
+    if (!id.startsWith("sdlc-workflow@") || !entry?.options || typeof entry.options !== "object") continue;
+    for (const name of RETIRED_MOD_SETTINGS) if (Object.hasOwn(entry.options, name)) set.add(name);
+  }
+  if (set.size === 0) return null;
+  return `sdlc-workflow: the mod now only arms /goal. These settings are ignored: ${[...set].join(", ")}.`;
+}
 var HUB_SCRIPT = /hub-serve\.mjs/i;
 var TRAY_SCRIPT = /[\\/]tray\.mjs/i;
 function trayLauncherPath({ platform = process.platform, env = process.env, home = homedir() } = {}) {
@@ -143,6 +177,7 @@ function runMachineCleanup({
   const done = left.length === 0;
   if (done) {
     try {
+      mkdirSync(home, { recursive: true });
       writeFileSync(marker, `${JSON.stringify({ at: now().toISOString(), stopped, removed: removed.length }, null, 2)}
 `, "utf-8");
     } catch {
@@ -151,7 +186,8 @@ function runMachineCleanup({
   if (stopped.length || removed.length || left.length) {
     logLifecycle({ event: "v10-cleanup", host: env.SDLC_HOST || "claude", reason: done ? "done" : `left: ${left.join(", ")}`, stopped, removed: removed.length }, { home });
   }
-  return { stopped, removed, left, done };
+  const notice = done ? retiredModSettingsNotice({ env, userHome }) : null;
+  return { stopped, removed, left, done, notice };
 }
 
 export {

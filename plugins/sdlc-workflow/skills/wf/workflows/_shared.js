@@ -46,7 +46,7 @@ function implementStepsClause(slice, progressPath, retry) {
 // The clause names the PATH, never a copy of the text: the user may edit steer.md
 // while the run drives, and each agent that starts after the edit must see it. A
 // snapshot taken at orient would freeze the entries for the whole run.
-// Bookkeeping agents (branch, write-back, index write-back, ledger report) get no
+// Bookkeeping agents (branch, write-back, index write-back, run end) get no
 // clause: they change no code and judge nothing a steering entry governs.
 // ---------------------------------------------------------------------------
 function steeringClause(steerPath, role, contractPath, campaignSteerPath = null) {
@@ -137,25 +137,21 @@ function steeringDigest(o) {
 // Y6 — THE REQUIRES TABLE IS A CHECKLIST. Yolo stage agents read their own reference
 // almost always, then skipped what it points to: the shape in 8–18% of implement,
 // verify and review runs, procedure files in 3–58%. Nothing in the run noticed. The
-// stage reference's `## Requires` table now names every input, the mod checks the
-// writer's reads against it, and a missing read comes back as feedback in the write's
-// tool result (warn mode: the write lands). The prompt says so, so the agent reads
-// the table before it writes and acts on the feedback instead of ignoring it.
+// stage reference's `## Requires` table now names every input. No hook checks the
+// reads, so the prompt asks the agent to read the table before it writes.
 function requiresClause(refPath) {
-  return `\n\nREQUIRED READS (CHECKED). The \`## Requires\` table in ${refPath} is a CHECKLIST, defined by ` +
+  return `\n\nREQUIRED READS. The \`## Requires\` table in ${refPath} is a CHECKLIST, defined by ` +
     `${referenceRoot}/_requires.md. Before you write the stage artifact, read every row whose When value applies ` +
     `to this run — each whole-file input from its first line to its last, each named section in full — yourself, ` +
     `with the file-read tool. A search hit, a shell read, a partial read, or a sub-agent's read does not count. ` +
     `A \`mode:<name>\` row applies when its mode applies to this run: list every mode you ran under in the stage ` +
-    `artifact's \`modes:\` frontmatter (for example \`modes: [deferral]\`). The mod also finds some modes on disk ` +
-    `(section "Modes" of ${referenceRoot}/_requires.md lists them), and a mode it finds there applies even when ` +
-    `\`modes:\` leaves it out. The mod checks your reads when you write the stage artifact: a missing or partial read comes back as ` +
-    `feedback (context) in that write's tool result. When it does, read each named input, then write the ` +
-    `artifact again in this same run. Keep reading ${refPath} in full as well.`
+    `artifact's \`modes:\` frontmatter (for example \`modes: [deferral]\`). A mode also applies when its disk fact ` +
+    `holds (section "Modes" of ${referenceRoot}/_requires.md lists them), even when \`modes:\` leaves it out. ` +
+    `Keep reading ${refPath} in full as well.`
 }
 
 // S6 — a dispatch prompt that carries the full text of a Requires input names it, so the
-// read check counts it as read for the writer of the named output path.
+// writer of the named output path counts it as read.
 function promptFedLine(inputs, outputPath) {
   const list = (inputs || []).filter(Boolean)
   if (!list.length) return ''
@@ -634,33 +630,6 @@ function overlappingSlices(overlaps, roster) {
   return (roster || [])
     .filter(s => s && s.slice && s.status !== 'skipped' && want.has(s.slice))
     .map(s => ({ slice: s.slice, with: [...want.get(s.slice).with], detail: [...new Set(want.get(s.slice).details)].join('; ') }))
-}
-
-// runStartFromId() — orient mints the runId from the clock ('20260726T143005Z-<slug>');
-// its timestamp is the earliest moment a row of THIS run can carry.
-function runStartFromId(runId) {
-  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/.exec(String(runId || ''))
-  return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z` : null
-}
-
-function readCheckRows(rows, runStartAt) {
-  const start = runStartAt ? Date.parse(runStartAt) : NaN
-  const gap = r => (Array.isArray(r.missing) && r.missing.length > 0) || (Array.isArray(r.partial) && r.partial.length > 0)
-  const inRun = (rows || [])
-    .filter(r => r && typeof r.at === 'string' && !Number.isNaN(Date.parse(r.at)))
-    .filter(r => Number.isNaN(start) || Date.parse(r.at) >= start)
-    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
-  const out = []
-  inRun.forEach((r, i) => {
-    if (!gap(r)) return
-    const resolved = inRun.slice(i + 1).some(l => l.artifact === r.artifact && l.agentId === r.agentId && !gap(l))
-    out.push({
-      at: r.at, stage: r.stage || '', artifact: r.artifact || '', agentId: r.agentId || '',
-      missing: r.missing || [], partial: r.partial || [], resolved,
-      ...(r.waiver ? { waiver: r.waiver } : {}),
-    })
-  })
-  return out
 }
 
 // WF-SYSTEM-REVIEW E3: the stage prompt states the shared rules once. A stage agent does not

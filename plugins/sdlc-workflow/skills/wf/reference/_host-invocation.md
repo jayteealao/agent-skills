@@ -52,6 +52,6 @@ Every other key runs under every host. Under Codex or pi, treat `yolo` as an unk
 | Sub-agent context injection | Not wired: no SubagentStart hook runs. The coordinator's prompt carries everything ([_subagents.md](_subagents.md)) | The SubagentStart adapter injects the active slugs and stages, the child write discipline, and the External Output Boundary reminder | Not wired |
 | Progress surface | None required | The built-in plan tool, for nontrivial work, when available | None required |
 | Durable repo guidance | `CLAUDE.md` and `AGENTS.md` | `AGENTS.md` | `CLAUDE.md` and `AGENTS.md` |
-| Context compaction | No hook re-reads the control files. Re-read `00-index.md` and the stage artifacts before you continue. The mod's post-stage compaction keeps the workflow position | No hook re-reads the control files: the SessionStart adapter returns at once on a compaction. Re-read them yourself | Same as Claude Code, without the mod |
+| Context compaction | No hook re-reads the control files. Re-read `00-index.md` and the stage artifacts before you continue | No hook re-reads the control files: the SessionStart adapter returns at once on a compaction. Re-read them yourself | Same as Claude Code |
 
 The enforcement timing differs by design. The verification outcome does not: the same bundled runtime validates the artifact under every host.

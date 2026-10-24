@@ -9,13 +9,15 @@
 //   2. deletes the tray's login launcher, when it is the tray's own file;
 //   3. copies the external-dispatch consent (`externalDispatch`) from
 //      hub-config.json to ~/.sdlc/config.json, so the consent survives;
-//   4. removes the hub, registry, runtime and tray state from ~/.sdlc.
+//   4. removes the hub, registry, runtime and tray state from ~/.sdlc;
+//   5. returns one warning when the Claude Code settings file still sets an old
+//      mod setting. It only reads that file.
 // It keeps errors.log, lifecycle.log and every other file. When nothing is left to
 // remove it writes `.v10-cleanup.json`, and later calls return at once. A step that
 // fails (a file still locked) is retried at the next session start.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -28,8 +30,32 @@ export const STATE_ENTRIES = Object.freeze([
   'hub.pid', 'hub-config.json', 'hub-history.jsonl', 'hub.log', 'hub.log.1', 'hub.log.2',
   'active-runtime.json', 'runtime', 'registry.json', 'registry.d', 'registry.prune.log',
   'registry.prune.log.1', 'registry.prune.log.2', 'hub.lock', 'hub-upgrade.lock', 'hub-upgrade.previous.json',
-  'tray.heartbeat.json', '.tray-heal', 'bin', 'doctor.txt',
+  'tray.heartbeat.json', '.tray-heal', 'bin', 'doctor.txt', 'mod-probe.jsonl',
 ]);
+
+/** The settings of the mod before it was cut down to the goal arming. A value set for one is ignored. */
+export const RETIRED_MOD_SETTINGS = Object.freeze([
+  'mod', 'strip', 'suggestNext', 'stageCheck', 'questionProgress', 'driverStatus', 'spinnerVerb', 'cost',
+  'hubNotice', 'stageCompact', 'probeJournal', 'readCheck', 'viewStyle', 'liveView', 'liveViewDetails',
+]);
+
+/** The one warning for old mod settings in the Claude Code settings file, or null. It only reads the file. */
+export function retiredModSettingsNotice({ env = process.env, userHome = homedir() } = {}) {
+  let settings;
+  try {
+    const dir = env.CLAUDE_CONFIG_DIR || join(userHome, '.claude');
+    settings = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf-8').replace(/^﻿/, ''));
+  } catch {
+    return null;
+  }
+  const set = new Set();
+  for (const [id, entry] of Object.entries(settings?.pluginConfigs ?? {})) {
+    if (!id.startsWith('sdlc-workflow@') || !entry?.options || typeof entry.options !== 'object') continue;
+    for (const name of RETIRED_MOD_SETTINGS) if (Object.hasOwn(entry.options, name)) set.add(name);
+  }
+  if (set.size === 0) return null;
+  return `sdlc-workflow: the mod now only arms /goal. These settings are ignored: ${[...set].join(', ')}.`;
+}
 
 // What each process must run for the cleanup to stop it.
 const HUB_SCRIPT = /hub-serve\.mjs/i;
@@ -146,10 +172,12 @@ export function runMachineCleanup({
 
   const done = left.length === 0;
   if (done) {
-    try { writeFileSync(marker, `${JSON.stringify({ at: now().toISOString(), stopped, removed: removed.length }, null, 2)}\n`, 'utf-8'); } catch { /* retried next session */ }
+    try { mkdirSync(home, { recursive: true }); writeFileSync(marker, `${JSON.stringify({ at: now().toISOString(), stopped, removed: removed.length }, null, 2)}\n`, 'utf-8'); } catch { /* retried next session */ }
   }
   if (stopped.length || removed.length || left.length) {
     logLifecycle({ event: 'v10-cleanup', host: env.SDLC_HOST || 'claude', reason: done ? 'done' : `left: ${left.join(', ')}`, stopped, removed: removed.length }, { home });
   }
-  return { stopped, removed, left, done };
+  // The warning shows once: on the run that writes the marker.
+  const notice = done ? retiredModSettingsNotice({ env, userHome }) : null;
+  return { stopped, removed, left, done, notice };
 }

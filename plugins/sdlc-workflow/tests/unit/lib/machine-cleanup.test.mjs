@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { MARKER, runMachineCleanup, trayLauncherPath } from '../../../lib/machine-cleanup.mjs';
+import { MARKER, retiredModSettingsNotice, runMachineCleanup, trayLauncherPath } from '../../../lib/machine-cleanup.mjs';
 
 function setup() {
   const root = mkdtempSync(join(tmpdir(), 'machine-cleanup-'));
@@ -126,6 +126,24 @@ test('a stop that fails leaves no marker, so the next session retries', () => {
     assert.ok(!existsSync(join(home, MARKER)));
   } finally {
     process.kill = realKill;
+    cleanup();
+  }
+});
+
+test('old mod settings give one warning, on the run that writes the marker; the settings file is not changed', () => {
+  const { home, userHome, cleanup } = setup();
+  try {
+    const settings = join(userHome, '.claude', 'settings.json');
+    mkdirSync(join(userHome, '.claude'), { recursive: true });
+    const text = JSON.stringify({ pluginConfigs: { 'sdlc-workflow@m': { options: { mod: false, viewStyle: 'grid' } }, 'other@m': { options: { strip: true } } } });
+    writeFileSync(settings, text);
+    const { exec } = fakeExec({});
+    const first = runMachineCleanup({ home, platform: 'linux', env: {}, userHome, exec });
+    assert.match(first.notice, /These settings are ignored: mod, viewStyle./);
+    assert.deepEqual(runMachineCleanup({ home, platform: 'linux', env: {}, userHome, exec }), { skipped: true });
+    assert.equal(readFileSync(settings, 'utf-8'), text);
+    assert.equal(retiredModSettingsNotice({ env: { CLAUDE_CONFIG_DIR: join(userHome, 'none') }, userHome }), null);
+  } finally {
     cleanup();
   }
 });

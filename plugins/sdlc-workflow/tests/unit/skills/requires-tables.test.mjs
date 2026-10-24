@@ -1,8 +1,7 @@
 // ARTIFACT-SPLIT-PLAN W2 — the Requires-table guard (build spec S1).
 //
 // Every stage reference that writes a stage artifact carries one `## Requires`
-// table. The table replaces the prose read orders of Step 0, and the mod's read
-// check (S6) reads it through hooks/mod/requires.ts. This test pins:
+// table. The table replaces the prose read orders of Step 0. This test pins:
 //   (a) each stage reference has exactly one table that parses, with a `writes`
 //       row unless the reference is a listed reader or router;
 //   (b) no Step 0 / Orient "Read `<file>`" or "Load `<file>`" sentence names a
@@ -10,9 +9,7 @@
 //   (c) each `procedure` row names a file on disk, and each `artifact` / `writes`
 //       row uses only the `<slice>` and `<mode>` placeholders.
 // Covered elsewhere, not duplicated here:
-//   (d) hooks/mod/requires.ts is current — tests/unit/mod/build-requires.test.mjs
-//       runs `node scripts/build-requires.mjs --check`.
-//   (e) the prose budget does not grow — tests/unit/prose-budget.test.mjs runs
+//   (d) the prose budget does not grow — tests/unit/prose-budget.test.mjs runs
 //       scripts/verify-prose-budget.mjs against the committed ceilings.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -20,7 +17,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { parseRequires } from '../../../scripts/build-requires.mjs';
+import { collectRequires, parseRequires } from '../../../lib/requires-tables.mjs';
 
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const REF_DIR = path.join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
@@ -113,6 +110,10 @@ test('(a) every stage reference has exactly one Requires table that parses, with
     if (NO_WRITES.has(rel)) assert.equal(writes.length, 0, `${rel} is listed as a non-writer but has a writes row`);
     else assert.ok(writes.length > 0, `${rel}: no writes row`);
   }
+});
+
+test('(a) no table in the reference tree is malformed', () => {
+  assert.deepEqual(collectRequires(REF_DIR).errors, []);
 });
 
 test('(c) procedure rows exist on disk; artifact and writes rows use only <slice> and <mode>', () => {

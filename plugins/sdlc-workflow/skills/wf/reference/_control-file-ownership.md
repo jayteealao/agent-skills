@@ -29,11 +29,9 @@ Three JSONL files sit next to `00-index.md`. Each has one kind of writer and one
 |---|---|---|
 | `index-history.jsonl` | any stage or driver that removes history from the index | `{"at":"<ISO-8601>","kind":"note\|next-commentary\|subpass\|migrated","text":"<text>","stage":"<stage or null>"}` |
 | `.driver-journal.jsonl` | the agents a driver dispatches | heartbeat rows only (the staleness rule in `_liveness.md`) |
-| `.read-ledger.jsonl` | the mod only | one read-check row per stage write ([_requires.md](_requires.md)) |
 
 - `index-history.jsonl` holds what the index no longer needs: YAML comment prose, old next-step commentary, and finished sub-pass telemetry. Append one row for each item you remove, then remove it from the index. The deferral list (cleared entries too), the intent risks, the charter and the `revisions:` ledger stay in the index.
 - Write only driver heartbeat rows to `.driver-journal.jsonl`. The liveness check reads its newest line as the driver's state, so any other row makes a live run look dead or a dead run look alive.
-- Do not write `.read-ledger.jsonl`. The mod owns it, and it is never `.driver-journal.jsonl`.
 
 ## What this is not
 
