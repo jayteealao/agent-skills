@@ -46,12 +46,25 @@ test('recordRun writes the measured time and keeps the other settings', () => {
   } finally { f.done(); }
 });
 
+test('setSuite writes the command and the estimate, keeps a measured time, and makes a missing config', async () => {
+  const { setSuite } = await import('../../lib/test-profile.mjs');
+  const f = fixture();
+  try {
+    assert.deepEqual(setSuite(f.root, 'full', { command: ' npm run test:all ', estimateSeconds: 600 }), { command: 'npm run test:all', estimateSeconds: 600 });
+    recordRun(f.root, 'full', 500, { now: 'x' });
+    assert.deepEqual(setSuite(f.root, 'full', { command: 'npm run test:all', estimateSeconds: 700 }), { command: 'npm run test:all', estimateSeconds: 700, measuredSeconds: 500, measuredAt: 'x' });
+    assert.throws(() => setSuite(f.root, 'full', { command: '', estimateSeconds: 1 }), /needs a command/);
+    assert.throws(() => setSuite(f.root, 'full', { command: 'x', estimateSeconds: 1.5 }), /whole number/);
+  } finally { f.done(); }
+});
+
 test('wf.mjs profile: show, record and timebox', () => {
   const f = fixture({ testProfile: { fast: { command: 'npm test', estimateSeconds: 30 }, affected: { command: 'npm test -- {files}', estimateSeconds: 300 } } });
   const cli = (...a) => spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'wf.mjs'), 'profile', ...a], { encoding: 'utf8' });
   try {
     assert.equal(cli('show', f.root).stdout, 'fast: `npm test` (30s estimated)\naffected: `npm test -- {files}` (300s estimated)\n');
     assert.equal(cli('record', f.root, 'affected', '100').stdout.trim(), 'affected: 100s measured');
+    assert.equal(cli('set', f.root, 'heavy', '--command', 'npm run e2e', '--estimate', '1200').stdout.trim(), 'heavy: `npm run e2e` (1200s estimated)');
     assert.equal(cli('timebox', f.root, 'implement').stdout.trim(), 'implement: 10 minutes (fast, affected)');
     assert.equal(cli('timebox', f.root, 'plan').stdout.trim(), 'plan: 10 minutes (no suite time; the floor)');
     assert.deepEqual(JSON.parse(cli('timebox', f.root, 'verify', '--work', '600', '--json').stdout).seconds, 990);

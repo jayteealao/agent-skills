@@ -87,6 +87,19 @@ You are a **workflow orchestrator**, not a problem solver.
 
 Run the probes in `intake/default/_stack-fingerprint.md`: repo signals (manifests, platforms, UI framework, build, testing, observability, integration markers) and the session catalog (skills, commands, MCP servers visible to this run). Write the result into `00-index.md` as the `stack:` block with `user-confirmed: false`. Record only what is detected; omit rather than guess. Recommend nothing here; that conversation belongs in shape, after Batch B confirms or corrects the fingerprint.
 
+# Step 0.6 — Test profile estimate (no run)
+
+Run `node "<skill-dir>/scripts/wf.mjs" profile show "<projectRoot>"`. When it prints `no test profile`, or a suite is missing, estimate the four suites from the manifests and the test tooling of the stack fingerprint:
+
+| Suite | What it runs |
+|---|---|
+| `fast` | the unit tests and the type check, in seconds to a few minutes |
+| `affected` | the tests of the changed files; `{files}` stands for the files |
+| `full` | every automated suite of the repo |
+| `heavy` | the device, browser or end-to-end suites, when the repo has them |
+
+For each suite, run `node "<skill-dir>/scripts/wf.mjs" profile set "<projectRoot>" <suite> --command "<command>" --estimate <seconds>`. Do not run a suite to time it: each later real run records its time with `profile record`. Omit a suite that the repo does not have. Show the estimates in the stack confirmation question of Batch B, so that the person can correct a command.
+
 # Step 0.7 — Bounded research pass (ground the questions in the code — conditional)
 
 Intake questions asked blind push ambiguities the codebase would resolve for free onto the PO, or

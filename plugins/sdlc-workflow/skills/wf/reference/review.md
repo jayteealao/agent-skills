@@ -28,6 +28,7 @@ You are running `/wf review`, **stage 7 of 10** in the SDLC lifecycle.
 - Fix every BLOCKER, HIGH and MED finding. Fix a LOW or NIT finding only when it is in this diff, local and safe. Otherwise defer it, with the reason.
 - Dismiss a finding only when it is a false positive, with the reason.
 - A finding against a confirmed design board is the decision of the person: record it open, with triage `needs-amend`.
+- After the fix loop, run the full and heavy suites of the test profile once for the packet. Record the time of each run with `wf.mjs profile record`.
 - Compute the verdict from the open findings only.
 - Stop on a `dont-ship` verdict, or on an open security or data-loss BLOCKER that the fix loop did not fix.
 

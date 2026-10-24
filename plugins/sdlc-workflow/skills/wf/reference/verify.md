@@ -23,8 +23,10 @@ You are running `/wf verify`, **stage 6 of 10**: 1·intake → 2·shape → 3·s
 ## Card
 
 - Check every acceptance criterion and every check of the plan. Fix each fixable issue in one fix round, and record it in `## Verify-Owned Fixes`.
-- Defer an acceptance criterion only over a probed incapability, per [verify/_deferrals.md](verify/_deferrals.md). The deferral holds the probe command of this run and its output.
+- Defer an acceptance criterion only over a probed incapability, per [verify/_deferrals.md](verify/_deferrals.md). A new deferral holds the probe command of this run and its output. An open deferral that `wf.mjs defer check` reports `unchanged` is not probed again.
 - A behavior that you drove and saw wrong is `result: fail`. It is never a deferral.
+- When no code changed after the commit of the implement test receipt, reuse its results. Otherwise run only the fast and affected suites.
+- Use an emulator or a simulator. Never drive a physical device that `devices.test` of `.ai/sdlc-config.json` does not name.
 - Set the terminal state honestly: `convergence` and `result`.
 - Done when `06-verify-<slice>.md` records the result of every acceptance criterion.
 

@@ -34,10 +34,15 @@
  *             the done steps of the slice, the step that runs, the next open step, the hard-stops
  *   profile  show <root> [--json]
  *             the suites of the test profile with their commands and times
+ *   profile  set <root> <suite> --command c --estimate seconds
+ *             the command of a suite and the estimate of intake, with no run
  *   profile  record <root> <suite> <seconds>
  *             a real run of a suite: its time replaces the estimate
  *   profile  timebox <root> <stage> [--work seconds] [--json]
  *             the time box of a stage agent, from the suites that the stage runs
+ *   defer    check <root> <slug> [--next <slice>] [--json]
+ *             run the clearing-probe of each open deferral; exit 1 when the next slice needs
+ *             an open deferral now (a person task)
  *   brief    <root> <slug> <stage> [<slice>] [--json]
  *             the brief of a stage agent: the stage card, the slice and its acceptance criteria,
  *             the plan sections of the stage, and the live decisions in scope
@@ -51,15 +56,16 @@ import { buildBrief } from '../lib/brief.mjs';
 import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
 import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
+import { checkDeferrals, deferralLine } from '../lib/deferrals.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { appendStep, gitIsAncestor, gitRevParse, lastSlice, whereLine, whereOf } from '../lib/steps.mjs';
-import { STAGE_SUITES, profileLines, readProfile, recordRun, timeBox } from '../lib/test-profile.mjs';
+import { STAGE_SUITES, profileLines, readProfile, recordRun, setSuite, timeBox } from '../lib/test-profile.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|profile|brief> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|step|profile|defer|brief> ...';
 const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
@@ -433,12 +439,18 @@ export function runStep(pos, opt) {
 
 export function runProfile(pos, opt) {
   const [verb, root, a, b] = pos;
-  if (!verb || !root) throw new Error('profile: <show|record|timebox> <root> are required');
+  if (!verb || !root) throw new Error('profile: <show|set|record|timebox> <root> are required');
   const projectRoot = resolve(root);
   if (verb === 'show') {
     const p = readProfile(projectRoot);
     const lines = profileLines(p);
     out(opt.json ? p : lines.length ? lines.join('\n') : 'no test profile');
+    return 0;
+  }
+  if (verb === 'set') {
+    if (!a || !opt.command || opt.estimate == null) throw new Error('profile set: <suite> --command c --estimate seconds are required');
+    const s = setSuite(projectRoot, a, { command: opt.command, estimateSeconds: Number(opt.estimate) });
+    out(opt.json ? s : `${a}: \`${s.command}\` (${s.estimateSeconds}s estimated)`);
     return 0;
   }
   if (verb === 'record') {
@@ -495,6 +507,13 @@ export async function main(argv = process.argv.slice(2)) {
       case 'decide': return runDecide(pos, opt);
       case 'step': return runStep(pos, opt);
       case 'profile': return runProfile(pos, opt);
+      case 'defer': {
+        const [verb, root, slug] = pos;
+        if (verb !== 'check' || !root || !slug) throw new Error('defer: check <root> <slug> is required');
+        const r = checkDeferrals(resolve(root), slug, { next: opt.next ?? null });
+        out(opt.json ? r : r.entries.length ? r.entries.map(deferralLine).join('\n') : 'no open deferrals');
+        return r.stop.length ? 1 : 0;
+      }
       case 'brief': {
         const [root, slug, stage, slice] = pos;
         if (!root || !slug || !stage) throw new Error('brief: <root> <slug> <stage> are required');

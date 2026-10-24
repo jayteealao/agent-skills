@@ -24,6 +24,7 @@ You are running `/wf implement`, **stage 5 of 10**: 1·intake → 2·shape → 3
 - Commit the code. Write the commit message in product language, per [_output-boundary.md](_output-boundary.md).
 - Resolve a small drift from the plan inside the scope, and record it in the implement artifact.
 - Settle an implementation-detail decision yourself and record it. Do not settle an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)): run `decide answered` for its key, and when no live entry answers it, return it as a question with a key, the options and a recommended option. Then finish the artifact with `status: awaiting-input`.
+- Run only the fast and affected suites of the test profile. Record the time of each real run with `wf.mjs profile record`.
 - Done when the code is committed and `05-implement-<slice>.md` has `status: complete`.
 
 ## Requires

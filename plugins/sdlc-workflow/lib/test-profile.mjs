@@ -49,24 +49,35 @@ export function timeBox(profile, suites, { workSeconds = 0, factor = TIME_BOX_FA
   return { seconds: Math.max(floor, Math.round(factor * tests + workSeconds)), from };
 }
 
-/**
- * Record a real run of a suite: its time replaces the estimate. The config file keeps its
- * other settings and its two-space indent. Returns the new suite entry.
- */
-export function recordRun(root, suite, seconds, { now = nowIso() } = {}) {
+// Change one suite of the profile and write the config back. It keeps the other settings,
+// the two-space indent and the line endings.
+function updateSuite(root, suite, change) {
   if (!SUITES.includes(suite)) throw new Error(`suite must be one of ${SUITES.join(', ')}`);
-  if (!Number.isFinite(seconds) || seconds < 0) throw new Error('seconds must be a number of 0 or more');
   const file = configFile(root);
   const cfg = readConfig(root);
   const profile = cfg.testProfile && typeof cfg.testProfile === 'object' ? cfg.testProfile : {};
-  if (!profile[suite]?.command) throw new Error(`the test profile has no command for the ${suite} suite`);
-  profile[suite] = { ...profile[suite], measuredSeconds: Math.round(seconds), measuredAt: now };
+  profile[suite] = change(profile[suite] ?? {});
   cfg.testProfile = profile;
   const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
   const eol = text.includes('\r\n') ? '\r\n' : '\n';
   writeFileSync(`${file}.tmp`, `${JSON.stringify(cfg, null, 2).replace(/\n/g, eol)}${eol}`);
   renameSync(`${file}.tmp`, file);
   return profile[suite];
+}
+
+/** Set the command and the estimate of a suite. A measured time stays. Returns the suite entry. */
+export function setSuite(root, suite, { command, estimateSeconds }) {
+  if (!command || !String(command).trim()) throw new Error('a suite needs a command');
+  if (!Number.isInteger(estimateSeconds) || estimateSeconds < 0) throw new Error('the estimate must be a whole number of seconds');
+  return updateSuite(root, suite, (s) => ({ ...s, command: String(command).trim(), estimateSeconds }));
+}
+
+/** Record a real run of a suite: its time replaces the estimate. Returns the suite entry. */
+export function recordRun(root, suite, seconds, { now = nowIso() } = {}) {
+  if (!SUITES.includes(suite)) throw new Error(`suite must be one of ${SUITES.join(', ')}`);
+  if (!Number.isFinite(seconds) || seconds < 0) throw new Error('seconds must be a number of 0 or more');
+  if (!readProfile(root)[suite]?.command) throw new Error(`the test profile has no command for the ${suite} suite`);
+  return updateSuite(root, suite, (s) => ({ ...s, measuredSeconds: Math.round(seconds), measuredAt: now }));
 }
 
 // The suites that each stage runs. Verify reuses the implement results at the same commit.
