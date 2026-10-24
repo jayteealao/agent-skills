@@ -1,6 +1,6 @@
 # Coherence pass (brainstorm)
 
-A coherence pass holds the whole board against three things: its own earlier decisions, the documents of the work it already routed, and the budgets the person decided. Area close (2.8) checks one area. This pass checks the areas against each other.
+A coherence pass holds the whole board against three things: its own earlier decisions, the documents of the pieces it already started, and the budgets the person decided. Area close (2.8) checks one area. This pass checks the areas against each other.
 
 ## When it runs
 - After an area close (2.8).
@@ -22,7 +22,7 @@ A budget is a limit the person decided, for example "a matchday runs in about th
 5. **Resolve.**
    - Bring each real conflict to the person as a choice with its costs (2.1), one to four per batch, in the question text.
    - Merge a repeat: set `replaced-by` on the older item.
-   - A contradiction with a routed piece's document marks that piece `stale: true`, with the reason in `stale-because`.
+   - A contradiction with the document of a started piece marks that piece `stale: true`, with the reason in `stale-because`.
 6. **Rewrite the summary** so the board reads as one design, and republish the page (2.9).
 7. **Log** one entry with kind `cohere`: what the pass read, and how many conflicts and merges it found.
 

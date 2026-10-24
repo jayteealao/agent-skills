@@ -163,7 +163,7 @@ A person can resume a brainstorm at any time, also while the walk runs.
 4. Run the check, then run the `write` command.
 5. Return `/wf campaign <brainstorm-slug>` as `Next`.
 
-A reopened brainstorm and the `add` capture run in a brainstorm session. The brainstorm session writes the board and the piece files. No other session writes them, except the regroup of a migration (below).
+A reopened brainstorm and the `add` capture run in a brainstorm session. The brainstorm session writes the board and the piece files. No other session writes them, except the regroup of a migration (below) and the `state` field. The walk sets `state` through `campaign.mjs`. The mode of a routed piece sets `state: open` ([../_intake-provenance-consume.md](../_intake-provenance-consume.md), Link back).
 
 ## Regroup (the migration of an old campaign)
 

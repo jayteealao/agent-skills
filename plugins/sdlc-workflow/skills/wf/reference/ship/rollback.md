@@ -116,7 +116,7 @@ refs:
 ---
 ```
 
-Body: `## The Rollback` story section (same narrative voice as every stage artifact), the executed
+Body: the executed
 runbook table with per-row evidence, `## Irreversible Steps & Mitigations`, and `## Verification`.
 
 2. **Stamp the original run** `09-ship-run-<run-id>.md`: `rolled-back: true`,

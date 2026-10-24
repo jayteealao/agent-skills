@@ -58,7 +58,7 @@ Generated designs cluster around a few looks, whatever the subject. Steer away f
 
 ### Typography
 - Establish hierarchy through size AND weight contrast — not just one.
-- Minimum 16px body text. Line height ≥ 1.5 for prose.
+- Set body text at the platform body size or larger (16 px on the web). Use a line height of 1.5 or more for prose.
 - Max 65–75ch line length for prose content.
 - Scale ratio: ≥1.25 for Persuade and Experience, 1.125–1.2 for Operate and Read.
 

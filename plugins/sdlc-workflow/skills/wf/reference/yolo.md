@@ -111,9 +111,7 @@ Deferrals: the `verify` row above is the single normative statement of `yolo`'s 
 
 Negotiating the environment, precisely: before any deferral `yolo` climbs the **env-remediation rung** (runtime-adapters/_ladder.md). A reversible, run-scoped change to state the run owns is taken and recorded; state the run does not own is surfaced, never improvised. When a wall is `code-owned`, the driver may **not** quietly patch product code to unblock itself and may not defer around its own constant. A wall classified `code-owned` with no scoped resolution is a HARD-STOP, not an auto-deferral.
 
-Charter fidelity: every **3** slices one read-only subagent reads the `charter:` block in `00-index.md` and the recent `05-implement` artifacts and judges each commitment **honored**, **at-risk**, or **broken**. `honored` drives on silently; `at-risk` drives on but is recorded in `outcome.charterCheckpoints`; **broken** is a HARD-STOP (`outcome.stoppedAt = 'charter-checkpoint'`). The checkpoint never edits or fixes.
-
-Mid-build discover checkpoint: when a `severity: high` RIM's **visible-milestone** slice lands, the driver records a recommended read-only `/wf discover <hypothesis derived from the RIM>` in the run report. It does not run discover and does not stop.
+Charter fidelity: every **3** slices one read-only subagent reads the `charter:` block in `00-index.md` and the recent `05-implement` artifacts and judges each commitment **honored**, **at-risk**, or **broken**. `honored` drives on silently; `at-risk` drives on but is recorded in `outcome.charterCheckpoints`; **broken** is a HARD-STOP (`outcome.stoppedAt = 'charter-checkpoint'`). The checkpoint never edits or fixes. It skips a due checkpoint when no work since the last one touched the charter, and it never runs after the last slice.
 
 Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-guards.md](_autonomy-guards.md) to the driving session itself.
 
@@ -125,8 +123,7 @@ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-
    - `projectRoot` = the absolute root of the repo that owns `.ai/workflows/<slug>/` (the nearest ancestor containing `.ai/workflows`, capped at the git toplevel).
    - `pluginRoot` = the directory you loaded this reference from (`$CLAUDE_PLUGIN_ROOT` when set).
    - `referenceRoot` = `<pluginRoot>/skills/wf/reference`.
-4. **Campaign owner.** Run `node "<pluginRoot>/skills/wf/scripts/campaign.mjs" owner "<projectRoot>" <slug>`. On `owned: true`, a campaign wave drives the slug. Stop, and tell the person to use `/wf campaign <brainstorm>` or to wait for the wave.
-5. **Stage the driver script inside the repo.** The Workflow tool refuses a `scriptPath` outside the working directory. Run it at every launch and resume:
+4. **Stage the driver script inside the repo.** The Workflow tool refuses a `scriptPath` outside the working directory. Run it at every launch and resume:
 
    ```
    node "<pluginRoot>/scripts/stage-yolo-driver.mjs" "<projectRoot>"
@@ -140,13 +137,13 @@ Call the **Workflow** tool:
 
 ```
 Workflow({
-  scriptPath: "<projectRoot>/.scratch/wf/yolo.js",   // from Step 0.5
+  scriptPath: "<projectRoot>/.scratch/wf/yolo.js",   // from Step 0.4
   args: {
     projectRoot:   "<absolute repo root owning .ai/workflows>",
     referenceRoot: "<pluginRoot>/skills/wf/reference",
     slug:          "<slug>",
     slice:         "<slice>",       // slice mode only — omit for slug mode
-    models:        { … }            // Step 0.5's models
+    models:        { … }            // the `models` block of .ai/sdlc-config.json
     // reviewFanout (on) / planFanout (off): omit unless the person asks
   }
 })
@@ -157,7 +154,7 @@ The workflow runs in the background. Right after this call, start the watch and 
 # Resuming — one sanctioned path
 
 - **Slash-command `/wf` stays user-only.** A human typing `/wf yolo <slug>` is the explicit opt-in that authorizes an unattended run.
-- **Relaunching the script is not a new opt-in** — it continues the run the user authorized. After a hand-back is answered, repeat Steps 0.4 and 0.5, then the Step 1 Workflow call with the same args. Orientation skips every stage already terminal-clean.
+- **Relaunching the script is not a new opt-in** — it continues the run the user authorized. After a hand-back is answered, repeat Step 0.4, then the Step 1 Workflow call with the same args. Orientation skips every stage already terminal-clean.
 - Say what you are doing: *"resuming the driver from `<slice>`"* — not *"run `/wf yolo <slug>` yourself"*.
 
 # Hot-patching the driver mid-run
@@ -181,7 +178,6 @@ Stages run: <the per-slice sequence actually executed>
 Autonomous decisions: <count + one-line gist, or "none recorded">
 Charter: <omit when no checkpoint ran | from outcome.charterCheckpoints: all commitments honored | N at-risk (name them) | HARD-STOP on a broken commitment (name it)>
 Decisions: <outcome.decisionDigest: N total by class; intent-bearing count WITH its intentBearingGuarantee qualifier — "exact" → "intent-bearing escapes: 0"; "suspect" → "intent-bearing escapes: 0 (SUSPECT — M unclassifiable; review them)"; intentBearing>0 → should-have-been-a-stop escapes>
-Discover checkpoint: <omit when none | recommended `/wf discover <hypothesis>` for the high-severity RIM whose milestone slice landed>
 Residual findings: <none | N deferred/could-not-fix recorded in <artifact>>
 Runtime-evidence deferrals: <none | outcome.runtimeEvidenceDeferrals: N — slice/AC + reason (+ probe receipt), in 00-index.md; /wf ship is BLOCKED until each is cleared by /wf probe or a re-verify in a capable environment>
 Substantive failures: <omit when absent | outcome.substantiveFailures: N — slice + result. DEFECTS, not deferrals; no /wf probe clears them>
@@ -203,7 +199,7 @@ Next: <outcome.route — the routing command>
 Rules:
 - **Always emit**, even on a HARD-STOP or an orientation block. The narrative explains why it stopped.
 - **Surface the autonomy.** Name the assumptions recorded and the findings fixed vs deferred. Point at the artifacts that hold the record.
-- **Surface charter drift and the decision digest.** Call out `intentBearing > 0` explicitly. When `decisionDigest.intentBearingGuarantee` is `suspect`, say so in the same sentence as the zero. If a high-severity RIM's milestone slice landed, emit the recommended `/wf discover` checkpoint.
+- **Surface charter drift and the decision digest.** Call out `intentBearing > 0` explicitly. When `decisionDigest.intentBearingGuarantee` is `suspect`, say so in the same sentence as the zero.
 - **Flag ship-blocking deferrals.** If `outcome.runtimeEvidenceDeferrals` is non-empty, say that `/wf ship` will refuse until each is cleared.
 - **Honesty.** Report what ran. Do not imply the workflow is further along than the artifacts show.
 - **Never re-label an input.** A verify that recorded an AC as a substantive **fail** is reported under `Substantive failures:`, never moved into the deferral list. Where the driver's derivation disagrees with a recorded decision or the index ledger, the recorded classification wins and the disagreement is named on the `Reconciled:` line.

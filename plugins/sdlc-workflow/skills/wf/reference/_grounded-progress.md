@@ -23,5 +23,5 @@ session.
 ## Relation to stronger stage laws
 
 Some stages carry stronger evidence laws, for example the probe receipts in
-`verify.md`. Those laws stay in force. This rule is the floor, not the
+`verify/_deferrals.md`. Those laws stay in force. This rule is the floor, not the
 ceiling.

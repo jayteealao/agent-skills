@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// The disk side of /wf campaign (reference/campaign.md): the ledger, the waves,
-// the context files, the drift check, the versions, and the campaign journal.
+// The disk side of /wf campaign (reference/campaign.md): the serial walk over
+// one list, its gates, and the migration of an old campaign.
 //   node "<skill-dir>/scripts/campaign.mjs" <command> <projectRoot> <brainstorm-slug> ...
 // Runs the bundled dist/campaign.mjs, which carries its own dependencies.
 // In a development checkout without dist/, it runs the source script.

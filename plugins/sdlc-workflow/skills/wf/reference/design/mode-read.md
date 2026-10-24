@@ -30,7 +30,7 @@ Design stage Step 3b reads `## Directions`. Step 4 reads `## Boards`. The typogr
 Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
 
 **The board is the document as the reader meets it:** a frame the world owns, in the direction's committed palette and type, around a calm reading column.
-- Set the column at a real measure: about 60–75 characters with body text near the platform body size (16 px on the web); in a native app, the platform's body text style and its readable width ([_platforms.md](_platforms.md)).
+- Set the column at a real measure: about 65–75 characters with body text near the platform body size (16 px on the web); in a native app, the platform's body text style and its readable width ([_platforms.md](_platforms.md)).
 - Give the headings a clear hierarchy, and the wayfinding that carries the reader through.
 - Set body text in a reading face with real contrast against its ground.
 - Set code, tables, notes and figures in the standard forms that readers know, in the world's type and palette.

@@ -15,7 +15,6 @@
  *   reopen  <root> <source> <piece-key>             state open again after a fix slice is added to a built piece
  *   done    <root> <source> <piece-key> [--trunk t] close the piece: merge the trunk, move its end branch, base-branch back to the trunk
  *   close   <root> <source> <piece-key> done|dropped  close a routed piece, or drop a piece (piece file and board)
- *   owner   <root> <slug>                           always owned: false (yolo.md Step 0.4 calls it)
  *   slice-order <checkout> <slug> add --slice s --after t [--why w]   a plan's order as a depends-on edge
  *   migrate <root> <source> report|apply|finish [--trunk t]          the migration of an old campaign (section 12)
  *   remove-worktree <root> <source> <path> [--allow-ignored]  the guarded remove of an old campaign worktree (12.7)
@@ -38,7 +37,7 @@ import { missingBoardFiles, needsPictures } from '../lib/design-boards.mjs';
 import { designNeeded, designSettled } from '../lib/design-lane.mjs';
 import { validateBrainstormBoard } from '../lib/schema-validator.mjs';
 
-const USAGE = 'Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|open|land|start|built|reopen|done|close|migrate|remove-worktree> <projectRoot> <source> ... | owner <projectRoot> <slug> | slice-order <checkout> <slug> add ...';
+const USAGE = 'Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|open|land|start|built|reopen|done|close|migrate|remove-worktree> <projectRoot> <source> ... | slice-order <checkout> <slug> add ...';
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const sourceDir = (root, src) => join(root, '.ai', 'workflows', src);
@@ -700,11 +699,6 @@ function closeCmd(root, src, [key, to]) {
   return { ok: true, key: piece.key, state: to, changed: true, board: Boolean(onBoard), ...(worktree ? { worktree } : {}) };
 }
 
-/** Always `owned: false`: with no parallel wave, nothing owns a piece. yolo.md Step 0.4 calls it. */
-export function owner(root, slug) {
-  return { ok: true, owned: false, slug };
-}
-
 function sliceOrder(root, slug, [action], f) {
   if (action !== 'add') throw new Error('slice-order: the action is add');
   const s = String(f.slice ?? '').trim();
@@ -1149,8 +1143,7 @@ function dispatch(cmd, argv) {
     case 'reopen': return reopenCmd(root, second, rest);
     case 'done': return doneCmd(root, second, rest, f);
     case 'close': return closeCmd(root, second, rest);
-    // `owner <root> <slug>` and `slice-order <checkout> <slug> add`: the second argument is the slug.
-    case 'owner': return owner(root, second);
+    // `slice-order <checkout> <slug> add`: the second argument is the slug.
     case 'slice-order': return sliceOrder(root, second, rest, f);
     case 'migrate': return migrateCmd(root, second, rest, f);
     case 'remove-worktree': return removeWorktreeCmd(root, second, rest, f);

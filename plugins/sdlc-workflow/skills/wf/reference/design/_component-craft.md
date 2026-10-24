@@ -41,8 +41,8 @@ Adapted from Emil Kowalski's "building loved components" principles — drawn fr
   it belongs to `harden.md`. The bar: users never notice the edge case was handled, which is
   exactly right.
 - **Transitions, not keyframes, for dynamic collections** — anything added or removed rapidly
-  (toasts, list items) must retarget smoothly, never restart from zero. See the Interruptibility
-  rules in `animate.md`.
+  (toasts, list items) must retarget smoothly, never restart from zero. See `animate.md` →
+  Interruption and exit.
 
 ## Cohesion
 

@@ -4,7 +4,7 @@ The single source for platform forms. The design rules ([animate.md](animate.md)
 
 > Load with: `design/_platforms.md`
 
-Platforms: the web; iOS (SwiftUI and UIKit); Android with Jetpack Compose; desktop (macOS with AppKit and Core Animation; Windows with WinUI 3 and `Microsoft.UI.Composition`; an Electron app uses the web column). Checked against the platform documentation on 2026-10-19. The rows of the sections from "Layout and input" to "Idioms" were added on 2026-10-22. Check such a form against the documentation of the project's framework version before you rely on it (Rule 5).
+Platforms: the web; iOS (SwiftUI and UIKit); Android with Jetpack Compose; desktop (macOS with AppKit and Core Animation; Windows with WinUI 3 and `Microsoft.UI.Composition`; an Electron app uses the web column). Checked against the platform documentation on 2026-10-19. The sections from "Layout and input" to "Idioms" were checked on 2026-10-22. Check such a form against the documentation of the project's framework version before you rely on it (Rule 5).
 
 ## Rules
 
@@ -144,4 +144,4 @@ node "<skill-dir>/scripts/design-boards.mjs" ansi <input.txt> --scheme <campbell
 
 ## Sources
 
-MDN and developer.chrome.com (web), developer.apple.com (iOS, macOS), developer.android.com (Compose), learn.microsoft.com (Windows App SDK), motion.dev (Motion), base-ui.com (Base UI). Rechecked with [DESIGN-CRAFT-PORT-PLAN.md](../../../../docs/internal/DESIGN-CRAFT-PORT-PLAN.md) W0.
+MDN and developer.chrome.com (web), developer.apple.com (iOS, macOS), developer.android.com (Compose), learn.microsoft.com (Windows App SDK), motion.dev (Motion), base-ui.com (Base UI).

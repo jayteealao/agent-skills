@@ -81,7 +81,7 @@ A **piece of work** (one per agreed piece at `done`, in sequence order):
 { "key": "spending-limit", "order": 2, "why-here": "the limit reads the cost rows of the first piece", "title": "Add a warning-only spending limit per project", "shape": "intake", "slug": "spending-limit", "threads": ["limit-per-project"], "items": ["limit-warns-only", "cost-rows-per-run"], "research": ["R01"], "references": ["F02"], "goal": "Each project has a spending limit that warns and never blocks a run.", "in-scope": ["a limit per project", "a warning when a run passes the limit"], "out-of-scope": ["a limit on research runs"], "acceptance-criteria": ["A run that passes the limit of its project shows a warning and completes."], "constraints": [], "risks": ["The warning can be read as a stop, and the person cancels a paid run."], "ux-impact": "visual", "ux-impact-confirmed": true, "try-out": "yes", "estimated-slices": 6, "entry": "/wf campaign <slug>", "state": "proposed", "stale": false }
 ```
 The board also holds the stack of the list, once, at the top level: `"stack": { "platforms": [], "languages": [], "user-confirmed": true }`, with the fields of the `stack` block in `intake/default/_artifact.md`.
-- `shape` is the form: `intake`, `investigate`, `discover`, `fix`, `hotfix`, `task`, `extension`, or `write-now` ([_work.md](_work.md)). Older boards also hold `design` and `design-direction` pieces; a new board records those as `design-form` on the piece they serve.
+- `shape` is the form: `intake`, `investigate`, `discover`, `rca`, `fix`, `hotfix`, `task`, `extension`, or `write-now` ([_work.md](_work.md)). Older boards also hold `design` and `design-direction` pieces; a new board records those as `design-form` on the piece they serve.
 - `slug`, `target-slug`, `order`, `why-here`, `research`, `references`, `amends`, and `urgency` are agreed in 3.3 ([_work.md](_work.md)). `order` is the strict sequence 1 to n over every piece. `why-here` is required on each piece after order 1.
 - A build piece (`intake`, `fix`, `hotfix`, `extension`) carries its write-up: `goal`, `in-scope`, `out-of-scope`, `acceptance-criteria`, `constraints`, `risks`, `ux-impact` with `ux-impact-confirmed: true`, `try-out` (`yes` or `no`), and `estimated-slices` ([_work.md](_work.md), "The write-up of a build piece").
 - An older board also holds `depends-on`, `needs`, `provides`, `expects`, `size`, `shared` and `routed-to` on a piece. The brainstorm does not agree these fields, and the `write` command does not put them into a piece file.
@@ -166,7 +166,7 @@ The body names everything in words. It carries no key, no internal number, and n
 # Brainstorm: <topic>
 
 ## The Brainstorm
-<!-- STORY SECTION — first, and self-sufficient. It is the summary of what we believe now, rewritten at every check-in. Write the thought we started from; what we now believe, with the reasons; what is still open and the sharpest tension. Language follows `../../_ste-procedural.md` sections 1 and 3. 150 words or fewer (D1). -->
+<!-- STORY SECTION — first, and self-sufficient. It is the summary of what we believe now, rewritten at every check-in. Write the thought we started from; what we now believe, with the reasons; what is still open and the sharpest tension. Language follows `../../_ste-procedural.md` sections 1 and 3. 150 words or fewer. -->
 
 ## Map
 ### <area in words> — <problem side or solution side> — <open, touched, or explored>
@@ -182,7 +182,7 @@ The body names everything in words. It carries no key, no internal number, and n
 
 ## Sessions
 ### Session <N> — <YYYY-MM-DD>
-<The story of the session: what we set out to explore, what we learned, what we decided and why, what is still open, and where the next sitting starts. Plain prose, about 100 to 200 words, newest session first. Keep the newest three sessions here; move the older stories to `archive/record.md`.>
+<The story of the session: what we set out to explore, what we learned, what we decided and why, what is still open, and where the next sitting starts. Plain prose, newest session first. Keep the newest three sessions here; move the older stories to `archive/record.md`.>
 
 ## Decisions
 ### <area in words>
@@ -218,7 +218,7 @@ The body names everything in words. It carries no key, no internal number, and n
 - Retire when no thread is live: `/wf intake <slug> close`
 ```
 
-## Archive (D1)
+## Archive
 
 A long brainstorm keeps its board and its document short. Run the archive command at each resume and after the `write` command at `done`:
 ```

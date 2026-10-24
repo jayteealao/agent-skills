@@ -344,7 +344,7 @@ function ignoredAtRisk(porcelain, allow = []) {
 }
 
 // scripts/campaign.mjs
-var USAGE = "Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|open|land|start|built|reopen|done|close|migrate|remove-worktree> <projectRoot> <source> ... | owner <projectRoot> <slug> | slice-order <checkout> <slug> add ...";
+var USAGE = "Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|open|land|start|built|reopen|done|close|migrate|remove-worktree> <projectRoot> <source> ... | slice-order <checkout> <slug> add ...";
 var nowIso = () => (/* @__PURE__ */ new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
 var sourceDir = (root, src) => join2(root, ".ai", "workflows", src);
 var workDir = (root, src) => join2(sourceDir(root, src), "work");
@@ -1008,9 +1008,6 @@ function closeCmd(root, src, [key, to]) {
   const worktree = wt ? removeWorktree(root, src, wt, { unitKey: piece.migrated["unit-key"] ?? piece.key }) : null;
   return { ok: true, key: piece.key, state: to, changed: true, board: Boolean(onBoard), ...worktree ? { worktree } : {} };
 }
-function owner(root, slug) {
-  return { ok: true, owned: false, slug };
-}
 function sliceOrder(root, slug, [action], f) {
   if (action !== "add") throw new Error("slice-order: the action is add");
   const s = String(f.slice ?? "").trim();
@@ -1466,9 +1463,7 @@ function dispatch(cmd, argv) {
       return doneCmd(root, second, rest, f);
     case "close":
       return closeCmd(root, second, rest);
-    // `owner <root> <slug>` and `slice-order <checkout> <slug> add`: the second argument is the slug.
-    case "owner":
-      return owner(root, second);
+    // `slice-order <checkout> <slug> add`: the second argument is the slug.
     case "slice-order":
       return sliceOrder(root, second, rest, f);
     case "migrate":
@@ -1511,7 +1506,6 @@ export {
   migrateApply,
   migrateFinish,
   migrationReport,
-  owner,
   pieceFolderFiles,
   removeWorktree,
   resolveBoard,

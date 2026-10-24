@@ -101,7 +101,7 @@ When the surface has motion in scope:
 
 Then run the opportunity sweep of `animate.md` once: list at most 5–7 places that should move but do not, and 2–5 rejected candidates with the gate that rejected each. "The motion here is already right" is a valid result. For the sweep alone on a confirmed design, run `/wf design <slug> animate`.
 
-Motion bugs hide at full speed — review animations in slow motion or frame-by-frame, and with fresh eyes the next day, before judging them. The full rubric is `animate.md` (and the `motion` review dimension); platform forms live in `_platforms.md`.
+Motion bugs hide at full speed — review animations in slow motion or frame-by-frame, and with fresh eyes the next day, before judging them. The full rubric is `animate.md` and the `motion` section of the `interface-craft` review rubric. Platform forms are in `_platforms.md`.
 
 ### 9. Identity and direction
 

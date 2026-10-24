@@ -1,8 +1,8 @@
 # Step commits, the steps table, and the test receipt
 
-`implement.md` loads this file when `branch-strategy` is `dedicated` or `shared` (WF-SYSTEM-REVIEW C2, C4; WF-PIECES-PLAN D16, D33). One implement agent runs the whole slice. An implement that hard-stops loses no committed work: the next run continues after the last committed step. Verify reuses a green test run.
+`implement.md` loads this file when `branch-strategy` is `dedicated` or `shared`. One implement agent runs the whole slice. An implement that hard-stops loses no committed work: the next run continues after the last committed step. Verify reuses a green test run.
 
-## Step commits (C2)
+## Step commits
 
 1. After each plan step, commit the step. Stage by path, as `implement.md` step 12 says. The message is `wip(<slug>): <slice-slug> step <n>`.
 2. Record the step in `.ai/workflows/<slug>/.implement-progress.jsonl`: one JSON line `{"slice", "event": "step", "step": <n>, "sha"}`. Under a driver, use the command that the driver gives.
@@ -22,7 +22,7 @@ The implementation record `05-implement-<slice-slug>.md` ends with a `## Steps` 
 - `deviated` means the step was done in a different way than the plan says. Give the reason in `## Deviations from Plan`.
 - A step with no commit, for example a step that changed no file, gets `—` in Commit.
 
-## The test receipt (C4)
+## The test receipt
 
 After the final commit, write `.ai/workflows/<slug>/.test-receipt-<slice-slug>.json`:
 

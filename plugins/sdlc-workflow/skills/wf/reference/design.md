@@ -123,11 +123,12 @@ wf design <job> complete: <slug-or-"freestanding">
 
 Design modes: <surface: persuade|operate|read|experience, ... | n/a>
 Image gate: <pass | skipped:<reason> | n/a>
+Boards: <design/r<N>/ — <count> boards — design/r<N>/index.html | n/a>
 Artifacts: <comma-separated paths, or "none">
 Next: <Type `/wf <key> <args>`. | Done>
 ```
 
 Write `Next` as "Type `/wf <key> <args>`." The person runs the key; never write that you run it.
-- After the stage, `Next` is "Type `/wf slice <slug>`."
+- After the stage, write `Next` from the Next row of [design/stage.md](design/stage.md). An `rca` workflow has no slice stage.
 - When `00-index.md` has `origin-piece`, the workflow is a campaign piece, and the campaign walk slices it. `Next` is "Type `/wf campaign <source-slug>`." The `<source-slug>` is the folder in the `origin-piece` path (`.ai/workflows/<source-slug>/work/<piece-slug>.md`).
 - After amend, `Next` names the first plan to revisit.

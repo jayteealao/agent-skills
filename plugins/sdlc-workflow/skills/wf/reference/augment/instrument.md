@@ -157,7 +157,7 @@ Signals designed: <N> (<log/metric/trace/error breakdown>)
 PII warnings: <none | N fields require redaction — see §4>
 Framework: <detected>
 Next: /wf implement <slug> — instrumentation plan will be read as additional context
-Consider: /wf experiment <slug> to design a controlled rollout for this change
+Consider: the experiment augmentation (shape decides it; plan writes 04c-experiment.md) to design a controlled rollout for this change
 Artifact: .ai/workflows/<slug>/04b-instrument.md
 ```
 

@@ -28,7 +28,7 @@ next-invocation: "/wf verify <slug>"
 recommended-routes: <routes>
 ---
 ```
-Body (tight): `## Adopted Surface` (the changed-file roster with per-file +/- counts, the commit SHAs ahead of `<base>`, and the branch — the Step A0 evidence, exact), `## Restated Intent` (the inferred goal + any user correction from the gate), `## Acceptance Criteria` (each objectively verifiable; environment-dependent ACs carry their W2d resolution as an italic note), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
+Body (tight): `## Adopted Surface` (the changed-file roster with per-file +/- counts, the commit SHAs ahead of `<base>`, and the branch — the Step A0 evidence, exact), `## Restated Intent` (the inferred goal + any user correction from the gate), `## Acceptance Criteria` (each objectively verifiable; environment-dependent ACs carry their constraint resolution (the force-scope rule of the plan stage) as an italic note), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
 
 **`02-shape.md` — `type: shape`:**
 ```yaml
@@ -113,7 +113,7 @@ recommended-routes: <routes>
 Body:
 - `## What Was Done` — the reconstructed steps, retrospective: each names the file(s) it touched and the change in 1–2 lines. This is observation, not instruction.
 - `## Simplicity Ladder (observed)` — for each capability the change introduced, the rung it *actually* took (stdlib / native / reuse / new-code) as an observation, flagging any place a lower rung was clearly available but not taken (a note for review, not a blocker).
-- `## Verification Strategy` — **the forward deliverable.** Per AC: the concrete check verify will run (test command / manual flow / observable), and a `constraint-resolution:` line for any AC with an environment dependency (`prerequisite-slice: <slug>` | `proxy+deferral: <clearing event>` | `po-accepted: <reason>`) per W2d. Every `proxy+deferral` resolution ALSO lands as a real entry in the index's `runtime-evidence-deferrals` (`slice`, `reason`, `deferred-at`, `cleared-by: null`, the named clearing event) — a deferral recorded only in plan prose is invisible to the ship gate that enforces it. This section is what makes an adopted workflow verifiable rather than a rubber stamp.
+- `## Verification Strategy` — **the forward deliverable.** Per AC: the concrete check verify will run (test command / manual flow / observable), and a `constraint-resolution:` line for any AC with an environment dependency (`prerequisite-slice: <slug>` | `proxy+deferral: <clearing event>` | `po-accepted: <reason>`) under the force-scope rule of the plan stage. Every `proxy+deferral` resolution ALSO lands as a real entry in the index's `runtime-evidence-deferrals` (`slice`, `reason`, `deferred-at`, `cleared-by: null`, the named clearing event) — a deferral recorded only in plan prose is invisible to the ship gate that enforces it. This section is what makes an adopted workflow verifiable rather than a rubber stamp.
 
 **`05-implement.md` — `type: implement` (synthesized from the diff):**
 ```yaml

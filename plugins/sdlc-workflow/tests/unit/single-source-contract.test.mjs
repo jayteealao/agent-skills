@@ -198,7 +198,7 @@ test('_subagents.md pins the effort-tier → host mapping', () => {
   const haikuLabels = (src) => [...src.matchAll(/label: ((?:(?!label: )[^\n])+?), phase: '[A-Za-z]+', \.\.\.HAIKU\b/g)].map((m) => m[1]).sort();
   assert.deepEqual(haikuLabels(yolo), ["'branch'", "'plan-index-writeback'", "'plan-reconcile-clear'", "'run-end'", '`writeback:${sliceArg}`']);
   assert.doesNotMatch(src, /low = `haiku`/, 'haiku is not a tier target until Haiku 5.5 is re-evaluated');
-  assert.match(src, /Never use `opus` below high/);
+  assert.match(src, /In a prose dispatch, use `opus` only for the high tier/);
   assert.match(src, /Pass the reasoning effort on the spawn: low, medium, high/);
   assert.match(src, /\*\*Paths in a child prompt are absolute\.\*\*/, 'the child-prompt path rule (v9.153.2) must stay');
   assert.match(src, /A \*\*research sub-agent\*\* is a read-only child/, 'the research sub-agent definition must stay');

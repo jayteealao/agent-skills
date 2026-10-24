@@ -60,7 +60,7 @@ Runs when the `source-items:` roster is not empty ([_sources.md](_sources.md)). 
 2. compares the installed version with the version that ships the item;
 3. proposes one result from the results table in `_sources.md`.
 
-A Lens 7 finding cites two anchors: the source anchor (the item id, with its line in the reference copy) and a `file:line` in the code. A finding with one anchor is not a finding. When an idea needs an upgrade first, its `depends-on:` names `/wf intake update-deps`, and Step 5 prints that command before the idea's own entry.
+A Lens 7 finding cites two anchors: the source anchor (the item id, with its line in the reference copy) and a `file:line` in the code. A finding with one anchor is not a finding. When an idea needs an upgrade first, its `depends-on:` names `/wf intake update-deps`, and the pick (step 9 of `# Pick` in [../ideate.md](../ideate.md)) prints that command before the idea's own entry.
 
 ## Research
 

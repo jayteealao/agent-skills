@@ -135,7 +135,7 @@ function steeringClause(steerPath, role, contractPath, campaignSteerPath = null)
     : `${steerPath}. Read that file NOW, in full, with the file-read tool — never from a copy in a prompt or from ` +
       `an earlier run: the user can edit it while this run drives. If the file is absent or empty, there is no ` +
       `steering`
-  const head = `\n\nSTANDING STEERING (MANDATORY). The user keeps standing instructions for this workflow in ` +
+  const head = `\n\nSTANDING STEERING. The user keeps standing instructions for this workflow in ` +
     `${files}: skip the rest of this block and return no steering fields. The contract is ${contractPath}. No ` +
     `human gate in this run repeats these entries, so the file is the user's voice here. A steering VETO ` +
     `outranks every autonomous-policy default in this prompt. Steering never overrides a mandatory gate (the ` +
@@ -800,7 +800,7 @@ function amendFindingsText(list) {
 // They do NOT inherit it from the dispatcher, so each stage prompt embeds it.
 // ---------------------------------------------------------------------------
 const EOB =
-  `EXTERNAL OUTPUT BOUNDARY (MANDATORY): workflow artifact paths (.ai/workflows/…), stage names/numbers, ` +
+  `EXTERNAL OUTPUT BOUNDARY: workflow artifact paths (.ai/workflows/…), stage names/numbers, ` +
   `slash-command names, sub-agent names, and control-file metadata are PRIVATE implementation context. They ` +
   `must NEVER appear in any external-facing output — commit messages, branch names, PR text, release notes, ` +
   `code comments, or docs. Translate to product language (user-visible change, rationale, affected areas, ` +
@@ -857,7 +857,7 @@ const END_FLAGS = `--status <the status you return> --errors <the number of tool
 function heartbeatClause(label, phaseName, stageName, sliceArg) {
   const seq = ++AGENT_SEQ
   const start = { run: RUN_ID, seq, event: 'agent-start', agent: label, phase: phaseName, ...(stageName ? { stage: stageName } : {}), ...(sliceArg ? { slice: sliceArg } : {}) }
-  return `\n\nDRIVER HEARTBEAT (MANDATORY — do this FIRST and LAST). A background driver that dies leaves no ` +
+  return `\n\nDRIVER HEARTBEAT (do this FIRST and LAST). A background driver that dies leaves no ` +
     `signal; this journal is the only way a human or a later session can tell a live driver from a dead one. ` +
     `Append each line with the command below, never by hand (it appends to ${JOURNAL_PATH} and stamps the time):\n` +
     `  • BEFORE any other work, run: \`${lineCmd(JOURNAL_PATH, start)}\`\n` +
@@ -873,7 +873,7 @@ function heartbeatClause(label, phaseName, stageName, sliceArg) {
 // is the same in both directions: re-read immediately before writing, and treat a
 // rejection as "the other writer moved", not as a stale-string puzzle to force.
 const CONTROL_FILE_RULE =
-  `\n\nCONTROL-FILE DISCIPLINE (MANDATORY). ${projectRoot}/.ai/workflows/${slug}/00-index.md and ` +
+  `\n\nCONTROL-FILE DISCIPLINE. ${projectRoot}/.ai/workflows/${slug}/00-index.md and ` +
   `${projectRoot}/.ai/workflows/INDEX.md are shared control files that another session may also be editing. ` +
   `Re-read the file IMMEDIATELY before every edit — never edit from a copy you read earlier in this agent. If an ` +
   `edit is rejected as modified-since-read, that means the other writer moved: re-read, re-derive your change ` +
@@ -901,7 +901,7 @@ const steer = (role) => steeringClause(STEER_PATH, role, `${referenceRoot}/_stee
 const CONTROL_PATH = `${projectRoot}/.ai/workflows/${slug}/.control.json`
 
 function stopCheckClause(controlPath, journalPath) {
-  return `\n\nSTOP-REQUEST CHECK (MANDATORY — before any other work, after the start heartbeat when this prompt asks for ` +
+  return `\n\nSTOP-REQUEST CHECK (before any other work, after the start heartbeat when this prompt asks for ` +
     `one). Read ` +
     `${controlPath} now, fresh, with the file-read tool. When the file is absent, continue normally. When it does ` +
     `not parse as JSON, read it once more; when it still does not parse, treat it as {"action":"pause"}. A request in ` +
@@ -940,7 +940,7 @@ function stopKindOf(res) {
 // they recovered from. The script cannot see a subagent's tool history, so the
 // subagent reports its own: honest self-accounting beats a confident zero.
 const DECISION_CONTRACT =
-  `\n\nDECISION RECORDING CONTRACT (MANDATORY).\n` +
+  `\n\nDECISION RECORDING CONTRACT.\n` +
   `- EVERY decision you record carries a \`class\` stamp per ${referenceRoot}/_decision-classes.md. There are ` +
   `exactly two values: \`implementation-detail\` (yours to settle autonomously) and \`intent-bearing\` (never ` +
   `yours — it is a STOP). Omitting the stamp is not a neutral act: it silently weakens the run's ` +
@@ -962,7 +962,7 @@ const DECISION_CONTRACT =
 // ---------------------------------------------------------------------------
 const POLICY = {
   plan:
-    `AUTONOMOUS OVERRIDE — the plan reference runs an 8–12 question discovery interview (AskUserQuestion). ` +
+    `AUTONOMOUS OVERRIDE — the plan reference asks its discovery decisions as gate questions (AskUserQuestion). ` +
     `DO NOT ask the user anything. Instead ANSWER each implementation-detail question yourself in the user's ` +
     `best interest: choose the option that best satisfies the slice acceptance criteria at the least cost and ` +
     `smallest blast radius, and RECORD each choice as an entry in the plan body's "## Assumptions" section ` +
@@ -979,8 +979,7 @@ const POLICY = {
     `AUTONOMOUS OVERRIDE — the verify reference triages each failing check / unmet AC via AskUserQuestion ` +
     `(Fix/Skip/Escalate) and runs exactly ONE fix round per invocation. DO NOT ask. AUTO-SELECT "Fix" for every ` +
     `fixable issue: apply the minimal patch and run that single fix round, recording outcomes in ` +
-    `"## Verify-Owned Fixes". If the reference warns the slice was already verified and asks to overwrite, ` +
-    `proceed (re-running is intended).\n\n` +
+    `"## Verify-Owned Fixes".\n\n` +
     `DEFER-DON'T-CANCEL for UN-PRODUCIBLE runtime evidence — the verify deferral law (verify/_runtime-evidence.md ` +
     `§"Climb the constraint-resolution ladder", and verify/_deferrals.md) is the single normative statement; apply it EXACTLY as ` +
     `written there, with no relaxation. In particular: a deferral is lawful ONLY over a PROBED incapability ` +
@@ -1160,7 +1159,7 @@ const ORIENT_RESULT = {
         target: { type: 'string' },
         base: { type: 'string' },
         // 'dedicated' → yolo lands the tree on the slug branch up front, creating it
-        // from base-branch if it does not exist yet (mirrors implement.md Step 0.9).
+        // from base-branch if it does not exist yet (mirrors implement.md Step 0, item 11).
         // 'shared'/'none' → yolo NEVER switches; the drive runs on the checked-out
         // tree. Default 'none' if the field is somehow absent (conservative: no switch).
         strategy: { enum: ['dedicated', 'shared', 'none'] },
@@ -1220,8 +1219,6 @@ const STAGE_RESULT = {
     slice: { type: 'string' },
     // 'stopped' — the agent found a stop or pause request in .control.json and did no work.
     status: { enum: ['complete', 'hard-stop', 'stopped'] },
-    // C3: the last plan step that a step-group implement committed.
-    stepsDone: { type: 'number' },
     // E4: the slice-status mirror that the verify agent did as its last step.
     sliceWriteBack: { type: 'object', properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } },
     stopKind: { enum: ['stop', 'pause'] },
@@ -1497,7 +1494,7 @@ async function orient() {
     `progress.design is 'skipped' with a design-skip-reason. When 02c-craft.md carries boards: (design/r<N>/boards.json) ` +
     `and ux-impact is visual or new-surface, the design is settled only when every board file that manifest lists ` +
     `exists on disk; run node "${referenceRoot}/../scripts/design-boards.mjs" check "${projectRoot}" ${slug} to list the missing ones. ` +
-    `Give drives board paths (design/r<N>/boards/<key>.png), never a canvas link. The design is NOT settled while 00-index.md records ` +
+    `The design is NOT settled while 00-index.md records ` +
     `progress.design: in-progress (reopened by an extension or an amend stop). A slice whose 03-slice-<slice>.md ` +
     `carries ux-impact: none changes nothing a person sees, so its plan does not wait for the design; a slice ` +
     `WITHOUT the field keeps the slug rule. When design is needed and not settled, and at least one roster slice ` +
@@ -1542,7 +1539,7 @@ async function orient() {
     `installed — and the AC still shipped uncleared because nobody was watching for it.\n\n` +
     `Return the structured orientation. Set ok=true only when the readiness gate passes.` +
     // orient mints RUN_ID, so it writes its own heartbeat with the id it just made.
-    `\n\nDRIVER HEARTBEAT (MANDATORY). Using the runId you minted in step 1c, append two lines with the command ` +
+    `\n\nDRIVER HEARTBEAT. Using the runId you minted in step 1c, append two lines with the command ` +
     `below, never by hand: one BEFORE you start reading — ` +
     `\`${lineCmd(JOURNAL_PATH, { seq: 0, event: 'agent-start', agent: 'orient', phase: 'Orient' })} --run <runId>\` ` +
     `— and one immediately before you return — ` +
@@ -1557,7 +1554,7 @@ async function orient() {
 }
 
 // ensureBranch() — DEDICATED strategy only (the control flow gates on it). Mirrors
-// implement.md Step 0.9 so yolo lands the run on the slug branch BEFORE any stage
+// implement.md Step 0, item 11, so yolo lands the run on the slug branch BEFORE any stage
 // runs, instead of leaving plan/implement to mint it mid-chain: if the slug branch
 // already exists (local or an already-fetched remote-tracking ref) → switch to it;
 // if it does NOT exist → CREATE it from base-branch (fall back to the current HEAD
@@ -1577,7 +1574,7 @@ async function ensureBranch(idx) {
   return await agent(
     `Autonomous branch posture for SDLC slug '${slug}' (branch-strategy: dedicated). The working tree is on ` +
     `'${idx.branch.current}' but the workflow's dedicated branch is '${target}'. Land the tree on '${target}' NOW, ` +
-    `before any stage runs, by mirroring implement.md Step 0.9. Run git as \`git -C ${projectRoot} …\`; make NO ` +
+    `before any stage runs. Run git as \`git -C ${projectRoot} …\`; make NO ` +
     `commits and change nothing else.\n\n` +
     `1. If \`git -C ${projectRoot} branch --show-current\` is already '${target}', return ` +
     `{ ok: true, switched: false, action: 'already-on-branch' }.\n` +
@@ -1646,9 +1643,9 @@ function reChallengeClause(priorDeferrals) {
 // ---------------------------------------------------------------------------
 async function runStage(stage, sliceArg, idx, extra = {}) {
   const sliceClause = sliceArg ? `, slice '${sliceArg}'` : ''
-  const roundClause = extra.round
-    ? ` This is autonomous fix ROUND ${extra.round} of up to 2 — a prior round already applied one fix pass; ` +
-      `resolve only what still fails. If warned the slice was already verified, proceed with the overwrite.`
+  const roundClause = extra.round > 1
+    ? ` This is autonomous verify ROUND ${extra.round} of 2: a prior round already ran one fix pass; ` +
+      `resolve only what still fails.`
     : ''
   // F2 corrective probe round — a prior verify round returned structurally clean but
   // deferred these AC(s) with no capability-probe receipt. This is NOT a fix pass; it is

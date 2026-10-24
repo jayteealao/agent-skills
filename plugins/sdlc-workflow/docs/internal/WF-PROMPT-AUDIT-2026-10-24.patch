@@ -1,0 +1,1275 @@
+diff --git a/plugins/sdlc-workflow/skills/wf/SKILL.md b/plugins/sdlc-workflow/skills/wf/SKILL.md
+index a411755..9bf03ae 100644
+--- a/plugins/sdlc-workflow/skills/wf/SKILL.md
++++ b/plugins/sdlc-workflow/skills/wf/SKILL.md
+@@ -7,7 +7,7 @@ argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|re
+ 
+ # Role
+ 
+-You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per key, and other words go to the router. Identify the key, load the reference that Step 0 names, and follow it. Three contracts bind every key and every sub-agent you spawn:
++You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per key, and other words go to the router. Identify the key, load the reference that Step 0 names, and follow it. These contracts bind every key and every sub-agent you spawn:
+ 
+ - Apply [_output-boundary.md](reference/_output-boundary.md) to every external-facing output.
+ - Write every text per [_ste-procedural.md](reference/_ste-procedural.md). Write chat narratives per [_chat-return.md](reference/_chat-return.md). A reference's own writing spec adds to this contract and never replaces it.
+@@ -37,12 +37,12 @@ Run this check before any read or write. Its result is your first visible output
+ | `design` | `[<slug>] [move\|amend\|import\|audit\|critique] [text]` · `setup\|teach\|extract\|direction\|sync [text]` | Human-only: the person confirms the boards before drivers run. | `02c-craft.md` |
+ | `slice` | `<slug> [text]` | Decompose the shape into shippable slices. | `03-slice.md`, `03-slice-<slug>.md` |
+ | `plan` | `<slug> [<slice> [text]]` · `<slug> all` | Per-slice plan with a reuse scan. Applies the augmentation plan via `reference/augment/<type>.md`. | `04-plan-<slice>.md` |
+-| `implement` | `<slug> [<slice>\|reviews]` | Code the slice. `reviews` runs fix-blockers mode. | `05-implement-<slice>.md` |
++| `implement` | `<slug> [<slice>\|reviews]` · `<slug> <slice> reviews` | Code the slice. `reviews` runs fix-blockers mode on the selected slice or on the named slice. | `05-implement-<slice>.md` |
+ | `verify` | `<slug> [<slice>]` | Tests, lints, typecheck, the user-observable AC gate, one user-gated fix loop, augmentation re-checks. | `06-verify-<slice>.md` |
+-| `review` | `<slug> [<slice>\|triage]` · `<dimension> [text]` · `sweep <aggregate> [text]` | With a slug: the workflow stage over the accumulating ledger. Without: ad-hoc review, one rubric or a fan-out. Resolves slug versus dimension itself. | review artifacts |
++| `review` | `<slug> [<slice>\|triage]` · `<slug> triage [<slice>]` · `<dimension> [text]` · `sweep <aggregate> [text]` | With a slug: the workflow stage over the accumulating ledger. Without: ad-hoc review, one rubric or a fan-out. Resolves slug versus dimension itself. | review artifacts |
+ | `handoff` | `<slug> [<slice>]` · `pr#N` · `<branch>` | Aggregate completed slices into a PR. `pr#N` or a branch runs batch mode across the branch onto the lead slug. Refuses while a required review has unresolved blockers. | `08-handoff.md` |
+ | `ship` | `<slug>\|pr#N\|<branch> [<env>\|announce\|rollback [<run-id>]]` | Release via `.ai/ship-plan.md`. Batch mode is all-or-nothing per PR. `announce` re-runs comms. `rollback [<run-id>]` runs the Go/No-Go reversal. | `09-ship-run-<run-id>.md`, `09-ship-runs.md`, `09-rollback-<run-id>.md` |
+-| `retro` | `<slug>\|pr#N\|<branch>` | Post-mortem. Batch mode retrospects every slug on the branch and the cross-slug lessons. | `10-retro.md` |
++| `retro` | `<slug>\|pr#N\|<branch> [deep]` | Post-mortem. Batch mode retrospects every slug on the branch and the cross-slug lessons. | `10-retro.md` |
+ 
+ ### Drivers and loops
+ 
+@@ -98,7 +98,7 @@ After the reference's logic completes, end with this block. If the reference sto
+ ```
+ wf <key> complete: <slug-or-scope>
+ 
+-<Narrative: 2–5 sentences of prose, no bullets, no field labels — the state inherited, the decisions and counts with reasons, what comes next and the top risk.>
++<Narrative per _chat-return.md, section The narrative.>
+ 
+ Artifacts: <paths created or modified, or "none">
+ Next: <one concrete invocation, or "Done">
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/_control-file-ownership.md b/plugins/sdlc-workflow/skills/wf/reference/_control-file-ownership.md
+index 8b19567..8b6452f 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/_control-file-ownership.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/_control-file-ownership.md
+@@ -5,7 +5,7 @@ Two files are written by nearly every `/wf` stage and by every driver:
+ - `.ai/workflows/<slug>/00-index.md` — the workflow's own control file (status, roster, progress, deferral ledger, RIM ledger, charter).
+ - `.ai/workflows/INDEX.md` — the global registry.
+ 
+-They are the only files in the system with **many concurrent writers**, and until this contract existed they were written blind. A background `/wf yolo` driver and a foreground session would both hold reads taken minutes apart, and the second writer's edit would be rejected as *"File has been modified since read"* — repeatedly, in clusters, with no rule to fall back on. A **dead** driver's last write can also be half-finished, and nothing else says the driver stopped.
++They are the only files in the system with **many concurrent writers**, Two writers that read minutes apart collide: the second edit fails with *"File has been modified since read"*. A **dead** driver's last write can also be half-finished, and nothing else says the driver stopped.
+ 
+ This file is the shared rule. `yolo.md`, `auto.md`, and the write-bearing stage references cite it rather than restating it.
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/_question-craft.md b/plugins/sdlc-workflow/skills/wf/reference/_question-craft.md
+index c486c3f..001cd47 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/_question-craft.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/_question-craft.md
+@@ -76,4 +76,4 @@ framing (it can be 2–3 sentences); option `label`s stay short; option
+ field itself; the question dialog can hide chat text (see [_gate-question.md](_gate-question.md)).
+ Freeform chat questions follow the same seven requirements in prose.
+ 
+-**Never ask a decided question again (B3).** Before a question, read the earlier answers: `po-answers.md` and `steer.md`. When one covers the question, use it, name it, and do not ask. Ask again only when a fact changed, and say which fact.
++**Never ask a decided question again.** Before a question, read the earlier answers: `po-answers.md` and `steer.md`. When one covers the question, use it, name it, and do not ask. Ask again only when a fact changed, and say which fact.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/_ste-procedural.md b/plugins/sdlc-workflow/skills/wf/reference/_ste-procedural.md
+index 0fd85d3..e5f9fc6 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/_ste-procedural.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/_ste-procedural.md
+@@ -7,14 +7,14 @@ parentheses for traceability; the wording and examples here are original.
+ 
+ **Scope.** These rules apply to ALL text this workflow writes: every document
+ `/wf docs` or the diataxis skill writes, every section of every workflow
+-artifact — the story section and the structured sections alike — runbook and
++artifact, runbook and
+ how-to steps, user-facing
+ product copy (labels, errors, empty states), external-facing outputs (release
+ notes, PR bodies, announcements), and the chat summary each stage returns.
+ Nothing is exempt. Each passage follows the sections that govern its kind of
+ text: section 1 (word discipline) everywhere; sections 2–3 wherever the text
+-gives steps, commands, or warnings. Story sections and chat summaries MUST
+-additionally follow *The narrative* in [_chat-return.md](_chat-return.md);
++gives steps, commands, or warnings. Chat summaries also follow
++*The narrative* in [_chat-return.md](_chat-return.md);
+ that section defines structure only, and the language rules here still apply.
+ 
+ Citing sites reference the section they need, not the whole file.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/_subagents.md b/plugins/sdlc-workflow/skills/wf/reference/_subagents.md
+index 681550c..b2f397c 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/_subagents.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/_subagents.md
+@@ -69,7 +69,7 @@ pass** is one wave of them.
+ |---|---|---|---|
+ | Dispatch call | The `Agent` tool, one call per child; independent children in one message run concurrently | `spawn_agent` per child, then `wait_agent` on the wave | The `Agent` tool, one call per child. Children run in the background by default; collect each wave with `get_subagent_result` |
+ | Agent types | Built-in `general-purpose`; `Explore` for read-only research | Built-in `explorer` (read-heavy), `worker` (bounded execution), `default`. Never a custom `.codex/agents/*.toml` agent by name | Built-in `general-purpose`; `Explore` for read-only research |
+-| Effort tier → host setting | Pass `model:` on the call: low and medium = `sonnet`, high = `opus`, summary = `haiku` (Haiku 5.5; the summary tier is its only use in prose). The `/wf yolo` Workflow driver takes a full model id, so it pins orient, the stage agents (the `models` block of `.ai/sdlc-config.json` may set a stage to `claude-sonnet-5-5`), the review writer and update-deps exec to `claude-opus-5-5` at `medium` effort, the bookkeeping agents that run fixed commands or copy data (branch, writeback (in yolo, only when the verify agent did not mirror the slice status), plan-reconcile-clear, run-end, plan-index-writeback) to `claude-haiku-5-5` at `medium` effort, and every other agent to `claude-sonnet-5-5` at `high` effort (`OPUS`, `HAIKU` and `SONNET` in `workflows/yolo.js`). Never use `opus` below high, and never omit the pin — a child must not inherit the parent's model | Pass the reasoning effort on the spawn: low, medium, high; the summary tier is low | Pass `model:` on the call with the same tier aliases as Claude Code: low, medium and summary = `sonnet`, high = `opus`. Never omit the pin |
++| Effort tier → host setting | Pass `model:` on the call: low and medium = `sonnet`, high = `opus`, summary = `haiku` (Haiku 5.5; the summary tier is its only use in prose). The `/wf yolo` Workflow driver takes a full model id, so it pins orient, the stage agents (the `models` block of `.ai/sdlc-config.json` may set a stage to `sonnet`), the review writer and update-deps exec to `claude-opus-5-5` at `medium` effort, the bookkeeping agents that run fixed commands or copy data (branch, writeback (in yolo, only when the verify agent did not mirror the slice status), plan-reconcile-clear, run-end, plan-index-writeback) to `claude-haiku-5-5` at `medium` effort, and every other agent to `claude-sonnet-5-5` at `high` effort (`OPUS`, `HAIKU` and `SONNET` in `workflows/yolo.js`). In a prose dispatch, use `opus` only for the high tier. Never omit the pin — a child must not inherit the parent's model | Pass the reasoning effort on the spawn: low, medium, high; the summary tier is low | Pass `model:` on the call with the same tier aliases as Claude Code: low, medium and summary = `sonnet`, high = `opus`. Never omit the pin |
+ | Write isolation for a child that edits files | Pass `isolation: worktree` on the call; the coordinator merges the child's branch result | Partition the work by disjoint files; there is no worktree flag | Pass `isolation: worktree` on the call; the coordinator merges the child's branch result |
+ | Wave ceiling | Cost only; keep waves at 6 | The advertised concurrency of the session (`max_threads`, default 6) | Cost only; keep waves at 6. The host runs at most 10 children at once and queues the rest |
+ | Depth | Do not give a child the `Agent` tool | `max_depth` 1 | Do not give a child the `Agent` tool; the host allows one nesting level |
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/augment/benchmark.md b/plugins/sdlc-workflow/skills/wf/reference/augment/benchmark.md
+index 1db635a..aae8e06 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/augment/benchmark.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/augment/benchmark.md
+@@ -165,7 +165,7 @@ For each measured target, calculate:
+ 
+ ## Compare Step 4 — Update `05c-benchmark.md` with comparison data
+ 
+-Add the `## Comparison Results` section and the comparison frontmatter per [benchmark/_artifact.md](benchmark/_artifact.md) → *Compare Step 4*. Do not overwrite baseline data.
++Add the `## Comparison Results` section and the comparison frontmatter per [benchmark/_artifact.md](benchmark/_artifact.md) → *Compare Step 4*. Do not overwrite baseline data. Then set this benchmark entry's `mode: complete` in `00-index.md` `augmentations:` and refresh `updated-at`.
+ 
+ # Step 5 — Hand off to user
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/augment/instrument.md b/plugins/sdlc-workflow/skills/wf/reference/augment/instrument.md
+index a7aa92a..ff5321d 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/augment/instrument.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/augment/instrument.md
+@@ -157,7 +157,7 @@ Signals designed: <N> (<log/metric/trace/error breakdown>)
+ PII warnings: <none | N fields require redaction — see §4>
+ Framework: <detected>
+ Next: /wf implement <slug> — instrumentation plan will be read as additional context
+-Consider: /wf experiment <slug> to design a controlled rollout for this change
++Consider: the experiment augmentation (shape decides it; plan writes 04c-experiment.md) to design a controlled rollout for this change
+ Artifact: .ai/workflows/<slug>/04b-instrument.md
+ ```
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/auto.md b/plugins/sdlc-workflow/skills/wf/reference/auto.md
+index eb84b25..17a9366 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/auto.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/auto.md
+@@ -125,7 +125,7 @@ Notes that bind the table:
+ - **The stage already asked.** When a stage PAUSEs with `awaiting-input` / `escalated`, `auto` reads the recorded verdict and stops; it does not re-prompt and never overrides the stage's own gate.
+ - **Intent-bearing decisions are asked at the gate.** A delegated stage under `auto` ASKS an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)) at its gate — the human is present — rather than batching it into the stage's autonomous block; only implementation-detail decisions are auto-resolved and recorded.
+ - **One fix pass per stage, then hand back.** `verify` enforces a single fix round per invocation by design; `review` accumulates findings across runs and runs its fix loop once per invocation. `auto` does **not** auto-re-invoke either for another pass — that is a deliberate user decision. When a stage PAUSEs (verify `escalated`, or `review` leaving open blockers), `auto` PAUSEs and recommends the re-invocation in the summary.
+-- **Mid-build discover checkpoint.** When the workflow carries a `severity: high` RIM (risk/assumption/mitigation recorded in `00-index.md`) and the **visible-milestone** slice — the one whose completion first makes that risk observable — lands a clean `verify`, `auto` does not silently drive on. It **runs** the read-only `/wf discover <hypothesis derived from the RIM>` without asking (the analysis is read-only; the release valve in [_autonomy-guards.md](_autonomy-guards.md) applies), then surfaces the result in the hand-back. Acting on the finding stays the user's decision — `auto` never builds on it unattended.
++- **Mid-build discover checkpoint.** When the workflow carries a `severity: high` RIM (risk/assumption/mitigation recorded in `00-index.md`) and the **visible-milestone** slice — the one whose completion first makes that risk observable — lands a clean `verify`, `auto` does not silently drive on. It **runs** the read-only `/wf intake discover <hypothesis derived from the RIM>` without asking (the analysis is read-only; the release valve in [_autonomy-guards.md](_autonomy-guards.md) applies), then surfaces the result in the hand-back. Acting on the finding stays the user's decision — `auto` never builds on it unattended.
+ 
+ # Step 2 — Residual durability (on PAUSE or at the endpoint)
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/campaign.md b/plugins/sdlc-workflow/skills/wf/reference/campaign.md
+index 585e713..ad1075d 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/campaign.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/campaign.md
+@@ -71,7 +71,7 @@ CAUTION: do not run `git worktree remove --force` on an old campaign worktree. I
+    - An intent-bearing choice, for example a slice that drops or narrows an acceptance criterion, is a stop. Return it as a question.
+ 
+    When the subagent returns the warning, tell the person the slice count, and continue. The person can split the piece later. When the subagent returns a question, ask the person, then dispatch the subagent again with the answer. When the person already ran `/wf slice <piece-slug>`, skip this step.
+-10. **Run the yolo driver.** Launch the driver on the piece slug in slug mode, as `/wf yolo <piece-slug>` does: [yolo.md](yolo.md) Steps 0.3 to 0.5, then Step 1 onward. Wait for the run to end, and hand back per yolo.md Step 2.
++10. **Run the yolo driver.** Launch the driver on the piece slug in slug mode, as `/wf yolo <piece-slug>` does: [yolo.md](yolo.md) Steps 0.3 to 0.4, then Step 1 onward. Wait for the run to end, and hand back per yolo.md Step 2.
+     - When the run stopped (`outcome.stoppedAt` is set), show the stop to the person and follow the answer. Resume the driver per yolo.md "Resuming". Do not continue to the next piece.
+     - When the run reached its endpoint, run `<cmd> built "<root>" <source-slug> <piece-key>`.
+     - A stop request stops the run at its next stage boundary, as in yolo.
+@@ -81,7 +81,7 @@ CAUTION: do not run `git worktree remove --force` on an old campaign worktree. I
+ 12. **Pause for the try-out.** This step runs only for a piece with `try-out: yes`: `ux-impact` is not `none`, or the piece adds a user-facing command. An engine or platform piece gets no pause. Tell the person how to run the piece: the build command, the screen or the command to open, and each acceptance criterion of the piece file to try, word for word. Ask one question: the piece works, or describe the problem.
+     - **Works.** Append the line `- try-out: works — <the person's words>` under `## Try-out` in the piece's `po-answers.md`. Add the heading when it is absent. Go to step 14.
+     - **A problem.** Go to step 13 with the person's words.
+-13. **Fix as new work.** Run the extension mode of intake on the piece with the person: `/wf intake <piece-slug> <problem text>` (`intake/extend.md`). It adds a slice to the roster of the piece. Run `<cmd> reopen "<root>" <source-slug> <piece-key>`, so that a new call also builds the slice. Then go to step 10. The driver plans, implements and verifies the new slice, and it runs the slug-wide review again over the whole piece. When the problem is new scope and not a defect of this piece, the person can add it to the list as a new piece with `/wf intake brainstorm <source-slug> add <text>` instead. Then record the approval of step 11 or the try-out of step 12 with the person's words.
++13. **Fix as new work.** Run the extension mode of intake on the piece with the person: `/wf intake <piece-slug> <problem text>` (`intake/extend.md`). It adds a slice to the roster of the piece. Run `<cmd> reopen "<root>" <source-slug> <piece-key>`, so that a new call also builds the slice. Then go to step 10. The driver plans, implements and verifies the new slice, and it runs the slug-wide review again over the whole piece. When the problem is new scope and not a defect of this piece, and the source is a brainstorm, the person can add it to the list as a new piece with `/wf intake brainstorm <source-slug> add <text>` instead. Then record the approval of step 11 or the try-out of step 12 with the person's words.
+ 
+     NOTE: a relaunch with only a steering entry changes no code: only the review runs again.
+ 14. **Close the piece.** Run `<cmd> done "<root>" <source-slug> <piece-key>`. It refuses unless the piece is `built`, the fidelity table has no unapproved row, and the try-out is recorded for a piece with `try-out: yes`. Then it merges the trunk, moves the end branch `pieces/<source-slug>--<piece-key>` to HEAD, and sets `base-branch` back to the trunk. When the result has `conflict: trunk`, stop. Ask the person to merge the trunk by hand, then run `done` again. Report the piece in one line, run `status` again, and go to step 4.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/design/_component-craft.md b/plugins/sdlc-workflow/skills/wf/reference/design/_component-craft.md
+index 70d3138..05991d9 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/design/_component-craft.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/design/_component-craft.md
+@@ -41,8 +41,8 @@ Adapted from Emil Kowalski's "building loved components" principles — drawn fr
+   it belongs to `harden.md`. The bar: users never notice the edge case was handled, which is
+   exactly right.
+ - **Transitions, not keyframes, for dynamic collections** — anything added or removed rapidly
+-  (toasts, list items) must retarget smoothly, never restart from zero. See the Interruptibility
+-  rules in `animate.md`.
++  (toasts, list items) must retarget smoothly, never restart from zero. See `animate.md` →
++  Interruption and exit.
+ 
+ ## Cohesion
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/design/_output.md b/plugins/sdlc-workflow/skills/wf/reference/design/_output.md
+index da3214a..f1b70b4 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/design/_output.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/design/_output.md
+@@ -56,7 +56,7 @@ artifact lets `/wf review` and `/wf handoff` see exactly what design augmentatio
+   contact-sheet path `design/r<N>/index.html`.
+ - **Artifacts.** Comma-separate the `.ai/workflows/<slug>/` paths written (build runs list the
+   whole span; the design stage lists `design/r<N>/` as one entry). No-slug standalone reports may write `"none"` if nothing persisted.
+-- **Next** is "Type `/wf <key> <args>`.", or `Done`. The design stage routes to `/wf slice <slug>`, or, for a campaign
++- **Next** is "Type `/wf <key> <args>`.", or `Done`. The design stage routes per the Next row of `stage.md` (`/wf slice <slug>`, or `/wf plan <slug>` for an `rca` workflow), or, for a campaign
+   piece, to `/wf campaign <source-slug>` per `design.md` Step 2; `audit`/`critique` route to `/wf review <slug>`; upkeep runs usually `Done`.
+ - If the command reference defines its own "Chat return contract", treat that as the *content*
+   spec — pick the load-bearing fields and keep it compact.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/design/_preflight.md b/plugins/sdlc-workflow/skills/wf/reference/design/_preflight.md
+index be67d7f..90b0e49 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/design/_preflight.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/design/_preflight.md
+@@ -52,7 +52,7 @@ Skipping these produces generic output that ignores the project.
+ | Design mode | A design mode (`persuade`, `operate`, `read`, `experience`) is chosen for each changed surface | Choose it per [_design-context.md](_design-context.md) → Design modes. Ask the person when the task cue and the surface leave it open. |
+ | Codebase | Codebase inspection sub-agents have run | Run the 4 parallel inspection sub-agents (below). Skip if their output is already in this session, or reuse the `stack` fingerprint from `00-index.md` where possible. |
+ | Brief | Design brief `02b-design.md` authored (at `shape`, following `design/shape.md`) and its direction backed by a recorded user source at contract time (an in-session confirmation, a user-confirmed PRODUCT.md, or a prior `teach` answer) | The brief is authored by the `shape` lifecycle stage; the design stage confirms its direction (`shape=pass`) with the person before writing the contract (`design/contract.md`). When the brief is missing, the design stage writes it first. |
+-| Image gate | Surfaces drawn or probes generated, or skipped with a recorded reason | Resolve at the design stage before any stage plans or builds. |
++| Image gate | Surfaces drawn as boards, or skipped with a recorded reason | Resolve at the design stage before any stage plans or builds. |
+ | Mutation | All gates above pass; mutation type matches the command | Do not edit project files until mutation is open. |
+ 
+ **Codebase gate is relaxed for**: `audit`, `critique`, `extract`, `setup`, `teach`, `direction`, `sync` — these are read-only or record-authoring.
+@@ -73,6 +73,6 @@ fingerprint from `00-index.md` for framework/library facts where it already answ
+ - **Code** — the lifecycle build span (`implement`), which also applies the moves. Requires `image_gate` resolved AND the stage's build gate.
+ - **Artifact** — contract authoring at the design stage (writes `02c-craft.md`), plus `audit`, `critique`. No code touched.
+ - **Context** — `setup`, `teach`, `direction`, `sync`. The design record only (PRODUCT.md, DESIGN.md, `.ai/design/`); allowed unconditionally.
+-- **Read-only** — `extract`. Produces a report; no project files modified.
++- **Report** — `extract`. Writes its report, its token file, and `## System in code` of `.ai/design/current.md`. It changes no product code.
+ 
+ Do not edit any file until the appropriate mutation gate is open.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/design/audit.md b/plugins/sdlc-workflow/skills/wf/reference/design/audit.md
+index 7113a39..b281516 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/design/audit.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/design/audit.md
+@@ -112,11 +112,10 @@ Format as a structured report:
+ | A1 | blocker/high/medium/low | token name or audit rule | file, component, or board key | specific problem | specific fix | open/in-progress/fixed/deferred |
+ 
+ ## Recommended fixes
+-[Ordered by impact, with specific commands to address each:
+- - `/wf design harden` for accessibility issues
+- - `/wf design optimize` for performance issues
+- - `/wf design colorize` for theming issues
+- - etc.]
++[Ordered by impact. Name the move for each fix:
++ - `/wf design <slug> harden` for accessibility issues
++ - `/wf design <slug> optimize` for performance issues
++ - `/wf design <slug> colorize` for theming issues]
+ ```
+ 
+ ## Output in SDLC context
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/design/contract.md b/plugins/sdlc-workflow/skills/wf/reference/design/contract.md
+index f6632f9..dae5e72 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/design/contract.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/design/contract.md
+@@ -6,7 +6,7 @@ This is **not a standalone command** — it is the contract-authoring procedure
+ 
+ **The design stage owns both design gates.** No driven stage resolves them. The brief (`02b-design.md`) is authored upstream at `shape` as plain discovery with the image gate left **unresolved** (no `image-gate` field written). This procedure resolves the two gates the brief deferred:
+ 
+-1. **Image gate** — generate the north-star mock/probes via the `imagery` skill, or record a reasoned skip. Writes the resolved `image-gate` — `pass` or `skipped:<reason>` — to `02c` (there is no `pending` value; the brief simply left it unset).
++1. **Image gate** — draw the boards per [_boards.md](_boards.md), or record a reasoned skip. Write the resolved `image-gate` (`pass` or `skipped:<reason>`) to `02c`. There is no `pending` value.
+ 2. **Brief-confirm gate** — resolve `shape=pass` from a recorded user-backed direction source before writing the contract: an in-session user response, a user-confirmed PRODUCT.md, or a prior `teach` answer. When no recorded source exists, present the resolved visual direction and get the user's approval.
+ 
+ **Scope**: writing the contract does not itself mutate product code. `implement` applies the contract during the build.
+@@ -17,14 +17,14 @@ The visual contract requires a **confirmed visual direction** and a resolved ima
+ 
+ 1. PRODUCT context loaded (PRODUCT.md valid, ≥200 chars, no `[TODO]` markers). When it is not, the design stage runs `/wf design setup` with the person first; it does not stop the workflow.
+ 2. **Direction source.** `02b-design.md` exists (authored at `shape`, or by the design stage when it was missing) and its direction is **confirmed** by one of the `shape=pass` sources below. When the person named a move, the move's reference focuses the direction; it does not replace the brief.
+-3. Visual-direction decision recorded: probes generated and the user chose a direction, OR skipped with a stated reason.
++3. Visual-direction decision recorded: the person saw the boards and chose a direction, OR skipped with a stated reason.
+ 4. North-star mock decision recorded (Step 3 below).
+ 
+ **`shape=pass`** requires a direction the user confirmed. Three sources satisfy the gate: a user response in this session, a user-confirmed PRODUCT.md, or a prior `teach` answer from the user. Record which source satisfied the gate. A self-authored direction with no user-confirmed source does not pass the gate.
+ 
+ Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Pre-fill every question that the user prompt, PRODUCT.md, DESIGN.md, or the codebase already answers, and record each pre-filled answer with its source. Ask only the unanswered questions, in ONE batched round.
+ 
+-Invalid image-skip reasons: "the implementation will be semantic HTML/CSS/SVG", "a raster mock won't be used directly", "the product is fictional." Probes and mocks are direction artifacts, not implementation assets.
++Invalid image-skip reasons: "the implementation will be semantic HTML/CSS/SVG", "a raster mock won't be used directly", "the product is fictional." Boards and mocks are direction artifacts, not implementation assets.
+ 
+ ## Step 1: Load the direction source
+ 
+@@ -83,7 +83,7 @@ When no board can be shown (no browser renders the HTML and the person cannot op
+ 
+ Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after the person confirmed the boards, or `skipped:<reason>` for a flow with no visual change. (`02c` is authoritative; the `02b` brief left the gate unset — you may mirror the resolved value onto `02b` too, but it is not required.)
+ 
+-**Confirm gate.** `shape=pass` is satisfied by the "yes to proceed" answer above, or by a recorded user-backed direction source (a user-confirmed PRODUCT.md, or a prior `teach` answer) — record which source satisfied the gate. Do not write the contract while no user-backed source exists, and never leave the mock neither confirmed nor explicitly skipped with a reason.
++**Confirm gate.** `shape=pass` is satisfied by the approve answer at [stage.md](stage.md) Step 5, or by a recorded user-backed direction source (a user-confirmed PRODUCT.md, or a prior `teach` answer) — record which source satisfied the gate. Do not write the contract while no user-backed source exists, and never leave the mock neither confirmed nor explicitly skipped with a reason.
+ 
+ ## Step 4: Mock fidelity inventory
+ 
+@@ -140,7 +140,7 @@ recommended-routes: [{invocation: "/wf slice <slug>", reason: "the person confir
+ 
+ Body sections, in order, under these exact `##` headings (later stages cite them):
+ 
+-- `## Visual direction confirmed` — one paragraph on the approved direction: the chosen probe (if any) and each deviation from the brief.
++- `## Visual direction confirmed` — one paragraph on the approved direction: the chosen direction (if any) and each deviation from the brief.
+ - `## Directions considered` — only when design stage Step 3b ran: one row per direction, `| Name | Axis | Kept or rejected | The person's reason |`, so a later amend does not reopen a rejected direction by accident. Include the canon row. Below the table, list the candidates that were not drawn, with one line each.
+ - `## Thesis` — the default arrangement that this design refuses, in one sentence.
+ - `## Own world` — what makes the design recognizable with all content removed.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/design/critique.md b/plugins/sdlc-workflow/skills/wf/reference/design/critique.md
+index 134164a..fe2db0d 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/design/critique.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/design/critique.md
+@@ -101,7 +101,7 @@ When the surface has motion in scope:
+ 
+ Then run the opportunity sweep of `animate.md` once: list at most 5–7 places that should move but do not, and 2–5 rejected candidates with the gate that rejected each. "The motion here is already right" is a valid result. For the sweep alone on a confirmed design, run `/wf design <slug> animate`.
+ 
+-Motion bugs hide at full speed — review animations in slow motion or frame-by-frame, and with fresh eyes the next day, before judging them. The full rubric is `animate.md` (and the `motion` review dimension); platform forms live in `_platforms.md`.
++Motion bugs hide at full speed — review animations in slow motion or frame-by-frame, and with fresh eyes the next day, before judging them. The full rubric is `animate.md` and the `motion` section of the `interface-craft` review rubric. Platform forms are in `_platforms.md`.
+ 
+ ### 9. Identity and direction
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/design/mode-read.md b/plugins/sdlc-workflow/skills/wf/reference/design/mode-read.md
+index 1b882be..8d5a41a 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/design/mode-read.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/design/mode-read.md
+@@ -30,7 +30,7 @@ Design stage Step 3b reads `## Directions`. Step 4 reads `## Boards`. The typogr
+ Before you draw or edit UI, load [_craft-floor.md](_craft-floor.md). Check the result against its Refuse and Verify lists.
+ 
+ **The board is the document as the reader meets it:** a frame the world owns, in the direction's committed palette and type, around a calm reading column.
+-- Set the column at a real measure: about 60–75 characters with body text near the platform body size (16 px on the web); in a native app, the platform's body text style and its readable width ([_platforms.md](_platforms.md)).
++- Set the column at a real measure: about 65–75 characters with body text near the platform body size (16 px on the web); in a native app, the platform's body text style and its readable width ([_platforms.md](_platforms.md)).
+ - Give the headings a clear hierarchy, and the wayfinding that carries the reader through.
+ - Set body text in a reading face with real contrast against its ground.
+ - Set code, tables, notes and figures in the standard forms that readers know, in the world's type and palette.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/design/record.md b/plugins/sdlc-workflow/skills/wf/reference/design/record.md
+index 8bbcfdd..1947b36 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/design/record.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/design/record.md
+@@ -68,7 +68,7 @@ Work with the person on `direction.md`:
+ 3. Ask what changed, in one batched round per [_gate-question.md](../_gate-question.md).
+ 4. Write only what the person confirms. Move each answered open decision to `## Decided`.
+ 
+-When the instructions are `from <board-slug>`, a design brainstorm carried a change of direction. Read that board's piece of work with `shape: design-direction`, and present its kept items with `design: true` as proposed changes in step 2, each with its reason. After the person answers, set the piece's `state: routed` and `routed-to: direction`.
++When the instructions are `from <board-slug>`, a design brainstorm carried a change of direction. Read the board's piece with `design-form: design-direction` (`shape: design-direction` on an older board), and present its kept items with `design: true` as proposed changes in step 2, each with its reason. After the person answers, set the piece's `state: routed` and `routed-to: direction`.
+ 
+ ### `/wf design sync`
+ Keep `DESIGN.md` and the canvas design system in step, per `_host-surfaces.md`, row "Design system sync". When the host has no sync surface, report that and stop. Record the design-system link in `current.md` frontmatter. Change one component at a time, and show the person the plan before any write.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/design/shape.md b/plugins/sdlc-workflow/skills/wf/reference/design/shape.md
+index 1e9f98b..cb77a3e 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/design/shape.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/design/shape.md
+@@ -2,7 +2,7 @@
+ 
+ Author the **design brief**: a structured artifact that guides UI implementation through discovery, not guesswork. This is **not a standalone command** — it is the brief-authoring procedure that the **`shape` lifecycle stage** runs (`../shape.md` Step 5a) when design is needed ([_lane.md](_lane.md)). The design stage runs it too when the brief is missing ([stage.md](stage.md) Step 2). It produces `02b-design.md`.
+ 
+-**Scope**: Design planning only. This procedure does NOT write code, does NOT generate image probes, and does NOT confirm visual direction. It produces the thinking that makes code good. The visual-direction gates (image probes + confirm) and the visual contract `02c-craft.md` are authored downstream by the **design stage** with the person (see [stage.md](stage.md) and [contract.md](contract.md)); this procedure leaves the image gate **unresolved** — it writes no resolved `image-gate` to `02b-design.md` — for the design stage to resolve.
++**Scope**: Design planning only. This procedure does NOT write code, does NOT draw boards, and does NOT confirm visual direction. It produces the thinking that makes code good. The visual-direction gates (the boards and the confirm) and the visual contract `02c-craft.md` are authored downstream by the **design stage** with the person (see [stage.md](stage.md) and [contract.md](contract.md)); this procedure leaves the image gate **unresolved** — it writes no resolved `image-gate` to `02b-design.md` — for the design stage to resolve.
+ 
+ ## Philosophy
+ 
+@@ -107,7 +107,7 @@ Names omit the `.md` extension. `/wf implement` reads each as `skills/wf/referen
+ 
+ The design brief records the **intended** visual direction — color strategy, scene
+ sentence, named anchor references, anti-goals — from the discovery interview. It does
+-**NOT** draw surfaces or generate image probes, and does **NOT** run a confirm gate. Those two moves belong
++**NOT** draw surfaces or boards, and does **NOT** run a confirm gate. Those two moves belong
+ to the design stage, which a person runs:
+ 
+ - **Boards** — the design stage draws one board per changed surface and state when it authors
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/design/stage.md b/plugins/sdlc-workflow/skills/wf/reference/design/stage.md
+index 340ae0c..4b473dc 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/design/stage.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/design/stage.md
+@@ -10,7 +10,7 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
+ 
+ ## Step 0 — Orient
+ 
+-1. Read `00-index.md`. When `status: closed`, STOP: *"Workflow `<slug>` is closed. Use `/wf status recap <slug>` to reopen."*
++1. Read `00-index.md`. When `status: closed`, STOP: *"Workflow `<slug>` is closed. To reopen it, set `status: in-progress` in its `00-index.md`. Then run `/wf design <slug>` again."*
+ 2. When a driver (`auto` or `yolo`) invoked this stage, STOP. Route the person to `/wf design <slug>`. A driver never resolves a design direction.
+ 3. When `02-shape.md` is missing or not complete, STOP and route to `/wf shape <slug>`.
+ 4. When `ux-impact: none`, ask one gate question per [_gate-question.md](../_gate-question.md): change `ux-impact` to `visual`, `flow`, or `new-surface` and continue, or keep `none` and write the skip record. On `none`, write `progress.design: skipped` and `design-skip-reason:`, then STOP with the next step `/wf slice <slug>`.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/design.md b/plugins/sdlc-workflow/skills/wf/reference/design.md
+index 4f2bfd2..61d800c 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/design.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/design.md
+@@ -123,11 +123,12 @@ wf design <job> complete: <slug-or-"freestanding">
+ 
+ Design modes: <surface: persuade|operate|read|experience, ... | n/a>
+ Image gate: <pass | skipped:<reason> | n/a>
++Boards: <design/r<N>/ — <count> boards — design/r<N>/index.html | n/a>
+ Artifacts: <comma-separated paths, or "none">
+ Next: <Type `/wf <key> <args>`. | Done>
+ ```
+ 
+ Write `Next` as "Type `/wf <key> <args>`." The person runs the key; never write that you run it.
+-- After the stage, `Next` is "Type `/wf slice <slug>`."
++- After the stage, write `Next` from the Next row of [design/stage.md](design/stage.md). An `rca` workflow has no slice stage.
+ - When `00-index.md` has `origin-piece`, the workflow is a campaign piece, and the campaign walk slices it. `Next` is "Type `/wf campaign <source-slug>`." The `<source-slug>` is the folder in the `origin-piece` path (`.ai/workflows/<source-slug>/work/<piece-slug>.md`).
+ - After amend, `Next` names the first plan to revisit.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/docs.md b/plugins/sdlc-workflow/skills/wf/reference/docs.md
+index 4aeae01..dddeb1a 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/docs.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/docs.md
+@@ -149,7 +149,7 @@ Write a `## Review Notes` section to `generate.md` with any issues found. For an
+ **Write the docs-index artifact:** Before committing, write a compact index of this documentation run — `08b-docs-index.md` (`type: docs-index`; in `mode: workflow` under `.ai/workflows/<target-slug>/`, otherwise under `.ai/docs/<run-id>/`) with its Generated or Updated Docs table, Remaining Gaps, and Review Notes. Templates in [docs/_artifacts.md](docs/_artifacts.md).
+ 
+ **Commit all documentation changes:**
+-`docs: update documentation via wf docs run <run-id>`
++`docs: <one line that names the documents changed, in product language>`
+ 
+ # Step 6 — Primitive mode execution
+ Invoked only when Step 0 resolved to a primitive (first token matched a known key).
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/goal.md b/plugins/sdlc-workflow/skills/wf/reference/goal.md
+index 55046db..ae60f90 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/goal.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/goal.md
+@@ -19,7 +19,7 @@ The condition that the host judge reads says to trust only that line. A claim wi
+ 
+ ## What a goal is, and is not
+ 
+-- **The goal does not answer gates.** A human gate ends the goal ([_autonomy-guards.md](_autonomy-guards.md), "Goal park"). The person answers the gate, then runs `/wf loop goal <slug> resume`. This is why `yolo` and the campaign walk do not use goals: they answer gates by written policy, and they own their own loop.
++- **The goal does not answer gates.** A human gate ends the goal ([_autonomy-guards.md](_autonomy-guards.md), "Goal park"). The person answers the gate, then runs `/wf loop goal <slug> resume`. This is why `yolo` and the campaign walk do not use goals: each one owns its own loop, and `yolo` answers stage gates by written policy.
+ - **The goal adds no stop hook.** The host goal is the only continuation. A second continuation would compete with it.
+ - **The contract lives in the slug.** `goal.md` and `goal/checks.jsonl` stay when the host goal is cleared, so `resume` arms the same contract again.
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/handoff/_pr-ci-handoff.md b/plugins/sdlc-workflow/skills/wf/reference/handoff/_pr-ci-handoff.md
+index 48e0eb4..3e8d74a 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/handoff/_pr-ci-handoff.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/handoff/_pr-ci-handoff.md
+@@ -75,6 +75,6 @@ Every code fix in handoff is delegated to a subagent so the orchestrator context
+ - Absent that config, pass the narrowest gate the fix's own file type implies: the repo's formatter for a formatting fix, its linter for the language of the edited file, the single test file for a test fix.
+ - If nothing narrow exists, say so explicitly in the prompt (`Self-check: none available — state what you verified by hand`) rather than leaving the line to be answered decoratively.
+ 
+-**`Method: deviated` is never auto-accepted.** The orchestrator surfaces it to the user *before* the push, quoting the diagnosis's own words next to what the subagent actually did (rule 5 in [_fix-loop.md](../_fix-loop.md)). When the diagnosis carried an explicit prohibition and the deviation touches it, that is a **hard stop**: one round-1 diagnosis said, in its own words, "do not hand-add the 3 missing hashes — regenerate so nothing else is missed"; the subagent hand-added 13 lines, disclosed it in a trailing note, opened with "Fix confirmed: yes", and round 2 hit exactly the predicted next trio.
++**`Method: deviated` is never auto-accepted.** The orchestrator surfaces it to the user *before* the push, quoting the diagnosis's own words next to what the subagent actually did (rule 5 in [_fix-loop.md](../_fix-loop.md)). When the diagnosis carried an explicit prohibition and the deviation touches it, that is a **hard stop**.
+ 
+ The subagent commits but does **not** push; the orchestrator pushes once after a batch (triage step 7) so a single CI run covers all fixes in the iteration. After the subagents return, the orchestrator re-runs the `## CI watch procedure` to confirm the fixes are green (in T5.3).
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/handoff/_pr-triage.md b/plugins/sdlc-workflow/skills/wf/reference/handoff/_pr-triage.md
+index 039c209..d8433d2 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/handoff/_pr-triage.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/handoff/_pr-triage.md
+@@ -152,7 +152,7 @@ After the loop completes:
+ 
+ ```yaml
+ triage-iterations: <N actual iterations run>
+-triage-fixes-applied: <count of 🔴+🟡 that landed via implement reviews>
++triage-fixes-applied: <count of 🔴 and 🟡 fixes that landed through the fix-subagent contract>
+ triage-fixes-skipped: <count of 🟡 declined or 🔴 deferred>
+ triage-deferred-thread-ids: [<id>, ...]
+ triage-fixed-threads: [{ thread: <id>, sha: <fix sha> }, ...]   # every fix of a thread, kept across re-runs
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/implement/_reviews-mode.md b/plugins/sdlc-workflow/skills/wf/reference/implement/_reviews-mode.md
+index 49a554e..0b7e3b5 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/implement/_reviews-mode.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/implement/_reviews-mode.md
+@@ -32,7 +32,7 @@ Do this in order for reviews mode:
+       | {ID} | {sev} | {command} | fixed / could-not-fix | {fixed-at} | {SHA or —} | {notes} |
+       ```
+    d. Update `00-index.md`.
+-   e. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):** stage by explicit path, classified exactly as mainline Step 13 in `implement.md` (slice code by path, workflow artifacts by path, unknown dirty paths fail closed; `git add -A` and pathless `git add` are forbidden). Commit `fix(<slug>): review fixes for <slice-slug>`. Record the commit SHA. No push. If `branch-strategy` is `none`, skip the commit.
++   e. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):** stage by explicit path, classified exactly as `implement.md` step 12 (slice code by path, workflow artifacts by path, unknown dirty paths fail closed; `git add -A` and pathless `git add` are forbidden). Commit `fix(<slug>): review fixes for <slice-slug>`. Record the commit SHA. No push. If `branch-strategy` is `none`, skip the commit.
+ 8. **Evaluate adaptive routing.** Write ALL viable options into the record's `recommended-routes`:
+    - **Option A (default): Re-verify** → `/wf verify <slug> <slice-slug>` when fixes were applied. Compact recommended: review-fix context is noise for re-verification.
+    - **Option B: Re-review** → `/wf review <slug> <slice-slug>` when some findings could not be fixed and need re-assessment. Compact recommended: a fresh review needs clean context.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/implement/_steps.md b/plugins/sdlc-workflow/skills/wf/reference/implement/_steps.md
+index 21e4bc9..a7f9e08 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/implement/_steps.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/implement/_steps.md
+@@ -1,8 +1,8 @@
+ # Step commits, the steps table, and the test receipt
+ 
+-`implement.md` loads this file when `branch-strategy` is `dedicated` or `shared` (WF-SYSTEM-REVIEW C2, C4; WF-PIECES-PLAN D16, D33). One implement agent runs the whole slice. An implement that hard-stops loses no committed work: the next run continues after the last committed step. Verify reuses a green test run.
++`implement.md` loads this file when `branch-strategy` is `dedicated` or `shared`. One implement agent runs the whole slice. An implement that hard-stops loses no committed work: the next run continues after the last committed step. Verify reuses a green test run.
+ 
+-## Step commits (C2)
++## Step commits
+ 
+ 1. After each plan step, commit the step. Stage by path, as `implement.md` step 12 says. The message is `wip(<slug>): <slice-slug> step <n>`.
+ 2. Record the step in `.ai/workflows/<slug>/.implement-progress.jsonl`: one JSON line `{"slice", "event": "step", "step": <n>, "sha"}`. Under a driver, use the command that the driver gives.
+@@ -22,7 +22,7 @@ The implementation record `05-implement-<slice-slug>.md` ends with a `## Steps`
+ - `deviated` means the step was done in a different way than the plan says. Give the reason in `## Deviations from Plan`.
+ - A step with no commit, for example a step that changed no file, gets `—` in Commit.
+ 
+-## The test receipt (C4)
++## The test receipt
+ 
+ After the final commit, write `.ai/workflows/<slug>/.test-receipt-<slice-slug>.json`:
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/intake/adopt/_artifacts.md b/plugins/sdlc-workflow/skills/wf/reference/intake/adopt/_artifacts.md
+index 570b2e5..0f1998d 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/intake/adopt/_artifacts.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/intake/adopt/_artifacts.md
+@@ -28,7 +28,7 @@ next-invocation: "/wf verify <slug>"
+ recommended-routes: <routes>
+ ---
+ ```
+-Body (tight): `## Adopted Surface` (the changed-file roster with per-file +/- counts, the commit SHAs ahead of `<base>`, and the branch — the Step A0 evidence, exact), `## Restated Intent` (the inferred goal + any user correction from the gate), `## Acceptance Criteria` (each objectively verifiable; environment-dependent ACs carry their W2d resolution as an italic note), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
++Body (tight): `## Adopted Surface` (the changed-file roster with per-file +/- counts, the commit SHAs ahead of `<base>`, and the branch — the Step A0 evidence, exact), `## Restated Intent` (the inferred goal + any user correction from the gate), `## Acceptance Criteria` (each objectively verifiable; environment-dependent ACs carry their constraint resolution (the force-scope rule of `plan.md`) as an italic note), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
+ 
+ **`02-shape.md` — `type: shape`:**
+ ```yaml
+@@ -113,7 +113,7 @@ recommended-routes: <routes>
+ Body:
+ - `## What Was Done` — the reconstructed steps, retrospective: each names the file(s) it touched and the change in 1–2 lines. This is observation, not instruction.
+ - `## Simplicity Ladder (observed)` — for each capability the change introduced, the rung it *actually* took (stdlib / native / reuse / new-code) as an observation, flagging any place a lower rung was clearly available but not taken (a note for review, not a blocker).
+-- `## Verification Strategy` — **the forward deliverable.** Per AC: the concrete check verify will run (test command / manual flow / observable), and a `constraint-resolution:` line for any AC with an environment dependency (`prerequisite-slice: <slug>` | `proxy+deferral: <clearing event>` | `po-accepted: <reason>`) per W2d. Every `proxy+deferral` resolution ALSO lands as a real entry in the index's `runtime-evidence-deferrals` (`slice`, `reason`, `deferred-at`, `cleared-by: null`, the named clearing event) — a deferral recorded only in plan prose is invisible to the ship gate that enforces it. This section is what makes an adopted workflow verifiable rather than a rubber stamp.
++- `## Verification Strategy` — **the forward deliverable.** Per AC: the concrete check verify will run (test command / manual flow / observable), and a `constraint-resolution:` line for any AC with an environment dependency (`prerequisite-slice: <slug>` | `proxy+deferral: <clearing event>` | `po-accepted: <reason>`) per the force-scope rule of `plan.md`. Every `proxy+deferral` resolution ALSO lands as a real entry in the index's `runtime-evidence-deferrals` (`slice`, `reason`, `deferred-at`, `cleared-by: null`, the named clearing event) — a deferral recorded only in plan prose is invisible to the ship gate that enforces it. This section is what makes an adopted workflow verifiable rather than a rubber stamp.
+ 
+ **`05-implement.md` — `type: implement` (synthesized from the diff):**
+ ```yaml
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/intake/adopt.md b/plugins/sdlc-workflow/skills/wf/reference/intake/adopt.md
+index 03f0009..85c58d4 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/intake/adopt.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/intake/adopt.md
+@@ -99,7 +99,7 @@ Prompt with:
+ **Then infer the shape** from the diff + sub-agent findings:
+ - **Goal** — what the change accomplishes, in one sentence, phrased as intent.
+ - **Scope-in** — exactly the changed surface. **Scope-out** — explicitly everything else ("no changes to X, Y").
+-- **Acceptance criteria** — derived from the *observed behavior* of the change, each objectively verifiable, authored under the verifiability-first rules (an AC verify cannot evidence is a defect in the AC, not a fact to accept). Apply W2d to any AC with an environment dependency.
++- **Acceptance criteria** — derived from the *observed behavior* of the change, each objectively verifiable, authored under the verifiability-first rules (an AC verify cannot evidence is a defect in the AC, not a fact to accept). Apply the force-scope rule of `plan.md` (`## Verification Strategy`) to each AC with an environment dependency.
+ - **Slice split** — a **single slice by default** (the workflow slug doubles as the one slice's `slice-slug`). Split into >1 slice **only** when sub-agent 1 reported clearly-separable concerns (disjoint file sets AND independently revertable); when in doubt, one slice.
+ 
+ # Step 2 — Confirmation gate (before any artifact is written)
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm/_artifact.md b/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm/_artifact.md
+index 8c0851c..6e2a1a8 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm/_artifact.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm/_artifact.md
+@@ -81,7 +81,7 @@ A **piece of work** (one per agreed piece at `done`, in sequence order):
+ { "key": "spending-limit", "order": 2, "why-here": "the limit reads the cost rows of the first piece", "title": "Add a warning-only spending limit per project", "shape": "intake", "slug": "spending-limit", "threads": ["limit-per-project"], "items": ["limit-warns-only", "cost-rows-per-run"], "research": ["R01"], "references": ["F02"], "goal": "Each project has a spending limit that warns and never blocks a run.", "in-scope": ["a limit per project", "a warning when a run passes the limit"], "out-of-scope": ["a limit on research runs"], "acceptance-criteria": ["A run that passes the limit of its project shows a warning and completes."], "constraints": [], "risks": ["The warning can be read as a stop, and the person cancels a paid run."], "ux-impact": "visual", "ux-impact-confirmed": true, "try-out": "yes", "estimated-slices": 6, "entry": "/wf campaign <slug>", "state": "proposed", "stale": false }
+ ```
+ The board also holds the stack of the list, once, at the top level: `"stack": { "platforms": [], "languages": [], "user-confirmed": true }`, with the fields of the `stack` block in `intake/default/_artifact.md`.
+-- `shape` is the form: `intake`, `investigate`, `discover`, `fix`, `hotfix`, `task`, `extension`, or `write-now` ([_work.md](_work.md)). Older boards also hold `design` and `design-direction` pieces; a new board records those as `design-form` on the piece they serve.
++- `shape` is the form: `intake`, `investigate`, `discover`, `rca`, `fix`, `hotfix`, `task`, `extension`, or `write-now` ([_work.md](_work.md)). Older boards also hold `design` and `design-direction` pieces; a new board records those as `design-form` on the piece they serve.
+ - `slug`, `target-slug`, `order`, `why-here`, `research`, `references`, `amends`, and `urgency` are agreed in 3.3 ([_work.md](_work.md)). `order` is the strict sequence 1 to n over every piece. `why-here` is required on each piece after order 1.
+ - A build piece (`intake`, `fix`, `hotfix`, `extension`) carries its write-up: `goal`, `in-scope`, `out-of-scope`, `acceptance-criteria`, `constraints`, `risks`, `ux-impact` with `ux-impact-confirmed: true`, `try-out` (`yes` or `no`), and `estimated-slices` ([_work.md](_work.md), "The write-up of a build piece").
+ - An older board also holds `depends-on`, `needs`, `provides`, `expects`, `size`, `shared` and `routed-to` on a piece. The brainstorm does not agree these fields, and the `write` command does not put them into a piece file.
+@@ -166,7 +166,7 @@ The body names everything in words. It carries no key, no internal number, and n
+ # Brainstorm: <topic>
+ 
+ ## The Brainstorm
+-<!-- STORY SECTION — first, and self-sufficient. It is the summary of what we believe now, rewritten at every check-in. Write the thought we started from; what we now believe, with the reasons; what is still open and the sharpest tension. Language follows `../../_ste-procedural.md` sections 1 and 3. 150 words or fewer (D1). -->
++<!-- STORY SECTION — first, and self-sufficient. It is the summary of what we believe now, rewritten at every check-in. Write the thought we started from; what we now believe, with the reasons; what is still open and the sharpest tension. Language follows `../../_ste-procedural.md` sections 1 and 3. 150 words or fewer. -->
+ 
+ ## Map
+ ### <area in words> — <problem side or solution side> — <open, touched, or explored>
+@@ -182,7 +182,7 @@ The body names everything in words. It carries no key, no internal number, and n
+ 
+ ## Sessions
+ ### Session <N> — <YYYY-MM-DD>
+-<The story of the session: what we set out to explore, what we learned, what we decided and why, what is still open, and where the next sitting starts. Plain prose, about 100 to 200 words, newest session first. Keep the newest three sessions here; move the older stories to `archive/record.md`.>
++<The story of the session: what we set out to explore, what we learned, what we decided and why, what is still open, and where the next sitting starts. Plain prose, newest session first. Keep the newest three sessions here; move the older stories to `archive/record.md`.>
+ 
+ ## Decisions
+ ### <area in words>
+@@ -218,7 +218,7 @@ The body names everything in words. It carries no key, no internal number, and n
+ - Retire when no thread is live: `/wf intake <slug> close`
+ ```
+ 
+-## Archive (D1)
++## Archive
+ 
+ A long brainstorm keeps its board and its document short. Run the archive command at each resume and after the `write` command at `done`:
+ ```
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm/_cohere.md b/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm/_cohere.md
+index d75e9a1..dd80216 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm/_cohere.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm/_cohere.md
+@@ -1,6 +1,6 @@
+ # Coherence pass (brainstorm)
+ 
+-A coherence pass holds the whole board against three things: its own earlier decisions, the documents of the work it already routed, and the budgets the person decided. Area close (2.8) checks one area. This pass checks the areas against each other.
++A coherence pass holds the whole board against three things: its own earlier decisions, the documents of the pieces it already started, and the budgets the person decided. Area close (2.8) checks one area. This pass checks the areas against each other.
+ 
+ ## When it runs
+ - After an area close (2.8).
+@@ -22,7 +22,7 @@ A budget is a limit the person decided, for example "a matchday runs in about th
+ 5. **Resolve.**
+    - Bring each real conflict to the person as a choice with its costs (2.1), one to four per batch, in the question text.
+    - Merge a repeat: set `replaced-by` on the older item.
+-   - A contradiction with a routed piece's document marks that piece `stale: true`, with the reason in `stale-because`.
++   - A contradiction with the document of a started piece marks that piece `stale: true`, with the reason in `stale-because`.
+ 6. **Rewrite the summary** so the board reads as one design, and republish the page (2.9).
+ 7. **Log** one entry with kind `cohere`: what the pass read, and how many conflicts and merges it found.
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm/_talk.md b/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm/_talk.md
+index 6b06cde..e090b18 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm/_talk.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm/_talk.md
+@@ -12,7 +12,7 @@ Take a talk turn in place of the next batch when:
+ Take no two talk turns in a row unless the person asks for more. Everything else stays a batch.
+ 
+ ## A talk turn
+-1. Write in chat, in plain words and short paragraphs, about 150 to 350 words. Say:
++1. Write in chat, in plain words and short paragraphs. Keep the turn short enough to read in one sitting. Say:
+    - what the thing is and how it works, with one concrete example from this product;
+    - what the research, the code, or the data showed, with its source;
+    - what it changes on the board: the decisions it supports, and the decisions it puts in question;
+@@ -27,7 +27,7 @@ Tell the story of a sitting:
+ - as the narrative lead of the chat return (Step 4);
+ - on a resume, before the first batch: the story of the last session. When that session has no story, because the person left without a pause, write it from that session's log entries first.
+ 
+-A story is plain prose of about 100 to 200 words, not a list of decisions. It has five parts:
++A story is short plain prose, not a list of decisions. It has five parts:
+ 1. What we set out to explore in this sitting.
+ 2. What we learned: the two or three things that change how the person thinks, each as a statement.
+ 3. What we decided, and why: the few decisions that matter most, not every decision.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm.md b/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm.md
+index 8b045e5..3d41753 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/intake/brainstorm.md
+@@ -162,7 +162,7 @@ An area is explored when its threads stop producing new ground. Closing it is pa
+ 1. Write the area's `brief` in the board and in the document's map: five plain lines or fewer — what we decided, what is core, what is still open, and the scope.
+ 2. In the question text, give the brief and the area's decisions and open ideas, one plain line each. When the area holds more than about twelve, give the likely core items and point to the page or to the document for the rest.
+ 3. Give the area's price in the question text: its rough size, and what it adds to each budget on the board ([brainstorm/_cohere.md](brainstorm/_cohere.md)). List its accepted risks.
+-4. Ask in one batch, as one digest with your recommendation marked on each item (B6): which decisions are core (multi-select); which decisions belong in the first version — each decision left out gets `scope: later`, and nothing is cut unless the person says so; and whether the area changes a piece of work that already exists (name each piece in words). Ask which risk worries the person most only when a risk has no owner and no mitigating decision; otherwise mark the risk you rank highest and say so.
++4. Ask in one batch, as one digest with your recommendation marked on each item: which decisions are core (multi-select); which decisions belong in the first version — each decision left out gets `scope: later`, and nothing is cut unless the person says so; and whether the area changes a piece of work that already exists (name each piece in words). Ask which risk worries the person most only when a risk has no owner and no mitigating decision; otherwise mark the risk you rank highest and say so.
+ 5. Record `core: true` on each core item, `first-version: true` and `scope: keep` on each first-version item, `scope: later` on the rest, `top-risk: true` on the chosen risk, and the area's `scope`. Only a top risk appears in the document's front. Then run a coherence pass.
+ 6. When the area changes an existing piece of work, set `stale: true` and `stale-because` on that piece; step 3.3 proposes the piece that brings it up to date. When a newer decision replaces an older one, set `replaced-by` on the older item; the document lists only the newer decision, and says what it replaced.
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/intake/hotfix.md b/plugins/sdlc-workflow/skills/wf/reference/intake/hotfix.md
+index d36f64b..b5a96d2 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/intake/hotfix.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/intake/hotfix.md
+@@ -194,7 +194,7 @@ Write the shared change-mode index template from [_change-mode-tail.md](_change-
+ Apply the gate and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — decision recorded in `01-hotfix.md` on every branch; Escalate closes this slug and prints `/wf intake "<description>" from <slug>`. Given incident pressure you MAY auto-proceed when the fix is clearly minimal (≤3 files, root cause confidence high, no data risk).
+ 
+ # Step 7 — Hand off to the standard chain
+-On proceed, route to `/wf implement <slug>` → `/wf verify <slug>` → **`/wf review <slug> security`** (review defaults to the security rubric for hotfixes; always safe to run quickly) → `/wf handoff <slug>` (ship STOPs without its `readiness-verdict: ready` — an incident does not get to skip it) → `/wf ship <slug>` → `/wf retro <slug>` (retro auto-triggers its incident consult exactly for hotfixes — dropping it drops the incident learning).
++On proceed, route to `/wf implement <slug>` → `/wf verify <slug>` → **`/wf review <slug>`** (the review stage selects the `security` rubric for a hotfix; it is always safe to run quickly) → `/wf handoff <slug>` (ship STOPs without its `readiness-verdict: ready` — an incident does not get to skip it) → `/wf ship <slug>` → `/wf retro <slug>` (retro auto-triggers its incident consult exactly for hotfixes — dropping it drops the incident learning).
+ 
+ Lead with a short **narrative** paragraph (the symptom, root cause, the minimal fix, the gate decision), then:
+ ```
+@@ -203,8 +203,8 @@ Branch: hotfix/<slug> (off <production-branch>)
+ Root cause: <file:line>
+ Plan: <N> steps · Files: <M> (≤3) · Data remediation: <yes|no>
+ Gate: <proceeded | adjusted | escalated | auto-proceeded (minimal)>
+-Next: /wf implement <slug>  →  /wf verify  →  /wf review <slug> security  →  /wf handoff  →  /wf ship  →  /wf retro
++Next: /wf implement <slug>  →  /wf verify  →  /wf review <slug>  →  /wf handoff  →  /wf ship  →  /wf retro
+ ```
+ 
+ # Workflow rules
+-Apply the shared workflow rules in [_change-mode-tail.md](_change-mode-tail.md). Hotfix-specific: review defaults to the **security** rubric (auth, tokens, crypto, permissions) — `/wf review <slug> security` is always safe to run quickly; widen only if the change warrants it.
++Apply the shared workflow rules in [_change-mode-tail.md](_change-mode-tail.md). Hotfix-specific: review defaults to the **security** rubric (auth, tokens, crypto, permissions) — `/wf review <slug>` selects it and is always safe to run quickly; widen only if the change warrants it.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/intake/ideate/_artifact.md b/plugins/sdlc-workflow/skills/wf/reference/intake/ideate/_artifact.md
+index ed82ba2..31f0672 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/intake/ideate/_artifact.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/intake/ideate/_artifact.md
+@@ -27,7 +27,7 @@ ideas:
+     entry: "<the entry invocation — new-workflow or extension form>"
+     confidence: <high|medium|low>      # the confidence rules below
+     source-items: [S01-I04, S02-#42]   # only when sources fed the idea
+-    seen-in: "<an earlier ideate slug>"  # only when an earlier run proposed or culled it (Step 3b)
++    seen-in: "<an earlier ideate slug>"  # only when an earlier run proposed or culled it (Step 3c)
+     changed: "<what changed since that run>"
+   - ...
+ culled:
+@@ -75,7 +75,7 @@ Build this list from the `ideas:` roster. The roster order is the rank. Write on
+ 
+ ## Confidence
+ 
+-Give each idea the highest `confidence` that its evidence allows. Step 4 weighs confidence in the rank and names it in `rank-reason`. The renderer's `score` formula does not change.
++Give each idea the highest `confidence` that its evidence allows. Step 4 weighs confidence in the rank and names it in `rank-reason`. The renderer computes the `score` column from impact, effort and feasibility only.
+ 
+ | Evidence | Highest confidence |
+ |---|---|
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/intake/refactor.md b/plugins/sdlc-workflow/skills/wf/reference/intake/refactor.md
+index 0a73f3a..99dbd53 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/intake/refactor.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/intake/refactor.md
+@@ -199,7 +199,7 @@ Write the shared change-mode index template from [_change-mode-tail.md](_change-
+ Apply the gate and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — decision recorded in `01-refactor.md` on every branch. On **Escalate** (the refactor needs real multi-slicing), the tail closes this slug and prints `/wf intake "<description>" from <slug>` — the successor inherits the API-surface and coverage baseline via `_intake-provenance-consume.md` (escalated change-mode row) instead of discarding two sub-agents of work.
+ 
+ # Step 7 — Hand off to the standard chain
+-On proceed, route to `/wf implement <slug>` (one atomic green step per plan step — never combine; commit per step `refactor(<slug>): step N — <desc>`; if a step's verify fails, STOP and fix the *refactor*, not the test; if two fix attempts on the same step fail, do not keep guessing — `/wf probe <slug> "<the behavior question the failure raises>"`, or surface to the user) → `/wf verify <slug>` (full baseline comparison: re-run the literal `## Baseline Command`, diff its pass/fail/skip counts against `## Baseline Test Result`, check every `## Public API Surface` name still exists with the same signature, verify all callers still work — any unplanned delta fails verify) → **`/wf review <slug> refactor-safety`** (checks unintended behavior changes, subtle semantic differences, coverage completeness) → `/wf handoff` → `/wf ship` → `/wf retro`.
++On proceed, route to `/wf implement <slug>` (one atomic green step per plan step — never combine; commit per step `refactor(<slug>): step N — <desc>`; if a step's verify fails, STOP and fix the *refactor*, not the test; if two fix attempts on the same step fail, do not keep guessing — `/wf probe <slug> "<the behavior question the failure raises>"`, or surface to the user) → `/wf verify <slug>` (full baseline comparison: re-run the literal `## Baseline Command`, diff its pass/fail/skip counts against `## Baseline Test Result`, check every `## Public API Surface` name still exists with the same signature, verify all callers still work — any unplanned delta fails verify) → **`/wf review <slug>`** (the review stage selects the `refactor-safety` focus of the `architecture` rubric for a refactor. It checks unintended behavior changes, subtle semantic differences, coverage completeness) → `/wf handoff` → `/wf ship` → `/wf retro`.
+ 
+ Lead with a short **narrative** paragraph (target, why, baseline counts, the pattern, gate decision), then:
+ ```
+@@ -208,7 +208,7 @@ Branch: refactor/<slug>
+ Baseline: <pass>/<fail>/<skip> tests · Coverage gaps: <count>
+ Plan: <N> atomic green steps · Pattern: <name> · API delta: <none | planned changes>
+ Gate: <proceeded | adjusted | escalated>
+-Next: /wf implement <slug>  →  /wf verify  →  /wf review <slug> refactor-safety  →  /wf handoff  →  /wf ship  →  /wf retro
++Next: /wf implement <slug>  →  /wf verify  →  /wf review <slug>  →  /wf handoff  →  /wf ship  →  /wf retro
+ ```
+ 
+ # Workflow rules
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/intake/simplify.md b/plugins/sdlc-workflow/skills/wf/reference/intake/simplify.md
+index 6c947da..811f87f 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/intake/simplify.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/intake/simplify.md
+@@ -18,8 +18,8 @@ If `intake.md` selected **slug-mode** (`/wf intake <slug> simplify [scope]`, bra
+ - **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-simplify-<descriptor>.md` (collision suffix `-2`, `-3` if needed; descriptor defaults to scope — e.g., `simplify-branch-2026-05-13` or `simplify-codebase-auth`). Frontmatter: `type: slice`, `slice-slug: simplify-<descriptor>`, `slice-type: simplify`, `compressed: true`, `origin: simplify`, `stage-number: 3`, `status: defined`, `complexity: xs`. The compressed slice is the single output.
+ - **Same content, different home.** Body carries the same sections the standalone simplify would write (three-agent findings, per-finding classification, routing summary, routing assignments, proposed deltas), under a `# Compressed Slice: simplify` heading with a one-line provenance preamble. The `simplify-run` frontmatter fields (`findings-total`, `findings-reuse`, etc.) do not carry over — they belong to the standalone type. Report the same numbers in the body instead.
+ - **No new workflow, no new branch, no `01-simplify.md`, no new top-level `00-index.md`.** The slug already owns the workflow context.
+-- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: simplify-<descriptor>, slice-type: simplify, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: simplify, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`. Also rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` (see SKILL.md Step 1 step 6).
+-- **Chat return:** one line — `wf intake simplify → compressed slice simplify-<descriptor> on <slug>` — plus the routing summary (counts per downstream command) and the top routing assignments, each scoped with `<slug>` as the first positional argument (e.g., `/wf intake refactor <slug> <target>`, `/wf plan <slug> <slice>`). Positional-slug form only — no `--slug` flag.
++- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: simplify-<descriptor>, slice-type: simplify, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: simplify, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`. Also rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` (see `_compressed-slice.md` step 6).
++- **Chat return:** one line — `wf intake simplify → compressed slice simplify-<descriptor> on <slug>` — plus the routing summary (counts per downstream command) and the top routing assignments, each scoped with `<slug>` as the first positional argument (e.g., `/wf intake <slug> refactor <target>`, `/wf plan <slug> <slice>`). Positional-slug form only — no `--slug` flag.
+ 
+ If slug-mode was not selected, ignore this section and proceed standalone.
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/intake/task.md b/plugins/sdlc-workflow/skills/wf/reference/intake/task.md
+index fd60a29..ecf2b0f 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/intake/task.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/intake/task.md
+@@ -46,7 +46,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
+ | `06-verify.md` | writes | | |
+ 
+ # Task discipline
+-- **Re-observe; never assert.** An acceptance criterion closes only on independent observation of the outcome — re-read the system of record after acting (`ls` the directory, `curl` the DNS record, query the API, read the file back). An AC whose only evidence is the agent's own claim of success carries `evidence-rung: asserted` and **cannot close** — managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) blocks `result: pass` on the same path that blocks a mock-evidenced code AC. The rung ladder for tasks is a **contract revision (§7)** of [EVIDENCE-SCHEMA-CONTRACT](../../../../docs/internal/EVIDENCE-SCHEMA-CONTRACT.md); `verify.md` places the two new rungs on the existing ladder.
++- **Re-observe; never assert.** An acceptance criterion closes only on independent observation of the outcome — re-read the system of record after acting (`ls` the directory, `curl` the DNS record, query the API, read the file back). An AC whose only evidence is the agent's own claim of success carries `evidence-rung: asserted` and **cannot close** — managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) blocks `result: pass` on the same path that blocks a mock-evidenced code AC. The rung ladder for tasks is a **contract revision (§7)** of [EVIDENCE-SCHEMA-CONTRACT](../../../../docs/internal/EVIDENCE-SCHEMA-CONTRACT.md); `verify.md` places the task rungs on the evidence ladder.
+ - **The gate is not optional above `local-env`.** A `shared-env`, `external-party`, or `irreversible` task stops for explicit human authorization even when every other signal says proceed. No written policy resolves these unattended — the non-interactive default is STOP with the missing authorization recorded, never proceed (the drivers refuse `task` slugs entirely).
+ - **`task` is not a todo list.** One task = one outcome. More than one independent outcome → enumerate them and have the user pick one, or escalate to a feature.
+ - `current-stage` stays inside the standard enum — `implement` while working, `verify` while checking. Never a bespoke label.
+@@ -131,6 +131,6 @@ The artifact trail is the state. Re-invoke `/wf intake task <slug>`: orientation
+ 
+ - **Not a stage** — it is the fourth roster category, a *minimal lifecycle*: it self-authors `05-implement.md`/`06-verify.md` the way `update-deps` does, rather than routing into the standard execution chain.
+ - **Not a router** — `ship-plan`/`docs`/`observability` are project-level contracts with sub-keys; a task is a unit of work with a slug.
+-- **Not an intake mode** — every terminal intake mode observes; a task **acts**, including outside the repository, and that external reach is what requires the authorization gate no intake mode carries.
++- **Not a terminal analysis mode** — the terminal intake modes observe. A task **acts**, also outside the repository. That reach is why a task has an authorization gate that no other intake mode has.
+ - **Not `ship`** — `ship` releases built software through a ship-plan with Go/No-Go gates; `task` performs a bounded operation with its own scaled gate.
+ - **Not a todo list** — one task, one outcome.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/review/_stage.md b/plugins/sdlc-workflow/skills/wf/reference/review/_stage.md
+index 4152ee0..17906f9 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/review/_stage.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/review/_stage.md
+@@ -20,7 +20,7 @@ You are a **review dispatch orchestrator that owns an accumulating findings ledg
+ 
+ # Triage mode
+ 
+-When the second argument is `triage` (for example `/wf review my-feature triage`), read [_triage.md](_triage.md) and follow it instead of this file (WF-SYSTEM-REVIEW E3).
++When the second argument is `triage` (for example `/wf review my-feature triage`), read [_triage.md](_triage.md) and follow it instead of this file.
+ 
+ # Step 0 — Orient (do this before all other steps)
+ 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector** (per-slice mode only; ignored in slug-wide mode). If no slug given, infer from `.ai/workflows/*/00-index.md`. If ambiguous, ask.
+@@ -34,7 +34,7 @@ When the second argument is `triage` (for example `/wf review my-feature triage`
+    - **Compressed mode** (`workflow-type: quick`): the implement record is `05-implement.md` (no slice slug). Acceptance criteria source is `01-quick.md`. No per-slice plan/slice files exist.
+    - **Forwarded mode** (`workflow-type: rca`): rich context lives in `01-rca.md`; `02-shape.md` is synthesized; `04-plan.md` exists if planning ran.
+    - **Terminal analysis** (`workflow-type: investigate`): produces option sketches and **no `02-shape.md`** — it is not built or reviewed in place. A chosen option is re-intaked via `/wf intake <option>` as a NEW workflow; a bare `investigate` slug has no implement record to review.
+-   - **Change-mode** (`workflow-type: fix` / `hotfix` / `refactor`): the compressed-lifecycle's **un-suffixed single-slice** standard files (`03-slice.md`, `04-plan.md`, `05-implement.md`, optional `06-verify.md`) + the lead `01-<mode>.md` (`01-fix.md` / `01-hotfix.md` / `01-refactor.md`). Exactly one slice; `selected-slice` is its slug. Review as standard mode with the un-suffixed names. (`review-scope: slug-wide` — one `07-review.md`.) Default rubric by mode: **hotfix** → `security`, **refactor** → `refactor-safety` (`/wf review <slug> <rubric>`); widen only if the change warrants it.
++   - **Change-mode** (`workflow-type: fix` / `hotfix` / `refactor`): the compressed-lifecycle's **un-suffixed single-slice** standard files (`03-slice.md`, `04-plan.md`, `05-implement.md`, optional `06-verify.md`) + the lead `01-<mode>.md` (`01-fix.md` / `01-hotfix.md` / `01-refactor.md`). Exactly one slice; `selected-slice` is its slug. Review as standard mode with the un-suffixed names. (`review-scope: slug-wide` — one `07-review.md`.) Default rubric by mode: **hotfix** → `security`; **refactor** → `architecture` with `focus: refactor-safety`; widen only if the change warrants it.
+    - **update-deps** (`workflow-type: update-deps`): update-deps self-authors `05-implement.md` / `06-verify.md` (tier-ordered) in its own flow and **routes here** for review. The implement/verify records are the un-suffixed `05-implement.md` / `06-verify.md`; the plan is `04-plan.md`. Review against `01-update-deps.md` (the scan/research brief) + `03-slice.md` (the P0/P1/P2 tiers). `review-scope: slug-wide`.
+    - **Task** (`workflow-type: task`): a task self-authors `05-implement.md`/`06-verify.md` in `/wf intake task`'s own flow and is not normally reviewed — there is no `03-slice.md`/`04-plan.md` and never will be. STOP cleanly: "This is a task workflow — resume it with `/wf intake task <slug>`. If the task left a reviewable diff, run ad-hoc `/wf review <dimension>` against it." Never fall through to standard mode.
+    - **Audit** (`workflow-type: audit`): the `07-review*` files here ARE the audit's own accumulating findings ledger, not a change review — the workflow has no implement record and never will. STOP cleanly: "This is an audit workflow — its ledger belongs to `/wf intake audit <slug>`; re-invoking that merges new findings into it." Never fall through to standard mode.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/review/_triage.md b/plugins/sdlc-workflow/skills/wf/reference/review/_triage.md
+index 96a8211..9d3c5e3 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/review/_triage.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/review/_triage.md
+@@ -1,6 +1,6 @@
+ # Review: triage mode (`/wf review <slug> triage`)
+ 
+-This file belongs to [_stage.md](_stage.md). Load it only when the second argument is `triage` (WF-SYSTEM-REVIEW E3).
++This file belongs to [_stage.md](_stage.md). Load it only when the second argument is `triage`.
+ 
+ If the second argument is `triage` (e.g., `/wf review my-feature triage`), skip the full review and jump directly to re-triage:
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/runtime-adapters/web.md b/plugins/sdlc-workflow/skills/wf/reference/runtime-adapters/web.md
+index d318c1d..dbe8ef0 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/runtime-adapters/web.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/runtime-adapters/web.md
+@@ -22,9 +22,9 @@ Record dynamic segments once per template (`/post/:id`), not once per instance.
+ 
+ The PO chose a driver during shape (from `02-shape.md` and the `stack:` block); use whatever they picked. The list below is a menu of candidates the shape question draws from, ordered roughly by *already-installed first*. Do not propose installing a *new, unplanned* tool without going back through shape.
+ 
+-**Exception — pre-authorized bootstrap (rung 0).** When the plan's `## Verification Strategy` explicitly named a driver to install for a specific AC (e.g., "install Playwright for the 375px responsive AC"), that install is already PO-approved — execute it per rung 0 of the web ladder rather than skipping the AC. The constraint is on *introducing un-planned tools*, never on installing the one the plan already chose.
++**Exception — pre-authorized bootstrap (rung 0).** When the plan's `## Verification Strategy` explicitly named a driver to install for a specific AC (e.g., "install Playwright for the 375px responsive AC"), that install is already PO-approved — execute it per rung 0 of the Web UI ladder in [_ladder-walls.md](_ladder-walls.md) rather than skipping the AC. The constraint is on *introducing un-planned tools*, never on installing the one the plan already chose.
+ 
+-**Responsive & media-query ACs — never skip on a pinned viewport.** A host-pinned `innerWidth` in an in-session browser MCP (the window will not resize, so `@media` never fires) is **not** a reason to pass-by-static-reasoning or quietly skip the criterion. Drive a viewport-controllable browser instead: Playwright with explicit `viewport` + `deviceScaleFactor`, or CDP `Emulation.setDeviceMetricsOverride` — rungs 1–2 of the web ladder above. If neither is reachable in this environment, the AC is *deferred with the rungs named*, not passed.
++**Responsive & media-query ACs — never skip on a pinned viewport.** A host-pinned `innerWidth` in an in-session browser MCP (the window will not resize, so `@media` never fires) is **not** a reason to pass-by-static-reasoning or quietly skip the criterion. Drive a viewport-controllable browser instead: Playwright with explicit `viewport` + `deviceScaleFactor`, or CDP `Emulation.setDeviceMetricsOverride` — rungs 1–2 of the Web UI ladder in [_ladder-walls.md](_ladder-walls.md). If neither is reachable in this environment, the AC is *deferred with the rungs named*, not passed.
+ 
+ ### 1. `dev-browser` (if installed or PO opted in)
+ Check if installed: `command -v dev-browser`. If not installed AND the PO did not select it during shape, skip this option — do not auto-prompt for installation here.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/runtime-adapters.md b/plugins/sdlc-workflow/skills/wf/reference/runtime-adapters.md
+index 23b135d..b120b45 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/runtime-adapters.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/runtime-adapters.md
+@@ -29,8 +29,7 @@ Callers should re-use the `stack:` block written by `/wf intake` Step 0.5 (and c
+ 1. Run every adapter's detection signal against the repo.
+ 2. Collect every adapter that matches. Multi-match (e.g., web frontend + CLI tool in one repo) is the common case, not an exception.
+ 3. **Default — run all matched adapters in parallel.** The caller iterates over every matched adapter and aggregates observations into one report. Record `adapters-used: [<key>, ...]` (plural).
+-4. **Narrowing — `--adapter <key>` flag (probe only).** Restricts the run to a single matched adapter. Record `adapters-used: [<key>]` and `adapter-narrowed-by-user: true`.
+-5. The probe `target` string's *surface inference* layer (route names, screen names, command names, endpoint paths) refines which entry points to drive within each running adapter.
++4. The probe `target` string's *surface inference* layer (route names, screen names, command names, endpoint paths) refines which entry points to drive within each running adapter.
+ 
+ ## Adapters
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/ship/announce.md b/plugins/sdlc-workflow/skills/wf/reference/ship/announce.md
+index 080099b..cfe17b3 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/ship/announce.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/ship/announce.md
+@@ -1,6 +1,6 @@
+ ---
+ description: The post-publish announce phase of `/wf ship`. Drafts stakeholder-facing announcements for a shipped workflow — plain language, no jargon, tailored by audience (eng, product, users) — pulling from handoff and ship-run artifacts. Runs automatically at the tail of a go / conditional-go ship run, or on demand via `/wf ship <slug> announce` to regenerate comms without re-shipping.
+-argument-hint: <slug> [audience]
++argument-hint: <slug>
+ ---
+ 
+ # External Output Boundary
+@@ -33,7 +33,7 @@ You are a **communications writer**, not a developer; respect the stated order o
+ # Step 0 — Orient
+ 
+ 1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent shipped workflow from `.ai/workflows/*/00-index.md` (look for `status: complete` or `current-stage: ship` or `current-stage: retro`). If ambiguous, ask the gate question per [_gate-question.md](../_gate-question.md) listing options. *(When invoked as the tail phase of a ship run, the slug and latest run are already in hand — use them.)*
+-2. **Resolve the audience** from `$ARGUMENTS` (second argument, if present). Valid audiences: `eng`, `product`, `users`, `all`. If no audience specified, default to `all` (generate all three).
++2. **Resolve the audience** in Step 3. Valid audiences: `eng`, `product`, `users`, `all`. The default is `all` (all three).
+ 3. **Read `00-index.md`** — parse `title`, `slug`, `status`, `current-stage`, and `selected-slice`.
+ 4. **Check prerequisites and resolve ship-run artifact:**
+    - Search for `.ai/workflows/<slug>/09-ship-run-*.md`. Sort by `run-id` descending; take the most recent with `go-nogo: go` or `conditional-go`. Record it as `<latest-run-path>` and capture its `run-id`. If no qualifying run exists but `09-ship.md` exists (legacy shape) → WARN: "Using legacy ship artifact — some run-level details will be missing." Use it. If neither exists but `08-handoff.md` exists → WARN: "Ship stage not completed. Generating announcement from handoff only." Proceed. If nothing exists → STOP: "No handoff or ship artifact found. Run `/wf handoff <slug>` first."
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/ship/rollback.md b/plugins/sdlc-workflow/skills/wf/reference/ship/rollback.md
+index d4d754e..279d4e1 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/ship/rollback.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/ship/rollback.md
+@@ -116,7 +116,7 @@ refs:
+ ---
+ ```
+ 
+-Body: `## The Rollback` story section (same narrative voice as every stage artifact), the executed
++Body: the executed
+ runbook table with per-row evidence, `## Irreversible Steps & Mitigations`, and `## Verification`.
+ 
+ 2. **Stamp the original run** `09-ship-run-<run-id>.md`: `rolled-back: true`,
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/ship-plan/_readiness-gate.md b/plugins/sdlc-workflow/skills/wf/reference/ship-plan/_readiness-gate.md
+index e9d76ad..a77c22a 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/ship-plan/_readiness-gate.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/ship-plan/_readiness-gate.md
+@@ -6,7 +6,7 @@ The verdict rules, the `clears-on` taxonomy, and the two menu principles (`amend
+ 
+ Acknowledgements live in a sibling ledger, `.ai/ship-plan-acks.yaml` (a list of entries `{ signals: [], fingerprint, fingerprint-scope, branch, plan-version, stage, at, via, reason }` plus an optional `pending-amend: { signals: [], plan-version, at }`). The pre-check reads and appends to this ledger; it still **never** edits the plan itself. `via` records how the entry was earned: `ack` (the user accepted the drift) or `amendment` (the plan was amended in response to it; see the Drift gate).
+ 
+-**Invalidation is scoped, not wholesale.** The original rule (a `plan-version` bump deletes every entry) is right about plan-scoped acks and wrong about branch-scoped ones, and that difference is what turned one honest amendment into a repeat gate:
++**Invalidation is scoped by `fingerprint-scope`:**
+ - **`fingerprint-scope: plan`** entries are invalidated by a `plan-version` bump: delete those recorded below the plan's current version. These are claims *about the plan*, and an amended plan must re-earn them.
+ - **`fingerprint-scope: branch`** entries **survive** a `plan-version` bump. They assert a fact about the branch ("this branch edits `.github/workflows/`") that an amendment does not make false, and that the amendment was very often made *in response to*. Invalidate them when `branch` is not the current branch; they die with the branch at merge.
+ - **`pending-amend`** is cleared once `plan-version` rises above the value recorded alongside it: the amendment it was waiting for has happened. What to do with the findings it covered is the Drift gate's Guard 2, not a silent drop.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/ship-plan/audit.md b/plugins/sdlc-workflow/skills/wf/reference/ship-plan/audit.md
+index 123f1cc..e587a9c 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/ship-plan/audit.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/ship-plan/audit.md
+@@ -7,9 +7,6 @@ argument-hint: "[<lens> | triage]"
+ Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
+ this operation produces: translate workflow context to product language and leak-check before publishing.
+ 
+-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](../_steering.md). Honor the user's standing instructions, never above a
+-> mandatory gate, and inject the relevant entries into every audit sub-agent prompt you dispatch.
+-
+ > **Ground findings in the real source.** Before asserting that a workflow step, a published artifact, or the
+ > code misuses a dependency, action, or registry — a wrong signature, an action that "can't work," a security
+ > claim about a tool's behavior — invoke the `study-sources` skill to read its **actual installed source** (the
+@@ -86,7 +83,7 @@ pipeline, and the release-relevant codebase** — through one point of view. Fin
+ | `release-safety` | Is the outbound release, read as a **sequence**, correct and safe to run *and re-run*? Ordering hazards (bump vs tag vs publish), idempotency (does a re-run double-publish?), a missing `concurrency:` group (two releases racing), irreversible steps before their gate (publish before smoke test), tag/version/artifact coherence, dry-run coverage. | plan semantics + release workflow |
+ | `ci-correctness` | Are the actual workflow files correct **as code**? `on:` triggers that don't match `release-trigger`; `needs:` wiring that lets publish run before tests pass; missing or over-broad `permissions:` (`write-all`); `pull_request_target` that checks out and runs untrusted PR code (script injection); actions pinned to a mutable tag rather than a SHA (advisory); missing `if:` guards; a secret used in a job with no access to it. | built workflows |
+ | `secrets-and-permissions` | Is the auth surface sound and least-privilege? Secrets referenced but never provided (or planned but referenced nowhere); a `GITHUB_TOKEN` broader than the job needs; long-lived tokens where OIDC would do; a secret that could be echoed into logs or handed to an untrusted step; branch/environment protection that doesn't actually enforce what the plan claims. | built workflows + plan |
+-| `supply-chain` | Is what gets **published** trustworthy and correctly scoped? Provenance/attestation absent (`--provenance`, SLSA, sigstore/cosign); the packaged artifact's contents wrong — `files`/`.npmignore`/`MANIFEST.in`/`.dockerignore` leaking source or secrets, or omitting files the package needs; unpinned deps at publish time; registry target / scope mismatch; 2FA/publish-token posture. Align categories to [../review/supply-chain.md](../review/supply-chain.md). | built workflows + packaged surface |
++| `supply-chain` | Is what gets **published** trustworthy and correctly scoped? Provenance/attestation absent (`--provenance`, SLSA, sigstore/cosign); the packaged artifact's contents wrong — `files`/`.npmignore`/`MANIFEST.in`/`.dockerignore` leaking source or secrets, or omitting files the package needs; unpinned deps at publish time; registry target / scope mismatch; 2FA/publish-token posture. Align categories to the `supply-chain` section of [../review/security.md](../review/security.md). | built workflows + packaged surface |
+ | `rollback-realism` | Does the recovery story actually work for **this artifact class**? A `rollback-mechanism` that isn't real (you cannot `git-revert` an immutable npm publish — you deprecate and ship a patch); `recovery-playbooks[]` with aspirational rather than runnable steps; a migration with no matching rollback; no tested reversal path. | plan + runbooks + migration surface |
+ | `version-integrity` | Release-relevant codebase only. Is the version single-sourced, or defined in N places that can silently desync? Is `version-source-of-truth[]` complete vs reality? Is the **tested artifact the shipped artifact** (does `publish-cmd`'s build output actually exist and match what CI tested)? Any secret committed to the tree? Are build outputs gitignored so they can't ship stale? | release-relevant codebase |
+ 
+@@ -94,7 +91,7 @@ pipeline, and the release-relevant codebase** — through one point of view. Fin
+ 
+ **Default (no lens token) — full parallel fan-out.** Dispatch ONE read-only sub-agent per lens (all seven), per [_subagents.md](../_subagents.md):
+ 
+-- **Effort-tiered, not model-pinned** — children must not inherit an expensive parent configuration. **high**
++- **Effort tier, set explicitly** — children must not inherit an expensive parent configuration; [_subagents.md](../_subagents.md) maps each tier to the host's model pin. **high**
+   effort for the causal-reasoning lenses `plan-soundness`, `release-safety`, `ci-correctness`, and
+   `secrets-and-permissions`; **low** for `supply-chain`, `rollback-realism`, and `version-integrity`.
+ - `description: "audit-<lens>"`.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/ship-plan/build.md b/plugins/sdlc-workflow/skills/wf/reference/ship-plan/build.md
+index 5424a02..5d5af7f 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/ship-plan/build.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/ship-plan/build.md
+@@ -121,7 +121,7 @@ Write `.ai/pipeline-compliance.md` with the frontmatter and body in [build/_arti
+ Build's outputs are release-critical code that no lifecycle stage has reviewed. Left silently uncommitted, they sit in the working tree until `/wf ship`'s clean-tree gate forces a commit-or-drop decision at the worst moment. Never end a build that wrote files without an explicit routing decision. Ask (as a gate question per [_gate-question.md](../_gate-question.md); skip when nothing was written or `--dry-run`):
+ 
+ - **Route to a review slice (Recommended when release/deploy workflows were touched)** — print the seed `/wf intake <slug> fix review ship-plan build outputs (plan v<N>): <file list>` and STOP after Step 19. The slice's verify/review then treat the build diff like any other code before it can ship. Record `routing: sliced`.
+-- **Commit now** — `git commit` the written files (explicitly by path, never `-A`) as `chore(ship-plan): build outputs, plan v<N>` with trailer `sdlc-unreviewed: true` (so handoff/review can see the provenance). Recommend `/wf review` over the commit in the chat return. Record `routing: committed`. This is the one commit this command makes — the "does NOT push/open PRs/release" boundary is unchanged.
++- **Commit now** — `git commit` the written files (explicitly by path, never `-A`) as `chore(ship-plan): build outputs, plan v<N>`. Recommend `/wf review` over the commit in the chat return. Record `routing: committed`. This is the one commit this command makes — the "does NOT push/open PRs/release" boundary is unchanged.
+ - **Leave uncommitted** — allowed, but recorded: `routing: left-uncommitted` + `uncommitted-outputs: [paths]` in the compliance artifact. `/wf ship`'s Step 1.1 classification refuses to silently sweep these (it routes them to review or an explicit recorded acceptance).
+ 
+ ---
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/ship-plan/edit.md b/plugins/sdlc-workflow/skills/wf/reference/ship-plan/edit.md
+index c55e2ad..b6f97de 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/ship-plan/edit.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/ship-plan/edit.md
+@@ -7,7 +7,7 @@ argument-hint: ""
+ Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
+ this operation produces: translate workflow context to product language and leak-check before publishing.
+ 
+-You are running `/wf project ship-plan edit`, the **block-editor for the project-level `.ai/ship-plan.md`**. This command edits the existing plan — it does NOT create a new one (use `/wf project ship-plan init` for that) and does NOT amend workflow stage artifacts (use `/wf intake <slug> amend` for that).
++You are running `/wf project ship-plan edit`, the **block-editor for the project-level `.ai/ship-plan.md`**. This command edits the existing plan — it does NOT create a new one (use `/wf project ship-plan init` for that) and does NOT change a workflow's record (`/wf intake <slug> amend` edits a workflow's configuration).
+ 
+ ---
+ 
+@@ -51,7 +51,7 @@ If the user picks "Inbound (H–K)", run a follow-up freeform prompt: *"Which bl
+ 
+ Load [init/_blocks.md](init/_blocks.md) and re-run **only the chosen block's hypothesis loop**: its `## Block <letter>` section (Block G also runs "Block G follow-up — Announcement template"). For an additional-contract amendment, load [init.md](init.md) and run only the sub-loop in Step 3 for the named `id`. Pre-fill each question with the plan's current value so the user only changes what's actually different.
+ 
+-When the amended block is one of the inbound blocks (H–J), remind the user that `/wf project ship-plan build` must be re-run to bring the repo's files (and branch protection) back into compliance with the new plan version.
++When the amended block is one of the inbound blocks (H–K), remind the user that `/wf project ship-plan build` must be re-run to bring the repo's files (and branch protection) back into compliance with the new plan version.
+ 
+ **Skip the Discovery pass** — edit reuses the existing plan as ground truth. Discovery is only for fresh authoring via `/wf project ship-plan init`.
+ 
+@@ -81,6 +81,6 @@ Return per [_chat-return.md](../_chat-return.md) — narrative lead, then only t
+ - `block-amended: <A|B|C|D|E|F|G|H|I|J|K | additional-contract:<id>>`
+ - `plan-version: <new value>`
+ - `derived-fields-updated: <C.pre-merge-checks + J.required-checks re-derived | none>` (only when H or C was amended)
+-- `next: any in-flight ship runs will record plan-version-at-run = <new value>`. If an inbound block (H–J) changed, re-run `/wf project ship-plan build` to bring the repo + remote settings back into compliance.
++- `next: any in-flight ship runs will record plan-version-at-run = <new value>`. If an inbound block (H–K) changed, re-run `/wf project ship-plan build` to bring the repo + remote settings back into compliance.
+ 
+ The next `/wf ship <slug>` invocation will read the amended plan and stamp the new `plan-version` into the run's `plan-version-at-run` field, which is useful for retro analysis ("did the rollout strategy change between v1.4.0 and v1.4.1?")
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/ship.md b/plugins/sdlc-workflow/skills/wf/reference/ship.md
+index 43f222b..120e7a9 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/ship.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/ship.md
+@@ -105,7 +105,7 @@ Each step is independently re-runnable: detect the already-done state before per
+ 1.1 **Branch + tree state.** Confirm you are on `<branch>`. `git status --porcelain` must be empty. If dirty, do not stop outright — **classify every dirty path first** and only STOP on what needs a human:
+ 
+    1. **Plugin-seeded files** — `CLAUDE.md` whose diff is entirely inside the `<!-- sdlc:wf-rules-import -->` fence, an untracked `AGENTS.md` containing only the `<!-- sdlc:wf-rules -->` fence, `.ai/.wf-rules-seeded`. These are the memory-seed kernel's own writes (verify mechanically: nothing outside the fences). Offer one-keystroke resolution as a gate question per [_gate-question.md](_gate-question.md): commit as `chore(sdlc): seed wf rules` (recommended) or gitignore the marker file; never a bare "go commit/stash it yourself".
+-   2. **`.ai/` workflow bookkeeping** — resolve per the repo's recorded `artifact-tracking` policy (`.ai/sdlc-config.json`; see `/wf project ship-plan init`). `tracked` → offer "commit bookkeeping now" (`chore(sdlc): workflow artifacts`); `ignored` → these paths should not be dirty at all, so surface the policy violation (likely a missing `.gitignore` block) instead of committing; unset → ask once for this run and recommend recording it via `ship-plan edit`.
++   2. **`.ai/` workflow bookkeeping** — resolve per the repo's recorded `artifactTracking` policy (`.ai/sdlc-config.json`; see `/wf project ship-plan init`). `tracked` → offer "commit bookkeeping now" (`chore(sdlc): workflow artifacts`); `ignored` → these paths should not be dirty at all, so surface the policy violation (likely a missing `.gitignore` block) instead of committing; unset → ask once for this run and recommend recording it via `ship-plan edit`.
+    3. **`ship-plan build` output** — files whose diff carries the `# Added by wf ship-plan build` provenance comment. Never silently commit-and-include. Offer: route to a review slice first (recommended; STOP with the `/wf intake <slug> fix …` seed), or explicitly accept as-is (recorded in `## Pre-flight` as `unreviewed-build-output-accepted` with the file list).
+    4. **Everything else** — STOP and ask the user to commit/stash. Unknown always fails closed.
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/slice.md b/plugins/sdlc-workflow/skills/wf/reference/slice.md
+index 7f1115f..84e4d10 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/slice.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/slice.md
+@@ -217,6 +217,6 @@ Both `03-slice.md` and each per-slice `03-slice-<slice-slug>.md` are revisable.
+ - Snapshots in `.ai/workflows/<slug>/history/`: `03-slice-<rev>.md` for the index; `03-slice-<slice-slug>-<rev>.md` for per-slice files.
+ - **Ledger entry** per rewritten file: `trigger: scope-change` (default) or `new-slice` when slices were added; `because:` names why the slicing changed; `changed:` names what moved.
+ - **New slices added in this run** start fresh: no prior revision, no history snapshot, `revision-count` 1.
+-- **Removed slices** stay in storage: mark the frontmatter `status: dropped` with a `dropped-reason:` field and append a final `## Dropped — <ISO>` section. Deleting a slice file from disk is reserved for explicit `/wf status` reconcile operations, which the renderer surfaces with a tombstone view.
++- **Removed slices** stay in storage: mark the frontmatter `status: dropped` with a `dropped-reason:` field and append a final `## Dropped — <ISO>` section. Do not delete a slice file from disk, which the renderer surfaces with a tombstone view.
+ 
+ The renderer aggregates per-slice history into the slug overview's prior-revisions block; the slice-grid figure reflects current slice status across the slug, including dropped slices (rendered in `--blocker` with a strikethrough).
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/status/_renders.md b/plugins/sdlc-workflow/skills/wf/reference/status/_renders.md
+index acca2d5..4ffd0be 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/status/_renders.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/status/_renders.md
+@@ -70,7 +70,7 @@ If any slug has a `cost.jsonl`, add the cost table (one row per slug with a ledg
+ | Slice | Plan | Implement | Verify | Review | Handoff | Ship |
+ |-------|------|-----------|--------|--------|---------|------|
+ 
+-Steps of a slice in progress (WF-PIECES-PLAN 6.6): <slice> — step <n> of <m>
++Steps of a slice in progress: <slice> — step <n> of <m>
+ - step 1 ✓ <sha>
+ - step 2 · open
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/status.md b/plugins/sdlc-workflow/skills/wf/reference/status.md
+index 9f87d0d..2751a64 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/status.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/status.md
+@@ -75,7 +75,7 @@ Column semantics (all pulled from each workflow's `00-index.md` YAML frontmatter
+ 
+ The render below runs after this step, against the reconciled set.
+ 
+-# Lists first (B7)
++# Lists first
+ 
+ For each list with an unfinished piece, lead with `node "<skill-dir>/scripts/campaign.mjs" status "<projectRoot>" <source-slug>`: its pieces, next step and design needs. Next: "Type `/wf campaign <source-slug>`."
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/verify/_deferrals.md b/plugins/sdlc-workflow/skills/wf/reference/verify/_deferrals.md
+index 90eec17..e7019f0 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/verify/_deferrals.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/verify/_deferrals.md
+@@ -8,7 +8,7 @@
+ 
+ **Attempt before declare.** "The environment cannot produce X" may be written only after executing a capability probe and recording its literal command and output tail: `firebase projects:list` or `gcloud auth application-default print-access-token` for deploy credentials, `adb devices` for devices, an env-var check for keyed services, one spec run past the guard for credential-gated suites. A defer-reason with no recorded probe is invalid. Read-only introspection probes are always allowed unprompted; quota-consuming or traffic-sending probes follow the ladder's pre-authorization rule.
+ 
+-**Provision before declare, and provisioning persists.** Before declaring an environment wall, check whether the repo or the plan's `## Verification Strategy` already ships provisioning for exactly this capability (a `scripts/create-*-avd.ps1`, an emulator bootstrap, a seed script) and run it; a wall whose cure sits unexecuted in the repo is not a wall. Capability provisioned inside this run counts only if it persists beyond the run: invoke the repo's script, or write one and record its path in the evidence; an emulator provisioned only inside a sub-agent's ephemeral context does not exist afterward. Environment claims are sub-agent-untrusted: when a delegated verify reports "no device / port held / no emulator", the orchestrator re-executes that probe itself once before accepting the deferral. Stale relayed environment facts once calcified into a days-long false wall that human pushback dissolved in minutes, and the real device evidence then exposed 4 defects the all-green mocked verifies had missed.
++**Provision before declare, and provisioning persists.** Before declaring an environment wall, check whether the repo or the plan's `## Verification Strategy` already ships provisioning for exactly this capability (a `scripts/create-*-avd.ps1`, an emulator bootstrap, a seed script) and run it; a wall whose cure sits unexecuted in the repo is not a wall. Capability provisioned inside this run counts only if it persists beyond the run: invoke the repo's script, or write one and record its path in the evidence; an emulator provisioned only inside a sub-agent's ephemeral context does not exist afterward. Environment claims are sub-agent-untrusted: when a delegated verify reports "no device / port held / no emulator", the orchestrator re-executes that probe itself once before accepting the deferral.
+ 
+ **A skipped-guard sweep is an error, not a deferral.** When every spec exits via a credential or environment guard (0 specs executed), the criterion is `blocked-runtime-evidence-missing` with the unmet precondition named ("set `E2E_ADMIN_USER_EMAIL`/`_PASSWORD` and re-run"), never `interactive-verification: deferred`. **A per-AC skip is the same error, one AC deep**: when the spec that is the designated evidence for a specific AC was skipped (guard exit, `.skip`/`.todo`, missing env or secret, filtered out), that AC produced no evidence and cannot inherit the suite's green. Route it through another rung, defer it with a probe receipt, or write `blocked-runtime-evidence-missing`; sub-agent 2 records the skips as `skipped-gating-specs: [{spec, ac, precondition}]`.
+ 
+@@ -32,7 +32,7 @@ When the annotation is present on a slice:
+ 
+ **One writer per fact; a deferral is recorded once.** The deferral lives in exactly one place per surface: the frontmatter annotation on the slice, the `runtime-evidence-deferrals` entry in `00-index.md`, and, when a driver is orchestrating, the structured `deferrals[]` return, each carrying the probe receipt. Do not also park a bare copy in the sibling "residual / could-not-fix" list; that list carries only what is not a deferral. Two copies of one deferral, receipted in one place and bare in the other, read to any consumer as two different ACs, one of them apparently un-probed, so consumers false-stop. Emitting once is the fix.
+ 
+-**A fail is not a deferral, in either direction.** A deferral says evidence could not be produced; a `fail` says the behavior is wrong. An AC you drove and found broken is `result: fail` and is recorded as a failure, never in `deferrals[]`, never in the index ledger. A run report may not re-label a recorded fail as a deferral, because that tells the user to go collect evidence for a defect. Decision (plan §2.4): no silent skip; every deferral is named, dated, and surfaces in the progress view and dashboard; the block bites at ship, not earlier, so in-flight work waiting on an environment is not stalled mid-pipeline.
++**A fail is not a deferral, in either direction.** A deferral says evidence could not be produced; a `fail` says the behavior is wrong. An AC you drove and found broken is `result: fail` and is recorded as a failure, never in `deferrals[]`, never in the index ledger. A run report may not re-label a recorded fail as a deferral, because that tells the user to go collect evidence for a defect. Name and date every deferral, and show it in the progress view and dashboard. The block applies at ship, so in-flight work that waits on an environment does not stall.
+ 
+ ## 00-index.md ledger
+ 
+@@ -52,7 +52,7 @@ runtime-evidence-deferrals:
+     needed-by: <slice-slug>   # the slice that consumes this prerequisite; set at plan time
+ ```
+ 
+-**`clearing-probe`: how anyone finds out the event happened.** A deferral whose clearing event is provisionable also carries a one-line, side-effect-free command that answers "has it happened yet?": `adb devices | grep -q emulator`, `curl -sf localhost:8080/health`, `test -f .env.e2e`, `gh run list --workflow release -L1 --json conclusion`. `/wf status <slug>`, the autonomous driver's orientation, and `/wf probe` orientation execute these at their cheap moments (one command each, short timeout) and flag hits: "deferral AC6's clearing event appears satisfied — run `/wf probe <slug>` now." It is a tripwire, not a gate: nothing is cleared automatically, and the probe stage still owns evidence. One AC's clearing event ("device available for the AC6 run") was satisfied in the same session (emulator booted, branch app installed, on screen) and nothing noticed; the retro recorded "AC6 shipped uncleared." Omit the field only when no single command can answer the question (a human judgement, a third-party release); an omitted probe is a silent "nobody is watching this one".
++**`clearing-probe`: how anyone finds out the event happened.** A deferral whose clearing event is provisionable also carries a one-line, side-effect-free command that answers "has it happened yet?": `adb devices | grep -q emulator`, `curl -sf localhost:8080/health`, `test -f .env.e2e`, `gh run list --workflow release -L1 --json conclusion`. `/wf status <slug>`, the autonomous driver's orientation, and `/wf probe` orientation execute these at their cheap moments (one command each, short timeout) and flag hits: "deferral AC6's clearing event appears satisfied — run `/wf probe <slug>` now." It is a tripwire, not a gate: nothing is cleared automatically, and the probe stage still owns evidence. Omit the field only when no single command can answer the question (a human judgement, a third-party release); an omitted probe is a silent "nobody is watching this one".
+ 
+ **Repeat-deferral marker.** Before appending, scan existing `runtime-evidence-deferrals` for an entry naming the same environment dependency (fuzzy match: same credential gate, device class, or missing service). On a match, append `repeat-of: <slice-slug of the first occurrence>`; the accumulation becomes visible in the artifact, `/wf status`, and the dashboard. A wall paid twice is plan's tripwire: the next plan for this slug scopes the harness that retires it or records `harness-declined: <reason>` (plan.md's repeat-deferral tripwire).
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/verify/_runtime-evidence.md b/plugins/sdlc-workflow/skills/wf/reference/verify/_runtime-evidence.md
+index 26372bc..b3c403a 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/verify/_runtime-evidence.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/verify/_runtime-evidence.md
+@@ -1,6 +1,6 @@
+ # Verify: runtime evidence (sub-agent 3 and Step 7.5)
+ 
+-This file belongs to [../verify.md](../verify.md). Load it when the slice has a user-observable AC (WF-SYSTEM-REVIEW E3). A slice with only code-only AC does not need it. Step 4 dispatches sub-agent 3 with the charter below, per [../_subagents.md](../_subagents.md) and the rules of [_sub-agents.md](_sub-agents.md). Step 7.5 applies [The gate rules](#the-gate-rules-step-75).
++This file belongs to [../verify.md](../verify.md). Load it when the slice has a user-observable AC. A slice with only code-only AC does not need it. Step 4 dispatches sub-agent 3 with the charter below, per [../_subagents.md](../_subagents.md) and the rules of [_sub-agents.md](_sub-agents.md). Step 7.5 applies [The gate rules](#the-gate-rules-step-75).
+ 
+ ## Functional sub-agent 3 — Interactive & Runtime-Truth Verification
+ 
+@@ -58,6 +58,6 @@ The `runtime-adapters/_protocols.md` `Evidence protocol` and `Accessibility chec
+ 
+ **CI/pipeline configuration cannot clear on `static` evidence.** An AC whose deliverable is the pipeline itself (a `.github/workflows/*.yml`, a CI job definition, a release or deploy workflow, a commit-hygiene or lint gate, a container build spec) is a program whose runtime is the CI runner; reading it and finding it plausible is the `static` rung. Such an AC records `evidence-rung` no lower than the free static battery, which is required: run the repo's own formatter or linter over the changed config (`actionlint`, `yamllint`, `prettier --check`); check every version literal against the repo's own declarations (the package manager version vs `packageManager`/lockfile, the runtime vs `.nvmrc`/`.tool-versions`/`go.mod`, action refs vs the repo's pins); lint the graph (`needs` references resolve, no cycles, referenced jobs and reusable workflows exist, matrix keys are consumed); name which steps depend on secrets and what a secretless run does. A real-executor probe (`act`, a draft-PR smoke run, a scratch branch push) stays recommended, not required; when one is run, it is the rung that clears the AC, and the deferral path applies unchanged when it cannot be.
+ 
+-**Write-time enforcement (the R7 backstop).** Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) hard-blocks a `verify` artifact whose `result: pass` contradicts its evidence: `metric-acceptance-met < metric-acceptance-total`, or `interactive-verification: deferred`. The `mockEvidenceGate` extension also hard-blocks `result: pass` while `metric-acceptance-mock-rung > 0` (a user-observable AC row at `evidence-rung: cited-mock | uncited-mock | static` cannot pass; opt out with `hooks.mockEvidenceGate: false`, default on). It forbids the invented `metric-acceptance-unverified-interactive` field and warns when shadow-deferral prose ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified during `<slice>`", "decidable by static reasoning") co-occurs with `result: pass`. Reconcile `result` with the evidence or take the honest `partial` + deferral path (opt out per repo with `hooks.verifyResultGate: false` / `hooks.verifyDeferralLint: false`).
++**Write-time enforcement.** Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) hard-blocks a `verify` artifact whose `result: pass` contradicts its evidence: `metric-acceptance-met < metric-acceptance-total`, or `interactive-verification: deferred`. The `mockEvidenceGate` extension also hard-blocks `result: pass` while `metric-acceptance-mock-rung > 0` (a user-observable AC row at `evidence-rung: cited-mock | uncited-mock | static` cannot pass; opt out with `hooks.mockEvidenceGate: false`, default on). It forbids the invented `metric-acceptance-unverified-interactive` field and warns when shadow-deferral prose ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified during `<slice>`", "decidable by static reasoning") co-occurs with `result: pass`. Reconcile `result` with the evidence or take the honest `partial` + deferral path (opt out per repo with `hooks.verifyResultGate: false` / `hooks.verifyDeferralLint: false`).
+ 
+ **Deferral.** `interactive-verification: deferred` is a last resort, lawful only after the constraint-resolution ladder was climbed and the residual wall was classified (`wall-ownership`) and probed. [verify/_deferrals.md](_deferrals.md) holds the hatch, the `00-index.md` `runtime-evidence-deferrals` ledger, the clearing-event rules, the repeat marker, and the stacking stop (a deferral inherited by a third slice through `absorbed-by`). A deferral writes `result: partial`, never `pass`; `/wf ship` blocks until every deferral clears.
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/verify/_sub-agents.md b/plugins/sdlc-workflow/skills/wf/reference/verify/_sub-agents.md
+index f381d25..42c9d22 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/verify/_sub-agents.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/verify/_sub-agents.md
+@@ -35,7 +35,7 @@ Prompt the agent with all of the following.
+ 
+ Prompt the agent with all of the following.
+ 
+-**Test receipt (C4).** Read `.ai/workflows/<slug>/.test-receipt-<slice-slug>.json` when it exists. When its `result` is `pass` and `git diff --quiet <sha> HEAD -- . ':!.ai'` succeeds (no code changed since), its `commands` count as run green: report them with `source: receipt <sha>`, and run only the checks below that the receipt does not cover. Otherwise ignore it.
++**Test receipt.** Read `.ai/workflows/<slug>/.test-receipt-<slice-slug>.json` when it exists. When its `result` is `pass` and `git diff --quiet <sha> HEAD -- . ':!.ai'` succeeds (no code changed since), its `commands` count as run green: report them with `source: receipt <sha>`, and run only the checks below that the receipt does not cover. Otherwise ignore it.
+ 
+ **Unit tests.** Identify the test files covering the slice's affected modules (grep imports); run them first with verbose output; then run the full unit suite for regressions, unless the receipt covers it. Report total/passed/failed/skipped, failures with full error output, and duration.
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/verify.md b/plugins/sdlc-workflow/skills/wf/reference/verify.md
+index 2b0cac8..a2fd62d 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/verify.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/verify.md
+@@ -171,6 +171,7 @@ Dispatch a fix sub-agent for **every** issue triaged `Fix` **in parallel** (one
+    Location: {file:line OR check-name}
+    Observation: {raw output or AC criterion text}
+    Suggested fix: {one-line suggestion, if any}
++   Check command: {the narrowest check command for this fix}
+ 
+    Read the file(s) at the specified location. Understand the issue.
+    Apply the minimal fix that resolves the issue without introducing
+@@ -190,9 +191,12 @@ Dispatch a fix sub-agent for **every** issue triaged `Fix` **in parallel** (one
+    you conclude it is wrong or impossible you may deviate, but say so
+    in the FIRST line of your return, not in a closing note.
+ 
++   Before you return, run the check command and record its exit status.
++
+    Return, in this order:
+      Method: as-prescribed | deviated
+      (if deviated) what was suggested / what you did instead / why
++     Self-check: <command> → exit <N>
+      A brief summary of what you changed, including the regression test
+      path (or the one-line exemption reason).
+    ```
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/yolo/_commentary.md b/plugins/sdlc-workflow/skills/wf/reference/yolo/_commentary.md
+index afe8ed1..a92a8d8 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/yolo/_commentary.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/yolo/_commentary.md
+@@ -4,7 +4,7 @@
+ 
+ The watch is `scripts/yolo-watch.mjs`. It polls the driver journal, the git HEAD, the protected files, and the usage readings. It writes one JSON line per event, and it exits by itself after the run ends. It also appends one line to `commentary.md` for each `stage-start` and `commit` event (R1).
+ 
+-The Monitor tool stops a watch after 30 minutes at most. No watch without a deadline is available to the session today (WF-WATCH-MONITOR-PLAN, section 9), so the session starts the watch again when it expires.
++The Monitor tool stops a watch after 30 minutes at most. The session has no watch without a deadline, so it starts the watch again when it expires.
+ 
+ ## Start the watch
+ 
+@@ -39,7 +39,7 @@ The Monitor tool stops a watch after 30 minutes at most. No watch without a dead
+ | `commit` | A new commit is on the branch. The watch already wrote the hash and subject to `commentary.md`. | One or two sentences per commit. | no |
+ | `decision` | The stage artifact waits for input, or records an `intent-bearing` decision. | A full note: the decision, the artifact, and what the person decides. | yes |
+ | `protected-change` | A protected file changed. `dirtyAtStart: true` means the file held the person's uncommitted edits. A file gives one event per 10 minutes, however often it is saved. In a worktree, uncommitted files at the watch start are an earlier run's work, not the person's, so they are not protected. | A full note: the file, the change, and the stage that ran. | yes |
+-| `stale` | The running agent is silent. With `signal: transcript`, the agent's own transcript wrote nothing for 15 minutes: one tool call lasts 10 minutes at most, so the agent hangs. With `signal: pending-tool`, a tool call of the agent (`tool`, since `toolSince`) has no result yet: the agent waits on that tool, most often for the person's approval of a prompt. With `signal: journal`, no transcript was found, and the journal is silent past the liveness limit with an `agent-start` as its newest line. | A warning, worded per the staleness rule in [../_control-file-ownership.md](../_control-file-ownership.md). With `signal: transcript`, say that the agent hangs, and offer to stop the run and resume it. With `signal: pending-tool`, say which tool call waits and since when, and ask the person to look for an approval prompt in the app. Do not offer to stop the run: a stop throws away the stage's work. | yes |
++| `stale` | The running agent is silent. With `signal: transcript`, the agent's own transcript wrote nothing for 15 minutes: one tool call lasts 10 minutes at most, so the agent hangs. With `signal: pending-tool`, a tool call of the agent (`tool`, since `toolSince`) has no result yet: the agent waits on that tool, most often for the person's approval of a prompt. With `signal: journal`, no transcript was found, and the journal is silent past the liveness limit with an `agent-start` as its newest line. | A warning, worded per the staleness rule in [../_liveness.md](../_liveness.md). With `signal: transcript`, say that the agent hangs, and offer to stop the run and resume it. With `signal: pending-tool`, say which tool call waits and since when, and ask the person to look for an approval prompt in the app. Do not offer to stop the run: a stop throws away the stage's work. | yes |
+ | `stop` | A stage agent returned `hard-stop`, or stopped on a stop request. | Why the run stopped, and the resume command. | yes |
+ | `look-in` | 15 minutes passed with no full note (`--look-in <minutes>` changes it; 0 turns it off). `running` lists each open stage agent: its minutes, its `root`, its `journal`, and its `transcript` when the watch finds it. | Send a reader to look in, and tell the person what is happening (C7). | no |
+ | `run-end` | The driver ended. `inferred: true` means that the journal went silent after an `agent-end`. | The run summary. | yes |
+@@ -69,7 +69,7 @@ Scout, classifier, and bookkeeping agents give no event.
+ 
+   The script adds the time. After a compaction, read the last notes in `commentary.md` before the next note, so the story continues.
+ - **R1.** The watch appends one line per `stage-start` and per `commit` event, for example `- 2026-10-08 10:01 UTC · stage start · plan · slice auth`. It writes the line where the drive writes its records: in the worktree when the drive has one. Do not append a note for these two events.
+-- **R2.** The chat reply for each event stays as the table says. The record no longer depends on the chat reply: before R1, the notes were skipped, and `commentary.md` stayed empty.
++- **R2.** The chat reply for each event stays as the table says. The record in `commentary.md` does not depend on the chat reply.
+ - **C5.** Send a push notification (the `PushNotification` tool) only for the events that the table marks. Lead with what the person acts on, for example "yolo engine-modules: plan stopped on decision D6".
+ - **C6.** Answer the person's questions between events from the records: the artifacts, the journal, `commentary.md`, and git. Do not answer from memory. A watch event does not block the conversation.
+ - **C7.** For `look-in`, do not read the run in this session: the reading fills the session's context. Dispatch one research sub-agent at the summary tier ([../_subagents.md](../_subagents.md)), and wait for its answer. Give it:
+@@ -81,7 +81,7 @@ Scout, classifier, and bookkeeping agents give no event.
+      - the changed files (`git -C <root> status --short`);
+      - the newest 60 lines of its `transcript`, when the event names one;
+   4. for a campaign piece (`00-index.md` has `origin-piece`), the state of its list: `node "<pluginRoot>/skills/wf/scripts/campaign.mjs" status "<projectRoot>" <source-slug>`;
+-  5. the answer it returns: at most six sentences that say what each running stage does now and for how long, what changed since the newest note, what comes next, and what waits on the person. When nothing changed, the answer is one line that says so. The answer quotes no file contents and no transcript lines.
++  5. the answer it returns: a short paragraph that says what each running stage does now and for how long, what changed since the newest note, what comes next, and what waits on the person. When nothing changed, the answer is one line that says so. The answer quotes no file contents and no transcript lines.
+ 
+   The sub-agent changes no file. Tell the person its answer, and append the answer with `--event look-in`. When the sub-agent gives no answer, say in one line that the look-in failed, and wait for the next event.
+ 
+diff --git a/plugins/sdlc-workflow/skills/wf/reference/yolo.md b/plugins/sdlc-workflow/skills/wf/reference/yolo.md
+index 9e6e9f2..6dbe64e 100644
+--- a/plugins/sdlc-workflow/skills/wf/reference/yolo.md
++++ b/plugins/sdlc-workflow/skills/wf/reference/yolo.md
+@@ -113,7 +113,7 @@ Negotiating the environment, precisely: before any deferral `yolo` climbs the **
+ 
+ Charter fidelity: every **3** slices one read-only subagent reads the `charter:` block in `00-index.md` and the recent `05-implement` artifacts and judges each commitment **honored**, **at-risk**, or **broken**. `honored` drives on silently; `at-risk` drives on but is recorded in `outcome.charterCheckpoints`; **broken** is a HARD-STOP (`outcome.stoppedAt = 'charter-checkpoint'`). The checkpoint never edits or fixes.
+ 
+-Mid-build discover checkpoint: when a `severity: high` RIM's **visible-milestone** slice lands, the driver records a recommended read-only `/wf discover <hypothesis derived from the RIM>` in the run report. It does not run discover and does not stop.
++Mid-build discover checkpoint: when a `severity: high` RIM's **visible-milestone** slice lands, the driver records a recommended read-only `/wf intake discover <hypothesis derived from the RIM>` in the run report. It does not run discover and does not stop.
+ 
+ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-guards.md](_autonomy-guards.md) to the driving session itself.
+ 
+@@ -125,8 +125,7 @@ Autonomy guards: apply the early-stop guard and the release valve in [_autonomy-
+    - `projectRoot` = the absolute root of the repo that owns `.ai/workflows/<slug>/` (the nearest ancestor containing `.ai/workflows`, capped at the git toplevel).
+    - `pluginRoot` = the directory you loaded this reference from (`$CLAUDE_PLUGIN_ROOT` when set).
+    - `referenceRoot` = `<pluginRoot>/skills/wf/reference`.
+-4. **Campaign owner.** Run `node "<pluginRoot>/skills/wf/scripts/campaign.mjs" owner "<projectRoot>" <slug>`. On `owned: true`, a campaign wave drives the slug. Stop, and tell the person to use `/wf campaign <brainstorm>` or to wait for the wave.
+-5. **Stage the driver script inside the repo.** The Workflow tool refuses a `scriptPath` outside the working directory. Run it at every launch and resume:
++4. **Stage the driver script inside the repo.** The Workflow tool refuses a `scriptPath` outside the working directory. Run it at every launch and resume:
+ 
+    ```
+    node "<pluginRoot>/scripts/stage-yolo-driver.mjs" "<projectRoot>"
+@@ -140,13 +139,13 @@ Call the **Workflow** tool:
+ 
+ ```
+ Workflow({
+-  scriptPath: "<projectRoot>/.scratch/wf/yolo.js",   // from Step 0.5
++  scriptPath: "<projectRoot>/.scratch/wf/yolo.js",   // from Step 0.4
+   args: {
+     projectRoot:   "<absolute repo root owning .ai/workflows>",
+     referenceRoot: "<pluginRoot>/skills/wf/reference",
+     slug:          "<slug>",
+     slice:         "<slice>",       // slice mode only — omit for slug mode
+-    models:        { … }            // Step 0.5's models
++    models:        { … }            // the `models` block of .ai/sdlc-config.json
+     // reviewFanout (on) / planFanout (off): omit unless the person asks
+   }
+ })
+@@ -157,7 +156,7 @@ The workflow runs in the background. Right after this call, start the watch and
+ # Resuming — one sanctioned path
+ 
+ - **Slash-command `/wf` stays user-only.** A human typing `/wf yolo <slug>` is the explicit opt-in that authorizes an unattended run.
+-- **Relaunching the script is not a new opt-in** — it continues the run the user authorized. After a hand-back is answered, repeat Steps 0.4 and 0.5, then the Step 1 Workflow call with the same args. Orientation skips every stage already terminal-clean.
++- **Relaunching the script is not a new opt-in** — it continues the run the user authorized. After a hand-back is answered, repeat Step 0.4, then the Step 1 Workflow call with the same args. Orientation skips every stage already terminal-clean.
+ - Say what you are doing: *"resuming the driver from `<slice>`"* — not *"run `/wf yolo <slug>` yourself"*.
+ 
+ # Hot-patching the driver mid-run
+@@ -181,7 +180,7 @@ Stages run: <the per-slice sequence actually executed>
+ Autonomous decisions: <count + one-line gist, or "none recorded">
+ Charter: <omit when no checkpoint ran | from outcome.charterCheckpoints: all commitments honored | N at-risk (name them) | HARD-STOP on a broken commitment (name it)>
+ Decisions: <outcome.decisionDigest: N total by class; intent-bearing count WITH its intentBearingGuarantee qualifier — "exact" → "intent-bearing escapes: 0"; "suspect" → "intent-bearing escapes: 0 (SUSPECT — M unclassifiable; review them)"; intentBearing>0 → should-have-been-a-stop escapes>
+-Discover checkpoint: <omit when none | recommended `/wf discover <hypothesis>` for the high-severity RIM whose milestone slice landed>
++Discover checkpoint: <omit when none | recommended `/wf intake discover <hypothesis>` for the high-severity RIM whose milestone slice landed>
+ Residual findings: <none | N deferred/could-not-fix recorded in <artifact>>
+ Runtime-evidence deferrals: <none | outcome.runtimeEvidenceDeferrals: N — slice/AC + reason (+ probe receipt), in 00-index.md; /wf ship is BLOCKED until each is cleared by /wf probe or a re-verify in a capable environment>
+ Substantive failures: <omit when absent | outcome.substantiveFailures: N — slice + result. DEFECTS, not deferrals; no /wf probe clears them>
+@@ -203,7 +202,7 @@ Next: <outcome.route — the routing command>
+ Rules:
+ - **Always emit**, even on a HARD-STOP or an orientation block. The narrative explains why it stopped.
+ - **Surface the autonomy.** Name the assumptions recorded and the findings fixed vs deferred. Point at the artifacts that hold the record.
+-- **Surface charter drift and the decision digest.** Call out `intentBearing > 0` explicitly. When `decisionDigest.intentBearingGuarantee` is `suspect`, say so in the same sentence as the zero. If a high-severity RIM's milestone slice landed, emit the recommended `/wf discover` checkpoint.
++- **Surface charter drift and the decision digest.** Call out `intentBearing > 0` explicitly. When `decisionDigest.intentBearingGuarantee` is `suspect`, say so in the same sentence as the zero. If a high-severity RIM's milestone slice landed, emit the recommended `/wf intake discover` checkpoint.
+ - **Flag ship-blocking deferrals.** If `outcome.runtimeEvidenceDeferrals` is non-empty, say that `/wf ship` will refuse until each is cleared.
+ - **Honesty.** Report what ran. Do not imply the workflow is further along than the artifacts show.
+ - **Never re-label an input.** A verify that recorded an AC as a substantive **fail** is reported under `Substantive failures:`, never moved into the deferral list. Where the driver's derivation disagrees with a recorded decision or the index ledger, the recorded classification wins and the disagreement is named on the `Reconciled:` line.
+diff --git a/plugins/sdlc-workflow/skills/wf/workflows/_shared.js b/plugins/sdlc-workflow/skills/wf/workflows/_shared.js
+index 008f6c1..02612c9 100644
+--- a/plugins/sdlc-workflow/skills/wf/workflows/_shared.js
++++ b/plugins/sdlc-workflow/skills/wf/workflows/_shared.js
+@@ -59,7 +59,7 @@ function steeringClause(steerPath, role, contractPath, campaignSteerPath = null)
+     : `${steerPath}. Read that file NOW, in full, with the file-read tool — never from a copy in a prompt or from ` +
+       `an earlier run: the user can edit it while this run drives. If the file is absent or empty, there is no ` +
+       `steering`
+-  const head = `\n\nSTANDING STEERING (MANDATORY). The user keeps standing instructions for this workflow in ` +
++  const head = `\n\nSTANDING STEERING. The user keeps standing instructions for this workflow in ` +
+     `${files}: skip the rest of this block and return no steering fields. The contract is ${contractPath}. No ` +
+     `human gate in this run repeats these entries, so the file is the user's voice here. A steering VETO ` +
+     `outranks every autonomous-policy default in this prompt. Steering never overrides a mandatory gate (the ` +
+diff --git a/plugins/sdlc-workflow/skills/wf/workflows/optimize.js b/plugins/sdlc-workflow/skills/wf/workflows/optimize.js
+index a0dbdf3..ab0910c 100644
+--- a/plugins/sdlc-workflow/skills/wf/workflows/optimize.js
++++ b/plugins/sdlc-workflow/skills/wf/workflows/optimize.js
+@@ -109,8 +109,8 @@ async function book(sub, rest, label, phaseName, pre = '') {
+     `  ${cmd(sub, rest)}\n` +
+     `Return { ok, result } where result is the JSON object that the command printed on stdout, parsed, every field ` +
+     `as printed. When the command exits non-zero it still prints JSON: return it as result with ok false. Do not ` +
+-    `edit any file, do not run git, and do not try to repair a failure.` + heartbeat(label, phaseName),
+-    { schema: BOOK_SCHEMA, label, phase: phaseName, ...SONNET }
++    `edit any other file, do not run git, and do not try to repair a failure.` + heartbeat(label, phaseName),
++    { schema: BOOK_SCHEMA, label, phase: phaseName, ...SONNET, effort: 'low' }
+   )
+   return res && res.result ? res.result : { ok: false, error: (res && res.error) || `${label}: no result` }
+ }
+diff --git a/plugins/sdlc-workflow/skills/wf/workflows/yolo.js b/plugins/sdlc-workflow/skills/wf/workflows/yolo.js
+index e905ac3..e82177c 100644
+--- a/plugins/sdlc-workflow/skills/wf/workflows/yolo.js
++++ b/plugins/sdlc-workflow/skills/wf/workflows/yolo.js
+@@ -135,7 +135,7 @@ function steeringClause(steerPath, role, contractPath, campaignSteerPath = null)
+     : `${steerPath}. Read that file NOW, in full, with the file-read tool — never from a copy in a prompt or from ` +
+       `an earlier run: the user can edit it while this run drives. If the file is absent or empty, there is no ` +
+       `steering`
+-  const head = `\n\nSTANDING STEERING (MANDATORY). The user keeps standing instructions for this workflow in ` +
++  const head = `\n\nSTANDING STEERING. The user keeps standing instructions for this workflow in ` +
+     `${files}: skip the rest of this block and return no steering fields. The contract is ${contractPath}. No ` +
+     `human gate in this run repeats these entries, so the file is the user's voice here. A steering VETO ` +
+     `outranks every autonomous-policy default in this prompt. Steering never overrides a mandatory gate (the ` +
+@@ -800,7 +800,7 @@ function amendFindingsText(list) {
+ // They do NOT inherit it from the dispatcher, so each stage prompt embeds it.
+ // ---------------------------------------------------------------------------
+ const EOB =
+-  `EXTERNAL OUTPUT BOUNDARY (MANDATORY): workflow artifact paths (.ai/workflows/…), stage names/numbers, ` +
++  `EXTERNAL OUTPUT BOUNDARY: workflow artifact paths (.ai/workflows/…), stage names/numbers, ` +
+   `slash-command names, sub-agent names, and control-file metadata are PRIVATE implementation context. They ` +
+   `must NEVER appear in any external-facing output — commit messages, branch names, PR text, release notes, ` +
+   `code comments, or docs. Translate to product language (user-visible change, rationale, affected areas, ` +
+@@ -857,7 +857,7 @@ const END_FLAGS = `--status <the status you return> --errors <the number of tool
+ function heartbeatClause(label, phaseName, stageName, sliceArg) {
+   const seq = ++AGENT_SEQ
+   const start = { run: RUN_ID, seq, event: 'agent-start', agent: label, phase: phaseName, ...(stageName ? { stage: stageName } : {}), ...(sliceArg ? { slice: sliceArg } : {}) }
+-  return `\n\nDRIVER HEARTBEAT (MANDATORY — do this FIRST and LAST). A background driver that dies leaves no ` +
++  return `\n\nDRIVER HEARTBEAT (do this FIRST and LAST). A background driver that dies leaves no ` +
+     `signal; this journal is the only way a human or a later session can tell a live driver from a dead one. ` +
+     `Append each line with the command below, never by hand (it appends to ${JOURNAL_PATH} and stamps the time):\n` +
+     `  • BEFORE any other work, run: \`${lineCmd(JOURNAL_PATH, start)}\`\n` +
+@@ -873,7 +873,7 @@ function heartbeatClause(label, phaseName, stageName, sliceArg) {
+ // is the same in both directions: re-read immediately before writing, and treat a
+ // rejection as "the other writer moved", not as a stale-string puzzle to force.
+ const CONTROL_FILE_RULE =
+-  `\n\nCONTROL-FILE DISCIPLINE (MANDATORY). ${projectRoot}/.ai/workflows/${slug}/00-index.md and ` +
++  `\n\nCONTROL-FILE DISCIPLINE. ${projectRoot}/.ai/workflows/${slug}/00-index.md and ` +
+   `${projectRoot}/.ai/workflows/INDEX.md are shared control files that another session may also be editing. ` +
+   `Re-read the file IMMEDIATELY before every edit — never edit from a copy you read earlier in this agent. If an ` +
+   `edit is rejected as modified-since-read, that means the other writer moved: re-read, re-derive your change ` +
+@@ -901,7 +901,7 @@ const steer = (role) => steeringClause(STEER_PATH, role, `${referenceRoot}/_stee
+ const CONTROL_PATH = `${projectRoot}/.ai/workflows/${slug}/.control.json`
+ 
+ function stopCheckClause(controlPath, journalPath) {
+-  return `\n\nSTOP-REQUEST CHECK (MANDATORY — before any other work, after the start heartbeat when this prompt asks for ` +
++  return `\n\nSTOP-REQUEST CHECK (before any other work, after the start heartbeat when this prompt asks for ` +
+     `one). Read ` +
+     `${controlPath} now, fresh, with the file-read tool. When the file is absent, continue normally. When it does ` +
+     `not parse as JSON, read it once more; when it still does not parse, treat it as {"action":"pause"}. A request in ` +
+@@ -940,7 +940,7 @@ function stopKindOf(res) {
+ // they recovered from. The script cannot see a subagent's tool history, so the
+ // subagent reports its own: honest self-accounting beats a confident zero.
+ const DECISION_CONTRACT =
+-  `\n\nDECISION RECORDING CONTRACT (MANDATORY).\n` +
++  `\n\nDECISION RECORDING CONTRACT.\n` +
+   `- EVERY decision you record carries a \`class\` stamp per ${referenceRoot}/_decision-classes.md. There are ` +
+   `exactly two values: \`implementation-detail\` (yours to settle autonomously) and \`intent-bearing\` (never ` +
+   `yours — it is a STOP). Omitting the stamp is not a neutral act: it silently weakens the run's ` +
+@@ -962,7 +962,7 @@ const DECISION_CONTRACT =
+ // ---------------------------------------------------------------------------
+ const POLICY = {
+   plan:
+-    `AUTONOMOUS OVERRIDE — the plan reference runs an 8–12 question discovery interview (AskUserQuestion). ` +
++    `AUTONOMOUS OVERRIDE — the plan reference asks its discovery decisions as gate questions (AskUserQuestion). ` +
+     `DO NOT ask the user anything. Instead ANSWER each implementation-detail question yourself in the user's ` +
+     `best interest: choose the option that best satisfies the slice acceptance criteria at the least cost and ` +
+     `smallest blast radius, and RECORD each choice as an entry in the plan body's "## Assumptions" section ` +
+@@ -979,8 +979,7 @@ const POLICY = {
+     `AUTONOMOUS OVERRIDE — the verify reference triages each failing check / unmet AC via AskUserQuestion ` +
+     `(Fix/Skip/Escalate) and runs exactly ONE fix round per invocation. DO NOT ask. AUTO-SELECT "Fix" for every ` +
+     `fixable issue: apply the minimal patch and run that single fix round, recording outcomes in ` +
+-    `"## Verify-Owned Fixes". If the reference warns the slice was already verified and asks to overwrite, ` +
+-    `proceed (re-running is intended).\n\n` +
++    `"## Verify-Owned Fixes".\n\n` +
+     `DEFER-DON'T-CANCEL for UN-PRODUCIBLE runtime evidence — the verify deferral law (verify/_runtime-evidence.md ` +
+     `§"Climb the constraint-resolution ladder", and verify/_deferrals.md) is the single normative statement; apply it EXACTLY as ` +
+     `written there, with no relaxation. In particular: a deferral is lawful ONLY over a PROBED incapability ` +
+@@ -1220,8 +1219,6 @@ const STAGE_RESULT = {
+     slice: { type: 'string' },
+     // 'stopped' — the agent found a stop or pause request in .control.json and did no work.
+     status: { enum: ['complete', 'hard-stop', 'stopped'] },
+-    // C3: the last plan step that a step-group implement committed.
+-    stepsDone: { type: 'number' },
+     // E4: the slice-status mirror that the verify agent did as its last step.
+     sliceWriteBack: { type: 'object', properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } },
+     stopKind: { enum: ['stop', 'pause'] },
+@@ -1497,7 +1494,7 @@ async function orient() {
+     `progress.design is 'skipped' with a design-skip-reason. When 02c-craft.md carries boards: (design/r<N>/boards.json) ` +
+     `and ux-impact is visual or new-surface, the design is settled only when every board file that manifest lists ` +
+     `exists on disk; run node "${referenceRoot}/../scripts/design-boards.mjs" check "${projectRoot}" ${slug} to list the missing ones. ` +
+-    `Give drives board paths (design/r<N>/boards/<key>.png), never a canvas link. The design is NOT settled while 00-index.md records ` +
++    `The design is NOT settled while 00-index.md records ` +
+     `progress.design: in-progress (reopened by an extension or an amend stop). A slice whose 03-slice-<slice>.md ` +
+     `carries ux-impact: none changes nothing a person sees, so its plan does not wait for the design; a slice ` +
+     `WITHOUT the field keeps the slug rule. When design is needed and not settled, and at least one roster slice ` +
+@@ -1542,7 +1539,7 @@ async function orient() {
+     `installed — and the AC still shipped uncleared because nobody was watching for it.\n\n` +
+     `Return the structured orientation. Set ok=true only when the readiness gate passes.` +
+     // orient mints RUN_ID, so it writes its own heartbeat with the id it just made.
+-    `\n\nDRIVER HEARTBEAT (MANDATORY). Using the runId you minted in step 1c, append two lines with the command ` +
++    `\n\nDRIVER HEARTBEAT. Using the runId you minted in step 1c, append two lines with the command ` +
+     `below, never by hand: one BEFORE you start reading — ` +
+     `\`${lineCmd(JOURNAL_PATH, { seq: 0, event: 'agent-start', agent: 'orient', phase: 'Orient' })} --run <runId>\` ` +
+     `— and one immediately before you return — ` +
+@@ -1577,7 +1574,7 @@ async function ensureBranch(idx) {
+   return await agent(
+     `Autonomous branch posture for SDLC slug '${slug}' (branch-strategy: dedicated). The working tree is on ` +
+     `'${idx.branch.current}' but the workflow's dedicated branch is '${target}'. Land the tree on '${target}' NOW, ` +
+-    `before any stage runs, by mirroring implement.md Step 0.9. Run git as \`git -C ${projectRoot} …\`; make NO ` +
++    `before any stage runs. Run git as \`git -C ${projectRoot} …\`; make NO ` +
+     `commits and change nothing else.\n\n` +
+     `1. If \`git -C ${projectRoot} branch --show-current\` is already '${target}', return ` +
+     `{ ok: true, switched: false, action: 'already-on-branch' }.\n` +
+@@ -1646,9 +1643,9 @@ function reChallengeClause(priorDeferrals) {
+ // ---------------------------------------------------------------------------
+ async function runStage(stage, sliceArg, idx, extra = {}) {
+   const sliceClause = sliceArg ? `, slice '${sliceArg}'` : ''
+-  const roundClause = extra.round
+-    ? ` This is autonomous fix ROUND ${extra.round} of up to 2 — a prior round already applied one fix pass; ` +
+-      `resolve only what still fails. If warned the slice was already verified, proceed with the overwrite.`
++  const roundClause = extra.round > 1
++    ? ` This is autonomous verify ROUND ${extra.round} of 2: a prior round already ran one fix pass; ` +
++      `resolve only what still fails.`
+     : ''
+   // F2 corrective probe round — a prior verify round returned structurally clean but
+   // deferred these AC(s) with no capability-probe receipt. This is NOT a fix pass; it is

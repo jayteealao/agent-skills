@@ -29,8 +29,7 @@ Callers should re-use the `stack:` block written by `/wf intake` Step 0.5 (and c
 1. Run every adapter's detection signal against the repo.
 2. Collect every adapter that matches. Multi-match (e.g., web frontend + CLI tool in one repo) is the common case, not an exception.
 3. **Default — run all matched adapters in parallel.** The caller iterates over every matched adapter and aggregates observations into one report. Record `adapters-used: [<key>, ...]` (plural).
-4. **Narrowing — `--adapter <key>` flag (probe only).** Restricts the run to a single matched adapter. Record `adapters-used: [<key>]` and `adapter-narrowed-by-user: true`.
-5. The probe `target` string's *surface inference* layer (route names, screen names, command names, endpoint paths) refines which entry points to drive within each running adapter.
+4. The probe `target` string's *surface inference* layer (route names, screen names, command names, endpoint paths) refines which entry points to drive within each running adapter.
 
 ## Adapters
 

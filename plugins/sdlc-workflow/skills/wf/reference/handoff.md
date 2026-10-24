@@ -49,7 +49,7 @@ You are a workflow orchestrator, not a problem solver. Apply [_workflow-rules.md
 # Step 0 — Orient (do this before all other steps)
 1. **Resolve the first argument**; it is polymorphic. Resolve in this order (first match wins):
    - **Exact slug**: `.ai/workflows/<arg>/00-index.md` exists → **single-slug handoff**, `handoff-scope: slug`.
-   - **PR reference** `pr#N` / `#N` / a bare integer: resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then follow the branch path. `handoff-scope: branch`.
+   - **PR reference** `pr#N`: resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then follow the branch path. `handoff-scope: branch`.
    - **Branch name**: matches a `branch:` recorded in some `00-index.md` (or an existing git branch) → **batch handoff**, `handoff-scope: branch`.
    - **Absent**: infer the most recent active workflow from `.ai/workflows/*/00-index.md` → single-slug. If ambiguous, ask the user.
    **Footgun guard.** If the resolved single slug's `branch` is shared by other slugs' `00-index.md`, WARN that a single-slug verdict on a shared branch goes stale when a sibling moves the branch. Recommend `/wf handoff pr#N` (or the branch name). Proceed only if the user confirms.

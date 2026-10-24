@@ -12,7 +12,7 @@ Take a talk turn in place of the next batch when:
 Take no two talk turns in a row unless the person asks for more. Everything else stays a batch.
 
 ## A talk turn
-1. Write in chat, in plain words and short paragraphs, about 150 to 350 words. Say:
+1. Write in chat, in plain words and short paragraphs. Keep the turn short enough to read in one sitting. Say:
    - what the thing is and how it works, with one concrete example from this product;
    - what the research, the code, or the data showed, with its source;
    - what it changes on the board: the decisions it supports, and the decisions it puts in question;
@@ -27,7 +27,7 @@ Tell the story of a sitting:
 - as the narrative lead of the chat return (Step 4);
 - on a resume, before the first batch: the story of the last session. When that session has no story, because the person left without a pause, write it from that session's log entries first.
 
-A story is plain prose of about 100 to 200 words, not a list of decisions. It has five parts:
+A story is short plain prose, not a list of decisions. It has five parts:
 1. What we set out to explore in this sitting.
 2. What we learned: the two or three things that change how the person thinks, each as a statement.
 3. What we decided, and why: the few decisions that matter most, not every decision.

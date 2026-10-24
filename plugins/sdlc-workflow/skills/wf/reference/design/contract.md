@@ -6,7 +6,7 @@ This is **not a standalone command** — it is the contract-authoring procedure 
 
 **The design stage owns both design gates.** No driven stage resolves them. The brief (`02b-design.md`) is authored upstream at `shape` as plain discovery with the image gate left **unresolved** (no `image-gate` field written). This procedure resolves the two gates the brief deferred:
 
-1. **Image gate** — generate the north-star mock/probes via the `imagery` skill, or record a reasoned skip. Writes the resolved `image-gate` — `pass` or `skipped:<reason>` — to `02c` (there is no `pending` value; the brief simply left it unset).
+1. **Image gate** — draw the boards per [_boards.md](_boards.md), or record a reasoned skip. Write the resolved `image-gate` (`pass` or `skipped:<reason>`) to `02c`. There is no `pending` value.
 2. **Brief-confirm gate** — resolve `shape=pass` from a recorded user-backed direction source before writing the contract: an in-session user response, a user-confirmed PRODUCT.md, or a prior `teach` answer. When no recorded source exists, present the resolved visual direction and get the user's approval.
 
 **Scope**: writing the contract does not itself mutate product code. `implement` applies the contract during the build.
@@ -17,14 +17,14 @@ The visual contract requires a **confirmed visual direction** and a resolved ima
 
 1. PRODUCT context loaded (PRODUCT.md valid, ≥200 chars, no `[TODO]` markers). When it is not, the design stage runs `/wf design setup` with the person first; it does not stop the workflow.
 2. **Direction source.** `02b-design.md` exists (authored at `shape`, or by the design stage when it was missing) and its direction is **confirmed** by one of the `shape=pass` sources below. When the person named a move, the move's reference focuses the direction; it does not replace the brief.
-3. Visual-direction decision recorded: probes generated and the user chose a direction, OR skipped with a stated reason.
+3. Visual-direction decision recorded: the person saw the boards and chose a direction, OR skipped with a stated reason.
 4. North-star mock decision recorded (Step 3 below).
 
 **`shape=pass`** requires a direction the user confirmed. Three sources satisfy the gate: a user response in this session, a user-confirmed PRODUCT.md, or a prior `teach` answer from the user. Record which source satisfied the gate. A self-authored direction with no user-confirmed source does not pass the gate.
 
 Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Pre-fill every question that the user prompt, PRODUCT.md, DESIGN.md, or the codebase already answers, and record each pre-filled answer with its source. Ask only the unanswered questions, in ONE batched round.
 
-Invalid image-skip reasons: "the implementation will be semantic HTML/CSS/SVG", "a raster mock won't be used directly", "the product is fictional." Probes and mocks are direction artifacts, not implementation assets.
+Invalid image-skip reasons: "the implementation will be semantic HTML/CSS/SVG", "a raster mock won't be used directly", "the product is fictional." Boards and mocks are direction artifacts, not implementation assets.
 
 ## Step 1: Load the direction source
 
@@ -83,7 +83,7 @@ When no board can be shown (no browser renders the HTML and the person cannot op
 
 Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after the person confirmed the boards, or `skipped:<reason>` for a flow with no visual change. (`02c` is authoritative; the `02b` brief left the gate unset — you may mirror the resolved value onto `02b` too, but it is not required.)
 
-**Confirm gate.** `shape=pass` is satisfied by the "yes to proceed" answer above, or by a recorded user-backed direction source (a user-confirmed PRODUCT.md, or a prior `teach` answer) — record which source satisfied the gate. Do not write the contract while no user-backed source exists, and never leave the mock neither confirmed nor explicitly skipped with a reason.
+**Confirm gate.** `shape=pass` is satisfied by the approve answer at [stage.md](stage.md) Step 5, or by a recorded user-backed direction source (a user-confirmed PRODUCT.md, or a prior `teach` answer) — record which source satisfied the gate. Do not write the contract while no user-backed source exists, and never leave the mock neither confirmed nor explicitly skipped with a reason.
 
 ## Step 4: Mock fidelity inventory
 
@@ -140,7 +140,7 @@ recommended-routes: [{invocation: "/wf slice <slug>", reason: "the person confir
 
 Body sections, in order, under these exact `##` headings (later stages cite them):
 
-- `## Visual direction confirmed` — one paragraph on the approved direction: the chosen probe (if any) and each deviation from the brief.
+- `## Visual direction confirmed` — one paragraph on the approved direction: the chosen direction (if any) and each deviation from the brief.
 - `## Directions considered` — only when design stage Step 3b ran: one row per direction, `| Name | Axis | Kept or rejected | The person's reason |`, so a later amend does not reopen a rejected direction by accident. Include the canon row. Below the table, list the candidates that were not drawn, with one line each.
 - `## Thesis` — the default arrangement that this design refuses, in one sentence.
 - `## Own world` — what makes the design recognizable with all content removed.

@@ -27,7 +27,7 @@ ideas:
     entry: "<the entry invocation — new-workflow or extension form>"
     confidence: <high|medium|low>      # the confidence rules below
     source-items: [S01-I04, S02-#42]   # only when sources fed the idea
-    seen-in: "<an earlier ideate slug>"  # only when an earlier run proposed or culled it (Step 3b)
+    seen-in: "<an earlier ideate slug>"  # only when an earlier run proposed or culled it (Step 3c)
     changed: "<what changed since that run>"
   - ...
 culled:
@@ -75,7 +75,7 @@ Build this list from the `ideas:` roster. The roster order is the rank. Write on
 
 ## Confidence
 
-Give each idea the highest `confidence` that its evidence allows. Step 4 weighs confidence in the rank and names it in `rank-reason`. The renderer's `score` formula does not change.
+Give each idea the highest `confidence` that its evidence allows. Step 4 weighs confidence in the rank and names it in `rank-reason`. The renderer computes the `score` column from impact, effort and feasibility only.
 
 | Evidence | Highest confidence |
 |---|---|

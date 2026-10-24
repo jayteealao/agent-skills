@@ -6,7 +6,7 @@ The verdict rules, the `clears-on` taxonomy, and the two menu principles (`amend
 
 Acknowledgements live in a sibling ledger, `.ai/ship-plan-acks.yaml` (a list of entries `{ signals: [], fingerprint, fingerprint-scope, branch, plan-version, stage, at, via, reason }` plus an optional `pending-amend: { signals: [], plan-version, at }`). The pre-check reads and appends to this ledger; it still **never** edits the plan itself. `via` records how the entry was earned: `ack` (the user accepted the drift) or `amendment` (the plan was amended in response to it; see the Drift gate).
 
-**Invalidation is scoped, not wholesale.** The original rule (a `plan-version` bump deletes every entry) is right about plan-scoped acks and wrong about branch-scoped ones, and that difference is what turned one honest amendment into a repeat gate:
+**Invalidation is scoped by `fingerprint-scope`:**
 - **`fingerprint-scope: plan`** entries are invalidated by a `plan-version` bump: delete those recorded below the plan's current version. These are claims *about the plan*, and an amended plan must re-earn them.
 - **`fingerprint-scope: branch`** entries **survive** a `plan-version` bump. They assert a fact about the branch ("this branch edits `.github/workflows/`") that an amendment does not make false, and that the amendment was very often made *in response to*. Invalidate them when `branch` is not the current branch; they die with the branch at merge.
 - **`pending-amend`** is cleared once `plan-version` rises above the value recorded alongside it: the amendment it was waiting for has happened. What to do with the findings it covered is the Drift gate's Guard 2, not a silent drop.

@@ -7,7 +7,7 @@ argument-hint: ""
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-You are running `/wf project ship-plan edit`, the **block-editor for the project-level `.ai/ship-plan.md`**. This command edits the existing plan — it does NOT create a new one (use `/wf project ship-plan init` for that) and does NOT amend workflow stage artifacts (use `/wf intake <slug> amend` for that).
+You are running `/wf project ship-plan edit`, the **block-editor for the project-level `.ai/ship-plan.md`**. This command edits the existing plan — it does NOT create a new one (use `/wf project ship-plan init` for that) and does NOT change a workflow's record (`/wf intake <slug> amend` edits a workflow's configuration).
 
 ---
 
@@ -51,7 +51,7 @@ If the user picks "Inbound (H–K)", run a follow-up freeform prompt: *"Which bl
 
 Load [init/_blocks.md](init/_blocks.md) and re-run **only the chosen block's hypothesis loop**: its `## Block <letter>` section (Block G also runs "Block G follow-up — Announcement template"). For an additional-contract amendment, load [init.md](init.md) and run only the sub-loop in Step 3 for the named `id`. Pre-fill each question with the plan's current value so the user only changes what's actually different.
 
-When the amended block is one of the inbound blocks (H–J), remind the user that `/wf project ship-plan build` must be re-run to bring the repo's files (and branch protection) back into compliance with the new plan version.
+When the amended block is one of the inbound blocks (H–K), remind the user that `/wf project ship-plan build` must be re-run to bring the repo's files (and branch protection) back into compliance with the new plan version.
 
 **Skip the Discovery pass** — edit reuses the existing plan as ground truth. Discovery is only for fresh authoring via `/wf project ship-plan init`.
 
@@ -81,6 +81,6 @@ Return per [_chat-return.md](../_chat-return.md) — narrative lead, then only t
 - `block-amended: <A|B|C|D|E|F|G|H|I|J|K | additional-contract:<id>>`
 - `plan-version: <new value>`
 - `derived-fields-updated: <C.pre-merge-checks + J.required-checks re-derived | none>` (only when H or C was amended)
-- `next: any in-flight ship runs will record plan-version-at-run = <new value>`. If an inbound block (H–J) changed, re-run `/wf project ship-plan build` to bring the repo + remote settings back into compliance.
+- `next: any in-flight ship runs will record plan-version-at-run = <new value>`. If an inbound block (H–K) changed, re-run `/wf project ship-plan build` to bring the repo + remote settings back into compliance.
 
 The next `/wf ship <slug>` invocation will read the amended plan and stamp the new `plan-version` into the run's `plan-version-at-run` field, which is useful for retro analysis ("did the rollout strategy change between v1.4.0 and v1.4.1?")

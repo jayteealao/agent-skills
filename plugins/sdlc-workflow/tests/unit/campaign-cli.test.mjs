@@ -1,6 +1,6 @@
 // WF-PIECES-PLAN sections 6 and 12 — the disk side of /wf campaign in scripts/campaign.mjs:
 // the serial walk over one list (status, open, land, start, built, done), the review base
-// of 6.2, the fidelity and try-out gates, `owner`, `slice-order add`, and the migration of
+// of 6.2, the fidelity and try-out gates, `slice-order add`, and the migration of
 // an old wave campaign (report, apply, start of a migrated piece, finish, the guarded remove).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -128,7 +128,6 @@ test('6.1 and 6.2: the serial walk opens, starts, builds and closes each piece; 
     st = run(['status', root, SRC]);
     assert.deepEqual([st.current.key, st.current.step], ['screen', 'design']);
     assert.equal(run(['start', root, SRC, 'screen']).base, `pieces/${SRC}--engine`);
-    assert.deepEqual(run(['owner', root, 'demo-screen']), { ok: true, owned: false, slug: 'demo-screen' });
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

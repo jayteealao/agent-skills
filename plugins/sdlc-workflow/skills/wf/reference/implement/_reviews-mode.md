@@ -32,7 +32,7 @@ Do this in order for reviews mode:
       | {ID} | {sev} | {command} | fixed / could-not-fix | {fixed-at} | {SHA or —} | {notes} |
       ```
    d. Update `00-index.md`.
-   e. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):** stage by explicit path, classified exactly as mainline Step 13 in `implement.md` (slice code by path, workflow artifacts by path, unknown dirty paths fail closed; `git add -A` and pathless `git add` are forbidden). Commit `fix(<slug>): review fixes for <slice-slug>`. Record the commit SHA. No push. If `branch-strategy` is `none`, skip the commit.
+   e. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):** stage by explicit path, classified exactly as `implement.md` step 12 (slice code by path, workflow artifacts by path, unknown dirty paths fail closed; `git add -A` and pathless `git add` are forbidden). Commit `fix(<slug>): review fixes for <slice-slug>`. Record the commit SHA. No push. If `branch-strategy` is `none`, skip the commit.
 8. **Evaluate adaptive routing.** Write ALL viable options into the record's `recommended-routes`:
    - **Option A (default): Re-verify** → `/wf verify <slug> <slice-slug>` when fixes were applied. Compact recommended: review-fix context is noise for re-verification.
    - **Option B: Re-review** → `/wf review <slug> <slice-slug>` when some findings could not be fixed and need re-assessment. Compact recommended: a fresh review needs clean context.

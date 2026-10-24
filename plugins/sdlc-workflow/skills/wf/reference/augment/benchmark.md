@@ -165,7 +165,7 @@ For each measured target, calculate:
 
 ## Compare Step 4 — Update `05c-benchmark.md` with comparison data
 
-Add the `## Comparison Results` section and the comparison frontmatter per [benchmark/_artifact.md](benchmark/_artifact.md) → *Compare Step 4*. Do not overwrite baseline data.
+Add the `## Comparison Results` section and the comparison frontmatter per [benchmark/_artifact.md](benchmark/_artifact.md) → *Compare Step 4*. Do not overwrite baseline data. Then set this benchmark entry's `mode: complete` in `00-index.md` `augmentations:` and refresh `updated-at`.
 
 # Step 5 — Hand off to user
 

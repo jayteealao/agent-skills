@@ -109,8 +109,8 @@ async function book(sub, rest, label, phaseName, pre = '') {
     `  ${cmd(sub, rest)}\n` +
     `Return { ok, result } where result is the JSON object that the command printed on stdout, parsed, every field ` +
     `as printed. When the command exits non-zero it still prints JSON: return it as result with ok false. Do not ` +
-    `edit any file, do not run git, and do not try to repair a failure.` + heartbeat(label, phaseName),
-    { schema: BOOK_SCHEMA, label, phase: phaseName, ...SONNET }
+    `edit any other file, do not run git, and do not try to repair a failure.` + heartbeat(label, phaseName),
+    { schema: BOOK_SCHEMA, label, phase: phaseName, ...SONNET, effort: 'low' }
   )
   return res && res.result ? res.result : { ok: false, error: (res && res.error) || `${label}: no result` }
 }

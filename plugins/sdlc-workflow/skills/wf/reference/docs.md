@@ -149,7 +149,7 @@ Write a `## Review Notes` section to `generate.md` with any issues found. For an
 **Write the docs-index artifact:** Before committing, write a compact index of this documentation run — `08b-docs-index.md` (`type: docs-index`; in `mode: workflow` under `.ai/workflows/<target-slug>/`, otherwise under `.ai/docs/<run-id>/`) with its Generated or Updated Docs table, Remaining Gaps, and Review Notes. Templates in [docs/_artifacts.md](docs/_artifacts.md).
 
 **Commit all documentation changes:**
-`docs: update documentation via wf docs run <run-id>`
+`docs: <one line that names the documents changed, in product language>`
 
 # Step 6 — Primitive mode execution
 Invoked only when Step 0 resolved to a primitive (first token matched a known key).

@@ -48,11 +48,11 @@ Skipping these produces generic output that ignores the project.
 
 | Gate | Required check | If fail |
 |---|---|---|
-| Context | PRODUCT.md exists and is valid (≥200 chars, no `[TODO]` markers) | If the command is `setup` or `teach` → proceed (these create/update PRODUCT.md). Otherwise STOP: *"Design context is missing. Run `/wf design setup` to create PRODUCT.md first."* |
+| Context | PRODUCT.md exists and is valid (≥200 chars, no `[TODO]` markers) | If the command is `setup` or `teach` → proceed (these create/update PRODUCT.md). Otherwise run `/wf design setup` with the person, then continue. |
 | Design mode | A design mode (`persuade`, `operate`, `read`, `experience`) is chosen for each changed surface | Choose it per [_design-context.md](_design-context.md) → Design modes. Ask the person when the task cue and the surface leave it open. |
 | Codebase | Codebase inspection sub-agents have run | Run the 4 parallel inspection sub-agents (below). Skip if their output is already in this session, or reuse the `stack` fingerprint from `00-index.md` where possible. |
 | Brief | Design brief `02b-design.md` authored (at `shape`, following `design/shape.md`) and its direction backed by a recorded user source at contract time (an in-session confirmation, a user-confirmed PRODUCT.md, or a prior `teach` answer) | The brief is authored by the `shape` lifecycle stage; the design stage confirms its direction (`shape=pass`) with the person before writing the contract (`design/contract.md`). When the brief is missing, the design stage writes it first. |
-| Image gate | Surfaces drawn or probes generated, or skipped with a recorded reason | Resolve at the design stage before any stage plans or builds. |
+| Image gate | Surfaces drawn as boards, or skipped with a recorded reason | Resolve at the design stage before any stage plans or builds. |
 | Mutation | All gates above pass; mutation type matches the command | Do not edit project files until mutation is open. |
 
 **Codebase gate is relaxed for**: `audit`, `critique`, `extract`, `setup`, `teach`, `direction`, `sync` — these are read-only or record-authoring.
@@ -73,6 +73,6 @@ fingerprint from `00-index.md` for framework/library facts where it already answ
 - **Code** — the lifecycle build span (`implement`), which also applies the moves. Requires `image_gate` resolved AND the stage's build gate.
 - **Artifact** — contract authoring at the design stage (writes `02c-craft.md`), plus `audit`, `critique`. No code touched.
 - **Context** — `setup`, `teach`, `direction`, `sync`. The design record only (PRODUCT.md, DESIGN.md, `.ai/design/`); allowed unconditionally.
-- **Read-only** — `extract`. Produces a report; no project files modified.
+- **Report** — `extract`. Writes its report, its token file, and `## System in code` of `.ai/design/current.md`. It changes no product code.
 
 Do not edit any file until the appropriate mutation gate is open.

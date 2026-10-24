@@ -38,7 +38,7 @@ Before you change anything:
 - Add columns where they improve content relationships (sidebar and main, list and detail).
 - Show more of what the small window hid (secondary actions, metadata).
 - Use hover for progressive disclosure only on a hover pointer. Never make hover the only path.
-- On a Persuade or Read surface, display type may grow with the window. On an Operate surface, keep a fixed type scale and change the structure.
+- On a Persuade or Experience surface, display type may grow with the window. On an Operate surface, keep a fixed type scale and change the structure.
 
 ### Large windows, orientation and foldables
 

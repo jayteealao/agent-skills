@@ -10,7 +10,7 @@ The human-only stage between `shape` and `slice`. It turns the brief into a desi
 
 ## Step 0 — Orient
 
-1. Read `00-index.md`. When `status: closed`, STOP: *"Workflow `<slug>` is closed. Use `/wf status recap <slug>` to reopen."*
+1. Read `00-index.md`. When `status: closed`, STOP: *"Workflow `<slug>` is closed. To reopen it, set `status: in-progress` in its `00-index.md`. Then run `/wf design <slug>` again."*
 2. When a driver (`auto` or `yolo`) invoked this stage, STOP. Route the person to `/wf design <slug>`. A driver never resolves a design direction.
 3. When `02-shape.md` is missing or not complete, STOP and route to `/wf shape <slug>`.
 4. When `ux-impact: none`, ask one gate question per [_gate-question.md](../_gate-question.md): change `ux-impact` to `visual`, `flow`, or `new-surface` and continue, or keep `none` and write the skip record. On `none`, write `progress.design: skipped` and `design-skip-reason:`, then STOP with the next step `/wf slice <slug>`.

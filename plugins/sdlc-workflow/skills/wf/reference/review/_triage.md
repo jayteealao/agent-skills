@@ -1,6 +1,6 @@
 # Review: triage mode (`/wf review <slug> triage`)
 
-This file belongs to [_stage.md](_stage.md). Load it only when the second argument is `triage` (WF-SYSTEM-REVIEW E3).
+This file belongs to [_stage.md](_stage.md). Load it only when the second argument is `triage`.
 
 If the second argument is `triage` (e.g., `/wf review my-feature triage`), skip the full review and jump directly to re-triage:
 

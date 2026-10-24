@@ -112,11 +112,10 @@ Format as a structured report:
 | A1 | blocker/high/medium/low | token name or audit rule | file, component, or board key | specific problem | specific fix | open/in-progress/fixed/deferred |
 
 ## Recommended fixes
-[Ordered by impact, with specific commands to address each:
- - `/wf design harden` for accessibility issues
- - `/wf design optimize` for performance issues
- - `/wf design colorize` for theming issues
- - etc.]
+[Ordered by impact. Name the move for each fix:
+ - `/wf design <slug> harden` for accessibility issues
+ - `/wf design <slug> optimize` for performance issues
+ - `/wf design <slug> colorize` for theming issues]
 ```
 
 ## Output in SDLC context

@@ -5,7 +5,7 @@ Two files are written by nearly every `/wf` stage and by every driver:
 - `.ai/workflows/<slug>/00-index.md` — the workflow's own control file (status, roster, progress, deferral ledger, RIM ledger, charter).
 - `.ai/workflows/INDEX.md` — the global registry.
 
-They are the only files in the system with **many concurrent writers**, and until this contract existed they were written blind. A background `/wf yolo` driver and a foreground session would both hold reads taken minutes apart, and the second writer's edit would be rejected as *"File has been modified since read"* — repeatedly, in clusters, with no rule to fall back on. A **dead** driver's last write can also be half-finished, and nothing else says the driver stopped.
+They are the only files in the system with **many concurrent writers**, Two writers that read minutes apart collide: the second edit fails with *"File has been modified since read"*. A **dead** driver's last write can also be half-finished, and nothing else says the driver stopped.
 
 This file is the shared rule. `yolo.md`, `auto.md`, and the write-bearing stage references cite it rather than restating it.
 

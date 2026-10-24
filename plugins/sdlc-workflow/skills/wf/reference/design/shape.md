@@ -2,7 +2,7 @@
 
 Author the **design brief**: a structured artifact that guides UI implementation through discovery, not guesswork. This is **not a standalone command** — it is the brief-authoring procedure that the **`shape` lifecycle stage** runs (`../shape.md` Step 5a) when design is needed ([_lane.md](_lane.md)). The design stage runs it too when the brief is missing ([stage.md](stage.md) Step 2). It produces `02b-design.md`.
 
-**Scope**: Design planning only. This procedure does NOT write code, does NOT generate image probes, and does NOT confirm visual direction. It produces the thinking that makes code good. The visual-direction gates (image probes + confirm) and the visual contract `02c-craft.md` are authored downstream by the **design stage** with the person (see [stage.md](stage.md) and [contract.md](contract.md)); this procedure leaves the image gate **unresolved** — it writes no resolved `image-gate` to `02b-design.md` — for the design stage to resolve.
+**Scope**: Design planning only. This procedure does NOT write code, does NOT draw boards, and does NOT confirm visual direction. It produces the thinking that makes code good. The visual-direction gates (the boards and the confirm) and the visual contract `02c-craft.md` are authored downstream by the **design stage** with the person (see [stage.md](stage.md) and [contract.md](contract.md)); this procedure leaves the image gate **unresolved** — it writes no resolved `image-gate` to `02b-design.md` — for the design stage to resolve.
 
 ## Philosophy
 
@@ -107,7 +107,7 @@ Names omit the `.md` extension. `/wf implement` reads each as `skills/wf/referen
 
 The design brief records the **intended** visual direction — color strategy, scene
 sentence, named anchor references, anti-goals — from the discovery interview. It does
-**NOT** draw surfaces or generate image probes, and does **NOT** run a confirm gate. Those two moves belong
+**NOT** draw surfaces or boards, and does **NOT** run a confirm gate. Those two moves belong
 to the design stage, which a person runs:
 
 - **Boards** — the design stage draws one board per changed surface and state when it authors

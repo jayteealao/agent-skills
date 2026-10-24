@@ -70,7 +70,7 @@ If any slug has a `cost.jsonl`, add the cost table (one row per slug with a ledg
 | Slice | Plan | Implement | Verify | Review | Handoff | Ship |
 |-------|------|-----------|--------|--------|---------|------|
 
-Steps of a slice in progress (WF-PIECES-PLAN 6.6): <slice> — step <n> of <m>
+Steps of a slice in progress: <slice> — step <n> of <m>
 - step 1 ✓ <sha>
 - step 2 · open
 

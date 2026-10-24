@@ -152,7 +152,7 @@ After the loop completes:
 
 ```yaml
 triage-iterations: <N actual iterations run>
-triage-fixes-applied: <count of 🔴+🟡 that landed via implement reviews>
+triage-fixes-applied: <count of 🔴 and 🟡 fixes that landed through the fix-subagent contract>
 triage-fixes-skipped: <count of 🟡 declined or 🔴 deferred>
 triage-deferred-thread-ids: [<id>, ...]
 triage-fixed-threads: [{ thread: <id>, sha: <fix sha> }, ...]   # every fix of a thread, kept across re-runs

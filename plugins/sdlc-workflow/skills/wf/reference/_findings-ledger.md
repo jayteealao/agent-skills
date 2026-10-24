@@ -31,8 +31,8 @@ MERGE this run's findings into it. Never overwrite the file wholesale, and never
    NOT re-surfaced is set `status: resolved`, `resolved-at: now` — the dimension looked again,
    so absence means cleared. Keep the row; never delete it. Findings from dimensions NOT re-run
    carry forward untouched — absence of a run clears nothing.
-5. **Triage decisions persist.** Findings at `deferred`, `dismissed`, `fixed`, or
-   `could-not-fix` keep that status untouched unless re-surfaced (then update `last-seen-at`
+5. **Triage decisions persist.** Findings at `deferred`, `dismissed`, `fixed`,
+   `could-not-fix`, or `kept-by-person` keep that status untouched unless re-surfaced (then update `last-seen-at`
    only). Re-triage is its own explicit operation, never a side effect of a re-run.
 6. **Append one `runs:` entry per invocation** to the master ledger's frontmatter (timestamp,
    dimensions run, verdict snapshot). PRESERVE `created-at` from the first run; only

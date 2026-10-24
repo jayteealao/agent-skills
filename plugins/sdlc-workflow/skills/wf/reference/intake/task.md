@@ -46,7 +46,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `06-verify.md` | writes | | |
 
 # Task discipline
-- **Re-observe; never assert.** An acceptance criterion closes only on independent observation of the outcome — re-read the system of record after acting (`ls` the directory, `curl` the DNS record, query the API, read the file back). An AC whose only evidence is the agent's own claim of success carries `evidence-rung: asserted` and **cannot close** — managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) blocks `result: pass` on the same path that blocks a mock-evidenced code AC. The rung ladder for tasks is a **contract revision (§7)** of [EVIDENCE-SCHEMA-CONTRACT](../../../../docs/internal/EVIDENCE-SCHEMA-CONTRACT.md); `verify.md` places the two new rungs on the existing ladder.
+- **Re-observe; never assert.** An acceptance criterion closes only on independent observation of the outcome — re-read the system of record after acting (`ls` the directory, `curl` the DNS record, query the API, read the file back). An AC whose only evidence is the agent's own claim of success carries `evidence-rung: asserted` and **cannot close** — managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) blocks `result: pass` on the same path that blocks a mock-evidenced code AC. The rung ladder for tasks is a **contract revision (§7)** of [EVIDENCE-SCHEMA-CONTRACT](../../../../docs/internal/EVIDENCE-SCHEMA-CONTRACT.md); `verify.md` places the task rungs on the evidence ladder.
 - **The gate is not optional above `local-env`.** A `shared-env`, `external-party`, or `irreversible` task stops for explicit human authorization even when every other signal says proceed. No written policy resolves these unattended — the non-interactive default is STOP with the missing authorization recorded, never proceed (the drivers refuse `task` slugs entirely).
 - **`task` is not a todo list.** One task = one outcome. More than one independent outcome → enumerate them and have the user pick one, or escalate to a feature.
 - `current-stage` stays inside the standard enum — `implement` while working, `verify` while checking. Never a bespoke label.
@@ -131,6 +131,6 @@ The artifact trail is the state. Re-invoke `/wf intake task <slug>`: orientation
 
 - **Not a stage** — it is the fourth roster category, a *minimal lifecycle*: it self-authors `05-implement.md`/`06-verify.md` the way `update-deps` does, rather than routing into the standard execution chain.
 - **Not a router** — `ship-plan`/`docs`/`observability` are project-level contracts with sub-keys; a task is a unit of work with a slug.
-- **Not an intake mode** — every terminal intake mode observes; a task **acts**, including outside the repository, and that external reach is what requires the authorization gate no intake mode carries.
+- **Not a terminal analysis mode** — the terminal intake modes observe. A task **acts**, also outside the repository. That reach is why a task has an authorization gate that no other intake mode has.
 - **Not `ship`** — `ship` releases built software through a ship-plan with Go/No-Go gates; `task` performs a bounded operation with its own scaled gate.
 - **Not a todo list** — one task, one outcome.

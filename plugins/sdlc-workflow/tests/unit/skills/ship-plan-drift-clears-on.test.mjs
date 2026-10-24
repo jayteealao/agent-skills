@@ -105,7 +105,7 @@ test('D2.3 — advisories are reported but never counted into the ask', () => {
 test('D3.1 — branch-scoped entries survive a plan-version bump', () => {
   for (const { name, root } of trees) {
     const src = ref(root, 'ship-plan/_readiness-gate.md');
-    assert.match(src, /Invalidation is scoped, not wholesale/,
+    assert.match(src, /Invalidation is scoped by `fingerprint-scope`/,
       `${name}: the ledger is wholesale-invalidated again — a bump wipes branch-scoped acks`);
     assert.match(src, /`fingerprint-scope: branch`\*\* entries \*\*survive\*\* a `plan-version` bump/,
       `${name}: branch-scoped entries no longer survive an amendment`);

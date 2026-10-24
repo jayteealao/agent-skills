@@ -35,7 +35,7 @@ Prompt the agent with all of the following.
 
 Prompt the agent with all of the following.
 
-**Test receipt (C4).** Read `.ai/workflows/<slug>/.test-receipt-<slice-slug>.json` when it exists. When its `result` is `pass` and `git diff --quiet <sha> HEAD -- . ':!.ai'` succeeds (no code changed since), its `commands` count as run green: report them with `source: receipt <sha>`, and run only the checks below that the receipt does not cover. Otherwise ignore it.
+**Test receipt.** Read `.ai/workflows/<slug>/.test-receipt-<slice-slug>.json` when it exists. When its `result` is `pass` and `git diff --quiet <sha> HEAD -- . ':!.ai'` succeeds (no code changed since), its `commands` count as run green: report them with `source: receipt <sha>`, and run only the checks below that the receipt does not cover. Otherwise ignore it.
 
 **Unit tests.** Identify the test files covering the slice's affected modules (grep imports); run them first with verbose output; then run the full unit suite for regressions, unless the receipt covers it. Report total/passed/failed/skipped, failures with full error output, and duration.
 

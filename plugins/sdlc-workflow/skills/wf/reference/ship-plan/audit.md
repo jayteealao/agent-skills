@@ -7,9 +7,6 @@ argument-hint: "[<lens> | triage]"
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](../_steering.md). Honor the user's standing instructions, never above a
-> mandatory gate, and inject the relevant entries into every audit sub-agent prompt you dispatch.
-
 > **Ground findings in the real source.** Before asserting that a workflow step, a published artifact, or the
 > code misuses a dependency, action, or registry — a wrong signature, an action that "can't work," a security
 > claim about a tool's behavior — invoke the `study-sources` skill to read its **actual installed source** (the
@@ -86,7 +83,7 @@ pipeline, and the release-relevant codebase** — through one point of view. Fin
 | `release-safety` | Is the outbound release, read as a **sequence**, correct and safe to run *and re-run*? Ordering hazards (bump vs tag vs publish), idempotency (does a re-run double-publish?), a missing `concurrency:` group (two releases racing), irreversible steps before their gate (publish before smoke test), tag/version/artifact coherence, dry-run coverage. | plan semantics + release workflow |
 | `ci-correctness` | Are the actual workflow files correct **as code**? `on:` triggers that don't match `release-trigger`; `needs:` wiring that lets publish run before tests pass; missing or over-broad `permissions:` (`write-all`); `pull_request_target` that checks out and runs untrusted PR code (script injection); actions pinned to a mutable tag rather than a SHA (advisory); missing `if:` guards; a secret used in a job with no access to it. | built workflows |
 | `secrets-and-permissions` | Is the auth surface sound and least-privilege? Secrets referenced but never provided (or planned but referenced nowhere); a `GITHUB_TOKEN` broader than the job needs; long-lived tokens where OIDC would do; a secret that could be echoed into logs or handed to an untrusted step; branch/environment protection that doesn't actually enforce what the plan claims. | built workflows + plan |
-| `supply-chain` | Is what gets **published** trustworthy and correctly scoped? Provenance/attestation absent (`--provenance`, SLSA, sigstore/cosign); the packaged artifact's contents wrong — `files`/`.npmignore`/`MANIFEST.in`/`.dockerignore` leaking source or secrets, or omitting files the package needs; unpinned deps at publish time; registry target / scope mismatch; 2FA/publish-token posture. Align categories to [../review/supply-chain.md](../review/supply-chain.md). | built workflows + packaged surface |
+| `supply-chain` | Is what gets **published** trustworthy and correctly scoped? Provenance/attestation absent (`--provenance`, SLSA, sigstore/cosign); the packaged artifact's contents wrong — `files`/`.npmignore`/`MANIFEST.in`/`.dockerignore` leaking source or secrets, or omitting files the package needs; unpinned deps at publish time; registry target / scope mismatch; 2FA/publish-token posture. Align categories to the `supply-chain` section of [../review/security.md](../review/security.md). | built workflows + packaged surface |
 | `rollback-realism` | Does the recovery story actually work for **this artifact class**? A `rollback-mechanism` that isn't real (you cannot `git-revert` an immutable npm publish — you deprecate and ship a patch); `recovery-playbooks[]` with aspirational rather than runnable steps; a migration with no matching rollback; no tested reversal path. | plan + runbooks + migration surface |
 | `version-integrity` | Release-relevant codebase only. Is the version single-sourced, or defined in N places that can silently desync? Is `version-source-of-truth[]` complete vs reality? Is the **tested artifact the shipped artifact** (does `publish-cmd`'s build output actually exist and match what CI tested)? Any secret committed to the tree? Are build outputs gitignored so they can't ship stale? | release-relevant codebase |
 
@@ -94,7 +91,7 @@ pipeline, and the release-relevant codebase** — through one point of view. Fin
 
 **Default (no lens token) — full parallel fan-out.** Dispatch ONE read-only sub-agent per lens (all seven), per [_subagents.md](../_subagents.md):
 
-- **Effort-tiered, not model-pinned** — children must not inherit an expensive parent configuration. **high**
+- **Effort tier, set explicitly** — children must not inherit an expensive parent configuration; [_subagents.md](../_subagents.md) maps each tier to the host's model pin. **high**
   effort for the causal-reasoning lenses `plan-soundness`, `release-safety`, `ci-correctness`, and
   `secrets-and-permissions`; **low** for `supply-chain`, `rollback-realism`, and `version-integrity`.
 - `description: "audit-<lens>"`.

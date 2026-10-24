@@ -1,6 +1,6 @@
 # Design focus (`intake/brainstorm/_design.md`)
 
-Load this file when the board's `focus` is `design`: `/wf intake brainstorm design <idea>`, `/wf intake brainstorm <slug> design`, or `/wf intake brainstorm design <idea>`. It adds to the loop in [../brainstorm.md](../brainstorm.md) and replaces nothing. Every rule of that loop still applies, the Plain words invariant included.
+Load this file when the board's `focus` is `design`: `/wf intake brainstorm design <idea>`, `/wf intake brainstorm <slug> design`, or `/wf intake <feature-slug> brainstorm design`. It adds to the loop in [../brainstorm.md](../brainstorm.md) and replaces nothing. Every rule of that loop still applies, the Plain words invariant included.
 
 A design brainstorm thinks through how an idea looks and behaves: the surfaces, what a person does on them, and how they feel. The design stage (`design/stage.md`) later presents these thoughts again as its starting direction (`design/_carried.md`).
 

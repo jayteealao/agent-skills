@@ -76,4 +76,4 @@ framing (it can be 2–3 sentences); option `label`s stay short; option
 field itself; the question dialog can hide chat text (see [_gate-question.md](_gate-question.md)).
 Freeform chat questions follow the same seven requirements in prose.
 
-**Never ask a decided question again (B3).** Before a question, read the earlier answers: `po-answers.md` and `steer.md`. When one covers the question, use it, name it, and do not ask. Ask again only when a fact changed, and say which fact.
+**Never ask a decided question again.** Before a question, read the earlier answers: `po-answers.md` and `steer.md`. When one covers the question, use it, name it, and do not ask. Ask again only when a fact changed, and say which fact.

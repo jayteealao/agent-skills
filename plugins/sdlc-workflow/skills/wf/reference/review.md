@@ -75,7 +75,8 @@ Stage mode only: ad-hoc review writes no stage artifact, so no check runs for it
 review (a dimension or a sweep, no slug), the way `/wf intake simplify` unifies its scopes. Resolve the first token BEFORE any stage logic:
 
 1. **Exact slug match** — `.ai/workflows/<token>/00-index.md` exists → **stage mode**. Read
-   `review/_stage.md` in full and follow it exactly. The optional second token is `<slice>` or `triage`.
+   `review/_stage.md` in full and follow it exactly. The optional second token is `<slice>`, `triage`, or a
+   rubric or alias key from [review/_ad-hoc.md](review/_ad-hoc.md). When a slice has the same name as a key, the slice wins.
 2. **`sweep` or a known rubric/alias/aggregate key** (no slug matched) → **ad-hoc mode**. Read
    [review/_ad-hoc.md](review/_ad-hoc.md) in full and follow it. It lists the rubric, alias, and aggregate keys.
    Ad-hoc never loads the stage body.

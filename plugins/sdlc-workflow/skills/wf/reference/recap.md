@@ -47,7 +47,7 @@ You are a **storyteller of the work done**, not a problem solver.
 
 1. **Resolve the first token (polymorphic, first match wins)** — so a slug is never mistaken for a branch:
    - **Exact slug**: `.ai/workflows/<token>/00-index.md` exists → **single-slug recap** (`recap-scope: slug`). This is the classic path (Steps 1–3). A `prototype` row of `INDEX.md` is a slug too: `prototype.mjs status` names its worktree. Read `prototype-ledger.json` and `01-prototype.md` there.
-   - **PR reference** `pr#N` / `#N` / a bare integer → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then follow the branch path below (`recap-scope: branch`).
+   - **PR reference** `pr#N` → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then follow the branch path below (`recap-scope: branch`).
    - **Branch name**: matches a `branch:` recorded in some `00-index.md` / `.ai/workflows/INDEX.md`, or an existing git branch → **batch recap** (`recap-scope: branch`) — see **Step B** below.
    - **Absent**: this command is slug-first. Try to infer: if `.ai/workflows/INDEX.md` exists, read it and filter rows whose status is not `closed`; if **exactly one** non-closed row exists, use it (single-slug) and note the inference in the recap header. If **multiple**, list them (`slug — status — updated-at`) and ask which one as a gate question per [_gate-question.md](_gate-question.md) (or in chat). If **none** → STOP: *"No workflows found. Start one with `/wf intake <description>`."*
 

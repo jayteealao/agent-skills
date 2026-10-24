@@ -75,7 +75,7 @@ Column semantics (all pulled from each workflow's `00-index.md` YAML frontmatter
 
 The render below runs after this step, against the reconciled set.
 
-# Lists first (B7)
+# Lists first
 
 For each list with an unfinished piece, lead with `node "<skill-dir>/scripts/campaign.mjs" status "<projectRoot>" <source-slug>`: its pieces, next step and design needs. Next: "Type `/wf campaign <source-slug>`."
 
@@ -84,7 +84,7 @@ For each list with an unfinished piece, lead with `node "<skill-dir>/scripts/cam
 1b. If the **first** token is `advise`, set **advise-mode** and strip it. The remaining first token (optional) is the advise **scope**: a branch name or `pr#N`/`#N`/bare integer narrows advice to the slugs on that branch; the literal `fast` drops to Tier-0 (frontmatter only — no artifact or code reads). Advise-mode skips the polymorphic resolution in step 2 and, after the always-on Step -1 reconcile, runs the **Advise Mode** section below. Advise does its own bounded code-truth seeking, so it ignores a trailing `deep`.
 2. Resolve the remaining first token (polymorphic, first match wins):
    - **Exact slug** (`.ai/workflows/<token>/00-index.md` exists) → **detail mode** (single workflow). Read `00-index.md` directly.
-   - **PR reference** `pr#N` / `#N` / bare integer → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then **roster mode** below.
+   - **PR reference** `pr#N` → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then **roster mode** below.
    - **Branch name** (matches a `branch:` column in `.ai/workflows/INDEX.md`) → **roster mode** below.
    - **No token** → **dashboard mode** across all workflows.
 3. If enumeration found **no** workflows (registry empty AND disk listing empty) → tell the user: "No workflows found. Start one with `/wf intake <description>`." STOP.

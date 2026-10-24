@@ -171,11 +171,10 @@ Dispatch a fix sub-agent for **every** issue triaged `Fix` **in parallel** (one 
    Location: {file:line OR check-name}
    Observation: {raw output or AC criterion text}
    Suggested fix: {one-line suggestion, if any}
+   Check command: {narrowest check for this fix}
 
-   Read the file(s) at the specified location. Understand the issue.
-   Apply the minimal fix that resolves the issue without introducing
-   new problems. Do not change anything beyond what is needed for this
-   specific issue. Do not refactor.
+   Read the file(s) at the location. Apply the minimal fix for this
+   issue only. Do not refactor.
 
    Regression test (required for code bugs): if this issue is a code
    bug, not a lint/format, config, tooling, or docs finding, add a
@@ -190,9 +189,12 @@ Dispatch a fix sub-agent for **every** issue triaged `Fix` **in parallel** (one 
    you conclude it is wrong or impossible you may deviate, but say so
    in the FIRST line of your return, not in a closing note.
 
+   Run the check command before you return.
+
    Return, in this order:
      Method: as-prescribed | deviated
      (if deviated) what was suggested / what you did instead / why
+     Self-check: <command> → exit <N>
      A brief summary of what you changed, including the regression test
      path (or the one-line exemption reason).
    ```

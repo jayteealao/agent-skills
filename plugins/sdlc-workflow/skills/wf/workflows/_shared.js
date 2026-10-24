@@ -59,7 +59,7 @@ function steeringClause(steerPath, role, contractPath, campaignSteerPath = null)
     : `${steerPath}. Read that file NOW, in full, with the file-read tool — never from a copy in a prompt or from ` +
       `an earlier run: the user can edit it while this run drives. If the file is absent or empty, there is no ` +
       `steering`
-  const head = `\n\nSTANDING STEERING (MANDATORY). The user keeps standing instructions for this workflow in ` +
+  const head = `\n\nSTANDING STEERING. The user keeps standing instructions for this workflow in ` +
     `${files}: skip the rest of this block and return no steering fields. The contract is ${contractPath}. No ` +
     `human gate in this run repeats these entries, so the file is the user's voice here. A steering VETO ` +
     `outranks every autonomous-policy default in this prompt. Steering never overrides a mandatory gate (the ` +

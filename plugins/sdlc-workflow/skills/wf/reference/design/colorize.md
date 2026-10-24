@@ -27,7 +27,7 @@ Read: the world's color owns the frame. The reading column keeps a calm ground.
 Pick a strategy before you pick a color:
 - **Restrained** — neutrals and one accent for action, selection and state.
 - **Committed** — one saturated color carries 30–60% of the surface.
-- **Full palette** — 3–4 named color roles.
+- **Full palette** — three to five colors, each with a named role.
 - **Drenched** — the surface is the color.
 
 Name the temperature, the dominant relationship, the contrast range and the dosage. Follow the brief, not a percentage.

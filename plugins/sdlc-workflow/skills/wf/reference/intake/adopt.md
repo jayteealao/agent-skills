@@ -99,7 +99,7 @@ Prompt with:
 **Then infer the shape** from the diff + sub-agent findings:
 - **Goal** — what the change accomplishes, in one sentence, phrased as intent.
 - **Scope-in** — exactly the changed surface. **Scope-out** — explicitly everything else ("no changes to X, Y").
-- **Acceptance criteria** — derived from the *observed behavior* of the change, each objectively verifiable, authored under the verifiability-first rules (an AC verify cannot evidence is a defect in the AC, not a fact to accept). Apply W2d to any AC with an environment dependency.
+- **Acceptance criteria** — derived from the *observed behavior* of the change, each objectively verifiable, authored under the verifiability-first rules (an AC verify cannot evidence is a defect in the AC, not a fact to accept). Apply the force-scope rule of the plan stage (its `## Verification Strategy`) to each AC with an environment dependency.
 - **Slice split** — a **single slice by default** (the workflow slug doubles as the one slice's `slice-slug`). Split into >1 slice **only** when sub-agent 1 reported clearly-separable concerns (disjoint file sets AND independently revertable); when in doubt, one slice.
 
 # Step 2 — Confirmation gate (before any artifact is written)

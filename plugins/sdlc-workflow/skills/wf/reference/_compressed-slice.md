@@ -73,4 +73,4 @@ In slug-mode the compressed slice is the **sole output**. Write none of the stan
 
 ## Chat return for slug-mode
 
-One line, `<op> → compressed slice <slice-slug> on <slug>`, followed by the downstream recommendation the standalone op would have surfaced (for example rca's "consider `/wf intake refactor` for finding X"). The downstream recommendation is still valid; it is now scoped to the new slice rather than a fresh workflow. The router's mandatory Final Summary (narrative-first) still applies.
+One line, `<op> → compressed slice <slice-slug> on <slug>`, followed by the downstream recommendation the standalone op would have surfaced (for example rca's "consider `/wf intake refactor` for finding X"). The recommendation applies to the new slice. The router's mandatory Final Summary (narrative-first) still applies.
