@@ -5,65 +5,16 @@
 //
 //   node scripts/generate.mjs           write every target
 //   node scripts/generate.mjs --check   write nothing; exit 1 and name each target that differs
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { HOSTS, PLUGIN_ROOT, hostRows, loadRegistry, registryErrors } from '../lib/registry.mjs';
 
-export const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-export const REGISTRY_REL = join('skills', 'wf', 'keys.json');
+export { HOSTS, PLUGIN_ROOT, REGISTRY_REL, hostRows, loadRegistry, registryErrors } from '../lib/registry.mjs';
 
-export function loadRegistry(root = PLUGIN_ROOT) {
-  return JSON.parse(readFileSync(join(root, REGISTRY_REL), 'utf8'));
-}
-
-export const HOSTS = [['claude', 'Claude Code'], ['codex', 'Codex'], ['pi', 'pi']];
-const HOST_VALUE = /^(full|differs: \S.*|gap: \S.*)$/;
-
-/** The shape errors of a registry: missing fields, unknown groups, bad host values, missing reference files. */
-export function registryErrors(reg, root = PLUGIN_ROOT) {
-  const errors = [];
-  const groups = new Set((reg.groups ?? []).map((g) => g.id));
-  const names = new Set();
-  const checkHosts = (id, hosts) => {
-    for (const [h] of HOSTS) {
-      if (!HOST_VALUE.test(String(hosts?.[h] ?? ''))) errors.push(`${id}: host ${h} must be "full", "differs: <how>" or "gap: <reason>"`);
-    }
-  };
-  const checkRef = (id, ref) => {
-    if (!ref || !existsSync(join(root, 'skills', 'wf', ref))) errors.push(`${id}: reference ${ref} does not exist`);
-  };
-  for (const k of reg.keys ?? []) {
-    if (names.has(k.name)) errors.push(`${k.name}: the key appears twice`);
-    names.add(k.name);
-    if (!groups.has(k.group)) errors.push(`${k.name}: unknown group ${k.group}`);
-    for (const field of ['does', 'writes']) if (typeof k[field] !== 'string' || !k[field]) errors.push(`${k.name}: no ${field}`);
-    if (!Array.isArray(k.args) || !k.args.length) errors.push(`${k.name}: no args`);
-    if (!Array.isArray(k.artifacts)) errors.push(`${k.name}: no artifacts list`);
-    checkRef(k.name, k.reference);
-    checkHosts(k.name, k.hosts);
-    for (const s of k.subkeys ?? []) { checkRef(`${k.name} ${s.name}`, s.reference); checkHosts(`${k.name} ${s.name}`, s.hosts); }
-    for (const m of k.modes ?? []) {
-      checkRef(`${k.name} ${m.name}`, m.reference);
-      if (!['entry', 'maintenance'].includes(m.kind)) errors.push(`${k.name} ${m.name}: kind must be entry or maintenance`);
-      if (m.hosts) checkHosts(`${k.name} ${m.name}`, m.hosts);
-    }
-  }
-  return errors;
-}
 const tick = (s) => `\`${s}\``;
 const orList = (items) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} or ${items.at(-1)}`);
 const andList = (items) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
-
-/** Every key, sub-key and mode name with its host row, as `{ id, hosts }`. */
-export function hostRows(reg) {
-  const rows = [];
-  for (const k of reg.keys) {
-    rows.push({ id: k.name, hosts: k.hosts });
-    for (const s of k.subkeys ?? []) rows.push({ id: `${k.name} ${s.name}`, hosts: s.hosts ?? k.hosts });
-    for (const m of k.modes ?? []) rows.push({ id: `${k.name} ${m.name}`, hosts: m.hosts ?? k.hosts });
-  }
-  return rows;
-}
 
 export function context(reg) {
   const modes = reg.keys.find((k) => k.name === 'intake')?.modes ?? [];
@@ -139,6 +90,16 @@ export function hostTable(reg) {
   return out.join('\n');
 }
 
+/** The reserved slug words of intake/_intake-context.md, in three lists. */
+export function reservedBlock(reg) {
+  const words = (xs) => xs.map(tick).join(', ');
+  return [
+    `- the keys: ${words(reg.keys.map((k) => k.name))};`,
+    `- the sub-keys: ${words(reg.keys.flatMap((k) => (k.subkeys ?? []).map((s) => s.name)))};`,
+    `- the intake mode words: ${words((reg.keys.find((k) => k.name === 'intake')?.modes ?? []).map((m) => m.name))}.`,
+  ].join('\n');
+}
+
 export function readmeBlock(reg) {
   const ctx = context(reg);
   const rows = ['| Key | Does |', '|---|---|', ...reg.keys.map((k) => `| ${tick(k.name)} | ${fill(k.summary ?? k.does, ctx)} |`)];
@@ -182,8 +143,9 @@ export function targets(reg) {
   const hint = `"<${reg.keys.map((k) => k.name).join('|')}> [args...]"`;
   const count = (t, f) => replaceOnce(t, /one of the \d+ keys/, `one of the ${ctx.keyCount} keys`, f);
   return [
-    ['skills/wf/SKILL.md', (t, f) => count(replaceBlock(replaceOnce(t, /^argument-hint: .*$/m, `argument-hint: ${hint}`, f), skillBlock(reg), f), f)],
+    ['skills/wf/SKILL.md', (t, f) => replaceBlock(replaceOnce(t, /^argument-hint: .*$/m, `argument-hint: ${hint}`, f), skillBlock(reg), f)],
     ['skills/wf/reference/route.md', count],
+    ['skills/wf/reference/intake/_intake-context.md', (t, f) => replaceBlock(t, reservedBlock(reg), f)],
     ['skills/wf/reference/_host-invocation.md', (t, f) => replaceBlock(t, hostTable(reg), f)],
     ['README.md', (t, f) => replaceBlock(replaceOnce(t, /^## The \d+ keys$/m, `## The ${ctx.keyCount} keys`, f), readmeBlock(reg), f)],
     ['.claude-plugin/plugin.json', (t, f) => replaceJsonString(t, 'description', fill(m.claude, ctx), f)],

@@ -17,9 +17,10 @@ Step 0 gives you every token, the key candidate included, and the reason it did 
 - `not a key`: the first token is not one of the 19 keys.
 - `missing <position>`: a required position of the key is empty, for example the slug of `/wf implement`.
 - `<token> does not fit <position>`: a token is not of the class that the Arguments cell names.
+- `<token> does not fit the form`: tokens are left after the last position of every form.
 - `<token> not on disk`: a slug, a slice or a branch that the disk check did not find.
 
-Read the open workflows in one Bash call. Read every row of `.ai/workflows/INDEX.md` whose status is not `closed`. For each of those rows, read the `title`, `current-stage`, `selected-slice` and `next-invocation` fields of `.ai/workflows/<slug>/00-index.md`. When the reason is a slice miss, read the roster rows of that slug's `03-slice.md` in the same call. When `INDEX.md` does not exist, there are no open workflows.
+Read the open workflows with `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" --json`. Each workflow whose `group` is not `completed` is open; it carries its `slug`, `title`, `stage`, `selectedSlice`, `updatedAt` and `next`. When the reason is a slice miss, run `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" <slug> --json` for that slug; its `slices` list is the roster. No workflow in the result means there are no open workflows.
 
 Build the command from file paths only. Never put a word of the person's text into a shell command. Load no other reference before you classify.
 
@@ -28,7 +29,7 @@ Build the command from file paths only. Never put a word of the person's text in
 When the reason is `empty`, ask one question per [_gate-question.md](_gate-question.md):
 
 > What do you want to do? Pick a workflow to continue, or describe the work in your own words.
-> - **Continue `<slug>` — next: `/wf <next-invocation>`** — one option for each of the three open workflows with the newest `updated-at`, newest first.
+> - **Continue `<slug>` — next: `<next>`** — one option for each of the three open workflows with the newest `updatedAt`, newest first.
 > - **Ask a question about /wf** — only when fewer than three Continue options exist.
 > - **Show all keys** — print the key tables.
 
@@ -49,7 +50,7 @@ Use the first row that matches the text. A near match is a Levenshtein distance 
 | starts with a near match of a key (`implemnt`) | the corrected key with the same tokens |
 | names a slug or a slice that Step 0 did not find | the same command with the near match; with no near match, the open workflows |
 | leaves the required slug of a key empty (`/wf implement`) | that key with each of the three newest open workflows |
-| names an open workflow and no stage or action ("keep going on export") | that workflow's `next-invocation` |
+| names an open workflow and no stage or action ("keep going on export") | that workflow's `next` |
 | names an open workflow and a stage or action ("review the export work", "ship the login PR") | `/wf <key> <slug>`, with the slice or the dimension when the text names one |
 | asks about the state of all work ("what should I work on next") | `/wf status advise` |
 | asks about the state of one workflow ("where is export") | `/wf status <slug>` |

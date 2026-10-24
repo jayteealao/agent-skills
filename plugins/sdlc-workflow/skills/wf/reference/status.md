@@ -48,30 +48,9 @@ This step runs **unconditionally on every invocation, before Step 0**, even with
 
 **One-time advisory — design record ignored.** While reconciling, when at least one workflow has a `design/` folder, run `node "<skill-dir>/scripts/design-boards.mjs" track "<projectRoot>"` (read-only without `--write`). When the result has `change: true`, append one advisory line (never a gate, never a prompt): "git ignores the design record — `design-boards.mjs track` shows the `.gitignore` lines that keep `.ai/design/` and `.ai/workflows/*/design/r*/` tracked; add `--write` after the person approves." Print it at most once per invocation.
 
-**File: `.ai/workflows/INDEX.md`** — one header line (a `#` comment), then one tab-separated row per workflow, sorted alphabetically by slug. Closed workflows are retained (positional slug detection skips closed rows, but a slug match still triggers the "append a slice to a closed workflow?" confirmation).
+**File: `.ai/workflows/INDEX.md`**: one `#` header line, then one row per workflow, `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`, from each `00-index.md`, sorted by slug. Closed workflows keep their rows.
 
-```
-# .ai/workflows/INDEX.md — global workflow registry. Reconciled by /wf status (bootstrap+refresh) and additively touched by slug-mode compressed-slice writes from /wf intake/probe/simplify (updated-at only) and by /wf intake (append self if absent). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.
-<slug>	<status>	<workflow-type>	<branch>	<updated-at>
-```
-
-Column semantics (all pulled from each workflow's `00-index.md` YAML frontmatter):
-
-| Column | Source field | Notes |
-|---|---|---|
-| `slug` | `slug` (must equal the directory name) | The lookup key. |
-| `status` | `status` | e.g. `defined`, `shaped`, `sliced`, `planned`, `implementing`, `verifying`, `reviewing`, `handed-off`, `shipped`, `closed`, `abandoned`. |
-| `workflow-type` | `workflow-type` | The schema enum: `standard`, `feature`, `fix`, `quick`, `rca`, `investigate`, `discover`, `rf`, `refactor`, `hotfix`, `dep-update`, `update-deps`, `docs`, `adopt`, `task`, `audit`, `brainstorm`, `optimize`, `prototype` — plus `ideate` (workflow-index workflows) and legacy `compressed`. Use `standard` if missing on legacy indexes. |
-| `branch` | `branch` | The git branch (informational; not used for routing). |
-| `updated-at` | `updated-at` | ISO 8601 UTC. |
-
-**Procedure:**
-1. **Enumerate** `.ai/workflows/*/00-index.md` to discover every workflow directory.
-2. For each, parse YAML frontmatter and extract the five columns.
-3. If `.ai/workflows/INDEX.md` does **not** exist → **bootstrap**: write it fresh (header + one sorted row per discovered workflow). Note in the chat return: *"Bootstrapped `.ai/workflows/INDEX.md` with N workflows — positional slug detection is now enabled."*
-4. If it **does** exist → **refresh**: rewrite with the current sorted set. Report a one-line diff: *"Reconciled INDEX.md: A added, R removed (stale dirs), U status/branch updates."* If nothing changed, say nothing about the registry (it was already in sync).
-5. If a previous row references a slug whose `.ai/workflows/<slug>/00-index.md` is missing on disk → omit it from the rewritten file and flag *"Removed stale row: `<slug>` (directory missing)."* Keep a `prototype` row whose `branch` has a worktree in `git worktree list`; read that worktree's `00-index.md`.
-6. A reserved slug name (`intake/_intake-context.md`) → flag *"Slug `<slug>` is a `/wf` command word, so `<the form>` does not reach it."* (A slug `recap` blocks `/wf status recap`.) Rename nothing.
+Run `node "<skill-dir>/scripts/wf.mjs" index "<projectRoot>"`. It rebuilds the file. It drops the row of a missing folder, keeps the row of a folder whose `00-index.md` does not parse, keeps a `prototype` row whose branch has a worktree that holds the workflow, and names each slug that is a `/wf` command word. Print its lines in the chat return, except `INDEX.md is in sync.`. Rename nothing.
 
 The render below runs after this step, against the reconciled set.
 
@@ -116,7 +95,7 @@ This is the read-only counterpart to batch `/wf handoff` / `/wf ship`: it answer
 
 # Dashboard Mode (no slug)
 
-For each slug in the reconciled registry, read `.ai/workflows/<slug>/00-index.md`. Parse frontmatter for:
+Run `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" --json`. Each workflow in it carries its `group` (`active`, `blocked`, `completed`, or `invalid`), `stale` (more than 7 days since `updated-at`), `stage`, `selectedSlice`, `openQuestions` and `next`. Use them as they are. For the other columns, read `.ai/workflows/<slug>/00-index.md`. Parse frontmatter for:
 - `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`
 - `selected-slice`, `open-questions`
 - `recommended-next-command`, `recommended-next-invocation` (fall back to `next-command`, `next-invocation`)
@@ -135,23 +114,20 @@ For each slug in the reconciled registry, read `.ai/workflows/<slug>/00-index.md
 
 A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the two are orthogonal.
 
-**Classify each workflow:**
-1. **Active** — `status` is `in-progress`, `planning`, `implementing`, or any non-terminal, non-blocked status.
-2. **Blocked** — `status` is `awaiting-input`, OR `open-questions` non-empty, OR a prerequisite stage awaiting-input, OR design unsettled per `design/_lane.md` (next: `/wf design <slug>`).
-3. **Completed** — `status` is `complete`, `shipped`, `closed`, or `abandoned`.
+**Classify each workflow** by its `group`: `active` is Active, `blocked` is Blocked (`status: awaiting-input` or open questions), and `completed` is Completed. An `active` workflow is Blocked too when a prerequisite stage is awaiting input, or when design is unsettled per `design/_lane.md` (next: `/wf design <slug>`). List an `invalid` workflow under Blocked, with its reason.
 
-**Staleness:** if `updated-at` is >7 days ago, append `(stale)` to the status (epoch seconds per [_timestamp.md](_timestamp.md) vs parsed `updated-at`).
+**Staleness:** when `stale` is true, append `(stale)` to the status.
 
 **Render the dashboard** from the dashboard render in [status/_renders.md](status/_renders.md): the Active / Blocked / Completed tables (the Runtime column appears in every table because the deferral mechanism is orthogonal to lifecycle stage), then the `## Quick Actions` section (continue most recent, `/wf auto <slug>`, `/wf status <slug>`, `/wf status recap <slug>`), then a `## Branch Summary` table when any workflow has `branch-strategy: dedicated`, then the `## Cost` table.
 
-**Cost (exact tokens).** For each slug, read `.ai/workflows/<slug>/cost.jsonl` when it exists. Sum the rows: `main` and every `subagents[]` entry into input / output / cache read / cache write; `external[]` entries into a separate in / out pair. Copy every integer as written; never estimate or price. Omit a slug that has no ledger. Omit the table when no slug has one.
+**Cost (exact tokens).** For each slug, run `node "<skill-dir>/scripts/wf.mjs" cost "<projectRoot>" <slug>`. Its `total` row is the slug's input / output / cache read / cache write, with the external in / out pair apart. Copy every integer as written; never estimate or price. Omit a slug whose result is `No cost ledger.`. Omit the table when no slug has one.
 
 # Detail Mode (slug provided) — dashboard + routing in one
 
 `/wf status <slug>` renders the single-workflow detail **and** tells the user the exact next command. It never advances the workflow.
 
-1. **Read `00-index.md`** for the slug. If not found → "Workflow `<slug>` not found. Run `/wf status`
-   to list all workflows." STOP.
+1. **Run `node "<skill-dir>/scripts/wf.mjs" status "<projectRoot>" <slug> --json`.** It gives the workflow summary, each stage file with its `status` and `updatedAt`, each slice with the status of its plan, implement, verify and review files, the cost sums, and `next` (the current stage file, its `next-invocation` and its `recommended-routes`). Use these as they are. If the result has `error` → "Workflow `<slug>` not found. Run `/wf status`
+   to list all workflows." STOP. Then read `00-index.md` for the fields the result does not carry.
 2. Read the `workflow-files` list and check which files exist on disk.
 3. Read each existing stage file's frontmatter (`status`, `created-at`, `updated-at`, key metrics). Never read the stage bodies, except for the fallback below. When `02c-craft.md` names `boards:`, show `design-revision` and the board count of that `boards.json` in `## Key Metrics`.
 4. The **current** stage file's frontmatter drives the `## Next` routing: `status`, `next-invocation` and `recommended-routes` (every option, with its reason). Never take `recommended-next-*` from a stage file. Fallback: an artifact written before `recommended-routes` existed lists its options in a `## Recommended Next Stage` body section. Read that section instead.
@@ -161,7 +137,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 7. For **branch info**, `git branch --show-current` vs the workflow's `branch` field; warn if mismatched.
 8. **Driver liveness** — read the tail of `.ai/workflows/<slug>/.driver-journal.jsonl` if it exists (append-only JSONL heartbeats written by every autonomous-driver subagent) and apply the staleness rule single-sourced in [_liveness.md](_liveness.md), rendering the `## Driver` row from its three states. **Never report a driver as running because the journal exists**: the journal outlives the driver. No journal → omit the section; a missing journal does not prove that no driver ran.
 9. **Clearing-event tripwire** — for each open `runtime-evidence-deferrals` entry (`cleared-by: null`) that carries a `clearing-probe`, **execute that one command** with a short timeout. Render every hit as the ⚠ line in the detail render, routing to `/wf probe <slug>`. Rules: one recorded command per deferral, never an improvised one; **never clear the deferral or edit `00-index.md`** — this is a tripwire, not a gate, and the probe stage still owns evidence. Skip PO-authorized entries and entries with no recorded probe.
-10. **Cost** — read `.ai/workflows/<slug>/cost.jsonl` when it exists and aggregate per `key`: turns (rows with a `turn`), sub-agents, input, output, cache read, cache write, external in / out. Render `## Cost` from the detail render. Copy every integer as written; never estimate or price. No ledger → omit the section.
+10. **Cost** — run `node "<skill-dir>/scripts/wf.mjs" cost "<projectRoot>" <slug>`. Its rows are the sums per `key`: turns, sub-agents, input, output, cache read, cache write, external in / out. Render `## Cost` from the detail render. Copy every integer as written; never estimate or price. `No cost ledger.` → omit the section.
 11. **Goal and loop** — add one `## Driver` line from `goal.mjs status` when `goal.md` exists, one from `optimize.mjs status` for an optimize slug, and one from `prototype.mjs status` for a prototype slug.
 
 # Deep Mode (`/wf status <slug> deep`) — reality-drift check

@@ -47,6 +47,7 @@ const HOOK_ENTRIES = [
 ];
 const SCRIPT_ENTRIES = [
   'doctor',                  // machine-state report (npm run doctor)
+  'wf',                      // /wf dispatch, status, index, cost, stamp; run via skills/wf/scripts/wf.mjs
   'campaign',                // /wf campaign: the list check and write, the serial walk over the packets, the migration; run via skills/wf/scripts/campaign.mjs (WF-PIECES-PLAN)
   'design-boards',           // /wf design: render, contact sheet, freeze, check the boards; run via skills/wf/scripts/design-boards.mjs (DESIGN-BOARDS-PLAN)
   'goal',                    // /wf loop goal: the contract, the check that prints the GOAL: line, park, clear; run via skills/wf/scripts/goal.mjs (WF-GOAL-PLAN)

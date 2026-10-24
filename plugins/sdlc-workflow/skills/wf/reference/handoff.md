@@ -154,7 +154,7 @@ Present ALL viable options:
 - **Option D: Fix** → `/wf implement <slug> <selected-slice>`. While writing the handoff, you realised something is wrong or missing in a specific slice.
 
 # Artifacts
-Write `08-handoff.md` with this frontmatter:
+Write `08-handoff.md` with this frontmatter. `node "<skill-dir>/scripts/wf.mjs" stamp handoff --slug <slug>` prints its required fields, each with its allowed values; the template adds the optional fields.
 
 ```yaml
 ---

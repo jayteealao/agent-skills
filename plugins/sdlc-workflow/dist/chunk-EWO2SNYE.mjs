@@ -18,9 +18,12 @@ import {
   isEntry,
   refuseWrite,
   runStandalone
-} from "./chunk-NZ4BKMW5.mjs";
+} from "./chunk-YFQS2JIK.mjs";
 import {
   checksModeOf,
+  loadConfig
+} from "./chunk-TEDDSG5T.mjs";
+import {
   formatList,
   hasFrontmatterFence,
   isFreeFormWorkflowPath,
@@ -29,14 +32,13 @@ import {
   isProseLogPath,
   isWorkSetPath,
   isWorkflowMarkdownPath,
-  loadConfig,
   outputSystemMessage,
   projectContextPathInfo,
   projectRootFromInput,
   readTextIfExists,
   resolveProjectPath,
   workflowPathInfo
-} from "./chunk-MMR6SVFV.mjs";
+} from "./chunk-UR5JS5PH.mjs";
 
 // hooks/pre-write-validate.mjs
 import { existsSync } from "node:fs";

@@ -18,15 +18,16 @@ You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per ke
 
 Run this check before any read or write. Its result is your first visible output.
 
-1. Split `$ARGUMENTS` on whitespace. The first token is the key candidate. The remaining tokens are the key's `$ARGUMENTS`, unchanged. The reference is `reference/<key>.md`, except in items 2, 3 and 5–7.
-2. If `$ARGUMENTS` is empty, the reference is [route.md](reference/route.md), reason `empty`.
-3. If the key candidate is not one of the 19 keys, the reference is `reference/route.md` with every token, reason `not a key`.
-4. If the key candidate is `yolo` under Codex or pi, answer with the host redirect. STOP.
-5. **Sub-keys.** When the next token is a sub-key of the key (the sub-key table), the reference is that sub-key's file, and the key's `$ARGUMENTS` are the tokens after the sub-key. Load no other file of the key. When `loop` or `project` has no sub-key token, render its sub-key rows and ask which one the user wants. STOP.
-6. **Intake fast path.** When the key is `intake`, the next token is a mode word below, and `.ai/workflows/<that token>/` does not exist, the reference is `reference/intake/<mode>.md` in place of `reference/intake.md`, and `reference/intake/_intake-context.md` is its first input. The mode's `$ARGUMENTS` are the tokens after the mode word. The mode words are the modes of the `intake` row.
-7. **Full command.** Fit the tokens to the key's Arguments cell, left to right. `[ ]` marks an optional position, `|` separates choices, and `text` takes every token left. A word in the cell fits only itself, and `pr#N` fits `pr#` and a number. The reference checks `<dimension>`, `<aggregate>`, `<env>` and `<path>`. When a token does not fit, or a required position is empty, the reference is `reference/route.md` with every token, the key included, and the reason. So `/wf plan the migration` goes to the router, because `the` is not a slug.
-8. **Disk check.** Check each `<slug>`, `<slice>` and `<branch>` whose result can change the fit, all in one Bash call: `grep -P "^<slug>\t" .ai/workflows/INDEX.md`, a `grep` of the roster rows of `.ai/workflows/<slug>/03-slice.md`, and `git branch --list <branch>`. Put a token into the call only when it matches `^[A-Za-z0-9#._/-]+$`; any other token is a miss. Never put a `text` token into a shell command. With no `INDEX.md`, every `<slug>` is a miss.
-9. State the dispatch on one line: `wf dispatch: key=<key> · args=<remaining tokens, or (none)> · reference=<the reference>`
+1. Split `$ARGUMENTS` on whitespace into tokens. Run one shell call, with each token in single quotes: `node "<skill-dir>/scripts/wf.mjs" dispatch "<projectRoot>" --host <claude|codex|pi> -- '<token>' …`. Pass a token as it is only when it matches `^[A-Za-z0-9#._/-]+$`; pass every other token as `'@'`. Never put any other text of the person into the call.
+2. The first line of the result is the `wf dispatch:` line. Print it, with your own token in place of each `@`. The tokens from `args=` on are the `$ARGUMENTS` of the reference, unchanged.
+3. Act on the other lines of the result:
+   - `reason:` with `reference=reference/route.md`: the tokens did not fit a form of the key. The router gets every token and the reason.
+   - `first-input:`: the reference reads this file first.
+   - `reason: ask sub-key`: render the `sub-key:` rows and ask which one the person wants. STOP.
+   - `reason: host gap: …`: tell the person that the key does not run on this host and why. For `yolo`, point to `/wf auto`. STOP.
+   - `host-note:`: a part of the key that runs in another form, or does not run, on this host. Apply it.
+
+The script reads the forms of the table below from `skills/wf/keys.json` and checks each `<slug>`, `<slice>` and `<branch>` on disk. So `/wf plan the migration` goes to the router, because `the` is not a slug.
 
 <!-- generated from skills/wf/keys.json by npm run generate; edit keys.json -->
 ### Stages

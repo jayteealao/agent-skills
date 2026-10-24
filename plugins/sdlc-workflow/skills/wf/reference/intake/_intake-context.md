@@ -31,11 +31,11 @@ positional token* is an exact existing-slug match, that is an *intentional* atta
 
 **Reserved slug names.** `wf/SKILL.md` reads a command word before it reads a slug, so a new
 workflow's slug must not be one of these words:
-- the keys: `intake`, `shape`, `slice`, `plan`, `implement`, `verify`, `review`, `handoff`, `ship`,
-  `retro`, `design`, `probe`, `auto`, `yolo`, `campaign`, `loop`, `status`, `project`, `docs`;
+<!-- generated from skills/wf/keys.json by npm run generate; edit keys.json -->
+- the keys: `intake`, `shape`, `design`, `slice`, `plan`, `implement`, `verify`, `review`, `handoff`, `ship`, `retro`, `probe`, `auto`, `yolo`, `campaign`, `loop`, `status`, `project`, `docs`;
 - the sub-keys: `goal`, `optimize`, `prototype`, `recap`, `ship-plan`, `observability`;
-- the intake mode words: `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`,
-  `update-deps`, `ideate`, `brainstorm`, `adopt`, `simplify`, `task`, `amend`, `modernize`, `close`.
+- the intake mode words: `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`, `amend`, `modernize`, `close`.
+<!-- end generated -->
 
 When a derived or given slug is in this set, ask for another slug with the "Pick a different slug"
 option of the `intake/default.md` collision prompt. Every mode that creates a workflow applies this

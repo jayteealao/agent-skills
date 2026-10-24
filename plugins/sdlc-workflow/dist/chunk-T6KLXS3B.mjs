@@ -1,14 +1,11 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
-  sourceItemProblems
-} from "./chunk-AZ4QRSJA.mjs";
-import {
   ledgerProblems
 } from "./chunk-CI2GKFZ3.mjs";
 import {
-  designModesOf
-} from "./chunk-3O7UYQ5X.mjs";
+  sourceItemProblems
+} from "./chunk-AZ4QRSJA.mjs";
 import {
   formatValidationErrors,
   validateBrainstormBoardFile,
@@ -16,15 +13,21 @@ import {
   validatePrototypeLedgerFile
 } from "./chunk-LJCAG37B.mjs";
 import {
+  designModesOf
+} from "./chunk-3O7UYQ5X.mjs";
+import {
   safeParseFrontmatter
 } from "./chunk-R35WUHOB.mjs";
 import {
   isEntry,
   refuseWrite,
   runStandalone
-} from "./chunk-NZ4BKMW5.mjs";
+} from "./chunk-YFQS2JIK.mjs";
 import {
   checksModeOf,
+  loadConfig
+} from "./chunk-TEDDSG5T.mjs";
+import {
   collectToolInputPaths,
   hasFrontmatterFence,
   isBrainstormBoardPath,
@@ -34,13 +37,12 @@ import {
   isProseLogPath,
   isPrototypeLedgerPath,
   isShipPlanAuditPath,
-  loadConfig,
   normalizePathForMatch,
   outputSystemMessage,
   projectRootFromInput,
   readTextIfExists,
   resolveProjectPath
-} from "./chunk-MMR6SVFV.mjs";
+} from "./chunk-UR5JS5PH.mjs";
 import {
   logError
 } from "./chunk-TIGAJNZN.mjs";

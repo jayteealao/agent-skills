@@ -24,12 +24,12 @@ import {
   designSettled
 } from "./chunk-XRORYZXI.mjs";
 import {
+  validateBrainstormBoard
+} from "./chunk-LJCAG37B.mjs";
+import {
   missingBoardFiles,
   needsPictures
 } from "./chunk-3O7UYQ5X.mjs";
-import {
-  validateBrainstormBoard
-} from "./chunk-LJCAG37B.mjs";
 import {
   jsYaml,
   safeParseFrontmatter

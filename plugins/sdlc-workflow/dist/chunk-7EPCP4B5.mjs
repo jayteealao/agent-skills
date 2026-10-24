@@ -4,23 +4,10 @@ import {
   safeLoadFrontmatterFile
 } from "./chunk-R35WUHOB.mjs";
 import {
-  isEntry,
-  runStandalone
-} from "./chunk-NZ4BKMW5.mjs";
-import {
   EVIDENCE_DIRS,
   SOURCE_DIRS,
-  WORK_DIR,
-  collectToolInputPaths,
-  gitAdd,
-  isInsideWorkflowArtifacts,
-  loadConfig,
-  projectRootFromInput
-} from "./chunk-MMR6SVFV.mjs";
-
-// hooks/post-write-auto-stage.mjs
-import { existsSync as existsSync2 } from "node:fs";
-import { join as join2 } from "node:path";
+  WORK_DIR
+} from "./chunk-UR5JS5PH.mjs";
 
 // lib/workflow-index.mjs
 import { existsSync } from "node:fs";
@@ -188,24 +175,7 @@ async function walkWorkflowFiles(root) {
   return out;
 }
 
-// hooks/post-write-auto-stage.mjs
-async function run(input) {
-  const projectRoot = projectRootFromInput(input);
-  const config = await loadConfig(projectRoot);
-  if (existsSync2(join2(projectRoot, ".ai", ".no-auto-stage"))) return;
-  if (!existsSync2(join2(projectRoot, ".ai", "workflows"))) return;
-  const filePaths = collectToolInputPaths(input).filter((p) => !isInsideWorkflowArtifacts(p));
-  if (!filePaths.length) return;
-  const workflows = await scanWorkflowIndexes({ projectRoot });
-  const hasImplementWorkflow = workflows.some((workflow) => {
-    const strategy = workflow.frontmatter?.["branch-strategy"];
-    return workflow.isActive && workflow.currentStage === "implement" && (strategy === "dedicated" || strategy === "shared");
-  });
-  if (!hasImplementWorkflow) return;
-  for (const filePath of filePaths) await gitAdd(projectRoot, filePath);
-}
-if (isEntry("post-write-auto-stage")) runStandalone("post-write-auto-stage", run);
-
 export {
-  run
+  TERMINAL_WORKFLOW_STATUSES,
+  scanWorkflowIndexes
 };
