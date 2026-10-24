@@ -21,7 +21,7 @@ import { join } from 'node:path';
 
 // Bump when the kernel body changes. A newer version replaces an older fence in
 // place (version-gate, mirrors the render `.last-render` PLUGIN_VERSION idea).
-export const KERNEL_VERSION = 1;
+export const KERNEL_VERSION = 2;
 
 const FENCE = 'sdlc:wf-rules';
 const IMPORT_FENCE = 'sdlc:wf-rules-import';
@@ -36,7 +36,7 @@ function agentsEnd(v) {
 }
 
 // Each line POINTS AT a skill; it never restates one (single-source discipline,
-// same rule _steering.md enforces). Keep this a kernel, not a manifesto.
+// same rule _decisions.md enforces). Keep this a kernel, not a manifesto.
 function kernelBody() {
   return [
     '## Working in this repo (sdlc-workflow)',
@@ -45,7 +45,8 @@ function kernelBody() {
     '  generated output as read-only — regenerate, don\'t hand-edit.',
     '- Ground facts in real source instead of guessing: reach for **study-sources** before asserting',
     '  how a library, framework, SDK, or API actually behaves.',
-    '- Durable per-workflow constraints (vetoes, preferences) go in `.ai/workflows/<slug>/steer.md`.',
+    '- Durable per-workflow constraints (vetoes, preferences) go in `.ai/workflows/<slug>/decisions.yaml`',
+    '  as `steer` entries, written only by `wf.mjs decide add --kind steer`.',
   ].join('\n');
 }
 

@@ -33,7 +33,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 |---|---|---|---|
 | `00-index.md` | artifact | on-resume | |
 | `01-investigate.md` | artifact | on-resume | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_light-index.md` | procedure | always | |
 | `intake/investigate/_research.md` | procedure | always | |
@@ -64,7 +64,7 @@ You are an **options sketcher**, not a chooser, planner, or implementer.
 - Read-only investigation only: `git log`, `git blame`, your native file-reading and search tools, static code inspection.
 - Each option must be **distinct**: option B is not "option A but with a twist" — it should embody a meaningfully different design choice (different layer, different abstraction, different mechanism). If you cannot find 2 genuinely distinct options, say so (a tripwire) rather than padding with near-duplicates.
 - Each option's "Sketch" section is **direction, not a plan** — 2 to 5 lines naming the technique, the area, and the rough boundary. Do not enumerate implementation steps.
-- Ask at most **3 questions** in chat. No structured gate question, no separate `po-answers.md` — answers go inline into the artifact.
+- Ask at most **3 questions** in chat. No structured gate question. Record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into the artifact.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient

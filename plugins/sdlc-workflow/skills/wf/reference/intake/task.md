@@ -7,7 +7,7 @@ argument-hint: "<description> | <task-slug> (resume) | <existing-slug> <descript
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](../_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](../_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf intake task`, the **minimal lifecycle** for a unit of work with a slug whose deliverable is not a code change verified by executing software. Every other surface assumes that deliverable; `task` exists for the five classes that have nowhere else to go: repo chores with no behavior change, environment/infra operations, non-code deliverables, coordination with external parties, and one-shot throwaway execution. Uniquely on the surface except `ship`, a task may act **outside the repository** — which is why it carries an authorization gate no intake mode has.
@@ -38,7 +38,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `00-index.md` | artifact | on-resume | |
 | `01-task.md` | artifact | on-resume | |
 | `05-implement.md` | artifact | on-resume | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
 | `_compressed-slice.md` | procedure | mode:slug | |
 | `01-task.md` | writes | | |
@@ -62,7 +62,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 
 # Step 1 — Brief (`00-index.md` + `01-task.md`)
 
-Author the brief. Ask at most **2 questions** in chat; answers go inline into the artifact (no `po-answers.md`).
+Author the brief. Ask at most **2 questions** in chat; record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into the artifact.
 
 `01-task.md` (`type: intake`; satisfies the intake required set: `status: complete`, `stage-number: 1`, `created-at`/`updated-at` per [_timestamp.md](../_timestamp.md), `tags`, `refs`, `next-command`, `next-invocation`, `recommended-routes`) carries these fixed `##` headings:
 

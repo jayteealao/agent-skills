@@ -7,7 +7,7 @@ argument-hint: "<slug> [<slice> | cancelled|superseded|deferred|completed-extern
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](../_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](../_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf intake <slug> close`, the **lifecycle-termination utility** for the SDLC lifecycle. It has two
@@ -26,7 +26,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | Input | Kind | When | Sections |
 |---|---|---|---|
 | `00-index.md` | artifact | always | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `03-slice.md` | artifact | mode:slice | |
 | `03-slice-<slice>.md` | artifact | mode:slice | |
 | `99-close.md` | writes | | |

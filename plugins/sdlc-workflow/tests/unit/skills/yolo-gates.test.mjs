@@ -706,9 +706,9 @@ test('checkpoint: skipped when no work since the last checkpoint touched the cha
 });
 
 // ---------------------------------------------------------------------------
-// Standing steering. Stage agents read steer.md through their references; the
-// driver's own judging agents get a clause that names the PATH and tells them to
-// read it fresh, so an edit made during a run reaches every agent that starts later.
+// Standing steering. Stage agents read the steer entries through their references; the
+// driver's own judging agents get a clause that names the COMMAND and tells them to
+// run it fresh, so an entry added during a run reaches every agent that starts later.
 // ---------------------------------------------------------------------------
 const { steeringClause, steeringDigest } = new Function(
   [
@@ -728,17 +728,17 @@ function fnSrc(name) {
   return next < 0 ? rest : rest.slice(0, next);
 }
 
-const STEER = '/repo/.ai/workflows/demo/steer.md';
-const CONTRACT = '/plugin/skills/wf/reference/_steering.md';
+const STEER = 'node "/plugin/skills/wf/scripts/wf.mjs" decide list "/repo" demo --kind steer';
+const CONTRACT = '/plugin/skills/wf/reference/_decisions.md';
 
-test('steering: every role names the path, demands a fresh read, and handles an absent file', () => {
+test('steering: every role names the command, demands a fresh run, and handles no entries', () => {
   for (const role of ['writer', 'scout', 'refute', 'classify', 'checkpoint', 'context']) {
     const c = steeringClause(STEER, role, CONTRACT);
-    assert.ok(c.includes(STEER), `${role}: path missing`);
+    assert.ok(c.includes(STEER), `${role}: command missing`);
     assert.ok(c.includes(CONTRACT), `${role}: contract missing`);
-    assert.match(c, /Read that file NOW/, `${role}: no fresh-read demand`);
-    assert.match(c, /never from a copy/, `${role}: allows a stale copy`);
-    assert.match(c, /absent or empty, there is no steering/, `${role}: absent file not handled`);
+    assert.match(c, /` NOW/, `${role}: no fresh-run demand`);
+    assert.match(c, /never use a copy/, `${role}: allows a stale copy`);
+    assert.match(c, /prints no entries, there is no steering/, `${role}: no entries not handled`);
     assert.match(c, /VETO outranks every autonomous-policy default/, `${role}: veto precedence missing`);
     assert.match(c, /never overrides a mandatory gate/, `${role}: mandatory-gate floor missing`);
   }
@@ -772,9 +772,9 @@ test('steeringDigest: gathers honored, conflicts, the slug-wide review, and chec
   assert.deepEqual(d.violations, [{ throughSlice: 'c', entry: 'no new deps', kind: 'preference' }]);
 });
 
-test('steering: the driver never snapshots steer.md at orient', () => {
+test('steering: the driver never snapshots the steer entries at orient', () => {
   const orientSrc = fnSrc('orient');
-  assert.ok(!/steer\.md/.test(orientSrc), 'orient reads steer.md — a snapshot freezes entries for the whole run');
+  assert.ok(!/steer\.md|--kind steer/.test(orientSrc), 'orient reads the steer entries — a snapshot freezes entries for the whole run');
 });
 
 test('steering: every judging or writing agent carries the clause; bookkeeping agents do not', () => {

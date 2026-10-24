@@ -52,6 +52,8 @@ describe('pure helpers', () => {
     });
     assert.deepEqual(classifyPath('02-shape.md'), { kind: 'artifact', slug: null, name: '02-shape.md', stem: 'shape' });
     assert.equal(classifyPath('po-answers.md').stem, 'po-answers');
+    assert.equal(classifyPath('decisions.yaml').stem, 'decisions');
+    assert.equal(classifyPath('.ai/workflows/demo/decisions.yaml').stem, 'decisions');
     assert.equal(classifyPath('.ai/workflows/demo/04-plan-auth.explainer.html.fragment').stem, 'explainer');
     assert.equal(classifyPath('.ai/workflows/demo/04-plan-auth.yaml').stem, 'sibling-yaml');
     assert.deepEqual(classifyPath('/x/skills/wf/reference/verify/_artifact.md'), { kind: 'reference', ref: 'verify/_artifact.md' });

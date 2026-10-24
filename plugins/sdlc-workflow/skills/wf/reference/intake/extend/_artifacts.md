@@ -17,7 +17,7 @@ updated-at: "<ISO 8601>"
 complexity: <xs|s|m|l|xl>
 depends-on: [<existing-slice-slug-if-any>, ...]
 source: <from-review | from-retro | from-probe | from-simplify | extension>
-source-ref: <07-review-<slice-slug>.md | 10-retro.md | 07-review.md (a decision fidelity row) | po-answers.md (a try-out) | "user description">
+source-ref: <07-review-<slice-slug>.md | 10-retro.md | 07-review.md (a decision fidelity row) | decisions.yaml (a try-out entry) | "user description">
 extension-round: <N>  # 1 for the first extension on this workflow, 2 for the second, etc.
 tags: []
 ux-impact: <none|visual|flow|new-surface>  # this slice's own value, from Step 3c (design/_lane.md)

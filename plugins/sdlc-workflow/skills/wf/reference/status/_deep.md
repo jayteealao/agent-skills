@@ -16,12 +16,12 @@ read-only detail view.
    ahead/behind (`git rev-list --left-right --count <base>...<branch>`), PR status
    (`gh pr view <n> --json state,mergeable,reviewDecision,statusCheckRollup` if `gh` present), SHA existence.
 4. **Check dependency reality** — package present in lockfile/manifest; version drift; config-file freshness.
-4b. **Check steering reality** — if `steer.md` exists (the user-owned standing-steering file; see
-   `_steering.md`), read it as **signal, not drift**: its mere presence is normal, expected state and
-   is never a finding. A finding arises only when a **stage artifact contradicts a steering entry** —
+4b. **Check steering reality** — when the decision store holds live `steer` entries (`decide list
+   --kind steer`; see [_decisions.md](../_decisions.md)), read them as **signal, not drift**: their mere
+   presence is normal, expected state and is never a finding. A finding arises only when a **stage artifact contradicts a steering entry** —
    e.g. steering says "never touch `config/loader.ts`" but an `05-implement` diff or a plan decision
    did. Surface each contradiction as a `⚠ steering-violation` drift finding under a **Steering**
-   category; absent file → skip this check silently, no category, no counts.
+   category; no live `steer` entry → skip this check silently, no category, no counts.
 4c. **Check intent-risk reality (RIM ledger)** — read `intent-risks` from `00-index.md` (the Intent-Risk
    ledger, same machinery as `runtime-evidence-deferrals`; may be absent → skip silently). Render each
    entry **beside the deferrals ledger** as a compact row — `id` · `severity` (high|medium|low) ·

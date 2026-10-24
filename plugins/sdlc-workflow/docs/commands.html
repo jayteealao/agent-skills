@@ -838,7 +838,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
           <tbody>
             <tr data-s><td>design not settled</td><td>Type <code><span class="hp">/wf</span> design &lt;packet-slug&gt;</code>. For a <code>design-direction</code> packet, type <code><span class="hp">/wf</span> design direction from &lt;slug&gt;</code> first. Then run the campaign again.</td></tr>
             <tr data-s><td>yolo stopped</td><td>The campaign shows the stop and follows your answer, then resumes the driver. It does not go to the next work packet.</td></tr>
-            <tr data-s><td>a fidelity row</td><td>Up to four rows per question, each with the decision word for word, the verdict and the evidence. Approve it, or fix it. An approval goes into the packet's <code>po-answers.md</code>.</td></tr>
+            <tr data-s><td>a fidelity row</td><td>Up to four rows per question, each with the decision word for word, the verdict and the evidence. Approve it, or fix it. An approval goes into the packet's <code>decisions.yaml</code>.</td></tr>
             <tr data-s><td>the try-out</td><td>The campaign tells you how to run the work packet and lists each acceptance criterion. Say that it works, or describe the problem.</td></tr>
             <tr data-s><td>a merge conflict</td><td>Resolve the conflict by hand, then run the campaign again.</td></tr>
           </tbody>
@@ -869,7 +869,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
             <tr data-s><td><code>work/index.md</code></td><td>The list: every work packet in order, with its form and state.</td></tr>
             <tr data-s><td><code>work/&lt;packet&gt;.md</code></td><td>One work packet: the decisions word for word, the write-up, <code>try-out</code>, and its <code>state</code>.</td></tr>
             <tr data-s><td><code>.ai/workflows/&lt;packet-slug&gt;/</code></td><td>The normal workflow of one work packet, from <code>01-intake.md</code> to <code>07-review.md</code>.</td></tr>
-            <tr data-s><td><code>po-answers.md</code></td><td>In each packet's workflow: your fidelity approvals and your try-out result.</td></tr>
+            <tr data-s><td><code>decisions.yaml</code></td><td>In each packet's workflow: your fidelity approvals and your try-out result.</td></tr>
             <tr data-s><td><code>work/migration.md</code></td><td>The report of a migrated old campaign.</td></tr>
           </tbody>
         </table>
@@ -1061,7 +1061,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
             <tr data-s><td><code>.ai/sdlc-config.json</code></td><td>One repo. Commit it.</td><td>Write checks, leak guards, policy, driver models and the yolo watch. A JSON schema rejects an unknown key. A setting that no release reads now is ignored, with one warning.</td></tr>
             <tr data-s><td><code>~/.sdlc/config.json</code></td><td>One machine. Never commit it.</td><td>The consent for imagery and uiproto to call outside AI services.</td></tr>
             <tr data-s><td>Environment variables</td><td>One process or shell</td><td>Switches, folders, model names and credentials.</td></tr>
-            <tr data-s><td>Workflow files and markers</td><td>One workflow or one artifact</td><td><code>steer.md</code>, <code>amend</code>, and frontmatter escapes.</td></tr>
+            <tr data-s><td>Workflow files and markers</td><td>One workflow or one artifact</td><td><code>decisions.yaml</code>, <code>amend</code>, and frontmatter escapes.</td></tr>
           </tbody>
         </table>
       </div>
@@ -1365,12 +1365,18 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       ["memory.seedRules", "true", "At session start, keeps the fenced /wf rules block in AGENTS.md and an @AGENTS.md import in CLAUDE.md. Only in repos with .ai/workflows/."],
       ["solutions.globalDir", "null", "Absolute path to a personal lessons folder. Plan reads it beside .ai/solutions/; retro adds lessons you confirm. Never synced."]
     ] },
-    { id: "cfg-models", title: "Per repo · driver models", em: "models.* · opus or sonnet", rows: [
-      ["models.plan", "\"opus\"", "The model of the plan stage agent of yolo."],
+    { id: "cfg-models", title: "Per repo · driver models", em: "models.* · an alias (opus, sonnet, haiku) or any model id that the host can run", rows: [
+      ["models.plan", "\"opus\"", "The model of the plan stage agent of yolo. A model id, for example \"claude-fable-5-1\", runs at the effort of Opus."],
       ["models.implement", "\"opus\"", "The model of the implement stage agent."],
       ["models.verify", "\"opus\"", "The model of the verify stage agent."],
       ["models.review", "\"opus\"", "The model of the review writer."],
       ["models.update-deps", "\"opus\"", "The model of the update-deps execution agent."]
+    ] },
+    { id: "cfg-tests", title: "Per repo · test profile and devices", em: "testProfile.<fast|affected|full|heavy>", rows: [
+      ["testProfile.<suite>.command", "unset", "The command that runs the suite. In the affected suite, {files} stands for the changed files. A slice runs fast and affected; full and heavy run once per packet, after the review fixes."],
+      ["testProfile.<suite>.estimateSeconds", "unset", "The time that intake estimates without a run."],
+      ["testProfile.<suite>.measuredSeconds", "null", "The time of the last real run. It replaces the estimate. wf.mjs profile record writes it. The time box of a stage agent comes from these times."],
+      ["devices.test", "[]", "The physical devices that verify may drive. Verify uses an emulator by default, and never drives a device that is not named here."]
     ] },
     { id: "cfg-yolo", title: "Per repo · yolo watch", rows: [
       ["yolo.protectedFiles", "[]", "Repo paths the watch hashes every 20 seconds. A change raises an event and a push notification. PRODUCT.md, DESIGN.md and every file with uncommitted edits at the start are always protected."]
@@ -1405,7 +1411,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
       ["SDLC_COST_SLUG · SDLC_COST_KEY", "set by consult", "The workflow and stage whose cost.jsonl gets the outside models' usage from a /consult run."]
     ] },
     { id: "cfg-workflow", title: "Per workflow", em: "files and markers", rows: [
-      ["steer.md", "absent", "Your standing instructions for one workflow, as free bullets (\"no new runtime deps\"). Every stage and sub-agent reads it. Chat outranks it, and it never overrides a mandatory gate. Say \"add to steering: …\" to have it written."],
+      ["decisions.yaml", "absent", "Your answers and standing instructions for one workflow (\"no new runtime deps\"). Only wf.mjs decide writes it. Every stage and sub-agent reads the live entries. Chat outranks a steer entry, and a steer entry never overrides a mandatory gate. Say \"add to steering: …\" to have one recorded."],
       ["intake <slug> amend", "none", "Changes branch strategy, branch, base branch, review scope, title and tags. Nothing else."],
       ["fragment: none", "none", "Frontmatter that opts one artifact out of the sibling .yaml rule."],
       ["sdlc-debt: <note>", "none", "A code comment that records accepted debt. The suppression check looks for it; simplify and ideate collect it."],

@@ -17,7 +17,7 @@ Read every row before the first round. [_requires.md](_requires.md) defines the 
 |---|---|---|---|
 | `prototype-ledger.json` | artifact | on-resume | |
 | `01-prototype.md` | artifact | on-resume | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `_host-surfaces.md` | procedure | always | Published page |
 | `prototype-ledger.json` | writes | | |
 | `01-prototype.md` | writes | | |

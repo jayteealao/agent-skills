@@ -62,7 +62,7 @@ next-invocation: "/wf shape <slug>"
 workflow-files:
   - 00-index.md
   - 01-intake.md
-  - po-answers.md
+  - decisions.yaml
 progress:
   intake: in-progress
   shape: not-started
@@ -92,19 +92,11 @@ The index has no markdown body. The frontmatter is the current state of the work
 
 **`charter`.** Write the 3–7 load-bearing commitments from Step 6b. Keep them few: each commitment is falsifiable by code, not a mood. Distill them from the Restated Request, Intended Outcome, and Known Constraints. Set `po-ratified: true` when Step 6b confirms an entry. When there are zero commitments, write `charter: none-declared`. Compressed intake modes write no charter. Shape's RIM adjudications and the `## Intake Fidelity` rows can cite charter ids. The intent-fidelity review dimension checks each charter id.
 
-## `po-answers.md`
+## `decisions.yaml`
 
-The cumulative product-owner log. Every stage appends one entry for each answer:
+The decision store of the workflow. Only `wf.mjs decide` writes it, per [_decisions.md](../../_decisions.md).
 
-```markdown
-## <iso-8601> — <stage>
-
-**Q:** <the question, as asked>
-**A:** <the answer, exact>
-**AMB:** <AMB-n ids this answer closes or confirms, or "none">
-```
-
-Only shape writes the `**AMB:**` line. The line links each answer to the shape Ambiguity Inventory.
+Shape links each answer to the shape Ambiguity Inventory. Shape puts the AMB ids that the answer closes or confirms at the start of the answer text, for example `AMB-1, AMB-3: <answer>`.
 
 ## `01-intake.md`
 

@@ -27,6 +27,7 @@ import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFile
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stringify } from '../lib/yaml.mjs';
+import { DECISIONS_FILE, appendEntry, decisionsOf, storeText } from '../lib/decisions.mjs';
 
 import { checkList, writeList, readWorkFiles, listBranch, endBranch, BUILD_FORMS, PACKET_STATES, DEFAULT_FILES, IDEATE_FILES } from '../lib/packets.mjs';
 import { archiveBoard, docCheck, mergeArchive } from '../lib/brainstorm-archive.mjs';
@@ -230,8 +231,8 @@ const plainCell = (s) => String(s ?? '').replace(/[`*_]/g, '').trim();
  * The decision fidelity of a packet (section 8). `table` is false when 07-review.md has no
  * table, `missing` lists the carried keys with no row, and `rows` the rows that the person
  * has not approved. It fails closed: a verdict that is not `honored` needs an approval, and
- * only a line `- <key>: approved` in po-answers.md is an approval. The Approval column of
- * the review is not read, because the review writes it.
+ * only a live `approval` entry of the key in the decision store is an approval. The Approval
+ * column of the review is not read, because the review writes it.
  */
 export function decisionFidelity(root, slug, carriedKeys = []) {
   const dir = wfDir(root, slug);
@@ -242,7 +243,8 @@ export function decisionFidelity(root, slug, carriedKeys = []) {
   const at = text.search(/^## Decision Fidelity\s*$/m);
   if (at < 0) return carriedKeys.length ? none : { table: true, missing: [], rows: [] };
   const section = text.slice(at).split(/\n## /)[0];
-  const answers = existsSync(join(dir, 'po-answers.md')) ? readFileSync(join(dir, 'po-answers.md'), 'utf8') : '';
+  const decisions = decisionsOf(dir);
+  const approved = (key) => decisions.some((e) => !e['superseded-by'] && e.kind === 'approval' && e.key === key && e.answer === 'approved');
   const seen = new Set();
   const rows = [];
   for (const line of section.split(/\r?\n/)) {
@@ -253,8 +255,7 @@ export function decisionFidelity(root, slug, carriedKeys = []) {
     seen.add(key);
     const verdict = plainCell(cells[2]).toLowerCase();
     if (/^honored\b/.test(verdict)) continue;
-    const recorded = new RegExp(`^- \\W*${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\W*: approved`, 'm').test(answers);
-    if (!recorded) rows.push({ key, verdict: verdict || 'no verdict', evidence: cells[3] ?? '' });
+    if (!approved(key)) rows.push({ key, verdict: verdict || 'no verdict', evidence: cells[3] ?? '' });
   }
   return { table: true, missing: carriedKeys.map(String).filter((k) => !seen.has(k)), rows };
 }
@@ -266,10 +267,8 @@ function openSlices(root, slug) {
   return slices.filter((s) => s && ['defined', 'in-progress', 'planned', 'not-started'].includes(String(s.status ?? ''))).map((s) => String(s.slug ?? s.slice ?? ''));
 }
 
-const tryOutRecorded = (root, slug) => {
-  const file = join(wfDir(root, slug), 'po-answers.md');
-  return existsSync(file) && /^- try-out: works/m.test(readFileSync(file, 'utf8'));
-};
+const tryOutRecorded = (root, slug) => decisionsOf(wfDir(root, slug))
+  .some((e) => !e['superseded-by'] && e.kind === 'try-out' && e.answer === 'works');
 
 /** The next step of the walk for a packet (6.1). */
 function nextStep(root, src, packet) {
@@ -424,7 +423,7 @@ export function packetFolderFiles({ src, packet, packetText, list, trunk, now })
     charter: 'none-declared',
     'next-command': ux === 'none' ? 'wf-slice' : 'wf-design',
     'next-invocation': ux === 'none' ? `/wf campaign ${src}` : `/wf design ${slug}`,
-    'workflow-files': ['00-index.md', '01-intake.md', '02-shape.md', 'po-answers.md'],
+    'workflow-files': ['00-index.md', '01-intake.md', '02-shape.md', DECISIONS_FILE],
     progress: {
       intake: 'complete', shape: 'complete', design: ux === 'none' ? 'skipped' : 'not-started', slice: 'not-started',
       plan: 'not-started', implement: 'not-started', verify: 'not-started', review: 'not-started',
@@ -485,8 +484,13 @@ export function packetFolderFiles({ src, packet, packetText, list, trunk, now })
     '',
     '## Definition of Done', '', 'Every acceptance criterion passes verify, the slug-wide review clears, and the decision fidelity table has no unapproved row.', '',
   ].join('\n');
-  const answers = `# PO answers\n\nThe brainstorm \`${src}\` recorded the decisions of this packet. The campaign walk appends the fidelity approvals and the try-out here.\n`;
-  return { '00-index.md': `---\n${dump(index)}\n---\n`, '01-intake.md': intake, '02-shape.md': shape, 'po-answers.md': answers };
+  // The brainstorm recorded the decisions of this packet with the person. The walk adds the
+  // fidelity approvals and the try-out to the same store.
+  const store = [];
+  for (const d of decisions) {
+    appendEntry(store, { kind: 'answer', key: d.key, answer: d.text, by: 'person', stage: 'brainstorm', source: `${src}/${boardFile}#${d.key}` }, { now });
+  }
+  return { '00-index.md': `---\n${dump(index)}\n---\n`, '01-intake.md': intake, '02-shape.md': shape, [DECISIONS_FILE]: storeText(store) };
 }
 
 function openCmd(root, src, [key], f) {
@@ -653,7 +657,7 @@ function doneCmd(root, src, [key], f) {
   if (!fid.table) return { ok: false, error: `${slug}/07-review.md has no ## Decision Fidelity table` };
   if (fid.missing.length) return { ok: false, error: `the ## Decision Fidelity table of ${slug} has no row for ${fid.missing.join(', ')}`, missing: fid.missing };
   if (fid.rows.length) return { ok: false, error: `${fid.rows.length} fidelity row(s) are not honored and not approved`, rows: fid.rows };
-  if (packet['try-out'] === 'yes' && !tryOutRecorded(root, slug)) return { ok: false, error: `the try-out of ${packet.key} is not recorded: po-answers.md needs "- try-out: works"` };
+  if (packet['try-out'] === 'yes' && !tryOutRecorded(root, slug)) return { ok: false, error: `the try-out of ${packet.key} is not recorded: run wf.mjs decide add ${root} ${slug} --kind try-out --key try-out --answer works` };
   requireListBranch(root, src);
   const trunk = trunkOf(root, f);
   const from = trunkRef(root, trunk);

@@ -35,7 +35,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `00-index.md` | artifact | on-resume | |
 | `01-brainstorm.md` | artifact | on-resume | |
 | `brainstorm-board.json` | artifact | on-resume | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_light-index.md` | procedure | always | |
 | `intake/brainstorm/_artifact.md` | procedure | always | |

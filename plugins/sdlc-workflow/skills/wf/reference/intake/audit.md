@@ -37,7 +37,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | `01-audit.md` | artifact | on-resume | |
 | `07-review.md` | artifact | on-resume | |
 | `07-review-*.md` | artifact | on-resume | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
 | `_findings-ledger.md` | procedure | always | |
 | `_subagents.md` | procedure | always | |

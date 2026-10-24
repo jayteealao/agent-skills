@@ -7,7 +7,7 @@ argument-hint: <slug>
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](../_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](../_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running the **announce phase** of `/wf ship` — post-publish communications. It runs at the
@@ -43,7 +43,7 @@ You are a **communications writer**, not a developer; respect the stated order o
    - `08-handoff.md` — summary, problem, solution, affected areas, risks, documentation changes
    - `01-intake.md` — original motivation and business context
    - `02-shape.md` — scope, constraints, what was deliberately excluded
-   - `po-answers.md` — product owner decisions and rationale
+   - the live entries of the decision store (`decide list`, per [_decisions.md](../_decisions.md)) — product owner decisions and rationale
 
 # Step 1 — Extract announcement ingredients
 

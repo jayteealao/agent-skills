@@ -240,7 +240,21 @@ test('new commits give one commit event each, oldest first', () => {
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('protected files: PRODUCT.md, steer.md paths, config paths, and the person\'s uncommitted edits', () => {
+test('protected files: a live steer entry of the store protects its path; a superseded or other entry does not', async () => {
+  const { addDecision } = await import('../../lib/decisions.mjs');
+  const root = makeRepo();
+  try {
+    const dir = path.join(root, '.ai', 'workflows', SLUG);
+    addDecision(dir, { kind: 'steer', answer: 'do not touch `config/loader.ts`' });
+    addDecision(dir, { key: 'k', answer: 'never edit `src/answer.ts`' });
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: clockAt(0) });
+    const files = Object.keys(w.states.get(SLUG).st.repo.hashes);
+    assert.ok(files.includes('config/loader.ts'));
+    assert.ok(!files.includes('src/answer.ts'), 'an answer is not a steer entry');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('protected files: PRODUCT.md, the paths of an old steer.md, config paths, and the person\'s uncommitted edits', () => {
   const root = makeRepo();
   try {
     const dir = path.join(root, '.ai', 'workflows', SLUG);
@@ -330,7 +344,7 @@ test('the CLI writes only JSON lines to stdout and refuses an unknown slug', () 
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('steer.md protection reads backticked paths on protect and do-not-touch lines only', () => {
+test('steer protection reads backticked paths on protect and do-not-touch lines only', () => {
   assert.deepEqual(W.steerProtectedPaths([
     '- Never edit `PRODUCT.md` by hand',
     "- don't touch `src/engine/*.ts` or `config/loader.ts`",

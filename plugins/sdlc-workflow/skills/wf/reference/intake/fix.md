@@ -34,7 +34,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 |---|---|---|---|
 | `00-index.md` | artifact | on-resume | |
 | `01-fix.md` | artifact | on-resume | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_change-mode-tail.md` | procedure | always | |
 | `intake/_intake-provenance.md` | procedure | always | |
@@ -50,7 +50,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 # Scope discipline
 You are a **compressed-planning orchestrator**, not an incident responder and not a feature shaper.
 - This command skips *ceremony*, not *stages* and not *thinking*. Every stage artifact must be real and schema-conformant.
-- Ask at most **2 questions** in chat for planning. No separate `po-answers.md` — answers go inline into `01-fix.md`.
+- Ask at most **2 questions** in chat for planning. Record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into `01-fix.md`.
 - Set `ux-impact` and confirm it with the stack question. When design is needed, run the compressed design stage per `_change-mode-tail.md` before `03-slice.md`; the person confirms the drawing in this same run.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely. The compression happens *within* a step, not by removing steps.
 

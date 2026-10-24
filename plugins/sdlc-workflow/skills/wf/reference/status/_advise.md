@@ -66,7 +66,7 @@ edge it settled so the sequencing note can cite it as evidence.
 
 1. **Ready set** — non-terminal, not blocked (`status` ≠ `awaiting-input` AND no `open-questions`),
    and every dependency predecessor already satisfied (shipped, or ranked ahead this run).
-2. **Rank the ready set** by descending weight: (a) steer.md priority (Step A5); (b) proximity to done
+2. **Rank the ready set** by descending weight: (a) steer priority (Step A5); (b) proximity to done
    (higher `stage-number` — closest to shippable value); (c) carried-risk paid-down soonest; (d) decay
    (staler first, within the same tier — resume before it rots); (e) least effort remaining (`progress`).
 3. **Serialize** same-branch, footprint-colliding slugs: name which must precede which and *why*
@@ -75,10 +75,10 @@ edge it settled so the sequencing note can cite it as evidence.
    CLOSE-OR-COMMIT decision; and if the active in-flight count is high, name the few to focus and the
    rest to park. Advise is an anti-sprawl tool, not only a sequencer.
 
-## Step A5 — Honor steering (steer.md)
+## Step A5 — Honor steering (`steer` entries)
 
-If `steer.md` exists (per [_steering.md](../_steering.md)), read it as the priority overlay across **all**
-slugs, not just one. When steering elevates a slug above where proximity/decay would place it, rank it
+When the decision store of a slug holds live `steer` entries (`decide list --kind steer`, per
+[_decisions.md](../_decisions.md)), read them as the priority overlay across **all** slugs, not just one. When steering elevates a slug above where proximity/decay would place it, rank it
 there **and state the tradeoff out loud** ("ranked #1 per your steering, though `<other>` is closer to
 done"). Steering never overrides a HARD dependency — you cannot do B before its predecessor A no matter
 the stated priority; if steering implies that, say so and keep the dependency order.

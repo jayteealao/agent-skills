@@ -35,7 +35,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 |---|---|---|---|
 | uncommitted changes or unmerged commits against the base branch | artifact | always | |
 | `01-adopt.md` | artifact | on-resume | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_change-mode-tail.md` | procedure | always | |
 | `intake/_intake-provenance.md` | procedure | always | |
@@ -51,7 +51,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 You are a **reconstruction orchestrator**, not a coder and not a shaper inventing new scope.
 - Infer scope from *what the diff actually does*, never from what it *could* have done. Scope-in is exactly the changed surface; scope-out is explicitly everything else.
 - **Constraint forethought still applies.** An adopted AC with an environment dependency on its critical path is NOT exempt just because the code exists — resolve it to a prerequisite slice, a proxy AC + named clearing event, or explicit PO risk-acceptance, exactly as a forward plan would. Adopted work does not get to skip verification engineering.
-- Ask at most **2 questions** in chat during reconstruction, plus the mandatory confirmation gate. No separate `po-answers.md` — answers go inline into `01-adopt.md`.
+- Ask at most **2 questions** in chat during reconstruction, plus the mandatory confirmation gate. Record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into `01-adopt.md`.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient (before anything else)

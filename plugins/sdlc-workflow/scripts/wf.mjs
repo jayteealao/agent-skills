@@ -25,22 +25,34 @@
  *             split a list of questions ({key, ...}) into the ones to ask and the answered ones
  *   decide   import <root> <slug>
  *             copy po-answers.md and steer.md into the store; a second run adds nothing
+ *   profile  show <root> [--json]
+ *             the suites of the test profile with their commands and times
+ *   profile  record <root> <suite> <seconds>
+ *             a real run of a suite: its time replaces the estimate
+ *   profile  timebox <root> <stage> [--work seconds] [--json]
+ *             the time box of a stage agent, from the suites that the stage runs
+ *   brief    <root> <slug> <stage> [<slice>] [--json]
+ *             the brief of a stage agent: the stage card, the slice and its acceptance criteria,
+ *             the plan sections of the stage, and the live decisions in scope
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { buildBrief } from '../lib/brief.mjs';
 import { aggregateCost, readCostRows } from '../lib/cost-ledger.mjs';
-import { addDecision, answeredBy, decisionLine, dropAnswered, importLegacy, liveDecisions, readDecisions } from '../lib/decisions.mjs';
+import { addDecision, answeredBy, decisionLine, decisionsOf, dropAnswered, importLegacy, liveDecisions } from '../lib/decisions.mjs';
 import { SAFE_TOKEN, UNSAFE, diskFacts, dispatch, dispatchLine } from '../lib/dispatch.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
+import { STAGE_SUITES, profileLines, readProfile, recordRun, timeBox } from '../lib/test-profile.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 
 // scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide> ...';
+const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp|decide|profile|brief> ...';
+const REFERENCE_ROOT = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const STALE_DAYS = 7;
 const DONE = new Set([...TERMINAL_WORKFLOW_STATUSES, 'shipped']);
 
@@ -344,14 +356,14 @@ export function runDecide(pos, opt) {
       return 0;
     }
     case 'list': {
-      const all = readDecisions(dir);
+      const all = decisionsOf(dir);
       const rows = opt.all ? all : liveDecisions(all, scopeOf(opt), { by: opt.by, kind: opt.kind });
       out(opt.json ? rows : rows.length ? rows.map(decisionLine).join('\n') : 'no decisions');
       return 0;
     }
     case 'answered': {
       if (!opt.key) throw new Error('decide answered: --key is required');
-      const hit = answeredBy(readDecisions(dir), opt.key, scopeOf(opt));
+      const hit = answeredBy(decisionsOf(dir), opt.key, scopeOf(opt));
       out(opt.json ? { answered: Boolean(hit), entry: hit } : hit ? decisionLine(hit) : `not answered: ${opt.key}`);
       return hit ? 0 : 1;
     }
@@ -359,7 +371,7 @@ export function runDecide(pos, opt) {
       if (!arg) throw new Error('decide drop: <questions.json> is required');
       const doc = JSON.parse(readFileSync(resolve(arg), 'utf8'));
       const questions = Array.isArray(doc) ? doc : doc.questions ?? [];
-      const r = dropAnswered(readDecisions(dir), questions, scopeOf(opt));
+      const r = dropAnswered(decisionsOf(dir), questions, scopeOf(opt));
       out(opt.json ? r : [`ask: ${r.ask.length}`, ...r.answered.map((q) => `answered: ${q.key} by ${q.decision}`)].join('\n'));
       return 0;
     }
@@ -371,6 +383,34 @@ export function runDecide(pos, opt) {
     default:
       throw new Error(`decide: unknown verb ${verb}`);
   }
+}
+
+// ---------------------------------------------------------------- profile
+
+export function runProfile(pos, opt) {
+  const [verb, root, a, b] = pos;
+  if (!verb || !root) throw new Error('profile: <show|record|timebox> <root> are required');
+  const projectRoot = resolve(root);
+  if (verb === 'show') {
+    const p = readProfile(projectRoot);
+    const lines = profileLines(p);
+    out(opt.json ? p : lines.length ? lines.join('\n') : 'no test profile');
+    return 0;
+  }
+  if (verb === 'record') {
+    if (!a || b == null) throw new Error('profile record: <suite> <seconds> are required');
+    const s = recordRun(projectRoot, a, Number(b));
+    out(opt.json ? s : `${a}: ${s.measuredSeconds}s measured`);
+    return 0;
+  }
+  if (verb === 'timebox') {
+    if (!a) throw new Error('profile timebox: <stage> is required');
+    const suites = STAGE_SUITES[a] ?? [];
+    const box = timeBox(readProfile(projectRoot), suites, { workSeconds: Number(opt.work ?? 0) || 0 });
+    out(opt.json ? { stage: a, suites, ...box } : `${a}: ${Math.round(box.seconds / 60)} minutes${box.from.length ? ` (${box.from.join(', ')})` : ' (no suite time; the floor)'}`);
+    return 0;
+  }
+  throw new Error(`profile: unknown verb ${verb}`);
 }
 
 // ---------------------------------------------------------------- main
@@ -409,6 +449,14 @@ export async function main(argv = process.argv.slice(2)) {
         return 0;
       }
       case 'decide': return runDecide(pos, opt);
+      case 'profile': return runProfile(pos, opt);
+      case 'brief': {
+        const [root, slug, stage, slice] = pos;
+        if (!root || !slug || !stage) throw new Error('brief: <root> <slug> <stage> are required');
+        const b = buildBrief({ projectRoot: resolve(root), referenceRoot: REFERENCE_ROOT, slug, stage, slice: slice ?? null, wfCli: join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'wf.mjs') });
+        if (opt.json) out(b); else process.stdout.write(b.text);
+        return 0;
+      }
       default:
         process.stderr.write(`${USAGE}\n`);
         return 2;

@@ -34,7 +34,7 @@ test('ensureAgentsKernel: absent file → creates block', () => {
   const r = ensureAgentsKernel(null);
   equal(r.changed, true);
   equal(r.action, 'created');
-  match(r.text, /sdlc:wf-rules v1 START/);
+  match(r.text, new RegExp(`sdlc:wf-rules v${KERNEL_VERSION} START`));
   match(r.text, /study-sources/);
 });
 
@@ -44,7 +44,7 @@ test('ensureAgentsKernel: existing content, no fence → appends, preserves user
   equal(r.changed, true);
   equal(r.action, 'appended');
   ok(r.text.startsWith('# My Project\n\nSome notes.'), 'user content preserved verbatim at the top');
-  match(r.text, /sdlc:wf-rules v1 END -->\n$/);
+  match(r.text, new RegExp(`sdlc:wf-rules v${KERNEL_VERSION} END -->\\n$`));
 });
 
 test('ensureAgentsKernel: current fence present → no change (idempotent)', () => {
@@ -151,7 +151,7 @@ test('seedMemoryKernel: first insert → writes both files, marker, and a notice
     equal(r.changed, true);
     equal(r.firstInsert, true);
     ok(r.notice && r.notice.includes('seedRules'), 'notice mentions the opt-out flag');
-    match(readFileSync(join(dir, 'AGENTS.md'), 'utf-8'), /sdlc:wf-rules v1 START/);
+    match(readFileSync(join(dir, 'AGENTS.md'), 'utf-8'), new RegExp(`sdlc:wf-rules v${KERNEL_VERSION} START`));
     match(readFileSync(join(dir, 'CLAUDE.md'), 'utf-8'), /@AGENTS\.md/);
     ok(existsSync(join(dir, '.ai', '.wf-rules-seeded')), 'marker written');
   } finally { rmSync(dir, { recursive: true, force: true }); }
@@ -218,7 +218,7 @@ test('seedMemoryKernel: fs write error → fail-open (no throw)', () => {
 });
 
 test('renderAgentsBlock / renderImportBlock are stable strings', () => {
-  match(renderAgentsBlock(), /^<!-- sdlc:wf-rules v1 START/);
-  match(renderAgentsBlock(), /sdlc:wf-rules v1 END -->$/);
+  match(renderAgentsBlock(), new RegExp(`^<!-- sdlc:wf-rules v${KERNEL_VERSION} START`));
+  match(renderAgentsBlock(), new RegExp(`sdlc:wf-rules v${KERNEL_VERSION} END -->$`));
   equal(renderImportBlock().includes('@AGENTS.md'), true);
 });

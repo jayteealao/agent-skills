@@ -5,7 +5,7 @@ argument-hint: <slug> [focus hint]
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf shape`, **stage 2 of 10**: 1·intake → `2·shape` → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro.
@@ -17,6 +17,14 @@ You are running `/wf shape`, **stage 2 of 10**: 1·intake → `2·shape` → 3·
 | Next | `/wf slice <slug>` (default) |
 | Skip-to | `/wf plan <slug>` if the shaped spec is a single coherent unit that does not benefit from slicing |
 
+## Card
+
+- Write a mini-spec: the problem, the desired behavior, the acceptance criteria, what is out of scope, the open questions, the documentation plan and `augmentations-needed`.
+- Each acceptance criterion says whether it is observable, and how verify checks it.
+- Adjudicate every `open` entry of the RIM ledger.
+- Do not design, architect or code the solution.
+- Done when `02-shape.md` is complete and every answer is in the decision store.
+
 ## Requires
 
 Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
@@ -25,8 +33,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 |---|---|---|---|
 | `00-index.md` | artifact | always | |
 | `01-intake.md` | artifact | always | |
-| `po-answers.md` | artifact | if-present | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `design/_lane.md` | procedure | always | UX impact; The human rule; The design record |
 | `design/shape.md` | procedure | mode:design | |
 | `02-shape.md` | writes | | |
@@ -41,7 +48,7 @@ You are a workflow orchestrator, not a problem solver.
 Apply [_workflow-rules.md](_workflow-rules.md). Gate questions here cover risk tolerance, appetite, and structured decisions; behavior, acceptance criteria, and non-goals take freeform chat.
 
 # Step 0 — Orient (do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). If none, infer from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user. Text after the slug is a **focus hint**: write it to `po-answers.md` with `stage: shape` and `kind: guidance`, and start discovery with it.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). If none, infer from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user. Text after the slug is a **focus hint**: record it with `decide add --key shape-focus --stage shape` per [_decisions.md](_decisions.md), and start discovery with it.
 2. **Parse `00-index.md`** frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, `appetite`.
 3. **Check prerequisites:**
    - `01-intake.md` must exist. If missing → STOP: "Run `/wf intake` first."
@@ -80,7 +87,7 @@ Write only new or corrected findings under `## Affected Areas`, `## Dependencies
 Interview the user to surface the decisions, assumptions, and unknowns the intake brief left ambiguous: **20 baseline questions — a floor, not a ceiling**, extended while unresolved decision points remain (Step 2.4).
 
 ## Step 2.1 — Author the Ambiguity Inventory (before Round 1)
-Harvest every ambiguity, unstated assumption, and unclear-context item from `01-intake.md`, `po-answers.md`, intake's `## Affected Areas (preliminary)` (if present), and any research already returned. Write them into the artifact-in-progress as `## Ambiguity Inventory`, one line per item with a stable id and a source pointer:
+Harvest every ambiguity, unstated assumption, and unclear-context item from `01-intake.md`, the live entries of the decision store (`decide list`), intake's `## Affected Areas (preliminary)` (if present), and any research already returned. Write them into the artifact-in-progress as `## Ambiguity Inventory`, one line per item with a stable id and a source pointer:
 ```
 - **AMB-1** — <one-line ambiguity or assumption statement> — source: 01-intake.md#<section>
 ```
@@ -89,7 +96,7 @@ The inventory is the interview's coverage instrument, a living list: add entries
 ## Step 2.2 — Interview rules
 
 - Ask 20 baseline questions as gate questions per [_gate-question.md](_gate-question.md), in as few rounds as dependencies allow (a question that builds on an earlier answer waits; independent ones share a round). The themes below organize coverage, not rounds. 20 is a floor, not a ceiling — after the themes are covered, apply the extension rule. Packet-closed items count toward it.
-- **Question accountability:** every answer's `po-answers.md` entry names, in its `**AMB:**` line, the `AMB-n` item(s) it closes or confirms. Assumption-confirmation questions are first-class closers: pre-fill your understanding and ask the PO to confirm or revise; a confirmed assumption closes its item.
+- **Question accountability:** every answer's decision-store entry names the `AMB-n` item(s) it closes or confirms at the start of its answer text, for example `AMB-1, AMB-3: <answer>`. Assumption-confirmation questions are first-class closers: pre-fill your understanding and ask the PO to confirm or revise; a confirmed assumption closes its item.
 - When open ambiguities are fewer than the remaining budget, confirm assumptions and probe consequences of earlier answers ("you chose X — that implies Y in the empty state; confirm?"), never decoys. Padding = a question that closes or confirms no inventory item.
 - Every question is about *this specific feature*: reference it by name with concrete details from the brief. Options represent genuinely different directions, feature-specific where possible. If intake already answered a question, pre-fill and ask to confirm or revise.
 - Wait for each round's answers before generating the next round; later questions build on earlier answers.
@@ -112,12 +119,12 @@ Walk the `## Ambiguity Inventory`. Every `AMB-n` item is now in exactly one of t
 - **extension-targeted** — an extension round closed it (same);
 - **parked** — it appears in `## Unknowns / Open Questions` with the receiving stage named (and `status: awaiting-input` if it blocks the spec).
 
-An inventory item in none of those states is ILLEGAL; the interview may not end while the ambiguity space has an uncovered corner. After the interview (five themes + Round 3b when triggered + extension rounds), append every answer to `po-answers.md` with `stage: shape` and the `**AMB:**` line (entry format in [intake/default/_artifact.md](intake/default/_artifact.md)).
+An inventory item in none of those states is ILLEGAL; the interview may not end while the ambiguity space has an uncovered corner. After the interview (five themes + Round 3b when triggered + extension rounds), record every answer with `decide add --stage shape` per [_decisions.md](_decisions.md), with the AMB ids in the answer text ([intake/default/_artifact.md](intake/default/_artifact.md)).
 
 # Step 3 — Collect research; relay the tooling question to the PO
 
 1. **Collect the sub-agent results.** If they have not returned, WAIT; the findings are a hard input to `## Verification Strategy` and to the tooling question.
-2. **Relay the tooling question (the orchestrator owns it, never a sub-agent).** From sub-agent 1's tooling report, ask the PO ONE gate question per [_gate-question.md](_gate-question.md) built from the actual findings: *"For verification, the available drivers are A, B, C. Companion skills: X, Y. Any preference, or any off-limits?"* Construct it per [_question-craft.md](_question-craft.md); capture the answer in `po-answers.md`. Acceptance criteria reference *whatever the PO chose*, not a baked-in default.
+2. **Relay the tooling question (the orchestrator owns it, never a sub-agent).** From sub-agent 1's tooling report, ask the PO ONE gate question per [_gate-question.md](_gate-question.md) built from the actual findings: *"For verification, the available drivers are A, B, C. Companion skills: X, Y. Any preference, or any off-limits?"* Construct it per [_question-craft.md](_question-craft.md); record the answer with `decide add --stage shape` per [_decisions.md](_decisions.md). Acceptance criteria reference *whatever the PO chose*, not a baked-in default.
 3. **Fold late findings into the inventory.** New ambiguities become `AMB-n` entries; if any qualify under Step 2.4, run the extension round(s) now; the coverage gate (Step 2.5) applies to them too.
 
 # Step 4 — Synthesize the mini-spec
@@ -147,13 +154,13 @@ Classify whether this work needs any of the four and record the decision so `pla
 Write ALL viable options under "Adaptive routing" below into the `recommended-routes` frontmatter. Update `00-index.md`: `current-stage: shape`, `stage-number: 2`, `progress.shape: complete` (`in-progress` while `status: awaiting-input`), `updated-at`, `next-command`, `next-invocation`. Append `02-shape.md` to `workflow-files`.
 
 # Step 9 — Adversarial pre-mortem (the RIM generator — a BLIND sub-agent, run BEFORE 9a)
-Before adjudicating the ledger, run one adversarial pre-mortem pass **in a fresh sub-agent whose inputs are `01-intake.md` + `po-answers.md` ONLY. Do not give it the draft `02-shape.md` or any of this run's decisions.** The generator derives its *own* expectation of what the product should be and writes post-mortems against that, so it cannot rationalize decisions it never saw. Prompt it: *"It is N weeks later and the shipped product betrayed its intake; write the two most likely post-mortems."* Scale N to the appetite (`00-index.md` `appetite:`: a week for small, a quarter for large). Each post-mortem names a **specific** way the build could drift from what the PO asked — a narrowed capability, an inverted control authority (deterministic code owning what the intake assigned the model/agent), a deferred wall that never cleared.
+Before adjudicating the ledger, run one adversarial pre-mortem pass **in a fresh sub-agent whose inputs are `01-intake.md` + the live entries of the decision store (`decide list`) ONLY. Do not give it the draft `02-shape.md` or any of this run's decisions.** The generator derives its *own* expectation of what the product should be and writes post-mortems against that, so it cannot rationalize decisions it never saw. Prompt it: *"It is N weeks later and the shipped product betrayed its intake; write the two most likely post-mortems."* Scale N to the appetite (`00-index.md` `appetite:`: a week for small, a quarter for large). Each post-mortem names a **specific** way the build could drift from what the PO asked — a narrowed capability, an inverted control authority (deterministic code owning what the intake assigned the model/agent), a deferred wall that never cleared.
 
 **Adjudicate the returns (the orchestrator, who DOES know the draft shape):** a risk the draft already handles is dismissed *with the citation* (the artifact section that handles it); a risk it does not handle **converts to a RIM entry** on `00-index.md` `intent-risks` (`status: open`, `severity` by blast radius). A pre-mortem that surfaces an already-ledgered risk confirms it. Step 9a adjudicates intake-authored and pre-mortem-authored RIMs alike.
 
 # Step 9a — Adjudicate the intent-risk (RIM) ledger (gate — mirrors the force-scope rule)
 Read `00-index.md` `intent-risks` (authored by intake from "Risks if Misunderstood", extended by Step 9). For EVERY entry with `status: open`, set exactly one of:
-- `status: adjudicated` — with `decision:` (the named choice AND its tradeoff, not a restatement) and `adjudicated-by: 02-shape.md#<section>`. If the risk touches a **PO directive** (anything in intake's Known Constraints or a recorded PO answer), `po-ratified` is `true`: a PO question was asked THIS stage; cite the `po-answers.md` entry. `false` is legal only with an explicit PO-declined note; `not-required` only when the decision alters no PO directive.
+- `status: adjudicated` — with `decision:` (the named choice AND its tradeoff, not a restatement) and `adjudicated-by: 02-shape.md#<section>`. If the risk touches a **PO directive** (anything in intake's Known Constraints or a recorded PO answer), `po-ratified` is `true`: a PO question was asked THIS stage; cite the id of its decision-store entry. `false` is legal only with an explicit PO-declined note; `not-required` only when the decision alters no PO directive.
 - `status: carried` — the risk genuinely cannot be resolved at shape; it then appears in `## Unknowns / Open Questions` with the receiving stage named.
 
 A shape that leaves ANY RIM `open` may NOT write `status: complete`. Adjudication prose that merely restates the risk without a decision ("we will keep this in mind") is ILLEGAL. Write the updated `intent-risks` entries back into `00-index.md`.
@@ -163,7 +170,7 @@ from `01-intake.md` (Known Constraints, Restated Request, Risks-if-Misunderstood
 
 # Step 9b — Author the `## Intake Fidelity` table (required section)
 
-One row per intake **Known Constraint / directive** and per numbered item of the Restated Request: `directive | disposition (honored / narrowed / dropped) | how | authority`. A `narrowed` row needs `authority`: a quoted PO answer whose **scope covers the requirement** (the scope-of-authority rule of [_question-craft.md](_question-craft.md)) or a PO ratification in this stage. A **`dropped` row needs a gate-question ratification in this stage** ([_gate-question.md](_gate-question.md)), because a drop is always a fresh decision; cite the new `po-answers.md` entry. "Consequence of another answer" is NOT authority: ask the PO one more question. When `00-index.md` records `origin-items`, add one row per carried decision, its key and text word for word, from the origin work packet's `carried-decisions` or the origin board; list work packets have them already.
+One row per intake **Known Constraint / directive** and per numbered item of the Restated Request: `directive | disposition (honored / narrowed / dropped) | how | authority`. A `narrowed` row needs `authority`: a quoted PO answer whose **scope covers the requirement** (the scope-of-authority rule of [_question-craft.md](_question-craft.md)) or a PO ratification in this stage. A **`dropped` row needs a gate-question ratification in this stage** ([_gate-question.md](_gate-question.md)), because a drop is always a fresh decision; cite the id of the new decision-store entry. "Consequence of another answer" is NOT authority: ask the PO one more question. When `00-index.md` records `origin-items`, add one row per carried decision, its key and text word for word, from the origin work packet's `carried-decisions` or the origin board; list work packets have them already.
 
 # Step 10 — Write the artifacts
 Write `.ai/workflows/<slug>/02-shape.md` per `# Artifacts` below. If Step 5a applied, also write `.ai/workflows/<slug>/02b-design.md`; its structure is defined in [design/shape.md](design/shape.md).
@@ -218,7 +225,7 @@ Body sections, in order:
 - `## Acceptance Criteria`: `Given … When … Then …`, each classified `automated` (a unit/integration test proves it), `interactive` (running the app and observing through browser, emulator, or device), or `manual` (human judgement or an external-system check). Interactive criteria specify the tool (Playwright, Maestro, adb, browser automation), what to look for, and the evidence capture (screenshot, recording, console output). Two rules apply:
   - **Direction rule.** An AC whose subject is a gate, guard, health check, validation, or fallback ("unhealthy revision is caught", "invalid input is rejected") is TWO criteria with opposite evidence directions: the happy path passes through, AND the guarded failure is caught. Author both; the fail-closed half's evidence is an induced or observed failure being caught (fault injection, a bad fixture, a forced timeout), never a green run. Verify and probe enforce the direction match at clearing time.
   - **Named-mechanism rule.** Any architectural mechanism named in an AC, its verification method, or a test-plan line — a state machine, scheduler, queue, cache, pipeline, orchestrator, a controlling regex — exists as a **named decision in this artifact's body**: one sentence stating the mechanism, what it replaces, and why. Name it in the body (and adjudicate it per Step 9a if it touches a RIM or PO directive) or drop it from the AC.
-- `## Non-Functional Requirements`. Constraint precedence: any NFR that could conflict with a charter commitment (`00-index.md` `charter:`) carries `yields-to: C<n>` (the commitment wins) or `outranks: C<n> (PO-ratified)` (the NFR wins; a PO answer THIS stage authorizes it; cite the `po-answers.md` entry). An unranked NFR-vs-charter conflict is an open question routed to the PO, never an author's silent call. `plan` quotes this ranking when it cites the NFR as a mechanism rationale.
+- `## Non-Functional Requirements`. Constraint precedence: any NFR that could conflict with a charter commitment (`00-index.md` `charter:`) carries `yields-to: C<n>` (the commitment wins) or `outranks: C<n> (PO-ratified)` (the NFR wins; a PO answer THIS stage authorizes it; cite the id of its decision-store entry). An unranked NFR-vs-charter conflict is an open question routed to the PO, never an author's silent call. `plan` quotes this ranking when it cites the NFR as a mechanism rationale.
 - `## Edge Cases / Failure Modes`, `## Affected Areas`, `## Dependencies / Sequencing Notes`, `## Out of Scope` (each Round 5 trim with a one-line rationale: a logged PO decision, not a silent drop).
 - `## Intake Fidelity` (Step 9b). A named input to the intent-fidelity review dimension downstream; its dispositions surface in the chat return's `fidelity:` line.
 
@@ -228,7 +235,7 @@ Body sections, in order:
 
 - `## Definition of Done`.
 - `## Verification Strategy`. Record the **target verification environment** first: host OS, Android device/emulator or iOS simulator availability, the browser/driver present or installable (Playwright / Cypress / dev-browser / Chrome MCP), live or staging credentials. Source it from sub-agent 1's tooling findings and the PO's tooling answer (Step 3). Then the **Observation Model**: per headline outcome, how a human or tool observes success and in what environment ("single-column at 375px → observed by driving a 375px-viewport browser and reading the layout"). An outcome you cannot name an observation for is re-scoped or flagged now so `slice` and `plan` inherit the constraint. Then classify each AC and edge case as **Automated checks**, **Interactive verification** (platform, tool, what to verify, evidence capture), or **Human-in-the-loop checks**. Purely backend/library work writes "Automated only — no interactive verification needed. [reason]."
-  - **Force-scope rule (constraints get engineered, not documented).** When the Observation Model or the environment statement names an environment dependency on a headline outcome's critical path — credentials, a device, an external service, an inbound callback, infrastructure that does not yet exist (a TURN relay, a staging deploy) — route it into scope, not prose. Exactly one of: flag a **candidate prerequisite slice or harness** for `slice` to scope; state the **proxy observation** the plan holds pre-deploy plus the **named event that clears the residual** ("cleared by the first `-rc.N` prerelease CI run"); or record **explicit PO risk-acceptance** in `po-answers.md`. Writing "known limitation — document at handoff" while an AC depends on that limitation is ILLEGAL. `plan` enforces this per-AC through its `constraint-resolution:` gate.
+  - **Force-scope rule (constraints get engineered, not documented).** When the Observation Model or the environment statement names an environment dependency on a headline outcome's critical path — credentials, a device, an external service, an inbound callback, infrastructure that does not yet exist (a TURN relay, a staging deploy) — route it into scope, not prose. Exactly one of: flag a **candidate prerequisite slice or harness** for `slice` to scope; state the **proxy observation** the plan holds pre-deploy plus the **named event that clears the residual** ("cleared by the first `-rc.N` prerelease CI run"); or record **explicit PO risk-acceptance** with `decide add --stage shape` per [_decisions.md](_decisions.md). Writing "known limitation — document at handoff" while an AC depends on that limitation is ILLEGAL. `plan` enforces this per-AC through its `constraint-resolution:` gate.
   - **Outcome-metric criteria need a pre-deploy proxy.** A live outcome metric ("rich-preview rate ≥ 75% over the live corpus") pairs with a pre-deploy proxy observation (a fixture-corpus assertion over the top-N recorded failure pages) so verification holds *something* before ship; the live metric becomes the clearing event for the residual.
 - `## Documentation Plan` (Diátaxis): per doc, **Type** (tutorial / how-to / reference / explanation / readme-update), **Audience** (beginner / competent user / maintainer), **Must cover**, **Must NOT cover**, **Target location**; or "None required — [reason]".
 - `## Augmentation Plan` (required even when none): per flagged augmentation — **instrument** → signals and dark paths (`plan` folds signal design in; `implement` wires it); **experiment** → hypothesis, mechanism (A/B / flag / canary), metrics + rollback; **benchmark** → what to measure and the perf budget (`verify` compares against the tripwires); **profile** → the hotspot. If none: "None required — [reason]" and `augmentations-needed: []`.

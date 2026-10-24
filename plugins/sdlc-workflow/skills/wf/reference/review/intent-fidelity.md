@@ -34,12 +34,12 @@ Only when `00-index.md` records `origin-packet` and the review is slug-wide. Rea
    ```
    | Key | Verdict | Evidence | Approval |
    |---|---|---|---|
-   | <key> | honored, narrowed or dropped | <file:line> | <po-answers.md citation or —> |
+   | <key> | honored, narrowed or dropped | <file:line> | <approval entry id or —> |
    ```
 
    - The verdict of a row follows its finding: a refuted finding makes the row `honored`; a finding that the fix loop fixed makes the row `honored`, with the evidence of the fix.
-   - **Approval.** When `po-answers.md` has the line `- <key>: approved — <words>` under `## Decision fidelity approvals`, cite it: `po-answers.md: <key> approved`. Otherwise write `—`. Only the person approves. The review never writes an approval line, and an autonomous triage never counts as one.
-   - A re-run rewrites every row from the current diff. Keep each approval that `po-answers.md` still holds.
+   - **Approval.** When the decision store holds a live `approval` entry for the key (`decide list --kind approval`, per [_decisions.md](../_decisions.md)), cite it: `<entry id>: <key> approved`. Otherwise write `—`. Only the person approves. The review never records an approval, and an autonomous triage never counts as one.
+   - A re-run rewrites every row from the current diff. Keep each approval that is still a live entry of the store.
 
 # Severity calibration
 - **Evidence-first**: Every finding includes `file:line` + the quoted code, config, or text that shows the defect.

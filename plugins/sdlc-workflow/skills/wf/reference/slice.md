@@ -5,7 +5,7 @@ argument-hint: <slug> [focus hint]
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf slice`, **stage 3 of 10**: 1·intake → 2·shape → `3·slice` → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro.
@@ -17,6 +17,13 @@ You are running `/wf slice`, **stage 3 of 10**: 1·intake → 2·shape → `3·s
 | Next | `/wf plan <slug> <best-first-slice>` (default) |
 | Alt | `/wf plan <slug> all` to plan all slices in parallel |
 
+## Card
+
+- Cut the shaped spec into vertical slices, one capability each.
+- Write each acceptance criterion with its verification path: `observable: true|false`, and a `verify:` stub for an observable criterion.
+- Write the per-slice files first, then `03-slice.md`, then `00-index.md` last.
+- Do not plan, design or code.
+
 ## Requires
 
 Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
@@ -26,7 +33,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `00-index.md` | artifact | always | |
 | `01-intake.md` | artifact | always | |
 | `02-shape.md` | artifact | always | |
-| `po-answers.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `02b-design.md` | artifact | if-present | |
 | `02c-craft.md` | artifact | if-present | |
 | `design/_lane.md` | procedure | always | UX impact; The human rule |
@@ -50,7 +57,7 @@ You are a **workflow orchestrator**, not a problem solver.
 Apply [_workflow-rules.md](_workflow-rules.md).
 
 # Step 0 — Orient (do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user. Text after the slug is a **focus hint**: write it to `po-answers.md` with `stage: slice` and `kind: guidance`, and apply it when you choose the slices.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user. Text after the slug is a **focus hint**: record it with `decide add --key slice-focus --stage slice` per [_decisions.md](_decisions.md), and apply it when you choose the slices.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`: `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
    - `01-intake.md` and `02-shape.md` exist. If missing → STOP. Tell the user which command to run first ("Run `/wf shape <slug>` first.").
@@ -85,7 +92,7 @@ Do this in order:
 
    **Rules:** every question is about how to decompose this specific feature and references concrete parts of the shaped spec; questions are impartial and present genuinely different decomposition strategies; skip questions the shape or intake artifacts already answered; construct each question per [_question-craft.md](_question-craft.md), describing options by what the PO experiences (more PRs and faster feedback vs fewer review passes), not by mechanism.
 
-   **What to ask about:** delivery order (riskiest part first or most visible part first; a demo date, milestone, or dependency that drives which slice ships earliest); slice granularity (which mechanisms verify together and so form one capability; the team's review capacity); rollout coupling (which slices can ship independently; feature flags, migrations, or API contracts that force things into one slice); scope cuts (parts of the spec the user would defer; must-have-now vs nice-to-have-later criteria). Append every answer to `po-answers.md` with timestamp and `stage: slice`.
+   **What to ask about:** delivery order (riskiest part first or most visible part first; a demo date, milestone, or dependency that drives which slice ships earliest); slice granularity (which mechanisms verify together and so form one capability; the team's review capacity); rollout coupling (which slices can ship independently; feature flags, migrations, or API contracts that force things into one slice); scope cuts (parts of the spec the user would defer; must-have-now vs nice-to-have-later criteria). Record every answer with `decide add --stage slice` per [_decisions.md](_decisions.md).
 
 2. Run freshness research only where external constraints affect slicing or order.
 3. Break the work into vertical slices that can be implemented and verified independently. **A slice is one capability**: a group of mechanisms that verify checks together, for example "the staff attribute model and ratings". Its small outcomes become the steps of its plan. A slice has fewer than 40 plan steps; cut a larger capability into two slices. Do not size a slice by lines of code.
@@ -94,7 +101,7 @@ Do this in order:
 5. Put risk-reduction and uncertainty-reduction early.
 6. Identify the best first slice.
 6b. **Charter-scenario coverage (when `02-shape.md` carries a `## Charter Scenario`).** The **visible-milestone slice** (the first slice at which a user sees the core loop working end-to-end) and the **final slice** each carry a standing acceptance criterion, `charter scenario executes through step N`: the milestone slice proves the steps built so far, the final slice proves ALL steps. Tag it `observable: true` (verify runs it interactively, on the same ladder as any user-observable AC) and attach a `verify:` stub like any other. Skip when the shape authored no Charter Scenario.
-6c. **Confirm review scope (the roster is now known; intake deliberately did not ask this).** `00-index.md` carries the provisional default `review-scope: per-slice` with `review-scope-confirmed: false`, because the PO cannot judge review layout before slicing exists. Ask ONE gate question per [_gate-question.md](_gate-question.md) recommending `Slug-wide (Recommended)` ("One `07-review.md` against the cumulative branch diff") over `Per slice` ("Each slice gets its own `07-review-<slice>.md`; handoff aggregates per-slice verdicts"). Offer both options, per [_question-craft.md](_question-craft.md). A campaign work packet asks nothing: the answer is `slug-wide`, recorded with `by: standing default`. Record the answer in `po-answers.md` (`stage: slice`); set `review-scope:` to the choice and `review-scope-confirmed: true` in `00-index.md` (step 10 carries it). Skip ONLY if `review-scope-confirmed` is already `true` (a re-run, or an older workflow asked at intake).
+6c. **Confirm review scope (the roster is now known; intake deliberately did not ask this).** `00-index.md` carries the provisional default `review-scope: per-slice` with `review-scope-confirmed: false`, because the PO cannot judge review layout before slicing exists. Ask ONE gate question per [_gate-question.md](_gate-question.md) recommending `Slug-wide (Recommended)` ("One `07-review.md` against the cumulative branch diff") over `Per slice` ("Each slice gets its own `07-review-<slice>.md`; handoff aggregates per-slice verdicts"). Offer both options, per [_question-craft.md](_question-craft.md). A campaign work packet asks nothing: the answer is `slug-wide`, recorded with `--by policy`. Record the answer with `decide add --key review-scope --stage slice` per [_decisions.md](_decisions.md); set `review-scope:` to the choice and `review-scope-confirmed: true` in `00-index.md` (step 10 carries it). Skip ONLY if `review-scope-confirmed` is already `true` (a re-run, or an older workflow asked at intake).
 7. **Write one `03-slice-<slice-slug>.md` per slice** (template below).
 8. **Write the master `03-slice.md`** (template below) with links to every per-slice file.
 9. **Evaluate adaptive routing.** Write ALL viable options into the master frontmatter `recommended-routes`.

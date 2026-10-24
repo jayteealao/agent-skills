@@ -78,7 +78,7 @@ A changed surface that already exists gets no worst-case board unless the person
 Show the boards per [_boards.md](_boards.md) → Show the boards: the contact sheet `design/index.html`, its path, and the board files where the host can send them. Present the direction and the inventory. Ask one gate question per [_gate-question.md](../_gate-question.md): *"Does this match the design you want? (approve / adjust / stop)"*
 
 - **Approve** — record `direction-confirmed-by: in-session` and continue.
-- **Adjust** — change the named boards, render them again, and ask again. Record each adjustment in `po-answers.md` with `stage: design`.
+- **Adjust** — change the named boards, render them again, and ask again. Record each adjustment with `decide add --stage design` per [_decisions.md](../_decisions.md).
 - **Stop** — leave `02c-craft.md` unwritten, set `status: awaiting-input`, and end the stage.
 
 A user-confirmed `PRODUCT.md` or an earlier `teach` answer satisfies the gate only when the boards add nothing new to it. Record which source satisfied the gate. For `visual` and `new-surface`, the person always sees the boards: no other source replaces the pictures.

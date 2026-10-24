@@ -59,10 +59,9 @@ When an answer forecloses an *approach* (kills a vendor, a library, a budget), t
 that approach served does NOT silently degrade into being dropped. The stage must either (a) show
 the requirement is still met another way, or (b) ask the PO a follow-up question about the
 requirement itself. A vendor answer ("no Neon; only Cloudflare backends") does not authorise a
-requirement change ("no sync in v1") — that is a second decision the PO never made. When recording
-an answer to `po-answers.md`, append an explicit `scope:` line stating what it decides and what it
-does NOT: *"scope: chooses the sync-backend vendor; does NOT decide whether v1 syncs."* Shape's
-Intake Fidelity table and the intent-fidelity review dimension both read that scope line to catch
+requirement change ("no sync in v1") — that is a second decision the PO never made. When you record
+the answer, put the limit in the answer text, per rule 4 of [_decisions.md](_decisions.md). Shape's
+Intake Fidelity table and the intent-fidelity review dimension both read that limit to catch
 an over-read narrowing.
 
 **Litmus test** — before sending a round, reread each question as someone who
@@ -75,4 +74,4 @@ framing (it can be 2–3 sentences); option `label`s stay short; option
 field itself; the question dialog can hide chat text (see [_gate-question.md](_gate-question.md)).
 Freeform chat questions follow the same seven requirements in prose.
 
-**Never ask a decided question again.** Before a question, read the earlier answers: `po-answers.md` and `steer.md`. When one covers the question, use it, name it, and do not ask. Ask again only when a fact changed, and say which fact.
+**Never ask a decided question again.** Before a question, check the decision store per rule 2 of [_decisions.md](_decisions.md). When a live entry covers the question, use it, name it, and do not ask. Ask again only when a fact changed, and say which fact.

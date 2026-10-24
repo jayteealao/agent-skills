@@ -34,7 +34,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 |---|---|---|---|
 | `00-index.md` | artifact | on-resume | |
 | `01-hotfix.md` | artifact | on-resume | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_change-mode-tail.md` | procedure | always | |
 | `intake/_intake-provenance.md` | procedure | always | |
@@ -51,7 +51,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 You are a **hotfix orchestrator**. This is not a feature workflow.
 - The **only** acceptable output is the minimum change that stops the incident.
 - **ZERO tolerance for scope creep.** Do not refactor, clean up, or improve code that is not the direct cause. Do not touch anything outside the identified root cause without explicit user approval.
-- Ask at most **3 questions**. No separate `po-answers.md` — answers go inline into `01-hotfix.md`.
+- Ask at most **3 questions**. Record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into `01-hotfix.md`.
 - The lifecycle skips no *stage* — but each is single-pass and incident-scoped. The hotfix tripwires are: >3 files · >~50 lines · any architectural change. A breach is recorded per `_change-mode-tail.md` (never a refusal) and surfaces the gate's *Escalate*.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 

@@ -74,7 +74,7 @@ Only when `00-index.md` records `origin-packet` and the scope is slug-wide; omit
 
 | Key | Verdict | Evidence | Approval |
 |---|---|---|---|
-| {key} | {honored / narrowed / dropped} | {file:line} | {po-answers.md: {key} approved / —} |
+| {key} | {honored / narrowed / dropped} | {file:line} | {{entry id}: {key} approved / —} |
 
 ## Domain Coverage
 

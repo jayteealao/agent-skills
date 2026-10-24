@@ -54,7 +54,7 @@ question tool.
 - **Children never ask.** Sub-agents must not reach for any rung; gates belong
   to the coordinating parent (see [_subagents.md](_subagents.md)).
 - **A steering veto outranks a policy default** in an autonomous run — see
-  [_steering.md](_steering.md).
+  [_decisions.md](_decisions.md).
 
 ## Batches (several questions in one call)
 

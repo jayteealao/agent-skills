@@ -46,10 +46,10 @@ scaffolding, error-message wording, and library idioms *within* an already-commi
 - **Human-gated run** (plan/implement/verify with a PO present): an intent-bearing decision is
   ASKED — a question asked per [_gate-question.md](_gate-question.md), constructed per `_question-craft.md` (consequence-framed).
 - **Autonomous run** (`/wf yolo`, or `/wf auto` at a gate): an intent-bearing decision is a
-  **STOP** — record the pending decision in the artifact + `po-answers.md` as awaiting-input,
+  **STOP** — record the pending decision in the artifact as awaiting-input (the decision store records the answer),
   surface it in the run report, and halt rather than settle it.
 - A recorded autonomous decision carries a mandatory `class: implementation-detail` stamp. An
   autonomous record may never carry `class: intent-bearing` — writing one is the tell that the
   policy overstepped.
-- Standing steering (`_steering.md`) may pre-answer a *named* intent-bearing question (that is
+- A standing `steer` entry ([_decisions.md](_decisions.md)) may pre-answer a *named* intent-bearing question (that is
   ratification in advance); it may not blanket-authorize the class.

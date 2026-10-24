@@ -6,7 +6,7 @@ argument-hint: <task description>
 # External Output Boundary
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](../_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](../_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf intake`, **stage 1 of 10** in the SDLC lifecycle.
@@ -17,7 +17,7 @@ You are running `/wf intake`, **stage 1 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | See [## Requires](#requires). |
-| Produces | `01-intake.md`, `00-index.md` and `po-answers.md`; templates in [intake/default/_artifact.md](default/_artifact.md) |
+| Produces | `01-intake.md` and `00-index.md`; templates in [intake/default/_artifact.md](default/_artifact.md). The answers go into `decisions.yaml` through `wf.mjs decide` ([_decisions.md](../_decisions.md)) |
 | Next | `/wf shape <slug>` (default); shape writes `02-shape.md` |
 | Skip-to | `/wf plan <slug>` if the task is trivially scoped and needs no shaping or slicing |
 
@@ -29,8 +29,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 |---|---|---|---|
 | `00-index.md` | artifact | on-resume | |
 | `01-intake.md` | artifact | on-resume | |
-| `po-answers.md` | artifact | on-resume | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_intake-provenance.md` | procedure | always | |
 | `intake/_intake-provenance-consume.md` | procedure | mode:from | |
@@ -107,10 +106,10 @@ Convert a rough request into a clear intake brief, create the workflow folder, c
 
 # Workflow rules
 Apply [_workflow-rules.md](../_workflow-rules.md) in full. Intake-specific rules:
-- Keep `po-answers.md` as the cumulative product-owner log. Keep the slug stable after intake.
+- Keep the decision store as the cumulative record of the PO answers ([_decisions.md](../_decisions.md)). Keep the slug stable after intake.
 - `00-index.md` frontmatter must always have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `created-at`, `selected-slice`, `branch-strategy`, `branch`, `base-branch`, `review-scope`, `review-scope-confirmed`, `appetite`, `pr-url`, `pr-number`, `open-questions`, `tags`, `stack`, `ux-impact`, `intent-risks`, `charter`, `next-command`, `next-invocation`, `workflow-files`, `progress`, and (if slices exist) `slices`. The `stack` block is written by Step 0.5 and confirmed/corrected in Batch B; it is observational, not prescriptive.
-- Ask multiple-choice PO questions as gate questions per [_gate-question.md](../_gate-question.md) (branch strategy, rollout preference, merge strategy, go/no-go, risk tolerance). Use freeform chat for open-ended questions (requirements, constraints, acceptance criteria). Construct every question per [_question-craft.md](../_question-craft.md). Append every answer to `po-answers.md` in the entry format of `intake/default/_artifact.md`.
-- `po-answers.md` is the only home of PO answers. `01-intake.md` refers to answers and does not copy them.
+- Ask multiple-choice PO questions as gate questions per [_gate-question.md](../_gate-question.md) (branch strategy, rollout preference, merge strategy, go/no-go, risk tolerance). Use freeform chat for open-ended questions (requirements, constraints, acceptance criteria). Construct every question per [_question-craft.md](../_question-craft.md). Record every answer with `decide add --stage intake` per [_decisions.md](../_decisions.md).
+- The decision store is the only home of PO answers. `01-intake.md` refers to answers and does not copy them.
 
 # Chat return contract
 After writing files, return per [_chat-return.md](../_chat-return.md): lead with the narrative (section *The narrative*), then this receipt:
@@ -125,13 +124,13 @@ Inputs: `$ARGUMENTS` (full raw request), `$0` (first token if supplied).
 
 Do this in order:
 1. Parse the request and derive the workflow slug.
-2. Create `.ai/workflows/<slug>/` directory. Write `00-index.md` using the index template in `intake/default/_artifact.md`. Create `po-answers.md` if missing.
+2. Create `.ai/workflows/<slug>/` directory. Write `00-index.md` using the index template in `intake/default/_artifact.md`. The first `decide add` creates `decisions.yaml`.
 3. Ask focused product-owner questions in two batches per `intake/default/_questions.md`: **substance first (Batch B), process second (Batch A)**. Batch B is freeform (outcome, success criteria, non-goals, constraints, stack confirmation). Batch A asks the branch-strategy and appetite gate questions; review scope is not asked at intake.
-4. Capture ALL answers (structured + freeform) in `po-answers.md`.
+4. Record ALL answers (structured + freeform) with `decide add` per [_decisions.md](../_decisions.md).
 5. Run freshness research for any external technology, dependency, platform, API, or standard that is mentioned or obviously implicated.
 6. **Draft** the intake brief without designing the implementation (steps 6a–6c refine it before it is written to disk in Step 9). When the request implies a core loop, state it as NUMBERED STEPS in `## Restated Request`; shape derives the Charter Scenario from it.
 6a. **Misreading pass (the RIM quality floor).** Before the brief is final, run one short in-run pass: *"Name the 3 most likely ways this request could be misread."* Each candidate either becomes a RIM entry in `## Risks if Misunderstood` (stable id `RIM-1..n`, with severity) or is dismissed in that section with a stated reason ("considered: <misreading> — dismissed because <reason>"). In-run, no sub-agents; this is the floor, and shape's blind pre-mortem stays the deep pass. The `## Risks if Misunderstood` and `## Charter` sections may never be silently absent in default mode: zero entries is legal only as the explicit declaration `intent-risks: none-declared` / `charter: none-declared` in `00-index.md` frontmatter plus a one-line reason in the body ("pure mechanical rename; no interpretive surface"). Silence is illegal; shape's Step 9a backfills a missing ledger instead of waving it through.
-6b. **Ratify the charter with the PO (mandatory when a charter is authored).** Present the 3–7 distilled commitments in ONE multi-select gate question, *"These are the promises I heard — confirm or correct"* (confirm/edit per [_question-craft.md](../_question-craft.md)). Record the ratification in `po-answers.md`; ratified charter entries carry `po-ratified: true` in the `00-index.md` `charter` ledger. A charter the PO ratified at stage 1 carries real authority downstream (shape's adjudications and the intent-fidelity review dimension cite it); an unratified charter is only inferred authority.
+6b. **Ratify the charter with the PO (mandatory when a charter is authored).** Present the 3–7 distilled commitments in ONE multi-select gate question, *"These are the promises I heard — confirm or correct"* (confirm/edit per [_question-craft.md](../_question-craft.md)). Record the ratification with `decide add` per [_decisions.md](../_decisions.md); ratified charter entries carry `po-ratified: true` in the `00-index.md` `charter` ledger. A charter the PO ratified at stage 1 carries real authority downstream (shape's adjudications and the intent-fidelity review dimension cite it); an unratified charter is only inferred authority.
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into the `01-intake.md` `recommended-routes`.
 8. Update `00-index.md` with the recommended default option.
 9. Write `.ai/workflows/<slug>/01-intake.md` per the template in `intake/default/_artifact.md`.

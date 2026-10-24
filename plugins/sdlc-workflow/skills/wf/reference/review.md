@@ -7,7 +7,7 @@ argument-hint: "<slug> [slice | triage] | <dimension> | sweep <aggregate>"
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 > **Ground findings in the real source (both modes).** Before asserting that code misuses a
@@ -23,6 +23,14 @@ this operation produces: translate workflow context to product language and leak
 
 You are running `/wf review`, **stage 7 of 10** in the SDLC lifecycle.
 
+## Card
+
+- Fix every BLOCKER, HIGH and MED finding. Fix a LOW or NIT finding only when it is in this diff, local and safe. Otherwise defer it, with the reason.
+- Dismiss a finding only when it is a false positive, with the reason.
+- A finding against a confirmed design board is the decision of the person: record it open, with triage `needs-amend`.
+- Compute the verdict from the open findings only.
+- Stop on a `dont-ship` verdict, or on an open security or data-loss BLOCKER that the fix loop did not fix.
+
 ## Requires
 
 Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
@@ -33,7 +41,7 @@ Mode `triage`: the second argument is `triage`. Mode `select`: you select the ru
 |---|---|---|---|
 | `00-index.md` | artifact | always | |
 | `02-shape.md` | artifact | always | |
-| `po-answers.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `03-slice.md` | artifact | if-present | |
 | `03-slice-<slice>.md` | artifact | always | |
 | `04-plan-<slice>.md` | artifact | always | |

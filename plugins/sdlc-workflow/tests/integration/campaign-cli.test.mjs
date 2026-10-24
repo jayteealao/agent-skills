@@ -13,6 +13,7 @@ import { migrateApply, migrationReport, removeWorktree, run } from '../../script
 import { safeParseFrontmatter } from '../../lib/frontmatter.mjs';
 import { hashFile } from '../../lib/campaign-records.mjs';
 import { setFrontmatterValue } from '../../lib/roster-edit.mjs';
+import { addDecision } from '../../lib/decisions.mjs';
 
 const SRC = 'brainstorm-demo';
 const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -105,7 +106,7 @@ test('6.1 and 6.2: the serial walk opens, starts, builds and closes each packet;
     const refused = run(['done', root, SRC, 'engine']);
     assert.equal(refused.ok, false);
     assert.match(refused.error, /not approved/);
-    appendFileSync(path.join(wf(root, 'demo-engine'), 'po-answers.md'), '\n- d-one: approved — fine for now\n');
+    addDecision(wf(root, 'demo-engine'), { kind: 'approval', key: 'd-one', answer: 'approved', question: 'fine for now' });
 
     // The trunk moves while the packet is built: done merges it in.
     git(root, 'switch', '-q', 'main');
@@ -145,7 +146,7 @@ test('6.1: a built packet that can be tried waits for the try-out record', () =>
     review(root, 'demo-screen', [['d-two', 'honored', 'app.txt:1', '—']]);
     assert.equal(run(['status', root, SRC]).current.step, 'try-out');
     assert.match(run(['done', root, SRC, 'screen']).error, /try-out of screen is not recorded/);
-    appendFileSync(path.join(wf(root, 'demo-screen'), 'po-answers.md'), '\n- try-out: works — the screen shows the engine\n');
+    addDecision(wf(root, 'demo-screen'), { kind: 'try-out', key: 'try-out', answer: 'works', question: 'the screen shows the engine' });
     assert.equal(run(['done', root, SRC, 'screen']).ok, true);
     assert.equal(run(['status', root, SRC]).finished, true);
   } finally { rmSync(root, { recursive: true, force: true }); }
@@ -178,8 +179,9 @@ test('8: the fidelity check fails closed: markdown, other verdicts, the Approval
 
     review(root, 'demo-engine', [['`d-one`', '**narrowed**', 'app.txt:1', 'pending'], ['d-two', 'partial', 'app.txt:1', '—'], ['d-three', 'Honored', 'app.txt:1', '—']]);
     st = run(['status', root, SRC]);
-    assert.deepEqual(st.current.rows.map((r) => [r.key, r.verdict]), [['d-one', 'narrowed'], ['d-two', 'partial']], 'only a po-answers.md line approves a row');
-    appendFileSync(path.join(wf(root, 'demo-engine'), 'po-answers.md'), '\n## Decision fidelity approvals\n\n- **d-one**: approved — fine\n- d-two: approved — fine\n');
+    assert.deepEqual(st.current.rows.map((r) => [r.key, r.verdict]), [['d-one', 'narrowed'], ['d-two', 'partial']], 'only an approval in the decision store approves a row');
+    addDecision(wf(root, 'demo-engine'), { kind: 'approval', key: 'd-one', answer: 'approved' });
+    addDecision(wf(root, 'demo-engine'), { kind: 'approval', key: 'd-two', answer: 'approved' });
     assert.equal(run(['status', root, SRC]).current.step, 'done');
     assert.equal(run(['done', root, SRC, 'engine']).ok, true);
   } finally { rmSync(root, { recursive: true, force: true }); }

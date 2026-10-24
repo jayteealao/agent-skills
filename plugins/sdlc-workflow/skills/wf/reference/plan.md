@@ -5,7 +5,7 @@ argument-hint: <slug> [<slice> [guidance or fix instructions] | all]
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf plan`, **stage 4 of 10**: 1·intake → 2·shape → 3·slice → `4·plan` → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro.
@@ -16,6 +16,15 @@ You are running `/wf plan`, **stage 4 of 10**: 1·intake → 2·shape → 3·sli
 | Produces | `04-plan.md` (master) + `04-plan-<slice-slug>.md` per planned slice |
 | Next | `/wf implement <slug> <slice-slug>` |
 
+## Card
+
+- Research the code first. Then write a plan that a builder can follow step by step: each step names its files and its done check.
+- A slice has fewer than 40 steps. At 40 or more, route back to slice.
+- Settle an implementation-detail decision yourself and record it. Do not settle an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)): run `decide answered` for its key, and when no live entry answers it, return it as a question with a key, the options and a recommended option. Then finish the artifact with `status: awaiting-input`.
+- Record each choice that you settle in `## Assumptions`, with the reason.
+- Do not write product code.
+- Done when `04-plan-<slice>.md` has `status: complete` and `has-blockers: false`.
+
 ## Requires
 
 Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
@@ -24,7 +33,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 |---|---|---|---|
 | `00-index.md` | artifact | always | |
 | `02-shape.md` | artifact | always | |
-| `po-answers.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `03-slice.md` | artifact | if-present | |
 | `03-slice-<slice>.md` | artifact | if-present | |
 | `04-plan.md` | artifact | if-present | Sibling Plans |
@@ -62,7 +71,7 @@ You are a workflow orchestrator, not a problem solver. Do not write code, edit f
      - If `stack.user-confirmed: false`, ask one gate question per [_gate-question.md](_gate-question.md): "`stack:` was auto-detected but not PO-confirmed. The plan's interactive verification may pick tooling the PO does not want. Re-run intake's Batch B confirmation, or proceed and accept the risk?" If the user proceeds, set `stack-source: unconfirmed-auto-detect` in the plan's frontmatter.
      - If `stack.user-confirmed: true`, proceed. Sub-agent 3 and the interactive verification template consume this block as their source of truth.
    - If `current-stage` is already past plan, note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
-   - **Review-scope fallback (skip-to-plan path only).** If `00-index.md` shows `review-scope-confirmed: false` (absent means the question was asked at intake), the workflow bypassed `slice`, where the question normally lands. Ask it here with one gate question per [_gate-question.md](_gate-question.md); for a single-scope workflow recommend `Slug-wide` ("one 07-review.md against the cumulative diff") over `Per slice`. Record the answer in `po-answers.md` (`stage: plan`); set `review-scope:` and `review-scope-confirmed: true` in `00-index.md`. The question is asked once per workflow.
+   - **Review-scope fallback (skip-to-plan path only).** If `00-index.md` shows `review-scope-confirmed: false` (absent means the question was asked at intake), the workflow bypassed `slice`, where the question normally lands. Ask it here with one gate question per [_gate-question.md](_gate-question.md); for a single-scope workflow recommend `Slug-wide` ("one 07-review.md against the cumulative diff") over `Per slice`. Record the answer with `decide add --key review-scope --stage plan` per [_decisions.md](_decisions.md); set `review-scope:` and `review-scope-confirmed: true` in `00-index.md`. The question is asked once per workflow.
 4. **Use the design context when design is needed.** Use `design/_design-context.md` for its design modes, laws, and motion summary. When the feature touches motion, interface detail, or typography, also read `animate.md` / `polish.md` / `typeset.md`. Its preflight, image, and mutation sections govern `/wf design`. Then:
    - `02b-design.md` — design mode per surface, recommended references, anti-goals.
    - `02c-craft.md` — the visual contract. Every `## Mock fidelity inventory` item becomes a concrete plan step. When `boards:` is set, read the board PNG files of each surface. Each step that builds a surface cites its board key (`design/r<N>/boards/<key>.png`, `design/_boards.md`). The `## Implementation contract` (token choices, component decisions, motion specs) binds the plan. If the plan must contradict the contract, surface the conflict before implementation.
@@ -73,7 +82,7 @@ You are a workflow orchestrator, not a problem solver. Do not write code, edit f
    - b) `all` and no plans exist → **parallel plan mode**.
    - c) slice-slug + supplemental text + `04-plan-<slice-slug>.md` exists → **directed fix mode**.
    - d) slice-slug + `04-plan-<slice-slug>.md` exists + no supplemental text → **auto-review mode**.
-   - e) slice-slug and no plan → **single plan mode**. Supplemental text is **planning guidance**: write it to `po-answers.md` with `stage: plan` and `kind: guidance`, give it to every research sub-agent as a PO directive, ask no discovery question that it answers, and cite it in `## Applied Learnings` or in the decision that it settles.
+   - e) slice-slug and no plan → **single plan mode**. Supplemental text is **planning guidance**: record it with `decide add --key plan-guidance --stage plan --slice <slice-slug>` per [_decisions.md](_decisions.md), give it to every research sub-agent as a PO directive, ask no discovery question that it answers, and cite it in `## Applied Learnings` or in the decision that it settles.
    - f) no second argument → use `selected-slice` from the index; if missing and slices exist, choose the best first slice from `03-slice.md` or ask the user; then apply (d) or (e).
    - g) no slices → single plan mode for the whole shaped spec; if `04-plan.md` exists, auto-review (d).
 7. **Check the sibling plans.** Read the `## Sibling Plans` table in `04-plan.md`; when it is missing, read each `04-plan-<slice-slug>.yaml`. Read a sibling plan in full when one of these holds:
@@ -136,7 +145,7 @@ After writing files, return per [_chat-return.md](_chat-return.md) — a narrati
 
 Do this in order:
 1. Determine planning mode from Step 0.
-2. **Discovery phase (new plans only; skip for review-and-fix modes).** Ask the implementation decisions that shape and slice left open, as gate questions per [_gate-question.md](_gate-question.md) and [_question-craft.md](_question-craft.md): up to 4 per round, in as few rounds as possible. Each question cites the files, patterns, and tradeoffs the sub-agents found. Do not re-ask a shape or slice decision. Present genuinely different approaches. Cover the approach, sequencing, test strategy, and risk (deprecations, advisories, contradicted shape assumptions). Append every answer to `po-answers.md` with timestamp and `stage: plan`.
+2. **Discovery phase (new plans only; skip for review-and-fix modes).** Ask the implementation decisions that shape and slice left open, as gate questions per [_gate-question.md](_gate-question.md) and [_question-craft.md](_question-craft.md): up to 4 per round, in as few rounds as possible. Each question cites the files, patterns, and tradeoffs the sub-agents found. Do not re-ask a shape or slice decision. Present genuinely different approaches. Cover the approach, sequencing, test strategy, and risk (deprecations, advisories, contradicted shape assumptions). Record every answer with `decide add --stage plan` per [_decisions.md](_decisions.md).
    **A decision that touches a `carried` intent-risk is intent-bearing — never auto-resolve it.** If a planning decision resolves an intent-risk (RIM) that `00-index.md` still marks `status: carried`, ask the PO on a human-gated run; on an autonomous run it is a stop condition. Classify every autonomous-versus-ask fork per [_decision-classes.md](_decision-classes.md). A recorded autonomous decision carries `class: implementation-detail`; an autonomous record never carries `class: intent-bearing`.
 3. **Single plan mode (new):** run the research sub-agents and the freshness research; run the discovery phase; author the augmentations (after research, above); produce a minimal execution-ready plan; write `04-plan-<slice-slug>.md`; update the master `04-plan.md`.
 4. **Parallel plan mode (new, all):** Launch one sub-agent per slice. Wait for all. Read their files. Run the cohesion check. Run the discovery phase once, for cross-cutting decisions. Write or update the master `04-plan.md`.
@@ -218,7 +227,7 @@ Per row: the constraint-resolution-ladder rung ([runtime-adapters/_ladder.md](ru
 **Force-scope rule — a named wall is an engineered wall.** Every environment dependency on a user-observable AC's critical path (credentials, a device, an external service, an inbound callback, a deploy target, missing infrastructure) resolves, before this plan completes, to exactly one `constraint-resolution:` line in a per-AC list under the table:
 1. `constraint-resolution: prerequisite-slice: <slug>` — a prerequisite slice or harness scoped into the slug (TURN provisioning, an emulator debug build variant, a seeded-fixture harness). The harness is implementation work: add its tasks to the Step-by-Step Plan, or route back to `slice`.
 2. `constraint-resolution: proxy+deferral: <named clearing event>` — a lower-rung proxy AC verify can evidence now, plus a deferral authored in advance whose clearing event becomes the deferral's `cleared-by` target. **The clearing event must be provisionable — an act someone can perform, not a state someone must await.** Write the actor and the act ("after slice `X` lands the configurable-port change, run `/wf probe <slug>` against any free port").
-3. `constraint-resolution: po-accepted: <reason>` — explicit PO risk acceptance, recorded here and appended to `po-answers.md`.
+3. `constraint-resolution: po-accepted: <reason>` — explicit PO risk acceptance, recorded here and with `decide add --stage plan` per [_decisions.md](_decisions.md).
 
 Each line carries `wall-ownership: code-owned | environment-negotiable | external`. **Option 2 is unavailable to a `code-owned` wall**: when the repo's own source pins the constraint, the wall is dissolved by option 1 or refused on the record by option 3, never parked behind a clearing event.
 

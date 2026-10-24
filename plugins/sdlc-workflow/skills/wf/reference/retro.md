@@ -7,7 +7,7 @@ argument-hint: <slug|pr#N|branch>
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf retro`, **stage 10 of 10** in the SDLC lifecycle.
@@ -21,6 +21,12 @@ You are running `/wf retro`, **stage 10 of 10** in the SDLC lifecycle.
 | Produces | `10-retro.md` |
 | Next | Workflow complete. No further stages. |
 
+## Card
+
+- Extract the lessons of the workflow and propose improvements that a person can copy and paste. Do not apply them.
+- Do not reopen the implementation and do not start new work.
+- Write each lesson honestly, with the evidence that supports it.
+
 ## Requires
 
 Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
@@ -28,8 +34,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | Input | Kind | When | Sections |
 |---|---|---|---|
 | `00-index.md` | artifact | always | |
-| `po-answers.md` | artifact | if-present | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `01-*.md` | artifact | if-present | |
 | `02-shape.md` | artifact | if-present | |
 | `02b-design.md` | artifact | if-present | |
@@ -92,7 +97,7 @@ decision moments the stage files did not record and feeds that evidence into the
   per-repo transcript directory (see [_host-surfaces.md](_host-surfaces.md), row "Session transcripts"); when this host has
   one, scan the slug's transcripts. Otherwise a `deep` run is still honored but **falls back to an
   artifact-only deep pass**: a deeper, more adversarial re-read of the existing stage trail,
-  `po-answers.md`, and the git history for the same decision moments. The retro then notes that
+  the decision store (`decide list`), and the git history for the same decision moments. The retro then notes that
   transcript mining was skipped (host-gated). It never instructs a read of a transcript path this host lacks.
 - **What the deep pass looks for.** **Decision moments** — points where an approach was chosen, an
   assumption locked in, or a user instruction interpreted (especially "mirror/match exactly", "just like
@@ -116,7 +121,7 @@ Charter: read the plan, implement, and verify artifacts plus the git log, and re
 
 ### Analysis sub-agent 2 — Review & Handoff Quality
 
-Charter: read every `07-review-*.md` (master per slice plus per-command sub-reviews), `08-handoff.md`, `po-answers.md`, and `02-shape.md`, and report — findings quality (real bugs vs. nits vs. false positives, what stayed `open` at handoff, what tests or planning should have caught, what review missed that ship or production later found); handoff completeness (PR clarity, migration/rollback accuracy, whether the shape's documentation plan was fulfilled); communication friction (multi-round questions, wrong unasked assumptions, artifacts the next stage could not use); and adoption-matrix `USE` rows that never earned their install. Every count names the artifact it came from. The block below is CONTRACT — pass it unchanged:
+Charter: read every `07-review-*.md` (master per slice plus per-command sub-reviews), `08-handoff.md`, the live entries of the decision store (`decide list`), and `02-shape.md`, and report — findings quality (real bugs vs. nits vs. false positives, what stayed `open` at handoff, what tests or planning should have caught, what review missed that ship or production later found); handoff completeness (PR clarity, migration/rollback accuracy, whether the shape's documentation plan was fulfilled); communication friction (multi-round questions, wrong unasked assumptions, artifacts the next stage could not use); and adoption-matrix `USE` rows that never earned their install. Every count names the artifact it came from. The block below is CONTRACT — pass it unchanged:
 
 **Intent drift (transitive fidelity — code vs. intake):**
 - Which intake directives did the shipped code **narrow**, and was each narrowing **ratified**? Cross-reference `02-shape.md`'s `## Intake Fidelity` table and any `07-review-*intent-fidelity*.md` findings against what actually shipped.
@@ -138,8 +143,8 @@ pattern-level learnings from the merged findings. Each must pass ALL THREE durab
 
 Zero learnings is a legitimate outcome; do not pad. A **repeated runtime-evidence deferral** is a
 prime candidate ("<wall> blocks all interactive ACs; the one-time harness that retires it = …",
-category `testing` or `gotcha`). A **standing-steering entry that recurs across workflows** (from this or prior slugs'
-`steer.md`; see `_steering.md`) is likewise a candidate (usually `process` or the category matching its
+category `testing` or `gotcha`). A **standing-steering entry that recurs across workflows** (from the live `steer` entries of this or prior slugs;
+see [_decisions.md](_decisions.md)) is likewise a candidate (usually `process` or the category matching its
 subject); the durability filter still applies. For an optimize slug, read `optimize/results.jsonl`, the trials of deleted round branches included. Record which hypotheses moved the metric and which did not as one learning tagged `optimize`, with `status: active`: the next optimize loop reads it.
 
 **Dedupe before write:** read `.ai/solutions/INDEX.md` (if it exists) and check for overlapping

@@ -33,7 +33,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 |---|---|---|---|
 | `00-index.md` | artifact | on-resume | |
 | `01-rca.md` | artifact | on-resume | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_light-index.md` | procedure | always | |
 | `intake/_intake-provenance.md` | procedure | always | |
@@ -51,7 +51,7 @@ You are a **diagnostician**, not a fixer.
 - The **only** acceptable output is the RCA artifact, the synthesized shape, and the index. Do not edit application code. Do not propose a patch. Do not run code that would mutate state (DB writes, deployments, git commits).
 - Read-only investigation only: `git log`, `git blame`, your native file-reading and search tools, log file inspection, dev-tooling inspection, and tests run in read-only modes.
 - The "Suggested fix shape" section is **direction, not a plan**: 1 to 3 lines naming the area and approach. Do not enumerate steps.
-- Ask at most **3 questions** in chat. No structured gate question, no separate `po-answers.md`; answers go inline into the artifact.
+- Ask at most **3 questions** in chat. No structured gate question. Record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into the artifact.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient

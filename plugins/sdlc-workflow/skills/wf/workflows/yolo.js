@@ -63,10 +63,16 @@ for (const [k, v] of Object.entries({ projectRoot, referenceRoot, slug })) {
 const SONNET = { model: 'claude-sonnet-5-5', effort: 'high' }
 const OPUS = { model: 'claude-opus-5-5', effort: 'medium' }
 const HAIKU = { model: 'claude-haiku-5-5', effort: 'medium' }
-// WF-SYSTEM-REVIEW C1 (SQ1): the model of each stage agent comes from the `models` block
-// of .ai/sdlc-config.json, passed in the args. A stage that is not named runs on Opus.
+// The model of each stage agent comes from the `models` block of .ai/sdlc-config.json,
+// passed in the args. A stage names an alias or any model id that the host can run; an
+// id runs at the effort of Opus. A stage that is not named runs on Opus.
 const MODELS = OPT.models && typeof OPT.models === 'object' ? OPT.models : {}
-const stageModel = (stage) => (MODELS[stage] === 'sonnet' ? SONNET : OPUS)
+const MODEL_ALIASES = { opus: OPUS, sonnet: SONNET, haiku: HAIKU }
+function stageModel(stage) {
+  const m = typeof MODELS[stage] === 'string' ? MODELS[stage].trim() : ''
+  if (!m) return OPUS
+  return MODEL_ALIASES[m] || { model: m, effort: OPUS.effort }
+}
 
 // WF-SYSTEM-REVIEW C2: implement commits each plan step and records it in the slug's
 // .implement-progress.jsonl; a re-run resumes after the last committed step. WF-PIECES-PLAN
@@ -113,30 +119,23 @@ function implementStepsClause(slice, progressPath, retry) {
 
 
 // ---------------------------------------------------------------------------
-// STANDING STEERING — every agent that judges or writes reads steer.md FRESH.
-// Stage agents read steer.md through their stage reference, but the driver's own
+// STANDING STEERING — every agent that judges or writes reads the steer entries FRESH.
+// Stage agents read them through their stage reference, but the driver's own
 // agents (rubric selection, scouts, refuters, wall probe, classifier, charter
-// checkpoint, plan reconcile) are prompted by this script and never opened it. A
+// checkpoint) are prompted by this script and never ran the command. A
 // steering veto the scouts cannot see is a veto the review cannot enforce.
-// The clause names the PATH, never a copy of the text: the user may edit steer.md
-// while the run drives, and each agent that starts after the edit must see it. A
-// snapshot taken at orient would freeze the entries for the whole run.
+// The clause names the COMMAND, never a copy of the entries: the person may add
+// an entry while the run drives, and each agent that starts after it must see it.
+// A snapshot taken at orient would freeze the entries for the whole run.
 // Bookkeeping agents (branch, write-back, index write-back, run end) get no
 // clause: they change no code and judge nothing a steering entry governs.
 // ---------------------------------------------------------------------------
-function steeringClause(steerPath, role, contractPath, campaignSteerPath = null) {
-  // WF-CAMPAIGN-RUN-FIXES-PLAN C2: in a campaign, one more steer file applies to every slug of the campaign.
-  const files = campaignSteerPath
-    ? `${steerPath}, and for every slug of the campaign in ${campaignSteerPath}. Read BOTH files NOW, in full, with ` +
-      `the file-read tool — never from a copy in a prompt or from an earlier run: the user can edit them while this ` +
-      `run drives. Where an entry of this slug's own file and an entry of the campaign file conflict, this slug's ` +
-      `entry wins. If both files are absent or empty, there is no steering`
-    : `${steerPath}. Read that file NOW, in full, with the file-read tool — never from a copy in a prompt or from ` +
-      `an earlier run: the user can edit it while this run drives. If the file is absent or empty, there is no ` +
-      `steering`
-  const head = `\n\nSTANDING STEERING. The user keeps standing instructions for this workflow in ` +
-    `${files}: skip the rest of this block and return no steering fields. The contract is ${contractPath}. No ` +
-    `human gate in this run repeats these entries, so the file is the user's voice here. A steering VETO ` +
+function steeringClause(steerCmd, role, contractPath) {
+  const head = `\n\nSTANDING STEERING. The user keeps standing instructions for this workflow in its decision ` +
+    `store. Run \`${steerCmd}\` NOW — never use a copy in a prompt or from an earlier run: the user can add an ` +
+    `entry while this run drives. If it prints no entries, there is no steering: skip the rest of this block ` +
+    `and return no steering fields. The contract is ${contractPath}. No ` +
+    `human gate in this run repeats these entries, so the store is the user's voice here. A steering VETO ` +
     `outranks every autonomous-policy default in this prompt. Steering never overrides a mandatory gate (the ` +
     `External Output Boundary, AC verifiability, the constraint-resolution rule), ` +
     `never authorizes a deferral, and never waives a dont-ship verdict.`
@@ -160,12 +159,12 @@ function steeringClause(steerPath, role, contractPath, campaignSteerPath = null)
       ` Your rubric is STEERING COMPLIANCE. For each entry, check the diff against it. A change that crosses a ` +
       `veto (touches what the entry forbids, adds what it rejects) is a finding with severity HIGH. A change that ` +
       `goes against a preference is a finding with severity MED. Quote the entry in the issue. Report nothing ` +
-      `for an entry the diff does not touch; with no steer.md, return findings: [].`
+      `for an entry the diff does not touch; with no entries, return findings: [].`
   }
   if (role === 'refute') {
     return head +
       ` A finding that quotes a steering entry is refuted ONLY when the diff does not contradict that entry as ` +
-      `the file states it now. "The code works" or "the change is reasonable" does not refute it: the entry is ` +
+      `the store states it now. "The code works" or "the change is reasonable" does not refute it: the entry is ` +
       `the user's rule. A finding whose fix would cross a veto is still real; say so in reason.`
   }
   if (role === 'classify') {
@@ -177,7 +176,7 @@ function steeringClause(steerPath, role, contractPath, campaignSteerPath = null)
     return head +
       ` Also judge the built code against each entry. Return steeringViolations: one { entry (quoted), kind ` +
       `('veto' when the entry forbids something, 'preference' otherwise), note } for each entry the code ` +
-      `contradicts; [] when none does or there is no steer.md.`
+      `contradicts; [] when none does or there are no entries.`
   }
   // 'context' — read-only agents whose choices must stay inside the entries.
   return head +
@@ -187,7 +186,7 @@ function steeringClause(steerPath, role, contractPath, campaignSteerPath = null)
 
 // steeringDigest() — the hand-back's steering line: what each stage said it honored,
 // the stages that stopped on a steering conflict, and the checkpoint violations.
-// Null when nothing in the run reported steering (no steer.md, or no entry applied).
+// Null when nothing in the run reported steering (no steer entry, or no entry applied).
 function steeringDigest(o) {
   const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
   const stages = chains.flatMap(c => (c && c.ran) || [])
@@ -710,14 +709,14 @@ function overlappingSlices(overlaps, roster) {
 // WF-SYSTEM-REVIEW E3: the stage prompt states the shared rules once. A stage agent does not
 // read again the files that hold them; the stage reference still points to them for a person.
 // Audit L10: requiresClause restates _requires.md (all but its Modes table), steeringClause
-// restates _steering.md, and the POLICY block + DECISION_CONTRACT replace every gate
+// restates _decisions.md, and the POLICY block + DECISION_CONTRACT replace every gate
 // question (_gate-question.md) and its wording (_question-craft.md): the run asks nothing.
 function preambleClause() {
   return `- PREAMBLE GIVEN HERE: this prompt states the grounded-progress rule, the early-stop guard, the ` +
     `required-reads checklist, and the steering contract; the policy above settles or stops each question the ` +
     `reference would ask, so you ask none; and your return is the schema below, not a chat message. When the ` +
     `stage reference points to ${referenceRoot}/_chat-return.md, ${referenceRoot}/_autonomy-guards.md, ` +
-    `${referenceRoot}/_grounded-progress.md, ${referenceRoot}/_steering.md, ${referenceRoot}/_gate-question.md, or ` +
+    `${referenceRoot}/_grounded-progress.md, ${referenceRoot}/_decisions.md, ${referenceRoot}/_gate-question.md, or ` +
     `${referenceRoot}/_question-craft.md, do not read those files: apply the rules of this prompt. When it points ` +
     `to ${referenceRoot}/_requires.md, read only its section "Modes": this prompt states the rest.\n`
 }
@@ -844,16 +843,16 @@ const CONTROL_FILE_RULE =
 
 
 
-const STEER_PATH = `${projectRoot}/.ai/workflows/${slug}/steer.md`
-// The campaign walk runs yolo on one packet slug at a time; yolo reads no campaign file (WF-PIECES-PLAN W8).
-const steer = (role) => steeringClause(STEER_PATH, role, `${referenceRoot}/_steering.md`)
+const STEER_CMD = `node "${referenceRoot}/../scripts/wf.mjs" decide list "${projectRoot}" ${slug} --kind steer`
+// The campaign walk runs yolo on one packet slug at a time; yolo reads no campaign file.
+const steer = (role) => steeringClause(STEER_CMD, role, `${referenceRoot}/_decisions.md`)
 
 // ---------------------------------------------------------------------------
 // STOP AT THE NEXT BOUNDARY (YOLO-COMMENTARY-PLAN G1-G3). The person says "stop
 // after the current verify" in chat; the main session writes
 // .ai/workflows/<slug>/.control.json through scripts/yolo-watch.mjs control. This
 // script cannot read the file, so the agent that starts each stage reads it, fresh,
-// by path (as it reads steer.md). When the request holds, the agent does no work
+// by path. When the request holds, the agent does no work
 // and returns status 'stopped', and the driver ends cleanly with stoppedAt
 // 'stop-request'. Only stage-boundary agents check:
 // a stop never lands inside a verify fix round or between the review scouts.
@@ -1289,7 +1288,7 @@ const RUBRIC_SELECTION = {
         },
       },
     },
-    // true iff steer.md existed when this agent read it — the driver then adds the
+    // true iff the store held a live steer entry when this agent read it — the driver then adds the
     // steering-compliance scout. Read at review time, so a mid-run edit counts.
     steeringPresent: { type: 'boolean' },
     // The stop-request check runs here, at the review boundary, before any scout starts.
@@ -1719,7 +1718,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `none) + substantiveResidual (true iff an AC fails/partials for a CODE reason); review: verdict + blockerCount ` +
     `(= metric-findings-blocker, OPEN) — plus the class-stamped decisions you recorded, any residual ` +
     `(could-not-fix) notes, your recovered-error list, and steeringHonored (plus steeringConflict when a steering ` +
-    `entry stopped you) when steer.md exists.` +
+    `entry stopped you) when a steer entry exists.` +
     heartbeatClause(`${stage}${sliceArg ? ':' + sliceArg : ''}`, 'Drive', stage, sliceArg),
     { schema: STAGE_RESULT, label: `${stage}${sliceArg ? ':' + sliceArg : ''}`, phase: 'Drive', ...stageModel(stage) }
   )
@@ -2003,7 +2002,7 @@ async function driveReview(sliceArg, idx) {
     `Return rubrics: one entry per selected rubric as { rubric, file, focus, reason }, where file is the rubric's ` +
     `path relative to ${referenceRoot} (review/<name>.md, or design/audit.md / design/critique.md for the two ` +
     `design dimensions) and focus is the alias section to read, or empty for the whole rubric. Return ` +
-    `steeringPresent: true when ${STEER_PATH} exists with at least one entry, false otherwise.` + steer('context') +
+    `steeringPresent: true when the steering command prints at least one entry, false otherwise.` + steer('context') +
     stopCheck() + ` When the stop-request check stops you, return rubrics: [], stopped: true and ` +
     `stopReason; otherwise return stopped: false.`,
     { schema: RUBRIC_SELECTION, label: 'select-rubrics', phase: 'Review', ...SONNET }
@@ -2032,8 +2031,8 @@ async function driveReview(sliceArg, idx) {
     `confidence }. Write nothing.\n\n${EOB}` + steer('context'),
     { schema: FINDINGS_SCHEMA, label: `scout:${r.rubric}${r.focus ? ':' + r.focus : ''}`, phase: 'Review', ...SONNET }
   )))
-  // Standing steering — one more scout whose rubric is the user's steer.md. It runs only
-  // when rubric selection saw the file, and it reads the file itself (never a copy).
+  // Standing steering — one more scout whose rubric is the user's steer entries. It runs only
+  // when rubric selection saw an entry, and it reads the entries itself (never a copy).
   const steeringScout = selection && selection.steeringPresent === true
     ? await agent(
         `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the standing-steering ` +
@@ -2076,7 +2075,7 @@ async function driveReview(sliceArg, idx) {
     `Apply the autonomous triage policy: ${POLICY.review}` + steer('writer') + `\n\n` +
     `Project root ${projectRoot} is ABSOLUTE; resolve paths under it and run \`git -C ${projectRoot} …\`. Write ` +
     `schema-complete frontmatter. Return the terminal state (verdict + blockerCount, decisions, residual, and ` +
-    `steeringHonored / steeringConflict when steer.md exists).` +
+    `steeringHonored / steeringConflict when a steer entry exists).` +
     requiresClause(`${referenceRoot}/review.md`) +
     // S6 — the scouts read these rubrics and their verified findings ride in this prompt,
     // so the rubrics count as read for the review writer.
@@ -2383,7 +2382,7 @@ const CHECKPOINT_RESULT = {
       },
     },
     summary: { type: 'string' },
-    // Standing steering — entries of steer.md (read fresh by the checkpoint) that the built
+    // Standing steering — the steer entries (read fresh by the checkpoint) that the built
     // code contradicts. A 'veto' violation stops the run; a 'preference' one is surfaced.
     steeringViolations: {
       type: 'array',
@@ -2789,7 +2788,7 @@ if (reconcileStop) {
           const prefs = (cp.steeringViolations || []).filter(v => v && v.kind === 'preference')
           if (prefs.length) log(`steering check after '${s.slice}': ${prefs.length} preference(s) not followed — ${prefs.map(v => v.entry).join('; ')}`)
           if (vetoes.length) {
-            return { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: 'steering-checkpoint', stoppedSlice: s.slice, reason: `steering veto(es) CROSSED after '${s.slice}': ${vetoes.map(v => `"${v.entry}"${v.note ? ` (${v.note})` : ''}`).join('; ')} — the built code contradicts the user's standing instructions in steer.md`, results, charterCheckpoints, route: `read the crossed veto(es) in steer.md, fix the code or change the entry, then re-run /wf yolo ${slug}` }
+            return { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: 'steering-checkpoint', stoppedSlice: s.slice, reason: `steering veto(es) CROSSED after '${s.slice}': ${vetoes.map(v => `"${v.entry}"${v.note ? ` (${v.note})` : ''}`).join('; ')} — the built code contradicts the user's standing instructions in the decision store`, results, charterCheckpoints, route: `read the crossed veto(es) with wf.mjs decide list --kind steer, fix the code or supersede the entry, then re-run /wf yolo ${slug}` }
           }
         }
       }
@@ -2908,7 +2907,7 @@ if (digest) {
 const steering = steeringDigest(outcome)
 if (steering) {
   outcome.steering = steering
-  log(`steering (${STEER_PATH}): ${steering.honored.length} honored, ${steering.conflicts.length} stage stop(s) on a conflict, ${steering.violations.length} checkpoint violation(s)${steering.conflicts.length ? ` — ${steering.conflicts.map(c => `${c.stage}${c.slice ? ':' + c.slice : ''} "${c.entry}"`).join('; ')}` : ''}`)
+  log(`steering: ${steering.honored.length} honored, ${steering.conflicts.length} stage stop(s) on a conflict, ${steering.violations.length} checkpoint violation(s)${steering.conflicts.length ? ` — ${steering.conflicts.map(c => `${c.stage}${c.slice ? ':' + c.slice : ''} "${c.entry}"`).join('; ')}` : ''}`)
 }
 // G2/G3 — a stop request is a clean end, not a HARD-STOP. The resume command
 // is the route; the main session deletes the control file and reports the stop.

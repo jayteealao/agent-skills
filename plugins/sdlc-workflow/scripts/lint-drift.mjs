@@ -12,6 +12,7 @@
 //             is a property of schemas/frontmatter.schema.json, the contract every writer follows
 //   hosts     every gap of the registry names its reason (lib/registry.mjs checks the shape)
 //   generated every file that npm run generate writes matches the registry
+//   cards     every stage reference has a ## Card section, which the brief of the stage reads
 //
 //   node scripts/lint-drift.mjs [--json]     exit 1 when it finds any drift
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
@@ -20,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 
 import { RETIRED_CONFIG_KEYS } from '../lib/config.mjs';
 import { parseForm } from '../lib/dispatch.mjs';
+import { cardOf } from '../lib/brief.mjs';
 import { PLUGIN_ROOT, loadRegistry, registryErrors, reservedWords } from '../lib/registry.mjs';
 import { generate } from './generate.mjs';
 
@@ -290,6 +292,20 @@ function lintFields(root) {
 
 // ---------------------------------------------------------------- main
 
+// ---------------------------------------------------------------- cards
+
+/** Every stage key of the registry has a `## Card` section in its reference: the brief reads it. */
+export function lintCards(root, reg) {
+  const out = [];
+  for (const k of reg.keys.filter((x) => x.stage)) {
+    const file = `skills/wf/${k.reference}`;
+    const text = existsSync(join(root, file)) ? readFileSync(join(root, file), 'utf8') : null;
+    if (text == null) continue; // the links check names a missing reference
+    if (cardOf(dirname(join(root, file)), k.name) == null) out.push({ check: 'cards', file, line: 1, message: `the stage ${k.name} has no ## Card section` });
+  }
+  return out;
+}
+
 export function lintDrift(root = PLUGIN_ROOT) {
   const reg = loadRegistry(root);
   const findings = [
@@ -299,6 +315,7 @@ export function lintDrift(root = PLUGIN_ROOT) {
     ...lintLinks(root),
     ...lintConfig(root),
     ...lintFields(root),
+    ...lintCards(root, reg),
   ];
   return findings;
 }

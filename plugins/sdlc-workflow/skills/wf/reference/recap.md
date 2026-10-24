@@ -7,7 +7,7 @@ argument-hint: "<slug|pr#N|branch> [slice-slug | plan | shape | slice | review |
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf status recap`, the **plain-language catch-up** command for the SDLC lifecycle.
@@ -28,8 +28,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | Input | Kind | When | Sections |
 |---|---|---|---|
 | `00-index.md` | artifact | always | |
-| `po-answers.md` | artifact | if-present | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `90-recap.md` | writes | | |
 
 Recap reads the stage frontmatter and the body sections it needs. `90-recap.md` stays the agent file.
@@ -83,12 +82,12 @@ Read what actually exists — do not infer from filenames.
 **Whole-workflow recap (slug only):**
 1. `00-index.md` — parse `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice`, `open-questions`, `recommended-next-invocation`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
 2. For every stage file in `workflow-files`, use its frontmatter and the body sections that answer each point below. Take from them: the scope and acceptance criteria (intake/shape), how the work was split (slice), the approach (plan), what was built and any deviations (implement), what was checked (verify), findings still open (review `07-review-*.yaml`), what shipped (handoff/ship), and lessons (retro).
-3. `po-answers.md` — the product-owner decisions that constrain the work. Keep the ones that still matter; drop superseded ones.
-3b. `steer.md` (see `_steering.md`) — the standing constraints. Surface them; do not act on them (recap advances nothing).
+3. The live entries of the decision store (`decide list`, per [_decisions.md](_decisions.md)) — the product-owner decisions that constrain the work. Keep the ones that still matter. A superseded entry is not live, so it does not appear.
+3b. The live `steer` entries (`decide list --kind steer`) — the standing constraints. Surface them; do not act on them (recap advances nothing).
 4. If slices exist, list `03-slice-*.md` / `04-plan-*.md` / `05-implement-*.md` / `06-verify-*.md` / `07-review-*.md` to build the slice-by-slice progress picture.
 5. When `design/index.html` exists in the workflow folder, give its path in `## Where it stands now`. It is the contact sheet of the design boards.
 
-**Slice recap (slug + slice):** use `00-index.md` and `02-shape.md` for context, then the frontmatter and bodies of that slice's own trail — `03-slice-<slice>.md`, `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md` (whichever exist). Read `po-answers.md` entries tagged to this slice. Ignore the other slices except where this slice depends on them.
+**Slice recap (slug + slice):** use `00-index.md` and `02-shape.md` for context, then the frontmatter and bodies of that slice's own trail — `03-slice-<slice>.md`, `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md` (whichever exist). Read the live entries of the decision store for this slice (`decide list --slice <slice>`). Ignore the other slices except where this slice depends on them.
 
 **Branch state** (if `branch-strategy: dedicated`): run `git branch --show-current`; note if the user is on the wrong branch.
 
@@ -130,7 +129,7 @@ Only if the workflow is sliced. A quick table so the state is scannable alongsid
 ## What you need to know
 The non-obvious decisions and constraints someone picking this up must respect — "migration must be
 reversible", "can't touch auth until slice X lands", "the external API caps at 100/min". Include open
-questions and active blockers here (or "None"). If `steer.md` exists, add one line naming the active
+questions and active blockers here (or "None"). When the store holds a live `steer` entry, add one line naming the active
 standing-steering entries (e.g. "Steering in effect: don't touch `config/loader.ts`; prefer the queue").
 If `00-index.md` carries `intent-risks` (the Intent-Risk / RIM ledger), add a one-line digest —
 "Intent-risks: N adjudicated, M carried, K open" (counted by `status`); flag any still `open` as a
@@ -161,8 +160,8 @@ no advancing the workflow.
 
    | Focus | Read |
    |---|---|
-   | `plan` | `00-index.md`, `02-shape.md`, `04-plan.md` + every `04-plan-<slice>.md`, `po-answers.md` |
-   | `shape` | `00-index.md`, `01-intake.md`, `02-shape.md`, `po-answers.md` |
+   | `plan` | `00-index.md`, `02-shape.md`, `04-plan.md` + every `04-plan-<slice>.md`, the live entries of `decide list` |
+   | `shape` | `00-index.md`, `01-intake.md`, `02-shape.md`, the live entries of `decide list` |
    | `slice` | `00-index.md`, `02-shape.md`, `03-slice.md` (+ a named `03-slice-<slice>.md` if the user also gave one) |
    | `review` | every `07-review-*.yaml` and the review masters' frontmatter, plus `02-shape.md` for the acceptance criteria the review was against |
    | `findings` | every `07-review-*.yaml` **and** `06-verify-*.md` (+ `verify-evidence/`), plus `05-implement-*.md` and `02-shape.md` for context |
@@ -180,7 +179,7 @@ no advancing the workflow.
    The decisions, constraints, scope boundaries, and acceptance criteria this artifact fixes.
 
    ## Why (where recorded)
-   Rationale from po-answers / shape context. Where rationale is missing, say so plainly.
+   Rationale from the decision store / shape context. Where rationale is missing, say so plainly.
 
    ## What it implies next
    What the next stage must know or respect — non-obvious dependencies, ordering, constraints.

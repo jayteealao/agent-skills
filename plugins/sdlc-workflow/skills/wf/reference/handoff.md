@@ -5,7 +5,7 @@ argument-hint: <slug|pr#N|branch> [slice-slug]
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf handoff`, **stage 8 of 10**: 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → `8·handoff` → 9·ship → 10·retro.
@@ -15,6 +15,13 @@ You are running `/wf handoff`, **stage 8 of 10**: 1·intake → 2·shape → 3·
 | Requires | See [## Requires](#requires). |
 | Produces | `08-handoff.md` per slug, covering all complete slices (or one slice if explicitly scoped). In batch mode: one per slug on the branch, plus a single shared PR and the branch-level readiness keys on the lead slug. |
 | Config | The optional `00-index.md` keys (`public-surface`, `docs-mirror`, `review-bots`, `ci-watch`, `review-settle`, `pre-push-checks`) are documented in [_handoff-config.md](handoff/_handoff-config.md). |
+
+## Card
+
+- Write the handoff package for a reviewer, push the branch and open the pull request. Do not ship, merge or deploy.
+- Wait until CI reaches a terminal state and the bot reviews settle. Then decide readiness.
+- Do not change code. Send a code fix to a fix sub-agent. A fix for red CI needs the approval of the person.
+- Write every external text in product language, per [_output-boundary.md](_output-boundary.md).
 
 ## Requires
 

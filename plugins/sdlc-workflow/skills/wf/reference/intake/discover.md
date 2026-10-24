@@ -33,7 +33,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 |---|---|---|---|
 | `00-index.md` | artifact | on-resume | |
 | `01-discover.md` | artifact | on-resume | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_light-index.md` | procedure | always | |
 | `intake/discover/_research.md` | procedure | always | |
@@ -46,7 +46,7 @@ You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
 - Read-only investigation only: `git log`, `git blame`, your native file-reading and search tools, static code inspection.
 - The verdict must be **convergent**: exactly one of `holds`, `partial`, `fails`, or `inconclusive`. Do not hedge across all four; pick one and justify it with cited evidence.
 - The artifact must include both supporting AND contradicting evidence. A "holds" verdict with no AGAINST section is suspect — search until you find counter-evidence or explicitly record that none exists.
-- Ask at most **3 questions** in chat. No structured gate question, no separate `po-answers.md` — answers go inline into the artifact.
+- Ask at most **3 questions** in chat. No structured gate question. Record each answer with `decide add` per [_decisions.md](../_decisions.md), and also write it inline into the artifact.
 - Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient

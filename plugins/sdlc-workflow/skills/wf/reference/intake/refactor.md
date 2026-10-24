@@ -34,7 +34,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | existing code to refactor, and its tests | artifact | always | |
 | `00-index.md` | artifact | on-resume | |
 | `01-refactor.md` | artifact | on-resume | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_change-mode-tail.md` | procedure | always | |
 | `intake/_intake-provenance.md` | procedure | always | |

@@ -7,7 +7,7 @@ argument-hint: <slug> [<slice>]
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf yolo`, the **autonomous lifecycle driver**. It resolves every stage gate by the Autonomous Decision Policy and drives the slug to the review endpoint through Claude Code's **Workflow** tool.
@@ -97,15 +97,15 @@ Every gate `auto` defers to the user, `yolo` resolves by this rule. Two tiers: *
 | charter fidelity checkpoint (every **3** slices) | A commitment judged **honored** — drive on; **at-risk** — drive on but surface it in `outcome.charterCheckpoints`. | A commitment judged **broken**. HARD-STOP with `outcome.stoppedAt = 'charter-checkpoint'`; even an autonomous driver does not silently walk away from a charter commitment. |
 | `update-deps` scope gate (Step 6) | **Proceed with the full plan** — P0 security + P1 major+migration (one at a time, only the API-forced app-code changes) + P2 safe batch. A package that fails its test/build is marked `blocked` and the run continues (`result: partial`); its `06-verify.md` deferrals reuse the runtime-evidence hatch. Never audit-only, never hand-edit lockfiles, never mix a security update with a major migration in one commit. | A substantive `06-verify.md` failure unresolved (same rule as `verify`), or a slug-wide review that returns `dont-ship` / an unfixable security blocker. |
 | branch posture (`dedicated` only) | Land the tree on the slug branch **before any stage runs**: switch to it if it exists, else **create it from `base-branch`**. `shared`/`none` never switch. | A switch or create that would clobber uncommitted work (never stash/force), or a missing `base-branch` that blocks the create. |
-| intent-bearing decision (per [_decision-classes.md](_decision-classes.md)) | Never autonomous. | STOP: record the pending decision in the artifact + `po-answers.md` as awaiting-input, surface in the run report. |
+| intent-bearing decision (per [_decision-classes.md](_decision-classes.md)) | Never autonomous. | STOP: record the pending decision in the artifact as awaiting-input, and surface it in the run report. Record the answer of the person in the decision store. |
 | `intake` / `shape` / `design` (PO alignment) | **Never autonomous.** | Missing, `awaiting-input`, or unsettled ([design/_lane.md](design/_lane.md)) → stop, route to that key. |
-| standing steering (`steer.md`) | A preference tilts an auto-resolve; a satisfiable constraint is obeyed and logged in the stage's `steering-honored`. | A steering **veto** an otherwise-lawful autonomous action would cross. A veto outranks every auto-resolve above. |
+| standing steering (live `steer` entries) | A preference tilts an auto-resolve; a satisfiable constraint is obeyed and logged in the stage's `steering-honored`. | A steering **veto** an otherwise-lawful autonomous action would cross. A veto outranks every auto-resolve above. |
 
 Fix posture: the default action on any finding is **fix**. LOW/NITs keep a recorded defer only when the fix would reach outside the slice's diff, be non-localized, or risk a convention conflict. An unfixable finding is recorded `could-not-fix`, and is a HARD-STOP only per the `review` row.
 
 Branch posture: under `branch-strategy: dedicated`, orientation switches to the slug branch if it exists, else creates it from `base-branch`. It never stashes or force-switches: a switch or create that git refuses because uncommitted work would be lost is a HARD-STOP. A created or switched branch is reported in `outcome.branch`.
 
-Standing steering: each driven agent reads `steer.md` fresh (edits reach later agents); a crossed veto stops at `steering-checkpoint`. A steering entry `yolo` cannot honor without crossing a mandatory gate or a HARD-STOP is surfaced, never obeyed into a broken state. Steering cannot authorize shipping with an open deferral or waive a `dont-ship` verdict.
+Standing steering: each driven agent runs `decide list --kind steer` fresh (new entries reach later agents); a crossed veto stops at `steering-checkpoint`. A steering entry `yolo` cannot honor without crossing a mandatory gate or a HARD-STOP is surfaced, never obeyed into a broken state. Steering cannot authorize shipping with an open deferral or waive a `dont-ship` verdict.
 
 Deferrals: the `verify` row above is the single normative statement of `yolo`'s deferral posture; verify.md's deferral law is the underlying law. Open deferrals from earlier runs are re-challenged fresh at orientation, and the standing pile is surfaced as `outcome.deferralPressure` (open count, oldest wall, repeat-of clusters). `/wf ship` HARD-BLOCKS until every deferral is cleared.
 

@@ -36,7 +36,7 @@ Read every row before you write the stage artifact. [_requires.md](../_requires.
 | a git project (codebase, git log, existing workflow artifacts) | artifact | always | |
 | `00-index.md` | artifact | on-resume | |
 | `01-ideate.md` | artifact | on-resume | |
-| `steer.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `intake/_intake-context.md` | procedure | always | |
 | `intake/_light-index.md` | procedure | always | |
 | `intake/ideate/_lenses.md` | procedure | always | |

@@ -5,7 +5,7 @@ argument-hint: <slug> [slice-slug|reviews]
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf implement`, **stage 5 of 10**: 1·intake → 2·shape → 3·slice → 4·plan → `5·implement` → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro.
@@ -17,6 +17,15 @@ You are running `/wf implement`, **stage 5 of 10**: 1·intake → 2·shape → 3
 | Next | `/wf verify <slug> <slice-slug>` (default); skip to `/wf review <slug> <slice-slug>` if verification is trivial. |
 | Special | `/wf implement <slug> reviews` — fix the findings in `07-review-<slice-slug>.md` in parallel, per [implement/_reviews-mode.md](implement/_reviews-mode.md). Example: `/wf implement my-slug reviews`. |
 
+## Card
+
+- Build the slice in the order of its plan steps.
+- Red before green: where a step names a test, write the failing test first and see it fail.
+- Commit the code. Write the commit message in product language, per [_output-boundary.md](_output-boundary.md).
+- Resolve a small drift from the plan inside the scope, and record it in the implement artifact.
+- Settle an implementation-detail decision yourself and record it. Do not settle an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)): run `decide answered` for its key, and when no live entry answers it, return it as a question with a key, the options and a recommended option. Then finish the artifact with `status: awaiting-input`.
+- Done when the code is committed and `05-implement-<slice>.md` has `status: complete`.
+
 ## Requires
 
 Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
@@ -25,7 +34,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 |---|---|---|---|
 | `00-index.md` | artifact | always | |
 | `02-shape.md` | artifact | always | Acceptance Criteria; Non-Functional Requirements; Edge Cases / Failure Modes; Out of Scope |
-| `po-answers.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `03-slice-<slice>.md` | artifact | always | |
 | `04-plan-<slice>.md` | artifact | always | |
 | `04-plan.md` | artifact | mode:change | |

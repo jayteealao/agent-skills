@@ -5,7 +5,7 @@ argument-hint: <slug> [slice]
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf verify`, **stage 6 of 10**: 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → `6·verify` → 7·review → 8·handoff → 9·ship → 10·retro.
@@ -20,6 +20,14 @@ You are running `/wf verify`, **stage 6 of 10**: 1·intake → 2·shape → 3·s
 | Next | `/wf review <slug> <selected-slice>` when `result: pass` and `convergence:` is `not-needed` or `converged`. When `convergence: escalated`, re-invoke `/wf verify <slug> <selected-slice>` for a second round or escalate to `/wf implement <slug> <selected-slice>`. |
 | Skip-to | `/wf handoff <slug> <slice>` when review is unnecessary (solo project, trivial change, external peer review); valid only when `result: pass`. |
 
+## Card
+
+- Check every acceptance criterion and every check of the plan. Fix each fixable issue in one fix round, and record it in `## Verify-Owned Fixes`.
+- Defer an acceptance criterion only over a probed incapability, per [verify/_deferrals.md](verify/_deferrals.md). The deferral holds the probe command of this run and its output.
+- A behavior that you drove and saw wrong is `result: fail`. It is never a deferral.
+- Set the terminal state honestly: `convergence` and `result`.
+- Done when `06-verify-<slice>.md` records the result of every acceptance criterion.
+
 ## Requires
 
 Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
@@ -30,7 +38,7 @@ Mode `user-observable`: the slice has a user-observable AC (the Step 7.5 partiti
 |---|---|---|---|
 | `00-index.md` | artifact | always | |
 | `02-shape.md` | artifact | always | Acceptance Criteria; Non-Functional Requirements; Edge Cases / Failure Modes; Out of Scope |
-| `po-answers.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `03-slice-<slice>.md` | artifact | always | |
 | `04-plan-<slice>.md` | artifact | always | |
 | `05-implement-<slice>.md` | artifact | always | |

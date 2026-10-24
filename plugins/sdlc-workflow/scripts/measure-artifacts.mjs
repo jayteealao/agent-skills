@@ -4,7 +4,7 @@
 // One meter for five measures of how agents use workflow artifacts:
 //   (a) yolo    — which files each yolo stage agent (plan, implement, verify,
 //                 review) read: its own reference, the artifact before it,
-//                 02-shape.md, po-answers.md, its `_artifact.md` and the other
+//                 02-shape.md, the decisions, its `_artifact.md` and the other
 //                 procedure files its reference orders.
 //   (b) reads   — reads refused as too large, and partial (offset/limit) reads,
 //                 across every session that read a workflow artifact.
@@ -105,6 +105,7 @@ export function normalizePath(p) {
 /** The artifact family of a workflow file basename. */
 export function stemOf(name) {
   if (name === 'po-answers.md') return 'po-answers';
+  if (name === 'decisions.yaml') return 'decisions';
   if (/\.explainer\.html\.fragment$/.test(name)) return 'explainer';
   if (/\.(fragment|html)$/.test(name)) return 'view';
   if (/\.ya?ml$/.test(name)) return 'sibling-yaml';
@@ -128,7 +129,7 @@ export function classifyPath(raw) {
   const ref = p.match(/(?:^|\/)skills\/wf\/reference\/(.+\.md)$/) || p.match(/(?:^|\/)reference\/(.+\.md)$/);
   if (ref) return { kind: 'reference', ref: ref[1] };
   const name = p.split('/').pop();
-  if (/^\d\d[a-z]?-[a-z][a-z0-9.-]*\.(md|ya?ml|fragment)$/i.test(name) || name === 'po-answers.md') {
+  if (/^\d\d[a-z]?-[a-z][a-z0-9.-]*\.(md|ya?ml|fragment)$/i.test(name) || name === 'po-answers.md' || name === 'decisions.yaml') {
     if (/(^|\/)(docs|node_modules|tests?|fixtures?)\//.test(p)) return null;
     return { kind: 'artifact', slug: null, name, stem: stemOf(name) };
   }
@@ -368,7 +369,7 @@ export function yoloCoverage(s) {
     ownPartial: s.partialRefs.has(own),
     adjacent: arts.some((a) => a.startsWith(want.adjacent)),
     shape: arts.includes('02-shape.md'),
-    po: arts.includes('po-answers.md'),
+    po: arts.includes('po-answers.md') || arts.includes('decisions.yaml'),
     template: want.template ? hasRef(want.template) : null,
     procedures: Object.fromEntries(want.procedures.map((p) => [p, hasRef(p)])),
     artifactTokens: Math.round(s.artifactReadChars / 4),

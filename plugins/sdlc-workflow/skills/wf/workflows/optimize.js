@@ -36,7 +36,7 @@ const OPUS = { model: 'claude-opus-5-5', effort: 'medium' }
 const SCRIPT = `${referenceRoot}/../scripts/optimize.mjs`
 const WF = `${projectRoot}/.ai/workflows/${slug}`
 const JOURNAL = `${WF}/.driver-journal.jsonl`
-const STEER = `${WF}/steer.md`
+const DECIDE = `node "${referenceRoot}/../scripts/wf.mjs" decide`
 const HYP_DIR = `${projectRoot}/.scratch/optimize/${slug}`
 const RUN = OPT.runId || `${slug}-optimize`
 const cmd = (sub, rest = '') => `node "${SCRIPT}" ${sub} "${projectRoot}" ${slug}${rest ? ` ${rest}` : ''}`
@@ -62,8 +62,8 @@ function heartbeat(label, phaseName) {
     `append never changes what you do.`
 }
 
-const steering = `\n\nSTANDING STEERING. The person keeps standing instructions for this workflow in ${STEER}. Read the file ` +
-  `NOW with the file-read tool when it exists, and keep your work inside its entries. An entry never widens ` +
+const steering = `\n\nSTANDING STEERING. The person keeps standing instructions for this workflow in its decision store. Run ` +
+  `\`${DECIDE} list "${projectRoot}" ${slug} --kind steer\` NOW, and keep your work inside the entries it prints. An entry never widens ` +
   `allowed-paths and never permits an edit of an off-limits path.`
 
 // ---------------------------------------------------------------------------

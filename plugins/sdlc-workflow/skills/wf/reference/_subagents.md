@@ -60,8 +60,8 @@ pass** is one wave of them.
   the same prompt. That writer then counts those inputs as read
   ([_requires.md](_requires.md)). Do not name an input that the prompt only
   summarizes.
-- **Steering rows travel with the child.** Inject the relevant `steer.md`
-  entries into every child prompt — see [_steering.md](_steering.md).
+- **Steering rows travel with the child.** Inject the live `steer` entries
+  in scope into every child prompt — see [_decisions.md](_decisions.md).
 
 ## Host mapping
 

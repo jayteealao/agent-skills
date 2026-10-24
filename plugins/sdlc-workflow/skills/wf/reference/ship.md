@@ -5,7 +5,7 @@ argument-hint: <slug|pr#N|branch> [environment|announce|rollback] [<run-id>]
 
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces.
 
-> **Standing steering (steer.md).** Only when the workflow has a `steer.md`: read it, and apply [_steering.md](_steering.md). Honor the user's standing instructions, never
+> **Standing steer.** Only when the decision store holds a live `steer` entry (`decide list --kind steer`, per [_decisions.md](_decisions.md)): apply it. Honor the user's standing instructions, never
 > above a mandatory gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `/wf ship`, **stage 9 of 10**: 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → `9·ship` → 10·retro.
@@ -15,6 +15,13 @@ You are running `/wf ship`, **stage 9 of 10**: 1·intake → 2·shape → 3·sli
 | Requires | See [## Requires](#requires). The gate needs `readiness-verdict: ready` (single-slug) or `pr-readiness-verdict: ready` (batch) in `08-handoff.md`. |
 | Produces | `09-ship-run-<run-id>.md` (per release, on the lead slug), plus a refreshed `09-ship-runs.md` per roster slug (followers carry a `shipped-via` pointer). Legacy `09-ship.md` is read-only. Schemas: [ship/_run-artifact.md](ship/_run-artifact.md). |
 | Next | `/wf retro <slug>` (go) or `/wf implement <slug> <slice>` (blockers) |
+
+## Card
+
+- Follow `.ai/ship-plan.md` as a contract. Do not edit it.
+- Each step can run again. A step that is already done is a no-op and a note.
+- Do not fix code. When a blocker needs a code change, route to implement.
+- Do not ship while a runtime-evidence deferral is open.
 
 ## Requires
 
@@ -26,7 +33,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `00-index.md` | artifact | always | |
 | `08-handoff.md` | artifact | always | |
 | `07-review-*.yaml` | artifact | always | |
-| `po-answers.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `09-ship-run-*.md` | artifact | on-resume | |
 | `_ship-plan-readiness.md` | procedure | always | |
 | `ship/_run-artifact.md` | procedure | always | |
@@ -78,7 +85,7 @@ Apply [_workflow-rules.md](_workflow-rules.md). Ship-specific rules:
    | **Stakeholder/compliance overrides** | `plan`'s sign-off list | Step 3.3 |
    | **Post-release base push** — go/no-go for `git push origin <base-branch>` | `plan.post-release-version != none` | Step 10.3 |
 
-   Record every answer in `po-answers.md` (`stage: ship`, with the `run-id`) and stamp them into the run's frontmatter as `prefetched-answers:`. Steps 1.2, 3.1–3.3, and 10.3 consume those answers instead of re-asking. What stays where it is: the **Go/No-Go** after pre-flight and CI, a merge-path fallback after a failed merge, and any recovery-playbook step offered on a step-8 failure are decisions about something that has happened.
+   Record every answer with `decide add --stage ship` per [_decisions.md](_decisions.md), with the `run-id` in the answer text, and stamp them into the run's frontmatter as `prefetched-answers:`. Steps 1.2, 3.1–3.3, and 10.3 consume those answers instead of re-asking. What stays where it is: the **Go/No-Go** after pre-flight and CI, a merge-path fallback after a failed merge, and any recovery-playbook step offered on a step-8 failure are decisions about something that has happened.
 9b. **Generate `run-id`** (UTC compact ISO-8601 `<yyyymmdd>T<hhmm>Z`, real time per [_timestamp.md](_timestamp.md)); it is the filename suffix and the `run-id` field. In batch mode there is ONE run-id for the whole branch.
 10. **Carry forward** `open-questions` from the index (union across roster slugs in batch mode).
 
@@ -137,7 +144,7 @@ Skip if `go-nogo`, `rollout-strategy`, and `merge-strategy` are already set. 3.1
 
 3.1 **Rollout-strategy.** Default is `plan.rollout-strategy`. Fallback: a single-select gate question per [_gate-question.md](_gate-question.md), header "Rollout", question "Confirm rollout strategy for this release?", options built from the plan plus an "Override" choice.
 3.2 **Release window** (freeform): timing, blackout windows, on-call coverage.
-3.3 **Stakeholder/compliance overrides for this run** (freeform): sign-off required beyond the plan's list? Append all answers to `po-answers.md` with `stage: ship` and the `run-id`.
+3.3 **Stakeholder/compliance overrides for this run** (freeform): sign-off required beyond the plan's list? Record all answers with `decide add --stage ship` per [_decisions.md](_decisions.md), with the `run-id` in the answer text.
 
 ## Step 4 — Freshness pass, delta only
 

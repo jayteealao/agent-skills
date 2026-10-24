@@ -1,6 +1,6 @@
 # Verify sub-agent charters
 
-`verify.md` Step 4 dispatches these charters per [../_subagents.md](../_subagents.md). Children may build, boot, and drive; they never edit source. Each returns evidence; the parent composes the artifact and the verdict. Inject the active `steer.md` entries into every prompt ([../_steering.md](../_steering.md)).
+`verify.md` Step 4 dispatches these charters per [../_subagents.md](../_subagents.md). Children may build, boot, and drive; they never edit source. Each returns evidence; the parent composes the artifact and the verdict. Inject the live `steer` entries in scope into every prompt ([../_decisions.md](../_decisions.md)).
 
 This file holds sub-agents 1, 2, and 5. Two charters have their own file, because they apply only in some runs:
 

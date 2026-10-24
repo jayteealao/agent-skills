@@ -49,6 +49,7 @@ export const PRODUCERS = [
   // handoff config keys (`public-surface`, `review-bots`, `pre-push-checks`, ...).
   { match: /^00-index\.md$/, templates: ['intake/default/_artifact.md', 'handoff/_handoff-config.md', 'intake/rca.md', 'intake/adopt.md', 'intake/brainstorm.md', 'intake/ideate.md', 'intake/investigate.md', 'intake/discover.md', 'intake/_change-mode-tail.md', 'intake/_light-index.md'] },
   { match: /^po-answers\.md$/, templates: ['intake/default/_artifact.md'] },
+  { match: /^decisions\.yaml$/, templates: ['_decisions.md'] },
   // Intake mode leads (01-<mode>.md).
   { match: /^01-intake\.md$/, templates: ['intake/default/_artifact.md'] },
   { match: /^01-rca\.md$/, templates: ['intake/rca/_artifact.md', 'intake/rca.md'] },

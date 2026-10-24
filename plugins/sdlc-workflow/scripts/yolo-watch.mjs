@@ -64,6 +64,7 @@ import { fileURLToPath } from 'node:url';
 import {
   AGENT_SILENT_MS, STAGE_KINDS, STAGE_FILE, STALE_FLOOR_MS, applyLines, decisionSignalOf, frontmatterField, judgeSilence, liveLimitMs, stageOf,
 } from '../lib/live-events.mjs';
+import { decisionsOf, liveDecisions } from '../lib/decisions.mjs';
 
 // The event rules live in lib/live-events.mjs, shared with the live view of the mod (WF-LIVE-VIEWS-PLAN M2).
 export { STAGE_KINDS, frontmatterField, judgeSilence, liveLimitMs, stageOf };
@@ -286,7 +287,8 @@ export function decisionSignal(file) {
 
 // ---------------------------------------------------------------------------
 // Protected files (S5): the config list, PRODUCT.md and DESIGN.md, the paths a
-// steer.md line protects, and every file with uncommitted edits at run start.
+// live steer entry of the decision store protects, and every file with
+// uncommitted edits at run start.
 // ---------------------------------------------------------------------------
 const PROTECT_LINE = /\b(protect(?:ed)?|do not (?:touch|edit|change|modify)|don't (?:touch|edit|change|modify)|never (?:touch|edit|change|modify))\b/i;
 
@@ -334,7 +336,9 @@ export function isLinkedWorktree(root) {
 export function protectedSet(root, slugs, cfg) {
   const set = new Set([...DEFAULT_PROTECTED, ...cfg.protectedFiles]);
   for (const slug of slugs) {
-    try { for (const p of steerProtectedPaths(readFileSync(path.join(workflowDir(root, slug), 'steer.md'), 'utf8'))) set.add(p); } catch { /* no steer.md */ }
+    let steer = [];
+    try { steer = liveDecisions(decisionsOf(workflowDir(root, slug)), {}, { kind: 'steer' }); } catch { /* an unreadable store protects nothing */ }
+    for (const p of steerProtectedPaths(steer.map((e) => e.answer).join('\n'))) set.add(p);
   }
   // In a linked worktree, a file that is dirty at the start is not the person's edit.
   const dirty = isLinkedWorktree(root) ? [] : dirtyFiles(root);

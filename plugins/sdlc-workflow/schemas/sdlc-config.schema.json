@@ -63,41 +63,31 @@
     "models": {
       "type": "object",
       "additionalProperties": false,
-      "description": "WF-SYSTEM-REVIEW C1: the model of each stage agent of the /wf yolo and campaign wave drivers. A stage that is not named runs on Opus, the default. Read at launch and passed in the driver args.",
+      "description": "The model of each stage agent of the /wf yolo driver. A stage names any model that the host can run: an alias (`opus`, `sonnet`, `haiku`) or a model id, for example `claude-fable-5-1`. A stage that is not named runs on Opus, the default. Read at launch and passed in the driver args.",
       "properties": {
         "plan": {
-          "enum": [
-            "opus",
-            "sonnet"
-          ],
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@[\\]-]*$",
           "description": "The plan stage agent."
         },
         "implement": {
-          "enum": [
-            "opus",
-            "sonnet"
-          ],
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@[\\]-]*$",
           "description": "The implement stage agent. The A/B of 2026-10-16 passed Sonnet here."
         },
         "verify": {
-          "enum": [
-            "opus",
-            "sonnet"
-          ],
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@[\\]-]*$",
           "description": "The verify stage agent."
         },
         "review": {
-          "enum": [
-            "opus",
-            "sonnet"
-          ],
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@[\\]-]*$",
           "description": "The review writer."
         },
         "update-deps": {
-          "enum": [
-            "opus",
-            "sonnet"
-          ],
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@[\\]-]*$",
           "description": "The update-deps execution agent (yolo)."
         }
       }
@@ -127,6 +117,78 @@
           },
           "default": [],
           "description": "Repo-relative paths that the watch hashes every 20 seconds. A change gives a protected-change event and a push notification. PRODUCT.md, DESIGN.md, and every file with uncommitted edits when the run starts are always protected."
+        }
+      }
+    },
+    "testProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The test suites of the project and their times. Intake estimates them without a run. A slice runs the fast and affected suites only; the full and heavy suites run once per packet, after the review fixes. The time box of a stage agent comes from these times.",
+      "properties": {
+        "fast": {
+          "$ref": "#/$defs/suite"
+        },
+        "affected": {
+          "$ref": "#/$defs/suite"
+        },
+        "full": {
+          "$ref": "#/$defs/suite"
+        },
+        "heavy": {
+          "$ref": "#/$defs/suite"
+        }
+      }
+    },
+    "devices": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The devices that verify may drive. Verify uses an emulator or a simulator by default, and never drives a device that is not named here.",
+      "properties": {
+        "test": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": [],
+          "description": "The ids of the physical devices that are for testing, for example an adb serial or a simulator UDID."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "suite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command"
+      ],
+      "description": "One test suite of the project: the command that runs it, the estimate of intake, and the last measured time.",
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The command that runs the suite. For the affected suite, `{files}` stands for the changed files."
+        },
+        "estimateSeconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The time that intake estimates for one run, without a run."
+        },
+        "measuredSeconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "The time of the last real run. It replaces the estimate. `wf.mjs profile record` writes it."
+        },
+        "measuredAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "When the last real run ended."
         }
       }
     }

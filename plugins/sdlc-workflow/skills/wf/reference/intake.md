@@ -13,6 +13,13 @@ Your job: parse the invocation, resolve the **mode** and the **shape** (maintena
 >
 > `wf/SKILL.md` Step 0 runs `/wf intake <mode> …` with no slug without this file (the intake fast path).
 
+## Card
+
+- Restate the request. Record the intended outcome, the known constraints, the risks if misunderstood (the RIM ledger) and the charter.
+- Do not design, plan or build the solution.
+- Ask the person the open questions, and record each answer per [_decisions.md](_decisions.md).
+- Done when `01-intake.md` and `00-index.md` are written and `next-invocation` names the next stage.
+
 ## Requires
 
 Read every row before you run the mode reference. [_requires.md](_requires.md) defines the check. The mode reference owns its own table and its `writes` rows.

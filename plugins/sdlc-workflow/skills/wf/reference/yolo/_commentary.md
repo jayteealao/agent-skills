@@ -106,7 +106,7 @@ The person can stop the run at a stage boundary, for example "stop after the cur
    ```
 
 2. Tell the person in one line where the run stops. The agent that starts the next stage reads `.ai/workflows/<slug>/.control.json`. When the request holds, the agent does no work, and the driver ends with `stoppedAt: stop-request`.
-3. When the person adds a steering change in the same message, transcribe the change into `steer.md` per [../_steering.md](../_steering.md). The next run reads it. A stop request is a control signal, not steering: it says when the driver ends, not how a stage works.
+3. When the person adds a steering change in the same message, record the person's exact words with `decide add --kind steer` per [../_decisions.md](../_decisions.md). The next run reads it. A stop request is a control signal, not steering: it says when the driver ends, not how a stage works.
 4. When the run ends with `stoppedAt: stop-request`, delete the request:
 
    ```

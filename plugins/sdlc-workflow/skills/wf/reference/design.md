@@ -13,6 +13,13 @@ You are running `/wf design`. It has three jobs:
 2. **The design record.** The project-level design memory: identity, system, current design, direction. [design/record.md](design/record.md) defines it and its upkeep commands.
 3. **On-demand design review.** `audit` and `critique` run the same logic as the `design-audit` and `design-critique` review dimensions.
 
+## Card
+
+- This stage is for a person only. A driver never runs it.
+- Draw one board for each surface that changes. Get the confirmation of the person. Freeze the confirmed boards, and write the visual contract `02c-craft.md`.
+- Do not decide a visual question for the person.
+- Done when every changed surface has a frozen board and `02c-craft.md` is written.
+
 ## Requires
 
 Read every row before you write the stage artifact. [_requires.md](_requires.md) defines the check.
@@ -22,7 +29,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `00-index.md` | artifact | always | |
 | `02-shape.md` | artifact | always | |
 | `02b-design.md` | artifact | if-present | |
-| `po-answers.md` | artifact | if-present | |
+| `decisions.yaml` | artifact | if-present | |
 | `brainstorm-board-design.json` | artifact | if-present | |
 | the origin brainstorm board named by origin-brainstorm | artifact | mode:stage | |
 | `06-verify-*.md` | artifact | mode:audit | Accessibility Gate; Performance Gate |
