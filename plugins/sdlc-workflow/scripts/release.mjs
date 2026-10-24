@@ -213,6 +213,14 @@ function replaceFirstVersion(text, version) {
 
 // ---------------------------------------------------------------- steps
 
+function runGates(ctx, when = '') {
+  for (const [name, args] of ctx.gates) {
+    const r = ctx.run(process.execPath, args, { cwd: ctx.root });
+    if (r.status !== 0) stop(`the ${name} gate failed${when}:\n${(r.stderr || r.stdout).trim().split('\n').slice(-15).join('\n')}`);
+    ctx.log(`[release]   gate ${name}${when}: OK`);
+  }
+}
+
 function preflight(ctx, state) {
   const head = ctx.mustGit('rev-parse', '--abbrev-ref', 'HEAD');
   if (head !== ctx.branch) stop(`HEAD is on ${head}: release only from ${ctx.branch}`);
@@ -221,11 +229,7 @@ function preflight(ctx, state) {
   if (!ctx.git('merge-base', '--is-ancestor', upstream, 'HEAD').ok) stop(`HEAD is behind ${upstream}: merge it first`);
   const dirty = OWNED.filter((rel) => existsSync(join(ctx.root, rel)) && !cleanPath(ctx, rel));
   if (dirty.length) stop(`the release writes these paths, and they have uncommitted changes: ${dirty.join(', ')}`);
-  for (const [name, args] of ctx.gates) {
-    const r = ctx.run(process.execPath, args, { cwd: ctx.root });
-    if (r.status !== 0) stop(`the ${name} gate failed:\n${(r.stderr || r.stdout).trim().split('\n').slice(-15).join('\n')}`);
-    ctx.log(`[release]   gate ${name}: OK`);
-  }
+  runGates(ctx);
   const ci = ctx.checkCi(ctx);
   if (!ci.ok) stop(ci.reason);
   ctx.log(`[release]   CI: ${ci.reason}`);
@@ -323,6 +327,8 @@ function publish(ctx, state) {
   else {
     const paths = state.paths ?? [];
     if (!paths.length) stop('the release changed no path: nothing to commit');
+    // A test can depend on the version, so the gates run again on the prepared tree before anything is committed or pushed.
+    runGates(ctx, ` at v${state.version}`);
     ctx.mustGit('add', '--', ...paths.filter((rel) => existsSync(join(ctx.root, rel))));
     ctx.mustGit('commit', '--quiet', '-m', subject, '--only', '--', ...paths);
     commit = ctx.mustGit('rev-parse', 'HEAD');

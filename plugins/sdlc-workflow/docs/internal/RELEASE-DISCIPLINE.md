@@ -38,7 +38,8 @@ commit, tag or push.
    the release ships. Each plan in `docs/internal/` whose Status line names
    SHIPPED or BUILT at this version or before moves to `docs/internal/archived/`,
    and the links to it and from it are rewritten.
-3. **publish.** One commit, `release(sdlc-workflow): vX.Y.Z`, holds those paths
+3. **publish.** The gates run again on the prepared tree, because a test can
+   depend on the version. One commit, `release(sdlc-workflow): vX.Y.Z`, holds those paths
    only. An annotated tag `vX.Y.Z` names it. The command pushes `master` and
    the tag.
 4. **delivered.** `origin/master` has the release commit, and the remote has

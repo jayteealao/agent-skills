@@ -109,6 +109,12 @@ test('release next: end to end, with a stop at a gate and a stop at doctor, each
     assert.ok(existsSync(path.join(root, STATE_FILE)), 'the state file keeps the target version');
     await assert.rejects(release('minor', { ...quiet, root, gates: [], doctor: doctorOk }), /a next release of v10\.0\.0-next\.0 is in progress/);
 
+    // A gate that fails only at the new version stops the run after prepare, before any commit or push.
+    const versionGate = [['versioned', ['-e', "process.exit(require('fs').readFileSync('package.json', 'utf8').includes('-next.') ? 3 : 0)"]]];
+    await assert.rejects(release('next', { ...quiet, root, gates: versionGate, doctor: doctorOk }), /the versioned gate failed at v10\.0\.0-next\.0/);
+    assert.equal(git(work, 'rev-parse', 'HEAD'), source, 'nothing is committed');
+    assert.equal(git(remote, 'rev-parse', 'master'), source, 'nothing is pushed');
+
     // The resumed run passes the gates, then stops at doctor after the push.
     await assert.rejects(release('next', { ...quiet, root, gates: [], doctor: () => ({ ...doctorOk(), ok: false }) }), /doctor/);
     const commit = git(work, 'rev-parse', 'HEAD');

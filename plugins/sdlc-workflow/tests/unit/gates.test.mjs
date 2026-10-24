@@ -81,5 +81,5 @@ test('release-versions gate: one version on every carrier, both root catalogs on
   const { checkVersions } = await import('../../scripts/verify-release-versions.mjs');
   const r = checkVersions();
   assert.deepEqual(r.problems, []);
-  assert.match(r.version, /^\d+\.\d+\.\d+$/);
+  assert.match(r.version, /^\d+\.\d+\.\d+(-next\.\d+)?$/);
 });
