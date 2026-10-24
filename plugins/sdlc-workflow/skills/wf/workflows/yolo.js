@@ -80,7 +80,6 @@ const SPLIT_AFTER_STOPS = 2
 // WF-SYSTEM-REVIEW C6: one refuter checks up to REFUTE_GROUP_SIZE findings of one rubric, so
 // it pays its cold start once for several findings. Over `limit` refuters, the groups grow.
 const REFUTE_GROUP_SIZE = 4
-// ---- BEGIN SHARED: generated from _shared.js by scripts/build-drivers.mjs. Edit _shared.js, then run npm run build. ----
 function refuteGroups(raw, limit) {
   for (let size = REFUTE_GROUP_SIZE; ; size++) {
     const byRubric = new Map()
@@ -758,7 +757,6 @@ function amendFindingsText(list) {
   return (list || []).map(f => `${f.key} (${f.severity || '?'}): ${String(f.summary || '').slice(0, 160)}` +
     `${f.contract ? ` [against ${String(f.contract).slice(0, 160)}]` : ''}`).join('; ')
 }
-// ---- END SHARED ----
 
 
 
@@ -857,7 +855,7 @@ const steer = (role) => steeringClause(STEER_PATH, role, `${referenceRoot}/_stee
 // script cannot read the file, so the agent that starts each stage reads it, fresh,
 // by path (as it reads steer.md). When the request holds, the agent does no work
 // and returns status 'stopped', and the driver ends cleanly with stoppedAt
-// 'stop-request' (or 'usage-pause' for a pause). Only stage-boundary agents check:
+// 'stop-request'. Only stage-boundary agents check:
 // a stop never lands inside a verify fix round or between the review scouts.
 // A stop request is a control signal, not steering: it says WHEN the driver ends,
 // never HOW a stage works.
@@ -868,25 +866,20 @@ function stopCheckClause(controlPath, journalPath) {
   return `\n\nSTOP-REQUEST CHECK (before any other work, after the start heartbeat when this prompt asks for ` +
     `one). Read ` +
     `${controlPath} now, fresh, with the file-read tool. When the file is absent, continue normally. When it does ` +
-    `not parse as JSON, read it once more; when it still does not parse, treat it as {"action":"pause"}. A request in ` +
+    `not parse as JSON, read it once more; when it still does not parse, treat it as {"action":"stop","after":"current"}. A request in ` +
     `that file always applies. ` +
     `Stop when one of these holds for a request that applies:\n` +
     `  (a) "action" is "stop" and "after" is "current";\n` +
     `  (b) "action" is "stop", "after" names a stage (plan, implement, verify, review), and ${journalPath} holds ` +
     `an "agent-end" line for that stage (its "stage" field, or its "agent" label before the first ':') whose "at" ` +
-    `is later than the request's "requestedAt";\n` +
-    `  (c) "action" is "pause" and "until" is absent or later than now.\n` +
+    `is later than the request's "requestedAt".\n` +
     `To stop: do no stage work, write no artifact, and edit no file except your heartbeat lines. Return ` +
-    `status 'stopped', stopKind ('stop' for a stop request, 'pause' for a pause), stopReason quoting the request, ` +
+    `status 'stopped', stopReason quoting the request, ` +
     `the stage and slice you were asked to run, artifactPath '' and terminal {}. Never edit or delete a control ` +
     `file: the main session owns it. When no condition holds, continue normally and do not mention the file.`
 }
 const stopCheck = () => stopCheckClause(CONTROL_PATH, JOURNAL_PATH)
 
-// stopKindOf() — the outcome's stoppedAt for an agent that honored a stop request.
-function stopKindOf(res) {
-  return res && res.stopKind === 'pause' ? 'usage-pause' : 'stop-request'
-}
 
 
 
@@ -1185,7 +1178,6 @@ const STAGE_RESULT = {
     status: { enum: ['complete', 'hard-stop', 'stopped'] },
     // E4: the slice-status mirror that the verify agent did as its last step.
     sliceWriteBack: { type: 'object', properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } },
-    stopKind: { enum: ['stop', 'pause'] },
     stopReason: { type: 'string' },
     artifactPath: { type: 'string' },
     terminal: {
@@ -1302,7 +1294,6 @@ const RUBRIC_SELECTION = {
     steeringPresent: { type: 'boolean' },
     // The stop-request check runs here, at the review boundary, before any scout starts.
     stopped: { type: 'boolean' },
-    stopKind: { enum: ['stop', 'pause'] },
     stopReason: { type: 'string' },
   },
 }
@@ -2013,12 +2004,12 @@ async function driveReview(sliceArg, idx) {
     `path relative to ${referenceRoot} (review/<name>.md, or design/audit.md / design/critique.md for the two ` +
     `design dimensions) and focus is the alias section to read, or empty for the whole rubric. Return ` +
     `steeringPresent: true when ${STEER_PATH} exists with at least one entry, false otherwise.` + steer('context') +
-    stopCheck() + ` When the stop-request check stops you, return rubrics: [], stopped: true, stopKind and ` +
+    stopCheck() + ` When the stop-request check stops you, return rubrics: [], stopped: true and ` +
     `stopReason; otherwise return stopped: false.`,
     { schema: RUBRIC_SELECTION, label: 'select-rubrics', phase: 'Review', ...SONNET }
   )
   if (selection && selection.stopped === true) {
-    return { stage: 'review', slice: sliceArg || undefined, status: 'stopped', stopKind: selection.stopKind || 'stop', stopReason: selection.stopReason || 'stop request', artifactPath: '', terminal: {} }
+    return { stage: 'review', slice: sliceArg || undefined, status: 'stopped', stopReason: selection.stopReason || 'stop request', artifactPath: '', terminal: {} }
   }
   const rubrics = (selection && Array.isArray(selection.rubrics) && selection.rubrics.length)
     ? selection.rubrics.filter(r => r && r.rubric && r.file)
@@ -2162,7 +2153,7 @@ async function driveUpdateDeps(idx) {
     // W3.3 — same corrective classification round the per-slice chain runs.
     if (exec && Array.isArray(exec.decisions) && exec.decisions.length) exec = await classifyDecisions(exec, idx)
     if (exec && exec.status === 'stopped') {
-      return { ok: false, mode: 'update-deps', stopped: true, stoppedAt: stopKindOf(exec), reason: exec.stopReason || 'stop request', ran, route: `/wf yolo ${slug}` }
+      return { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'stop-request', reason: exec.stopReason || 'stop request', ran, route: `/wf yolo ${slug}` }
     }
     ran.push(exec)
     if (!exec || exec.status === 'hard-stop') {
@@ -2184,7 +2175,7 @@ async function driveUpdateDeps(idx) {
   log(`yolo → review ${slug} (slug-wide, update-deps)`)
   let rev = await driveReview(null, idx)
   if (rev && rev.status === 'stopped') {
-    return { ok: false, mode: 'update-deps', stopped: true, stoppedAt: stopKindOf(rev), reason: rev.stopReason || 'stop request', ran, route: `/wf yolo ${slug}` }
+    return { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'stop-request', reason: rev.stopReason || 'stop request', ran, route: `/wf yolo ${slug}` }
   }
   if (rev && Array.isArray(rev.decisions) && rev.decisions.length) rev = await classifyDecisions(rev, idx)
   ran.push(rev)
@@ -2331,7 +2322,7 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     // G2 — the stage agent found a stop or pause request and did no work. The stage did
     // not run, so it joins neither ran nor the write-back; the resume runs it again.
     if (res && res.status === 'stopped') {
-      return { stopped: true, at: stopKindOf(res), slice: sliceArg, ran, stopRequest: true, reason: `${res.stopReason || 'stop request'} — stopped before ${stage}:${sliceArg}` }
+      return { stopped: true, at: 'stop-request', slice: sliceArg, ran, stopRequest: true, reason: `${res.stopReason || 'stop request'} — stopped before ${stage}:${sliceArg}` }
     }
     // W3.3 — one corrective classification round for decisions the stage left
     // unstamped. Read-only and cheap; never re-runs the stage itself.
@@ -2819,7 +2810,7 @@ if (reconcileStop) {
       const rev = await driveReview(null, idx)
       const stopped = !rev || rev.status === 'hard-stop' || evaluateGate('review', rev) === 'hard-stop'
       outcome = rev && rev.status === 'stopped'
-        ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: stopKindOf(rev), reason: `${rev.stopReason || 'stop request'} — stopped before the slug-wide review`, results, route: `/wf yolo ${slug}` }
+        ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'stop-request', reason: `${rev.stopReason || 'stop request'} — stopped before the slug-wide review`, results, route: `/wf yolo ${slug}` }
         : amendFindingsOf(rev).length
         ? { ok: false, mode: 'slug', reviewScope: 'slug-wide', stopped: true, stoppedAt: 'review', reason: amendStopReason(rev), amendFindings: amendFindingsOf(rev), results, slugWide: rev, route: `/wf design ${slug} amend` }
         : stopped
@@ -2898,7 +2889,7 @@ if (planReconcile) {
   }
 }
 // A3 — the last agent writes the run-end line, with the stop and its reason.
-const cleanStop = outcome.stoppedAt === 'stop-request' || outcome.stoppedAt === 'usage-pause'
+const cleanStop = outcome.stoppedAt === 'stop-request'
 await runEnd(outcome.stopped ? (outcome.stoppedAt || 'stopped') : null, outcome.stopped && !cleanStop ? outcome.reason : null)
 // W11.1 — decision digest: every autonomous decision this run recorded, grouped by W4 class,
 // so the human's post-run inspection is structured, not archaeological.
@@ -2919,11 +2910,11 @@ if (steering) {
   outcome.steering = steering
   log(`steering (${STEER_PATH}): ${steering.honored.length} honored, ${steering.conflicts.length} stage stop(s) on a conflict, ${steering.violations.length} checkpoint violation(s)${steering.conflicts.length ? ` — ${steering.conflicts.map(c => `${c.stage}${c.slice ? ':' + c.slice : ''} "${c.entry}"`).join('; ')}` : ''}`)
 }
-// G2/G3 — a stop request or a pause is a clean end, not a HARD-STOP. The resume command
+// G2/G3 — a stop request is a clean end, not a HARD-STOP. The resume command
 // is the route; the main session deletes the control file and reports the stop.
-if (outcome.stoppedAt === 'stop-request' || outcome.stoppedAt === 'usage-pause') {
+if (outcome.stoppedAt === 'stop-request') {
   outcome.stopRequest = { kind: outcome.stoppedAt, controlFile: CONTROL_PATH, slice: outcome.stoppedSlice || outcome.slice || null }
   outcome.route = `/wf yolo ${slug}${slice ? ' ' + slice : ''}`
-  log(`yolo stopped on ${outcome.stoppedAt === 'usage-pause' ? 'a pause' : 'a stop request'}: ${outcome.reason} — resume with ${outcome.route}`)
+  log(`yolo stopped on a stop request: ${outcome.reason} — resume with ${outcome.route}`)
 } else log(outcome.stopped ? `yolo HARD-STOP at ${outcome.stoppedAt || 'orient'}: ${outcome.reason}` : `yolo reached the endpoint — next: ${outcome.route}`)
 return outcome

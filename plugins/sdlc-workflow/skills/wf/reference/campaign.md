@@ -23,23 +23,7 @@ A work packet has a key (`key`, the name on the board) and a slug (`packet-slug`
 ## Step 0 — Resolve, and migrate an old campaign
 
 1. The argument is the source slug. When it is empty, list the folders whose `work/index.md` has `type: list`, and ask which.
-2. Run `<cmd> status "<root>" <source-slug>`. When the result has `migrate: true`, run the migration below. When the result has `migrate: finish`, run steps 8 and 9 of the migration. Then go to step 1.
-
-### The migration
-
-The source folder has an old campaign ledger (`work/campaign/ledger.json`) and no list. Its units are the old form of work packets. The person types no command for the migration.
-
-1. Run `<cmd> migrate "<root>" <source-slug> report`. It writes `work/migration.md`. It changes no branch and deletes nothing.
-2. When the result has `live: true`, stop. Tell the person that an old wave run is live, and that it must stop first.
-3. When `blocked` is not empty, stop. List each wave PR of `blocked` that is not merged, and tell the person to merge it first. Otherwise the review and the PR of the first work packet include the earlier waves.
-4. Show the report to the person in plain words: the shipped units, the in-flight units with their branches and uncommitted files, the units that are not started, the old worktrees, and the stray folders.
-5. Run `<cmd> migrate "<root>" <source-slug> apply`. It brings the records of each in-flight unit home to the main checkout. It makes each shipped unit a `done` work packet and each in-flight unit an `open` work packet, and it puts the in-flight work packets first, in their old unit order.
-6. For each entry of `records` with `conflicts`, show the person both versions: the main version, and the worktree version under `work/campaign/records/conflicts/`. Ask which version to keep, and write the kept version in the main checkout.
-7. Regroup the units that are not started into work packets, with the person, in this session. For a brainstorm source, follow "Regroup" in [intake/brainstorm/_work.md](intake/brainstorm/_work.md). For an ideate source, follow "Regroup" in [intake/ideate.md](intake/ideate.md). The regroup confirms the whole list with the person and runs `<cmd> write`. The person can drop any work packet, an in-flight work packet too. A dropped in-flight work packet keeps its branch unmerged, and its carried decisions go back into the regroup.
-8. Run `<cmd> migrate "<root>" <source-slug> finish`. It moves the old ledger folder to `work/archive/campaign/` and each stray folder to `work/archive/stray/`. It removes each old campaign worktree that is not the worktree of an in-flight work packet, with the guarded remove.
-9. Show the person each worktree of `refused`, with its reason. The person decides what to do with it. When the entry has `ignoredAtRisk: true`, show its `ignored` files. When the person says yes, run `<cmd> remove-worktree "<root>" <source-slug> <path> --allow-ignored`.
-
-CAUTION: do not run `git worktree remove --force` on an old campaign worktree. It deletes through a `node_modules` junction into the files that the junction points to. Remove an old worktree only with `<cmd> remove-worktree "<root>" <source-slug> <path>`.
+2. Run `<cmd> status "<root>" <source-slug>`. When the result has `migrate: true`, read [campaign/_migrate.md](campaign/_migrate.md) in full and run the migration. When the result has `migrate: finish`, read the same file and run its steps 8 and 9. Then go to step 1.
 
 ## The walk
 
@@ -62,7 +46,7 @@ CAUTION: do not run `git worktree remove --force` on an old campaign worktree. I
 6. **The design is not settled.** Stop. Show `current.reason` in plain words. Tell the person to type `/wf design <packet-slug>`. When the work packet file has `design-form: design-direction`, tell the person to type `/wf design direction from <source-slug>` first. The design stage reads the carried design thoughts of the work packet ([design/_carried.md](design/_carried.md)). When the person returns, go to step 1.
 7. **Land on the list branch.** Run `<cmd> land "<root>" <source-slug>`. It switches the checkout to `packets/<source-slug>`, or creates the branch from the trunk. It never stashes and never forces. When git refuses the switch, show the person the files in the way, and ask.
 8. **Start the work packet.** Run `<cmd> start "<root>" <source-slug> <packet-key>`. It sets `base-branch` of the work packet to the end branch of the build work packet before, or to the trunk for the first build work packet. For a migrated work packet, it first commits, rebases and merges the work of the unit branch into the list branch. When the result has `conflict`, stop. Ask the person to resolve the conflict by hand, then run `start` again.
-9. **Slice the work packet.** When `03-slice.md` is absent, dispatch one subagent per [_subagents.md](_subagents.md) that follows [slice.md](slice.md) with these policy answers:
+9. **Slice the work packet.** When `03-slice.md` is absent, dispatch one subagent per [_subagents.md](_subagents.md). Its prompt tells it to run the stage in `slice.md`, with these policy answers:
    - The scope, the acceptance criteria, `ux-impact` and the stack are confirmed. Do not ask about them again.
    - Cut one slice per capability: a group of mechanisms that verify checks together. The small outcomes of the capability become the steps of its plan. A slice has fewer than 40 steps. Do not size a slice by lines.
    - Aim for 10 slices. When the work packet needs more than 14, write them and return a warning.
@@ -92,7 +76,7 @@ CAUTION: do not run `git worktree remove --force` on an old campaign worktree. I
 The handoff needs all of these:
 - each work packet is `done` or `dropped`;
 - no work packet has an unapproved fidelity row;
-- the open-RIM gate of `handoff.md` passes for each work packet.
+- the open-RIM gate of the handoff stage passes for each work packet. The handoff command runs that gate.
 
 At `done`, the `base-branch` of each work packet is the trunk again, so handoff and ship work as on any workflow. Before the handoff, set `handoff-lead: <the slug of the last done packet>` in the `00-index.md` of each done work packet.
 

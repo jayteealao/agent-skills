@@ -226,7 +226,7 @@
               "depends-on": { "$ref": "#/$defs/stringArray" },
               "source": { "type": "string" },
               "extension-round": { "type": "integer", "minimum": 1 },
-              "unit": { "type": "string", "description": "campaign only: the unit that walks the slice (campaign/_order.md, Slice order)." }
+              "unit": { "type": "string", "description": "Legacy, from the old wave campaign: the unit that walked the slice. No release writes it now." }
             }
           }
         },
@@ -575,7 +575,7 @@
               "depends-on": { "$ref": "#/$defs/stringArray" },
               "source": { "type": "string" },
               "extension-round": { "type": "integer", "minimum": 1 },
-              "unit": { "type": "string", "description": "campaign only: the unit that walks the slice (campaign/_order.md, Slice order)." }
+              "unit": { "type": "string", "description": "Legacy, from the old wave campaign: the unit that walked the slice. No release writes it now." }
             }
           }
         },

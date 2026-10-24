@@ -49,7 +49,6 @@ function chainHarness(answers) {
     const implementSlice = (slice, idx) => runStage('implement', slice, idx, { stopCheck: true })
     ${extractFn('verifyClean')}
     ${extractFn('evaluateGate')}
-    ${extractFn('stopKindOf')}
     // WF-DESIGN-PLAN B1: the review's design findings stop the chain for the person.
     ${extractFn('amendFindingsOf')}
     ${extractFn('amendFindingsText')}
@@ -72,7 +71,7 @@ function chainHarness(answers) {
 }
 
 const IDX = { slices: [{ slice: 'auth', stages: {} }], priorDeferrals: [] };
-const STOPPED = (stage, kind = 'stop') => ({ stage, slice: 'auth', status: 'stopped', stopKind: kind, stopReason: '{"action":"stop","after":"verify"}', artifactPath: '', terminal: {} });
+const STOPPED = (stage) => ({ stage, slice: 'auth', status: 'stopped', stopReason: '{"action":"stop","after":"verify"}', artifactPath: '', terminal: {} });
 
 test('a stopped stage agent ends the chain cleanly at stop-request, before the stage runs', async () => {
   const h = chainHarness({ review: STOPPED('review') });
@@ -85,19 +84,12 @@ test('a stopped stage agent ends the chain cleanly at stop-request, before the s
   assert.deepEqual(h.writeBacks, [], 'an unfinished slice is not written back as complete');
 });
 
-test('a pause ends the chain at usage-pause', async () => {
-  const h = chainHarness({ implement: STOPPED('implement', 'pause') });
-  const chain = await h.driveChain(['plan', 'implement', 'verify'], 'auth', IDX);
-  assert.equal(chain.at, 'usage-pause');
-  assert.deepEqual(chain.ran.map((r) => r.stage), ['plan']);
-});
-
 // WF-CAMPAIGN-DRIVER-PLAN W8 — the wave driver drives a campaign; yolo has no campaign wait,
 // no campaign control file and no campaign context.
 test('yolo has no campaign wait: the stop check has no condition (d), and the stage result has no wait kind', () => {
   const clause = new Function(`${extractFn('stopCheckClause')}; return stopCheckClause`)()('/r/.ai/workflows/s/.control.json', '/r/.ai/workflows/s/.driver-journal.jsonl');
   assert.doesNotMatch(clause, /\(d\)|Waits|'wait'/);
-  assert.match(src, /stopKind: \{ enum: \['stop', 'pause'\] \}/);
+  assert.doesNotMatch(src, /stopKind|usage-pause/);
   assert.doesNotMatch(src, /contextPath|campaignControlPath|waitsFor|scout:campaign-contract|campaignClause/);
 });
 
@@ -116,10 +108,10 @@ test('the stop check reads the control file by path, fresh, and never edits it',
   assert.match(clause, /Read \/r\/\.ai\/workflows\/s\/\.control\.json now, fresh/);
   assert.match(clause, /"after" is "current"/);
   assert.match(clause, /agent-end" line for that stage .* later than the request's "requestedAt"/s);
-  assert.match(clause, /"action" is "pause" and "until" is absent or later than now/);
-  assert.match(clause, /status 'stopped', stopKind/);
+  assert.doesNotMatch(clause, /"pause"/);
+  assert.match(clause, /status 'stopped', stopReason/);
   assert.match(clause, /Never edit or delete a control\s+file/);
-  assert.match(clause, /treat it as \{"action":"pause"\}/, 'an unparseable file is a pause (WF-CAMPAIGN-PLAN 17.4)');
+  assert.match(clause, /treat it as \{"action":"stop","after":"current"\}/, 'an unparseable file is a stop');
 });
 
 test('every stage boundary carries the stop check, and no fix round does', () => {
@@ -130,7 +122,7 @@ test('every stage boundary carries the stop check, and no fix round does', () =>
   assert.match(extractFn('driveReview'), /stopCheck\(\) \+ ` When the stop-request check stops you/, 'review fan-out: the rubric selection agent checks before any scout');
   assert.match(extractFn('runUpdateDepsExec'), /stopCheck\(\)/, 'update-deps exec');
   assert.match(extractFn('driveVerify'), /last\.status === 'stopped'\) return last/, 'verify passes a stop through');
-  assert.match(src, /outcome\.stoppedAt === 'stop-request' \|\| outcome\.stoppedAt === 'usage-pause'/);
+  assert.match(src, /if \(outcome\.stoppedAt === 'stop-request'\) \{/);
   assert.match(src, /outcome\.route = `\/wf yolo \$\{slug\}\$\{slice \? ' ' \+ slice : ''\}`/, 'the route is the resume command');
 });
 

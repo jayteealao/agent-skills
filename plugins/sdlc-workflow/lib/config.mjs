@@ -152,6 +152,27 @@ function clone(value) {
   return structuredClone(value);
 }
 
+/** Settings that no release reads now, as dotted paths. The loader drops each one, with one warning. */
+export const RETIRED_CONFIG_KEYS = Object.freeze(['campaign', 'yolo.usageBudget']);
+
+/** The user config without the retired settings, and the paths it dropped. */
+export function withoutRetiredKeys(userConfig, retired = RETIRED_CONFIG_KEYS) {
+  if (!userConfig || typeof userConfig !== 'object' || Array.isArray(userConfig)) return { config: userConfig, dropped: [] };
+  const config = clone(userConfig);
+  const dropped = [];
+  for (const key of retired) {
+    const parts = key.split('.');
+    let parent = config;
+    for (const part of parts.slice(0, -1)) parent = parent && typeof parent === 'object' ? parent[part] : undefined;
+    const last = parts.at(-1);
+    if (parent && typeof parent === 'object' && Object.hasOwn(parent, last)) {
+      delete parent[last];
+      dropped.push(key);
+    }
+  }
+  return { config, dropped };
+}
+
 export function deepMerge(base, override) {
   if (!override || typeof override !== 'object' || Array.isArray(override)) {
     return clone(base);
@@ -221,7 +242,11 @@ export async function loadConfigWithMeta(projectRoot = process.cwd(), {
     }
   }
 
-  const config = deepMerge(DEFAULT_SDLC_CONFIG, userConfig);
+  const retired = withoutRetiredKeys(userConfig);
+  if (retired.dropped.length > 0) {
+    warnings.push(`${configPath}: these settings are no longer read and are ignored: ${retired.dropped.join(', ')}`);
+  }
+  const config = deepMerge(DEFAULT_SDLC_CONFIG, retired.config);
   const validation = await validateConfig(config, { schemaPath });
   if (!validation.valid) {
     const message = validation.errors.map((err) => `${err.path}: ${err.message}`).join('; ');

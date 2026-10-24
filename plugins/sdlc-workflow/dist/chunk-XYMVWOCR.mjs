@@ -22,7 +22,7 @@ import {
   blockToolCall,
   isEntry,
   runStandalone
-} from "./chunk-BZC7UJKK.mjs";
+} from "./chunk-FATSKH6O.mjs";
 import {
   collectToolInputPaths,
   hasFrontmatterFence,
@@ -39,7 +39,7 @@ import {
   projectRootFromInput,
   readTextIfExists,
   resolveProjectPath
-} from "./chunk-P7Y6FJOM.mjs";
+} from "./chunk-YE4HRDEF.mjs";
 import {
   logError
 } from "./chunk-TIGAJNZN.mjs";

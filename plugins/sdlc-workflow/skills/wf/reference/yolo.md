@@ -193,7 +193,7 @@ Next: <outcome.route — the routing command>
 - **Endpoint, slice mode:** the next roster slice → `/wf yolo <slug> <next-slice>`; last slice → `/wf yolo <slug>` (slug-wide) or `/wf handoff <slug>` (per-slice).
 - **Endpoint, slug mode:** `/wf handoff <slug>`.
 - **HARD-STOP:** the gate that fired and the command to resolve it, then `/wf yolo <slug> [<slice>]` to resume.
-- **Stop request or pause** (`stoppedAt` is `stop-request` or `usage-pause`): where the run stopped, then `outcome.route`.
+- **Stop request** (`stoppedAt` is `stop-request`): where the run stopped, then `outcome.route`.
 
 Rules:
 - **Always emit**, even on a HARD-STOP or an orientation block. The narrative explains why it stopped.

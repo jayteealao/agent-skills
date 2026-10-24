@@ -259,76 +259,14 @@ test('protected files: PRODUCT.md, steer.md paths, config paths, and the person\
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('usage: an old reading whose windows already reset gives no event, not a pause and a reset every minute', () => {
-  const root = makeRepo();
-  const usageDir = mkdtempSync(path.join(os.tmpdir(), 'yolo-usage-'));
-  try {
-    // The SoccerManager case: the newest reading is two days old, and its 7-day window (96 percent) has reset since.
-    writeFileSync(path.join(usageDir, 'old.json'), JSON.stringify({ rateLimits: [
-      { kind: 'five_hour', percentUsed: 8, resetsAt: '2026-10-01T23:40:00Z' },
-      { kind: 'seven_day', percentUsed: 96, resetsAt: '2026-10-02T00:00:00Z' },
-    ] }));
-    let now = T0;
-    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], usageDir, now: () => now });
-    for (let i = 0; i < 3; i++) {
-      now = T0 + i * 60_000;
-      assert.deepEqual([...w.pollUsage(), ...w.pollUsageReset()], [], `minute ${i}: no event`);
-    }
-    // A window that has not reset still counts.
-    writeFileSync(path.join(usageDir, 'old.json'), JSON.stringify({ rateLimits: [
-      { kind: 'five_hour', percentUsed: 8, resetsAt: '2026-10-01T23:40:00Z' },
-      { kind: 'seven_day', percentUsed: 96, resetsAt: '2026-10-08T00:00:00Z' },
-    ] }));
-    assert.deepEqual(w.pollUsage().map((e) => `${e.event}:${e.level}`), ['usage:pause']);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-    rmSync(usageDir, { recursive: true, force: true });
-  }
-});
-
-test('usage: crossing a budget line gives usage; a lower reading or the reset time gives usage-reset', () => {
-  const root = makeRepo();
-  const usageDir = mkdtempSync(path.join(os.tmpdir(), 'yolo-usage-'));
-  try {
-    const reading = (five, seven, mtime) => {
-      const f = path.join(usageDir, 'session-a.json');
-      writeFileSync(f, JSON.stringify({ rateLimits: [
-        { kind: 'five_hour', percentUsed: five, resetsAt: '2026-10-03T15:00:00Z' },
-        { kind: 'seven_day', percentUsed: seven, resetsAt: '2026-10-08T00:00:00Z' },
-      ] }));
-      utimesSync(f, mtime, mtime);
-    };
-    let now = T0;
-    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], usageDir, now: () => now });
-    reading(40, 10, new Date(T0));
-    assert.deepEqual(w.pollUsage(), [], 'under every line');
-    reading(80, 10, new Date(T0 + 1000));
-    assert.deepEqual(w.pollUsage().map((e) => e.level), ['slow']);
-    reading(92, 10, new Date(T0 + 2000));
-    const p = w.pollUsage();
-    assert.deepEqual(p.map((e) => `${e.event}:${e.level}`), ['usage:pause']);
-    assert.equal(p[0].windows.fiveHour.resetsAt, '2026-10-03T15:00:00Z');
-    assert.deepEqual(w.pollUsageReset(), [], 'before the reset time');
-    now = Date.parse('2026-10-03T15:00:01Z');
-    assert.deepEqual(w.pollUsageReset().map((e) => e.event), ['usage-reset']);
-    assert.equal(W.usageLevel({ fiveHour: { percentUsed: 10 }, sevenDay: { percentUsed: 86 } }, W.DEFAULT_BUDGET), 'pause', 'the 7-day reserve');
-    assert.deepEqual(W.createWatcher({ projectRoot: root, slugs: [SLUG], usageDir: path.join(usageDir, 'none') }).pollUsage(), [], 'no reading, no event');
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-    rmSync(usageDir, { recursive: true, force: true });
-  }
-});
-
-test('control: a stop request names a stage or current; a pause needs its reset time', () => {
+test('control: a stop request names a stage or current; there is no pause', () => {
   const root = makeRepo();
   try {
     const v = W.writeControl(root, SLUG, 'stop', ['verify'], T0);
     assert.deepEqual(v, { action: 'stop', after: 'verify', requestedAt: at(0) });
     assert.deepEqual(JSON.parse(readFileSync(W.controlPath(root, SLUG), 'utf8')), v);
     assert.throws(() => W.writeControl(root, SLUG, 'stop', ['handoff']), /after/);
-    assert.throws(() => W.writeControl(root, SLUG, 'pause', ['soon']), /ISO 8601/);
-    const p = W.writeControl(root, SLUG, 'pause', ['2026-10-03T15:00:00Z', 'five-hour', 'window'], T0);
-    assert.equal(p.reason, 'five-hour window');
+    assert.throws(() => W.writeControl(root, SLUG, 'pause', ['2026-10-03T15:00:00Z']), /the action is stop, clear, or show/);
     W.writeControl(root, SLUG, 'clear', []);
     assert.equal(existsSync(W.controlPath(root, SLUG)), false);
   } finally { rmSync(root, { recursive: true, force: true }); }
@@ -685,7 +623,7 @@ test('look-in: 15 quiet minutes give one look-in with the running agents; a stag
   const projectsDir = tmpDir('projects');
   try {
     let now = T0;
-    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: () => now, lookInMs: 15 * 60000, lockDir, projectsDir, usageDir: projectsDir });
+    const w = W.createWatcher({ projectRoot: root, slugs: [SLUG], now: () => now, lookInMs: 15 * 60000, lockDir, projectsDir });
     assert.deepEqual(w.pollLookIn([]), [], 'the first poll starts the clock');
     now = T0 + 2 * 60000;
     journal(root, { at: at(2), seq: 1, event: 'agent-start', agent: 'implement:board', stage: 'implement', slice: 'board' });
@@ -713,7 +651,7 @@ test('look-in: a full note restarts the clock, the clock survives a restart, and
   const projectsDir = tmpDir('projects');
   try {
     let now = T0;
-    const opts = { projectRoot: root, slugs: [SLUG], now: () => now, lockDir, projectsDir, usageDir: projectsDir };
+    const opts = { projectRoot: root, slugs: [SLUG], now: () => now, lockDir, projectsDir };
     const a = W.createWatcher({ ...opts, lookInMs: 15 * 60000 });
     a.pollLookIn([]);
     now = T0 + 10 * 60000;
@@ -762,7 +700,7 @@ test('a run ends once: a re-armed watch does not infer the end of a run that alr
   const projectsDir = tmpDir('projects');
   try {
     let now = T0;
-    const opts = { projectRoot: root, slugs: [SLUG], now: () => now, lockDir, projectsDir, usageDir: projectsDir };
+    const opts = { projectRoot: root, slugs: [SLUG], now: () => now, lockDir, projectsDir };
     const a = W.createWatcher(opts);
     a.pollJournals();
     journal(root,
@@ -837,7 +775,7 @@ test('look-in: a run that ended is not running, even with an agent that never en
   const projectsDir = tmpDir('projects');
   try {
     let now = T0;
-    const opts = { projectRoot: root, slugs: [SLUG], now: () => now, lookInMs: 15 * 60000, lockDir, projectsDir, usageDir: projectsDir };
+    const opts = { projectRoot: root, slugs: [SLUG], now: () => now, lookInMs: 15 * 60000, lockDir, projectsDir };
     const a = W.createWatcher(opts);
     a.pollJournals();
     a.pollLookIn([]);

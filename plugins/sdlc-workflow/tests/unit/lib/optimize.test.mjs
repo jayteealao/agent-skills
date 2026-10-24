@@ -93,7 +93,7 @@ test('the budget, the target and the control file stop the loop', () => {
   assert.equal(nextAction({ state: { ...s, best: { commit: 'c', value: 49, trial: 3 } }, spec }).state, 'complete');
   assert.equal(nextAction({ state: { ...s, counters: { ...s.counters, trials: 60 } }, spec }).reason, 'budget');
   assert.equal(nextAction({ state: s, spec, control: { action: 'stop' } }).reason, 'stop-request');
-  assert.equal(nextAction({ state: s, spec, control: { action: 'pause', until: '2999-01-01T00:00:00Z' } }).reason, 'usage-pause');
+  assert.equal(nextAction({ state: s, spec, control: { action: 'pause', until: '2999-01-01T00:00:00Z' } }).state, 'running', 'there is no pause');
   const old = stateOf({ schedule: { used: [0, 1, 2] }, startedAt: '2000-01-01T00:00:00Z' });
   assert.equal(nextAction({ state: old, spec }).reason, 'budget');
 });

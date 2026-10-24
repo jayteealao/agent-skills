@@ -269,12 +269,3 @@ export function livenessOf(st, nowMs) {
   return { state: 'live', silentMs, limitMs };
 }
 
-/** The usage level of a reading against the budget lines: ok, slow, pause, or unknown. */
-export function usageLevelOf(fivePercent, sevenPercent, budget) {
-  const five = Number(fivePercent);
-  const seven = Number(sevenPercent);
-  if (!Number.isFinite(five) && !Number.isFinite(seven)) return 'unknown';
-  if (five >= budget.fiveHourPause || seven >= 100 - budget.sevenDayReserve) return 'pause';
-  if (five >= budget.fiveHourSlow) return 'slow';
-  return 'ok';
-}

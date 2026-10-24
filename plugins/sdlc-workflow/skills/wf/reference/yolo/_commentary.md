@@ -43,8 +43,6 @@ The Monitor tool stops a watch after 30 minutes at most. The session has no watc
 | `stop` | A stage agent returned `hard-stop`, or stopped on a stop request. | Why the run stopped, and the resume command. | yes |
 | `look-in` | 15 minutes passed with no full note (`--look-in <minutes>` changes it; 0 turns it off). `running` lists each open stage agent: its minutes, its `root`, its `journal`, and its `transcript` when the watch finds it. | Send a reader to look in, and tell the person what is happening (C7). | no |
 | `run-end` | The driver ended. `inferred: true` means that the journal went silent after an `agent-end`. | The run summary. | yes |
-| `usage` | A usage reading crossed a budget line. | One line with both windows and their reset times. At level `pause`, a full note. | at `pause` |
-| `usage-reset` | The window of a pause reset. | One line. | no |
 | `watch-replaced` | A newer watch reads the same journal. This watch exited. | Nothing. Do not start this watch again. | no |
 | `watch-timeout` | A `--once` watch gave no event for 110 minutes. | Nothing. Start the `--once` watch again. | no |
 
@@ -116,18 +114,6 @@ The person can stop the run at a stage boundary, for example "stop after the cur
    ```
 
    Then report where the run stopped and the resume command, `outcome.route`.
-
-## Usage pause
-
-1. When a `usage` event arrives at level `pause`, or a stage fails with a usage-limit error, write a pause with the reset time of the full window:
-
-   ```
-   node "<pluginRoot>/scripts/yolo-watch.mjs" control "<projectRoot>" <slug> pause <resetsAt> <window>
-   ```
-
-   When the error states no reset time, ask the person for it.
-2. The next stage agent stops, and the driver ends with `stoppedAt: usage-pause`. Say why the run paused and when it resumes. During the pause, give no notes: each note uses the same limits.
-3. When `usage-reset` arrives, or the reset time passes, clear the control file and relaunch the run per yolo.md "Resuming".
 
 ## When the Workflow returns
 

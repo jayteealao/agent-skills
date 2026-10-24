@@ -105,7 +105,7 @@ function appendResult(root, slug, line) {
 function readControl(root, slug) {
   const f = controlPath(root, slug);
   if (!existsSync(f)) return null;
-  try { return JSON.parse(readFileSync(f, 'utf8')); } catch { return { action: 'pause', reason: '.control.json does not parse' }; }
+  try { return JSON.parse(readFileSync(f, 'utf8')); } catch { return { action: 'stop', reason: '.control.json does not parse' }; }
 }
 
 /** The tokens of the slug since the start, from the cost ledger (lib/cost-ledger.mjs). */

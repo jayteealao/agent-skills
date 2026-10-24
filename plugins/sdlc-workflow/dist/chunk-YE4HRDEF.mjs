@@ -156,6 +156,23 @@ function configPathFor(projectRoot = process.cwd()) {
 function clone(value) {
   return structuredClone(value);
 }
+var RETIRED_CONFIG_KEYS = Object.freeze(["campaign", "yolo.usageBudget"]);
+function withoutRetiredKeys(userConfig, retired = RETIRED_CONFIG_KEYS) {
+  if (!userConfig || typeof userConfig !== "object" || Array.isArray(userConfig)) return { config: userConfig, dropped: [] };
+  const config = clone(userConfig);
+  const dropped = [];
+  for (const key of retired) {
+    const parts = key.split(".");
+    let parent = config;
+    for (const part of parts.slice(0, -1)) parent = parent && typeof parent === "object" ? parent[part] : void 0;
+    const last = parts.at(-1);
+    if (parent && typeof parent === "object" && Object.hasOwn(parent, last)) {
+      delete parent[last];
+      dropped.push(key);
+    }
+  }
+  return { config, dropped };
+}
 function deepMerge(base, override) {
   if (!override || typeof override !== "object" || Array.isArray(override)) {
     return clone(base);
@@ -212,7 +229,11 @@ async function loadConfigWithMeta(projectRoot = process.cwd(), {
       userConfig = {};
     }
   }
-  const config = deepMerge(DEFAULT_SDLC_CONFIG, userConfig);
+  const retired = withoutRetiredKeys(userConfig);
+  if (retired.dropped.length > 0) {
+    warnings.push(`${configPath}: these settings are no longer read and are ignored: ${retired.dropped.join(", ")}`);
+  }
+  const config = deepMerge(DEFAULT_SDLC_CONFIG, retired.config);
   const validation = await validateConfig(config, { schemaPath });
   if (!validation.valid) {
     const message = validation.errors.map((err) => `${err.path}: ${err.message}`).join("; ");

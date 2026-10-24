@@ -167,7 +167,7 @@ A reopened brainstorm and the `add` capture run in a brainstorm session. The bra
 
 ## Regroup (the migration of an old campaign)
 
-The first `/wf campaign <slug>` on a board with an old campaign ledger migrates it (`campaign.md`, "The migration"). After `migrate apply`, the board holds a `done` work packet for each shipped unit and an `open` work packet for each in-flight unit. The walk then runs this regroup in its own session, with the person:
+The first `/wf campaign <slug>` on a board with an old campaign ledger migrates it (`campaign/_migrate.md`). After `migrate apply`, the board holds a `done` work packet for each shipped unit and an `open` work packet for each in-flight unit. The walk then runs this regroup in its own session, with the person:
 1. Take the units that are not started, in their old order. Propose work packets from them under the Size rules. Every kept decision goes into exactly one work packet. Do not confirm the decisions again.
 2. A unit with intake and shape already written (`01-intake.md` and `02-shape.md`) can stay one work packet. Keep its slug as the work packet slug. `open` then keeps its folder, and the walk does not slice it again when it has `03-slice.md`.
 3. A unit with a settled design (`02c-craft.md` with boards) keeps it. When the unit becomes one work packet, keep its slug as the work packet slug, and its design files stay. When the unit goes into a larger work packet, move its `02c-craft.md` and its `design/` folder into `.ai/workflows/<packet-slug>/` before the walk opens the work packet. The design stage of the work packet then starts from them.

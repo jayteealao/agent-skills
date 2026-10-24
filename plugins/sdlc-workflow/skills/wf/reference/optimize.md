@@ -44,7 +44,6 @@ CAUTION: do not delete the optimize worktree with a recursive delete. A `node_mo
 | `running` · any action | Step 2. |
 | `complete` · `finish` | Step 3. |
 | `stopped` · `person` | Show `reason`, `detail` and `next.why`. The person chooses. A raised `budget` or `branch-rounds.max-extra` in the spec continues the loop when `status` then shows `running`. Otherwise the choice is `finish` (Step 3) or a new optimize slug. For `state-error`, report and do not repair. |
-| `stopped` · `wait` | A usage pause or a stop request holds the loop. Show the reason. The loop continues at the next `/wf loop optimize <slug>` after the hold clears. |
 | `finished` · `verify` | The loop is done. The next step is `/wf verify <slug> optimize`. |
 
 ## Step 1 — Baseline

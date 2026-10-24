@@ -241,6 +241,23 @@ test('config: per-repo view.serve is rejected — serve config is machine-only',
   }
 });
 
+test('config: a retired setting is dropped with one warning and the config stays valid', async () => {
+  const tmp = tempDir();
+  try {
+    const cfgPath = configPathFor(tmp);
+    mkdirSync(dirname(cfgPath), { recursive: true });
+    writeFileSync(cfgPath, JSON.stringify({ campaign: { isolation: { 'build-dirs': ['out'] } }, yolo: { usageBudget: { fiveHourPause: 80 }, protectedFiles: ['a.md'] } }), 'utf-8');
+    const loaded = await loadConfigWithMeta(tmp);
+    equal(loaded.validation.valid, true, 'the old settings do not fail validation');
+    equal(loaded.config.campaign, undefined);
+    equal(loaded.config.yolo.usageBudget, undefined);
+    deepStrictEqual(loaded.config.yolo.protectedFiles, ['a.md'], 'the other settings stay');
+    equal(loaded.warnings.filter((w) => /no longer read and are ignored: campaign, yolo\.usageBudget/.test(w)).length, 1);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('workflow-index: scans active, stale, complete, and invalid workflow indexes', async () => {
   const tmp = tempDir();
   try {

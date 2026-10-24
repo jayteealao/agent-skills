@@ -16,7 +16,6 @@
  *   node yolo-watch.mjs note <projectRoot> <slug> [--event <kind>]   < text
  *       Append one commentary note (stdin) to .ai/workflows/<slug>/commentary.md.
  *   node yolo-watch.mjs control <projectRoot> <slug> stop <current|plan|implement|verify|review>
- *   node yolo-watch.mjs control <projectRoot> <slug> pause <until ISO> [reason ...]
  *   node yolo-watch.mjs control <projectRoot> <slug> clear|show
  *       Write, delete or print .ai/workflows/<slug>/.control.json (the stop request, G1).
  *   node yolo-watch.mjs end <projectRoot> <slug> [--stopped-at <where>] [--reason <text>] [--run <id>]
@@ -72,7 +71,6 @@ export { STAGE_KINDS, frontmatterField, judgeSilence, liveLimitMs, stageOf };
 export const STOP_AFTER = Object.freeze(['current', 'plan', 'implement', 'verify', 'review']);
 export { STALE_FLOOR_MS };
 export const DEFAULT_PROTECTED = Object.freeze(['PRODUCT.md', 'DESIGN.md']);
-export const DEFAULT_BUDGET = Object.freeze({ fiveHourSlow: 75, fiveHourPause: 90, sevenDayReserve: 15 });
 const STATE_FILE = '.watch-state.json';
 // The events whose chat reply is a full note (_commentary.md). One of them restarts the look-in clock.
 export const FULL_NOTE_EVENTS = Object.freeze(['stage-end', 'decision', 'protected-change', 'stale', 'stop', 'run-end', 'look-in']);
@@ -309,7 +307,6 @@ export function readConfig(root) {
   const y = (cfg && typeof cfg.yolo === 'object' && cfg.yolo) || {};
   return {
     protectedFiles: Array.isArray(y.protectedFiles) ? y.protectedFiles.filter((p) => typeof p === 'string' && p) : [],
-    budget: { ...DEFAULT_BUDGET, ...((y.usageBudget && typeof y.usageBudget === 'object') ? y.usageBudget : {}) },
   };
 }
 
@@ -343,49 +340,6 @@ export function protectedSet(root, slugs, cfg) {
   const dirty = isLinkedWorktree(root) ? [] : dirtyFiles(root);
   for (const p of dirty) set.add(p);
   return { files: [...set].sort(), dirtyAtStart: dirty.sort() };
-}
-
-// ---------------------------------------------------------------------------
-// Usage (3.2 usage / usage-reset): the newest reading the usage guard wrote to
-// ~/.claude/sdlc/usage/<sessionId>.json, shape { rateLimits: [{ kind,
-// percentUsed, resetsAt }] } (WF-CAMPAIGN-PLAN 17.1). No reading → no event.
-// ---------------------------------------------------------------------------
-/**
- * The newest usage reading. A window whose reset time has passed no longer
- * applies, so it is dropped. Without this rule, an old reading gives a pause
- * event and a reset event every minute. With no window left, there is no reading.
- */
-export function newestUsage(dir, nowMs = Date.now()) {
-  let best = null;
-  let entries = [];
-  try { entries = readdirSync(dir).filter((n) => n.endsWith('.json')); } catch { return null; }
-  for (const n of entries) {
-    const file = path.join(dir, n);
-    let mtime = 0;
-    try { mtime = statSync(file).mtimeMs; } catch { continue; }
-    if (!best || mtime > best.mtime) best = { file, mtime };
-  }
-  if (!best) return null;
-  const v = readJson(best.file);
-  if (!v || !Array.isArray(v.rateLimits)) return null;
-  const win = (kind) => {
-    const w = v.rateLimits.find((r) => r && r.kind === kind) || null;
-    const reset = Date.parse(w?.resetsAt ?? '');
-    return w && !(Number.isFinite(reset) && reset <= nowMs) ? w : null;
-  };
-  const fiveHour = win('five_hour');
-  const sevenDay = win('seven_day');
-  if (!fiveHour && !sevenDay) return null;
-  return { at: iso(best.mtime), fiveHour, sevenDay };
-}
-
-export function usageLevel(reading, budget) {
-  if (!reading) return 'unknown';
-  const five = reading.fiveHour ? Number(reading.fiveHour.percentUsed) : NaN;
-  const seven = reading.sevenDay ? Number(reading.sevenDay.percentUsed) : NaN;
-  if (five >= budget.fiveHourPause || seven >= 100 - budget.sevenDayReserve) return 'pause';
-  if (five >= budget.fiveHourSlow) return 'slow';
-  return 'ok';
 }
 
 // ---------------------------------------------------------------------------
@@ -442,7 +396,7 @@ export const PROTECTED_QUIET_MS = 10 * 60 * 1000;
 // The watcher: one object, polled by a timer in main() and by tests directly.
 // ---------------------------------------------------------------------------
 export function createWatcher({
-  projectRoot, slugs, since = null, usageDir = null, now = () => Date.now(),
+  projectRoot, slugs, since = null, now = () => Date.now(),
   projectsDir = null, lockDir = null, lockId = null, lookInMs = 0,
 }) {
   const root = path.resolve(projectRoot);
@@ -489,7 +443,7 @@ export function createWatcher({
     const prot = protectedSet(root, slugs, cfg);
     const hashes = {};
     for (const f of prot.files) hashes[f] = hashFile(path.join(root, f));
-    lead.repo = { root, head: git(root, ['rev-parse', 'HEAD']), hashes, dirtyAtStart: prot.dirtyAtStart, usageLevel: null, usagePauseUntil: null, runEnded: false };
+    lead.repo = { root, head: git(root, ['rev-parse', 'HEAD']), hashes, dirtyAtStart: prot.dirtyAtStart, runEnded: false };
   }
 
   // F5 — one watch per journal.
@@ -628,36 +582,6 @@ export function createWatcher({
     return events;
   }
 
-  function pollUsage() {
-    const dir = usageDir || path.join(os.homedir(), '.claude', 'sdlc', 'usage');
-    const reading = newestUsage(dir, now());
-    if (!reading) return [];
-    const level = usageLevel(reading, cfg.budget);
-    const prev = lead.repo.usageLevel;
-    lead.repo.usageLevel = level;
-    const windows = { fiveHour: reading.fiveHour, sevenDay: reading.sevenDay };
-    const rank = { ok: 0, slow: 1, pause: 2 };
-    if (level === 'pause') {
-      const w = (reading.fiveHour && Number(reading.fiveHour.percentUsed) >= cfg.budget.fiveHourPause) ? reading.fiveHour : reading.sevenDay;
-      lead.repo.usagePauseUntil = (w && w.resetsAt) || null;
-    }
-    if (prev !== null && rank[level] > rank[prev]) return [{ event: 'usage', slugs: [...states.keys()], level, windows, readingAt: reading.at, at: iso(now()) }];
-    if (prev === 'pause' && level !== 'pause') {
-      lead.repo.usagePauseUntil = null;
-      return [{ event: 'usage-reset', slugs: [...states.keys()], level, windows, readingAt: reading.at, at: iso(now()) }];
-    }
-    if (prev === null && level !== 'ok') return [{ event: 'usage', slugs: [...states.keys()], level, windows, readingAt: reading.at, at: iso(now()) }];
-    return [];
-  }
-
-  function pollUsageReset() {
-    const until = Date.parse(lead.repo.usagePauseUntil || '');
-    if (!Number.isFinite(until) || now() < until) return [];
-    lead.repo.usagePauseUntil = null;
-    lead.repo.usageLevel = 'ok';
-    return [{ event: 'usage-reset', slugs: [...states.keys()], level: 'ok', reason: 'reset time passed', at: iso(now()) }];
-  }
-
   // F4 — the record of the facts: one commentary line per stage start and per
   // commit. The model still gives the chat reply and the full notes.
   function fact(slugList, text, atIso) {
@@ -708,7 +632,7 @@ export function createWatcher({
   }
 
   return {
-    root, states, pollJournals, pollCommits, pollProtected, pollUsage, pollUsageReset,
+    root, states, pollJournals, pollCommits, pollProtected,
     pollLookIn, recordFacts, checkLocks, releaseLocks, allEnded, save: finish,
   };
 }
@@ -753,12 +677,8 @@ export function writeControl(root, slug, action, rest, nowMs = Date.now()) {
     const after = rest[0] || 'current';
     if (!STOP_AFTER.includes(after)) throw new Error(`control stop: "after" must be one of ${STOP_AFTER.join(', ')}`);
     value = { action: 'stop', after, requestedAt: iso(nowMs) };
-  } else if (action === 'pause') {
-    const until = rest[0];
-    if (!until || !Number.isFinite(Date.parse(until))) throw new Error('control pause: give the reset time as an ISO 8601 timestamp');
-    value = { action: 'pause', until: iso(Date.parse(until)), reason: rest.slice(1).join(' ') || 'usage limit', requestedAt: iso(nowMs) };
   } else {
-    throw new Error('control: the action is stop, pause, clear, or show');
+    throw new Error('control: the action is stop, clear, or show');
   }
   mkdirSync(path.dirname(file), { recursive: true });
   writeJsonAtomic(file, value);
@@ -864,11 +784,9 @@ async function watch(root, slugs, flags) {
   process.stdout.on('error', () => process.exit(0));
   const journalMs = ms('SDLC_WATCH_JOURNAL_MS', 5000);
   const gitMs = ms('SDLC_WATCH_GIT_MS', 20000);
-  const usageMs = ms('SDLC_WATCH_USAGE_MS', 60000);
   const since = flags.since !== undefined ? Number(flags.since) : null;
-  const w = createWatcher({ projectRoot: root, slugs, since: Number.isFinite(since) ? since : null, usageDir: process.env.SDLC_USAGE_DIR || null, lookInMs: lookInMsOf(flags) });
+  const w = createWatcher({ projectRoot: root, slugs, since: Number.isFinite(since) ? since : null, lookInMs: lookInMsOf(flags) });
   let lastGit = 0;
-  let lastUsage = 0;
   let stopping = false;
   const stop = () => { stopping = true; };
   process.on('SIGTERM', stop);
@@ -881,8 +799,6 @@ async function watch(root, slugs, flags) {
       const t = Date.now();
       const events = [];
       if (t - lastGit >= gitMs) { lastGit = t; events.push(...w.pollCommits(), ...w.pollProtected()); }
-      if (t - lastUsage >= usageMs) { lastUsage = t; events.push(...w.pollUsage()); }
-      events.push(...w.pollUsageReset());
       // The journal goes last, so a run-end follows the commits the run made.
       events.push(...w.pollJournals());
       events.push(...w.pollLookIn(events));

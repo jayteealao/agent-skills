@@ -268,7 +268,6 @@ export function nextAction({ state, spec, now = Date.now(), control = null, toke
   if (state.stopped) return { state: 'stopped', reason: state.stopped.reason, detail: state.stopped.detail ?? '', next: { action: 'person', why: personNext(state.stopped.reason) } };
   if (control && typeof control === 'object') {
     if (control.action === 'stop') return { state: 'stopped', reason: 'stop-request', detail: str(control.reason), next: { action: 'person', why: 'resume with /wf loop optimize <slug> once the request is cleared' } };
-    if (control.action === 'pause' && (!control.until || Date.parse(control.until) > now)) return { state: 'stopped', reason: 'usage-pause', detail: str(control.reason), next: { action: 'wait', why: control.until ? `until ${control.until}` : 'until the pause is cleared' } };
   }
   const B = spec.budget.trials;
   const used = state.counters.trials;

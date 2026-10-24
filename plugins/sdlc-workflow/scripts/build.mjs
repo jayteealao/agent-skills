@@ -29,8 +29,6 @@ import { rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { buildDrivers } from './build-drivers.mjs';
-
 const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(PLUGIN_ROOT, 'dist');
 
@@ -61,10 +59,6 @@ const entryPoints = [
   ...HOOK_ENTRIES.map((n) => ({ in: join(PLUGIN_ROOT, 'hooks', `${n}.mjs`), out: n })),
   ...SCRIPT_ENTRIES.map((n) => ({ in: join(PLUGIN_ROOT, 'scripts', `${n}.mjs`), out: n })),
 ];
-
-// WF-SYSTEM-REVIEW E1: write skills/wf/workflows/_shared.js into each driver's shared block.
-const drivers = buildDrivers();
-console.log(`[build] drivers: ${drivers.stale.length ? `wrote the shared block of ${drivers.stale.join(', ')}` : 'shared blocks current'}`);
 
 // Clean rebuild: a removed entrypoint must not leave a stale bundle behind, or
 // the freshness git-diff gate would pass on orphaned output.
