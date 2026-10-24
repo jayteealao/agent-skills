@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install (pinned via lockfile — keeps esbuild output deterministic)
         run: npm ci
@@ -84,7 +84,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Install (pinned via lockfile)
         run: npm ci
       - name: Unit suite

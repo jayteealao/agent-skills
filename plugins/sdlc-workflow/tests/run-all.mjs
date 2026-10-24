@@ -17,7 +17,7 @@
  * The obvious fix — `node --test "tests/**\/*.test.mjs"` — does not work,
  * because no single `node --test` invocation covers this repo's Node range:
  *
- *   form                          Node 20 (CI pin, engines)   Node 22 (maintainer)
+ *   form                          Node 20 (old floor)         Node 22 (CI pin, engines)
  *   node --test tests/            walks correctly             MODULE_NOT_FOUND
  *                                                             (dir treated as an entry module)
  *   node --test "tests/**\/*.test.mjs"   "Could not find …"   correct

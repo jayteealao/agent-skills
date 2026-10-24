@@ -14,7 +14,7 @@
 <div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
 
 <h2>What you need first</h2>
-<p>The plugin runs inside Claude Code or inside Codex. Its background work (the hub daemon, the render pipeline, and the hooks) uses Node.js 20 or newer. Both hosts already require Node.js, so there is nothing extra to install. The one real precondition is <strong>git</strong>: the plugin registers each project by its git identity, and workflow branches live in git. If you run <code>/wf</code> in a directory that is not a git repository, the command stops and explains why. The command then offers to run <code>git init</code> for you. The plugin never initializes a repository without asking.</p>
+<p>The plugin runs inside Claude Code or inside Codex. Its background work (the hub daemon, the render pipeline, and the hooks) uses Node.js 22 or newer. Both hosts already require Node.js, so there is nothing extra to install. The one real precondition is <strong>git</strong>: the plugin registers each project by its git identity, and workflow branches live in git. If you run <code>/wf</code> in a directory that is not a git repository, the command stops and explains why. The command then offers to run <code>git init</code> for you. The plugin never initializes a repository without asking.</p>
 <p>The plugin is distributed through one marketplace, hosted in the <code>jayteealao/agent-skills</code> GitHub repository. Each host has its own catalog file in that repository and its own install commands. Pick the section for your host.</p>
 
 <h2>Install into Claude Code</h2>

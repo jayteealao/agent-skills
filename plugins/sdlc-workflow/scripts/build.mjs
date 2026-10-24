@@ -69,7 +69,7 @@ const result = await build({
   bundle: true,
   platform: 'node',
   format: 'esm',
-  target: 'node20',
+  target: 'node22',
   // Code-splitting dedupes the heavy CJS deps + shared lib helpers into
   // flat chunks instead of copying them into every entry.
   splitting: true,
