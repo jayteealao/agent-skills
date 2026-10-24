@@ -39,7 +39,7 @@ No skill file names a plugin-root variable. Those live only in the hook wiring: 
 | Key | Hosts | Why |
 |---|---|---|
 | `yolo` | Claude Code only | Built on Claude Code's Workflow tool. Codex and pi have no equivalent. |
-| `campaign` | Every host; the yolo step Claude Code only | The walk launches the yolo driver for each piece, through the Workflow tool. Under Codex or pi, `/wf campaign` stops before the yolo step of a piece and says so. |
+| `campaign` | Every host; the yolo step Claude Code only | The walk launches the yolo driver for each work packet, through the Workflow tool. Under Codex or pi, `/wf campaign` stops before the yolo step of a work packet and says so. |
 
 Every other key runs under every host. Under Codex or pi, treat `yolo` as an unknown key: name the restriction and point the user to `/wf auto`.
 

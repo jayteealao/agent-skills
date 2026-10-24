@@ -6,7 +6,7 @@ import {
   heartbeatShowsDown,
   isTrayHeartbeatStale,
   readTrayHeartbeat
-} from "./chunk-RDTYRLAY.mjs";
+} from "./chunk-VBP4ETT2.mjs";
 import {
   resolveDurableNodePath
 } from "./chunk-G5IZHK3B.mjs";
@@ -18,10 +18,10 @@ import {
 } from "./chunk-KRRL2TSM.mjs";
 import {
   logError
-} from "./chunk-3RY6QOZQ.mjs";
+} from "./chunk-RMWRN4OY.mjs";
 import {
   isPidAlive
-} from "./chunk-HPVINV2O.mjs";
+} from "./chunk-S534URUW.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
@@ -121,7 +121,7 @@ function defaultRespawn({ nodePath, trayBundle, env = process.env }) {
 }
 async function defaultProbeHub() {
   try {
-    const { getHealth } = await import("./tray-actions-GP2PXIM3.mjs");
+    const { getHealth } = await import("./tray-actions-NFHPWDIS.mjs");
     const probe = await getHealth();
     return { reachable: Boolean(probe?.reachable), uptimeMs: Number(probe?.payload?.uptimeMs) };
   } catch {

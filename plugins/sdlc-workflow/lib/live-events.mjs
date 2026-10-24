@@ -212,8 +212,8 @@ export function applyLines(slug, st, lines, { emitFrom = null, artifactOf = () =
 }
 
 /**
- * The command that resumes a stopped run: its own yolo drive. A piece of a campaign list
- * resumes the same way; the walk reads the piece states again (WF-PIECES-PLAN 6.1).
+ * The command that resumes a stopped run: its own yolo drive. A packet of a campaign list
+ * resumes the same way; the walk reads the packet states again (WF-PIECES-PLAN 6.1).
  */
 export function resumeCommand(slug) {
   return `/wf yolo ${slug}`;

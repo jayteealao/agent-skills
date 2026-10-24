@@ -147,13 +147,13 @@ function closesCycle(slices, slice, after) {
   return false;
 }
 
-// lib/pieces.mjs
+// lib/packets.mjs
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync, appendFileSync } from "node:fs";
 import { join as join2 } from "node:path";
-var PIECE_FORMS = Object.freeze(["intake", "investigate", "discover", "rca", "fix", "hotfix", "task", "extension"]);
+var PACKET_FORMS = Object.freeze(["intake", "investigate", "discover", "rca", "fix", "hotfix", "task", "extension"]);
 var BUILD_FORMS = Object.freeze(["intake", "fix", "hotfix", "extension"]);
 var TARGETED_FORMS = Object.freeze(["extension", "fix", "hotfix"]);
-var PIECE_STATES = Object.freeze(["written", "open", "built", "done", "dropped"]);
+var PACKET_STATES = Object.freeze(["written", "open", "built", "done", "dropped"]);
 var STARTED_STATES = Object.freeze(["open", "built", "done", "dropped"]);
 var SLICE_TARGET = 10;
 var SLICE_MIN = 6;
@@ -167,16 +167,16 @@ function filesFor(boardFile = DEFAULT_FILES.board) {
   if (boardFile === IDEATE_FILES.board) return IDEATE_FILES;
   return { board: boardFile, lead: DEFAULT_FILES.lead };
 }
-var listBranch = (sourceSlug) => `pieces/${sourceSlug}`;
-var endBranch = (sourceSlug, key) => `pieces/${sourceSlug}--${key}`;
-function isPiece(piece) {
-  return PIECE_FORMS.includes(piece?.shape);
+var listBranch = (sourceSlug) => `packets/${sourceSlug}`;
+var endBranch = (sourceSlug, key) => `packets/${sourceSlug}--${key}`;
+function isPacket(packet) {
+  return PACKET_FORMS.includes(packet?.shape);
 }
-function isBuildPiece(piece) {
-  return BUILD_FORMS.includes(piece?.shape ?? piece?.form);
+function isBuildPacket(packet) {
+  return BUILD_FORMS.includes(packet?.shape ?? packet?.form);
 }
-function isWriteNowPiece(piece) {
-  return piece?.shape === "write-now";
+function isWriteNowPacket(packet) {
+  return packet?.shape === "write-now";
 }
 function isStartedState(state) {
   return STARTED_STATES.includes(state);
@@ -186,31 +186,31 @@ function byKey(list2 = []) {
   for (const entry of list2) if (entry?.key) map.set(entry.key, entry);
   return map;
 }
-function ordered(pieces) {
-  return [...pieces].sort((a, b) => (a.order ?? 1e9) - (b.order ?? 1e9) || String(a.key).localeCompare(String(b.key)));
+function ordered(packets) {
+  return [...packets].sort((a, b) => (a.order ?? 1e9) - (b.order ?? 1e9) || String(a.key).localeCompare(String(b.key)));
 }
 function isLive(item) {
   return item && !item["replaced-by"] && item.scope !== "cut" && item.scope !== "later";
 }
 var list = (v) => Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : [];
-function carriedDecisionItems(board, piece) {
+function carriedDecisionItems(board, packet) {
   const items = byKey(board.items);
-  return (piece.items ?? []).map((key) => items.get(key)).filter((item) => item?.kind === "decision" && isLive(item));
+  return (packet.items ?? []).map((key) => items.get(key)).filter((item) => item?.kind === "decision" && isLive(item));
 }
-function pieceFileName(piece) {
-  return `${piece.slug ?? piece.key}.md`;
+function packetFileName(packet) {
+  return `${packet.slug ?? packet.key}.md`;
 }
-function tryOutOf(piece) {
-  if ((piece["ux-impact"] ?? "none") !== "none") return "yes";
-  return piece["try-out"] === "yes" || piece["try-out"] === true ? "yes" : "no";
+function tryOutOf(packet) {
+  if ((packet["ux-impact"] ?? "none") !== "none") return "yes";
+  return packet["try-out"] === "yes" || packet["try-out"] === true ? "yes" : "no";
 }
 function boardCitations(board) {
   const out = [];
   for (const item of board.items ?? []) {
     if (typeof item.evidence === "string") out.push({ where: `items.${item.key}.evidence`, text: item.evidence });
   }
-  for (const piece of board.work ?? []) {
-    for (const ref of piece.references ?? []) out.push({ where: `work.${piece.key}.references`, text: ref });
+  for (const packet of board.work ?? []) {
+    for (const ref of packet.references ?? []) out.push({ where: `work.${packet.key}.references`, text: ref });
   }
   for (const brief of board.briefs ?? []) {
     if (typeof brief.source === "string") out.push({ where: `briefs.${brief.key}.source`, text: brief.source });
@@ -231,108 +231,108 @@ function findIgnoredCitations(board, { isIgnored = null } = {}) {
   }
   return hits;
 }
-function sequenceErrors(pieces) {
+function sequenceErrors(packets) {
   const errors = [];
   const seen = /* @__PURE__ */ new Map();
-  for (const piece of pieces) {
-    if (!Number.isInteger(piece.order) || piece.order < 1) {
-      errors.push(`piece ${piece.key}: no order. Agree its place in the list with the person.`);
+  for (const packet of packets) {
+    if (!Number.isInteger(packet.order) || packet.order < 1) {
+      errors.push(`packet ${packet.key}: no order. Agree its place in the list with the person.`);
       continue;
     }
-    if (seen.has(piece.order)) errors.push(`pieces ${seen.get(piece.order)} and ${piece.key} have the same order ${piece.order}: the list order is strict.`);
-    else seen.set(piece.order, piece.key);
-    if (piece.order > 1 && !String(piece["why-here"] ?? "").trim()) errors.push(`piece ${piece.key} (order ${piece.order}): no why-here. Record why it comes after the pieces before it, in the person's words.`);
+    if (seen.has(packet.order)) errors.push(`packets ${seen.get(packet.order)} and ${packet.key} have the same order ${packet.order}: the list order is strict.`);
+    else seen.set(packet.order, packet.key);
+    if (packet.order > 1 && !String(packet["why-here"] ?? "").trim()) errors.push(`packet ${packet.key} (order ${packet.order}): no why-here. Record why it comes after the packets before it, in the person's words.`);
   }
-  const n = pieces.length;
-  for (let i = 1; i <= n; i++) if (!seen.has(i) && seen.size) errors.push(`the list has no piece with order ${i}: the orders are 1 to ${n}, each used once.`);
+  const n = packets.length;
+  for (let i = 1; i <= n; i++) if (!seen.has(i) && seen.size) errors.push(`the list has no packet with order ${i}: the orders are 1 to ${n}, each used once.`);
   return errors;
 }
-var writtenUp = (piece) => isStartedState(piece.state) || piece.migrated;
+var writtenUp = (packet) => isStartedState(packet.state) || packet.migrated;
 function checkList(board, { isIgnored = null } = {}) {
   const errors = [];
   const warnings = [];
-  const pieces = board.work ?? [];
+  const packets = board.work ?? [];
   const items = byKey(board.items);
   const shape = validateBrainstormBoard(board);
   if (!shape.valid) {
     for (const e of shape.errors) errors.push(`board schema: ${e.path || "/"} ${e.message}`);
   }
   const slugs = /* @__PURE__ */ new Map();
-  for (const piece of pieces.filter(isPiece)) {
-    if (!piece.slug) errors.push(`piece ${piece.key}: no slug. Agree the slug that the piece opens.`);
-    else if (slugs.has(piece.slug)) errors.push(`pieces ${slugs.get(piece.slug)} and ${piece.key} open the same slug ${piece.slug}.`);
-    else slugs.set(piece.slug, piece.key);
-    if (TARGETED_FORMS.includes(piece.shape) && !piece["target-slug"]) {
-      errors.push(`piece ${piece.key}: form ${piece.shape} needs target-slug, the existing workflow it changes.`);
+  for (const packet of packets.filter(isPacket)) {
+    if (!packet.slug) errors.push(`packet ${packet.key}: no slug. Agree the slug that the packet opens.`);
+    else if (slugs.has(packet.slug)) errors.push(`packets ${slugs.get(packet.slug)} and ${packet.key} open the same slug ${packet.slug}.`);
+    else slugs.set(packet.slug, packet.key);
+    if (TARGETED_FORMS.includes(packet.shape) && !packet["target-slug"]) {
+      errors.push(`packet ${packet.key}: form ${packet.shape} needs target-slug, the existing workflow it changes.`);
     }
   }
-  errors.push(...sequenceErrors(pieces));
+  errors.push(...sequenceErrors(packets));
   const homes = /* @__PURE__ */ new Map();
-  for (const piece of pieces) {
-    if (piece.state === "dropped") continue;
-    for (const key of piece.items ?? []) {
+  for (const packet of packets) {
+    if (packet.state === "dropped") continue;
+    for (const key of packet.items ?? []) {
       if (!items.has(key)) {
-        errors.push(`piece ${piece.key} names item ${key}, which is not on the board.`);
+        errors.push(`packet ${packet.key} names item ${key}, which is not on the board.`);
         continue;
       }
       if (!homes.has(key)) homes.set(key, []);
-      homes.get(key).push(piece);
+      homes.get(key).push(packet);
     }
   }
   for (const item of board.items ?? []) {
     if (item.kind !== "decision" || item.scope !== "keep" || item["replaced-by"]) continue;
     const owners = homes.get(item.key) ?? [];
-    if (!owners.length) errors.push(`kept decision ${item.key} ("${item.text}") lands in no piece.`);
-    else if (owners.length > 1) errors.push(`kept decision ${item.key} lands in ${owners.map((p) => p.key).join(", ")}: put it in exactly one piece.`);
+    if (!owners.length) errors.push(`kept decision ${item.key} ("${item.text}") lands in no packet.`);
+    else if (owners.length > 1) errors.push(`kept decision ${item.key} lands in ${owners.map((p) => p.key).join(", ")}: put it in exactly one packet.`);
   }
   let buildNotStarted = 0;
-  for (const piece of pieces.filter(isBuildPiece)) {
-    if (writtenUp(piece) || piece.state === "dropped") continue;
+  for (const packet of packets.filter(isBuildPacket)) {
+    if (writtenUp(packet) || packet.state === "dropped") continue;
     buildNotStarted++;
-    if (!String(piece.goal ?? "").trim()) errors.push(`piece ${piece.key}: no goal. Write the goal of the piece.`);
-    if (!list(piece["acceptance-criteria"]).length) errors.push(`piece ${piece.key}: no acceptance criteria. Write each checkable criterion.`);
-    if (!UX_IMPACTS.includes(piece["ux-impact"])) errors.push(`piece ${piece.key}: no ux-impact. Propose one; the person confirms it.`);
-    else if (piece["ux-impact-confirmed"] !== true) errors.push(`piece ${piece.key}: ux-impact ${piece["ux-impact"]} is not confirmed by the person.`);
-    if (piece["try-out"] === "no" && (piece["ux-impact"] ?? "none") !== "none") errors.push(`piece ${piece.key}: try-out no with ux-impact ${piece["ux-impact"]}: a piece with a user-facing change gets a try-out (D37).`);
-    const est = piece["estimated-slices"];
-    if (!Number.isInteger(est)) warnings.push(`piece ${piece.key}: no estimated-slices. Estimate the capability slices; the target is ${SLICE_TARGET}.`);
-    else if (est > SLICE_MAX) warnings.push(`piece ${piece.key}: about ${est} slices, above ${SLICE_MAX}. Propose a split at a point where the first part is complete; the person may keep it.`);
-    else if (est < SLICE_MIN) warnings.push(`piece ${piece.key}: about ${est} slices, below ${SLICE_MIN}. Propose a merge with a piece of the same family; the person may keep it.`);
+    if (!String(packet.goal ?? "").trim()) errors.push(`packet ${packet.key}: no goal. Write the goal of the packet.`);
+    if (!list(packet["acceptance-criteria"]).length) errors.push(`packet ${packet.key}: no acceptance criteria. Write each checkable criterion.`);
+    if (!UX_IMPACTS.includes(packet["ux-impact"])) errors.push(`packet ${packet.key}: no ux-impact. Propose one; the person confirms it.`);
+    else if (packet["ux-impact-confirmed"] !== true) errors.push(`packet ${packet.key}: ux-impact ${packet["ux-impact"]} is not confirmed by the person.`);
+    if (packet["try-out"] === "no" && (packet["ux-impact"] ?? "none") !== "none") errors.push(`packet ${packet.key}: try-out no with ux-impact ${packet["ux-impact"]}: a packet with a user-facing change gets a try-out (D37).`);
+    const est = packet["estimated-slices"];
+    if (!Number.isInteger(est)) warnings.push(`packet ${packet.key}: no estimated-slices. Estimate the capability slices; the target is ${SLICE_TARGET}.`);
+    else if (est > SLICE_MAX) warnings.push(`packet ${packet.key}: about ${est} slices, above ${SLICE_MAX}. Propose a split at a point where the first part is complete; the person may keep it.`);
+    else if (est < SLICE_MIN) warnings.push(`packet ${packet.key}: about ${est} slices, below ${SLICE_MIN}. Propose a merge with a packet of the same family; the person may keep it.`);
   }
-  for (const piece of pieces.filter(isPiece)) {
-    if (writtenUp(piece) || piece.state === "dropped") continue;
-    const carried = carriedDecisionItems(board, piece);
+  for (const packet of packets.filter(isPacket)) {
+    if (writtenUp(packet) || packet.state === "dropped") continue;
+    const carried = carriedDecisionItems(board, packet);
     const undated = carried.filter((i) => i.session == null || !i["decided-at"]);
     if (undated.length) {
-      warnings.push(`piece ${piece.key}: ${undated.length} carried decision(s) have no session or decided-at (${undated.slice(0, 3).map((i) => i.key).join(", ")}${undated.length > 3 ? ", \u2026" : ""}): write both on each decision.`);
+      warnings.push(`packet ${packet.key}: ${undated.length} carried decision(s) have no session or decided-at (${undated.slice(0, 3).map((i) => i.key).join(", ")}${undated.length > 3 ? ", \u2026" : ""}): write both on each decision.`);
     }
-    if (carried.length && !touchingItems(board, piece, "finding").length) {
-      warnings.push(`piece ${piece.key} carries ${carried.length} decisions and no finding: put the findings that bear on them in its items or on its threads, or say why there are none.`);
+    if (carried.length && !touchingItems(board, packet, "finding").length) {
+      warnings.push(`packet ${packet.key} carries ${carried.length} decisions and no finding: put the findings that bear on them in its items or on its threads, or say why there are none.`);
     }
   }
   if (buildNotStarted && board.stack?.["user-confirmed"] !== true) {
-    errors.push("the list has build pieces and no confirmed stack. Detect the stack, confirm it with the person, and write it to the board with user-confirmed: true.");
+    errors.push("the list has build packets and no confirmed stack. Detect the stack, confirm it with the person, and write it to the board with user-confirmed: true.");
   }
   const sketchKeys = new Set((board.sketches ?? []).map((s) => s?.key).filter(Boolean));
-  const placed = new Set(pieces.flatMap((p) => p.sketches ?? []));
+  const placed = new Set(packets.flatMap((p) => p.sketches ?? []));
   for (const sketch of board.sketches ?? []) {
     if (sketch?.state === "idea") {
-      errors.push(`sketch ${sketch.key} ("${sketch.caption ?? ""}") is still an idea: carry it into a piece, drop it, or keep it as a reference.`);
+      errors.push(`sketch ${sketch.key} ("${sketch.caption ?? ""}") is still an idea: carry it into a packet, drop it, or keep it as a reference.`);
     } else if (sketch?.state === "carried" && !placed.has(sketch.key)) {
-      errors.push(`carried sketch ${sketch.key} ("${sketch.caption ?? ""}") is in no piece: name it in the sketches of the piece it serves, or drop it.`);
+      errors.push(`carried sketch ${sketch.key} ("${sketch.caption ?? ""}") is in no packet: name it in the sketches of the packet it serves, or drop it.`);
     }
   }
-  for (const piece of pieces) {
-    for (const key of piece.sketches ?? []) {
-      if (!sketchKeys.has(key)) errors.push(`piece ${piece.key} names sketch ${key}, which is not on the board.`);
+  for (const packet of packets) {
+    for (const key of packet.sketches ?? []) {
+      if (!sketchKeys.has(key)) errors.push(`packet ${packet.key} names sketch ${key}, which is not on the board.`);
     }
   }
-  for (const piece of pieces.filter(isWriteNowPiece)) {
-    if (piece.state === "written" && !(piece["written-files"] ?? []).length) {
-      errors.push(`write-now piece ${piece.key} is written but records no written-files.`);
+  for (const packet of packets.filter(isWriteNowPacket)) {
+    if (packet.state === "written" && !(packet["written-files"] ?? []).length) {
+      errors.push(`write-now packet ${packet.key} is written but records no written-files.`);
     }
-    if (piece.state !== "written" && piece.state !== "proposed") {
-      errors.push(`write-now piece ${piece.key} has state ${piece.state}; it is proposed or written.`);
+    if (packet.state !== "written" && packet.state !== "proposed") {
+      errors.push(`write-now packet ${packet.key} has state ${packet.state}; it is proposed or written.`);
     }
   }
   for (const hit of findIgnoredCitations(board, { isIgnored })) {
@@ -351,20 +351,20 @@ function itemLine(item, { withWhy = false, boardFile = DEFAULT_FILES.board } = {
   parts.push(` ([board](../${boardFile}#${item.key}))`);
   return parts.join("");
 }
-function itemsOfKind(board, piece, kinds, predicate = () => true) {
+function itemsOfKind(board, packet, kinds, predicate = () => true) {
   const items = byKey(board.items);
-  return (piece.items ?? []).map((k) => items.get(k)).filter((i) => i && kinds.includes(i.kind) && predicate(i));
+  return (packet.items ?? []).map((k) => items.get(k)).filter((i) => i && kinds.includes(i.kind) && predicate(i));
 }
-function threadItems(board, piece, predicate) {
-  const threads = new Set(piece.threads ?? []);
-  const own = new Set(piece.items ?? []);
+function threadItems(board, packet, predicate) {
+  const threads = new Set(packet.threads ?? []);
+  const own = new Set(packet.items ?? []);
   return (board.items ?? []).filter((i) => threads.has(i.thread) && !own.has(i.key) && predicate(i));
 }
-function touchingItems(board, piece, kind, predicate = isLive) {
-  const own = itemsOfKind(board, piece, [kind], predicate);
+function touchingItems(board, packet, kind, predicate = isLive) {
+  const own = itemsOfKind(board, packet, [kind], predicate);
   const seen = new Set(own.map((i) => i.key));
-  const threads = new Set(piece.threads ?? []);
-  const decisions = new Set(carriedDecisionItems(board, piece).map((i) => i.key));
+  const threads = new Set(packet.threads ?? []);
+  const decisions = new Set(carriedDecisionItems(board, packet).map((i) => i.key));
   const more = (board.items ?? []).filter((i) => i && i.kind === kind && !seen.has(i.key) && predicate(i) && (threads.has(i.thread) || Array.isArray(i.between) && i.between.some((k) => decisions.has(k))));
   return [...own, ...more];
 }
@@ -377,9 +377,9 @@ function researchLink(id, researchFiles) {
 function referenceLink(ref) {
   return /^F\d+$/.test(ref) ? `[${ref}](../references/index.md#${ref.toLowerCase()})` : `\`${ref}\``;
 }
-function pieceSketches(board, piece) {
+function packetSketches(board, packet) {
   const sketches = byKey(board.sketches);
-  return (piece.sketches ?? []).map((key) => {
+  return (packet.sketches ?? []).map((key) => {
     const s = sketches.get(key) ?? {};
     const raw = s.path ? String(s.path).split("\\").join("/") : "";
     const at = raw.indexOf("#");
@@ -396,26 +396,26 @@ function pieceSketches(board, piece) {
     };
   });
 }
-function pieceFrontmatter(board, piece, { revision = 1, generatedAt = null, state = null } = {}) {
-  const decisions = carriedDecisionItems(board, piece);
+function packetFrontmatter(board, packet, { revision = 1, generatedAt = null, state = null } = {}) {
+  const decisions = carriedDecisionItems(board, packet);
   const keysOf = (l) => l.map((i) => i.key);
-  const build = isBuildPiece(piece);
+  const build = isBuildPacket(packet);
   return {
     schema: "sdlc/v1",
-    type: "piece",
+    type: "packet",
     slug: board.slug,
-    key: piece.key,
-    "piece-slug": piece.slug ?? piece.key,
-    title: piece.title,
-    form: piece.shape,
-    "target-slug": piece["target-slug"] ?? null,
-    amends: piece.amends ?? null,
-    urgency: piece.urgency ?? "normal",
+    key: packet.key,
+    "packet-slug": packet.slug ?? packet.key,
+    title: packet.title,
+    form: packet.shape,
+    "target-slug": packet["target-slug"] ?? null,
+    amends: packet.amends ?? null,
+    urgency: packet.urgency ?? "normal",
     revision,
     "origin-source": board.slug,
-    order: piece.order ?? 1,
-    ...piece["why-here"] ? { "why-here": piece["why-here"] } : {},
-    state: state ?? (isStartedState(piece.state) ? piece.state : "written"),
+    order: packet.order ?? 1,
+    ...packet["why-here"] ? { "why-here": packet["why-here"] } : {},
+    state: state ?? (isStartedState(packet.state) ? packet.state : "written"),
     "carried-decisions": decisions.map((i) => ({
       key: i.key,
       text: i.text,
@@ -424,64 +424,64 @@ function pieceFrontmatter(board, piece, { revision = 1, generatedAt = null, stat
       "decided-at": i["decided-at"] ?? null
     })),
     "open-ideas": keysOf([
-      ...itemsOfKind(board, piece, ["idea", "question"], isLive),
-      ...threadItems(board, piece, (i) => i.kind === "question" && (i.state === "open" || i.state === "for-plan")),
-      ...touchingItems(board, piece, "tension", openTension)
+      ...itemsOfKind(board, packet, ["idea", "question"], isLive),
+      ...threadItems(board, packet, (i) => i.kind === "question" && (i.state === "open" || i.state === "for-plan")),
+      ...touchingItems(board, packet, "tension", openTension)
     ]),
-    findings: keysOf(touchingItems(board, piece, "finding")),
-    assumptions: keysOf(touchingItems(board, piece, "assumption", liveAssumption)),
-    later: keysOf(threadItems(board, piece, (i) => i.scope === "later")),
-    research: piece.research ?? [],
-    references: piece.references ?? [],
-    "ux-impact": piece["ux-impact"] ?? "none",
-    ...build ? { "try-out": tryOutOf(piece) } : {},
-    ...Number.isInteger(piece["estimated-slices"]) ? { "estimated-slices": piece["estimated-slices"] } : {},
-    "design-form": piece["design-form"] ?? "none",
-    ...piece.sketches?.length ? { sketches: pieceSketches(board, piece) } : {},
-    ...piece.migrated ? { migrated: piece.migrated } : {},
+    findings: keysOf(touchingItems(board, packet, "finding")),
+    assumptions: keysOf(touchingItems(board, packet, "assumption", liveAssumption)),
+    later: keysOf(threadItems(board, packet, (i) => i.scope === "later")),
+    research: packet.research ?? [],
+    references: packet.references ?? [],
+    "ux-impact": packet["ux-impact"] ?? "none",
+    ...build ? { "try-out": tryOutOf(packet) } : {},
+    ...Number.isInteger(packet["estimated-slices"]) ? { "estimated-slices": packet["estimated-slices"] } : {},
+    "design-form": packet["design-form"] ?? "none",
+    ...packet.sketches?.length ? { sketches: packetSketches(board, packet) } : {},
+    ...packet.migrated ? { migrated: packet.migrated } : {},
     ...generatedAt ? { "generated-at": generatedAt } : {}
   };
 }
 function bullets(l) {
   return l.length ? l.map((x) => `- ${x}`) : ["- None."];
 }
-function renderPiece(board, piece, { revision = 1, generatedAt = null, researchFiles = [], files = DEFAULT_FILES, state = null } = {}) {
-  const fm = pieceFrontmatter(board, piece, { revision, generatedAt, state });
-  const pieces = board.work ?? [];
-  const pieceKeys = byKey(pieces);
-  const decisions = carriedDecisionItems(board, piece);
-  const open = itemsOfKind(board, piece, ["idea", "question"], isLive);
-  const openTensions = touchingItems(board, piece, "tension", openTension);
-  const openQuestions = threadItems(board, piece, (i) => i.kind === "question" && (i.state === "open" || i.state === "for-plan"));
-  const findings = touchingItems(board, piece, "finding");
-  const assumptions = touchingItems(board, piece, "assumption", liveAssumption);
+function renderPacket(board, packet, { revision = 1, generatedAt = null, researchFiles = [], files = DEFAULT_FILES, state = null } = {}) {
+  const fm = packetFrontmatter(board, packet, { revision, generatedAt, state });
+  const packets = board.work ?? [];
+  const packetKeys = byKey(packets);
+  const decisions = carriedDecisionItems(board, packet);
+  const open = itemsOfKind(board, packet, ["idea", "question"], isLive);
+  const openTensions = touchingItems(board, packet, "tension", openTension);
+  const openQuestions = threadItems(board, packet, (i) => i.kind === "question" && (i.state === "open" || i.state === "for-plan"));
+  const findings = touchingItems(board, packet, "finding");
+  const assumptions = touchingItems(board, packet, "assumption", liveAssumption);
   const risks = decisions.filter((i) => i["accepted-risk"]);
-  const later = threadItems(board, piece, (i) => i.scope === "later");
-  const cut = threadItems(board, piece, (i) => i.scope === "cut");
+  const later = threadItems(board, packet, (i) => i.scope === "later");
+  const cut = threadItems(board, packet, (i) => i.scope === "cut");
   const linkTo = (key) => {
-    const other = pieceKeys.get(key);
+    const other = packetKeys.get(key);
     if (!other) return `\`${key}\``;
-    if (isWriteNowPiece(other)) return `${other.title} (written in the brainstorm session; state ${other.state})`;
-    return `[${other.title}](${pieceFileName(other)})`;
+    if (isWriteNowPacket(other)) return `${other.title} (written in the brainstorm session; state ${other.state})`;
+    return `[${other.title}](${packetFileName(other)})`;
   };
   const none = "- None.";
   const lines = [];
   lines.push("---", dump(fm), "---", "");
-  lines.push(`# ${piece.title}`, "");
-  lines.push(`The board wins where this piece and the board differ: [${files.board}](../${files.board}), [${files.lead}](../${files.lead}). The list: [index.md](index.md).`, "");
+  lines.push(`# ${packet.title}`, "");
+  lines.push(`The board wins where this packet and the board differ: [${files.board}](../${files.board}), [${files.lead}](../${files.lead}). The list: [index.md](index.md).`, "");
   lines.push("## Place in the list", "");
-  lines.push(`Form: \`${piece.shape}\`${piece["target-slug"] ? ` on \`${piece["target-slug"]}\`` : ""}. Order: ${piece.order ?? 1}. Carried decisions: ${decisions.length}.${Number.isInteger(piece["estimated-slices"]) ? ` Estimated slices: ${piece["estimated-slices"]}.` : ""}`, "");
-  const before = (piece.order ?? 1) > 1 ? pieces.find((p) => p.order === piece.order - 1) : null;
-  if (before) lines.push(`Comes after: ${linkTo(before.key)}, because ${String(piece["why-here"] ?? "").trim().replace(/\.$/, "")}.`, "");
-  lines.push(isBuildPiece(piece) ? `The campaign walk builds this piece: \`/wf campaign ${board.slug}\`.` : `The campaign walk routes this piece to its own command (form \`${piece.shape}\`).`, "");
-  lines.push("## Goal", "", String(piece.goal ?? "").trim() || "- None.", "");
-  lines.push("## In scope", "", ...bullets(list(piece["in-scope"])), "");
-  lines.push("## Out of scope", "", ...bullets(list(piece["out-of-scope"])), "");
+  lines.push(`Form: \`${packet.shape}\`${packet["target-slug"] ? ` on \`${packet["target-slug"]}\`` : ""}. Order: ${packet.order ?? 1}. Carried decisions: ${decisions.length}.${Number.isInteger(packet["estimated-slices"]) ? ` Estimated slices: ${packet["estimated-slices"]}.` : ""}`, "");
+  const before = (packet.order ?? 1) > 1 ? packets.find((p) => p.order === packet.order - 1) : null;
+  if (before) lines.push(`Comes after: ${linkTo(before.key)}, because ${String(packet["why-here"] ?? "").trim().replace(/\.$/, "")}.`, "");
+  lines.push(isBuildPacket(packet) ? `The campaign walk builds this packet: \`/wf campaign ${board.slug}\`.` : `The campaign walk routes this packet to its own command (form \`${packet.shape}\`).`, "");
+  lines.push("## Goal", "", String(packet.goal ?? "").trim() || "- None.", "");
+  lines.push("## In scope", "", ...bullets(list(packet["in-scope"])), "");
+  lines.push("## Out of scope", "", ...bullets(list(packet["out-of-scope"])), "");
   lines.push("## Acceptance criteria", "");
-  const acs = list(piece["acceptance-criteria"]);
+  const acs = list(packet["acceptance-criteria"]);
   lines.push(...acs.length ? acs.map((ac, i) => `- **AC-${i + 1}** \u2014 ${ac}`) : [none], "");
-  lines.push("## Constraints", "", ...bullets(list(piece.constraints)), "");
-  lines.push("## Risks", "", ...bullets(list(piece.risks)), "");
+  lines.push("## Constraints", "", ...bullets(list(packet.constraints)), "");
+  lines.push("## Risks", "", ...bullets(list(packet.risks)), "");
   lines.push("## What the person decided", "");
   lines.push("The campaign copies these decisions word for word into the workflow folder. Nobody re-words them.", "");
   if (decisions.length) {
@@ -507,24 +507,24 @@ function renderPiece(board, piece, { revision = 1, generatedAt = null, researchF
   lines.push(...leftLines.length ? leftLines : [none], "");
   lines.push("## Sources", "");
   const sources = [
-    ...(piece.research ?? []).map((id) => `- Research: ${researchLink(id, researchFiles)}`),
-    ...(piece.references ?? []).map((ref) => `- Reference: ${referenceLink(ref)}`),
+    ...(packet.research ?? []).map((id) => `- Research: ${researchLink(id, researchFiles)}`),
+    ...(packet.references ?? []).map((ref) => `- Reference: ${referenceLink(ref)}`),
     ...(fm.sketches ?? []).map((sk) => `- Sketch \`${sk.key}\`: ${sk.path ? `\`${sk.path}\`` : "no file"}${sk.link ? ` ([canvas](${sk.link}))` : ""}${sk.caption ? ` \u2014 ${sk.caption}` : ""}`)
   ];
   lines.push(...sources.length ? sources : [none], "");
   return lines.join("\n");
 }
 function renderListIndex(board, { revision = 1, generatedAt = null, files = DEFAULT_FILES, states = {} } = {}) {
-  const pieces = ordered(board.work ?? []);
-  const own = pieces.filter(isPiece);
-  const writeNow = pieces.filter(isWriteNowPiece);
+  const packets = ordered(board.work ?? []);
+  const own = packets.filter(isPacket);
+  const writeNow = packets.filter(isWriteNowPacket);
   const fm = {
     schema: "sdlc/v1",
     type: "list",
     slug: board.slug,
     "list-revision": revision,
     "list-branch": listBranch(board.slug),
-    pieces: own.map((p) => p.key),
+    packets: own.map((p) => p.key),
     slugs: own.map((p) => p.slug ?? p.key),
     written: writeNow.filter((p) => p.state === "written").map((p) => p.key),
     ...board.stack ? { stack: board.stack } : {},
@@ -533,12 +533,12 @@ function renderListIndex(board, { revision = 1, generatedAt = null, files = DEFA
   const lines = ["---", dump(fm), "---", ""];
   lines.push(`# List: ${board.topic ?? board.slug}`, "");
   lines.push(`The board wins where this file and the board differ: [${files.board}](../${files.board}). Changes by revision: [changes.md](changes.md).`, "");
-  lines.push("## Pieces", "");
+  lines.push("## Packets", "");
   if (own.length) {
-    lines.push("| Order | Piece | Form | State | Try-out | Why here |", "|---|---|---|---|---|---|");
+    lines.push("| Order | Packet | Form | State | Try-out | Why here |", "|---|---|---|---|---|---|");
     for (const p of own) {
       const state = states[p.key] ?? (isStartedState(p.state) ? p.state : "written");
-      lines.push(`| ${p.order ?? ""} | [${p.title}](${pieceFileName(p)}) | ${p.shape}${p["target-slug"] ? ` on \`${p["target-slug"]}\`` : ""} | ${state} | ${isBuildPiece(p) ? tryOutOf(p) : "\u2014"} | ${String(p["why-here"] ?? "").trim() || "\u2014"} |`);
+      lines.push(`| ${p.order ?? ""} | [${p.title}](${packetFileName(p)}) | ${p.shape}${p["target-slug"] ? ` on \`${p["target-slug"]}\`` : ""} | ${state} | ${isBuildPacket(p) ? tryOutOf(p) : "\u2014"} | ${String(p["why-here"] ?? "").trim() || "\u2014"} |`);
     }
   } else lines.push("- None.");
   lines.push("");
@@ -551,7 +551,7 @@ function renderListIndex(board, { revision = 1, generatedAt = null, files = DEFA
   } else lines.push("- None.");
   lines.push("");
   lines.push("## Build the list", "");
-  lines.push(own.length ? `Type \`/wf campaign ${board.slug}\`. The walk builds the pieces in order, one at a time, on the branch \`${listBranch(board.slug)}\`.` : "- Nothing to build.", "");
+  lines.push(own.length ? `Type \`/wf campaign ${board.slug}\`. The walk builds the packets in order, one at a time, on the branch \`${listBranch(board.slug)}\`.` : "- Nothing to build.", "");
   return lines.join("\n");
 }
 function renderResearchIndex(board, notes) {
@@ -560,8 +560,8 @@ function renderResearchIndex(board, notes) {
   for (const note of notes) {
     const id = note.data?.id ?? note.file.replace(/-.*$/, "").replace(/\.md$/, "");
     const citing = (board.items ?? []).filter((i) => typeof i.evidence === "string" && i.evidence.includes(`research/${note.file}`)).map((i) => i.key);
-    const pieces = (board.work ?? []).filter((p) => (p.research ?? []).includes(id)).map((p) => p.key);
-    const cites = [...citing, ...pieces.map((k) => `work:${k}`)];
+    const packets = (board.work ?? []).filter((p) => (p.research ?? []).includes(id)).map((p) => p.key);
+    const cites = [...citing, ...packets.map((k) => `work:${k}`)];
     lines.push(`- [${id}](${note.file}) \u2014 ${note.data?.question ?? "(no question recorded)"} \u2014 cited by: ${cites.length ? cites.join(", ") : "nothing yet"}`);
   }
   lines.push("");
@@ -570,7 +570,7 @@ function renderResearchIndex(board, notes) {
 function signature(text) {
   return String(text ?? "").replace(/\r\n/g, "\n").replace(SIGNATURE_LINE_RE, "").trim();
 }
-function pieceContent(text) {
+function packetContent(text) {
   const p = safeParseFrontmatter(String(text ?? ""));
   if (!p.data) return signature(text);
   const d = { ...p.data };
@@ -594,9 +594,9 @@ function latestHistoryCopy(historyDir, key) {
   }
   return best ? readFileSync(join2(historyDir, best.n), "utf8") : null;
 }
-function startedPieceRewriteError(oldText, newText) {
+function startedPacketRewriteError(oldText, newText) {
   const before = safeParseFrontmatter(oldText);
-  if (!before.data || before.data.type !== "piece" || !isStartedState(before.data.state)) return null;
+  if (!before.data || before.data.type !== "packet" || !isStartedState(before.data.state)) return null;
   const after = safeParseFrontmatter(newText);
   if (!after.data) return null;
   const strip = (data) => {
@@ -605,7 +605,7 @@ function startedPieceRewriteError(oldText, newText) {
     return JSON.stringify(copy);
   };
   if (strip(before.data) !== strip(after.data) || signature(before.content) !== signature(after.content)) {
-    return `piece ${before.data.key ?? ""} is ${before.data.state}: a started piece is never rewritten. A change to it is a new piece (extension, fix, or hotfix) with amends: ${before.data.key ?? "<key>"}.`;
+    return `packet ${before.data.key ?? ""} is ${before.data.state}: a started packet is never rewritten. A change to it is a new packet (extension, fix, or hotfix) with amends: ${before.data.key ?? "<key>"}.`;
   }
   return null;
 }
@@ -618,17 +618,17 @@ function readResearchNotes(dir) {
   return readdirSync(research).filter((f) => /^R\d+.*\.md$/.test(f)).sort().map((file) => ({ file, data: safeParseFrontmatter(readFileSync(join2(research, file), "utf8")).data ?? {} }));
 }
 function readWorkFiles(workDir) {
-  const pieces = /* @__PURE__ */ new Map();
-  const packets = [];
-  if (!existsSync(workDir)) return { pieces, packets };
+  const packets = /* @__PURE__ */ new Map();
+  const legacyPackets = [];
+  if (!existsSync(workDir)) return { packets, legacyPackets };
   for (const file of readdirSync(workDir)) {
     if (!file.endsWith(".md") || file === "index.md" || file === "changes.md" || file === "migration.md") continue;
     const text = readFileSync(join2(workDir, file), "utf8");
     const data = safeParseFrontmatter(text).data;
-    if (data?.type === "piece") pieces.set(data.key ?? file, { file, text, data });
-    else if (data?.type === "work-packet") packets.push(file);
+    if (data?.type === "packet") packets.set(data.key ?? file, { file, text, data });
+    else if (data?.type === "work-packet") legacyPackets.push(file);
   }
-  return { pieces, packets };
+  return { packets, legacyPackets };
 }
 function stamp(now) {
   return (now ?? /* @__PURE__ */ new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -641,7 +641,7 @@ function writeList(dir, { now = null, isIgnored = null, dryRun = false, boardFil
   const workDir = join2(dir, "work");
   const historyDir = join2(dir, "history");
   const at = stamp(now);
-  const { pieces: existing, packets: oldPackets } = readWorkFiles(workDir);
+  const { packets: existing, legacyPackets: oldPackets } = readWorkFiles(workDir);
   const indexPath = join2(workDir, "index.md");
   const oldIndex = existsSync(indexPath) ? safeParseFrontmatter(readFileSync(indexPath, "utf8")).data ?? {} : {};
   const oldRevision = oldIndex.type === "list" && Number.isInteger(oldIndex["list-revision"]) ? oldIndex["list-revision"] : 0;
@@ -654,33 +654,33 @@ function writeList(dir, { now = null, isIgnored = null, dryRun = false, boardFil
   const reordered = [];
   const writes = [];
   const states = {};
-  for (const piece of ordered((board.work ?? []).filter(isPiece))) {
-    const prior = existing.get(piece.key);
-    existing.delete(piece.key);
-    const state = prior && PIECE_STATES.includes(prior.data.state) ? prior.data.state : isStartedState(piece.state) ? piece.state : "written";
-    states[piece.key] = state;
-    const text = renderPiece(board, piece, { revision, generatedAt: at, researchFiles, files, state });
-    const shape = validateFrontmatter(pieceFrontmatter(board, piece, { revision, generatedAt: at, state }));
-    if (!shape.valid) return { ok: false, errors: shape.errors.map((e) => `piece ${piece.key}: ${e.path} ${e.message}`), warnings: check.warnings };
+  for (const packet of ordered((board.work ?? []).filter(isPacket))) {
+    const prior = existing.get(packet.key);
+    existing.delete(packet.key);
+    const state = prior && PACKET_STATES.includes(prior.data.state) ? prior.data.state : isStartedState(packet.state) ? packet.state : "written";
+    states[packet.key] = state;
+    const text = renderPacket(board, packet, { revision, generatedAt: at, researchFiles, files, state });
+    const shape = validateFrontmatter(packetFrontmatter(board, packet, { revision, generatedAt: at, state }));
+    if (!shape.valid) return { ok: false, errors: shape.errors.map((e) => `packet ${packet.key}: ${e.path} ${e.message}`), warnings: check.warnings };
     if (prior && isStartedState(prior.data.state)) {
-      kept.push(piece.key);
-      if (Number.isInteger(piece.order) && prior.data.order !== piece.order) {
-        const moved = setFrontmatterValue(prior.text, "order", piece.order);
+      kept.push(packet.key);
+      if (Number.isInteger(packet.order) && prior.data.order !== packet.order) {
+        const moved = setFrontmatterValue(prior.text, "order", packet.order);
         if (moved) {
           writes.push({ path: join2(workDir, prior.file), text: moved });
-          reordered.push(piece.key);
+          reordered.push(packet.key);
         }
       }
-      if (pieceContent(latestHistoryCopy(historyDir, piece.key) ?? prior.text) !== pieceContent(text)) {
-        historyOnly.push(piece.key);
-        writes.push({ path: join2(historyDir, `work-${piece.key}.r${revision}.md`), text });
+      if (packetContent(latestHistoryCopy(historyDir, packet.key) ?? prior.text) !== packetContent(text)) {
+        historyOnly.push(packet.key);
+        writes.push({ path: join2(historyDir, `work-${packet.key}.r${revision}.md`), text });
       }
       continue;
     }
-    if (!prior) added.push(piece.key);
-    else if (signature(prior.text) !== signature(text)) changed.push(piece.key);
+    if (!prior) added.push(packet.key);
+    else if (signature(prior.text) !== signature(text)) changed.push(packet.key);
     else continue;
-    writes.push({ path: join2(workDir, pieceFileName(piece)), text, removeFirst: prior && prior.file !== pieceFileName(piece) ? join2(workDir, prior.file) : null });
+    writes.push({ path: join2(workDir, packetFileName(packet)), text, removeFirst: prior && prior.file !== packetFileName(packet) ? join2(workDir, prior.file) : null });
   }
   const cut = [];
   const pendingCut = [];
@@ -689,7 +689,7 @@ function writeList(dir, { now = null, isIgnored = null, dryRun = false, boardFil
     else cut.push({ key, file: prior.file });
   }
   const priorWritten = new Set(oldIndex.written ?? []);
-  const writtenNow = (board.work ?? []).filter((p) => isWriteNowPiece(p) && p.state === "written" && !priorWritten.has(p.key));
+  const writtenNow = (board.work ?? []).filter((p) => isWriteNowPacket(p) && p.state === "written" && !priorWritten.has(p.key));
   const changedSet = added.length || changed.length || cut.length || historyOnly.length || reordered.length || writtenNow.length || oldPackets.length || oldIndex.type !== "list";
   const finalRevision = changedSet || !oldRevision ? revision : oldRevision;
   if (!changedSet && oldRevision) {
@@ -746,14 +746,14 @@ export {
   rosterWalkOrder,
   closesCycle,
   BUILD_FORMS,
-  PIECE_STATES,
+  PACKET_STATES,
   DEFAULT_FILES,
   IDEATE_FILES,
   listBranch,
   endBranch,
   isStartedState,
   checkList,
-  startedPieceRewriteError,
+  startedPacketRewriteError,
   readWorkFiles,
   writeList
 };

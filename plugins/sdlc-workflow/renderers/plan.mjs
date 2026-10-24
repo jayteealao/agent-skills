@@ -229,7 +229,7 @@ function fileTopologySvg(sy) {
 
 // Compose the structured sections beneath the topology figure: a frontmatter
 // card, acceptance-criteria checklist, files-touched table, risk callouts, and
-// a prior-revisions disclosure. Each piece renders only when it has data.
+// a prior-revisions disclosure. Each packet renders only when it has data.
 function structuredSections(fm, sy) {
   const parts = [
     planFrontmatterCard(fm),

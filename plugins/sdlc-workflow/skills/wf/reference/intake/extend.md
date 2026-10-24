@@ -114,7 +114,7 @@ From `10-retro.md`, extract the items that imply new development work: `## Recom
 
 ## General seed
 
-The user's free scope text (if any) is the starting description; the Step 2 discovery interview sharpens it into precise slices. A fix in the campaign walk is a general seed (`campaign.md`, step 13): the problem text of a fidelity row or of a try-out is the starting description, the slug is a piece (`origin-piece` set), and the new slice corrects that problem. The interview does not ask about the confirmed scope of the piece or a carried decision again. If no text was given, the interview elicits the scope from scratch. Proceed directly to the interview.
+The user's free scope text (if any) is the starting description; the Step 2 discovery interview sharpens it into precise slices. A fix in the campaign walk is a general seed (`campaign.md`, step 13): the problem text of a fidelity row or of a try-out is the starting description, the slug is a work packet (`origin-packet` set), and the new slice corrects that problem. The interview does not ask about the confirmed scope of the work packet or a carried decision again. If no text was given, the interview elicits the scope from scratch. Proceed directly to the interview.
 
 ---
 
@@ -186,7 +186,7 @@ This is the ONE step that writes `00-index.md` — everything earlier only compu
 1. `updated-at` → current ISO 8601 timestamp.
 2. Append all new `03-slice-<new-slug>.md` files to `workflow-files`.
 3. Append the Step 3b **RIM delta** entries to `intent-risks` and the **charter delta** entries to the `charter` ledger (never rewrite or renumber existing entries); append any `open` risk to `open-questions`.
-4. **Re-point the forward pointers at the new work:** set `next-command: wf-plan` and `next-invocation: "/wf plan <slug> <first-new-slice-slug>"`. When `00-index.md` records `origin-piece`, set `next-invocation: "/wf campaign <source-slug>"` instead: the walk runs the driver on the new slice. On a Step 3c design delta, instead raise `ux-impact`, set `next-command: wf-design`, `next-invocation: "/wf design <slug> amend"` (it draws the new boards), and `progress.design: in-progress` (with no `02c-craft.md`: `"/wf design <slug>"`, and leave `progress.design`); if `03-slice.md` carries `best-first-slice` and every prior slice is complete/skipped, set it to the first new slice. Without this, `/wf status` and resume point at an already-done slice.
+4. **Re-point the forward pointers at the new work:** set `next-command: wf-plan` and `next-invocation: "/wf plan <slug> <first-new-slice-slug>"`. When `00-index.md` records `origin-packet`, set `next-invocation: "/wf campaign <source-slug>"` instead: the walk runs the driver on the new slice. On a Step 3c design delta, instead raise `ux-impact`, set `next-command: wf-design`, `next-invocation: "/wf design <slug> amend"` (it draws the new boards), and `progress.design: in-progress` (with no `02c-craft.md`: `"/wf design <slug>"`, and leave `progress.design`); if `03-slice.md` carries `best-first-slice` and every prior slice is complete/skipped, set it to the first new slice. Without this, `/wf status` and resume point at an already-done slice.
 5. **Revive a complete/closed parent:** extension means the workflow has live work again. If `status` is `complete` or `closed`, set `status: active` and `current-stage: slice` (leave `close-reason`/`closed-at` in place as history — the revival is visible, not erased).
 6. **Registry row:** update the slug's row in `.ai/workflows/INDEX.md` (`status`, `updated-at`) to match.
 
@@ -202,7 +202,7 @@ Return per [_chat-return.md](../_chat-return.md) — narrative lead (what this e
 - `extension-source:` from-review | from-retro | user request
 - `options:`
   - `/wf design <slug> amend` — draw the new surfaces first (default on a Step 3c design delta)
-  - `/wf campaign <source-slug>` — continue the walk (default when `origin-piece` is set)
+  - `/wf campaign <source-slug>` — continue the walk (default when `origin-packet` is set)
   - `/wf plan <slug> <first-new-slice-slug>` — plan the first new slice (default otherwise)
   - `/wf plan <slug> all` — if you want to plan all new slices in parallel
   - `/wf status <slug>` — see full workflow state including all slices

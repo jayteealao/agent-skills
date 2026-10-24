@@ -17,7 +17,7 @@ The contract has two halves. The **outbound** half (Blocks A–G) is the release
 
 This command therefore runs three loops:
 1. **Discovery** — read what the repo already says (CI workflows, infra-as-code, package manifests, runbooks). Don't ask before reading.
-2. **Hypothesis** — propose an inferred ship-shape and let the user confirm, correct, or replace each piece. Gate-question options ([_gate-question.md](../_gate-question.md)) are *prompts to refine a hypothesis*, not multiple-choice quizzes — `Other (describe)` is always available.
+2. **Hypothesis** — propose an inferred ship-shape and let the user confirm, correct, or replace each work packet. Gate-question options ([_gate-question.md](../_gate-question.md)) are *prompts to refine a hypothesis*, not multiple-choice quizzes — `Other (describe)` is always available.
 3. **Codify** — write a schema with a small **required core** (the fields `/wf ship` reads) plus **open extensions** (`additional-contracts[]`) for project-specific shape.
 
 Templates are **exemplar text** you can show the user when it helps. They are not branches in the control flow.

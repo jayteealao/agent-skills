@@ -215,7 +215,7 @@ If at least one `Fix` sub-agent successfully modified files: follow the shared c
 
 # Step 5: Write the merged master ledger
 
-Write (merge into) the master artifact. Filename depends on `review-scope`: **per-slice** → `07-review-<slice-slug>.md`; **slug-wide** → `07-review.md`. Load [_artifact.md](_artifact.md) and write the file from its Step 5 template: the `type: review` frontmatter (verdict, cumulative `commands-run`, OPEN metric counts, `runs:` audit trail, `refs:` per scope), then the body sections `## Verdict` through `## Recommendations`. When `00-index.md` records `origin-piece` and the scope is slug-wide, also write `## Decision Fidelity` after `## Verdict`, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table".
+Write (merge into) the master artifact. Filename depends on `review-scope`: **per-slice** → `07-review-<slice-slug>.md`; **slug-wide** → `07-review.md`. Load [_artifact.md](_artifact.md) and write the file from its Step 5 template: the `type: review` frontmatter (verdict, cumulative `commands-run`, OPEN metric counts, `runs:` audit trail, `refs:` per scope), then the body sections `## Verdict` through `## Recommendations`. When `00-index.md` records `origin-packet` and the scope is slug-wide, also write `## Decision Fidelity` after `## Verdict`, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table".
 
 When the file already exists, **edit in place** — preserve sections not changing (especially `## Triage Decisions` rows not re-triaged), update finding rows by ID, append net-new findings in severity-sorted position, mark resolved findings, and **append one entry to `runs:`**. Never overwrite the file wholesale.
 

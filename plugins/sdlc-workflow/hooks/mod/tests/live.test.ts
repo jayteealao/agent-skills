@@ -14,7 +14,7 @@ import { absorb, freshJournalState, livenessFrom } from '../live/model/journal.t
 import type { JournalState } from '../live/model/journal.ts'
 import { buildBrainstormModel } from '../live/model/brainstorm.ts'
 import { buildCampaignModel } from '../live/model/campaign.ts'
-import type { PieceFact } from '../live/model/campaign.ts'
+import type { PacketFact } from '../live/model/campaign.ts'
 import { buildYoloModel } from '../live/model/yolo.ts'
 import type { RosterFact } from '../live/model/yolo.ts'
 import { usageOf } from '../live/model/usage.ts'
@@ -56,22 +56,22 @@ const ROSTER: RosterFact[] = [
   { slug: 'ui', stage: 'defined', reviewed: false },
 ]
 
-/** A piece file of the list in `camp/work/` (WF-PIECES-PLAN.md 4.1). */
-const pieceText = (key: string, slug: string, order: number, state: string, uxImpact = 'none', form = 'intake') =>
-  `---\nschema: sdlc/v1\ntype: piece\nslug: camp\nkey: ${key}\npiece-slug: ${slug}\ntitle: "${slug}: the piece"\nform: ${form}\norder: ${order}\nstate: ${state}\nux-impact: ${uxImpact}\n---\n# ${slug}\n`
+/** A packet file of the list in `camp/work/` (WF-PIECES-PLAN.md 4.1). */
+const packetText = (key: string, slug: string, order: number, state: string, uxImpact = 'none', form = 'intake') =>
+  `---\nschema: sdlc/v1\ntype: packet\nslug: camp\nkey: ${key}\npacket-slug: ${slug}\ntitle: "${slug}: the packet"\nform: ${form}\norder: ${order}\nstate: ${state}\nux-impact: ${uxImpact}\n---\n# ${slug}\n`
 
 /** The list: alpha-auth done, alpha-ui open with a visual change, alpha-docs written. */
-const LIST = '---\nschema: sdlc/v1\ntype: list\nslug: camp\nlist-branch: pieces/camp\npieces:\n  - p1\n  - p2\n  - p3\n---\n# List: camp\n'
+const LIST = '---\nschema: sdlc/v1\ntype: list\nslug: camp\nlist-branch: packets/camp\npackets:\n  - p1\n  - p2\n  - p3\n---\n# List: camp\n'
 
-/** One piece as the live module reads it, with its workflow's files. */
-const pieceFact = (key: string, slug: string, order: number, state: string, rest: Partial<PieceFact> = {}): PieceFact => ({
+/** One packet as the live module reads it, with its workflow's files. */
+const packetFact = (key: string, slug: string, order: number, state: string, rest: Partial<PacketFact> = {}): PacketFact => ({
   key,
   slug,
   title: slug,
   form: 'intake',
   state,
   order,
-  pieceUxImpact: 'none',
+  packetUxImpact: 'none',
   indexText: null,
   craftText: null,
   ...rest,
@@ -104,9 +104,9 @@ const TREE: Record<string, string> = {
   '/work/.ai/workflows/alpha-flow/05-implement-auth.md': '---\nstatus: complete\n---\n',
   '/work/.ai/workflows/camp/00-index.md': '---\nslug: camp\nstatus: active\n---\n',
   '/work/.ai/workflows/camp/work/index.md': LIST,
-  '/work/.ai/workflows/camp/work/alpha-auth.md': pieceText('p1', 'alpha-auth', 1, 'done'),
-  '/work/.ai/workflows/camp/work/alpha-ui.md': pieceText('p2', 'alpha-ui', 2, 'open', 'visual'),
-  '/work/.ai/workflows/camp/work/alpha-docs.md': pieceText('p3', 'alpha-docs', 3, 'written'),
+  '/work/.ai/workflows/camp/work/alpha-auth.md': packetText('p1', 'alpha-auth', 1, 'done'),
+  '/work/.ai/workflows/camp/work/alpha-ui.md': packetText('p2', 'alpha-ui', 2, 'open', 'visual'),
+  '/work/.ai/workflows/camp/work/alpha-docs.md': packetText('p3', 'alpha-docs', 3, 'written'),
   '/work/.ai/workflows/idea/00-index.md': '---\nslug: idea\nstatus: active\n---\n',
   '/work/.ai/workflows/idea/brainstorm-board.json': JSON.stringify(BOARD),
 }
@@ -332,55 +332,55 @@ describe('live models (T1)', () => {
     expect(model.outcome).toBe('running')
   })
 
-  test('the campaign model reads the pieces in list order, their states, the current piece and the design needs', async () => {
+  test('the campaign model reads the packets in list order, their states, the current packet and the design needs', async () => {
     const unsettled = '---\nslug: alpha-ui\nstatus: active\nux-impact: visual\nprogress:\n  design: pending\n---\n'
     const skipped = '---\nslug: alpha-api\nstatus: active\nux-impact: flow\nprogress:\n  design: skipped\ndesign-skip-reason: the flow is the old one\n---\n'
     const model = buildCampaignModel({
       slug: 'camp',
       order: ['p1', 'p2', 'p3', 'p4', 'p5'],
-      pieces: [
-        pieceFact('p3', 'alpha-docs', 3, 'written'),
-        pieceFact('p1', 'alpha-auth', 1, 'done', { indexText: '---\nux-impact: visual\n---\n' }),
-        pieceFact('p2', 'alpha-ui', 2, 'open', { pieceUxImpact: 'visual', indexText: unsettled }),
-        pieceFact('p4', 'alpha-api', 4, 'open', { indexText: skipped }),
-        pieceFact('p5', 'alpha-rca', 5, 'written', { form: 'rca', pieceUxImpact: 'visual' }),
+      packets: [
+        packetFact('p3', 'alpha-docs', 3, 'written'),
+        packetFact('p1', 'alpha-auth', 1, 'done', { indexText: '---\nux-impact: visual\n---\n' }),
+        packetFact('p2', 'alpha-ui', 2, 'open', { packetUxImpact: 'visual', indexText: unsettled }),
+        packetFact('p4', 'alpha-api', 4, 'open', { indexText: skipped }),
+        packetFact('p5', 'alpha-rca', 5, 'written', { form: 'rca', packetUxImpact: 'visual' }),
       ],
       liveness: livenessFrom(freshJournalState(), NOW),
       dismissed: [],
     })
-    expect(model.pieces.map(piece => piece.key)).toEqual(['p1', 'p2', 'p3', 'p4', 'p5'])
-    expect(model.pieces.map(piece => piece.state)).toEqual(['done', 'open', 'written', 'open', 'written'])
+    expect(model.packets.map(packet => packet.key)).toEqual(['p1', 'p2', 'p3', 'p4', 'p5'])
+    expect(model.packets.map(packet => packet.state)).toEqual(['done', 'open', 'written', 'open', 'written'])
     expect(model.current).toBe('p2')
-    // A done piece, a written piece with no workflow, a skipped design and a routed form need no design.
-    expect(model.pieces.map(piece => piece.designNeeded)).toEqual([false, true, false, false, false])
+    // A done packet, a written packet with no workflow, a skipped design and a routed form need no design.
+    expect(model.packets.map(packet => packet.designNeeded)).toEqual([false, true, false, false, false])
     expect(model.needs.map(need => need.id)).toEqual(['design:alpha-ui'])
     expect(model.needs[0]?.actions[0]?.prompt).toBe('/wf design alpha-ui')
     const facts = factsOf(model, NOW)
     expect(facts.focus.line).toBe('alpha-ui · open · needs design')
-    expect(facts.focus.eyebrow).toBe('piece 2 of 5')
+    expect(facts.focus.eyebrow).toBe('packet 2 of 5')
     expect(facts.groups[0]?.tracks.map(track => track.marks)).toEqual([['done'], ['run'], ['wait'], ['wait'], ['wait']])
     expect(facts.controls).toEqual([])
   })
 
-  test('a confirmed design contract settles the design; a reopened design does not; a finished list has no current piece', async () => {
+  test('a confirmed design contract settles the design; a reopened design does not; a finished list has no current packet', async () => {
     const index = '---\nux-impact: new-surface\n---\n'
     const craft = '---\nimage-gate: pass\ndirection-confirmed-by: jayte\n---\n'
     const reopened = '---\nux-impact: visual\nprogress:\n  design: in-progress\n---\n'
     const model = buildCampaignModel({
       slug: 'camp',
       order: ['p1', 'p2', 'p3'],
-      pieces: [
-        pieceFact('p1', 'alpha-auth', 1, 'open', { indexText: index, craftText: craft }),
-        pieceFact('p2', 'alpha-ui', 2, 'built', { indexText: reopened, craftText: craft }),
-        pieceFact('p3', 'alpha-docs', 3, 'open', { indexText: index, craftText: '---\nimage-gate: pending\ndirection-confirmed-by: jayte\n---\n' }),
+      packets: [
+        packetFact('p1', 'alpha-auth', 1, 'open', { indexText: index, craftText: craft }),
+        packetFact('p2', 'alpha-ui', 2, 'built', { indexText: reopened, craftText: craft }),
+        packetFact('p3', 'alpha-docs', 3, 'open', { indexText: index, craftText: '---\nimage-gate: pending\ndirection-confirmed-by: jayte\n---\n' }),
       ],
       liveness: livenessFrom(freshJournalState(), NOW),
       dismissed: ['design:alpha-docs'],
     })
-    expect(model.pieces.map(piece => piece.designNeeded)).toEqual([false, true, true])
-    // A dismissed need leaves the list; the piece still says it needs design.
+    expect(model.packets.map(packet => packet.designNeeded)).toEqual([false, true, true])
+    // A dismissed need leaves the list; the packet still says it needs design.
     expect(model.needs.map(need => need.id)).toEqual(['design:alpha-ui'])
-    const finished = buildCampaignModel({ slug: 'camp', order: ['p1'], pieces: [pieceFact('p1', 'alpha-auth', 1, 'done'), pieceFact('p2', 'alpha-ui', 2, 'dropped')], liveness: livenessFrom(freshJournalState(), NOW), dismissed: [] })
+    const finished = buildCampaignModel({ slug: 'camp', order: ['p1'], packets: [packetFact('p1', 'alpha-auth', 1, 'done'), packetFact('p2', 'alpha-ui', 2, 'dropped')], liveness: livenessFrom(freshJournalState(), NOW), dismissed: [] })
     expect(finished.current).toBeNull()
     expect(factsOf(finished, NOW).focus.word).toBe('DONE')
   })

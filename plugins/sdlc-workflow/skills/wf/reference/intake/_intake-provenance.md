@@ -24,7 +24,7 @@ Provenance is explicit or inferred — explicit always wins:
    `workflow-type: investigate`, `workflow-type: ideate`, and `workflow-type: brainstorm`
    rows whose `updated-at` is within the last **30 days** (older sources require the
    explicit `from <slug>` token). For each candidate, read the option labels
-   (investigate), the idea labels (ideate), or the piece-of-work titles (brainstorm,
+   (investigate), the idea labels (ideate), or the packet-of-work titles (brainstorm,
    `work[].title` in `brainstorm-board.json`) from its lead artifact. Attach only on an
    **exact label match** — the description contains a label exactly (case-insensitive).
    A partial or fuzzy resemblance is NOT a match. If exactly one workflow matches, ask ONE
@@ -36,7 +36,7 @@ Provenance is explicit or inferred — explicit always wins:
 
 ## When provenance attaches
 
-When a source attaches, by the token, by a confirmed label match, by a list piece (the first token after the mode is the `piece-slug` of a piece file: [../intake.md](../intake.md), "List piece"), or as the prior run of `update-deps`:
+When a source attaches, by the token, by a confirmed label match, by a list work packet (the first token after the mode is the `packet-slug` of a work packet file: [../intake.md](../intake.md), "List work packet"), or as the prior run of `update-deps`:
 
 1. Write `from` in the `modes:` list of the frontmatter of each stage artifact that this run writes, for example `modes: [from]`. The mod has no disk fact for `from`, so it checks the `mode:from` row only when `modes:` lists it ([_requires.md](../_requires.md), Modes).
 2. Read [_intake-provenance-consume.md](_intake-provenance-consume.md) in full. Apply its Consume table and its Link back steps.

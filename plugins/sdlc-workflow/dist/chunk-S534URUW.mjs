@@ -207,7 +207,7 @@ var WORK_DIR = "work";
 function isWorkSetPath(filePath) {
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/work\//.test(normalizePathForMatch(filePath));
 }
-function isPiecePath(filePath) {
+function isPacketPath(filePath) {
   const m = normalizePathForMatch(filePath).match(/(?:^|\/)\.ai\/workflows\/[^/]+\/work\/([^/]+\.md)$/);
   return Boolean(m) && !["index.md", "changes.md", "migration.md"].includes(m[1]);
 }
@@ -1662,7 +1662,7 @@ export {
   isEvidencePath,
   isBrainstormSourcePath,
   isWorkSetPath,
-  isPiecePath,
+  isPacketPath,
   isDesignBoardsPath,
   isFreeFormWorkflowPath,
   isProjectContextMarkdownPath,

@@ -24,7 +24,7 @@ import { loadConfig } from '../lib/config.mjs';
 import { designGateRefusal, isPlanArtifact, planSliceOf } from '../lib/design-lane.mjs';
 import { missingBoardFiles } from '../lib/design-boards.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
-import { startedPieceRewriteError } from '../lib/pieces.mjs';
+import { startedPacketRewriteError } from '../lib/packets.mjs';
 import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import {
   formatList,
@@ -33,7 +33,7 @@ import {
   isProjectContextMarkdownPath,
   isProseLogPath,
   isWorkflowMarkdownPath,
-  isPiecePath,
+  isPacketPath,
   isWorkSetPath,
   outputSystemMessage,
   projectContextPathInfo,
@@ -109,7 +109,7 @@ export async function run(input) {
   // names (animate-<ts>.md, extract.md, etc.) deliberately skip the
   // NN-stagename convention (they carry the design-augmentation type instead).
   const inDesignNotes = info.storageRel.startsWith('design-notes/');
-  // work/<piece-slug>.md pieces and work/index.md carry a schema type but are named
+  // work/<packet-slug>.md packets and work/index.md carry a schema type but are named
   // for the slug they open (WF-PIECES-PLAN 4.1).
   const inWorkSet = isWorkSetPath(filePath);
   if (!inDesignNotes && !isProseLog && !inWorkSet) {
@@ -147,10 +147,10 @@ export async function run(input) {
     }
   }
 
-  // A started piece is never rewritten: the campaign walk owns it, and only its state changes.
-  if (errors.length === 0 && isPiecePath(filePath)) {
+  // A started packet is never rewritten: the campaign walk owns it, and only its state changes.
+  if (errors.length === 0 && isPacketPath(filePath)) {
     const prior = await readTextIfExists(resolveProjectPath(projectRoot, filePath));
-    const refusal = prior === null ? null : startedPieceRewriteError(prior, content);
+    const refusal = prior === null ? null : startedPacketRewriteError(prior, content);
     if (refusal) errors.push(refusal);
   }
 

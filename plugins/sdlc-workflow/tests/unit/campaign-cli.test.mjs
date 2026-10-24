@@ -1,7 +1,7 @@
 // WF-PIECES-PLAN sections 6 and 12 — the disk side of /wf campaign in scripts/campaign.mjs:
 // the serial walk over one list (status, open, land, start, built, done), the review base
 // of 6.2, the fidelity and try-out gates, `slice-order add`, and the migration of
-// an old wave campaign (report, apply, start of a migrated piece, finish, the guarded remove).
+// an old wave campaign (report, apply, start of a migrated packet, finish, the guarded remove).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -20,7 +20,7 @@ const fm = (file) => safeParseFrontmatter(readFileSync(file, 'utf8')).data;
 const wf = (root, slug) => path.join(root, '.ai', 'workflows', slug);
 const tmp = (label) => realpathSync(mkdtempSync(path.join(os.tmpdir(), label)));
 
-function makeRepo(label = 'pieces ') {
+function makeRepo(label = 'packets ') {
   const root = tmp(label);
   git(root, 'init', '-q', '-b', 'main');
   git(root, 'config', 'user.email', 'c@test');
@@ -53,7 +53,7 @@ function review(root, slug, rows) {
   writeFileSync(path.join(wf(root, slug), '07-review.md'), `# Review\n\n## Decision Fidelity\n\n| Key | Verdict | Evidence | Approval |\n|---|---|---|---|\n${rows.map((r) => `| ${r.join(' | ')} |`).join('\n')}\n`);
 }
 
-test('6.1 and 6.2: the serial walk opens, starts, builds and closes each piece; the next piece reviews from the end branch', () => {
+test('6.1 and 6.2: the serial walk opens, starts, builds and closes each packet; the next packet reviews from the end branch', () => {
   const root = makeRepo();
   try {
     const dir = writeBoard(root, [
@@ -63,16 +63,16 @@ test('6.1 and 6.2: the serial walk opens, starts, builds and closes each piece; 
     assert.equal(run(['write', dir]).ok, true);
 
     let st = run(['status', root, SRC]);
-    assert.equal(st.branch, `pieces/${SRC}`);
+    assert.equal(st.branch, `packets/${SRC}`);
     assert.deepEqual([st.current.key, st.current.step], ['engine', 'open']);
-    assert.deepEqual(st.needDesign.map((d) => d.key), ['screen'], 'a piece with a user-facing change needs design');
+    assert.deepEqual(st.needDesign.map((d) => d.key), ['screen'], 'a packet with a user-facing change needs design');
 
     const opened = run(['open', root, SRC, 'engine']);
     assert.equal(opened.ok, true, JSON.stringify(opened));
     const index = fm(path.join(wf(root, 'demo-engine'), '00-index.md'));
     assert.equal(index['workflow-type'], 'feature');
-    assert.equal(index.branch, `pieces/${SRC}`);
-    assert.equal(index['origin-piece'], `.ai/workflows/${SRC}/work/demo-engine.md`);
+    assert.equal(index.branch, `packets/${SRC}`);
+    assert.equal(index['origin-packet'], `.ai/workflows/${SRC}/work/demo-engine.md`);
     assert.equal(index['review-scope'], 'slug-wide');
     assert.equal(index.stack['user-confirmed'], true);
     assert.match(readFileSync(path.join(wf(root, 'demo-engine'), '01-intake.md'), 'utf8'), /The engine runs\./);
@@ -80,7 +80,7 @@ test('6.1 and 6.2: the serial walk opens, starts, builds and closes each piece; 
     // A risk the person confirmed at brainstorm done is carried, never open: handoff.md refuses an open risk.
     assert.deepEqual(index['intent-risks'].map((r) => [r.id, r.status, r['po-ratified']]), [['RIM-1', 'carried', true]]);
     assert.match(readFileSync(path.join(wf(root, 'demo-engine'), '02-shape.md'), 'utf8'), /## Unknowns \/ Open Questions\n\n- \*\*RIM-1\*\* \(carried to the slug-wide review\) — The engine is slow\./);
-    assert.match(readFileSync(path.join(root, '.ai', 'workflows', 'INDEX.md'), 'utf8'), /demo-engine\tactive\tfeature\tpieces\/brainstorm-demo/);
+    assert.match(readFileSync(path.join(root, '.ai', 'workflows', 'INDEX.md'), 'utf8'), /demo-engine\tactive\tfeature\tpackets\/brainstorm-demo/);
     assert.equal(run(['open', root, SRC, 'engine']).opened, false, 'a second open changes nothing');
     assert.equal(run(['status', root, SRC]).current.step, 'slice');
 
@@ -88,14 +88,14 @@ test('6.1 and 6.2: the serial walk opens, starts, builds and closes each piece; 
     const land = run(['land', root, SRC]);
     assert.deepEqual([land.ok, land.created, land.from], [true, true, 'main']);
     const start = run(['start', root, SRC, 'engine']);
-    assert.equal(start.base, 'main', 'the first piece reviews from the trunk');
+    assert.equal(start.base, 'main', 'the first packet reviews from the trunk');
 
     // The yolo run: a code commit, a slice roster, a review.
     writeFileSync(path.join(root, 'app.txt'), 'v1 engine\n');
     git(root, 'commit', '-qam', 'engine');
     writeFileSync(path.join(wf(root, 'demo-engine'), '03-slice.md'), '---\ntype: slice\n---\n');
     assert.equal(run(['status', root, SRC]).current.step, 'yolo');
-    assert.equal(run(['done', root, SRC, 'engine']).ok, false, 'done needs a built piece');
+    assert.equal(run(['done', root, SRC, 'engine']).ok, false, 'done needs a built packet');
     assert.equal(run(['built', root, SRC, 'engine']).ok, true);
     assert.match(run(['status', root, SRC]).current.reason, /no ## Decision Fidelity table/);
     review(root, 'demo-engine', [['d-one', 'narrowed', 'app.txt:1', '—']]);
@@ -107,31 +107,31 @@ test('6.1 and 6.2: the serial walk opens, starts, builds and closes each piece; 
     assert.match(refused.error, /not approved/);
     appendFileSync(path.join(wf(root, 'demo-engine'), 'po-answers.md'), '\n- d-one: approved — fine for now\n');
 
-    // The trunk moves while the piece is built: done merges it in.
+    // The trunk moves while the packet is built: done merges it in.
     git(root, 'switch', '-q', 'main');
     writeFileSync(path.join(root, 'other.txt'), 'trunk\n');
     git(root, 'add', 'other.txt');
     git(root, 'commit', '-qm', 'trunk moves');
-    git(root, 'switch', '-q', `pieces/${SRC}`);
+    git(root, 'switch', '-q', `packets/${SRC}`);
     const done = run(['done', root, SRC, 'engine']);
     assert.equal(done.ok, true, JSON.stringify(done));
     assert.equal(done.trunkMerged, true);
-    assert.equal(done.endBranch, `pieces/${SRC}--engine`);
-    assert.equal(git(root, 'rev-parse', `pieces/${SRC}--engine`), git(root, 'rev-parse', 'HEAD'));
+    assert.equal(done.endBranch, `packets/${SRC}--engine`);
+    assert.equal(git(root, 'rev-parse', `packets/${SRC}--engine`), git(root, 'rev-parse', 'HEAD'));
     assert.equal(fm(path.join(wf(root, 'demo-engine'), '00-index.md'))['base-branch'], 'main', 'done puts base-branch back to the trunk');
     assert.equal(fm(path.join(dir, 'work', 'demo-engine.md')).state, 'done');
 
-    // The second piece: design first, then its review base is the end branch of the first.
+    // The second packet: design first, then its review base is the end branch of the first.
     assert.equal(run(['open', root, SRC, 'screen']).ok, true);
     const screenIndex = fm(path.join(wf(root, 'demo-screen'), '00-index.md'));
     assert.equal(screenIndex['next-command'], 'wf-design');
     st = run(['status', root, SRC]);
     assert.deepEqual([st.current.key, st.current.step], ['screen', 'design']);
-    assert.equal(run(['start', root, SRC, 'screen']).base, `pieces/${SRC}--engine`);
+    assert.equal(run(['start', root, SRC, 'screen']).base, `packets/${SRC}--engine`);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('6.1: a built piece that can be tried waits for the try-out record', () => {
+test('6.1: a built packet that can be tried waits for the try-out record', () => {
   const root = makeRepo();
   try {
     const dir = writeBoard(root, [
@@ -151,8 +151,8 @@ test('6.1: a built piece that can be tried waits for the try-out record', () => 
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-/** A list of one build piece, opened, started and built on the list branch. */
-function builtPiece(items) {
+/** A list of one build packet, opened, started and built on the list branch. */
+function builtPacket(items) {
   const root = makeRepo();
   writeBoard(root, [
     { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items, goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP },
@@ -166,7 +166,7 @@ function builtPiece(items) {
 }
 
 test('8: the fidelity check fails closed: markdown, other verdicts, the Approval column and a missing row', () => {
-  const root = builtPiece(['d-one', 'd-two', 'd-three']);
+  const root = builtPacket(['d-one', 'd-two', 'd-three']);
   try {
     // The review cites an approval that the person never gave, and leaves out d-three.
     review(root, 'demo-engine', [['`d-one`', '**narrowed**', 'app.txt:1', 'pending'], ['d-two', 'partial', 'app.txt:1', '—']]);
@@ -185,8 +185,8 @@ test('8: the fidelity check fails closed: markdown, other verdicts, the Approval
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('6.1 step 13: a fix slice sends a built piece back to the driver, also in a new call', () => {
-  const root = builtPiece(['d-one']);
+test('6.1 step 13: a fix slice sends a built packet back to the driver, also in a new call', () => {
+  const root = builtPacket(['d-one']);
   try {
     review(root, 'demo-engine', [['d-one', 'honored', 'app.txt:1', '—']]);
     assert.equal(run(['status', root, SRC]).current.step, 'done');
@@ -204,11 +204,11 @@ test('6.1 step 13: a fix slice sends a built piece back to the driver, also in a
     assert.equal(run(['built', root, SRC, 'engine']).ok, true);
     assert.equal(run(['status', root, SRC]).current.step, 'done');
     assert.equal(run(['done', root, SRC, 'engine']).ok, true);
-    assert.equal(run(['reopen', root, SRC, 'engine']).ok, false, 'a done piece never opens again');
+    assert.equal(run(['reopen', root, SRC, 'engine']).ok, false, 'a done packet never opens again');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('6.1: a piece of another form is routed to its own command, never opened', () => {
+test('6.1: a packet of another form is routed to its own command, never opened', () => {
   const root = makeRepo();
   try {
     const dir = writeBoard(root, [
@@ -226,14 +226,14 @@ test('6.1: a piece of another form is routed to its own command, never opened', 
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('close: a build piece is done only through the walk; a dropped piece holds no decision on the next write', () => {
+test('close: a build packet is done only through the walk; a dropped packet holds no decision on the next write', () => {
   const root = makeRepo();
   try {
     const dir = writeBoard(root, [
       { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items: ['d-one'], goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP },
     ], ['d-one']);
     assert.equal(run(['write', dir]).ok, true);
-    assert.match(run(['close', root, SRC, 'engine', 'done']).error, /build piece/);
+    assert.match(run(['close', root, SRC, 'engine', 'done']).error, /build packet/);
     assert.equal(run(['close', root, SRC, 'engine', 'dropped']).ok, true);
     assert.equal(run(['close', root, SRC, 'engine', 'later']).ok, false);
     const board = JSON.parse(readFileSync(path.join(dir, 'brainstorm-board.json'), 'utf8'));
@@ -344,7 +344,7 @@ function makeOldCampaign() {
 
 const merged = () => 1;
 
-test('12.2 and 12.3: the first campaign call migrates an old wave campaign; in-flight units become the first pieces', () => {
+test('12.2 and 12.3: the first campaign call migrates an old wave campaign; in-flight units become the first packets', () => {
   const m = makeOldCampaign();
   const { root } = m;
   try {
@@ -356,7 +356,7 @@ test('12.2 and 12.3: the first campaign call migrates an old wave campaign; in-f
     assert.equal(rep.live, false);
     assert.deepEqual(rep.shipped.map((u) => u.key), ['base']);
     assert.deepEqual(rep.notStarted.map((u) => u.key), ['later']);
-    assert.equal(rep.inflight.length, 1, 'one piece per workflow slug');
+    assert.equal(rep.inflight.length, 1, 'one packet per workflow slug');
     const p = rep.inflight[0];
     assert.deepEqual([p.slug, p.lead, p.branch, p.land, p.uncommitted], ['eng', 'eng', m.UNIT, 'squashed', 1]);
     assert.deepEqual(p.units.map((u) => u.key).sort(), ['eng', 'eng-ext']);
@@ -376,7 +376,7 @@ test('12.2 and 12.3: the first campaign call migrates an old wave campaign; in-f
     assert.ok(existsSync(path.join(wf(root, 'eng'), '05-implement-s1.md')), 'the records sync brings the worktree records home');
     const idx = fm(path.join(wf(root, 'eng'), '00-index.md'));
     assert.equal(idx['current-stage'], 'implement', 'the newer worktree index wins');
-    assert.deepEqual([idx.branch, idx['migrated-from'], idx['wave-base'], idx.land], [`pieces/${SRC}`, m.UNIT, m.W2, 'squashed']);
+    assert.deepEqual([idx.branch, idx['migrated-from'], idx['wave-base'], idx.land], [`packets/${SRC}`, m.UNIT, m.W2, 'squashed']);
     assert.deepEqual(idx['origin-items'].sort(), ['d-eng', 'd-ext']);
     const board = JSON.parse(readFileSync(path.join(wf(root, SRC), 'brainstorm-board.json'), 'utf8'));
     assert.deepEqual(board.work.map((w) => [w.key, w.order, w.state]), [['base', 1, 'done'], ['eng', 2, 'open'], ['eng-ext', 3, 'dropped'], ['later', 4, 'proposed']]);
@@ -402,7 +402,7 @@ test('12.2 and 12.3: the first campaign call migrates an old wave campaign; in-f
     assert.ok(!existsSync(m.wtW1), 'the old wave-1 worktree is removed');
     assert.equal(readFileSync(path.join(m.target, 'keep.txt'), 'utf8'), 'never deleted\n', 'the remove never follows a link');
     assert.ok(existsSync(m.wtOther), 'a worktree that is not the campaign\'s stays');
-    assert.ok(existsSync(m.wtEng), 'the in-flight worktree stays until its piece is done');
+    assert.ok(existsSync(m.wtEng), 'the in-flight worktree stays until its packet is done');
     assert.equal(run(['status', root, SRC]).current.key, 'eng');
 
     // 12.3: start commits the unit's work, rebases it off the squashed wave, and merges it into the list branch.
@@ -458,7 +458,7 @@ test('12.3: start after a rebase by hand does not rebase again', () => {
     // The person rebases the unit by hand, as the conflict message asks.
     git(m.wtEng, 'add', 'eng.txt');
     git(m.wtEng, 'commit', '-qm', 'eng: by hand');
-    git(m.wtEng, 'rebase', '-q', '--onto', `pieces/${SRC}`, m.W2);
+    git(m.wtEng, 'rebase', '-q', '--onto', `packets/${SRC}`, m.W2);
     const start = run(['start', m.root, SRC, 'eng']);
     assert.equal(start.ok, true, JSON.stringify(start));
     assert.deepEqual(start.migration.steps.map((s) => Object.keys(s)[0]), ['merged'], 'no second rebase and no one-commit step');
@@ -489,7 +489,7 @@ test('12.2: a fresh yolo journal in a unit worktree makes the old run live', () 
   } finally { dropOldCampaign(m); }
 });
 
-test('close: a dropped migrated piece removes its old worktree and keeps its branch', () => {
+test('close: a dropped migrated packet removes its old worktree and keeps its branch', () => {
   const m = makeOldCampaign();
   try {
     migratedList(m);

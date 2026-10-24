@@ -80,7 +80,7 @@ Scout, classifier, and bookkeeping agents give no event.
      - the commits since the newest note (`git -C <root> log --since "<the note's time>" --oneline`);
      - the changed files (`git -C <root> status --short`);
      - the newest 60 lines of its `transcript`, when the event names one;
-  4. for a campaign piece (`00-index.md` has `origin-piece`), the state of its list: `node "<pluginRoot>/skills/wf/scripts/campaign.mjs" status "<projectRoot>" <source-slug>`;
+  4. for a campaign work packet (`00-index.md` has `origin-packet`), the state of its list: `node "<pluginRoot>/skills/wf/scripts/campaign.mjs" status "<projectRoot>" <source-slug>`;
   5. the answer it returns: a short paragraph that says what each running stage does now and for how long, what changed since the newest note, what comes next, and what waits on the person. When nothing changed, the answer is one line that says so. The answer quotes no file contents and no transcript lines.
 
   The sub-agent changes no file. Tell the person its answer, and append the answer with `--event look-in`. When the sub-agent gives no answer, say in one line that the look-in failed, and wait for the next event.

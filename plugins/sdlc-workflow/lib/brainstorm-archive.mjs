@@ -8,7 +8,7 @@
  * of older sessions) to an archive that a session reads only on demand. `docCheck`
  * reports a document that is over its caps.
  */
-import { isStartedState } from './pieces.mjs';
+import { isStartedState } from './packets.mjs';
 
 /** The newest sessions whose log and stories stay on the board. */
 export const SESSIONS_KEPT = 3;
@@ -16,14 +16,14 @@ export const SESSIONS_KEPT = 3;
 export const SUMMARY_WORD_CAP = 150;
 
 const CLOSED_THREAD_STATES = new Set(['routed', 'dropped']);
-// A written piece stays on the board, and so does a started piece of the old form (prepared, routed).
-const DONE_PIECE_STATES = new Set(['written', 'prepared', 'routed']);
+// A written packet stays on the board, and so does a started packet of the old form (prepared, routed).
+const DONE_PACKET_STATES = new Set(['written', 'prepared', 'routed']);
 
 function wordCount(text) {
   return String(text ?? '').split(/\s+/).filter(Boolean).length;
 }
 
-/** The keys that the board names from outside `items`: pieces, briefs, budgets, sketches. */
+/** The keys that the board names from outside `items`: packets, briefs, budgets, sketches. */
 function namedKeys(board) {
   const keys = new Set();
   for (const p of board.work ?? []) for (const k of p.items ?? []) keys.add(k);
@@ -40,15 +40,15 @@ function itemRefs(item) {
 
 /**
  * Split a board into the part that stays and the part that goes to the archive.
- * An item goes when its thread is routed or dropped, no piece, brief, budget, or sketch
- * names it, no open piece lists its thread, and no staying item names it. The log and
+ * An item goes when its thread is routed or dropped, no packet, brief, budget, or sketch
+ * names it, no open packet lists its thread, and no staying item names it. The log and
  * the stories go when their session is older than the newest `keep` sessions.
  */
 export function archiveBoard(board, { keep = SESSIONS_KEPT } = {}) {
   const threads = new Map((board.threads ?? []).map((t) => [t.key, t]));
   const openThreads = new Set();
   for (const p of board.work ?? []) {
-    if (isStartedState(p.state) || DONE_PIECE_STATES.has(p.state)) continue;
+    if (isStartedState(p.state) || DONE_PACKET_STATES.has(p.state)) continue;
     for (const t of p.threads ?? []) openThreads.add(t);
   }
   const named = namedKeys(board);

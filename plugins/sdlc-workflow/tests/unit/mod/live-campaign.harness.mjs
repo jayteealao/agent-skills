@@ -5,20 +5,20 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { buildCampaignModel, childFieldOf, designSettledOf, fieldOf, listFieldOf, pieceOf } from '../../../hooks/mod/live/model/campaign.ts';
+import { buildCampaignModel, childFieldOf, designSettledOf, fieldOf, listFieldOf, packetOf } from '../../../hooks/mod/live/model/campaign.ts';
 
 const LIVENESS = { state: 'none', lastLineAt: null, limitMs: 0, lastLine: null, beats: [] };
 
-const fact = (key, state, rest = {}) => ({ key, slug: `s-${key}`, title: key, form: 'intake', state, order: 0, pieceUxImpact: 'none', indexText: null, craftText: null, ...rest });
+const fact = (key, state, rest = {}) => ({ key, slug: `s-${key}`, title: key, form: 'intake', state, order: 0, packetUxImpact: 'none', indexText: null, craftText: null, ...rest });
 
-test('the list index: its type, and its pieces as a block list or in flow', () => {
-  const block = '---\nschema: sdlc/v1\ntype: list\nslug: camp\npieces:\n  - p1\n  - "p2"\nslugs:\n  - a\nlist-branch: pieces/camp\n---\n# List\n';
+test('the list index: its type, and its packets as a block list or in flow', () => {
+  const block = '---\nschema: sdlc/v1\ntype: list\nslug: camp\npackets:\n  - p1\n  - "p2"\nslugs:\n  - a\nlist-branch: packets/camp\n---\n# List\n';
   assert.equal(fieldOf(block, 'type'), 'list');
-  assert.equal(fieldOf(block, 'list-branch'), 'pieces/camp');
-  assert.deepEqual(listFieldOf(block, 'pieces'), ['p1', 'p2']);
-  assert.deepEqual(listFieldOf('---\ntype: list\npieces: []\n---\n', 'pieces'), []);
-  assert.deepEqual(listFieldOf('---\npieces: [p1, p2]\n---\n', 'pieces'), ['p1', 'p2']);
-  assert.deepEqual(listFieldOf('no frontmatter', 'pieces'), []);
+  assert.equal(fieldOf(block, 'list-branch'), 'packets/camp');
+  assert.deepEqual(listFieldOf(block, 'packets'), ['p1', 'p2']);
+  assert.deepEqual(listFieldOf('---\ntype: list\npackets: []\n---\n', 'packets'), []);
+  assert.deepEqual(listFieldOf('---\npackets: [p1, p2]\n---\n', 'packets'), ['p1', 'p2']);
+  assert.deepEqual(listFieldOf('no frontmatter', 'packets'), []);
 });
 
 test('a quoted field keeps its #, a plain one ends at its comment, and a child field is read under its parent only', () => {
@@ -41,27 +41,27 @@ test('design is settled by a skip with a reason or by a confirmed contract; a re
   assert.equal(designSettledOf('---\n---\n', '---\nimage-gate: pass\n---\n'), false);
 });
 
-test('a build piece needs design once its workflow names a ux-impact other than none and has not settled it', () => {
+test('a build packet needs design once its workflow names a ux-impact other than none and has not settled it', () => {
   const visual = '---\nux-impact: visual\n---\n';
-  assert.equal(pieceOf(fact('a', 'open', { indexText: visual })).designNeeded, true);
-  assert.equal(pieceOf(fact('a', 'open', { indexText: '---\nux-impact: none\n---\n' })).designNeeded, false);
-  // Not opened yet: no workflow to design. The row still shows the piece file's ux-impact.
-  const written = pieceOf(fact('a', 'written', { pieceUxImpact: 'flow' }));
+  assert.equal(packetOf(fact('a', 'open', { indexText: visual })).designNeeded, true);
+  assert.equal(packetOf(fact('a', 'open', { indexText: '---\nux-impact: none\n---\n' })).designNeeded, false);
+  // Not opened yet: no workflow to design. The row still shows the packet file's ux-impact.
+  const written = packetOf(fact('a', 'written', { packetUxImpact: 'flow' }));
   assert.equal(written.designNeeded, false);
   assert.equal(written.uxImpact, 'flow');
-  assert.equal(pieceOf(fact('a', 'done', { indexText: visual })).designNeeded, false);
-  assert.equal(pieceOf(fact('a', 'open', { indexText: visual, form: 'investigate' })).designNeeded, false);
+  assert.equal(packetOf(fact('a', 'done', { indexText: visual })).designNeeded, false);
+  assert.equal(packetOf(fact('a', 'open', { indexText: visual, form: 'investigate' })).designNeeded, false);
 });
 
-test('the model keeps the list order, names the first unfinished piece, and puts unlisted pieces last by their order', () => {
+test('the model keeps the list order, names the first unfinished packet, and puts unlisted packets last by their order', () => {
   const model = buildCampaignModel({
     slug: 'camp',
     order: ['b', 'a'],
-    pieces: [fact('z', 'written', { order: 9 }), fact('a', 'open'), fact('b', 'dropped'), fact('y', 'written', { order: 1 })],
+    packets: [fact('z', 'written', { order: 9 }), fact('a', 'open'), fact('b', 'dropped'), fact('y', 'written', { order: 1 })],
     liveness: LIVENESS,
     dismissed: [],
   });
-  assert.deepEqual(model.pieces.map((piece) => piece.key), ['b', 'a', 'y', 'z']);
+  assert.deepEqual(model.packets.map((packet) => packet.key), ['b', 'a', 'y', 'z']);
   assert.equal(model.current, 'a');
   assert.deepEqual(model.needs, []);
 });

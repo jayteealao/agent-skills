@@ -535,7 +535,7 @@ export const MODE_RESOLVERS: Readonly<Record<string, (facts: ModeFacts) => Promi
   'user-observable': async ({ slice, written }) => [slice ?? '', written].some(text => /observable:[ \t]*true|kind:[ \t]*["']?user-observable/u.test(text)),
   design: async ({ exists }) => (await exists('02b-design.md')) || (await exists('02c-craft.md')),
   augment: async ({ index, exists }) => (index !== null && hasListEntry(frontmatterOf(index), 'augmentations')) || (await exists('02c-craft.md')),
-  piece: async ({ index }) => index !== null && scalarOf(frontmatterOf(index), 'origin-piece') !== null,
+  packet: async ({ index }) => index !== null && scalarOf(frontmatterOf(index), 'origin-packet') !== null,
   'slug-wide': async ({ index }) => index !== null && scalarOf(frontmatterOf(index), 'review-scope') === 'slug-wide',
   change: async ({ index }) => index !== null && ['fix', 'hotfix', 'refactor'].includes(scalarOf(frontmatterOf(index), 'workflow-type') ?? ''),
 }

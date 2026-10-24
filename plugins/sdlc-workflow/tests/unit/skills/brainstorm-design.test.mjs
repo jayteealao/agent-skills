@@ -71,14 +71,14 @@ test('schema: the contract records carried-from; the document names a design boa
 });
 
 test('the thoughts travel: provenance, the brief, the design stage, the direction command', () => {
-  match(read(`${REF}/intake/_intake-provenance-consume.md`), /When the piece of work records `ux-impact`, propose that value in the stack question/);
+  match(read(`${REF}/intake/_intake-provenance-consume.md`), /When the work packet records `ux-impact`, propose that value in the stack question/);
   const carried = read(`${REF}/design/_carried.md`);
-  match(carried, /Take the board piece in `work\[\]` whose `slug` is this slug/);
+  match(carried, /Take the board work packet in `work\[\]` whose `slug` is this slug/);
   match(carried, /keep, change \(free text says how\), or drop/);
   match(carried, /`## Carried design thoughts`/);
   match(read(`${REF}/design/shape.md`), /the carried design thoughts \(\[_carried\.md\]\(_carried\.md\) → In the brief\)/);
   const stage = read(`${REF}/design/stage.md`);
   match(stage, /## Step 1b — Present the carried design thoughts/);
-  match(stage, /carried-from: \[<board path>#<piece-of-work key>\]/);
+  match(stage, /carried-from: \[<board path>#<packet-of-work key>\]/);
   match(read(`${REF}/design/record.md`), /When the instructions are `from <board-slug>`/);
 });

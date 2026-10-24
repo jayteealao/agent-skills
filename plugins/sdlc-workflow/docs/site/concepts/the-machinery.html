@@ -15,10 +15,10 @@ daemon serves the dashboard, and a render pipeline turns Markdown artifacts into
 workflow view. A tray icon watches the machinery, and hooks enforce the rules.</p>
 <div class="note host-note">Commands on this site are written as <code>/wf …</code>. Under Codex, type <code>$wf …</code> instead. The key and the arguments are the same.</div>
 
-<p>Most of the plugin is instructions that the model follows. But four pieces are real software on
+<p>Most of the plugin is instructions that the model follows. But four work packets are real software on
 your machine: a local web server, a render pipeline that feeds the server, a small tray app that
 watches the server, and a handful of hooks wired into the host's tool calls, under Claude Code or Codex. When you know
-these four pieces, you can explain most of what you will ever observe.</p>
+these four work packets, you can explain most of what you will ever observe.</p>
 
 <h2>The hub daemon</h2>
 
@@ -126,11 +126,11 @@ per-hook detail, including the config keys that tune each hook, lives in the
 <a href="../reference/hooks.html">hooks reference</a>.</p>
 
 <div class="note">
-<p>You can turn off or relocate every piece on this page. Per-repo settings live in
+<p>You can turn off or relocate every work packet on this page. Per-repo settings live in
 <code>.ai/sdlc-config.json</code>, and machine-wide settings live in
 <code>~/.sdlc/hub-config.json</code>. Environment variables, for example
 <code>SDLC_DISABLE_BOOTSTRAP=1</code> and <code>SDLC_DISABLE_TRAY_HEAL=1</code>, disable
-individual pieces. The <a href="../reference/configuration.html">configuration reference</a>
+individual work packets. The <a href="../reference/configuration.html">configuration reference</a>
 describes each setting.</p>
 </div>
 

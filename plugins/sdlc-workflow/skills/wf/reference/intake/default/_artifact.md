@@ -41,7 +41,7 @@ ux-impact: <none|visual|flow|new-surface>
 ux-impact-confirmed: false
 design-move: <move>
 design-skip-reason: "<one line>"
-origin-piece: "<the piece file path; only when started from one>"
+origin-packet: "<the packet file path; only when started from one>"
 origin-items: []
 intent-risks:
   - id: RIM-1

@@ -64,8 +64,8 @@ The write hook validates this file against `$defs.brainstormBoard` in `schemas/f
   - `source` is `person`, `agent`, `code`, `data`, `research`, `consult`, or `history`.
   - A finding carries `evidence` (a `file:line`, a dataset, or a link) and `check` (`verified`, `contradicted`, or `unverified`).
   - `state` is `named`, `confirmed`, or `rejected` for an assumption; `open` or `resolved` for a tension; `open`, `answered`, or `for-plan` for a question. A commitment is a question with `state: for-plan`.
-  - `scope` is `keep`, `cut`, `later`, `pending-cut`, or `null`, and is set when the item's area closes or at `done`. A cut carries the person's `reason` when the person gives one. `pending-cut` marks a cut of a decision whose piece is already started ([_work.md](_work.md), Reopening).
-  - `session` and `decided-at` record when the person made a decision. Write both on each new decision. A piece file carries them with the decision, word for word.
+  - `scope` is `keep`, `cut`, `later`, `pending-cut`, or `null`, and is set when the item's area closes or at `done`. A cut carries the person's `reason` when the person gives one. `pending-cut` marks a cut of a decision whose work packet is already started ([_work.md](_work.md), Reopening).
+  - `session` and `decided-at` record when the person made a decision. Write both on each new decision. A work packet file carries them with the decision, word for word.
   - A finding from research sets `evidence: research/R<NN>-<label>.md#<anchor>`. A finding from a reference cites the reference id, for example `F03`.
   - `core: true` marks a decision the person named as core when the area closed; `first-version: true` marks a decision in the area's first version.
   - `top-risk: true` marks the accepted risk that worries the person most in its area.
@@ -76,22 +76,22 @@ The write hook validates this file against `$defs.brainstormBoard` in `schemas/f
 - **`archived[]`** records each run of the archive command (below): `session`, `at`, `file`, and the counts it moved.
 - **`log[].kind`** is `reflection`, `probe`, `fork`, `widen`, `choice`, `talk`, `story`, `check-in`, `close`, `cohere`, `brief`, `control`, or `walk`.
 
-A **piece of work** (one per agreed piece at `done`, in sequence order):
+A **work packet** (one per agreed work packet at `done`, in sequence order):
 ```json
-{ "key": "spending-limit", "order": 2, "why-here": "the limit reads the cost rows of the first piece", "title": "Add a warning-only spending limit per project", "shape": "intake", "slug": "spending-limit", "threads": ["limit-per-project"], "items": ["limit-warns-only", "cost-rows-per-run"], "research": ["R01"], "references": ["F02"], "goal": "Each project has a spending limit that warns and never blocks a run.", "in-scope": ["a limit per project", "a warning when a run passes the limit"], "out-of-scope": ["a limit on research runs"], "acceptance-criteria": ["A run that passes the limit of its project shows a warning and completes."], "constraints": [], "risks": ["The warning can be read as a stop, and the person cancels a paid run."], "ux-impact": "visual", "ux-impact-confirmed": true, "try-out": "yes", "estimated-slices": 6, "entry": "/wf campaign <slug>", "state": "proposed", "stale": false }
+{ "key": "spending-limit", "order": 2, "why-here": "the limit reads the cost rows of the first packet", "title": "Add a warning-only spending limit per project", "shape": "intake", "slug": "spending-limit", "threads": ["limit-per-project"], "items": ["limit-warns-only", "cost-rows-per-run"], "research": ["R01"], "references": ["F02"], "goal": "Each project has a spending limit that warns and never blocks a run.", "in-scope": ["a limit per project", "a warning when a run passes the limit"], "out-of-scope": ["a limit on research runs"], "acceptance-criteria": ["A run that passes the limit of its project shows a warning and completes."], "constraints": [], "risks": ["The warning can be read as a stop, and the person cancels a paid run."], "ux-impact": "visual", "ux-impact-confirmed": true, "try-out": "yes", "estimated-slices": 6, "entry": "/wf campaign <slug>", "state": "proposed", "stale": false }
 ```
 The board also holds the stack of the list, once, at the top level: `"stack": { "platforms": [], "languages": [], "user-confirmed": true }`, with the fields of the `stack` block in `intake/default/_artifact.md`.
-- `shape` is the form: `intake`, `investigate`, `discover`, `rca`, `fix`, `hotfix`, `task`, `extension`, or `write-now` ([_work.md](_work.md)). Older boards also hold `design` and `design-direction` pieces; a new board records those as `design-form` on the piece they serve.
-- `slug`, `target-slug`, `order`, `why-here`, `research`, `references`, `amends`, and `urgency` are agreed in 3.3 ([_work.md](_work.md)). `order` is the strict sequence 1 to n over every piece. `why-here` is required on each piece after order 1.
-- A build piece (`intake`, `fix`, `hotfix`, `extension`) carries its write-up: `goal`, `in-scope`, `out-of-scope`, `acceptance-criteria`, `constraints`, `risks`, `ux-impact` with `ux-impact-confirmed: true`, `try-out` (`yes` or `no`), and `estimated-slices` ([_work.md](_work.md), "The write-up of a build piece").
-- An older board also holds `depends-on`, `needs`, `provides`, `expects`, `size`, `shared` and `routed-to` on a piece. The brainstorm does not agree these fields, and the `write` command does not put them into a piece file.
-- A piece of work that carries design items also records `sketches` (the keys of its carried sketches). Its piece file `work/<slug>.md` carries `sketches:`: each key with its `path`, `link`, `caption`, and `canvas` from `sketches[]`.
-- `state` is `proposed`, or `written` (a write-now piece the session wrote). A written piece records `written-files` (each `path` with its `section`) and `written-at`. The migration of an old campaign also writes `open`, `done` and `dropped`, and a migrated piece records `migrated`. Once the list is written, the piece file holds the state of a piece. Older boards also hold `prepared` and `routed`.
-- `stale: true` with `stale-because` marks a piece of work that a later area changed.
+- `shape` is the form: `intake`, `investigate`, `discover`, `rca`, `fix`, `hotfix`, `task`, `extension`, or `write-now` ([_work.md](_work.md)). Older boards also hold `design` and `design-direction` work packets; a new board records those as `design-form` on the work packet they serve.
+- `slug`, `target-slug`, `order`, `why-here`, `research`, `references`, `amends`, and `urgency` are agreed in 3.3 ([_work.md](_work.md)). `order` is the strict sequence 1 to n over every work packet. `why-here` is required on each work packet after order 1.
+- A build work packet (`intake`, `fix`, `hotfix`, `extension`) carries its write-up: `goal`, `in-scope`, `out-of-scope`, `acceptance-criteria`, `constraints`, `risks`, `ux-impact` with `ux-impact-confirmed: true`, `try-out` (`yes` or `no`), and `estimated-slices` ([_work.md](_work.md), "The write-up of a build work packet").
+- An older board also holds `depends-on`, `needs`, `provides`, `expects`, `size`, `shared` and `routed-to` on a work packet. The brainstorm does not agree these fields, and the `write` command does not put them into a work packet file.
+- A work packet that carries design items also records `sketches` (the keys of its carried sketches). Its work packet file `work/<slug>.md` carries `sketches:`: each key with its `path`, `link`, `caption`, and `canvas` from `sketches[]`.
+- `state` is `proposed`, or `written` (a write-now work packet the session wrote). A written work packet records `written-files` (each `path` with its `section`) and `written-at`. The migration of an old campaign also writes `open`, `done` and `dropped`, and a migrated work packet records `migrated`. Once the list is written, the work packet file holds the state of a work packet. Older boards also hold `prepared` and `routed`.
+- `stale: true` with `stale-because` marks a work packet that a later area changed.
 
 ## Sources: `research/` and `references/`
 
-A brainstorm keeps every source it uses inside its own folder. A board item, a research note, or a piece file never cites `.scratch/` or another gitignored path, because that citation breaks on another machine, in a worktree, and after a cleanup.
+A brainstorm keeps every source it uses inside its own folder. A board item, a research note, or a work packet file never cites `.scratch/` or another gitignored path, because that citation breaks on another machine, in a worktree, and after a cleanup.
 
 ```
 .ai/workflows/<slug>/
@@ -104,7 +104,7 @@ A brainstorm keeps every source it uses inside its own folder. A board item, a r
   work/
     index.md               (the list, written by campaign.mjs)
     changes.md             (written by campaign.mjs)
-    <slug>.md ...          (the piece files, written by campaign.mjs)
+    <slug>.md ...          (the packet files, written by campaign.mjs)
 ```
 
 **Research notes.** Every research act writes one note in `research/`:
@@ -207,10 +207,10 @@ The body names everything in words. It carries no key, no internal number, and n
 - <A commitment this brainstorm does not make, one sentence.>
 
 ## Scope
-<Empty until `done`. Then the agreed scope: the kept items by piece of work, the items left for later, and the cut items with the person's reasons.>
+<Empty until `done`. Then the agreed scope: the kept items by work packet, the items left for later, and the cut items with the person's reasons.>
 
 ## Work
-<Empty until `done`. Then each piece of work in order, one line each: its title, its form, and a link to its piece file (`work/<slug>.md`), or the documents a write-now piece changed. No second copy of the piece content.>
+<Empty until `done`. Then each work packet in order, one line each: its title, its form, and a link to its packet file (`work/<slug>.md`), or the documents a write-now packet changed. No second copy of the packet content.>
 
 ## How to continue
 - Resume: `/wf intake brainstorm <slug>`
@@ -224,7 +224,7 @@ A long brainstorm keeps its board and its document short. Run the archive comman
 ```
 node "<skill-dir>/scripts/campaign.mjs" archive .ai/workflows/<slug>
 ```
-1. The command moves the closed part of the board to `archive/board.json`: each item of a routed or dropped thread that no open piece, brief, budget, sketch, or staying item names, and the log and stories of sessions older than the newest three. It records the move in `archived[]`.
+1. The command moves the closed part of the board to `archive/board.json`: each item of a routed or dropped thread that no open work packet, brief, budget, sketch, or staying item names, and the log and stories of sessions older than the newest three. It records the move in `archived[]`.
 2. The command also warns when `## The Brainstorm` is over 150 words, or when `## Sessions` tells more than three sessions. On a warning, rewrite the summary shorter, and move the older stories to `archive/record.md`.
 3. In the document, move the record of a closed area (every thread routed or dropped) to `archive/record.md`. The map keeps the area's brief, with a link to the record.
 
@@ -239,7 +239,7 @@ A legacy board is a `01-brainstorm.md` whose frontmatter carries `threads:` and 
    - A claim with `evidence: verified …`, `contradicted …`, or `consult` becomes a finding. Its `check` comes from the evidence.
    - Any other claim becomes a decision when the turn log shows that the person chose it, and an idea otherwise.
    - An assumption stays an assumption, and a contradiction becomes a tension.
-   - A candidate becomes a piece of work, with its `state` and `routed-to` kept.
+   - A candidate becomes a work packet, with its `state` and `routed-to` kept.
 4. Make each thread an area unless the board has a `## Map`.
 5. Write `brainstorm-board.json`. Rewrite the body of `01-brainstorm.md` per the template above: the summary first, then every section in plain words. Keep the legacy turn log in the JSON `log`.
 6. Remove `threads`, `claims`, `assumptions`, `contradictions`, `candidates`, and `selected` from the frontmatter, and add `board: brainstorm-board.json`.

@@ -1,31 +1,31 @@
 /**
  * facts → the campaign view's model (WF-PIECES-PLAN.md 6.1). Pure (M1).
  *
- * The campaign keeps no ledger. Its state is the `state` field of each piece
- * file `work/<piece-slug>.md`, in the order `work/index.md` lists the keys.
- * The view shows the pieces in order, the state of each, the current piece
- * (the first that is not done or dropped), and the build pieces whose design
+ * The campaign keeps no ledger. Its state is the `state` field of each packet
+ * file `work/<packet-slug>.md`, in the order `work/index.md` lists the keys.
+ * The view shows the packets in order, the state of each, the current packet
+ * (the first that is not done or dropped), and the build packets whose design
  * waits on the person.
  */
-import type { SdlcCampaignModel, SdlcLiveness, SdlcNeed, SdlcPiece } from '../../../../types'
+import type { SdlcCampaignModel, SdlcLiveness, SdlcNeed, SdlcPacket } from '../../../../types'
 import { designNeedOf, openNeedsOf } from './needs.ts'
 
-/** The forms the walk builds (`lib/pieces.mjs` BUILD_FORMS); the others route to their own command. */
+/** The forms the walk builds (`lib/packets.mjs` BUILD_FORMS); the others route to their own command. */
 export const BUILD_FORMS: ReadonlySet<string> = new Set(['intake', 'fix', 'hotfix', 'extension'])
-/** The states that end a piece: the walk moves past them. */
+/** The states that end a packet: the walk moves past them. */
 const FINISHED_STATES: ReadonlySet<string> = new Set(['done', 'dropped'])
 
-/** One piece as the live module read it: the piece file, and the files of the workflow it opened. */
-export type PieceFact = {
+/** One packet as the live module read it: the packet file, and the files of the workflow it opened. */
+export type PacketFact = {
   key: string
   slug: string
   title: string
   form: string
   state: string
   order: number
-  /** The piece file's `ux-impact`. */
-  pieceUxImpact: string | null
-  /** The workflow's `00-index.md`, or null while the piece is not opened. */
+  /** The packet file's `ux-impact`. */
+  packetUxImpact: string | null
+  /** The workflow's `00-index.md`, or null while the packet is not opened. */
   indexText: string | null
   /** The workflow's `02c-craft.md`, or null. */
   craftText: string | null
@@ -33,9 +33,9 @@ export type PieceFact = {
 
 export type CampaignFacts = {
   slug: string
-  /** The `pieces:` keys of `work/index.md`, in list order. */
+  /** The `packets:` keys of `work/index.md`, in list order. */
   order: readonly string[]
-  pieces: readonly PieceFact[]
+  packets: readonly PacketFact[]
   liveness: SdlcLiveness
   dismissed: readonly string[]
 }
@@ -123,27 +123,27 @@ export function designSettledOf(indexText: string | null, craftText: string | nu
 
 const isUi = (impact: string | null): boolean => impact !== null && impact !== '' && impact !== 'none'
 
-/** A piece of the list: a build piece needs design once its workflow exists, names a ux-impact other than none, and has not settled it. */
-export function pieceOf(fact: PieceFact): SdlcPiece {
+/** A packet of the list: a build packet needs design once its workflow exists, names a ux-impact other than none, and has not settled it. */
+export function packetOf(fact: PacketFact): SdlcPacket {
   const isBuild = BUILD_FORMS.has(fact.form)
   const indexImpact = fieldOf(fact.indexText, 'ux-impact')
-  const uxImpact = indexImpact ?? fact.pieceUxImpact
+  const uxImpact = indexImpact ?? fact.packetUxImpact
   const designNeeded = isBuild && !FINISHED_STATES.has(fact.state) && fact.indexText !== null && isUi(indexImpact) && !designSettledOf(fact.indexText, fact.craftText)
   return { key: fact.key, slug: fact.slug, title: fact.title, form: fact.form, state: fact.state, uxImpact, isBuild, designNeeded }
 }
 
 export function buildCampaignModel(facts: CampaignFacts): SdlcCampaignModel {
   const rank = new Map(facts.order.map((key, index) => [key, index]))
-  // The list's order first; a piece the index does not name goes after, by its own `order`.
-  const sorted = [...facts.pieces].sort((a, b) => (rank.get(a.key) ?? facts.order.length + a.order) - (rank.get(b.key) ?? facts.order.length + b.order))
-  const pieces = sorted.map(pieceOf)
-  const current = pieces.find(piece => !FINISHED_STATES.has(piece.state)) ?? null
-  const needs: SdlcNeed[] = pieces.filter(piece => piece.designNeeded).map(piece => designNeedOf(piece.slug, piece.uxImpact ?? 'unset'))
+  // The list's order first; a packet the index does not name goes after, by its own `order`.
+  const sorted = [...facts.packets].sort((a, b) => (rank.get(a.key) ?? facts.order.length + a.order) - (rank.get(b.key) ?? facts.order.length + b.order))
+  const packets = sorted.map(packetOf)
+  const current = packets.find(packet => !FINISHED_STATES.has(packet.state)) ?? null
+  const needs: SdlcNeed[] = packets.filter(packet => packet.designNeeded).map(packet => designNeedOf(packet.slug, packet.uxImpact ?? 'unset'))
   return {
     kind: 'campaign',
     slug: facts.slug,
     liveness: facts.liveness,
-    pieces,
+    packets,
     current: current?.key ?? null,
     needs: openNeedsOf(needs, facts.dismissed),
   }

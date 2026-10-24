@@ -150,31 +150,31 @@ export type SdlcYoloModel = {
   outcome: 'running' | 'stopped' | 'ended' | 'stale' | 'none'
 }
 
-/** One piece of a list (WF-PIECES-PLAN.md 4.1): its file's fields, and whether its design waits on the person. */
-export type SdlcPiece = {
+/** One packet of a list (WF-PIECES-PLAN.md 4.1): its file's fields, and whether its design waits on the person. */
+export type SdlcPacket = {
   key: string
-  /** The workflow slug the piece opens (`piece-slug`). */
+  /** The workflow slug the packet opens (`packet-slug`). */
   slug: string
   title: string
   /** `intake`, `fix`, `hotfix`, `extension` (the build forms) or a routed form. */
   form: string
   /** `written`, `open`, `built`, `done` or `dropped`. */
   state: string
-  /** The workflow's `ux-impact`, else the piece file's; null when neither names one. */
+  /** The workflow's `ux-impact`, else the packet file's; null when neither names one. */
   uxImpact: string | null
   isBuild: boolean
-  /** A build piece, not done or dropped, whose workflow needs design and has not settled it. */
+  /** A build packet, not done or dropped, whose workflow needs design and has not settled it. */
   designNeeded: boolean
 }
 
-/** The campaign walk (WF-PIECES-PLAN.md 6.1): no ledger, only the pieces of `work/index.md` and their states. */
+/** The campaign walk (WF-PIECES-PLAN.md 6.1): no ledger, only the packets of `work/index.md` and their states. */
 export type SdlcCampaignModel = {
   kind: 'campaign'
   slug: string
   liveness: SdlcLiveness
-  /** The pieces in list order. */
-  pieces: SdlcPiece[]
-  /** The key of the first piece that is not done or dropped; null when the list is finished. */
+  /** The packets in list order. */
+  packets: SdlcPacket[]
+  /** The key of the first packet that is not done or dropped; null when the list is finished. */
   current: string | null
   needs: SdlcNeed[]
 }

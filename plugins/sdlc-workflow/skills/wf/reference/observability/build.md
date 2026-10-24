@@ -150,7 +150,7 @@ Per unit, generate as needed (traced insertions, no overwrite):
   request-scoped builder, a `res.on('finish')` emit, and tail sampling.
 - **Go / Python / JVM / Rust / .NET** — emit the equivalent idiomatic adapter (slog/zerolog; structlog/`logging`;
   logback/slf4j; `tracing`; Serilog).
-- **Unrecognized stack** — emit a commented skeleton with `# TODO:` markers naming each piece to fill in
+- **Unrecognized stack** — emit a commented skeleton with `# TODO:` markers naming each work packet to fill in
   (ship-plan build's unknown-ecosystem precedent). Never crash, never substitute JS.
 
 ---

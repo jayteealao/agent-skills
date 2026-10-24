@@ -77,7 +77,7 @@ The render below runs after this step, against the reconciled set.
 
 # Lists first
 
-For each list with an unfinished piece, lead with `node "<skill-dir>/scripts/campaign.mjs" status "<projectRoot>" <source-slug>`: its pieces, next step and design needs. Next: "Type `/wf campaign <source-slug>`."
+For each list with an unfinished work packet, lead with `node "<skill-dir>/scripts/campaign.mjs" status "<projectRoot>" <source-slug>`: its work packets, next step and design needs. Next: "Type `/wf campaign <source-slug>`."
 
 # Step 0 — Resolve mode
 1. Parse `$ARGUMENTS`. If the **last** token is `deep`, set deep-mode and strip it.

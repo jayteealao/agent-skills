@@ -1,8 +1,8 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
-  startedPieceRewriteError
-} from "./chunk-E4LPM77C.mjs";
+  startedPacketRewriteError
+} from "./chunk-Z6HTLQ6W.mjs";
 import {
   designGateRefusal,
   isPlanArtifact,
@@ -15,7 +15,7 @@ import {
   blockToolCall,
   isEntry,
   runStandalone
-} from "./chunk-I6LMGMZO.mjs";
+} from "./chunk-PGKNNQX4.mjs";
 import {
   loadConfig
 } from "./chunk-QUEAOP62.mjs";
@@ -23,7 +23,7 @@ import {
   formatList,
   hasFrontmatterFence,
   isFreeFormWorkflowPath,
-  isPiecePath,
+  isPacketPath,
   isProjectContextMarkdownPath,
   isProseLogPath,
   isWorkSetPath,
@@ -34,7 +34,7 @@ import {
   readTextIfExists,
   resolveProjectPath,
   workflowPathInfo
-} from "./chunk-HPVINV2O.mjs";
+} from "./chunk-S534URUW.mjs";
 import {
   safeParseFrontmatter
 } from "./chunk-5U76735W.mjs";
@@ -117,9 +117,9 @@ async function run(input) {
       }
     }
   }
-  if (errors.length === 0 && isPiecePath(filePath)) {
+  if (errors.length === 0 && isPacketPath(filePath)) {
     const prior = await readTextIfExists(resolveProjectPath(projectRoot, filePath));
-    const refusal = prior === null ? null : startedPieceRewriteError(prior, content);
+    const refusal = prior === null ? null : startedPacketRewriteError(prior, content);
     if (refusal) errors.push(refusal);
   }
   if (errors.length === 0 && config.hooks.designDirectionGate !== false && isPlanArtifact(info.storageRel)) {

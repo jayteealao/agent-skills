@@ -9,7 +9,7 @@ import {
   effectiveCodeBrowserConfig,
   hubConfigHash,
   readHubConfig
-} from "./chunk-7AACUWBN.mjs";
+} from "./chunk-Y5FDHE6N.mjs";
 import {
   LockTimeoutError,
   atomicWriteJson,
@@ -19,7 +19,7 @@ import {
   verifyRuntimeStore,
   withLock,
   writeActiveRuntime
-} from "./chunk-WC46J5NI.mjs";
+} from "./chunk-47R6CSZC.mjs";
 import {
   compareVersions,
   runtimeIdentity
@@ -38,7 +38,7 @@ import {
   removePidFile,
   sdlcHomeDir,
   writePidFile
-} from "./chunk-HPVINV2O.mjs";
+} from "./chunk-S534URUW.mjs";
 
 // lib/hub-lifecycle.mjs
 import { randomBytes } from "node:crypto";

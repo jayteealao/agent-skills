@@ -2,7 +2,7 @@
  * facts → the brainstorm view's model (WF-LIVE-VIEWS-PLAN.md 3.5). Pure (M1).
  *
  * The board (`brainstorm-board.json`) holds the threads, the items, the
- * scope calls and the pieces of the list (`work[]`). An item takes its own `scope`
+ * scope calls and the packets of the list (`work[]`). An item takes its own `scope`
  * when the board records one, else its area's; an area marked `mixed` leaves
  * its items undecided until the board records them (the note of 3.5).
  */
@@ -32,7 +32,7 @@ function callOf(value: unknown): Call {
   return value === 'keep' || value === 'cut' || value === 'later' ? value : value === 'pending-cut' ? 'cut' : null
 }
 
-/** WF-PIECES-PLAN 4.2: a piece is sized by its estimated slices (target 10, band 6 to 14), not by its decisions. 0 = no estimate. */
+/** WF-PIECES-PLAN 4.2: a packet is sized by its estimated slices (target 10, band 6 to 14), not by its decisions. 0 = no estimate. */
 export const SLICE_MAX = 14
 function sizeOf(work: Record<string, unknown>): number {
   const est = work['estimated-slices']

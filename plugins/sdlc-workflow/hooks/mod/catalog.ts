@@ -44,7 +44,7 @@ export const CATALOG: readonly CatalogEntry[] = [
   { key: 'probe', name: 'probe', description: 'Collect runtime evidence without source mutation.', argumentHint: '<slug> [target|sweep] | sweep [path]', need: 'slug' },
   { key: 'auto', name: 'auto', description: 'Drive stages until the pre-handoff boundary.', argumentHint: '<slug> [slice]', need: 'slug-slice-optional' },
   { key: 'yolo', name: 'yolo', description: 'Run policy-governed autonomy with an external grant.', argumentHint: '<slug> [slice]', need: 'slug-slice-optional' },
-  { key: 'campaign', name: 'campaign', description: 'Walk the pieces of one list, one at a time.', argumentHint: '<slug>', need: 'slug' },
+  { key: 'campaign', name: 'campaign', description: 'Walk the packets of one list, one at a time.', argumentHint: '<slug>', need: 'slug' },
   { key: 'loop goal', name: 'goal', description: 'Hand a slug to the host goal; a script judges done.', argumentHint: '<slug> [objective|resume|status|clear]', need: 'slug' },
   { key: 'loop optimize', name: 'optimize', description: 'Run the metric loop of an optimize slug.', argumentHint: '<slug> | <description>', need: 'slug' },
   { key: 'loop prototype', name: 'prototype', description: 'Prove an idea by running code, one round per request.', argumentHint: '<idea> | <poc-branch> <idea> | <slug> [request]', need: 'slug-optional' },

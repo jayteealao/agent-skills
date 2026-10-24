@@ -1,6 +1,6 @@
 // lib/campaign.mjs — the pure helpers that outlive the wave campaign (WF-PIECES-PLAN 6.5).
 // The wave driver, the ledger and the dependency graph are gone; the walk's disk side is
-// scripts/campaign.mjs over lib/pieces.mjs. scripts/stage-yolo-driver.mjs still reads the
+// scripts/campaign.mjs over lib/packets.mjs. scripts/stage-yolo-driver.mjs still reads the
 // stage models of a project from here.
 
 /** WF-SYSTEM-REVIEW C1: the stages whose model the project sets in `models` of `.ai/sdlc-config.json`. */

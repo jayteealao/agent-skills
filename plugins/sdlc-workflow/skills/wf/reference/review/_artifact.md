@@ -70,7 +70,7 @@ recommended-routes:              # every viable option from _stage.md Adaptive r
 
 ## Decision Fidelity
 
-Only when `00-index.md` records `origin-piece` and the scope is slug-wide; omit it otherwise. One row per carried decision of the origin piece, in the order of the piece file, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table". The campaign walk reads this table.
+Only when `00-index.md` records `origin-packet` and the scope is slug-wide; omit it otherwise. One row per carried decision of the origin work packet, in the order of the work packet file, per [intent-fidelity.md](intent-fidelity.md) "Decision Fidelity table". The campaign walk reads this table.
 
 | Key | Verdict | Evidence | Approval |
 |---|---|---|---|

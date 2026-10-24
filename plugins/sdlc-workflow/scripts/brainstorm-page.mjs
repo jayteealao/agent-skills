@@ -9,7 +9,7 @@
  * Reads `.ai/workflows/<slug>/brainstorm-board.json` and `01-brainstorm.md`, and writes
  * `brainstorm-page.html` beside them: the summary, the sessions, the areas, the
  * decisions, the open ideas, the findings, the tensions and risks, the sketches, and
- * the pieces of work. Prints one JSON object on stdout.
+ * the work packets. Prints one JSON object on stdout.
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -45,7 +45,7 @@ export function writePage(root, slug, { now = new Date() } = {}) {
   writeAtomic(page, renderBrainstormPage(board, doc, { generatedAt: now.toISOString().replace(/\.\d{3}Z$/, 'Z') }));
   return {
     ok: true, page: posix(relative(root, page)), absolute: posix(page), document: existsSync(docFile),
-    sketches: (board.sketches ?? []).length, pieces: (board.work ?? []).length,
+    sketches: (board.sketches ?? []).length, packets: (board.work ?? []).length,
   };
 }
 

@@ -115,20 +115,20 @@
 
 <h3 id="brainstorm-done">What happens at done</h3>
 
-<p>On a standalone board, you and the agent walk the decisions and agree on pieces of work, as in any brainstorm. A piece of work that holds design items also records its <code>ux-impact</code>, which you confirm, and its sketches. Its piece file lists the sketch files, and they reach the piece's workflow in <code>design/sketches/</code>. Two forms of work are for design:</p>
+<p>On a standalone board, you and the agent walk the decisions and agree on work packets, as in any brainstorm. A work packet that holds design items also records its <code>ux-impact</code>, which you confirm, and its sketches. Its work packet file lists the sketch files, and they reach the work packet's workflow in <code>design/sketches/</code>. Two forms of work are for design:</p>
 
 <ul>
   <li><code>design</code> is the design stage of a feature workflow.</li>
   <li><code>design-direction</code> is a change to the project's design direction. Its entry is <code>/wf design direction from &lt;board-slug&gt;</code>.</li>
 </ul>
 
-<p>A piece of work that starts a new workflow carries the thoughts forward. You confirm its <code>ux-impact</code> at <code>done</code>, and <code>/wf campaign &lt;board-slug&gt;</code> opens the piece's workflow from the piece text, with no intake or shape question, and lists the pieces that need design. You design a piece between pieces, in the campaign's checkout; when the design is settled, the design stage ends with <code>/wf campaign &lt;board-slug&gt;</code> as the next step, and the walk slices the piece against the confirmed boards. See <a href="autonomous-drivers.html#campaign">Autonomous drivers</a>.</p>
+<p>A work packet that starts a new workflow carries the thoughts forward. You confirm its <code>ux-impact</code> at <code>done</code>, and <code>/wf campaign &lt;board-slug&gt;</code> opens the work packet's workflow from the work packet text, with no intake or shape question, and lists the work packets that need design. You design a work packet between work packets, in the campaign's checkout; when the design is settled, the design stage ends with <code>/wf campaign &lt;board-slug&gt;</code> as the next step, and the walk slices the work packet against the confirmed boards. See <a href="autonomous-drivers.html#campaign">Autonomous drivers</a>.</p>
 
-<p>On a feature workflow, the board is <code>brainstorm-board-design.json</code> and your document is <code>design-notes/brainstorm-design.md</code>, beside the other artifacts. A second run resumes the same two files. At <code>done</code>, the kept design items become one piece of work for that workflow. The entry is <code>/wf design &lt;slug&gt;</code>. When the design is already confirmed, the entry is <code>/wf design &lt;slug&gt; amend</code>, and the index records <code>progress.design: in-progress</code>, so the design is reopened.</p>
+<p>On a feature workflow, the board is <code>brainstorm-board-design.json</code> and your document is <code>design-notes/brainstorm-design.md</code>, beside the other artifacts. A second run resumes the same two files. At <code>done</code>, the kept design items become one work packet for that workflow. The entry is <code>/wf design &lt;slug&gt;</code>. When the design is already confirmed, the entry is <code>/wf design &lt;slug&gt; amend</code>, and the index records <code>progress.design: in-progress</code>, so the design is reopened.</p>
 
 <h3 id="carried">How the carried thoughts come back</h3>
 
-<p>The design stage looks for carried thoughts in two places. First, it reads the origin piece that <code>00-index.md</code> names in <code>origin-piece</code>, and the piece of the origin board whose <code>piece-slug</code> is this workflow. Second, it reads this workflow's own <code>brainstorm-board-design.json</code>. The carried set is the kept design items, the open questions and tensions on design threads, and the carried sketches. A cut item or a later item does not travel.</p>
+<p>The design stage looks for carried thoughts in two places. First, it reads the origin work packet that <code>00-index.md</code> names in <code>origin-packet</code>, and the work packet of the origin board whose <code>packet-slug</code> is this workflow. Second, it reads this workflow's own <code>brainstorm-board-design.json</code>. The carried set is the kept design items, the open questions and tensions on design threads, and the carried sketches. A cut item or a later item does not travel.</p>
 
 <p>When the set is not empty, the stage presents it again before it draws (Step 1b):</p>
 

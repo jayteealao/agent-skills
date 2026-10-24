@@ -31,7 +31,7 @@ import type { ViewStyle } from '../styles/tokens.ts'
 import { findProjectRoot, joinPath, listSlices } from '../workflows.ts'
 import { buildBrainstormModel, newestChangeOf } from './model/brainstorm.ts'
 import { buildCampaignModel, fieldOf, listFieldOf } from './model/campaign.ts'
-import type { PieceFact } from './model/campaign.ts'
+import type { PacketFact } from './model/campaign.ts'
 import { absorb, freshJournalState, judge, livenessFrom } from './model/journal.ts'
 import type { JournalState } from './model/journal.ts'
 import type { RecordFact } from './model/needs.ts'
@@ -96,7 +96,7 @@ type Tracker = {
   slowAt: number
   roster: RosterFact[]
   rosterAt: number
-  /** A brainstorm's board, or a campaign's newest piece write: the pulse of a run no driver journals. */
+  /** A brainstorm's board, or a campaign's newest packet write: the pulse of a run no driver journals. */
   boardAt: number | null
   boardBeats: number[]
   toasted: Set<string>
@@ -427,12 +427,12 @@ function unopenedTextOf(kind: Kind, slug: string, why: string): string {
   return `The live view of ${kind} ${slug} follows the run, but its pane is not drawn: ${why}.`
 }
 
-/** The kind of run a workflow has on disk, or null: a list with a started piece, a brainstorm board, a driver journal. */
+/** The kind of run a workflow has on disk, or null: a list with a started packet, a brainstorm board, a driver journal. */
 async function runKindOf(slug: string): Promise<Kind | null> {
   if (root === null || reader === null) return null
   const base = joinPath(root, '.ai', 'workflows', slug)
   const list = await readList(slug)
-  if (list !== null && list.pieces.some(piece => piece.state !== 'written')) return 'campaign'
+  if (list !== null && list.packets.some(packet => packet.state !== 'written')) return 'campaign'
   if ((await reader.mtime(joinPath(base, 'brainstorm-board.json'))) != null) return 'brainstorm'
   if ((await reader.mtime(joinPath(base, '.driver-journal.jsonl'))) != null) return 'yolo'
   return null
@@ -499,7 +499,7 @@ async function pollAll(x: LiveEngine): Promise<void> {
 async function scan(x: LiveEngine, now: number): Promise<void> {
   if (reader === null || root === null) return
   const dir = joinPath(root, '.ai', 'workflows')
-  // A campaign has no journal of its own: its `/wf campaign` turn follows it, and the yolo run of each piece is a yolo tab.
+  // A campaign has no journal of its own: its `/wf campaign` turn follows it, and the yolo run of each packet is a yolo tab.
   for (const entry of await reader.list(dir)) {
     if (entry.kind !== 'dir') continue
     const slug = entry.name
@@ -660,45 +660,45 @@ function firstLineOf(journal: JournalState): number | null {
   return journal.beats[0] ?? null
 }
 
-/** The files of `work/` that are no piece. */
-const NOT_PIECES: ReadonlySet<string> = new Set(['index.md', 'changes.md', 'migration.md'])
+/** The files of `work/` that are no packet. */
+const NOT_PACKETS: ReadonlySet<string> = new Set(['index.md', 'changes.md', 'migration.md'])
 
 /**
- * The list of a source folder (WF-PIECES-PLAN.md 4.1): the `pieces:` keys of
- * `work/index.md`, each `type: piece` file of `work/`, and the files of the
- * workflow each piece opened. Null when `work/index.md` is no list.
+ * The list of a source folder (WF-PIECES-PLAN.md 4.1): the `packets:` keys of
+ * `work/index.md`, each `type: packet` file of `work/`, and the files of the
+ * workflow each packet opened. Null when `work/index.md` is no list.
  */
-async function readList(slug: string): Promise<{ order: string[]; pieces: PieceFact[]; newestAt: number | null } | null> {
+async function readList(slug: string): Promise<{ order: string[]; packets: PacketFact[]; newestAt: number | null } | null> {
   if (reader === null || root === null) return null
   const work = joinPath(root, '.ai', 'workflows', slug, 'work')
   const indexPath = joinPath(work, 'index.md')
   const index = (await reader.changed(indexPath)).text
   if (index === null || fieldOf(index, 'type') !== 'list') return null
   let newestAt = await reader.mtime(indexPath)
-  const pieces: PieceFact[] = []
+  const packets: PacketFact[] = []
   for (const entry of await reader.list(work)) {
-    if (entry.kind !== 'file' || !entry.name.endsWith('.md') || NOT_PIECES.has(entry.name)) continue
+    if (entry.kind !== 'file' || !entry.name.endsWith('.md') || NOT_PACKETS.has(entry.name)) continue
     const path = joinPath(work, entry.name)
     const text = (await reader.changed(path)).text
-    if (text === null || fieldOf(text, 'type') !== 'piece') continue
+    if (text === null || fieldOf(text, 'type') !== 'packet') continue
     const at = await reader.mtime(path)
     if (at !== null && (newestAt === null || at > newestAt)) newestAt = at
     const key = fieldOf(text, 'key') ?? entry.name.replace(/\.md$/u, '')
-    const pieceSlug = fieldOf(text, 'piece-slug') ?? key
-    const workflow = joinPath(root, '.ai', 'workflows', pieceSlug)
-    pieces.push({
+    const packetSlug = fieldOf(text, 'packet-slug') ?? key
+    const workflow = joinPath(root, '.ai', 'workflows', packetSlug)
+    packets.push({
       key,
-      slug: pieceSlug,
+      slug: packetSlug,
       title: fieldOf(text, 'title') ?? key,
       form: fieldOf(text, 'form') ?? 'intake',
       state: fieldOf(text, 'state') ?? 'written',
       order: Number(fieldOf(text, 'order')) || 0,
-      pieceUxImpact: fieldOf(text, 'ux-impact'),
+      packetUxImpact: fieldOf(text, 'ux-impact'),
       indexText: (await reader.changed(joinPath(workflow, '00-index.md'))).text,
       craftText: (await reader.changed(joinPath(workflow, '02c-craft.md'))).text,
     })
   }
-  return { order: listFieldOf(index, 'pieces'), pieces, newestAt }
+  return { order: listFieldOf(index, 'packets'), packets, newestAt }
 }
 
 async function pollCampaign(x: LiveEngine, tracker: Tracker, now: number): Promise<void> {
@@ -707,12 +707,12 @@ async function pollCampaign(x: LiveEngine, tracker: Tracker, now: number): Promi
   const listAt = list?.newestAt ?? null
   if (listAt !== null && listAt !== tracker.boardAt) tracker.boardBeats = [...tracker.boardBeats, listAt].slice(-40)
   tracker.boardAt = listAt
-  // The walk is the person's: its pulse is the piece writes, and between pieces the person decides, so a long
-  // silence is quiet, never stale. The yolo run of the current piece has its own tab and its own liveness.
-  const judged = livenessFrom({ ...freshJournalState(), run: { ...freshJournalState().run, lastLineAt: listAt, run: tracker.slug }, beats: tracker.boardBeats, lastLine: listAt === null ? null : 'piece written' }, now)
+  // The walk is the person's: its pulse is the packet writes, and between packets the person decides, so a long
+  // silence is quiet, never stale. The yolo run of the current packet has its own tab and its own liveness.
+  const judged = livenessFrom({ ...freshJournalState(), run: { ...freshJournalState().run, lastLineAt: listAt, run: tracker.slug }, beats: tracker.boardBeats, lastLine: listAt === null ? null : 'packet written' }, now)
   const liveness = judged.state === 'stale' ? { ...judged, state: 'quiet' as const } : judged
   const view = await viewOf(x)
-  const model = buildCampaignModel({ slug: tracker.slug, order: list?.order ?? [], pieces: list?.pieces ?? [], liveness, dismissed: view.dismissed })
+  const model = buildCampaignModel({ slug: tracker.slug, order: list?.order ?? [], packets: list?.packets ?? [], liveness, dismissed: view.dismissed })
   for (const need of model.needs) toast(x, tracker, need.id, `wf campaign ${tracker.slug}: ${need.title} · ${need.body}`)
   tracker.isPrimed = true
   await writeModel(x, tracker, model)

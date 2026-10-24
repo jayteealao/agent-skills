@@ -5,7 +5,7 @@ import {
   BUILD_FORMS,
   DEFAULT_FILES,
   IDEATE_FILES,
-  PIECE_STATES,
+  PACKET_STATES,
   checkList,
   closesCycle,
   editRosterEntry,
@@ -18,7 +18,7 @@ import {
   rosterWalkOrder,
   setFrontmatterValue,
   writeList
-} from "./chunk-E4LPM77C.mjs";
+} from "./chunk-Z6HTLQ6W.mjs";
 import {
   designNeeded,
   designSettled
@@ -49,7 +49,7 @@ import { fileURLToPath } from "node:url";
 var SESSIONS_KEPT = 3;
 var SUMMARY_WORD_CAP = 150;
 var CLOSED_THREAD_STATES = /* @__PURE__ */ new Set(["routed", "dropped"]);
-var DONE_PIECE_STATES = /* @__PURE__ */ new Set(["written", "prepared", "routed"]);
+var DONE_PACKET_STATES = /* @__PURE__ */ new Set(["written", "prepared", "routed"]);
 function wordCount(text) {
   return String(text ?? "").split(/\s+/).filter(Boolean).length;
 }
@@ -68,7 +68,7 @@ function archiveBoard(board, { keep = SESSIONS_KEPT } = {}) {
   const threads = new Map((board.threads ?? []).map((t) => [t.key, t]));
   const openThreads = /* @__PURE__ */ new Set();
   for (const p of board.work ?? []) {
-    if (isStartedState(p.state) || DONE_PIECE_STATES.has(p.state)) continue;
+    if (isStartedState(p.state) || DONE_PACKET_STATES.has(p.state)) continue;
     for (const t of p.threads ?? []) openThreads.add(t);
   }
   const named = namedKeys(board);
@@ -471,20 +471,20 @@ function archiveCommand(dir, boardFile, { dryRun = false, now = null } = {}) {
 function readList(root, src) {
   const wd = workDir(root, src);
   const index = readFm(join2(wd, "index.md"));
-  const { pieces } = readWorkFiles(wd);
-  const all = [...pieces.values()].map((p) => ({ ...p.data, file: p.file, path: join2(wd, p.file) })).sort((a, b) => (a.order ?? 1e9) - (b.order ?? 1e9));
-  return { index, pieces: all };
+  const { packets } = readWorkFiles(wd);
+  const all = [...packets.values()].map((p) => ({ ...p.data, file: p.file, path: join2(wd, p.file) })).sort((a, b) => (a.order ?? 1e9) - (b.order ?? 1e9));
+  return { index, packets: all };
 }
-function pieceOf(root, src, key) {
-  const { index, pieces } = readList(root, src);
+function packetOf(root, src, key) {
+  const { index, packets } = readList(root, src);
   if (index?.type !== "list") throw new Error(`${src} has no list: run campaign.mjs write first`);
-  const piece = pieces.find((p) => p.key === key || p["piece-slug"] === key);
-  if (!piece) throw new Error(`${key} is not a piece of the list ${src}`);
-  return { index, pieces, piece };
+  const packet = packets.find((p) => p.key === key || p["packet-slug"] === key);
+  if (!packet) throw new Error(`${key} is not a packet of the list ${src}`);
+  return { index, packets, packet };
 }
-function setPieceState(piece, state) {
-  if (!PIECE_STATES.includes(state)) throw new Error(`unknown piece state ${state}`);
-  setFields(piece.path, { state });
+function setPacketState(packet, state) {
+  if (!PACKET_STATES.includes(state)) throw new Error(`unknown packet state ${state}`);
+  setFields(packet.path, { state });
 }
 function designBlock(root, slug) {
   const dir = wfDir(root, slug);
@@ -538,29 +538,29 @@ var tryOutRecorded = (root, slug) => {
   const file = join2(wfDir(root, slug), "po-answers.md");
   return existsSync2(file) && /^- try-out: works/m.test(readFileSync2(file, "utf8"));
 };
-function nextStep(root, src, piece) {
-  const slug = piece["piece-slug"];
-  if (piece.state === "done" || piece.state === "dropped") return { step: "none" };
-  if (!BUILD_FORMS.includes(piece.form)) return { step: "route", route: routeOf(src, piece) };
-  if (piece.state === "written") return { step: "open" };
+function nextStep(root, src, packet) {
+  const slug = packet["packet-slug"];
+  if (packet.state === "done" || packet.state === "dropped") return { step: "none" };
+  if (!BUILD_FORMS.includes(packet.form)) return { step: "route", route: routeOf(src, packet) };
+  if (packet.state === "written") return { step: "open" };
   const block = designBlock(root, slug);
   if (block) return { step: "design", reason: block, route: `/wf design ${slug}` };
-  if (piece.state === "open") {
+  if (packet.state === "open") {
     if (!existsSync2(join2(wfDir(root, slug), "03-slice.md"))) return { step: "slice" };
     return { step: "yolo" };
   }
   const unbuilt = openSlices(root, slug);
   if (unbuilt.length) return { step: "yolo", reason: `the slice(s) ${unbuilt.join(", ")} are not complete: run campaign.mjs reopen, then the driver` };
-  const fid = decisionFidelity(root, slug, (piece["carried-decisions"] ?? []).map((d) => d.key));
+  const fid = decisionFidelity(root, slug, (packet["carried-decisions"] ?? []).map((d) => d.key));
   if (!fid.table) return { step: "fidelity", reason: "07-review.md has no ## Decision Fidelity table: run the review again" };
   if (fid.missing.length) return { step: "fidelity", reason: `the ## Decision Fidelity table has no row for ${fid.missing.join(", ")}: run the review again`, missing: fid.missing };
   if (fid.rows.length) return { step: "fidelity", rows: fid.rows };
-  if (piece["try-out"] === "yes" && !tryOutRecorded(root, slug)) return { step: "try-out" };
+  if (packet["try-out"] === "yes" && !tryOutRecorded(root, slug)) return { step: "try-out" };
   return { step: "done" };
 }
-function routeOf(src, piece) {
-  const slug = piece["piece-slug"];
-  switch (piece.form) {
+function routeOf(src, packet) {
+  const slug = packet["packet-slug"];
+  switch (packet.form) {
     case "investigate":
       return `/wf intake investigate ${slug}`;
     case "discover":
@@ -570,13 +570,13 @@ function routeOf(src, piece) {
     case "task":
       return `/wf intake task ${slug}`;
     default:
-      return `/wf intake .ai/workflows/${src}/work/${piece.file}`;
+      return `/wf intake .ai/workflows/${src}/work/${packet.file}`;
   }
 }
 function statusCmd(root, src) {
   const dir = sourceDir(root, src);
   if (!existsSync2(dir)) return { ok: false, error: `no source folder .ai/workflows/${src}` };
-  const { index, pieces } = readList(root, src);
+  const { index, packets } = readList(root, src);
   const oldLedger = existsSync2(join2(oldCampDir(root, src), "ledger.json"));
   if (oldLedger && index?.type !== "list") {
     return { ok: true, source: src, migrate: true, reason: "an old campaign ledger and no list: migrate first (section 12.2)", next: `campaign.mjs migrate <root> ${src} report` };
@@ -586,20 +586,20 @@ function statusCmd(root, src) {
     return { ok: true, source: src, migrate: "finish", reason: "the list is written and the old ledger is still in work/campaign/: finish the migration (section 12.2 steps 8 to 10)", next: `campaign.mjs migrate <root> ${src} finish` };
   }
   const branch = listBranch(src);
-  const rows = pieces.map((p) => ({ key: p.key, slug: p["piece-slug"], form: p.form, state: p.state, order: p.order, "try-out": p["try-out"] ?? null, ...p.migrated ? { migrated: true } : {} }));
-  const current = pieces.find((p) => !["done", "dropped"].includes(p.state)) ?? null;
-  const needDesign = pieces.filter((p) => BUILD_FORMS.includes(p.form) && !["done", "dropped"].includes(p.state)).map((p) => {
-    const opened = existsSync2(join2(wfDir(root, p["piece-slug"]), "00-index.md"));
-    const why = opened ? designBlock(root, p["piece-slug"]) : (p["ux-impact"] ?? "none") !== "none" ? "not opened yet; the design stage runs after open" : null;
-    return why ? { key: p.key, slug: p["piece-slug"], reason: why } : null;
+  const rows = packets.map((p) => ({ key: p.key, slug: p["packet-slug"], form: p.form, state: p.state, order: p.order, "try-out": p["try-out"] ?? null, ...p.migrated ? { migrated: true } : {} }));
+  const current = packets.find((p) => !["done", "dropped"].includes(p.state)) ?? null;
+  const needDesign = packets.filter((p) => BUILD_FORMS.includes(p.form) && !["done", "dropped"].includes(p.state)).map((p) => {
+    const opened = existsSync2(join2(wfDir(root, p["packet-slug"]), "00-index.md"));
+    const why = opened ? designBlock(root, p["packet-slug"]) : (p["ux-impact"] ?? "none") !== "none" ? "not opened yet; the design stage runs after open" : null;
+    return why ? { key: p.key, slug: p["packet-slug"], reason: why } : null;
   }).filter(Boolean);
   return {
     ok: true,
     source: src,
     branch,
     onListBranch: currentBranch(root) === branch,
-    pieces: rows,
-    current: current ? { key: current.key, slug: current["piece-slug"], state: current.state, ...nextStep(root, src, current) } : null,
+    packets: rows,
+    current: current ? { key: current.key, slug: current["packet-slug"], state: current.state, ...nextStep(root, src, current) } : null,
     needDesign,
     finished: !current
   };
@@ -630,24 +630,24 @@ function sectionText(text, heading) {
   const body = text.slice(m.index + m[0].length).split(/\n## /)[0].trim();
   return body === "- None." ? "" : body;
 }
-function pieceFolderFiles({ src, piece, pieceText, list, trunk, now }) {
-  const slug = piece["piece-slug"];
-  const originPiece = `.ai/workflows/${src}/work/${piece.file}`;
-  const decisions = piece["carried-decisions"] ?? [];
+function packetFolderFiles({ src, packet, packetText, list, trunk, now }) {
+  const slug = packet["packet-slug"];
+  const originPacket = `.ai/workflows/${src}/work/${packet.file}`;
+  const decisions = packet["carried-decisions"] ?? [];
   const boardFile = list?.board ?? DEFAULT_FILES.board;
-  const goal = sectionText(pieceText, "Goal");
-  const inScope = sectionList(pieceText, "In scope");
-  const outScope = sectionList(pieceText, "Out of scope");
-  const acs = sectionList(pieceText, "Acceptance criteria");
-  const constraints = sectionList(pieceText, "Constraints");
-  const risks = sectionList(pieceText, "Risks");
-  const ux = piece["ux-impact"] ?? "none";
+  const goal = sectionText(packetText, "Goal");
+  const inScope = sectionList(packetText, "In scope");
+  const outScope = sectionList(packetText, "Out of scope");
+  const acs = sectionList(packetText, "Acceptance criteria");
+  const constraints = sectionList(packetText, "Constraints");
+  const risks = sectionList(packetText, "Risks");
+  const ux = packet["ux-impact"] ?? "none";
   const stack = { ...list?.stack ?? {}, "user-confirmed": true };
   const index = {
     schema: "sdlc/v1",
     type: "index",
     slug,
-    title: piece.title ?? slug,
+    title: packet.title ?? slug,
     status: "active",
     "current-stage": "shape",
     "stage-number": 2,
@@ -668,9 +668,9 @@ function pieceFolderFiles({ src, piece, pieceText, list, trunk, now }) {
     "ux-impact": ux,
     "ux-impact-confirmed": true,
     ...ux === "none" ? { "design-skip-reason": "ux-impact none" } : {},
-    "origin-piece": originPiece,
+    "origin-packet": originPacket,
     "origin-items": decisions.map((d) => d.key),
-    ...piece.amends || piece["target-slug"] ? { amends: piece["target-slug"] ?? piece.amends } : {},
+    ...packet.amends || packet["target-slug"] ? { amends: packet["target-slug"] ?? packet.amends } : {},
     // The person confirmed each risk at brainstorm done, and the walk runs no shape stage, so a
     // risk is carried to the slug-wide review. An `open` risk would block the handoff gate.
     "intent-risks": risks.length ? risks.map((r, i) => ({
@@ -715,17 +715,17 @@ function pieceFolderFiles({ src, piece, pieceText, list, trunk, now }) {
       refs: { index: "00-index.md", next: "02-shape.md" },
       "next-command": "wf-slice",
       "next-invocation": `/wf campaign ${src}`,
-      "recommended-routes": [{ invocation: `/wf campaign ${src}`, reason: "the campaign walk slices and builds this piece", default: true }]
+      "recommended-routes": [{ invocation: `/wf campaign ${src}`, reason: "the campaign walk slices and builds this packet", default: true }]
     }),
     "---",
     "",
     "# Intake",
     "",
-    `Written by \`campaign.mjs open\` from the piece [${piece.file}](../${src}/work/${piece.file}). The brainstorm wrote the scope with the person; nobody re-words it.`,
+    `Written by \`campaign.mjs open\` from the packet [${packet.file}](../${src}/work/${packet.file}). The brainstorm wrote the scope with the person; nobody re-words it.`,
     "",
     "## Restated Request",
     "",
-    goal || piece.title || slug,
+    goal || packet.title || slug,
     "",
     "## Intended Outcome",
     "",
@@ -737,8 +737,8 @@ function pieceFolderFiles({ src, piece, pieceText, list, trunk, now }) {
     "",
     "## Risks if Misunderstood",
     "",
-    ...risks.length ? risks.map((r, i) => `- **RIM-${i + 1}** \u2014 ${r}`) : ["- none-declared: the piece records no risk."],
-    "- charter: none-declared: the carried decisions are the commitments of the piece.",
+    ...risks.length ? risks.map((r, i) => `- **RIM-${i + 1}** \u2014 ${r}`) : ["- none-declared: the packet records no risk."],
+    "- charter: none-declared: the carried decisions are the commitments of the packet.",
     "",
     "## Success Criteria",
     "",
@@ -762,23 +762,23 @@ function pieceFolderFiles({ src, piece, pieceText, list, trunk, now }) {
       "docs-needed": false,
       "docs-types": [],
       "augmentations-needed": [],
-      "charter-scenario": "none \u2014 a campaign piece; the acceptance criteria carry the scenario",
+      "charter-scenario": "none \u2014 a campaign packet; the acceptance criteria carry the scenario",
       "files-in-scope": [],
       tags: [],
       refs: { index: "00-index.md", intake: "01-intake.md", next: "03-slice.md" },
       "next-command": ux === "none" ? "wf-slice" : "wf-design",
       "next-invocation": ux === "none" ? `/wf campaign ${src}` : `/wf design ${slug}`,
-      "recommended-routes": [{ invocation: ux === "none" ? `/wf campaign ${src}` : `/wf design ${slug}`, reason: ux === "none" ? "the walk slices the piece" : "the piece needs the design stage first", default: true }]
+      "recommended-routes": [{ invocation: ux === "none" ? `/wf campaign ${src}` : `/wf design ${slug}`, reason: ux === "none" ? "the walk slices the packet" : "the packet needs the design stage first", default: true }]
     }),
     "---",
     "",
     "# Shape",
     "",
-    `Written by \`campaign.mjs open\` from the piece [${piece.file}](../${src}/work/${piece.file}).`,
+    `Written by \`campaign.mjs open\` from the packet [${packet.file}](../${src}/work/${packet.file}).`,
     "",
     "## Problem Statement",
     "",
-    goal || piece.title || slug,
+    goal || packet.title || slug,
     "",
     "## Desired Behavior",
     "",
@@ -800,8 +800,8 @@ function pieceFolderFiles({ src, piece, pieceText, list, trunk, now }) {
     "",
     "| Intake directive | Disposition | How | Authority |",
     "|---|---|---|---|",
-    ...decisions.map((d) => `| **${d.key}** \u2014 ${String(d.text).replace(/\|/g, "\\|")} | honored | carried word for word into this piece | the brainstorm board, ${d.key} |`),
-    ...constraints.map((c) => `| ${c.replace(/\|/g, "\\|")} | honored | a constraint of the piece | the brainstorm |`),
+    ...decisions.map((d) => `| **${d.key}** \u2014 ${String(d.text).replace(/\|/g, "\\|")} | honored | carried word for word into this packet | the brainstorm board, ${d.key} |`),
+    ...constraints.map((c) => `| ${c.replace(/\|/g, "\\|")} | honored | a constraint of the packet | the brainstorm |`),
     "",
     "## Definition of Done",
     "",
@@ -810,7 +810,7 @@ function pieceFolderFiles({ src, piece, pieceText, list, trunk, now }) {
   ].join("\n");
   const answers = `# PO answers
 
-The brainstorm \`${src}\` recorded the decisions of this piece. The campaign walk appends the fidelity approvals and the try-out here.
+The brainstorm \`${src}\` recorded the decisions of this packet. The campaign walk appends the fidelity approvals and the try-out here.
 `;
   return { "00-index.md": `---
 ${dump(index)}
@@ -818,16 +818,16 @@ ${dump(index)}
 `, "01-intake.md": intake, "02-shape.md": shape, "po-answers.md": answers };
 }
 function openCmd(root, src, [key], f) {
-  const { index: list, piece } = pieceOf(root, src, key);
-  if (!BUILD_FORMS.includes(piece.form)) return { ok: false, error: `${piece.key} is a ${piece.form} piece; the walk routes it to its own command`, route: routeOf(src, piece) };
-  if (piece.state !== "written") return { ok: true, opened: false, key: piece.key, state: piece.state, reason: "already open" };
-  const slug = piece["piece-slug"];
+  const { index: list, packet } = packetOf(root, src, key);
+  if (!BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is a ${packet.form} packet; the walk routes it to its own command`, route: routeOf(src, packet) };
+  if (packet.state !== "written") return { ok: true, opened: false, key: packet.key, state: packet.state, reason: "already open" };
+  const slug = packet["packet-slug"];
   const dir = wfDir(root, slug);
   const trunk = trunkOf(root, f);
-  const originPiece = `.ai/workflows/${src}/work/${piece.file}`;
+  const originPacket = `.ai/workflows/${src}/work/${packet.file}`;
   if (existsSync2(join2(dir, "00-index.md"))) {
     setFields(join2(dir, "00-index.md"), {
-      "origin-piece": originPiece,
+      "origin-packet": originPacket,
       branch: listBranch(src),
       "base-branch": trunk,
       "branch-strategy": "dedicated",
@@ -836,19 +836,19 @@ function openCmd(root, src, [key], f) {
       "review-scope-confirmed": true,
       "updated-at": nowIso()
     });
-    appendHistory(dir, `campaign: the piece ${piece.key} of ${src} adopted this folder`);
-    setPieceState(piece, "open");
+    appendHistory(dir, `campaign: the packet ${packet.key} of ${src} adopted this folder`);
+    setPacketState(packet, "open");
     indexRow(root, slug, listBranch(src));
-    return { ok: true, opened: true, adopted: true, key: piece.key, slug };
+    return { ok: true, opened: true, adopted: true, key: packet.key, slug };
   }
   const boardFile = boardFileOf(sourceDir(root, src));
-  const files = pieceFolderFiles({ src, piece, pieceText: readFileSync2(piece.path, "utf8"), list: { ...list, board: boardFile }, trunk, now: nowIso() });
+  const files = packetFolderFiles({ src, packet, packetText: readFileSync2(packet.path, "utf8"), list: { ...list, board: boardFile }, trunk, now: nowIso() });
   mkdirSync2(dir, { recursive: true });
   for (const [name, text] of Object.entries(files)) writeFileSync2(join2(dir, name), text);
-  appendHistory(dir, `campaign: opened from the piece ${piece.key} of ${src}`, "intake");
-  setPieceState(piece, "open");
+  appendHistory(dir, `campaign: opened from the packet ${packet.key} of ${src}`, "intake");
+  setPacketState(packet, "open");
   indexRow(root, slug, listBranch(src));
-  return { ok: true, opened: true, key: piece.key, slug, wrote: Object.keys(files).map((n) => posix2(relative(root, join2(dir, n)))) };
+  return { ok: true, opened: true, key: packet.key, slug, wrote: Object.keys(files).map((n) => posix2(relative(root, join2(dir, n)))) };
 }
 function landCmd(root, src, f) {
   const branch = listBranch(src);
@@ -865,8 +865,8 @@ function requireListBranch(root, src) {
   if (cur !== branch) throw new Error(`the walk's checkout is on ${cur ?? "a detached HEAD"}, not on the list branch ${branch}: run campaign.mjs land first`);
   return branch;
 }
-function landMigrated(root, src, piece) {
-  const m = piece.migrated ?? {};
+function landMigrated(root, src, packet) {
+  const m = packet.migrated ?? {};
   const branch = m["from-branch"];
   if (!branch) return { ok: true, skipped: "no unit branch" };
   if (m.merged) return { ok: true, skipped: "already merged" };
@@ -876,9 +876,9 @@ function landMigrated(root, src, piece) {
   const waveBase = m["wave-base"];
   const needsRebase = m.land === "squashed" && Boolean(waveBase) && !(wt && isAncestor(wt, list, "HEAD"));
   if (needsRebase) {
-    if (!wt) return { ok: false, error: `the unit ${piece.key} needs a rebase, and its worktree ${m.worktree ?? "(none)"} is gone. Ask the person.` };
+    if (!wt) return { ok: false, error: `the unit ${packet.key} needs a rebase, and its worktree ${m.worktree ?? "(none)"} is gone. Ask the person.` };
     if (!Number(git(wt, ["rev-list", "--count", `${waveBase}..HEAD`]).stdout || 0)) {
-      return { ok: false, error: `${branch} has no commit beyond the wave base ${waveBase}. Its work is in the wave base, which is not in the trunk, or it has no work yet. A rebase would bring nothing. Ask the person how to bring the work of ${piece.key} to ${list}.` };
+      return { ok: false, error: `${branch} has no commit beyond the wave base ${waveBase}. Its work is in the wave base, which is not in the trunk, or it has no work yet. A rebase would bring nothing. Ask the person how to bring the work of ${packet.key} to ${list}.` };
     }
   }
   if (wt) {
@@ -887,7 +887,7 @@ function landMigrated(root, src, piece) {
       const add = git(wt, ["add", "-A", "--", "."]);
       if (add.status !== 0) return { ok: false, error: `git add failed in ${wt}: ${add.stderr}` };
       git(wt, ["reset", "-q", "--", ".ai"]);
-      const c = git(wt, ["commit", "-m", `wip(${piece["piece-slug"]}): migration snapshot`]);
+      const c = git(wt, ["commit", "-m", `wip(${packet["packet-slug"]}): migration snapshot`]);
       if (c.status !== 0 && !/nothing to commit/.test(c.stdout + c.stderr)) return { ok: false, error: `the snapshot commit failed in ${wt}: ${c.stderr || c.stdout}` };
       steps.push({ snapshot: dirty.length });
     }
@@ -895,12 +895,12 @@ function landMigrated(root, src, piece) {
   if (needsRebase) {
     const ahead = Number(git(wt, ["rev-list", "--count", `${waveBase}..HEAD`]).stdout || 0);
     if (ahead > 1) {
-      const backup = `campaign/${src}/backup--${piece["piece-slug"]}`;
+      const backup = `campaign/${src}/backup--${packet["packet-slug"]}`;
       const bk = git(wt, ["branch", "-f", backup, "HEAD"]);
       if (bk.status !== 0) return { ok: false, error: `git branch ${backup} failed: ${bk.stderr}` };
       const fork = git(wt, ["merge-base", waveBase, "HEAD"]).stdout;
       git(wt, ["reset", "-q", "--soft", fork]);
-      const c = git(wt, ["commit", "-q", "-m", `${piece["piece-slug"]}: the work of the old unit, in one commit for the migration (old commits on ${backup})`]);
+      const c = git(wt, ["commit", "-q", "-m", `${packet["packet-slug"]}: the work of the old unit, in one commit for the migration (old commits on ${backup})`]);
       if (c.status !== 0) {
         git(wt, ["reset", "-q", "--soft", backup]);
         return { ok: false, error: `the one-commit step failed in ${wt}: ${c.stderr || c.stdout}` };
@@ -920,56 +920,56 @@ function landMigrated(root, src, piece) {
     return { ok: false, conflict: "merge", error: `the merge of ${branch} into ${listBranch(src)} stopped on a conflict: ${mg.stderr || mg.stdout}. Ask the person to merge by hand, then start again.` };
   }
   steps.push({ merged: branch });
-  setFields(piece.path, { migrated: { ...m, merged: true } });
+  setFields(packet.path, { migrated: { ...m, merged: true } });
   return { ok: true, steps };
 }
 function startCmd(root, src, [key], f) {
-  const { pieces, piece } = pieceOf(root, src, key);
-  if (!BUILD_FORMS.includes(piece.form)) return { ok: false, error: `${piece.key} is not a build piece` };
-  if (piece.state === "written") return { ok: false, error: `${piece.key} is not open: run campaign.mjs open first` };
-  if (["done", "dropped"].includes(piece.state)) return { ok: false, error: `${piece.key} is ${piece.state}` };
+  const { packets, packet } = packetOf(root, src, key);
+  if (!BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is not a build packet` };
+  if (packet.state === "written") return { ok: false, error: `${packet.key} is not open: run campaign.mjs open first` };
+  if (["done", "dropped"].includes(packet.state)) return { ok: false, error: `${packet.key} is ${packet.state}` };
   requireListBranch(root, src);
   const trunk = trunkOf(root, f);
   let migration = null;
-  if (piece.migrated) {
-    migration = landMigrated(root, src, piece);
-    if (!migration.ok) return { ok: false, key: piece.key, ...migration };
+  if (packet.migrated) {
+    migration = landMigrated(root, src, packet);
+    if (!migration.ok) return { ok: false, key: packet.key, ...migration };
   }
-  const before = pieces.filter((p) => (p.order ?? 0) < (piece.order ?? 0) && BUILD_FORMS.includes(p.form) && p.state === "done").pop();
+  const before = packets.filter((p) => (p.order ?? 0) < (packet.order ?? 0) && BUILD_FORMS.includes(p.form) && p.state === "done").pop();
   let base = trunk;
   if (before) {
     const end = endBranch(src, before.key);
     if (commitOf(root, `refs/heads/${end}`) && isAncestor(root, end, "HEAD")) base = end;
   }
-  const idx = join2(wfDir(root, piece["piece-slug"]), "00-index.md");
+  const idx = join2(wfDir(root, packet["packet-slug"]), "00-index.md");
   if (!existsSync2(idx)) return { ok: false, error: `${posix2(relative(root, idx))} does not exist: run campaign.mjs open` };
   setFields(idx, { "base-branch": base, branch: listBranch(src), "updated-at": nowIso() });
-  return { ok: true, key: piece.key, slug: piece["piece-slug"], base, ...migration ? { migration } : {} };
+  return { ok: true, key: packet.key, slug: packet["packet-slug"], base, ...migration ? { migration } : {} };
 }
 function builtCmd(root, src, [key]) {
-  const { piece } = pieceOf(root, src, key);
-  if (piece.state !== "open" && piece.state !== "built") return { ok: false, error: `${piece.key} is ${piece.state}, not open` };
-  setPieceState(piece, "built");
-  return { ok: true, key: piece.key, state: "built" };
+  const { packet } = packetOf(root, src, key);
+  if (packet.state !== "open" && packet.state !== "built") return { ok: false, error: `${packet.key} is ${packet.state}, not open` };
+  setPacketState(packet, "built");
+  return { ok: true, key: packet.key, state: "built" };
 }
 function reopenCmd(root, src, [key]) {
-  const { piece } = pieceOf(root, src, key);
-  if (piece.state === "open") return { ok: true, key: piece.key, state: "open", changed: false };
-  if (piece.state !== "built") return { ok: false, error: `${piece.key} is ${piece.state}; only a built piece opens again` };
-  setPieceState(piece, "open");
-  return { ok: true, key: piece.key, state: "open", changed: true };
+  const { packet } = packetOf(root, src, key);
+  if (packet.state === "open") return { ok: true, key: packet.key, state: "open", changed: false };
+  if (packet.state !== "built") return { ok: false, error: `${packet.key} is ${packet.state}; only a built packet opens again` };
+  setPacketState(packet, "open");
+  return { ok: true, key: packet.key, state: "open", changed: true };
 }
 function doneCmd(root, src, [key], f) {
-  const { piece } = pieceOf(root, src, key);
-  if (piece.state !== "built") return { ok: false, error: `${piece.key} is ${piece.state}; done needs a built piece (a clean yolo run, then campaign.mjs built)` };
-  const slug = piece["piece-slug"];
+  const { packet } = packetOf(root, src, key);
+  if (packet.state !== "built") return { ok: false, error: `${packet.key} is ${packet.state}; done needs a built packet (a clean yolo run, then campaign.mjs built)` };
+  const slug = packet["packet-slug"];
   const unbuilt = openSlices(root, slug);
   if (unbuilt.length) return { ok: false, error: `the slice(s) ${unbuilt.join(", ")} of ${slug} are not complete: run the driver again`, unbuilt };
-  const fid = decisionFidelity(root, slug, (piece["carried-decisions"] ?? []).map((d) => d.key));
+  const fid = decisionFidelity(root, slug, (packet["carried-decisions"] ?? []).map((d) => d.key));
   if (!fid.table) return { ok: false, error: `${slug}/07-review.md has no ## Decision Fidelity table` };
   if (fid.missing.length) return { ok: false, error: `the ## Decision Fidelity table of ${slug} has no row for ${fid.missing.join(", ")}`, missing: fid.missing };
   if (fid.rows.length) return { ok: false, error: `${fid.rows.length} fidelity row(s) are not honored and not approved`, rows: fid.rows };
-  if (piece["try-out"] === "yes" && !tryOutRecorded(root, slug)) return { ok: false, error: `the try-out of ${piece.key} is not recorded: po-answers.md needs "- try-out: works"` };
+  if (packet["try-out"] === "yes" && !tryOutRecorded(root, slug)) return { ok: false, error: `the try-out of ${packet.key} is not recorded: po-answers.md needs "- try-out: works"` };
   requireListBranch(root, src);
   const trunk = trunkOf(root, f);
   const from = trunkRef(root, trunk);
@@ -982,31 +982,31 @@ function doneCmd(root, src, [key], f) {
     }
     merged = true;
   }
-  const end = endBranch(src, piece.key);
+  const end = endBranch(src, packet.key);
   const b = git(root, ["branch", "-f", end, "HEAD"]);
   if (b.status !== 0) return { ok: false, error: `git branch -f ${end} failed: ${b.stderr}` };
   setFields(join2(wfDir(root, slug), "00-index.md"), { "base-branch": trunk, "updated-at": nowIso() });
-  setPieceState(piece, "done");
+  setPacketState(packet, "done");
   let removed = null;
-  if (piece.migrated?.worktree && existsSync2(piece.migrated.worktree)) removed = removeWorktree(root, src, piece.migrated.worktree, { unitKey: piece.migrated["unit-key"] ?? piece.key });
-  return { ok: true, key: piece.key, state: "done", endBranch: end, trunkMerged: merged, ...removed ? { worktree: removed } : {} };
+  if (packet.migrated?.worktree && existsSync2(packet.migrated.worktree)) removed = removeWorktree(root, src, packet.migrated.worktree, { unitKey: packet.migrated["unit-key"] ?? packet.key });
+  return { ok: true, key: packet.key, state: "done", endBranch: end, trunkMerged: merged, ...removed ? { worktree: removed } : {} };
 }
 function closeCmd(root, src, [key, to]) {
   if (!["done", "dropped"].includes(to)) throw new Error("close: the state is done or dropped");
-  const { piece } = pieceOf(root, src, key);
-  if (["done", "dropped"].includes(piece.state)) return { ok: true, key: piece.key, state: piece.state, changed: false };
-  if (to === "done" && BUILD_FORMS.includes(piece.form)) return { ok: false, error: `${piece.key} is a build piece: it is done through built and done, after its yolo run and its fidelity read` };
-  setPieceState(piece, to);
+  const { packet } = packetOf(root, src, key);
+  if (["done", "dropped"].includes(packet.state)) return { ok: true, key: packet.key, state: packet.state, changed: false };
+  if (to === "done" && BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is a build packet: it is done through built and done, after its yolo run and its fidelity read` };
+  setPacketState(packet, to);
   const { path: boardPath, board } = boardOf(root, src);
-  const onBoard = board?.work?.find((w) => w.key === piece.key);
+  const onBoard = board?.work?.find((w) => w.key === packet.key);
   if (onBoard) {
     onBoard.state = to;
     writeFileSync2(boardPath, `${JSON.stringify(board, null, 2)}
 `);
   }
-  const wt = to === "dropped" && piece.migrated?.worktree && existsSync2(piece.migrated.worktree) ? piece.migrated.worktree : null;
-  const worktree = wt ? removeWorktree(root, src, wt, { unitKey: piece.migrated["unit-key"] ?? piece.key }) : null;
-  return { ok: true, key: piece.key, state: to, changed: true, board: Boolean(onBoard), ...worktree ? { worktree } : {} };
+  const wt = to === "dropped" && packet.migrated?.worktree && existsSync2(packet.migrated.worktree) ? packet.migrated.worktree : null;
+  const worktree = wt ? removeWorktree(root, src, wt, { unitKey: packet.migrated["unit-key"] ?? packet.key }) : null;
+  return { ok: true, key: packet.key, state: to, changed: true, board: Boolean(onBoard), ...worktree ? { worktree } : {} };
 }
 function sliceOrder(root, slug, [action], f) {
   if (action !== "add") throw new Error("slice-order: the action is add");
@@ -1209,7 +1209,7 @@ function migrationReport(root, src, f = {}, { isMerged = prMerged } = {}) {
     if (!groups.has(slug)) groups.set(slug, []);
     groups.get(slug).push(u);
   }
-  const pieces = [...groups.entries()].map(([slug, us]) => {
+  const packets = [...groups.entries()].map(([slug, us]) => {
     const lead = us.find((u) => u.key === slug || (u["work-slug"] ?? u.key) === slug) ?? us.find((u) => u.worktree) ?? us[0];
     const wt = us.map((u) => u.worktree).find(Boolean) ?? null;
     const branch = wt?.branch ?? `campaign/${src}/wave-${lead.wave}--${slug}`;
@@ -1229,7 +1229,7 @@ function migrationReport(root, src, f = {}, { isMerged = prMerged } = {}) {
       ...landing
     };
   });
-  const inflightPaths = new Set(pieces.map((p) => p.worktree).filter(Boolean).map((p) => posix2(resolve(p)).toLowerCase()));
+  const inflightPaths = new Set(packets.map((p) => p.worktree).filter(Boolean).map((p) => posix2(resolve(p)).toLowerCase()));
   const worktrees = worktreeList(root).map((w) => {
     if (!isOldCampaignWorktree(w, src)) return { path: w.path, branch: w.branch ?? null, old: false };
     return { path: w.path, branch: w.branch ?? null, detached: Boolean(w.detached), old: true, inflight: inflightPaths.has(posix2(resolve(w.path)).toLowerCase()) };
@@ -1249,26 +1249,26 @@ function migrationReport(root, src, f = {}, { isMerged = prMerged } = {}) {
     ledgerAgeMinutes: Number.isFinite(ageMs) ? Math.round(ageMs / 6e4) : null,
     shipped: shipped.map((u) => ({ key: u.key, slug: u.slug, wave: u.wave })),
     dropped: dropped.map((u) => u.key),
-    inflight: pieces,
+    inflight: packets,
     notStarted: notStarted.map((u) => ({ key: u.key, slug: u.slug, state: u.state, prepared: existsSync2(join2(wfDir(root, u.slug ?? u.key), "01-intake.md")), designSettled: u.slug ? !designBlock(root, u.slug) && existsSync2(join2(wfDir(root, u.slug), "02c-craft.md")) : false })),
     worktrees,
     strays,
-    blocked: pieces.filter((p) => p.land === "blocked")
+    blocked: packets.filter((p) => p.land === "blocked")
   };
 }
 function renderMigration(rep) {
   const L = ["# Migration of the old campaign", "", `Written by \`campaign.mjs migrate report\` at ${nowIso()}. It changes no branch and deletes nothing (WF-PIECES-PLAN 12.2).`, ""];
   L.push(`- Trunk: \`${rep.trunk}\`. Records: ${rep.records === "local" ? "local (.ai/ is not tracked; the records sync brings them home)" : "tracked"}.`);
   L.push(`- Old wave run live: ${rep.live ? `YES (last ledger event ${rep.ledgerAgeMinutes} minutes ago): stop it first` : "no"}.`, "");
-  L.push("## Shipped units (done pieces)", "", ...rep.shipped.length ? rep.shipped.map((u) => `- \`${u.key}\` (wave ${u.wave})`) : ["- None."], "");
-  L.push("## In-flight units (the first pieces)", "");
+  L.push("## Shipped units (done packets)", "", ...rep.shipped.length ? rep.shipped.map((u) => `- \`${u.key}\` (wave ${u.wave})`) : ["- None."], "");
+  L.push("## In-flight units (the first packets)", "");
   if (rep.inflight.length) {
-    L.push("| Piece slug | Units | Branch | Worktree | Uncommitted | Ahead of trunk | Earlier waves |", "|---|---|---|---|---|---|---|");
+    L.push("| Packet slug | Units | Branch | Worktree | Uncommitted | Ahead of trunk | Earlier waves |", "|---|---|---|---|---|---|---|");
     for (const p of rep.inflight) L.push(`| \`${p.slug}\` | ${p.units.map((u) => `${u.key} (${u.state})`).join(", ")} | \`${p.branch}\` | ${p.worktree ? `\`${posix2(p.worktree)}\`` : "\u2014"} | ${p.uncommitted} | ${p.ahead ?? "\u2014"} | ${p.land}${p.reason ? `: ${p.reason}` : ""} |`);
   } else L.push("- None.");
   L.push("", "## Units not started (the regroup)", "", ...rep.notStarted.length ? rep.notStarted.map((u) => `- \`${u.key}\` (${u.state}${u.prepared ? ", has intake and shape" : ""}${u.designSettled ? ", design settled" : ""})`) : ["- None."], "");
   L.push("## Worktrees", "");
-  for (const w of rep.worktrees) L.push(`- \`${posix2(w.path)}\` ${w.branch ? `on \`${w.branch}\`` : "(detached)"}: ${!w.old ? "not an old campaign worktree; untouched" : w.inflight ? "an in-flight unit; removed at its piece done" : "removed at migrate finish, with the guarded remove"}`);
+  for (const w of rep.worktrees) L.push(`- \`${posix2(w.path)}\` ${w.branch ? `on \`${w.branch}\`` : "(detached)"}: ${!w.old ? "not an old campaign worktree; untouched" : w.inflight ? "an in-flight unit; removed at its packet done" : "removed at migrate finish, with the guarded remove"}`);
   L.push("", "## Stray folders", "", ...rep.strays.length ? rep.strays.map((s) => `- \`.ai/workflows/${s}/\` moves to \`work/archive/stray/\``) : ["- None."], "");
   return L.join("\n");
 }
@@ -1324,7 +1324,7 @@ function migrateApply(root, src, f = {}, deps = {}) {
       lead.items = [.../* @__PURE__ */ new Set([...lead.items ?? [], ...other.items ?? []])];
       other.items = [];
       other.state = "dropped";
-      other.was = `merged into ${lead.key} by the migration (one piece per workflow slug)`;
+      other.was = `merged into ${lead.key} by the migration (one packet per workflow slug)`;
       absorbed.push(u.key);
     }
     lead.state = "open";
@@ -1355,7 +1355,7 @@ function migrateApply(root, src, f = {}, deps = {}) {
     }
     const lead = order.find((w) => w.slug === p.slug);
     setFields(idx, {
-      "origin-piece": `.ai/workflows/${src}/work/${p.slug}.md`,
+      "origin-packet": `.ai/workflows/${src}/work/${p.slug}.md`,
       branch: listBranch(src),
       "base-branch": rep.trunk,
       "branch-strategy": "dedicated",
@@ -1398,7 +1398,7 @@ function migrateFinish(root, src) {
     }
   } catch {
   }
-  const dropped = new Set(readList(root, src).pieces.filter((p) => p.state === "dropped").map((p) => p["piece-slug"]));
+  const dropped = new Set(readList(root, src).packets.filter((p) => p.state === "dropped").map((p) => p["packet-slug"]));
   const droppedPaths = new Set((rep?.inflight ?? []).filter((p) => p.worktree && dropped.has(p.slug)).map((p) => posix2(resolve(p.worktree)).toLowerCase()));
   const removed = [];
   for (const w of rep?.worktrees ?? []) {
@@ -1506,7 +1506,7 @@ export {
   migrateApply,
   migrateFinish,
   migrationReport,
-  pieceFolderFiles,
+  packetFolderFiles,
   removeWorktree,
   resolveBoard,
   run

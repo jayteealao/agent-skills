@@ -59,7 +59,7 @@ Use a structure like:
 2. Why this matters
 3. Core idea
 4. Context and background
-5. How the pieces relate
+5. How the work packets relate
 6. Trade-offs / alternatives
 7. Common misconceptions
 8. Practical implications

@@ -28,7 +28,7 @@ h3{font-size:15px;margin:16px 0 6px}
 var byKey = (list2 = []) => new Map((list2 ?? []).filter((e) => e?.key).map((e) => [e.key, e]));
 var isLive = (i) => i && !i["replaced-by"] && i.scope !== "cut";
 var IMAGE_RE = /\.(png|jpe?g|gif|webp|svg)$/i;
-var PIECE_FORMS = /* @__PURE__ */ new Set(["intake", "investigate", "discover", "rca", "fix", "hotfix", "task", "extension"]);
+var PACKET_FORMS = /* @__PURE__ */ new Set(["intake", "investigate", "discover", "rca", "fix", "hotfix", "task", "extension"]);
 function documentSections(text) {
   const body = String(text ?? "").replace(/\r\n/g, "\n").replace(/^---\n[\s\S]*?\n---\n?/, "").replace(/<!--[\s\S]*?-->/g, "");
   const out = /* @__PURE__ */ new Map();
@@ -175,14 +175,14 @@ function renderBrainstormPage(board, doc = "", { generatedAt = "" } = {}) {
   if (sketches.length || b.focus === "design") {
     out.push(section("Sketches", sketches.length ? `<div class="grid">${sketches.map((s) => sketchFigure(b, s)).join("")}</div>` : '<p class="note">No sketch yet.</p>', "sketches"));
   }
-  const pieces = [...b.work ?? []].sort((x, y) => (x.order ?? 1e9) - (y.order ?? 1e9) || String(x.key).localeCompare(String(y.key)));
-  out.push(section("Pieces of work", list(pieces.map((p) => {
-    const packet = PIECE_FORMS.has(p.shape) ? `work/${p.slug ?? p.key}.md` : null;
+  const packets = [...b.work ?? []].sort((x, y) => (x.order ?? 1e9) - (y.order ?? 1e9) || String(x.key).localeCompare(String(y.key)));
+  out.push(section("Work packets", list(packets.map((p) => {
+    const packet = PACKET_FORMS.has(p.shape) ? `work/${p.slug ?? p.key}.md` : null;
     const files = (p["written-files"] ?? []).map((f) => `<code>${esc(f.path)}</code>`).join(", ");
     const meta2 = [p.order ? `${p.order}.` : null, p.shape === "write-now" ? "written in the session" : p.shape, p.state].filter(Boolean).join(" \xB7 ");
     const stale = p.stale ? `${tag("stale")}${p["stale-because"] ? `<br><span class="why">Stale because ${esc(p["stale-because"])}</span>` : ""}` : "";
     const title2 = packet ? `<a href="${safeHref(packet)}">${esc(p.title)}</a>` : esc(p.title);
-    return `<li id="${esc(p.key)}"${p.stale ? ' class="stale"' : ""}><b>${title2}</b> <span class="why">${esc(meta2)}</span>${stale}${files ? `<br><span class="why">Files: ${files}</span>` : ""}${p["why-here"] ? `<br><span class="why">After the piece before it, because ${esc(String(p["why-here"]).replace(/\.$/, ""))}.</span>` : ""}</li>`;
+    return `<li id="${esc(p.key)}"${p.stale ? ' class="stale"' : ""}><b>${title2}</b> <span class="why">${esc(meta2)}</span>${stale}${files ? `<br><span class="why">Files: ${files}</span>` : ""}${p["why-here"] ? `<br><span class="why">After the packet before it, because ${esc(String(p["why-here"]).replace(/\.$/, ""))}.</span>` : ""}</li>`;
   })), "work"));
   const title = b.topic ?? b.slug ?? "Brainstorm";
   const meta = [
@@ -234,7 +234,7 @@ function writePage(root, slug, { now = /* @__PURE__ */ new Date() } = {}) {
     absolute: posix(page),
     document: existsSync(docFile),
     sketches: (board.sketches ?? []).length,
-    pieces: (board.work ?? []).length
+    packets: (board.work ?? []).length
   };
 }
 function main(argv = process.argv.slice(2)) {

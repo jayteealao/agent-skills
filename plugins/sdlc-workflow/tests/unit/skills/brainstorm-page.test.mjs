@@ -70,7 +70,7 @@ test('documentSections: the ## sections, without comments and frontmatter', () =
   equal(s.has('schema: sdlc/v1'), false);
 });
 
-test('the page shows the summary, sessions, areas, decisions, ideas, findings, risks, sketches and pieces, with no key', () => {
+test('the page shows the summary, sessions, areas, decisions, ideas, findings, risks, sketches and packets, with no key', () => {
   const html = renderBrainstormPage(board(), DOC, { generatedAt: '2026-10-22T10:00:00Z' });
   match(html, /<title>Brainstorm · the lantern app<\/title>/);
   match(html, /We now believe <b>one action<\/b> is enough\./);
@@ -88,7 +88,7 @@ test('the page shows the summary, sessions, areas, decisions, ideas, findings, r
   match(html, /<a href="https:\/\/claude\.ai\/a\/1">canvas<\/a>/, 'the canvas record link wins');
   match(html, /Open <a href="design\/sketches\/screens\.html#list">/);
   match(html, /<figure id="outside"><div class="none">No file\.<\/div><figcaption><b>A reference\.<\/b><span>reference · <a href="https:\/\/claude\.ai\/a\/3">canvas<\/a>/);
-  // Pieces in order, the stale one marked.
+  // Packets in order, the stale one marked.
   ok(html.indexOf('Settle the direction') < html.indexOf('Build the home screen'));
   match(html, /class="stale"><b><a href="work\/home-screen\.md">Build the home screen<\/a><\/b>/);
   match(html, /Stale because the colour changed/);

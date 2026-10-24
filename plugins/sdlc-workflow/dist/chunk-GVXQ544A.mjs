@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   logLifecycle
-} from "./chunk-HPVINV2O.mjs";
+} from "./chunk-S534URUW.mjs";
 
 // lib/deprecations.mjs
 var DEPRECATED_IN = "9.154.0";

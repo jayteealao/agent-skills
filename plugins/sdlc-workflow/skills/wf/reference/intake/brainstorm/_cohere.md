@@ -1,6 +1,6 @@
 # Coherence pass (brainstorm)
 
-A coherence pass holds the whole board against three things: its own earlier decisions, the documents of the pieces it already started, and the budgets the person decided. Area close (2.8) checks one area. This pass checks the areas against each other.
+A coherence pass holds the whole board against three things: its own earlier decisions, the documents of the work packets it already started, and the budgets the person decided. Area close (2.8) checks one area. This pass checks the areas against each other.
 
 ## When it runs
 - After an area close (2.8).
@@ -15,14 +15,14 @@ A budget is a limit the person decided, for example "a matchday runs in about th
 
 ## Steps
 1. **Collect** the decisions made or changed since the last pass (the log entries after the last `cohere` entry), and the budgets.
-2. **Read the existing work.** For each piece whose `state` is `open`, `built` or `done`, and each written write-now piece, find the documents that its work wrote, for example a design document. Dispatch one read-only research sub-agent per [_subagents.md](../../_subagents.md) to read them in full against the collected decisions. The sub-agent returns each decision marked `new`, `repeat`, or `contradiction`, with `file:line`. Write its result as a research note in `research/` ([_artifact.md](_artifact.md), Sources). Skip this step when no piece is started and no write-now piece is written.
-2a. **Check the sources.** List each citation of `.scratch/` or another gitignored path on the board: item `evidence`, piece `references`, and brief `source`. Ask the person, for each one, whether to copy the file into `references/` or to record a pointer row. Then regenerate `research/index.md`: one line per note with its id, its question, and the item keys that cite it.
+2. **Read the existing work.** For each work packet whose `state` is `open`, `built` or `done`, and each written write-now work packet, find the documents that its work wrote, for example a design document. Dispatch one read-only research sub-agent per [_subagents.md](../../_subagents.md) to read them in full against the collected decisions. The sub-agent returns each decision marked `new`, `repeat`, or `contradiction`, with `file:line`. Write its result as a research note in `research/` ([_artifact.md](_artifact.md), Sources). Skip this step when no work packet is started and no write-now work packet is written.
+2a. **Check the sources.** List each citation of `.scratch/` or another gitignored path on the board: item `evidence`, work packet `references`, and brief `source`. Ask the person, for each one, whether to copy the file into `references/` or to record a pointer row. Then regenerate `research/index.md`: one line per note with its id, its question, and the item keys that cite it.
 3. **Check the board against itself**: the same subject decided twice, a kept decision that needs a later or cut item, and two decisions that pull apart.
 4. **Add up the cost.** For each budget, estimate the combined load of the kept decisions, with the numbers and the assumption behind each. A budget the decisions no longer fit is a conflict.
 5. **Resolve.**
    - Bring each real conflict to the person as a choice with its costs (2.1), one to four per batch, in the question text.
    - Merge a repeat: set `replaced-by` on the older item.
-   - A contradiction with the document of a started piece marks that piece `stale: true`, with the reason in `stale-because`.
+   - A contradiction with the document of a started work packet marks that work packet `stale: true`, with the reason in `stale-because`.
 6. **Rewrite the summary** so the board reads as one design, and republish the page (2.9).
 7. **Log** one entry with kind `cohere`: what the pass read, and how many conflicts and merges it found.
 

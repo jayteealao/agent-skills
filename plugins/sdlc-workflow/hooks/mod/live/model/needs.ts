@@ -91,17 +91,17 @@ export function staleNeedOf(slug: string, minutes: number): SdlcNeed {
   }
 }
 
-/** A build piece whose design waits on the person (`design/_lane.md`): the walk stops there until it is settled. */
-export function designNeedOf(pieceSlug: string, uxImpact: string): SdlcNeed {
+/** A build packet whose design waits on the person (`design/_lane.md`): the walk stops there until it is settled. */
+export function designNeedOf(packetSlug: string, uxImpact: string): SdlcNeed {
   return {
-    id: `design:${pieceSlug}`,
+    id: `design:${packetSlug}`,
     kind: 'design',
-    title: `Design ${pieceSlug}`,
+    title: `Design ${packetSlug}`,
     body: `ux-impact ${uxImpact}: the design is not settled.`,
-    section: 'pieces',
+    section: 'packets',
     tone: 'attention',
     actions: [
-      { key: 'design', label: 'Design it', kind: 'fill', prompt: `/wf design ${pieceSlug}` },
+      { key: 'design', label: 'Design it', kind: 'fill', prompt: `/wf design ${packetSlug}` },
       { key: 'later', label: 'Later', kind: 'dismiss' },
     ],
   }

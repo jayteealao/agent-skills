@@ -101,12 +101,12 @@ test('the walk decides keep, cut, or later for every decision and idea', () => {
   assert.match(src, /every decision or idea with no `scope` value/, 'a second done can skip items that were never scoped');
 });
 
-test('the work is shaped and confirmed before any piece of work is written', () => {
+test('the work is shaped and confirmed before any work packet is written', () => {
   const src = read('reference', 'intake', 'brainstorm.md');
   assert.match(src, /## 3\.3 Shape the work/, 'Step 3 lost the shaping conversation');
   assert.match(src, /Propose a first split, then change it as the person directs\. Continue until the person says that the split holds/, 'the split is no longer agreed with the person');
   assert.match(src, /## 3\.4 Confirm and record/, 'Step 3 lost the confirm step');
-  assert.match(src, /After the person confirms, write one piece of work per agreed piece/, 'pieces of work are written before the person confirms');
+  assert.match(src, /After the person confirms, write one work packet per agreed work packet/, 'work packets are written before the person confirms');
   assert.match(src, /Run no command/, 'Step 3 runs a command');
   assert.match(src, /An item with `scope: cut` never seeds a successor/, 'a cut item can seed a successor');
   const artifact = read('reference', 'intake', 'brainstorm', '_artifact.md');
@@ -311,11 +311,11 @@ test('an area is scoped when it closes, so done walks only what is left', () => 
   assert.match(src, /3\. \*\*Close the area\*\* \(2\.8\) when the check-in follows an area that feels explored/, 'the check-in no longer closes an explored area');
   assert.match(src, /the person can answer "not yet"/, 'an area close is forced on the person');
   assert.match(src, /which decisions are core \(multi-select\)/, 'the area close lost the core question');
-  assert.match(src, /whether the area changes a piece of work that already exists/, 'the area close no longer checks existing work');
-  assert.match(src, /set `stale: true` and `stale-because` on that piece/, 'a changed piece of work is not marked stale');
+  assert.match(src, /whether the area changes a work packet that already exists/, 'the area close no longer checks existing work');
+  assert.match(src, /set `stale: true` and `stale-because` on that work packet/, 'a changed work packet is not marked stale');
   assert.match(src, /set `replaced-by` on the older item/, 'a replaced decision is not marked');
   assert.match(src, /An area closed with a scope \(2\.8\) is not walked again/, 'done walks a closed area again');
-  assert.match(src, /A stale piece of work \(2\.8\): propose the piece that brings it up to date/, 'shaping ignores stale work');
+  assert.match(src, /A stale work packet \(2\.8\): propose the work packet that brings it up to date/, 'shaping ignores stale work');
 });
 
 test('every question carries its own context', () => {
@@ -391,7 +391,7 @@ test('a coherence pass holds the board against itself, the routed work, and the 
   assert.match(cohere, /Dispatch one read-only research sub-agent/, 'the pass no longer reads the routed work');
   assert.match(cohere, /marked `new`, `repeat`, or `contradiction`, with `file:line`/, 'the pass lost its per-decision verdict');
   assert.match(cohere, /A budget the decisions no longer fit is a conflict/, 'the pass no longer adds up the budgets');
-  assert.match(cohere, /marks that piece `stale: true`/, 'a contradicted design document no longer marks its work stale');
+  assert.match(cohere, /marks that work packet `stale: true`/, 'a contradicted design document no longer marks its work stale');
   assert.match(cohere, /Log\*\* one entry with kind `cohere`/, 'the pass is not logged');
 });
 

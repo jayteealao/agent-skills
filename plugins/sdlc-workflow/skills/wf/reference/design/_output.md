@@ -57,7 +57,7 @@ artifact lets `/wf review` and `/wf handoff` see exactly what design augmentatio
 - **Artifacts.** Comma-separate the `.ai/workflows/<slug>/` paths written (build runs list the
   whole span; the design stage lists `design/r<N>/` as one entry). No-slug standalone reports may write `"none"` if nothing persisted.
 - **Next** is "Type `/wf <key> <args>`.", or `Done`. The design stage routes per the Next row of `stage.md` (`/wf slice <slug>`, or `/wf plan <slug>` for an `rca` workflow), or, for a campaign
-  piece, to `/wf campaign <source-slug>` per `design.md` Step 2; `audit`/`critique` route to `/wf review <slug>`; upkeep runs usually `Done`.
+  work packet, to `/wf campaign <source-slug>` per `design.md` Step 2; `audit`/`critique` route to `/wf review <slug>`; upkeep runs usually `Done`.
 - If the command reference defines its own "Chat return contract", treat that as the *content*
   spec — pick the load-bearing fields and keep it compact.
 - Framing rules — narrative definition, "return only" caveat, internal audience, always-emit — are single-sourced in [_chat-return.md](../_chat-return.md); apply them here.

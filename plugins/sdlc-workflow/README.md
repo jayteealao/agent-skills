@@ -57,7 +57,7 @@ You can also type plain words: `/wf keep going on export` or `/wf how do I ship 
 | `probe` | Runtime-truth verification of built work; `sweep` enumerates the user surface. |
 | `auto` | Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff. |
 | `yolo` | Autonomous driver. Resolves each gate by written policy. Claude Code only. |
-| `campaign` | Walks the ordered list of pieces that a brainstorm or an ideate pick wrote, one piece at a time on one branch: slices and yolo-drives each piece, reads its decision fidelity, and pauses for a try-out when the piece can be tried. One PR per list, or stacked PRs per piece. The yolo runs are Claude Code only. |
+| `campaign` | Walks the ordered list of work packets that a brainstorm or an ideate pick wrote, one work packet at a time on one branch: slices and yolo-drives each work packet, reads its decision fidelity, and pauses for a try-out when the work packet can be tried. One PR per list, or stacked PRs per work packet. The yolo runs are Claude Code only. |
 | `loop` | Three loops. `loop goal` hands a slug to the host goal, and `goal.mjs check` decides that the goal is met. `loop optimize` changes the code toward one metric and keeps or reverts each trial; its driver is Claude Code only. `loop prototype` proves an idea by running code in its own worktree, one round per request of the person. |
 | `status` | Dashboard; per-slug detail with the next command; `deep` drift check; `advise` sequencing. `status recap` is the plain-language catch-up for a slug or a branch. |
 | `project` | The project-level contracts: `project ship-plan` (`init`, `build`, `edit`, `audit` for `.ai/ship-plan.md`) and `project observability` (`init`, `build`, `audit` for `.ai/observability.md`). |

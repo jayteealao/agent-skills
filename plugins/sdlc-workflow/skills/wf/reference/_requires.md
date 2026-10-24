@@ -28,7 +28,7 @@ A `mode:<name>` row applies when its mode applies to this run. A mode applies wh
 | `user-observable` | The slice file or the stage artifact marks an AC `observable: true` or `kind: user-observable`. |
 | `design` | `02b-design.md` or `02c-craft.md` exists. |
 | `augment` | `00-index.md` has an `augmentations` entry, or `02c-craft.md` exists. |
-| `piece` | `00-index.md` has an `origin-piece` value. |
+| `packet` | `00-index.md` has an `origin-packet` value. |
 | `slug-wide` | `00-index.md` has `review-scope: slug-wide`. |
 | `change` | `00-index.md` has `workflow-type` `fix`, `hotfix`, or `refactor`. |
 

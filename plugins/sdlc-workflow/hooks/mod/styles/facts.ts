@@ -6,7 +6,7 @@
  * one of the five questions: alive (Q1), where (Q2), decided (Q3), needs me
  * (Q4), cost (Q5).
  */
-import type { SdlcBrainstormModel, SdlcCampaignModel, SdlcLiveModel, SdlcNeed, SdlcPiece, SdlcStageMark, SdlcUsage, SdlcYoloModel } from '../../../types'
+import type { SdlcBrainstormModel, SdlcCampaignModel, SdlcLiveModel, SdlcNeed, SdlcPacket, SdlcStageMark, SdlcUsage, SdlcYoloModel } from '../../../types'
 import { ageText, clockOf, percentText } from '../live/glyphs.ts'
 import type { Tone } from './tokens.ts'
 
@@ -171,45 +171,45 @@ function yoloFacts(model: SdlcYoloModel, now: number): ViewFacts {
   }
 }
 
-/** The piece states in walk order (`lib/pieces.mjs` PIECE_STATES): the summary counts each. */
-const PIECE_STATES = ['done', 'built', 'open', 'written', 'dropped']
+/** The packet states in walk order (`lib/packets.mjs` PACKET_STATES): the summary counts each. */
+const PACKET_STATES = ['done', 'built', 'open', 'written', 'dropped']
 
-/** One piece's mark: done, the current piece running, every other waiting; a dropped piece has none. */
-function pieceMarks(piece: SdlcPiece, isCurrent: boolean): SdlcStageMark[] {
-  if (piece.state === 'dropped') return []
-  if (piece.state === 'done') return ['done']
+/** One packet's mark: done, the current packet running, every other waiting; a dropped packet has none. */
+function packetMarks(packet: SdlcPacket, isCurrent: boolean): SdlcStageMark[] {
+  if (packet.state === 'dropped') return []
+  if (packet.state === 'done') return ['done']
   return [isCurrent ? 'run' : 'wait']
 }
 
-/** A piece's note: its state, its routed form, and a design that waits on the person. */
-function pieceNote(piece: SdlcPiece): string {
-  return [piece.state, piece.isBuild ? null : piece.form, piece.designNeeded ? 'needs design' : null].filter(Boolean).join(' · ')
+/** A packet's note: its state, its routed form, and a design that waits on the person. */
+function packetNote(packet: SdlcPacket): string {
+  return [packet.state, packet.isBuild ? null : packet.form, packet.designNeeded ? 'needs design' : null].filter(Boolean).join(' · ')
 }
 
-/** A piece's tone: a design that waits, done, dropped, the current piece, or plain. */
-function pieceTone(piece: SdlcPiece, isCurrent: boolean): Tone {
-  if (piece.designNeeded) return 'attention'
-  if (piece.state === 'done') return 'done'
-  if (piece.state === 'dropped') return 'quiet'
+/** A packet's tone: a design that waits, done, dropped, the current packet, or plain. */
+function packetTone(packet: SdlcPacket, isCurrent: boolean): Tone {
+  if (packet.designNeeded) return 'attention'
+  if (packet.state === 'done') return 'done'
+  if (packet.state === 'dropped') return 'quiet'
   return isCurrent ? 'run' : 'plain'
 }
 
 function campaignFacts(model: SdlcCampaignModel, now: number): ViewFacts {
-  const pieces = model.pieces
-  const index = pieces.findIndex(piece => piece.key === model.current)
-  const current = index === -1 ? null : (pieces[index] as SdlcPiece)
-  const done = pieces.filter(piece => piece.state === 'done' || piece.state === 'dropped').length
-  const design = pieces.filter(piece => piece.designNeeded).length
+  const packets = model.packets
+  const index = packets.findIndex(packet => packet.key === model.current)
+  const current = index === -1 ? null : (packets[index] as SdlcPacket)
+  const done = packets.filter(packet => packet.state === 'done' || packet.state === 'dropped').length
+  const design = packets.filter(packet => packet.designNeeded).length
   const tone: Tone = current === null ? 'done' : current.designNeeded || !current.isBuild ? 'attention' : 'run'
   return {
     kind: 'campaign',
     slug: model.slug,
     title: `campaign · ${model.slug}`,
     focus: {
-      eyebrow: current === null ? `${pieces.length} pieces` : `piece ${index + 1} of ${pieces.length}`,
+      eyebrow: current === null ? `${packets.length} packets` : `packet ${index + 1} of ${packets.length}`,
       word: current === null ? 'DONE' : current.state.toUpperCase(),
-      line: current === null ? 'list finished' : `${current.slug} · ${pieceNote(current)}`,
-      sub: [`${done} of ${pieces.length} done`, design === 0 ? null : `${design} need design`].filter(Boolean).join(' · '),
+      line: current === null ? 'list finished' : `${current.slug} · ${packetNote(current)}`,
+      sub: [`${done} of ${packets.length} done`, design === 0 ? null : `${design} need design`].filter(Boolean).join(' · '),
       tone,
       rail: null,
     },
@@ -218,24 +218,24 @@ function campaignFacts(model: SdlcCampaignModel, now: number): ViewFacts {
     steps: [],
     groups: [
       {
-        key: 'pieces',
-        title: 'Pieces',
+        key: 'packets',
+        title: 'Packets',
         lights: [],
-        tracks: pieces.map(piece => ({ key: piece.key, label: piece.slug, marks: pieceMarks(piece, piece.key === model.current), note: pieceNote(piece), tone: pieceTone(piece, piece.key === model.current) })),
+        tracks: packets.map(packet => ({ key: packet.key, label: packet.slug, marks: packetMarks(packet, packet.key === model.current), note: packetNote(packet), tone: packetTone(packet, packet.key === model.current) })),
         tone: needsTone(model.needs) ?? 'plain',
       },
     ],
     needs: model.needs,
     meters: [],
-    summary: PIECE_STATES.map(state => [state, pieces.filter(piece => piece.state === state).length] as const)
+    summary: PACKET_STATES.map(state => [state, packets.filter(packet => packet.state === state).length] as const)
       .filter(([, count]) => count > 0)
       .map(([state, count]) => `${count} ${state}`)
       .join(' · '),
     sections: [
       {
-        key: 'pieces',
-        title: 'Pieces',
-        lines: pieces.length === 0 ? [{ text: 'no piece listed', tone: 'quiet' as Tone }] : pieces.map((piece, at) => ({ text: `${at + 1}. ${piece.slug} · ${pieceNote(piece)}${piece.uxImpact === null ? '' : ` · ux-impact ${piece.uxImpact}`}`, tone: pieceTone(piece, false) })),
+        key: 'packets',
+        title: 'Packets',
+        lines: packets.length === 0 ? [{ text: 'no packet listed', tone: 'quiet' as Tone }] : packets.map((packet, at) => ({ text: `${at + 1}. ${packet.slug} · ${packetNote(packet)}${packet.uxImpact === null ? '' : ` · ux-impact ${packet.uxImpact}`}`, tone: packetTone(packet, false) })),
         detail: true,
       },
     ],
@@ -273,7 +273,7 @@ function brainstormFacts(model: SdlcBrainstormModel, now: number): ViewFacts {
     })),
     needs: model.needs,
     meters: model.packets.map(packet => ({ key: `packet-${packet.key}`, label: packet.key, value: packet.size, max: 20, marks: [6, 14], text: `${packet.size ? `about ${packet.size} slices` : 'no slice estimate'} · ${packet.state}`, tone: packet.size > 14 ? 'attention' : 'done' })),
-    summary: `research ${model.sources.research} · references ${model.sources.references} · pieces ${model.sources.work}`,
+    summary: `research ${model.sources.research} · references ${model.sources.references} · packets ${model.sources.work}`,
     sections: [
       { key: 'walk', title: 'Walk', lines: [{ text: `keep ${walk.keep} · cut ${walk.cut} · later ${walk.later} · ${walk.total - walk.walked} undecided`, tone: 'plain' }], detail: model.mode === 'explore' },
       { key: 'sources', title: 'Sources', lines: [{ text: `research ${model.sources.research} · references ${model.sources.references} · work ${model.sources.work}`, tone: 'plain' }], detail: true },

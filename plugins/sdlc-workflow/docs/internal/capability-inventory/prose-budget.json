@@ -76,7 +76,7 @@
           "with no token, stop and show the forms:": "WF-KEY-SURFACE-PLAN A3: the no-topic stop moved here from the deleted /wf brainstorm key router (BRAINSTORM-DESIGN-PLAN 9.168.0)"
         },
         "skills/wf/reference/intake.md": {
-          "- when token0 is the path of a": "WF-PIECES-PLAN 6.1: a build piece file stops intake and routes to /wf campaign, because campaign.mjs open writes its folder",
+          "- when token0 is the path of a": "WF-PIECES-PLAN 6.1: a build packet file stops intake and routes to /wf campaign, because campaign.mjs open writes its folder",
           "- if token0 is close and token1 exactly": "WF-KEY-SURFACE-PLAN A7: close is a slug-first maintenance word; the slug-second order stops with the right order"
         },
         "skills/wf/reference/intake/default.md": {
@@ -112,7 +112,7 @@
   "rubricFenceExceptions": {},
   "wordBudgets": {
     "skills/wf/SKILL.md": {
-      "words": 1712,
+      "words": 1711,
       "reason": "The 19-key tables (Arguments / Does / Writes cells), the sub-key table, and the Step 0, 0.5, 0.7 STOP rules with the sub-key and intake fast-path rules are the dispatcher's capability surface; 115 lines at 15 words per line. Cutting to 1,320 words would delete table cells that name invocations and artifacts. WF-KEY-SURFACE-PLAN removed eight rows and added the sub-key table, the fast path, and the loop and project rows."
     },
     "skills/wf/reference/handoff.md": {
@@ -124,8 +124,8 @@
       "reason": "WIDE-VIEW-REPAIR-PLAN §16: implement.md holds 22 artifact keys, 6 stops, 2 dispatches, the suppressionDebtLint/limitationClaimLint config entries, and the pinned build-discipline phrases; the 2,731-word share is unreachable without deleting capability. §4.3 cuts (rationale, history, restatements) landed first. WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     },
     "skills/wf/reference/intake.md": {
-      "words": 3485,
-      "reason": "The five-branch shape resolution with its STOPs, the nine-row auto-route signal table with six discriminators, the 15-row mode→span map, and the 15-row mode→file map are the intake dispatcher capability surface; §4.3 cuts removed only rationale and restatements (3,498 → 3,092 words). The optimize mode (WF-OPTIMIZE-PLAN W2) added 34 words: its keyword, its row in each map, and the slug-mode refusal. Ideate with sources (WF-IDEATE-SOURCES-PLAN S1, S4) added 13 words: the source shape in the proposal row, and the packet pick in the span row. WF-KEY-SURFACE-PLAN (A4, A5, A7) added 263 words: the simplify and task modes and the close maintenance word in the keyword set, the branch-0 rules for close, and their rows in each map. The intake fast path takes this file out of every explicit-mode run. WF-PIECES-PLAN (6.1, 12.6) added 123 words: the List piece rule, which stops a build piece file and routes it to /wf campaign, and runs a routed piece of another form with its piece slug; the packet-first rule it replaces is gone."
+      "words": 3483,
+      "reason": "The five-branch shape resolution with its STOPs, the nine-row auto-route signal table with six discriminators, the 15-row mode→span map, and the 15-row mode→file map are the intake dispatcher capability surface; §4.3 cuts removed only rationale and restatements (3,498 → 3,092 words). The optimize mode (WF-OPTIMIZE-PLAN W2) added 34 words: its keyword, its row in each map, and the slug-mode refusal. Ideate with sources (WF-IDEATE-SOURCES-PLAN S1, S4) added 13 words: the source shape in the proposal row, and the packet pick in the span row. WF-KEY-SURFACE-PLAN (A4, A5, A7) added 263 words: the simplify and task modes and the close maintenance word in the keyword set, the branch-0 rules for close, and their rows in each map. The intake fast path takes this file out of every explicit-mode run. WF-PIECES-PLAN (6.1, 12.6) added 123 words: the List packet rule, which stops a build packet file and routes it to /wf campaign, and runs a routed packet of another form with its packet slug; the packet-first rule it replaces is gone."
     },
     "skills/wf/reference/plan.md": {
       "words": 4925,

@@ -131,7 +131,7 @@ export function isBrainstormSourcePath(filePath) {
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:research|references)\//.test(normalized);
 }
 
-// A list (WF-PIECES-PLAN 4.1): work/<piece-slug>.md pieces (type piece) and
+// A list (WF-PIECES-PLAN 4.1): work/<packet-slug>.md packets (type packet) and
 // work/index.md (type list), written by campaign.mjs write. Both carry a schema
 // type but no NN- name. work/changes.md, work/migration.md (prose) and anything in a
 // subfolder of work/ (work/archive/) are free-form.
@@ -141,7 +141,7 @@ export function isWorkSetPath(filePath) {
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/work\//.test(normalizePathForMatch(filePath));
 }
 
-export function isPiecePath(filePath) {
+export function isPacketPath(filePath) {
   const m = normalizePathForMatch(filePath).match(/(?:^|\/)\.ai\/workflows\/[^/]+\/work\/([^/]+\.md)$/);
   return Boolean(m) && !['index.md', 'changes.md', 'migration.md'].includes(m[1]);
 }
@@ -152,7 +152,7 @@ export function isWorkSetFreeFormPath(filePath) {
 }
 
 // history/ holds snapshots: copies of stage artifacts, and the documents a
-// write-now piece changed, copied before the change (K8). A snapshot is a copy,
+// write-now packet changed, copied before the change (K8). A snapshot is a copy,
 // so the write hooks do not hold it to the NN- name or the frontmatter rules.
 export function isHistorySnapshotPath(filePath) {
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/history\//.test(normalizePathForMatch(filePath));

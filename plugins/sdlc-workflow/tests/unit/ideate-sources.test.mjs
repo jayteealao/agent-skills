@@ -1,5 +1,5 @@
 // WF-IDEATE-SOURCES-PLAN section 10 — red first. The argument kinds (section 3), the
-// coverage guarantee (4.2), the issue copy that keeps no text (5.3), the pieces an
+// coverage guarantee (4.2), the issue copy that keeps no text (5.3), the packets an
 // ideate pick writes from ideate-work.json (8.1, WF-PIECES-PLAN 12.6), a campaign on an ideate slug, the
 // renderer's new columns, and the memory of earlier runs (8.2).
 import { test } from 'node:test';
@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { classifyArgs, focusSlug, issueQuery, redactIssue, sourceItemProblems, splitArgs } from '../../lib/ideate.mjs';
-import { checkList, renderPiece, IDEATE_FILES } from '../../lib/pieces.mjs';
+import { checkList, renderPacket, IDEATE_FILES } from '../../lib/packets.mjs';
 import { validateBrainstormBoard, validateFrontmatter } from '../../lib/schema-validator.mjs';
 import { safeParseFrontmatter } from '../../lib/frontmatter.mjs';
 import { render as renderIdeation } from '../../renderers/ideation.mjs';
@@ -157,22 +157,22 @@ function ideateBoard() {
   };
 }
 
-test('section 8.1: ideate-work.json is a board, its pieces link the ideate board, and the order rules hold', () => {
+test('section 8.1: ideate-work.json is a board, its packets link the ideate board, and the order rules hold', () => {
   const b = ideateBoard();
   const v = validateBrainstormBoard(b);
   assert.equal(v.valid, true, JSON.stringify(v.errors));
   assert.deepEqual(checkList(b).errors, []);
-  const text = renderPiece(b, b.work[0], { files: IDEATE_FILES });
+  const text = renderPacket(b, b.work[0], { files: IDEATE_FILES });
   assert.match(text, /\[ideate-work\.json\]\(\.\.\/ideate-work\.json\)/);
   assert.match(text, /\[01-ideate\.md\]\(\.\.\/01-ideate\.md\)/);
   assert.doesNotMatch(text, /brainstorm-board\.json/);
   const gap = ideateBoard();
   gap.work[1].order = 3;
-  assert.match(checkList(gap).errors.join(), /no piece with order 2/);
+  assert.match(checkList(gap).errors.join(), /no packet with order 2/);
   const noWhy = ideateBoard();
   delete noWhy.work[1]['why-here'];
   assert.match(checkList(noWhy).errors.join(), /no why-here/);
-  assert.ok(!b.work.some((w) => 'depends-on' in w), 'no ideate piece carries depends-on');
+  assert.ok(!b.work.some((w) => 'depends-on' in w), 'no ideate packet carries depends-on');
 });
 
 test('section 8.1: campaign.mjs write reads a board by path, and a campaign on the ideate slug orients', () => {
@@ -186,16 +186,16 @@ test('section 8.1: campaign.mjs write reads a board by path, and a campaign on t
     assert.equal(out.revision, 1, JSON.stringify(out));
     const files = readdirSync(path.join(dir, 'work')).sort();
     assert.deepEqual(files.filter((f) => f.endsWith('.md')), ['changes.md', 'crash-on-save.md', 'index.md', 'use-cache-api.md']);
-    const piece = readFileSync(path.join(dir, 'work', 'crash-on-save.md'), 'utf8');
-    assert.equal(safeParseFrontmatter(piece).data.form, 'rca');
-    assert.match(piece, /\.\.\/ideate-work\.json/);
+    const packet = readFileSync(path.join(dir, 'work', 'crash-on-save.md'), 'utf8');
+    assert.equal(safeParseFrontmatter(packet).data.form, 'rca');
+    assert.match(packet, /\.\.\/ideate-work\.json/);
     assert.match(readFileSync(path.join(dir, 'work', 'index.md'), 'utf8'), /\.\.\/ideate-work\.json/);
     writeFileSync(path.join(root, 'README.md'), 'x\n');
     execFileSync('git', ['-C', root, 'add', '.']);
     execFileSync('git', ['-C', root, 'commit', '-q', '-m', 'base']);
     const st = cli(CAMPAIGN, ['status', root, SLUG]);
     assert.equal(st.ok, true, JSON.stringify(st));
-    assert.equal(st.branch, `pieces/${SLUG}`);
+    assert.equal(st.branch, `packets/${SLUG}`);
     assert.equal(st.current?.key, 'use-cache-api', JSON.stringify(st));
     assert.equal(st.current?.step, 'open', JSON.stringify(st));
   } finally { rmSync(root, { recursive: true, force: true }); }
@@ -218,7 +218,7 @@ test('the prose: sources, Lens 7, Challenge 6, memory of earlier runs, the list,
   assert.match(ideate, /An earlier cull stays culled\. The candidate comes back only when its evidence changed/);
   assert.match(ideate, /# Pick — decision closure/);
   assert.match(ideate, /close-reason: list-written/);
-  assert.match(ideate, /Do not copy the idea's `depends-on:` into the piece/);
+  assert.match(ideate, /Do not copy the idea's `depends-on:` into the work packet/);
   assert.match(ideate, /# Refresh/);
   assert.match(ideate, /A removed item gets `result: withdrawn`/);
   const sources = read('skills/wf/reference/intake/ideate/_sources.md');
@@ -231,5 +231,5 @@ test('the prose: sources, Lens 7, Challenge 6, memory of earlier runs, the list,
   assert.match(lenses, /\*\*Effort tier: medium\*\*/);
   assert.match(lenses, /Do at most 8 research acts in one run/);
   assert.match(read('skills/wf/reference/campaign.md'), /The source is a brainstorm folder or an ideate folder in `\.ai\/workflows\/`\. Its `work\/index\.md` \(`type: list`\) is the \*\*list\*\*/);
-  assert.ok(!existsSync(path.join(pluginRoot, 'skills/wf/reference/intake/_packet.md')), 'intake runs no packet: the walk opens each build piece');
+  assert.ok(!existsSync(path.join(pluginRoot, 'skills/wf/reference/intake/_packet.md')), 'intake runs no packet: the walk opens each build packet');
 });

@@ -1,9 +1,9 @@
 // WF-PIECES-PLAN 4.1 in the write hooks:
 // - research/, references/, work/changes.md, work/migration.md, work/archive/ and
 //   history/ snapshots are free-form: no NN- name, no frontmatter, no schema check;
-// - work/<piece-slug>.md pieces and work/index.md need no NN- name, and their
-//   frontmatter is schema-checked as piece and list;
-// - a started piece (open, built, done or dropped) is never rewritten; only its state moves;
+// - work/<packet-slug>.md packets and work/index.md need no NN- name, and their
+//   frontmatter is schema-checked as packet and list;
+// - a started packet (open, built, done or dropped) is never rewritten; only its state moves;
 // - none of these files queues a render or marks a workflow stale.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { deepEqual, equal, match } from 'node:assert/strict';
 
-import { renderPiece } from '../../../lib/pieces.mjs';
+import { renderPacket } from '../../../lib/packets.mjs';
 import { listWorkflowArtifactFiles } from '../../../lib/workflow-index.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -57,7 +57,7 @@ const BOARD = {
   work: [{ key: 'p', order: 1, title: 'Build it', shape: 'intake', slug: 'build-it', items: ['d'], entry: 'x', state: 'proposed' }],
   log: [],
 };
-const PIECE = renderPiece(BOARD, BOARD.work[0], { revision: 1, generatedAt: '2026-10-03T10:00:00Z' });
+const PACKET = renderPacket(BOARD, BOARD.work[0], { revision: 1, generatedAt: '2026-10-03T10:00:00Z' });
 const NOTE = '---\nid: R01\nquestion: How fast?\n---\nTen a second.\n';
 
 for (const rel of [
@@ -94,13 +94,13 @@ for (const rel of [
   });
 }
 
-test('a piece needs no NN- name and passes both write hooks', () => {
+test('a packet needs no NN- name and passes both write hooks', () => {
   const tmp = tempDir();
   const rel = `${WF}/work/build-it.md`;
   try {
-    const pre = runHook(HOOKS.preWriteValidate, { cwd: tmp, tool_input: { file_path: rel, content: PIECE } }, tmp);
+    const pre = runHook(HOOKS.preWriteValidate, { cwd: tmp, tool_input: { file_path: rel, content: PACKET } }, tmp);
     equal(pre.status, 0, pre.stderr);
-    writeFile(join(tmp, rel), PIECE);
+    writeFile(join(tmp, rel), PACKET);
     const post = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
     equal(post.status, 0, post.stderr);
   } finally {
@@ -108,11 +108,11 @@ test('a piece needs no NN- name and passes both write hooks', () => {
   }
 });
 
-test('a piece with a bad form is blocked by the schema check', () => {
+test('a packet with a bad form is blocked by the schema check', () => {
   const tmp = tempDir();
   const rel = `${WF}/work/build-it.md`;
   try {
-    writeFile(join(tmp, rel), PIECE.replace('form: intake', 'form: design'));
+    writeFile(join(tmp, rel), PACKET.replace('form: intake', 'form: design'));
     const post = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
     equal(post.status, 2);
     match(post.stderr, /form/);
@@ -121,15 +121,15 @@ test('a piece with a bad form is blocked by the schema check', () => {
   }
 });
 
-test('a started piece is never rewritten; the walk may move its state', () => {
+test('a started packet is never rewritten; the walk may move its state', () => {
   const tmp = tempDir();
   const rel = `${WF}/work/build-it.md`;
   try {
-    const open = PIECE.replace('state: written', 'state: open');
+    const open = PACKET.replace('state: written', 'state: open');
     writeFile(join(tmp, rel), open);
     const rewrite = runHook(HOOKS.preWriteValidate, { cwd: tmp, tool_input: { file_path: rel, content: open.replace('One decision.', 'Two decisions.') } }, tmp);
     equal(rewrite.status, 2);
-    match(rewrite.stderr, /a started piece is never rewritten/);
+    match(rewrite.stderr, /a started packet is never rewritten/);
     const built = runHook(HOOKS.preWriteValidate, { cwd: tmp, tool_input: { file_path: rel, content: open.replace('state: open', 'state: built') } }, tmp);
     equal(built.status, 0, built.stderr);
   } finally {

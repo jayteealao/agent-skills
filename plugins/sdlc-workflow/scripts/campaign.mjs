@@ -1,26 +1,26 @@
 #!/usr/bin/env node
 /**
  * scripts/campaign.mjs — the disk side of /wf campaign, the serial walk over the
- * pieces of one list (WF-PIECES-PLAN section 6.4). Bundled to dist/campaign.mjs;
+ * packets of one list (WF-PIECES-PLAN section 6.4). Bundled to dist/campaign.mjs;
  * skills/wf/scripts/campaign.mjs runs the bundle.
  *
  *   check   <source-dir|board-file>                 the list check of section 4.2 (exit 1 on an error)
- *   write   <source-dir|board-file> [--dry-run]     write the piece files, then work/index.md last
+ *   write   <source-dir|board-file> [--dry-run]     write the packet files, then work/index.md last
  *   archive <source-dir|board-file> [--dry-run]     move the closed part of the board to archive/board.json
- *   status  <root> <source>                         the list, the current piece and its next step, the pieces that need design
- *   open    <root> <source> <piece-key>             write the workflow folder of a build piece (section 5)
- *   land    <root> <source> [--trunk t]             put the walk's checkout on the list branch pieces/<source>
- *   start   <root> <source> <piece-key> [--trunk t] set base-branch of the piece; a migrated piece commits, rebases and merges first
- *   built   <root> <source> <piece-key>             state built after a clean yolo run
- *   reopen  <root> <source> <piece-key>             state open again after a fix slice is added to a built piece
- *   done    <root> <source> <piece-key> [--trunk t] close the piece: merge the trunk, move its end branch, base-branch back to the trunk
- *   close   <root> <source> <piece-key> done|dropped  close a routed piece, or drop a piece (piece file and board)
+ *   status  <root> <source>                         the list, the current packet and its next step, the packets that need design
+ *   open    <root> <source> <packet-key>             write the workflow folder of a build packet (section 5)
+ *   land    <root> <source> [--trunk t]             put the walk's checkout on the list branch packets/<source>
+ *   start   <root> <source> <packet-key> [--trunk t] set base-branch of the packet; a migrated packet commits, rebases and merges first
+ *   built   <root> <source> <packet-key>             state built after a clean yolo run
+ *   reopen  <root> <source> <packet-key>             state open again after a fix slice is added to a built packet
+ *   done    <root> <source> <packet-key> [--trunk t] close the packet: merge the trunk, move its end branch, base-branch back to the trunk
+ *   close   <root> <source> <packet-key> done|dropped  close a routed packet, or drop a packet (packet file and board)
  *   slice-order <checkout> <slug> add --slice s --after t [--why w]   a plan's order as a depends-on edge
  *   migrate <root> <source> report|apply|finish [--trunk t]          the migration of an old campaign (section 12)
  *   remove-worktree <root> <source> <path> [--allow-ignored]  the guarded remove of an old campaign worktree (12.7)
  *
  * Every command prints one JSON object on stdout. The list has no ledger: its state is
- * the `state` field of each piece file (work/<piece-slug>.md).
+ * the `state` field of each packet file (work/<packet-slug>.md).
  */
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -28,7 +28,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 
-import { checkList, writeList, readWorkFiles, listBranch, endBranch, BUILD_FORMS, PIECE_STATES, DEFAULT_FILES, IDEATE_FILES } from '../lib/pieces.mjs';
+import { checkList, writeList, readWorkFiles, listBranch, endBranch, BUILD_FORMS, PACKET_STATES, DEFAULT_FILES, IDEATE_FILES } from '../lib/packets.mjs';
 import { archiveBoard, docCheck, mergeArchive } from '../lib/brainstorm-archive.mjs';
 import { closesCycle, editRosterEntry, frontmatterValue, rosterEntries, rosterWalkOrder, setFrontmatterValue } from '../lib/roster-edit.mjs';
 import { ignoredAtRisk, loadManifest, recordsOut, recordsPending, saveManifest, withRecordsLock } from '../lib/campaign-records.mjs';
@@ -182,27 +182,27 @@ export function archiveCommand(dir, boardFile, { dryRun = false, now = null } = 
   return result;
 }
 
-/** The pieces of a list, in order, from their piece files. */
+/** The packets of a list, in order, from their packet files. */
 function readList(root, src) {
   const wd = workDir(root, src);
   const index = readFm(join(wd, 'index.md'));
-  const { pieces } = readWorkFiles(wd);
-  const all = [...pieces.values()].map((p) => ({ ...p.data, file: p.file, path: join(wd, p.file) }))
+  const { packets } = readWorkFiles(wd);
+  const all = [...packets.values()].map((p) => ({ ...p.data, file: p.file, path: join(wd, p.file) }))
     .sort((a, b) => (a.order ?? 1e9) - (b.order ?? 1e9));
-  return { index, pieces: all };
+  return { index, packets: all };
 }
 
-function pieceOf(root, src, key) {
-  const { index, pieces } = readList(root, src);
+function packetOf(root, src, key) {
+  const { index, packets } = readList(root, src);
   if (index?.type !== 'list') throw new Error(`${src} has no list: run campaign.mjs write first`);
-  const piece = pieces.find((p) => p.key === key || p['piece-slug'] === key);
-  if (!piece) throw new Error(`${key} is not a piece of the list ${src}`);
-  return { index, pieces, piece };
+  const packet = packets.find((p) => p.key === key || p['packet-slug'] === key);
+  if (!packet) throw new Error(`${key} is not a packet of the list ${src}`);
+  return { index, packets, packet };
 }
 
-function setPieceState(piece, state) {
-  if (!PIECE_STATES.includes(state)) throw new Error(`unknown piece state ${state}`);
-  setFields(piece.path, { state });
+function setPacketState(packet, state) {
+  if (!PACKET_STATES.includes(state)) throw new Error(`unknown packet state ${state}`);
+  setFields(packet.path, { state });
 }
 
 /** The reason the design of a workflow is not settled, or null (design/_lane.md, "Design is settled"). */
@@ -227,7 +227,7 @@ export function designBlock(root, slug) {
 const plainCell = (s) => String(s ?? '').replace(/[`*_]/g, '').trim();
 
 /**
- * The decision fidelity of a piece (section 8). `table` is false when 07-review.md has no
+ * The decision fidelity of a packet (section 8). `table` is false when 07-review.md has no
  * table, `missing` lists the carried keys with no row, and `rows` the rows that the person
  * has not approved. It fails closed: a verdict that is not `honored` needs an approval, and
  * only a line `- <key>: approved` in po-answers.md is an approval. The Approval column of
@@ -271,44 +271,44 @@ const tryOutRecorded = (root, slug) => {
   return existsSync(file) && /^- try-out: works/m.test(readFileSync(file, 'utf8'));
 };
 
-/** The next step of the walk for a piece (6.1). */
-function nextStep(root, src, piece) {
-  const slug = piece['piece-slug'];
-  if (piece.state === 'done' || piece.state === 'dropped') return { step: 'none' };
-  if (!BUILD_FORMS.includes(piece.form)) return { step: 'route', route: routeOf(src, piece) };
-  if (piece.state === 'written') return { step: 'open' };
+/** The next step of the walk for a packet (6.1). */
+function nextStep(root, src, packet) {
+  const slug = packet['packet-slug'];
+  if (packet.state === 'done' || packet.state === 'dropped') return { step: 'none' };
+  if (!BUILD_FORMS.includes(packet.form)) return { step: 'route', route: routeOf(src, packet) };
+  if (packet.state === 'written') return { step: 'open' };
   const block = designBlock(root, slug);
   if (block) return { step: 'design', reason: block, route: `/wf design ${slug}` };
-  if (piece.state === 'open') {
+  if (packet.state === 'open') {
     if (!existsSync(join(wfDir(root, slug), '03-slice.md'))) return { step: 'slice' };
     return { step: 'yolo' };
   }
-  // built. A fix slice that is not built yet sends the piece back to the driver (6.1 step 13).
+  // built. A fix slice that is not built yet sends the packet back to the driver (6.1 step 13).
   const unbuilt = openSlices(root, slug);
   if (unbuilt.length) return { step: 'yolo', reason: `the slice(s) ${unbuilt.join(', ')} are not complete: run campaign.mjs reopen, then the driver` };
-  const fid = decisionFidelity(root, slug, (piece['carried-decisions'] ?? []).map((d) => d.key));
+  const fid = decisionFidelity(root, slug, (packet['carried-decisions'] ?? []).map((d) => d.key));
   if (!fid.table) return { step: 'fidelity', reason: '07-review.md has no ## Decision Fidelity table: run the review again' };
   if (fid.missing.length) return { step: 'fidelity', reason: `the ## Decision Fidelity table has no row for ${fid.missing.join(', ')}: run the review again`, missing: fid.missing };
   if (fid.rows.length) return { step: 'fidelity', rows: fid.rows };
-  if (piece['try-out'] === 'yes' && !tryOutRecorded(root, slug)) return { step: 'try-out' };
+  if (packet['try-out'] === 'yes' && !tryOutRecorded(root, slug)) return { step: 'try-out' };
   return { step: 'done' };
 }
 
-function routeOf(src, piece) {
-  const slug = piece['piece-slug'];
-  switch (piece.form) {
+function routeOf(src, packet) {
+  const slug = packet['packet-slug'];
+  switch (packet.form) {
     case 'investigate': return `/wf intake investigate ${slug}`;
     case 'discover': return `/wf intake discover ${slug}`;
     case 'rca': return `/wf intake rca ${slug}`;
     case 'task': return `/wf intake task ${slug}`;
-    default: return `/wf intake .ai/workflows/${src}/work/${piece.file}`;
+    default: return `/wf intake .ai/workflows/${src}/work/${packet.file}`;
   }
 }
 
 function statusCmd(root, src) {
   const dir = sourceDir(root, src);
   if (!existsSync(dir)) return { ok: false, error: `no source folder .ai/workflows/${src}` };
-  const { index, pieces } = readList(root, src);
+  const { index, packets } = readList(root, src);
   const oldLedger = existsSync(join(oldCampDir(root, src), 'ledger.json'));
   if (oldLedger && index?.type !== 'list') {
     return { ok: true, source: src, migrate: true, reason: 'an old campaign ledger and no list: migrate first (section 12.2)', next: `campaign.mjs migrate <root> ${src} report` };
@@ -319,14 +319,14 @@ function statusCmd(root, src) {
     return { ok: true, source: src, migrate: 'finish', reason: 'the list is written and the old ledger is still in work/campaign/: finish the migration (section 12.2 steps 8 to 10)', next: `campaign.mjs migrate <root> ${src} finish` };
   }
   const branch = listBranch(src);
-  const rows = pieces.map((p) => ({ key: p.key, slug: p['piece-slug'], form: p.form, state: p.state, order: p.order, 'try-out': p['try-out'] ?? null, ...(p.migrated ? { migrated: true } : {}) }));
-  const current = pieces.find((p) => !['done', 'dropped'].includes(p.state)) ?? null;
-  const needDesign = pieces
+  const rows = packets.map((p) => ({ key: p.key, slug: p['packet-slug'], form: p.form, state: p.state, order: p.order, 'try-out': p['try-out'] ?? null, ...(p.migrated ? { migrated: true } : {}) }));
+  const current = packets.find((p) => !['done', 'dropped'].includes(p.state)) ?? null;
+  const needDesign = packets
     .filter((p) => BUILD_FORMS.includes(p.form) && !['done', 'dropped'].includes(p.state))
     .map((p) => {
-      const opened = existsSync(join(wfDir(root, p['piece-slug']), '00-index.md'));
-      const why = opened ? designBlock(root, p['piece-slug']) : ((p['ux-impact'] ?? 'none') !== 'none' ? 'not opened yet; the design stage runs after open' : null);
-      return why ? { key: p.key, slug: p['piece-slug'], reason: why } : null;
+      const opened = existsSync(join(wfDir(root, p['packet-slug']), '00-index.md'));
+      const why = opened ? designBlock(root, p['packet-slug']) : ((p['ux-impact'] ?? 'none') !== 'none' ? 'not opened yet; the design stage runs after open' : null);
+      return why ? { key: p.key, slug: p['packet-slug'], reason: why } : null;
     })
     .filter(Boolean);
   return {
@@ -334,8 +334,8 @@ function statusCmd(root, src) {
     source: src,
     branch,
     onListBranch: currentBranch(root) === branch,
-    pieces: rows,
-    current: current ? { key: current.key, slug: current['piece-slug'], state: current.state, ...nextStep(root, src, current) } : null,
+    packets: rows,
+    current: current ? { key: current.key, slug: current['packet-slug'], state: current.state, ...nextStep(root, src, current) } : null,
     needDesign,
     finished: !current,
   };
@@ -371,25 +371,25 @@ function sectionText(text, heading) {
   return body === '- None.' ? '' : body;
 }
 
-/** The files of a fresh piece folder (section 5), from the piece file and the list index. */
-export function pieceFolderFiles({ src, piece, pieceText, list, trunk, now }) {
-  const slug = piece['piece-slug'];
-  const originPiece = `.ai/workflows/${src}/work/${piece.file}`;
-  const decisions = piece['carried-decisions'] ?? [];
+/** The files of a fresh packet folder (section 5), from the packet file and the list index. */
+export function packetFolderFiles({ src, packet, packetText, list, trunk, now }) {
+  const slug = packet['packet-slug'];
+  const originPacket = `.ai/workflows/${src}/work/${packet.file}`;
+  const decisions = packet['carried-decisions'] ?? [];
   const boardFile = list?.board ?? DEFAULT_FILES.board;
-  const goal = sectionText(pieceText, 'Goal');
-  const inScope = sectionList(pieceText, 'In scope');
-  const outScope = sectionList(pieceText, 'Out of scope');
-  const acs = sectionList(pieceText, 'Acceptance criteria');
-  const constraints = sectionList(pieceText, 'Constraints');
-  const risks = sectionList(pieceText, 'Risks');
-  const ux = piece['ux-impact'] ?? 'none';
+  const goal = sectionText(packetText, 'Goal');
+  const inScope = sectionList(packetText, 'In scope');
+  const outScope = sectionList(packetText, 'Out of scope');
+  const acs = sectionList(packetText, 'Acceptance criteria');
+  const constraints = sectionList(packetText, 'Constraints');
+  const risks = sectionList(packetText, 'Risks');
+  const ux = packet['ux-impact'] ?? 'none';
   const stack = { ...(list?.stack ?? {}), 'user-confirmed': true };
   const index = {
     schema: 'sdlc/v1',
     type: 'index',
     slug,
-    title: piece.title ?? slug,
+    title: packet.title ?? slug,
     status: 'active',
     'current-stage': 'shape',
     'stage-number': 2,
@@ -410,9 +410,9 @@ export function pieceFolderFiles({ src, piece, pieceText, list, trunk, now }) {
     'ux-impact': ux,
     'ux-impact-confirmed': true,
     ...(ux === 'none' ? { 'design-skip-reason': 'ux-impact none' } : {}),
-    'origin-piece': originPiece,
+    'origin-packet': originPacket,
     'origin-items': decisions.map((d) => d.key),
-    ...(piece.amends || piece['target-slug'] ? { amends: piece['target-slug'] ?? piece.amends } : {}),
+    ...(packet.amends || packet['target-slug'] ? { amends: packet['target-slug'] ?? packet.amends } : {}),
     // The person confirmed each risk at brainstorm done, and the walk runs no shape stage, so a
     // risk is carried to the slug-wide review. An `open` risk would block the handoff gate.
     'intent-risks': risks.length
@@ -437,12 +437,12 @@ export function pieceFolderFiles({ src, piece, pieceText, list, trunk, now }) {
     dump({
       schema: 'sdlc/v1', type: 'intake', slug, status: 'complete', 'stage-number': 1, 'created-at': now, 'updated-at': now, tags: [],
       refs: { index: '00-index.md', next: '02-shape.md' }, 'next-command': 'wf-slice', 'next-invocation': `/wf campaign ${src}`,
-      'recommended-routes': [{ invocation: `/wf campaign ${src}`, reason: 'the campaign walk slices and builds this piece', default: true }],
+      'recommended-routes': [{ invocation: `/wf campaign ${src}`, reason: 'the campaign walk slices and builds this packet', default: true }],
     }),
     '---', '',
     '# Intake', '',
-    `Written by \`campaign.mjs open\` from the piece [${piece.file}](../${src}/work/${piece.file}). The brainstorm wrote the scope with the person; nobody re-words it.`, '',
-    '## Restated Request', '', goal || piece.title || slug, '',
+    `Written by \`campaign.mjs open\` from the packet [${packet.file}](../${src}/work/${packet.file}). The brainstorm wrote the scope with the person; nobody re-words it.`, '',
+    '## Restated Request', '', goal || packet.title || slug, '',
     '## Intended Outcome', '', goal || '- See Success Criteria.', '',
     '## Known Constraints', '',
     ...(constraints.length || decisions.length
@@ -450,8 +450,8 @@ export function pieceFolderFiles({ src, piece, pieceText, list, trunk, now }) {
       : ['- None.']),
     '',
     '## Risks if Misunderstood', '',
-    ...(risks.length ? risks.map((r, i) => `- **RIM-${i + 1}** — ${r}`) : ['- none-declared: the piece records no risk.']),
-    '- charter: none-declared: the carried decisions are the commitments of the piece.', '',
+    ...(risks.length ? risks.map((r, i) => `- **RIM-${i + 1}** — ${r}`) : ['- none-declared: the packet records no risk.']),
+    '- charter: none-declared: the carried decisions are the commitments of the packet.', '',
     '## Success Criteria', '',
     ...(acs.length ? acs.map((a) => `- ${a}`) : ['- None.']),
     '',
@@ -463,15 +463,15 @@ export function pieceFolderFiles({ src, piece, pieceText, list, trunk, now }) {
     '---',
     dump({
       schema: 'sdlc/v1', type: 'shape', slug, status: 'complete', 'stage-number': 2, 'created-at': now, 'updated-at': now,
-      'docs-needed': false, 'docs-types': [], 'augmentations-needed': [], 'charter-scenario': 'none — a campaign piece; the acceptance criteria carry the scenario',
+      'docs-needed': false, 'docs-types': [], 'augmentations-needed': [], 'charter-scenario': 'none — a campaign packet; the acceptance criteria carry the scenario',
       'files-in-scope': [], tags: [], refs: { index: '00-index.md', intake: '01-intake.md', next: '03-slice.md' },
       'next-command': ux === 'none' ? 'wf-slice' : 'wf-design', 'next-invocation': ux === 'none' ? `/wf campaign ${src}` : `/wf design ${slug}`,
-      'recommended-routes': [{ invocation: ux === 'none' ? `/wf campaign ${src}` : `/wf design ${slug}`, reason: ux === 'none' ? 'the walk slices the piece' : 'the piece needs the design stage first', default: true }],
+      'recommended-routes': [{ invocation: ux === 'none' ? `/wf campaign ${src}` : `/wf design ${slug}`, reason: ux === 'none' ? 'the walk slices the packet' : 'the packet needs the design stage first', default: true }],
     }),
     '---', '',
     '# Shape', '',
-    `Written by \`campaign.mjs open\` from the piece [${piece.file}](../${src}/work/${piece.file}).`, '',
-    '## Problem Statement', '', goal || piece.title || slug, '',
+    `Written by \`campaign.mjs open\` from the packet [${packet.file}](../${src}/work/${packet.file}).`, '',
+    '## Problem Statement', '', goal || packet.title || slug, '',
     '## Desired Behavior', '', ...(inScope.length ? inScope.map((s) => `- ${s}`) : ['- See Acceptance Criteria.']), '',
     '## Acceptance Criteria', '', ...(acs.length ? acs.map((a) => `- ${a}`) : ['- None.']), '',
     '## Out of Scope', '', ...(outScope.length ? outScope.map((o) => `- ${o}`) : ['- None.']), '',
@@ -480,42 +480,42 @@ export function pieceFolderFiles({ src, piece, pieceText, list, trunk, now }) {
     '## Intake Fidelity', '',
     '| Intake directive | Disposition | How | Authority |',
     '|---|---|---|---|',
-    ...decisions.map((d) => `| **${d.key}** — ${String(d.text).replace(/\|/g, '\\|')} | honored | carried word for word into this piece | the brainstorm board, ${d.key} |`),
-    ...constraints.map((c) => `| ${c.replace(/\|/g, '\\|')} | honored | a constraint of the piece | the brainstorm |`),
+    ...decisions.map((d) => `| **${d.key}** — ${String(d.text).replace(/\|/g, '\\|')} | honored | carried word for word into this packet | the brainstorm board, ${d.key} |`),
+    ...constraints.map((c) => `| ${c.replace(/\|/g, '\\|')} | honored | a constraint of the packet | the brainstorm |`),
     '',
     '## Definition of Done', '', 'Every acceptance criterion passes verify, the slug-wide review clears, and the decision fidelity table has no unapproved row.', '',
   ].join('\n');
-  const answers = `# PO answers\n\nThe brainstorm \`${src}\` recorded the decisions of this piece. The campaign walk appends the fidelity approvals and the try-out here.\n`;
+  const answers = `# PO answers\n\nThe brainstorm \`${src}\` recorded the decisions of this packet. The campaign walk appends the fidelity approvals and the try-out here.\n`;
   return { '00-index.md': `---\n${dump(index)}\n---\n`, '01-intake.md': intake, '02-shape.md': shape, 'po-answers.md': answers };
 }
 
 function openCmd(root, src, [key], f) {
-  const { index: list, piece } = pieceOf(root, src, key);
-  if (!BUILD_FORMS.includes(piece.form)) return { ok: false, error: `${piece.key} is a ${piece.form} piece; the walk routes it to its own command`, route: routeOf(src, piece) };
-  if (piece.state !== 'written') return { ok: true, opened: false, key: piece.key, state: piece.state, reason: 'already open' };
-  const slug = piece['piece-slug'];
+  const { index: list, packet } = packetOf(root, src, key);
+  if (!BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is a ${packet.form} packet; the walk routes it to its own command`, route: routeOf(src, packet) };
+  if (packet.state !== 'written') return { ok: true, opened: false, key: packet.key, state: packet.state, reason: 'already open' };
+  const slug = packet['packet-slug'];
   const dir = wfDir(root, slug);
   const trunk = trunkOf(root, f);
-  const originPiece = `.ai/workflows/${src}/work/${piece.file}`;
+  const originPacket = `.ai/workflows/${src}/work/${packet.file}`;
   if (existsSync(join(dir, '00-index.md'))) {
-    // A prepared unit of the old campaign (Secbot): its intake and shape stay; the piece adopts the folder (12.4).
+    // A prepared unit of the old campaign (Secbot): its intake and shape stay; the packet adopts the folder (12.4).
     setFields(join(dir, '00-index.md'), {
-      'origin-piece': originPiece, branch: listBranch(src), 'base-branch': trunk, 'branch-strategy': 'dedicated',
+      'origin-packet': originPacket, branch: listBranch(src), 'base-branch': trunk, 'branch-strategy': 'dedicated',
       'workflow-type': 'feature', 'review-scope': 'slug-wide', 'review-scope-confirmed': true, 'updated-at': nowIso(),
     });
-    appendHistory(dir, `campaign: the piece ${piece.key} of ${src} adopted this folder`);
-    setPieceState(piece, 'open');
+    appendHistory(dir, `campaign: the packet ${packet.key} of ${src} adopted this folder`);
+    setPacketState(packet, 'open');
     indexRow(root, slug, listBranch(src));
-    return { ok: true, opened: true, adopted: true, key: piece.key, slug };
+    return { ok: true, opened: true, adopted: true, key: packet.key, slug };
   }
   const boardFile = boardFileOf(sourceDir(root, src));
-  const files = pieceFolderFiles({ src, piece, pieceText: readFileSync(piece.path, 'utf8'), list: { ...list, board: boardFile }, trunk, now: nowIso() });
+  const files = packetFolderFiles({ src, packet, packetText: readFileSync(packet.path, 'utf8'), list: { ...list, board: boardFile }, trunk, now: nowIso() });
   mkdirSync(dir, { recursive: true });
   for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
-  appendHistory(dir, `campaign: opened from the piece ${piece.key} of ${src}`, 'intake');
-  setPieceState(piece, 'open');
+  appendHistory(dir, `campaign: opened from the packet ${packet.key} of ${src}`, 'intake');
+  setPacketState(packet, 'open');
   indexRow(root, slug, listBranch(src));
-  return { ok: true, opened: true, key: piece.key, slug, wrote: Object.keys(files).map((n) => posix(relative(root, join(dir, n)))) };
+  return { ok: true, opened: true, key: packet.key, slug, wrote: Object.keys(files).map((n) => posix(relative(root, join(dir, n)))) };
 }
 
 // ---------------------------------------------------------------- land, start, built, done (6.1, 6.2)
@@ -539,8 +539,8 @@ function requireListBranch(root, src) {
 }
 
 /** 12.3: commit the unit's code, rebase it when the earlier waves were squashed, merge it into the list branch. */
-function landMigrated(root, src, piece) {
-  const m = piece.migrated ?? {};
+function landMigrated(root, src, packet) {
+  const m = packet.migrated ?? {};
   const branch = m['from-branch'];
   if (!branch) return { ok: true, skipped: 'no unit branch' };
   if (m.merged) return { ok: true, skipped: 'already merged' };
@@ -551,10 +551,10 @@ function landMigrated(root, src, piece) {
   const waveBase = m['wave-base'];
   const needsRebase = m.land === 'squashed' && Boolean(waveBase) && !(wt && isAncestor(wt, list, 'HEAD'));
   if (needsRebase) {
-    if (!wt) return { ok: false, error: `the unit ${piece.key} needs a rebase, and its worktree ${m.worktree ?? '(none)'} is gone. Ask the person.` };
+    if (!wt) return { ok: false, error: `the unit ${packet.key} needs a rebase, and its worktree ${m.worktree ?? '(none)'} is gone. Ask the person.` };
     // Before the snapshot: a unit with no commit beyond the wave base has its work in the wave base, or has no work yet.
     if (!Number(git(wt, ['rev-list', '--count', `${waveBase}..HEAD`]).stdout || 0)) {
-      return { ok: false, error: `${branch} has no commit beyond the wave base ${waveBase}. Its work is in the wave base, which is not in the trunk, or it has no work yet. A rebase would bring nothing. Ask the person how to bring the work of ${piece.key} to ${list}.` };
+      return { ok: false, error: `${branch} has no commit beyond the wave base ${waveBase}. Its work is in the wave base, which is not in the trunk, or it has no work yet. A rebase would bring nothing. Ask the person how to bring the work of ${packet.key} to ${list}.` };
     }
   }
   if (wt) {
@@ -564,7 +564,7 @@ function landMigrated(root, src, piece) {
       const add = git(wt, ['add', '-A', '--', '.']);
       if (add.status !== 0) return { ok: false, error: `git add failed in ${wt}: ${add.stderr}` };
       git(wt, ['reset', '-q', '--', '.ai']);
-      const c = git(wt, ['commit', '-m', `wip(${piece['piece-slug']}): migration snapshot`]);
+      const c = git(wt, ['commit', '-m', `wip(${packet['packet-slug']}): migration snapshot`]);
       if (c.status !== 0 && !/nothing to commit/.test(c.stdout + c.stderr)) return { ok: false, error: `the snapshot commit failed in ${wt}: ${c.stderr || c.stdout}` };
       steps.push({ snapshot: dirty.length });
     }
@@ -573,12 +573,12 @@ function landMigrated(root, src, piece) {
     const ahead = Number(git(wt, ['rev-list', '--count', `${waveBase}..HEAD`]).stdout || 0);
     if (ahead > 1) {
       // One commit, so the rebase can stop on a conflict once, not once per commit. The old commits stay on a backup branch.
-      const backup = `campaign/${src}/backup--${piece['piece-slug']}`;
+      const backup = `campaign/${src}/backup--${packet['packet-slug']}`;
       const bk = git(wt, ['branch', '-f', backup, 'HEAD']);
       if (bk.status !== 0) return { ok: false, error: `git branch ${backup} failed: ${bk.stderr}` };
       const fork = git(wt, ['merge-base', waveBase, 'HEAD']).stdout;
       git(wt, ['reset', '-q', '--soft', fork]);
-      const c = git(wt, ['commit', '-q', '-m', `${piece['piece-slug']}: the work of the old unit, in one commit for the migration (old commits on ${backup})`]);
+      const c = git(wt, ['commit', '-q', '-m', `${packet['packet-slug']}: the work of the old unit, in one commit for the migration (old commits on ${backup})`]);
       if (c.status !== 0) {
         git(wt, ['reset', '-q', '--soft', backup]);
         return { ok: false, error: `the one-commit step failed in ${wt}: ${c.stderr || c.stdout}` };
@@ -598,62 +598,62 @@ function landMigrated(root, src, piece) {
     return { ok: false, conflict: 'merge', error: `the merge of ${branch} into ${listBranch(src)} stopped on a conflict: ${mg.stderr || mg.stdout}. Ask the person to merge by hand, then start again.` };
   }
   steps.push({ merged: branch });
-  setFields(piece.path, { migrated: { ...m, merged: true } });
+  setFields(packet.path, { migrated: { ...m, merged: true } });
   return { ok: true, steps };
 }
 
 function startCmd(root, src, [key], f) {
-  const { pieces, piece } = pieceOf(root, src, key);
-  if (!BUILD_FORMS.includes(piece.form)) return { ok: false, error: `${piece.key} is not a build piece` };
-  if (piece.state === 'written') return { ok: false, error: `${piece.key} is not open: run campaign.mjs open first` };
-  if (['done', 'dropped'].includes(piece.state)) return { ok: false, error: `${piece.key} is ${piece.state}` };
+  const { packets, packet } = packetOf(root, src, key);
+  if (!BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is not a build packet` };
+  if (packet.state === 'written') return { ok: false, error: `${packet.key} is not open: run campaign.mjs open first` };
+  if (['done', 'dropped'].includes(packet.state)) return { ok: false, error: `${packet.key} is ${packet.state}` };
   requireListBranch(root, src);
   const trunk = trunkOf(root, f);
   let migration = null;
-  if (piece.migrated) {
-    migration = landMigrated(root, src, piece);
-    if (!migration.ok) return { ok: false, key: piece.key, ...migration };
+  if (packet.migrated) {
+    migration = landMigrated(root, src, packet);
+    if (!migration.ok) return { ok: false, key: packet.key, ...migration };
   }
-  // 6.2: the end branch of the build piece before, when HEAD holds it; else the trunk.
-  const before = pieces.filter((p) => (p.order ?? 0) < (piece.order ?? 0) && BUILD_FORMS.includes(p.form) && p.state === 'done').pop();
+  // 6.2: the end branch of the build packet before, when HEAD holds it; else the trunk.
+  const before = packets.filter((p) => (p.order ?? 0) < (packet.order ?? 0) && BUILD_FORMS.includes(p.form) && p.state === 'done').pop();
   let base = trunk;
   if (before) {
     const end = endBranch(src, before.key);
     if (commitOf(root, `refs/heads/${end}`) && isAncestor(root, end, 'HEAD')) base = end;
   }
-  const idx = join(wfDir(root, piece['piece-slug']), '00-index.md');
+  const idx = join(wfDir(root, packet['packet-slug']), '00-index.md');
   if (!existsSync(idx)) return { ok: false, error: `${posix(relative(root, idx))} does not exist: run campaign.mjs open` };
   setFields(idx, { 'base-branch': base, branch: listBranch(src), 'updated-at': nowIso() });
-  return { ok: true, key: piece.key, slug: piece['piece-slug'], base, ...(migration ? { migration } : {}) };
+  return { ok: true, key: packet.key, slug: packet['packet-slug'], base, ...(migration ? { migration } : {}) };
 }
 
 function builtCmd(root, src, [key]) {
-  const { piece } = pieceOf(root, src, key);
-  if (piece.state !== 'open' && piece.state !== 'built') return { ok: false, error: `${piece.key} is ${piece.state}, not open` };
-  setPieceState(piece, 'built');
-  return { ok: true, key: piece.key, state: 'built' };
+  const { packet } = packetOf(root, src, key);
+  if (packet.state !== 'open' && packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}, not open` };
+  setPacketState(packet, 'built');
+  return { ok: true, key: packet.key, state: 'built' };
 }
 
-/** 6.1 step 13: a fix slice was added to a built piece, so the piece is open again until the driver builds it. */
+/** 6.1 step 13: a fix slice was added to a built packet, so the packet is open again until the driver builds it. */
 function reopenCmd(root, src, [key]) {
-  const { piece } = pieceOf(root, src, key);
-  if (piece.state === 'open') return { ok: true, key: piece.key, state: 'open', changed: false };
-  if (piece.state !== 'built') return { ok: false, error: `${piece.key} is ${piece.state}; only a built piece opens again` };
-  setPieceState(piece, 'open');
-  return { ok: true, key: piece.key, state: 'open', changed: true };
+  const { packet } = packetOf(root, src, key);
+  if (packet.state === 'open') return { ok: true, key: packet.key, state: 'open', changed: false };
+  if (packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}; only a built packet opens again` };
+  setPacketState(packet, 'open');
+  return { ok: true, key: packet.key, state: 'open', changed: true };
 }
 
 function doneCmd(root, src, [key], f) {
-  const { piece } = pieceOf(root, src, key);
-  if (piece.state !== 'built') return { ok: false, error: `${piece.key} is ${piece.state}; done needs a built piece (a clean yolo run, then campaign.mjs built)` };
-  const slug = piece['piece-slug'];
+  const { packet } = packetOf(root, src, key);
+  if (packet.state !== 'built') return { ok: false, error: `${packet.key} is ${packet.state}; done needs a built packet (a clean yolo run, then campaign.mjs built)` };
+  const slug = packet['packet-slug'];
   const unbuilt = openSlices(root, slug);
   if (unbuilt.length) return { ok: false, error: `the slice(s) ${unbuilt.join(', ')} of ${slug} are not complete: run the driver again`, unbuilt };
-  const fid = decisionFidelity(root, slug, (piece['carried-decisions'] ?? []).map((d) => d.key));
+  const fid = decisionFidelity(root, slug, (packet['carried-decisions'] ?? []).map((d) => d.key));
   if (!fid.table) return { ok: false, error: `${slug}/07-review.md has no ## Decision Fidelity table` };
   if (fid.missing.length) return { ok: false, error: `the ## Decision Fidelity table of ${slug} has no row for ${fid.missing.join(', ')}`, missing: fid.missing };
   if (fid.rows.length) return { ok: false, error: `${fid.rows.length} fidelity row(s) are not honored and not approved`, rows: fid.rows };
-  if (piece['try-out'] === 'yes' && !tryOutRecorded(root, slug)) return { ok: false, error: `the try-out of ${piece.key} is not recorded: po-answers.md needs "- try-out: works"` };
+  if (packet['try-out'] === 'yes' && !tryOutRecorded(root, slug)) return { ok: false, error: `the try-out of ${packet.key} is not recorded: po-answers.md needs "- try-out: works"` };
   requireListBranch(root, src);
   const trunk = trunkOf(root, f);
   const from = trunkRef(root, trunk);
@@ -666,37 +666,37 @@ function doneCmd(root, src, [key], f) {
     }
     merged = true;
   }
-  const end = endBranch(src, piece.key);
+  const end = endBranch(src, packet.key);
   const b = git(root, ['branch', '-f', end, 'HEAD']);
   if (b.status !== 0) return { ok: false, error: `git branch -f ${end} failed: ${b.stderr}` };
   setFields(join(wfDir(root, slug), '00-index.md'), { 'base-branch': trunk, 'updated-at': nowIso() });
-  setPieceState(piece, 'done');
+  setPacketState(packet, 'done');
   let removed = null;
-  if (piece.migrated?.worktree && existsSync(piece.migrated.worktree)) removed = removeWorktree(root, src, piece.migrated.worktree, { unitKey: piece.migrated['unit-key'] ?? piece.key });
-  return { ok: true, key: piece.key, state: 'done', endBranch: end, trunkMerged: merged, ...(removed ? { worktree: removed } : {}) };
+  if (packet.migrated?.worktree && existsSync(packet.migrated.worktree)) removed = removeWorktree(root, src, packet.migrated.worktree, { unitKey: packet.migrated['unit-key'] ?? packet.key });
+  return { ok: true, key: packet.key, state: 'done', endBranch: end, trunkMerged: merged, ...(removed ? { worktree: removed } : {}) };
 }
 
 /**
- * Close a piece outside the build walk (6.1 step 5): a routed piece whose own workflow is
- * complete becomes `done`, and a piece the person drops becomes `dropped`. The piece file
- * and the board piece both change; a dropped piece holds no kept decision on the next check.
+ * Close a packet outside the build walk (6.1 step 5): a routed packet whose own workflow is
+ * complete becomes `done`, and a packet the person drops becomes `dropped`. The packet file
+ * and the board packet both change; a dropped packet holds no kept decision on the next check.
  */
 function closeCmd(root, src, [key, to]) {
   if (!['done', 'dropped'].includes(to)) throw new Error('close: the state is done or dropped');
-  const { piece } = pieceOf(root, src, key);
-  if (['done', 'dropped'].includes(piece.state)) return { ok: true, key: piece.key, state: piece.state, changed: false };
-  if (to === 'done' && BUILD_FORMS.includes(piece.form)) return { ok: false, error: `${piece.key} is a build piece: it is done through built and done, after its yolo run and its fidelity read` };
-  setPieceState(piece, to);
+  const { packet } = packetOf(root, src, key);
+  if (['done', 'dropped'].includes(packet.state)) return { ok: true, key: packet.key, state: packet.state, changed: false };
+  if (to === 'done' && BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is a build packet: it is done through built and done, after its yolo run and its fidelity read` };
+  setPacketState(packet, to);
   const { path: boardPath, board } = boardOf(root, src);
-  const onBoard = board?.work?.find((w) => w.key === piece.key);
+  const onBoard = board?.work?.find((w) => w.key === packet.key);
   if (onBoard) {
     onBoard.state = to;
     writeFileSync(boardPath, `${JSON.stringify(board, null, 2)}\n`);
   }
-  // A dropped migrated piece keeps its unit branch; its old worktree goes, with the guarded remove.
-  const wt = to === 'dropped' && piece.migrated?.worktree && existsSync(piece.migrated.worktree) ? piece.migrated.worktree : null;
-  const worktree = wt ? removeWorktree(root, src, wt, { unitKey: piece.migrated['unit-key'] ?? piece.key }) : null;
-  return { ok: true, key: piece.key, state: to, changed: true, board: Boolean(onBoard), ...(worktree ? { worktree } : {}) };
+  // A dropped migrated packet keeps its unit branch; its old worktree goes, with the guarded remove.
+  const wt = to === 'dropped' && packet.migrated?.worktree && existsSync(packet.migrated.worktree) ? packet.migrated.worktree : null;
+  const worktree = wt ? removeWorktree(root, src, wt, { unitKey: packet.migrated['unit-key'] ?? packet.key }) : null;
+  return { ok: true, key: packet.key, state: to, changed: true, board: Boolean(onBoard), ...(worktree ? { worktree } : {}) };
 }
 
 function sliceOrder(root, slug, [action], f) {
@@ -906,14 +906,14 @@ export function migrationReport(root, src, f = {}, { isMerged = prMerged } = {})
   const dropped = units.filter((u) => u.state === 'dropped');
   const inflight = units.filter((u) => !isShipped(u) && u.state !== 'dropped' && STARTED_WAVE.has(waveOf(u.wave)?.state));
   const notStarted = units.filter((u) => !shipped.includes(u) && !dropped.includes(u) && !inflight.includes(u));
-  // Several units can drive one workflow slug (an absorbed extension): one piece per slug.
+  // Several units can drive one workflow slug (an absorbed extension): one packet per slug.
   const groups = new Map();
   for (const u of inflight) {
     const slug = u.slug ?? u['work-slug'] ?? u.key;
     if (!groups.has(slug)) groups.set(slug, []);
     groups.get(slug).push(u);
   }
-  const pieces = [...groups.entries()].map(([slug, us]) => {
+  const packets = [...groups.entries()].map(([slug, us]) => {
     const lead = us.find((u) => u.key === slug || (u['work-slug'] ?? u.key) === slug) ?? us.find((u) => u.worktree) ?? us[0];
     const wt = us.map((u) => u.worktree).find(Boolean) ?? null;
     const branch = wt?.branch ?? `campaign/${src}/wave-${lead.wave}--${slug}`;
@@ -926,7 +926,7 @@ export function migrationReport(root, src, f = {}, { isMerged = prMerged } = {})
       worktree: wt?.path ?? null, uncommitted: dirty.length, ahead, ...landing,
     };
   });
-  const inflightPaths = new Set(pieces.map((p) => p.worktree).filter(Boolean).map((p) => posix(resolve(p)).toLowerCase()));
+  const inflightPaths = new Set(packets.map((p) => p.worktree).filter(Boolean).map((p) => posix(resolve(p)).toLowerCase()));
   const worktrees = worktreeList(root).map((w) => {
     if (!isOldCampaignWorktree(w, src)) return { path: w.path, branch: w.branch ?? null, old: false };
     return { path: w.path, branch: w.branch ?? null, detached: Boolean(w.detached), old: true, inflight: inflightPaths.has(posix(resolve(w.path)).toLowerCase()) };
@@ -938,11 +938,11 @@ export function migrationReport(root, src, f = {}, { isMerged = prMerged } = {})
     ok: true, source: src, trunk, records: ledger.records ?? null, live, ledgerAgeMinutes: Number.isFinite(ageMs) ? Math.round(ageMs / 60_000) : null,
     shipped: shipped.map((u) => ({ key: u.key, slug: u.slug, wave: u.wave })),
     dropped: dropped.map((u) => u.key),
-    inflight: pieces,
+    inflight: packets,
     notStarted: notStarted.map((u) => ({ key: u.key, slug: u.slug, state: u.state, prepared: existsSync(join(wfDir(root, u.slug ?? u.key), '01-intake.md')), designSettled: u.slug ? !designBlock(root, u.slug) && existsSync(join(wfDir(root, u.slug), '02c-craft.md')) : false })),
     worktrees,
     strays,
-    blocked: pieces.filter((p) => p.land === 'blocked'),
+    blocked: packets.filter((p) => p.land === 'blocked'),
   };
 }
 
@@ -950,15 +950,15 @@ function renderMigration(rep) {
   const L = ['# Migration of the old campaign', '', `Written by \`campaign.mjs migrate report\` at ${nowIso()}. It changes no branch and deletes nothing (WF-PIECES-PLAN 12.2).`, ''];
   L.push(`- Trunk: \`${rep.trunk}\`. Records: ${rep.records === 'local' ? 'local (.ai/ is not tracked; the records sync brings them home)' : 'tracked'}.`);
   L.push(`- Old wave run live: ${rep.live ? `YES (last ledger event ${rep.ledgerAgeMinutes} minutes ago): stop it first` : 'no'}.`, '');
-  L.push('## Shipped units (done pieces)', '', ...(rep.shipped.length ? rep.shipped.map((u) => `- \`${u.key}\` (wave ${u.wave})`) : ['- None.']), '');
-  L.push('## In-flight units (the first pieces)', '');
+  L.push('## Shipped units (done packets)', '', ...(rep.shipped.length ? rep.shipped.map((u) => `- \`${u.key}\` (wave ${u.wave})`) : ['- None.']), '');
+  L.push('## In-flight units (the first packets)', '');
   if (rep.inflight.length) {
-    L.push('| Piece slug | Units | Branch | Worktree | Uncommitted | Ahead of trunk | Earlier waves |', '|---|---|---|---|---|---|---|');
+    L.push('| Packet slug | Units | Branch | Worktree | Uncommitted | Ahead of trunk | Earlier waves |', '|---|---|---|---|---|---|---|');
     for (const p of rep.inflight) L.push(`| \`${p.slug}\` | ${p.units.map((u) => `${u.key} (${u.state})`).join(', ')} | \`${p.branch}\` | ${p.worktree ? `\`${posix(p.worktree)}\`` : '—'} | ${p.uncommitted} | ${p.ahead ?? '—'} | ${p.land}${p.reason ? `: ${p.reason}` : ''} |`);
   } else L.push('- None.');
   L.push('', '## Units not started (the regroup)', '', ...(rep.notStarted.length ? rep.notStarted.map((u) => `- \`${u.key}\` (${u.state}${u.prepared ? ', has intake and shape' : ''}${u.designSettled ? ', design settled' : ''})`) : ['- None.']), '');
   L.push('## Worktrees', '');
-  for (const w of rep.worktrees) L.push(`- \`${posix(w.path)}\` ${w.branch ? `on \`${w.branch}\`` : '(detached)'}: ${!w.old ? 'not an old campaign worktree; untouched' : w.inflight ? 'an in-flight unit; removed at its piece done' : 'removed at migrate finish, with the guarded remove'}`);
+  for (const w of rep.worktrees) L.push(`- \`${posix(w.path)}\` ${w.branch ? `on \`${w.branch}\`` : '(detached)'}: ${!w.old ? 'not an old campaign worktree; untouched' : w.inflight ? 'an in-flight unit; removed at its packet done' : 'removed at migrate finish, with the guarded remove'}`);
   L.push('', '## Stray folders', '', ...(rep.strays.length ? rep.strays.map((s) => `- \`.ai/workflows/${s}/\` moves to \`work/archive/stray/\``) : ['- None.']), '');
   return L.join('\n');
 }
@@ -969,7 +969,7 @@ function boardOf(root, src) {
   return { path: join(dir, boardFile), board: readJson(join(dir, boardFile)), boardFile };
 }
 
-/** 12.2 steps 4 and 5: bring the records home, then turn the units into pieces on the board. */
+/** 12.2 steps 4 and 5: bring the records home, then turn the units into packets on the board. */
 export function migrateApply(root, src, f = {}, deps = {}) {
   const rep = migrationReport(root, src, f, deps);
   if (!rep.ok) return rep;
@@ -1001,7 +1001,7 @@ export function migrateApply(root, src, f = {}, deps = {}) {
     }
   }
 
-  // Step 5: the pieces on the board. Done pieces first, in-flight pieces next, the rest after.
+  // Step 5: the packets on the board. Done packets first, in-flight packets next, the rest after.
   const work = board.work ?? [];
   const byKeyMap = new Map(work.map((w) => [w.key, w]));
   const shippedKeys = new Set(rep.shipped.map((u) => u.key));
@@ -1018,7 +1018,7 @@ export function migrateApply(root, src, f = {}, deps = {}) {
       lead.items = [...new Set([...(lead.items ?? []), ...(other.items ?? [])])];
       other.items = [];
       other.state = 'dropped';
-      other.was = `merged into ${lead.key} by the migration (one piece per workflow slug)`;
+      other.was = `merged into ${lead.key} by the migration (one packet per workflow slug)`;
       absorbed.push(u.key);
     }
     lead.state = 'open';
@@ -1040,14 +1040,14 @@ export function migrateApply(root, src, f = {}, deps = {}) {
   if (!shape.valid) return { ok: false, error: 'the migrated board does not pass the board schema', errors: shape.errors.slice(0, 10), records };
   writeFileSync(boardPath, `${JSON.stringify(board, null, 2)}\n`);
 
-  // Step 5: the index of each in-flight piece, in the main checkout.
+  // Step 5: the index of each in-flight packet, in the main checkout.
   const indexes = [];
   for (const p of rep.inflight) {
     const idx = join(wfDir(root, p.slug), '00-index.md');
     if (!existsSync(idx)) { indexes.push({ slug: p.slug, error: 'no 00-index.md in the main checkout after the records sync' }); continue; }
     const lead = order.find((w) => w.slug === p.slug);
     setFields(idx, {
-      'origin-piece': `.ai/workflows/${src}/work/${p.slug}.md`, branch: listBranch(src), 'base-branch': rep.trunk, 'branch-strategy': 'dedicated',
+      'origin-packet': `.ai/workflows/${src}/work/${p.slug}.md`, branch: listBranch(src), 'base-branch': rep.trunk, 'branch-strategy': 'dedicated',
       'workflow-type': 'feature', 'review-scope': 'slug-wide', 'review-scope-confirmed': true,
       'migrated-from': p.branch, ...(p.waveBase ? { 'wave-base': p.waveBase } : {}), land: p.land, 'updated-at': nowIso(),
       ...(lead ? { 'origin-items': [...new Set(lead.items ?? [])] } : {}),
@@ -1083,8 +1083,8 @@ export function migrateFinish(root, src) {
       strays.push({ from: `.ai/workflows/${name}`, to: posix(relative(root, dest)) });
     }
   } catch { /* none */ }
-  // The worktree of an in-flight piece stays until its piece is done, unless the regroup dropped the piece.
-  const dropped = new Set(readList(root, src).pieces.filter((p) => p.state === 'dropped').map((p) => p['piece-slug']));
+  // The worktree of an in-flight packet stays until its packet is done, unless the regroup dropped the packet.
+  const dropped = new Set(readList(root, src).packets.filter((p) => p.state === 'dropped').map((p) => p['packet-slug']));
   const droppedPaths = new Set((rep?.inflight ?? []).filter((p) => p.worktree && dropped.has(p.slug)).map((p) => posix(resolve(p.worktree)).toLowerCase()));
   const removed = [];
   for (const w of rep?.worktrees ?? []) {

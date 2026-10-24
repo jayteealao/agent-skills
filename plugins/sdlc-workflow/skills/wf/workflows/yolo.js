@@ -883,7 +883,7 @@ const CONTROL_FILE_RULE =
 
 
 const STEER_PATH = `${projectRoot}/.ai/workflows/${slug}/steer.md`
-// The campaign walk runs yolo on one piece slug at a time; yolo reads no campaign file (WF-PIECES-PLAN W8).
+// The campaign walk runs yolo on one packet slug at a time; yolo reads no campaign file (WF-PIECES-PLAN W8).
 const steer = (role) => steeringClause(STEER_PATH, role, `${referenceRoot}/_steering.md`)
 
 // ---------------------------------------------------------------------------
