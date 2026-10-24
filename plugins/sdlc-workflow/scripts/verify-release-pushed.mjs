@@ -51,8 +51,8 @@ import { readClaudeInstalls, readCodexInstalls, shippedVersion, versionVerdict }
 const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /** A commit subject that announces a release of this plugin. */
-// `.npmrc` gives `npm version` the `release(sdlc-workflow): vX.Y.Z` subject; a
-// bare `vX.Y.Z` (npm's default when .npmrc is absent) is a release commit too.
+// `npm run release` writes the `release(sdlc-workflow): vX.Y.Z` subject; a bare
+// `vX.Y.Z` (the subject of older hand releases) is a release commit too.
 export const RELEASE_SUBJECT = /^(?:release\(sdlc-workflow\):|v\d+\.\d+\.\d+(?:\s|$))/;
 
 /**

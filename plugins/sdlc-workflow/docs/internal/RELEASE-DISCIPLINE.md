@@ -3,17 +3,81 @@
 **A release is not done when the version bumps. It is done when `origin/master` carries it.**
 
 The marketplace resolves this plugin by a pinned commit SHA
-(`installed_plugins.json` → `gitCommitSha`) sourced from the GitHub remote. A
-release committed locally and never pushed is invisible to every project that
-installs the plugin — while looking entirely healthy in the dev tree. The
-version bumped. The tests pass. The CHANGELOG reads right. `git log` shows the
-release. Nothing says "the field is still running the version from last week."
+(`installed_plugins.json` → `gitCommitSha`) from the GitHub remote. A release
+that is committed and not pushed is invisible to every project that installs
+the plugin, and the dev tree looks healthy all the same. v9.137.0 to v9.140.0
+once sat unpushed for ten days, and an audit found two field defects that were
+already fixed on disk.
 
-That is not hypothetical. v9.137.0 → v9.140.0 sat unpushed for ten days. The
-whole v9.138.0 handoff/ship hardening release never executed once in a real
-project, and the audit that ran during that window re-discovered, as live field
-defects, two things that were already fixed on disk. A stale marketplace pin is
-silent by construction; the only cure is a check that is not.
+## The one way to release
+
+Only the release command releases. Do not bump, tag or push a release by hand.
+
+```bash
+npm run release <patch|minor|major|next>
+```
+
+Run it from `plugins/sdlc-workflow/`. It runs six steps in order and stops at
+the first failure. A stopped run keeps its target version in `.release.json`.
+When you run the same command again, it resumes at the step that stopped. Each
+step checks whether its work is already done, so a second run makes no second
+commit, tag or push.
+
+1. **preflight.** HEAD is on `master` and is not behind `origin/master`. The
+   paths that the release writes have no uncommitted change. Every gate
+   passes: the suite, the generated files, `lint:drift`, `verify:versions`,
+   `verify:neutrality`, `verify:surface`, `verify:docs` and
+   `verify:legibility`. The last run of `.github/workflows/sdlc-gates.yml` on
+   `master` is green (`gh run list`).
+2. **prepare.** The `## [Unreleased]` CHANGELOG section becomes
+   `## [X.Y.Z] - <date>`. With no Unreleased text, the commit subjects since
+   the last tag make the section. `package.json` takes the new version, and
+   `scripts/stamp-version.mjs` writes it into every other carrier. The catalog
+   line (the top-level `version` of the root `.claude-plugin/marketplace.json`)
+   moves: a minor for a minor or a major, a patch for a patch or a next.
+   `npm run generate` runs, and `BUILD_SHA` takes the SHA of the commit that
+   the release ships. Each plan in `docs/internal/` whose Status line names
+   SHIPPED or BUILT at this version or before moves to `docs/internal/archived/`,
+   and the links to it and from it are rewritten.
+3. **publish.** One commit, `release(sdlc-workflow): vX.Y.Z`, holds those paths
+   only. An annotated tag `vX.Y.Z` names it. The command pushes `master` and
+   the tag.
+4. **delivered.** `origin/master` has the release commit, and the remote has
+   the tag.
+5. **install.** The command updates the plugin on each host of this machine
+   that has it: `claude plugin marketplace update`, `claude plugin update` for
+   each scope (a local scope runs from its project folder), and
+   `codex plugin marketplace upgrade`. Then doctor must report OK.
+6. **report.** When `skills/wf/keys.json` changed since the previous tag, the
+   command says so: update the command page.
+
+WARNING: the publish step pushes to the public remote. A pushed release cannot
+be taken back. Read the preflight output before you run the command a second
+time after a stop.
+
+## Levels and the next channel
+
+| Level | From 9.201.0 | From 10.0.0-next.3 |
+|---|---|---|
+| `patch` | 9.201.1 | refused |
+| `minor` | 9.202.0 | refused |
+| `major` | 10.0.0 | 10.0.0 |
+| `next` | 10.0.0-next.0 | 10.0.0-next.4 |
+
+Daily work rides `next`: each `npm run release next` ships the next
+prerelease of the coming major, on `master`, pinned by its SHA. One
+`npm run release major` ships the major from the last next.
+
+## Rules
+
+- `package.json` is the only version carrier. The release writes every other
+  carrier from it. Do not edit a carrier by hand.
+- Stage by path. Never `git add -A` across the repo: it sweeps a parallel
+  session's uncommitted work into your commit. The release commits only the
+  paths that it wrote, and a file another session left modified stays out.
+- Tags are annotated. `git push --follow-tags` does not push a lightweight tag.
+- The hooks and scripts run from the source. There is no build output to
+  commit and no dependency to install.
 
 ## The check
 
@@ -21,69 +85,16 @@ silent by construction; the only cure is a check that is not.
 npm run verify:release
 ```
 
-Two checks, both from `plugins/sdlc-workflow/`:
+Two checks:
 
-- **delivered** — fails when a release commit sits ahead of `origin/master`
-  longer than the age bound (default 12h — long enough to commit and push in
-  one sitting, loud after that). A release commit is one whose subject starts
-  with `release(sdlc-workflow):` (the subject `.npmrc` gives `npm version`) or
-  with a bare `vX.Y.Z` (npm's default when `.npmrc` is absent). Passing
+- **delivered**: fails when a release commit sits ahead of `origin/master`
+  longer than the age bound (12 hours by default). A release commit is one
+  whose subject starts with `release(sdlc-workflow):` or is a bare `vX.Y.Z`.
   `--max-age-hours=0` makes any undelivered release a failure. A missing
-  remote-tracking ref is reported, never a hard failure, so a fresh clone or an
-  offline box is not blocked.
-- **installed** — fails when a host on this machine runs a version behind the
-  shipped one (`lib/doctor.mjs`; a host that is not installed is not a gap).
-  Blocking off CI, advisory on CI. Pass `--skip-installed` for the check that
-  runs right after the push, before the hosts are reinstalled.
+  remote-tracking ref is a note, not a failure.
+- **installed**: fails when a host on this machine runs a version other than
+  the shipped one (`lib/doctor.mjs`; a host that is not installed is not a
+  gap). It blocks off CI and is advisory on CI. `--skip-installed` skips it.
 
-## Release sequence
-
-Every step runs from `plugins/sdlc-workflow/`.
-
-1. Prepare the tree. `npm version` refuses a dirty tree, and it commits only
-   the carriers it stamps. Commit every change that belongs in the release
-   first, staged **explicitly by path** — never `git add -A`, which has swept
-   a parallel session's uncommitted work into a release commit. A file another
-   session left modified (see `git status`) stays out of every commit.
-2. Run the gates on the tree that will ship:
-   `npm run build && npm test && npm run verify:versions && npm run verify:neutrality && npm run verify:capabilities && npm run verify:prose && npm run verify`.
-   Tests run against source, so green does not mean `dist/` is fresh; any
-   commit touching `scripts/`, `hooks/`, `lib/`, `renderers/`, `components/`,
-   or `package.json` rebuilds `dist/` **in the same commit**. The build also
-   records `rendererBuildId` (sha256 over `renderers/`, `view-src/`,
-   `components/`); the render gate keys on it, so a CSS or template change
-   re-renders views without a bump, and a prose-only bump re-renders none.
-3. Turn the `## [Unreleased]` CHANGELOG heading into `## [X.Y.Z] - <date>` and
-   commit that change by path. The bump commit carries no prose.
-4. Bump the catalog line by hand: the top-level `version` of the root
-   `.claude-plugin/marketplace.json` (the `1.x.y` marketplace release line)
-   moves with the plugin — a patch for a patch, a minor for a minor. Then
-   `npm version <patch|minor|major>`. `package.json` is the one source: the
-   `version` lifecycle script runs `scripts/stamp-version.mjs` (both plugin
-   manifests, the lock file, the `nav.html` brand line, the root marketplace
-   pin), rebuilds (`runtime-manifest.json` + `dist/`), runs `verify:versions`,
-   and stages each carrier by path. No carrier is edited by hand;
-   `renderers/_shell.mjs` reads `runtimeVersion` from the manifest.
-   `npm version` makes no commit and no tag here: it looks for `.git` in the
-   current directory only (`@npmcli/git` `is.js`), and the plugin is a
-   subdirectory of the checkout. It also never sees the dirty tree, so
-   `--force` changes nothing. `.npmrc` keeps the subject for the day npm
-   runs at a checkout root.
-5. Commit the carriers and tag, from the plugin directory:
-   ```bash
-   git add -- package.json
-   git commit -m "release(sdlc-workflow): vX.Y.Z"
-   git tag -a vX.Y.Z -m "release(sdlc-workflow): vX.Y.Z"
-   ```
-   The commit holds the seven carriers and nothing else; a file another
-   session left modified is not staged and stays out. The subject is the one
-   the release guard watches (`RELEASE_SUBJECT`). Tags before 9.154.0 were
-   occasional and used two names (`vX.Y.Z`, `sdlc-workflow/vX.Y.Z`); from
-   9.154.0 on, every release carries `vX.Y.Z`.
-6. **`git push origin master --follow-tags`.**
-7. `npm run verify:release -- --skip-installed` — confirm the delivered check
-   reports OK.
-8. Reinstall the plugin on every host of this machine
-   (SINGLE-SOURCE-CUTOVER.md §2), then `npm run verify:release` with no flag —
-   confirm both checks report OK. `npm run doctor` shows the same table with
-   every row.
+`npm run doctor` shows the shipped version, the build id from `BUILD_SHA`, and
+each install on this machine.

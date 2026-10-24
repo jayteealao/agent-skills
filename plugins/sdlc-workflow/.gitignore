@@ -4,6 +4,9 @@
 node_modules/
 dist/
 
+# npm run release keeps its target version here between runs, and deletes it at the end.
+.release.json
+
 # The tray app (TRAY-APP-PLAN.md) ships fully self-contained: the systray2 Go
 # helper binaries and the rasterized sunflower icons are COMMITTED so the tray
 # runs on a fresh clone with zero `npm install`. Explicit allow-rules keep them

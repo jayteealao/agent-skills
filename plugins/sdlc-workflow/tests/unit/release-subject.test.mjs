@@ -1,16 +1,11 @@
-// Review 2026-09-08 — the release guard must recognize the commit `npm version`
-// writes. `.npmrc` sets the subject to the historic `release(sdlc-workflow): vX`
-// form, and RELEASE_SUBJECT also accepts a bare `vX.Y.Z` subject, so a bump made
-// without the .npmrc message is still a release the guard watches.
+// The release guard must recognize the commit `npm run release` writes, the
+// `release(sdlc-workflow): vX` form, and a bare `vX.Y.Z` subject of an older
+// hand release.
 import { test } from 'node:test';
-import { equal, match } from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { equal } from 'node:assert/strict';
 
 import { RELEASE_SUBJECT, evaluateDelivery } from '../../scripts/verify-release-pushed.mjs';
-
-const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+import { SUBJECT } from '../../scripts/release.mjs';
 
 test('RELEASE_SUBJECT accepts the release(sdlc-workflow): form and a bare vX.Y.Z subject', () => {
   equal(RELEASE_SUBJECT.test('release(sdlc-workflow): v9.154.0 — the wide-view repair'), true);
@@ -29,7 +24,7 @@ test('evaluateDelivery treats an old npm-version commit as undelivered', () => {
   equal(r.undelivered.length, 1);
 });
 
-test('.npmrc gives npm version the release(sdlc-workflow): subject', () => {
-  const npmrc = readFileSync(join(PLUGIN_ROOT, '.npmrc'), 'utf-8');
-  match(npmrc, /^message=release\(sdlc-workflow\): v%s$/m);
+test('the subject npm run release writes is one the guard watches, for a release and a next', () => {
+  equal(RELEASE_SUBJECT.test(SUBJECT('9.202.0')), true);
+  equal(RELEASE_SUBJECT.test(SUBJECT('10.0.0-next.3')), true);
 });

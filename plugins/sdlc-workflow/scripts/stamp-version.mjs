@@ -3,9 +3,8 @@
  * scripts/stamp-version.mjs — stamp every version carrier from package.json
  * (WIDE-VIEW-REPAIR-PLAN §9.2).
  *
- * package.json is the one source. `npm version <level>` bumps it and then runs
- * the `version` lifecycle script, which calls this stamp,
- * runs verify:versions, and stages each carrier by path.
+ * package.json is the one source. `npm run release <level>` (scripts/release.mjs)
+ * bumps it, calls this stamp, and commits each carrier by path.
  *
  * Stamped carriers:
  *   .claude-plugin/plugin.json                 version
@@ -72,7 +71,7 @@ export function stampVersion({ pluginRoot = PLUGIN_ROOT, repoRoot = REPO_ROOT, v
       return pkgRoot ?? root;
     }],
     [path.join(pluginRoot, 'docs', 'site', 'nav.html'), (t) => (
-      /plugin docs · v\d+\.\d+\.\d+/.test(t) ? t.replace(/plugin docs · v\d+\.\d+\.\d+/, `plugin docs · v${v}`) : null
+      /plugin docs · v\d+\.\d+\.\d+/.test(t) ? t.replace(/plugin docs · v\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?/, `plugin docs · v${v}`) : null
     )],
     [path.join(repoRoot, '.claude-plugin', 'marketplace.json'), (t) => replaceVersionAfter(t, /"name":\s*"sdlc-workflow"/, v)],
   ];

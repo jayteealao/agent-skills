@@ -10,7 +10,7 @@
   "scripts": {
     "generate": "node scripts/generate.mjs",
     "stamp:version": "node scripts/stamp-version.mjs",
-    "version": "node scripts/stamp-version.mjs && npm run verify:versions && git add -- .claude-plugin/plugin.json .codex-plugin/plugin.json package-lock.json docs/site/nav.html ../../.claude-plugin/marketplace.json",
+    "release": "node scripts/release.mjs",
     "verify:neutrality": "node scripts/verify-host-neutrality.mjs",
     "verify:versions": "node scripts/verify-release-versions.mjs",
     "verify:deployment": "node scripts/verify-deployment.mjs",

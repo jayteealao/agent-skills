@@ -62,7 +62,7 @@ export function checkVersions({ pluginRoot = PLUGIN_ROOT, repoRoot = REPO_ROOT }
   }
   const nav = path.join(pluginRoot, 'docs', 'site', 'nav.html');
   if (existsSync(nav)) {
-    const m = /plugin docs · v(\d+\.\d+\.\d+)/.exec(readFileSync(nav, 'utf8'));
+    const m = /plugin docs · v(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)/.exec(readFileSync(nav, 'utf8'));
     carriers['nav.html'] = m?.[1];
     if (m?.[1] !== version) problems.push(`docs/site/nav.html brand ${m?.[1]} ≠ ${version}`);
   }

@@ -98,6 +98,10 @@ test('versionVerdict compares installed to shipped', () => {
   assert.equal(versionVerdict('9.160.0', '9.153.5'), 'ahead');
   assert.equal(versionVerdict(null, '9.153.5'), 'absent');
   assert.equal(versionVerdict('garbage', '9.153.5'), 'unknown');
+  assert.equal(versionVerdict('10.0.0-next.1', '10.0.0-next.2'), 'behind');
+  assert.equal(versionVerdict('10.0.0-next.2', '10.0.0-next.2'), 'ok');
+  assert.equal(versionVerdict('10.0.0-next.9', '10.0.0'), 'behind', 'a release ranks above its prereleases');
+  assert.equal(versionVerdict('9.201.0', '10.0.0-next.0'), 'behind');
 });
 
 test('runDoctor on a fixture home: install gap → not ok; equal versions → ok', async () => {

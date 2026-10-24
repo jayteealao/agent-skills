@@ -43,9 +43,10 @@ export function buildId(pluginRoot) {
   }
 }
 
+/** [major, minor, patch, prerelease number]; a release ranks above each of its prereleases. */
 function semverParts(v) {
-  const m = /^(\d+)\.(\d+)\.(\d+)/.exec(String(v ?? ''));
-  return m ? m.slice(1, 4).map(Number) : null;
+  const m = /^(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z-]+\.(\d+))?$/.exec(String(v ?? ''));
+  return m ? [...m.slice(1, 4).map(Number), m[4] === undefined ? Infinity : Number(m[4])] : null;
 }
 
 /** 'ok' | 'behind' | 'ahead' | 'absent' | 'unknown' — installed relative to shipped. */
@@ -54,7 +55,7 @@ export function versionVerdict(installed, shipped) {
   const a = semverParts(installed);
   const b = semverParts(shipped);
   if (!a || !b) return 'unknown';
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     if (a[i] < b[i]) return 'behind';
     if (a[i] > b[i]) return 'ahead';
   }
