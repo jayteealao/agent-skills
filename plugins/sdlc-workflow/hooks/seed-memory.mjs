@@ -3,10 +3,10 @@
  * hooks/seed-memory.mjs — SessionStart entrypoint that seeds the `/wf` rules
  * kernel into the agent memory files (MEMORY-SEED-PLAN).
  *
- * Bundled to dist/seed-memory.mjs and invoked on BOTH hosts (the parity rule —
+ * Invoked on BOTH hosts (the parity rule —
  * same bytes run everywhere): Claude Code runs it directly from hooks/hooks.json;
  * the Codex SessionStart adapter (hooks/session-start.mjs) spawns it through
- * runBundled with SDLC_HOST=codex. All the real work is the fail-open
+ * runPolicy with SDLC_HOST=codex. All the real work is the fail-open
  * seedMemoryKernel; this entrypoint is just stdin → config → seed → one-time
  * notice.
  *

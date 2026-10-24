@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import yaml from 'js-yaml';
+import { parse as parseYaml } from './yaml.mjs';
 
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 
@@ -20,7 +20,7 @@ export function parseFrontmatter(text, { filePath = '<memory>' } = {}) {
   }
 
   try {
-    const data = yaml.load(match[1]) ?? {};
+    const data = parseYaml(match[1]) ?? {};
     return {
       data,
       content: match[2] ?? '',

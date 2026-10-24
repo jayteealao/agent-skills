@@ -4,12 +4,12 @@
 // `slice-order add` adds a `depends-on` edge, and `unit <ext> defer` names the unit of a
 // slice. Each edit changes the lines of one roster entry or one frontmatter key, so the
 // rest of the file keeps its form, its comments, and its line ends.
-import yaml from 'js-yaml';
+import { parse as parseYaml, stringify } from './yaml.mjs';
 
 const FM = /^(﻿?---\r?\n)([\s\S]*?)(\r?\n---)/;
 
 /** A value as one YAML flow line: `[a, b]`, `[]`, a plain or a quoted scalar. */
-const flow = (v) => yaml.dump(v, { flowLevel: 0, lineWidth: -1 }).trimEnd();
+const flow = (v) => stringify(v, { flow: true });
 
 const indentOf = (line) => /^ */.exec(line)[0].length;
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -42,8 +42,8 @@ function entries(lines) {
     let data = null;
     try {
       data = rest.trim().startsWith('{')
-        ? yaml.load(rest)
-        : yaml.load([' '.repeat(indent + 2) + rest, ...lines.slice(i + 1, j)].map((l) => l.slice(indent + 2)).join('\n'));
+        ? parseYaml(rest)
+        : parseYaml([' '.repeat(indent + 2) + rest, ...lines.slice(i + 1, j)].map((l) => l.slice(indent + 2)).join('\n'));
     } catch { data = null; }
     out.push({ start: i, end: j, indent, flow: rest.trim().startsWith('{'), data: data && typeof data === 'object' ? data : null });
   }
@@ -120,7 +120,7 @@ export function setFrontmatterValue(text, key, value) {
 export function frontmatterValue(text, key) {
   const m = FM.exec(String(text ?? ''));
   if (!m) return undefined;
-  try { return (yaml.load(m[2]) ?? {})[key]; } catch { return undefined; }
+  try { return (parseYaml(m[2]) ?? {})[key]; } catch { return undefined; }
 }
 
 /**

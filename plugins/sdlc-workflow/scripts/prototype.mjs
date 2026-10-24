@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * scripts/prototype.mjs — the disk side of /wf loop prototype (WF-PROTOTYPE-PLAN 4–7).
- * Bundled to dist/prototype.mjs; skills/wf/scripts/prototype.mjs runs the bundle.
+ * skills/wf/scripts/prototype.mjs runs this script.
  *
  *   start   <root> <slug> --idea t [--branch b] [--base b] [--worktree p]
  *                                    the poc/<slug> branch, its worktree, the workflow folder, the INDEX.md row

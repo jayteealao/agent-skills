@@ -5,12 +5,7 @@
 // records (canvas-stale), render terminal captures (ansi), and keep the
 // design record tracked.
 //   node "<skill-dir>/scripts/design-boards.mjs" <command> <projectRoot> <slug> ...
-// Runs the bundled dist/design-boards.mjs, which carries its own dependencies.
-// In a development checkout without dist/, it runs the source script.
-import { existsSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+// Runs the source script, scripts/design-boards.mjs.
+import { main } from '../../../scripts/design-boards.mjs';
 
-const bundle = fileURLToPath(new URL('../../../dist/design-boards.mjs', import.meta.url));
-const source = fileURLToPath(new URL('../../../scripts/design-boards.mjs', import.meta.url));
-const { main } = await import(pathToFileURL(existsSync(bundle) ? bundle : source).href);
 process.exitCode = await main(process.argv.slice(2));

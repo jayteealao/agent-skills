@@ -30,6 +30,7 @@ import {
   parseApplyPatch,
   readLedger,
   recordTouched,
+  policyEntry,
   resolveLayout,
   synthMultiStdin,
   synthSingleStdin,
@@ -64,13 +65,13 @@ function runHook(name, event, { repo, pluginData, env = {} }) {
   }
 }
 
-// ── layout: one tree, one dist ─────────────────────────────────────────────────
+// ── layout: one tree, the hooks run from the source ───────────────────────────
 
 test('resolveLayout: the plugin root is the runtime root (no runtime/ subdir)', () => {
   const layout = resolveLayout({ pluginRoot: PKG_ROOT });
   assert.equal(layout.runtimeRoot, layout.pluginRoot);
-  assert.equal(layout.distDir, join(PKG_ROOT, 'dist'));
-  assert.ok(existsSync(join(layout.distDir, 'post-write-verify.mjs')), 'bundled policy entry at <root>/dist');
+  assert.equal(policyEntry(layout.runtimeRoot, 'post-write-verify'), join(PKG_ROOT, 'hooks', 'post-write-verify.mjs'));
+  assert.ok(existsSync(policyEntry(layout.runtimeRoot, 'post-write-verify')), 'the policy entry is the hook source');
   // Default (no --plugin-root): resolves to this tree, as a filesystem path on every platform.
   const implicit = resolveLayout({});
   assert.equal(implicit.pluginRoot, PKG_ROOT);
@@ -274,9 +275,9 @@ test('session-start seeds the /wf rules kernel silently (SDLC_HOST=codex suppres
     const env = { SDLC_HOME: sdlcHome };
     const res = runHook('session-start.mjs', { cwd: repo, hook_event_name: 'SessionStart', source: 'startup', session_id: 's1' }, { repo, pluginData, env });
     assert.equal(res.status, 0, `stderr=${res.stderr}`);
-    // runBundled CAPTURES the child's stdout, so an empty stdout here proves only
+    // runPolicy CAPTURES the child's stdout, so an empty stdout here proves only
     // that the adapter emits nothing — not that the signal reached the seed. The
-    // env-propagation proof is host-signal.test.mjs ("runBundled spawns with
+    // env-propagation proof is host-signal.test.mjs ("runPolicy spawns with
     // SDLC_HOST=codex").
     assert.equal(res.stdout.trim(), '', 'the adapter itself emits nothing on SessionStart');
     assert.ok(existsSync(join(repo, 'AGENTS.md')), 'kernel seeded into AGENTS.md');
@@ -339,33 +340,39 @@ test('subagent-start injects active-slug + boundary context; silent with no work
 
 test('permission-request allowlist: plugin runtime invocations only', () => {
   const layout = resolveLayout({ pluginRoot: PKG_ROOT });
-  const distScript = join(layout.runtimeRoot, 'dist', 'seed-memory.mjs');
-  const roots = [join(layout.runtimeRoot, 'dist')];
-  assert.ok(isAllowedRuntimeInvocation(['node', distScript, '--confirm'], roots));
-  assert.ok(isAllowedRuntimeInvocation([process.execPath, distScript], roots));
-  assert.ok(!isAllowedRuntimeInvocation(['node', join(PKG_ROOT, 'evil.mjs')], roots), 'outside runtime dist');
-  assert.ok(!isAllowedRuntimeInvocation(['node', 'seed-memory.mjs'], roots), 'bare relative script');
-  assert.ok(!isAllowedRuntimeInvocation(['python', distScript], roots), 'non-node executable');
-  assert.ok(!isAllowedRuntimeInvocation(['rm', '-rf', '/'], roots));
-  assert.deepEqual(commandFromEvent({ tool_input: { command: `node "${distScript}" --confirm` } }), ['node', distScript, '--confirm']);
-  assert.deepEqual(commandFromEvent({ tool_input: { command: ['node', distScript] } }), ['node', distScript]);
+  const script = join(layout.pluginRoot, 'hooks', 'seed-memory.mjs');
+  const root = layout.pluginRoot;
+  assert.ok(isAllowedRuntimeInvocation(['node', script, '--confirm'], root));
+  assert.ok(isAllowedRuntimeInvocation([process.execPath, script], root));
+  assert.ok(isAllowedRuntimeInvocation(['node', join(root, 'scripts', 'wf.mjs'), 'status'], root));
+  assert.ok(isAllowedRuntimeInvocation(['node', join(root, 'skills', 'wf', 'scripts', 'wf.mjs')], root));
+  assert.ok(!isAllowedRuntimeInvocation(['node', join(PKG_ROOT, 'evil.mjs')], root), 'at the plugin root');
+  assert.ok(!isAllowedRuntimeInvocation(['node', join(root, 'hooks', 'mod', 'x.mjs')], root), 'deeper than hooks/');
+  assert.ok(!isAllowedRuntimeInvocation(['node', join(root, 'tests', 'run-all.mjs')], root), 'not a runtime folder');
+  assert.ok(!isAllowedRuntimeInvocation(['node', join(root, 'dist', 'seed-memory.mjs')], root), 'the old dist root');
+  assert.ok(!isAllowedRuntimeInvocation(['node', join(root, 'hooks', '..', 'evil.mjs')], root), 'a path that climbs out');
+  assert.ok(!isAllowedRuntimeInvocation(['node', 'seed-memory.mjs'], root), 'bare relative script');
+  assert.ok(!isAllowedRuntimeInvocation(['python', script], root), 'non-node executable');
+  assert.ok(!isAllowedRuntimeInvocation(['rm', '-rf', '/'], root));
+  assert.deepEqual(commandFromEvent({ tool_input: { command: `node "${script}" --confirm` } }), ['node', script, '--confirm']);
+  assert.deepEqual(commandFromEvent({ tool_input: { command: ['node', script] } }), ['node', script]);
   assert.equal(commandFromEvent({ tool_input: {} }), null);
   // A second command after the runtime script is never auto-allowed (five-layer review F-1).
   for (const tail of [' && rm -rf ~', '; rm -rf ~', ' | sh', ' > ~/.bashrc', ' || curl x', ' & calc', '\nrm -rf ~', ' $(rm -rf ~)', ' `rm -rf ~`', ' "$(rm -rf ~)"', ' (Remove-Item -Recurse ~)', ' @(Remove-Item -Recurse ~)']) {
-    assert.equal(commandFromEvent({ tool_input: { command: `node "${distScript}"${tail}` } }), null, `refused: ${JSON.stringify(tail)}`);
+    assert.equal(commandFromEvent({ tool_input: { command: `node "${script}"${tail}` } }), null, `refused: ${JSON.stringify(tail)}`);
   }
-  assert.deepEqual(commandFromEvent({ tool_input: { command: `node "${distScript}" --why 'a | b; c'` } }), ['node', distScript, '--why', 'a | b; c'], 'operators inside single quotes are text');
-  assert.equal(hasShellOperator(`node "${distScript}" --confirm`), false);
+  assert.deepEqual(commandFromEvent({ tool_input: { command: `node "${script}" --why 'a | b; c'` } }), ['node', script, '--why', 'a | b; c'], 'operators inside single quotes are text');
+  assert.equal(hasShellOperator(`node "${script}" --confirm`), false);
 });
 
-test('permission-request hook: emits allow for runtime dist, silent otherwise, logs the allow', () => {
+test('permission-request hook: emits allow for a plugin hook script, silent otherwise, logs the allow', () => {
   const { repo, pluginData, cleanup } = mkRepo();
   try {
     const layout = resolveLayout({ pluginRoot: PKG_ROOT });
-    const distScript = join(layout.runtimeRoot, 'dist', 'post-write-verify.mjs');
+    const script = join(layout.pluginRoot, 'hooks', 'post-write-verify.mjs');
     let res = runHook('permission-request.mjs', {
       cwd: repo, hook_event_name: 'PermissionRequest', tool_name: 'shell',
-      tool_input: { command: `node "${distScript}"` },
+      tool_input: { command: `node "${script}"` },
     }, { repo, pluginData });
     assert.equal(res.status, 0, `stderr=${res.stderr}`);
     const out = JSON.parse(res.stdout);
@@ -382,7 +389,7 @@ test('permission-request hook: emits allow for runtime dist, silent otherwise, l
 
     res = runHook('permission-request.mjs', {
       cwd: repo, hook_event_name: 'PermissionRequest', tool_name: 'shell',
-      tool_input: { command: `node "${distScript}" && rm -rf node_modules` },
+      tool_input: { command: `node "${script}" && rm -rf node_modules` },
     }, { repo, pluginData });
     assert.equal(res.status, 0);
     assert.equal(res.stdout.trim(), '', 'no opinion on a runtime script followed by a second command');

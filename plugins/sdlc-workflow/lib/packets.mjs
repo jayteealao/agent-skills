@@ -9,7 +9,7 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync, appendFileSync } from 'node:fs';
 import { join } from 'node:path';
-import yaml from 'js-yaml';
+import { stringify } from './yaml.mjs';
 
 import { safeParseFrontmatter } from './frontmatter.mjs';
 import { setFrontmatterValue } from './roster-edit.mjs';
@@ -279,7 +279,7 @@ export function checkList(board, { isIgnored = null } = {}) {
 // ---------------------------------------------------------------- rendering
 
 function dump(data) {
-  return yaml.dump(data, { lineWidth: -1, noRefs: true, quotingType: '"' }).trimEnd();
+  return stringify(data);
 }
 
 function itemLine(item, { withWhy = false, boardFile = DEFAULT_FILES.board } = {}) {

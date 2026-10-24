@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * scripts/goal.mjs — the disk side of /wf loop goal (WF-GOAL-PLAN 4.2).
- * Bundled to dist/goal.mjs; skills/wf/scripts/goal.mjs runs the bundle.
+ * skills/wf/scripts/goal.mjs runs this script.
  *
  *   arm       <root> <slug> [--objective t] [--kind lifecycle|optimize|proofs] [--proof cmd]... [--max-checks n] [--host h]
  *                                         write or re-arm the contract; print the condition and how the host arms it
@@ -29,7 +29,7 @@ import { lifecycleDone } from '../lib/lifecycle-done.mjs';
 import { optimizeStatus } from './optimize.mjs';
 
 const USAGE = 'Usage: goal.mjs <arm|check|park|status|clear|lifecycle> <projectRoot> <slug> ...';
-// scripts/ and dist/ both sit one level under the plugin root.
+// scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const WRAPPER = join(PLUGIN_ROOT, 'skills', 'wf', 'scripts', 'goal.mjs');
 const PROOF_TIMEOUT_MS = 30 * 60_000;

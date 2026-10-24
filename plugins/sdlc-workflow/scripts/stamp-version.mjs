@@ -4,7 +4,7 @@
  * (WIDE-VIEW-REPAIR-PLAN §9.2).
  *
  * package.json is the one source. `npm version <level>` bumps it and then runs
- * the `version` lifecycle script, which calls this stamp, rebuilds dist/,
+ * the `version` lifecycle script, which calls this stamp,
  * runs verify:versions, and stages each carrier by path.
  *
  * Stamped carriers:

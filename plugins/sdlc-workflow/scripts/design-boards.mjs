@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * scripts/design-boards.mjs — the design boards of a workflow (DESIGN-BOARDS-PLAN section 5).
- * Bundled to dist/design-boards.mjs; skills/wf/scripts/design-boards.mjs runs the bundle.
+ * skills/wf/scripts/design-boards.mjs runs this script.
  *
  *   init    <root> <slug> [--method m] [--viewport name=WxH]...  create or update design/boards.json
  *   render  <root> <slug> [key...]                 register boards/<key>.html|png, render HTML to PNG (and sketches/*.html), write the sheet

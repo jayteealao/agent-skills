@@ -30,6 +30,19 @@ export function shippedVersion(pluginRoot) {
   return JSON.parse(readFileSync(join(pluginRoot, 'package.json'), 'utf-8')).version;
 }
 
+/** The file the release writes: the SHA of the commit that the release ships. */
+export const BUILD_SHA_FILE = 'BUILD_SHA';
+
+/** The build id of a plugin tree: the SHA in BUILD_SHA, or null in a tree no release wrote. */
+export function buildId(pluginRoot) {
+  try {
+    const sha = readFileSync(join(pluginRoot, BUILD_SHA_FILE), 'utf-8').trim();
+    return /^[0-9a-f]{40}$/.test(sha) ? sha : null;
+  } catch {
+    return null;
+  }
+}
+
 function semverParts(v) {
   const m = /^(\d+)\.(\d+)\.(\d+)/.exec(String(v ?? ''));
   return m ? m.slice(1, 4).map(Number) : null;
@@ -175,6 +188,7 @@ export async function runDoctor({
   return {
     at: now().toISOString(),
     shipped,
+    buildId: buildId(pluginRoot),
     hosts: { claude, codex, codexConfig: codexRead.config },
     cleanup: cleanupStatus(sdlcHome),
     verdicts: hostVerdicts,
@@ -187,6 +201,7 @@ export function formatDoctorTable(r) {
   const rows = [];
   const push = (k, v, verdict = '') => rows.push([k, String(v), verdict]);
   push('shipped (package.json)', r.shipped);
+  push('build (BUILD_SHA)', r.buildId ? r.buildId.slice(0, 8) : 'none: no release wrote this tree');
   if (!r.hosts.claude.length) push('claude install', 'none', 'absent');
   for (const i of r.hosts.claude) push(`claude install (${i.scope}${i.projectPath ? `: ${i.projectPath}` : ''})`, `${i.version} @ ${(i.gitCommitSha ?? '').slice(0, 8)}`, i.verdict);
   if (!r.hosts.codex.length) push('codex install', 'none', 'absent');

@@ -26,7 +26,7 @@ import {
   readEvent,
   readLedger,
   resolveLayout,
-  runBundled,
+  runPolicy,
   synthMultiStdin,
 } from './_adapter.mjs';
 
@@ -41,7 +41,7 @@ function main() {
   if (!paths.length) return; // nothing managed was touched this turn
 
   const cwd = findProjectRoot(event.cwd);
-  const verify = runBundled(layout.runtimeRoot, 'post-write-verify', synthMultiStdin(cwd, 'Stop', paths), {
+  const verify = runPolicy(layout.runtimeRoot, 'post-write-verify', synthMultiStdin(cwd, 'Stop', paths), {
     cwd,
     timeoutMs: 15000,
   });

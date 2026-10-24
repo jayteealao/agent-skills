@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * scripts/campaign.mjs — the disk side of /wf campaign, the serial walk over the
- * packets of one list (WF-PIECES-PLAN section 6.4). Bundled to dist/campaign.mjs;
- * skills/wf/scripts/campaign.mjs runs the bundle.
+ * packets of one list (WF-PIECES-PLAN section 6.4).
+ * skills/wf/scripts/campaign.mjs runs this script.
  *
  *   check   <source-dir|board-file>                 the list check of section 4.2 (exit 1 on an error)
  *   write   <source-dir|board-file> [--dry-run]     write the packet files, then work/index.md last
@@ -26,7 +26,7 @@ import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import yaml from 'js-yaml';
+import { stringify } from '../lib/yaml.mjs';
 
 import { checkList, writeList, readWorkFiles, listBranch, endBranch, BUILD_FORMS, PACKET_STATES, DEFAULT_FILES, IDEATE_FILES } from '../lib/packets.mjs';
 import { archiveBoard, docCheck, mergeArchive } from '../lib/brainstorm-archive.mjs';
@@ -57,7 +57,7 @@ function readFm(file) {
 }
 
 function dump(data) {
-  return yaml.dump(data, { lineWidth: -1, noRefs: true, quotingType: '"' }).trimEnd();
+  return stringify(data);
 }
 
 function git(cwd, args) {

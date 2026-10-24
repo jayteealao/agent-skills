@@ -8,11 +8,11 @@
 //   1. determine final touched files from the event (+ on-disk reality)
 //   2. record touched managed artifacts to the per-turn ledger (the Stop hook
 //      re-checks these — the enforcement boundary)
-//   3. run the folded PostToolUse bundle ONCE (WIDE-VIEW §14.2.6): auto-stage
+//   3. run the folded PostToolUse policy ONCE (WIDE-VIEW §14.2.6): auto-stage
 //      (git add of implement-stage source files), then VERIFY (schema/path/
 //      slug). A verify failure relays corrective feedback (exit 2).
 //
-// Every stage runs the SAME bundled runtime policy Claude runs, so the final
+// Every stage runs the SAME policy Claude runs, so the final
 // on-disk + verification outcome is identical across hosts. Exit 0 on success.
 
 import {
@@ -22,7 +22,7 @@ import {
   readEvent,
   recordTouched,
   resolveLayout,
-  runBundled,
+  runPolicy,
   synthMultiStdin,
   touchedFromEvent,
 } from './_adapter.mjs';
@@ -44,12 +44,12 @@ function main() {
     try { recordTouched(layout.pluginData, event.session_id, managed); } catch { /* best-effort */ }
   }
 
-  // (3) ONE bundled process: auto-stage → verify. The bundle
+  // (3) ONE process: auto-stage → verify. The process
   // stages every touched path (file_path + edits[].file_path), skips artifacts,
   // and checks implement stage / branch strategy itself. Exit 2 = verify blocked.
-  const result = runBundled(layout.runtimeRoot, 'post-tool-use-all', synthMultiStdin(cwd, 'PostToolUse', touched), {
+  const result = runPolicy(layout.runtimeRoot, 'post-tool-use-all', synthMultiStdin(cwd, 'PostToolUse', touched), {
     cwd,
-    timeoutMs: 12000,   // under the host's 15 s hook timeout (codex.hooks.json), so a slow bundle reports instead of being killed
+    timeoutMs: 12000,   // under the host's 15 s hook timeout (codex.hooks.json), so a slow policy reports instead of being killed
   });
   if (result.status === 2) {
     if (result.stderr) process.stderr.write(result.stderr);

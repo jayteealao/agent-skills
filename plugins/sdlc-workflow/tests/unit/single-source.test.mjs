@@ -95,12 +95,12 @@ test('hooks/codex.hooks.json: every command resolves to a file in this tree, has
   assert.ok(!JSON.stringify(wiring).includes('seed-memory'), 'seed-memory must not be a direct Codex hook command');
 });
 
-test('hooks/hooks.json (Claude Code) is untouched in shape: every command is a dist/ entry that exists', () => {
+test('hooks/hooks.json (Claude Code): every command runs a hook source that exists', () => {
   const wiring = json(pluginRoot, 'hooks', 'hooks.json');
   for (const groups of Object.values(wiring.hooks)) {
     for (const g of groups) for (const h of g.hooks) {
-      const m = /\$\{CLAUDE_PLUGIN_ROOT\}\/(dist\/[^"]+)"/.exec(h.command);
-      assert.ok(m, `Claude hook command does not use \${CLAUDE_PLUGIN_ROOT}/dist/: ${h.command}`);
+      const m = /\$\{CLAUDE_PLUGIN_ROOT\}\/(hooks\/[^"/]+\.mjs)"/.exec(h.command);
+      assert.ok(m, `Claude hook command does not run \${CLAUDE_PLUGIN_ROOT}/hooks/<name>.mjs: ${h.command}`);
       assert.ok(existsSync(path.join(pluginRoot, m[1])), `${m[1]} missing`);
     }
   }

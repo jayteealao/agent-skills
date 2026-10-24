@@ -2,12 +2,12 @@
 // hooks/session-start.mjs — Codex SessionStart adapter.
 //
 // On a trusted SessionStart (startup|resume|clear) it:
-//   1. seeds the /wf rules kernel (dist/seed-memory.mjs) THROUGH runBundled, so
+//   1. seeds the /wf rules kernel (hooks/seed-memory.mjs) THROUGH runPolicy, so
 //      the spawn carries SDLC_HOST=codex — the only way the shared entrypoint can
 //      tell it is not on Claude Code (SINGLE-SOURCE-PLAN W4). It is never invoked
 //      directly from codex.hooks.json for that reason;
 //   2. runs the one-time removal of the old hub and tray from this machine
-//      (dist/machine-cleanup.mjs). After the first clean run it only checks a
+//      (hooks/machine-cleanup.mjs). After the first clean run it only checks a
 //      marker file.
 //
 // A `compact` source returns at once: a context compaction is not a session
@@ -18,7 +18,7 @@ import {
   parseHookArgs,
   readEvent,
   resolveLayout,
-  runBundled,
+  runPolicy,
 } from './_adapter.mjs';
 
 function main() {
@@ -33,13 +33,13 @@ function main() {
   const projectRoot = findProjectRoot(event.cwd);
 
   if (process.env.SDLC_DISABLE_MEMORY_SEED !== '1') {
-    runBundled(layout.runtimeRoot, 'seed-memory', { cwd: projectRoot, hook_event_name: 'SessionStart' }, {
+    runPolicy(layout.runtimeRoot, 'seed-memory', { cwd: projectRoot, hook_event_name: 'SessionStart' }, {
       cwd: projectRoot,
       timeoutMs: 8000,
     });
   }
 
-  runBundled(layout.runtimeRoot, 'machine-cleanup', { cwd: projectRoot, hook_event_name: 'SessionStart' }, {
+  runPolicy(layout.runtimeRoot, 'machine-cleanup', { cwd: projectRoot, hook_event_name: 'SessionStart' }, {
     cwd: projectRoot,
     timeoutMs: 20000,
   });

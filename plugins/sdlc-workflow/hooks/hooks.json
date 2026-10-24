@@ -9,12 +9,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/machine-cleanup.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/machine-cleanup.mjs\"",
             "timeout": 30
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/seed-memory.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/seed-memory.mjs\"",
             "timeout": 10
           }
         ]
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/pre-tool-use-all.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use-all.mjs\"",
             "timeout": 5
           }
         ]
@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/post-tool-use-all.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/post-tool-use-all.mjs\"",
             "timeout": 30
           }
         ]
@@ -49,7 +49,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/cost-ledger.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/cost-ledger.mjs\"",
             "timeout": 20
           }
         ]

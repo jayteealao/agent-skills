@@ -8,7 +8,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
-import yaml from 'js-yaml';
+import { stringify } from '../lib/yaml.mjs';
 import { parseFrontmatter } from '../lib/frontmatter.mjs';
 
 const LEGACY_CONTRACT_TYPES = new Set(['craft', 'design-brief', 'design-contract']);
@@ -185,13 +185,7 @@ function migrationFor(filePath, data) {
 }
 
 function serializeMarkdown(data, content) {
-  const raw = yaml.dump(data, {
-    lineWidth: 100,
-    noRefs: true,
-    sortKeys: false,
-    forceQuotes: true,
-    quotingType: '"',
-  });
+  const raw = `${stringify(data)}\n`;
   return `---\n${raw}---\n${content}`;
 }
 

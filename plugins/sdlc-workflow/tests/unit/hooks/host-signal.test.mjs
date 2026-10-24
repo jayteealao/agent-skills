@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 
-import { runBundled } from '../../../hooks/_adapter.mjs';
+import { runPolicy } from '../../../hooks/_adapter.mjs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -85,19 +85,19 @@ test('no source file infers the host from its own path or plugin directory name'
   assert.deepEqual(offenders, []);
 });
 
-test('runBundled spawns with SDLC_HOST=codex', () => {
+test('runPolicy spawns with SDLC_HOST=codex', () => {
   // The Codex adapter's ONLY way to tell the shared entrypoints which host they
   // run under is the env it spawns them with. Prove the spawn, not the caller:
-  // a temp dist/ entry echoes the variable back (v9.153.1 — the earlier
+  // a temp hooks/ entry echoes the variable back (v9.153.1 — the earlier
   // assertion on session-start's empty stdout could not see this).
   const root = mkdtempSync(join(tmpdir(), 'sdlc-runbundled-'));
   const prevHost = process.env.SDLC_HOST;
   try {
-    mkdirSync(join(root, 'dist'));
-    writeFileSync(join(root, 'dist', 'echo-env.mjs'),
+    mkdirSync(join(root, 'hooks'));
+    writeFileSync(join(root, 'hooks', 'echo-env.mjs'),
       "process.stdout.write(JSON.stringify({ host: process.env.SDLC_HOST ?? null }));\n");
     delete process.env.SDLC_HOST;
-    const res = runBundled(root, 'echo-env', {}, { cwd: root, timeoutMs: 10000 });
+    const res = runPolicy(root, 'echo-env', {}, { cwd: root, timeoutMs: 10000 });
     assert.equal(res.status, 0, res.stderr);
     assert.deepEqual(JSON.parse(res.stdout), { host: 'codex' });
   } finally {

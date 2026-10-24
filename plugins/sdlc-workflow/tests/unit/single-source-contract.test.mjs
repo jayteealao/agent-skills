@@ -20,7 +20,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import yaml from 'js-yaml';
+import { parse as parseYaml } from '../../lib/yaml.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const repoRoot = path.resolve(pluginRoot, '..', '..');
@@ -39,19 +39,15 @@ test('codex adapters import only ./_adapter.mjs and node builtins (they run from
   }
 });
 
-test('every bundle a codex adapter spawns is a build entrypoint and exists in dist/', () => {
-  const build = read('scripts', 'build.mjs');
-  const entries = new Set([...build.matchAll(/^\s+'([a-z0-9-]+)',\s+\/\//gm)].map((m) => m[1]));
-  assert.ok(entries.has('seed-memory') && entries.has('machine-cleanup'), 'build.mjs entry parse failed');
+test('every policy a codex adapter spawns is a hook source that exists', () => {
   const spawned = new Set();
   for (const name of CODEX_ADAPTERS) {
     const src = read('hooks', name);
-    for (const m of src.matchAll(/(?:runBundled|bundledEntry)\([^,]+,\s*'([^']+)'/g)) spawned.add(m[1]);
+    for (const m of src.matchAll(/(?:runPolicy|policyEntry)\([^,]+,\s*'([^']+)'/g)) spawned.add(m[1]);
   }
-  assert.ok(spawned.size >= 5, `expected the adapters to spawn several bundles, saw ${[...spawned]}`);
+  assert.ok(spawned.size >= 5, `expected the adapters to spawn several policies, saw ${[...spawned]}`);
   for (const name of spawned) {
-    assert.ok(entries.has(name), `hooks/ spawns dist/${name}.mjs but scripts/build.mjs does not list it as an entry`);
-    assert.ok(existsSync(path.join(pluginRoot, 'dist', `${name}.mjs`)), `dist/${name}.mjs missing — run npm run build`);
+    assert.ok(existsSync(path.join(pluginRoot, 'hooks', `${name}.mjs`)), `hooks/ spawns hooks/${name}.mjs, which does not exist`);
   }
 });
 
@@ -131,7 +127,7 @@ test('the six skills: openai.yaml parses with the expected shape; SKILL.md name 
   const skills = readdirSync(path.join(pluginRoot, 'skills')).filter((d) => existsSync(path.join(pluginRoot, 'skills', d, 'SKILL.md')));
   assert.equal(skills.length, 6);
   for (const dir of skills) {
-    const doc = yaml.load(read('skills', dir, 'agents', 'openai.yaml'));
+    const doc = parseYaml(read('skills', dir, 'agents', 'openai.yaml'));
     assert.ok(doc?.interface?.display_name && doc.interface.short_description && doc.interface.default_prompt, `${dir}: openai.yaml interface incomplete`);
     assert.equal(doc.policy?.allow_implicit_invocation, false, `${dir}: allow_implicit_invocation must be false so only explicit user invocation selects the skill`);
     const name = /^name:\s*(\S+)/m.exec(read('skills', dir, 'SKILL.md'))?.[1];

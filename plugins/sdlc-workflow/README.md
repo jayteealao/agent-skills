@@ -86,8 +86,10 @@ One hook is a Claude Code mod: `hooks/mod/register.ts`, a function-hooks module 
 
 ```bash
 npm test                # unit suite
-npm run build           # bundle hooks and scripts into dist/
+npm run lint:drift      # forms, links, settings and generated files against the source
 npm run verify:docs     # doc-site gate, including this file's line and name rules
 ```
+
+The hooks and scripts run from the source with Node 22 and no dependencies, so there is no build step and no `npm install`.
 
 Release steps are in [docs/internal/RELEASE-DISCIPLINE.md](docs/internal/RELEASE-DISCIPLINE.md). The change log is [CHANGELOG.md](CHANGELOG.md).

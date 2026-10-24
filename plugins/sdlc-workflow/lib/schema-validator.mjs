@@ -2,16 +2,14 @@ import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import Ajv2020 from 'ajv/dist/2020.js';
-import addFormats from 'ajv-formats';
 import { safeLoadFrontmatterFile } from './frontmatter.mjs';
-import yaml from 'js-yaml';
+import { compile, plainErrors } from './schema-check.mjs';
+import { parse as parseYaml } from './yaml.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_SCHEMA_PATH = resolve(__dirname, '..', 'schemas', 'frontmatter.schema.json');
 
 const schemaCache = new Map();
-const ajvCache = new Map();
 const validatorCache = new Map();
 
 export function defaultFrontmatterSchemaPath() {
@@ -32,20 +30,6 @@ function loadJsonSchemaSync(schemaPath = DEFAULT_SCHEMA_PATH) {
   const schema = JSON.parse(readFileSync(resolved, 'utf-8'));
   schemaCache.set(resolved, schema);
   return schema;
-}
-
-function ajvFor(schemaPath) {
-  const resolved = resolve(schemaPath);
-  if (ajvCache.has(resolved)) return ajvCache.get(resolved);
-  const ajv = new Ajv2020({
-    allErrors: true,
-    strict: false,
-    allowUnionTypes: true,
-    validateSchema: false,
-  });
-  addFormats(ajv);
-  ajvCache.set(resolved, ajv);
-  return ajv;
 }
 
 function resolveLocalRef(schema, refNode) {
@@ -104,20 +88,9 @@ function compileValidator({ schemaPath = DEFAULT_SCHEMA_PATH, kind = 'frontmatte
   }
 
   if (!schema) return null;
-  const ajv = ajvFor(schemaPath);
-  const validate = ajv.compile(schema);
+  const validate = compile(schema);
   validatorCache.set(cacheKey, validate);
   return validate;
-}
-
-export function normalizeAjvErrors(errors = []) {
-  return errors.map((err) => ({
-    path: err.instancePath || '/',
-    message: err.message ?? 'schema violation',
-    keyword: err.keyword,
-    schemaPath: err.schemaPath,
-    params: err.params ?? {},
-  }));
 }
 
 export function validateFrontmatter(data, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
@@ -135,7 +108,7 @@ export function validateFrontmatter(data, { schemaPath = DEFAULT_SCHEMA_PATH } =
   return {
     valid,
     type,
-    errors: valid ? [] : normalizeAjvErrors(validate.errors),
+    errors: valid ? [] : plainErrors(validate.errors),
   };
 }
 
@@ -160,7 +133,7 @@ export function validateSiblingYaml(data, { artifact = data?.artifact, schemaPat
   return {
     valid,
     artifact,
-    errors: valid ? [] : normalizeAjvErrors(validate.errors),
+    errors: valid ? [] : plainErrors(validate.errors),
   };
 }
 
@@ -172,7 +145,7 @@ export function validateSiblingYaml(data, { artifact = data?.artifact, schemaPat
 export async function validateSiblingYamlFile(filePath, { schemaPath = DEFAULT_SCHEMA_PATH, artifact } = {}) {
   let data;
   try {
-    data = yaml.load(await readFile(filePath, 'utf-8'));
+    data = parseYaml(await readFile(filePath, 'utf-8'));
   } catch (err) {
     return {
       path: filePath,
@@ -196,7 +169,7 @@ export function validateBrainstormBoard(data, { schemaPath = DEFAULT_SCHEMA_PATH
   }
   const validate = compileValidator({ schemaPath, kind: 'def', name: 'brainstormBoard' });
   const valid = validate(data);
-  return { valid, errors: valid ? [] : normalizeAjvErrors(validate.errors) };
+  return { valid, errors: valid ? [] : plainErrors(validate.errors) };
 }
 
 export async function validateBrainstormBoardFile(filePath, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
@@ -220,7 +193,7 @@ export function validatePrototypeLedger(data, { schemaPath = DEFAULT_SCHEMA_PATH
   }
   const validate = compileValidator({ schemaPath, kind: 'def', name: 'prototypeLedger' });
   const valid = validate(data);
-  return { valid, errors: valid ? [] : normalizeAjvErrors(validate.errors) };
+  return { valid, errors: valid ? [] : plainErrors(validate.errors) };
 }
 
 export async function validatePrototypeLedgerFile(filePath, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
@@ -261,6 +234,5 @@ export function formatValidationErrors(errors = []) {
 
 export function clearSchemaValidatorCaches() {
   schemaCache.clear();
-  ajvCache.clear();
   validatorCache.clear();
 }

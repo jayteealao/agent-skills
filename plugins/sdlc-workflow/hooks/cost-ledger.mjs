@@ -17,11 +17,11 @@
  * - Write ONLY cost.jsonl. Never touch 00-index.md.
  *
  * Hosts (one entrypoint, three payload shapes):
- * - Claude Code: hooks/hooks.json runs dist/cost-ledger.mjs; stdin carries
+ * - Claude Code: hooks/hooks.json runs hooks/cost-ledger.mjs; stdin carries
  *   `{ session_id, transcript_path, cwd }`; sub-agent transcripts sit at
  *   `<dirname(transcript_path)>/<session_id>/subagents/agent-<id>.jsonl`.
  * - Codex: hooks/codex.hooks.json runs the thin adapter hooks/stop-cost.mjs,
- *   which spawns dist/cost-ledger.mjs with `sdlc_plugin_data` in the payload;
+ *   which spawns hooks/cost-ledger.mjs with `sdlc_plugin_data` in the payload;
  *   the cursor lives under PLUGIN_DATA. When the event names no
  *   `transcript_path`, the rollout is located by session id under
  *   `$CODEX_HOME/sessions/` (the file name carries the session id).

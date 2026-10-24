@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * scripts/optimize.mjs — the disk side of /wf loop optimize (WF-OPTIMIZE-PLAN 4.2, D4).
- * Bundled to dist/optimize.mjs; skills/wf/scripts/optimize.mjs runs the bundle.
+ * skills/wf/scripts/optimize.mjs runs this script.
  *
  *   baseline        <root> <slug>                     the worktree, the guard, the metric `repeat` times, the holdout
  *   status          <root> <slug>                     running | complete | stopped | finished, and the next action

@@ -14,7 +14,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRequire } from 'node:module';
+import { compile } from '../../../lib/schema-check.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
@@ -188,12 +188,9 @@ test('W4.3 — the fidelity line reaches chat; dropping a directive needs a this
 
 // ── Schema round-trips (main tree owns the schema) ───────────────────────────
 test('schema — appetite / review-scope-confirmed / none-declared / charter-scenario validate', () => {
-  const require = createRequire(import.meta.url);
-  let Ajv;
-  try { Ajv = require('ajv'); } catch { return; } // ajv is a maintainer dep; skip if absent
   const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'schemas', 'frontmatter.schema.json'), 'utf8'));
   const defs = schema.$defs ?? schema.definitions;
-  const ajv = new Ajv({ allErrors: true, strict: false });
+  const ajv = { compile: (s) => compile(s, { root: schema }) };
   const idx = defs.indexFrontmatter.properties;
 
   const appetite = ajv.compile(idx.appetite);

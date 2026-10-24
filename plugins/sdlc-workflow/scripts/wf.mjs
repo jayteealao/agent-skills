@@ -26,7 +26,7 @@ import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { loadRegistry, reservedWords } from '../lib/registry.mjs';
 import { TERMINAL_WORKFLOW_STATUSES, scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 
-// scripts/ and dist/ both sit one level under the plugin root.
+// scripts/ sits one level under the plugin root.
 const PLUGIN_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const USAGE = 'Usage: wf.mjs <dispatch|status|index|cost|stamp> ...';
 const STALE_DAYS = 7;

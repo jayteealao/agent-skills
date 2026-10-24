@@ -15,7 +15,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   formatDoctorTable, parseClaudeInstalls, parseCodexConfig, readClaudeInstalls, readCodexInstalls,
-  runDoctor, shippedVersion, versionVerdict,
+  buildId, runDoctor, shippedVersion, versionVerdict,
 } from '../../../lib/doctor.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -179,4 +179,17 @@ test('runDoctor: an absent host is not a gap; a cache at shipped with no enabled
     assert.deepEqual(r3.cleanup, { done: true, left: [] });
     assert.match(formatDoctorTable(r3), /old hub and tray state\s+removed$/m);
   } finally { rmSync(home, { recursive: true, force: true }); }
+});
+
+test('buildId reads the SHA that the release writes, and is null without one', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'doctor-build-'));
+  try {
+    assert.equal(buildId(root), null);
+    writeFileSync(path.join(root, 'BUILD_SHA'), 'not a sha\n');
+    assert.equal(buildId(root), null);
+    writeFileSync(path.join(root, 'BUILD_SHA'), `${'a1'.repeat(20)}\n`);
+    assert.equal(buildId(root), 'a1'.repeat(20));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

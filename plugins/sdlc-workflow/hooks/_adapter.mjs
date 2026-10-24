@@ -5,14 +5,14 @@
 // payload → host adapter → normalized event → shared policy. This module is the
 // host adapter. It parses a Codex hook event off stdin, determines the final
 // touched files (apply_patch / Edit / Write), and reshapes them into the SHARED
-// normalized event — exactly the stdin contract the bundled shared-runtime
-// policy entrypoints already consume (`{ cwd, tool_input:{ file_path, edits[] } }`,
-// read by dist/{pre-write-validate,post-write-verify,post-write-auto-stage}.mjs
+// normalized event — exactly the stdin contract the shared policy
+// entrypoints already consume (`{ cwd, tool_input:{ file_path, edits[] } }`,
+// read by hooks/{pre-write-validate,post-write-verify,post-write-auto-stage}.mjs
 // via projectRootFromInput + collectToolInputPaths).
-// The plugin root IS the runtime root: one tree, one dist/.
+// The plugin root IS the runtime root: one tree, and the hooks run from the source.
 //
-// Reusing those bundled entrypoints — rather than re-implementing validation —
-// is what guarantees Claude/Codex parity: the SAME runtime bytes run the schema
+// Reusing those entrypoints — rather than re-implementing validation —
+// is what guarantees Claude/Codex parity: the SAME source runs the schema
 // and auto-stage policy on both hosts. The Codex-native part is only the adapter
 // (stdin parsing, apply_patch parsing, the Stop enforcement boundary) — never
 // the policy itself.
@@ -79,8 +79,8 @@ export function parseHookArgs(argv = process.argv.slice(2)) {
 
 /**
  * Resolve the package + runtime layout from the (Codex-substituted) plugin root.
- * In the single-source tree the plugin root IS the runtime root: the bundled
- * policy entrypoints are at <pluginRoot>/dist/<name>.mjs. `runtimeRoot` keeps
+ * In the single-source tree the plugin root IS the runtime root: the policy
+ * entrypoints are at <pluginRoot>/hooks/<name>.mjs. `runtimeRoot` keeps
  * its name so the hooks read the same way they did when the payload lived
  * under runtime/.
  * PLUGIN_DATA is the Codex-plugin-local writable dir; fall back to
@@ -92,13 +92,12 @@ export function resolveLayout({ pluginRoot, pluginData } = {}) {
   return {
     pluginRoot: root,
     runtimeRoot,
-    distDir: join(runtimeRoot, 'dist'),
     pluginData: pluginData ? resolve(pluginData) : join(root, '.plugin-data'),
   };
 }
 
-export function bundledEntry(runtimeRoot, name) {
-  return join(runtimeRoot, 'dist', `${name}.mjs`);
+export function policyEntry(runtimeRoot, name) {
+  return join(runtimeRoot, 'hooks', `${name}.mjs`);
 }
 
 /**
@@ -112,12 +111,12 @@ export function codexHostEnv(base = process.env) {
 }
 
 /**
- * Spawn a bundled shared-runtime policy entrypoint with `stdin` (an object,
+ * Spawn a shared policy entrypoint with `stdin` (an object,
  * JSON-encoded) on its stdin. Synchronous so the serialized dispatcher stays
  * sequential. Returns `{ status, stdout, stderr, timedOut }`. Never throws.
  */
-export function runBundled(runtimeRoot, name, stdin, { cwd, timeoutMs = 12000 } = {}) {
-  const r = spawnSync(process.execPath, [bundledEntry(runtimeRoot, name)], {
+export function runPolicy(runtimeRoot, name, stdin, { cwd, timeoutMs = 12000 } = {}) {
+  const r = spawnSync(process.execPath, [policyEntry(runtimeRoot, name)], {
     input: JSON.stringify(stdin ?? {}),
     cwd: cwd || process.cwd(),
     encoding: 'utf-8',
@@ -198,7 +197,7 @@ export function parseApplyPatch(text) {
 
 // ── normalized (shared-policy) stdin synthesis ──────────────────────────────────
 
-/** Synthesize the stdin the bundled multi-path policy (auto-stage + verify) consumes. */
+/** Synthesize the stdin the multi-path policy (auto-stage + verify) consumes. */
 export function synthMultiStdin(cwd, eventName, paths) {
   const list = paths.filter(Boolean);
   return {
@@ -212,7 +211,7 @@ export function synthMultiStdin(cwd, eventName, paths) {
   };
 }
 
-/** Synthesize the single-file stdin the bundled validate/auto-stage consume. */
+/** Synthesize the single-file stdin the validate/auto-stage consume. */
 export function synthSingleStdin(cwd, eventName, path, content) {
   const ti = { file_path: path };
   if (typeof content === 'string') ti.content = content;
@@ -304,7 +303,7 @@ export function emitPermissionRequestDecision(behavior, message) {
  * Climb from `cwd` to the project root: the nearest ancestor holding
  * `.ai/workflows`, else the nearest `.git` toplevel, else `cwd`. Mirrors the
  * shared lib's resolveProjectRoot intent without importing it (kept host-native
- * so the adapter has no bundled-chunk dependency).
+ * so the adapter has no dependency on lib/).
  */
 export function findProjectRoot(cwd) {
   let dir = resolve(cwd || process.cwd());

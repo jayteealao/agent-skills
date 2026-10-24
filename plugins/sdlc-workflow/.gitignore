@@ -1,14 +1,8 @@
-# This plugin ships SELF-CONTAINED (see SELF-CONTAINED-BUILD-PLAN.md): dist/ holds
-# committed, dependency-inlined esbuild bundles so a fresh marketplace install runs
-# with ZERO runtime `npm install`. dist/ is therefore INTENTIONALLY TRACKED — do not
-# add it here. The CI freshness gate rebuilds it and fails on drift.
-#
-# node_modules/ is a maintainer-only dev install (build + tests) and stays ignored.
+# The plugin runs from its source and has no runtime dependencies, so a fresh
+# marketplace install needs no `npm install`. There is no build output: an old
+# local dist/ is ignored, and nothing reads it.
 node_modules/
-
-# Never ignore the committed bundles, even if an ancestor .gitignore later adds dist/.
-!dist/
-!dist/**
+dist/
 
 # The tray app (TRAY-APP-PLAN.md) ships fully self-contained: the systray2 Go
 # helper binaries and the rasterized sunflower icons are COMMITTED so the tray

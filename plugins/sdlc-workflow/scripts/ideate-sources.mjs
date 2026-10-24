@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * scripts/ideate-sources.mjs — the disk side of /wf intake ideate with sources
- * (WF-IDEATE-SOURCES-PLAN 3–5). Bundled to dist/ideate-sources.mjs;
- * skills/wf/scripts/ideate-sources.mjs runs the bundle.
+ * (WF-IDEATE-SOURCES-PLAN 3–5).
+ * skills/wf/scripts/ideate-sources.mjs runs this script.
  *
  *   args      <root> <argument text...>             the kind of each argument (section 3)
  *   issues    <root> <slug> <S-id> <origin>         read issues with gh; write the redacted reference copy

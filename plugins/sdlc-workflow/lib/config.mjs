@@ -3,8 +3,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import Ajv2020 from 'ajv/dist/2020.js';
-import addFormats from 'ajv-formats';
+import { compile } from './schema-check.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_SCHEMA_PATH = resolve(__dirname, '..', 'schemas', 'sdlc-config.schema.json');
@@ -111,9 +110,7 @@ async function ensureConfigValidator(schemaPath = DEFAULT_SCHEMA_PATH) {
   const cached = configValidators.get(schemaPath);
   if (cached) return cached;
   const schema = JSON.parse(await readFile(schemaPath, 'utf-8'));
-  const ajv = new Ajv2020({ allErrors: true, strict: false });
-  addFormats(ajv);
-  const validate = ajv.compile(schema);
+  const validate = compile(schema);
   configValidators.set(schemaPath, validate);
   return validate;
 }

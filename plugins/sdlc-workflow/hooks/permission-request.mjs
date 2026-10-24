@@ -2,16 +2,17 @@
 // hooks/permission-request.mjs — Codex PermissionRequest adapter.
 //
 // Auto-ALLOWS a strict allowlist — `node <script>.mjs` invocations of this
-// plugin's own bundled runtime entrypoints (the hooks and skills spawn these
-// constantly: seed-memory, pre-write-validate, post-write-verify, campaign …) —
-// to cut approval-prompt fatigue. Everything else gets NO OPINION (silent
+// plugin's own scripts (the hooks and skills spawn these constantly:
+// seed-memory, pre-write-validate, post-write-verify, campaign …) — to cut
+// approval-prompt fatigue. A script is the plugin's when it is a direct child
+// of <plugin root>/hooks/, <plugin root>/scripts/ or
+// <plugin root>/skills/<skill>/scripts/. Everything else gets NO OPINION (silent
 // exit 0), which leaves the normal approval flow untouched; this hook never
 // denies. Every auto-allow is logged to ${PLUGIN_DATA}/permission-auto-allow.log
 // (CODEX-REMEDIATION-PLAN H4).
 
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
-import { homedir } from 'node:os';
 
 import { emitPermissionRequestDecision, parseHookArgs, readEvent, resolveLayout } from './_adapter.mjs';
 
@@ -50,12 +51,14 @@ function splitCommand(s) {
   return out;
 }
 
+const PLUGIN_SCRIPT = /^(hooks\/[^/]+|scripts\/[^/]+|skills\/[^/]+\/scripts\/[^/]+)\.mjs$/;
+
 /**
- * True only for `node <script>.mjs [...]` where the script resolves inside one
- * of the plugin's own runtime roots. Deliberately narrow: no shell operators
- * in the node token, script must be an .mjs under an allowed root.
+ * True only for `node <script>.mjs [...]` where the script resolves to a direct
+ * child of hooks/, scripts/ or skills/<skill>/scripts/ under the plugin root.
+ * Deliberately narrow: no shell operators in the node token, no deeper path.
  */
-export function isAllowedRuntimeInvocation(argv, allowedRoots) {
+export function isAllowedRuntimeInvocation(argv, pluginRoot) {
   if (!Array.isArray(argv) || argv.length < 2) return false;
   const exe = String(argv[0]).replace(/\\/g, '/');
   if (!/(^|\/)node(\.exe)?$/i.test(exe) && exe !== 'node') return false;
@@ -63,7 +66,8 @@ export function isAllowedRuntimeInvocation(argv, allowedRoots) {
   if (!/\.mjs$/i.test(script)) return false;
   const norm = normalize(script);
   if (!isAbsolute(script) && !norm.includes('/')) return false;
-  return allowedRoots.some((root) => norm.startsWith(normalize(root) + '/'));
+  const root = normalize(pluginRoot) + '/';
+  return norm.startsWith(root) && PLUGIN_SCRIPT.test(norm.slice(root.length));
 }
 
 function normalize(p) {
@@ -79,11 +83,7 @@ function main() {
   const argv = commandFromEvent(event);
   if (!argv) return;
 
-  const allowedRoots = [
-    join(layout.runtimeRoot, 'dist'), // bundled runtime entrypoints (plugin root/dist)
-    join(process.env.SDLC_HOME || join(homedir(), '.sdlc'), 'runtime'), // machine runtime store (hub-adopted); honors SDLC_HOME like lib/registry.mjs
-  ];
-  if (!isAllowedRuntimeInvocation(argv, allowedRoots)) return; // no opinion
+  if (!isAllowedRuntimeInvocation(argv, layout.pluginRoot)) return; // no opinion
 
   emitPermissionRequestDecision('allow', 'sdlc-workflow runtime invocation (plugin allowlist)');
   try {
