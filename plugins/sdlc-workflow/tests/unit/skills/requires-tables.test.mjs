@@ -21,7 +21,7 @@ const REF_DIR = path.join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 
 // The stage references: each owns a stage run and carries a Requires table.
 const STAGE_REFERENCES = [
-  'augment/benchmark.md', 'augment/experiment.md', 'augment/instrument.md', 'augment/profile.md',
+  'augment/benchmark.md', 'augment/experiment.md', 'augment/instrument.md', 'augment/profile.md', 'augment/tune.md',
   'design.md', 'docs.md', 'handoff.md', 'implement.md', 'intake.md',
   'intake/adopt.md', 'intake/audit.md', 'intake/brainstorm.md', 'intake/close.md', 'intake/default.md', 'intake/discover.md',
   'intake/extend.md', 'intake/fix.md', 'intake/hotfix.md', 'intake/ideate.md', 'intake/investigate.md',

@@ -142,11 +142,12 @@ If the work has a **core interaction loop** — numbered in the intake's Restate
 Classify the documentation this feature needs: new API surface or config → **reference**; user-facing behavior → **how-to guide**; a major new capability for new users → **tutorial**; architectural decisions or trade-offs → **explanation**; a significant change to project capabilities → **README update**. Write the classification into `## Documentation Plan`: for each doc, its type, audience, what it must cover, and what it must NOT cover. If no user-facing docs are needed (internal refactor, test-only change), write "None required" with reasoning.
 
 # Step 6b — Augmentation plan (perf / observability / rollout)
-Classify whether this work needs any of the four and record the decision so `plan`/`implement`/`verify` honor it:
+Classify whether this work needs any of the five and record the decision so `plan`/`implement`/`verify` honor it:
 - **instrument** (observability): a new flow that could fail silently, or whose adoption/latency matters → dark-path detection + signal design; artifact `04b-instrument.md`.
 - **experiment** (rollout scaffolding): risky enough to want A/B, a feature flag, or a canary with metrics + rollback → artifact `04c-experiment.md`.
 - **benchmark** (perf baseline+compare): a hot path, data-structure change, or rendering loop → baseline before implement, compare after; artifact `05c-benchmark.md`; regression tripwires >10% CPU / >25% memory.
 - **profile** (ad-hoc hotspot): a specific known hotspot → flag the area so `plan` can schedule it, or reach for it later via `/wf probe`.
+- **tune** (a number to reach): an acceptance criterion is a measured number that the build must move into a range (a latency, a size, an accuracy) → a bounded loop of rounds; artifact `05d-tune.md` per `augment/tune.md`.
 - Fold 1–2 questions into the discovery interview (*"Is any part of this perf-sensitive? Is the rollout risky enough for a flag/canary? Is there a behavior change worth instrumenting in production?"*). Ask only what the interview did not answer.
 - Write the result into `## Augmentation Plan` and set `augmentations-needed:` in frontmatter. REQUIRED even when the answer is none: write `augmentations-needed: []` and a one-line reason.
 
@@ -204,7 +205,7 @@ created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
 docs-needed: <true|false>
 docs-types: [<reference|how-to|tutorial|explanation|readme>]
-augmentations-needed: [<instrument|experiment|benchmark|profile>]   # [] when none (Step 6b)
+augmentations-needed: [<instrument|experiment|benchmark|profile|tune>]   # [] when none (Step 6b)
 charter-scenario: <authored | "none — <reason>">   # Step 5b; compressed modes omit
 files-in-scope: [<path>]            # from ## Affected Areas; design reads it
 tags: []
@@ -238,7 +239,7 @@ Body sections, in order:
   - **Force-scope rule (constraints get engineered, not documented).** When the Observation Model or the environment statement names an environment dependency on a headline outcome's critical path — credentials, a device, an external service, an inbound callback, infrastructure that does not yet exist (a TURN relay, a staging deploy) — route it into scope, not prose. Exactly one of: flag a **candidate prerequisite slice or harness** for `slice` to scope; state the **proxy observation** the plan holds pre-deploy plus the **named event that clears the residual** ("cleared by the first `-rc.N` prerelease CI run"); or record **explicit PO risk-acceptance** with `decide add --stage shape` per [_decisions.md](_decisions.md). Writing "known limitation — document at handoff" while an AC depends on that limitation is ILLEGAL. `plan` enforces this per-AC through its `constraint-resolution:` gate.
   - **Outcome-metric criteria need a pre-deploy proxy.** A live outcome metric ("rich-preview rate ≥ 75% over the live corpus") pairs with a pre-deploy proxy observation (a fixture-corpus assertion over the top-N recorded failure pages) so verification holds *something* before ship; the live metric becomes the clearing event for the residual.
 - `## Documentation Plan` (Diátaxis): per doc, **Type** (tutorial / how-to / reference / explanation / readme-update), **Audience** (beginner / competent user / maintainer), **Must cover**, **Must NOT cover**, **Target location**; or "None required — [reason]".
-- `## Augmentation Plan` (required even when none): per flagged augmentation — **instrument** → signals and dark paths (`plan` folds signal design in; `implement` wires it); **experiment** → hypothesis, mechanism (A/B / flag / canary), metrics + rollback; **benchmark** → what to measure and the perf budget (`verify` compares against the tripwires); **profile** → the hotspot. If none: "None required — [reason]" and `augmentations-needed: []`.
+- `## Augmentation Plan` (required even when none): per flagged augmentation — **instrument** → signals and dark paths (`plan` folds signal design in; `implement` wires it); **experiment** → hypothesis, mechanism (A/B / flag / canary), metrics + rollback; **benchmark** → what to measure and the perf budget (`verify` compares against the tripwires); **profile** → the hotspot; **tune** → the metric, the target range, the harness command and the levers. If none: "None required — [reason]" and `augmentations-needed: []`.
 - `## Freshness Research`: Source / Why it matters / Takeaway per entry.
 
 # Additive-write contract

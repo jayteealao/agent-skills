@@ -84,6 +84,7 @@ export const PRODUCERS = [
   { match: /^04c-experiment\.md$/, templates: ['augment/experiment/_artifact.md'] },
   { match: /^05-implement(-.+)?\.md$/, templates: ['implement/_artifact.md', 'intake/update-deps/_exec-artifacts.md', 'intake/adopt/_artifacts.md', 'intake/task.md'] },
   { match: /^05c-benchmark\.md$/, templates: ['augment/benchmark/_artifact.md'] },
+  { match: /^05d-tune\.md$/, templates: ['augment/tune.md'] },
   { match: /^06-verify(-.+)?\.md$/, templates: ['verify/_artifact.md', 'intake/update-deps/_exec-artifacts.md', 'intake/task.md'] },
   // Reviews: the sweep ledger (slug-wide or per slice) and the design reviews.
   { match: /^07-design-audit\.md$/, templates: ['design/audit.md'] },

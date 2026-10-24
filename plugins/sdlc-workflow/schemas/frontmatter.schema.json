@@ -1319,7 +1319,7 @@
         "next-invocation": {"type":"string"},
         "type": { "const": "augmentation" },
         "augmentation-type": {
-          "enum": ["benchmark", "experiment", "instrument", "rca"]
+          "enum": ["benchmark", "experiment", "instrument", "rca", "tune"]
         },
         "parent-workflow": { "type": "string" }
       },
@@ -1373,6 +1373,24 @@
               "signals-designed":  { "type": "integer", "minimum": 0 },
               "pii-warnings": { "type": "boolean" },
               "status": { "const": "ready" },
+              "created-at": { "$ref": "#/$defs/iso8601" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "augmentation-type": { "const": "tune" } } },
+          "then": {
+            "required": ["slice", "mode", "metric", "target", "harness", "levers", "round-budget", "rounds-run", "result", "created-at"],
+            "properties": {
+              "slice": { "type": "string", "minLength": 1 },
+              "mode": { "enum": ["spike", "rounds", "complete"], "description": "augment/tune.md: plan writes the spike, implement runs the rounds." },
+              "metric": { "type": "string", "minLength": 1 },
+              "target": { "type": "string", "minLength": 1 },
+              "harness": { "type": "string", "minLength": 1, "description": "The one command that prints the number." },
+              "levers": { "type": "array", "items": { "type": "string" } },
+              "round-budget": { "type": "integer", "minimum": 1 },
+              "rounds-run": { "type": "integer", "minimum": 0 },
+              "result": { "enum": ["open", "met", "budget-spent", "stalled"] },
               "created-at": { "$ref": "#/$defs/iso8601" }
             }
           }

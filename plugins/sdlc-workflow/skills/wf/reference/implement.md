@@ -106,6 +106,9 @@ Apply [_workflow-rules.md](_workflow-rules.md).
    | `instrument` | `04b-instrument.md` | **Implement the instrumentation signals defined in the plan.** Each dark-path entry has a designed signal; add the log/metric/trace call to the code being implemented, with the framework named in the artifact. |
    | `experiment` | `04c-experiment.md` | **Wire up the experiment.** Add the feature flag, cohort split logic, and metric instrumentation defined in the artifact, with both the variant and control paths. |
    | `benchmark` (mode: baseline) | `05c-benchmark.md` | Note the baseline numbers; the implementation may not regress them. `verify` re-runs the compare (loads `augment/benchmark.md` in compare mode). |
+   | `tune` | `05d-tune.md` | **Run the rounds** of `augment/tune.md`: one lever per round, the harness after each commit, until the target is met, the budget is spent, or the number stalls. |
+
+   **Start a tune loop yourself** when a plan step's done check is a measured number and the first build misses it. Write `05d-tune.md` per `augment/tune.md`, with the metric, the target and the harness of that step. Register it in `00-index.md` `augmentations:` with `type: tune`. Then run the rounds.
 
    **Apply the design planning artifacts** (separate from augmentations):
    - `02b-design.md`, the design brief: carry forward the design mode of each surface, color strategy, and anti-goals.

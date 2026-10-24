@@ -46,6 +46,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `augment/instrument.md` | procedure | mode:instrument | |
 | `augment/experiment.md` | procedure | mode:experiment | |
 | `augment/benchmark.md` | procedure | mode:benchmark | |
+| `augment/tune.md` | procedure | mode:tune | |
 | `04-plan-<slice>.md` | writes | | |
 | `04-plan.md` | writes | | |
 
@@ -128,11 +129,12 @@ Do not rerun shape's "what driver should we use?" question. If the PO answered i
 
 Merge all findings into `## Current State`, `## Likely Files / Areas to Touch`, and `## Freshness Research`.
 
-**Author the augmentations after research.** Read `augmentations-needed` from `02-shape.md` frontmatter (absent or `[]` → skip). Run each type's artifact-authoring mode in this order: `instrument` → `experiment` → `benchmark` → `profile`.
+**Author the augmentations after research.** Read `augmentations-needed` from `02-shape.md` frontmatter (absent or `[]` → skip). Run each type's artifact-authoring mode in this order: `instrument` → `experiment` → `benchmark` → `profile` → `tune`.
 - `instrument`: author `04b-instrument.md` per `augment/instrument.md`. Fold the signals into the plan steps.
 - `experiment`: author `04c-experiment.md` per `augment/experiment.md`. Fold the flag and cohort wiring into the plan steps.
 - `benchmark`: capture the baseline into `05c-benchmark.md` per `augment/benchmark.md` in baseline mode. Add a "compare after implement" step for `verify`.
 - `profile`: add a plan step only when shape flagged a hotspot. `/wf probe` or `augment/profile.md` runs it later.
+- `tune`: run the feasibility spike of `augment/tune.md`: write `05d-tune.md` with its baseline, and plan the rounds as steps.
 Each augmentation reference registers its entry in `00-index.md` `augmentations:` with `status: ready`.
 
 **Parallel plan mode (`all`).** Launch one sub-agent PER SLICE. Each receives the slug, its slice-slug, the `03-slice-<slice-slug>.md` and `02-shape.md` content, the output path `.ai/workflows/<slug>/04-plan-<slice-slug>.md`, and the list of other slice-slugs. Each prompt carries the line `Prompt-fed inputs: 02-shape.md, 03-slice-<slice-slug>.md`. Each runs all four playbooks for its slice, writes its plan to that path, and the sibling `04-plan-<slice-slug>.yaml` per Step F. The sub-agents never write `04-plan.md`. The orchestrator never backfills siblings. Each sub-agent prompt includes Step F unchanged with every reference path resolved to an absolute path per [_host-invocation.md](_host-invocation.md). After all sub-agents complete: read every plan; run the cohesion check (shared files, ordered migrations, shared fixtures, breaking API changes, interacting config); write the master `04-plan.md`; on severe cohesion issues, recommend `/wf slice`. Only the orchestrator writes `04-plan.md`. Under `/wf yolo`, the driver's bookkeeping agent writes it.

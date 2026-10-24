@@ -23,6 +23,7 @@ Launch only if `02c-craft.md` exists or the `augmentations:` list is non-empty. 
 | `design-critique` | Read `07-design-critique.md`; note actioned vs unactioned recommendations. |
 | `instrument` | Read `04b-instrument.md`; for each designed signal, exercise the affected path and confirm the log/metric/trace fires (tests, live observation, or log grep); report missing signals. |
 | `experiment` | Read `04c-experiment.md`; confirm the feature flag is wired, the cohort split produces the documented distribution, primary/secondary/guardrail metrics fire on the expected events, and the rollback path works. |
+| `tune` | Read `05d-tune.md`; run its `harness` on the final commit, and confirm the number is inside `target` when `result: met`. A number outside the range fails the acceptance criterion. |
 | `benchmark` (mode: baseline) | Load `augment/benchmark.md` in compare mode; compare against the `05c-benchmark.md` baseline; flag regressions past the documented tripwires (default >10% CPU / >25% memory). |
 
 **Reporting.** Pass: all mock fidelity items honored, all type checks pass, no critical finding outstanding. Fail: each failure with severity; these become BLOCKER or HIGH issues for `/wf review`.
