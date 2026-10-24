@@ -26,9 +26,8 @@ commit, tag or push.
 1. **preflight.** HEAD is on `master` and is not behind `origin/master`. The
    paths that the release writes have no uncommitted change. Every gate
    passes: the suite, the generated files, `lint:drift`, `verify:versions`,
-   `verify:neutrality`, `verify:surface`, `verify:docs` and
-   `verify:legibility`. The last run of `.github/workflows/sdlc-gates.yml` on
-   `master` is green (`gh run list`).
+   `verify:neutrality`, `verify:surface` and `verify:docs`. The last run of
+   `.github/workflows/sdlc-gates.yml` on `master` is green (`gh run list`).
 2. **prepare.** The `## [Unreleased]` CHANGELOG section becomes
    `## [X.Y.Z] - <date>`. With no Unreleased text, the commit subjects since
    the last tag make the section. `package.json` takes the new version, and
@@ -48,8 +47,9 @@ commit, tag or push.
    that has it: `claude plugin marketplace update`, `claude plugin update` for
    each scope (a local scope runs from its project folder), and
    `codex plugin marketplace upgrade`. Then doctor must report OK.
-6. **report.** When `skills/wf/keys.json` changed since the previous tag, the
-   command says so: update the command page.
+6. **report.** When `docs/commands.html` changed since the previous tag, the
+   command says so: republish the artifact of the command page from the local
+   copy. The `verify:docs` gate already holds the page to the keys.
 
 WARNING: the publish step pushes to the public remote. A pushed release cannot
 be taken back. Read the preflight output before you run the command a second

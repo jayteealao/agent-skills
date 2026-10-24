@@ -7,11 +7,10 @@
  *
  *   1. THREE in-tree carriers must agree on one version:
  *        .claude-plugin/plugin.json · .codex-plugin/plugin.json · package.json
- *      (plus the derived carriers: the docs/site/nav.html brand line and
- *      package-lock.json's root version).
+ *      (plus the derived carrier: package-lock.json's root version).
  *
- *      `npm version <level>` stamps every carrier (scripts/stamp-version.mjs),
- *      rebuilds, and runs this guard; the guard stays the gate.
+ *      `npm run release <level>` stamps every carrier (scripts/stamp-version.mjs),
+ *      and this guard is one of its gates.
  *   2. The two REPO-ROOT catalogs, which resolve at a pinned commit SHA:
  *        .claude-plugin/marketplace.json pins the plugin version explicitly
  *          → a VERSION check;
@@ -59,12 +58,6 @@ export function checkVersions({ pluginRoot = PLUGIN_ROOT, repoRoot = REPO_ROOT }
     carriers['package-lock'] = lv;
     if (lv !== version) problems.push(`package-lock.json version ${lv} ≠ ${version}`);
     if (pv !== undefined && pv !== version) problems.push(`package-lock.json packages[""].version ${pv} ≠ ${version}`);
-  }
-  const nav = path.join(pluginRoot, 'docs', 'site', 'nav.html');
-  if (existsSync(nav)) {
-    const m = /plugin docs · v(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)/.exec(readFileSync(nav, 'utf8'));
-    carriers['nav.html'] = m?.[1];
-    if (m?.[1] !== version) problems.push(`docs/site/nav.html brand ${m?.[1]} ≠ ${version}`);
   }
   const codexName = existsSync(codex) ? readJson(codex).name : null;
   if (codexName !== 'sdlc-workflow') problems.push(`.codex-plugin/plugin.json name is ${codexName}, expected sdlc-workflow`);

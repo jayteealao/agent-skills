@@ -13,7 +13,7 @@
  *   publish    one commit of those paths only, an annotated tag, a push of master and the tag
  *   delivered  origin/master and the remote tags carry the release
  *   install    a reinstall on each host of this machine, then doctor must say OK
- *   report     the command page needs an update when skills/wf/keys.json changed
+ *   report     the artifact needs a republish when docs/commands.html changed
  *
  * `next` is the channel for daily work: 9.x.y → 10.0.0-next.0 → 10.0.0-next.1 … and
  * `major` ships 10.0.0 from the last next. A file another session changed is never staged.
@@ -27,6 +27,7 @@ import { fileURLToPath } from 'node:url';
 import { BUILD_SHA_FILE, readClaudeInstalls, readCodexInstalls, runDoctor, formatDoctorTable, versionVerdict, MARKETPLACE, PLUGIN_NAME } from '../lib/doctor.mjs';
 import { stampVersion } from './stamp-version.mjs';
 import { generate } from './generate.mjs';
+import { COMMAND_PAGE } from './verify-docs.mjs';
 
 const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -40,7 +41,7 @@ export const PLANS_DIR = 'docs/internal';
 /** The paths the release writes, relative to the plugin root. */
 export const OWNED = [
   'package.json', 'package-lock.json', 'CHANGELOG.md', BUILD_SHA_FILE,
-  '.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'docs/site/nav.html',
+  '.claude-plugin/plugin.json', '.codex-plugin/plugin.json',
   '../../.claude-plugin/marketplace.json',
 ];
 
@@ -52,8 +53,7 @@ export const GATES = [
   ['versions', ['scripts/verify-release-versions.mjs']],
   ['neutrality', ['scripts/verify-host-neutrality.mjs']],
   ['surface', ['scripts/verify-surface.mjs']],
-  ['docs', ['scripts/verify-doc-site.mjs']],
-  ['legibility', ['scripts/verify-doc-legibility.mjs']],
+  ['docs', ['scripts/verify-docs.mjs']],
 ];
 
 export class ReleaseStop extends Error {}
@@ -367,11 +367,12 @@ async function install(ctx, state) {
   if (!report.ok) stop('doctor: a host does not run the released version');
 }
 
+/** The docs gate keeps the command page in line with the registry; a changed page needs its artifact republished. */
 function report(ctx, state) {
   const prev = ctx.git('describe', '--tags', '--abbrev=0', '--match', 'v*', `v${state.version}^`).out;
-  const changed = prev && !ctx.git('diff', '--quiet', prev, `v${state.version}`, '--', 'skills/wf/keys.json').ok;
-  state.keysChanged = Boolean(changed);
-  if (changed) ctx.log(`[release]   the keys changed since ${prev}: update the command page`);
+  const changed = prev && !ctx.git('diff', '--quiet', prev, `v${state.version}`, '--', COMMAND_PAGE).ok;
+  state.pageChanged = Boolean(changed);
+  if (changed) ctx.log(`[release]   ${COMMAND_PAGE} changed since ${prev}: republish its artifact from the local copy`);
 }
 
 const STEP_FN = { preflight, prepare, publish, delivered, install, report };

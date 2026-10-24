@@ -24,7 +24,6 @@ const PLUGIN_FILES = [
   'package-lock.json',
   '.claude-plugin/plugin.json',
   '.codex-plugin/plugin.json',
-  'docs/site/nav.html',
 ];
 const REPO_FILES = ['.claude-plugin/marketplace.json', '.agents/plugins/marketplace.json'];
 
@@ -59,7 +58,6 @@ test('stamp-version: stamps every carrier from package.json and the gate accepts
       '../../.claude-plugin/marketplace.json',
       '.claude-plugin/plugin.json',
       '.codex-plugin/plugin.json',
-      'docs/site/nav.html',
       'package-lock.json',
     ]);
     assert.deepEqual(r.missing, []);
@@ -71,7 +69,6 @@ test('stamp-version: stamps every carrier from package.json and the gate accepts
     const lock = JSON.parse(readFileSync(join(plugin, 'package-lock.json'), 'utf8'));
     assert.equal(lock.version, '99.1.2');
     assert.equal(lock.packages[''].version, '99.1.2');
-    assert.match(readFileSync(join(plugin, 'docs/site/nav.html'), 'utf8'), /plugin docs · v99\.1\.2/);
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }
@@ -84,7 +81,7 @@ test('stamp-version: a second stamp is a no-op (idempotent)', () => {
     stampVersion({ pluginRoot: plugin, repoRoot: repo });
     const again = stampVersion({ pluginRoot: plugin, repoRoot: repo });
     assert.deepEqual(again.changed, []);
-    assert.equal(again.unchanged.length, 5);
+    assert.equal(again.unchanged.length, 4);
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }
@@ -114,7 +111,7 @@ test('stamp-version: --check semantics — dryRun reports drift without writing'
   try {
     bumpPackageJson(plugin, '99.7.8');
     const dry = stampVersion({ pluginRoot: plugin, repoRoot: repo, dryRun: true });
-    assert.equal(dry.changed.length, 5);
+    assert.equal(dry.changed.length, 4);
     assert.notEqual(JSON.parse(readFileSync(join(plugin, '.claude-plugin/plugin.json'), 'utf8')).version, '99.7.8');
   } finally {
     rmSync(repo, { recursive: true, force: true });

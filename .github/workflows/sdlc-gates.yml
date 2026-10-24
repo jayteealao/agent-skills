@@ -1,7 +1,7 @@
 name: sdlc-workflow gates
 
 # `gates` runs the unit suite and the release gates (versions, host-neutrality,
-# drift, surface, doc site) on every change under the plugin or either root
+# drift, surface, docs) on every change under the plugin or either root
 # catalog. The plugin runs from its source with no dependencies, so there is no
 # build to check and no install step.
 on:
@@ -42,5 +42,4 @@ jobs:
           npm run verify:neutrality
           npm run lint:drift
           npm run verify:surface
-          npm run verify
-          npm run verify:legibility
+          npm run verify:docs

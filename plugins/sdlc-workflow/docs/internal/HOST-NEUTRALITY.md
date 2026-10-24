@@ -34,8 +34,8 @@ Every other file states the INTENT and cites one of those files.
   `codex` / `claude` / `gemini` CLIs; `imagery` lists Codex's built-in
   `image_gen` beside the scripted providers. Those are product names of the
   oracle panel, enumerated per file in the gate's `DATA_EXCEPTIONS`.
-- **The doc site** has its own gate (`verify-doc-site.mjs` invariants e and f):
-  every page that shows a `/wf` invocation carries the uniform host note, and no
+- **The user docs** (the README and `docs/commands.html`) have their own gate,
+  `verify-docs.mjs`: the command page switches the prefix for each host, and no
   live doc names the deleted second plugin tree (the pre-merge Codex mirror).
 
 ## The gate

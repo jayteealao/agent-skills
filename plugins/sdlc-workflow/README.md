@@ -2,7 +2,7 @@
 
 A plugin that runs software work as a disciplined lifecycle. Every feature, fix, or spike moves through the same sequence of stages. Each stage writes a permanent, machine-readable artifact under `.ai/workflows/<slug>/` in your repository, and the next stage reads it. Hooks verify each artifact as it lands.
 
-The full documentation is the site under [docs/site/](docs/site/index.html). This file is the map.
+Every command, mode and setting is on one page: [docs/commands.html](docs/commands.html). Open it in a browser. This file is the map.
 
 ## Hosts
 
@@ -14,15 +14,33 @@ One source tree serves three hosts. The skill prose is written once and is host-
 | Codex | `.codex-plugin/plugin.json`, `hooks/codex.hooks.json` | `$wf …` |
 | pi (`pi-code` extension) | the Claude Code plugin cache and hook wiring | `/skill:wf …` |
 
-All three hosts share the hooks and the `.ai/` artifacts. A workflow started under one host resumes under another. `/wf yolo` runs under Claude Code only. Codex selects the skills (`$wf`, `$consult`, `$diataxis`, `$study-sources`, `$imagery`, `$uiproto`) only when you name them. The per-host differences are in [reference/hosts.html](docs/site/reference/hosts.html).
+All three hosts share the hooks and the `.ai/` artifacts. A workflow started under one host resumes under another. `/wf yolo` runs under Claude Code only. Codex selects the skills (`$wf`, `$consult`, `$diataxis`, `$study-sources`, `$imagery`, `$uiproto`) only when you name them. The command page names each host difference.
 
 ## Install
 
-Follow [start/installation.html](docs/site/start/installation.html). It covers the marketplace add for each host, the one-time Codex hook trust, and the checks that confirm the install (`npm run verify:deployment`).
+The plugin needs Node.js 22 or newer and git. It has no dependencies to install.
+
+Claude Code: add the marketplace, then install the plugin, then start a new session.
+
+```text
+/plugin marketplace add jayteealao/agent-skills
+/plugin install sdlc-workflow@agent-skills-marketplace
+```
+
+Codex: `codex features list` must show `plugins` and `hooks` as true. Add the marketplace and the plugin:
+
+```bash
+codex plugin marketplace add https://github.com/jayteealao/agent-skills
+codex plugin add sdlc-workflow@agent-skills-marketplace
+```
+
+Then open a Codex session and run `/hooks`. Trust all seven events (SessionStart, SubagentStart, PreToolUse, PermissionRequest, PostToolUse, Stop, SubagentStop). Codex skips an untrusted hook without an error. `npm run verify:deployment`, run from the installed plugin folder, reports the Codex state.
+
+To confirm the install, type `/wf` with no arguments. It asks what you want to do.
 
 ## Your first workflow
 
-Follow [start/your-first-workflow.html](docs/site/start/your-first-workflow.html). The standard lifecycle is:
+The standard lifecycle is:
 
 ```text
 /wf intake <description>   → 01-intake.md
@@ -37,7 +55,7 @@ Follow [start/your-first-workflow.html](docs/site/start/your-first-workflow.html
 /wf retro <slug>           → 10-retro.md
 ```
 
-You can also type plain words: `/wf keep going on export` or `/wf how do I ship a hotfix`. `/wf` shows the command it would run and runs it after your yes. `/wf status` shows every workflow and the next command for each. `/wf auto <slug>` drives the lifecycle and pauses only at a stage's own gate. For small work, `/wf intake fix <description>` runs a compressed entry; [start/everyday-fixes.html](docs/site/start/everyday-fixes.html) lists the lanes.
+You can also type plain words: `/wf keep going on export` or `/wf how do I ship a hotfix`. `/wf` shows the command it would run and runs it after your yes. `/wf status` shows every workflow and the next command for each. `/wf auto <slug>` drives the lifecycle and pauses only at a stage's own gate. For small work, `/wf intake fix <description>` runs a compressed entry; the command page lists the lanes.
 
 ## The 19 keys
 
@@ -67,29 +85,22 @@ You can also type plain words: `/wf keep going on export` or `/wf how do I ship 
 `yolo`, `campaign` and `loop optimize` have gaps on Codex and pi.
 <!-- end generated -->
 
-Arguments and artifacts for each key are in [reference/commands.html](docs/site/reference/commands.html). The surface is frozen by [docs/internal/SURFACE-POLICY.md](docs/internal/SURFACE-POLICY.md); `npm run verify:surface` enforces the pins.
+Arguments and artifacts for each key are on the [command page](docs/commands.html). The surface is frozen by [docs/internal/SURFACE-POLICY.md](docs/internal/SURFACE-POLICY.md); `npm run verify:surface` enforces the pins.
 
 ## Hooks
 
-Hooks verify each managed artifact on write, stage it, and record the turn's exact token usage to `.ai/workflows/<slug>/cost.jsonl`. They never block a valid write. [reference/hooks.html](docs/site/reference/hooks.html) lists every hook and its event. One setting in `.ai/sdlc-config.json`, `checks`, sets how the checks act: `strict` (the default) refuses a write that fails a gate, `warn` lets it stand with a warning, and `off` runs no check ([reference/configuration.html](docs/site/reference/configuration.html)).
+Hooks verify each managed artifact on write, stage it, and record the turn's exact token usage to `.ai/workflows/<slug>/cost.jsonl`. They never block a valid write. One setting in `.ai/sdlc-config.json`, `checks`, sets how the checks act: `strict` (the default) refuses a write that fails a gate, `warn` lets it stand with a warning, and `off` runs no check. The command page lists every setting.
 
 One hook is a Claude Code mod: `hooks/mod/register.ts`, a function-hooks module with one job. The model cannot type the built-in `/goal`, so at the end of a `/wf loop goal` turn the mod puts the `/goal` line into the prompt box for your Enter; in the Desktop app it sends the line at once. It needs `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`. Without the flag the module does not load, and you paste the `/goal` line that `/wf loop goal` prints.
-
-## Site map
-
-- Start: [installation](docs/site/start/installation.html) · [your first workflow](docs/site/start/your-first-workflow.html) · [everyday fixes](docs/site/start/everyday-fixes.html)
-- Concepts: [why artifacts](docs/site/concepts/why-artifacts.html) · [evidence and gates](docs/site/concepts/evidence-and-gates.html) · [the machinery](docs/site/concepts/the-machinery.html)
-- Guides: [choose your entry](docs/site/guides/choose-your-entry.html) · [the standard lifecycle](docs/site/guides/the-standard-lifecycle.html) · [quick lanes](docs/site/guides/quick-lanes.html) · [investigation](docs/site/guides/investigation.html) · [design](docs/site/guides/design.html) · [autonomous drivers](docs/site/guides/autonomous-drivers.html) · [releasing](docs/site/guides/releasing.html) · [staying oriented](docs/site/guides/staying-oriented.html)
-- Reference: [commands](docs/site/reference/commands.html) · [intake modes](docs/site/reference/intake-modes.html) · [review dimensions](docs/site/reference/review-dimensions.html) · [artifacts](docs/site/reference/artifacts.html) · [hooks](docs/site/reference/hooks.html) · [configuration](docs/site/reference/configuration.html) · [hosts](docs/site/reference/hosts.html) · [skills](docs/site/reference/skills.html) · [glossary](docs/site/reference/glossary.html)
 
 ## Develop
 
 ```bash
 npm test                # unit suite
 npm run lint:drift      # forms, links, settings and generated files against the source
-npm run verify:docs     # doc-site gate, including this file's line and name rules
+npm run verify:docs     # the command page lists the registry; this file's line and name rules
 ```
 
-The hooks and scripts run from the source with Node 22 and no dependencies, so there is no build step and no `npm install`.
+The hooks and scripts run from the source with Node 22 and no dependencies, so there is no build step and no `npm install`. When the keys change, update [docs/commands.html](docs/commands.html), and republish its artifact from it.
 
 Release steps are in [docs/internal/RELEASE-DISCIPLINE.md](docs/internal/RELEASE-DISCIPLINE.md). The change log is [CHANGELOG.md](CHANGELOG.md).

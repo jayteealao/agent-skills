@@ -162,7 +162,7 @@ test('_subagents.md pins the effort-tier → host mapping', () => {
   assert.match(src, /A \*\*research sub-agent\*\* is a read-only child/, 'the research sub-agent definition must stay');
 });
 
-test('doc-site gate passes (invariants a–f, incl. the host note on every /wf page)', () => {
-  const r = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'verify-doc-site.mjs')], { cwd: pluginRoot, encoding: 'utf8' });
+test('docs gate passes (the command page lists the registry, the README rules hold)', () => {
+  const r = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts', 'verify-docs.mjs')], { cwd: pluginRoot, encoding: 'utf8' });
   assert.equal(r.status, 0, `${r.stdout}\n${r.stderr}`);
 });

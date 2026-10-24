@@ -74,7 +74,7 @@ test('no source file infers the host from its own path or plugin directory name'
   // file cannot slip in with a path-based host inference (v9.153.2). The doctors
   // and the single-source gates name the deleted tree on purpose (legacy
   // detection) and are excluded by name.
-  const exempt = new Set(['scripts/verify-deployment.mjs', 'scripts/verify-host-neutrality.mjs', 'scripts/verify-release-versions.mjs', 'scripts/verify-doc-site.mjs']);
+  const exempt = new Set(['scripts/verify-deployment.mjs', 'scripts/verify-host-neutrality.mjs', 'scripts/verify-release-versions.mjs', 'scripts/verify-docs.mjs']);
   for (const dir of ['hooks', 'lib', 'scripts']) {
     for (const name of readdirSync(join(PKG_ROOT, dir))) {
       if (!name.endsWith('.mjs')) continue;

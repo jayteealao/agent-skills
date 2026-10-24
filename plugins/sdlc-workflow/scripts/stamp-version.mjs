@@ -10,7 +10,6 @@
  *   .claude-plugin/plugin.json                 version
  *   .codex-plugin/plugin.json                  version
  *   package-lock.json                          version + packages[""].version
- *   docs/site/nav.html                         brand line `plugin docs · vX.Y.Z`
  *   <repo>/.claude-plugin/marketplace.json     plugins[name=sdlc-workflow].version
  *
  * The catalog's own top-level `version` is the marketplace release line,
@@ -70,9 +69,6 @@ export function stampVersion({ pluginRoot = PLUGIN_ROOT, repoRoot = REPO_ROOT, v
       const pkgRoot = replaceVersionAfter(root, /"packages":\s*\{\s*"":\s*\{/, v);
       return pkgRoot ?? root;
     }],
-    [path.join(pluginRoot, 'docs', 'site', 'nav.html'), (t) => (
-      /plugin docs · v\d+\.\d+\.\d+/.test(t) ? t.replace(/plugin docs · v\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?/, `plugin docs · v${v}`) : null
-    )],
     [path.join(repoRoot, '.claude-plugin', 'marketplace.json'), (t) => replaceVersionAfter(t, /"name":\s*"sdlc-workflow"/, v)],
   ];
 

@@ -1,0 +1,1665 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>wf Command Reference</title>
+<meta name="wf:commands" content="auto, campaign, design, docs, handoff, implement, intake, intake adopt, intake amend, intake audit, intake brainstorm, intake close, intake discover, intake fix, intake hotfix, intake ideate, intake investigate, intake modernize, intake optimize, intake rca, intake refactor, intake simplify, intake task, intake update-deps, loop, loop goal, loop optimize, loop prototype, plan, probe, project, project observability, project ship-plan, retro, review, shape, ship, slice, status, status recap, verify, yolo">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+<style>
+/* Layout: a field manual for one CLI. Sticky search bar on top, a section index at the left,
+   and every command as a man-page entry (name and facts left, grammar and prose right).
+   Palette and faces follow the sdlc-workflow doc site: warm paper, ink, sunflower amber. */
+:root {
+  --paper: #faf6ee;
+  --paper-deep: #f3ecdf;
+  --panel: #fffdf8;
+  --ink: #262118;
+  --ink-soft: #6d6353;
+  --accent: #a16207;
+  --accent-wash: rgba(161, 98, 7, 0.09);
+  --rule: #ddd2bf;
+  --rule-soft: #e9e1d2;
+  --code-bg: #f1ebde;
+  --sub: #3f6b4a;
+  --info: #3d5a80;
+  --gate: #a3402a;
+  --serif: "Source Serif 4", "Iowan Old Style", "Palatino Linotype", Palatino, Charter, Georgia, serif;
+  --mono: "JetBrains Mono", "Cascadia Code", ui-monospace, "SF Mono", Consolas, monospace;
+  --bar-h: 64px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #191612; --paper-deep: #211d17; --panel: #1d1a15; --ink: #ece4d4; --ink-soft: #a2967f;
+    --accent: #d9a441; --accent-wash: rgba(217, 164, 65, 0.11); --rule: #3a332a; --rule-soft: #2b2620;
+    --code-bg: #24201a; --sub: #8fc19c; --info: #9db6d8; --gate: #e08a70; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #191612; --paper-deep: #211d17; --panel: #1d1a15; --ink: #ece4d4; --ink-soft: #a2967f;
+  --accent: #d9a441; --accent-wash: rgba(217, 164, 65, 0.11); --rule: #3a332a; --rule-soft: #2b2620;
+  --code-bg: #24201a; --sub: #8fc19c; --info: #9db6d8; --gate: #e08a70; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: var(--accent); color: var(--paper); }
+a { color: inherit; }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.2; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+/* ---- top bar --------------------------------------------------------- */
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--rule);
+}
+.bar-in {
+  max-width: 1240px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.brand { font-family: var(--mono); font-weight: 600; font-size: 1rem; letter-spacing: -0.01em; white-space: nowrap; text-decoration: none; }
+.brand b { color: var(--accent); font-weight: 600; }
+.search { flex: 1 1 280px; min-width: 0; position: relative; }
+.search input {
+  width: 100%; font: 500 0.92rem var(--mono); color: var(--ink);
+  background: var(--panel); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 9px 74px 9px 34px;
+}
+.search input::placeholder { color: var(--ink-soft); }
+.search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-wash); }
+.search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; stroke: var(--ink-soft); fill: none; stroke-width: 2; }
+.search .hint { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font: 500 0.72rem var(--mono); color: var(--ink-soft); display: flex; gap: 8px; align-items: center; }
+.search kbd { font: inherit; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--paper-deep); }
+.host { display: flex; align-items: center; gap: 8px; font: 500 0.72rem var(--mono); color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg button {
+  font: 500 0.8rem var(--mono); color: var(--ink-soft); background: none; border: 0; padding: 7px 10px; cursor: pointer;
+  text-transform: none; letter-spacing: 0;
+}
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--accent-wash); color: var(--accent); font-weight: 600; }
+
+/* ---- shell ----------------------------------------------------------- */
+.shell {
+  max-width: 1240px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+  display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 48px;
+}
+nav.toc { position: sticky; top: calc(var(--bar-h) + env(safe-area-inset-top, 0px) + 20px); align-self: start; padding-top: 36px; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.toc a {
+  display: flex; justify-content: space-between; gap: 8px; text-decoration: none;
+  font: 500 0.82rem var(--mono); color: var(--ink-soft); padding: 5px 10px; border-radius: 6px; border-left: 2px solid transparent;
+}
+.toc a:hover { color: var(--ink); background: var(--paper-deep); }
+.toc a.on { color: var(--accent); border-left-color: var(--accent); background: var(--accent-wash); border-radius: 0 6px 6px 0; }
+.toc a span { color: var(--ink-soft); opacity: 0.7; font-variant-numeric: tabular-nums; }
+.toc .foot { margin-top: 20px; padding: 0 10px; font: 0.74rem/1.5 var(--mono); color: var(--ink-soft); }
+main { min-width: 0; }
+
+/* ---- hero ------------------------------------------------------------ */
+.hero { padding-block: 40px 8px; }
+.eyebrow { font: 500 0.72rem var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin: 0 0 10px; }
+.hero h1 { font-size: clamp(2rem, 4.2vw, 2.9rem); font-weight: 700; margin: 0 0 12px; letter-spacing: -0.015em; }
+.hero h1 code { font-size: 0.92em; color: var(--accent); font-weight: 600; }
+.lede { font-size: 1.12rem; max-width: 62ch; margin: 0; color: var(--ink); }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 18px 0 0; padding: 0; list-style: none; font: 500 0.8rem var(--mono); color: var(--ink-soft); }
+.stats b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---- sections -------------------------------------------------------- */
+section { scroll-margin-top: calc(var(--bar-h) + 16px); padding-top: 44px; }
+section > h2 { font-size: 1.55rem; margin: 0 0 6px; font-weight: 700; display: flex; align-items: baseline; gap: 12px; }
+section > h2 .n { font: 600 0.78rem var(--mono); color: var(--accent); letter-spacing: 0.04em; }
+.intro { margin: 0 0 22px; max-width: 68ch; color: var(--ink-soft); }
+h3.group { font: 600 0.74rem var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-soft); margin: 30px 0 4px; padding-bottom: 8px; border-bottom: 1px solid var(--rule); }
+h3.group em { font: italic 400 0.95rem var(--serif); text-transform: none; letter-spacing: 0; margin-left: 8px; }
+
+/* ---- intent finder --------------------------------------------------- */
+.intents { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px 28px; }
+.intents h4 { font: 600 0.72rem var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin: 0 0 6px; }
+.intents ul { list-style: none; margin: 0; padding: 0; }
+.intents a {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; text-decoration: none;
+  padding: 7px 8px; margin-inline: -8px; border-radius: 6px; border-bottom: 1px dashed var(--rule-soft);
+}
+.intents a:hover { background: var(--paper-deep); }
+.intents a:hover .go { color: var(--accent); }
+.intents .say { font-size: 0.97rem; }
+.intents .go { font: 500 0.78rem var(--mono); color: var(--ink-soft); overflow-wrap: anywhere; }
+
+/* ---- anatomy --------------------------------------------------------- */
+.anatomy { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 22px 22px 18px; display: grid; gap: 22px; }
+.anat-line { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: flex-start; }
+.seg-t { display: grid; gap: 6px; }
+.seg-t code { font-size: 1.12rem; font-weight: 500; padding: 2px 0 6px; border-bottom: 2px solid currentColor; }
+.seg-t small { font: 500 0.7rem var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); }
+.c-pre { color: var(--accent); }
+.c-key { color: var(--ink); }
+.c-sub { color: var(--sub); }
+.c-slug { color: var(--info); }
+.c-txt { color: var(--ink-soft); }
+.dispatch { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 28px; }
+.dispatch li { padding-left: 14px; border-left: 2px solid var(--rule); }
+.dispatch b { display: block; font-weight: 600; }
+.dispatch span { color: var(--ink-soft); font-size: 0.94rem; }
+
+/* ---- lifecycle rail -------------------------------------------------- */
+.rail-wrap { overflow-x: auto; margin: 0 0 8px; padding-bottom: 6px; }
+.rail { min-width: 820px; display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 0; position: relative; padding-top: 4px; }
+.stop { text-decoration: none; display: grid; justify-items: center; text-align: center; gap: 4px; padding: 0 2px; position: relative; }
+.stop::before { content: ""; position: absolute; top: 17px; left: 0; right: 0; height: 2px; background: var(--rule); z-index: 0; }
+.stop:first-child::before { left: 50%; }
+.stop:last-child::before { right: 50%; }
+.dot {
+  position: relative; z-index: 1; width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center; font: 600 0.74rem var(--mono); font-variant-numeric: tabular-nums;
+  background: var(--panel); border: 2px solid var(--ink-soft); color: var(--ink);
+}
+.stop b { font: 600 0.84rem var(--mono); }
+.stop small { font: 0.68rem var(--mono); color: var(--ink-soft); overflow-wrap: anywhere; }
+.stop:hover .dot { border-color: var(--accent); color: var(--accent); }
+.stop.alt .dot { border-style: dashed; border-color: var(--gate); color: var(--gate); }
+.stop.alt::before { background: repeating-linear-gradient(90deg, var(--rule) 0 5px, transparent 5px 9px); }
+.stop.mine .dot { background: var(--accent-wash); border-color: var(--accent); }
+.spans { min-width: 820px; display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); margin-top: 14px; font: 500 0.72rem var(--mono); color: var(--ink-soft); }
+.span { border-top: 2px solid; padding-top: 6px; text-align: center; margin-inline: 6px; }
+.span.drv { grid-column: 5 / 9; border-color: var(--info); color: var(--info); }
+.span.you { grid-column: 9 / 12; border-color: var(--accent); color: var(--accent); }
+.span.des { grid-column: 3 / 4; border-color: var(--gate); color: var(--gate); border-top-style: dashed; }
+
+/* ---- command entries ------------------------------------------------- */
+.cmds { display: grid; }
+.cmd {
+  display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 10px 32px;
+  padding: 20px 0; border-bottom: 1px solid var(--rule-soft);
+  scroll-margin-top: calc(var(--bar-h) + 20px);
+}
+.cmd:target, .cmd.flash { background: var(--accent-wash); box-shadow: -14px 0 0 var(--accent-wash), 14px 0 0 var(--accent-wash); }
+.cmd-head { min-width: 0; display: grid; gap: 10px; align-content: start; }
+.cmd-head h4 { margin: 0; font: 600 1.02rem var(--mono); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.cmd-head h4 a { text-decoration: none; }
+.cmd-head h4 a:hover { color: var(--accent); }
+.cmd-head h4 .pre { color: var(--accent); font-weight: 500; }
+.badges { display: flex; flex-wrap: wrap; gap: 5px; }
+.badge {
+  font: 500 0.68rem var(--mono); letter-spacing: 0.02em; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  background: color-mix(in srgb, currentColor 9%, transparent); white-space: nowrap; color: var(--ink-soft);
+}
+.badge.stage { color: var(--ink); font-variant-numeric: tabular-nums; }
+.badge.ro { color: var(--sub); }
+.badge.term { color: var(--info); }
+.badge.gate { color: var(--gate); }
+.badge.cc { color: var(--gate); }
+.badge.slug { color: var(--accent); }
+.cmd-body { min-width: 0; display: grid; gap: 10px; }
+.syn { display: grid; gap: 4px; }
+.line {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  background: var(--code-bg); border-radius: 6px; padding: 6px 6px 6px 12px;
+}
+.line code { flex: 1; min-width: 0; font-size: 0.86rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.copy {
+  flex: none; font: 500 0.68rem var(--mono); color: var(--ink-soft); background: var(--panel);
+  border: 1px solid var(--rule); border-radius: 5px; padding: 3px 8px; cursor: pointer; opacity: 0; transition: opacity 0.12s;
+}
+.line:hover .copy, .copy:focus-visible, .copy.done { opacity: 1; }
+.copy.done { color: var(--sub); border-color: var(--sub); }
+@media (hover: none) { .copy { opacity: 1; } }
+.t-pre { color: var(--accent); }
+.t-key { color: var(--ink); font-weight: 600; }
+.t-sub { color: var(--sub); font-weight: 600; }
+.t-lit { color: var(--sub); }
+.t-ph { color: var(--info); font-style: italic; }
+.t-op { color: var(--ink-soft); opacity: 0.75; }
+.t-cm { color: var(--ink-soft); font-style: italic; }
+.desc { margin: 0; max-width: 72ch; }
+.meta { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; margin: 2px 0 0; font-size: 0.9rem; }
+.meta dt { font: 600 0.68rem var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); padding-top: 3px; }
+.meta dd { margin: 0; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; }
+.file { font: 0.76rem var(--mono); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--rule); background: var(--panel); overflow-wrap: anywhere; }
+.next { font: 0.8rem var(--mono); color: var(--ink); overflow-wrap: anywhere; }
+.next .pre { color: var(--accent); }
+
+/* ---- ladder ---------------------------------------------------------- */
+.ladder { list-style: none; margin: 0 0 10px; padding: 0; counter-reset: step; display: grid; gap: 0; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); overflow: hidden; }
+.ladder li { counter-increment: step; display: grid; grid-template-columns: 2.4rem minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 12px 16px; align-items: baseline; }
+.ladder li + li { border-top: 1px solid var(--rule-soft); }
+.ladder li::before { content: counter(step); font: 600 0.8rem var(--mono); color: var(--accent); }
+.ladder .if { font: 0.84rem var(--mono); overflow-wrap: anywhere; }
+.ladder .then { font-size: 0.95rem; }
+.ladder .then b { font-weight: 600; }
+.aside { font-size: 0.93rem; color: var(--ink-soft); max-width: 72ch; margin: 12px 0 0; }
+
+/* ---- tables ---------------------------------------------------------- */
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--rule-soft); }
+tr:last-child td { border-bottom: 0; }
+th { font: 600 0.68rem var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); background: var(--paper-deep); }
+td code { white-space: nowrap; }
+td.w { min-width: 16rem; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; margin-top: 22px; }
+.two h4 { margin: 0 0 8px; font: 600 0.74rem var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-soft); }
+
+/* ---- rules ----------------------------------------------------------- */
+.rules { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.rules li { padding: 14px 16px; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); }
+.rules b { display: block; font-weight: 600; margin-bottom: 3px; }
+.rules span { font-size: 0.94rem; color: var(--ink-soft); }
+.rules li.warn { border-color: color-mix(in srgb, var(--gate) 45%, var(--rule)); }
+.rules li.warn b { color: var(--gate); }
+
+/* ---- campaign guide -------------------------------------------------- */
+.subnav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.subnav a { font: 500 0.76rem var(--mono); text-decoration: none; color: var(--ink-soft); border: 1px solid var(--rule); border-radius: 999px; padding: 3px 10px; background: var(--panel); }
+.subnav a:hover { color: var(--accent); border-color: var(--accent); }
+h3.group[id] { scroll-margin-top: calc(var(--bar-h) + 20px); }
+.flow-wrap { margin-top: 12px; }
+.flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); gap: 8px; }
+.phase { display: grid; align-content: start; gap: 5px; padding: 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); }
+.phase.rep { border-color: color-mix(in srgb, var(--info) 45%, var(--rule)); background: color-mix(in srgb, var(--info) 5%, var(--panel)); }
+.phase.rep .pn::after { content: " · ↻ each packet"; color: var(--info); font-weight: 500; }
+.phase .pn { font: 600 0.72rem var(--mono); color: var(--accent); font-variant-numeric: tabular-nums; }
+.phase b { font-weight: 600; font-size: 0.95rem; line-height: 1.25; }
+.phase p { margin: 0; font-size: 0.82rem; line-height: 1.45; color: var(--ink-soft); }
+.who { justify-self: start; font: 500 0.66rem var(--mono); padding: 1px 7px; border-radius: 999px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); background: color-mix(in srgb, currentColor 9%, transparent); }
+.who.you { color: var(--accent); }
+.who.auto { color: var(--info); }
+.states { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 4px; align-items: center; font: 500 0.76rem var(--mono); }
+.states li { padding: 3px 9px; border-radius: 6px; background: var(--code-bg); }
+.states li:not(.bad):not(:nth-last-child(3))::after { content: "→"; margin-left: 10px; color: var(--ink-soft); }
+.states li.side { font-style: italic; color: var(--ink-soft); }
+.states li.bad { color: var(--gate); background: color-mix(in srgb, var(--gate) 10%, transparent); }
+.states li:nth-last-child(2) { margin-left: 14px; }
+pre.code { margin: 0; overflow-x: auto; background: var(--code-bg); border-radius: 10px; padding: 14px 16px; font: 0.8rem/1.55 var(--mono); }
+pre.code code { font-size: inherit; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.guide-link { font: 500 0.8rem var(--mono); color: var(--accent); }
+
+.cfg-warn { color: var(--gate); margin: 0 0 10px; }
+
+/* ---- search state ---------------------------------------------------- */
+.searching .static { display: none; }
+.empty { display: none; padding: 40px 0; font-size: 1.05rem; color: var(--ink-soft); }
+.empty code { color: var(--ink); }
+.searching.none .empty { display: block; }
+.count { font: 500 0.72rem var(--mono); color: var(--accent); }
+footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule); font: 0.76rem/1.6 var(--mono); color: var(--ink-soft); }
+
+/* ---- narrow ---------------------------------------------------------- */
+/* ---- phone and tablet: compact bar, location strip, contents sheet ---- */
+.where, .fab, .stop .tag { display: none; }
+@media (max-width: 920px) {
+  :root { --bar-h: 92px; }
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  nav.toc { display: none; }
+  .bar .host { display: none; }
+  .bar-in { flex-wrap: nowrap; padding-block: 8px; gap: 12px; }
+  .brand-x { display: none; }
+  .search { flex: 1 1 auto; }
+  .search input { font-size: 16px; padding-block: 7px; }
+  .search kbd { display: none; }
+  .where {
+    display: flex; width: 100%; align-items: center; gap: 8px; border: 0; border-top: 1px solid var(--rule-soft);
+    background: none; color: var(--ink); font: 500 0.78rem var(--mono); text-align: left; cursor: pointer;
+    padding: 7px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px));
+  }
+  .fab { display: flex; }
+  .cmd { grid-template-columns: minmax(0, 1fr); }
+  .cmd-head { grid-template-columns: minmax(0, 1fr); }
+  .ladder li { grid-template-columns: 1.6rem minmax(0, 1fr); }
+  .ladder .then { grid-column: 2; }
+  .subnav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .subnav::-webkit-scrollbar { display: none; }
+  .subnav a { flex: none; }
+  main { padding-bottom: 72px; }
+}
+.where-n { color: var(--accent); font-weight: 600; flex: none; }
+.where-t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.where-g { color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1 1 0; }
+.where-g:not(:empty)::before { content: "\203A  "; }
+.where svg, .fab svg { flex: none; width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+.fab { position: fixed; z-index: 25; gap: 8px; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+.fab button {
+  height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 16px; cursor: pointer;
+  font: 600 0.82rem var(--mono); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--rule); border-radius: 999px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+}
+.fab .fab-top { width: 44px; padding: 0; justify-content: center; }
+.fab .fab-open { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+.sheet-back { position: fixed; inset: 0; z-index: 40; background: rgba(20, 16, 10, 0.45); }
+.sheet {
+  position: fixed; z-index: 41; left: 0; right: 0; bottom: 0; max-height: 84vh; max-height: 84dvh;
+  display: flex; flex-direction: column; background: var(--paper); color: var(--ink);
+  border-top: 1px solid var(--rule); border-radius: 14px 14px 0 0; box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.22);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.sheet-head {
+  display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--rule);
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+}
+.sheet-head b { font: 600 0.9rem var(--mono); margin-right: auto; }
+.sheet-close { width: 36px; height: 36px; flex: none; border-radius: 50%; border: 1px solid var(--rule); background: var(--panel); color: var(--ink); font-size: 1.1rem; line-height: 1; cursor: pointer; }
+.outline { overflow-y: auto; overscroll-behavior: contain; padding: 4px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); }
+.ol-sec { padding: 8px 0 10px; border-bottom: 1px solid var(--rule-soft); }
+.ol-sec > a { display: flex; gap: 10px; align-items: baseline; text-decoration: none; font-weight: 600; font-size: 1rem; padding: 4px 0; }
+.ol-sec > a .n { font: 600 0.74rem var(--mono); color: var(--accent); width: 18px; flex: none; }
+.ol-sec.on > a { color: var(--accent); }
+.ol-sec.on { background: linear-gradient(90deg, var(--accent-wash), transparent 70%); margin-inline: -10px; padding-inline: 10px; border-radius: 6px; }
+.ol-groups { display: flex; flex-wrap: wrap; gap: 0 14px; margin-left: 28px; }
+.ol-groups a { font-size: 0.88rem; color: var(--ink-soft); text-decoration: none; padding: 5px 0; }
+.ol-groups a.on { color: var(--ink); font-weight: 600; }
+.ol-cmds { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 2px 28px; }
+.ol-cmds a { font: 500 0.74rem var(--mono); text-decoration: none; padding: 4px 8px; border-radius: 6px; background: var(--code-bg); }
+.sheet .host { display: flex; }
+
+@media (max-width: 600px) {
+  .sheet .seg button { padding: 7px 8px; }
+  /* tables become stacked records; columns after the first carry their header as a label */
+  .tbl-wrap table, .tbl-wrap tbody, .tbl-wrap tr, .tbl-wrap td { display: block; width: auto; }
+  .tbl-wrap thead { display: none; }
+  .tbl-wrap tr { padding: 9px 14px; border-bottom: 1px solid var(--rule-soft); }
+  .tbl-wrap tr:last-child { border-bottom: 0; }
+  .tbl-wrap td { padding: 0; border: 0; min-width: 0; }
+  .tbl-wrap td + td { margin-top: 3px; }
+  .tbl-wrap td:first-child { font-weight: 600; }
+  .tbl-wrap td[data-label]:not(:first-child)::before { content: attr(data-label) "  "; font: 600 0.64rem var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+  td code { white-space: normal; overflow-wrap: anywhere; }
+  td.w { min-width: 0; }
+  /* flow strips become a compact timeline */
+  .flow { grid-template-columns: minmax(0, 1fr); gap: 0; border-left: 2px solid var(--rule); margin-left: 6px; }
+  .phase { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 8px; row-gap: 1px; align-items: baseline; border: 0; border-radius: 0; background: none; padding: 6px 0 6px 16px; position: relative; }
+  .phase.rep { background: none; }
+  .phase::before { content: ""; position: absolute; left: -7px; top: 11px; width: 8px; height: 8px; border-radius: 50%; background: var(--paper); border: 2px solid var(--ink-soft); }
+  .phase.rep::before { border-color: var(--info); }
+  .phase .pn { grid-column: 1; }
+  .phase b { grid-column: 2; }
+  .phase .who { grid-column: 3; justify-self: end; }
+  .phase p { grid-column: 1 / -1; }
+  .phase.rep .pn::after { content: " \21BB"; }
+  /* the lifecycle rail becomes vertical */
+  .rail-wrap { overflow: visible; }
+  .rail, .spans { min-width: 0; }
+  .rail { grid-template-columns: minmax(0, 1fr); }
+  .spans { display: none; }
+  .stop { grid-template-columns: 30px auto minmax(0, 1fr) auto; justify-items: start; text-align: left; align-items: center; column-gap: 10px; padding: 3px 0; }
+  .stop::before, .stop.alt::before { top: 0; bottom: 0; left: 14px; right: auto; width: 2px; height: auto; background: var(--rule); }
+  .stop:first-child::before { top: 50%; left: 14px; }
+  .stop:last-child::before { bottom: 50%; right: auto; }
+  .dot { width: 30px; height: 30px; font-size: 0.66rem; }
+  .stop .tag { display: inline; justify-self: end; font: 500 0.66rem var(--mono); padding: 1px 7px; border-radius: 999px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); }
+  .stop .tag.des { color: var(--gate); }
+  .stop .tag.drv { color: var(--info); }
+  .stop .tag.you { color: var(--accent); }
+}
+</style>
+
+<header class="bar">
+  <div class="bar-in">
+    <a class="brand" href="#top"><b>/</b>wf<span class="brand-x"> reference</span></a>
+    <div class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Search commands, modes, files…" aria-label="Search the reference">
+      <span class="hint"><span class="count" id="count"></span><kbd>/</kbd></span>
+    </div>
+    <div class="host"><span>Host</span>
+      <div class="seg" role="group" aria-label="Command prefix for your host">
+        <button type="button" data-host="cc" aria-pressed="true">Claude Code</button>
+        <button type="button" data-host="cx" aria-pressed="false">Codex</button>
+        <button type="button" data-host="pi" aria-pressed="false">pi</button>
+      </div>
+    </div>
+  </div>
+  <button type="button" class="where" id="where" aria-haspopup="dialog" aria-controls="sheet" aria-label="Open contents">
+    <span class="where-n" id="whereN">01</span><span class="where-t" id="whereT">Find a command</span><span class="where-g" id="whereG"></span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+  </button>
+</header>
+<div class="fab">
+  <button type="button" class="fab-top" id="toTop" aria-label="Back to top" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"></path></svg></button>
+  <button type="button" class="fab-open" id="openNav" aria-haspopup="dialog" aria-controls="sheet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>Contents</button>
+</div>
+<div class="sheet-back" id="sheetBack" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Contents" hidden>
+  <div class="sheet-head">
+    <b>Contents</b>
+    <div class="host"><div class="seg" role="group" aria-label="Command prefix for your host">
+      <button type="button" data-host="cc" aria-pressed="true">Claude Code</button><button type="button" data-host="cx" aria-pressed="false">Codex</button><button type="button" data-host="pi" aria-pressed="false">pi</button>
+    </div></div>
+    <button type="button" class="sheet-close" id="closeNav" aria-label="Close contents">&times;</button>
+  </div>
+  <nav class="outline" id="outline" aria-label="All sections"></nav>
+</div>
+
+<div class="shell" id="top">
+  <nav class="toc" aria-label="Sections">
+    <ol id="toc"></ol>
+    <p class="foot">sdlc-workflow<br>19 keys · 6 sub-keys<br>17 intake modes</p>
+  </nav>
+
+  <main id="main">
+    <div class="hero static">
+      <p class="eyebrow">sdlc-workflow · user reference</p>
+      <h1>Every <code class="hp">/wf</code> command, on one page</h1>
+      <p class="lede">One command runs the whole software lifecycle, from a rough idea to a shipped release and its retro. Find your situation below, copy the command, and fill in the parts in <span class="t-ph">&lt;angle brackets&gt;</span>. Each run writes its record into <code>.ai/workflows/&lt;slug&gt;/</code> and ends with the exact next command.</p>
+      <ul class="stats">
+        <li><b>19</b> keys</li><li><b>6</b> sub-keys</li><li><b>17</b> intake modes</li><li><b>11</b> review rubrics</li><li><b>3</b> hosts</li>
+      </ul>
+    </div>
+
+    <section id="find" data-title="Find a command">
+      <h2><span class="n">01</span>I want to…</h2>
+      <p class="intro">Pick the sentence closest to your situation. Each one jumps to its command. When nothing fits, type <code class="hp">/wf</code> and describe the work in your own words. <code class="hp">/wf</code> names the command that it would run, and runs it after your yes.</p>
+      <div class="intents" id="intents"></div>
+    </section>
+
+    <section id="grammar" data-title="How a command reads" class="static">
+      <h2><span class="n">02</span>How a command reads</h2>
+      <p class="intro">The first word after the prefix is usually one of the 19 keys. The second word can be a sub-key or an intake mode. Everything else passes to the key unchanged. There are no flags to learn: position carries meaning. Words that do not fit a key go to the router, which turns them into one command.</p>
+      <div class="anatomy">
+        <div class="anat-line">
+          <span class="seg-t c-pre"><code class="hp">/wf</code><small>host prefix</small></span>
+          <span class="seg-t c-key"><code>intake</code><small>key</small></span>
+          <span class="seg-t c-slug"><code>reports-export</code><small>slug</small></span>
+          <span class="seg-t c-sub"><code>fix</code><small>mode</small></span>
+          <span class="seg-t c-txt"><code>date column shows epoch millis</code><small>description</small></span>
+        </div>
+        <div class="anat-line">
+          <span class="seg-t c-pre"><code class="hp">/wf</code><small>host prefix</small></span>
+          <span class="seg-t c-key"><code>loop</code><small>key</small></span>
+          <span class="seg-t c-sub"><code>goal</code><small>sub-key</small></span>
+          <span class="seg-t c-slug"><code>reports-export</code><small>slug</small></span>
+        </div>
+      </div>
+      <ul class="dispatch">
+        <li><b>The slug names one workflow</b><span>Intake picks it from your description. Every later command takes it, and <code class="hp">/wf status</code> lists them all.</span></li>
+        <li><b>Six sub-keys</b><span><code>loop goal · optimize · prototype</code>, <code>status recap</code>, <code>project ship-plan · observability</code>. A bare <code class="hp">/wf loop</code> or <code class="hp">/wf project</code> asks which one.</span></li>
+        <li><b>A bare /wf asks</b><span><code class="hp">/wf</code> alone asks what you want to do: continue one of your three newest open workflows, ask a question about /wf, or show all keys.</span></li>
+        <li><b>Plain words are routed</b><span>Words that do not fit a key go to the router, for example <code><span class="hp">/wf</span> keep going on export</code> or a misspelled key. It names one command and asks first. A request for new work goes straight to intake. A question such as "how do I ship a hotfix" gets an answer and the command.</span></li>
+        <li><b>Every run ends the same way</b><span>A status line, a short story of what happened, an <code>Artifacts:</code> line, and one <code>Next:</code> command.</span></li>
+      </ul>
+    </section>
+
+    <section id="lifecycle" data-title="The lifecycle">
+      <h2><span class="n">03</span>The lifecycle</h2>
+      <p class="intro">Ten stages in order. The number of each stage is also the number of the file it writes. Run each one yourself, or let a driver run the middle stretch.</p>
+      <div class="rail-wrap static">
+        <div class="rail" id="rail"></div>
+        <div class="spans">
+          <div class="span des">human-only</div>
+          <div class="span drv">auto · yolo drive these</div>
+          <div class="span you">yours: drivers stop before handoff</div>
+        </div>
+      </div>
+      <div class="cmds" data-group="stage"></div>
+    </section>
+
+    <section id="intake" data-title="Intake modes">
+      <h2><span class="n">04</span>Intake modes</h2>
+      <p class="intro">Intake is the front door. Its modes are other ways work comes in. A mode word right after <code>intake</code> starts that mode. A slug first means the run acts on that workflow.</p>
+      <div class="static">
+        <h3 class="group">How intake reads its words <em>checked in this order</em></h3>
+        <ol class="ladder">
+          <li><span class="if">&lt;mode&gt; &lt;packet-slug&gt; · a packet path</span><span class="then"><b>A work packet.</b> An investigate, discover, rca or task packet runs that mode. A build packet is refused: <code><span class="hp">/wf</span> campaign &lt;source-slug&gt;</code> builds it.</span></li>
+          <li><span class="if">&lt;slug&gt; amend · modernize · close</span><span class="then"><b>Maintenance.</b> Edits, backfills or closes that workflow.</span></li>
+          <li><span class="if">&lt;slug&gt; &lt;mode&gt; …</span><span class="then"><b>Compressed slice.</b> The mode runs as one slice on that workflow. No new branch.</span></li>
+          <li><span class="if">&lt;slug&gt; &lt;anything else&gt;</span><span class="then"><b>Extension.</b> Adds full new slices to that workflow.</span></li>
+          <li><span class="if">&lt;mode&gt; …</span><span class="then"><b>Standalone mode.</b> Starts a new workflow of that kind.</span></li>
+          <li><span class="if">&lt;description&gt;</span><span class="then"><b>Default flow.</b> When the words strongly match one mode, intake proposes it once and asks.</span></li>
+        </ol>
+        <p class="aside">To force the default flow when your description starts with a mode word, quote it as one token: <code><span class="hp">/wf</span> intake "fix is a strong word for this"</code>. A first word <code>close</code> without a slug is a description ("close the dropdown on escape").</p>
+      </div>
+      <h3 class="group">Lanes that lead to code</h3>
+      <div class="cmds" data-group="build"></div>
+      <h3 class="group">Think first <em>these end in a decision or a finding, never in code</em></h3>
+      <div class="cmds" data-group="think"></div>
+      <h3 class="group">Grow a workflow you already have</h3>
+      <div class="cmds" data-group="grow"></div>
+      <h3 class="group">Maintenance <em>the slug always comes first</em></h3>
+      <div class="cmds" data-group="maint"></div>
+    </section>
+
+    <section id="drivers" data-title="Drivers and loops">
+      <h2><span class="n">05</span>Drivers and loops</h2>
+      <p class="intro">Commands that check built work at runtime, run stages for you, or repeat one kind of round until a script says the work is done.</p>
+      <div class="cmds" data-group="drive"></div>
+    </section>
+
+    <section id="brainstorm-guide" data-title="Brainstorm in depth">
+      <h2><span class="n"></span>Brainstorm, step by step</h2>
+      <p class="intro">A thinking partner for a half-formed idea. You lead. The agent maps the areas the idea touches, goes wide before it goes deep, brings ideas of its own, and keeps a board of everything said. It never commits: a choice that other work would build on, such as a data format, becomes a question for the plan. Only you end a brainstorm.</p>
+      <nav class="subnav static" aria-label="Brainstorm topics">
+        <a href="#bs-forms">Ways to start</a><a href="#bs-flow">The flow</a><a href="#bs-turns">Each turn</a><a href="#bs-words">Control words</a><a href="#bs-checkin">Check-ins and areas</a><a href="#bs-done">At done</a><a href="#bs-design">Design focus</a><a href="#bs-rules">Rules</a><a href="#bs-files">Files</a>
+      </nav>
+
+      <h3 class="group" id="bs-forms">Ways to start</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Command</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code><span class="hp">/wf</span> intake brainstorm &lt;idea&gt;</code></td><td>Opens a new board on the idea.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> intake brainstorm &lt;brainstorm-slug&gt;</code></td><td>Resumes the board. It opens with the story of the last sitting, and never asks again what the board answers.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> intake brainstorm design &lt;idea&gt;</code></td><td>A new board with the design focus: how the idea looks and behaves.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> intake brainstorm &lt;brainstorm-slug&gt; design</code></td><td>Switches an open board to the design focus.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> intake brainstorm &lt;brainstorm-slug&gt; add &lt;text&gt;</code></td><td>Quick capture: one new piece of work, for example a bug you found while trying built work, written as a packet.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> intake &lt;slug&gt; brainstorm design [idea]</code></td><td>Brainstorms the design of an existing workflow. At done it routes to <code>design &lt;slug&gt;</code>, or <code>design &lt;slug&gt; amend</code> when the design is already confirmed.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> intake &lt;slug&gt; brainstorm &lt;topic&gt;</code></td><td>A brainstorm as one compressed slice on an existing workflow. The agreed pieces become a later extension.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="group" id="bs-flow">The flow</h3>
+      <div class="flow-wrap static">
+        <ol class="flow">
+          <li class="phase"><span class="pn">1</span><b>Open the board</b><span class="who auto">agent</span><p>Maps the areas the idea touches and asks the first batch.</p></li>
+          <li class="phase"><span class="pn">2</span><b>The loop</b><span class="who you">you lead</span><p>Batches of one to four questions, talk turns, and your replies. No floor, no cap.</p></li>
+          <li class="phase"><span class="pn">3</span><b>Check in</b><span class="who you">you</span><p>At natural moments: a short summary you correct, and where to go next.</p></li>
+          <li class="phase"><span class="pn">4</span><b>Close an area</b><span class="who you">you</span><p>Its price, the core items, the first version, and the risk that worries you most.</p></li>
+          <li class="phase"><span class="pn">5</span><b>done</b><span class="who you">you</span><p>Scope the work now, or keep the board and think more later.</p></li>
+          <li class="phase"><span class="pn">6</span><b>Walk the discussion</b><span class="who you">you</span><p>Area by area: keep, cut, leave for later, or change each item.</p></li>
+          <li class="phase"><span class="pn">7</span><b>Shape the work</b><span class="who you">you</span><p>Group kept items into pieces, put them in order with a reason, pick each form.</p></li>
+          <li class="phase"><span class="pn">8</span><b>Confirm</b><span class="who you">you</span><p>Nothing is written before you confirm. Then the packets are written, and document-only pieces are done in the session.</p></li>
+        </ol>
+      </div>
+
+      <h3 class="group" id="bs-turns">Each turn <em>one topic per batch, in plain words</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Question</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr data-s><td>reflection</td><td>"I heard: …" with two to four readings of your last thought.</td></tr>
+            <tr data-s><td>probe</td><td>Tests one assumption or one gap, with the agent's best guesses as options.</td></tr>
+            <tr data-s><td>fork</td><td>Directions the thought can take next. You can pick several.</td></tr>
+            <tr data-s><td>widen</td><td>A direction you have not raised, with the agent's own ideas.</td></tr>
+            <tr data-s><td>choice</td><td>Options that exclude each other: an order, a trade-off or a cut, each with its cost.</td></tr>
+            <tr data-s><td>talk turn</td><td>When the ground is new to you, the agent explains in chat with an example and its own view, and ends with an invitation, not a question.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="aside" data-s>Every question says what is known and why it matters before it asks. When you set a risk aside or take the costliest option, the agent states the consequence once and records the risk you accept. Paste a brief or name a file, and the agent maps each of its criteria as covered, partial or open.</p>
+
+      <h3 class="group" id="bs-words">Control words <em>the first word of a free-text reply</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Say</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code>park &lt;thread&gt;</code> · <code>pull &lt;thread&gt;</code></td><td>Stop asking about a thread, or bring it back. Name the thread in words.</td></tr>
+            <tr data-s><td><code>drop &lt;thread&gt;</code></td><td>Drop a thread, with your one-line reason.</td></tr>
+            <tr data-s><td><code>board</code></td><td>Show where we are: summary, areas, live threads, open tensions, top risks. No question this time.</td></tr>
+            <tr data-s><td><code>look it up</code></td><td>Sends one research agent on the last unchecked statement. The result is saved as a research note.</td></tr>
+            <tr data-s><td><code>second opinion</code></td><td>Asks another model which assumptions and tensions the thinking missed. Never runs unasked.</td></tr>
+            <tr data-s><td><code>cohere</code></td><td>Checks the board against itself, against work it already routed, and against your budgets.</td></tr>
+            <tr data-s><td><code>pause</code></td><td>The story of this sitting: what we explored, learned and decided, what is open, where we start next. The board stays open.</td></tr>
+            <tr data-s><td><code>done</code></td><td>Ends the loop and starts scoping the work with you.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="group" id="bs-checkin">Check-ins and closing an area</h3>
+      <ul class="rules">
+        <li data-s><b>A check-in</b><span>Comes when a thread feels settled, the answers get short, the direction changes a lot, or the agent thinks the thinking is complete. You correct the summary, then choose: go deeper, open a new area, zoom out, show where we are, or stop for now.</span></li>
+        <li data-s><b>Closing an area</b><span>The agent writes a brief of five lines or fewer and shows the area's price against your budgets. You pick the core decisions, what goes in the first version (the rest waits; nothing is cut unless you say so), and the risk that worries you most.</span></li>
+        <li data-s><b>Changes to started work</b><span>A work packet whose workflow started is never rewritten. A new decision about it becomes a new work packet: an extension, a fix or a hotfix.</span></li>
+      </ul>
+
+      <h3 class="group" id="bs-done">At done <em>each agreed part of the work gets a work packet</em></h3>
+      <div class="two">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Form</th><th>For</th></tr></thead>
+            <tbody>
+              <tr data-s><td><code>intake</code></td><td>A feature to build.</td></tr>
+              <tr data-s><td><code>extension</code></td><td>New scope on an existing workflow.</td></tr>
+              <tr data-s><td><code>fix</code> · <code>hotfix</code></td><td>A correction to built work; hotfix when people already use it.</td></tr>
+              <tr data-s><td><code>rca</code></td><td>A defect with an unknown cause.</td></tr>
+              <tr data-s><td><code>investigate</code> · <code>discover</code></td><td>A problem to study first, or a yes-or-no question to check.</td></tr>
+              <tr data-s><td><code>task</code></td><td>A deliverable that is not code.</td></tr>
+              <tr data-s><td><code>write-now</code></td><td>A change to documents only. Written in the same session after you confirm.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="rules">
+          <li data-s><b>One strict order</b><span>Every work packet gets a place, 1 to n, and each one after the first gets a reason for its place. The campaign builds them in that order, one at a time.</span></li>
+          <li data-s><b>Confirmed once</b><span>For each build packet you confirm the goal, the scope, the acceptance criteria, <code>ux-impact</code> and <code>try-out</code>, and the stack once for the list. The campaign does not ask again.</span></li>
+          <li data-s><b>What a packet carries</b><span>Your decisions word for word with their dates, the findings, the open questions, the sources, and the start command.</span></li>
+          <li data-s><b>Then</b><span>With any build packet: <code><span class="hp">/wf</span> campaign &lt;slug&gt;</code>. A packet of another form prints its own command, for example <code><span class="hp">/wf</span> intake investigate &lt;packet-slug&gt;</code>.</span></li>
+          <li data-s><b>Design</b><span><code>design</code> and <code>design-direction</code> are not forms. A design focus marks a packet with one of them, so the campaign stops for the design stage.</span></li>
+          <li data-s><b>The board stays open</b><span>Resume it at any time. Retire it with <code><span class="hp">/wf</span> intake &lt;slug&gt; close</code> when no thread is live.</span></li>
+        </ul>
+      </div>
+
+      <h3 class="group" id="bs-design">Design focus <em>sketches are ideas</em></h3>
+      <p class="aside" data-s>The design focus reads the design record (PRODUCT.md, DESIGN.md, the current design and the direction) and maps the design space: surfaces, what a person does on each, layout, color and type, motion, states such as empty, loading and error, and voice. The agent sketches when a picture decides faster than words: on the design canvas, else as an HTML page or an image, else as a one-sentence scene. Sketches are saved in <code>design/sketches/</code>. A brainstorm never confirms a design: the design stage does. At done, each work packet carries its design items, a proposed ux-impact and its sketches to the design stage, which presents them again as its starting direction.</p>
+
+      <h3 class="group" id="bs-rules">Rules that protect you</h3>
+      <ul class="rules">
+        <li data-s class="warn"><b>Only you end it</b><span>The agent never decides that the thinking is complete. When it thinks so, it checks in and continues.</span></li>
+        <li data-s><b>Plain words</b><span>No board key, internal number or mode name appears in anything you read.</span></li>
+        <li data-s><b>Nothing becomes work without you</b><span>No packet is written until you confirm the scope.</span></li>
+        <li data-s><b>The board is the memory</b><span>Both files are rewritten after every batch, so a lost session loses at most one batch.</span></li>
+        <li data-s><b>Bounded evidence</b><span>A checkable statement gets one short read of the code, cited as <code>file:line</code>. Research agents run only on <code>look it up</code>.</span></li>
+        <li data-s><b>Started packets stay</b><span>A packet whose workflow started is never rewritten. A new decision about it becomes a new packet, and a cut of started work is a question to you.</span></li>
+      </ul>
+
+      <h3 class="group" id="bs-files">Files <em>in .ai/workflows/&lt;brainstorm-slug&gt;/</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>File</th><th>What it is</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code>01-brainstorm.md</code></td><td>Your document in plain prose: a short front (summary, area briefs, what is open now), then decisions with reasons, open ideas, findings, assumptions, tensions and questions for the plan.</td></tr>
+            <tr data-s><td><code>brainstorm-board.json</code></td><td>The agent's working board. A hook checks it on every write.</td></tr>
+            <tr data-s><td><code>research/</code> · <code>references/</code></td><td>A note for every research act, and a copy of every outside source (a pointer when it is over 5 MB).</td></tr>
+            <tr data-s><td><code>work/&lt;packet&gt;.md</code> · <code>work/index.md</code></td><td>The work packets and their list, written at done.</td></tr>
+            <tr data-s><td><code>work/changes.md</code></td><td>One entry per change to the list.</td></tr>
+            <tr data-s><td><code>history/</code></td><td>Snapshots of the board at each resume and at done, and copies of documents before a write-now change.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="ideate-guide" data-title="Ideate in depth">
+      <h2><span class="n"></span>Ideate, step by step</h2>
+      <p class="intro">Ideate finds work you did not ask for. Agents scan the code through six lenses, generate candidates with evidence, cull the weak ones, and rank the rest. Name sources and a seventh lens matches each item of each source to your code. Ideate reads only and writes no code; you pick the ideas that become work.</p>
+      <nav class="subnav static" aria-label="Ideate topics">
+        <a href="#id-args">Arguments</a><a href="#id-flow">The flow</a><a href="#id-lenses">Lenses</a><a href="#id-cull">The cull</a><a href="#id-sources">Sources and issues</a><a href="#id-pick">Pick and refresh</a>
+      </nav>
+
+      <h3 class="group" id="id-args">Arguments <em>a script reads them; the first rule that matches wins</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>You type</th><th>Read as</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr data-s><td>an existing ideate slug</td><td>Resume, pick or refresh that run</td><td><code>ideate-auth-20261018 IDEA-003</code></td></tr>
+            <tr data-s><td>a GitHub issues URL</td><td>Issue source</td><td><code>https://github.com/o/r/issues/42</code></td></tr>
+            <tr data-s><td>any other URL</td><td>Web source</td><td><code>https://example.com/guide</code></td></tr>
+            <tr data-s><td>a path to a file</td><td>Document source</td><td><code>docs/rfc-cache.md</code></td></tr>
+            <tr data-s><td><code>&lt;name&gt;@&lt;version&gt;</code></td><td>The changelog of that dependency version</td><td><code>react@19.0.0</code></td></tr>
+            <tr data-s><td><code>issues</code> · <code>issues:&lt;query&gt;</code></td><td>Open issues of this repo, newest first, at most 100</td><td><code>issues:label:bug</code></td></tr>
+            <tr data-s><td><code>research</code></td><td>Lets the agent search the web for the topic, at most 8 searches</td><td><code>research</code></td></tr>
+            <tr data-s><td>a number</td><td>How many ranked ideas to keep. Default 10</td><td><code>5</code></td></tr>
+            <tr data-s><td>a lens name</td><td>Run only those lenses</td><td><code>security performance</code></td></tr>
+            <tr data-s><td>any other words</td><td>The topic, given to every lens</td><td><code>onboarding flow</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="aside">To use <code>issues</code> or <code>research</code> as a topic word, put it in quotes. A new run's slug is <code>ideate-&lt;focus&gt;-&lt;date&gt;</code>. With an existing slug first, <code><span class="hp">/wf</span> intake &lt;slug&gt; ideate [area]</code> runs as one compressed slice on that workflow.</p>
+
+      <h3 class="group" id="id-flow">The flow</h3>
+      <div class="flow-wrap static">
+        <ol class="flow">
+          <li class="phase"><span class="pn">1</span><b>Orient</b><span class="who auto">agent</span><p>Reads active workflows, retro action items, deferred review findings, sdlc-debt markers and earlier ideate runs.</p></li>
+          <li class="phase"><span class="pn">2</span><b>Sources</b><span class="who auto">agent</span><p>Reads each source into references/ and lists its items.</p></li>
+          <li class="phase"><span class="pn">3</span><b>Lenses</b><span class="who auto">parallel agents</span><p>One agent per lens returns specific findings with evidence.</p></li>
+          <li class="phase"><span class="pn">4</span><b>Generate</b><span class="who auto">agent</span><p>Every grounded candidate, each with file:line evidence, effort, impact and an entry command.</p></li>
+          <li class="phase"><span class="pn">5</span><b>Cull</b><span class="who auto">agent</span><p>Six challenges. Culled ideas are kept with their reason, out of sight.</p></li>
+          <li class="phase"><span class="pn">6</span><b>Rank</b><span class="who auto">agent</span><p>By impact, effort, feasibility and confidence, each with a one-line reason.</p></li>
+          <li class="phase"><span class="pn">7</span><b>Pick</b><span class="who you">you</span><p>Name the ideas by id, with a reason. Agree their order.</p></li>
+          <li class="phase"><span class="pn">8</span><b>Packets</b><span class="who auto">agent</span><p>One work packet per idea. The workflow closes and prints the start commands.</p></li>
+        </ol>
+      </div>
+
+      <h3 class="group" id="id-lenses">Lenses</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Lens</th><th>Filter word</th><th>Looks for</th></tr></thead>
+          <tbody>
+            <tr data-s><td>1 · Code quality and debt</td><td><code>quality</code></td><td>Complexity and churn hotspots, untested files, TODO and dead code, duplicated logic, outdated patterns.</td></tr>
+            <tr data-s><td>2 · Performance and scale</td><td><code>performance</code></td><td>N+1 queries, missing pagination and indexes, caching gaps, heavy loops, blocking work. Each finding says why it matters at 10× load.</td></tr>
+            <tr data-s><td>3 · Security and privacy</td><td><code>security</code></td><td>Unsanitized input, missing authorization, hardcoded credentials, secrets or PII in logs, dependencies with known CVEs.</td></tr>
+            <tr data-s><td>4 · Developer experience</td><td><code>dx</code></td><td>Setup steps that fail silently, poor error messages, inconsistent APIs, docs that no longer match the code.</td></tr>
+            <tr data-s><td>5 · Feature gaps</td><td><code>feature</code></td><td>Missing loading, error and empty states, accessibility gaps, acceptance criteria with no test, stubs.</td></tr>
+            <tr data-s><td>6 · Architecture</td><td><code>architecture</code></td><td>Oversized modules, circular dependencies, missing or needless abstractions, coupling hotspots.</td></tr>
+            <tr data-s><td>7 · Source fit</td><td>runs with sources</td><td>Matches each source item to the code and to your installed version. A finding cites the source line and a file:line.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="group" id="id-cull">The cull <em>every candidate faces all challenges</em></h3>
+      <ul class="rules">
+        <li data-s><b>1 · Is it real?</b><span>A speculative finding is culled. When its impact would be high if true, it is kept as needs-verification with the cheapest check named, such as a discover or a probe.</span></li>
+        <li data-s><b>2 · Is it already in progress?</b><span>Work that an active workflow does, or just shipped, is culled.</span></li>
+        <li data-s><b>3 · Is the effort justified?</b><span>Large effort for small impact is culled.</span></li>
+        <li data-s><b>4 · Is it specific enough?</b><span>"Improve the architecture" fails. It must be ready for intake as it is.</span></li>
+        <li data-s><b>5 · Is it the right level?</b><span>Two symptoms of one cause merge into the root cause.</span></li>
+        <li data-s><b>6 · Is it stable and available?</b><span>Sources only: the feature must exist in a version you can use.</span></li>
+      </ul>
+      <p class="aside" data-s>Ideate remembers earlier runs. An idea an earlier run culled stays culled until its evidence changes: a cited file changed, or a new source item supports it. An idea already picked counts as in progress.</p>
+
+      <h3 class="group" id="id-sources">Sources and issues <em>every source item gets exactly one result</em></h3>
+      <div class="two">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Result</th><th>Means</th></tr></thead>
+            <tbody>
+              <tr data-s><td><code>applies</code></td><td>The item becomes an idea, or joins one.</td></tr>
+              <tr data-s><td><code>already-used</code></td><td>The code uses it now, with file:line.</td></tr>
+              <tr data-s><td><code>not-applicable</code></td><td>It does not touch this app, with a reason.</td></tr>
+              <tr data-s><td><code>blocked-by-version</code></td><td>Your installed version does not ship it yet.</td></tr>
+              <tr data-s><td><code>needs-verification</code></td><td>A named check decides it.</td></tr>
+              <tr data-s><td><code>already-fixed</code></td><td>Issues only: a commit fixed it.</td></tr>
+              <tr data-s><td><code>duplicate-of</code></td><td>Issues only: another item reports it.</td></tr>
+              <tr data-s><td><code>withdrawn</code></td><td>Refresh only: the source no longer lists it.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="rules">
+          <li data-s><b>A hook checks coverage</b><span>The artifact is refused while any source item has no result.</span></li>
+          <li data-s><b>Issues stay read-only</b><span>Issues are read through <code>gh</code> only, and nothing is written to GitHub.</span></li>
+          <li data-s><b>What is saved from an issue</b><span>The number, title, labels, state and a short summary. Never the author, the body or the comments.</span></li>
+        </ul>
+      </div>
+
+      <h3 class="group" id="id-pick">Pick and refresh</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Command</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code><span class="hp">/wf</span> intake ideate &lt;slug&gt; IDEA-003 IDEA-007 [reason]</code></td><td>Picks ideas. With two or more, you agree their order and why each comes where it does. Writes <code>ideate-work.json</code> and one packet per idea in <code>work/</code>, then closes the run.</td></tr>
+            <tr data-s><td>after a pick</td><td>You confirm the grouping, <code>ux-impact</code>, <code>try-out</code> and the stack. A pick with a build packet prints <code><span class="hp">/wf</span> campaign &lt;slug&gt;</code>. A packet of another form prints its own command. Nothing starts by itself.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> intake ideate &lt;slug&gt; refresh</code></td><td>Checks each idea again: still valid, stale, or done elsewhere. Reads each source again, so new items get a result and removed items are withdrawn. A closed run reopens only when a new idea appears.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="campaign-guide" data-title="Campaign in depth">
+      <h2><span class="n">06</span>Campaign, step by step</h2>
+      <p class="intro">Use a campaign when a brainstorm or an ideate pick wrote a list of work packets. The campaign walks the list in order, one work packet at a time, on one branch, <code>packets/&lt;slug&gt;</code>. Each work packet is a normal workflow. When the list is done, you hand off one PR for the whole list. Start or resume it with <code class="hp">/wf campaign &lt;slug&gt;</code>, where the slug is the brainstorm or ideate workflow that holds <code>work/index.md</code>.</p>
+      <nav class="subnav static" aria-label="Campaign topics">
+        <a href="#cg-flow">The flow</a><a href="#cg-before">Before you start</a><a href="#cg-forms">Each form</a><a href="#cg-stops">Each stop</a><a href="#cg-ship">Handoff and ship</a><a href="#cg-old">An old campaign</a><a href="#cg-files">Files</a>
+      </nav>
+
+      <h3 class="group" id="cg-flow">The flow <em>steps 4 to 9 repeat for each work packet</em></h3>
+      <div class="flow-wrap static">
+        <ol class="flow">
+          <li class="phase"><span class="pn">1</span><b>Read the list</b><span class="who auto">agent</span><p>Reads <code>work/index.md</code> and the state of each work packet. A new call resumes where the last one stopped.</p></li>
+          <li class="phase"><span class="pn">2</span><b>How far</b><span class="who you">you</span><p>One question: the next work packet only, a number of work packets, or the whole list.</p></li>
+          <li class="phase"><span class="pn">3</span><b>Open</b><span class="who auto">agent</span><p>Writes the intake and the shape of each build packet from the packet, word for word. Lists the packets whose design is not settled.</p></li>
+          <li class="phase rep"><span class="pn">4</span><b>Design</b><span class="who you">you, when needed</span><p>Stops for <code class="hp">/wf design &lt;packet-slug&gt;</code> when the work packet needs a design that is not confirmed.</p></li>
+          <li class="phase rep"><span class="pn">5</span><b>Slice</b><span class="who auto">agent</span><p>One slice per capability, about 10 per work packet. A slice that drops a criterion is a question to you.</p></li>
+          <li class="phase rep"><span class="pn">6</span><b>Drive</b><span class="who auto">autonomous</span><p>yolo plans, implements, verifies and reviews the work packet on the list branch. On Codex and pi, you run <code class="hp">/wf auto &lt;packet-slug&gt;</code> here.</p></li>
+          <li class="phase rep"><span class="pn">7</span><b>Fidelity</b><span class="who you">you</span><p>Each carried decision that the review marks narrowed or dropped: approve it, or fix it.</p></li>
+          <li class="phase rep"><span class="pn">8</span><b>Try-out</b><span class="who you">you</span><p>Only for a packet with <code>try-out: yes</code>. You run it and say that it works, or describe the problem.</p></li>
+          <li class="phase rep"><span class="pn">9</span><b>Done</b><span class="who auto">agent</span><p>Merges the trunk, marks the work packet done, and goes to the next one.</p></li>
+          <li class="phase"><span class="pn">10</span><b>Handoff and ship</b><span class="who you">you</span><p>One PR for the list: <code class="hp">/wf handoff packets/&lt;slug&gt;</code>, then ship and retro.</p></li>
+        </ol>
+      </div>
+      <ul class="states static" aria-label="Work packet states">
+        <li>written</li><li>open</li><li>built</li><li>done</li><li class="side">dropped</li>
+      </ul>
+      <p class="aside static">The state of each work packet is the <code>state</code> field of its file, and the campaign keeps no other state. Only the campaign script writes that field. The brainstorm owns the board and the packet files, so you can reopen the brainstorm while the campaign runs.</p>
+
+      <h3 class="group" id="cg-before">Before you start</h3>
+      <ul class="rules">
+        <li data-s><b>A list</b><span>A brainstorm that reached <code>done</code>, or an ideate pick, wrote <code>work/index.md</code> and one <code>work/&lt;packet&gt;.md</code> per work packet. With no slug, the campaign lists the folders that hold a list and asks which.</span></li>
+        <li data-s><b>A confirmed scope</b><span>You confirmed the goal, the scope, the acceptance criteria, <code>ux-impact</code>, <code>try-out</code> and the stack at done. The campaign does not ask about them again.</span></li>
+        <li data-s><b>One branch</b><span>Every work packet lands on <code>packets/&lt;slug&gt;</code>. The campaign never stashes and never forces. When git refuses the switch, it shows the files in the way and asks.</span></li>
+        <li data-s><b>Design in this checkout</b><span>You can design a later work packet between two work packets, in this checkout, on the list branch. Design work in another worktree or on another branch does not reach the campaign.</span></li>
+        <li data-s><b>A ship plan</b><span>Run <code class="hp">/wf project ship-plan init</code> before the handoff. Handoff and ship stop without a plan.</span></li>
+        <li data-s><b>Claude Code for the drive</b><span>yolo runs on Claude Code only. On Codex and pi, every other step runs, and you run <code class="hp">/wf auto &lt;packet-slug&gt;</code> in place of yolo.</span></li>
+      </ul>
+
+      <h3 class="group" id="cg-forms">Each form <em>the campaign builds only the build forms</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Form</th><th>What the campaign does</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code>intake</code> · <code>extension</code> · <code>fix</code> · <code>hotfix</code></td><td>Builds it: open, design when needed, slice, drive, fidelity, try-out, done.</td></tr>
+            <tr data-s><td><code>investigate</code> · <code>discover</code> · <code>rca</code> · <code>task</code></td><td>Stops and prints its command, for example <code><span class="hp">/wf</span> intake investigate &lt;packet-slug&gt;</code>. When that workflow is complete or closed, the work packet is done.</td></tr>
+            <tr data-s><td>any form</td><td>When you drop a work packet, the campaign marks it dropped and continues with the next one.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="group" id="cg-stops">Each stop <em>the campaign asks; it never guesses past a stop</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Stop</th><th>What you do</th></tr></thead>
+          <tbody>
+            <tr data-s><td>design not settled</td><td>Type <code><span class="hp">/wf</span> design &lt;packet-slug&gt;</code>. For a <code>design-direction</code> packet, type <code><span class="hp">/wf</span> design direction from &lt;slug&gt;</code> first. Then run the campaign again.</td></tr>
+            <tr data-s><td>yolo stopped</td><td>The campaign shows the stop and follows your answer, then resumes the driver. It does not go to the next work packet.</td></tr>
+            <tr data-s><td>a fidelity row</td><td>Up to four rows per question, each with the decision word for word, the verdict and the evidence. Approve it, or fix it. An approval goes into the packet's <code>po-answers.md</code>.</td></tr>
+            <tr data-s><td>the try-out</td><td>The campaign tells you how to run the work packet and lists each acceptance criterion. Say that it works, or describe the problem.</td></tr>
+            <tr data-s><td>a merge conflict</td><td>Resolve the conflict by hand, then run the campaign again.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul class="rules">
+        <li data-s><b>A problem becomes a new slice</b><span>A fix runs <code><span class="hp">/wf</span> intake &lt;packet-slug&gt; &lt;problem&gt;</code>, which adds a slice to the work packet. yolo builds the slice, and the review runs again over the whole work packet.</span></li>
+        <li data-s><b>New scope becomes a new work packet</b><span>When the problem is new scope, add it to the list with <code><span class="hp">/wf</span> intake brainstorm &lt;slug&gt; add &lt;text&gt;</code>. A fix or a hotfix goes before the first work packet that is not sliced; any other form goes last.</span></li>
+      </ul>
+
+      <h3 class="group" id="cg-ship">Handoff and ship <em>one PR for the list</em></h3>
+      <ul class="rules">
+        <li data-s><b>When the list is done</b><span>Each work packet is done or dropped, and no fidelity row waits for your approval. Type <code><span class="hp">/wf</span> handoff packets/&lt;slug&gt;</code>. The PR lists each work packet with its acceptance results and its decision fidelity table.</span></li>
+        <li data-s><b>Then ship and retro</b><span><code><span class="hp">/wf</span> ship packets/&lt;slug&gt;</code> ships the PR as usual. <code><span class="hp">/wf</span> retro packets/&lt;slug&gt;</code> runs one retro over every work packet on the list branch.</span></li>
+        <li data-s><b>An early handoff</b><span>You can hand off between work packets. The PR then holds the done work packets only. After it merges, the campaign asks whether to delete the list branch and the end branches, and starts the next PR from the trunk.</span></li>
+        <li data-s><b>No stacked PRs</b><span>Every list hands off as one PR.</span></li>
+        <li data-s class="warn"><b>Deletes wait for you</b><span>WARNING: the campaign deletes no remote branch, tag or release without your yes. These deletions cannot be undone.</span></li>
+      </ul>
+
+      <h3 class="group" id="cg-old">An old campaign <em>migrated on the first call</em></h3>
+      <p class="aside" data-s>A folder that holds a ledger of the old wave campaign is migrated the first time you run <code class="hp">/wf campaign &lt;slug&gt;</code>. The campaign writes a report to <code>work/migration.md</code> and shows it to you. Shipped units become done work packets. Units in flight become open work packets, first in the list, and their records come home to the main checkout. You regroup the units that did not start into work packets. The old ledger moves to <code>work/archive/campaign/</code>, and the old worktrees are removed with a guarded remove. An old wave run that is live must stop first, and an open wave PR must merge first.</p>
+
+      <h3 class="group" id="cg-files">Files</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>File</th><th>What you find there</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code>work/index.md</code></td><td>The list: every work packet in order, with its form and state.</td></tr>
+            <tr data-s><td><code>work/&lt;packet&gt;.md</code></td><td>One work packet: the decisions word for word, the write-up, <code>try-out</code>, and its <code>state</code>.</td></tr>
+            <tr data-s><td><code>.ai/workflows/&lt;packet-slug&gt;/</code></td><td>The normal workflow of one work packet, from <code>01-intake.md</code> to <code>07-review.md</code>.</td></tr>
+            <tr data-s><td><code>po-answers.md</code></td><td>In each packet's workflow: your fidelity approvals and your try-out result.</td></tr>
+            <tr data-s><td><code>work/migration.md</code></td><td>The report of a migrated old campaign.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="loops-guide" data-title="Loops in depth">
+      <h2><span class="n"></span>Loops, step by step</h2>
+      <p class="intro">The <code>loop</code> key holds three loops. Each one repeats a unit of work until something other than the agent's own claim says it is done: a script, a measured number, or you.</p>
+      <nav class="subnav static" aria-label="Loop topics">
+        <a href="#lp-compare">Which loop</a><a href="#lp-goal">loop goal</a><a href="#lp-optimize">loop optimize</a><a href="#lp-prototype">loop prototype</a>
+      </nav>
+
+      <h3 class="group" id="lp-compare">Which loop</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th></th><th>loop goal</th><th>loop optimize</th><th>loop prototype</th></tr></thead>
+          <tbody>
+            <tr data-s><td>Use it to</td><td>Keep a workflow moving over many turns</td><td>Move one measured number</td><td>Answer an open question by running code</td></tr>
+            <tr data-s><td>One unit is</td><td>A stage, a trial, or work toward named proofs</td><td>A trial: change, measure, keep or revert</td><td>A round that you start with your words</td></tr>
+            <tr data-s><td>Done when</td><td>A script prints <code>GOAL: MET</code></td><td>The target is reached, the budget is used, or a plateau round finds no gain</td><td>You exit: park, graduate or close</td></tr>
+            <tr data-s><td>Commits</td><td>Whatever the stages commit</td><td>One squashed commit at the finish</td><td>Only decide rounds, one per accepted component</td></tr>
+            <tr data-s><td>Human gates</td><td>Park the goal; you answer, then resume</td><td>You confirm the metric spec before the first trial</td><td>Every round is yours</td></tr>
+            <tr data-s><td>Hosts</td><td>All; each arms the goal its own way</td><td>Driver on Claude Code; elsewhere loop goal carries it</td><td>All</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="group" id="lp-goal">loop goal <em>the host keeps going; a script decides when it is done</em></h3>
+      <div class="two">
+        <div>
+          <div class="syn" data-s>
+            <div class="line"><code><span class="pre t-pre">/wf</span> <span class="t-key">loop</span> <span class="t-sub">goal</span> <span class="t-ph">&lt;slug&gt;</span> <span class="t-op">[</span>objective<span class="t-op">]</span></code></div>
+            <div class="line"><code><span class="pre t-pre">/wf</span> <span class="t-key">loop</span> <span class="t-sub">goal</span> <span class="t-ph">&lt;slug&gt;</span> <span class="t-lit">resume</span><span class="t-op">|</span><span class="t-lit">status</span><span class="t-op">|</span><span class="t-lit">clear</span></code></div>
+          </div>
+          <div class="tbl-wrap" style="margin-top:10px">
+            <table>
+              <thead><tr><th>Kind</th><th>Met when</th></tr></thead>
+              <tbody>
+                <tr data-s><td><code>lifecycle</code></td><td>Default. Every selected slice has a clean verify and the review it needs is clean: ready for handoff.</td></tr>
+                <tr data-s><td><code>optimize</code></td><td>For an optimize slug: the metric loop is complete.</td></tr>
+                <tr data-s><td><code>proofs</code></td><td>Every command you name exits 0, for example "CI green and coverage at 80".</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <ul class="rules">
+          <li data-s><b>Only one line counts</b><span>At the end of each turn, <code>goal.mjs check</code> prints the evidence and then <code>GOAL: MET</code>, <code>GOAL: NOT-MET &lt;reason&gt;</code> or <code>GOAL: BLOCKED &lt;reason&gt;</code>. The host's judge trusts only that line.</span></li>
+          <li data-s class="warn"><b>It never answers a gate</b><span>At a human gate the goal parks. Answer the gate, then run <code><span class="hp">/wf</span> loop goal &lt;slug&gt; resume</code>.</span></li>
+          <li data-s><b>A cap</b><span>After 30 checks (<code>max-checks</code>) the goal blocks with "budget".</span></li>
+          <li data-s><b>How it starts on each host</b><span>Claude Code Desktop: the sdlc mod submits the built-in /goal command. Claude Code CLI: the mod puts it in the prompt box for your Enter. Codex: the model calls the goal tool. pi has no host goal, so the loop runs in the session.</span></li>
+          <li data-s><b>Why yolo and campaign do not use it</b><span>Each one owns its own loop. yolo answers gates by written policy, and the campaign asks you at each stop. A goal stops at every human gate.</span></li>
+        </ul>
+      </div>
+      <p class="aside" data-s>Files in the slug: <code>goal.md</code> (the contract), <code>goal/checks.jsonl</code> (one line per check) and <code>goal/arm.json</code> (the arming request). The contract stays when the host goal is cleared, so <code>resume</code> arms the same goal again.</p>
+
+      <h3 class="group" id="lp-optimize">loop optimize <em>change the code, measure one number, keep or revert</em></h3>
+      <div class="flow-wrap static">
+        <ol class="flow">
+          <li class="phase"><span class="pn">1</span><b>Spec</b><span class="who you">you</span><p><code>intake optimize</code>: objective, metric command, direction, guard command, then allowed paths, budget and a holdout.</p></li>
+          <li class="phase"><span class="pn">2</span><b>Prove the commands</b><span class="who auto">agent</span><p>The metric's last line must parse as a number. The guard must exit 0.</p></li>
+          <li class="phase"><span class="pn">3</span><b>Confirm</b><span class="who you">you</span><p>You confirm the whole spec. The metric choice is the largest risk.</p></li>
+          <li class="phase"><span class="pn">4</span><b>Baseline</b><span class="who auto">script</span><p>Runs the metric several times. Half the spread is the noise floor.</p></li>
+          <li class="phase"><span class="pn">5</span><b>Trials</b><span class="who auto">autonomous</span><p>One hypothesis per trial, in a separate worktree. The script measures and keeps or reverts.</p></li>
+          <li class="phase"><span class="pn">6</span><b>Branch rounds</b><span class="who auto">autonomous</span><p>The best code forks into 4 branches that see only their own history. The best branch wins.</p></li>
+          <li class="phase"><span class="pn">7</span><b>Finish</b><span class="who auto">script</span><p>Kept trials squash into one commit on the slug branch, as one slice.</p></li>
+          <li class="phase"><span class="pn">8</span><b>The tail</b><span class="who you">you</span><p><code>verify &lt;slug&gt; optimize</code>, review with a metric-gaming check, handoff, ship, retro.</p></li>
+        </ol>
+      </div>
+      <div class="two">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Spec field</th><th>Default</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr data-s><td><code>metric.repeat</code></td><td class="num">5</td><td>Runs per measurement</td></tr>
+              <tr data-s><td><code>metric.min-gain</code></td><td class="num">2%</td><td>Smallest gain to keep</td></tr>
+              <tr data-s><td><code>metric.target</code></td><td class="num">none</td><td>Reaching it completes the loop</td></tr>
+              <tr data-s><td><code>budget.trials</code></td><td class="num">60</td><td>Trunk and branch trials together</td></tr>
+              <tr data-s><td><code>budget.plateau</code></td><td class="num">8</td><td>Trials with no keep that open a branch round</td></tr>
+              <tr data-s><td><code>budget.wall-clock</code></td><td class="num">6h</td><td>Total time limit</td></tr>
+              <tr data-s><td><code>budget.trial-timeout</code></td><td class="num">10m</td><td>Per trial</td></tr>
+              <tr data-s><td><code>branch-rounds.at</code></td><td class="num">0%, 33%, 66%</td><td>Budget shares where a round opens</td></tr>
+              <tr data-s><td><code>branch-rounds.branches</code></td><td class="num">4</td><td>Branches per round</td></tr>
+              <tr data-s><td><code>branch-rounds.max-extra</code></td><td class="num">2</td><td>Extra rounds a plateau can add</td></tr>
+              <tr data-s><td><code>checkpoint-every</code></td><td class="num">5</td><td>Trunk trials between holdout checks</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="rules">
+          <li data-s><b>The keep rule</b><span>A trial is kept only when its gain is larger than both the minimum gain and twice the noise, and a confirm run agrees.</span></li>
+          <li data-s><b>The script decides</b><span><code>optimize.mjs</code> makes every git write, measurement, keep and revert. The agent only proposes and edits.</span></li>
+          <li data-s><b>Your tree stays yours</b><span>Trials run in one separate worktree on the trunk <code>optimize/&lt;slug&gt;</code>. Measurement is serial, so runs do not disturb each other.</span></li>
+          <li data-s><b>The spec is fenced</b><span>A trial that touches the metric, the guard, the holdout or their files is rejected before it is measured. The proposer never sees the holdout's output.</span></li>
+          <li data-s><b>When it stops early</b><span>You choose: raise the budget and continue, finish with what was kept, or start a new optimize slug.</span></li>
+        </ul>
+      </div>
+
+      <h3 class="group" id="lp-prototype">loop prototype <em>one round per request; you steer every round</em></h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Command</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code><span class="hp">/wf</span> loop prototype &lt;idea&gt;</code></td><td>Starts a prototype in a worktree on a new <code>poc/&lt;slug&gt;</code> branch. Your main checkout gets one row in INDEX.md, so status finds it.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> loop prototype &lt;poc-branch&gt; &lt;idea&gt;</code></td><td>Starts on a POC branch that already exists.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> loop prototype &lt;slug&gt; [request]</code></td><td>Runs one round for your request, then returns. With no request, shows the pipeline, open proofs and the report link.</td></tr>
+            <tr data-s><td><code><span class="hp">/wf</span> loop prototype &lt;slug&gt; exit park|graduate|close</code></td><td>park keeps it open. graduate prints <code>intake &lt;idea&gt; from &lt;slug&gt;</code> and keeps the branch as the reference. close lists the links; then <code><span class="hp">/wf</span> intake &lt;slug&gt; close</code> archives the workflow.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="two">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Round kind</th><th>You ask to</th></tr></thead>
+            <tbody>
+              <tr data-s><td><code>research</code></td><td>Find ways to answer the question: ranked candidate proofs.</td></tr>
+              <tr data-s><td><code>prove</code></td><td>Prove a step: runs, measurements, one proof card per question.</td></tr>
+              <tr data-s><td><code>compare</code></td><td>Test options on the same inputs, as a matrix.</td></tr>
+              <tr data-s><td><code>diagnose</code></td><td>Find why a result is wrong, with an ablation as evidence.</td></tr>
+              <tr data-s><td><code>decide</code></td><td>Accept a component. The only round that commits.</td></tr>
+              <tr data-s><td><code>generalize</code></td><td>Run on new inputs with frozen settings and no manual help.</td></tr>
+              <tr data-s><td><code>document</code></td><td>Write the accepted pipeline as it is now.</td></tr>
+              <tr data-s><td><code>talk</code></td><td>A question that needs no work, answered from the code.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="rules">
+          <li data-s><b>A proof card</b><span>Question, setup (inputs, seeds, versions, hardware), measured and estimated numbers kept apart, a repeat run in a fresh process, a verdict, and the licenses of every model and asset used.</span></li>
+          <li data-s><b>Before a decide</b><span>The agent looks for a passed generalize proof: a held-out input, frozen settings, no manual selection. Without one it asks whether to run it first; you can accept anyway.</span></li>
+          <li data-s><b>Failures stay</b><span>A failed or unresolved proof stays in the ledger and on the report, with its reason.</span></li>
+          <li data-s><b>The report</b><span><code>report.html</code>: the accepted pipeline, the latest round, every proof newest first, rejected paths. No script, no external loads, under 1 MB, republished to the same link.</span></li>
+          <li data-s class="warn"><b>No drivers</b><span>auto, yolo, loop goal and campaign refuse a prototype. Only your words start a round.</span></li>
+        </ul>
+      </div>
+      <p class="aside" data-s>Files live in the worktree: <code>prototype-ledger.json</code> (the memory: proofs, rounds, decisions, pipeline, rejected paths), <code>01-prototype.md</code> (the accepted pipeline in plain words) and <code>report.html</code>. Run output goes to <code>.scratch/prototype/</code>, which git ignores. <code>cleanup</code> removes a closed prototype's worktree, refuses while it holds a link, and keeps the branch.</p>
+    </section>
+
+    <section id="nav" data-title="Status and project">
+      <h2><span class="n">07</span>Status, project and docs</h2>
+      <p class="intro">Find where you are, catch up, and keep the project-level contracts that the release and telemetry steps read.</p>
+      <div class="cmds" data-group="nav"></div>
+    </section>
+
+    <section id="review" data-title="Review dimensions">
+      <h2><span class="n">08</span>Review dimensions</h2>
+      <p class="intro">With a slug, <code class="hp">/wf review</code> is stage 07 and writes a ledger. Without a slug, name a rubric, an alias or a sweep: the findings come back in chat and nothing is written.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Rubric</th><th>Looks for</th><th>Aliases (one section only)</th></tr></thead>
+          <tbody id="rubrics"></tbody>
+        </table>
+      </div>
+      <div class="two">
+        <div>
+          <h4>Sweeps · <code class="hp">/wf</code> review sweep &lt;name&gt;</h4>
+          <div class="tbl-wrap"><table><thead><tr><th>Sweep</th><th>Runs these rubrics in parallel</th></tr></thead><tbody id="sweeps"></tbody></table></div>
+        </div>
+        <div>
+          <h4>Ad-hoc scopes · after the rubric name</h4>
+          <div class="tbl-wrap"><table><thead><tr><th>Scope</th><th>Reviews</th></tr></thead><tbody id="scopes"></tbody></table></div>
+        </div>
+      </div>
+      <p class="aside"><code>architecture</code>, <code>infra</code> and <code>security</code> are both a rubric and a sweep. The bare name runs one rubric; <code>sweep</code> before it runs the bundle. When a rubric name is also a workflow slug, the slug wins.</p>
+    </section>
+
+    <section id="artifacts" data-title="Artifacts">
+      <h2><span class="n">09</span>What gets written where</h2>
+      <p class="intro">Each workflow is a folder, <code>.ai/workflows/&lt;slug&gt;/</code>. The file numbers follow the stage numbers, so the folder reads in lifecycle order. Nothing is overwritten: re-runs merge or add a new file.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>File</th><th>Written by</th><th>Holds</th></tr></thead>
+          <tbody id="files"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="rules" data-title="Rules to know">
+      <h2><span class="n">10</span>Rules to know</h2>
+      <p class="intro">The behaviors that surprise people the first time.</p>
+      <ul class="rules" id="rulelist"></ul>
+    </section>
+
+    <section id="config" data-title="Configuration">
+      <h2><span class="n"></span>Configuration</h2>
+      <p class="intro">Every option has a safe default, and every file is optional: an absent file means all defaults. Options live in four places. The repo file and the machine file share no key, so no option has two sources to reconcile.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Where</th><th>Scope</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr data-s><td><code>.ai/sdlc-config.json</code></td><td>One repo. Commit it.</td><td>Write checks, leak guards, policy, driver models and the yolo watch. A JSON schema rejects an unknown key. A setting that no release reads now is ignored, with one warning.</td></tr>
+            <tr data-s><td><code>~/.sdlc/config.json</code></td><td>One machine. Never commit it.</td><td>The consent for imagery and uiproto to call outside AI services.</td></tr>
+            <tr data-s><td>Environment variables</td><td>One process or shell</td><td>Switches, folders, model names and credentials.</td></tr>
+            <tr data-s><td>Workflow files and markers</td><td>One workflow or one artifact</td><td><code>steer.md</code>, <code>amend</code>, and frontmatter escapes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="two">
+        <div>
+          <h4>Dotted keys nest in the file · .ai/sdlc-config.json</h4>
+          <pre class="code" data-s><code>{
+  "artifactTracking": "tracked",
+  "checks": "strict",
+  "semantic": { "enabled": true, "mode": "advisory" }
+}</code></pre>
+        </div>
+        <div>
+          <h4>Machine file · ~/.sdlc/config.json</h4>
+          <pre class="code" data-s><code>{
+  "externalDispatch": { "enabled": false }
+}</code></pre>
+        </div>
+      </div>
+      <p class="aside">The Claude Code mod has no settings. It puts the <code>/goal</code> line of <code class="hp">/wf loop goal</code> into your prompt box, and it loads only with <code>CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1</code>.</p>
+      <div id="cfg"></div>
+    </section>
+
+    <p class="empty" id="empty">No command matches <code id="emptyq"></code>. Try a plain word such as <code>bug</code>, <code>release</code>, <code>idea</code> or <code>status</code>.</p>
+
+    <footer>Written from the sdlc-workflow skill files of 24 October 2026. Commands show the <span id="hostname">Claude Code</span> prefix; switch the host at the top to change every command on the page.</footer>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var HOSTS = { cc: { pre: "/wf", name: "Claude Code" }, cx: { pre: "$wf", name: "Codex" }, pi: { pre: "/skill:wf", name: "pi" } };
+  var host = "cc";
+  try { var saved = localStorage.getItem("wf-ref-host"); if (saved && HOSTS[saved]) host = saved; } catch (e) {}
+
+  /* Words that print as literal sub-commands in a grammar line. */
+  var SUB = "goal optimize prototype recap ship-plan observability fix rca investigate discover audit hotfix refactor update-deps ideate brainstorm adopt simplify task amend modernize close".split(" ");
+  var LIT = "sweep triage reviews all deep advise fast resume status clear announce rollback init build edit audit critique move import setup teach extract direction sync design add refresh branch commit plan codebase from-review from-retro research issues --security-only --audit-only exit park graduate cleanup".split(" ");
+
+  var B = {
+    ro: ["ro", "read-only"], term: ["term", "terminal"], gate: ["gate", "human gate"], cc: ["cc", "Claude Code only"],
+    slug: ["slug", "slug first"], solo: ["", "standalone only"], lane: ["", "quick lane"], stop: ["term", "stops before handoff"],
+    you: ["gate", "you end it"], nocode: ["ro", "writes no code"]
+  };
+
+  /* g: group · id · name · badges · syn · d: what it does · w: writes · n: next */
+  var C = [
+    { g: "stage", id: "intake", st: "01", name: "intake", syn: ["intake <description>", "intake \"<description that starts with a mode word>\""],
+      d: "Starts a new workflow. A short product-owner interview turns a rough request into a brief, fingerprints the stack and picks the slug. When the description clearly matches one mode, intake proposes that mode and asks first.",
+      w: ["00-index.md", "01-intake.md"], n: "shape <slug>", t: "new feature start begin build create default" },
+    { g: "stage", id: "shape", st: "02", name: "shape", syn: ["shape <slug> [focus area]"],
+      d: "Product-owner questions turn the brief into a mini-spec: acceptance criteria, edge cases and the decisions later stages honor. Shape also decides the documentation plan and any add-ons (benchmark, experiment, instrument). When the work changes what a person sees, shape adds a design brief.",
+      w: ["02-shape.md", "02b-design.md"], n: "design <slug> · or · slice <slug>", t: "spec acceptance criteria requirements questions" },
+    { g: "stage", id: "design", st: "02c", name: "design", b: ["gate"],
+      syn: ["design <slug> [move] [instructions]", "design <slug> amend [instructions]", "design <slug> import <link|path>…", "design [slug] audit|critique", "design <move> <instructions>", "design setup|teach|extract|direction|sync"],
+      d: "The person confirms one board for every changed surface and state before any driver runs. A move focuses the stage: adapt, animate, bolder, clarify, colorize, delight, distill, harden, layout, onboard, optimize, overdrive, polish, quieter, typeset. amend reopens a confirmed design; import turns a canvas, a folder, a zip or images into boards. A move without a slug starts a new workflow through intake.",
+      w: ["02c-craft.md", "design/r<N>/", "PRODUCT.md", "DESIGN.md"], n: "slice <slug>", t: "ui ux visual boards mockup polish look feel" },
+    { g: "stage", id: "slice", st: "03", name: "slice", syn: ["slice <slug>"],
+      d: "Splits the spec into thin vertical slices that can each be verified alone. Slice also asks one time whether review runs per slice or once over the whole workflow.",
+      w: ["03-slice.md", "03-slice-<slice>.md"], n: "plan <slug>", t: "split decompose break down" },
+    { g: "stage", id: "plan", st: "04", name: "plan", syn: ["plan <slug> [<slice>|all] [feedback]"],
+      d: "Writes the implementation plan for one slice, with a parallel scan for code to reuse. Run plan again on an existing plan to review it against the current code; add feedback to fix it in one direction; all reviews every plan at once.",
+      w: ["04-plan.md", "04-plan-<slice>.md"], n: "implement <slug> <slice>", t: "design approach steps reuse" },
+    { g: "stage", id: "implement", st: "05", name: "implement", syn: ["implement <slug> [<slice>|reviews]"],
+      d: "Codes one planned slice and records what was built. The word reviews runs fix-blockers mode instead: it works through the open blocker findings from review.",
+      w: ["05-implement-<slice>.md"], n: "verify <slug> <slice>", t: "code write build blockers fix findings" },
+    { g: "stage", id: "verify", st: "06", name: "verify", syn: ["verify <slug> [<slice>]"],
+      d: "Runs the tests, lints and typecheck, then checks each acceptance criterion against behavior a user can observe, with captured evidence. One fix round runs, and you decide each fix. Earlier evidence is kept, not overwritten.",
+      w: ["06-verify-<slice>.md", "verify-evidence/<slice>/"], n: "review <slug>", t: "test lint typecheck evidence acceptance" },
+    { g: "stage", id: "review", st: "07", name: "review",
+      syn: ["review <slug> [<slice>|triage]   # the workflow stage", "review <rubric> [scope]   # ad-hoc, one rubric", "review sweep <aggregate>   # ad-hoc, in parallel"],
+      d: "With a slug, one reviewer runs per selected dimension, the findings merge into an accumulating ledger, and the verdict is ship, ship-with-caveats or dont-ship. triage sorts the open findings again. Without a slug, it is an ad-hoc review and the findings come back in chat. The rubrics are under Review dimensions.",
+      w: ["07-review[-<slice>].md", "07-review-<dimension>.md"], n: "handoff <slug> · or · implement <slug> reviews", t: "code review findings verdict rubric dimension" },
+    { g: "stage", id: "handoff", st: "08", name: "handoff", syn: ["handoff <slug|pr#N|branch> [<slice>]"],
+      d: "Packages the finished slices into a pull request with reviewer and QA context. A PR number or a branch runs batch mode over every slug on that branch. Handoff refuses while a required review has open blockers or an intent risk is open, and it checks ship-plan readiness first.",
+      w: ["08-handoff.md"], n: "ship <slug>", t: "pr pull request open package" },
+    { g: "stage", id: "ship", st: "09", name: "ship", syn: ["ship <slug|pr#N|branch> [<env>]", "ship <slug> announce", "ship <slug> rollback [<run-id>]"],
+      d: "Runs the release that .ai/ship-plan.md describes: 13 replayable steps under a fresh run-id, from pre-flight to merge, tag and post-release bookkeeping. After a failure, a re-run resumes at the failed step. announce re-runs only the stakeholder messages; rollback runs a Go/No-Go reversal of a finished run.",
+      w: ["09-ship-run-<run-id>.md", "09-ship-runs.md", "09-rollback-<run-id>.md"], n: "retro <slug>", t: "release deploy publish tag merge undo revert" },
+    { g: "stage", id: "retro", st: "10", name: "retro", syn: ["retro <slug|pr#N|branch>"],
+      d: "The post-mortem. It turns lessons into concrete changes to prompts, hooks, repo instructions, tests and automation. Batch mode retros every slug on the branch and adds the lessons that span all of them.",
+      w: ["10-retro.md"], n: "Done", t: "post-mortem lessons learn" },
+
+    { g: "build", id: "intake-fix", name: "intake fix", b: ["lane"], syn: ["intake fix <description>", "intake <slug> fix <description>"],
+      d: "For a small change with an obvious correction. One run writes the brief, shape, slice and plan on a fix/<slug> branch, then stops at a gate before implement. The same quality gates follow as for any workflow.",
+      w: ["01-fix.md", "02-shape.md", "03-slice.md", "04-plan.md"], n: "implement <slug>", t: "bug typo small broken" },
+    { g: "build", id: "intake-hotfix", name: "intake hotfix", b: ["lane"], syn: ["intake hotfix <description>", "intake <slug> hotfix <description>"],
+      d: "For a production emergency. The same single-pass planning as fix, with a hard scope lock, a branch off the production branch and up to two acceptance criteria. Review defaults to the security dimension, and the full tail runs through retro.",
+      w: ["01-hotfix.md", "02-shape.md", "03-slice.md", "04-plan.md"], n: "implement <slug>", t: "incident outage production down emergency urgent" },
+    { g: "build", id: "intake-refactor", name: "intake refactor", b: ["lane"], syn: ["intake refactor <description>", "intake <slug> refactor <description>"],
+      d: "Changes structure, not behavior. It captures a behavior baseline before any code moves, plans steps that each keep the build green, and review defaults to the refactor-safety dimension.",
+      w: ["01-refactor.md", "02-shape.md", "03-slice.md", "04-plan.md"], n: "implement <slug>", t: "restructure clean untangle" },
+    { g: "build", id: "intake-update-deps", name: "intake update-deps", b: ["lane"], syn: ["intake update-deps [<package>|--security-only|--audit-only]", "intake <slug> update-deps [description]"],
+      d: "Scans every manifest, reads each package's changelog and sorts the updates into risk tiers: security fixes first, then major versions one at a time, then minor and patch updates as one batch. It implements and verifies itself, then goes straight to review. --audit-only stops after the plan.",
+      w: ["01-update-deps.md", "04-plan.md", "05-implement.md", "06-verify.md"], n: "review <slug>", t: "dependencies upgrade packages npm cve bump" },
+    { g: "build", id: "intake-task", name: "intake task", b: ["gate"], syn: ["intake task <description>", "intake task <task-slug>   # resume", "intake <slug> task <description>"],
+      d: "For work whose result is not a code change: a chore, an environment operation such as rotating a key, a document, or coordination with someone outside. Each criterion says how its outcome is observed. Shared, external or irreversible actions always stop for your authorization, and an outcome the agent only claims cannot close a criterion.",
+      w: ["01-task.md", "05-implement.md", "06-verify.md"], n: "Done", t: "chore ops rotate key dns rfc document non-code" },
+    { g: "build", id: "intake-adopt", name: "intake adopt", b: ["solo"], syn: ["intake adopt"],
+      d: "The reverse entry. It reads the change already in your working tree and rebuilds the brief, shape, slice, plan and implementation record from it, marked as adopted. You confirm before anything is written, and the workflow lands at verify.",
+      w: ["01-adopt.md", "…", "05-implement.md"], n: "verify <slug>", t: "already done uncommitted existing diff reconstruct" },
+    { g: "build", id: "intake-optimize", name: "intake optimize", b: ["solo"], syn: ["intake optimize <description>", "intake optimize <optimize-slug>   # resume the spec"],
+      d: "Sets up a metric loop. You confirm the metric command and its direction, a guard command that must pass after every change, the paths a trial may change, and the budget. Intake runs the metric and the guard once to prove that both work.",
+      more: "lp-optimize", w: ["01-optimize.md", "02-optimize-spec.md"], n: "loop optimize <slug>", t: "faster smaller metric performance benchmark" },
+
+    { g: "think", id: "intake-rca", name: "intake rca", b: ["ro", "term"], syn: ["intake rca <symptom>", "intake <slug> rca <symptom>"],
+      d: "Root-cause analysis when the cause is unknown. Parallel diagnosis agents return the cause with confidence, blast radius and a suggested fix shape. rca never writes the fix. You record the route (plan, fix or hotfix), and the diagnosis travels with the next workflow.",
+      w: ["01-rca.md", "02-shape.md"], n: "intake rca <slug> <route>", t: "why broken root cause regression diagnose" },
+    { g: "think", id: "intake-investigate", name: "intake investigate", b: ["ro", "term"], syn: ["intake investigate <problem>", "intake investigate <slug> <option>   # record your pick"],
+      d: "Sketches every distinct way to solve an open design question, up to three as full cards with scope, risk, effort, reversibility and the unknown that could kill each one. It never picks the winner: you do, and the pick closes the workflow.",
+      w: ["01-investigate.md"], n: "intake … from <slug>", t: "options approaches how should we choose compare" },
+    { g: "think", id: "intake-discover", name: "intake discover", b: ["ro", "term"], syn: ["intake discover <hypothesis>", "intake <slug> discover <hypothesis>"],
+      d: "Tests one claim against the code: is X actually the case? Agents argue for it, argue against it and propose counter-hypotheses. The verdict is holds, partial, fails or inconclusive, with cited evidence.",
+      w: ["01-discover.md"], n: "the route the verdict names", t: "is it true feasible hypothesis question check" },
+    { g: "think", id: "intake-audit", name: "intake audit", b: ["ro", "term"], syn: ["intake audit <concern> [paths…]", "intake audit <audit-slug>   # re-run, same ledger", "intake <slug> audit <concern>"],
+      d: "Hunts unknown defects in a named subsystem when there is no symptom, no hypothesis and no diff. You confirm the file surface first. Review rubrics serve as lenses, and every candidate finding must survive refutation. Each accepted finding routes to its own command.",
+      w: ["01-audit.md", "07-review.md", "07-review-<lens>.md"], n: "each finding routes · close <slug> retires it", t: "bugs defects hunt subsystem assumptions" },
+    { g: "think", id: "intake-ideate", name: "intake ideate", b: ["ro", "term"], syn: ["intake ideate [sources] [research] [issues] [lens] [count] [topic]", "intake ideate <ideate-slug> <idea-id> [<idea-id>…]", "intake ideate <ideate-slug> refresh", "intake <slug> ideate [area]"],
+      d: "Surfaces work nobody asked for. Agents scan six lenses (quality, performance, security, DX, feature gaps, architecture), cull weak ideas and rank the rest by impact, effort and confidence. Sources such as a URL, a file, react@19.0.0, an issue link, issues or research add a seventh lens. Pick ideas by id to write work packets.",
+      more: "ideate-guide", w: ["01-ideate.md", "ideate-work.json", "work/index.md", "work/<packet>.md"], n: "campaign <slug> · or · the printed command", t: "ideas suggestions improve what next roadmap github issues" },
+    { g: "think", id: "intake-brainstorm", name: "intake brainstorm", b: ["you"],
+      syn: ["intake brainstorm <idea>", "intake brainstorm design <idea>", "intake brainstorm <brainstorm-slug> [design]   # resume", "intake brainstorm <brainstorm-slug> add <text>", "intake <slug> brainstorm design [idea]", "intake <slug> brainstorm <topic>"],
+      d: "A thinking partner for a half-formed idea. Each turn is a batch of one to four plain questions, and the board stays open until you say done. In a reply, steer with park, pull, drop, board, look it up, second opinion, cohere, pause or done. design focuses on how the idea looks and behaves, with rough sketches. At done you keep or cut each item and agree the work packets.",
+      more: "brainstorm-guide", w: ["01-brainstorm.md", "brainstorm-board.json", "work/<packet>.md"], n: "campaign <slug> · or · the printed command", t: "think idea explore discuss rubber duck sketch" },
+    { g: "think", id: "intake-simplify", name: "intake simplify", b: ["nocode"], syn: ["intake simplify [branch [<base>] | commit <sha-or-range> | plan <slug> <slice> | codebase [<path>]]", "intake <slug> simplify [scope]"],
+      d: "Three reviewers (reuse, quality, efficiency) sweep one scope, the branch diff by default, and route each finding to the command that should fix it. Simplify also collects sdlc-debt: markers from the whole repo.",
+      w: ["01-simplify.md"], n: "the routed commands", t: "cleanup duplication tidy debt" },
+
+    { g: "grow", id: "intake-extend", name: "intake <slug> <scope>", b: ["slug"], syn: ["intake <slug> <new scope>", "intake <slug> from-review", "intake <slug> from-retro"],
+      d: "An existing slug plus free text adds full new slices to that workflow. Built work is never re-specified in place: a correction is always a new slice. from-review, from-retro, from-probe and from-simplify take the scope from findings. Extending a closed workflow revives it.",
+      w: ["03-slice-<new>.md"], n: "plan <slug> <new-slice>", t: "extension extend add more scope follow-on" },
+    { g: "grow", id: "intake-attach", name: "intake <slug> <mode>", b: ["slug"], syn: ["intake <slug> <mode> <description>"],
+      d: "An existing slug plus a mode word runs that mode as one compressed slice on the workflow: no new workflow and no new branch. Every mode can attach this way except adopt and optimize.",
+      w: ["03-slice-<mode>-<descriptor>.md"], n: "per mode", t: "compressed slice attach mid-flight" },
+    { g: "grow", id: "intake-packet", name: "intake <mode> <packet-slug>", syn: ["intake investigate|discover|rca|task <packet-slug>"],
+      d: "Runs an investigate, discover, rca or task work packet that a brainstorm or an ideate pick wrote. The new workflow takes the packet slug and starts from the packet. A build packet is refused: /wf campaign <source-slug> opens and builds it.",
+      w: ["per the packet's form"], n: "per mode", t: "work packet brainstorm ideate list" },
+
+    { g: "maint", id: "intake-amend", name: "intake <slug> amend", b: ["slug"], syn: ["intake <slug> amend <what to change>"],
+      d: "Edits the recorded configuration of a workflow against a strict list: branch strategy, branch, base branch, review scope, title and tags. Nothing else. New scope is an extension; wrong behavior is a fix slice.",
+      w: ["00-index.md", "INDEX.md row"], n: "unchanged", t: "change config rename branch title tags" },
+    { g: "maint", id: "intake-modernize", name: "intake <slug> modernize", b: ["slug"], syn: ["intake <slug> modernize"],
+      d: "Backfills an older workflow's artifacts to the schema the installed plugin expects. Strictly additive: it never rewrites a decision, a verdict or an acceptance criterion. Intake also offers it when you extend an old workflow.",
+      w: ["fields in existing files"], n: "the largest remaining gap", t: "upgrade old schema backfill migrate" },
+    { g: "maint", id: "intake-close", name: "intake <slug> close", b: ["slug"], syn: ["intake <slug> close [reason]", "intake <slug> close <slice> [reason]"],
+      d: "Ends the whole workflow at the stage it reached, or ends one slice so the slices after it are unblocked. Reasons: cancelled, superseded, deferred, completed-externally, merged-into. Close deletes nothing and edits no code.",
+      w: ["99-close.md", "skip-slice-<slice>.md"], n: "Done · or · the next slice", t: "stop cancel abandon end skip finish archive" },
+
+    { g: "drive", id: "probe", name: "probe", b: ["nocode"], syn: ["probe <slug> [<target>|sweep]", "probe sweep [<path>]"],
+      d: "Drives the running app, not the code, and compares what it observes with the acceptance criteria. sweep checks the whole user surface against the criteria, the charter and nine classes of surface defect. As the first word, sweep runs on any repo with no workflow at all.",
+      w: ["03-slice-probe-<descriptor>.md", ".ai/surface-sweep-<date>.md"], n: "the routed fixes", t: "runtime check app works manual qa smoke" },
+    { g: "drive", id: "auto", name: "auto", b: ["stop"], syn: ["auto <slug> [<slice>]"],
+      d: "Runs the stages of a started workflow one after another. Per slice it runs plan, implement, verify and review, and it pauses whenever a stage's own gate needs you. With a slice, it drives that slice only. It never opens a PR and never fixes CI.",
+      w: ["none of its own"], n: "handoff <slug>", t: "driver run all stages automatic" },
+    { g: "drive", id: "yolo", name: "yolo", b: ["cc", "stop"], syn: ["yolo <slug> [<slice>]"],
+      d: "Like auto, but it resolves each gate by a written decision policy and records every decision. Each decision that touches intent is named in the closing digest for audit. Yolo refuses a workflow whose design is not confirmed, analysis workflows, task workflows and prototypes. On Codex and pi, use auto.",
+      w: [".driver-journal.jsonl"], n: "handoff <slug>", t: "autonomous unattended driver" },
+    { g: "drive", id: "campaign", name: "campaign", b: ["gate"], syn: ["campaign <slug>"],
+      d: "Builds the ordered list of work packets that a brainstorm or an ideate pick wrote, one at a time, on one branch. For each work packet it slices, runs yolo, asks you about each changed decision, and pauses for a try-out when you can try it. When the list is done, you hand off one PR for the whole list. On Codex and pi you run auto in place of yolo. One command resumes at any point.",
+      w: ["the state of each work/<packet>.md"], n: "campaign <slug> · then · handoff packets/<slug>", more: "campaign-guide", t: "many list batch packets walk" },
+    { g: "drive", id: "loop-goal", name: "loop goal", syn: ["loop goal <slug> [objective]", "loop goal <slug> resume|status|clear"],
+      d: "Hands the slug to the host's goal feature, so the work continues over many turns. A script decides when it is done and prints GOAL: MET, GOAL: NOT-MET or GOAL: BLOCKED. Kinds: lifecycle (ready for handoff, the default), optimize, and proofs (named commands exit 0). At a human gate the goal parks; answer the gate, then resume.",
+      more: "lp-goal", w: ["goal.md", "goal/checks.jsonl"], n: "loop goal <slug> resume", t: "keep going long running many turns objective" },
+    { g: "drive", id: "loop-optimize", name: "loop optimize", syn: ["loop optimize <slug>", "loop optimize <description>"],
+      d: "Change the code, measure one number, keep or revert. A script makes every git write and measurement, and trials run in a separate worktree, so your tree is never reset. A change is kept only when its gain beats twice the noise and a confirm run agrees. The kept trials become one slice for verify and review. The driver runs on Claude Code; elsewhere, loop goal carries it.",
+      more: "lp-optimize", w: ["optimize/results.jsonl", "05-implement-optimize.md"], n: "verify <slug> optimize", t: "faster smaller metric performance tune" },
+    { g: "drive", id: "loop-prototype", name: "loop prototype", syn: ["loop prototype <idea>", "loop prototype <slug> [request]", "loop prototype <slug> exit park|graduate|close"],
+      d: "Proves an idea by running code in its own worktree on a poc/<slug> branch. Each request of yours runs one round: research, prove, compare, diagnose, decide, generalize, document or talk. Every proof gets a card with its evidence and a repeat run. Only a decide round commits. graduate prints the intake command for a real workflow.",
+      more: "lp-prototype", w: ["prototype-ledger.json", "01-prototype.md", "report.html"], n: "loop prototype <slug> <request>", t: "poc spike experiment proof of concept try" },
+
+    { g: "nav", id: "status", name: "status", b: ["ro"], syn: ["status", "status <slug|pr#N|branch> [deep]", "status advise [<branch>|pr#N|fast]"],
+      d: "With no argument, the table of every workflow. With a slug, where it stands and the exact next command. deep checks for drift against code, git and dependencies. advise ranks what to do next across every open workflow. Every run first reconciles INDEX.md with the disk.",
+      w: ["INDEX.md", "00-sync.md (deep)"], n: "the command it prints", t: "where am i dashboard list next lost overview" },
+    { g: "nav", id: "status-recap", name: "status recap", b: ["ro"], syn: ["status recap <slug|pr#N|branch> [<slice>|plan|shape|slice|review|findings]"],
+      d: "A plain-language catch-up: what was decided, built and checked, and where the workflow stands. Name a slice to recap one slice, or a focus word to have one artifact explained. A branch tells the combined story. Recap never moves the workflow forward.",
+      w: ["90-recap.md"], n: "the command it names", t: "catch up summary story explain what happened resume" },
+    { g: "nav", id: "project-ship-plan", name: "project ship-plan", syn: ["project ship-plan init [--from-template <kind>]", "project ship-plan build [--dry-run]", "project ship-plan edit", "project ship-plan audit [<lens>|triage]"],
+      d: "The release-pipeline contract that ship reads. init writes .ai/ship-plan.md, optionally from a template: npm-public, pypi, container-image, server-deploy, kotlin-maven-central, library-internal. build brings the repo and CI into line. edit amends one block. audit reviews soundness across seven lenses and fixes nothing.",
+      w: [".ai/ship-plan.md", ".ai/ship-plan-audit.md"], n: "ship <slug>", t: "release pipeline ci cd setup publish" },
+    { g: "nav", id: "project-observability", name: "project observability", syn: ["project observability init", "project observability build [--dry-run]", "project observability audit [<lens>|triage]"],
+      d: "The observability contract: schema, sampling, redaction, pipeline, backend and dashboards. init inventories what exists and writes the contract. build writes adapters, pipeline config, infrastructure and dashboards, and stops before each billable step. audit reviews and fixes nothing. To change the contract, edit the file.",
+      w: [".ai/observability.md", ".ai/observability-audit.md"], n: "project observability build", t: "logging telemetry metrics tracing analytics dashboards" },
+    { g: "nav", id: "docs", name: "docs", syn: ["docs [<slug>|<path>|--audit-only]", "docs <primitive>"],
+      d: "With no argument, a slug or a path, it runs the documentation pipeline: discover, audit, plan, generate and review. A slug fulfills the shape's documentation plan. A primitive (plan, tutorial, how-to, reference, explanation, readme, review) writes one Diátaxis document in place.",
+      w: ["project doc paths", ".ai/docs/<run-id>/"], n: "Done", t: "documentation readme tutorial how-to diataxis write" }
+  ];
+
+  var INTENTS = [
+    ["Start work", [
+      ["Build a new feature", "intake", "intake <description>"],
+      ["Fix a small, obvious bug", "intake-fix", "intake fix <description>"],
+      ["Production is down", "intake-hotfix", "intake hotfix <description>"],
+      ["Restructure code, same behavior", "intake-refactor", "intake refactor <description>"],
+      ["Update dependencies", "intake-update-deps", "intake update-deps"],
+      ["Do work that is not code", "intake-task", "intake task <description>"],
+      ["Record work I already did", "intake-adopt", "intake adopt"],
+      ["Prove an idea with throwaway code", "loop-prototype", "loop prototype <idea>"],
+      ["Make a number better", "intake-optimize", "intake optimize <description>"]
+    ]],
+    ["Think first", [
+      ["Find out why something broke", "intake-rca", "intake rca <symptom>"],
+      ["Choose between approaches", "intake-investigate", "intake investigate <problem>"],
+      ["Check whether something is true", "intake-discover", "intake discover <hypothesis>"],
+      ["Hunt for bugs nobody has seen", "intake-audit", "intake audit <concern>"],
+      ["Get ideas for what to do", "intake-ideate", "intake ideate [topic]"],
+      ["Think a rough idea through", "intake-brainstorm", "intake brainstorm <idea>"],
+      ["Turn GitHub issues into work", "id-sources", "intake ideate issues"],
+      ["See what a library upgrade offers", "id-args", "intake ideate react@19.0.0"],
+      ["Find cleanup candidates", "intake-simplify", "intake simplify"],
+      ["Work on the look of the UI", "design", "design <slug>"]
+    ]],
+    ["Keep going", [
+      ["See where everything stands", "status", "status"],
+      ["Catch up on one workflow", "status-recap", "status recap <slug>"],
+      ["Decide which workflow is next", "status", "status advise"],
+      ["Add scope to a workflow", "intake-extend", "intake <slug> <new scope>"],
+      ["Add a quick fix to a workflow", "intake-attach", "intake <slug> fix <description>"],
+      ["Run the stages for me", "auto", "auto <slug>"],
+      ["Keep it going over many turns", "lp-goal", "loop goal <slug>"],
+      ["Run them without stopping", "yolo", "yolo <slug>"],
+      ["Build a list of work packets", "campaign", "campaign <slug>"],
+      ["Check that the app really works", "probe", "probe <slug>"]
+    ]],
+    ["Finish", [
+      ["Open the pull request", "handoff", "handoff <slug>"],
+      ["Release it", "ship", "ship <slug>"],
+      ["Undo a release", "ship", "ship <slug> rollback"],
+      ["Learn from it", "retro", "retro <slug>"],
+      ["Stop or cancel a workflow", "intake-close", "intake <slug> close [reason]"],
+      ["Set up the release pipeline", "project-ship-plan", "project ship-plan init"],
+      ["Set up logging and telemetry", "project-observability", "project observability init"],
+      ["Review code with no workflow", "review", "review sweep pre-merge"],
+      ["Write documentation", "docs", "docs"]
+    ]]
+  ];
+
+  var RUBRICS = [
+    ["correctness", "Logic flaws, broken invariants, edge cases, test quality, concurrency, reliability", "testing, metric-gaming, data-integrity, backend-concurrency, reliability"],
+    ["security", "Vulnerabilities, insecure defaults, supply chain, privacy", "infra-security, supply-chain, privacy"],
+    ["performance", "Algorithmic and system cost, rendering and bundle size, scale, cloud spend", "frontend-performance, scalability, cost"],
+    ["architecture", "Boundaries, maintainability, overengineering, missed reuse, style, refactor safety", "maintainability, overengineering, code-simplification, style-consistency, refactor-safety"],
+    ["api-contracts", "API stability and compatibility, safe database migrations", "migrations"],
+    ["accessibility", "Keyboard and assistive-technology use, ARIA, SPA accessibility", "frontend-accessibility"],
+    ["interface-craft", "Visual detail and motion: radii, alignment, shadows, hit areas, easing, timing", "motion"],
+    ["docs", "Documentation completeness and fit, user-facing copy", "ux-copy"],
+    ["observability", "Wide events, metrics, tracing, error reporting, secrets or PII in logs", "logging"],
+    ["infra", "Infrastructure, CI/CD, release safety, developer tooling", "ci, release, dx"],
+    ["intent-fidelity", "Whether the diff builds the product the intake asked for, or a simpler imitation", "—"]
+  ];
+  var SWEEPS = [
+    ["pre-merge", "correctness, security, architecture"], ["quick", "correctness, architecture, docs"],
+    ["ux", "accessibility, interface-craft, docs, performance"], ["architecture", "architecture, performance, api-contracts"],
+    ["infra", "infra, observability, api-contracts"], ["security", "security, all four sections"], ["all", "every rubric: 11 reviewers"]
+  ];
+  var SCOPES = [["pr", "a PR URL or number"], ["worktree", "uncommitted changes"], ["diff", "a commit range"], ["file", "one file path"], ["repo", "the whole repository (the default)"]];
+
+  var FILES = [
+    ["INDEX.md", "every run", "The registry of all workflows, one row each. Lives in .ai/workflows/."],
+    ["00-index.md", "intake", "The workflow's state: stage, slices, branch, review scope."],
+    ["01-<mode>.md", "intake", "The brief: 01-intake.md, 01-fix.md, 01-rca.md, 01-brainstorm.md and so on."],
+    ["02-shape.md", "shape", "The mini-spec with acceptance criteria. 02b-design.md is the design brief."],
+    ["02c-craft.md", "design", "The confirmed visual contract. Frozen boards go in design/r<N>/."],
+    ["03-slice.md", "slice", "The slice index, plus one 03-slice-<slice>.md per slice."],
+    ["04-plan-<slice>.md", "plan", "The implementation plan of one slice."],
+    ["05-implement-<slice>.md", "implement", "What was built, linked to the slice and the plan."],
+    ["06-verify-<slice>.md", "verify", "Checks and acceptance evidence. Raw output in verify-evidence/<slice>/."],
+    ["07-review.md", "review", "The accumulating findings ledger, plus one file per dimension."],
+    ["08-handoff.md", "handoff", "The PR package and branch readiness."],
+    ["09-ship-run-<run-id>.md", "ship", "One release run. 09-ship-runs.md lists them all."],
+    ["10-retro.md", "retro", "Lessons and the changes they caused."],
+    ["90-recap.md", "status recap", "The plain-language story of the workflow."],
+    ["99-close.md", "intake close", "Why and where the workflow ended."],
+    ["work/<packet>.md", "brainstorm, ideate", "A work packet: decisions word for word, findings, and its state in the campaign."],
+    [".ai/ship-plan.md", "project ship-plan", "The project's release contract. Ship reads it."],
+    [".ai/observability.md", "project observability", "The project's telemetry contract."]
+  ];
+
+  var RULES = [
+    ["Lost? Run status.", "<code class=hp>/wf</code> status shows every workflow; with a slug it prints the exact next command.", ""],
+    ["Typos get a suggestion, never a guess", "Any key that names a missing slug offers the nearest match and asks. It never runs on a guess.", ""],
+    ["A slug cannot be a command word", "A new workflow cannot be named after a key, a sub-key or a mode word, such as fix or status. status flags an old slug with such a name.", ""],
+    ["Quote to force the default flow", "When your description starts with a mode word, put it in quotes so intake reads it as one description.", ""],
+    ["Drivers stop before handoff", "auto, yolo and loop goal never open a PR or release. Handoff and ship are always your call.", "warn"],
+    ["yolo and loop optimize are Claude Code only", "On Codex and pi, use auto, or loop goal for an optimize slug. There, the campaign has you run auto in place of yolo.", ""],
+    ["Human gates stay human", "The design stage, task authorization for shared or irreversible actions, and the end of a brainstorm wait for you. No policy answers them.", "warn"],
+    ["Nothing is overwritten", "Re-runs merge findings, snapshot evidence and add files. Close deletes no artifact, branch or PR.", ""],
+    ["Git is required", "The first run in a folder that is not a git repo asks to run git init. Without it, artifacts still write, but no slug branch exists until you run git init.", ""],
+    ["Same words on every host", "Only the prefix changes: /wf on Claude Code, $wf on Codex, /skill:wf on pi. Workflows started on one host resume on another.", ""]
+  ];
+
+  /* Configuration: [key, default, what it does, kind]. kind "block" or "warn" marks a write check. */
+  var CONFIG = [
+    { id: "cfg-checks", title: "Per repo · write checks", rows: [
+      ["checks", "\"strict\"", "How the write checks act. strict refuses a write that fails a gate. warn lets it stand and shows the same reason. off runs no check. The lints only warn, in strict and warn alike."]
+    ] },
+    { id: "cfg-policy", title: "Per repo · policy", rows: [
+      ["artifactTracking", "unset", "\"tracked\": .ai/ is committed. \"ignored\": .ai/ is gitignored except ship-plan.md and sdlc-config.json. ship-plan init records it; while unset, ship asks each run."],
+      ["semantic.enabled", "false", "Turns on the leak guards that scan commit messages, PR text and public docs for internal workflow words."],
+      ["semantic.mode", "\"advisory\"", "\"advisory\" warns and names the words. \"enforce\" refuses the tool call. Enforce only after advisory shows almost no false alarms."],
+      ["memory.seedRules", "true", "At session start, keeps the fenced /wf rules block in AGENTS.md and an @AGENTS.md import in CLAUDE.md. Only in repos with .ai/workflows/."],
+      ["solutions.globalDir", "null", "Absolute path to a personal lessons folder. Plan reads it beside .ai/solutions/; retro adds lessons you confirm. Never synced."]
+    ] },
+    { id: "cfg-models", title: "Per repo · driver models", em: "models.* · opus or sonnet", rows: [
+      ["models.plan", "\"opus\"", "The model of the plan stage agent of yolo."],
+      ["models.implement", "\"opus\"", "The model of the implement stage agent."],
+      ["models.verify", "\"opus\"", "The model of the verify stage agent."],
+      ["models.review", "\"opus\"", "The model of the review writer."],
+      ["models.update-deps", "\"opus\"", "The model of the update-deps execution agent."]
+    ] },
+    { id: "cfg-yolo", title: "Per repo · yolo watch", rows: [
+      ["yolo.protectedFiles", "[]", "Repo paths the watch hashes every 20 seconds. A change raises an event and a push notification. PRODUCT.md, DESIGN.md and every file with uncommitted edits at the start are always protected."]
+    ] },
+    { id: "cfg-machine", title: "Machine · consent", em: "~/.sdlc/config.json", rows: [
+      ["externalDispatch.enabled", "false", "The consent gate for imagery and uiproto, which send prompts to outside AI services. Their scripts check it themselves. /consult is not behind it."]
+    ] },
+    { id: "cfg-env-switch", title: "Environment · switches", em: "set to 1", rows: [
+      ["SDLC_DISABLE_MEMORY_SEED", "unset", "Skips the AGENTS.md rules seeding. Per repo: memory.seedRules: false."],
+      ["SDLC_HOOK_DEBUG", "unset", "Each hook logs its raw payload to the plugin data folder. A hook-debug file there does the same."]
+    ] },
+    { id: "cfg-env-paths", title: "Environment · locations and tools", rows: [
+      ["SDLC_HOME", "~/.sdlc", "Moves the machine folder: config.json and the logs."],
+      ["SDLC_CLAUDE_PROJECTS_DIR", "~/.claude/projects", "Where the watch reads session transcripts."],
+      ["SDLC_WATCH_LOCK_DIR", "unset", "A folder for the watch's locks."],
+      ["SDLC_WATCH_MAX_MINUTES", "31", "How long one watch lives. 110 with --once."],
+      ["SDLC_WATCH_LOOK_IN_MINUTES", "15", "Minutes with no full note before the watch asks the session to look in. 0 turns it off."],
+      ["SDLC_WATCH_JOURNAL_MS · SDLC_WATCH_GIT_MS", "5000 · 20000", "How often the watch reads the driver journal and git."],
+      ["SDLC_BROWSER", "auto", "The Chromium that renders design boards. none keeps boards as HTML."],
+      ["SDLC_BROWSER_TIMEOUT_MS", "30000", "Time limit for one board render."]
+    ] },
+    { id: "cfg-env-models", title: "Environment · models and credentials", rows: [
+      ["SDLC_CONSULT_OPENAI_MODEL", "\"gpt-5.5\"", "The OpenAI model /consult asks."],
+      ["SDLC_CONSULT_GEMINI_MODEL", "\"gemini-3-pro\"", "The Gemini model /consult asks."],
+      ["SDLC_UIPROTO_OPENAI_MODEL", "\"gpt-5.5\"", "The OpenAI model for uiproto."],
+      ["SDLC_UIPROTO_GEMINI_MODEL", "\"gemini-3-pro\"", "The Gemini model for uiproto."],
+      ["STITCH_API_KEY · STITCH_PROJECT_ID", "unset", "Google Stitch for uiproto. Create the project in the Stitch UI first. Without them, uiproto uses its LLM engine."]
+    ] },
+    { id: "cfg-env-internal", title: "Environment · set by the plugin", em: "do not set these yourself", rows: [
+      ["SDLC_HOST", "set by hooks", "Which host runs the hook: claude or codex."],
+      ["SDLC_DISPATCH_ACTIVE", "set by consult", "Marks a consult child session: no cost row, no leak guard."],
+      ["SDLC_COST_SLUG · SDLC_COST_KEY", "set by consult", "The workflow and stage whose cost.jsonl gets the outside models' usage from a /consult run."]
+    ] },
+    { id: "cfg-workflow", title: "Per workflow", em: "files and markers", rows: [
+      ["steer.md", "absent", "Your standing instructions for one workflow, as free bullets (\"no new runtime deps\"). Every stage and sub-agent reads it. Chat outranks it, and it never overrides a mandatory gate. Say \"add to steering: …\" to have it written."],
+      ["intake <slug> amend", "none", "Changes branch strategy, branch, base branch, review scope, title and tags. Nothing else."],
+      ["fragment: none", "none", "Frontmatter that opts one artifact out of the sibling .yaml rule."],
+      ["sdlc-debt: <note>", "none", "A code comment that records accepted debt. The suppression check looks for it; simplify and ideate collect it."],
+      ["02-optimize-spec.md", "see Loops", "The metric, guard, budget and branch rounds of one optimize slug."],
+      ["goal.md max-checks", "30", "How many checks a goal runs before it blocks. Set with --max-checks at arm."]
+    ] }
+  ];
+
+  function renderConfig() {
+    document.getElementById("cfg").innerHTML = CONFIG.map(function (g) {
+      var rows = g.rows.map(function (r) {
+        var kind = r[3] === "block" ? ' <span class="badge gate">blocks</span>' : (r[3] === "warn" ? ' <span class="badge">warns</span>' : "");
+        return "<tr data-s><td><code>" + esc(r[0]) + "</code>" + kind + '</td><td class="num"><code>' + esc(r[1]) + "</code></td><td>" + esc(r[2]) + "</td></tr>";
+      }).join("");
+      return '<h3 class="group" id="' + g.id + '">' + esc(g.title) + (g.em ? " <em>" + esc(g.em) + "</em>" : "") + "</h3>" +
+        (g.warn ? '<p class="aside cfg-warn">' + esc(g.warn) + "</p>" : "") +
+        '<div class="tbl-wrap"><table><thead><tr><th>Key</th><th>Default</th><th>What it does</th></tr></thead><tbody>' + rows + "</tbody></table></div>";
+    }).join("");
+  }
+
+  var STAGE_ORDER = ["intake", "shape", "design", "slice", "plan", "implement", "verify", "review", "handoff", "ship", "retro"];
+  var STAGE_FILE = { intake: "01-intake", shape: "02-shape", design: "02c-craft", slice: "03-slice", plan: "04-plan", implement: "05-implement", verify: "06-verify", review: "07-review", handoff: "08-handoff", ship: "09-ship-run", retro: "10-retro" };
+
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function pre() { return '<span class="pre t-pre">' + esc(HOSTS[host].pre) + "</span>"; }
+
+  /* Color a grammar line: key, sub-command words, placeholders, optional brackets, alternatives. */
+  function hl(src) {
+    var body = src, cm = "";
+    var at = src.indexOf("   #");
+    if (at >= 0) { body = src.slice(0, at); cm = src.slice(at); }
+    var out = "", first = true, prev = "";
+    var re = /(<[^>]*>)|([\[\]|])|("[^"]*")|(\s+)|([^\s<\[\]|"]+)/g, m;
+    while ((m = re.exec(body))) {
+      if (m[1]) out += '<span class="t-ph">' + esc(m[1]) + "</span>";
+      else if (m[2]) out += '<span class="t-op">' + esc(m[2]) + "</span>";
+      else if (m[3]) out += '<span class="t-ph">' + esc(m[3]) + "</span>";
+      else if (m[4]) out += m[4];
+      else {
+        var w = m[5];
+        if (first) { out += '<span class="t-key">' + esc(w) + "</span>"; first = false; }
+        else if (SUB.indexOf(w) >= 0 && (prev === "intake" || prev === "loop" || prev === "status" || prev === "project" || /^</.test(prev) || prev === "slug")) out += '<span class="t-sub">' + esc(w) + "</span>";
+        else if (SUB.indexOf(w) >= 0 || LIT.indexOf(w) >= 0) out += '<span class="t-lit">' + esc(w) + "</span>";
+        else out += esc(w);
+        prev = w;
+      }
+      if (m[1]) prev = m[1];
+    }
+    if (cm) out += '<span class="t-cm">' + esc(cm) + "</span>";
+    return out;
+  }
+
+  function badge(k) { var b = B[k]; return '<span class="badge ' + b[0] + '">' + esc(b[1]) + "</span>"; }
+
+  function card(c) {
+    var badges = (c.st ? '<span class="badge stage">stage ' + c.st + "</span>" : "") + (c.b || []).map(badge).join("");
+    var syn = c.syn.map(function (s) {
+      var plain = s.split("   #")[0].trim();
+      return '<div class="line"><code>' + pre() + " " + hl(s) + '</code><button type="button" class="copy" data-copy="' + esc(plain) + '" aria-label="Copy command">copy</button></div>';
+    }).join("");
+    var files = c.w.map(function (f) { return '<span class="file">' + esc(f) + "</span>"; }).join("");
+    var next = c.n === "Done" || /^(per |unchanged|the |each )/.test(c.n) ? '<span class="next">' + esc(c.n) + "</span>"
+      : c.n.split(" · or · ").map(function (n) { return '<span class="next">' + pre() + " " + esc(n) + "</span>"; }).join('<span class="t-op">or</span>');
+    return '<article class="cmd" id="k-' + c.id + '" data-name="' + esc(c.name) + '" data-s data-tags="' + esc((c.t || "") + " " + c.g) + '">' +
+      '<div class="cmd-head"><h4><a href="#k-' + c.id + '">' + pre() + " " + esc(c.name) + "</a></h4>" + (badges ? '<div class="badges">' + badges + "</div>" : "") + "</div>" +
+      '<div class="cmd-body"><div class="syn">' + syn + '</div><p class="desc">' + esc(c.d) + "</p>" +
+      '<dl class="meta"><dt>Writes</dt><dd>' + files + "</dd><dt>Next</dt><dd>" + next + "</dd>" +
+      (c.more ? '<dt>Guide</dt><dd><a class="guide-link" href="#' + c.more + '">Step-by-step guide ↓</a></dd>' : "") + "</dl></div></article>";
+  }
+
+  function render() {
+    renderConfig();
+    document.querySelectorAll(".cmds[data-group]").forEach(function (box) {
+      box.innerHTML = C.filter(function (c) { return c.g === box.dataset.group; }).map(card).join("");
+    });
+    document.getElementById("intents").innerHTML = INTENTS.map(function (grp) {
+      return "<div><h4>" + esc(grp[0]) + "</h4><ul>" + grp[1].map(function (i) {
+        var id = /^(cg|bs|id|lp)-/.test(i[1]) ? i[1] : "k-" + i[1];
+        return '<li data-s><a href="#' + id + '" data-jump="' + id + '"><span class="say">' + esc(i[0]) + '</span><span class="go">' + pre() + " " + esc(i[2]) + "</span></a></li>";
+      }).join("") + "</ul></div>";
+    }).join("");
+    document.getElementById("rail").innerHTML = STAGE_ORDER.map(function (k) {
+      var c = C.filter(function (x) { return x.id === k; })[0];
+      var cls = k === "design" ? "stop alt" : (["handoff", "ship", "retro"].indexOf(k) >= 0 ? "stop mine" : "stop");
+      var tag = k === "design" ? '<span class="tag des">human-only</span>' : (["plan", "implement", "verify", "review"].indexOf(k) >= 0 ? '<span class="tag drv">auto \u00b7 yolo</span>' : (["handoff", "ship", "retro"].indexOf(k) >= 0 ? '<span class="tag you">yours</span>' : ""));
+      return '<a class="' + cls + '" href="#k-' + k + '" data-jump="k-' + k + '"><span class="dot">' + c.st + "</span><b>" + k + "</b><small>" + STAGE_FILE[k] + "</small>" + tag + "</a>";
+    }).join("");
+    document.getElementById("rubrics").innerHTML = RUBRICS.map(function (r) {
+      return "<tr data-s><td><code>" + esc(r[0]) + "</code></td><td class=w>" + esc(r[1]) + '</td><td class="w mono" style="font-size:.8rem">' + esc(r[2]) + "</td></tr>";
+    }).join("");
+    document.getElementById("sweeps").innerHTML = SWEEPS.map(function (r) { return "<tr data-s><td><code>" + esc(r[0]) + "</code></td><td>" + esc(r[1]) + "</td></tr>"; }).join("");
+    document.getElementById("scopes").innerHTML = SCOPES.map(function (r) { return "<tr data-s><td><code>" + esc(r[0]) + "</code></td><td>" + esc(r[1]) + "</td></tr>"; }).join("");
+    document.getElementById("files").innerHTML = FILES.map(function (r) {
+      return "<tr data-s><td><code>" + esc(r[0]) + "</code></td><td><code>" + esc(r[1]) + "</code></td><td class=w>" + esc(r[2]) + "</td></tr>";
+    }).join("");
+    document.getElementById("rulelist").innerHTML = RULES.map(function (r) {
+      return '<li data-s class="' + r[2] + '"><b>' + esc(r[0]) + "</b><span>" + r[1] + "</span></li>";
+    }).join("");
+    Array.prototype.forEach.call(document.querySelectorAll("main section > h2 .n"), function (n, i) { n.textContent = (i < 9 ? "0" : "") + (i + 1); });
+    /* Give every group heading an id, label stacked table cells, and build the phone outline. */
+    document.querySelectorAll("main section").forEach(function (sec) {
+      sec.querySelectorAll("h3.group").forEach(function (h) {
+        if (!h.id) h.id = sec.id + "-" + h.firstChild.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      });
+    });
+    document.querySelectorAll(".tbl-wrap table").forEach(function (t) {
+      var heads = Array.prototype.map.call(t.querySelectorAll("thead th"), function (th) { return th.textContent.trim(); });
+      if (heads.length < 3) return;
+      t.querySelectorAll("tbody tr").forEach(function (tr) {
+        Array.prototype.forEach.call(tr.children, function (td, i) { if (heads[i]) td.setAttribute("data-label", heads[i]); });
+      });
+    });
+    document.getElementById("outline").innerHTML = Array.prototype.map.call(document.querySelectorAll("main section"), function (sec) {
+      var n = sec.querySelector("h2 .n").textContent;
+      var groups = Array.prototype.map.call(sec.querySelectorAll("h3.group"), function (h) {
+        return '<a href="#' + h.id + '" data-g="' + h.id + '">' + esc(h.firstChild.textContent.trim()) + "</a>";
+      }).join("");
+      var cmds = Array.prototype.map.call(sec.querySelectorAll(".cmd"), function (a) {
+        return '<a href="#' + a.id + '" data-jump="' + a.id + '">' + esc(a.dataset.name) + "</a>";
+      }).join("");
+      return '<div class="ol-sec" data-sec="' + sec.id + '"><a href="#' + sec.id + '"><span class="n">' + n + "</span>" + esc(sec.dataset.title) + "</a>" +
+        (groups ? '<div class="ol-groups">' + groups + "</div>" : "") + (cmds ? '<div class="ol-cmds">' + cmds + "</div>" : "") + "</div>";
+    }).join("");
+    var toc = document.getElementById("toc");
+    toc.innerHTML = Array.prototype.map.call(document.querySelectorAll("main section"), function (s) {
+      var n = s.querySelectorAll(".cmd").length;
+      return '<li><a href="#' + s.id + '" data-sec="' + s.id + '">' + esc(s.dataset.title) + (n ? "<span>" + n + "</span>" : "") + "</a></li>";
+    }).join("");
+    applyHost();
+  }
+
+  function applyHost() {
+    document.querySelectorAll(".pre, .hp").forEach(function (el) {
+      if (el.classList.contains("hp")) {
+        el.textContent = el.textContent.replace(/^(\/skill:wf|\$wf|\/wf)/, HOSTS[host].pre);
+      } else el.textContent = HOSTS[host].pre;
+    });
+    document.querySelectorAll(".seg button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.host === host)); });
+    document.getElementById("hostname").textContent = HOSTS[host].name;
+  }
+
+  /* ---- search ---- */
+  var q = document.getElementById("q");
+  function filter() {
+    var terms = q.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    var on = terms.length > 0, hits = 0;
+    document.body.classList.toggle("searching", on);
+    document.querySelectorAll("[data-s]").forEach(function (el) {
+      var hay = (el.textContent + " " + (el.dataset.tags || "")).toLowerCase();
+      var ok = !on || terms.every(function (t) { return hay.indexOf(t) >= 0; });
+      el.hidden = !ok;
+      if (ok && on && el.classList.contains("cmd")) hits++;
+    });
+    document.querySelectorAll("main section").forEach(function (s) {
+      s.hidden = on && !s.querySelector("[data-s]:not([hidden])");
+      s.querySelectorAll("h3.group").forEach(function (h) {
+        /* Hide a group heading when nothing that follows it, up to the next heading, still matches. */
+        var el = h.nextElementSibling, hit = false;
+        while (el && !(el.matches && el.matches("h3.group"))) {
+          if ((el.matches("[data-s]") && !el.hidden) || el.querySelector("[data-s]:not([hidden])")) { hit = true; break; }
+          el = el.nextElementSibling;
+        }
+        h.hidden = on && !hit;
+      });
+      s.querySelectorAll(".intents > div, .two > div").forEach(function (d) { d.hidden = on && !d.querySelector("[data-s]:not([hidden])"); });
+      s.querySelectorAll(".tbl-wrap").forEach(function (d) { d.hidden = on && !d.querySelector("[data-s]:not([hidden])"); });
+    });
+    var any = !!document.querySelector("main section:not([hidden])");
+    document.body.classList.toggle("none", on && !any);
+    document.getElementById("emptyq").textContent = q.value.trim();
+    document.getElementById("count").textContent = on ? hits + (hits === 1 ? " command" : " commands") : "";
+  }
+  q.addEventListener("input", filter);
+  document.addEventListener("keydown", function (e) {
+    var typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+    if ((e.key === "/" && !typing) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")) { e.preventDefault(); q.focus(); q.select(); }
+    else if (e.key === "Escape" && document.activeElement === q) { q.value = ""; filter(); q.blur(); }
+  });
+
+  /* ---- jump links clear the search, then flash the target ---- */
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest("[data-jump]");
+    if (a && q.value) { q.value = ""; filter(); }
+    if (a) {
+      var t = document.getElementById(a.dataset.jump);
+      if (t) { t.classList.remove("flash"); void t.offsetWidth; t.classList.add("flash"); setTimeout(function () { t.classList.remove("flash"); }, 1600); }
+    }
+    var cp = e.target.closest(".copy");
+    if (cp) {
+      var text = HOSTS[host].pre + " " + cp.dataset.copy;
+      var done = function () { cp.textContent = "copied"; cp.classList.add("done"); setTimeout(function () { cp.textContent = "copy"; cp.classList.remove("done"); }, 1400); };
+      var fallback = function () {
+        var code = cp.previousElementSibling, r = document.createRange(); r.selectNodeContents(code);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); cp.textContent = "selected";
+        setTimeout(function () { cp.textContent = "copy"; }, 1400);
+      };
+      try { navigator.clipboard.writeText(text).then(done, fallback); } catch (err) { fallback(); }
+    }
+    var hb = e.target.closest(".seg button");
+    if (hb) { host = hb.dataset.host; try { localStorage.setItem("wf-ref-host", host); } catch (err) {} applyHost(); }
+  });
+
+  render();
+
+  /* ---- scrollspy: the last section and group whose top passed 35% of the viewport ---- */
+  var links = {}, secs = Array.prototype.slice.call(document.querySelectorAll("main section")), ticking = false;
+  var whereN = document.getElementById("whereN"), whereT = document.getElementById("whereT"), whereG = document.getElementById("whereG");
+  var toTop = document.getElementById("toTop"), curSec = null, curGroup = null;
+  document.querySelectorAll(".toc a").forEach(function (a) { links[a.dataset.sec] = a; });
+  function spy() {
+    ticking = false;
+    var line = innerHeight * 0.35, cur = null, grp = null;
+    secs.forEach(function (s) { if (!s.hidden && (!cur || s.getBoundingClientRect().top <= line)) cur = s; });
+    if (!cur) return;
+    cur.querySelectorAll("h3.group").forEach(function (h) { if (!h.hidden && h.offsetParent && h.getBoundingClientRect().top <= line) grp = h; });
+    Object.keys(links).forEach(function (k) { links[k].classList.toggle("on", k === cur.id); });
+    curSec = cur; curGroup = grp;
+    whereN.textContent = cur.querySelector("h2 .n").textContent;
+    whereT.textContent = cur.dataset.title;
+    whereG.textContent = grp ? grp.firstChild.textContent.trim() : "";
+    toTop.hidden = scrollY < innerHeight;
+  }
+  addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(spy); } }, { passive: true });
+  addEventListener("resize", spy);
+  q.addEventListener("input", spy);
+  spy();
+
+  /* ---- the contents sheet (phones and tablets) ---- */
+  var sheet = document.getElementById("sheet"), back = document.getElementById("sheetBack"), opener = null;
+  function openSheet(e) {
+    opener = e && e.currentTarget;
+    sheet.hidden = false; back.hidden = false; document.body.style.overflow = "hidden";
+    sheet.querySelectorAll(".ol-sec").forEach(function (d) { d.classList.toggle("on", !!curSec && d.dataset.sec === curSec.id); });
+    sheet.querySelectorAll(".ol-groups a").forEach(function (a) { a.classList.toggle("on", !!curGroup && a.dataset.g === curGroup.id); });
+    var on = sheet.querySelector(".ol-sec.on");
+    if (on) on.scrollIntoView({ block: "center" });
+    document.getElementById("closeNav").focus();
+  }
+  function closeSheet(refocus) {
+    sheet.hidden = true; back.hidden = true; document.body.style.overflow = "";
+    if (refocus && opener) opener.focus();
+  }
+  document.getElementById("where").addEventListener("click", openSheet);
+  document.getElementById("openNav").addEventListener("click", openSheet);
+  document.getElementById("closeNav").addEventListener("click", function () { closeSheet(true); });
+  back.addEventListener("click", function () { closeSheet(true); });
+  document.getElementById("outline").addEventListener("click", function (e) {
+    var a = e.target.closest("a");
+    if (!a) return;
+    closeSheet(false);
+    if (q.value) { q.value = ""; filter(); }
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !sheet.hidden) closeSheet(true); });
+  toTop.addEventListener("click", function () { scrollTo({ top: 0 }); });
+})();
+</script>
+
