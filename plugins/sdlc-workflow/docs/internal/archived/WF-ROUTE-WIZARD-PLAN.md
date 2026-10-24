@@ -6,11 +6,11 @@ Status **BUILT in v9.201.0 (W0–W3, W5, W6); W4 (the Desktop band) deferred by 
 
 ## 1. Why
 
-To use `/wf` today, the person must know the 19 keys and their argument shapes. When the first word is not a key, Step 0 stops with an error ([SKILL.md](../../skills/wf/SKILL.md) Step 0 item 3). When a stage key gets an unknown slug, Step 0.5 stops with "Did you mean". A bare `/wf` prints the key tables. The Desktop picker band is a key-first picker. It helps a person who knows the key but has forgotten the slug.
+To use `/wf` today, the person must know the 19 keys and their argument shapes. When the first word is not a key, Step 0 stops with an error ([SKILL.md](../../../skills/wf/SKILL.md) Step 0 item 3). When a stage key gets an unknown slug, Step 0.5 stops with "Did you mean". A bare `/wf` prints the key tables. The Desktop picker band is a key-first picker. It helps a person who knows the key but has forgotten the slug.
 
 The person wants to write what they want in plain words. `/wf` must say how it understood the words, name the command, wait for a yes, and then run the command. The person also wants to ask `/wf` questions about `/wf` itself.
 
-Part of this already exists one level down. `/wf intake <description>` has a suggest-and-confirm classifier ([intake.md](../../skills/wf/reference/intake.md) "Auto-route classification"). That classifier chooses only among intake modes, and the person must type `intake` first.
+Part of this already exists one level down. `/wf intake <description>` has a suggest-and-confirm classifier ([intake.md](../../../skills/wf/reference/intake.md) "Auto-route classification"). That classifier chooses only among intake modes, and the person must type `intake` first.
 
 ## 2. Decisions
 
@@ -106,7 +106,7 @@ On a miss, the router needs the open workflows and the slices for its near match
 
 Only tokens in `[A-Za-z0-9#._/-]` go into a `grep` or a `git` call. A token with another character cannot be a slug, a slice or a branch, so Step 0 counts it as a miss with no call. Description text never enters a shell command (the surface-sweep rule "never pass `/wf` as Bash argv").
 
-**The mod parser, for the later band plan.** One code parser exists, in the mod. When the mod is on, its `command.run` handler gets every `/wf` command before the model does ([register.ts](../../hooks/mod/register.ts) `on('command.run')`). `wfCommandOf` ([active.ts](../../hooks/mod/active.ts)) splits the command into key, slug and slice, and `stepFor` decides whether to open the picker band. The handler can replace the command text (`return { text }`). The parser prints nothing, and it does not check that a slug or a slice exists. This plan assumes that the mod is off (D8) and does not use this code. A later plan can move the disk check into `command.run`, with a slug and slice table that the handler builds for each command. Then Step 0 needs no tool call when the mod is on.
+**The mod parser, for the later band plan.** One code parser exists, in the mod. When the mod is on, its `command.run` handler gets every `/wf` command before the model does ([register.ts](../../../hooks/mod/register.ts) `on('command.run')`). `wfCommandOf` ([active.ts](../../../hooks/mod/active.ts)) splits the command into key, slug and slice, and `stepFor` decides whether to open the picker band. The handler can replace the command text (`return { text }`). The parser prints nothing, and it does not check that a slug or a slice exists. This plan assumes that the mod is off (D8) and does not use this code. A later plan can move the disk check into `command.run`, with a slug and slice table that the handler builds for each command. Then Step 0 needs no tool call when the mod is on.
 
 ### 4.4 What changes in Step 0
 
@@ -155,7 +155,7 @@ The router matches an open workflow by slug, by title, and by a near match (Leve
 
 ### 6.3 The confirm question
 
-When the only route is intake, the router skips this question (section 5). For every other route, the router asks one gate question per [_gate-question.md](../../skills/wf/reference/_gate-question.md):
+When the only route is intake, the router skips this question (section 5). For every other route, the router asks one gate question per [_gate-question.md](../../../skills/wf/reference/_gate-question.md):
 
 > I read this as: \<one-line restatement\>. Run `/wf <command>`?
 > - **\<the best route\> (Recommended)** — one line: what the route does and what it writes.
@@ -214,7 +214,7 @@ Help reads no docs site page (D6). The reference files are what the keys run, so
 
 **Decided 2026-10-21 (D8): this plan assumes that the mod is off.** The router, help and the bare `/wf` question live in the skill only. They work the same on every host. This plan does not change `hooks/mod/`. The band is a later plan.
 
-Today the band opens the key picker on a bare `/wf` ([picker.ts](../../hooks/mod/picker.ts) `stepFor`). When the mod is on, the band keeps doing this. The skill's question of section 7 then appears only when the band is off, or when the person sends a bare `/wf` without the band.
+Today the band opens the key picker on a bare `/wf` ([picker.ts](../../../hooks/mod/picker.ts) `stepFor`). When the mod is on, the band keeps doing this. The skill's question of section 7 then appears only when the band is off, or when the person sends a bare `/wf` without the band.
 
 The recommendation for the later plan: the band's first step becomes the question of section 7. It shows the "Continue" rows, an "Ask about /wf" row, a "Show all keys" row that opens the key picker of today, and a text input with the label "Describe it". A row or the input sends the text as `/wf <text>`. The router then runs in the turn. The band never classifies by itself, because the classifier is the model.
 

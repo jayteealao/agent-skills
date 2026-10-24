@@ -5,6 +5,29 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.0] - 2026-10-24
+
+- fix(sdlc-workflow): the release accepts a CI workflow that is not on the remote yet
+- test(sdlc-workflow): a core tier and a local integration tier
+- docs(sdlc-workflow)!: one command page replaces the doc site
+- feat(sdlc-workflow): npm run release is the one way to release
+- build(sdlc-workflow)!: run the hooks and scripts from the source
+- feat(sdlc-workflow)!: a drift linter replaces the prose ratchets and the evals
+- feat(sdlc-workflow): wf.mjs runs dispatch, status, index, cost and stamp
+- test(sdlc-workflow): delete the tests that only match skill prose
+- feat(sdlc-workflow): one key registry writes the key tables and descriptions
+- build(sdlc-workflow)!: require Node 22
+- refactor(sdlc-workflow): delete the controlled-language contract
+- feat(sdlc-workflow)!: one checks setting replaces the hook switches
+- refactor(sdlc-workflow): remove the usage guard leftovers and fold the driver helpers
+- refactor(sdlc-workflow)!: reduce the mod to goal arming
+- refactor(sdlc-workflow): remove the brainstorm page
+- feat(sdlc-workflow)!: remove the view layer
+- refactor(sdlc-workflow): rename the list unit from piece to packet
+- fix(sdlc-workflow): harden the hook gates
+- fix(sdlc-workflow): /wf prompt audit — repair cross-file drift for Opus 5.5
+- feat(sdlc-workflow): pieces — /wf campaign walks one list, one piece at a time
+
 ## [9.201.0] - 2026-10-22
 
 WF-ROUTE-WIZARD-PLAN in full (W0–W3, W5, W6; W4, the Desktop band, stays deferred). You can type plain words after `/wf`, and `/wf` answers questions about itself.

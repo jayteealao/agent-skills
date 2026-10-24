@@ -1,6 +1,6 @@
 {
   "name": "sdlc-workflow",
-  "version": "9.201.0",
+  "version": "10.0.0-next.0",
   "description": "SDLC workflow plugin, one source for Claude Code and Codex: one `$wf` workflow skill (19 keys: intake, shape, design, slice, plan, implement, verify, review, handoff, ship, retro, probe, auto, yolo, campaign, loop, status, project, docs; the intake modes are `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`; `yolo`, `campaign` and `loop optimize` have gaps on Codex and pi) plus consult, imagery, uiproto, diataxis and study-sources, over the shared .ai/ artifacts. Requires a hooks-GA Codex CLI (verified on 0.146.0) with hooks enabled.",
   "author": {
     "name": "jayte",

@@ -1,7 +1,7 @@
 # WF-OPTIMIZE-PLAN — a metric loop with its own slug lifecycle
 
 Status **SHIPPED v9.189.0** (2026-10-18: W1–W5 and W7 docs built; W0 probe and W6 live run not run) · Date **2026-10-17** · Plugin **v9.187.0** · Owner **jayte**
-Pairs with: [WF-GOAL-PLAN.md](WF-GOAL-PLAN.md) (the goal contract, which carries this loop on hosts with no driver). Supersedes: row #20 and finding 340 of [CE-COMPARISON-AND-ADOPTION.md](CE-COMPARISON-AND-ADOPTION.md) (`/wf optimize` as an off-pipeline command). Origin: the PO's review of goals and autoresearch, 2026-10-17.
+Pairs with: [WF-GOAL-PLAN.md](WF-GOAL-PLAN.md) (the goal contract, which carries this loop on hosts with no driver). Supersedes: row #20 and finding 340 of [CE-COMPARISON-AND-ADOPTION.md](../CE-COMPARISON-AND-ADOPTION.md) (`/wf optimize` as an off-pipeline command). Origin: the PO's review of goals and autoresearch, 2026-10-17.
 Amended 2026-10-17 (plugin v9.188.0): branch rounds, the two proposer digests, and the plateau as a branch-round trigger (D12–D14, 4.4, 4.5). Source: Cai, Ziakas et al., "Fork-and-Flush: Escaping Idea Basins in Autoresearch Agents", [arXiv 2610.07447](https://arxiv.org/abs/2610.07447), Microsoft Research, 2026-10-05.
 
 ## 1. Why
