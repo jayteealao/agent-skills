@@ -10,7 +10,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { appendLogLine, errorsLogPath } from './runtime-log.mjs';
+import { appendLogLine, errorsLogPath } from './home.mjs';
 
 export function hookErrorLogPath(projectRoot = process.cwd()) {
   return join(projectRoot, '.ai', '_view', '.hook-errors.log');

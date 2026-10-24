@@ -89,6 +89,6 @@ test('dispatchEnabled: both engines gate on the consent flag (script is the boun
   const home = mkdtempSync(join(tmpdir(), 'sdlc-uiproto-'));
   equal(dispatchEnabled({ home }), false, 'absent config → egress off');
   mkdirSync(join(home, '.sdlc'), { recursive: true });
-  writeFileSync(join(home, '.sdlc', 'hub-config.json'), JSON.stringify({ externalDispatch: { enabled: true } }), 'utf-8');
+  writeFileSync(join(home, '.sdlc', 'config.json'), JSON.stringify({ externalDispatch: { enabled: true } }), 'utf-8');
   equal(dispatchEnabled({ home }), true, 'explicit true → on');
 });

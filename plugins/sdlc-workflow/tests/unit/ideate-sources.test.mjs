@@ -14,7 +14,6 @@ import { classifyArgs, focusSlug, issueQuery, redactIssue, sourceItemProblems, s
 import { checkList, renderPacket, IDEATE_FILES } from '../../lib/packets.mjs';
 import { validateBrainstormBoard, validateFrontmatter } from '../../lib/schema-validator.mjs';
 import { safeParseFrontmatter } from '../../lib/frontmatter.mjs';
-import { render as renderIdeation } from '../../renderers/ideation.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SOURCES = path.join(pluginRoot, 'scripts', 'ideate-sources.mjs');
@@ -199,17 +198,6 @@ test('section 8.1: campaign.mjs write reads a board by path, and a campaign on t
     assert.equal(st.current?.key, 'use-cache-api', JSON.stringify(st));
     assert.equal(st.current?.step, 'open', JSON.stringify(st));
   } finally { rmSync(root, { recursive: true, force: true }); }
-});
-
-test('the renderer: a confidence column and the sources tables only when the keys exist', () => {
-  const plain = renderIdeation({ frontmatter: { type: 'ideation', focus: 'all', ideas: [{ id: 'IDEA-001', title: 't', impact: 'high', effort: 's' }] }, path: 'x' }, {});
-  assert.doesNotMatch(plain.bodyHtml, /confidence|ideation-sources|ideation-source-items/, 'an artifact without the new keys renders as before');
-  const rich = renderIdeation({ frontmatter: fm(), path: 'x' }, {});
-  assert.match(rich.bodyHtml, /<th>confidence<\/th>/);
-  assert.match(rich.bodyHtml, /<table class="ideation-sources">/);
-  assert.match(rich.bodyHtml, /applies 1, already-used 1, blocked-by-version 1/);
-  assert.match(rich.bodyHtml, /gh is not signed in/);
-  assert.match(rich.bodyHtml, /<summary>1 blocked-by-version<\/summary>/);
 });
 
 test('the prose: sources, Lens 7, Challenge 6, memory of earlier runs, the list, refresh', () => {

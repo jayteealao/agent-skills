@@ -70,7 +70,7 @@ async function main() {
     process.exit(3);
   }
   if (!dispatchEnabled()) {
-    process.stderr.write('external-model dispatch is OFF (set externalDispatch.enabled in ~/.sdlc/hub-config.json) — skipping the REST LLM\n');
+    process.stderr.write('external-model dispatch is OFF (set externalDispatch.enabled in ~/.sdlc/config.json) — skipping the REST LLM\n');
     process.exit(1);
   }
   const chosen = resolveLlmProvider(process.env, provider);

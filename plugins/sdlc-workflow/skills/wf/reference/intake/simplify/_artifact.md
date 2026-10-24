@@ -155,7 +155,5 @@ A standalone `simplify-run` **roots its own `type: workflow-index` slug workflow
 
 1. **Never overwrite an existing slug.** On collision, append `-2`/`-3`. Keep `run-id` in the lead frontmatter.
 2. **Do not carry `revision-count`** in the simplify-run frontmatter. The lead is immutable; subsequent runs author *new* slug workflows.
-3. **Set `regenerable: false`** explicitly — the renderer treats simplify-run artifacts as historical evidence.
-4. **Cross-run linking is by `refs:`**, not by appending to prior files. Set `refs.prior-run` to the earlier lead when this run was triggered by one. The renderer surfaces lineage as a backlink, not a `## Revision <n>` chain.
-
-The renderer emits each in-slug simplify-run at `.ai/_view/<slug>/simplify/INDEX.html`. **Legacy** off-pipeline runs at `.ai/simplify/<run-id>.md` still render at `.ai/_view/simplify/<run-id>/INDEX.html` — old URLs stay stable.
+3. **Set `regenerable: false`** explicitly — a simplify-run artifact is historical evidence.
+4. **Cross-run linking is by `refs:`**, not by appending to prior files. Set `refs.prior-run` to the earlier lead when this run was triggered by one. Lineage is the `refs:` link, not a `## Revision <n>` chain.

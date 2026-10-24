@@ -180,8 +180,8 @@ on-call engineer would fail to see, not a checklist. STE language throughout.>
 <acknowledged findings + the recorded reason>
 ```
 
-The ledger is a plain markdown file (like `.ai/observability.md` itself) — it takes **no sibling `.yaml`
-fragment** (those belong to rich-tier artifacts under `.ai/workflows/`).
+The ledger is a plain markdown file (like `.ai/observability.md` itself) — it takes **no sibling `.yaml`**
+(those belong to the review and plan artifacts under `.ai/workflows/`).
 
 # Step 5 — Triage the blockers and highs (interactive)
 

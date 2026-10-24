@@ -75,7 +75,7 @@ Build this list from the `ideas:` roster. The roster order is the rank. Write on
 
 ## Confidence
 
-Give each idea the highest `confidence` that its evidence allows. Step 4 weighs confidence in the rank and names it in `rank-reason`. The renderer computes the `score` column from impact, effort and feasibility only.
+Give each idea the highest `confidence` that its evidence allows. Step 4 weighs confidence in the rank and names it in `rank-reason`.
 
 | Evidence | Highest confidence |
 |---|---|

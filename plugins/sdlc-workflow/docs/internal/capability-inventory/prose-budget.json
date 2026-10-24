@@ -112,7 +112,7 @@
   "rubricFenceExceptions": {},
   "wordBudgets": {
     "skills/wf/SKILL.md": {
-      "words": 1711,
+      "words": 1685,
       "reason": "The 19-key tables (Arguments / Does / Writes cells), the sub-key table, and the Step 0, 0.5, 0.7 STOP rules with the sub-key and intake fast-path rules are the dispatcher's capability surface; 115 lines at 15 words per line. Cutting to 1,320 words would delete table cells that name invocations and artifacts. WF-KEY-SURFACE-PLAN removed eight rows and added the sub-key table, the fast path, and the loop and project rows."
     },
     "skills/wf/reference/handoff.md": {
@@ -128,7 +128,7 @@
       "reason": "The five-branch shape resolution with its STOPs, the nine-row auto-route signal table with six discriminators, the 15-row mode→span map, and the 15-row mode→file map are the intake dispatcher capability surface; §4.3 cuts removed only rationale and restatements (3,498 → 3,092 words). The optimize mode (WF-OPTIMIZE-PLAN W2) added 34 words: its keyword, its row in each map, and the slug-mode refusal. Ideate with sources (WF-IDEATE-SOURCES-PLAN S1, S4) added 13 words: the source shape in the proposal row, and the packet pick in the span row. WF-KEY-SURFACE-PLAN (A4, A5, A7) added 263 words: the simplify and task modes and the close maintenance word in the keyword set, the branch-0 rules for close, and their rows in each map. The intake fast path takes this file out of every explicit-mode run. WF-PIECES-PLAN (6.1, 12.6) added 123 words: the List packet rule, which stops a build packet file and routes it to /wf campaign, and runs a routed packet of another form with its packet slug; the packet-first rule it replaces is gone."
     },
     "skills/wf/reference/plan.md": {
-      "words": 4925,
+      "words": 4914,
       "reason": "Four research sub-agent charters with verbatim CONTRACT blocks, the build-avoidance ladder, the repeat-deferral tripwire, the 20-field frontmatter template, the Verification Strategy table with the force-scope rule, and the Step F sibling schema are each a capability surface; §4.3 cuts removed only rationale and examples (5,379 → 5,138 words). WF-ROUTE-WIZARD-PLAN W5 (G1, G2) added 106 words: the slice-name check with its near-match stop, and supplemental text as planning guidance in single plan mode. WF-PIECES-PLAN (D16, D28) added 78 words: each step names its files and its done check, and the required ## Handover section that lets the implement agent of a slice start without a second research pass."
     },
     "skills/wf/reference/probe.md": {
@@ -152,5 +152,15 @@
       "reason": "The Autonomous Decision Policy table (about 650 words of gate definitions with 10 inventoried STOP sentences), the six intake classes (the optimize class, WF-OPTIMIZE-PLAN W2, added 32 words), and the 16-line hand-back template are capability; rationale, history, and restatements were cut from 6,434 words to this count. WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     }
   },
-  "load": {}
+  "load": {
+    "auto": {
+      "core": 4453
+    },
+    "campaign": {
+      "core": 4472
+    },
+    "status": {
+      "core": 4465
+    }
+  }
 }

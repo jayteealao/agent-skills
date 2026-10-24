@@ -12,7 +12,7 @@ Every `/wf` reference ends by returning a chat summary. The router contract (`SK
 
 ## The narrative
 
-The narrative is the only explanation the person gets. A stage writes no explainer, no `.html.fragment`, and no sibling `.yaml` for the viewer. The text follows sections 1 and 3 of [_ste-procedural.md](_ste-procedural.md).
+The narrative is the only explanation the person gets. A stage writes no explainer and no sibling `.yaml` for a viewer. The text follows sections 1 and 3 of [_ste-procedural.md](_ste-procedural.md).
 
 - **Form.** Write two or three sentences of plain text, at most about 70 words. Write no bullets and no field labels.
 - **Explain the thing, not the progress.** Say what the stage built or decided, how it works, why it is this way, and what it means for the person. Do not open with "This <stage> implements…". The frontmatter carries the stage status.

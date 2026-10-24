@@ -47,7 +47,7 @@ Every other key runs under every host. Under Codex or pi, treat `yolo` as an unk
 
 | Concern | Claude Code | Codex | pi |
 |---|---|---|---|
-| Managed-artifact enforcement | A pre-write hook blocks an invalid full-content write; a post-write hook verifies every write (schema, sibling `.yaml`, fragment) and returns feedback | A pre-write hook denies an invalid full-content write; a post-write hook verifies every write; the Stop hook blocks the turn until the artifact is repaired, bounded by a repair ceiling | Same as Claude Code |
+| Managed-artifact enforcement | A pre-write hook blocks an invalid full-content write; a post-write hook verifies every write (schema) and returns feedback | A pre-write hook denies an invalid full-content write; a post-write hook verifies every write; the Stop hook blocks the turn until the artifact is repaired, bounded by a repair ceiling | Same as Claude Code |
 | Leak guards (internal vocabulary in public docs and commit messages) | Pre-write and shell hooks scan when `semantic.enabled` is on | Not wired | Same as Claude Code |
 | Sub-agent context injection | Not wired: no SubagentStart hook runs. The coordinator's prompt carries everything ([_subagents.md](_subagents.md)) | The SubagentStart adapter injects the active slugs and stages, the child write discipline, and the External Output Boundary reminder | Not wired |
 | Progress surface | None required | The built-in plan tool, for nontrivial work, when available | None required |

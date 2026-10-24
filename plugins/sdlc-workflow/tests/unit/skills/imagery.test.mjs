@@ -105,8 +105,8 @@ test('dispatchEnabled: egress generators gate on the consent flag (script is the
   const home = tempDir();
   equal(dispatchEnabled({ home }), false, 'absent config → egress off');
   mkdirSync(join(home, '.sdlc'), { recursive: true });
-  writeFileSync(join(home, '.sdlc', 'hub-config.json'), JSON.stringify({ externalDispatch: { enabled: false } }), 'utf-8');
+  writeFileSync(join(home, '.sdlc', 'config.json'), JSON.stringify({ externalDispatch: { enabled: false } }), 'utf-8');
   equal(dispatchEnabled({ home }), false, 'explicit false → off');
-  writeFileSync(join(home, '.sdlc', 'hub-config.json'), JSON.stringify({ externalDispatch: { enabled: true } }), 'utf-8');
+  writeFileSync(join(home, '.sdlc', 'config.json'), JSON.stringify({ externalDispatch: { enabled: true } }), 'utf-8');
   equal(dispatchEnabled({ home }), true, 'explicit true → on');
 });

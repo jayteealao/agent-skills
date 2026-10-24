@@ -17,7 +17,7 @@ fallback. Resolve `<skill-dir>` per [_host-invocation.md](../wf/reference/_host-
 1. **Provider.** First token `stitch` or `llm` pins it; otherwise the whole
    argument is the prompt → **fan out to both** side-by-side.
 2. **Consent for egress.** Both engines send the prompt to a third party, so they
-   require `externalDispatch.enabled` in `~/.sdlc/hub-config.json`. If consent is
+   require `externalDispatch.enabled` in `~/.sdlc/config.json`. If consent is
    off, STOP with the one-line opt-in notice (there is no no-egress fallback here).
 3. **Output.** The fragment is `<stem>.uiproto.<provider>.html.fragment`. When a
    workflow slug is in scope, write the generated HTML and the fragment into

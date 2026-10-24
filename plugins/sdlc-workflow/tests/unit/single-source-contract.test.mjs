@@ -8,8 +8,6 @@
 //   - every neutrality family FIRES on a fixture (a regex that matches nothing
 //     would otherwise pass the clean-tree gate silently);
 //   - checkVersions() flags a drifted carrier;
-//   - SDLC_HUB_STARTED_BY is derived from SDLC_HOST (behavior, not source text);
-//   - hub-ensure --bootstrap enqueues the whole-repo pass with the host signal;
 //   - codex.hooks.json wires the full event roster and its Windows commands resolve;
 //   - the six agents/openai.yaml parse and every SKILL.md name is its directory;
 //   - _subagents.md pins the effort-tier → host mapping;
@@ -44,7 +42,7 @@ test('codex adapters import only ./_adapter.mjs and node builtins (they run from
 test('every bundle a codex adapter spawns is a build entrypoint and exists in dist/', () => {
   const build = read('scripts', 'build.mjs');
   const entries = new Set([...build.matchAll(/^\s+'([a-z0-9-]+)',\s+\/\//gm)].map((m) => m[1]));
-  assert.ok(entries.has('seed-memory') && entries.has('hub-ensure'), 'build.mjs entry parse failed');
+  assert.ok(entries.has('seed-memory') && entries.has('machine-cleanup'), 'build.mjs entry parse failed');
   const spawned = new Set();
   for (const name of CODEX_ADAPTERS) {
     const src = read('hooks', name);
@@ -95,8 +93,7 @@ test('checkVersions flags a drifted carrier and a wrong catalog path', async () 
   const root = mkdtempSync(path.join(tmpdir(), 'sdlc-versions-fixture-'));
   try {
     const plugin = path.join(root, 'plugins', 'sdlc-workflow');
-    // runtime-manifest.json rides along: since W7 (§9.3) the gate requires it and its rendererBuildId.
-    for (const rel of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'package.json', 'runtime-manifest.json']) {
+    for (const rel of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'package.json']) {
       mkdirSync(path.dirname(path.join(plugin, rel)), { recursive: true });
       cpSync(path.join(pluginRoot, rel), path.join(plugin, rel));
     }
@@ -111,41 +108,6 @@ test('checkVersions flags a drifted carrier and a wrong catalog path', async () 
     assert.ok(drifted.problems.some((p) => /codex-plugin carries 0\.0\.1/.test(p)), `expected a codex-plugin drift problem, got ${drifted.problems}`);
   } finally {
     rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test('SDLC_HUB_STARTED_BY is DERIVED from SDLC_HOST at the hub-spawn site (behavior)', () => {
-  const probe = "import('./lib/hub-lifecycle.mjs').then((m) => process.stdout.write(m.STARTED_BY_HOST))";
-  const run = (env) => execFileSync(process.execPath, ['--input-type=module', '-e', probe], { cwd: pluginRoot, encoding: 'utf8', env }).trim();
-  const base = { ...process.env };
-  delete base.SDLC_HOST;
-  delete base.SDLC_HUB_STARTED_BY;
-  assert.equal(run(base), 'claude', 'no signal → claude');
-  assert.equal(run({ ...base, SDLC_HOST: 'codex' }), 'codex', 'SDLC_HOST=codex → codex');
-  assert.equal(run({ ...base, SDLC_HUB_STARTED_BY: 'codex' }), 'claude', 'an inherited SDLC_HUB_STARTED_BY is not an input');
-});
-
-test('hub-ensure --bootstrap enqueues the whole-repo pass with the host signal (no hub needed)', async () => {
-  const { queueDir } = await import('../../lib/render-queue.mjs');
-  const repo = mkdtempSync(path.join(tmpdir(), 'sdlc-bootstrap-'));
-  try {
-    const viewDir = path.join(repo, '.ai', '_view');
-    mkdirSync(path.join(repo, '.ai', 'workflows'), { recursive: true });   // --bootstrap gates on the workflow store (W11.3)
-    const env = { ...process.env, SDLC_HOST: 'codex', SDLC_HOME: path.join(repo, '.sdlc-home') };
-    delete env.SDLC_HUB_STARTED_BY;
-    const r = spawnSync(process.execPath, [
-      path.join(pluginRoot, 'dist', 'hub-ensure.mjs'), '--no-ensure', '--bootstrap',
-      '--plugin-root', pluginRoot, '--project-root', repo, '--view', viewDir,
-    ], { encoding: 'utf8', env, timeout: 20000 });
-    assert.equal(r.status, 0, r.stderr);
-    const records = readdirSync(queueDir(viewDir)).filter((f) => f.endsWith('.json') && !f.startsWith('.'));
-    assert.equal(records.length, 1, `expected one queued bootstrap record, saw ${records}`);
-    const rec = JSON.parse(readFileSync(path.join(queueDir(viewDir), records[0]), 'utf8'));
-    assert.equal(rec.kind, 'bootstrap');
-    assert.equal(rec.bucket, '__bootstrap__');
-    assert.equal(rec.enqueuedBy.host, 'codex');
-  } finally {
-    rmSync(repo, { recursive: true, force: true });
   }
 });
 

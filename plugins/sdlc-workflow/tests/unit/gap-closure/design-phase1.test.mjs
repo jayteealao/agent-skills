@@ -12,13 +12,11 @@ import {
   findFrontmatterBranch,
   validateFrontmatter,
   validateFrontmatterFile,
-  validateSiblingYaml,
 } from '../../../lib/schema-validator.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..', '..', '..');
 const SCHEMA_PATH = defaultFrontmatterSchemaPath();
-const VERIFY_FRAGMENT = join(PLUGIN_ROOT, 'scripts', 'verify-fragment.mjs');
 const MIGRATE_DESIGN_TYPES = join(PLUGIN_ROOT, 'scripts', 'migrate-design-types.mjs');
 
 function tempDir(prefix = 'sdlc-gap-phase1-') {
@@ -108,96 +106,6 @@ test('design phase 1 schema: admits strict design artifact branches only', async
   }, { schemaPath: SCHEMA_PATH });
   equal(missingContractFields.valid, false);
   ok(missingContractFields.errors.some((err) => err.keyword === 'required'));
-});
-
-test('design phase 1 schema: validates critique and audit sibling YAML', () => {
-  equal(validateSiblingYaml({
-    artifact: 'design-critique',
-    scope: 'surface',
-    summary: 'One high-impact hierarchy issue.',
-    run_at: '2026-05-24T12:00:00Z',
-    findings: [{
-      id: 'C1',
-      severity: 'high',
-      dimension: 'visual hierarchy',
-      where: 'Checkout header',
-      observation: 'Primary action is visually weaker than secondary content.',
-      recommendation: 'Increase contrast and isolate the action in the main flow.',
-    }],
-  }, { schemaPath: SCHEMA_PATH }).valid, true);
-
-  equal(validateSiblingYaml({
-    artifact: 'design-audit',
-    verdict: 'conditional',
-    'audited-against': ['02b-design.md', '02c-craft.md'],
-    'remediation-state': 'in-progress',
-    run_at: '2026-05-24T12:00:00Z',
-    violations: [{
-      id: 'A1',
-      severity: 'medium',
-      'token-or-rule': 'focus-visible',
-      where: 'Checkout button',
-      observation: 'Focus state is present but too subtle.',
-      'remediation-status': 'open',
-      recommendation: 'Use the product focus ring token.',
-    }],
-  }, { schemaPath: SCHEMA_PATH }).valid, true);
-});
-
-test('design phase 1 fragments: critique and audit names pass whitelist and sibling schemas', () => {
-  const tmp = tempDir();
-  try {
-    const workflow = join(tmp, '.ai', 'workflows', 'demo');
-    writeText(join(workflow, '07-design-critique.html.fragment'), `
-<section class="fragment-design-critique">
-  <p>Critique</p>
-  <script>window.dispatchEvent(new CustomEvent('sdlc:fragment-ready'));</script>
-</section>
-`);
-    writeText(join(workflow, '07-design-critique.yaml'), `
-artifact: design-critique
-scope: surface
-summary: One high-impact hierarchy issue.
-run_at: 2026-05-24T12:00:00Z
-findings:
-  - id: C1
-    severity: high
-    observation: Primary action is visually weaker than secondary content.
-    recommendation: Increase contrast and isolate the action in the main flow.
-`);
-    writeText(join(workflow, '07-design-audit.html.fragment'), `
-<section class="fragment-design-audit">
-  <p>Audit</p>
-  <script>window.dispatchEvent(new CustomEvent('sdlc:fragment-ready'));</script>
-</section>
-`);
-    writeText(join(workflow, '07-design-audit.yaml'), `
-artifact: design-audit
-verdict: conditional
-audited-against: [02b-design.md, 02c-craft.md]
-remediation-state: in-progress
-run_at: 2026-05-24T12:00:00Z
-violations:
-  - id: A1
-    severity: medium
-    token-or-rule: focus-visible
-    observation: Focus state is present but too subtle.
-    remediation-status: open
-`);
-
-    const result = spawnSync(process.execPath, [
-      VERIFY_FRAGMENT,
-      '--root',
-      join(tmp, '.ai', 'workflows'),
-      '--schema',
-      SCHEMA_PATH,
-    ], { cwd: PLUGIN_ROOT, encoding: 'utf-8' });
-
-    equal(result.status, 0, result.stderr || result.stdout);
-    match(result.stdout, /2 fragments OK/);
-  } finally {
-    rmSync(tmp, { recursive: true, force: true });
-  }
 });
 
 test('migrate-design-types: dry-run, migrate, and rerun are idempotent', async () => {
@@ -307,16 +215,4 @@ test('design modes: surface-modes on 02c-craft.md, design-mode on 02b and a move
   match(designModeAdvice({ type: 'design-augmentation', register: 'product' }), /design mode `operate`.*Write `design-mode:`/);
   equal(designModeAdvice({ type: 'design-contract', register: 'brand', 'surface-modes': { home: 'persuade' } }), null);
   equal(designModeAdvice({ type: 'plan', register: 'brand' }), null);
-
-  const { render } = await import('../../../renderers/design-contract.mjs');
-  const page = (fm) => render({ type: 'design-contract', path: '02c-craft.md', frontmatter: fm, body: '' }, {}).bodyHtml;
-  const modern = page(contract);
-  match(modern, /design modes/);
-  match(modern, /<code>home<\/code>: persuade/);
-  match(modern, /<code>game<\/code>: experience/);
-  const old = page({ ...validDesignContract(), register: 'brand' });
-  match(old, /<li>persuade<\/li>/);
-  match(old, /Read from the deprecated <code>register: brand<\/code>/);
-  match(old, /<dt>register<\/dt><dd>brand<\/dd>/, 'the old register still renders in the record');
-  ok(!page(validDesignContract()).includes('design modes'), 'no section when the contract names no design mode');
 });

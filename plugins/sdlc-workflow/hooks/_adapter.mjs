@@ -7,27 +7,20 @@
 // touched files (apply_patch / Edit / Write), and reshapes them into the SHARED
 // normalized event — exactly the stdin contract the bundled shared-runtime
 // policy entrypoints already consume (`{ cwd, tool_input:{ file_path, edits[] } }`,
-// read by dist/{pre-write-validate,post-write-verify,post-write-auto-stage,
-// post-write-render}.mjs via projectRootFromInput + collectToolInputPaths).
+// read by dist/{pre-write-validate,post-write-verify,post-write-auto-stage}.mjs
+// via projectRootFromInput + collectToolInputPaths).
 // The plugin root IS the runtime root: one tree, one dist/.
 //
 // Reusing those bundled entrypoints — rather than re-implementing validation —
-// is what guarantees Claude/Codex parity: the SAME runtime bytes run the schema,
-// sibling, fragment, and auto-stage policy on both hosts. The Codex-native part
-// is only the adapter (stdin parsing, apply_patch parsing, the Stop enforcement
-// boundary, the once-only activation record) — never the policy itself.
+// is what guarantees Claude/Codex parity: the SAME runtime bytes run the schema
+// and auto-stage policy on both hosts. The Codex-native part is only the adapter
+// (stdin parsing, apply_patch parsing, the Stop enforcement boundary) — never
+// the policy itself.
 
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-// Bump only on a real change to the Codex hook stdin/matcher/output contract.
-// A changed value invalidates every activation record (forces re-activation).
-export const HOOK_CONTRACT_VERSION = 1;
-export const PLUGIN_NAME = 'sdlc-workflow';
-export const HUB_NAME = 'sdlc-workflow-hub';
 
 // ── stdin / argv ──────────────────────────────────────────────────────────────
 
@@ -87,9 +80,9 @@ export function parseHookArgs(argv = process.argv.slice(2)) {
 /**
  * Resolve the package + runtime layout from the (Codex-substituted) plugin root.
  * In the single-source tree the plugin root IS the runtime root: the bundled
- * policy entrypoints are at <pluginRoot>/dist/<name>.mjs and the identity is
- * <pluginRoot>/runtime-manifest.json. `runtimeRoot` keeps its name so the hooks
- * read the same way they did when the payload lived under runtime/.
+ * policy entrypoints are at <pluginRoot>/dist/<name>.mjs. `runtimeRoot` keeps
+ * its name so the hooks read the same way they did when the payload lived
+ * under runtime/.
  * PLUGIN_DATA is the Codex-plugin-local writable dir; fall back to
  * <pluginRoot>/.plugin-data so manual/test runs without the substitution work.
  */
@@ -110,18 +103,12 @@ export function bundledEntry(runtimeRoot, name) {
 
 /**
  * Env for every shared-runtime spawn from a Codex hook. `SDLC_HOST` is THE host
- * signal (SINGLE-SOURCE-PLAN §3.4): the shared runtime reads it for the render
- * queue's `enqueuedBy.host`, the seed-memory notice channel, and — at the ONE
- * hub-spawn site in lib/hub-lifecycle.mjs — derives `SDLC_HUB_STARTED_BY` from
- * it. This adapter therefore sets only `SDLC_HOST`; it never sets
- * `SDLC_HUB_STARTED_BY` independently (two signals set by two callers is how a
- * hub gets attributed to the wrong host). An explicit caller `SDLC_HOST` wins so
- * tests and escape hatches can override.
+ * signal (SINGLE-SOURCE-PLAN §3.4): the shared runtime reads it for the
+ * seed-memory notice channel and the lifecycle log. An explicit caller
+ * `SDLC_HOST` wins so tests and escape hatches can override.
  */
 export function codexHostEnv(base = process.env) {
-  const env = { ...base, SDLC_HOST: base.SDLC_HOST || 'codex' };
-  delete env.SDLC_HUB_STARTED_BY;
-  return env;
+  return { ...base, SDLC_HOST: base.SDLC_HOST || 'codex' };
 }
 
 /**
@@ -211,7 +198,7 @@ export function parseApplyPatch(text) {
 
 // ── normalized (shared-policy) stdin synthesis ──────────────────────────────────
 
-/** Synthesize the stdin the bundled multi-path policy (verify/render) consumes. */
+/** Synthesize the stdin the bundled multi-path policy (auto-stage + verify) consumes. */
 export function synthMultiStdin(cwd, eventName, paths) {
   const list = paths.filter(Boolean);
   return {
@@ -230,85 +217,6 @@ export function synthSingleStdin(cwd, eventName, path, content) {
   const ti = { file_path: path };
   if (typeof content === 'string') ti.content = content;
   return { cwd, hook_event_name: eventName, tool_name: 'Write', tool_input: ti };
-}
-
-// ── runtime identity / activation ───────────────────────────────────────────────
-
-export function readRuntimeIdentity(runtimeRoot) {
-  try {
-    const m = JSON.parse(readFileSync(join(runtimeRoot, 'runtime-manifest.json'), 'utf-8'));
-    return { runtimeVersion: m.runtimeVersion ?? null, buildId: m.buildId ?? null, hubName: m.hubName ?? HUB_NAME };
-  } catch {
-    return { runtimeVersion: null, buildId: null, hubName: HUB_NAME };
-  }
-}
-
-function readPluginVersion(pluginRoot) {
-  for (const rel of [join('.codex-plugin', 'plugin.json'), 'package.json']) {
-    try {
-      const v = JSON.parse(readFileSync(join(pluginRoot, rel), 'utf-8')).version;
-      if (typeof v === 'string' && v) return v;
-    } catch { /* try next */ }
-  }
-  return '0.0.0';
-}
-
-/** The Codex hook wiring file (declared by .codex-plugin/plugin.json `hooks`). */
-export const CODEX_HOOKS_FILE = join('hooks', 'codex.hooks.json');
-
-/** sha256 of the hook registration — a changed wiring file invalidates activation. */
-export function hookDefinitionHash(pluginRoot) {
-  try {
-    return createHash('sha256').update(readFileSync(join(pluginRoot, CODEX_HOOKS_FILE))).digest('hex');
-  } catch {
-    return '';
-  }
-}
-
-/** The activation baseline this installed plugin+runtime+hooks represents. */
-export function computeBaseline({ pluginRoot, runtimeRoot }) {
-  const id = readRuntimeIdentity(runtimeRoot);
-  return {
-    schemaVersion: 1,
-    pluginName: PLUGIN_NAME,
-    pluginVersion: readPluginVersion(pluginRoot),
-    hookContractVersion: HOOK_CONTRACT_VERSION,
-    hookDefinitionHash: hookDefinitionHash(pluginRoot),
-    runtimeVersion: id.runtimeVersion,
-    runtimeBuildId: id.buildId,
-    hubName: id.hubName,
-  };
-}
-
-export function activationPath(pluginData) { return join(pluginData, 'activation.json'); }
-
-export function readActivation(pluginData) {
-  try { return JSON.parse(readFileSync(activationPath(pluginData), 'utf-8')); }
-  catch { return null; }
-}
-
-/**
- * Does the recorded activation still match the installed baseline? A missing,
- * malformed, or mismatched record is NOT active — the next trusted SessionStart
- * must (re)activate. Keys on plugin version, hook contract, hook-definition hash,
- * and the bundled runtime build (NATIVE-INTEROP "Activation Record Contract").
- */
-export function needsActivation(record, baseline) {
-  if (!record || typeof record !== 'object') return true;
-  for (const k of ['pluginName', 'pluginVersion', 'hookContractVersion', 'hookDefinitionHash', 'runtimeBuildId']) {
-    if (record[k] !== baseline[k]) return true;
-  }
-  return false;
-}
-
-/** Atomically write the activation record (temp sibling + rename). */
-export function writeActivationAtomic(pluginData, baseline) {
-  mkdirSync(pluginData, { recursive: true });
-  const record = { ...baseline, activatedAt: new Date().toISOString() };
-  const tmp = `${activationPath(pluginData)}.${process.pid}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(record, null, 2)}\n`, 'utf-8');
-  renameSync(tmp, activationPath(pluginData));
-  return record;
 }
 
 // ── Stop-time enforcement ledger ────────────────────────────────────────────────

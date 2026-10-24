@@ -1,6 +1,6 @@
 # Review stage — master ledger template and rich siblings (Steps 5, 5b, 5c of `_stage.md`)
 
-Load this file from `_stage.md` Step 5. It holds the `07-review[-<slice-slug>].md` template (Step 5), the sweep-level sibling `.yaml` + fragment rules (Step 5b), and the per-dimension sibling rules (Step 5c).
+Load this file from `_stage.md` Step 5. It holds the `07-review[-<slice-slug>].md` template (Step 5), the sweep-level sibling `.yaml` rules (Step 5b), and the per-dimension sibling rules (Step 5c).
 
 ## Step 5 — master ledger template
 
@@ -166,22 +166,18 @@ Informational observations that are not findings: each verify `## Friction Notes
 
 ## Step 5b — the sweep-level rich `.yaml` (do not skip)
 
-The sunflower view renders the review page from a sibling `.yaml`. **Without it the page silently degrades to plain prose** — the Σ severity-heatmap, dimension chips, severity filter, and findings list never appear. Managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) **BLOCKS the `.md` write when the sibling `.yaml` is missing** — author the `.yaml` first (or in the same turn) while findings are in context.
+The sibling `.yaml` is the findings ledger: later stages and the yolo driver read it. Author it in the same turn as the `.md`, while the findings are in context.
 
 For each review `.md` written (`07-review.md` slug-wide, or `07-review-<slice-slug>.md` per-slice):
 
 Write **`<stem>.yaml`** — structured data: `dimensions:` (severity × dimension heatmap matrix), `verdict:`, `findings:` (id, severity, dimension, file, line, message, evidence/diff, triage, **status**, **surfaced-at**), and metric counts. Schema: `siblingYamlSchemas.review` in `schemas/frontmatter.schema.json`. **`findings:` and `counts:` = OPEN findings only** (open|deferred|could-not-fix) — resolved/fixed/dismissed history lives in the `.md` body. Bump `rev:` by 1 each run (first write = 1).
 
-Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`.
-
 ---
 
 ## Step 5c — per-dimension rich `.yaml` (do not skip)
 
-Step 5b covers the sweep-level review page. Each **per-dimension** file — `07-review-<command>.md` (slug-wide) or `07-review-<slice-slug>-<command>.md` (per-slice) — renders through `review-dimension.mjs`. **Without a sibling `.yaml` it falls back to `renderSimple`** (plain prose, no interactive findings); managed-artifact enforcement ([_host-invocation.md](../_host-invocation.md)) BLOCKS a `type: review-command` `.md` written without it.
+Step 5b covers the sweep-level review page. Each **per-dimension** file — `07-review-<command>.md` (slug-wide) or `07-review-<slice-slug>-<command>.md` (per-slice) — has its own sibling `.yaml`.
 
-Per-dimension siblings are authored by the **Step-3 review sub-agent** (which holds the findings in context). This section is the shape spec that sub-agent follows. At Step 5b, confirm every per-dimension `.md` has its `.yaml` (or `fragment: none` for a clean dimension) and author any the sub-agent missed. For each per-dimension review `.md`:
+Per-dimension siblings are authored by the **Step-3 review sub-agent** (which holds the findings in context). This section is the shape spec that sub-agent follows. At Step 5b, confirm every per-dimension `.md` has its `.yaml` and author any the sub-agent missed. A clean dimension writes no `.yaml`. For each per-dimension review `.md`:
 
 Write **`<stem>.yaml`** — schema `siblingYamlSchemas.review-dimension` in `schemas/frontmatter.schema.json`: `artifact: review-dimension`, `dimension`, `parent` (the sweep `07-review.md`), `rev`, `verdict` (`ship|caveats|no`), `summary`, `counts` (blocker/high/med/low/nit), `findings` (id, severity, file, line, confidence, action, msg, evidence, fix, **status**, **surfaced-at**) — scoped to this dimension only. `findings:` + `counts:` = OPEN findings only; bump `rev:` by 1 each run.
-
-Do not write the typed `<stem>.html.fragment`: the renderer generates it from the `.yaml`.

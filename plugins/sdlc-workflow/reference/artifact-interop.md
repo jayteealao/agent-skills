@@ -40,7 +40,6 @@ The `.ai/` directory tree is the **shared source of truth** for all SDLC workflo
   dep-updates/                        # dependency update artifacts
   ideation/                           # standalone ideate runs
   ship-plan.md                        # project-level ship plan (one per repo)
-  _view/                              # rendered HTML views (hub output, never edit directly)
 
 PRODUCT.md                            # project root — brand + product context (/wf design setup)
 DESIGN.md                             # project root — design tokens + component context (optional)
@@ -65,10 +64,9 @@ Producer provenance (which host wrote an artifact) is diagnostic-only. Either ho
 
 Mutating commands (any stage that writes to `.ai/workflows/<slug>/`) acquire the workflow lease at `.ai/workflows/<slug>/.locks/workflow.json` before writing and release it after. Read-only commands (`/wf status`, `/wf status recap`, and so on) take no lease.
 
-The `.locks/` directory is ignored by the render pipeline and must not be committed to git. It coordinates concurrent access within a single machine — for cross-machine coordination, rely on branch-per-workflow convention and git merge discipline.
+The `.locks/` directory must not be committed to git. It coordinates concurrent access within a single machine — for cross-machine coordination, rely on branch-per-workflow convention and git merge discipline.
 
 ## What no host does
 
 - Never maintain a separate in-memory or database copy of workflow state. Always read from `.ai/`.
-- Never write to `.ai/_view/` directly. Views are render pipeline output only.
 - Never assume producer identity from artifact content. Read the frontmatter, not the author.

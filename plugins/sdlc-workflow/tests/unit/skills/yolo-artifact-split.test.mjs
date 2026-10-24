@@ -262,7 +262,7 @@ test('the chat narrative holds the story rules, and no stage writes an explainer
   assert.match(src, /## The narrative/);
   assert.match(src, /Explain the thing, not the progress/);
   assert.match(src, /`## The Brainstorm`/);
-  assert.match(ref('_workflow-rules.md'), /Write no explainer, no `\.html\.fragment`, and no sibling `\.yaml`/);
+  assert.match(ref('_workflow-rules.md'), /Write no explainer and no sibling `\.yaml`/);
   assert.ok(!existsSync(path.join(pluginRoot, 'skills', 'wf', 'reference', '_story-arc.md')), '_story-arc.md is deleted');
   assert.ok(!existsSync(path.join(pluginRoot, 'skills', 'wf', 'reference', '_fragment-authoring.md')), '_fragment-authoring.md is deleted');
 });

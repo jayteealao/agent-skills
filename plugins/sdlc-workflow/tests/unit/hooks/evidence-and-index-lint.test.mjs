@@ -24,7 +24,6 @@ const PLUGIN_ROOT = resolve(__dirname, '..', '..', '..');
 const HOOKS = {
   preWriteValidate: join(PLUGIN_ROOT, 'hooks', 'pre-write-validate.mjs'),
   postWriteVerify: join(PLUGIN_ROOT, 'hooks', 'post-write-verify.mjs'),
-  postWriteRender: join(PLUGIN_ROOT, 'hooks', 'post-write-render.mjs'),
 };
 
 function tempDir() {
@@ -43,18 +42,6 @@ function runHook(script, input, cwd, extraEnv = {}) {
 function writeFile(path, content) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content, 'utf-8');
-}
-
-function renderEnv(tmp) {
-  return { SDLC_DISABLE_ENSURE_HUB: '1', SDLC_DISABLE_TRAY_HEAL: '1', SDLC_HOME: join(tmp, '.sdlc-home') };
-}
-
-function queueRecords(repoRoot) {
-  const qdir = join(repoRoot, '.ai', '_view', '.render-queue');
-  if (!existsSync(qdir)) return [];
-  return readdirSync(qdir)
-    .filter((n) => n.endsWith('.json') && n !== '.status.json')
-    .map((n) => JSON.parse(readFileSync(join(qdir, n), 'utf-8')));
 }
 
 // A schema-valid index frontmatter block (same keys as hooks.test.mjs minimalIndex).
@@ -123,18 +110,6 @@ for (const rel of [
       rmSync(tmp, { recursive: true, force: true });
     }
   });
-
-  test(`post-write-render queues no render for ${rel}`, () => {
-    const tmp = tempDir();
-    try {
-      writeFile(join(tmp, rel), REPORT);
-      const result = runHook(HOOKS.postWriteRender, { cwd: tmp, tool_input: { file_path: rel } }, tmp, renderEnv(tmp));
-      equal(result.status, 0, result.stderr);
-      deepEqual(queueRecords(tmp), []);
-    } finally {
-      rmSync(tmp, { recursive: true, force: true });
-    }
-  });
 }
 
 test('pre-write-validate still blocks a non-NN .md outside the evidence folders', () => {
@@ -154,7 +129,7 @@ test('pre-write-validate still blocks a non-NN .md outside the evidence folders'
 /* ── .jsonl ledgers (S4, S6) ───────────────────────────────────────────── */
 
 for (const rel of ['.ai/workflows/demo/index-history.jsonl', '.ai/workflows/demo/.read-ledger.jsonl']) {
-  test(`write hooks pass ${rel} silently and queue no render`, () => {
+  test(`write hooks pass ${rel} silently`, () => {
     const tmp = tempDir();
     try {
       const content = '{"at":"2026-09-28T00:00:00Z","kind":"note","text":"moved from the index","stage":null}\n';
@@ -165,9 +140,6 @@ for (const rel of ['.ai/workflows/demo/index-history.jsonl', '.ai/workflows/demo
         equal(result.stderr, '');
         equal(result.stdout, '');
       }
-      const render = runHook(HOOKS.postWriteRender, { cwd: tmp, tool_input: { file_path: rel } }, tmp, renderEnv(tmp));
-      equal(render.status, 0, render.stderr);
-      deepEqual(queueRecords(tmp), []);
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }

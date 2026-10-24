@@ -2,31 +2,13 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
-  deprecatedConfigWarnings
-} from "./chunk-GVXQ544A.mjs";
+  MARKER,
+  STATE_ENTRIES
+} from "./chunk-FBHGBFVA.mjs";
 import {
-  portOwner
-} from "./chunk-KIZZEX5M.mjs";
-import {
-  HUB_DEFAULT_PORT,
-  readHubConfig
-} from "./chunk-Y5FDHE6N.mjs";
-import {
-  readActiveRuntime,
-  runtimeStoreDir
-} from "./chunk-47R6CSZC.mjs";
-import "./chunk-CGSPUUFD.mjs";
-import "./chunk-KRRL2TSM.mjs";
-import "./chunk-QUEAOP62.mjs";
-import {
-  ephemeralRootReason,
-  readRegistry,
   sdlcHomeDir
-} from "./chunk-S534URUW.mjs";
-import "./chunk-FZ2GR6GF.mjs";
-import "./chunk-5U76735W.mjs";
-import "./chunk-LFGT2BKG.mjs";
-import "./chunk-SGA7NFMW.mjs";
+} from "./chunk-BSVWX5RF.mjs";
+import "./chunk-ZGVOYTOL.mjs";
 
 // scripts/doctor.mjs
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -34,10 +16,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // lib/doctor.mjs
-import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { request } from "node:http";
-import { homedir, tmpdir } from "node:os";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 var PLUGIN_NAME = "sdlc-workflow";
 var MARKETPLACE = "agent-skills-marketplace";
@@ -127,170 +107,38 @@ function readCodexInstalls(codexHome = codexHomeDir(), pluginName = PLUGIN_NAME)
   }
   return { installs: out, config };
 }
-function hubHealth({ host = "127.0.0.1", port, timeoutMs = 1200 } = {}) {
-  const probeHost = host === "0.0.0.0" ? "127.0.0.1" : host;
-  return new Promise((resolveP) => {
-    const req = request({ hostname: probeHost, port, path: "/__sdlc/health", method: "GET", timeout: timeoutMs }, (res) => {
-      if (res.statusCode !== 200) {
-        res.resume();
-        resolveP({ reachable: false, status: res.statusCode });
-        return;
-      }
-      let buf = "";
-      res.setEncoding("utf-8");
-      res.on("data", (c) => {
-        if (buf.length < 262144) buf += c;
-      });
-      res.on("end", () => {
-        try {
-          const body = JSON.parse(buf);
-          const hub = body.hub && typeof body.hub === "object" ? body.hub : {};
-          resolveP({
-            reachable: true,
-            pid: Number.isInteger(body.pid) ? body.pid : null,
-            isHub: Array.isArray(body.entries),
-            runtimeVersion: hub.runtimeVersion ?? body.version ?? null,
-            buildId: hub.buildId ?? null,
-            startedBy: body.startedBy && typeof body.startedBy.host === "string" ? body.startedBy.host : typeof body.startedBy === "string" ? body.startedBy : null,
-            entries: Array.isArray(body.entries) ? body.entries.length : null,
-            uptimeMs: Number.isFinite(body.uptimeMs) ? body.uptimeMs : null,
-            // The code browser's effective state: `codeBrowser.acknowledgedTailnet`
-            // switches it off on a tailnet-exposed hub, and nothing else says so.
-            codeBrowser: body.codeBrowser && typeof body.codeBrowser === "object" ? { enabled: body.codeBrowser.enabled === true, reason: typeof body.codeBrowser.reason === "string" ? body.codeBrowser.reason : null } : null
-          });
-        } catch {
-          resolveP({ reachable: false, status: "unparseable" });
-        }
-      });
-    });
-    req.on("timeout", () => {
-      req.destroy();
-      resolveP({ reachable: false, status: "timeout" });
-    });
-    req.on("error", (e) => resolveP({ reachable: false, status: e.code || "error" }));
-    req.end();
-  });
-}
-function dirBytes(dir) {
-  let total = 0;
-  const stack = [dir];
-  while (stack.length) {
-    const d = stack.pop();
-    let ents = [];
-    try {
-      ents = readdirSync(d, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const e of ents) {
-      const p = join(d, e.name);
-      if (e.isDirectory()) stack.push(p);
-      else if (e.isFile()) {
-        try {
-          total += statSync(p).size;
-        } catch {
-        }
-      }
-    }
-  }
-  return total;
-}
-function runtimeStoreStats(dir = runtimeStoreDir()) {
-  if (!existsSync(dir)) return { dir, count: 0, bytes: 0, builds: [] };
-  const builds = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
-  return { dir, count: builds.length, bytes: dirBytes(dir), builds };
-}
-function classifyRoot(repoRoot, { tmpDir = tmpdir() } = {}) {
-  return ephemeralRootReason(repoRoot, { tmpDir });
-}
-function registryAudit(entries, { tmpDir } = {}) {
-  const list = Array.isArray(entries) ? entries : [];
-  const flagged = [];
-  const zeroSlugs = [];
-  for (const e of list) {
-    const reason = classifyRoot(e?.repoRoot, { tmpDir });
-    const slugs = Array.isArray(e?.slugs) ? e.slugs.length : Number.isInteger(e?.slugCount) ? e.slugCount : null;
-    if (reason) flagged.push({ id: e.id ?? null, repoRoot: e.repoRoot ?? null, reason });
-    if (slugs === 0) zeroSlugs.push({ id: e.id ?? null, repoRoot: e.repoRoot ?? null });
-  }
-  return { total: list.length, flagged, zeroSlugs };
-}
-function tailscaleServeStatus({ exec = spawnSync } = {}) {
-  try {
-    const r = exec("tailscale", ["serve", "status"], { encoding: "utf-8", windowsHide: true, timeout: 1e4 });
-    if (r.error || r.status !== 0) return { available: false, text: (r.stderr || r.stdout || r.error?.message || "").trim() };
-    return { available: true, text: String(r.stdout ?? "").trim() };
-  } catch (e) {
-    return { available: false, text: String(e?.message ?? e) };
-  }
+function cleanupStatus(home = sdlcHomeDir()) {
+  if (existsSync(join(home, MARKER))) return { done: true, left: [] };
+  return { done: false, left: STATE_ENTRIES.filter((e) => existsSync(join(home, e))) };
 }
 async function runDoctor({
   pluginRoot,
   homeDir = homedir(),
   codexHome = codexHomeDir(),
   sdlcHome = sdlcHomeDir(),
-  hubConfig = null,
-  tmpDir = tmpdir(),
-  exec = spawnSync,
-  platform = process.platform,
-  now = () => /* @__PURE__ */ new Date(),
-  probeHub = true
+  now = () => /* @__PURE__ */ new Date()
 } = {}) {
   const shipped = shippedVersion(pluginRoot);
   const claude = readClaudeInstalls(homeDir).map((i) => ({ ...i, verdict: versionVerdict(i.version, shipped) }));
   const codexRead = readCodexInstalls(codexHome);
   const codex = codexRead.installs.map((i) => ({ ...i, verdict: versionVerdict(i.version, shipped) }));
-  let cfg = hubConfig;
-  if (!cfg) {
-    try {
-      cfg = readHubConfig({ create: false });
-    } catch {
-      cfg = { host: "127.0.0.1", port: HUB_DEFAULT_PORT, tailscale: { enabled: false } };
-    }
-  }
-  const host = cfg.host ?? "127.0.0.1";
-  const port = cfg.port ?? HUB_DEFAULT_PORT;
-  const health = probeHub ? await hubHealth({ host, port }) : { reachable: false, status: "skipped" };
-  const owner = portOwner(port, { platform, exec });
-  let active = null;
-  try {
-    active = await readActiveRuntime();
-  } catch {
-    active = null;
-  }
-  const store = runtimeStoreStats(join(sdlcHome, "runtime"));
-  let entries = [];
-  try {
-    entries = readRegistry({ validate: false, logInvalid: false })?.entries ?? [];
-  } catch {
-    entries = [];
-  }
-  const registry = registryAudit(entries, { tmpDir });
-  const tailscale = { configured: cfg.tailscale?.enabled === true, mode: cfg.tailscale?.mode ?? null, ...tailscaleServeStatus({ exec }) };
   const hostVerdicts = {
     claude: claude.length ? claude.every((i) => i.verdict === "ok") ? "ok" : claude.some((i) => i.verdict === "ok") ? "mixed" : "mismatch" : "absent",
     // `disabled`: the shipped version sits in the cache but config.toml has no
     // `enabled = true` for it — the reinstall landed, the enable step did not.
-    codex: codex.length ? codex.some((i) => i.enabled === true && i.verdict === "ok") ? "ok" : codex.some((i) => i.verdict === "ok") ? "disabled" : "mismatch" : "absent",
-    hub: health.reachable ? versionVerdict(health.runtimeVersion, shipped) : "unreachable"
+    codex: codex.length ? codex.some((i) => i.enabled === true && i.verdict === "ok") ? "ok" : codex.some((i) => i.verdict === "ok") ? "disabled" : "mismatch" : "absent"
   };
   const hostOk = (v) => v === "ok" || v === "absent";
-  const ok = hostOk(hostVerdicts.claude) && hostOk(hostVerdicts.codex) && (hostVerdicts.hub === "ok" || hostVerdicts.hub === "unreachable");
-  const deprecated = deprecatedConfigWarnings({ hubConfig: cfg });
+  const ok = hostOk(hostVerdicts.claude) && hostOk(hostVerdicts.codex);
   return {
     at: now().toISOString(),
     shipped,
     hosts: { claude, codex, codexConfig: codexRead.config },
-    hub: { host, port, ...health, portOwner: owner, activeRuntime: active ? { buildId: active.buildId ?? null, runtimeVersion: active.runtimeVersion ?? null } : null },
-    runtimeStore: store,
-    registry,
-    tailscale,
-    deprecated,
+    cleanup: cleanupStatus(sdlcHome),
     verdicts: hostVerdicts,
     ok
   };
 }
-var mb = (bytes) => `${(bytes / 1048576).toFixed(1)} MB`;
 function formatDoctorTable(r) {
   const rows = [];
   const push = (k, v, verdict = "") => rows.push([k, String(v), verdict]);
@@ -301,19 +149,8 @@ function formatDoctorTable(r) {
   for (const i of r.hosts.codex) push(`codex cache (${i.marketplace})`, `${i.version}${i.enabled === true ? " enabled" : i.enabled === false ? " DISABLED" : ""}`, i.verdict);
   if (r.hosts.codexConfig?.legacy?.length) push("codex legacy identities", r.hosts.codexConfig.legacy.join(", "), "remove");
   if (r.hosts.codexConfig) push("codex trusted hook events", r.hosts.codexConfig.trustedEvents.length ? r.hosts.codexConfig.trustedEvents.join(", ") : "none");
-  push(`hub ${r.hub.host}:${r.hub.port}`, r.hub.reachable ? `${r.hub.runtimeVersion} build ${(r.hub.buildId ?? "").slice(0, 12)} pid ${r.hub.pid} by ${r.hub.startedBy ?? "?"} \xB7 ${r.hub.entries ?? "?"} repos` : `unreachable (${r.hub.status})`, r.verdicts.hub);
-  push("hub port owner", r.hub.portOwner ? `pid ${r.hub.portOwner.pid} (${r.hub.portOwner.source})` : "none listening", r.hub.portOwner && r.hub.reachable && r.hub.pid && r.hub.portOwner.pid !== r.hub.pid ? "foreign" : "");
-  push("active runtime", r.hub.activeRuntime ? `${r.hub.activeRuntime.runtimeVersion} build ${(r.hub.activeRuntime.buildId ?? "").slice(0, 12)}` : "none");
-  push("runtime store", `${r.runtimeStore.count} builds \xB7 ${mb(r.runtimeStore.bytes)} \xB7 ${r.runtimeStore.dir}`, r.runtimeStore.count > 3 ? "gc" : "");
-  push("registry entries", r.registry.total);
-  push("registry ephemeral roots", r.registry.flagged.length ? r.registry.flagged.map((f) => `${f.reason}: ${f.repoRoot}`).join("; ") : "none", r.registry.flagged.length ? "refuse" : "");
-  push("registry entries with 0 slugs", r.registry.zeroSlugs.length ? r.registry.zeroSlugs.map((z) => z.repoRoot).join("; ") : "none");
-  push("tailscale", `${r.tailscale.configured ? `configured (${r.tailscale.mode})` : "not configured"} \xB7 serve status: ${r.tailscale.available ? r.tailscale.text.split("\n").filter(Boolean).slice(-1)[0] ?? "ok" : "unavailable"}`);
-  const cb = r.hub.reachable ? r.hub.codeBrowser : null;
-  push("code browser", !r.hub.reachable ? "unknown (hub unreachable)" : cb ? cb.enabled ? "enabled" : `disabled: ${cb.reason ?? "no reason given"}` : "not reported");
-  const dep = Array.isArray(r.deprecated) ? r.deprecated : [];
-  push("deprecated hub-config keys", dep.length ? dep.map((d) => d.key).join(", ") : "none", dep.length ? "deprecated" : "");
-  push("verdict", `claude ${r.verdicts.claude} \xB7 codex ${r.verdicts.codex} \xB7 hub ${r.verdicts.hub}`, r.ok ? "OK" : "ACTION");
+  push("old hub and tray state", r.cleanup.done ? "removed" : r.cleanup.left.length ? r.cleanup.left.join(", ") : "none", r.cleanup.left.length ? "start a session" : "");
+  push("verdict", `claude ${r.verdicts.claude} \xB7 codex ${r.verdicts.codex}`, r.ok ? "OK" : "ACTION");
   const w0 = Math.max(...rows.map((x) => x[0].length));
   const w1 = Math.min(96, Math.max(...rows.map((x) => x[1].length)));
   return rows.map(([k, v, verdict]) => `${k.padEnd(w0)}  ${v.padEnd(w1)}  ${verdict}`.trimEnd()).join("\n");
@@ -322,19 +159,18 @@ function formatDoctorTable(r) {
 // scripts/doctor.mjs
 var PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 function parseArgs(argv) {
-  const out = { json: false, out: null, advisory: false, probeHub: true };
+  const out = { json: false, out: null, advisory: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--json") out.json = true;
     else if (a === "--advisory") out.advisory = true;
-    else if (a === "--no-hub") out.probeHub = false;
     else if (a === "--out") out.out = argv[++i] ?? null;
     else if (a.startsWith("--out=")) out.out = a.slice(6);
   }
   return out;
 }
 var args = parseArgs(process.argv.slice(2));
-var report = await runDoctor({ pluginRoot: PLUGIN_ROOT, probeHub: args.probeHub });
+var report = await runDoctor({ pluginRoot: PLUGIN_ROOT });
 var table = formatDoctorTable(report);
 if (args.out) {
   mkdirSync(dirname(resolve(args.out)), { recursive: true });

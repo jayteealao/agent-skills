@@ -29,7 +29,7 @@ const ON_CODEX = process.env.SDLC_HOST === 'codex';
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === '1') return;
   // A dispatched read-only sub-agent (consult skill) boots a session in this repo
-  // and must not seed. Same isolation sentinel session-start-orient honors.
+  // and must not seed. Same isolation sentinel machine-cleanup honors.
   if (process.env.SDLC_DISPATCH_ACTIVE === '1') return;
   if (process.env.SDLC_DISABLE_MEMORY_SEED === '1') return;
 

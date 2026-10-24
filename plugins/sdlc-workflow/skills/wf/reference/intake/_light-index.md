@@ -40,7 +40,7 @@ updated-at: "<ISO 8601>"
 ## Rules for every light index
 
 - Do not write the heavy 22-field `type: index`. An analysis mode is not a build lifecycle.
-- Write `progress` as an object of `<stage>: <status>` entries. The renderer drops a YAML list.
+- Write `progress` as an object of `<stage>: <status>` entries, not a YAML list.
 - Do not write `selected-slice`. A light index has no slice roster.
 - Write no YAML comments in the index.
 - Get each timestamp per [_timestamp.md](../_timestamp.md).

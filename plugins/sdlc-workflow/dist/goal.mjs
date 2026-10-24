@@ -3,19 +3,18 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   optimizeStatus
-} from "./chunk-VIYQJTHD.mjs";
+} from "./chunk-HLUJZOLH.mjs";
 import {
   designNeeded,
   designSettled
-} from "./chunk-DW2YQRFR.mjs";
+} from "./chunk-77MEJD36.mjs";
 import {
   missingBoardFiles
-} from "./chunk-JTJFHSOY.mjs";
+} from "./chunk-6NAHF4FM.mjs";
 import {
   safeParseFrontmatter
-} from "./chunk-5U76735W.mjs";
-import "./chunk-LFGT2BKG.mjs";
-import "./chunk-SGA7NFMW.mjs";
+} from "./chunk-R35WUHOB.mjs";
+import "./chunk-ZGVOYTOL.mjs";
 
 // scripts/goal.mjs
 import { spawnSync } from "node:child_process";

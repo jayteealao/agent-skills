@@ -5,8 +5,8 @@
 // (3) pre-tool-use-all: a shell payload reaches leak-guard-bash (enforce → exit 2;
 //     the dispatch sentinel silences the whole process)
 // (4) pre-tool-use-all: an advisory finding is ONE JSON systemMessage line
-// (5) post-tool-use-all: a verify block exits 2 AND the render request is still queued
-// (6) post-tool-use-all: a non-artifact write is silent and queues nothing
+// (5) post-tool-use-all: a verify block exits 2 with the verifier's reason
+// (6) post-tool-use-all: a non-artifact write is silent
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -21,19 +21,13 @@ const POST = join(PLUGIN_ROOT, 'hooks', 'post-tool-use-all.mjs');
 
 const tempDir = () => mkdtempSync(join(tmpdir(), 'sdlc-folded-'));
 const writeFile = (path, content) => { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, content, 'utf-8'); };
-const quietEnv = (tmp) => ({ SDLC_DISABLE_ENSURE_HUB: '1', SDLC_DISABLE_TRAY_HEAL: '1', SDLC_HOME: join(tmp, '.sdlc-home') });
+const quietEnv = (tmp) => ({ SDLC_HOME: join(tmp, '.sdlc-home') });
 
 function runHook(script, input, cwd, extraEnv = {}) {
   return spawnSync(process.execPath, [script], {
     cwd, input: JSON.stringify(input), encoding: 'utf-8',
     env: { ...process.env, CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT, ...quietEnv(cwd), ...extraEnv },
   });
-}
-
-function queueRecords(repoRoot) {
-  const qdir = join(repoRoot, '.ai', '_view', '.render-queue');
-  if (!existsSync(qdir)) return [];
-  return readdirSync(qdir).filter((n) => n.endsWith('.json') && n !== '.status.json');
 }
 
 test('hooks.json wires one command per tool event at the folded entries', () => {
@@ -91,7 +85,7 @@ test('pre-tool-use-all: an advisory finding is one JSON systemMessage line', () 
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
 
-test('post-tool-use-all: a verify block exits 2 and the render request is still queued', () => {
+test('post-tool-use-all: a verify block exits 2 with the verifier reason', () => {
   const tmp = tempDir();
   try {
     const rel = '.ai/workflows/demo/04-plan-core.md';
@@ -99,11 +93,10 @@ test('post-tool-use-all: a verify block exits 2 and the render request is still 
     const r = runHook(POST, { cwd: tmp, tool_name: 'Write', tool_input: { file_path: rel, content: 'no frontmatter at all\n' } }, tmp);
     equal(r.status, 2, r.stderr);
     match(r.stderr, /wf-postwrite-verify: frontmatter validation FAILED/);
-    equal(queueRecords(tmp).length, 1, 'the render request was queued after the block');
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
 
-test('post-tool-use-all: a non-artifact write is silent and queues nothing', () => {
+test('post-tool-use-all: a non-artifact write is silent', () => {
   const tmp = tempDir();
   try {
     mkdirSync(join(tmp, '.ai', 'workflows'), { recursive: true });
@@ -111,6 +104,5 @@ test('post-tool-use-all: a non-artifact write is silent and queues nothing', () 
     const r = runHook(POST, { cwd: tmp, tool_name: 'Write', tool_input: { file_path: 'src/app.js', content: 'export const x = 1;\n' } }, tmp);
     equal(r.status, 0, r.stderr);
     equal(r.stdout, '');
-    equal(queueRecords(tmp).length, 0);
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });

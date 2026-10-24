@@ -3,18 +3,14 @@
 //
 // NATIVE-INTEROP "Serialized Post-Tool Dispatcher": Codex launches matching
 // command hooks concurrently, so EXACTLY ONE PostToolUse command is registered
-// and it sequences these stages itself (render is intentionally NOT a stage —
-// the hub owns rendering, Resolution 7 / Decision 25):
+// and it sequences these stages itself:
 //
 //   1. determine final touched files from the event (+ on-disk reality)
 //   2. record touched managed artifacts to the per-turn ledger (the Stop hook
 //      re-checks these — the enforcement boundary)
 //   3. run the folded PostToolUse bundle ONCE (WIDE-VIEW §14.2.6): auto-stage
 //      (git add of implement-stage source files), then VERIFY (schema/path/
-//      slug/sibling/fragment), then the filesystem-local DIRTY RENDER SIGNAL
-//      (enqueue + best-effort hub ensure; no inline render). A verify failure
-//      relays corrective feedback (exit 2); the render signal still fires, as
-//      it does under Claude Code.
+//      slug). A verify failure relays corrective feedback (exit 2).
 //
 // Every stage runs the SAME bundled runtime policy Claude runs, so the final
 // on-disk + verification outcome is identical across hosts. Exit 0 on success.
@@ -48,7 +44,7 @@ function main() {
     try { recordTouched(layout.pluginData, event.session_id, managed); } catch { /* best-effort */ }
   }
 
-  // (3) ONE bundled process: auto-stage → verify → render enqueue. The bundle
+  // (3) ONE bundled process: auto-stage → verify. The bundle
   // stages every touched path (file_path + edits[].file_path), skips artifacts,
   // and checks implement stage / branch strategy itself. Exit 2 = verify blocked.
   const result = runBundled(layout.runtimeRoot, 'post-tool-use-all', synthMultiStdin(cwd, 'PostToolUse', touched), {

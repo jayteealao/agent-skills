@@ -58,17 +58,14 @@ test('every *.test.mjs under tests/ is reachable by the runner walk', () => {
 });
 
 test('non-test modules under tests/ stay outside the discovered set', () => {
-  // These are an entry point, a spawned worker, and two imported helpers.
-  // Executing any of them as a test would be wrong (acceptance.mjs builds a
-  // synthetic tree and runs the real renderer; the worker expects to be spawned).
+  // These are the runner and imported helpers. Executing any of them as a
+  // test would be wrong.
   const found = collect(path.join(pluginRoot, 'tests')).map((f) =>
     path.relative(pluginRoot, f).split(path.sep).join('/'),
   );
   for (const excluded of [
-    'tests/e2e/acceptance.mjs',
-    'tests/helpers/lock-race-worker.mjs',
-    'tests/unit/snapshots/_fixtures.mjs',
-    'tests/unit/snapshots/snapshot-harness.mjs',
+    'tests/helpers/state-fingerprint.mjs',
+    'tests/helpers/prototype-ledger.mjs',
     'tests/run-all.mjs',
   ]) {
     assert.ok(existsSync(path.join(pluginRoot, excluded)), `fixture drift: ${excluded} no longer exists`);

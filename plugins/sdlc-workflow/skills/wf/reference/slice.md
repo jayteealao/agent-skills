@@ -217,6 +217,4 @@ Both `03-slice.md` and each per-slice `03-slice-<slice-slug>.md` are revisable. 
 - Snapshots in `.ai/workflows/<slug>/history/`: `03-slice-<rev>.md` for the index; `03-slice-<slice-slug>-<rev>.md` for per-slice files.
 - **Ledger entry** per rewritten file: `trigger: scope-change` (default) or `new-slice` when slices were added; `because:` names why the slicing changed; `changed:` names what moved.
 - **New slices added in this run** start fresh: no prior revision, no history snapshot, `revision-count` 1.
-- **Removed slices** stay in storage: mark the frontmatter `status: dropped` with a `dropped-reason:` field and append a final `## Dropped — <ISO>` section. Do not delete a slice file from disk, which the renderer surfaces with a tombstone view.
-
-The renderer aggregates per-slice history into the slug overview's prior-revisions block; the slice-grid figure reflects current slice status across the slug, including dropped slices (rendered in `--blocker` with a strikethrough).
+- **Removed slices** stay in storage: mark the frontmatter `status: dropped` with a `dropped-reason:` field and append a final `## Dropped — <ISO>` section. Do not delete a slice file from disk.

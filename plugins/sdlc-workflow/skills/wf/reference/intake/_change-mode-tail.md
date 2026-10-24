@@ -16,8 +16,7 @@ per-mode body (what `01-<mode>`/`02-shape`/etc. carry).
 
 **The model:**
 - **Lead = `01-<mode>.md` with `type: intake`** (`01-fix.md`, `01-hotfix.md`, `01-refactor.md`,
-  `01-update-deps.md`). The filename carries the mode; the renderer dispatches on `type: intake`
-  (→ `intake.mjs`) and the view-path lands at `intake/` (filename-mapped in `_paths.mjs`). The lead
+  `01-update-deps.md`). The filename carries the mode; the schema checks it as `type: intake`. The lead
   must satisfy the **intake** required set: `status` ∈ `{complete, awaiting-input}`, `stage-number: 1`,
   `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`.
 - **The authoritative `workflow-type` discriminator lives on `00-index.md`** (mirror it onto the lead

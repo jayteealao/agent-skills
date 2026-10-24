@@ -4,9 +4,8 @@
  * (WIDE-VIEW-REPAIR-PLAN §9.2).
  *
  * package.json is the one source. `npm version <level>` bumps it and then runs
- * the `version` lifecycle script, which calls this stamp, rebuilds
- * (runtime-manifest.json runtimeVersion + dist/), runs verify:versions, and
- * stages each carrier by path.
+ * the `version` lifecycle script, which calls this stamp, rebuilds dist/,
+ * runs verify:versions, and stages each carrier by path.
  *
  * Stamped carriers:
  *   .claude-plugin/plugin.json                 version
@@ -15,9 +14,7 @@
  *   docs/site/nav.html                         brand line `plugin docs · vX.Y.Z`
  *   <repo>/.claude-plugin/marketplace.json     plugins[name=sdlc-workflow].version
  *
- * Derived, NOT stamped here: runtime-manifest.json (scripts/build.mjs writes it)
- * and the rendered page stamp (renderers/_shell.mjs reads runtimeVersion at run
- * time). The catalog's own top-level `version` is the marketplace release line,
+ * The catalog's own top-level `version` is the marketplace release line,
  * which the operator bumps; it is not a plugin carrier.
  *
  * Idempotent: a carrier that already holds the version is left untouched. Edits

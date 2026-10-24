@@ -63,7 +63,7 @@ function steeringClause(steerPath, role, contractPath, campaignSteerPath = null)
     `${files}: skip the rest of this block and return no steering fields. The contract is ${contractPath}. No ` +
     `human gate in this run repeats these entries, so the file is the user's voice here. A steering VETO ` +
     `outranks every autonomous-policy default in this prompt. Steering never overrides a mandatory gate (the ` +
-    `External Output Boundary, sibling-fragment enforcement, AC verifiability, the constraint-resolution rule), ` +
+    `External Output Boundary, AC verifiability, the constraint-resolution rule), ` +
     `never authorizes a deferral, and never waives a dont-ship verdict.`
   if (role === 'writer') {
     return head +

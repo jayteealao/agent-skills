@@ -18,26 +18,24 @@ import {
   rosterWalkOrder,
   setFrontmatterValue,
   writeList
-} from "./chunk-Z6HTLQ6W.mjs";
+} from "./chunk-2NDPLZOO.mjs";
 import {
   designNeeded,
   designSettled
-} from "./chunk-DW2YQRFR.mjs";
+} from "./chunk-77MEJD36.mjs";
 import {
   validateBrainstormBoard
-} from "./chunk-ZQSE2SVB.mjs";
+} from "./chunk-LJCAG37B.mjs";
 import {
   missingBoardFiles,
   needsPictures
-} from "./chunk-JTJFHSOY.mjs";
-import "./chunk-FZ2GR6GF.mjs";
+} from "./chunk-6NAHF4FM.mjs";
 import {
+  jsYaml,
   safeParseFrontmatter
-} from "./chunk-5U76735W.mjs";
-import {
-  jsYaml
-} from "./chunk-LFGT2BKG.mjs";
-import "./chunk-SGA7NFMW.mjs";
+} from "./chunk-R35WUHOB.mjs";
+import "./chunk-DS4JUPRY.mjs";
+import "./chunk-ZGVOYTOL.mjs";
 
 // scripts/campaign.mjs
 import { spawnSync } from "node:child_process";

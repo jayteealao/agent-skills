@@ -3,7 +3,6 @@ import { readdir, realpath, stat } from 'node:fs/promises';
 import { basename, join, relative } from 'node:path';
 import { safeLoadFrontmatterFile } from './frontmatter.mjs';
 import { EVIDENCE_DIRS, SOURCE_DIRS, WORK_DIR } from './hook-utils.mjs';
-import { latestMtimeMs } from './render-state.mjs';
 
 // Wider than the schema's `status` enum (active/complete/closed) on purpose —
 // tolerates legacy or hand-edited 00-index.md files using `completed`,
@@ -64,6 +63,15 @@ async function mtimeMs(path) {
   } catch {
     return null;
   }
+}
+
+async function latestMtimeMs(paths) {
+  let latest = null;
+  for (const path of paths) {
+    const mtime = await mtimeMs(path);
+    if (mtime !== null && (latest === null || mtime > latest)) latest = mtime;
+  }
+  return latest;
 }
 
 export function classifyWorkflowIndex({ frontmatter, parseError, indexMtime, latestArtifactMtime }) {

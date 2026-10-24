@@ -39,7 +39,7 @@ async function main() {
     process.exit(3);
   }
   if (!dispatchEnabled()) {
-    process.stderr.write('external-model dispatch is OFF (set externalDispatch.enabled in ~/.sdlc/hub-config.json) — skipping the egress backend\n');
+    process.stderr.write('external-model dispatch is OFF (set externalDispatch.enabled in ~/.sdlc/config.json) — skipping the egress backend\n');
     process.exit(1);
   }
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;

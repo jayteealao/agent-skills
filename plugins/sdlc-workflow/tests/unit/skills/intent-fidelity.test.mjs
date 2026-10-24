@@ -1,8 +1,7 @@
 // Drift guards for the INTENT-FIDELITY hardening plan (R1 spine: W1/W2/W7/W9.4/W10.1).
 // Each wave converts an ambient reframing into a written, gated decision; these tests
 // pin the load-bearing prompt phrases so a future edit can't silently delete the gate.
-// One tree serves both hosts since v9.153.0; `trees` has one entry (the schema + renderer
-// guards read the same tree).
+// One tree serves both hosts since v9.153.0; `trees` has one entry.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
@@ -268,33 +267,4 @@ test('R5 — retro carries the global-corpus + plugin-feedback + deep-retro pros
   const mainRetro = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', 'retro.md'), 'utf8');
   assert.match(mainRetro, /\bdeep\b/, 'main retro lost the deep token');
   assert.match(mainRetro, /transcript/i, 'main retro lost transcript mining');
-});
-
-// ── W1.3 renderer chip (main tree renderer) ─────────────────────────────────
-test('W1.3 — index renderer emits an intent-risks chip, byte-stable when absent', async () => {
-  const mod = await import(pathToFileURL(path.join(pluginRoot, 'renderers', 'index.mjs')).href);
-  const base = { frontmatter: { slug: 's', title: 'S', 'current-stage': 'shape', status: 'active' }, body: '', history: null };
-  const ctx = { allArtifacts: {} };
-  const withoutRisks = mod.render(base, ctx).headerHtml;
-  assert.ok(!withoutRisks.includes('intent-risk'), 'chip leaked when ledger absent (breaks byte-stability of old pages)');
-
-  const open = mod.render({ ...base, frontmatter: { ...base.frontmatter, 'intent-risks': [{ id: 'RIM-1', severity: 'high', status: 'open' }] } }, ctx).headerHtml;
-  assert.match(open, /intent-risk.*open/i, 'open RIM did not surface a warning chip');
-
-  const clean = mod.render({ ...base, frontmatter: { ...base.frontmatter, 'intent-risks': [{ id: 'RIM-1', status: 'adjudicated' }, { id: 'RIM-2', status: 'carried' }] } }, ctx).headerHtml;
-  assert.match(clean, /adjudicated/, 'adjudicated/carried counts not surfaced');
-  assert.ok(!/\bopen\b/i.test(clean.replace(/intent-risk/gi, '')), 'clean ledger falsely reported open');
-});
-
-test('W8.1 — index renderer emits a charter chip, byte-stable when absent', async () => {
-  const mod = await import(pathToFileURL(path.join(pluginRoot, 'renderers', 'index.mjs')).href);
-  const base = { frontmatter: { slug: 's', title: 'S', 'current-stage': 'shape', status: 'active' }, body: '', history: null };
-  const ctx = { allArtifacts: {} };
-  assert.ok(!mod.render(base, ctx).headerHtml.includes('charter'), 'charter chip leaked when absent');
-
-  const broken = mod.render({ ...base, frontmatter: { ...base.frontmatter, charter: [{ id: 'C1', commitment: 'x', status: 'broken' }] } }, ctx).headerHtml;
-  assert.match(broken, /charter broken/i, 'broken commitment did not surface a warning chip');
-
-  const ok = mod.render({ ...base, frontmatter: { ...base.frontmatter, charter: [{ id: 'C1', status: 'honored' }, { id: 'C2', status: 'honored' }] } }, ctx).headerHtml;
-  assert.match(ok, /charter · 2/, 'honored charter count not surfaced');
 });

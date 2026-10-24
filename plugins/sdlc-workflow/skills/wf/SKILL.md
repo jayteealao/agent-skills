@@ -74,11 +74,11 @@ Every key runs under every host except `yolo`, which is Claude Code only.
 
 Skip this step while the reference is `route.md`; the router runs it after the yes. Run `git rev-parse --show-toplevel` from the project root. On success, continue to Step 0.8.
 
-If it fails, the hub cannot register the repo, and slug branches cannot exist. Ask first, per [_gate-question.md](reference/_gate-question.md):
+If it fails, slug branches cannot exist. Ask first, per [_gate-question.md](reference/_gate-question.md):
 
-> This directory is not a git repository. `/wf` needs git — the hub registers repos by git identity, and slug branches live in git. Run `git init` now?
+> This directory is not a git repository. `/wf` needs git, because slug branches live in git. Run `git init` now?
 > - **Yes — run `git init` (Recommended):** initialize the repo, then continue.
-> - **No — continue without git:** artifacts still write to `.ai/workflows/`, but the hub does not register or render this repo until `git init` runs and a `/wf` command re-registers it.
+> - **No — continue without git:** artifacts still write to `.ai/workflows/`, but no slug branch exists until `git init` runs.
 
 On consent, run `git init` only; do not stage or commit the user's files. On decline, continue and restate the caveat in the Step 2 `Next:` line. Do not run `git init` without asking.
 

@@ -32,7 +32,7 @@ Read every row before you write the stage artifact. [_requires.md](_requires.md)
 | `steer.md` | artifact | if-present | |
 | `90-recap.md` | writes | | |
 
-Recap reads the stage frontmatter and the body sections it needs. `90-recap.md` stays the agent file; the renderer builds the slug's story page from it.
+Recap reads the stage frontmatter and the body sections it needs. `90-recap.md` stays the agent file.
 
 # Role
 You are a **storyteller of the work done**, not a problem solver.

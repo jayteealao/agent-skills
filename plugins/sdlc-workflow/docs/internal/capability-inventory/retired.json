@@ -1091,5 +1091,12 @@
     "entry": "/wf experiment",
     "reason": "WF-PROMPT-AUDIT-2026-10-24 W6: experiment is an augmentation that shape decides and plan writes, not a key.",
     "release": "9.202.0"
+  },
+  {
+    "file": "skills/wf/reference/plan.md",
+    "category": "artifacts",
+    "entry": "04-plan-<X>.html.fragment",
+    "reason": "The view layer and its fragments are deleted; no stage writes or names a plan fragment.",
+    "release": "10.0.0"
   }
 ]

@@ -42,7 +42,7 @@ async function main() {
     process.exit(3);
   }
   if (!dispatchEnabled()) {
-    process.stderr.write('external-model dispatch is OFF (set externalDispatch.enabled in ~/.sdlc/hub-config.json) — skipping Stitch\n');
+    process.stderr.write('external-model dispatch is OFF (set externalDispatch.enabled in ~/.sdlc/config.json) — skipping Stitch\n');
     process.exit(1);
   }
   const apiKey = process.env.STITCH_API_KEY;

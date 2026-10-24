@@ -199,7 +199,7 @@ actually get wrong, not a checklist. STE language throughout.>
 <acknowledged findings + the recorded reason>
 ```
 
-The ledger is a plain markdown file (like `.ai/ship-plan.md` itself) — it takes **no sibling `.yaml` fragment**
+The ledger is a plain markdown file (like `.ai/ship-plan.md` itself) — it takes **no sibling `.yaml`**
 (those belong to rich-tier artifacts under `.ai/workflows/`).
 
 # Step 5 — Triage the blockers and highs (interactive)

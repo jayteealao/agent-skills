@@ -39,7 +39,7 @@ import { loadConfig } from '../lib/config.mjs';
 import { logError } from '../lib/error-log.mjs';
 import { readStdinJson } from '../lib/stdin.mjs';
 import { projectRootFromInput } from '../lib/hook-utils.mjs';
-import { sdlcHomeDir } from '../lib/registry.mjs';
+import { sdlcHomeDir } from '../lib/home.mjs';
 import { appendCostRow, collectTurn, readCursor, writeCursor } from '../lib/cost-ledger.mjs';
 
 /** `--plugin-root X --plugin-data Y` (the Codex wiring); absent under Claude Code. */

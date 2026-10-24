@@ -9,10 +9,8 @@
  * - Lint 00-index.md (warn only, never blocks): over 20 KB, YAML comment prose
  *   in the frontmatter, `current-stage:` outside the first 4000 characters.
  * - Run deep schema validation against schemas/frontmatter.schema.json (native Ajv).
- * - Enforce sibling .yaml: a review, review-command, or plan `.md` written
- *   without its sibling `.yaml` BLOCKS (exit 2); see enforceSiblingFragments.
  * - Silent exit 0 on success.
- * - Exit 2 + stderr when validation fails or a mandatory sibling .yaml is absent.
+ * - Exit 2 + stderr when validation fails.
  *
  * Exports `run(input)` for the folded `post-tool-use-all` entry (WIDE-VIEW
  * §14.2.6). A check blocks with blockToolCall() after writing its reason; the
@@ -26,7 +24,7 @@ import { loadConfig } from '../lib/config.mjs';
 import { logError } from '../lib/error-log.mjs';
 import { blockToolCall, isEntry, runStandalone } from '../lib/hook-runner.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
-import { validateBrainstormBoardFile, validateFrontmatterFile, validatePrototypeLedgerFile, validateSiblingYamlFile, formatValidationErrors } from '../lib/schema-validator.mjs';
+import { validateBrainstormBoardFile, validateFrontmatterFile, validatePrototypeLedgerFile, formatValidationErrors } from '../lib/schema-validator.mjs';
 import { ledgerProblems } from '../lib/prototype.mjs';
 import { designModesOf } from '../lib/design-boards.mjs';
 import { sourceItemProblems } from '../lib/ideate.mjs';
@@ -48,26 +46,13 @@ import {
   resolveProjectPath,
 } from '../lib/hook-utils.mjs';
 
-// The types whose sibling `.yaml` agents read (v9.187.0,
-// VIEW-AUTHORING-REMOVAL-PLAN): `review` and `review-command` (the findings
-// ledger, _findings-ledger.md) and `plan` (files and edges, read by the master
-// `## Sibling Plans` table and the yolo bookkeeping agent). Every other type writes no `.yaml`; its page renders from the `.md`.
-const RICH_TIER_TYPES = new Set(['review', 'review-command', 'plan']);
-
-// Types whose siblingYamlSchemas.<type> is validated at write time. The hook
-// keys the schema by the `.md`'s `type:` (fragmentOwningType), not by the
-// `.yaml`'s `artifact:` field. A per-dimension review is `type: review-command`
-// with an `artifact: review-dimension` sibling, so it is not validated here.
-// Gated by config.hooks.validateSiblingYaml.
-const SIBLING_YAML_VALIDATED_TYPES = new Set(['plan', 'review']);
-
 /**
- * Cheap frontmatter fragment-type read (avoids a full YAML parse for the
- * reminder). Returns the effective fragment type: the literal `type:`, except
- * for `type: augmentation` artifacts where the fragment is named by the
- * `augmentation-type:` discriminator (benchmark / experiment / instrument / rca).
+ * Cheap frontmatter type read (avoids a full YAML parse for the lints).
+ * Returns the effective type: the literal `type:`, except for
+ * `type: augmentation` artifacts, which the `augmentation-type:`
+ * discriminator names (benchmark / experiment / instrument / rca).
  */
-function fragmentOwningType(text) {
+function artifactType(text) {
   if (!text) return null;
   const fence = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
   if (!fence) return null;
@@ -77,102 +62,6 @@ function fragmentOwningType(text) {
   if (type !== 'augmentation') return type;
   const augMatch = /(?:^|\n)\s*augmentation-type:\s*["']?([A-Za-z0-9-]+)/.exec(block);
   return augMatch ? augMatch[1] : type;
-}
-
-/**
- * Cheap frontmatter `fragment:` escape read. A rich-tier artifact that
- * legitimately has no structured data to project (e.g. a profile that found no
- * hotspots, a no-op ship-run) can set `fragment: none` (also `skip` / `n/a`) in
- * its frontmatter to opt that one file out of the sibling requirement.
- */
-function fragmentEscaped(text) {
-  if (!text) return false;
-  const fence = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
-  if (!fence) return false;
-  return /(?:^|\n)\s*fragment:\s*["']?(none|skip|n\/a)["']?\s*(?:#.*)?$/im.test(fence[1]);
-}
-
-/**
- * Write-time sibling `.yaml` enforcement. When a RICH_TIER_TYPES `.md` lands
- * without its sibling `.yaml`, BLOCK (exit 2): agents read that file, so a
- * missing one breaks a later stage. The block forces the write while the
- * artifact is in context. Opt out globally with `hooks.remindMissingFragments: false`; opt out a single
- * artifact with `fragment: none` in its frontmatter. A contract-compliant agent
- * writes the `.yaml` before the `.md`, so it never trips the block.
- */
-async function enforceSiblingFragments(paths, config) {
-  if (config.hooks?.remindMissingFragments === false) return;
-  const blocking = [];   // missing the mandatory .yaml — hard gate
-  for (const path of paths) {
-    if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
-    const text = await readTextIfExists(path.absolute);
-    const type = fragmentOwningType(text);
-    if (!type || !RICH_TIER_TYPES.has(type)) continue;
-    if (fragmentEscaped(text)) continue;
-    const stem = path.absolute.replace(/\.md$/, '');
-    const fileStem = path.original.replace(/\\/g, '/').split('/').at(-1).replace(/\.md$/, '');
-    if (!existsSync(`${stem}.yaml`)) blocking.push({ rel: path.original, type, missing: [`${fileStem}.yaml`] });
-  }
-
-  if (blocking.length) {
-    const lines = blocking.map((r) => `  - ${r.rel} (type: ${r.type}) — missing ${r.missing.join(' + ')}`);
-    process.stderr.write(
-      `wf-postwrite-verify: artifact written without its mandatory sibling .yaml:\n\n${lines.join('\n')}\n\n` +
-      'Later stages read this .yaml: the review .yaml is the findings ledger, and the plan\n' +
-      '.yaml carries the files and edges that the sibling-plan table and the campaign read.\n' +
-      'Write <stem>.yaml NOW, while this artifact is still in context. The schema is\n' +
-      'siblingYamlSchemas.<type> in plugins/sdlc-workflow/schemas/frontmatter.schema.json.\n' +
-      'If this artifact has no findings or no file changes, set `fragment: none` in its\n' +
-      'frontmatter to opt out.\n',
-    );
-    blockToolCall();
-  }
-}
-
-/**
- * Write-time sibling-YAML shape validation. When a rich-tier artifact `.md`
- * lands with a present sibling `.yaml` AND its type's schema is reconciled
- * (SIBLING_YAML_VALIDATED_TYPES), validate the YAML against
- * siblingYamlSchemas.<type> and BLOCK (exit 2) on a violation. This is the
- * shift-left guard: the sunflower view reads this file to build the rich page,
- * so a malformed shape degrades the figure (now gracefully, post-v9.61.0) and
- * should be caught while the author is still in context. Opt out globally with
- * `hooks.validateSiblingYaml: false`.
- */
-async function validateSiblingYamls(paths, config, schemaPath) {
-  if (config.hooks?.validateSiblingYaml === false) return;
-  const failures = [];
-  for (const path of paths) {
-    if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
-    const text = await readTextIfExists(path.absolute);
-    const type = fragmentOwningType(text);
-    if (!type || !SIBLING_YAML_VALIDATED_TYPES.has(type)) continue;
-    const yamlPath = `${path.absolute.replace(/\.md$/, '')}.yaml`;
-    if (!existsSync(yamlPath)) continue;   // absence is enforceSiblingFragments' job
-    // INTAKE-MODES-REPAIR D5: a pre-fix RCA (artifact status: ready-for-fix-routing)
-    // validates against the diagnosis-shaped variant — the resolution set
-    // (resolved_at, mitigation timeline, heatmap) has not happened yet and must
-    // not be fabricated to satisfy the post-incident schema. Keyed on the md
-    // frontmatter, never on anything the sibling YAML's author writes.
-    let schemaName = type;
-    if (type === 'rca' && /^status:\s*ready-for-fix-routing\s*$/m.test(text ?? '')) {
-      schemaName = 'rca-diagnosis';
-    }
-    const result = await validateSiblingYamlFile(yamlPath, { schemaPath, artifact: schemaName });
-    if (!result.valid) {
-      failures.push({ rel: `${path.original.replace(/\.md$/, '')}.yaml`, result });
-    }
-  }
-  if (!failures.length) return;
-  for (const f of failures) {
-    process.stderr.write(`wf-postwrite-verify: sibling YAML validation FAILED for ${f.rel}\n\n`);
-    process.stderr.write(`${formatValidationErrors(f.result.errors)}\n\n`);
-  }
-  process.stderr.write('The sibling .yaml does not conform to siblingYamlSchemas.<type>\n');
-  process.stderr.write('(see plugins/sdlc-workflow/schemas/frontmatter.schema.json). The sunflower view\n');
-  process.stderr.write('reads this file to build the rich page; a malformed shape degrades the figure.\n');
-  process.stderr.write('Fix the issues above, then continue.\n');
-  blockToolCall();
 }
 
 // Shadow-deferral vocabulary (AC-VERIFIABILITY R7 prose-deferral lint). When a
@@ -218,7 +107,7 @@ async function enforceVerifyResultGate(paths, config) {
   for (const path of paths) {
     if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
     const text = await readTextIfExists(path.absolute);
-    if (fragmentOwningType(text) !== 'verify') continue;
+    if (artifactType(text) !== 'verify') continue;
     const { data, content } = safeParseFrontmatter(text, { filePath: path.absolute });
     if (!data || data.result !== 'pass') continue;
 
@@ -341,7 +230,7 @@ async function enforceIntakeLedgerLint(paths, config) {
     const base = path.original.replace(/\\/g, '/').split('/').at(-1);
     if (base !== '01-intake.md') continue;
     const text = await readTextIfExists(path.absolute);
-    if (fragmentOwningType(text) !== 'intake') continue;
+    if (artifactType(text) !== 'intake') continue;
     const indexPath = path.absolute.replace(/01-intake\.md$/, '00-index.md');
     const indexText = await readTextIfExists(indexPath);
     // No sibling 00-index.md → not a default-mode intake in flight (Step 2 creates
@@ -381,7 +270,7 @@ async function enforceNamedMechanismLint(paths, config) {
   for (const path of paths) {
     if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
     const text = await readTextIfExists(path.absolute);
-    const type = fragmentOwningType(text);
+    const type = artifactType(text);
     if (type !== 'shape' && type !== 'slice') continue;
     const { content } = safeParseFrontmatter(text, { filePath: path.absolute });
     if (!content) continue;
@@ -734,16 +623,12 @@ export async function run(input) {
   if (!failures.length) {
     // Frontmatter is clean. First the verify result gate (R7) — hard-block a
     // `verify` artifact whose `result: pass` contradicts its acceptance evidence
-    // (may exit 2; warns on prose-only deferrals). Then validate present sibling
-    // YAML shape (reconciled types only; may exit 2), then enforce sibling
-    // presence (blocks on a missing review or plan .yaml; may exit 2).
+    // (may exit 2; warns on prose-only deferrals). Then the warn-only lints.
     await enforceVerifyResultGate(paths, config);
     await enforceSourceCoverage(paths, config);
     await enforceIntakeLedgerLint(paths, config);
     await enforceNamedMechanismLint(paths, config);
     await enforceDesignModeLint(paths, config);
-    await validateSiblingYamls(paths, config, schemaPath);
-    await enforceSiblingFragments(paths, config);
     return;
   }
 

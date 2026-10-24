@@ -10,10 +10,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-/** Read ~/.sdlc/hub-config.json and return externalDispatch.enabled === true. */
+/** Read ~/.sdlc/config.json and return externalDispatch.enabled === true. */
 export function dispatchEnabled({ home = homedir() } = {}) {
   try {
-    const cfgPath = join(home, '.sdlc', 'hub-config.json');
+    const cfgPath = join(home, '.sdlc', 'config.json');
     if (!existsSync(cfgPath)) return false;
     const cfg = JSON.parse(readFileSync(cfgPath, 'utf-8'));
     return cfg?.externalDispatch?.enabled === true;

@@ -14,8 +14,8 @@ pass** is one wave of them.
 
 ## Rules that hold under every host
 
-- **Children read, the coordinator writes.** Mutation leases, sibling-fragment
-  contracts, and `00-index.md` updates stay PARENT-owned. Children return
+- **Children read, the coordinator writes.** Mutation leases, sibling `.yaml`
+  files, and `00-index.md` updates stay PARENT-owned. Children return
   findings and evidence as text (or files outside `.ai/`); the parent merges
   and writes. One exception: a stage file may delegate a named artifact to a
   child (the review dimensions write their own `07-review-*` files). The

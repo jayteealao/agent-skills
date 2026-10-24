@@ -34,7 +34,7 @@ Its images are mood and brand images. A generated image is never a design board
    step says "2K" in its instruction — honor it; do not silently drop to 1K.
 5. **Consent for egress.** The egress providers (`openai`, `gemini`, `openai-sub`)
    send the prompt to a third party, so they require `externalDispatch.enabled` in
-   `~/.sdlc/hub-config.json`. The text fallback never egresses and is **always** available; the built-in
+   `~/.sdlc/config.json`. The text fallback never egresses and is **always** available; the built-in
    `image_gen` never egresses and is available only where the host offers it
    (provider table below). If consent is off, run only `image_gen` (where present)
    and the text fallback, and note that the API backends need opt-in.

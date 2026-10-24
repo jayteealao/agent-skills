@@ -17,7 +17,7 @@ Image/prototype dispatch is a privacy/egress boundary. `imagery` and `uiproto` s
 nothing until you opt THIS machine in (`consult` is exempt — see below):
 
 ```json
-// ~/.sdlc/hub-config.json
+// ~/.sdlc/config.json
 { "externalDispatch": { "enabled": true } }
 ```
 

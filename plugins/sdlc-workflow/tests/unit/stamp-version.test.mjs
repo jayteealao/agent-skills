@@ -25,7 +25,6 @@ const PLUGIN_FILES = [
   '.claude-plugin/plugin.json',
   '.codex-plugin/plugin.json',
   'docs/site/nav.html',
-  'runtime-manifest.json',
 ];
 const REPO_FILES = ['.claude-plugin/marketplace.json', '.agents/plugins/marketplace.json'];
 
@@ -50,19 +49,10 @@ function bumpPackageJson(plugin, version) {
   writeFileSync(p, `${JSON.stringify(j, null, 2)}\n`);
 }
 
-function bumpManifest(plugin, version) {
-  // The build derives runtimeVersion; the test stands in for it.
-  const p = join(plugin, 'runtime-manifest.json');
-  const j = JSON.parse(readFileSync(p, 'utf8'));
-  j.runtimeVersion = version;
-  writeFileSync(p, `${JSON.stringify(j, null, 2)}\n`);
-}
-
 test('stamp-version: stamps every carrier from package.json and the gate accepts the tree', () => {
   const { repo, plugin } = scratchTree();
   try {
     bumpPackageJson(plugin, '99.1.2');
-    bumpManifest(plugin, '99.1.2');
     const r = stampVersion({ pluginRoot: plugin, repoRoot: repo });
     assert.equal(r.version, '99.1.2');
     assert.deepEqual(r.changed.sort(), [

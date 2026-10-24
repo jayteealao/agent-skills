@@ -21,7 +21,6 @@ const PLUGIN_ROOT = resolve(__dirname, '..', '..', '..');
 const HOOKS = {
   preWriteValidate: join(PLUGIN_ROOT, 'hooks', 'pre-write-validate.mjs'),
   postWriteVerify: join(PLUGIN_ROOT, 'hooks', 'post-write-verify.mjs'),
-  postWriteRender: join(PLUGIN_ROOT, 'hooks', 'post-write-render.mjs'),
 };
 const SLUG = 'brainstorm-demo-20261003';
 const WF = `.ai/workflows/${SLUG}`;
@@ -42,12 +41,6 @@ function runHook(script, input, cwd, extraEnv = {}) {
 function writeFile(path, content) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content, 'utf-8');
-}
-
-function queueRecords(repoRoot) {
-  const qdir = join(repoRoot, '.ai', '_view', '.render-queue');
-  if (!existsSync(qdir)) return [];
-  return readdirSync(qdir).filter((n) => n.endsWith('.json') && n !== '.status.json');
 }
 
 const BOARD = {
@@ -148,15 +141,10 @@ test('a non-NN .md at the top of a workflow is still blocked', () => {
   }
 });
 
-test('sources and work files queue no render and never mark a workflow stale', async () => {
+test('sources and work files never mark a workflow stale', async () => {
   const tmp = tempDir();
   try {
-    for (const rel of [`${WF}/research/R01-speed.md`, `${WF}/references/index.md`, `${WF}/work/build-it.md`]) {
-      writeFile(join(tmp, rel), NOTE);
-      const result = runHook(HOOKS.postWriteRender, { cwd: tmp, tool_input: { file_path: rel } }, tmp, { SDLC_HOME: join(tmp, '.sdlc-home') });
-      equal(result.status, 0, result.stderr);
-    }
-    deepEqual(queueRecords(tmp), []);
+    for (const rel of [`${WF}/research/R01-speed.md`, `${WF}/references/index.md`, `${WF}/work/build-it.md`]) writeFile(join(tmp, rel), NOTE);
     writeFile(join(tmp, WF, '01-brainstorm.md'), '---\nschema: sdlc/v1\n---\n');
     const old = new Date('2026-01-01T00:00:00Z');
     utimesSync(join(tmp, WF, '01-brainstorm.md'), old, old);

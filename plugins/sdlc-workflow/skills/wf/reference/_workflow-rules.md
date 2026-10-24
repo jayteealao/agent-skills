@@ -1,7 +1,7 @@
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - Every artifact file has YAML frontmatter (between `---` markers) as the first thing in the file. One role per place: frontmatter is state; the agent-file body is the contract and the working record, under fixed `##` headings; the chat narrative is for the person, per [_chat-return.md](_chat-return.md).
-- Write no explainer, no `.html.fragment`, and no sibling `.yaml`, unless the stage reference names that file. Only the review stage, the audit intake mode, and the plan stage name a sibling `.yaml`, because agents read those files. The renderer draws a page from the `.md` when no `.yaml` exists.
+- Write no explainer and no sibling `.yaml`, unless the stage reference names that file. Only the review stage, the audit intake mode, and the plan stage name a sibling `.yaml`, because agents read those files.
 - Before you write a stage artifact, read every input in the stage's `## Requires` table, per [_requires.md](_requires.md).
 - A stage artifact names its next step in frontmatter: `next-command`, `next-invocation`, and `recommended-routes` (every option with a `reason`; exactly one entry has `default: true`, and its `invocation` equals `next-invocation`). A stage artifact has no `## Recommended Next Stage` section and no `recommended-next-*` key.
 - Timestamps are real: for `created-at` / `updated-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.

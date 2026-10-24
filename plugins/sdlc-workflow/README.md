@@ -1,6 +1,6 @@
 # SDLC Workflow
 
-A plugin that runs software work as a disciplined lifecycle. Every feature, fix, or spike moves through the same sequence of stages. Each stage writes a permanent, machine-readable artifact under `.ai/workflows/<slug>/` in your repository, and the next stage reads it. A hub renders the artifacts as a local site, and hooks verify each artifact as it lands.
+A plugin that runs software work as a disciplined lifecycle. Every feature, fix, or spike moves through the same sequence of stages. Each stage writes a permanent, machine-readable artifact under `.ai/workflows/<slug>/` in your repository, and the next stage reads it. Hooks verify each artifact as it lands.
 
 The full documentation is the site under [docs/site/](docs/site/index.html). This file is the map.
 
@@ -14,7 +14,7 @@ One source tree serves three hosts. The skill prose is written once and is host-
 | Codex | `.codex-plugin/plugin.json`, `hooks/codex.hooks.json` | `$wf …` |
 | pi (`pi-code` extension) | the Claude Code plugin cache and hook wiring | `/skill:wf …` |
 
-All three hosts share the runtime, the hub, the renderer, and the `.ai/` artifacts. A workflow started under one host resumes under another. `/wf yolo` runs under Claude Code only. Codex selects the skills (`$wf`, `$consult`, `$diataxis`, `$study-sources`, `$imagery`, `$uiproto`) only when you name them. The per-host differences are in [reference/hosts.html](docs/site/reference/hosts.html).
+All three hosts share the hooks and the `.ai/` artifacts. A workflow started under one host resumes under another. `/wf yolo` runs under Claude Code only. Codex selects the skills (`$wf`, `$consult`, `$diataxis`, `$study-sources`, `$imagery`, `$uiproto`) only when you name them. The per-host differences are in [reference/hosts.html](docs/site/reference/hosts.html).
 
 ## Install
 
@@ -67,7 +67,7 @@ Arguments and artifacts for each key are in [reference/commands.html](docs/site/
 
 ## Hooks
 
-Hooks verify each managed artifact on write, stage it, render it, and record the turn's exact token usage to `.ai/workflows/<slug>/cost.jsonl`. They never block a valid write. [reference/hooks.html](docs/site/reference/hooks.html) lists every hook, its event, and its toggle in `.ai/sdlc-config.json` ([reference/configuration.html](docs/site/reference/configuration.html)).
+Hooks verify each managed artifact on write, stage it, and record the turn's exact token usage to `.ai/workflows/<slug>/cost.jsonl`. They never block a valid write. [reference/hooks.html](docs/site/reference/hooks.html) lists every hook, its event, and its toggle in `.ai/sdlc-config.json` ([reference/configuration.html](docs/site/reference/configuration.html)).
 
 One hook is a Claude Code mod: `hooks/mod/register.ts`, a function-hooks module that adds the `/wf` picker. With `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` set, a `/wf` that still needs a key or a slug draws a numbered list above the prompt (a typed slug runs at once; the slice list opens after you pick a workflow); a digit picks a row, the wheel turns the page, and a filter field narrows the rows. In the terminal the last pick fills the prompt for your Enter; in the Desktop app it runs at once. The same module draws a workflow strip above the prompt (stage, slice, next step, cost), offers the next invocation as the prompt's Tab suggestion after a stage turn, toasts when a stage ends without its artifact, counts intake and shape questions in the dialog, shows a live run's heartbeat in the status line, names the stage in the spinner, and reports the hub under the logo. The strip's buttons open the dashboard pane and the live view of a yolo, campaign or brainstorm run; the mod adds no slash command of its own. Each aid has a switch in `/config`, and the `mod` switch turns off the whole module at once. Without the flag the module does not load and `/wf` works as before.
 

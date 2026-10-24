@@ -3,7 +3,7 @@
     "file": "skills/wf/SKILL.md",
     "category": "gates",
     "from": "if it fails (not a git repo), do",
-    "to": "if it fails, the hub cannot register the"
+    "to": "if it fails, slug branches cannot exist. ask"
   },
   {
     "file": "skills/wf/SKILL.md",

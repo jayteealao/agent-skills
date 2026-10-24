@@ -3,9 +3,9 @@
 // (1) The installed-version readers see every Claude Code scope and every Codex
 //     cache version, plus the Codex enabled flag, legacy identities, and trust.
 // (2) The verdict compares installed to shipped per host.
-// (3) The netstat parser and root classifier are pure.
-// (4) runDoctor on fixture homes reports the install gap and exits red; on a
+// (3) runDoctor on fixture homes reports the install gap and exits red; on a
 //     machine where installed equals shipped it reports OK.
+// (4) The cleanup row names the old ~/.sdlc entries until the marker exists.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
@@ -14,9 +14,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
-  classifyRoot, formatDoctorTable, parseClaudeInstalls, parseCodexConfig, parseNetstatListeners,
-  portOwner, readClaudeInstalls, readCodexInstalls, registryAudit, runDoctor, runtimeStoreStats,
-  shippedVersion, versionVerdict,
+  formatDoctorTable, parseClaudeInstalls, parseCodexConfig, readClaudeInstalls, readCodexInstalls,
+  runDoctor, shippedVersion, versionVerdict,
 } from '../../../lib/doctor.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -57,10 +56,8 @@ function fixtureHome() {
   mkdirSync(path.join(codex, 'plugins', 'cache', 'agent-skills-marketplace', 'sdlc-workflow', '9.152.1'), { recursive: true });
   writeFileSync(path.join(codex, 'config.toml'), CODEX_TOML);
   const sdlc = path.join(home, '.sdlc');
-  for (const b of ['aaa', 'bbb', 'ccc', 'ddd']) {
-    mkdirSync(path.join(sdlc, 'runtime', b), { recursive: true });
-    writeFileSync(path.join(sdlc, 'runtime', b, 'x.mjs'), 'x'.repeat(1024));
-  }
+  mkdirSync(path.join(sdlc, 'runtime', 'aaa'), { recursive: true });
+  writeFileSync(path.join(sdlc, 'hub.pid'), '{"pid":1}');
   return { home, codex, sdlc };
 }
 
@@ -103,65 +100,22 @@ test('versionVerdict compares installed to shipped', () => {
   assert.equal(versionVerdict('garbage', '9.153.5'), 'unknown');
 });
 
-test('parseNetstatListeners + portOwner (win32 via injected exec; posix via lsof)', () => {
-  const text = [
-    'Active Connections',
-    '',
-    '  Proto  Local Address          Foreign Address        State           PID',
-    '  TCP    0.0.0.0:22             0.0.0.0:0              LISTENING       7748',
-    '  TCP    127.0.0.1:4173         0.0.0.0:0              LISTENING       31928',
-    '  TCP    127.0.0.1:4173         127.0.0.1:52001        ESTABLISHED     31928',
-    '  TCP    [::]:135               [::]:0                 LISTENING       1444',
-  ].join('\r\n');
-  const rows = parseNetstatListeners(text);
-  assert.deepEqual(rows.map((r) => [r.port, r.pid]), [[22, 7748], [4173, 31928], [135, 1444]]);
-  const winExec = () => ({ stdout: text });
-  assert.deepEqual(portOwner(4173, { platform: 'win32', exec: winExec }), { pid: 31928, source: 'netstat' });
-  assert.equal(portOwner(9999, { platform: 'win32', exec: winExec }), null);
-  assert.deepEqual(portOwner(4173, { platform: 'linux', exec: () => ({ stdout: '4242\n' }) }), { pid: 4242, source: 'lsof' });
-  assert.equal(portOwner(4173, { platform: 'linux', exec: () => ({ stdout: '' }) }), null);
-  assert.equal(portOwner(4173, { platform: 'linux', exec: () => { throw new Error('ENOENT'); } }), null);
-});
-
-test('classifyRoot + registryAudit flag temp, scratchpad, and worktree roots', () => {
-  const tmp = 'C:\\Users\\x\\AppData\\Local\\Temp';
-  assert.equal(classifyRoot('C:\\Users\\x\\AppData\\Local\\Temp\\claude\\C--x\\abc\\scratchpad\\repo', { tmpDir: tmp }), 'temp');
-  assert.equal(classifyRoot('/tmp/sdlc-e2e-1234', { tmpDir: '/tmp' }), 'temp');
-  assert.equal(classifyRoot('C:\\dev\\app\\.claude\\worktrees\\feature-x', { tmpDir: tmp }), 'worktree');
-  assert.equal(classifyRoot('C:\\dev\\app', { tmpDir: tmp }), null);
-  const audit = registryAudit([
-    { id: 'a', repoRoot: 'C:\\dev\\app', slugs: ['x'] },
-    { id: 'b', repoRoot: 'C:\\Users\\x\\AppData\\Local\\Temp\\z', slugs: [] },
-    { id: 'c', repoRoot: 'C:\\dev\\app\\.claude\\worktrees\\w' },
-  ], { tmpDir: tmp });
-  assert.equal(audit.total, 3);
-  assert.deepEqual(audit.flagged.map((f) => [f.id, f.reason]), [['b', 'temp'], ['c', 'worktree']]);
-  assert.deepEqual(audit.zeroSlugs.map((z) => z.id), ['b']);
-  assert.deepEqual(registryAudit(null), { total: 0, flagged: [], zeroSlugs: [] });
-});
-
 test('runDoctor on a fixture home: install gap → not ok; equal versions → ok', async () => {
   const { home, codex, sdlc } = fixtureHome();
   try {
-    const exec = () => ({ stdout: '', status: 1, stderr: 'not installed' });
-    const common = { pluginRoot, homeDir: home, codexHome: codex, sdlcHome: sdlc, hubConfig: { host: '127.0.0.1', port: 1, tailscale: { enabled: false } }, exec, platform: 'linux', probeHub: false, tmpDir: path.join(home, 'no-such-tmp') };
+    const common = { pluginRoot, homeDir: home, codexHome: codex, sdlcHome: sdlc };
     const r = await runDoctor(common);
     assert.equal(r.shipped, SHIPPED);
     // 9.153.5 and 9.144.0 are both behind the shipped version unless shipped is 9.153.5.
     const claudeOk = r.hosts.claude.filter((i) => i.verdict === 'ok').length;
     assert.equal(r.verdicts.claude, claudeOk === 2 ? 'ok' : claudeOk === 1 ? 'mixed' : 'mismatch');
-    assert.equal(r.hub.reachable, false);
-    assert.equal(r.verdicts.hub, 'unreachable');
-    assert.equal(r.hub.portOwner, null);
-    assert.equal(r.runtimeStore.count, 4);
-    assert.equal(r.runtimeStore.bytes, 4096);
-    assert.equal(r.tailscale.available, false);
+    assert.deepEqual(r.cleanup, { done: false, left: ['hub.pid', 'runtime'] });
     assert.equal(r.ok, false, 'a local scope behind shipped is the install gap');
     const table = formatDoctorTable(r);
     assert.match(table, /claude install \(user\)/);
     assert.match(table, /claude install \(local: C:\\Users\\x\\Documents\\dev\\Isometric\)/);
     assert.match(table, /codex legacy identities\s+sdlc-workflow-codex\s+remove/);
-    assert.match(table, /runtime store\s+4 builds · 0\.0 MB .*\s+gc$/m);
+    assert.match(table, /old hub and tray state\s+hub\.pid, runtime\s+start a session$/m);
     assert.match(table, /verdict .*ACTION$/m);
 
     // Equal versions everywhere → OK.
@@ -175,12 +129,6 @@ test('runDoctor on a fixture home: install gap → not ok; equal versions → ok
     assert.equal(r2.ok, true);
     assert.match(formatDoctorTable(r2), /verdict .*OK$/m);
   } finally { rmSync(home, { recursive: true, force: true }); }
-});
-
-test('runtimeStoreStats on a missing dir is empty', () => {
-  const r = runtimeStoreStats(path.join(tmpdir(), 'sdlc-doctor-none-' + Date.now()));
-  assert.equal(r.count, 0);
-  assert.equal(r.bytes, 0);
 });
 
 test('verify-release-pushed evaluateInstalled: a local scope behind shipped is the install gap', async () => {
@@ -200,11 +148,10 @@ test('verify-release-pushed evaluateInstalled: a local scope behind shipped is t
   assert.equal(evaluateInstalled({ shipped: '9.153.5', claude: [{ scope: 'user', version: '9.160.0' }] }).ok, false);
 });
 
-test('runDoctor: an absent host is not a gap; a cache at shipped with no enabled line is "disabled"; deprecated keys and the code browser are rows', async () => {
+test('runDoctor: an absent host is not a gap; a cache at shipped with no enabled line is "disabled"; the cleanup marker reads as removed', async () => {
   const { home, codex, sdlc } = fixtureHome();
   try {
-    const exec = () => ({ stdout: '', status: 1, stderr: 'not installed' });
-    const common = { pluginRoot, homeDir: home, codexHome: codex, sdlcHome: sdlc, hubConfig: { host: '127.0.0.1', port: 1, tailscale: { enabled: false } }, exec, platform: 'linux', probeHub: false, tmpDir: path.join(home, 'no-such-tmp') };
+    const common = { pluginRoot, homeDir: home, codexHome: codex, sdlcHome: sdlc };
     const eq = JSON.parse(JSON.stringify(INSTALLED));
     for (const i of eq.plugins['sdlc-workflow@agent-skills-marketplace']) i.version = SHIPPED;
     writeFileSync(path.join(home, '.claude', 'plugins', 'installed_plugins.json'), JSON.stringify(eq));
@@ -216,11 +163,8 @@ test('runDoctor: an absent host is not a gap; a cache at shipped with no enabled
     assert.equal(r.verdicts.claude, 'ok');
     assert.equal(r.verdicts.codex, 'absent');
     assert.equal(r.ok, true, 'a host that is not installed is not an install gap');
-    assert.deepEqual(r.deprecated, []);
     const table = formatDoctorTable(r);
     assert.match(table, /codex install\s+none\s+absent/);
-    assert.match(table, /code browser\s+unknown \(hub unreachable\)/);
-    assert.match(table, /deprecated hub-config keys\s+none/);
     assert.match(table, /verdict .*OK$/m);
 
     // The shipped version sits in the cache, but config.toml has no enabled line.
@@ -229,9 +173,10 @@ test('runDoctor: an absent host is not a gap; a cache at shipped with no enabled
     assert.equal(r2.verdicts.codex, 'disabled');
     assert.equal(r2.ok, false, 'installed but not enabled is a gap');
 
-    // Deprecated hub-config keys in use are one row with a verdict.
-    const r3 = await runDoctor({ ...common, hubConfig: { ...common.hubConfig, perRepoServe: true, liveReload: false } });
-    assert.deepEqual(r3.deprecated.map((d) => d.key), ['perRepoServe', 'liveReload']);
-    assert.match(formatDoctorTable(r3), /deprecated hub-config keys\s+perRepoServe, liveReload\s+deprecated/);
+    // After the cleanup the marker exists and the row says so.
+    writeFileSync(path.join(sdlc, '.v10-cleanup.json'), '{}');
+    const r3 = await runDoctor(common);
+    assert.deepEqual(r3.cleanup, { done: true, left: [] });
+    assert.match(formatDoctorTable(r3), /old hub and tray state\s+removed$/m);
   } finally { rmSync(home, { recursive: true, force: true }); }
 });

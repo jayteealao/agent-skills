@@ -9,7 +9,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/session-start-orient.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/machine-cleanup.mjs\"",
             "timeout": 30
           },
           {

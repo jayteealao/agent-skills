@@ -1,9 +1,7 @@
-# Enforce LF for all text files in this plugin so content hashing is identical
-# on Windows and Linux — the shared-runtime payload
-# (runtime-manifest.json buildId) is a sha256 over the raw bytes of
-# dist/assets/components/schemas; a Windows clone with core.autocrlf=true
-# would otherwise get CRLF in the working tree and fail verify-runtime's
-# buildId reproduction and the snapshot/fragment-determinism tests.
+# Enforce LF for all text files in this plugin so the committed dist/ bundles
+# and the tests that read files byte for byte behave the same on Windows and
+# Linux; a Windows clone with core.autocrlf=true would otherwise get CRLF in
+# the working tree.
 * text=auto eol=lf
 *.md text eol=lf
 *.json text eol=lf

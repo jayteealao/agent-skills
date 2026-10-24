@@ -31,12 +31,9 @@ Append no `## Revision N` sections to the body: a document that stacks diffs for
 
 **Exception**: if frontmatter declares `regenerable: true`, the artifact is view-over-state: overwrite the body freely and write **no** ledger entry and **no** snapshot (there is no evolution to narrate; the file is a pure function of current state). The revisable stage artifacts do not normally carry this flag.
 
-## What the renderer does with this
+## Why both
 
-- The `revisions:` ledger renders as a compact timeline strip (trigger + reason, newest first) above the body: provenance at a glance.
-- The `history/<stem>-<rev>.md` snapshots render as a collapsible `<details class="history">` block; history view paths are stable (`<slug>/<stage>/history/<rev>/INDEX.html`), so old revisions stay linkable from PRs and later artifacts forever.
-
-The two are complementary: the ledger says *why each revision happened* in one line; the snapshots hold *the exact prior wording* for anyone who needs to diff. Neither lives in the body.
+The ledger says *why each revision happened* in one line; the snapshots hold *the exact prior wording* for anyone who needs to diff. Neither lives in the body.
 
 ## Control files are a different question
 

@@ -13,7 +13,7 @@ import { dirname, extname, join } from 'node:path';
 import { homedir } from 'node:os';
 
 /**
- * Egress consent gate. Read ~/.sdlc/hub-config.json and return
+ * Egress consent gate. Read ~/.sdlc/config.json and return
  * externalDispatch.enabled === true. The EGRESS generators (gen-openai,
  * gen-gemini) re-check this THEMSELVES so the script — not just the SKILL.md
  * prose — is the consent boundary: a direct `node gen-gemini.mjs …` cannot
@@ -22,7 +22,7 @@ import { homedir } from 'node:os';
  */
 export function dispatchEnabled({ home = homedir() } = {}) {
   try {
-    const cfgPath = join(home, '.sdlc', 'hub-config.json');
+    const cfgPath = join(home, '.sdlc', 'config.json');
     if (!existsSync(cfgPath)) return false;
     const cfg = JSON.parse(readFileSync(cfgPath, 'utf-8'));
     return cfg?.externalDispatch?.enabled === true;

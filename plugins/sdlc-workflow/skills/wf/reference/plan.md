@@ -236,4 +236,4 @@ The schema is `siblingYamlSchemas.plan` in `schemas/frontmatter.schema.json`, va
 - `edges:` — one entry for each cross-file link that the change depends on: `from`, `to`, and `kind` (`import | replaces | calls | extends | crosses-service`). An edge names files.
 - `risks:` — one entry for each risk in `## Risks / Watchouts`: `title`, `severity`, `body`, `mitigation`.
 
-Write no other key. Do not write `modules`, `loc`, `delta`, `imports`, `planned_change`, `history`, or `lanes`; older plans carry them, and the renderer still reads them there. Do not write `04-plan-<slice-slug>.html.fragment`.
+Write no other key. Do not write `modules`, `loc`, `delta`, `imports`, `planned_change`, `history`, or `lanes`; older plans carry them.

@@ -12,21 +12,7 @@ import {
   loadJsonSchema,
   validateFrontmatter,
   validateFrontmatterFile,
-  validateSiblingYaml,
 } from '../../../lib/schema-validator.mjs';
-import {
-  classifyRenderState,
-  latestMtimeMs,
-  latestTreeMtimeMs,
-  viewMtimeForSlug,
-} from '../../../lib/render-state.mjs';
-import {
-  isPidAlive,
-  pidFileStatus,
-  readPidFile,
-  removePidFile,
-  writePidFile,
-} from '../../../lib/pid-file.mjs';
 import {
   DEFAULT_SDLC_CONFIG,
   configHash,
@@ -97,7 +83,7 @@ test('schema-validator: selects the same branch layout as the Python verifier', 
   equal(findFrontmatterBranch(schema, 'craft'), null);
 });
 
-test('schema-validator: validates frontmatter and sibling YAML schemas', () => {
+test('schema-validator: validates frontmatter', () => {
   const valid = validateFrontmatter(validIntakeFrontmatter(), { schemaPath: SCHEMA_PATH });
   equal(valid.valid, true);
 
@@ -105,17 +91,6 @@ test('schema-validator: validates frontmatter and sibling YAML schemas', () => {
   equal(invalid.valid, false);
   ok(invalid.errors.some((err) => err.keyword === 'required'));
 
-  const sibling = validateSiblingYaml({
-    artifact: 'review-dimension',
-    dimension: 'security',
-    parent: '07-review.md',
-    rev: 1,
-    verdict: 'ship',
-    summary: 'clean',
-    counts: { blocker: 0, high: 0, med: 0, low: 0, nit: 0 },
-    findings: [],
-  }, { schemaPath: SCHEMA_PATH });
-  equal(sibling.valid, true);
 });
 
 test('schema-validator: provenance is an accepted optional field (adopt mode)', () => {
@@ -133,111 +108,6 @@ test('schema-validator: provenance is an accepted optional field (adopt mode)', 
   }
   // Absent provenance (the authored default) remains valid.
   equal(validateFrontmatter(validIntakeFrontmatter(), { schemaPath: SCHEMA_PATH }).valid, true);
-});
-
-test('schema-validator: plan sibling YAML accepts the rich object-form convention', () => {
-  // Reconciled (v9.62.0): modules as { id, label, role } objects, files
-  // referencing them via `module:` with change-type in `status` and a category
-  // in `role`, string `loc`, `severity` risks. This is what agents actually
-  // author; the legacy string-form must still validate too.
-  const rich = validateSiblingYaml({
-    artifact: 'plan',
-    slug: 'fastify-firebase-auth',
-    slice: 'signin-ui',
-    rev: 2,
-    modules: [{ id: 'firebase-init', label: 'Firebase client init', role: 'infra' }],
-    files: [{ path: 'frontend/src/lib/firebase.ts', role: 'infra', status: 'new', module: 'firebase-init', loc: '~120' }],
-    risks: [{ id: 'R1', severity: 'high', title: 'Token staleness' }],
-    history: [{ rev: 2, at: '2026-06-10T06:01:11Z' }],
-  }, { schemaPath: SCHEMA_PATH });
-  equal(rich.valid, true);
-
-  // Legacy string-form modules still validate.
-  const legacy = validateSiblingYaml({
-    artifact: 'plan', slice: 's', modules: ['frontend/src'],
-    files: [{ path: 'frontend/src/a.ts', role: 'new' }],
-  }, { schemaPath: SCHEMA_PATH });
-  equal(legacy.valid, true);
-
-  // modules accept id-form OR name-form OR plain strings (the real corpus uses
-  // all three), so a {label} object is no longer "malformed". Genuine
-  // malformation that's still rejected: a file with no `path`.
-  const malformed = validateSiblingYaml({
-    artifact: 'plan', slice: 's', modules: [{ name: 'svc', label: 'Service' }],
-    files: [{ role: 'new' }],
-  }, { schemaPath: SCHEMA_PATH });
-  equal(malformed.valid, false);
-});
-
-test('schema-validator: review + review-dimension sibling YAML accept the live corpus shape', () => {
-  // Reconciled (v9.65.0) against the real artifact corpus across registered
-  // repos: review-dimension summaries run past the old 500-char cap and
-  // findings[].line is sometimes null; review omits parent/model/run_at, uses
-  // per-severity {key,status,blocker,high,med} dimensions, and findings carry
-  // either {confidence,action,msg} or {triage,status,message}.
-  const dim = validateSiblingYaml({
-    artifact: 'review-dimension', dimension: 'privacy', parent: '07-review.yaml', rev: 1,
-    verdict: 'caveats', summary: 'x'.repeat(560),
-    counts: { blocker: 0, high: 1, med: 2, low: 0, nit: 0 },
-    findings: [{ id: 'F1', severity: 'high', msg: 'leak', line: null }],
-  }, { schemaPath: SCHEMA_PATH });
-  equal(dim.valid, true);
-
-  const review = validateSiblingYaml({
-    artifact: 'review', slug: 's', rev: 1, verdict: 'ship', summary: 'ok',
-    counts: { blocker: 0, high: 0, med: 0, low: 0, nit: 0 },
-    dimensions: [{ key: 'security', status: 'clean', blocker: 0, high: 0, med: 0 }],
-    findings: [{ id: 'B1', severity: 'blocker', dimension: 'infra', triage: 'fix', status: 'patched', message: 'rule too broad' }],
-  }, { schemaPath: SCHEMA_PATH });
-  equal(review.valid, true);
-
-  // Malformed still rejected: summary past the (raised) bound, and a finding
-  // with no severity.
-  equal(validateSiblingYaml({
-    artifact: 'review-dimension', dimension: 'd', parent: 'p', rev: 1, verdict: 'ship',
-    summary: 'x'.repeat(2001), counts: { blocker: 0, high: 0, med: 0, low: 0, nit: 0 }, findings: [],
-  }, { schemaPath: SCHEMA_PATH }).valid, false);
-  equal(validateSiblingYaml({
-    artifact: 'review', rev: 1, verdict: 'ship', summary: 'ok',
-    counts: { blocker: 0, high: 0, med: 0, low: 0, nit: 0 },
-    dimensions: [{ key: 'c' }], findings: [{ id: '1', dimension: 'd' }],
-  }, { schemaPath: SCHEMA_PATH }).valid, false);
-});
-
-test('schema-validator: review sibling YAML accepts the accumulating-ledger finding fields', () => {
-  // Accumulating-ledger model: a review re-run merges into the same file. Findings
-  // carry a status lifecycle (open|deferred|dismissed|fixed|could-not-fix|resolved)
-  // plus surfaced-at / last-seen-at / resolved-at / fixed-at (iso8601). The sibling
-  // .yaml holds OPEN findings; resolved history lives in the .md body. rev increments
-  // each run.
-  const dim = validateSiblingYaml({
-    artifact: 'review-dimension', dimension: 'security', parent: '07-review.yaml', rev: 3,
-    verdict: 'ship', summary: 'merged across 3 runs',
-    counts: { blocker: 0, high: 1, med: 0, low: 0, nit: 0 },
-    findings: [
-      { id: 'SEC-1', severity: 'high', msg: 'still open', status: 'open',
-        'surfaced-at': '2026-06-18T10:00:00Z', 'last-seen-at': '2026-06-20T09:00:00Z' },
-      { id: 'SEC-2', severity: 'high', msg: 'cleared on re-run', status: 'resolved',
-        'surfaced-at': '2026-06-18T10:00:00Z', 'resolved-at': '2026-06-20T09:00:00Z' },
-    ],
-  }, { schemaPath: SCHEMA_PATH });
-  equal(dim.valid, true);
-
-  const review = validateSiblingYaml({
-    artifact: 'review', slug: 's', rev: 2, verdict: 'caveats', summary: 'ok',
-    counts: { blocker: 0, high: 1, med: 0, low: 0, nit: 0 },
-    dimensions: [{ key: 'security', status: 'issues', blocker: 0, high: 1, med: 0 }],
-    findings: [{ id: 'SEC-1', severity: 'high', dimension: 'security', status: 'open',
-      'surfaced-at': '2026-06-18T10:00:00Z', 'last-seen-at': '2026-06-20T09:00:00Z' }],
-  }, { schemaPath: SCHEMA_PATH });
-  equal(review.valid, true);
-
-  // A malformed surfaced-at (not ISO-8601) is rejected — the timestamp constraint is live.
-  equal(validateSiblingYaml({
-    artifact: 'review-dimension', dimension: 'd', parent: 'p', rev: 1, verdict: 'ship',
-    summary: 's', counts: { blocker: 0, high: 0, med: 0, low: 0, nit: 0 },
-    findings: [{ id: 'X', severity: 'low', msg: 'm', 'surfaced-at': 'yesterday' }],
-  }, { schemaPath: SCHEMA_PATH }).valid, false);
 });
 
 test('schema-validator: admits the four wf-docs intermediate artifact types', async () => {
@@ -314,67 +184,6 @@ test('schema-validator: admits ideation and the five dep-update artifact types',
     );
     equal(bad.valid, false, `${type}: missing run-id rejected`);
     ok(bad.errors.some((err) => err.keyword === 'required'), `${type}: required error`);
-  }
-});
-
-test('render-state: classifies missing, stale, and fresh views', async () => {
-  const tmp = tempDir();
-  try {
-    const source = join(tmp, 'source.md');
-    const view = join(tmp, '.ai', '_view', 'demo', 'INDEX.html');
-    mkdirSync(dirname(view), { recursive: true });
-    writeFileSync(source, 'source', 'utf-8');
-    writeFileSync(view, 'view', 'utf-8');
-
-    const oldDate = new Date('2026-01-01T00:00:00Z');
-    const newDate = new Date('2026-01-02T00:00:00Z');
-    utimesSync(view, oldDate, oldDate);
-    utimesSync(source, newDate, newDate);
-
-    const sourceMtime = await latestMtimeMs([source]);
-    const viewMtime = await viewMtimeForSlug(join(tmp, '.ai', '_view'), 'demo');
-    deepStrictEqual(classifyRenderState({ latestArtifactMtime: sourceMtime, viewMtime }), {
-      action: 'render',
-      reason: 'stale',
-      stale: true,
-    });
-
-    deepStrictEqual(classifyRenderState({ latestArtifactMtime: sourceMtime, viewMtime: null }), {
-      action: 'render',
-      reason: 'missing',
-      stale: true,
-    });
-
-    equal(await latestTreeMtimeMs(join(tmp, 'missing')), null);
-    deepStrictEqual(classifyRenderState({ latestArtifactMtime: oldDate.getTime(), viewMtime: newDate.getTime() }), {
-      action: 'skip',
-      reason: 'fresh',
-      stale: false,
-    });
-  } finally {
-    rmSync(tmp, { recursive: true, force: true });
-  }
-});
-
-test('pid-file: writes JSON records and checks liveness cross-platform', async () => {
-  const tmp = tempDir();
-  const pidPath = join(tmp, '.ai', '_view', '.bootstrap.pid');
-  try {
-    await writePidFile(pidPath, { pid: process.pid, label: 'test' });
-    const record = await readPidFile(pidPath);
-    equal(record.pid, process.pid);
-    equal(record.label, 'test');
-    equal(isPidAlive(process.pid), true);
-    equal(isPidAlive(-1), false);
-
-    const status = await pidFileStatus(pidPath);
-    equal(status.alive, true);
-    equal(status.stale, false);
-
-    await removePidFile(pidPath);
-    equal(await readPidFile(pidPath), null);
-  } finally {
-    rmSync(tmp, { recursive: true, force: true });
   }
 });
 

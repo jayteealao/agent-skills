@@ -98,15 +98,12 @@ Then author the rich sibling next to that `.md` (do NOT leave this for the orche
      dimension only. (`<stem>` = the review `.md` filename without `.md`.)
      - `findings:` = **OPEN findings only** (status open|deferred|could-not-fix). Resolved/
        fixed/dismissed findings live in the `.md` body, not the `.yaml` — this keeps the
-       rendered heatmap + counts honest about live state. Each `.yaml` finding carries
+       counts honest about live state. Each `.yaml` finding carries
        `surfaced-at` + `status` + `pre-existing` (additive fields; schema-validated).
      - `counts:` = OPEN counts. `rev:` = number of times this dimension file has been
        written (increment the prior `.yaml`'s `rev` by 1; first write = 1).
-  Do not write `<stem>.html.fragment`: the renderer generates it from the `.yaml`.
-Managed-artifact enforcement (the host's write hook, `<skill-dir>/reference/_host-invocation.md`) BLOCKS the `.md` write when the sibling
-`.yaml` is missing — write the `.yaml` first (or in the same turn). If this
-dimension has zero OPEN findings (clean, or everything resolved), set `fragment: none`
-in the `.md` frontmatter instead of writing an empty `.yaml`.
+Write the `.yaml` in the same turn as the `.md`. If this dimension has zero OPEN
+findings (clean, or everything resolved), write no `.yaml`.
 
 Write the files, then return a brief summary of what you found.
 ```

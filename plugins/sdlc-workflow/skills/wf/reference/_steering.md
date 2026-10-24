@@ -23,7 +23,7 @@ authorship.
    steering: proceed normally, add no steering fields, make no noise.
 2. **Precedence.** Live user instructions in this session outrank `steer.md`, which outranks
    stage-reference defaults. Steering **never overrides a mandatory gate** — the External Output
-   Boundary, sibling-fragment enforcement, AC verifiability, the plan/verify constraint-resolution
+   Boundary, AC verifiability, the plan/verify constraint-resolution
    rule. A steering entry that tries to is surfaced to the user, not obeyed.
 3. **Conflict.** When an entry conflicts with the stage contract, is impossible for this stage, or is
    ambiguous, raise it as a gate question per [_gate-question.md](_gate-question.md) — never silently ignore it, and never silently obey it

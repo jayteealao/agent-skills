@@ -3,7 +3,7 @@
 //
 // Auto-ALLOWS a strict allowlist — `node <script>.mjs` invocations of this
 // plugin's own bundled runtime entrypoints (the hooks and skills spawn these
-// constantly: hub-ensure, pre-write-validate, post-write-verify, render …) —
+// constantly: seed-memory, pre-write-validate, post-write-verify, campaign …) —
 // to cut approval-prompt fatigue. Everything else gets NO OPINION (silent
 // exit 0), which leaves the normal approval flow untouched; this hook never
 // denies. Every auto-allow is logged to ${PLUGIN_DATA}/permission-auto-allow.log
