@@ -1,0 +1,312 @@
+{
+  "$comment": "The one source of the /wf key surface. scripts/generate.mjs writes the key tables of SKILL.md, the key count of route.md, the README key table, the manifest descriptions and agents/openai.yaml from this file. Edit this file, then run npm run generate. A host value is \"full\", \"differs: <how>\" or \"gap: <reason>\".",
+  "groups": [
+    { "id": "stages", "title": "Stages" },
+    { "id": "drivers", "title": "Drivers and loops" },
+    { "id": "navigation", "title": "Navigation · routers" }
+  ],
+  "keys": [
+    {
+      "name": "intake",
+      "group": "stages",
+      "stage": true,
+      "args": ["[<slug>] [<mode>] [text]"],
+      "needs": "text",
+      "does": "Entry dispatcher. A description starts stage 1. A mode ({entryModes}) runs an entry flow. An existing slug plus a mode attaches a compressed slice; a slug plus free scope extends the workflow. A slug plus {maintenanceModes} edits, backfills or closes the workflow or one slice.",
+      "summary": "Entry dispatcher. A description starts stage 1; a mode ({entryModes}) runs an entry flow. A slug plus {maintenanceModes} edits, backfills or closes the workflow or one slice. `brainstorm` thinks an idea through with you until you say `done`; `simplify` runs three read-only reviewers; `task` is work whose deliverable is not a code change.",
+      "writes": "per mode",
+      "artifacts": ["00-index.md", "01-intake.md"],
+      "reference": "reference/intake.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" },
+      "modes": [
+        { "name": "fix", "kind": "entry", "reference": "reference/intake/fix.md", "artifacts": ["01-fix.md"] },
+        { "name": "rca", "kind": "entry", "reference": "reference/intake/rca.md", "artifacts": ["01-rca.md"] },
+        { "name": "investigate", "kind": "entry", "reference": "reference/intake/investigate.md", "artifacts": ["01-investigate.md"] },
+        { "name": "discover", "kind": "entry", "reference": "reference/intake/discover.md", "artifacts": ["01-discover.md"] },
+        { "name": "audit", "kind": "entry", "reference": "reference/intake/audit.md", "artifacts": ["01-audit.md"] },
+        { "name": "hotfix", "kind": "entry", "reference": "reference/intake/hotfix.md", "artifacts": ["01-hotfix.md"] },
+        { "name": "refactor", "kind": "entry", "reference": "reference/intake/refactor.md", "artifacts": ["01-refactor.md"] },
+        { "name": "update-deps", "kind": "entry", "reference": "reference/intake/update-deps.md", "artifacts": ["01-update-deps.md"] },
+        { "name": "ideate", "kind": "entry", "reference": "reference/intake/ideate.md", "artifacts": ["01-ideate.md"] },
+        { "name": "brainstorm", "kind": "entry", "reference": "reference/intake/brainstorm.md", "artifacts": ["01-brainstorm.md"] },
+        { "name": "adopt", "kind": "entry", "reference": "reference/intake/adopt.md", "artifacts": ["01-adopt.md"] },
+        { "name": "optimize", "kind": "entry", "reference": "reference/intake/optimize.md", "artifacts": ["01-optimize.md", "02-optimize-spec.md"] },
+        { "name": "simplify", "kind": "entry", "reference": "reference/intake/simplify.md", "artifacts": ["01-simplify.md"] },
+        { "name": "task", "kind": "entry", "reference": "reference/intake/task.md", "artifacts": ["01-task.md"] },
+        { "name": "amend", "kind": "maintenance", "reference": "reference/intake/amend.md", "artifacts": [] },
+        { "name": "modernize", "kind": "maintenance", "reference": "reference/intake/modernize.md", "artifacts": [] },
+        { "name": "close", "kind": "maintenance", "reference": "reference/intake/close.md", "artifacts": [] }
+      ]
+    },
+    {
+      "name": "shape",
+      "group": "stages",
+      "stage": true,
+      "args": ["<slug> [text]"],
+      "needs": "slug",
+      "does": "Product-owner discovery. Authors the documentation plan and `augmentations-needed`.",
+      "summary": "Product-owner discovery: acceptance criteria, documentation plan, augmentations.",
+      "writes": "`02-shape.md`",
+      "artifacts": ["02-shape.md"],
+      "reference": "reference/shape.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" }
+    },
+    {
+      "name": "design",
+      "group": "stages",
+      "stage": true,
+      "args": ["[<slug>] [move|amend|import|audit|critique] [text]", "setup|teach|extract|direction|sync [text]"],
+      "needs": "slug",
+      "does": "Human-only: the person confirms the boards before drivers run.",
+      "summary": "Human-only design stage between shape and slice: the person confirms the drawings before any driver runs. Also keeps the project's design record (`setup`, `teach`, `extract`, `direction`, `sync`).",
+      "writes": "`02c-craft.md`",
+      "artifacts": ["02c-craft.md"],
+      "reference": "reference/design.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" }
+    },
+    {
+      "name": "slice",
+      "group": "stages",
+      "stage": true,
+      "args": ["<slug> [text]"],
+      "needs": "slug",
+      "does": "Decompose the shape into shippable slices.",
+      "summary": "Decomposes the shape into shippable slices.",
+      "writes": "`03-slice.md`, `03-slice-<slug>.md`",
+      "artifacts": ["03-slice.md", "03-slice-<slice>.md"],
+      "reference": "reference/slice.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" }
+    },
+    {
+      "name": "plan",
+      "group": "stages",
+      "stage": true,
+      "args": ["<slug> [<slice> [text]]", "<slug> all"],
+      "needs": "slug",
+      "does": "Per-slice plan with a reuse scan. Applies the augmentation plan via `reference/augment/<type>.md`.",
+      "summary": "Per-slice plan with a reuse scan.",
+      "writes": "`04-plan-<slice>.md`",
+      "artifacts": ["04-plan-<slice>.md"],
+      "reference": "reference/plan.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" }
+    },
+    {
+      "name": "implement",
+      "group": "stages",
+      "stage": true,
+      "args": ["<slug> [<slice>|reviews]", "<slug> <slice> reviews"],
+      "needs": "slug",
+      "does": "Code the slice. `reviews` runs fix-blockers mode on the selected slice or on the named slice.",
+      "summary": "Codes the slice. `reviews` runs the fix-blockers mode.",
+      "writes": "`05-implement-<slice>.md`",
+      "artifacts": ["05-implement-<slice>.md"],
+      "reference": "reference/implement.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" }
+    },
+    {
+      "name": "verify",
+      "group": "stages",
+      "stage": true,
+      "args": ["<slug> [<slice>]"],
+      "needs": "slug",
+      "does": "Tests, lints, typecheck, the user-observable AC gate, one user-gated fix loop, augmentation re-checks.",
+      "summary": "Tests, lints, typecheck, the user-observable AC gate, one user-gated fix loop.",
+      "writes": "`06-verify-<slice>.md`",
+      "artifacts": ["06-verify-<slice>.md"],
+      "reference": "reference/verify.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" }
+    },
+    {
+      "name": "review",
+      "group": "stages",
+      "stage": true,
+      "args": ["<slug> [<slice>|triage|<dimension>]", "<slug> triage [<slice>]", "<dimension> [text]", "sweep <aggregate> [text]"],
+      "needs": "none",
+      "does": "With a slug: the workflow stage over the accumulating ledger. Without: ad-hoc review, one rubric or a fan-out. Resolves slug versus dimension itself.",
+      "summary": "Workflow review over an accumulating ledger; ad-hoc rubric or `sweep <aggregate>` without a slug.",
+      "writes": "review artifacts",
+      "artifacts": ["07-review-<slice>.md", "07-review.md"],
+      "reference": "reference/review.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" }
+    },
+    {
+      "name": "handoff",
+      "group": "stages",
+      "stage": true,
+      "args": ["<slug> [<slice>]", "pr#N", "<branch>"],
+      "needs": "slug",
+      "does": "Aggregate completed slices into a PR. `pr#N` or a branch runs batch mode across the branch onto the lead slug. Refuses while a required review has unresolved blockers.",
+      "summary": "Aggregates completed slices into a PR. Batch mode over `pr#N` or a branch.",
+      "writes": "`08-handoff.md`",
+      "artifacts": ["08-handoff.md"],
+      "reference": "reference/handoff.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" }
+    },
+    {
+      "name": "ship",
+      "group": "stages",
+      "stage": true,
+      "args": ["<slug>|pr#N|<branch> [<env>|announce|rollback [<run-id>]]"],
+      "needs": "slug",
+      "does": "Release via `.ai/ship-plan.md`. Batch mode is all-or-nothing per PR. `announce` re-runs comms. `rollback [<run-id>]` runs the Go/No-Go reversal.",
+      "summary": "Release via `.ai/ship-plan.md`; `announce`, `rollback`.",
+      "writes": "`09-ship-run-<run-id>.md`, `09-ship-runs.md`, `09-rollback-<run-id>.md`",
+      "artifacts": ["09-ship-run-<run-id>.md", "09-ship-runs.md", "09-rollback-<run-id>.md"],
+      "reference": "reference/ship.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" }
+    },
+    {
+      "name": "retro",
+      "group": "stages",
+      "stage": true,
+      "args": ["<slug>|pr#N|<branch> [deep]"],
+      "needs": "slug",
+      "does": "Post-mortem. Batch mode retrospects every slug on the branch and the cross-slug lessons.",
+      "summary": "Post-mortem, per slug or per branch.",
+      "writes": "`10-retro.md`",
+      "artifacts": ["10-retro.md"],
+      "reference": "reference/retro.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" }
+    },
+    {
+      "name": "probe",
+      "group": "drivers",
+      "args": ["<slug> [sweep|text]", "sweep [<path>]"],
+      "needs": "slug",
+      "does": "Runtime-truth verification of built work. Target mode compares to AC text. `sweep` enumerates the user surface against AC, charter, and `reference/_surface-defects.md`; as the first token it runs slug-less. Writes no code.",
+      "summary": "Runtime-truth verification of built work; `sweep` enumerates the user surface.",
+      "writes": "a compressed slice, or `.ai/surface-sweep-<date>.md`",
+      "artifacts": ["01-probe.md", "surface-sweep-<date>.md"],
+      "reference": "reference/probe.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" }
+    },
+    {
+      "name": "auto",
+      "group": "drivers",
+      "args": ["<slug> [<slice>]"],
+      "needs": "slug",
+      "does": "Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff.",
+      "summary": "Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff.",
+      "writes": "none",
+      "artifacts": [],
+      "reference": "reference/auto.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" }
+    },
+    {
+      "name": "yolo",
+      "group": "drivers",
+      "args": ["<slug> [<slice>]"],
+      "needs": "slug",
+      "does": "Autonomous driver. Resolves each gate by written policy. Stops before handoff.",
+      "summary": "Autonomous driver. Resolves each gate by written policy.",
+      "writes": "none",
+      "artifacts": [],
+      "reference": "reference/yolo.md",
+      "hosts": {
+        "claude": "full",
+        "codex": "gap: not available; no driver runtime runs the yolo script on this host yet",
+        "pi": "gap: not available; no driver runtime runs the yolo script on this host yet"
+      }
+    },
+    {
+      "name": "campaign",
+      "group": "drivers",
+      "args": ["<slug>"],
+      "needs": "slug",
+      "does": "Walk one work packet at a time: slice, yolo, fidelity, try-out.",
+      "summary": "Walks the ordered list of work packets that a brainstorm or an ideate pick wrote, one work packet at a time on one branch: slices and yolo-drives each work packet, reads its decision fidelity, and pauses for a try-out when the work packet can be tried. One PR per list, or stacked PRs per work packet.",
+      "writes": "`work/<packet>.md`",
+      "artifacts": ["work/<packet>.md"],
+      "reference": "reference/campaign.md",
+      "hosts": {
+        "claude": "full",
+        "codex": "gap: the walk stops before the yolo step of each work packet; no driver runtime runs yolo on this host yet",
+        "pi": "gap: the walk stops before the yolo step of each work packet; no driver runtime runs yolo on this host yet"
+      }
+    },
+    {
+      "name": "loop",
+      "group": "drivers",
+      "args": ["goal <slug> [resume|status|clear|text]", "optimize <slug>|text", "prototype text", "prototype <slug>|<branch> [text]"],
+      "needs": "sub-key",
+      "does": "`goal`: the host goal carries the slug, and `goal.mjs check` judges it. `optimize`: a metric loop that keeps or reverts. `prototype`: prove an idea by running code, one round per request of the person.",
+      "summary": "Three loops. `loop goal` hands a slug to the host goal, and `goal.mjs check` decides that the goal is met. `loop optimize` changes the code toward one metric and keeps or reverts each trial. `loop prototype` proves an idea by running code in its own worktree, one round per request of the person.",
+      "writes": "`goal.md`, `optimize/`, `prototype-ledger.json`",
+      "artifacts": ["goal.md", "optimize/", "prototype-ledger.json"],
+      "reference": "reference/goal.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" },
+      "subkeys": [
+        {
+          "name": "goal",
+          "reference": "reference/goal.md",
+          "hosts": {
+            "claude": "differs: the mod puts the /goal line into the prompt box",
+            "codex": "differs: the agent calls create_goal",
+            "pi": "differs: the person pastes the line that goal.mjs arm prints"
+          }
+        },
+        {
+          "name": "optimize",
+          "reference": "reference/optimize.md",
+          "hosts": {
+            "claude": "full",
+            "codex": "gap: not available; the optimize driver runs only on Claude Code",
+            "pi": "gap: not available; the optimize driver runs only on Claude Code"
+          }
+        },
+        { "name": "prototype", "reference": "reference/prototype.md", "hosts": { "claude": "full", "codex": "full", "pi": "full" } }
+      ]
+    },
+    {
+      "name": "status",
+      "group": "navigation",
+      "args": ["[<slug>|pr#N|<branch>] [deep]", "advise [<branch>|pr#N|fast]", "recap <slug>|pr#N|<branch> [<slice>|plan|shape|slice|review|findings]"],
+      "needs": "none",
+      "does": "Dashboard; per-slug detail with the next command; `INDEX.md` reconciliation; `deep` drift check; `advise` cross-slug sequencing. `recap` tells a workflow's or a branch's story, or explains one artifact.",
+      "summary": "Dashboard; per-slug detail with the next command; `deep` drift check; `advise` sequencing. `status recap` is the plain-language catch-up for a slug or a branch.",
+      "writes": "none; `recap` writes `90-recap.md`",
+      "artifacts": ["90-recap.md"],
+      "reference": "reference/status.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" },
+      "subkeys": [
+        { "name": "recap", "reference": "reference/recap.md", "hosts": { "claude": "full", "codex": "full", "pi": "full" } }
+      ]
+    },
+    {
+      "name": "project",
+      "group": "navigation",
+      "args": ["ship-plan init|build|edit|audit [text]", "observability init|build|audit [text]"],
+      "needs": "sub-key",
+      "does": "The project-level contracts: author, build, edit, or audit `.ai/ship-plan.md` and `.ai/observability.md`.",
+      "summary": "The project-level contracts: `project ship-plan` (`init`, `build`, `edit`, `audit` for `.ai/ship-plan.md`) and `project observability` (`init`, `build`, `audit` for `.ai/observability.md`).",
+      "writes": "`.ai/ship-plan.md`, `.ai/observability.md`, and their audit files",
+      "artifacts": ["ship-plan.md", "observability.md"],
+      "reference": "reference/ship-plan.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" },
+      "subkeys": [
+        { "name": "ship-plan", "reference": "reference/ship-plan.md", "hosts": { "claude": "full", "codex": "full", "pi": "full" } },
+        { "name": "observability", "reference": "reference/observability.md", "hosts": { "claude": "full", "codex": "full", "pi": "full" } }
+      ]
+    },
+    {
+      "name": "docs",
+      "group": "navigation",
+      "args": ["[plan|tutorial|how-to|reference|explanation|readme|review [text]]", "<slug>|--audit-only|<path>"],
+      "needs": "none",
+      "does": "Documentation router: the orchestrator pipeline, or one Diátaxis primitive.",
+      "summary": "Documentation router: the orchestrator pipeline, or one Diátaxis primitive.",
+      "writes": "per primitive",
+      "artifacts": [],
+      "reference": "reference/docs.md",
+      "hosts": { "claude": "full", "codex": "full", "pi": "full" }
+    }
+  ],
+  "manifest": {
+    "claude": "One command, `/wf` (`$wf` under Codex), the single SDLC entry point for Claude Code and Codex from one plugin tree. It drives {stageCount} stages, from intake through retro, with per-slice artifacts, runtime-truth verification and PO-confirmed stack fingerprinting. {keyCount} keys: {keyList}. Quick and standalone flows are `/wf intake` modes: {entryModes}.",
+    "codexShort": "One-command SDLC lifecycle ($wf), from the same tree as the Claude Code plugin",
+    "codex": "SDLC workflow plugin, one source for Claude Code and Codex: one `$wf` workflow skill ({keyCount} keys: {keyList}; the intake modes are {entryModes}; {hostGaps}) plus consult, imagery, uiproto, diataxis and study-sources, over the shared .ai/ artifacts. Requires a hooks-GA Codex CLI (verified on 0.146.0) with hooks enabled.",
+    "codexLong": "A single-source SDLC plugin that Claude Code and Codex read directly: one $wf workflow skill ({keyCount} keys: {keyList}) and five independent engineering skills (consult, imagery, uiproto, diataxis, study-sources), driving {stageCount} stages with per-slice artifacts and runtime-truth verification. {hostGaps}. Skill prose is host-neutral; the Codex hooks live in hooks/codex.hooks.json. Review and trust the bundled hooks before activation.",
+    "openaiShort": "Run one SDLC lifecycle key: {keyList}",
+    "openaiPrompt": "Run `$wf intake <description>` to start a new workflow, or `$wf status` to see every workflow and its next command. The intake modes are {entryModes}."
+  }
+}

@@ -123,38 +123,16 @@ test('every skill carries agents/openai.yaml with interface metadata and implici
 
 // ── plugin-owned host-filtered roster (plan W3 P1 / W8) ─────────────────────────
 
-function rosterKeys() {
-  const skill = read(pluginRoot, 'skills', 'wf', 'SKILL.md');
-  const keys = new Set();
-  for (const m of skill.matchAll(/^\| `([a-z-]+)`\s+\|/gm)) keys.add(m[1]);
-  keys.delete('Key');
-  return keys;
-}
-
-function claudeOnlyKeys() {
-  const hi = read(pluginRoot, 'skills', 'wf', 'reference', '_host-invocation.md');
-  const out = new Set();
-  for (const m of hi.matchAll(/^\| `([a-z-]+)` \| Claude Code only \|/gm)) out.add(m[1]);
-  return out;
-}
-
-test('dispatch table ↔ host-invocation ↔ reference files agree on host availability', () => {
-  const keys = rosterKeys();
-  assert.equal(keys.size, 19, `expected 19 keys, got ${[...keys].join(', ')}`);
-  const claudeOnly = claudeOnlyKeys();
-  assert.deepEqual([...claudeOnly], ['yolo']);
+test('a key that is not available on Codex and pi opens its reference with the host restriction', () => {
+  const reg = JSON.parse(read(pluginRoot, 'skills', 'wf', 'keys.json'));
+  const claudeOnly = reg.keys
+    .filter((k) => ['codex', 'pi'].every((h) => /^gap: not available/.test(k.hosts[h])))
+    .map((k) => k.name);
+  assert.deepEqual(claudeOnly, ['yolo']);
   for (const k of claudeOnly) {
-    assert.ok(keys.has(k), `${k} is Claude-only but not in the roster`);
-    assert.ok(existsSync(path.join(pluginRoot, 'skills', 'wf', 'reference', `${k}.md`)));
     const head = read(pluginRoot, 'skills', 'wf', 'reference', `${k}.md`).split('\n').slice(0, 25).join('\n');
     assert.match(head, /Claude Code only/, `${k}.md must open with its host restriction`);
   }
-  const codexKeys = [...keys].filter((k) => !claudeOnly.has(k));
-  assert.equal(codexKeys.length, 18);
-  assert.ok(!codexKeys.includes('yolo'));
-  // The dispatch table's own availability line names the same exception.
-  const skill = read(pluginRoot, 'skills', 'wf', 'SKILL.md');
-  assert.match(skill, /Every key runs under every host except `yolo`, which is Claude Code only/);
 });
 
 // ── residual references: the deleted tree is history, not a live path ─────────────

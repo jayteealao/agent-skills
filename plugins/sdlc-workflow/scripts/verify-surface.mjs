@@ -4,8 +4,8 @@
 // `docs/internal/surface-policy.json` pins six counts of the /wf surface. This
 // gate counts each from the tree and fails when a count exceeds its pin:
 //
-//   keys              rows of the four key tables in skills/wf/SKILL.md
-//   intakeModes       the mode keyword set named in skills/wf/reference/intake.md
+//   keys              the keys of skills/wf/keys.json
+//   intakeModes       the intake modes of skills/wf/keys.json
 //   reviewRubrics     skills/wf/reference/review/<rubric>.md (no underscore files)
 //   aggregates        rows of the "| Aggregate | Rubrics |" table in review/_ad-hoc.md
 //   artifactStems     distinct artifact names in the capability inventory's
@@ -25,6 +25,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PLUGIN_ROOT, extractInventory } from './extract-capabilities.mjs';
+import { loadRegistry } from './generate.mjs';
 
 export const POLICY_REL = join('docs', 'internal', 'surface-policy.json');
 export const POLICY_PATH = join(PLUGIN_ROOT, POLICY_REL);
@@ -46,17 +47,14 @@ export function tableRows(text, first) {
   return rows;
 }
 
-/** The key names in the SKILL.md key tables (first cell, backticked). */
+/** The key names of the registry. */
 export function countKeys(root = PLUGIN_ROOT) {
-  const rows = tableRows(read(root, 'skills', 'wf', 'SKILL.md'), 'Key');
-  return rows.map((r) => /^\| `([a-z][a-z-]*)`/.exec(r)?.[1]).filter(Boolean);
+  return loadRegistry(root).keys.map((k) => k.name);
 }
 
-/** The intake mode keyword set, as intake.md names it. */
+/** The intake modes of the registry. */
 export function countIntakeModes(root = PLUGIN_ROOT) {
-  const m = /The \*\*mode keyword set\*\* is: ([^\n]+?)\./.exec(read(root, 'skills', 'wf', 'reference', 'intake.md'));
-  if (!m) return [];
-  return [...m[1].matchAll(/`([a-z-]+)`/g)].map((x) => x[1]);
+  return (loadRegistry(root).keys.find((k) => k.name === 'intake')?.modes ?? []).map((m) => m.name);
 }
 
 /** Rubric files under review/ (underscore files are shared procedure, not rubrics). */

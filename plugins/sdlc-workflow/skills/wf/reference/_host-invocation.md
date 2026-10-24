@@ -36,12 +36,16 @@ No skill file names a plugin-root variable. Those live only in the hook wiring: 
 
 ## Key availability
 
-| Key | Hosts | Why |
-|---|---|---|
-| `yolo` | Claude Code only | Built on Claude Code's Workflow tool. Codex and pi have no equivalent. |
-| `campaign` | Every host; the yolo step Claude Code only | The walk launches the yolo driver for each work packet, through the Workflow tool. Under Codex or pi, `/wf campaign` stops before the yolo step of a work packet and says so. |
+<!-- generated from skills/wf/keys.json by npm run generate; edit keys.json -->
+| Key | Claude Code | Codex | pi |
+|---|---|---|---|
+| `yolo` | full | gap: not available; no driver runtime runs the yolo script on this host yet | gap: not available; no driver runtime runs the yolo script on this host yet |
+| `campaign` | full | gap: the walk stops before the yolo step of each work packet; no driver runtime runs yolo on this host yet | gap: the walk stops before the yolo step of each work packet; no driver runtime runs yolo on this host yet |
+| `loop goal` | differs: the mod puts the /goal line into the prompt box | differs: the agent calls create_goal | differs: the person pastes the line that goal.mjs arm prints |
+| `loop optimize` | full | gap: not available; the optimize driver runs only on Claude Code | gap: not available; the optimize driver runs only on Claude Code |
+<!-- end generated -->
 
-Every other key runs under every host. Under Codex or pi, treat `yolo` as an unknown key: name the restriction and point the user to `/wf auto`.
+A `gap` is a part that does not run on that host; `differs` is a part that runs in another form. Every other key runs under every host in the same form. Under Codex or pi, treat `yolo` as an unknown key: name the restriction and point the user to `/wf auto`.
 
 ## Host surfaces every stage uses
 

@@ -107,7 +107,7 @@
   "rubricFenceExceptions": {},
   "wordBudgets": {
     "skills/wf/SKILL.md": {
-      "words": 1667,
+      "words": 1783,
       "reason": "The 19-key tables (Arguments / Does / Writes cells), the sub-key table, and the Step 0, 0.5, 0.7 STOP rules with the sub-key and intake fast-path rules are the dispatcher's capability surface; 115 lines at 15 words per line. Cutting to 1,320 words would delete table cells that name invocations and artifacts. WF-KEY-SURFACE-PLAN removed eight rows and added the sub-key table, the fast path, and the loop and project rows."
     },
     "skills/wf/reference/handoff.md": {
@@ -147,5 +147,9 @@
       "reason": "The Autonomous Decision Policy table (about 650 words of gate definitions with 10 inventoried STOP sentences), the six intake classes (the optimize class, WF-OPTIMIZE-PLAN W2, added 32 words), and the 16-line hand-back template are capability; rationale, history, and restatements were cut from 6,434 words to this count. WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     }
   },
-  "load": {}
+  "load": {
+    "status": {
+      "core": 4563
+    }
+  }
 }

@@ -41,6 +41,7 @@ You can also type plain words: `/wf keep going on export` or `/wf how do I ship 
 
 ## The 19 keys
 
+<!-- generated from skills/wf/keys.json by npm run generate; edit keys.json -->
 | Key | Does |
 |---|---|
 | `intake` | Entry dispatcher. A description starts stage 1; a mode (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`) runs an entry flow. A slug plus `amend`, `modernize` or `close` edits, backfills or closes the workflow or one slice. `brainstorm` thinks an idea through with you until you say `done`; `simplify` runs three read-only reviewers; `task` is work whose deliverable is not a code change. |
@@ -56,12 +57,15 @@ You can also type plain words: `/wf keep going on export` or `/wf how do I ship 
 | `retro` | Post-mortem, per slug or per branch. |
 | `probe` | Runtime-truth verification of built work; `sweep` enumerates the user surface. |
 | `auto` | Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff. |
-| `yolo` | Autonomous driver. Resolves each gate by written policy. Claude Code only. |
-| `campaign` | Walks the ordered list of work packets that a brainstorm or an ideate pick wrote, one work packet at a time on one branch: slices and yolo-drives each work packet, reads its decision fidelity, and pauses for a try-out when the work packet can be tried. One PR per list, or stacked PRs per work packet. The yolo runs are Claude Code only. |
-| `loop` | Three loops. `loop goal` hands a slug to the host goal, and `goal.mjs check` decides that the goal is met. `loop optimize` changes the code toward one metric and keeps or reverts each trial; its driver is Claude Code only. `loop prototype` proves an idea by running code in its own worktree, one round per request of the person. |
+| `yolo` | Autonomous driver. Resolves each gate by written policy. |
+| `campaign` | Walks the ordered list of work packets that a brainstorm or an ideate pick wrote, one work packet at a time on one branch: slices and yolo-drives each work packet, reads its decision fidelity, and pauses for a try-out when the work packet can be tried. One PR per list, or stacked PRs per work packet. |
+| `loop` | Three loops. `loop goal` hands a slug to the host goal, and `goal.mjs check` decides that the goal is met. `loop optimize` changes the code toward one metric and keeps or reverts each trial. `loop prototype` proves an idea by running code in its own worktree, one round per request of the person. |
 | `status` | Dashboard; per-slug detail with the next command; `deep` drift check; `advise` sequencing. `status recap` is the plain-language catch-up for a slug or a branch. |
 | `project` | The project-level contracts: `project ship-plan` (`init`, `build`, `edit`, `audit` for `.ai/ship-plan.md`) and `project observability` (`init`, `build`, `audit` for `.ai/observability.md`). |
 | `docs` | Documentation router: the orchestrator pipeline, or one Diátaxis primitive. |
+
+`yolo`, `campaign` and `loop optimize` have gaps on Codex and pi.
+<!-- end generated -->
 
 Arguments and artifacts for each key are in [reference/commands.html](docs/site/reference/commands.html). The surface is frozen by [docs/internal/SURFACE-POLICY.md](docs/internal/SURFACE-POLICY.md); `npm run verify:surface` enforces the pins.
 

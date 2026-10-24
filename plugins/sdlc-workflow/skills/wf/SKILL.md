@@ -2,7 +2,7 @@
 name: wf
 description: The single entry point for the SDLC lifecycle. Runs one operation per key — the ten stages (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) plus design, the drivers (probe, auto, yolo, campaign), the loops (`loop`), navigation (`status`), and the routers (`project`, `docs`) — and writes its artifact to `.ai/workflows/<slug>/`. `intake` also runs the entry modes, extension, and the maintenance words; `review` is the whole review surface. Plain words and questions about `/wf` go to the router.
 disable-model-invocation: true
-argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|probe|auto|yolo|campaign|loop|status|project|docs> [args...]"
+argument-hint: "<intake|shape|design|slice|plan|implement|verify|review|handoff|ship|retro|probe|auto|yolo|campaign|loop|status|project|docs> [args...]"
 ---
 
 # Role
@@ -28,6 +28,7 @@ Run this check before any read or write. Its result is your first visible output
 8. **Disk check.** Check each `<slug>`, `<slice>` and `<branch>` whose result can change the fit, all in one Bash call: `grep -P "^<slug>\t" .ai/workflows/INDEX.md`, a `grep` of the roster rows of `.ai/workflows/<slug>/03-slice.md`, and `git branch --list <branch>`. Put a token into the call only when it matches `^[A-Za-z0-9#._/-]+$`; any other token is a miss. Never put a `text` token into a shell command. With no `INDEX.md`, every `<slug>` is a miss.
 9. State the dispatch on one line: `wf dispatch: key=<key> · args=<remaining tokens, or (none)> · reference=<the reference>`
 
+<!-- generated from skills/wf/keys.json by npm run generate; edit keys.json -->
 ### Stages
 
 | Key | Arguments | Does | Writes |
@@ -50,7 +51,7 @@ Run this check before any read or write. Its result is your first visible output
 |---|---|---|---|
 | `probe` | `<slug> [sweep\|text]` · `sweep [<path>]` | Runtime-truth verification of built work. Target mode compares to AC text. `sweep` enumerates the user surface against AC, charter, and `reference/_surface-defects.md`; as the first token it runs slug-less. Writes no code. | a compressed slice, or `.ai/surface-sweep-<date>.md` |
 | `auto` | `<slug> [<slice>]` | Lifecycle driver. Pauses only at a stage's own gate. Stops before handoff. | none |
-| `yolo` | `<slug> [<slice>]` | Autonomous driver. Resolves each gate by written policy. Stops before handoff. Claude Code only. | none |
+| `yolo` | `<slug> [<slice>]` | Autonomous driver. Resolves each gate by written policy. Stops before handoff. | none |
 | `campaign` | `<slug>` | Walk one work packet at a time: slice, yolo, fidelity, try-out. | `work/<packet>.md` |
 | `loop` | `goal <slug> [resume\|status\|clear\|text]` · `optimize <slug>\|text` · `prototype text` · `prototype <slug>\|<branch> [text]` | `goal`: the host goal carries the slug, and `goal.mjs check` judges it. `optimize`: a metric loop that keeps or reverts. `prototype`: prove an idea by running code, one round per request of the person. | `goal.md`, `optimize/`, `prototype-ledger.json` |
 
@@ -68,7 +69,15 @@ Run this check before any read or write. Its result is your first visible output
 | `status recap` | `reference/recap.md` |
 | `project ship-plan`, `project observability` | `reference/ship-plan.md`, `reference/observability.md` |
 
-Every key runs under every host except `yolo`, which is Claude Code only.
+Every key runs on Claude Code, Codex and pi in the same form, with these exceptions:
+
+- `yolo` on Codex and pi: not available; no driver runtime runs the yolo script on this host yet.
+- `campaign` on Codex and pi: the walk stops before the yolo step of each work packet; no driver runtime runs yolo on this host yet.
+- `loop goal` on Claude Code: the mod puts the /goal line into the prompt box.
+- `loop goal` on Codex: the agent calls create_goal.
+- `loop goal` on pi: the person pastes the line that goal.mjs arm prints.
+- `loop optimize` on Codex and pi: not available; the optimize driver runs only on Claude Code.
+<!-- end generated -->
 
 # Step 0.7 — Git precondition
 
