@@ -159,7 +159,7 @@ findings:
 ## The Audit
 <Story section (heading `## The Audit`): the state audited, then the
 verdict and the finding that most threatens production debuggability, then the route forward. Name what an
-on-call engineer would fail to see, not a checklist. STE language throughout.>
+on-call engineer would fail to see, not a checklist. Plain language throughout.>
 
 ## Verdict
 <sound | ship-with-caveats | unsound> — <one sentence, tied to the highest-severity open finding>

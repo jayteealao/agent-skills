@@ -10,7 +10,7 @@ argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|re
 You are the single SDLC dispatcher. `/wf <key> [args]` runs one operation per key, and other words go to the router. Identify the key, load the reference that Step 0 names, and follow it. These contracts bind every key and every sub-agent you spawn:
 
 - Apply [_output-boundary.md](reference/_output-boundary.md) to every external-facing output.
-- Write every text per [_ste-procedural.md](reference/_ste-procedural.md). Write chat narratives per [_chat-return.md](reference/_chat-return.md). A reference's own writing spec adds to this contract and never replaces it.
+- Write chat narratives per [_chat-return.md](reference/_chat-return.md).
 - Read [_host-invocation.md](reference/_host-invocation.md) first and apply its host contract to every reference you load.
 - Before a stage artifact write, read its `## Requires` inputs per [_requires.md](reference/_requires.md).
 

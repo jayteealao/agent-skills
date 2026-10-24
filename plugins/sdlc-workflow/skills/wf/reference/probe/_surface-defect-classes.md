@@ -29,9 +29,9 @@ The taxonomy table, the severity discipline, the growth rule, and the decidabili
 **Question:** can a reader act wrongly on this surface's visible text: one concept under two names, a reference with two possible referents, or an instruction readable two ways?
 **Anchor:** `medium`; `high` when the ambiguity sits on a destructive or irreversible control, or when a charter constraint names the wording.
 
-The check method is the word-discipline section (section 1) of [../_ste-procedural.md](../_ste-procedural.md); cite the W-rule on every finding. This class records what an observer catches on the live surface; the `ux-copy` section of the `docs` review rubric checks the same terminology in text at rest.
+The check: copy is ambiguous when a reader can take it two ways: one word for two things, two words for one thing, or a pronoun with two possible referents. Quote the copy on every finding. This class records what an observer catches on the live surface; the `ux-copy` section of the `docs` review rubric checks the same terminology in text at rest.
 
-> Provenance: this row was seeded by the adoption of the controlled-language contract (PO-directed), not by a real run, a deliberate exception to the growth rule. If sweeps consistently fail to produce it, strike the row.
+> Provenance: this row was seeded by a PO directive, not by a real run, a deliberate exception to the growth rule. If sweeps consistently fail to produce it, strike the row.
 
 | Platform | Manifestation |
 |---|---|

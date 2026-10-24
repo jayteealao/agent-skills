@@ -4,7 +4,6 @@
     "dispatcher": 120,
     "stage-body": 250,
     "shared-contract": 80,
-    "rule-set": 120,
     "rubric": 100,
     "sub-procedure": 300,
     "template": 150,
@@ -26,16 +25,12 @@
     },
     "MUST": {
       "pattern": "\\bMUST\\b",
-      "allowedFiles": {
-        "skills/wf/reference/_ste-procedural.md": 999
-      },
+      "allowedFiles": {},
       "files": {}
     },
     "NEVER": {
       "pattern": "\\bNEVER\\b",
-      "allowedFiles": {
-        "skills/wf/reference/_ste-procedural.md": 999
-      },
+      "allowedFiles": {},
       "files": {}
     },
     "Do NOT": {
@@ -112,7 +107,7 @@
   "rubricFenceExceptions": {},
   "wordBudgets": {
     "skills/wf/SKILL.md": {
-      "words": 1685,
+      "words": 1667,
       "reason": "The 19-key tables (Arguments / Does / Writes cells), the sub-key table, and the Step 0, 0.5, 0.7 STOP rules with the sub-key and intake fast-path rules are the dispatcher's capability surface; 115 lines at 15 words per line. Cutting to 1,320 words would delete table cells that name invocations and artifacts. WF-KEY-SURFACE-PLAN removed eight rows and added the sub-key table, the fast path, and the loop and project rows."
     },
     "skills/wf/reference/handoff.md": {
@@ -152,9 +147,5 @@
       "reason": "The Autonomous Decision Policy table (about 650 words of gate definitions with 10 inventoried STOP sentences), the six intake classes (the optimize class, WF-OPTIMIZE-PLAN W2, added 32 words), and the 16-line hand-back template are capability; rationale, history, and restatements were cut from 6,434 words to this count. WF-KEY-SURFACE-PLAN: the sub-key and intake-mode commands (`/wf project ship-plan`, `/wf intake <slug> close`, `/wf status recap`) add one word each."
     }
   },
-  "load": {
-    "status": {
-      "core": 4465
-    }
-  }
+  "load": {}
 }

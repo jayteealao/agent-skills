@@ -74,7 +74,7 @@ One hook is a Claude Code mod: `hooks/mod/register.ts`, a function-hooks module 
 ## Site map
 
 - Start: [installation](docs/site/start/installation.html) · [your first workflow](docs/site/start/your-first-workflow.html) · [everyday fixes](docs/site/start/everyday-fixes.html)
-- Concepts: [why artifacts](docs/site/concepts/why-artifacts.html) · [evidence and gates](docs/site/concepts/evidence-and-gates.html) · [the machinery](docs/site/concepts/the-machinery.html) · [controlled language](docs/site/concepts/controlled-language.html)
+- Concepts: [why artifacts](docs/site/concepts/why-artifacts.html) · [evidence and gates](docs/site/concepts/evidence-and-gates.html) · [the machinery](docs/site/concepts/the-machinery.html)
 - Guides: [choose your entry](docs/site/guides/choose-your-entry.html) · [the standard lifecycle](docs/site/guides/the-standard-lifecycle.html) · [quick lanes](docs/site/guides/quick-lanes.html) · [investigation](docs/site/guides/investigation.html) · [design](docs/site/guides/design.html) · [autonomous drivers](docs/site/guides/autonomous-drivers.html) · [releasing](docs/site/guides/releasing.html) · [staying oriented](docs/site/guides/staying-oriented.html)
 - Reference: [commands](docs/site/reference/commands.html) · [intake modes](docs/site/reference/intake-modes.html) · [review dimensions](docs/site/reference/review-dimensions.html) · [artifacts](docs/site/reference/artifacts.html) · [hooks](docs/site/reference/hooks.html) · [configuration](docs/site/reference/configuration.html) · [hosts](docs/site/reference/hosts.html) · [skills](docs/site/reference/skills.html) · [glossary](docs/site/reference/glossary.html)
 

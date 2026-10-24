@@ -57,7 +57,6 @@ export const CLASS_BUDGET_LINES = {
   dispatcher: 120,
   'stage-body': 250,
   'shared-contract': 80,
-  'rule-set': 120,
   rubric: 100,
   'sub-procedure': 300,
   template: 150,
@@ -83,7 +82,6 @@ export function classOf(rel) {
   if (rel.startsWith(`${REFERENCE}/runtime-adapters`) || base === 'runtime-adapters.md') return 'adapter';
   if (rel.startsWith(`${REFERENCE}/intake/`)) return base.startsWith('_') ? 'sub-procedure' : 'stage-body';
   if (rel.startsWith(`${REFERENCE}/`) && rel.split('/').length > 4) return 'sub-procedure';
-  if (base === '_ste-procedural.md' || base === '_story-arc.md') return 'rule-set';
   if (base.startsWith('_')) return 'shared-contract';
   if (rel.startsWith(`${REFERENCE}/`)) return 'stage-body';
   return 'shared-contract';

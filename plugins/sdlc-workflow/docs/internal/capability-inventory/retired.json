@@ -1119,5 +1119,12 @@
     "entry": "hooks.verifyResultGate",
     "reason": "One checks setting (strict, warn, off) replaces the per-gate and per-lint hook switches; the old switch is ignored with one warning.",
     "release": "10.0.0"
+  },
+  {
+    "file": "*",
+    "category": "citations",
+    "entry": "skills/wf/reference/_ste-procedural.md",
+    "reason": "The controlled-language contract is deleted; the few rules a key needs (one term per concept, one referent per pronoun, a condition before its command) are written inline where the key uses them.",
+    "release": "10.0.0"
   }
 ]

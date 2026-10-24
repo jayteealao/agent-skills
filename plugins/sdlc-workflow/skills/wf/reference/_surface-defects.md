@@ -20,7 +20,7 @@ Each class carries a detection question and a severity anchor. Record the class 
 | `boundary-overflow` | Does layout or output exceed the real target dimension? | `low`; `medium` when it makes a control unreachable or truncates meaning |
 | `env-interference` | Could ambient state, not the artifact, have produced what I just saw? | Not a product finding by default; it explains a withdrawn or downgraded finding |
 
-The `ambiguous-copy` check method is the word-discipline section (section 1) of [_ste-procedural.md](_ste-procedural.md); cite the W-rule on every such finding. Its text-at-rest counterpart is the terminology check in the `ux-copy` section of the `docs` review rubric.
+The `ambiguous-copy` check: copy is ambiguous when a reader can take it two ways: one word for two things, two words for one thing, or a pronoun with two possible referents. Quote the copy on every such finding. Its text-at-rest counterpart is the terminology check in the `ux-copy` section of the `docs` review rubric.
 
 ## Severity discipline
 

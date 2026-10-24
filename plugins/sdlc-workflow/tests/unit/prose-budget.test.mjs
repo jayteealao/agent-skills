@@ -24,8 +24,6 @@ test('classOf follows the §4.1 table', () => {
   assert.equal(c('skills/wf/reference/review/_stage.md'), 'stage-body');
   assert.equal(c('skills/wf/reference/intake/fix.md'), 'stage-body');
   assert.equal(c('skills/wf/reference/_gate-question.md'), 'shared-contract');
-  assert.equal(c('skills/wf/reference/_ste-procedural.md'), 'rule-set');
-  assert.equal(c('skills/wf/reference/_story-arc.md'), 'rule-set');
   assert.equal(c('skills/wf/reference/review/security.md'), 'rubric');
   assert.equal(c('skills/wf/reference/design/contract.md'), 'sub-procedure');
   assert.equal(c('skills/wf/reference/ship-plan/build.md'), 'sub-procedure');
@@ -48,7 +46,7 @@ function syntheticTree() {
 }
 
 const BUDGET = {
-  classes: { dispatcher: 120, 'stage-body': 250, 'shared-contract': 80, 'rule-set': 120, rubric: 100, 'sub-procedure': 300, template: 150, adapter: 120 },
+  classes: { dispatcher: 120, 'stage-body': 250, 'shared-contract': 80, rubric: 100, 'sub-procedure': 300, template: 150, adapter: 120 },
   hardCapLines: 1200,
   tokens: {
     MANDATORY: { pattern: '\\bMANDATORY\\b', allowedFiles: {} },

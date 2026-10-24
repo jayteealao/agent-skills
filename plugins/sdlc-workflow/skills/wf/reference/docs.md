@@ -13,11 +13,9 @@ Two modes of operation:
 - **Orchestrator** (`/wf docs`, `/wf docs <slug>`, `/wf docs --audit-only`, `/wf docs <path>`) — run the full pipeline. Discover existing docs, audit them against the codebase and Diátaxis principles, plan what to create/update/remove, generate using the appropriate primitive references, and spot-review the output.
 - **Primitive** (`/wf docs <primitive> <args>`) — load one Diátaxis reference and write a single document. The primitive is responsible for its own quadrant discipline; this key simply loads and follows the matching `docs/<primitive>.md`.
 
-> **Controlled language (mandatory for every document either mode writes).** Apply
-> [_ste-procedural.md](_ste-procedural.md): section 1 (word discipline) to all documentation text;
-> sections 2–3 (instruction and warning rules) to every step sequence in tutorials, how-tos, and
-> runbooks; section 3 S4 (paragraph structure) to descriptive prose in reference, explanation, and
-> readme documents.
+> **Wording (every document either mode writes).** Use one term for each concept, and give every
+> pronoun one referent. In a step sequence, write one imperative instruction per step, with its
+> condition first, and keep instructions out of notes.
 
 ## Requires
 
@@ -78,9 +76,9 @@ Write `discover.md` with the full inventory, using the `docs-discover` frontmatt
 # Step 2 — Audit (orchestrator only)
 For each documentation file found, audit it against the codebase and Diátaxis principles. Launch parallel read-only sub-agents (per [_subagents.md](_subagents.md)) — one per documentation area or one per large doc file.
 
-Prompt each audit sub-agent from [docs/_audit.md](docs/_audit.md): accuracy vs. codebase, Diátaxis quadrant check, completeness check, freshness, and the controlled-language check against [_ste-procedural.md](_ste-procedural.md) (rule IDs W1–W8, I1–I9, S1–S5). Each sub-agent returns: file path, accuracy issues (list), quadrant violations (list), gaps (list), ste violations (list, with rule IDs), last-updated, freshness-risk (low/medium/high).
+Prompt each audit sub-agent from [docs/_audit.md](docs/_audit.md): accuracy vs. codebase, Diátaxis quadrant check, completeness check, freshness, and the wording check. Each sub-agent returns: file path, accuracy issues (list), quadrant violations (list), gaps (list), wording issues (list), last-updated, freshness-risk (low/medium/high).
 
-Write `audit.md` aggregating all sub-agent findings — the `docs-audit` frontmatter and the one-section-per-file body (type, accuracy issues, quadrant violations, gaps, STE violations, freshness risk, action needed) are in [docs/_artifacts.md](docs/_artifacts.md).
+Write `audit.md` aggregating all sub-agent findings — the `docs-audit` frontmatter and the one-section-per-file body (type, accuracy issues, quadrant violations, gaps, wording issues, freshness risk, action needed) are in [docs/_artifacts.md](docs/_artifacts.md).
 
 # Step 3 — Plan (orchestrator only)
 Synthesize the audit into a prioritized action plan. Write `plan.md`.
@@ -93,7 +91,7 @@ Synthesize the audit into a prioritized action plan. Write `plan.md`.
 | **P1 — Missing** | Gaps — public APIs or user behaviors with no docs at all |
 | **P2 — Wrong quadrant** | Quadrant violations that actively mislead readers |
 | **P3 — Stale** | High freshness risk — code changed significantly since last doc update |
-| **P4 — Enhancement** | Low-priority improvements, polish, structural improvements, controlled-language (STE) cleanups — except an STE violation that can change what a reader does (W7/I4/I8-class), which rides P2 |
+| **P4 — Enhancement** | Low-priority improvements, polish, structural improvements, wording cleanups — except a wording issue that can change what a reader does (a pronoun with two referents in a step, a condition after its command, an instruction in a note), which rides P2 |
 
 For each action:
 - Action type: `create` | `update` | `rewrite` | `split` | `delete`

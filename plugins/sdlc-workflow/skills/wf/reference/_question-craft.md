@@ -9,9 +9,8 @@ topics and round structure; this file owns how each question is written. (How a
 question is *delivered* — which rung of the ladder — is
 [_gate-question.md](_gate-question.md)'s concern, not this file's.)
 
-Question and option text must follow the word-discipline rules (section 1) in
-[_ste-procedural.md](_ste-procedural.md): one term per concept across the whole
-batch, every pronoun with exactly one referent, concrete conditions and
+Question and option text uses one term per concept across the whole batch,
+gives every pronoun exactly one referent, and states concrete conditions and
 quantities instead of abstract statements.
 
 **Per-question requirements:**

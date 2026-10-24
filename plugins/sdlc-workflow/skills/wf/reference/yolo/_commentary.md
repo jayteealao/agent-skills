@@ -55,7 +55,7 @@ Scout, classifier, and bookkeeping agents give no event.
   - what it decided, with the class of each decision;
   - how many errors it recovered from (`errors`), and whether an error stopped it;
   - what comes next.
-- **C2.** Use plain words and STE. Explain a term that the person did not see before.
+- **C2.** Use plain words. Explain a term that the person did not see before.
 - **C3.** Say nothing when you re-arm the watch.
 - **C4.** The watch writes the `stage-start` and `commit` lines to `commentary.md` itself (R1). Append each other note to `.ai/workflows/<slug>/commentary.md` with the event kind:
 

@@ -55,7 +55,6 @@ export function classOf(rel, keys) {
   if (/^skills\/[^/]+\/SKILL\.md$/.test(rel)) return 'dispatcher';
   if (!rel.startsWith(REF)) return 'sub-procedure';
   const sub = rel.slice(REF.length);
-  if (sub === '_ste-procedural.md' || sub === '_story-arc.md') return 'rule-set';
   if (!sub.includes('/')) {
     if (base.startsWith('_')) return 'shared-contract';
     if (base === 'runtime-adapters.md') return 'adapter';

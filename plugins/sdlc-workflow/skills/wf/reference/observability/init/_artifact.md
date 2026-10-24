@@ -92,7 +92,7 @@ additional-contracts:
 
 ## The Observability Posture
 <Story section: where the project is today (the honest gaps), the
-path chosen and why, and the one decision that most shapes cost or debuggability. Not a checklist. STE
+path chosen and why, and the one decision that most shapes cost or debuggability. Not a checklist. Plain
 language throughout.>
 
 ## Wide-event schema

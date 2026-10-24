@@ -68,8 +68,9 @@ Use this structure unless the task genuinely needs branching:
 
 ## Writing rules
 
-Steps, warnings, and notes must follow the instruction and warning rules
-(sections 2 and 3) in [_ste-procedural.md](../_ste-procedural.md).
+Write each step as one imperative instruction, with its condition first. Put a
+warning before the step it protects, and say what goes wrong. Keep instructions
+out of notes.
 
 - start with the outcome
 - prefer direct imperative steps

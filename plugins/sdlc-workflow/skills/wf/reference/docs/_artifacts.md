@@ -31,7 +31,7 @@ files-audited: <count>
 accuracy-issues: <count>
 quadrant-violations: <count>
 gaps-found: <count>
-ste-violations: <count>
+wording-issues: <count>
 high-freshness-risk: <count>
 status: complete
 created-at: <real timestamp>
@@ -45,7 +45,7 @@ Body — one section per file:
 - Accuracy issues: <list or "none">
 - Quadrant violations: <list or "none">
 - Gaps: <list or "none">
-- STE violations: <list with rule IDs, or "none">
+- Wording issues: <list, or "none">
 - Freshness risk: <low|medium|high>
 - Action needed: <update|rewrite|split|create|delete|none>
 ```
