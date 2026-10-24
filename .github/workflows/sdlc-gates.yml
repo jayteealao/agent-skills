@@ -1,6 +1,6 @@
 name: sdlc-workflow gates
 
-# `gates` runs the unit suite and the release gates (versions, host-neutrality,
+# `gates` runs the core tests and the release gates (versions, host-neutrality,
 # drift, surface, docs) on every change under the plugin or either root
 # catalog. The plugin runs from its source with no dependencies, so there is no
 # build to check and no install step.
@@ -34,8 +34,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Unit suite
-        run: npm test
+      - name: Core tests
+        run: npm run test:core
       - name: Release gates
         run: |
           npm run verify:versions

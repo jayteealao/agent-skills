@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import { doesNotMatch, equal, match, ok } from 'node:assert/strict';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PLUGIN_ROOT = resolve(__dirname, '..', '..', '..');
+const PLUGIN_ROOT = resolve(__dirname, '..', '..');
 
 const HOOKS = {
   preWriteValidate: join(PLUGIN_ROOT, 'hooks', 'pre-write-validate.mjs'),

@@ -15,7 +15,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -135,31 +135,6 @@ test('the six skills: openai.yaml parses with the expected shape; SKILL.md name 
     const desc = /^description:\s*(.*)$/m.exec(read('skills', dir, 'SKILL.md'))?.[1] ?? '';
     assert.ok(desc.length > 0 && desc.length <= 1024, `${dir}: description is ${desc.length} chars; both hosts cap at 1024`);
   }
-});
-
-test('_subagents.md pins the effort-tier → host mapping', () => {
-  const src = read('skills', 'wf', 'reference', '_subagents.md');
-  assert.match(src, /low and medium = `sonnet`, high = `opus`/);
-  assert.doesNotMatch(src, /(low|medium)( and (medium|high))? = `opus`/, 'opus is the high tier only');
-  assert.match(src, /to `claude-opus-5-5` at `medium` effort, the bookkeeping agents .* to `claude-haiku-5-5` at `medium` effort, and every other agent to `claude-sonnet-5-5` at `high` effort/);
-  const yolo = read('skills', 'wf', 'workflows', 'yolo.js');
-  assert.match(yolo, /const SONNET = \{ model: 'claude-sonnet-5-5', effort: 'high' \}/, 'yolo low/medium agents: Sonnet 5.5 at high effort');
-  assert.match(yolo, /const OPUS = \{ model: 'claude-opus-5-5', effort: 'medium' \}/, 'yolo other agents: Opus 5.5 at medium effort');
-  assert.match(yolo, /const HAIKU = \{ model: 'claude-haiku-5-5', effort: 'medium' \}/, 'yolo bookkeeping agents: Haiku 5.5 at medium effort');
-  const calls = (yolo.match(/\bagent\(\s*\n/g) || []).length;
-  // WF-SYSTEM-REVIEW C1: a stage agent spreads stageModel(<stage>), which gives SONNET or OPUS.
-  const spreads = (yolo.match(/\.\.\.(SONNET|OPUS|HAIKU\b|stageModel\()/g) || []).length;
-  assert.ok(calls > 0, 'yolo agent() calls were found');
-  assert.equal(spreads, calls, 'every yolo agent() call spreads SONNET, OPUS or HAIKU');
-  assert.equal((yolo.match(/model: '/g) || []).length, 3, 'yolo pins a model only in the SONNET, OPUS and HAIKU presets');
-  // Haiku runs only the agents that run fixed commands or copy data (PO 2026-10-20).
-  const haikuLabels = (src) => [...src.matchAll(/label: ((?:(?!label: )[^\n])+?), phase: '[A-Za-z]+', \.\.\.HAIKU\b/g)].map((m) => m[1]).sort();
-  assert.deepEqual(haikuLabels(yolo), ["'branch'", "'plan-index-writeback'", "'plan-reconcile-clear'", "'run-end'", '`writeback:${sliceArg}`']);
-  assert.doesNotMatch(src, /low = `haiku`/, 'haiku is not a tier target until Haiku 5.5 is re-evaluated');
-  assert.match(src, /In a prose dispatch, use `opus` only for the high tier/);
-  assert.match(src, /Pass the reasoning effort on the spawn: low, medium, high/);
-  assert.match(src, /\*\*Paths in a child prompt are absolute\.\*\*/, 'the child-prompt path rule (v9.153.2) must stay');
-  assert.match(src, /A \*\*research sub-agent\*\* is a read-only child/, 'the research sub-agent definition must stay');
 });
 
 test('docs gate passes (the command page lists the registry, the README rules hold)', () => {

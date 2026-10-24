@@ -13,12 +13,12 @@ import { deepEqual, equal, match, ok, throws } from 'node:assert/strict';
 import {
   ANSI_SCHEMES, BOARDS_SCHEMA, boardKey, canvasStale, capturePath, designModesOf, directionSketches, emptyManifest, ignoreAdvice, isBoardKey, isInsidePath,
   missingBoardFiles, needsPictures, parseBoardKey, parseViewport, renderAnsi, renderSheet, sketchAdvice, splitAnchor, validateManifest,
-} from '../../../lib/design-boards.mjs';
+} from '../../lib/design-boards.mjs';
 import { createHash } from 'node:crypto';
-import { validateFrontmatter, validateBrainstormBoard } from '../../../lib/schema-validator.mjs';
+import { validateFrontmatter, validateBrainstormBoard } from '../../lib/schema-validator.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PLUGIN_ROOT = resolve(__dirname, '..', '..', '..');
+const PLUGIN_ROOT = resolve(__dirname, '..', '..');
 const SCRIPT = join(PLUGIN_ROOT, 'scripts', 'design-boards.mjs');
 
 // ── the rules ─────────────────────────────────────────────────────────────────

@@ -27,22 +27,20 @@ const collect = (dir) =>
       return statSync(abs).isDirectory() ? collect(abs) : e.endsWith('.test.mjs') ? [abs] : [];
     });
 
-test('scripts.test delegates to the discovery runner, never an enumerated list', () => {
-  const trees = [
-    { name: 'main', root: pluginRoot },
-  ];
-
-  for (const { name, root } of trees) {
-    const script = pkg(root).scripts.test;
-    assert.ok(script.includes('tests/run-all.mjs'),
-      `${name}: scripts.test no longer delegates to tests/run-all.mjs — got: ${script}`);
+test('each test script delegates to the discovery runner, never an enumerated list', () => {
+  const scripts = pkg(pluginRoot).scripts;
+  for (const name of ['test', 'test:core', 'test:integration']) {
+    const script = scripts[name];
+    assert.ok(script?.includes('tests/run-all.mjs'),
+      `scripts.${name} does not delegate to tests/run-all.mjs — got: ${script}`);
     // The regression to guard against: individual test paths back in the script.
     const enumerated = script.match(/tests\/\S*\.test\.mjs/g) ?? [];
     assert.equal(enumerated.length, 0,
-      `${name}: scripts.test enumerates ${enumerated.length} test file(s) again — discovery must stay automatic: ${enumerated.join(' ')}`);
-    assert.ok(existsSync(path.join(root, 'tests', 'run-all.mjs')),
-      `${name}: tests/run-all.mjs is missing but scripts.test points at it`);
+      `scripts.${name} enumerates ${enumerated.length} test file(s) again — discovery must stay automatic: ${enumerated.join(' ')}`);
   }
+  assert.match(scripts['test:core'], /tests\/unit\//);
+  assert.match(scripts['test:integration'], /tests\/integration\/ --test-concurrency=1/);
+  assert.ok(existsSync(path.join(pluginRoot, 'tests', 'run-all.mjs')), 'tests/run-all.mjs is missing');
 });
 
 test('every *.test.mjs under tests/ is reachable by the runner walk', () => {

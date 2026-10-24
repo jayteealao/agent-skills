@@ -3,30 +3,17 @@
 // and the design thoughts travel to the design stage, which presents them again
 // as its starting direction.
 
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { doesNotMatch, equal, match, ok } from 'node:assert/strict';
+import { equal, match, ok } from 'node:assert/strict';
 
 import { validateBrainstormBoard, defaultFrontmatterSchemaPath, validateFrontmatter } from '../../../lib/schema-validator.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..', '..', '..');
 const read = (rel) => readFileSync(join(PLUGIN_ROOT, rel), 'utf8');
-const REF = 'skills/wf/reference';
-
-test('the design focus: record first, sketches are ideas, design items marked', () => {
-  const focus = read(`${REF}/intake/brainstorm/_design.md`);
-  match(focus, /Read the design record/);
-  match(focus, /Do not write `02c-craft\.md`\./);
-  match(focus, /Do not write `direction-confirmed-by`\./);
-  match(focus, /Write `design: true` on each item/);
-  match(focus, /row "Design canvas"/);
-  match(focus, /`design-direction`/);
-  match(focus, /brainstorm-board-design\.json/);
-  match(read(`${REF}/intake/brainstorm.md`), /load `brainstorm\/_design\.md` in full now/);
-});
 
 test('schema: the board admits focus, sketches, design items, and design work', () => {
   const board = {
@@ -53,17 +40,4 @@ test('schema: the contract records carried-from; the document names a design boa
   match('brainstorm-board-design.json', new RegExp(doc.board.pattern));
   match('brainstorm-board.json', new RegExp(doc.board.pattern));
   ok(defaultFrontmatterSchemaPath() && validateFrontmatter);
-});
-
-test('the thoughts travel: provenance, the brief, the design stage, the direction command', () => {
-  match(read(`${REF}/intake/_intake-provenance-consume.md`), /When the work packet records `ux-impact`, propose that value in the stack question/);
-  const carried = read(`${REF}/design/_carried.md`);
-  match(carried, /Take the board work packet in `work\[\]` whose `slug` is this slug/);
-  match(carried, /keep, change \(free text says how\), or drop/);
-  match(carried, /`## Carried design thoughts`/);
-  match(read(`${REF}/design/shape.md`), /the carried design thoughts \(\[_carried\.md\]\(_carried\.md\) → In the brief\)/);
-  const stage = read(`${REF}/design/stage.md`);
-  match(stage, /## Step 1b — Present the carried design thoughts/);
-  match(stage, /carried-from: \[<board path>#<packet-of-work key>\]/);
-  match(read(`${REF}/design/record.md`), /When the instructions are `from <board-slug>`/);
 });

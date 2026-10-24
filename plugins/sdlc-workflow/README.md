@@ -96,7 +96,8 @@ One hook is a Claude Code mod: `hooks/mod/register.ts`, a function-hooks module 
 ## Develop
 
 ```bash
-npm test                # unit suite
+npm test                # core tests, under 30 s; CI and the release run them
+npm run test:integration  # git, CLI and process tests, one file at a time, local only
 npm run lint:drift      # forms, links, settings and generated files against the source
 npm run verify:docs     # the command page lists the registry; this file's line and name rules
 ```

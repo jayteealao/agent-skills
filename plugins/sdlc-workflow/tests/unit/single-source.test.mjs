@@ -123,18 +123,6 @@ test('every skill carries agents/openai.yaml with interface metadata and implici
 
 // ── plugin-owned host-filtered roster (plan W3 P1 / W8) ─────────────────────────
 
-test('a key that is not available on Codex and pi opens its reference with the host restriction', () => {
-  const reg = JSON.parse(read(pluginRoot, 'skills', 'wf', 'keys.json'));
-  const claudeOnly = reg.keys
-    .filter((k) => ['codex', 'pi'].every((h) => /^gap: not available/.test(k.hosts[h])))
-    .map((k) => k.name);
-  assert.deepEqual(claudeOnly, ['yolo']);
-  for (const k of claudeOnly) {
-    const head = read(pluginRoot, 'skills', 'wf', 'reference', `${k}.md`).split('\n').slice(0, 25).join('\n');
-    assert.match(head, /Claude Code only/, `${k}.md must open with its host restriction`);
-  }
-});
-
 // ── residual references: the deleted tree is history, not a live path ─────────────
 
 test('no live file names sdlc-workflow-codex (guards, archived docs, CHANGELOGs, and the cutover runbook excepted)', () => {

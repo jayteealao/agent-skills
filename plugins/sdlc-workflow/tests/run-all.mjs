@@ -37,6 +37,13 @@
  *   node tests/run-all.mjs skills               # only paths containing "skills"
  *   node tests/run-all.mjs --test-concurrency=1 # flags pass through to node --test
  *
+ * TIERS
+ *   npm run test:core          tests/unit/: pure functions, hooks and gates. Under 30 s;
+ *                              CI and the release run it, and it must pass.
+ *   npm run test:integration   tests/integration/: git repos, CLIs and long process runs,
+ *                              one file at a time. Run it locally; CI does not.
+ * A test that fails at random is deleted, not retried.
+ *
  * MACHINE STATE (WIDE-VIEW-REPAIR-PLAN §14.2.7, W11.7). The suite must never
  * touch the real ~/.sdlc: before it, tests wrote into the real state dir. This script sets SDLC_HOME to a fresh temp directory for the whole
  * run when the caller left it unset, fingerprints the REAL ~/.sdlc first, and

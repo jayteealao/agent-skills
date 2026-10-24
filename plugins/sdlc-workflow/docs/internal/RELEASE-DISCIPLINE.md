@@ -25,7 +25,7 @@ commit, tag or push.
 
 1. **preflight.** HEAD is on `master` and is not behind `origin/master`. The
    paths that the release writes have no uncommitted change. Every gate
-   passes: the suite, the generated files, `lint:drift`, `verify:versions`,
+   passes: the core tests (`test:core`), the generated files, `lint:drift`, `verify:versions`,
    `verify:neutrality`, `verify:surface` and `verify:docs`. The last run of
    `.github/workflows/sdlc-gates.yml` on `master` is green (`gh run list`).
 2. **prepare.** The `## [Unreleased]` CHANGELOG section becomes

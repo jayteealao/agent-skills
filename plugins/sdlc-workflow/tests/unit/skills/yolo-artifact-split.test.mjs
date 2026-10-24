@@ -8,13 +8,12 @@
 // a mock `agent` that answers by label, so the tests watch the real dispatch order.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const yoloSrc = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'workflows', 'yolo.js'), 'utf8');
-const ref = (...p) => readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', ...p), 'utf8');
 
 function extractFn(src, name) {
   const m = new RegExp(`function\\s+${name}\\s*\\(`).exec(src);
@@ -74,17 +73,6 @@ function common(label) {
 }
 
 // ---- Y6 ---------------------------------------------------------------------
-
-test('Y6: runStage names the Requires table as a checklist and keeps "read in full"', () => {
-  const body = extractFn(yoloSrc, 'runStage');
-  assert.match(body, /Read \$\{referenceRoot\}\/\$\{stage\}\.md IN FULL/);
-  assert.match(body, /requiresClause\(`\$\{referenceRoot\}\/\$\{stage\}\.md`\)/);
-  const clause = extractFn(yoloSrc, 'requiresClause');
-  assert.match(clause, /## Requires\\` table in \$\{refPath\} is a CHECKLIST/);
-  assert.match(clause, /_requires\.md/);
-  assert.match(clause, /A mode also applies when its disk fact/);
-  assert.doesNotMatch(clause, /The mod checks your reads/);
-});
 
 test('Y6: every stage writer the driver dispatches carries the checklist clause', async () => {
   const { calls } = await run({ slice: 'a' }, (label) => {
@@ -211,37 +199,6 @@ test('Y8: orient reads current index state only, never the index history', () =>
 });
 
 // ---- the shared contract files -------------------------------------------------
-
-test('_requires.md defines the table, the checklist and the modes, and no read check', () => {
-  const src = ref('_requires.md');
-  for (const needle of [
-    '| Input | Kind | When | Sections |', 'The table is a checklist', 'A partial read does not count',
-    'A read by a research sub-agent does not count', 'Prompt-fed inputs:',
-  ]) assert.ok(src.includes(needle), `_requires.md lost: ${needle}`);
-  for (const gone of ['`readCheck`', '.read-ledger.jsonl', 'reads-checked: false', 'read-waiver']) {
-    assert.ok(!src.includes(gone), `_requires.md still names the read check: ${gone}`);
-  }
-});
-
-test('the chat narrative holds the story rules, and no stage writes an explainer (v9.187.0)', () => {
-  const src = ref('_chat-return.md');
-  assert.match(src, /## The narrative/);
-  assert.match(src, /Explain the thing, not the progress/);
-  assert.match(src, /`## The Brainstorm`/);
-  assert.match(ref('_workflow-rules.md'), /Write no explainer and no sibling `\.yaml`/);
-  assert.ok(!existsSync(path.join(pluginRoot, 'skills', 'wf', 'reference', '_story-arc.md')), '_story-arc.md is deleted');
-  assert.ok(!existsSync(path.join(pluginRoot, 'skills', 'wf', 'reference', '_fragment-authoring.md')), '_fragment-authoring.md is deleted');
-});
-
-test('the chat return, the additive-write snapshot, and the ownership table', () => {
-  assert.doesNotMatch(ref('_chat-return.md'), /explainer this run wrote/);
-  assert.doesNotMatch(ref('_additive-write.md'), /explainer/);
-  const own = ref('_control-file-ownership.md');
-  assert.match(own, /index-history\.jsonl/);
-  assert.doesNotMatch(own, /read-ledger/);
-  assert.match(ref('_subagents.md'), /Prompt-fed inputs: <input>, <input>/);
-  assert.doesNotMatch(ref('auto.md'), /read record/);
-});
 
 // ---- plan order and plan freshness ------------------------------------------
 

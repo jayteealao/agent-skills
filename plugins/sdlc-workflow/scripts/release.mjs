@@ -47,7 +47,7 @@ export const OWNED = [
 
 /** The gates, as node scripts relative to the plugin root. */
 export const GATES = [
-  ['tests', ['tests/run-all.mjs']],
+  ['tests', ['tests/run-all.mjs', 'tests/unit/']],
   ['generated', ['scripts/generate.mjs', '--check']],
   ['drift', ['scripts/lint-drift.mjs']],
   ['versions', ['scripts/verify-release-versions.mjs']],

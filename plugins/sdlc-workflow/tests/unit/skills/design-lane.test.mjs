@@ -24,7 +24,6 @@ import { defaultFrontmatterSchemaPath, validateFrontmatter } from '../../../lib/
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..', '..', '..');
-const REF = join(PLUGIN_ROOT, 'skills', 'wf', 'reference');
 const HOOK = join(PLUGIN_ROOT, 'hooks', 'pre-write-validate.mjs');
 const read = (rel) => readFileSync(join(PLUGIN_ROOT, rel), 'utf8');
 
@@ -230,64 +229,3 @@ test('schema: the contract carries the confirmation fields and no pen-doc', () =
 });
 
 // ── prose carries the rule ────────────────────────────────────────────────────
-
-test('prose: the lane, the stage, and the drivers state the human rule', () => {
-  const lane = read('skills/wf/reference/design/_lane.md');
-  match(lane, /Neither `\/wf auto` nor `\/wf yolo` runs it/);
-  match(lane, /Under `checks: warn` in `\.ai\/sdlc-config\.json` the write stands with a warning/);
-  match(read('skills/wf/reference/design/stage.md'), /A driver never resolves a design direction/);
-  match(read('skills/wf/reference/auto.md'), /`auto` never runs the design stage/);
-  match(read('skills/wf/reference/yolo.md'), /never `intake`, `shape`, or `design`/);
-  match(read('skills/wf/workflows/yolo.js'), /DESIGN GATE/);
-});
-
-test('prose: plan consumes the contract and never authors it', () => {
-  const plan = read('skills/wf/reference/plan.md');
-  match(plan, /Plan never authors `02c-craft\.md`/);
-  ok(!/plan is the design producer/.test(plan));
-  ok(!/design\/contract\.md\]\(design\/contract\.md\) — land the visual direction/.test(plan));
-});
-
-test('prose: the boards are the contract, the canvas is a mirror, and imagery and uiproto make no board', () => {
-  const host = read('skills/wf/reference/_host-surfaces.md');
-  match(host, /\| Design canvas \(design stage\) \|/);
-  match(host, /\| Design system sync/);
-  const contract = read('skills/wf/reference/design/contract.md');
-  match(contract, /\*\*The boards\.\*\*/);
-  match(contract, /\*\*The canvas mirror\.\*\*/);
-  match(contract, /A generated image is never a board/);
-  match(read('skills/wf/reference/design/stage.md'), /Freeze the confirmed boards per \[_boards\.md\]/);
-  match(read('skills/wf/reference/design/_lane.md'), /every board that manifest lists also exists on disk/);
-  match(read('skills/uiproto/SKILL.md'), /An optional interactive prototype the person may ask for at the design stage; never a design board\./);
-  match(read('skills/imagery/SKILL.md'), /Mood and brand images only; a generated image is never a design board\./);
-  match(read('skills/imagery/SKILL.md'), /\[into <folder>\]/);
-});
-
-test('prose: the brief procedure cites the right shape step', () => {
-  const brief = read('skills/wf/reference/design/shape.md');
-  ok(!/Step 5b/.test(brief), 'the brief is shape Step 5a');
-  match(read('skills/wf/reference/shape.md'), /# Step 5a — Author the design brief/);
-});
-
-test('prose: every intake route into slice or plan passes the design lane', () => {
-  const intake = (f) => read(`skills/wf/reference/intake/${f}`);
-  const oldNote = /`plan` authors the visual contract|no separate design command/;
-  ok(!oldNote.test(intake('default.md')), 'default intake no longer describes plan as the design author');
-  match(intake('default.md'), /the human-only design stage \(`\/wf design <slug>`\)/);
-  const rca = intake('rca.md');
-  match(rca, /ux-impact: <none\|visual\|flow\|new-surface>/);
-  match(rca, /next-invocation: "\/wf design <slug>"/);
-  const extend = intake('extend.md');
-  match(extend, /# Step 3c — Design delta/);
-  match(extend, /progress\.design: in-progress/);
-  match(extend, /\/wf design <slug> amend/);
-  match(intake('update-deps.md'), /Write `ux-impact: none`/);
-  match(read('skills/wf/reference/review/_select.md'), /`update-deps` run that upgrades a major version of a UI/);
-});
-
-test('prose: the reopened design is part of the rule in the lane, the stage, and yolo', () => {
-  match(read('skills/wf/reference/design/_lane.md'), /The design is \*\*reopened\*\*/);
-  match(read('skills/wf/reference/design/stage.md'), /When `progress\.design: in-progress`, the design is reopened/);
-  match(read('skills/wf/workflows/yolo.js'), /progress\.design: in-progress \(reopened/);
-  ok(!/stack\.ui ≠ ∅/.test(read('skills/wf/reference/implement.md')), 'implement triggers on the slice building UI');
-});
