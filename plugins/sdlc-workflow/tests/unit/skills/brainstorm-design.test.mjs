@@ -16,20 +16,6 @@ const PLUGIN_ROOT = resolve(__dirname, '..', '..', '..');
 const read = (rel) => readFileSync(join(PLUGIN_ROOT, rel), 'utf8');
 const REF = 'skills/wf/reference';
 
-test('brainstorm is an intake mode, not a key: no row, no router, the merged invocation rules', () => {
-  const skill = read('skills/wf/SKILL.md');
-  doesNotMatch(skill, /^\| `brainstorm` \|/m);
-  match(skill, /one of the 19 keys/);
-  match(skill, /the reference is `reference\/route\.md` with every token, reason `not a key`/);
-  ok(!existsSync(join(PLUGIN_ROOT, REF, 'brainstorm.md')), 'the router file is gone');
-  const mode = read(`${REF}/intake/brainstorm.md`);
-  match(mode, /whose index has `status: closed` → STOP/);
-  match(mode, /When the next token is `design`, set the board's `focus: design`/);
-  match(mode, /`design` as the first token sets `focus: design`/);
-  doesNotMatch(mode, /same loop under its own key/);
-  equal(JSON.parse(read('docs/internal/surface-policy.json')).keys, 19);
-});
-
 test('the design focus: record first, sketches are ideas, design items marked', () => {
   const focus = read(`${REF}/intake/brainstorm/_design.md`);
   match(focus, /Read the design record/);

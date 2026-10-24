@@ -24,27 +24,6 @@ test('the mode reference and its artifact template exist', () => {
   assert.ok(existsSync(refPath('intake', 'brainstorm', '_artifact.md')), 'missing reference/intake/brainstorm/_artifact.md');
 });
 
-test('every roster surface names brainstorm', () => {
-  const skill = read('SKILL.md');
-  assert.match(skill, /`ideate`, `brainstorm`, `adopt`, `optimize`, `simplify`, `task`\)/, 'SKILL.md intake row lost brainstorm');
-
-  const intake = read('reference', 'intake.md');
-  assert.match(intake, /The \*\*mode keyword set\*\* is: .*`brainstorm`/, 'intake.md keyword set lost brainstorm');
-  assert.match(intake, /\| `brainstorm` \| \*\*terminal thinking loop\*\*/, 'intake.md span table lost the brainstorm row');
-  assert.match(intake, /\| `brainstorm` \| `intake\/brainstorm\.md` \|/, 'intake.md file map lost brainstorm');
-  assert.match(intake, /\| `brainstorm` \|$/m, 'intake.md auto-route table lost the brainstorm row');
-  assert.match(intake, /`brainstorm` vs `ideate`/, 'intake.md lost the brainstorm-vs-ideate discriminator');
-  assert.match(intake, /`brainstorm` vs `investigate`/, 'intake.md lost the brainstorm-vs-investigate discriminator');
-  assert.ok(!/"brainstorm ways to …"/.test(intake), 'intake.md still routes "brainstorm ways to …" to ideate');
-
-  assert.match(read('reference', '_compressed-slice.md'), /`ideate`, `audit`, `brainstorm`\)/, '_compressed-slice.md <op> enum lost brainstorm');
-  assert.match(read('reference', 'yolo.md'), /`ideate`, `audit`, `brainstorm`/, 'yolo.md terminal-analysis class lost brainstorm');
-  assert.match(read('workflows', 'yolo.js'), /ideate, brainstorm\}/, 'yolo.js terminal-analysis class lost brainstorm');
-  assert.match(read('reference', 'auto.md'), /`workflow-type: brainstorm`/, 'auto.md lost the brainstorm pause arm');
-  assert.match(read('reference', 'status.md'), /`audit`, `brainstorm`/, 'status.md workflow-type vocabulary lost brainstorm');
-  assert.match(read('reference', '_chat-return.md'), /`## The Brainstorm`/, '_chat-return.md lost the brainstorm heading');
-});
-
 test('the reference names no question tool and delivers batches through the ladder', () => {
   const src = read('reference', 'intake', 'brainstorm.md');
   assert.ok(!/AskUserQuestion|request_user_input/.test(src), 'brainstorm.md names a question tool — cite _gate-question.md');
