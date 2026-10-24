@@ -235,7 +235,10 @@ function preflight(ctx, state) {
 /** The last run of the gates workflow on master must be green; no run yet is a note, not a stop. */
 export function checkCi(ctx) {
   const r = ctx.run('gh', ['run', 'list', '--workflow', CI_WORKFLOW, '--branch', ctx.branch, '--limit', '1', '--json', 'status,conclusion,headSha,url'], { cwd: ctx.repoRoot, shell: process.platform === 'win32' });
-  if (r.status !== 0) return { ok: false, reason: `gh cannot read CI: ${(r.stderr || r.stdout).trim() || 'gh is not installed'}` };
+  const said = (r.stderr || r.stdout || '').trim();
+  // A workflow that is not on the remote yet (a new or renamed file in this release) has no run to be red.
+  if (r.status !== 0 && /HTTP 404: workflow .* not found/.test(said)) return { ok: true, reason: `${CI_WORKFLOW} is not on the remote yet` };
+  if (r.status !== 0) return { ok: false, reason: `gh cannot read CI: ${said || 'gh is not installed'}` };
   let runs;
   try { runs = JSON.parse(r.stdout || '[]'); } catch { return { ok: false, reason: 'gh returned no JSON for the CI runs' }; }
   if (!runs.length) return { ok: true, reason: `no run of ${CI_WORKFLOW} on ${ctx.branch} yet` };
